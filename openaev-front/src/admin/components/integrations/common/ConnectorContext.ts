@@ -13,7 +13,7 @@ import type {
   ExecutorOutput,
   InjectorOutput,
 } from '../../../../utils/api-types';
-import { DEFAULT_TENANT_UUID } from '../../../../utils/tenant-url-helper';
+import { buildTenantApiPath } from '../../../../utils/tenant-url-helper';
 
 export interface ConnectorOutput {
   id: string;
@@ -45,9 +45,7 @@ export interface ConnectorContextType<T> {
   normalizeSingle: (data: T) => ConnectorOutput;
 }
 
-const resolveTenantId = (tenantId?: string | null): string => tenantId ?? DEFAULT_TENANT_UUID;
-
-export const createInjectorConfig = (tenantId?: string | null): ConnectorContextType<InjectorOutput> => ({
+export const injectorConfig: ConnectorContextType<InjectorOutput> = {
   connectorType: 'injector',
   apiRequest: {
     fetchAll: () => fetchInjectors(true),
@@ -58,7 +56,7 @@ export const createInjectorConfig = (tenantId?: string | null): ConnectorContext
     list: '/admin/integrations/injectors',
     detail: (id: string) => `/admin/integrations/injectors/${id}`,
   },
-  logoUrl: (type: string) => `/api/tenants/${resolveTenantId(tenantId)}/images/injectors/${type}`,
+  logoUrl: (type: string) => buildTenantApiPath(`/api/images/injectors/${type}`),
   normalizeSingle: data => ({
     id: data?.injector_id,
     name: data?.injector_name,
@@ -70,16 +68,16 @@ export const createInjectorConfig = (tenantId?: string | null): ConnectorContext
     isExternal: data?.injector_external,
     isExisting: data?.existing_injector,
   }),
-});
+};
 
-export const createCollectorConfig = (tenantId?: string | null): ConnectorContextType<CollectorOutput & Collector> => ({
+export const collectorConfig: ConnectorContextType<CollectorOutput & Collector> = {
   connectorType: 'collector',
   apiRequest: {
     fetchAll: () => fetchCollectors(true),
     fetchSingle: (id: string) => fetchCollector(id),
     getRelatedIds: (id: string) => fetchCollectorRelatedIds(id),
   },
-  logoUrl: (type: string) => `/api/tenants/${resolveTenantId(tenantId)}/images/collectors/${type}`,
+  logoUrl: (type: string) => buildTenantApiPath(`/api/images/collectors/${type}`),
   normalizeSingle: data => ({
     id: data?.collector_id,
     name: data?.collector_name,
@@ -95,9 +93,9 @@ export const createCollectorConfig = (tenantId?: string | null): ConnectorContex
     list: '/admin/integrations/collectors',
     detail: (id: string) => `/admin/integrations/collectors/${id}`,
   },
-});
+};
 
-export const createExecutorConfig = (tenantId?: string | null): ConnectorContextType<ExecutorOutput> => ({
+export const executorConfig: ConnectorContextType<ExecutorOutput> = {
   connectorType: 'executor',
   apiRequest: {
     fetchAll: () => fetchExecutors(true),
@@ -108,7 +106,7 @@ export const createExecutorConfig = (tenantId?: string | null): ConnectorContext
     list: '/admin/integrations/executors',
     detail: (id: string) => `/admin/integrations/executors/${id}`,
   },
-  logoUrl: (type: string) => `/api/tenants/${resolveTenantId(tenantId)}/images/executors/icons/${type}`,
+  logoUrl: (type: string) => buildTenantApiPath(`/api/images/executors/icons/${type}`),
   normalizeSingle: data => ({
     id: data?.executor_id,
     name: data?.executor_name,
@@ -119,7 +117,7 @@ export const createExecutorConfig = (tenantId?: string | null): ConnectorContext
     connectorInstance: data?.connector_instance,
     isExisting: data?.existing_executor,
   }),
-});
+};
 
 export const ConnectorContext = createContext<ConnectorContextType<InjectorOutput | CollectorOutput | ExecutorOutput>>({
   connectorType: 'collector',

@@ -1,4 +1,4 @@
-import { type ReactNode, useMemo } from 'react';
+import { type ReactNode } from 'react';
 
 import type {
   CatalogConnectorOutput,
@@ -6,13 +6,10 @@ import type {
   ExecutorOutput,
   InjectorOutput,
 } from '../../../../utils/api-types';
-import useAuth from '../../../../utils/hooks/useAuth';
 import {
+  collectorConfig,
   ConnectorContext,
-  type ConnectorContextType,
-  createCollectorConfig,
-  createExecutorConfig,
-  createInjectorConfig,
+  type ConnectorContextType, executorConfig, injectorConfig,
 } from './ConnectorContext';
 
 interface Props {
@@ -21,21 +18,14 @@ interface Props {
 }
 
 const ConnectorProvider = ({ children, type }: Props) => {
-  const { currentUserTenant } = useAuth();
-  const tenantId = currentUserTenant?.tenant_id;
-  const value = useMemo(() => {
-    const config = {
-      INJECTOR: createInjectorConfig(tenantId),
-      COLLECTOR: createCollectorConfig(tenantId),
-      EXECUTOR: createExecutorConfig(tenantId),
-    };
-    return config[type] as ConnectorContextType<
-      InjectorOutput | CollectorOutput | ExecutorOutput
-    >;
-  }, [tenantId, type]);
+  const config = {
+    INJECTOR: injectorConfig,
+    COLLECTOR: collectorConfig,
+    EXECUTOR: executorConfig,
+  };
 
   return (
-    <ConnectorContext.Provider value={value}>
+    <ConnectorContext.Provider value={config[type] as ConnectorContextType<InjectorOutput | CollectorOutput | ExecutorOutput>}>
       {children}
     </ConnectorContext.Provider>
   );

@@ -18,12 +18,11 @@ import { useFormatter } from '../../../../components/i18n';
 import { ATOMIC_BASE_URL, CHALLENGE_BASE_URL, CHANNEL_BASE_URL, PAYLOAD_BASE_URL, SCENARIO_BASE_URL, SECURITY_PLATFORM_BASE_URL, SIMULATION_BASE_URL } from '../../../../constants/BaseUrls';
 import { useHelper } from '../../../../store';
 import { useAppDispatch } from '../../../../utils/hooks';
-import useAuth from '../../../../utils/hooks/useAuth.ts';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { exerciseOptions, scenarioOptions, tagOptions } from '../../../../utils/Option';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import { DEFAULT_TENANT_UUID } from '../../../../utils/tenant-url-helper.ts';
+import { buildTenantApiPath } from '../../../../utils/tenant-url-helper.ts';
 import DocumentForm from './DocumentForm';
 
 const entityPaths = {
@@ -48,7 +47,6 @@ const DocumentPopover = (props) => {
   const theme = useTheme();
   const dispatch = useAppDispatch();
   const ability = useContext(AbilityContext);
-  const { currentUserTenant } = useAuth();
 
   const { document, disabled, onRemoveDocument, attached, onToggleAttach, inline, onUpdate, onDelete } = props;
 
@@ -95,7 +93,7 @@ const DocumentPopover = (props) => {
   const handleOpenDelete = () => {
     setOpenDelete(true);
     setLoadingRelations(true);
-    fetch(`/api/tenants/${currentUserTenant?.tenant_id ?? DEFAULT_TENANT_UUID}/documents/${document.document_id}/relations`)
+    fetch(buildTenantApiPath(`/api/documents/${document.document_id}/relations`))
       .then(res => res.json())
       .then((data) => {
         setRelations(data);

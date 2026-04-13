@@ -23,11 +23,10 @@ import { useHelper } from '../../../../store';
 import { type Endpoint, type EndpointOutput, type FilterGroup } from '../../../../utils/api-types';
 import { getActiveMsgTooltip, getExecutorsCount } from '../../../../utils/endpoints/utils';
 import { useAppDispatch } from '../../../../utils/hooks';
-import useAuth from '../../../../utils/hooks/useAuth';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import { DEFAULT_TENANT_UUID } from '../../../../utils/tenant-url-helper';
+import { buildTenantApiPath } from '../../../../utils/tenant-url-helper';
 import AssetStatus from '../AssetStatus';
 
 interface Props {
@@ -55,8 +54,6 @@ const EndpointsDialogAdding: FunctionComponent<Props> = ({
   const theme = useTheme();
   const dispatch = useAppDispatch();
   const ability = useContext(AbilityContext);
-  const { currentUserTenant } = useAuth();
-
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [endpointValues, setEndpointValues] = useState<(Endpoint | EndpointOutput)[]>([]);
   const { executorsMap } = useHelper((helper: ExecutorHelper) => ({ executorsMap: helper.getExecutorsMap() }));
@@ -162,7 +159,7 @@ const EndpointsDialogAdding: FunctionComponent<Props> = ({
                           }}
                           >
                             <img
-                              src={`/api/tenants/${currentUserTenant?.tenant_id ?? DEFAULT_TENANT_UUID}/images/executors/icons/${executorType}`}
+                              src={buildTenantApiPath(`/api/images/executors/icons/${executorType}`)}
                               alt={executorType}
                               style={{
                                 width: 20,

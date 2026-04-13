@@ -45,7 +45,7 @@ import OldTextField from '../../../../../components/fields/OldTextField';
 import inject18n from '../../../../../components/i18n';
 import ItemBoolean from '../../../../../components/ItemBoolean';
 import ItemTags from '../../../../../components/ItemTags';
-import { DEFAULT_TENANT_UUID } from '../../../../../utils/tenant-url-helper.ts';
+import { buildTenantApiPath } from '../../../../../utils/tenant-url-helper.ts';
 import { secondsFromToNow } from '../../../../../utils/Time';
 import InjectExpectations from '../../../common/injects/expectations/InjectExpectations';
 import InjectAddTeams from '../../../common/injects/form/teams/InjectAddTeams';
@@ -801,7 +801,6 @@ class QuickInjectComponent extends Component {
       teamsMap,
       documentsMap,
       isDisabled,
-      currentUserTenant,
     } = this.props;
     const {
       allTeams,
@@ -1313,7 +1312,7 @@ class QuickInjectComponent extends Component {
                         classes={{ root: classes.item }}
                         divider={true}
                         component="a"
-                        href={`/api/tenants/${currentUserTenant?.tenant_id ?? DEFAULT_TENANT_UUID}/documents/${document.document_id}/file`}
+                        href={buildTenantApiPath(`/api/documents/${document.document_id}/file`)}
                       >
                         <ListItemIcon>
                           <AttachmentOutlined />

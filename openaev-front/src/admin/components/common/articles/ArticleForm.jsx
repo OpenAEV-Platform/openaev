@@ -14,12 +14,11 @@ import OldTextField from '../../../../components/fields/OldTextField';
 import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import { useHelper } from '../../../../store';
-import useAuth from '../../../../utils/hooks/useAuth.ts';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
 import RestrictionAccess from '../../../../utils/permissions/RestrictionAccess';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import { DEFAULT_TENANT_UUID } from '../../../../utils/tenant-url-helper.ts';
+import { buildTenantApiPath } from '../../../../utils/tenant-url-helper.ts';
 import ChannelIcon from '../../components/channels/ChannelIcon';
 import DocumentPopover from '../../components/documents/DocumentPopover';
 import DocumentType from '../../components/documents/DocumentType';
@@ -113,7 +112,6 @@ const ArticleForm = ({
 }) => {
   const { t } = useFormatter();
   const { classes } = useStyles();
-  const { currentUserTenant } = useAuth();
   const dispatch = useDispatch();
   const ability = useContext(AbilityContext);
 
@@ -343,7 +341,7 @@ const ArticleForm = ({
                     <ListItemButton
                       key={document.document_id}
                       component="a"
-                      href={`/api/tenants/${currentUserTenant?.tenant_id ?? DEFAULT_TENANT_UUID}/documents/${document.document_id}/file`}
+                      href={buildTenantApiPath(`/api/documents/${document.document_id}/file`)}
                     >
                       <ListItemIcon>
                         <AttachmentOutlined />

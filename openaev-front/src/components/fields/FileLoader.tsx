@@ -10,12 +10,11 @@ import DocumentType from '../../admin/components/components/documents/DocumentTy
 import { useHelper } from '../../store';
 import { type RawDocument } from '../../utils/api-types';
 import { useAppDispatch } from '../../utils/hooks';
-import useAuth from '../../utils/hooks/useAuth';
 import useDataLoader from '../../utils/hooks/useDataLoader';
 import { AbilityContext } from '../../utils/permissions/permissionsContext';
 import RestrictionAccess from '../../utils/permissions/RestrictionAccess';
 import { ACTIONS, SUBJECTS } from '../../utils/permissions/types';
-import { DEFAULT_TENANT_UUID } from '../../utils/tenant-url-helper';
+import { buildTenantApiPath } from '../../utils/tenant-url-helper';
 import ButtonPopover, { type PopoverEntry } from '../common/ButtonPopover';
 import { useFormatter } from '../i18n';
 import ItemTags from '../ItemTags';
@@ -111,7 +110,6 @@ const FileLoader: FunctionComponent<Props> = ({
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
   const ability = useContext(AbilityContext);
-  const { currentUserTenant } = useAuth();
 
   const [open, setOpen] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<RawDocument | undefined>(undefined);
@@ -165,7 +163,7 @@ const FileLoader: FunctionComponent<Props> = ({
   const handleDownload = (documentId: string | undefined) => {
     setFirstInteraction(true);
     if (documentId) {
-      window.location.href = `/api/tenants/${currentUserTenant?.tenant_id ?? DEFAULT_TENANT_UUID}/documents/${documentId}/file`;
+      window.location.href = buildTenantApiPath(`/api/documents/${documentId}/file`);
     }
   };
 

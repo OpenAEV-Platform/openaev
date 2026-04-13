@@ -13,8 +13,7 @@ import { useQueryableWithLocalStorage } from '../../../../components/common/quer
 import ItemTags from '../../../../components/ItemTags';
 import { useHelper } from '../../../../store';
 import type { Challenge, Document } from '../../../../utils/api-types';
-import useAuth from '../../../../utils/hooks/useAuth';
-import { DEFAULT_TENANT_UUID } from '../../../../utils/tenant-url-helper';
+import { buildTenantApiPath } from '../../../../utils/tenant-url-helper';
 import DocumentType from '../../components/documents/DocumentType';
 
 const useStyles = makeStyles()(theme => ({
@@ -70,7 +69,6 @@ interface Props { currentChallenge: Challenge | null }
 const ChallengesPreviewDocumentsList: FunctionComponent<Props> = ({ currentChallenge }) => {
   const { classes } = useStyles();
   const bodyItemsStyles = useBodyItemsStyles();
-  const { currentUserTenant } = useAuth();
 
   const headers = [
     {
@@ -144,7 +142,7 @@ const ChallengesPreviewDocumentsList: FunctionComponent<Props> = ({ currentChall
               classes={{ root: classes.item }}
               component={Link}
               divider
-              to={`/api/tenants/${currentUserTenant?.tenant_id ?? DEFAULT_TENANT_UUID}/documents/${document.document_id}/file`}
+              to={buildTenantApiPath(`/api/documents/${document.document_id}/file`)}
             >
               <ListItemIcon>
                 <AttachmentOutlined />

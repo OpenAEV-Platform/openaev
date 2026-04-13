@@ -18,11 +18,10 @@ import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import TagField from '../../../../components/TagField';
 import { useHelper } from '../../../../store';
-import useAuth from '../../../../utils/hooks/useAuth.ts';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import { DEFAULT_TENANT_UUID } from '../../../../utils/tenant-url-helper.ts';
+import { buildTenantApiPath } from '../../../../utils/tenant-url-helper.ts';
 import DocumentPopover from '../documents/DocumentPopover';
 import DocumentType from '../documents/DocumentType';
 
@@ -105,7 +104,6 @@ const ChallengeForm = (props) => {
   const { t } = useFormatter();
   const dispatch = useDispatch();
   const ability = useContext(AbilityContext);
-  const { currentUserTenant } = useAuth();
 
   const { onSubmit, handleClose, initialValues, editing, documentsIds } = props;
   const [documentsSortBy, setDocumentsSortBy] = useState('document_name');
@@ -285,7 +283,7 @@ const ChallengeForm = (props) => {
                     classes={{ root: classes.item }}
                     divider
                     component="a"
-                    href={`/api/tenants/${currentUserTenant?.tenant_id ?? DEFAULT_TENANT_UUID}/documents/${document.document_id}/file`}
+                    href={buildTenantApiPath(`/api/documents/${document.document_id}/file`)}
                   >
                     <ListItemIcon>
                       <AttachmentOutlined />

@@ -5,8 +5,7 @@ import { SelectGroup } from 'mdi-material-ui';
 
 import PlatformIcon from '../../../../components/PlatformIcon';
 import type { InjectTarget } from '../../../../utils/api-types';
-import useAuth from '../../../../utils/hooks/useAuth';
-import { DEFAULT_TENANT_UUID } from '../../../../utils/tenant-url-helper';
+import { buildTenantApiPath } from '../../../../utils/tenant-url-helper';
 import NewAtomicTestingResult from './NewAtomicTestingResult';
 
 interface Props {
@@ -17,7 +16,6 @@ interface Props {
 
 const NewTargetListItem: React.FC<Props> = ({ onClick, target, selected }) => {
   const theme = useTheme();
-  const { currentUserTenant } = useAuth();
   const handleItemClick = () => {
     onClick(target);
   };
@@ -30,7 +28,7 @@ const NewTargetListItem: React.FC<Props> = ({ onClick, target, selected }) => {
       PLAYERS: <PersonOutlined fontSize="small" />,
       AGENT: (
         <img
-          src={`/api/tenants/${currentUserTenant?.tenant_id ?? DEFAULT_TENANT_UUID}/images/executors/icons/${target.target_subtype}`}
+          src={buildTenantApiPath(`/api/images/executors/icons/${target.target_subtype}`)}
           alt={target.target_subtype}
           style={{
             width: 20,

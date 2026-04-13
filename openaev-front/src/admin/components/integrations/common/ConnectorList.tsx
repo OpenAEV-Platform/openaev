@@ -20,10 +20,9 @@ import type {
   InjectorOutput,
 } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
-import useAuth from '../../../../utils/hooks/useAuth';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useSearchAndFilter from '../../../../utils/SortingFiltering';
-import { DEFAULT_TENANT_UUID } from '../../../../utils/tenant-url-helper';
+import { buildTenantApiPath } from '../../../../utils/tenant-url-helper';
 import ConnectorCard from '../common/ConnectorCard';
 import CreateConnectorInstanceDrawer from '../connector_instance/CreateConnectorInstanceDrawer';
 import { ConnectorContext, type ConnectorOutput } from './ConnectorContext';
@@ -35,7 +34,6 @@ const ConnectorList = () => {
   const dispatch = useAppDispatch();
   const { isXtmComposerUp } = useOutletContext<ConnectorContextLayoutType>();
   const { t } = useFormatter();
-  const { currentUserTenant } = useAuth();
   const { connectorType, apiRequest, routes, normalizeSingle, logoUrl } = useContext(ConnectorContext);
 
   // Filter and sort hook
@@ -113,7 +111,7 @@ const ConnectorList = () => {
                 connectorName: connector.name,
                 connectorType: connectorType.toUpperCase() as CatalogConnector['catalog_connector_type'],
                 connectorLogoName: connector.type,
-                connectorLogoUrl: connector?.isExisting ? logoUrl(connector.type) : (connector.catalog?.catalog_connector_logo_url && `/api/tenants/${currentUserTenant?.tenant_id ?? DEFAULT_TENANT_UUID}/images/catalog/connectors/logos/${connector.catalog?.catalog_connector_logo_url}`),
+                connectorLogoUrl: connector?.isExisting ? logoUrl(connector.type) : (connector.catalog?.catalog_connector_logo_url && buildTenantApiPath(`/api/images/catalog/connectors/logos/${connector.catalog?.catalog_connector_logo_url}`)),
                 connectorDescription: connector.catalog?.catalog_connector_short_description,
                 lastUpdatedAt: connector.updatedAt,
                 isVerified: connector.isVerified,

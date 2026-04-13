@@ -16,10 +16,9 @@ import ChannelColor from '../../../../public/components/channels/ChannelColor';
 import { useHelper } from '../../../../store';
 import { type Article } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
-import useAuth from '../../../../utils/hooks/useAuth';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useSearchAndFilter from '../../../../utils/SortingFiltering';
-import { DEFAULT_TENANT_UUID } from '../../../../utils/tenant-url-helper';
+import { buildTenantApiPath } from '../../../../utils/tenant-url-helper';
 import ChannelIcon from '../../components/channels/ChannelIcon';
 import { type ChannelOption } from '../../components/channels/ChannelOption';
 import ChannelsFilter from '../../components/channels/ChannelsFilter';
@@ -57,7 +56,6 @@ const Articles: FunctionComponent<Props> = ({ articles }) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
   const { t } = useFormatter();
-  const { currentUserTenant } = useAuth();
 
   // Fetching data
   const { channelsMap, documentsMap } = useHelper((helper: ChannelsHelper & DocumentHelper) => ({
@@ -226,14 +224,14 @@ const Articles: FunctionComponent<Props> = ({ articles }) => {
                         <CardMedia
                           component="img"
                           height="150"
-                          src={`/api/tenants/${currentUserTenant?.tenant_id ?? DEFAULT_TENANT_UUID}/documents/${doc.document_id}/file`}
+                          src={buildTenantApiPath(`/api/documents/${doc.document_id}/file`)}
                         />
                       )}
                       {doc.document_type.includes('video/') && (
                         <CardMedia
                           component="video"
                           height="150"
-                          src={`/api/tenants/${currentUserTenant?.tenant_id ?? DEFAULT_TENANT_UUID}/documents/${doc.document_id}/file`}
+                          src={buildTenantApiPath(`/api/documents/${doc.document_id}/file`)}
                           controls
                         />
                       )}

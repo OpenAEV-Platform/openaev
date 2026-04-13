@@ -3,8 +3,7 @@ import { useTheme } from '@mui/material/styles';
 import { Fragment } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import useAuth from '../../../../utils/hooks/useAuth.ts';
-import { DEFAULT_TENANT_UUID } from '../../../../utils/tenant-url-helper.ts';
+import { buildTenantApiPath } from '../../../../utils/tenant-url-helper.ts';
 
 const useStyles = makeStyles()(() => ({
   root: {
@@ -21,7 +20,6 @@ const ChannelOverviewNewspaper = ({ channel }) => {
   const { classes } = useStyles();
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
-  const { currentUserTenant } = useAuth();
   const logo = isDark ? channel.logoDark : channel.logoLight;
   return (
     <div className={classes.root}>
@@ -34,7 +32,7 @@ const ChannelOverviewNewspaper = ({ channel }) => {
           }}
         >
           <img
-            src={`/api/tenants/${currentUserTenant?.tenant_id ?? DEFAULT_TENANT_UUID}/documents/${logo.document_id}/file`}
+            src={buildTenantApiPath(`/api/documents/${logo.document_id}/file`)}
             className={classes.logo}
           />
         </div>

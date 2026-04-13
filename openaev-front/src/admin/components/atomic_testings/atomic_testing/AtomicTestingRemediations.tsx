@@ -21,12 +21,11 @@ import {
   type InjectResultOverviewOutput,
 } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
-import useAuth from '../../../../utils/hooks/useAuth';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import RestrictionAccess from '../../../../utils/permissions/RestrictionAccess';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import { DEFAULT_TENANT_UUID } from '../../../../utils/tenant-url-helper';
+import { buildTenantApiPath } from '../../../../utils/tenant-url-helper';
 import { isNotEmptyField } from '../../../../utils/utils';
 import DetectionRemediationInfo from '../../payloads/form/DetectionRemediationInfo';
 import DetectionRemediationUseAriane from '../../payloads/form/DetectionRemediationUseAriane';
@@ -61,7 +60,6 @@ const AtomicTestingRemediations = () => {
   const [detectionRemediations, setDetectionRemediations] = useState<DetectionRemediationOutput[]>([]);
   const [hasFetchedRemediations, setHasFetchedRemediations] = useState(false);
   const ability = useContext(AbilityContext);
-  const { currentUserTenant } = useAuth();
 
   const isRemediationTab = location.pathname.includes('/remediations');
 
@@ -221,7 +219,7 @@ const AtomicTestingRemediations = () => {
                         label={(
                           <Box display="flex" alignItems="center">
                             <img
-                              src={`/api/tenants/${currentUserTenant?.tenant_id ?? DEFAULT_TENANT_UUID}/images/collectors/${tab.collector_type}`}
+                              src={buildTenantApiPath(`/api/images/collectors/${tab.collector_type}`)}
                               alt={tab.collector_type}
                               style={{
                                 width: 20,
