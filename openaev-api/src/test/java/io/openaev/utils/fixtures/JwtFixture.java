@@ -21,6 +21,15 @@ public class JwtFixture {
     return generatePlatformJwtBundleWithSigAlgo(subject, Jwts.SIG.EdDSA, expired);
   }
 
+  /**
+   * Generates a JWT bundle with a URL-based issuer, suitable for testing the JWKS-based validation
+   * flow where the issuer is a trusted platform URL (e.g. {@code https://xtmone.filigran.io}).
+   */
+  public static Bundle generateXtmJwksJwtBundle(String issuerUrl, String email, boolean expired)
+      throws Exception {
+    return generateBundle(issuerUrl, email, Jwts.SIG.EdDSA, expired);
+  }
+
   public static Bundle generatePlatformJwtBundleWithSigAlgo(
       String subject, SignatureAlgorithm signatureAlgorithm, boolean expired) throws Exception {
     return generateBundle("filigran-copilot", subject, signatureAlgorithm, expired);

@@ -2,19 +2,20 @@ package io.openaev.xtmone;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.Jwts;
+import io.openaev.config.OpenAEVConfig;
+import io.openaev.service.xtm_auth.XtmAuthKeyService;
 import java.io.InputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -26,37 +27,31 @@ public class XtmOneClient {
 
   private final XtmOneConfig config;
   private final ObjectMapper objectMapper;
+  private final XtmAuthKeyService keyService;
+  private final OpenAEVConfig openAEVConfig;
   private final HttpClient httpClient =
       HttpClient.newBuilder()
           .version(HttpClient.Version.HTTP_1_1)
           .connectTimeout(Duration.ofSeconds(15))
           .build();
 
-  private volatile KeyPair ed25519KeyPair;
-
-  private synchronized KeyPair getOrCreateKeyPair() {
-    if (ed25519KeyPair == null) {
-      try {
-        var gen = KeyPairGenerator.getInstance("Ed25519");
-        ed25519KeyPair = gen.generateKeyPair();
-      } catch (Exception e) {
-        throw new IllegalStateException("Failed to generate Ed25519 key pair", e);
-      }
-    }
-    return ed25519KeyPair;
-  }
-
   public String issueAuthenticationJwt(String userId, String userName, String userEmail) {
-    var kp = getOrCreateKeyPair();
-    var now = Instant.now();
+    Instant now = Instant.now();
     return Jwts.builder()
+        .header()
+        .keyId(keyService.getKid())
+        .and()
+        .issuer(openAEVConfig.getBaseUrl())
         .subject(userId)
         .claim("name", userName)
         .claim("email", userEmail)
-        .issuer("openaev")
+        .audience()
+        .add(config.getUrl())
+        .and()
         .issuedAt(Date.from(now))
-        .expiration(Date.from(now.plus(Duration.ofHours(1))))
-        .signWith(kp.getPrivate())
+        .expiration(Date.from(now.plus(Duration.ofMinutes(10))))
+        .id(UUID.randomUUID().toString())
+        .signWith(keyService.getKeyPair().getPrivate(), Jwts.SIG.EdDSA)
         .compact();
   }
 

@@ -1,10 +1,10 @@
 package io.openaev.security;
 
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.jsonwebtoken.Jwts;
 import io.openaev.IntegrationTest;
 import io.openaev.utils.fixtures.JwtFixture;
 import io.openaev.utils.fixtures.TokenFixture;
@@ -22,14 +22,18 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.client.RestTemplate;
 
 @Transactional
 public class TokenAuthenticationFilterTest extends IntegrationTest {
+  private static final String TRUSTED_ISSUER_URL = "https://xtmone.test.filigran.io";
+
   @Autowired private MockMvc mvc;
   @Autowired private UserComposer userComposer;
   @Autowired private TokenComposer tokenComposer;
 
   @MockitoBean private XtmOneConfig xtmOneConfig;
+  @MockitoBean private RestTemplate restTemplate;
 
   @Nested
   @DisplayName("Passing an API token via header")
@@ -105,8 +109,8 @@ public class TokenAuthenticationFilterTest extends IntegrationTest {
       }
 
       @Nested
-      @DisplayName("With platform JWT")
-      public class WithPlatformJwt {
+      @DisplayName("With XTM JWKS JWT")
+      public class WithXtmJwksJwt {
         @Nested
         @DisplayName("When XTM One is not configured")
         @WithMockXtmOneConfig // unconfigured
@@ -130,6 +134,7 @@ public class TokenAuthenticationFilterTest extends IntegrationTest {
           @BeforeEach
           public void before() {
             when(xtmOneConfig.isConfigured()).thenReturn(true);
+            when(xtmOneConfig.getUrl()).thenReturn(TRUSTED_ISSUER_URL);
           }
 
           @Test
@@ -139,9 +144,11 @@ public class TokenAuthenticationFilterTest extends IntegrationTest {
             UserComposer.Composer userWrapper =
                 userComposer.forUser(UserFixture.getUserWithDefaultEmail()).persist();
             JwtFixture.Bundle bundle =
-                JwtFixture.generatePlatformJwtBundle(userWrapper.get().getEmail(), false);
-            when(xtmOneConfig.getToken())
-                .thenReturn(JwtFixture.b64(bundle.keyPair().getPublic().getEncoded()));
+                JwtFixture.generateXtmJwksJwtBundle(
+                    TRUSTED_ISSUER_URL, userWrapper.get().getEmail(), false);
+            when(restTemplate.getForObject(
+                    eq(TRUSTED_ISSUER_URL + "/xtm/auth/jwks"), eq(String.class)))
+                .thenReturn(bundle.jwks());
 
             mvc.perform(
                     get("/api/me/tokens")
@@ -151,35 +158,13 @@ public class TokenAuthenticationFilterTest extends IntegrationTest {
           }
 
           @Test
-          @DisplayName(
-              "Given existing user and valid issuer and bad algorithm, fail authentication")
-          public void given_existingUserAndValidIssuerAndBadAlgorithm_then_failAuthentication()
-              throws Exception {
-            UserComposer.Composer userWrapper =
-                userComposer.forUser(UserFixture.getUserWithDefaultEmail()).persist();
-            JwtFixture.Bundle bundle =
-                JwtFixture.generatePlatformJwtBundleWithSigAlgo(
-                    userWrapper.get().getEmail(), Jwts.SIG.ES256, false);
-            when(xtmOneConfig.getToken())
-                .thenReturn(JwtFixture.b64(bundle.keyPair().getPublic().getEncoded()));
-
-            mvc.perform(
-                    get("/api/me/tokens")
-                        .accept(MediaType.APPLICATION_JSON)
-                        .header("Authorization", headerValueMask.formatted(bundle.jwtToken())))
-                .andExpect(status().isUnauthorized());
-          }
-
-          @Test
           @DisplayName("Given existing user and invalid issuer, fail authentication")
           public void given_existingUserAndInvalidIssuer_then_failAuthentication()
               throws Exception {
-            UserComposer.Composer userWrapper =
-                userComposer.forUser(UserFixture.getUserWithDefaultEmail()).persist();
+            userComposer.forUser(UserFixture.getUserWithDefaultEmail()).persist();
             JwtFixture.Bundle bundle =
-                JwtFixture.generateForeignJwtBundle(userWrapper.get().getEmail(), false);
-            when(xtmOneConfig.getToken())
-                .thenReturn(JwtFixture.b64(bundle.keyPair().getPublic().getEncoded()));
+                JwtFixture.generateXtmJwksJwtBundle(
+                    "https://evil.attacker.com", UserFixture.EMAIL, false);
 
             mvc.perform(
                     get("/api/me/tokens")
@@ -194,9 +179,11 @@ public class TokenAuthenticationFilterTest extends IntegrationTest {
             UserComposer.Composer userWrapper =
                 userComposer.forUser(UserFixture.getUserWithDefaultEmail()).persist();
             JwtFixture.Bundle bundle =
-                JwtFixture.generatePlatformJwtBundle(userWrapper.get().getEmail(), true);
-            when(xtmOneConfig.getToken())
-                .thenReturn(JwtFixture.b64(bundle.keyPair().getPublic().getEncoded()));
+                JwtFixture.generateXtmJwksJwtBundle(
+                    TRUSTED_ISSUER_URL, userWrapper.get().getEmail(), true);
+            when(restTemplate.getForObject(
+                    eq(TRUSTED_ISSUER_URL + "/xtm/auth/jwks"), eq(String.class)))
+                .thenReturn(bundle.jwks());
 
             mvc.perform(
                     get("/api/me/tokens")
@@ -208,9 +195,11 @@ public class TokenAuthenticationFilterTest extends IntegrationTest {
           @Test
           @DisplayName("Given missing user and valid jwt, fail authentication")
           public void given_missingUserAndValidJwt_then_failAuthentication() throws Exception {
-            JwtFixture.Bundle bundle = JwtFixture.generatePlatformJwtBundle("anon@ymo.us", true);
-            when(xtmOneConfig.getToken())
-                .thenReturn(JwtFixture.b64(bundle.keyPair().getPublic().getEncoded()));
+            JwtFixture.Bundle bundle =
+                JwtFixture.generateXtmJwksJwtBundle(TRUSTED_ISSUER_URL, "anon@ymo.us", false);
+            when(restTemplate.getForObject(
+                    eq(TRUSTED_ISSUER_URL + "/xtm/auth/jwks"), eq(String.class)))
+                .thenReturn(bundle.jwks());
 
             mvc.perform(
                     get("/api/me/tokens")
