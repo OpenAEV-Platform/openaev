@@ -284,7 +284,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
               null,
               List.of(tag.getId()),
               Collections.emptyList(),
-              PayloadInputFixture.buildDetectionRemediations(),
+              null,
               null,
               List.of(domain.getId()));
 
