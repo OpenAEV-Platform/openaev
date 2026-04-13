@@ -56,6 +56,15 @@ public class InjectMapper {
             .map(Document::getId)
             .toList();
 
+    // Use primary (top-level) expectations for score computation.
+    // When no primary expectations match (e.g. only agent-level expectations exist),
+    // fall back to all expectations to avoid losing scores in buildFallbackResults.
+    List<InjectExpectation> primaryExpectations = injectUtils.getPrimaryExpectations(inject);
+    List<InjectExpectation> expectationsForScoring =
+        primaryExpectations.isEmpty()
+            ? new ArrayList<>(inject.getExpectations())
+            : primaryExpectations;
+
     return InjectResultOverviewOutput.builder()
         .id(inject.getId())
         .title(inject.getTitle())
@@ -72,7 +81,7 @@ public class InjectMapper {
         .expectationResultByTypes(
             injectExpectationMapper.extractExpectationResults(
                 inject.getContent(),
-                injectUtils.getPrimaryExpectations(inject),
+                expectationsForScoring,
                 InjectExpectationResultUtils::getScores))
         .isReady(healthCheckUtils.runContentChecks(inject).isEmpty())
         .updatedAt(inject.getUpdatedAt())

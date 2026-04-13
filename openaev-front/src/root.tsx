@@ -23,7 +23,7 @@ import { UserContext } from './utils/hooks/useAuth';
 import useNetworkCheck from './utils/hooks/useCheckNetwork';
 import useTenant from './utils/hooks/useTenant';
 import PermissionsProvider from './utils/permissions/PermissionsProvider';
-import { buildTenantUrl, extractTenantFromUrl, getCurrentTenantId } from './utils/tenant-url-helper';
+import { buildTenantUrl, DEFAULT_TENANT_UUID, extractTenantFromUrl } from './utils/tenant-url-helper';
 
 const RootPublic = lazy(() => import('./public/Root'));
 const IndexPrivate = lazy(() => import('./private/Index'));
@@ -70,9 +70,8 @@ const Root = () => {
   // When the user is authenticated but the URL has no tenant prefix
   // (e.g. first visit at "/", or right after login), hard-redirect to
   // the tenant-prefixed URL so BrowserRouter picks up the correct basename.
-  // buildTenantUrl() preserves the current deep link path, search and hash.
   if (!extractTenantFromUrl()) {
-    const tenantId = currentUserTenant?.tenant_id ?? getCurrentTenantId();
+    const tenantId = currentUserTenant?.tenant_id ?? DEFAULT_TENANT_UUID;
     window.location.href = buildTenantUrl(tenantId);
     return <Loader />;
   }

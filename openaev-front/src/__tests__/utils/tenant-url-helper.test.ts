@@ -1,5 +1,5 @@
 import { faker } from '@faker-js/faker';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // -- MOCKS --
 
@@ -33,13 +33,8 @@ const setPathname = (pathname: string) => {
 describe('tenant-url-helper', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    localStorage.clear();
     mockAppBasePath = '';
     setPathname('/');
-  });
-
-  afterEach(() => {
-    localStorage.clear();
   });
 
   // Lazy import so mocks are applied
@@ -48,14 +43,6 @@ describe('tenant-url-helper', () => {
   // -- CONSTANTS --
 
   describe('Constants', () => {
-    it('given import should export TenantStorageKey', async () => {
-      // Act
-      const { TENANT_STORAGE_KEY } = await importHelper();
-
-      // Assert
-      expect(TENANT_STORAGE_KEY).toBe('current-tenant-storage');
-    });
-
     it('given import should export DefaultTenantUuid', async () => {
       // Act
       const { DEFAULT_TENANT_UUID } = await importHelper();
@@ -373,16 +360,12 @@ describe('tenant-url-helper', () => {
     });
   });
 
-  // -- getCurrentTenantId --
+  // -- getCurrentTenantId (URL-only, no localStorage) --
 
   describe('getCurrentTenantId', () => {
-    it('given valid tenant in storage should return stored tenant id', async () => {
+    it('given tenant UUID in URL should return it', async () => {
       // Arrange
-      const tenant = {
-        tenant_id: VALID_UUID,
-        tenant_name: 'Test',
-      };
-      localStorage.setItem('current-tenant-storage', JSON.stringify(tenant));
+      setPathname(`/${VALID_UUID}/admin/scenarios`);
       const { getCurrentTenantId } = await importHelper();
 
       // Act
@@ -392,84 +375,9 @@ describe('tenant-url-helper', () => {
       expect(result).toBe(VALID_UUID);
     });
 
-    it('given empty storage should return default tenant UUID', async () => {
+    it('given different tenant UUID in URL should return it', async () => {
       // Arrange
-      const { getCurrentTenantId, DEFAULT_TENANT_UUID } = await importHelper();
-
-      // Act
-      const result = getCurrentTenantId();
-
-      // Assert
-      expect(result).toBe(DEFAULT_TENANT_UUID);
-    });
-
-    it('given malformed JSON in storage should return default tenant UUID', async () => {
-      // Arrange
-      localStorage.setItem('current-tenant-storage', '{not valid json');
-      const { getCurrentTenantId, DEFAULT_TENANT_UUID } = await importHelper();
-
-      // Act
-      const result = getCurrentTenantId();
-
-      // Assert
-      expect(result).toBe(DEFAULT_TENANT_UUID);
-    });
-
-    it('given stored object without tenant id should return default tenant UUID', async () => {
-      // Arrange
-      localStorage.setItem('current-tenant-storage', JSON.stringify({ tenant_name: 'No ID' }));
-      const { getCurrentTenantId, DEFAULT_TENANT_UUID } = await importHelper();
-
-      // Act
-      const result = getCurrentTenantId();
-
-      // Assert
-      expect(result).toBe(DEFAULT_TENANT_UUID);
-    });
-
-    it('given empty tenant id should return default tenant UUID', async () => {
-      // Arrange
-      localStorage.setItem('current-tenant-storage', JSON.stringify({ tenant_id: '' }));
-      const { getCurrentTenantId, DEFAULT_TENANT_UUID } = await importHelper();
-
-      // Act
-      const result = getCurrentTenantId();
-
-      // Assert
-      expect(result).toBe(DEFAULT_TENANT_UUID);
-    });
-
-    it('given stored null value should return default tenant UUID', async () => {
-      // Arrange
-      localStorage.setItem('current-tenant-storage', 'null');
-      const { getCurrentTenantId, DEFAULT_TENANT_UUID } = await importHelper();
-
-      // Act
-      const result = getCurrentTenantId();
-
-      // Assert
-      expect(result).toBe(DEFAULT_TENANT_UUID);
-    });
-
-    it('given stored empty string should return default tenant UUID', async () => {
-      // Arrange
-      localStorage.setItem('current-tenant-storage', '');
-      const { getCurrentTenantId, DEFAULT_TENANT_UUID } = await importHelper();
-
-      // Act
-      const result = getCurrentTenantId();
-
-      // Assert
-      expect(result).toBe(DEFAULT_TENANT_UUID);
-    });
-
-    it('given different tenant stored should return that tenant id', async () => {
-      // Arrange
-      const tenant = {
-        tenant_id: ANOTHER_UUID,
-        tenant_name: 'Another',
-      };
-      localStorage.setItem('current-tenant-storage', JSON.stringify(tenant));
+      setPathname(`/${ANOTHER_UUID}/admin`);
       const { getCurrentTenantId } = await importHelper();
 
       // Act
@@ -478,18 +386,51 @@ describe('tenant-url-helper', () => {
       // Assert
       expect(result).toBe(ANOTHER_UUID);
     });
+
+    it('given no tenant in URL should return default tenant UUID', async () => {
+      // Arrange
+      setPathname('/login');
+      const { getCurrentTenantId, DEFAULT_TENANT_UUID } = await importHelper();
+
+      // Act
+      const result = getCurrentTenantId();
+
+      // Assert
+      expect(result).toBe(DEFAULT_TENANT_UUID);
+    });
+
+    it('given root path should return default tenant UUID', async () => {
+      // Arrange
+      setPathname('/');
+      const { getCurrentTenantId, DEFAULT_TENANT_UUID } = await importHelper();
+
+      // Act
+      const result = getCurrentTenantId();
+
+      // Assert
+      expect(result).toBe(DEFAULT_TENANT_UUID);
+    });
+
+    it('given base path with tenant UUID should return it', async () => {
+      // Arrange
+      mockAppBasePath = '/app';
+      setPathname(`/app/${VALID_UUID}/admin`);
+      const { getCurrentTenantId } = await importHelper();
+
+      // Act
+      const result = getCurrentTenantId();
+
+      // Assert
+      expect(result).toBe(VALID_UUID);
+    });
   });
 
   // -- buildTenantApiPath --
 
   describe('buildTenantApiPath', () => {
-    it('given API path and stored tenant should build scoped API URI', async () => {
+    it('given API path and tenant in URL should build scoped API URI', async () => {
       // Arrange
-      const tenant = {
-        tenant_id: VALID_UUID,
-        tenant_name: 'Test',
-      };
-      localStorage.setItem('current-tenant-storage', JSON.stringify(tenant));
+      setPathname(`/${VALID_UUID}/admin/tags`);
       const { buildTenantApiPath } = await importHelper();
 
       // Act
@@ -499,8 +440,9 @@ describe('tenant-url-helper', () => {
       expect(result).toBe(`/api/tenants/${VALID_UUID}/tags`);
     });
 
-    it('given API path and no stored tenant should use default tenant UUID', async () => {
+    it('given API path and no tenant in URL should use default tenant UUID', async () => {
       // Arrange
+      setPathname('/');
       const { buildTenantApiPath, DEFAULT_TENANT_UUID } = await importHelper();
 
       // Act
@@ -512,11 +454,7 @@ describe('tenant-url-helper', () => {
 
     it('given nested API path should build correct URI', async () => {
       // Arrange
-      const tenant = {
-        tenant_id: VALID_UUID,
-        tenant_name: 'Test',
-      };
-      localStorage.setItem('current-tenant-storage', JSON.stringify(tenant));
+      setPathname(`/${VALID_UUID}/admin`);
       const { buildTenantApiPath } = await importHelper();
 
       // Act
@@ -528,11 +466,7 @@ describe('tenant-url-helper', () => {
 
     it('given API path with id parameter should build correct URI', async () => {
       // Arrange
-      const tenant = {
-        tenant_id: VALID_UUID,
-        tenant_name: 'Test',
-      };
-      localStorage.setItem('current-tenant-storage', JSON.stringify(tenant));
+      setPathname(`/${VALID_UUID}/admin`);
       const tagId = faker.string.uuid();
       const { buildTenantApiPath } = await importHelper();
 
@@ -556,11 +490,7 @@ describe('tenant-url-helper', () => {
 
     it('given exempt prefix should return unchanged', async () => {
       // Arrange
-      const tenant = {
-        tenant_id: VALID_UUID,
-        tenant_name: 'Test',
-      };
-      localStorage.setItem('current-tenant-storage', JSON.stringify(tenant));
+      setPathname(`/${VALID_UUID}/admin`);
       const { buildTenantApiPath } = await importHelper();
 
       // Act
