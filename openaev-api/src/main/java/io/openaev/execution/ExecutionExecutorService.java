@@ -8,7 +8,6 @@ import io.openaev.executors.utils.ExecutorUtils;
 import io.openaev.integration.ComponentRequest;
 import io.openaev.integration.Manager;
 import io.openaev.integration.ManagerFactory;
-import io.openaev.integration.exception.ComponentNotFoundException;
 import io.openaev.rest.exception.AgentException;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.inject.service.InjectService;
@@ -83,13 +82,13 @@ public class ExecutionExecutorService {
       try {
         Manager manager = managerFactory.getManager();
         ExecutorContextService executorContextService;
-        try {
+        if (executor.isExternal()) {
           // Resolve the ConnectorInstance that owns this executor
           ConnectorInstancePersisted instance =
               connectorInstanceService.findByExecutorId(executor.getId());
           executorContextService =
               manager.requestForInstance(instance, ExecutorContextService.class);
-        } catch (ComponentNotFoundException exception) {
+        } else {
           // Fallback for builtin executors without a persisted ConnectorInstance (e.g. OpenAEV
           // agent)
           executorContextService =
