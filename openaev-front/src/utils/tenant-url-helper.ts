@@ -8,7 +8,6 @@ import TENANT_MIGRATION_TODO from './tenant-api-migration';
  */
 export const TENANT_URI = '/api/tenants';
 
-
 /**
  * Default tenant UUID used as fallback when no tenant has been selected yet.
  * Must match Tenant.DEFAULT_TENANT_UUID on the backend.
