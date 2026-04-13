@@ -15,10 +15,8 @@ import io.openaev.execution.ExecutionExecutorException;
 import io.openaev.execution.ExecutionExecutorService;
 import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.utils.ExecutorUtils;
-import io.openaev.integration.ComponentRequest;
 import io.openaev.integration.Manager;
 import io.openaev.integration.ManagerFactory;
-import io.openaev.integration.exception.ComponentNotFoundException;
 import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.exception.AgentException;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
@@ -299,6 +297,7 @@ public class ExecutionExecutorServiceTest {
       executor.setId("executor-1");
       executor.setName("CrowdStrike");
       executor.setType("openaev_crowdstrike");
+      executor.setExternal(true);
 
       Inject inject = createInjectWithActiveAgent(executor);
 
@@ -328,48 +327,6 @@ public class ExecutionExecutorServiceTest {
 
     @Test
     @DisplayName(
-        "Given active agent with executor whose component is not found, should fallback to manager.request")
-    void given_noComponentFoundForInstance_should_fallbackToManagerRequest() throws Exception {
-      // Arrange
-      Executor executor = new Executor();
-      executor.setId("openaev-executor-id");
-      executor.setName("OpenAEV Agent");
-      executor.setType("openaev_agent");
-
-      Inject inject = createInjectWithActiveAgent(executor);
-
-      Manager manager = mock(Manager.class);
-      when(managerFactory.getManager()).thenReturn(manager);
-
-      // findByExecutorId returns a valid instance
-      ConnectorInstancePersisted connectorInstance = new ConnectorInstancePersisted();
-      connectorInstance.setId("instance-openaev");
-      stubFindByExecutorId(executor.getId(), connectorInstance);
-
-      // But requestForInstance throws NoSuchElementException with "No component found" message
-      // (e.g. the integration is started but has no matching component)
-      when(manager.requestForInstance(eq(connectorInstance), eq(ExecutorContextService.class)))
-          .thenThrow(
-              new ComponentNotFoundException(
-                  "No component found for requestedType=ExecutorContextService in instance id=instance-openaev"));
-
-      ExecutorContextService mockContextService = mock(ExecutorContextService.class);
-      when(manager.request(any(ComponentRequest.class), eq(ExecutorContextService.class)))
-          .thenReturn(mockContextService);
-      when(mockContextService.launchBatchExecutorSubprocess(any(), any(), any()))
-          .thenReturn(List.of());
-
-      // Act
-      executorService.launchExecutorContext(inject);
-
-      // Assert
-      verify(manager).requestForInstance(eq(connectorInstance), eq(ExecutorContextService.class));
-      verify(manager).request(any(ComponentRequest.class), eq(ExecutorContextService.class));
-      verify(mockContextService).launchBatchExecutorSubprocess(eq(inject), any(), any());
-    }
-
-    @Test
-    @DisplayName(
         "Given executor context service throws exception, should save error traces for all agents")
     void given_executorContextServiceThrows_should_saveErrorTraces() throws Exception {
       // Arrange
@@ -377,6 +334,7 @@ public class ExecutionExecutorServiceTest {
       executor.setId("executor-fail");
       executor.setName("FailingExecutor");
       executor.setType("openaev_failing");
+      executor.setExternal(true);
 
       Inject inject = createInjectWithActiveAgent(executor);
 
@@ -416,11 +374,13 @@ public class ExecutionExecutorServiceTest {
       executor1.setId("executor-cs-1");
       executor1.setName("CrowdStrike 1");
       executor1.setType("openaev_crowdstrike");
+      executor1.setExternal(true);
 
       Executor executor2 = new Executor();
       executor2.setId("executor-cs-2");
       executor2.setName("CrowdStrike 2");
       executor2.setType("openaev_crowdstrike");
+      executor2.setExternal(true);
 
       Endpoint endpoint1 = EndpointFixture.createEndpoint();
       endpoint1.setId("endpoint-1");
