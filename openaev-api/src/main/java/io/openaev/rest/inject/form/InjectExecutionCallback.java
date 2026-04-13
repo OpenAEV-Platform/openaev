@@ -28,6 +28,9 @@ public class InjectExecutionCallback implements Queueable {
   @JsonProperty("execution_emission_date")
   private long emissionDate;
 
+  @JsonProperty("retry_count")
+  private int retryCount = 0;
+
   @Override
   public boolean equals(Object o) {
     if (o instanceof InjectExecutionCallback) {
@@ -38,6 +41,6 @@ public class InjectExecutionCallback implements Queueable {
 
   @Override
   public String getUniqueElementKey() {
-    return injectId + agentId;
+    return injectId;
   }
 }
