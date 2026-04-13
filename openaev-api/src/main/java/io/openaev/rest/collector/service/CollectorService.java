@@ -78,7 +78,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
 
   @Override
   protected Collector getConnectorById(String collectorId) {
-    return collector(collectorId);
+    return collectorRepository.findById(collectorId).orElse(null);
   }
 
   @Override
