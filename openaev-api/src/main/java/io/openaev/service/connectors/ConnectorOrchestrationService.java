@@ -114,40 +114,6 @@ public class ConnectorOrchestrationService {
     return connectorInstanceService.updateRequestedStatus(instance, requestedStatus);
   }
 
-  private void throwIfConnectorInstanceAlreadyExist(String catalogId)
-      throws DataIntegrityViolationException {
-    List<ConnectorInstancePersisted> existingInstances =
-        connectorInstanceService.findAllByCatalogConnectorId(catalogId);
-    if (!existingInstances.isEmpty()) {
-      throw new DataIntegrityViolationException(
-          "ConnectorInstance with CatalogConnector id " + catalogId + " already exists");
-    }
-  }
-
-  private void throwIfConnectorAlreadyExist(
-      String catalogConnectorSlug, ConnectorType catalogConnectorType)
-      throws DataIntegrityViolationException {
-    BaseConnectorEntity connector;
-    if (ConnectorType.COLLECTOR.equals(catalogConnectorType)) {
-      connector = collectorService.findCollectorByType(catalogConnectorSlug).orElse(null);
-    } else if (ConnectorType.INJECTOR.equals(catalogConnectorType)) {
-      connector = injectorService.injectorByType(catalogConnectorSlug).orElse(null);
-    } else {
-      connector = executorService.executorByType(catalogConnectorSlug).orElse(null);
-    }
-    if (connector != null) {
-      throw new DataIntegrityViolationException(
-          "Connector with slug " + catalogConnectorSlug + " already exists");
-    }
-  }
-
-  private void throwIfInstanceOrConnectorAlreadyExist(
-      String catalogConnectorId, String catalogConnectorSlug, ConnectorType catalogConnectorType)
-      throws DataIntegrityViolationException {
-    throwIfConnectorInstanceAlreadyExist(catalogConnectorId);
-    throwIfConnectorAlreadyExist(catalogConnectorSlug, catalogConnectorType);
-  }
-
   private void throwIfConnectorIdDoesNotExist(
       CreateConnectorInstanceInput collectorInput, CatalogConnector catalogConnector)
       throws DataIntegrityViolationException {
@@ -236,18 +202,13 @@ public class ConnectorOrchestrationService {
     // If we already have an ID in the input, then we're migrating from an existing connector
     // meaning that we do not check if the connector type already exists
     if (input.getConfigurations().stream()
-        .noneMatch(
+        .anyMatch(
             configurationInput ->
                 configurationInput
                     .getKey()
                     .equals(
                         catalogConnectorWithConfigMap.catalogConnector.getContainerType()
                             + "_ID"))) {
-      throwIfInstanceOrConnectorAlreadyExist(
-          catalogConnectorWithConfigMap.catalogConnector.getId(),
-          catalogConnectorWithConfigMap.catalogConnector.getSlug(),
-          catalogConnectorWithConfigMap.catalogConnector.getContainerType());
-    } else {
       // If we have an ID in the input, we check if the connector already exists
       throwIfConnectorIdDoesNotExist(input, catalogConnectorWithConfigMap.catalogConnector);
     }

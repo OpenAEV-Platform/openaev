@@ -10,6 +10,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import java.time.Instant;
 import java.util.*;
+import java.util.stream.Collectors;
 import lombok.Data;
 
 @Data
@@ -35,9 +36,10 @@ public class InjectorContractFullOutput extends InjectorContractBaseOutput {
   @JsonProperty("injector_contract_injector_type")
   private String injectorType;
 
-  @Schema(description = "Injector name")
-  @JsonProperty("injector_contract_injector_name")
-  private String injectorName;
+  @Schema(
+      description = "Map of injector ID to injector name for all injectors linked to this contract")
+  @JsonProperty("injector_contract_injector_names")
+  private Map<String, String> injectorNames;
 
   @Schema(description = "Attack pattern IDs")
   @JsonProperty("injector_contract_attack_patterns")
@@ -51,6 +53,10 @@ public class InjectorContractFullOutput extends InjectorContractBaseOutput {
   @JsonProperty("injector_contract_arch")
   private Payload.PAYLOAD_EXECUTION_ARCH arch;
 
+  @Schema(description = "Injector IDs linked to this contract")
+  @JsonProperty("injector_contract_injectors")
+  private List<String> injectorIds;
+
   public InjectorContractFullOutput(
       String id,
       String externalId,
@@ -58,31 +64,40 @@ public class InjectorContractFullOutput extends InjectorContractBaseOutput {
       String content,
       PLATFORM_TYPE[] platforms,
       String payloadType,
-      String injectorName,
       String collectorType,
       String injectorType,
       String[] attackPatterns,
       List<String> domains,
       Instant updatedAt,
-      Payload.PAYLOAD_EXECUTION_ARCH arch) {
+      Payload.PAYLOAD_EXECUTION_ARCH arch,
+      Map<String, String> injectorNames) {
     super(id, externalId, updatedAt);
     this.setLabels(labels);
     this.setContent(content);
     this.setPlatforms(platforms);
     this.setPayloadType(ofNullable(collectorType).orElse(payloadType));
-    this.setInjectorName(injectorName);
     this.setInjectorType(injectorType);
     this.setAttackPatterns(
         attackPatterns != null
             ? new ArrayList<>(Arrays.asList(attackPatterns))
             : new ArrayList<>());
     this.setDomains(domains != null ? new ArrayList<>(domains) : new ArrayList<>());
-
     this.setArch(arch);
+    this.setInjectorNames(
+        injectorNames != null ? new LinkedHashMap<>(injectorNames) : new LinkedHashMap<>());
+    this.setInjectorIds(new ArrayList<>(this.getInjectorNames().keySet()));
     this.setHasFullDetails(true);
   }
 
   public static InjectorContractFullOutput fromInjectorContract(InjectorContract sourceContract) {
+    Map<String, String> injectorNamesMap =
+        sourceContract.getInjectors() != null
+            ? sourceContract.getInjectors().stream()
+                .collect(
+                    Collectors.toMap(
+                        Injector::getId, Injector::getName, (a, b) -> a, LinkedHashMap::new))
+            : new LinkedHashMap<>();
+
     return new InjectorContractFullOutput(
         sourceContract.getId(),
         sourceContract.getExternalId(),
@@ -90,7 +105,6 @@ public class InjectorContractFullOutput extends InjectorContractBaseOutput {
         sourceContract.getContent(),
         sourceContract.getPlatforms(),
         sourceContract.getPayload() == null ? null : sourceContract.getPayload().getType(),
-        sourceContract.getInjectorName(),
         null,
         sourceContract.getInjectorType(),
         sourceContract.getAttackPatterns().stream()
@@ -105,9 +119,8 @@ public class InjectorContractFullOutput extends InjectorContractBaseOutput {
                     .toArray(String[]::new)
                 : new String[0]),
         sourceContract.getUpdatedAt(),
-        sourceContract.getPayload() == null
-            ? null
-            : sourceContract.getPayload().getExecutionArch());
+        sourceContract.getPayload() == null ? null : sourceContract.getPayload().getExecutionArch(),
+        injectorNamesMap);
   }
 
   private static List<String> resolveEffectiveDomains(

@@ -34,7 +34,19 @@ public class XtmComposerService {
       ConnectorInstancePersisted instance) {
     return XtmComposerInstanceOutput.builder()
         .id(instance.getId())
-        .name(instance.getCatalogConnector().getTitle())
+        .name(
+            instance.getConfigurations().stream()
+                .filter(
+                    connectorInstanceConfiguration ->
+                        (instance.getCatalogConnector().getContainerType().getIdKeyName())
+                            .equals(connectorInstanceConfiguration.getKey()))
+                .findFirst()
+                .map(
+                    connectorInstanceConfiguration ->
+                        instance.getCatalogConnector().getTitle()
+                            + "-"
+                            + connectorInstanceConfiguration.getValue().asText())
+                .orElse(instance.getCatalogConnector().getTitle()))
         .currentStatus(instance.getCurrentStatus())
         .requestedStatus(instance.getRequestedStatus())
         .image(

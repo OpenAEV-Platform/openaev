@@ -1,5 +1,7 @@
 package io.openaev.integration.impl.executors.paloaltocortex;
 
+import static java.util.Optional.ofNullable;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.cache.LicenseCacheManager;
@@ -57,7 +59,6 @@ public class PaloAltoCortexExecutorIntegration extends Integration {
   private final LicenseCacheManager licenseCacheManager;
   private final ThreadPoolTaskScheduler taskScheduler;
   private final ConnectorInstanceService connectorInstanceService;
-  private final ConnectorInstance connectorInstance;
   private final HttpClientFactory httpClientFactory;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
 
@@ -85,7 +86,6 @@ public class PaloAltoCortexExecutorIntegration extends Integration {
     this.executorService = executorService;
     this.taskScheduler = taskScheduler;
     this.connectorInstanceService = connectorInstanceService;
-    this.connectorInstance = connectorInstance;
     this.httpClientFactory = httpClientFactory;
     this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
 
@@ -103,13 +103,22 @@ public class PaloAltoCortexExecutorIntegration extends Integration {
   protected void innerStart() throws Exception {
     String executorId =
         connectorInstanceService.getConnectorInstanceConfigurationsByIdAndKey(
-            connectorInstance.getId(), ConnectorType.EXECUTOR.getIdKeyName());
+            getConnectorInstance().getId(), ConnectorType.EXECUTOR.getIdKeyName());
+    String executorName =
+        ofNullable(
+                connectorInstanceService.getConnectorInstanceConfigurationsByIdAndKey(
+                    getConnectorInstance().getId(), "EXECUTOR_NAME"))
+            .orElseThrow(
+                () ->
+                    new ExecutorException(
+                        "EXECUTOR_NAME configuration is required for the Executor",
+                        getConnectorInstance().getId()));
 
     Executor executor =
         executorService.register(
             executorId,
             PALOALTOCORTEX_EXECUTOR_TYPE,
-            PALOALTOCORTEX_EXECUTOR_NAME,
+            executorName,
             PALOALTOCORTEX_EXECUTOR_DOCUMENTATION_LINK,
             PALOALTOCORTEX_EXECUTOR_BACKGROUND_COLOR,
             getClass().getResourceAsStream("/img/icon-paloaltocortex.png"),
@@ -129,7 +138,7 @@ public class PaloAltoCortexExecutorIntegration extends Integration {
             executor, client, config, endpointService, agentService, assetGroupService);
     paloAltoCortexGarbageCollectorService =
         new PaloAltoCortexGarbageCollectorService(
-            config, paloAltoCortexExecutorContextService, agentService);
+            config, paloAltoCortexExecutorContextService, agentService, executorId);
 
     timers.add(
         taskScheduler.scheduleAtFixedRate(

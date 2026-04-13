@@ -302,12 +302,16 @@ const CreateInject: FunctionComponent<Props> = ({
   };
 
   const [selectedContract, setSelectedContract] = useState<Omit<InjectorContractFullOutput, 'injector_contract_content'> & { injector_contract_content: InjectorContractConverted['convertedContent'] } | null>(null);
+  const [selectedInjectorName, setSelectedInjectorName] = useState<string>('');
   const selectContract = (contract: InjectorContractFullOutput) => {
     const parsedContract: Omit<InjectorContractFullOutput, 'injector_contract_content'> & { injector_contract_content: InjectorContractConverted['convertedContent'] } = {
       ...contract,
       injector_contract_content: JSON.parse(contract.injector_contract_content),
     };
     setSelectedContract(parsedContract);
+    // Initialize with the first injector name
+    const names = contract.injector_contract_injector_names;
+    setSelectedInjectorName(names ? Object.values(names)[0] ?? '' : '');
     handleSlide();
   };
 
@@ -623,7 +627,7 @@ const CreateInject: FunctionComponent<Props> = ({
                       <HelpOutlined />
                     </Avatar>
                   )}
-                  title={selectedContractKillChainPhase || selectedContract?.injector_contract_injector_name || ''}
+                  title={selectedContractKillChainPhase || selectedInjectorName || ''}
                   action={(
                     <IconButton
                       aria-label="delete"
@@ -662,6 +666,8 @@ const CreateInject: FunctionComponent<Props> = ({
                   articlesFromExerciseOrScenario={articlesFromExerciseOrScenario}
                   uriVariable={uriVariable}
                   variablesFromExerciseOrScenario={variablesFromExerciseOrScenario}
+                  injectorNames={selectedContract?.injector_contract_injector_names}
+                  onInjectorChange={(_id, name) => setSelectedInjectorName(name)}
                 />
               </div>
             </Slide>

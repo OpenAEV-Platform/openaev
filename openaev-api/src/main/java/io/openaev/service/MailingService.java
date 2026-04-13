@@ -77,9 +77,6 @@ public class MailingService {
                       .toList();
               ExecutableInject injection =
                   new ExecutableInject(false, true, inject, userInjectContexts);
-              // TODO we will need to do multiple execution in our next PR. For now, we can use the
-              // first
-              // injector we find.
               io.openaev.executors.Injector executor =
                   managerFactory
                       .getManager()
