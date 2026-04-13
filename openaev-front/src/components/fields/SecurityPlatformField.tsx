@@ -87,7 +87,7 @@ const SecurityPlatformField: FunctionComponent<Props> = ({
             <Box component="li" {...props} key={option.id}>
               <div className={classes.icon}>
                 <img
-                  src={buildTenantApiPath(`/api/tenants/images/security_platforms/id/${option.id}/${theme.palette.mode}`)}
+                  src={buildTenantApiPath(`/api/images/security_platforms/id/${option.id}/${theme.palette.mode}`)}
                   alt={option.label}
                   style={{
                     width: 25,

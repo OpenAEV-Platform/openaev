@@ -45,7 +45,7 @@ const ChannelNewspaper = ({ channelReader }) => {
     channel_articles: articles,
     channel_information: channel,
   } = channelReader;
-  const baseUri = buildTenantApiPath(`/api/tenants/player/${exercise?.exercise_id ?? scenario?.scenario_id}`);
+  const baseUri = buildTenantApiPath(`/api/player/${exercise?.exercise_id ?? scenario?.scenario_id}`);
   const { documentsMap } = useHelper(helper => ({ documentsMap: helper.getDocumentsMap() }));
   const logo = isDark ? channel.channel_logo_dark : channel.channel_logo_light;
   const firstArticle = R.head(articles) || null;
