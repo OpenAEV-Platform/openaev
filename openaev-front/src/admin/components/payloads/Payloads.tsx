@@ -25,6 +25,7 @@ import PlatformIcon from '../../../components/PlatformIcon';
 import { type Document, type Domain, type Payload, type SearchPaginationInput } from '../../../utils/api-types';
 import { Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+import { buildTenantApiPath } from '../../../utils/tenant-url-helper';
 import { arrayToRecord } from '../../../utils/utils';
 import CreatePayload from './CreatePayload';
 import PayloadComponent from './PayloadComponent';
@@ -314,7 +315,7 @@ const Payloads = () => {
                       <ListItemIcon>
                         {payload.payload_collector_type ? (
                           <img
-                            src={`/api/images/collectors/${payload.payload_collector_type}`}
+                            src={buildTenantApiPath(`/api/images/collectors/${payload.payload_collector_type}`)}
                             alt={payload.payload_collector_type}
                             style={{
                               padding: 0,

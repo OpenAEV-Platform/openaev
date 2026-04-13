@@ -13,6 +13,7 @@ import { useHelper } from '../../../../../../store';
 import { type Document } from '../../../../../../utils/api-types';
 import { Can } from '../../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../../utils/permissions/types';
+import { buildTenantApiPath } from '../../../../../../utils/tenant-url-helper';
 import DocumentPopover from '../../../../components/documents/DocumentPopover';
 import DocumentType from '../../../../components/documents/DocumentType';
 
@@ -139,7 +140,7 @@ const InjectDocumentsList = ({ readOnly, hasAttachments }: Props) => {
             )}
           >
             <ListItemButton
-              href={`/api/documents/${document.document_id}/file`}
+              href={buildTenantApiPath(`/api/documents/${document.document_id}/file`)}
             >
               <ListItemIcon>
                 <AttachmentOutlined />

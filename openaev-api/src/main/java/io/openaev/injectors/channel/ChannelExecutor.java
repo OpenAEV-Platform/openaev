@@ -46,12 +46,15 @@ public class ChannelExecutor extends Injector {
     this.injectExpectationService = injectExpectationService;
   }
 
-  private String buildArticleUri(ExecutionContext executionContext, Article article) {
+  private String buildArticleUri(
+      ExecutionContext executionContext, Article article, String tenantId) {
     String userId = executionContext.getUser().getId();
     String channelId = article.getChannel().getId();
     String exerciseId = article.getExercise().getId();
     String queryOptions = "article=" + article.getId() + "&user=" + userId;
     return this.context.getOpenAEVConfig().getBaseUrl()
+        + "/"
+        + tenantId
         + "/channels/"
         + exerciseId
         + "/"
@@ -111,7 +114,10 @@ public class ChannelExecutor extends Injector {
                                   new ArticleVariable(
                                       article.getId(),
                                       article.getName(),
-                                      buildArticleUri(userInjectContext, article)))
+                                      buildArticleUri(
+                                          userInjectContext,
+                                          article,
+                                          exercise.getTenant().getId())))
                           .toList();
                   userInjectContext.put(VARIABLE_ARTICLES, articleVariables);
                   // Send the email.

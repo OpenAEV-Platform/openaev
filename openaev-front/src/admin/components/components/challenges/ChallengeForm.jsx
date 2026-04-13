@@ -21,6 +21,7 @@ import { useHelper } from '../../../../store';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { buildTenantApiPath } from '../../../../utils/tenant-url-helper.ts';
 import DocumentPopover from '../documents/DocumentPopover';
 import DocumentType from '../documents/DocumentType';
 
@@ -282,7 +283,7 @@ const ChallengeForm = (props) => {
                     classes={{ root: classes.item }}
                     divider
                     component="a"
-                    href={`/api/documents/${document.document_id}/file`}
+                    href={buildTenantApiPath(`/api/documents/${document.document_id}/file`)}
                   >
                     <ListItemIcon>
                       <AttachmentOutlined />

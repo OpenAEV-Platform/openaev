@@ -5,6 +5,7 @@ import { type FunctionComponent } from 'react';
 
 import CustomTooltip from '../../../../components/CustomTooltip';
 import { useFormatter } from '../../../../components/i18n';
+import { buildTenantApiPath } from '../../../../utils/tenant-url-helper';
 
 interface Props {
   type: string | undefined;
@@ -50,7 +51,7 @@ const InjectIcon: FunctionComponent<Props> = ({
     if (isPayload) {
       if (type.startsWith('openaev_')) {
         return (
-          <img onClick={onClick} src={`/api/images/collectors/${type}`} alt={type} style={style} />
+          <img onClick={onClick} src={buildTenantApiPath(`/api/images/collectors/${type}`)} alt={type} style={style} />
         );
       }
       switch (type) {
@@ -70,7 +71,7 @@ const InjectIcon: FunctionComponent<Props> = ({
     }
     return (
       <img
-        src={`/api/images/injectors/${type}`}
+        src={buildTenantApiPath(`/api/images/injectors/${type}`)}
         onClick={onClick}
         alt={type}
         style={style}

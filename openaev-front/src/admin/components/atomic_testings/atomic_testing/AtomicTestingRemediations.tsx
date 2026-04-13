@@ -25,6 +25,7 @@ import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import RestrictionAccess from '../../../../utils/permissions/RestrictionAccess';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { buildTenantApiPath } from '../../../../utils/tenant-url-helper';
 import { isNotEmptyField } from '../../../../utils/utils';
 import DetectionRemediationInfo from '../../payloads/form/DetectionRemediationInfo';
 import DetectionRemediationUseAriane from '../../payloads/form/DetectionRemediationUseAriane';
@@ -218,7 +219,7 @@ const AtomicTestingRemediations = () => {
                         label={(
                           <Box display="flex" alignItems="center">
                             <img
-                              src={`/api/images/collectors/${tab.collector_type}`}
+                              src={buildTenantApiPath(`/api/images/collectors/${tab.collector_type}`)}
                               alt={tab.collector_type}
                               style={{
                                 width: 20,

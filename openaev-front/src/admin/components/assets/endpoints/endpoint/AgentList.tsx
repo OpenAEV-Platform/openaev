@@ -13,6 +13,7 @@ import { useHelper } from '../../../../../store';
 import { type AgentOutput } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
+import { buildTenantApiPath } from '../../../../../utils/tenant-url-helper';
 import EEChip from '../../../common/entreprise_edition/EEChip';
 import AssetStatus from '../../AssetStatus';
 import AgentDeploymentMode from '../AgentDeploymentMode';
@@ -85,7 +86,7 @@ const AgentList: FunctionComponent<Props> = ({ agents }) => {
         return (
           <>
             <img
-              src={`/api/images/executors/icons/${executor_type}`}
+              src={buildTenantApiPath(`/api/images/executors/icons/${executor_type}`)}
               alt={executor_type}
               style={{
                 width: 20,

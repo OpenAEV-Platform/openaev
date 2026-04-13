@@ -48,6 +48,8 @@ public class ChallengeExecutor extends Injector {
     String challengeId = challenge.getId();
     String exerciseId = exercise.getId();
     return this.context.getOpenAEVConfig().getBaseUrl()
+        + "/"
+        + exercise.getTenant().getId()
         + "/challenges/"
         + exerciseId
         + "?user="

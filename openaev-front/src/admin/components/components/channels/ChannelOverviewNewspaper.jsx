@@ -3,6 +3,8 @@ import { useTheme } from '@mui/material/styles';
 import { Fragment } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
+import { buildTenantApiPath } from '../../../../utils/tenant-url-helper.ts';
+
 const useStyles = makeStyles()(() => ({
   root: {
     flexGrow: 1,
@@ -30,7 +32,7 @@ const ChannelOverviewNewspaper = ({ channel }) => {
           }}
         >
           <img
-            src={`/api/documents/${logo.document_id}/file`}
+            src={buildTenantApiPath(`/api/documents/${logo.document_id}/file`)}
             className={classes.logo}
           />
         </div>

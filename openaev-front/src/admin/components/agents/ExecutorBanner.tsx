@@ -1,6 +1,7 @@
 import { type FunctionComponent } from 'react';
 
 import { type ExecutorOutput } from '../../../utils/api-types';
+import { buildTenantApiPath } from '../../../utils/tenant-url-helper';
 
 interface ExecutorBannerProps {
   executor: ExecutorOutput;
@@ -22,7 +23,7 @@ const ExecutorBanner: FunctionComponent<ExecutorBannerProps> = ({ executor, heig
       }}
     >
       <img
-        src={`/api/images/executors/banners/${executor.executor_type}`}
+        src={buildTenantApiPath(`/api/images/executors/banners/${executor.executor_type}`)}
         alt={executor.executor_name}
         style={{ objectFit: 'cover' }}
       />
