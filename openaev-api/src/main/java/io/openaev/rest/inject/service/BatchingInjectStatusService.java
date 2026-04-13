@@ -13,11 +13,6 @@ import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionCallback;
 import jakarta.annotation.Resource;
 import jakarta.transaction.Transactional;
-import lombok.RequiredArgsConstructor;
-import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-
 import java.io.IOException;
 import java.time.Instant;
 import java.util.*;
@@ -26,6 +21,10 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
+import lombok.RequiredArgsConstructor;
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
 
 @RequiredArgsConstructor
 @Service
@@ -135,8 +134,8 @@ public class BatchingInjectStatusService {
               } else {
                 if (callback.getRetryCount() < MAX_RETRIES) {
                   log.warn(
-                    "Inject trace queue service is not configured, saving trace directly for inject {}",
-                    callback.getInjectId());
+                      "Inject trace queue service is not configured, saving trace directly for inject {}",
+                      callback.getInjectId());
                 } else {
                   log.warn("Max retries reached for inject {}", callback.getInjectId());
                 }
