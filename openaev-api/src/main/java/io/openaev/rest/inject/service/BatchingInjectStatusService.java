@@ -35,7 +35,7 @@ public class BatchingInjectStatusService {
 
   private static final int MAX_RETRIES = 5;
   // Inmemory queue system to add delay to actual re-queuing mechanism
-  private final Queue<InjectExecutionCallback> requeueCallbacks = new ConcurrentLinkedQueue<>();
+  private final Queue<InjectExecutionCallback> callbacksToRequeue = new ConcurrentLinkedQueue<>();
 
   private final InjectRepository injectRepository;
   private final AgentRepository agentRepository;
@@ -131,7 +131,7 @@ public class BatchingInjectStatusService {
                 // We change the emission date to current timestamp here to be more accurate
                 // order has become meaningless in case of re-queueing the message any way
                 callback.setEmissionDate(Instant.now().toEpochMilli());
-                requeueCallbacks.add(callback);
+                callbacksToRequeue.add(callback);
               } else {
                 if (callback.getRetryCount() < MAX_RETRIES) {
                   log.warn(
@@ -206,10 +206,10 @@ public class BatchingInjectStatusService {
       return;
     }
     InjectExecutionCallback callback;
-    while ((callback = requeueCallbacks.peek()) != null) {
+    while ((callback = callbacksToRequeue.peek()) != null) {
       try {
         injectTraceQueueService.publish(callback);
-        requeueCallbacks.poll();
+        callbacksToRequeue.poll();
       } catch (Exception e) {
         log.warn("Unable to requeue inject execution callback, keeping it in memory for retry", e);
         break;
