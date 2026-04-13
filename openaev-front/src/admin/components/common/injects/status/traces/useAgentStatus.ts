@@ -18,10 +18,22 @@ export interface AgentStatus {
   tracesByAction: TraceGroup[];
 }
 
+const ACTION_DISPLAY_ORDER: Record<string, number> = {
+  START: 0,
+  PREREQUISITE_CHECK: 1,
+  PREREQUISITE_EXECUTION: 2,
+  EXECUTION: 3,
+  CLEANUP_EXECUTION: 4,
+  COMPLETE: 5,
+};
+
+const actionOrder = (action: string): number => ACTION_DISPLAY_ORDER[action] ?? 99;
+
 const useAgentStatus = (traces: ExecutionTraceOutput[]): AgentStatus => {
   return useMemo(() => {
     const sorted = [...traces].sort(
-      (a, b) => new Date(a.execution_time).getTime() - new Date(b.execution_time).getTime(),
+      (a, b) => actionOrder(a.execution_action) - actionOrder(b.execution_action)
+        || new Date(a.execution_time).getTime() - new Date(b.execution_time).getTime(),
     );
 
     const finalTrace = sorted.find(t => t.execution_action === 'COMPLETE') ?? null;

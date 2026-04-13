@@ -207,26 +207,34 @@ public class InjectStatusService {
    * handles multi-agent inject-level status, this method gives ERROR priority: if any trace for the
    * agent is an error, the agent status is ERROR (a single agent either succeeded or failed).
    *
+   * <p>When exactly one error status is present (e.g. {@code COMMAND_NOT_FOUND}), that specific
+   * status is preserved instead of being generalized to {@code ERROR}.
+   *
    * <p>{@code MAYBE_PREVENTED} traces are treated as errors via {@code
    * ExecutionTraceStatus.isError()}.
    */
   @VisibleForTesting
   protected ExecutionTraceStatus computeAgentTraceStatus(List<ExecutionTrace> agentTraces) {
-    boolean hasError = false;
     boolean hasSuccess = false;
+    ExecutionTraceStatus singleErrorStatus = null;
+    boolean multipleErrorStatuses = false;
 
     for (ExecutionTrace trace : agentTraces) {
       ExecutionTraceStatus status = trace.getStatus();
       if (status.isError()) {
-        hasError = true;
+        if (singleErrorStatus == null) {
+          singleErrorStatus = status;
+        } else if (!singleErrorStatus.equals(status)) {
+          multipleErrorStatuses = true;
+        }
       } else if (status.isSuccess()) {
         hasSuccess = true;
       }
     }
 
     // Error takes priority at agent level
-    if (hasError) {
-      return ExecutionTraceStatus.ERROR;
+    if (singleErrorStatus != null) {
+      return multipleErrorStatuses ? ExecutionTraceStatus.ERROR : singleErrorStatus;
     }
     if (hasSuccess) {
       return ExecutionTraceStatus.SUCCESS;

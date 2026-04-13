@@ -1,4 +1,3 @@
-import { useTheme } from '@mui/material/styles';
 import { useMemo } from 'react';
 
 import { type ExecutionTraceOutput } from '../../../../../../utils/api-types';
@@ -8,8 +7,6 @@ import MainTraces from './MainTraces';
 interface Props { tracesByAgent: ExecutionTraceOutput[] }
 
 const EndpointTraces = ({ tracesByAgent }: Props) => {
-  const theme = useTheme();
-
   const groupedTraces = useMemo(() => {
     const grouped: Record<string, ExecutionTraceOutput[]> = {};
 
@@ -30,13 +27,11 @@ const EndpointTraces = ({ tracesByAgent }: Props) => {
 
   return (
     <div>
-      <div style={{ marginTop: theme.spacing(2) }}>
-        {groupedTraces.map(([agentId, traces]) => (
-          agentId === 'unknown'
-            ? <MainTraces key="unknown" traces={traces} />
-            : <AgentTraces key={agentId} traces={traces} />
-        ))}
-      </div>
+      {groupedTraces.map(([agentId, traces]) => (
+        agentId === 'unknown'
+          ? <MainTraces key="unknown" traces={traces} />
+          : <AgentTraces key={agentId} traces={traces} />
+      ))}
     </div>
   );
 };
