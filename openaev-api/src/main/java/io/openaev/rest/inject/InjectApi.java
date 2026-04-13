@@ -29,6 +29,7 @@ import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.helper.queue.BatchQueueService;
 import io.openaev.rest.helper.queue.executor.BatchExecutionTraceExecutor;
 import io.openaev.rest.inject.form.*;
+import io.openaev.rest.inject.service.BatchingInjectStatusService;
 import io.openaev.rest.inject.service.ExecutableInjectService;
 import io.openaev.rest.inject.service.InjectExecutionService;
 import io.openaev.rest.inject.service.InjectExportService;
@@ -90,6 +91,7 @@ public class InjectApi extends RestBehavior {
   private final UserService userService;
   private final DocumentService documentService;
   private final BatchExecutionTraceExecutor batchExecutionTraceExecutor;
+  private final BatchingInjectStatusService batchingInjectStatusService;
 
   private final RabbitmqConfig rabbitmqConfig;
   private final OpenAEVConfig openAEVConfig;
@@ -113,6 +115,8 @@ public class InjectApi extends RestBehavior {
               objectMapper,
               openAEVConfig.getQueueConfig().get("inject-trace"),
               rabbitMQSslConfiguration);
+      // Share the queue with the batching service so it can requeue delayed callbacks
+      batchingInjectStatusService.setInjectTraceQueueService(injectTraceQueueService);
     }
   }
 

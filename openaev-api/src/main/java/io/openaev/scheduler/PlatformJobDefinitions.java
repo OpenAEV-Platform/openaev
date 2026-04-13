@@ -76,4 +76,17 @@ public class PlatformJobDefinitions {
         .storeDurably()
         .build();
   }
+
+  /**
+   * Create the job for the requeue system of the execution traces
+   *
+   * @return the job
+   */
+  @Bean
+  public JobDetail getExecutionTracesBatchRequeueJob() {
+    return JobBuilder.newJob(ExecutionTracesBatchRequeueJob.class)
+        .withIdentity("executionTracesBatchRequeueJob")
+        .storeDurably()
+        .build();
+  }
 }
