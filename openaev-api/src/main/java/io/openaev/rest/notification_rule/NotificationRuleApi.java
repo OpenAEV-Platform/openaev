@@ -171,10 +171,7 @@ public class NotificationRuleApi {
   }
 
   @LogExecutionTime
-  @PostMapping({
-    NOTIFICATION_RULE_URI + "/search",
-    TENANT_NOTIFICATION_RULE_URI + "/search"
-  })
+  @PostMapping({NOTIFICATION_RULE_URI + "/search", TENANT_NOTIFICATION_RULE_URI + "/search"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.NOTIFICATION_RULE)
   @Operation(
       description = "Search NotificationRules corresponding to search criteria",
