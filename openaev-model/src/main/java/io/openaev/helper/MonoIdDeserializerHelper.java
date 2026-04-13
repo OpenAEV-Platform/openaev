@@ -56,8 +56,22 @@ public class MonoIdDeserializerHelper<T extends Base> extends JsonDeserializer<T
     if (id == null || id.isBlank()) return null;
 
     if (em != null) {
-      // Proxy Hibernate, pas de SELECT
-      return (T) em.getReference(entityClass, id);
+      Object resolvedId;
+
+      if (CompositeIdResolvableI.class.isAssignableFrom(entityClass)) {
+        try {
+          CompositeIdResolvableI instance =
+              (CompositeIdResolvableI) entityClass.getDeclaredConstructor().newInstance();
+          resolvedId = instance.resolveCompositeId(id, ctxt);
+        } catch (Exception e) {
+          throw new IOException(
+              "Cannot resolve composite id for " + entityClass.getSimpleName(), e);
+        }
+      } else {
+        resolvedId = id;
+      }
+
+      return (T) em.getReference(entityClass, resolvedId);
     } else {
       // fallback : stub
       try {

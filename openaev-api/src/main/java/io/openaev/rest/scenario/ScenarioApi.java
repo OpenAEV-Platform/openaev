@@ -20,14 +20,18 @@ import io.openaev.rest.asset.endpoint.form.EndpointOutput;
 import io.openaev.rest.asset_group.form.AssetGroupOutput;
 import io.openaev.rest.custom_dashboard.CustomDashboardService;
 import io.openaev.rest.document.DocumentService;
+import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.form.LessonsInput;
 import io.openaev.rest.exercise.form.ScenarioTeamPlayersEnableInput;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.scenario.form.*;
 import io.openaev.rest.scenario.response.ScenarioOutput;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
+import io.openaev.service.chaining.StepService;
+import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -72,6 +76,9 @@ public class ScenarioApi extends RestBehavior {
   private final ChannelService channelService;
   private final DocumentService documentService;
   private final PlatformSettingsService platformSettingsService;
+  private final WorkflowService workflowService;
+  private final StepService stepService;
+  private final PreviewFeatureService previewFeatureService;
 
   @PostMapping({SCENARIO_URI, TENANT_SCENARIO_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SCENARIO)
@@ -425,12 +432,26 @@ public class ScenarioApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.LAUNCH,
       resourceType = ResourceType.SCENARIO)
-  public Exercise createRunningExerciseFromScenario(
-      @PathVariable @NotBlank final String scenarioId) {
+  public Exercise createRunningExerciseFromScenario(@PathVariable @NotBlank final String scenarioId)
+      throws ChainingException {
     Scenario scenario = this.scenarioService.scenario(scenarioId);
-    this.scenarioService.throwIfScenarioNotLaunchable(scenario);
-    return scenarioToExerciseService.toExercise(
-        scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true);
+    Exercise simulation;
+
+    if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
+        && workflowService.isScenarioChaining(scenarioId)) {
+      simulation =
+          scenarioToExerciseService.toExercise(
+              scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true);
+      stepService.startWorkflowByScenarioIdAndSimulation(scenarioId, simulation);
+
+    } else {
+      this.scenarioService.throwIfScenarioNotLaunchable(scenario);
+      simulation =
+          scenarioToExerciseService.toExercise(
+              scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true);
+    }
+
+    return simulation;
   }
 
   @PostMapping({

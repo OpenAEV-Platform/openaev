@@ -6757,6 +6757,7 @@ export interface ScenarioInput {
   scenario_description?: string;
   scenario_external_reference?: string;
   scenario_external_url?: string;
+  scenario_is_chaining?: boolean;
   /** @format email */
   scenario_mail_from?: string;
   scenario_mails_reply_to?: string[];
@@ -7568,6 +7569,7 @@ export interface UpdateScenarioInput {
   scenario_description?: string;
   scenario_external_reference?: string;
   scenario_external_url?: string;
+  scenario_is_chaining?: boolean;
   /** @format email */
   scenario_mail_from?: string;
   scenario_mails_reply_to?: string[];

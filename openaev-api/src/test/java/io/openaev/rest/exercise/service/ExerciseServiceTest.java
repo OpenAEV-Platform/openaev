@@ -14,6 +14,7 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.*;
 import io.openaev.service.FileService;
 import io.openaev.service.LessonsService;
+import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
@@ -88,6 +89,7 @@ class ExerciseServiceTest extends IntegrationTest {
 
   @InjectMocks private ExerciseService mockedExerciseService;
   @Autowired private InjectStatusRepository injectStatusRepository;
+  @Autowired private StepService stepService;
 
   @BeforeEach
   void setUp() {
@@ -128,7 +130,8 @@ class ExerciseServiceTest extends IntegrationTest {
             workflowService,
             previewFeatureService,
             pauseExerciseService,
-            fileService);
+            fileService,
+            stepService);
 
     scenarioComposer.reset();
     exerciseComposer.reset();

@@ -134,4 +134,6 @@ public interface StepRepository extends JpaRepository<Step, String> {
         """,
       nativeQuery = true)
   Set<String> findStepIdsByExpectationIds(@Param("expectationIds") Set<String> expectationIds);
+
+  List<Step> findAllStepByWorkflow_IdAndStatusIn(String id, List<StepStatus> run);
 }

@@ -156,4 +156,10 @@ public class Workflow implements Base {
         .filter(r -> ScopeRuleSelectedMode.BLACKLIST.equals(r.getSelectedMode()))
         .toList();
   }
+
+  @OneToOne
+  @JoinColumn(name = "workflow_scenario_id")
+  @JsonIgnore
+  @Schema(description = "Scenario associated with this workflow")
+  private Scenario scenario;
 }

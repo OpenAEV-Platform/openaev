@@ -1,6 +1,7 @@
 package io.openaev.database.repository;
 
 import io.openaev.database.model.StepDelayQueue;
+import io.openaev.database.model.Workflow;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -25,4 +26,6 @@ public interface StepDelayQueueRepository extends JpaRepository<StepDelayQueue, 
     """,
       nativeQuery = true)
   List<StepDelayQueue> popNextPerWorkflowRun();
+
+  List<StepDelayQueue> findAllByWorkflowRun(Workflow workflowRun);
 }

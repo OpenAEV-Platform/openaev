@@ -24,7 +24,10 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
-import io.openaev.database.raw.*;
+import io.openaev.database.raw.RawExerciseSimple;
+import io.openaev.database.raw.RawPaginationScenario;
+import io.openaev.database.raw.RawScenario;
+import io.openaev.database.raw.RawScenarioSimpleIndexing;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.ScenarioSpecification;
 import io.openaev.ee.EnterpriseEditionService;
@@ -32,6 +35,7 @@ import io.openaev.export.Mixins;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.helper.ObjectMapperHelper;
+import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.exports.ExerciseFileExport;
 import io.openaev.rest.exercise.exports.VariableMixin;
@@ -46,6 +50,7 @@ import io.openaev.rest.scenario.response.ScenarioOutput;
 import io.openaev.rest.scenario.response.ScenarioTeamUserOutput;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
+import io.openaev.service.chaining.WorkflowService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.mapper.ExerciseMapper;
@@ -128,12 +133,26 @@ public class ScenarioService {
   private final HealthCheckUtils healthCheckUtils;
 
   private final ScenarioMapper scenarioMapper;
+  private final WorkflowService workflowService;
 
   @Transactional
   public Scenario createScenario(@NotNull final Scenario scenario) {
     computeEmails(scenario);
     this.actionMetricCollector.addScenarioCreatedCount();
     return this.scenarioRepository.save(scenario);
+  }
+
+  @Transactional
+  public Scenario createScenarioChaining(@NotNull final Scenario scenario)
+      throws ChainingException {
+    workflowService.isPreviewFeatureChainingEnable();
+
+    computeEmails(scenario);
+    this.actionMetricCollector.addScenarioCreatedCount();
+    Scenario savedScenario = this.scenarioRepository.save(scenario);
+    workflowService.creationWorkflow(savedScenario);
+
+    return savedScenario;
   }
 
   public void computeEmails(@NotNull Scenario scenario) {
