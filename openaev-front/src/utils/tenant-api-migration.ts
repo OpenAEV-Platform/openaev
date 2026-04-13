@@ -21,8 +21,6 @@ const TENANT_MIGRATION_TODO: string[] = [
   '/api/vulnerabilities',
   '/api/lessons_templates',
   // PR9 — Reference data & Misc
-  '/api/attack_patterns',
-  '/api/kill_chain_phases',
   '/api/domains',
   '/api/mappers',
   '/api/tag-rules',
