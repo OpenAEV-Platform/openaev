@@ -7,6 +7,7 @@ import static org.mockito.Mockito.*;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.InjectRepository;
+import io.openaev.rest.helper.queue.BatchQueueService;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionCallback;
 import io.openaev.rest.inject.form.InjectExecutionInput;
@@ -51,6 +52,7 @@ class InjectCallbackContractTest {
   @Mock private AgentExecutionProcessingHandler agentExecutionProcessingHandler;
   @Mock private InjectorExecutionProcessingHandler injectorExecutionProcessingHandler;
   @Mock private StructuredOutputUtils structuredOutputUtils;
+  @Mock private BatchQueueService<InjectExecutionCallback> injectTraceQueueService;
 
   private InjectExecutionService injectExecutionService;
   private BatchingInjectStatusService batchingService;
@@ -88,6 +90,7 @@ class InjectCallbackContractTest {
     batchingService =
         new BatchingInjectStatusService(
             injectRepository, agentRepository, structuredOutputUtils, injectExecutionService);
+    batchingService.setInjectTraceQueueService(injectTraceQueueService);
   }
 
   private CallbackInvoker syncInvoker() {

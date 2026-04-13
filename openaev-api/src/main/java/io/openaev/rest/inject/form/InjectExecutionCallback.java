@@ -41,6 +41,6 @@ public class InjectExecutionCallback implements Queueable {
 
   @Override
   public String getUniqueElementKey() {
-    return injectId + agentId;
+    return injectId;
   }
 }
