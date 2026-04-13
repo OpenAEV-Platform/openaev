@@ -13,6 +13,11 @@ import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionCallback;
 import jakarta.annotation.Resource;
 import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+
 import java.io.IOException;
 import java.time.Instant;
 import java.util.*;
@@ -21,10 +26,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
-import lombok.RequiredArgsConstructor;
-import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
 
 @RequiredArgsConstructor
 @Service
@@ -125,15 +126,21 @@ public class BatchingInjectStatusService {
                       inject.getStatus().map(is -> is.getName().toString()).orElse("unknown"),
                       callback.getRetryCount(),
                       MAX_RETRIES));
-              if (callback.getRetryCount() < MAX_RETRIES) {
+              if (callback.getRetryCount() < MAX_RETRIES && injectTraceQueueService != null) {
                 callback.setRetryCount(callback.getRetryCount() + 1);
                 // We change the emission date to current timestamp here to be more accurate
                 // order has become meaningless in case of re-queueing the message any way
                 callback.setEmissionDate(Instant.now().toEpochMilli());
                 requeueCallbacks.add(callback);
               } else {
-                log.warn("Max retries reached for inject {}", callback.getInjectId());
-                // Max retry reach, we save the trace anyway, to make sure no information is lost
+                if (callback.getRetryCount() < MAX_RETRIES) {
+                  log.warn(
+                    "Inject trace queue service is not configured, saving trace directly for inject {}",
+                    callback.getInjectId());
+                } else {
+                  log.warn("Max retries reached for inject {}", callback.getInjectId());
+                }
+                // Max retry reached, we save the trace anyway, to make sure no information is lost
                 // and let the expiration manager logic handle the discrepancies if any exists
                 saveExecutionTrace(callback, mapAgentsById, inject, successfullyProcessedCallbacks);
               }
@@ -199,8 +206,14 @@ public class BatchingInjectStatusService {
       return;
     }
     InjectExecutionCallback callback;
-    while ((callback = requeueCallbacks.poll()) != null) {
-      injectTraceQueueService.publish(callback);
+    while ((callback = requeueCallbacks.peek()) != null) {
+      try {
+        injectTraceQueueService.publish(callback);
+        requeueCallbacks.poll();
+      } catch (Exception e) {
+        log.warn("Unable to requeue inject execution callback, keeping it in memory for retry", e);
+        break;
+      }
     }
   }
 }
