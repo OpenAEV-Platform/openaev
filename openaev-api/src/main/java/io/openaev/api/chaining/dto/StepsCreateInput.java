@@ -50,6 +50,10 @@ public class StepsCreateInput {
     @JsonProperty("conditions")
     private List<ConditionCreateInput> conditions;
 
+    /** IDs of existing condition trees (roots) to link to this step. */
+    @JsonProperty("condition_ids")
+    private List<String> conditionIds;
+
     /**
      * Data Step. Contains the expected object depending on the step action. INJECT_EXECUTION →
      * InjectInput

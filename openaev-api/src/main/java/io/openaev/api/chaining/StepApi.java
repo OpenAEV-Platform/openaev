@@ -5,6 +5,7 @@ import static io.openaev.api.chaining.StepMapper.toOutput;
 import io.openaev.aop.AccessControl;
 import io.openaev.api.chaining.dto.StepInput;
 import io.openaev.api.chaining.dto.StepOutput;
+import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.exception.ChainingException;
@@ -43,7 +44,14 @@ public class StepApi {
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   public StepOutput createStep(@Valid @RequestBody StepInput input) throws ChainingException {
-    return toOutput(stepService.createStepTemplate(input.getWorkflowId(), input));
+    StepsCreateInput.StepInput createInput =
+        StepsCreateInput.StepInput.builder()
+            .stepAction(input.getStepAction())
+            .conditions(input.getConditions())
+            .conditionIds(input.getConditionIds())
+            .dataStep(input.getDataStep())
+            .build();
+    return toOutput(stepService.createStepTemplate(input.getWorkflowId(), createInput));
   }
 
   // -- READ --

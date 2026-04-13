@@ -1,10 +1,13 @@
 package io.openaev.api.chaining;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import io.openaev.api.chaining.dto.StepInput;
 import io.openaev.api.chaining.dto.StepOutput;
+import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.StepActionClass;
 import io.openaev.database.model.StepStatus;
@@ -31,7 +34,7 @@ class StepApiTest {
     input.setStepAction(StepActionClass.INJECT_EXECUTION);
 
     Step created = step("step-1", 2, StepStatus.TEMPLATE, "{\"a\":1}");
-    when(stepService.createStepTemplate("wf-1", input)).thenReturn(created);
+    when(stepService.createStepTemplate(eq("wf-1"), any(StepsCreateInput.StepInput.class))).thenReturn(created);
 
     StepOutput result = stepApi.createStep(input);
 
@@ -39,7 +42,7 @@ class StepApiTest {
     assertEquals("step-1", result.getId());
     assertEquals(StepStatus.TEMPLATE, result.getStatus());
     assertEquals("{\"a\":1}", result.getData().toString());
-    verify(stepService).createStepTemplate("wf-1", input);
+    verify(stepService).createStepTemplate(eq("wf-1"), any(StepsCreateInput.StepInput.class));
   }
 
   @Test

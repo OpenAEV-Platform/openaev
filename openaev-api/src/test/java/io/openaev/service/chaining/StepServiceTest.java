@@ -8,6 +8,7 @@ import static org.mockito.Mockito.*;
 import io.openaev.api.chaining.ActionStep;
 import io.openaev.api.chaining.InjectExecutionStep;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
+import io.openaev.api.chaining.dto.StepInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.StepDelayQueueRepository;
@@ -68,7 +69,7 @@ public class StepServiceTest {
 
     @Test
     void shouldThrowWhenActionStepIsNull() {
-      StepInput stepInput = mockStep(null, List.of());
+      StepsCreateInput.StepInput stepInput = mockStep(null, List.of());
 
       when(workflowService.getWorkflowByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
           .thenReturn(mock(Workflow.class));
@@ -89,7 +90,7 @@ public class StepServiceTest {
 
     @Test
     void shouldSkipConditionCreationWhenEmpty() throws ChainingException {
-      StepInput stepInput = mockStep(StepActionClass.INJECT_EXECUTION, Collections.emptyList());
+      StepsCreateInput.StepInput stepInput = mockStep(StepActionClass.INJECT_EXECUTION, Collections.emptyList());
 
       setupCreateStepTemplates(stepInput, false);
 
@@ -113,7 +114,7 @@ public class StepServiceTest {
         Map<ConditionKeyType, Optional<ConditionKeyType>> expectedParentMap)
         throws ChainingException {
 
-      StepInput stepInput = mockStep(StepActionClass.INJECT_EXECUTION, inputs);
+      StepsCreateInput.StepInput stepInput = mockStep(StepActionClass.INJECT_EXECUTION, inputs);
 
       setupCreateStepTemplates(stepInput, false);
 
@@ -236,7 +237,7 @@ public class StepServiceTest {
     @Test
     void shouldThrowWhenMultipleRootConditions() throws ChainingException {
       // Arrange
-      StepInput stepInput =
+      StepsCreateInput.StepInput stepInput =
           mockStep(
               StepActionClass.INJECT_EXECUTION,
               List.of(
@@ -272,7 +273,7 @@ public class StepServiceTest {
               .keyType(ConditionKeyType.TEXT)
               .temporaryIdConditionParent("X")
               .build();
-      StepInput stepInput =
+      StepsCreateInput.StepInput stepInput =
           mockStep(StepActionClass.INJECT_EXECUTION, List.of(conditionCreateInput));
 
       Workflow workflow = mock(Workflow.class);
@@ -1381,7 +1382,7 @@ public class StepServiceTest {
     String workflowId = "wf-1";
     Workflow workflow = new Workflow();
 
-    StepInput input = mock(StepInput.class);
+    StepsCreateInput.StepInput input = mock(StepsCreateInput.StepInput.class);
 
     Step step = new Step();
 
@@ -1394,7 +1395,7 @@ public class StepServiceTest {
 
     doThrow(new IllegalArgumentException())
         .when(stepService)
-        .stepConditionTemplate(any(StepsCreateInput.StepInput.class), any());
+        .stepConditionTemplate(any(List.class), any(String.class), any(Step.class));
 
     assertThrows(
         IllegalArgumentException.class,
@@ -1465,7 +1466,7 @@ public class StepServiceTest {
    * Helpers
    * ============================================================ */
 
-  private void setupCreateStepTemplates(StepInput stepInput, boolean saveCondition)
+  private void setupCreateStepTemplates(StepsCreateInput.StepInput stepInput, boolean saveCondition)
       throws ChainingException {
 
     Workflow workflow = mock(Workflow.class);
@@ -1486,9 +1487,9 @@ public class StepServiceTest {
       when(conditionService.saveCondition(any())).thenAnswer(i -> i.getArgument(0));
   }
 
-  private StepInput mockStep(StepActionClass actionClass, List<ConditionCreateInput> conditions) {
+  private StepsCreateInput.StepInput mockStep(StepActionClass actionClass, List<ConditionCreateInput> conditions) {
 
-    StepInput step = mock(StepInput.class);
+    StepsCreateInput.StepInput step = mock(StepsCreateInput.StepInput.class);
 
     when(step.getStepAction()).thenReturn(actionClass);
     if (!conditions.isEmpty()) when(step.getConditions()).thenReturn(conditions);
@@ -1516,7 +1517,7 @@ public class StepServiceTest {
 
     @Test
     void shouldCreateStepTemplate_andLinkExistingConditions() throws ChainingException {
-      StepInput stepInput = mock(StepInput.class);
+      StepsCreateInput.StepInput stepInput = mock(StepsCreateInput.StepInput.class);
       Workflow workflow = mock(Workflow.class);
       Step created = mock(Step.class);
       List<String> conditionIds = List.of("cond-1", "cond-2");
@@ -1560,7 +1561,7 @@ public class StepServiceTest {
       doReturn(actionStep)
           .when(stepService)
           .factoryAction(StepActionClass.INJECT_EXECUTION, stepId);
-      when(actionStep.create(stepInput, existingWorkflow)).thenReturn(Optional.of(candidate));
+      when(actionStep.create(any(StepsCreateInput.StepInput.class), eq(existingWorkflow))).thenReturn(Optional.of(candidate));
       when(stepRepository.save(existing)).thenReturn(existing);
 
       Step updated = stepService.updateStepTemplate(stepId, stepInput);

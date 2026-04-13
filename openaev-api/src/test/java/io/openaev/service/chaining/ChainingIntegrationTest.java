@@ -744,7 +744,7 @@ class ChainingIntegrationTest extends IntegrationTest {
         StepService.setField(actual.getData(), "inject_exercise", ""),
         "Step data must be the same expected for simulation id (inject_exercise)");
     assertEquals(expected.getOutput(), actual.getOutput());
-    assertEquals(expected.getOutput_parser(), actual.getOutput_parser());
+    assertEquals(expected.getOutputParser(), actual.getOutputParser());
     assertEquals(expected.getConditionExecuted(), actual.getConditionExecuted());
     assertEquals(expected.getLimitExecution(), actual.getLimitExecution());
   }
