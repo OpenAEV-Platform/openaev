@@ -11,9 +11,7 @@
  */
 const TENANT_MIGRATION_TODO: string[] = [
   // PR4 — Teams & Players
-  '/api/teams',
   '/api/players',
-  '/api/organizations',
   // PR7 — Findings, Expectations & Lessons
   '/api/findings',
   '/api/detection-remediations',

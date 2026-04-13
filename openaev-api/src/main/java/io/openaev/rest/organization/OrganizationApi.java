@@ -1,5 +1,6 @@
 package io.openaev.rest.organization;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.database.specification.OrganizationSpecification.byName;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
@@ -30,12 +31,13 @@ import org.springframework.web.bind.annotation.*;
 public class OrganizationApi extends RestBehavior {
 
   public static final String ORGANIZATION_URI = "/api/organizations";
+  private static final String TENANT_ORGANIZATION_URI = TENANT_PREFIX + "/organizations";
 
   private final OrganizationRepository organizationRepository;
   private final TagRepository tagRepository;
   private final OrganizationService organizationService;
 
-  @GetMapping(ORGANIZATION_URI)
+  @GetMapping({ORGANIZATION_URI, TENANT_ORGANIZATION_URI})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ORGANIZATION)
   public Iterable<RawOrganization> organizations() {
     List<RawOrganization> organizations;
@@ -43,14 +45,14 @@ public class OrganizationApi extends RestBehavior {
     return organizations;
   }
 
-  @PostMapping(ORGANIZATION_URI + "/search")
+  @PostMapping({ORGANIZATION_URI + "/search", TENANT_ORGANIZATION_URI + "/search"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ORGANIZATION)
   public Page<Organization> organizations(
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return this.organizationService.organizationPagination(searchPaginationInput);
   }
 
-  @PostMapping(ORGANIZATION_URI)
+  @PostMapping({ORGANIZATION_URI, TENANT_ORGANIZATION_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ORGANIZATION)
   @Transactional(rollbackOn = Exception.class)
   public Organization createOrganization(@Valid @RequestBody OrganizationCreateInput input) {
@@ -60,7 +62,10 @@ public class OrganizationApi extends RestBehavior {
     return organizationRepository.save(organization);
   }
 
-  @PutMapping(ORGANIZATION_URI + "/{organizationId}")
+  @PutMapping({
+    ORGANIZATION_URI + "/{organizationId}",
+    TENANT_ORGANIZATION_URI + "/{organizationId}"
+  })
   @AccessControl(
       resourceId = "#organizationId",
       actionPerformed = Action.WRITE,
@@ -75,7 +80,10 @@ public class OrganizationApi extends RestBehavior {
     return organizationRepository.save(organization);
   }
 
-  @DeleteMapping(ORGANIZATION_URI + "/{organizationId}")
+  @DeleteMapping({
+    ORGANIZATION_URI + "/{organizationId}",
+    TENANT_ORGANIZATION_URI + "/{organizationId}"
+  })
   @AccessControl(
       resourceId = "#organizationId",
       actionPerformed = Action.DELETE,
@@ -86,7 +94,7 @@ public class OrganizationApi extends RestBehavior {
 
   // -- OPTION --
 
-  @GetMapping(ORGANIZATION_URI + "/options")
+  @GetMapping({ORGANIZATION_URI + "/options", TENANT_ORGANIZATION_URI + "/options"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ORGANIZATION)
   public List<FilterUtilsJpa.Option> optionsByName(
       @RequestParam(required = false) final String searchText) {
@@ -98,7 +106,7 @@ public class OrganizationApi extends RestBehavior {
         .toList();
   }
 
-  @PostMapping(ORGANIZATION_URI + "/options")
+  @PostMapping({ORGANIZATION_URI + "/options", TENANT_ORGANIZATION_URI + "/options"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ORGANIZATION)
   public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
     return fromIterable(this.organizationRepository.findAllById(ids)).stream()
