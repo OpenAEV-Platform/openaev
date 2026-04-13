@@ -6,7 +6,7 @@ import { fetchUserTenants } from '../../actions/user/user-tenant-actions';
 import { TENANT_SWITCH_SUCCESS } from '../../constants/ActionTypes';
 import { type TenantOutput, type User } from '../api-types';
 import { useAppDispatch } from '../hooks';
-import { buildTenantUrl, TENANT_STORAGE_KEY } from '../tenant-url-helper';
+import { buildTenantUrl, extractTenantFromUrl, TENANT_STORAGE_KEY } from '../tenant-url-helper';
 
 /**
  * Internal hook that encapsulates the current-tenant state and
@@ -62,8 +62,12 @@ const useTenant = (me: User | undefined, logged: unknown) => {
         setTenant(newCurrentTenant);
         setCurrentTenantStorage(newCurrentTenant);
       } else {
-        // Otherwise, if local storage tenant is still valid use it, otherwise switch to first tenant in list
-        const currentTenant = tenants.find(tenant => (tenant.tenant_id === currentTenantStorage?.tenant_id));
+        // Resolve tenant: URL first (per-tab, multi-tab safe), then localStorage fallback.
+        // Without this, switching tenant in Tab 1 would corrupt the tenant shown in Tab 2 on refresh
+        // because localStorage is shared across tabs.
+        const urlTenantId = extractTenantFromUrl();
+        const preferredTenantId = urlTenantId ?? currentTenantStorage?.tenant_id;
+        const currentTenant = tenants.find(tenant => tenant.tenant_id === preferredTenantId);
         if (currentTenant) {
           setTenant(currentTenant);
           setCurrentTenantStorage(currentTenant);

@@ -376,107 +376,150 @@ describe('tenant-url-helper', () => {
   // -- getCurrentTenantId --
 
   describe('getCurrentTenantId', () => {
-    it('given valid tenant in storage should return stored tenant id', async () => {
-      // Arrange
-      const tenant = {
-        tenant_id: VALID_UUID,
-        tenant_name: 'Test',
-      };
-      localStorage.setItem('current-tenant-storage', JSON.stringify(tenant));
-      const { getCurrentTenantId } = await importHelper();
+    describe('URL-first resolution (multi-tab safe)', () => {
+      it('given tenant UUID in URL should return it (ignoring localStorage)', async () => {
+        // Arrange — URL has tenant A, localStorage has tenant B
+        setPathname(`/${VALID_UUID}/admin/scenarios`);
+        const tenant = {
+          tenant_id: ANOTHER_UUID,
+          tenant_name: 'Other',
+        };
+        localStorage.setItem('current-tenant-storage', JSON.stringify(tenant));
+        const { getCurrentTenantId } = await importHelper();
 
-      // Act
-      const result = getCurrentTenantId();
+        // Act
+        const result = getCurrentTenantId();
 
-      // Assert
-      expect(result).toBe(VALID_UUID);
+        // Assert — URL wins over localStorage
+        expect(result).toBe(VALID_UUID);
+      });
+
+      it('given tenant UUID in URL and empty storage should return URL tenant', async () => {
+        // Arrange
+        setPathname(`/${VALID_UUID}/admin`);
+        const { getCurrentTenantId } = await importHelper();
+
+        // Act
+        const result = getCurrentTenantId();
+
+        // Assert
+        expect(result).toBe(VALID_UUID);
+      });
     });
 
-    it('given empty storage should return default tenant UUID', async () => {
-      // Arrange
-      const { getCurrentTenantId, DEFAULT_TENANT_UUID } = await importHelper();
+    describe('localStorage fallback (early bootstrap / public pages)', () => {
+      it('given no tenant in URL and valid tenant in storage should return stored tenant id', async () => {
+        // Arrange — public page URL (no tenant segment)
+        setPathname('/login');
+        const tenant = {
+          tenant_id: VALID_UUID,
+          tenant_name: 'Test',
+        };
+        localStorage.setItem('current-tenant-storage', JSON.stringify(tenant));
+        const { getCurrentTenantId } = await importHelper();
 
-      // Act
-      const result = getCurrentTenantId();
+        // Act
+        const result = getCurrentTenantId();
 
-      // Assert
-      expect(result).toBe(DEFAULT_TENANT_UUID);
+        // Assert
+        expect(result).toBe(VALID_UUID);
+      });
+
+      it('given no tenant in URL and different tenant stored should return that tenant id', async () => {
+        // Arrange
+        setPathname('/');
+        const tenant = {
+          tenant_id: ANOTHER_UUID,
+          tenant_name: 'Another',
+        };
+        localStorage.setItem('current-tenant-storage', JSON.stringify(tenant));
+        const { getCurrentTenantId } = await importHelper();
+
+        // Act
+        const result = getCurrentTenantId();
+
+        // Assert
+        expect(result).toBe(ANOTHER_UUID);
+      });
     });
 
-    it('given malformed JSON in storage should return default tenant UUID', async () => {
-      // Arrange
-      localStorage.setItem('current-tenant-storage', '{not valid json');
-      const { getCurrentTenantId, DEFAULT_TENANT_UUID } = await importHelper();
+    describe('default fallback', () => {
+      it('given no tenant in URL and empty storage should return default tenant UUID', async () => {
+        // Arrange
+        setPathname('/');
+        const { getCurrentTenantId, DEFAULT_TENANT_UUID } = await importHelper();
 
-      // Act
-      const result = getCurrentTenantId();
+        // Act
+        const result = getCurrentTenantId();
 
-      // Assert
-      expect(result).toBe(DEFAULT_TENANT_UUID);
-    });
+        // Assert
+        expect(result).toBe(DEFAULT_TENANT_UUID);
+      });
 
-    it('given stored object without tenant id should return default tenant UUID', async () => {
-      // Arrange
-      localStorage.setItem('current-tenant-storage', JSON.stringify({ tenant_name: 'No ID' }));
-      const { getCurrentTenantId, DEFAULT_TENANT_UUID } = await importHelper();
+      it('given no tenant in URL and malformed JSON in storage should return default tenant UUID', async () => {
+        // Arrange
+        setPathname('/');
+        localStorage.setItem('current-tenant-storage', '{not valid json');
+        const { getCurrentTenantId, DEFAULT_TENANT_UUID } = await importHelper();
 
-      // Act
-      const result = getCurrentTenantId();
+        // Act
+        const result = getCurrentTenantId();
 
-      // Assert
-      expect(result).toBe(DEFAULT_TENANT_UUID);
-    });
+        // Assert
+        expect(result).toBe(DEFAULT_TENANT_UUID);
+      });
 
-    it('given empty tenant id should return default tenant UUID', async () => {
-      // Arrange
-      localStorage.setItem('current-tenant-storage', JSON.stringify({ tenant_id: '' }));
-      const { getCurrentTenantId, DEFAULT_TENANT_UUID } = await importHelper();
+      it('given no tenant in URL and stored object without tenant id should return default tenant UUID', async () => {
+        // Arrange
+        setPathname('/');
+        localStorage.setItem('current-tenant-storage', JSON.stringify({ tenant_name: 'No ID' }));
+        const { getCurrentTenantId, DEFAULT_TENANT_UUID } = await importHelper();
 
-      // Act
-      const result = getCurrentTenantId();
+        // Act
+        const result = getCurrentTenantId();
 
-      // Assert
-      expect(result).toBe(DEFAULT_TENANT_UUID);
-    });
+        // Assert
+        expect(result).toBe(DEFAULT_TENANT_UUID);
+      });
 
-    it('given stored null value should return default tenant UUID', async () => {
-      // Arrange
-      localStorage.setItem('current-tenant-storage', 'null');
-      const { getCurrentTenantId, DEFAULT_TENANT_UUID } = await importHelper();
+      it('given no tenant in URL and empty tenant id in storage should return default tenant UUID', async () => {
+        // Arrange
+        setPathname('/');
+        localStorage.setItem('current-tenant-storage', JSON.stringify({ tenant_id: '' }));
+        const { getCurrentTenantId, DEFAULT_TENANT_UUID } = await importHelper();
 
-      // Act
-      const result = getCurrentTenantId();
+        // Act
+        const result = getCurrentTenantId();
 
-      // Assert
-      expect(result).toBe(DEFAULT_TENANT_UUID);
-    });
+        // Assert
+        expect(result).toBe(DEFAULT_TENANT_UUID);
+      });
 
-    it('given stored empty string should return default tenant UUID', async () => {
-      // Arrange
-      localStorage.setItem('current-tenant-storage', '');
-      const { getCurrentTenantId, DEFAULT_TENANT_UUID } = await importHelper();
+      it('given no tenant in URL and stored null value should return default tenant UUID', async () => {
+        // Arrange
+        setPathname('/');
+        localStorage.setItem('current-tenant-storage', 'null');
+        const { getCurrentTenantId, DEFAULT_TENANT_UUID } = await importHelper();
 
-      // Act
-      const result = getCurrentTenantId();
+        // Act
+        const result = getCurrentTenantId();
 
-      // Assert
-      expect(result).toBe(DEFAULT_TENANT_UUID);
-    });
+        // Assert
+        expect(result).toBe(DEFAULT_TENANT_UUID);
+      });
 
-    it('given different tenant stored should return that tenant id', async () => {
-      // Arrange
-      const tenant = {
-        tenant_id: ANOTHER_UUID,
-        tenant_name: 'Another',
-      };
-      localStorage.setItem('current-tenant-storage', JSON.stringify(tenant));
-      const { getCurrentTenantId } = await importHelper();
+      it('given no tenant in URL and stored empty string should return default tenant UUID', async () => {
+        // Arrange
+        setPathname('/');
+        localStorage.setItem('current-tenant-storage', '');
+        const { getCurrentTenantId, DEFAULT_TENANT_UUID } = await importHelper();
 
-      // Act
-      const result = getCurrentTenantId();
+        // Act
+        const result = getCurrentTenantId();
 
-      // Assert
-      expect(result).toBe(ANOTHER_UUID);
+        // Assert
+        expect(result).toBe(DEFAULT_TENANT_UUID);
+      });
     });
   });
 

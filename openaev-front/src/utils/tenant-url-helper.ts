@@ -92,14 +92,29 @@ export const buildTenantUrl = (
 };
 
 // ---------------------------------------------------------------------------
-// Tenant ID resolution — reading tenant from local storage
+// Tenant ID resolution — URL first, localStorage fallback
 // ---------------------------------------------------------------------------
 
 /**
- * Reads the current tenant ID from local storage.
- * Falls back to DEFAULT_TENANT_UUID when nothing is stored.
+ * Returns the current tenant ID.
+ *
+ * Resolution order (first non-null wins):
+ *  1. URL pathname — per-tab, always accurate (multi-tab safe)
+ *  2. localStorage — shared across tabs, used only during early
+ *     bootstrap before the URL contains the tenant segment
+ *  3. DEFAULT_TENANT_UUID — ultimate fallback
+ *
+ * ⚠️  localStorage alone was racy: switching tenant in one tab
+ *     silently affected every other tab's API calls.
  */
 export const getCurrentTenantId = (): string => {
+  // 1. URL is the source of truth (per-tab, no cross-tab leak)
+  const fromUrl = extractTenantFromUrl();
+  if (fromUrl) {
+    return fromUrl;
+  }
+
+  // 2. Fallback to localStorage (early bootstrap / public pages)
   try {
     const tenantRaw = localStorage.getItem(TENANT_STORAGE_KEY);
     if (tenantRaw) {
@@ -111,6 +126,7 @@ export const getCurrentTenantId = (): string => {
   } catch {
     // malformed JSON — fall back
   }
+
   return DEFAULT_TENANT_UUID;
 };
 
