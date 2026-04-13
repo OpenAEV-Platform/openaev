@@ -72,8 +72,7 @@ public class AppSecurityConfig {
             csrf ->
                 csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                     .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
-                    .ignoringRequestMatchers(
-                        "/api/health", "/api/login", "/actuator/**")
+                    .ignoringRequestMatchers("/api/health", "/api/login", "/actuator/**")
                     .ignoringRequestMatchers(bearerWithoutCookiesMatcher()))
         .formLogin(AbstractHttpConfigurer::disable)
         .securityContext(securityContext -> securityContext.requireExplicitSave(false))
