@@ -25,7 +25,7 @@ public class StringUtils {
   }
 
   /** Suffix appended to duplicated entity names. */
-  private static final String DUPLICATE_SUFFIX = " (duplicate)";
+  public static final String DUPLICATE_SUFFIX = " (duplicate)";
 
   /**
    * Creates a duplicate name by appending a suffix to the original name.

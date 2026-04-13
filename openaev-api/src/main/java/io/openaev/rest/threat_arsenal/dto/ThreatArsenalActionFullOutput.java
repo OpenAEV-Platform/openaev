@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /** Full-detail output DTO for a single threat arsenal action. */
@@ -14,7 +15,8 @@ public record ThreatArsenalActionFullOutput(
     @Schema(description = "Action unique identifier") @NotBlank @JsonProperty("action_id")
         String id,
     @Schema(description = "Action implementation type") @JsonProperty("action_type") String type,
-    @Schema(description = "Action display name") @NotBlank @JsonProperty("action_name") String name,
+    @Schema(description = "Action display name") @NotBlank @JsonProperty("action_labels")
+        Map<String, String> name,
     @Schema(description = "Action description") @JsonProperty("action_description")
         String description,
     @Schema(description = "Supported endpoint platforms for this action")

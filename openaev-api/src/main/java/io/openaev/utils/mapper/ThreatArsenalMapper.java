@@ -1,10 +1,12 @@
 package io.openaev.utils.mapper;
 
 import io.openaev.database.model.*;
+import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import io.openaev.rest.threat_arsenal.dto.ThreatArsenalAction;
 import io.openaev.rest.threat_arsenal.dto.ThreatArsenalActionFullOutput;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +20,7 @@ import org.springframework.stereotype.Component;
 public class ThreatArsenalMapper {
 
   private final PayloadMapper payloadMapper;
+  private final InjectorContractContentUtils injectorContractContentUtils;
 
   /**
    * Convert an injectorContract to a ThreatArsenalAction
@@ -42,6 +45,38 @@ public class ThreatArsenalMapper {
         .build();
   }
 
+  public ThreatArsenalActionFullOutput toThreatArsenalActionFullOutput(
+      InjectorContract injectorContract) {
+    return new ThreatArsenalActionFullOutput(
+        injectorContract.getId(),
+        injectorContract.getInjectorType(),
+        injectorContract.getLabels(),
+        null,
+        injectorContract.getPlatforms(),
+        null,
+        null,
+        null,
+        null,
+        injectorContract.getExternalId(),
+        null,
+        injectorContractContentUtils.getPredefinedExpectations(injectorContract),
+        null,
+        null,
+        null,
+        null,
+        null,
+        injectorContract.getTags().stream().map(Tag::getId).toList(),
+        injectorContract.getDomains().stream().map(Domain::getId).toList(),
+        injectorContract.getAttackPatterns().stream().map(AttackPattern::getId).toList(),
+        null,
+        null,
+        null,
+        null,
+        null,
+        injectorContract.getCreatedAt(),
+        injectorContract.getUpdatedAt());
+  }
+
   /**
    * Converts a {@link Payload} entity and its related IDs into a full-detail {@link
    * ThreatArsenalActionFullOutput} record.
@@ -52,8 +87,10 @@ public class ThreatArsenalMapper {
    * @param tagIds tag IDs linked through the injector contract
    * @return the fully populated action output DTO
    */
-  public ThreatArsenalActionFullOutput toThreatArsenalActionOutput(
+  public ThreatArsenalActionFullOutput toThreatArsenalActionFullOutput(
       @NotNull Payload payload,
+      @NotNull String injectorContractId,
+      @NotNull Map<String, String> labels,
       List<String> attackPatternIds,
       List<String> domainIds,
       List<String> tagIds) {
@@ -78,9 +115,9 @@ public class ThreatArsenalMapper {
     }
 
     return new ThreatArsenalActionFullOutput(
-        payload.getId(),
+        injectorContractId,
         payload.getType(),
-        payload.getName(),
+        labels,
         payload.getDescription(),
         payload.getPlatforms(),
         payload.getCleanupExecutor(),

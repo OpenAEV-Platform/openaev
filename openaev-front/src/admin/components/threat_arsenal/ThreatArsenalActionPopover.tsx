@@ -28,6 +28,7 @@ import ThreatArsenalActionForm from './ThreatArsenalActionForm';
 import SnapshotRemediationProvider from './utils/SnapshotRemediationProvider';
 
 interface PayloadPopoverNewProps {
+  actionId: string;
   payloadId: string;
   name: string;
   onUpdate?: (action: ThreatArsenalAction) => void;
@@ -37,7 +38,7 @@ interface PayloadPopoverNewProps {
   disableDelete?: boolean;
 }
 
-const buildInitialValues = (action: ThreatArsenalActionFullOutput): Partial<ThreatArsenalActionCreateCustomInput> & { payload_id?: string } => {
+const buildInitialValues = (action: ThreatArsenalActionFullOutput, actionName: string): Partial<ThreatArsenalActionCreateCustomInput> & { payload_id?: string } => {
   const remediations: Record<string, DetectionRemediationForm> = {};
   action.action_detection_remediations?.forEach((remediation) => {
     remediations[remediation.detection_remediation_collector_type ?? ''] = {
@@ -49,7 +50,7 @@ const buildInitialValues = (action: ThreatArsenalActionFullOutput): Partial<Thre
 
   return {
     action_id: action.action_id,
-    action_name: action.action_name,
+    action_name: actionName,
     action_description: action.action_description,
     action_type: action.action_type as ThreatArsenalActionCreateCustomInput['action_type'],
     command_executor: action.command_executor as string | undefined,
@@ -80,6 +81,7 @@ const handleCleanupExecutorValue = (executor: string, command: string): string |
 };
 
 const ThreatArsenalActionPopover = ({
+  actionId,
   payloadId,
   name,
   onUpdate,
@@ -95,7 +97,7 @@ const ThreatArsenalActionPopover = ({
   const [fetchedAction, setFetchedAction] = useState<ThreatArsenalActionFullOutput | null>(null);
 
   const dispatch = useAppDispatch();
-  const { t } = useFormatter();
+  const { t, tPick } = useFormatter();
   const ability = useContext(AbilityContext);
 
   // -- Popover --
@@ -108,7 +110,7 @@ const ThreatArsenalActionPopover = ({
   // -- Edit --
   const handleOpenEdit = async () => {
     handlePopoverClose();
-    const response = await fetchThreatArsenalAction(payloadId);
+    const response = await fetchThreatArsenalAction(actionId);
     setFetchedAction(response.data as ThreatArsenalActionFullOutput);
     setOpenEdit(true);
   };
@@ -139,7 +141,7 @@ const ThreatArsenalActionPopover = ({
         }),
     } as ThreatArsenalActionCreateInput;
 
-    return dispatch(updateThreatArsenalAction(payloadId, inputValues).then(({ data }: { data: ThreatArsenalAction }) => {
+    return dispatch(updateThreatArsenalAction(actionId, inputValues).then(({ data }: { data: ThreatArsenalAction }) => {
       if (data && onUpdate) {
         onUpdate(data);
       }
@@ -166,7 +168,7 @@ const ThreatArsenalActionPopover = ({
   const handleCloseDuplicate = () => setOpenDuplicate(false);
 
   const submitDuplicate = () => {
-    return dispatch(duplicateThreatArsenalAction(payloadId).then(({ data }: { data: ThreatArsenalAction }) => {
+    return dispatch(duplicateThreatArsenalAction(actionId).then(({ data }: { data: ThreatArsenalAction }) => {
       if (data && onDuplicate) {
         onDuplicate(data);
       }
@@ -214,7 +216,7 @@ const ThreatArsenalActionPopover = ({
         open={deletion}
         handleClose={handleCloseDelete}
         handleSubmit={submitDelete}
-        text={`${t('Do you want to delete this payload: ')} ${name ?? payloadId} ?`}
+        text={`${t('Do you want to delete this payload: ')} ${name ?? actionId} ?`}
       />
 
       <Dialog
@@ -245,7 +247,7 @@ const ThreatArsenalActionPopover = ({
               onSubmit={onSubmitEdit}
               handleClose={handleCloseEdit}
               editing
-              initialValues={buildInitialValues(fetchedAction)}
+              initialValues={buildInitialValues(fetchedAction, tPick(fetchedAction.action_labels))}
             />
           </SnapshotRemediationProvider>
         )}

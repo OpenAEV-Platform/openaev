@@ -165,7 +165,7 @@ const ThreatArsenal = () => {
   });
 
   const availableFilterNames = [
-    'action_injector',
+    'action_injectors',
     'action_platforms',
     'action_domains',
     'action_tags',
@@ -222,7 +222,8 @@ const ThreatArsenal = () => {
                     secondaryAction={(action.action_payload != null
                       ? (
                           <ThreatArsenalActionPopover
-                            payloadId={action.action_payload?.payload_id ?? ''}
+                            actionId={action.injector_contract_id}
+                            payloadId={action.action_payload.payload_id ?? ''}
                             name={tPick(action.action_labels)}
                             onUpdate={(result: ThreatArsenalAction) =>
                               setThreatArsenalActions(threatArsenalActions.map(a => a.injector_contract_id === action.injector_contract_id ? result : a))}

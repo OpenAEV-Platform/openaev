@@ -5,6 +5,7 @@ import static io.openaev.utils.ArchitectureFilterUtils.handleArchitectureFilter;
 import io.openaev.database.model.Filters;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.injector_contract.output.InjectorContractDomainCountOutput;
 import io.openaev.rest.payload.form.PayloadCreateInput;
@@ -47,7 +48,7 @@ public class ThreatArsenalService {
           "action_domains", "injector_contract_domains",
           "action_tags", "injector_contract_tags",
           "action_payload_status", "injector_contract_payload_status",
-          "action_injector", "injector_contract_injector",
+          "action_injectors", "injector_contract_injectors",
           "action_updated_at", "injector_contract_updated_at");
 
   private static final Map<String, String> ENTITY_TO_ACTION_FIELDS =
@@ -64,13 +65,21 @@ public class ThreatArsenalService {
    * @return the fully populated action output DTO
    */
   public ThreatArsenalActionFullOutput findById(String actionId) {
-    PayloadService.PayloadWithRelatedEntities payloadWithRelatedEntities =
-        payloadService.findPayloadWithRelatedEntities(actionId);
-    return threatArsenalMapper.toThreatArsenalActionOutput(
-        payloadWithRelatedEntities.payload(),
-        payloadWithRelatedEntities.attackPatternIds(),
-        payloadWithRelatedEntities.domainIds(),
-        payloadWithRelatedEntities.tagIds());
+    InjectorContract injectorContract = injectorContractService.injectorContract(actionId);
+
+    if (injectorContract.getPayload() != null) {
+      PayloadService.PayloadWithRelatedEntities payloadWithRelatedEntities =
+          payloadService.findPayloadWithRelatedEntities(injectorContract.getPayload().getId());
+      return threatArsenalMapper.toThreatArsenalActionFullOutput(
+          payloadWithRelatedEntities.payload(),
+          injectorContract.getId(),
+          injectorContract.getLabels(),
+          payloadWithRelatedEntities.attackPatternIds(),
+          payloadWithRelatedEntities.domainIds(),
+          payloadWithRelatedEntities.tagIds());
+    }
+
+    return threatArsenalMapper.toThreatArsenalActionFullOutput(injectorContract);
   }
 
   /**
@@ -224,20 +233,29 @@ public class ThreatArsenalService {
   /**
    * Updates an existing threat arsenal action.
    *
-   * <p>Converts the action input into a payload update input, delegates the update to the payload
-   * update service, and maps the result back to a {@link ThreatArsenalAction}.
+   * <p>Converts the action input into a payload update input, resolves the payload ID from the
+   * injector contract, delegates the update to the payload update service, and maps the result back
+   * to a {@link ThreatArsenalAction}.
    *
-   * @param actionId the ID of the action to update it's also equals to payload ID
+   * @param actionId the ID of the action to update — equals the injector contract ID
    * @param actionInput the update input containing the new action values
    * @return the updated threat arsenal action
    */
   public ThreatArsenalAction update(String actionId, ThreatArsenalActionUpdateInput actionInput) {
+    // resolve the payload ID from the injector contract
+    InjectorContract injectorContract = injectorContractService.injectorContract(actionId);
+    Payload payload = injectorContract.getPayload();
+    if (payload == null) {
+      throw new ElementNotFoundException(
+          "Only payload linked to injector contract can be updated ");
+    }
+
     // convert ThreatArsenalActionUpdateInput into PayloadUpdateInput
     PayloadUpdateInput payloadInput = convertActionUpdateInputToPayloadUpdateInput(actionInput);
 
-    // update payload
+    // update payload using the resolved payload ID
     PayloadCreationService.PayloadInjectorContractCreationResult result =
-        this.payloadUpdateService.updatePayload(actionId, payloadInput);
+        this.payloadUpdateService.updatePayload(payload.getId(), payloadInput);
 
     // convert to ThreatArsenalAction
     return threatArsenalMapper.toThreatArsenalAction(result.injectorContract());
@@ -253,8 +271,16 @@ public class ThreatArsenalService {
    * @return the newly created threat arsenal action copy
    */
   public ThreatArsenalAction duplicate(String actionId) {
+    // resolve the payload ID from the injector contract
+    InjectorContract injectorContract = injectorContractService.injectorContract(actionId);
+    Payload payload = injectorContract.getPayload();
+    if (payload == null) {
+      throw new ElementNotFoundException(
+          "Only payload linked to injector contract can be duplicated ");
+    }
+
     PayloadCreationService.PayloadInjectorContractCreationResult result =
-        this.payloadService.duplicate(actionId);
+        this.payloadService.duplicate(payload.getId());
     return threatArsenalMapper.toThreatArsenalAction(result.injectorContract());
   }
 }

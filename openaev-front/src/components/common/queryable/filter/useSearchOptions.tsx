@@ -54,6 +54,7 @@ const useSearchOptions = () => {
           handleOptions(response, config.defaultValues);
         });
         break;
+      case 'action_injectors':
       case 'injector_contract_injectors':
       case 'inject_injector_contract':
         searchInjectorsByNameAsOption(search, contextId).then((response) => {

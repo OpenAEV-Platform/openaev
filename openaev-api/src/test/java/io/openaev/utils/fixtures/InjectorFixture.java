@@ -1,17 +1,16 @@
 package io.openaev.utils.fixtures;
 
-import static io.openaev.integration.impl.injectors.email.EmailInjectorIntegration.EMAIL_INJECTOR_ID;
-
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Injector;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.injectors.email.EmailContract;
 import io.openaev.injectors.openaev.OpenAEVImplantContract;
+import io.openaev.integration.IntegrationFactory;
 import io.openaev.integration.Manager;
+import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -20,6 +19,7 @@ import org.springframework.stereotype.Component;
 public class InjectorFixture {
   @Autowired InjectorRepository injectorRepository;
   @Autowired private OpenaevInjectorIntegrationFactory openaevInjectorIntegrationFactory;
+  @Autowired private EmailInjectorIntegrationFactory emailInjectorIntegrationFactory;
 
   public static Injector createDefaultPayloadInjector() {
     Injector injector =
@@ -47,47 +47,40 @@ public class InjectorFixture {
         UUID.randomUUID().toString(), injectorName, injectorName.toLowerCase().replace(" ", "-"));
   }
 
-  private Injector initializeOAEVImplantInjector() {
+  private Injector initializeBuiltInInjector(IntegrationFactory factory, String injectorType) {
     try {
-      new Manager(List.of(openaevInjectorIntegrationFactory)).monitorIntegrations();
+      new Manager(List.of(factory)).monitorIntegrations();
     } catch (Exception e) {
-      throw new RuntimeException("Failed to initialize OAEV Implant Injector", e);
+      throw new RuntimeException("Failed to initialize injector: " + injectorType, e);
     }
 
     return injectorRepository
-        .findByTypeAndTenantId(OpenAEVImplantContract.TYPE, TenantContext.getCurrentTenant())
+        .findByTypeAndTenantId(injectorType, TenantContext.getCurrentTenant())
         .orElseThrow(
             () ->
                 new IllegalStateException(
-                    "Injector not found after initialization: " + OpenAEVImplantContract.TYPE));
+                    "Injector not found after initialization: " + injectorType));
   }
 
-  public Injector createOAEVEmailInjector() {
-    return createInjector(EMAIL_INJECTOR_ID, "Email", EmailContract.TYPE);
-  }
-
-  public Injector getWellKnownOaevImplantInjector() {
+  private Injector getWellKnownInjector(
+      String injectorType, IntegrationFactory factory, boolean isPayload) {
     Injector injector =
         injectorRepository
-            .findByTypeAndTenantId(OpenAEVImplantContract.TYPE, TenantContext.getCurrentTenant())
-            .orElseGet(this::initializeOAEVImplantInjector);
-    // ensure the injector is marked for payloads
-    // some tests not running in a transaction may flip this
-    injector.setPayloads(true);
-    injectorRepository.save(injector);
-    return injector;
-  }
-
-  public Injector getWellKnownEmailInjector(boolean isPayload) {
-    Optional<Injector> injectorOptional =
-        injectorRepository.findByTypeAndTenantId(
-            EmailContract.TYPE, TenantContext.getCurrentTenant());
-    Injector injector =
-        injectorOptional.orElseGet(() -> injectorRepository.save(createOAEVEmailInjector()));
+            .findByTypeAndTenantId(injectorType, TenantContext.getCurrentTenant())
+            .orElseGet(() -> initializeBuiltInInjector(factory, injectorType));
     // ensure the injector is marked for payloads
     // some tests not running in a transaction may flip this
     injector.setPayloads(isPayload);
     injectorRepository.save(injector);
     return injector;
+  }
+
+  public Injector getWellKnownOaevImplantInjector() {
+    return getWellKnownInjector(
+        OpenAEVImplantContract.TYPE, openaevInjectorIntegrationFactory, true);
+  }
+
+  public Injector getWellKnownEmailInjector(boolean isPayload) {
+    return getWellKnownInjector(EmailContract.TYPE, emailInjectorIntegrationFactory, isPayload);
   }
 }

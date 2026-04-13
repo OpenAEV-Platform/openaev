@@ -4168,8 +4168,7 @@ export interface InjectorContract {
   /** @format date-time */
   injector_contract_created_at: string;
   injector_contract_custom?: boolean;
-  /** @uniqueItems true */
-  injector_contract_domains?: Domain[];
+  injector_contract_domains?: string[];
   injector_contract_external_id?: string;
   /** @minLength 1 */
   injector_contract_id: string;
@@ -4181,7 +4180,6 @@ export interface InjectorContract {
   injector_contract_manual?: boolean;
   injector_contract_needs_executor?: boolean;
   injector_contract_payload?: Payload;
-  injector_contract_payload_status?: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   injector_contract_platforms?: (
     | "Linux"
     | "Windows"
@@ -7839,11 +7837,8 @@ export interface ThreatArsenalActionFullOutput {
    * @minLength 1
    */
   action_id: string;
-  /**
-   * Action display name
-   * @minLength 1
-   */
-  action_name: string;
+  /** Action display name */
+  action_labels: Record<string, string>;
   /**
    * Parsers used to process action outputs
    * @uniqueItems true

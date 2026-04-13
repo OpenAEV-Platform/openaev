@@ -53,6 +53,7 @@ const useRetrieveOptions = () => {
           handleOptions(response, filterDefaultValues);
         });
         break;
+      case 'action_injectors':
       case 'injector_contract_injectors':
       case 'inject_injector_contract':
         searchInjectorByIdAsOptions(ids, contextId).then((response) => {
