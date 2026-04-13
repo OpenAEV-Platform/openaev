@@ -23,7 +23,7 @@ import { UserContext } from './utils/hooks/useAuth';
 import useNetworkCheck from './utils/hooks/useCheckNetwork';
 import useTenant from './utils/hooks/useTenant';
 import PermissionsProvider from './utils/permissions/PermissionsProvider';
-import { buildTenantUrl, extractTenantFromUrl } from './utils/tenant-url-helper';
+import { buildTenantUrl, DEFAULT_TENANT_UUID, extractTenantFromUrl } from './utils/tenant-url-helper';
 
 const RootPublic = lazy(() => import('./public/Root'));
 const IndexPrivate = lazy(() => import('./private/Index'));
@@ -71,11 +71,8 @@ const Root = () => {
   // (e.g. first visit at "/", or right after login), hard-redirect to
   // the tenant-prefixed URL so BrowserRouter picks up the correct basename.
   if (!extractTenantFromUrl()) {
-    if (!currentUserTenant) {
-      // useTenant is still fetching — show loader until we have a tenant
-      return <Loader />;
-    }
-    window.location.href = buildTenantUrl(currentUserTenant.tenant_id);
+    const tenantId = currentUserTenant?.tenant_id ?? DEFAULT_TENANT_UUID;
+    window.location.href = buildTenantUrl(tenantId);
     return <Loader />;
   }
 
