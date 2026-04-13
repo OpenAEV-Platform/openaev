@@ -39,7 +39,7 @@ public class ChainingApi extends RestBehavior {
 
   public static final String TENANT_CHAINING_URI = TENANT_PREFIX + "/chaining";
   public static final String CHAINING_URI = "/api/chaining";
-  public static final String SIMULATION_URI = "/simulation";
+  public static final String SIMULATION_URI = "/simulations";
   public static final String SCENARIO_URI = "/scenarios";
 
   private final ExerciseService exerciseService;
