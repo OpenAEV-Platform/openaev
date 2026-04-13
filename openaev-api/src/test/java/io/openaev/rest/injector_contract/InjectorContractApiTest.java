@@ -545,6 +545,7 @@ public class InjectorContractApiTest extends IntegrationTest {
                         ",",
                         attackPatternComposer.generatedItems.stream()
                             .map(ap -> String.format("\"" + ap.getId() + "\""))
+                            .sorted()
                             .toList())));
       }
 
