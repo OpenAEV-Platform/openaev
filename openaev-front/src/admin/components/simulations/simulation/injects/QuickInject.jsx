@@ -45,6 +45,7 @@ import OldTextField from '../../../../../components/fields/OldTextField';
 import inject18n from '../../../../../components/i18n';
 import ItemBoolean from '../../../../../components/ItemBoolean';
 import ItemTags from '../../../../../components/ItemTags';
+import { buildTenantApiPath } from '../../../../../utils/tenant-url-helper.ts';
 import { secondsFromToNow } from '../../../../../utils/Time';
 import InjectExpectations from '../../../common/injects/expectations/InjectExpectations';
 import InjectAddTeams from '../../../common/injects/form/teams/InjectAddTeams';
@@ -1311,7 +1312,7 @@ class QuickInjectComponent extends Component {
                         classes={{ root: classes.item }}
                         divider={true}
                         component="a"
-                        href={`/api/documents/${document.document_id}/file`}
+                        href={buildTenantApiPath(`/api/documents/${document.document_id}/file`)}
                       >
                         <ListItemIcon>
                           <AttachmentOutlined />
@@ -1439,6 +1440,7 @@ QuickInjectComponent.propTypes = {
   handleClose: PropTypes.func,
   injectorContract: PropTypes.object,
   fetchDocuments: PropTypes.func,
+  currentUserTenant: PropTypes.object,
 };
 
 const select = (state, ownProps) => {

@@ -113,7 +113,6 @@ const TENANT_EXEMPT_PREFIXES = [
   '/api/settings',
   '/api/tenants',
   '/api/logs',
-  '/api/images',
   '/api/platform-groups',
   '/api/platform-roles',
 ];

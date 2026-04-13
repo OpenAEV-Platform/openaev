@@ -1,5 +1,7 @@
 package io.openaev.rest.payload;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+
 import io.openaev.aop.AccessControl;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
@@ -40,6 +42,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class PayloadApi extends RestBehavior {
 
   public static final String PAYLOAD_URI = "/api/payloads";
+  public static final String TENANT_PAYLOAD_URI = TENANT_PREFIX + "/payloads";
 
   private final ImportService importService;
   private final PayloadRepository payloadRepository;
@@ -52,14 +55,14 @@ public class PayloadApi extends RestBehavior {
   private final CollectorService collectorsService;
   private final UserService userService;
 
-  @PostMapping(PAYLOAD_URI + "/search")
+  @PostMapping({PAYLOAD_URI + "/search", TENANT_PAYLOAD_URI + "/search"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.PAYLOAD)
   public Page<Payload> payloads(
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return this.payloadService.searchPayloads(searchPaginationInput);
   }
 
-  @GetMapping(PAYLOAD_URI + "/{payloadId}")
+  @GetMapping({PAYLOAD_URI + "/{payloadId}", TENANT_PAYLOAD_URI + "/{payloadId}"})
   @AccessControl(
       resourceId = "#payloadId",
       actionPerformed = Action.READ,
@@ -68,14 +71,14 @@ public class PayloadApi extends RestBehavior {
     return payloadRepository.findById(payloadId).orElseThrow(ElementNotFoundException::new);
   }
 
-  @PostMapping(PAYLOAD_URI)
+  @PostMapping({PAYLOAD_URI, TENANT_PAYLOAD_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PAYLOAD)
   @Transactional(rollbackOn = Exception.class)
   public Payload createPayload(@Valid @RequestBody PayloadCreateInput input) {
     return this.payloadCreationService.createPayload(input);
   }
 
-  @PutMapping(PAYLOAD_URI + "/{payloadId}")
+  @PutMapping({PAYLOAD_URI + "/{payloadId}", TENANT_PAYLOAD_URI + "/{payloadId}"})
   @AccessControl(
       resourceId = "#payloadId",
       actionPerformed = Action.WRITE,
@@ -87,7 +90,10 @@ public class PayloadApi extends RestBehavior {
     return this.payloadUpdateService.updatePayload(payloadId, input);
   }
 
-  @PostMapping(PAYLOAD_URI + "/{payloadId}/duplicate")
+  @PostMapping({
+    PAYLOAD_URI + "/{payloadId}/duplicate",
+    TENANT_PAYLOAD_URI + "/{payloadId}/duplicate"
+  })
   @AccessControl(
       resourceId = "#payloadId",
       actionPerformed = Action.DUPLICATE,
@@ -97,14 +103,16 @@ public class PayloadApi extends RestBehavior {
     return this.payloadService.duplicate(payloadId);
   }
 
-  @PostMapping(PAYLOAD_URI + "/upsert")
+  @PostMapping({PAYLOAD_URI + "/upsert", TENANT_PAYLOAD_URI + "/upsert"})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PAYLOAD)
   @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
   public Payload upsertPayload(@Valid @RequestBody PayloadUpsertInput input) {
     return this.payloadUpsertService.upsertPayload(input);
   }
 
-  @PostMapping(path = PAYLOAD_URI + "/{payloadId}/export", produces = "application/zip")
+  @PostMapping(
+      path = {PAYLOAD_URI + "/{payloadId}/export", TENANT_PAYLOAD_URI + "/{payloadId}/export"},
+      produces = "application/zip")
   @AccessControl(
       actionPerformed = Action.READ,
       resourceType = ResourceType.PAYLOAD,
@@ -124,7 +132,7 @@ public class PayloadApi extends RestBehavior {
     return new ResponseEntity<>(zippedExport, headers, HttpStatus.OK);
   }
 
-  @PostMapping(PAYLOAD_URI + "/export")
+  @PostMapping({PAYLOAD_URI + "/export", TENANT_PAYLOAD_URI + "/export"})
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PAYLOAD)
   public void payloadsExport(
       @RequestBody @Valid final PayloadExportRequestInput payloadExportRequestInput,
@@ -146,7 +154,7 @@ public class PayloadApi extends RestBehavior {
     runPayloadExport(payloads, response);
   }
 
-  @PostMapping(PAYLOAD_URI + "/import")
+  @PostMapping({PAYLOAD_URI + "/import", TENANT_PAYLOAD_URI + "/import"})
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PAYLOAD)
   public void importPayloads(@RequestPart("file") @NotNull MultipartFile file) throws Exception {
     this.importService.handleFileImport(file, null, null);
@@ -167,7 +175,7 @@ public class PayloadApi extends RestBehavior {
     outputStream.close();
   }
 
-  @DeleteMapping(PAYLOAD_URI + "/{payloadId}")
+  @DeleteMapping({PAYLOAD_URI + "/{payloadId}", TENANT_PAYLOAD_URI + "/{payloadId}"})
   @AccessControl(
       resourceId = "#payloadId",
       actionPerformed = Action.DELETE,
@@ -176,7 +184,7 @@ public class PayloadApi extends RestBehavior {
     payloadRepository.deleteById(payloadId);
   }
 
-  @PostMapping(PAYLOAD_URI + "/deprecate")
+  @PostMapping({PAYLOAD_URI + "/deprecate", TENANT_PAYLOAD_URI + "/deprecate"})
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PAYLOAD)
   @Transactional(rollbackOn = Exception.class)
   public void deprecateNonProcessedPayloadsByCollector(
@@ -185,7 +193,10 @@ public class PayloadApi extends RestBehavior {
         input.collectorId(), input.processedPayloadExternalIds());
   }
 
-  @GetMapping(PAYLOAD_URI + "/{payloadId}/documents")
+  @GetMapping({
+    PAYLOAD_URI + "/{payloadId}/documents",
+    TENANT_PAYLOAD_URI + "/{payloadId}/documents"
+  })
   @AccessControl(
       resourceId = "#payloadId",
       actionPerformed = Action.READ,
@@ -199,7 +210,10 @@ public class PayloadApi extends RestBehavior {
     return documentService.documentsForPayload(payloadId);
   }
 
-  @GetMapping(PAYLOAD_URI + "/{payloadId}/collectors")
+  @GetMapping({
+    PAYLOAD_URI + "/{payloadId}/collectors",
+    TENANT_PAYLOAD_URI + "/{payloadId}/collectors"
+  })
   @AccessControl(
       resourceId = "#payloadId",
       actionPerformed = Action.READ,

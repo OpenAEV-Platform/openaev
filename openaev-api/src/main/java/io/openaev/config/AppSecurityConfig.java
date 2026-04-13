@@ -52,6 +52,7 @@ public class AppSecurityConfig {
 
   private static final String TENANT_AGENT_URI = "/api/tenants/*/agent/**";
   private static final String TENANT_IMPLANT_URI = "/api/tenants/*/implant/**";
+  private static final String TENANT_PLAYER_URI = "/api/tenants/*/player/**";
 
   private final OpenAEVConfig openAEVConfig;
   private final OpenSamlConfig openSamlConfig;
@@ -75,14 +76,19 @@ public class AppSecurityConfig {
                     .permitAll()
                     .requestMatchers("/api/comcheck/**")
                     .permitAll()
+                    // TODO to delete after the multi tenancy upgrade
                     .requestMatchers("/api/player/**")
+                    .permitAll()
+                    .requestMatchers(TENANT_PLAYER_URI)
                     .permitAll()
                     .requestMatchers("/api/settings")
                     .permitAll()
+                    // TODO to delete after the multi tenancy upgrade
                     .requestMatchers("/api/agent/**")
                     .permitAll()
                     .requestMatchers(TENANT_AGENT_URI)
                     .permitAll()
+                    // TODO to delete after the multi tenancy upgrade
                     .requestMatchers("/api/implant/**")
                     .permitAll()
                     .requestMatchers(TENANT_IMPLANT_URI)
