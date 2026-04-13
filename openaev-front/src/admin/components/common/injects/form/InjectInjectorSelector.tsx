@@ -2,7 +2,6 @@ import { useMemo } from 'react';
 
 import SelectFieldController from '../../../../../components/fields/SelectFieldController';
 import { useFormatter } from '../../../../../components/i18n';
-import { isFeatureEnabled } from '../../../../../utils/utils';
 
 interface Props {
   injectorNames: Record<string, string>;
@@ -12,9 +11,8 @@ interface Props {
 const InjectInjectorSelector = ({ injectorNames, disabled = false }: Props) => {
   const { t } = useFormatter();
 
-  const multiConnectorEnabled = isFeatureEnabled('MULTI_CONNECTOR');
   const injectorIds = Object.keys(injectorNames);
-  const showInjectorSelector = multiConnectorEnabled && injectorIds.length > 1;
+  const showInjectorSelector = injectorIds.length > 1;
 
   const injectorItems = useMemo(() => {
     if (!showInjectorSelector) return [];

@@ -5982,7 +5982,6 @@ export interface PlatformSettings {
     | "PALO_ALTO_CORTEX_EXECUTOR"
     | "OPENAEV_TRIALS_XTMHUB"
     | "INJECT_CHAINING"
-    | "MULTI_CONNECTOR"
   )[];
   /** True if the Tanium Executor is enabled */
   executor_tanium_enable?: boolean;

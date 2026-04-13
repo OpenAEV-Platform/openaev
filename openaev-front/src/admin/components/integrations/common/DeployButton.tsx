@@ -1,9 +1,8 @@
-import { Badge, Button, Tooltip } from '@mui/material';
+import { Badge, Button } from '@mui/material';
 import { type CSSProperties, type SyntheticEvent } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
 import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
-import { isFeatureEnabled } from '../../../../utils/utils';
 import EEChip from '../../common/entreprise_edition/EEChip';
 
 interface Props {
@@ -20,9 +19,6 @@ const DeployButton = ({ onDeployBtnClick, style = {}, deploymentCount }: Props) 
     setEEFeatureDetectedInfo,
   } = useEnterpriseEdition();
 
-  const multiConnectorEnabled = isFeatureEnabled('MULTI_CONNECTOR');
-  const isDeployDisabled = !multiConnectorEnabled && deploymentCount > 0;
-
   const onDeployClickAction = (e: SyntheticEvent) => {
     if (!isEnterpriseEdition) {
       setEEFeatureDetectedInfo(t('Connectors deployment'));
@@ -32,7 +28,7 @@ const DeployButton = ({ onDeployBtnClick, style = {}, deploymentCount }: Props) 
     }
   };
 
-  const button = (
+  return (
     <div style={style}>
       <Badge
         badgeContent={deploymentCount}
@@ -46,7 +42,6 @@ const DeployButton = ({ onDeployBtnClick, style = {}, deploymentCount }: Props) 
           }}
           size="small"
           onClick={onDeployClickAction}
-          disabled={isDeployDisabled}
           endIcon={isEnterpriseEdition ? null : <span><EEChip /></span>}
         >
           {t('Deploy')}
@@ -54,16 +49,6 @@ const DeployButton = ({ onDeployBtnClick, style = {}, deploymentCount }: Props) 
       </Badge>
     </div>
   );
-
-  if (isDeployDisabled) {
-    return (
-      <Tooltip title={t('Can not deploy more than one instance')}>
-        {button}
-      </Tooltip>
-    );
-  }
-
-  return button;
 };
 
 export default DeployButton;
