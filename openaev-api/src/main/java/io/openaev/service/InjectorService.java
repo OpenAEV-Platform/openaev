@@ -28,7 +28,6 @@ import io.openaev.service.connectors.AbstractConnectorService;
 import io.openaev.service.exception.InjectorRegistrationException;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import io.openaev.utils.mapper.InjectorMapper;
-import jakarta.annotation.Resource;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.transaction.Transactional;
@@ -51,7 +50,6 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     implements DependenciesManager {
   public static final String DUMMY_SUFFIX = "_dummy";
 
-  @Resource private RabbitmqConfig rabbitmqConfig;
   @PersistenceContext private EntityManager entityManager;
   private final InjectorRepository injectorRepository;
   private final InjectorContractRepository injectorContractRepository;
