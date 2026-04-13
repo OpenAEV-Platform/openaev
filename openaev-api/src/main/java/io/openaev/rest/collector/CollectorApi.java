@@ -1,5 +1,7 @@
 package io.openaev.rest.collector;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+
 import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Collector;
@@ -33,13 +35,14 @@ import org.springframework.web.multipart.MultipartFile;
 @RequiredArgsConstructor
 public class CollectorApi extends RestBehavior {
   public static final String COLLECTOR_URI = "/api/collectors";
+  private static final String TENANT_COLLECTOR_URI = TENANT_PREFIX + "/collectors";
   private final CollectorService collectorService;
   private final CollectorRepository collectorRepository;
   private final SecurityPlatformRepository securityPlatformRepository;
 
   private final FileService fileService;
 
-  @GetMapping(COLLECTOR_URI)
+  @GetMapping({COLLECTOR_URI, TENANT_COLLECTOR_URI})
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.COLLECTOR)
   @Operation(
       summary = "Retrieve collectors",
@@ -80,7 +83,7 @@ public class CollectorApi extends RestBehavior {
     return collectorRepository.save(collector);
   }
 
-  @GetMapping(COLLECTOR_URI + "/{collectorId}")
+  @GetMapping({COLLECTOR_URI + "/{collectorId}", TENANT_COLLECTOR_URI + "/{collectorId}"})
   @AccessControl(
       resourceId = "#collectorId",
       actionPerformed = Action.READ,
@@ -89,7 +92,10 @@ public class CollectorApi extends RestBehavior {
     return collectorService.collector(collectorId);
   }
 
-  @GetMapping(COLLECTOR_URI + "/{collectorId}/related-ids")
+  @GetMapping({
+    COLLECTOR_URI + "/{collectorId}/related-ids",
+    TENANT_COLLECTOR_URI + "/{collectorId}/related-ids"
+  })
   @AccessControl(
       resourceId = "#collectorId",
       actionPerformed = Action.READ,
@@ -99,7 +105,7 @@ public class CollectorApi extends RestBehavior {
     return collectorService.getCollectorRelationsId(collectorId);
   }
 
-  @PutMapping(COLLECTOR_URI + "/{collectorId}")
+  @PutMapping({COLLECTOR_URI + "/{collectorId}", TENANT_COLLECTOR_URI + "/{collectorId}"})
   @AccessControl(
       resourceId = "#collectorId",
       actionPerformed = Action.WRITE,
@@ -118,7 +124,7 @@ public class CollectorApi extends RestBehavior {
   }
 
   @PostMapping(
-      value = COLLECTOR_URI,
+      value = {COLLECTOR_URI, TENANT_COLLECTOR_URI},
       produces = {MediaType.APPLICATION_JSON_VALUE},
       consumes = {MediaType.APPLICATION_JSON_VALUE, MediaType.MULTIPART_FORM_DATA_VALUE})
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.COLLECTOR)
