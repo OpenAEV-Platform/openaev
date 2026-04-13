@@ -1,6 +1,8 @@
 package io.openaev.api.chaining;
 
 import static io.openaev.api.chaining.ChainingApi.CHAINING_URI;
+import static io.openaev.api.chaining.ChainingApi.TENANT_CHAINING_URI;
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static org.springframework.util.StringUtils.hasText;
 
@@ -17,7 +19,6 @@ import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.scenario.form.ScenarioInput;
 import io.openaev.service.PlatformSettingsService;
-import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
@@ -33,8 +34,10 @@ import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping(CHAINING_URI)
+@RequestMapping({CHAINING_URI, TENANT_CHAINING_URI})
 public class ChainingApi extends RestBehavior {
+
+  public static final String TENANT_CHAINING_URI = TENANT_PREFIX + "/chaining";
   public static final String CHAINING_URI = "/api/chaining";
   public static final String SIMULATION_URI = "/simulation";
   public static final String SCENARIO_URI = "/scenarios";
@@ -43,7 +46,6 @@ public class ChainingApi extends RestBehavior {
   private final CustomDashboardService customDashboardService;
   private final PlatformSettingsService platformSettingsService;
   private final ScenarioService scenarioService;
-  private final PreviewFeatureService previewFeatureService;
   private final WorkflowService workflowService;
   private final StepService stepService;
   private final TagRepository tagRepository;
