@@ -184,16 +184,6 @@ const ThreatArsenalActionPopover = ({
     }));
   };
 
-  // -- Export --
-  // TODO next chunk 4458
-  // const handleExportJsonSingle = async () => {
-  //   handlePopoverClose();
-  //   const response = await exportPayload(payloadId);
-  //   const match = (response.headers['content-disposition'] as string).match(/filename="?([^"]+)"?/);
-  //   const filename = match?.[1] ?? 'payload.zip';
-  //   download(response.data, filename, 'application/zip');
-  // };
-
   const hasUpdateCapability = ability.can(ACTIONS.MANAGE, SUBJECTS.PAYLOADS) || ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, payloadId);
   const hasDeleteCapability = ability.can(ACTIONS.DELETE, SUBJECTS.PAYLOADS) || ability.can(ACTIONS.DELETE, SUBJECTS.RESOURCE, payloadId);
 
@@ -213,8 +203,6 @@ const ThreatArsenalActionPopover = ({
         {hasUpdateCapability && (
           <MenuItem onClick={handleOpenEdit} disabled={disableUpdate}>{t('Update')}</MenuItem>
         )}
-        {/* TODO next chunk */}
-        {/* <MenuItem onClick={handleExportJsonSingle}>{t('Export')}</MenuItem> */}
         {hasDeleteCapability && (
           <MenuItem onClick={handleOpenDelete} disabled={disableDelete}>{t('Delete')}</MenuItem>
         )}
