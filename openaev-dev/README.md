@@ -116,7 +116,10 @@ To use them, copy the `*.run.xml` files to your `.idea/runConfigurations/` folde
 
 Copies `DevDatabaseEnvironmentPostProcessor.java` and `spring.factories` from
 `test-containers/` into `openaev-api/` so the backend can automatically start a
-per-branch PostgreSQL Docker container on launch.
+per-branch PostgreSQL container on launch.
+
+The runtime (Podman or Docker) is **auto-detected** — Podman is preferred when
+both are available. You can force a specific runtime via a property.
 
 The copied files are **git-ignored** — they never pollute the API module in version control.
 
@@ -136,6 +139,9 @@ openaev.dev.auto-start-database=true
 
 # Optional — force a fixed port instead of per-branch auto-port:
 openaev.dev.database-port=5432
+
+# Optional — force a specific container runtime (default: auto-detect):
+openaev.dev.container-runtime=podman
 ```
 
 To uninstall, delete the two copied files:
