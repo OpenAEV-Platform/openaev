@@ -10,6 +10,7 @@ import {
   type Token,
   type User,
 } from '../utils/api-types';
+import type { TenantSettings } from './settings/tenant-settings-action';
 
 export interface UserHelper {
   getMe: () => User;
@@ -28,6 +29,7 @@ export interface LoggedHelper {
   logged: () => any;
   getMe: () => User;
   getPlatformSettings: () => PlatformSettings;
+  getTenantSettings: () => TenantSettings;
   getPlatformName: () => string;
   getUserLang: () => string;
 }

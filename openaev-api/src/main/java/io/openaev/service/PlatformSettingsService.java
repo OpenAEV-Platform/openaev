@@ -395,28 +395,12 @@ public class PlatformSettingsService {
     return this.settingRepository.findByKey(key);
   }
 
-  private void addSettingIfExists(
-      List<Setting> settingsToSave, Map<String, Setting> dbSettings, String key, String value) {
-    if (value != null) {
-      settingsToSave.add(resolveFromMap(dbSettings, key, value));
-    }
-  }
-
   public PlatformSettings updateBasicConfigurationSettings(SettingsUpdateInput input) {
     Map<String, Setting> dbSettings = mapOfSettings(fromIterable(this.settingRepository.findAll()));
     List<Setting> settingsToSave = new ArrayList<>();
     settingsToSave.add(resolveFromMap(dbSettings, PLATFORM_NAME.key(), input.getName()));
     settingsToSave.add(resolveFromMap(dbSettings, DEFAULT_THEME.key(), input.getTheme()));
     settingsToSave.add(resolveFromMap(dbSettings, DEFAULT_LANG.key(), input.getLang()));
-    addSettingIfExists(
-        settingsToSave, dbSettings, DEFAULT_HOME_DASHBOARD.key(), input.getHomeDashboard());
-    addSettingIfExists(
-        settingsToSave, dbSettings, DEFAULT_SCENARIO_DASHBOARD.key(), input.getScenarioDashboard());
-    addSettingIfExists(
-        settingsToSave,
-        dbSettings,
-        DEFAULT_SIMULATION_DASHBOARD.key(),
-        input.getSimulationDashboard());
     settingRepository.saveAll(settingsToSave);
     return findSettings();
   }

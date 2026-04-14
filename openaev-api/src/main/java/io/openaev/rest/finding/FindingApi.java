@@ -1,5 +1,7 @@
 package io.openaev.rest.finding;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+
 import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Finding;
@@ -13,17 +15,17 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping(FindingApi.FINDING_URI)
 @RequiredArgsConstructor
 public class FindingApi extends RestBehavior {
 
   public static final String FINDING_URI = "/api/findings";
+  public static final String TENANT_FINDING_URI = TENANT_PREFIX + "/findings";
 
   private final FindingService findingService;
 
   // -- CRUD --
 
-  @GetMapping("/{id}")
+  @GetMapping({FINDING_URI + "/{id}", TENANT_FINDING_URI + "/{id}"})
   @AccessControl(
       resourceId = "#id",
       actionPerformed = Action.READ,
@@ -32,7 +34,7 @@ public class FindingApi extends RestBehavior {
     return ResponseEntity.ok(this.findingService.finding(id));
   }
 
-  @PostMapping
+  @PostMapping({FINDING_URI, TENANT_FINDING_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.FINDING)
   public ResponseEntity<Finding> createFinding(
       @RequestBody @Valid @NotNull final FindingInput input) {
@@ -40,7 +42,7 @@ public class FindingApi extends RestBehavior {
         this.findingService.createFinding(input.toFinding(new Finding()), input.getInjectId()));
   }
 
-  @PutMapping("/{id}")
+  @PutMapping({FINDING_URI + "/{id}", TENANT_FINDING_URI + "/{id}"})
   @AccessControl(
       resourceId = "#id",
       actionPerformed = Action.WRITE,
@@ -54,7 +56,7 @@ public class FindingApi extends RestBehavior {
         this.findingService.updateFinding(updatedFinding, input.getInjectId()));
   }
 
-  @DeleteMapping("/{id}")
+  @DeleteMapping({FINDING_URI + "/{id}", TENANT_FINDING_URI + "/{id}"})
   @AccessControl(
       resourceId = "#id",
       actionPerformed = Action.DELETE,
