@@ -1,5 +1,6 @@
 package io.openaev.rest.lessons_template;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import static java.time.Instant.now;
@@ -28,6 +29,7 @@ import org.springframework.web.bind.annotation.*;
 public class LessonsTemplateApi extends RestBehavior {
 
   public static final String LESSON_TEMPLATE_URI = "/api/lessons_templates";
+  private static final String TENANT_LESSON_TEMPLATE_URI = TENANT_PREFIX + "/lessons_templates";
 
   private final LessonsTemplateRepository lessonsTemplateRepository;
   private final LessonsTemplateCategoryRepository lessonsTemplateCategoryRepository;
@@ -35,7 +37,7 @@ public class LessonsTemplateApi extends RestBehavior {
 
   // -- LESSONS TEMPLATES --
 
-  @PostMapping(LESSON_TEMPLATE_URI)
+  @PostMapping({LESSON_TEMPLATE_URI, TENANT_LESSON_TEMPLATE_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.LESSON_LEARNED)
   @Transactional(rollbackOn = Exception.class)
   public LessonsTemplate createLessonsTemplate(@Valid @RequestBody LessonsTemplateInput input) {
@@ -44,13 +46,13 @@ public class LessonsTemplateApi extends RestBehavior {
     return lessonsTemplateRepository.save(lessonsTemplate);
   }
 
-  @GetMapping(LESSON_TEMPLATE_URI)
+  @GetMapping({LESSON_TEMPLATE_URI, TENANT_LESSON_TEMPLATE_URI})
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.LESSON_LEARNED)
   public Iterable<LessonsTemplate> lessonsTemplates() {
     return fromIterable(lessonsTemplateRepository.findAll()).stream().toList();
   }
 
-  @PostMapping(LESSON_TEMPLATE_URI + "/search")
+  @PostMapping({LESSON_TEMPLATE_URI + "/search", TENANT_LESSON_TEMPLATE_URI + "/search"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.LESSON_LEARNED)
   public Page<LessonsTemplate> lessonsTemplates(
       @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
@@ -58,7 +60,10 @@ public class LessonsTemplateApi extends RestBehavior {
         this.lessonsTemplateRepository::findAll, searchPaginationInput, LessonsTemplate.class);
   }
 
-  @PutMapping(LESSON_TEMPLATE_URI + "/{lessonsTemplateId}")
+  @PutMapping({
+    LESSON_TEMPLATE_URI + "/{lessonsTemplateId}",
+    TENANT_LESSON_TEMPLATE_URI + "/{lessonsTemplateId}"
+  })
   @AccessControl(
       resourceId = "#lessonsTemplateId",
       actionPerformed = Action.WRITE,
@@ -74,7 +79,10 @@ public class LessonsTemplateApi extends RestBehavior {
     return lessonsTemplateRepository.save(lessonsTemplate);
   }
 
-  @DeleteMapping(LESSON_TEMPLATE_URI + "/{lessonsTemplateId}")
+  @DeleteMapping({
+    LESSON_TEMPLATE_URI + "/{lessonsTemplateId}",
+    TENANT_LESSON_TEMPLATE_URI + "/{lessonsTemplateId}"
+  })
   @AccessControl(
       resourceId = "#lessonsTemplateId",
       actionPerformed = Action.DELETE,
@@ -87,8 +95,10 @@ public class LessonsTemplateApi extends RestBehavior {
 
   public static final String LESSON_CATEGORY_URI =
       LESSON_TEMPLATE_URI + "/{lessonsTemplateId}/lessons_template_categories";
+  private static final String TENANT_LESSON_CATEGORY_URI =
+      TENANT_LESSON_TEMPLATE_URI + "/{lessonsTemplateId}/lessons_template_categories";
 
-  @PostMapping(LESSON_CATEGORY_URI)
+  @PostMapping({LESSON_CATEGORY_URI, TENANT_LESSON_CATEGORY_URI})
   @AccessControl(
       resourceId = "#lessonsTemplateId",
       actionPerformed = Action.WRITE,
@@ -107,7 +117,7 @@ public class LessonsTemplateApi extends RestBehavior {
     return lessonsTemplateCategoryRepository.save(lessonsTemplateCategory);
   }
 
-  @GetMapping(LESSON_CATEGORY_URI)
+  @GetMapping({LESSON_CATEGORY_URI, TENANT_LESSON_CATEGORY_URI})
   @AccessControl(
       resourceId = "#lessonsTemplateId",
       actionPerformed = Action.READ,
@@ -118,7 +128,10 @@ public class LessonsTemplateApi extends RestBehavior {
         LessonsTemplateCategorySpecification.fromTemplate(lessonsTemplateId));
   }
 
-  @PutMapping(LESSON_CATEGORY_URI + "/{lessonsTemplateCategoryId}")
+  @PutMapping({
+    LESSON_CATEGORY_URI + "/{lessonsTemplateCategoryId}",
+    TENANT_LESSON_CATEGORY_URI + "/{lessonsTemplateCategoryId}"
+  })
   @AccessControl(
       resourceId = "#lessonsTemplateId",
       actionPerformed = Action.WRITE,
@@ -137,7 +150,10 @@ public class LessonsTemplateApi extends RestBehavior {
     return lessonsTemplateCategoryRepository.save(lessonsTemplateCategory);
   }
 
-  @DeleteMapping(LESSON_CATEGORY_URI + "/{lessonsTemplateCategoryId}")
+  @DeleteMapping({
+    LESSON_CATEGORY_URI + "/{lessonsTemplateCategoryId}",
+    TENANT_LESSON_CATEGORY_URI + "/{lessonsTemplateCategoryId}"
+  })
   @AccessControl(
       resourceId = "#lessonsTemplateId",
       actionPerformed = Action.WRITE,
@@ -149,7 +165,10 @@ public class LessonsTemplateApi extends RestBehavior {
 
   // -- LESSONS TEMPLATES QUESTIONS --
 
-  @GetMapping(LESSON_TEMPLATE_URI + "/{lessonsTemplateId}/lessons_template_questions")
+  @GetMapping({
+    LESSON_TEMPLATE_URI + "/{lessonsTemplateId}/lessons_template_questions",
+    TENANT_LESSON_TEMPLATE_URI + "/{lessonsTemplateId}/lessons_template_questions"
+  })
   @AccessControl(
       resourceId = "#lessonsTemplateId",
       actionPerformed = Action.READ,
@@ -171,8 +190,10 @@ public class LessonsTemplateApi extends RestBehavior {
 
   public static final String LESSON_QUESTION_URI =
       LESSON_CATEGORY_URI + "/{lessonsTemplateCategoryId}/lessons_template_questions";
+  private static final String TENANT_LESSON_QUESTION_URI =
+      TENANT_LESSON_CATEGORY_URI + "/{lessonsTemplateCategoryId}/lessons_template_questions";
 
-  @PostMapping(LESSON_QUESTION_URI)
+  @PostMapping({LESSON_QUESTION_URI, TENANT_LESSON_QUESTION_URI})
   @AccessControl(
       resourceId = "#lessonsTemplateId",
       actionPerformed = Action.WRITE,
@@ -191,7 +212,7 @@ public class LessonsTemplateApi extends RestBehavior {
     return lessonsTemplateQuestionRepository.save(lessonsTemplateQuestion);
   }
 
-  @GetMapping(LESSON_QUESTION_URI)
+  @GetMapping({LESSON_QUESTION_URI, TENANT_LESSON_QUESTION_URI})
   @AccessControl(
       resourceId = "#lessonsTemplateId",
       actionPerformed = Action.READ,
@@ -202,7 +223,10 @@ public class LessonsTemplateApi extends RestBehavior {
         LessonsTemplateQuestionSpecification.fromCategory(lessonsTemplateCategoryId));
   }
 
-  @PutMapping(LESSON_QUESTION_URI + "/{lessonsTemplateQuestionId}")
+  @PutMapping({
+    LESSON_QUESTION_URI + "/{lessonsTemplateQuestionId}",
+    TENANT_LESSON_QUESTION_URI + "/{lessonsTemplateQuestionId}"
+  })
   @AccessControl(
       resourceId = "#lessonsTemplateId",
       actionPerformed = Action.WRITE,
@@ -221,7 +245,10 @@ public class LessonsTemplateApi extends RestBehavior {
     return lessonsTemplateQuestionRepository.save(lessonsTemplateQuestion);
   }
 
-  @DeleteMapping(LESSON_QUESTION_URI + "/{lessonsTemplateQuestionId}")
+  @DeleteMapping({
+    LESSON_QUESTION_URI + "/{lessonsTemplateQuestionId}",
+    TENANT_LESSON_QUESTION_URI + "/{lessonsTemplateQuestionId}"
+  })
   @AccessControl(
       resourceId = "#lessonsTemplateId",
       actionPerformed = Action.WRITE,
