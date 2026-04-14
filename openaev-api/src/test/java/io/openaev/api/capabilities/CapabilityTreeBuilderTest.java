@@ -86,8 +86,55 @@ class CapabilityTreeBuilderTest {
     // -- ASSERT --
     assertThat(tree).anyMatch(n -> ASSESSMENT.name().equals(n.value()));
     assertThat(tree).anyMatch(n -> TARGETS.name().equals(n.value()));
+    assertThat(tree).anyMatch(n -> TENANT_SETTING.name().equals(n.value()));
     assertThat(tree).noneMatch(n -> TENANTS.name().equals(n.value()));
     assertThat(tree).noneMatch(n -> PLATFORM_GROUPS_AND_ROLES.name().equals(n.value()));
+  }
+
+  @Test
+  void should_build_correct_hierarchy_for_tenant_settings() {
+    // -- ACT --
+    List<CapabilityOutput> tree = CapabilityTreeBuilder.buildTree(TENANT);
+
+    // -- ASSERT --
+    // TENANT_SETTING is a non-checkable category node in the tenant scope
+    CapabilityOutput tenantSettingCategory =
+        tree.stream()
+            .filter(n -> TENANT_SETTING.name().equals(n.value()))
+            .findFirst()
+            .orElseThrow();
+    assertThat(tenantSettingCategory.checkable()).isFalse();
+    assertThat(tenantSettingCategory.scopes()).containsExactly(TENANT.name());
+
+    // ACCESS_TENANT_SETTINGS is a checkable child of the category
+    CapabilityOutput accessTenantSettings =
+        tenantSettingCategory.children().stream()
+            .filter(n -> ACCESS_TENANT_SETTINGS.name().equals(n.value()))
+            .findFirst()
+            .orElseThrow();
+    assertThat(accessTenantSettings.checkable()).isTrue();
+
+    // MANAGE_TENANT_SETTINGS is a checkable child of ACCESS
+    CapabilityOutput manageTenantSettings =
+        accessTenantSettings.children().stream()
+            .filter(n -> MANAGE_TENANT_SETTINGS.name().equals(n.value()))
+            .findFirst()
+            .orElseThrow();
+    assertThat(manageTenantSettings.checkable()).isTrue();
+
+    // DELETE_TENANT_SETTINGS is a checkable child of MANAGE
+    assertThat(manageTenantSettings.children())
+        .anyMatch(n -> DELETE_TENANT_SETTINGS.name().equals(n.value()) && n.checkable());
+  }
+
+  @Test
+  void should_not_include_tenant_settings_in_platform_scope() {
+    // -- ACT --
+    List<CapabilityOutput> tree = CapabilityTreeBuilder.buildTree(PLATFORM);
+
+    // -- ASSERT --
+    assertThat(tree).noneMatch(n -> TENANT_SETTING.name().equals(n.value()));
+    assertThat(flattenValues(tree)).doesNotContain(ACCESS_TENANT_SETTINGS.name());
   }
 
   @Test

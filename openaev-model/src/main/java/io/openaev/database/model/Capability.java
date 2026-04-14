@@ -309,6 +309,20 @@ public enum Capability {
       pair(ResourceType.TENANT, Action.CREATE)),
   DELETE_TENANTS(MANAGE_TENANTS, pair(ResourceType.TENANT, Action.DELETE)),
 
+  // Tenant Settings
+  ACCESS_TENANT_SETTINGS(
+      null,
+      CapabilityGroup.TENANT_SETTING,
+      EnumSet.of(CapabilityScope.TENANT),
+      pair(ResourceType.TENANT_SETTING, Action.READ),
+      pair(ResourceType.TENANT_SETTING, Action.SEARCH)),
+  MANAGE_TENANT_SETTINGS(
+      ACCESS_TENANT_SETTINGS,
+      pair(ResourceType.TENANT_SETTING, Action.WRITE),
+      pair(ResourceType.TENANT_SETTING, Action.CREATE)),
+  DELETE_TENANT_SETTINGS(
+      MANAGE_TENANT_SETTINGS, pair(ResourceType.TENANT_SETTING, Action.DELETE)),
+
   // Platform Groups & Roles
   ACCESS_PLATFORM_GROUPS_AND_ROLES(
       null,
