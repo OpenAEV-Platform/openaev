@@ -35,7 +35,10 @@ const PlatformInfoPanel = ({ settings, children }: PlatformInfoPanelProps) => {
   return (
     <Paper
       variant="outlined"
-      sx={{ padding: theme => `${theme.spacing(1)}` }}
+      sx={{
+        padding: theme => `${theme.spacing(1)}`,
+        flex: 1,
+      }}
     >
       <List sx={{ padding: 0 }}>
         <ListItem divider>

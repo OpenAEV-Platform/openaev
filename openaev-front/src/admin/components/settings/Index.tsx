@@ -8,11 +8,11 @@ import XlsMappers from './data_ingestion/XlsMappers';
 import Experience from './experience/Experience';
 import Groups from './groups/Groups';
 import KillChainPhases from './kill_chain_phases/KillChainPhases';
-import Parameters from './Parameters';
 import Policies from './policies/Policies';
 import Roles from './roles/Roles';
 import TagRules from './tag_rules/TagRules';
 import Tags from './tags/Tags';
+import TenantParameters from './TenantParameters';
 import Users from './users/Users';
 import Vulnerabilities from './vulnerabilities/Vulnerabilities';
 
@@ -20,7 +20,7 @@ const Index = () => {
   return (
     <Routes>
       <Route path="" element={<Navigate to="parameters" replace={true} />} />
-      <Route path="parameters" element={errorWrapper(Parameters)()} />
+      <Route path="parameters" element={errorWrapper(TenantParameters)()} />
       <Route path="security" element={<Navigate to="roles" replace={true} />} />
       <Route path="security/groups" element={errorWrapper(Groups)()} />
       <Route path="security/users" element={errorWrapper(Users)()} />

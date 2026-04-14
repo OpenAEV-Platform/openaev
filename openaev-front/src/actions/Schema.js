@@ -30,6 +30,12 @@ export const platformParameters = new schema.Entity(
   { idAttribute: () => 'parameters' },
 );
 
+export const tenantSettings = new schema.Entity(
+  'tenantSettings',
+  {},
+  { idAttribute: () => 'settings' },
+);
+
 export const token = new schema.Entity(
   'tokens',
   {},
@@ -385,6 +391,9 @@ export const storeHelper = state => ({
     const publicParams = state.referential.getIn(['entities', 'publicPlatformParameters', 'parameters']) || Map({});
     const privateParams = state.referential.getIn(['entities', 'platformParameters', 'parameters']) || Map({});
     return publicParams.merge(privateParams);
+  },
+  getTenantSettings: () => {
+    return state.referential.getIn(['entities', 'tenantSettings', 'settings']) || Map({});
   },
   getPlatformName: () => {
     const privateParams = state.referential.getIn(['entities', 'platformParameters', 'parameters']);

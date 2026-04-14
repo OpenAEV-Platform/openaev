@@ -43,6 +43,7 @@ public enum ResourceType {
   EVALUATION,
   CATALOG,
   TENANT,
+  TENANT_SETTING,
   PLATFORM_ROLE,
   PLATFORM_GROUP,
   // Special resource types

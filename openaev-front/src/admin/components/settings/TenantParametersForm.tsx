@@ -5,22 +5,20 @@ import { type FunctionComponent, type SyntheticEvent, useEffect } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import SelectFieldController from '../../../components/fields/SelectFieldController';
-import TextFieldController from '../../../components/fields/TextFieldController';
+import CustomDashboardAutocompleteFieldController from '../../../components/fields/CustomDashboardAutocompleteFieldController';
 import { useFormatter } from '../../../components/i18n';
-import type { SettingsUpdateInput } from '../../../utils/api-types';
+import { type TenantSettingsUpdateInput } from '../../../utils/api-types';
 import { Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { zodImplement } from '../../../utils/Zod';
-import { langItems, themeItems } from '../utils/OptionItems';
 
-interface ParametersForms {
-  onSubmit: (data: SettingsUpdateInput) => void;
-  initialValues: SettingsUpdateInput;
+interface TenantParametersFormProps {
+  onSubmit: (data: TenantSettingsUpdateInput) => void;
+  initialValues: TenantSettingsUpdateInput;
   canNotManage: boolean;
 }
 
-const ParametersForm: FunctionComponent<ParametersForms> = ({
+const TenantParametersForm: FunctionComponent<TenantParametersFormProps> = ({
   onSubmit,
   initialValues,
   canNotManage,
@@ -28,13 +26,13 @@ const ParametersForm: FunctionComponent<ParametersForms> = ({
   const { t } = useFormatter();
   const theme = useTheme();
 
-  const methods = useForm<SettingsUpdateInput>({
+  const methods = useForm<TenantSettingsUpdateInput>({
     mode: 'onTouched',
     resolver: zodResolver(
-      zodImplement<SettingsUpdateInput>().with({
-        platform_name: z.string().min(1, { message: t('Should not be empty') }),
-        platform_theme: z.string().min(1, { message: t('Should not be empty') }),
-        platform_lang: z.string().min(1, { message: t('Should not be empty') }),
+      zodImplement<TenantSettingsUpdateInput>().with({
+        platform_home_dashboard: z.string().optional(),
+        platform_scenario_dashboard: z.string().optional(),
+        platform_simulation_dashboard: z.string().optional(),
       }),
     ),
     defaultValues: initialValues,
@@ -50,6 +48,7 @@ const ParametersForm: FunctionComponent<ParametersForms> = ({
     e.stopPropagation();
     handleSubmit(onSubmit)(e);
   };
+
   useEffect(() => {
     reset(initialValues);
   }, [initialValues, reset]);
@@ -57,7 +56,7 @@ const ParametersForm: FunctionComponent<ParametersForms> = ({
   return (
     <FormProvider {...methods}>
       <form
-        id="parametersForm"
+        id="tenantParametersForm"
         onSubmit={handleSubmitWithoutPropagation}
         style={{
           display: 'flex',
@@ -66,9 +65,9 @@ const ParametersForm: FunctionComponent<ParametersForms> = ({
           gap: theme.spacing(2.5),
         }}
       >
-        <TextFieldController required name="platform_name" label={t('Platform name')} disabled={canNotManage} />
-        <SelectFieldController name="platform_theme" label={t('Default theme')} items={themeItems(t)} disabled={canNotManage} />
-        <SelectFieldController name="platform_lang" label={t('Default language')} items={langItems(t)} disabled={canNotManage} />
+        <CustomDashboardAutocompleteFieldController name="platform_home_dashboard" label={t('Home dashboard')} disabled={canNotManage} />
+        <CustomDashboardAutocompleteFieldController name="platform_scenario_dashboard" label={t('Default scenario dashboard')} disabled={canNotManage} />
+        <CustomDashboardAutocompleteFieldController name="platform_simulation_dashboard" label={t('Default simulation dashboard')} disabled={canNotManage} />
         <div>
           <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
             <Button
@@ -86,4 +85,4 @@ const ParametersForm: FunctionComponent<ParametersForms> = ({
   );
 };
 
-export default ParametersForm;
+export default TenantParametersForm;

@@ -222,10 +222,6 @@ public class CustomDashboardService {
                     "Custom dashboard associated to resource: " + resourceId + " not found"));
   }
 
-  public Optional<CustomDashboard> findHomeDashboard() {
-    return customDashboardRepository.findHomeDashboard();
-  }
-
   /**
    * Verify if a widget is part of a dashboard associated to a resource
    *
@@ -242,18 +238,6 @@ public class CustomDashboardService {
       return true;
     }
     return false;
-  }
-
-  /**
-   * Verify if a widget is part of a the home dashboard
-   *
-   * @param widgetId
-   * @return
-   */
-  public boolean isWidgetInHomeDashboard(@NotBlank final String widgetId) {
-    return findHomeDashboard()
-        .map(d -> d.getWidgets().stream().anyMatch(w -> widgetId.equals(w.getId())))
-        .orElse(false);
   }
 
   public EsCountInterval dashboardCountOnResourceId(
@@ -324,65 +308,5 @@ public class CustomDashboardService {
       throw new AccessDeniedException("Access denied");
     }
     return this.dashboardService.attackPaths(widgetId, parameters);
-  }
-
-  public EsCountInterval homeDashboardCount(
-      @NotBlank final String widgetId, final Map<String, String> parameters) {
-
-    // verify that the widget is in the home  dashboard
-    if (!isWidgetInHomeDashboard(widgetId)) {
-      throw new AccessDeniedException("Access denied");
-    }
-    return dashboardService.count(widgetId, parameters);
-  }
-
-  public EsAvgs homeDashboardAverage(
-      @NotBlank final String widgetId, final Map<String, String> parameters) {
-
-    // verify that the widget is in the home  dashboard
-    if (!isWidgetInHomeDashboard(widgetId)) {
-      throw new AccessDeniedException("Access denied");
-    }
-    return dashboardService.average(widgetId, parameters);
-  }
-
-  public List<EsSeries> homeDashboardSeries(
-      @NotBlank final String widgetId, final Map<String, String> parameters) {
-    // verify that the widget is in the home  dashboard
-    if (!isWidgetInHomeDashboard(widgetId)) {
-      throw new AccessDeniedException("Access denied");
-    }
-    return dashboardService.series(widgetId, parameters);
-  }
-
-  public EsEntities homeDashboardEntities(
-      @NotBlank final String widgetId, @Nullable final EntitiesPaginationInput input) {
-    // verify that the widget is in the home  dashboard
-    if (!isWidgetInHomeDashboard(widgetId)) {
-      throw new AccessDeniedException("Access denied");
-    }
-    return dashboardService.entities(
-        widgetId,
-        input == null ? new HashMap<>() : input.getParameters(),
-        input == null ? null : input.getPagination());
-  }
-
-  public WidgetToEntitiesOutput homeWidgetToEntitiesRuntimeOnResourceId(
-      @NotBlank final String widgetId, @NotBlank WidgetToEntitiesInput input) {
-    // verify that the widget is in the resource dashboard
-    if (!isWidgetInHomeDashboard(widgetId)) {
-      throw new AccessDeniedException("Access denied");
-    }
-    return this.dashboardService.widgetToEntitiesRuntime(widgetId, input);
-  }
-
-  public List<EsAttackPath> homeDashboardAttackPaths(
-      @NotBlank final String widgetId, final Map<String, String> parameters)
-      throws ExecutionException, InterruptedException {
-    // verify that the widget is in the home  dashboard
-    if (!isWidgetInHomeDashboard(widgetId)) {
-      throw new AccessDeniedException("Access denied");
-    }
-    return dashboardService.attackPaths(widgetId, parameters);
   }
 }
