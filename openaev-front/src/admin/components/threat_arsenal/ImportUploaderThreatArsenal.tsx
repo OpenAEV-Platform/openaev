@@ -234,11 +234,6 @@ const ImportUploaderThreatArsenal: FunctionComponent<Props> = ({ onImport }) => 
               <Typography variant="body2" className={classes.fileName}>
                 {t('Threat Arsenal supports .zip file import format')}
               </Typography>
-              {selectedFiles.length > 0 && (
-                <Typography variant="body2" className={classes.fileName}>
-                  {selectedFiles.map(file => file.name).join(', ')}
-                </Typography>
-              )}
               <div className={classes.actionRow}>
                 <Button
                   variant="contained"
@@ -266,7 +261,6 @@ const ImportUploaderThreatArsenal: FunctionComponent<Props> = ({ onImport }) => 
             <div className={classes.filesList}>
               <div className={classes.filesHeader}>
                 <Typography variant="subtitle2">{t('Files')}</Typography>
-                <DeleteOutline color="primary" fontSize="small" />
               </div>
               {selectedFiles.map((file, index) => (
                 <div

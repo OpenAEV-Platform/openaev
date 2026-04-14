@@ -222,7 +222,7 @@ const ThreatArsenal = () => {
             <ExportButton totalElements={queryableHelpers.paginationHelpers.getTotalElements()} exportProps={exportProps} />
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.PAYLOADS}>
               <ImportUploaderThreatArsenal
-                onImport={results  => setSelectedThreatArsenalAction(prev => [...results, ...prev])}
+                onImport={results => setThreatArsenalActions(prev => [...results, ...prev])}
               />
             </Can>
           </ToggleButtonGroup>
