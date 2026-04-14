@@ -34,8 +34,6 @@ import io.openaev.rest.attack_pattern.service.AttackPatternService;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.injector_contract.form.*;
-import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
-import io.openaev.rest.injector_contract.output.InjectorContractActionOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractDomainCountOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;

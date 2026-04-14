@@ -14,7 +14,6 @@ import io.openaev.rest.injector_contract.form.InjectorContractAddInput;
 import io.openaev.rest.injector_contract.form.InjectorContractUpdateInput;
 import io.openaev.rest.injector_contract.form.InjectorContractUpdateMappingInput;
 import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
-import io.openaev.rest.injector_contract.output.InjectorContractActionOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractDomainCountOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;

@@ -8,7 +8,6 @@ import { deleteInjectorContract, updateInjectorContract, updateInjectorContractM
 import Drawer from '../../../../../components/common/Drawer';
 import Transition from '../../../../../components/common/Transition';
 import { useFormatter } from '../../../../../components/i18n';
-import { useHelper } from '../../../../../store.ts';
 import { attackPatternOptions } from '../../../../../utils/Option';
 import { Can } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
