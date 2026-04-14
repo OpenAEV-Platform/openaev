@@ -1,4 +1,5 @@
 import { CloudUploadOutlined, DeleteOutline } from '@mui/icons-material';
+import { Box, Button, IconButton, ToggleButton, Tooltip, Typography } from '@mui/material';
 import { type ChangeEvent, type ClipboardEvent, type DragEvent, type FunctionComponent, useRef, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -7,7 +8,6 @@ import Dialog from '../../../components/common/dialog/Dialog';
 import { useFormatter } from '../../../components/i18n';
 import { type InjectorContractActionOutput } from '../../../utils/api-types';
 import { useAppDispatch } from '../../../utils/hooks';
-import { Box, Button, IconButton, ToggleButton, Tooltip, Typography } from '@mui/material';
 
 const ACCEPTED_MIME_TYPES = new Set(['application/zip', 'application/x-zip-compressed']);
 
@@ -19,22 +19,20 @@ const useStyles = makeStyles()(theme => ({
     minHeight: 420,
   },
   dropArea: {
-    border: `1px dashed ${theme.palette.divider}`,
-    borderRadius: theme.spacing(2),
-    minHeight: 280,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    textAlign: 'center',
-    padding: theme.spacing(3),
-    transition: 'border-color 0.2s ease, background-color 0.2s ease',
-    cursor: 'pointer',
-    outline: 'none',
-    backgroundColor: 'transparent',
-    appearance: 'none',
-    '&:hover': {
-      backgroundColor: theme.palette.background.secondary,
-    },
+    'border': `1px dashed ${theme.palette.divider}`,
+    'borderRadius': theme.spacing(2),
+    'minHeight': 280,
+    'display': 'flex',
+    'alignItems': 'center',
+    'justifyContent': 'center',
+    'textAlign': 'center',
+    'padding': theme.spacing(3),
+    'transition': 'border-color 0.2s ease, background-color 0.2s ease',
+    'cursor': 'pointer',
+    'outline': 'none',
+    'backgroundColor': 'transparent',
+    'appearance': 'none',
+    '&:hover': { backgroundColor: theme.palette.background.secondary },
   },
   dropAreaActive: {
     borderColor: theme.palette.primary.main,
@@ -57,9 +55,7 @@ const useStyles = makeStyles()(theme => ({
     justifyContent: 'flex-end',
     gap: theme.spacing(1),
   },
-  fileName: {
-    color: theme.palette.text.secondary,
-  },
+  fileName: { color: theme.palette.text.secondary },
   filesList: {
     borderTop: `1px solid ${theme.palette.divider}`,
     marginTop: theme.spacing(1),
@@ -86,9 +82,7 @@ const useStyles = makeStyles()(theme => ({
   },
 }));
 
-interface Props {
-  onImport?: (results: InjectorContractActionOutput[]) => void;
-}
+interface Props { onImport?: (results: InjectorContractActionOutput[]) => void }
 
 function isZipFile(file: File): boolean {
   const lowerName = file.name.toLowerCase();
@@ -121,7 +115,7 @@ const ImportUploaderThreatArsenal: FunctionComponent<Props> = ({ onImport }) => 
       return;
     }
     const fileKey = `${file.name}-${file.lastModified}-${file.size}`;
-    setSelectedFiles(prev => {
+    setSelectedFiles((prev) => {
       const hasSameFile = prev.some(f => `${f.name}-${f.lastModified}-${f.size}` === fileKey);
       if (hasSameFile) {
         return prev;
@@ -227,7 +221,7 @@ const ImportUploaderThreatArsenal: FunctionComponent<Props> = ({ onImport }) => 
             onDrop={handleDrop}
             onPaste={handlePaste}
             onClick={() => inputRef.current?.click()}
-            onKeyDown={event => {
+            onKeyDown={(event) => {
               if (event.key === 'Enter' || event.key === ' ') {
                 event.preventDefault();
                 inputRef.current?.click();
@@ -315,4 +309,3 @@ const ImportUploaderThreatArsenal: FunctionComponent<Props> = ({ onImport }) => 
 };
 
 export default ImportUploaderThreatArsenal;
-

@@ -44,9 +44,9 @@ import InjectorContractPopover from '../integrations/injectors/injector_contract
 import PayloadStatusComponent from '../payloads/PayloadStatusComponent';
 import ThreatArsenalRunTestDrawer from './bulk/ThreatArsenalRunTestDrawer';
 import CreateThreatArsenalAction from './CreateThreatArsenalAction';
+import ImportUploaderThreatArsenal from './ImportUploaderThreatArsenal';
 import ThreatArsenalActionPopover from './ThreatArsenalActionPopover';
 import ThreatArsenalInformationDrawer from './ThreatArsenalInformationDrawer';
-import ImportUploaderThreatArsenal from "./ImportUploaderThreatArsenal";
 
 const useStyles = makeStyles()(theme => ({
   itemHead: { textTransform: 'uppercase' },
@@ -223,7 +223,7 @@ const ThreatArsenal = () => {
             <ExportButton totalElements={queryableHelpers.paginationHelpers.getTotalElements()} exportProps={exportProps} />
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.PAYLOADS}>
               <ImportUploaderThreatArsenal
-                onImport={(results) => setInjectorContracts(prev => [...results, ...prev])}
+                onImport={results => setInjectorContracts(prev => [...results, ...prev])}
               />
             </Can>
           </ToggleButtonGroup>

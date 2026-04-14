@@ -476,8 +476,8 @@ public class MapperService {
       }
     }
 
-    return injectorContract.getInjector() != null
-        ? toCsvValue(injectorContract.getInjector().getType())
+    return injectorContract.getInjectorType() != null
+        ? toCsvValue(injectorContract.getInjectorType())
         : CSV_EMPTY_VALUE;
   }
 

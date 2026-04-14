@@ -105,14 +105,6 @@ public interface InjectorContractRepository
   @NotNull
   Optional<InjectorContract> findInjectorContractByPayload(@NotNull Payload payload);
 
-  @Modifying
-  @Query("DELETE FROM InjectorContract ic WHERE ic.compositeId.id = :id")
-  void deleteById(@Param("id") @NotNull String id);
-
-  @Modifying
-  @Query("DELETE FROM InjectorContract ic WHERE ic.compositeId.id IN :ids")
-  void deleteAllById(@Param("ids") @NotNull List<String> ids);
-
   @Query(
       value =
           """
@@ -140,6 +132,14 @@ public interface InjectorContractRepository
       """,
       nativeQuery = true)
   Optional<RawPayloadRelatedIds> findRelatedIdsByPayloadId(@Param("payloadId") String payloadId);
+
+  @Modifying
+  @Query("DELETE FROM InjectorContract ic WHERE ic.compositeId.id = :id")
+  void deleteById(@Param("id") @NotNull String id);
+
+  @Modifying
+  @Query("DELETE FROM InjectorContract ic WHERE ic.compositeId.id IN :ids")
+  void deleteAllById(@Param("ids") @NotNull List<String> ids);
 
   @Query(
       value =

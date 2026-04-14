@@ -9,10 +9,10 @@ import Drawer from '../../../components/common/Drawer';
 import Transition from '../../../components/common/Transition';
 import { useFormatter } from '../../../components/i18n';
 import {
-  Domain,
-  InjectorContractActionOutput,
-  Payload, PayloadOutput,
-  PayloadUpdateInput,
+  type Domain,
+  type InjectorContractActionOutput,
+  Payload, type PayloadOutput,
+  type PayloadUpdateInput,
 } from '../../../utils/api-types';
 import { type PayloadCreateInput } from '../../../utils/api-types-custom';
 import { useAppDispatch } from '../../../utils/hooks';
@@ -136,7 +136,10 @@ const PayloadPopover = ({
         }),
     } as PayloadUpdateInput;
 
-    return dispatch(updatePayload(payloadId, inputValues)).then((result: { entities: { payloads: Record<string, InjectorContractActionOutput> }; result: string }) => {
+    return dispatch(updatePayload(payloadId, inputValues)).then((result: {
+      entities: { payloads: Record<string, InjectorContractActionOutput> };
+      result: string;
+    }) => {
       debugger;
       if (onUpdate) {
         onUpdate(result.entities.payloads[result.result]);
@@ -164,7 +167,10 @@ const PayloadPopover = ({
   const handleCloseDuplicate = () => setOpenDuplicate(false);
 
   const submitDuplicate = () => {
-    return dispatch(duplicatePayload(payloadId)).then((result: { entities: { payloads: Record<string, InjectorContractActionOutput> }; result: string }) => {
+    return dispatch(duplicatePayload(payloadId)).then((result: {
+      entities: { payloads: Record<string, InjectorContractActionOutput> };
+      result: string;
+    }) => {
       if (onDuplicate) {
         onDuplicate(result.entities.payloads[result.result]);
       }
@@ -251,4 +257,3 @@ const PayloadPopover = ({
 };
 
 export default PayloadPopover;
-
