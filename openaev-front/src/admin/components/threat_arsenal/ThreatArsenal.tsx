@@ -29,7 +29,6 @@ import PaginatedListLoader from '../../../components/PaginatedListLoader';
 import PlatformIcon from '../../../components/PlatformIcon';
 import { useHelper } from '../../../store';
 import {
-  type Domain, type InjectorContract,
   type SearchPaginationInput,
   type ThreatArsenalAction,
 } from '../../../utils/api-types';
@@ -196,7 +195,7 @@ const ThreatArsenal = () => {
   const exportProps = {
     exportType: 'INJECTOR_CONTRACTS',
     exportKeys: [],
-    exportData: injectorContracts,
+    exportData: threatArsenalActions,
     searchPaginationInput,
   };
 
@@ -223,7 +222,7 @@ const ThreatArsenal = () => {
             <ExportButton totalElements={queryableHelpers.paginationHelpers.getTotalElements()} exportProps={exportProps} />
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.PAYLOADS}>
               <ImportUploaderThreatArsenal
-                onImport={results => setInjectorContracts(prev => [...results, ...prev])}
+                onImport={results  => setSelectedThreatArsenalAction(prev => [...results, ...prev])}
               />
             </Can>
           </ToggleButtonGroup>
@@ -281,23 +280,11 @@ const ThreatArsenal = () => {
                         )
                       : (
                           <InjectorContractPopover
-                            injectorContract={{
-                              injector_contract_id: action.injector_contract_id,
-                              injector_contract_attack_patterns: action.action_attack_patterns_ids,
-                              injector_contract_domains: action.action_domains_ids,
-                              injector_contract_tags: action.action_tags_ids,
-                            }}
+                            injectorContract={action}
                             canDelete={false}
                             canEditCustomForm={false}
-                            onUpdate={(result: InjectorContract) =>
-                              setThreatArsenalActions(threatArsenalActions.map(ic => (ic.injector_contract_id !== result.injector_contract_id
-                                ? ic
-                                : {
-                                    ...ic,
-                                    action_attack_patterns_ids: result.injector_contract_attack_patterns ?? [],
-                                    action_domains_ids: result.injector_contract_domains ?? [],
-                                    action_tags_ids: result.injector_contract_tags ?? [],
-                                  })))}
+                            onUpdate={(result: ThreatArsenalAction) =>
+                              setThreatArsenalActions(threatArsenalActions.map(ic => (ic.injector_contract_id !== result.injector_contract_id ? ic : result)))}
                           />
                         )
                     )}

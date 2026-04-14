@@ -6,7 +6,7 @@ import { makeStyles } from 'tss-react/mui';
 import { importPayload } from '../../../actions/payloads/payload-actions';
 import Dialog from '../../../components/common/dialog/Dialog';
 import { useFormatter } from '../../../components/i18n';
-import { type InjectorContractActionOutput } from '../../../utils/api-types';
+import { type ThreatArsenalAction} from '../../../utils/api-types';
 import { useAppDispatch } from '../../../utils/hooks';
 
 const ACCEPTED_MIME_TYPES = new Set(['application/zip', 'application/x-zip-compressed']);
@@ -82,7 +82,7 @@ const useStyles = makeStyles()(theme => ({
   },
 }));
 
-interface Props { onImport?: (results: InjectorContractActionOutput[]) => void }
+interface Props { onImport?: (results: ThreatArsenalAction[]) => void }
 
 function isZipFile(file: File): boolean {
   const lowerName = file.name.toLowerCase();
@@ -168,11 +168,11 @@ const ImportUploaderThreatArsenal: FunctionComponent<Props> = ({ onImport }) => 
     }
     setUploading(true);
 
-    const importedResults: InjectorContractActionOutput[] = [];
+    const importedResults: ThreatArsenalAction[] = [];
     for (const file of selectedFiles) {
       const formData = new FormData();
       formData.append('file', file);
-      const result = await dispatch(importPayload(formData)) as { data?: InjectorContractActionOutput[] };
+      const result = await dispatch(importPayload(formData)) as { data?: ThreatArsenalAction[] };
       if (result?.data) {
         importedResults.push(...result.data);
       }

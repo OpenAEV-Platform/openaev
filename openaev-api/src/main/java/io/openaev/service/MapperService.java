@@ -40,6 +40,7 @@ import io.openaev.rest.tag.form.TagExportImport;
 import io.openaev.service.utils.CustomColumnPositionStrategy;
 import io.openaev.utils.CopyObjectListUtils;
 import io.openaev.utils.TargetType;
+import io.openaev.utils.ThreatArsenalFilterUtils;
 import io.openaev.utils.constants.Constants;
 import io.openaev.utils.mapper.EndpointMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -422,9 +423,10 @@ public class MapperService {
   }
 
   private List<InjectorContractExport> getInjectorContractsToExport(SearchPaginationInput input) {
+    SearchPaginationInput translated = ThreatArsenalFilterUtils.translateSearchInput(input);
     Specification<InjectorContract> filterSpecifications =
-        computeFilterGroupJpa(input.getFilterGroup());
-    filterSpecifications = filterSpecifications.and(computeSearchJpa(input.getTextSearch()));
+        computeFilterGroupJpa(translated.getFilterGroup());
+    filterSpecifications = filterSpecifications.and(computeSearchJpa(translated.getTextSearch()));
 
     return injectorContractRepository.findAll(filterSpecifications).stream()
         .map(this::toInjectorContractExport)
