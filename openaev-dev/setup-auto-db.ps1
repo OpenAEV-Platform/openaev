@@ -4,7 +4,8 @@
 #
 # Copies the DevDatabaseEnvironmentPostProcessor and its Spring registration
 # from  openaev-dev/test-containers/  into  openaev-api/  so the backend can
-# auto-start a PostgreSQL Docker container on launch (dev profile only).
+# auto-start a PostgreSQL container on launch (dev profile only).
+# Supports both Podman and Docker (auto-detected at runtime).
 #
 # The copied files are git-ignored — they never pollute the API module in VCS.
 #
@@ -94,8 +95,9 @@ Write-Host "╔═════════════════════�
 Write-Host "║  ✅  Auto-DB setup complete!                                ║"
 Write-Host "╚══════════════════════════════════════════════════════════════╝"
 Write-Host ""
-Write-Host "  The backend will now auto-start a PostgreSQL Docker container"
-Write-Host "  when launched with the 'dev' profile and the property:"
+Write-Host "  The backend will now auto-start a PostgreSQL container"
+Write-Host "  (using Podman or Docker, auto-detected) when launched with"
+Write-Host "  the 'dev' profile and the property:"
 Write-Host ""
 Write-Host "    openaev.dev.auto-start-database=true"
 Write-Host ""
@@ -103,7 +105,11 @@ Write-Host "  Optional — use a fixed port instead of a per-branch port:"
 Write-Host ""
 Write-Host "    openaev.dev.database-port=5432"
 Write-Host ""
-Write-Host "  Both properties go in application-dev.properties."
+Write-Host "  Optional — force a specific container runtime:"
+Write-Host ""
+Write-Host "    openaev.dev.container-runtime=podman"
+Write-Host ""
+Write-Host "  All properties go in application-dev.properties."
 Write-Host ""
 Write-Host "  These files are git-ignored and will NOT be committed."
 Write-Host ""

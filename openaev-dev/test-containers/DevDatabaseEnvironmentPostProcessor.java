@@ -11,7 +11,7 @@ import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.MapPropertySource;
 
 /**
- * Starts (or reuses) a PostgreSQL Docker container before the application context is created, then
+ * Starts (or reuses) a PostgreSQL container before the application context is created, then
  * overrides {@code spring.datasource.url} and {@code spring.flyway.url} to point to it.
  *
  * <p>Activated by setting {@code openaev.dev.auto-start-database=true} in any property source
@@ -26,19 +26,26 @@ import org.springframework.core.env.MapPropertySource;
  *
  * <p>On JVM shutdown the container is <b>stopped</b> (not removed) so it can be restarted later.
  *
- * <p><b>This file is NOT versioned in openaev-api.</b> It lives in
- * {@code openaev-dev/test-containers/} and is copied by {@code openaev-dev/setup-auto-db.sh}.
+ * <p>Supports both Docker and Podman. The runtime is auto-detected (Podman first, then Docker) or
+ * can be forced via {@code openaev.dev.container-runtime=podman|docker}.
+ *
+ * <p><b>This file is NOT versioned in openaev-api.</b> It lives in {@code
+ * openaev-dev/test-containers/} and is copied by {@code openaev-dev/setup-auto-db.sh}.
  */
 public class DevDatabaseEnvironmentPostProcessor implements EnvironmentPostProcessor {
 
   private static final String ENABLED_PROPERTY = "openaev.dev.auto-start-database";
   private static final String PORT_PROPERTY = "openaev.dev.database-port";
+  private static final String RUNTIME_PROPERTY = "openaev.dev.container-runtime";
   private static final String CONTAINER_PREFIX = "openaev-db-";
   private static final String PG_IMAGE = "postgres:17-alpine";
   private static final String DB_NAME = "openaev";
   private static final int READINESS_TIMEOUT_SECONDS = 30;
   private static final int PORT_RANGE_START = 10000;
   private static final int PORT_RANGE_END = 65536; // exclusive
+
+  /** The resolved container runtime command ({@code "podman"} or {@code "docker"}). */
+  private String runtime;
 
   @Override
   public void postProcessEnvironment(
@@ -47,6 +54,8 @@ public class DevDatabaseEnvironmentPostProcessor implements EnvironmentPostProce
     if (!"true".equalsIgnoreCase(environment.getProperty(ENABLED_PROPERTY))) {
       return;
     }
+
+    runtime = resolveContainerRuntime(environment);
 
     String dbUser = environment.getProperty("spring.datasource.username", "openaev");
     String dbPassword = environment.getProperty("spring.datasource.password", "openaev");
@@ -57,7 +66,9 @@ public class DevDatabaseEnvironmentPostProcessor implements EnvironmentPostProce
     int port = resolvePort(environment, containerName);
 
     log(
-        "Auto-start database enabled — branch: "
+        "Auto-start database enabled — runtime: "
+            + runtime
+            + ", branch: "
             + branch
             + ", container: "
             + containerName
@@ -81,9 +92,7 @@ public class DevDatabaseEnvironmentPostProcessor implements EnvironmentPostProce
       // username/password are already set in application-dev.properties — no need to override
 
       // Highest precedence — overrides everything from application-*.properties
-      environment
-          .getPropertySources()
-          .addFirst(new MapPropertySource("autoStartDatabase", props));
+      environment.getPropertySources().addFirst(new MapPropertySource("autoStartDatabase", props));
 
       log("Database ready → " + jdbcUrl);
 
@@ -116,18 +125,18 @@ public class DevDatabaseEnvironmentPostProcessor implements EnvironmentPostProce
       case "running" -> log("Container " + containerName + " is already running.");
       case "exited", "created" -> {
         log("Starting existing container " + containerName + "…");
-        int rc = exec("docker", "start", containerName);
+        int rc = exec(runtime, "start", containerName);
         if (rc != 0) {
-          throw new IllegalStateException("docker start failed (exit " + rc + ")");
+          throw new IllegalStateException(runtime + " start failed (exit " + rc + ")");
         }
       }
       default -> {
         // "not_found" or unexpected state — (re)create
         log("Creating new container " + containerName + "…");
-        exec("docker", "rm", "-f", containerName); // clean up if in a weird state
+        exec(runtime, "rm", "-f", containerName); // clean up if in a weird state
         int rc =
             exec(
-                "docker",
+                runtime,
                 "run",
                 "-d",
                 "--name",
@@ -143,7 +152,7 @@ public class DevDatabaseEnvironmentPostProcessor implements EnvironmentPostProce
                 PG_IMAGE);
         if (rc != 0) {
           throw new IllegalStateException(
-              "docker run failed (exit " + rc + "). Is Docker running?");
+              runtime + " run failed (exit " + rc + "). Is " + runtime + " running?");
         }
       }
     }
@@ -152,7 +161,7 @@ public class DevDatabaseEnvironmentPostProcessor implements EnvironmentPostProce
   /** Returns the container state ({@code running}, {@code exited}, …) or {@code not_found}. */
   private String inspectContainerState(String containerName) throws Exception {
     ProcessBuilder pb =
-        new ProcessBuilder("docker", "inspect", "-f", "{{.State.Status}}", containerName);
+        new ProcessBuilder(runtime, "inspect", "-f", "{{.State.Status}}", containerName);
     pb.redirectErrorStream(true);
     Process process = pb.start();
     String output;
@@ -196,8 +205,8 @@ public class DevDatabaseEnvironmentPostProcessor implements EnvironmentPostProce
   }
 
   /**
-   * Turns a branch name into a valid Docker container name suffix. Docker container names must
-   * match {@code [a-zA-Z0-9][a-zA-Z0-9_.-]}.
+   * Turns a branch name into a valid container name suffix. Container names must match {@code
+   * [a-zA-Z0-9][a-zA-Z0-9_.-]}.
    */
   private static String sanitize(String branch) {
     return branch
@@ -207,8 +216,59 @@ public class DevDatabaseEnvironmentPostProcessor implements EnvironmentPostProce
   }
 
   // ---------------------------------------------------------------------------
-  // Docker helpers
+  // Container helpers
   // ---------------------------------------------------------------------------
+
+  /**
+   * Resolves the container runtime to use. If {@value RUNTIME_PROPERTY} is set, uses that value
+   * (must be {@code "podman"} or {@code "docker"}). Otherwise auto-detects: prefers {@code podman},
+   * falls back to {@code docker}.
+   *
+   * @throws IllegalStateException if neither runtime is available
+   */
+  private static String resolveContainerRuntime(ConfigurableEnvironment environment) {
+    String explicit = environment.getProperty(RUNTIME_PROPERTY);
+    if (explicit != null && !explicit.isBlank()) {
+      String normalized = explicit.trim().toLowerCase();
+      if (!"podman".equals(normalized) && !"docker".equals(normalized)) {
+        throw new IllegalStateException(
+            "Invalid value for "
+                + RUNTIME_PROPERTY
+                + ": '"
+                + explicit
+                + "' — expected 'podman' or 'docker'");
+      }
+      log("Using container runtime from " + RUNTIME_PROPERTY + ": " + normalized);
+      return normalized;
+    }
+    // Auto-detect: prefer podman, fall back to docker
+    if (isCommandAvailable("podman")) {
+      log("Auto-detected container runtime: podman");
+      return "podman";
+    }
+    if (isCommandAvailable("docker")) {
+      log("Auto-detected container runtime: docker");
+      return "docker";
+    }
+    throw new IllegalStateException(
+        "Neither 'podman' nor 'docker' found on PATH. "
+            + "Install one of them or set "
+            + RUNTIME_PROPERTY);
+  }
+
+  /** Returns {@code true} if the given command is available on the system PATH. */
+  private static boolean isCommandAvailable(String command) {
+    try {
+      ProcessBuilder pb = new ProcessBuilder(command, "--version");
+      pb.redirectErrorStream(true);
+      pb.redirectOutput(ProcessBuilder.Redirect.DISCARD);
+      Process process = pb.start();
+      boolean finished = process.waitFor(5, TimeUnit.SECONDS);
+      return finished && process.exitValue() == 0;
+    } catch (Exception e) {
+      return false;
+    }
+  }
 
   /**
    * Resolves the host port for the database container. If {@value PORT_PROPERTY} is set, uses that
@@ -233,8 +293,8 @@ public class DevDatabaseEnvironmentPostProcessor implements EnvironmentPostProce
   }
 
   /**
-   * Computes a deterministic host port from the container name. Formula: {@code abs(hash) %
-   * (65536 − 10000) + 10000}, yielding a stable port in [10000, 65535] for each branch.
+   * Computes a deterministic host port from the container name. Formula: {@code abs(hash) % (65536
+   * − 10000) + 10000}, yielding a stable port in [10000, 65535] for each branch.
    */
   private static int computePort(String containerName) {
     int hash = containerName.hashCode();
@@ -247,7 +307,7 @@ public class DevDatabaseEnvironmentPostProcessor implements EnvironmentPostProce
 
     while (System.currentTimeMillis() < deadline) {
       int rc =
-          exec("docker", "exec", containerName, "pg_isready", "-U", dbUser, "-d", DB_NAME, "-q");
+          exec(runtime, "exec", containerName, "pg_isready", "-U", dbUser, "-d", DB_NAME, "-q");
       if (rc == 0) {
         return;
       }
@@ -265,7 +325,7 @@ public class DevDatabaseEnvironmentPostProcessor implements EnvironmentPostProce
                 () -> {
                   log("Stopping container " + containerName + " (will be reused next startup)…");
                   try {
-                    exec("docker", "stop", containerName);
+                    exec(runtime, "stop", containerName);
                   } catch (Exception ignored) {
                     // best-effort
                   }
@@ -292,4 +352,3 @@ public class DevDatabaseEnvironmentPostProcessor implements EnvironmentPostProce
     System.out.println("[auto-db] " + message);
   }
 }
-
