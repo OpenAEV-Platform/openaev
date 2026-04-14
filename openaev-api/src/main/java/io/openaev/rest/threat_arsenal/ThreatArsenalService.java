@@ -174,7 +174,7 @@ public class ThreatArsenalService {
    * @param source the action input holding the common field values
    * @return a populated {@link PayloadUpdateInput}
    */
-  private PayloadUpdateInput populateCommonPayloadFields(CommonActionInput source) {
+  private PayloadUpdateInput getPayloadUpdateInputFromCommonActionInput(CommonActionInput source) {
     PayloadUpdateInput target = new PayloadUpdateInput();
     target.setName(source.name());
     target.setPlatforms(source.platforms());
@@ -198,15 +198,10 @@ public class ThreatArsenalService {
     return target;
   }
 
-  private PayloadUpdateInput convertActionUpdateInputToPayloadUpdateInput(
-      ThreatArsenalActionUpdateInput actionInput) {
-    return populateCommonPayloadFields(actionInput);
-  }
-
   private PayloadCreateInput convertActionCreateInputToPayloadCreateInput(
       ThreatArsenalActionCreateInput actionInput) {
     PayloadCreateInput payloadInput = new PayloadCreateInput();
-    BeanUtils.copyProperties(populateCommonPayloadFields(actionInput), payloadInput);
+    BeanUtils.copyProperties(getPayloadUpdateInputFromCommonActionInput(actionInput), payloadInput);
     payloadInput.setType(actionInput.type());
     payloadInput.setSource(actionInput.source());
     payloadInput.setStatus(actionInput.status());
@@ -251,7 +246,7 @@ public class ThreatArsenalService {
     }
 
     // convert ThreatArsenalActionUpdateInput into PayloadUpdateInput
-    PayloadUpdateInput payloadInput = convertActionUpdateInputToPayloadUpdateInput(actionInput);
+    PayloadUpdateInput payloadInput = getPayloadUpdateInputFromCommonActionInput(actionInput);
 
     // update payload using the resolved payload ID
     PayloadCreationService.PayloadInjectorContractCreationResult result =

@@ -30,7 +30,7 @@ const CommandsFormTab = ({ disabledActionType = false }: Props) => {
   });
 
   useEffect(() => {
-    if (actionType != 'Command') {
+    if (actionType !== 'Command') {
       const args = getValues('action_arguments') ?? [];
       const argToRemoveIndex: number[] = [];
       (args as unknown as PayloadArgument[]).forEach((arg, index) => {
@@ -41,7 +41,7 @@ const CommandsFormTab = ({ disabledActionType = false }: Props) => {
 
       argumentsRemove(argToRemoveIndex);
     }
-    if (!(actionType == 'Command' || actionType == 'Executable')) {
+    if (!(actionType === 'Command' || actionType === 'Executable')) {
       setValue('action_execution_arch', 'ALL_ARCHITECTURES'); // Automatically set arch to 'all'
     } else if (!disabledActionType && actionType === 'Executable' && getValues('action_execution_arch') === 'ALL_ARCHITECTURES') {
       setValue('action_execution_arch', '');

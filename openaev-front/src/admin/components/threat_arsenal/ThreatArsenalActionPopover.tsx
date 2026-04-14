@@ -176,16 +176,6 @@ const ThreatArsenalActionPopover = ({
     }));
   };
 
-  // -- Export --
-  // TODO next chunk 4458
-  // const handleExportJsonSingle = async () => {
-  //   handlePopoverClose();
-  //   const response = await exportPayload(payloadId);
-  //   const match = (response.headers['content-disposition'] as string).match(/filename="?([^"]+)"?/);
-  //   const filename = match?.[1] ?? 'payload.zip';
-  //   download(response.data, filename, 'application/zip');
-  // };
-
   const hasUpdateCapability = ability.can(ACTIONS.MANAGE, SUBJECTS.PAYLOADS) || ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, payloadId);
   const hasDeleteCapability = ability.can(ACTIONS.DELETE, SUBJECTS.PAYLOADS) || ability.can(ACTIONS.DELETE, SUBJECTS.RESOURCE, payloadId);
 
@@ -205,8 +195,6 @@ const ThreatArsenalActionPopover = ({
         {hasUpdateCapability && (
           <MenuItem onClick={handleOpenEdit} disabled={disableUpdate}>{t('Update')}</MenuItem>
         )}
-        {/* TODO next chunk */}
-        {/* <MenuItem onClick={handleExportJsonSingle}>{t('Export')}</MenuItem> */}
         {hasDeleteCapability && (
           <MenuItem onClick={handleOpenDelete} disabled={disableDelete}>{t('Delete')}</MenuItem>
         )}
@@ -216,7 +204,7 @@ const ThreatArsenalActionPopover = ({
         open={deletion}
         handleClose={handleCloseDelete}
         handleSubmit={submitDelete}
-        text={`${t('Do you want to delete this payload: ')} ${name ?? actionId} ?`}
+        text={`${t('Do you want to delete this action: ')} ${name ?? actionId} ?`}
       />
 
       <Dialog
@@ -227,7 +215,7 @@ const ThreatArsenalActionPopover = ({
       >
         <DialogContent>
           <DialogContentText>
-            {t('Do you want to duplicate this payload?')}
+            {t('Do you want to duplicate this action?')}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
@@ -239,7 +227,7 @@ const ThreatArsenalActionPopover = ({
       <Drawer
         open={openEdit}
         handleClose={handleCloseEdit}
-        title={t('Update the payload')}
+        title={t('Update the action')}
       >
         {fetchedAction && (
           <SnapshotRemediationProvider>

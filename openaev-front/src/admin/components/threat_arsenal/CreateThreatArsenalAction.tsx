@@ -68,12 +68,12 @@ const CreateThreatArsenalAction: FunctionComponent<Props> = ({ onCreate }) => {
         }),
     } as ApiThreatArsenalActionCreateInput;
 
-    return dispatch(addThreatArsenalAction(inputValues).then(({ data }: { data: ThreatArsenalAction }) => {
+    return addThreatArsenalAction(inputValues).then(({ data }: { data: ThreatArsenalAction }) => {
       if (data && onCreate) {
         onCreate(data);
       }
       setOpen(false);
-    }));
+    });
   };
 
   return (

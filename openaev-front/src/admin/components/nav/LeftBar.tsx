@@ -91,7 +91,7 @@ const LeftBar = () => {
         {
           path: `/admin/threat-arsenal`,
           icon: () => (<LayersOutlined />),
-          label: 'Threat Arsenal',
+          label: 'Threat Arsenals',
           userRight: true,
         },
         {

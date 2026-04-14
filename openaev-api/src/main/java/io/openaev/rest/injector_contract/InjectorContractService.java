@@ -509,7 +509,8 @@ public class InjectorContractService implements DependenciesManager {
       Expression<String[]> injectorIdsExpression,
       Expression<String[]> injectorNamesExpression,
       Expression<String[]> injectorContractDomainsIdsExpression,
-      Expression<String[]> attackPatternIdsExpression) {}
+      Expression<String[]> attackPatternIdsExpression,
+      Expression<String[]> tagsIdsExpression) {}
 
   private InjectorContractQueryContext buildCommonInjectorContractContext(
       CriteriaBuilder cb, Root<InjectorContract> injectorContractRoot) {
@@ -524,6 +525,9 @@ public class InjectorContractService implements DependenciesManager {
 
     Expression<String[]> attackPatternIdsExpression =
         createJoinArrayAggOnId(cb, injectorContractRoot, "attackPatterns");
+
+    Expression<String[]> tagsIdsExpression =
+        createJoinArrayAggOnIdForJoin(cb, injectorContractRoot, "tags");
 
     Expression<String[]> injectorIdsExpression =
         arrayAggOnId((HibernateCriteriaBuilder) cb, injectorContractInjectorJoin);
@@ -544,7 +548,8 @@ public class InjectorContractService implements DependenciesManager {
         injectorIdsExpression,
         injectorNamesExpression,
         injectorContractDomainsIdsExpression,
-        attackPatternIdsExpression);
+        attackPatternIdsExpression,
+        tagsIdsExpression);
   }
 
   private void selectForInjectorContractFull(
@@ -565,6 +570,7 @@ public class InjectorContractService implements DependenciesManager {
         ctx.payloadCollectorTypeJoin().get("name").alias("collector_type"),
         cb.least(ctx.injectorJoin().<String>get("type")).alias("injector_contract_injector_type"),
         ctx.attackPatternIdsExpression().alias("injector_contract_attack_patterns"),
+        ctx.tagsIdsExpression().alias("injector_contract_tags"),
         ctx.injectorContractDomainsIdsExpression().alias("injector_contract_domains"),
         injectorContractRoot.get("updatedAt").alias("injector_contract_updated_at"),
         ctx.payloadJoin().get("executionArch").alias("payload_execution_arch"),
@@ -589,6 +595,7 @@ public class InjectorContractService implements DependenciesManager {
         tuple.get("collector_type", String.class),
         tuple.get("injector_contract_injector_type", String.class),
         tuple.get("injector_contract_attack_patterns", String[].class),
+        tuple.get("injector_contract_tags", String[].class),
         tuple.get("injector_contract_domains", String[].class),
         tuple.get("injector_contract_updated_at", Instant.class),
         tuple.get("payload_execution_arch", Payload.PAYLOAD_EXECUTION_ARCH.class),
@@ -614,15 +621,6 @@ public class InjectorContractService implements DependenciesManager {
     return map;
   }
 
-  private List<String> resolveEffectiveDomains(String[] injectorDomains, String[] payloadDomains) {
-    String[] effectiveDomains =
-        (payloadDomains != null && payloadDomains.length > 0) ? payloadDomains : injectorDomains;
-    if (effectiveDomains == null) {
-      return List.of();
-    }
-    return Arrays.stream(effectiveDomains).filter(Objects::nonNull).distinct().toList();
-  }
-
   private List<Expression<?>> getCommonGroupBy(
       @NotNull final Root<InjectorContract> injectorContractRoot,
       @NotNull InjectorContractQueryContext ctx) {
@@ -639,9 +637,6 @@ public class InjectorContractService implements DependenciesManager {
       @NotNull final Root<InjectorContract> injectorContractRoot) {
     InjectorContractQueryContext ctx = buildCommonInjectorContractContext(cb, injectorContractRoot);
 
-    Expression<String[]> tagsIdsExpression =
-        createJoinArrayAggOnIdForJoin(cb, injectorContractRoot, "tags");
-
     cq.multiselect(
         injectorContractRoot.get("compositeId").get("id").alias("injector_contract_id"),
         injectorContractRoot.get("externalId").alias("injector_contract_external_id"),
@@ -650,7 +645,7 @@ public class InjectorContractService implements DependenciesManager {
         ctx.payloadJoin().get("type").alias("payload_type"),
         ctx.payloadCollectorTypeJoin().get("name").alias("collector_type"),
         ctx.injectorJoin().get("type").alias("injector_contract_injector_type"),
-        tagsIdsExpression.alias("injector_contract_tags"),
+        ctx.tagsIdsExpression().alias("injector_contract_tags"),
         ctx.injectorContractDomainsIdsExpression().alias("injector_contract_domains"),
         ctx.payloadJoin().get("status").alias("payload_status"),
         ctx.payloadJoin().get("id").alias("payload_id"),

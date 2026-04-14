@@ -57,6 +57,13 @@ public class StringUtils {
     if (regex.length() > 100) {
       throw new IllegalArgumentException("Regex too long");
     }
+    // Optionally: block patterns with nested quantifiers (most common ReDoS source)
+    // Example: a pattern like (a+)+ or (.+)+
+    if (regex.matches(".*\\([^(]*[+*][^)]*\\)[+*].*")) {
+      // This regex is a basic detector: "(<anything with + or *>)[+*]"  (nested quantifier)
+      throw new IllegalArgumentException(
+          "Regex contains nested quantifiers, which are not allowed for security reasons.");
+    }
     try {
       Pattern.compile(regex);
       return true;

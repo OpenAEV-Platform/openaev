@@ -27,7 +27,7 @@ import PaginatedListLoader from '../../../components/PaginatedListLoader';
 import PlatformIcon from '../../../components/PlatformIcon';
 import { useHelper } from '../../../store';
 import {
-  type Domain,
+  type Domain, type InjectorContract,
   type SearchPaginationInput,
   type ThreatArsenalAction,
 } from '../../../utils/api-types';
@@ -235,11 +235,23 @@ const ThreatArsenal = () => {
                         )
                       : (
                           <InjectorContractPopover
-                            injectorContract={action}
+                            injectorContract={{
+                              injector_contract_id: action.injector_contract_id,
+                              injector_contract_attack_patterns: action.action_attack_patterns_ids,
+                              injector_contract_domains: action.action_domains_ids,
+                              injector_contract_tags: action.action_tags_ids,
+                            }}
                             canDelete={false}
                             canEditCustomForm={false}
-                            onUpdate={(result: ThreatArsenalAction) =>
-                              setThreatArsenalActions(threatArsenalActions.map(ic => (ic.injector_contract_id !== result.injector_contract_id ? ic : result)))}
+                            onUpdate={(result: InjectorContract) =>
+                              setThreatArsenalActions(threatArsenalActions.map(ic => (ic.injector_contract_id !== result.injector_contract_id
+                                ? ic
+                                : {
+                                    ...ic,
+                                    action_attack_patterns_ids: result.injector_contract_attack_patterns ?? [],
+                                    action_domains_ids: result.injector_contract_domains ?? [],
+                                    action_tags_ids: result.injector_contract_tags ?? [],
+                                  })))}
                           />
                         )
                     )}

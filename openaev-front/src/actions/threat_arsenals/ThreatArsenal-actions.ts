@@ -11,7 +11,7 @@ export const searchThreatArsenalActions = (paginationInput: SearchPaginationInpu
 };
 
 export const addThreatArsenalAction = (data: ThreatArsenalActionCreateInput) => {
-  return simplePostCall(THREAT_ARSENAL_URI, data);
+  return simplePostCall(THREAT_ARSENAL_URI, data, {}, true, true);
 };
 
 export const fetchThreatArsenalAction = (actionId: string) => {
@@ -21,7 +21,7 @@ export const fetchThreatArsenalAction = (actionId: string) => {
 
 export const updateThreatArsenalAction = (actionId: string, data: ThreatArsenalActionUpdateInput) => {
   const uri = `${THREAT_ARSENAL_URI}/${actionId}`;
-  return simplePutCall(uri, data);
+  return simplePutCall(uri, data, {}, true, true);
 };
 
 export const duplicateThreatArsenalAction = (actionId: string) => {

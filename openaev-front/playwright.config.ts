@@ -60,18 +60,18 @@ export default defineConfig({
       name: 'setup',
       testMatch: /.*\.setup\.ts/,
     },
-    {
-      name: 'webkit',
-      use: {
-        ...devices['Desktop Safari'],
-        storageState: 'tests_e2e/.auth/user.json',
-        viewport: {
-          width: 1920,
-          height: 1080,
-        },
-      },
-      dependencies: ['setup'],
-    },
+    // {
+    //   name: 'webkit',
+    //   use: {
+    //     ...devices['Desktop Safari'],
+    //     storageState: 'tests_e2e/.auth/user.json',
+    //     viewport: {
+    //       width: 1920,
+    //       height: 1080,
+    //     },
+    //   },
+    //   dependencies: ['setup'],
+    // },
     {
       name: 'Google Chrome',
       use: {

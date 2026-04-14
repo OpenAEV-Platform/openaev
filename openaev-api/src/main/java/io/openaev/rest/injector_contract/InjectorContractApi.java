@@ -46,8 +46,9 @@ public class InjectorContractApi extends RestBehavior {
   /**
    * Searches injector contracts with pagination and filtering.
    *
-   * <p>The output depends on {@code input.output_mode}: {@code FULL} or {@code BASE}. If omitted,
-   * {@code FULL} is used.
+   * <p>When {@code input.includeFullDetails} is {@code true} (the default), the response contains
+   * {@link InjectorContractFullOutput} entries; otherwise {@link InjectorContractBaseOutput}
+   * entries are returned.
    *
    * @param input the search and pagination parameters
    * @return a paged list of injector contract outputs in the selected format
