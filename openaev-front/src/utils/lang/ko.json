@@ -10,7 +10,7 @@
   ",": ",",
   ".": ".",
   "(last 180 days)": "(지난 180일)",
-  "[${exercise.name}] Lessons learned questionnaire": "[${exercise.name}] 교훈을 얻은 설문지",
+  "[{exerciseName}] Lessons learned questionnaire": "[{exerciseName}] 교훈을 얻은 설문지",
   "{executor_name} documentation": "{executor_name} 문서",
   "{executor_name} documentation.": "{executor_name} 문서",
   "&": "&",

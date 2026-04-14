@@ -549,8 +549,7 @@ const Lessons: FunctionComponent<Props> = ({
           <SendLessonsForm
             onSubmit={handleSubmitSendLessons}
             initialValues={{
-              // eslint-disable-next-line no-template-curly-in-string
-              subject: t('[${exercise.name}] Lessons learned questionnaire'),
+              subject: t('[{exerciseName}] Lessons learned questionnaire', { exerciseName: source.name }),
               body: `${t('Hello')},<br /><br />${t(
                 // eslint-disable-next-line no-template-curly-in-string
                 'We would like thank your for your participation in this simulation. You are kindly requested to fill this lessons learned questionnaire: <a href="${lessons_uri}">${lessons_uri}</a>.',
