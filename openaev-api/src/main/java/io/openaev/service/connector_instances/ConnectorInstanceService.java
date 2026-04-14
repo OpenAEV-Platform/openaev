@@ -10,7 +10,6 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.database.repository.ConnectorInstanceRepository;
 import io.openaev.database.repository.TokenRepository;
-import io.openaev.integration.ComponentRequest;
 import io.openaev.integration.Manager;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.connector_instance.dto.ConnectorInstanceHealthInput;
@@ -108,21 +107,21 @@ public class ConnectorInstanceService {
 
   @Transactional(readOnly = true)
   public boolean hasStartedConnectorInstanceForInjector(final String injectorId) {
-    return this.connectorInstanceConfigurationRepository
-        .findStatusByKeyValue(ConnectorType.INJECTOR.getIdKeyName(), injectorId)
-        .map(status -> ConnectorInstance.CURRENT_STATUS_TYPE.started.name().equals(status.name()))
-        .orElseGet(
-            () -> {
-              try {
-                managerFactory
-                    .getManager()
-                    .request(new ComponentRequest(injectorId), io.openaev.executors.Injector.class);
-                return true;
-              } catch (Exception e) {
-                log.warn("Failed to request injector component for id: {}", injectorId, e);
-                return true; // Fallback to catalog-unsupported handling
-              }
-            });
+    try {
+      return this.connectorInstanceConfigurationRepository
+          .findStatusByKeyValue(ConnectorType.INJECTOR.getIdKeyName(), injectorId)
+          // If we found a status, check if it's 'started'
+          // If no record exists, return true
+          .map(
+              status ->
+                  ConnectorInstance.CURRENT_STATUS_TYPE.started.name().equalsIgnoreCase(status))
+          .orElse(true);
+    } catch (Exception e) {
+      log.error(
+          "Failed to check started connector instance for injector with id {}", injectorId, e);
+      // In case of any exception, return true to avoid blocking executions
+      return true;
+    }
   }
 
   /**
