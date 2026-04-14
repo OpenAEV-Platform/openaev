@@ -1,6 +1,6 @@
 package io.openaev.api.detection_remediation;
 
-import static io.openaev.api.detection_remediation.DetectionRemediationApi.DETECTION_REMEDIATION_URI;
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
@@ -26,13 +26,14 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 @RestController
-@RequestMapping(DETECTION_REMEDIATION_URI)
 @RequiredArgsConstructor
 public class DetectionRemediationApi {
   private final DetectionRemediationService detectionRemediationService;
   private final InjectService injectService;
 
-  public static final String DETECTION_REMEDIATION_URI = "api/detection-remediations/ai";
+  public static final String DETECTION_REMEDIATION_URI = "/api/detection-remediations/ai";
+  public static final String TENANT_DETECTION_REMEDIATION_URI =
+      TENANT_PREFIX + "/detection-remediations/ai";
 
   @Operation(summary = "Get the status of the remediation-detection web service")
   @ApiResponses(
@@ -44,7 +45,7 @@ public class DetectionRemediationApi {
             responseCode = "503",
             description = "Web service is not deployed on this instance")
       })
-  @GetMapping("/health")
+  @GetMapping({DETECTION_REMEDIATION_URI + "/health", TENANT_DETECTION_REMEDIATION_URI + "/health"})
   @LogExecutionTime
   @AccessControl(skipRBAC = true)
   public ResponseEntity<DetectionRemediationHealthResponse> checkHealth() {
@@ -73,7 +74,10 @@ public class DetectionRemediationApi {
             responseCode = "501",
             description = "AI Webservice for collector type microsoft sentinel not implemented")
       })
-  @PostMapping("/rules/{collectorType}")
+  @PostMapping({
+    DETECTION_REMEDIATION_URI + "/rules/{collectorType}",
+    TENANT_DETECTION_REMEDIATION_URI + "/rules/{collectorType}"
+  })
   @LogExecutionTime
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PAYLOAD)
   public ResponseEntity<DetectionRemediationAIOutput> postRuleDetectionRemediation(
@@ -140,7 +144,10 @@ public class DetectionRemediationApi {
       })
   @LogExecutionTime
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PAYLOAD)
-  @PostMapping("rules/inject/{injectId}/collector/{collectorType}")
+  @PostMapping({
+    DETECTION_REMEDIATION_URI + "/rules/inject/{injectId}/collector/{collectorType}",
+    TENANT_DETECTION_REMEDIATION_URI + "/rules/inject/{injectId}/collector/{collectorType}"
+  })
   public ResponseEntity<DetectionRemediationOutput>
       postRuleDetectionRemediationByInjectIdAndCollectorType(
           @PathVariable @NotBlank String injectId, @PathVariable @NotBlank String collectorType) {

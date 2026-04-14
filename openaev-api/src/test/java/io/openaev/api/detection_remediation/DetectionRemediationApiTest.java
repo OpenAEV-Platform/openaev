@@ -103,8 +103,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     assertThatThrownBy(
             () ->
                 mockMvc.perform(
-                    post("/"
-                            + DetectionRemediationApi.DETECTION_REMEDIATION_URI
+                    post(DetectionRemediationApi.DETECTION_REMEDIATION_URI
                             + "/rules/"
                             + CROWDSTRIKE_FRONTEND_NAME)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -132,8 +131,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     assertThatThrownBy(
             () ->
                 mockMvc.perform(
-                    post("/"
-                            + DetectionRemediationApi.DETECTION_REMEDIATION_URI
+                    post(DetectionRemediationApi.DETECTION_REMEDIATION_URI
                             + "/rules/collector_name_unknow")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(input))))
@@ -168,8 +166,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     // -- EXECUTE --
     mockMvc
         .perform(
-            post("/"
-                    + DetectionRemediationApi.DETECTION_REMEDIATION_URI
+            post(DetectionRemediationApi.DETECTION_REMEDIATION_URI
                     + "/rules/"
                     + CROWDSTRIKE_FRONTEND_NAME)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -214,8 +211,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     // -- EXECUTE --
     mockMvc
         .perform(
-            post("/"
-                    + DetectionRemediationApi.DETECTION_REMEDIATION_URI
+            post(DetectionRemediationApi.DETECTION_REMEDIATION_URI
                     + "/rules/"
                     + CROWDSTRIKE_FRONTEND_NAME)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -262,8 +258,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     // -- EXECUTE --
     mockMvc
         .perform(
-            post("/"
-                    + DetectionRemediationApi.DETECTION_REMEDIATION_URI
+            post(DetectionRemediationApi.DETECTION_REMEDIATION_URI
                     + "/rules/"
                     + CROWDSTRIKE_FRONTEND_NAME)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -310,8 +305,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     // -- EXECUTE --
     mockMvc
         .perform(
-            post("/"
-                    + DetectionRemediationApi.DETECTION_REMEDIATION_URI
+            post(DetectionRemediationApi.DETECTION_REMEDIATION_URI
                     + "/rules/"
                     + CROWDSTRIKE_FRONTEND_NAME)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -347,8 +341,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     assertThatThrownBy(
             () ->
                 mockMvc.perform(
-                    post("/"
-                            + DetectionRemediationApi.DETECTION_REMEDIATION_URI
+                    post(DetectionRemediationApi.DETECTION_REMEDIATION_URI
                             + "/rules/"
                             + CROWDSTRIKE_FRONTEND_NAME)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -388,8 +381,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     String output =
         mockMvc
             .perform(
-                post("/"
-                        + DetectionRemediationApi.DETECTION_REMEDIATION_URI
+                post(DetectionRemediationApi.DETECTION_REMEDIATION_URI
                         + "/rules/"
                         + CROWDSTRIKE_FRONTEND_NAME)
                     .contentType(MediaType.APPLICATION_JSON)
@@ -461,8 +453,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     String output =
         mockMvc
             .perform(
-                post("/"
-                        + DetectionRemediationApi.DETECTION_REMEDIATION_URI
+                post(DetectionRemediationApi.DETECTION_REMEDIATION_URI
                         + "/rules/"
                         + CROWDSTRIKE_FRONTEND_NAME)
                     .contentType(MediaType.APPLICATION_JSON)
@@ -534,8 +525,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     String output =
         mockMvc
             .perform(
-                post("/"
-                        + DetectionRemediationApi.DETECTION_REMEDIATION_URI
+                post(DetectionRemediationApi.DETECTION_REMEDIATION_URI
                         + "/rules/"
                         + SPLUNK_FRONTEND_NAME)
                     .contentType(MediaType.APPLICATION_JSON)
@@ -589,8 +579,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     String output =
         mockMvc
             .perform(
-                post("/"
-                        + DetectionRemediationApi.DETECTION_REMEDIATION_URI
+                post(DetectionRemediationApi.DETECTION_REMEDIATION_URI
                         + "/rules/"
                         + CROWDSTRIKE_FRONTEND_NAME)
                     .contentType(MediaType.APPLICATION_JSON)
@@ -661,8 +650,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     String output =
         mockMvc
             .perform(
-                post("/"
-                        + DetectionRemediationApi.DETECTION_REMEDIATION_URI
+                post(DetectionRemediationApi.DETECTION_REMEDIATION_URI
                         + "/rules/"
                         + SPLUNK_FRONTEND_NAME)
                     .contentType(MediaType.APPLICATION_JSON)
@@ -709,8 +697,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     // -- EXECUTE --
     ResultActions output =
         mockMvc.perform(
-            post("/"
-                    + DetectionRemediationApi.DETECTION_REMEDIATION_URI
+            post(DetectionRemediationApi.DETECTION_REMEDIATION_URI
                     + "/rules/"
                     + CROWDSTRIKE_FRONTEND_NAME)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -750,8 +737,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     // -- EXECUTE --
     ResultActions output =
         mockMvc.perform(
-            post("/"
-                    + DetectionRemediationApi.DETECTION_REMEDIATION_URI
+            post(DetectionRemediationApi.DETECTION_REMEDIATION_URI
                     + "/rules/"
                     + SPLUNK_FRONTEND_NAME)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -790,8 +776,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     // -- EXECUTE --
     ResultActions output =
         mockMvc.perform(
-            post("/"
-                    + DetectionRemediationApi.DETECTION_REMEDIATION_URI
+            post(DetectionRemediationApi.DETECTION_REMEDIATION_URI
                     + "/rules/"
                     + CROWDSTRIKE_FRONTEND_NAME)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -830,8 +815,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     // -- EXECUTE --
     ResultActions output =
         mockMvc.perform(
-            post("/"
-                    + DetectionRemediationApi.DETECTION_REMEDIATION_URI
+            post(DetectionRemediationApi.DETECTION_REMEDIATION_URI
                     + "/rules/"
                     + SPLUNK_FRONTEND_NAME)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -861,8 +845,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
             () ->
                 mockMvc.perform(
                     post(
-                        "/"
-                            + DetectionRemediationApi.DETECTION_REMEDIATION_URI
+                        DetectionRemediationApi.DETECTION_REMEDIATION_URI
                             + "/rules/inject/"
                             + inject.getId()
                             + "/collector/"
@@ -883,8 +866,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
         mockMvc
             .perform(
                 post(
-                    "/"
-                        + DetectionRemediationApi.DETECTION_REMEDIATION_URI
+                    DetectionRemediationApi.DETECTION_REMEDIATION_URI
                         + "/rules/inject/"
                         + inject.getId()
                         + "/collector/collector_name_unknow"))
@@ -921,8 +903,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
             () ->
                 mockMvc.perform(
                     post(
-                        "/"
-                            + DetectionRemediationApi.DETECTION_REMEDIATION_URI
+                        DetectionRemediationApi.DETECTION_REMEDIATION_URI
                             + "/rules/inject/"
                             + inject.getId()
                             + "/collector/"
@@ -963,8 +944,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     mockMvc
         .perform(
             post(
-                "/"
-                    + DetectionRemediationApi.DETECTION_REMEDIATION_URI
+                DetectionRemediationApi.DETECTION_REMEDIATION_URI
                     + "/rules/inject/"
                     + inject.getId()
                     + "/collector/"
@@ -999,8 +979,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
         mockMvc
             .perform(
                 post(
-                    "/"
-                        + DetectionRemediationApi.DETECTION_REMEDIATION_URI
+                    DetectionRemediationApi.DETECTION_REMEDIATION_URI
                         + "/rules/inject/"
                         + inject.getId()
                         + "/collector/"
@@ -1067,8 +1046,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
         mockMvc
             .perform(
                 post(
-                    "/"
-                        + DetectionRemediationApi.DETECTION_REMEDIATION_URI
+                    DetectionRemediationApi.DETECTION_REMEDIATION_URI
                         + "/rules/inject/"
                         + inject.getId()
                         + "/collector/"
@@ -1120,8 +1098,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
         mockMvc
             .perform(
                 post(
-                    "/"
-                        + DetectionRemediationApi.DETECTION_REMEDIATION_URI
+                    DetectionRemediationApi.DETECTION_REMEDIATION_URI
                         + "/rules/inject/"
                         + inject.getId()
                         + "/collector/"
@@ -1190,8 +1167,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
         mockMvc
             .perform(
                 post(
-                    "/"
-                        + DetectionRemediationApi.DETECTION_REMEDIATION_URI
+                    DetectionRemediationApi.DETECTION_REMEDIATION_URI
                         + "/rules/inject/"
                         + inject.getId()
                         + "/collector/"
@@ -1241,8 +1217,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     ResultActions output =
         mockMvc.perform(
             post(
-                "/"
-                    + DetectionRemediationApi.DETECTION_REMEDIATION_URI
+                DetectionRemediationApi.DETECTION_REMEDIATION_URI
                     + "/rules/inject/"
                     + inject.getId()
                     + "/collector/"
@@ -1277,8 +1252,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     ResultActions output =
         mockMvc.perform(
             post(
-                "/"
-                    + DetectionRemediationApi.DETECTION_REMEDIATION_URI
+                DetectionRemediationApi.DETECTION_REMEDIATION_URI
                     + "/rules/inject/"
                     + inject.getId()
                     + "/collector/"
@@ -1314,8 +1288,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     ResultActions output =
         mockMvc.perform(
             post(
-                "/"
-                    + DetectionRemediationApi.DETECTION_REMEDIATION_URI
+                DetectionRemediationApi.DETECTION_REMEDIATION_URI
                     + "/rules/inject/"
                     + inject.getId()
                     + "/collector/"
@@ -1350,8 +1323,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     ResultActions output =
         mockMvc.perform(
             post(
-                "/"
-                    + DetectionRemediationApi.DETECTION_REMEDIATION_URI
+                DetectionRemediationApi.DETECTION_REMEDIATION_URI
                     + "/rules/inject/"
                     + inject.getId()
                     + "/collector/"
