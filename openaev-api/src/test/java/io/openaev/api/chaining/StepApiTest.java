@@ -34,7 +34,8 @@ class StepApiTest {
     input.setStepAction(StepActionClass.INJECT_EXECUTION);
 
     Step created = step("step-1", 2, StepStatus.TEMPLATE, "{\"a\":1}");
-    when(stepService.createStepTemplate(eq("wf-1"), any(StepsCreateInput.StepInput.class))).thenReturn(created);
+    when(stepService.createStepTemplate(eq("wf-1"), any(StepsCreateInput.StepInput.class)))
+        .thenReturn(created);
 
     StepOutput result = stepApi.createStep(input);
 

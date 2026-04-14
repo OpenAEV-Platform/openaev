@@ -11,8 +11,8 @@ import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.database.model.*;
-import io.openaev.database.repository.StepDelayQueueRepository;
 import io.openaev.database.model.ConditionKeyType;
+import io.openaev.database.repository.StepDelayQueueRepository;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -90,7 +90,8 @@ public class StepServiceTest {
 
     @Test
     void shouldSkipConditionCreationWhenEmpty() throws ChainingException {
-      StepsCreateInput.StepInput stepInput = mockStep(StepActionClass.INJECT_EXECUTION, Collections.emptyList());
+      StepsCreateInput.StepInput stepInput =
+          mockStep(StepActionClass.INJECT_EXECUTION, Collections.emptyList());
 
       setupCreateStepTemplates(stepInput, false);
 
@@ -1393,9 +1394,11 @@ public class StepServiceTest {
 
     when(actionStep.create(any(), eq(workflow))).thenReturn(Optional.of(step));
 
+    when(stepRepository.save(step)).thenReturn(step);
+
     doThrow(new IllegalArgumentException())
         .when(stepService)
-        .stepConditionTemplate(any(List.class), any(String.class), any(Step.class));
+        .stepConditionTemplate(any(), any(), any());
 
     assertThrows(
         IllegalArgumentException.class,
@@ -1487,7 +1490,8 @@ public class StepServiceTest {
       when(conditionService.saveCondition(any())).thenAnswer(i -> i.getArgument(0));
   }
 
-  private StepsCreateInput.StepInput mockStep(StepActionClass actionClass, List<ConditionCreateInput> conditions) {
+  private StepsCreateInput.StepInput mockStep(
+      StepActionClass actionClass, List<ConditionCreateInput> conditions) {
 
     StepsCreateInput.StepInput step = mock(StepsCreateInput.StepInput.class);
 
@@ -1561,7 +1565,8 @@ public class StepServiceTest {
       doReturn(actionStep)
           .when(stepService)
           .factoryAction(StepActionClass.INJECT_EXECUTION, stepId);
-      when(actionStep.create(any(StepsCreateInput.StepInput.class), eq(existingWorkflow))).thenReturn(Optional.of(candidate));
+      when(actionStep.create(any(StepsCreateInput.StepInput.class), eq(existingWorkflow)))
+          .thenReturn(Optional.of(candidate));
       when(stepRepository.save(existing)).thenReturn(existing);
 
       Step updated = stepService.updateStepTemplate(stepId, stepInput);

@@ -647,7 +647,7 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
   public static String getField(String jsonString, String path) {
     Map<String, Object> fieldsAndValue = getFields(jsonString, path);
     Object value = fieldsAndValue.get(path);
-    if (value instanceof JsonNull) {
+    if (value == null || value instanceof JsonNull) {
       return null;
     } else if (value instanceof JsonPrimitive) {
       return ((JsonPrimitive) value).getAsString();
