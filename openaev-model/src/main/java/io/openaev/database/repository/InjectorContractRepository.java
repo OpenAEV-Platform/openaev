@@ -141,7 +141,6 @@ public interface InjectorContractRepository
       nativeQuery = true)
   Optional<RawPayloadRelatedIds> findRelatedIdsByPayloadId(@Param("payloadId") String payloadId);
 
-
   @Query(
       value =
           """
