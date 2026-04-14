@@ -4,6 +4,8 @@ import { type FunctionComponent, useMemo } from 'react';
 import useFetchInjectExecutionResult from '../../../../../../actions/inject_status/useFetchInjectExecutionResult';
 import type { InjectTarget } from '../../../../../../utils/api-types';
 import TerminalView from './TerminalView';
+import Empty from "../../../../../../components/Empty";
+import {useFormatter} from "../../../../../../components/i18n";
 
 interface Props {
   injectId: string;
@@ -12,6 +14,7 @@ interface Props {
 }
 
 const TerminalViewTab: FunctionComponent<Props> = ({ injectId, target, forceExpanded }) => {
+  const { t } = useFormatter();
   const { injectExecutionResult, loading } = useFetchInjectExecutionResult(injectId, target);
 
   const nonEmptyTraces = useMemo(() => {
@@ -24,7 +27,7 @@ const TerminalViewTab: FunctionComponent<Props> = ({ injectId, target, forceExpa
   }, [injectExecutionResult]);
 
   if (loading || nonEmptyTraces.length === 0) {
-    return null;
+    return <Empty message={t('No traces on this target.')} />;
   }
 
   return (

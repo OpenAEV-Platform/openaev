@@ -202,17 +202,6 @@ public class InjectStatusService {
     }
   }
 
-  /**
-   * Computes the execution trace status for a single agent. Unlike {@code computeStatus} which
-   * handles multi-agent inject-level status, this method gives ERROR priority: if any trace for the
-   * agent is an error, the agent status is ERROR (a single agent either succeeded or failed).
-   *
-   * <p>When exactly one error status is present (e.g. {@code COMMAND_NOT_FOUND}), that specific
-   * status is preserved instead of being generalized to {@code ERROR}.
-   *
-   * <p>{@code MAYBE_PREVENTED} traces are treated as errors via {@code
-   * ExecutionTraceStatus.isError()}.
-   */
   @VisibleForTesting
   protected ExecutionTraceStatus computeAgentTraceStatus(List<ExecutionTrace> agentTraces) {
     boolean hasSuccess = false;
@@ -272,13 +261,6 @@ public class InjectStatusService {
     log.debug("Successfully updated inject: {}", inject.getId());
   }
 
-  /**
-   * Computes the final inject status from COMPLETE traces.
-   *
-   * <p>AGENT_INACTIVE traces are excluded: an inactive agent never executed anything, so it should
-   * not influence the inject outcome. If every trace is AGENT_INACTIVE (no agent could run at all),
-   * the inject is marked as ERROR.
-   */
   public ExecutionStatus computeStatus(List<ExecutionTrace> traces) {
     // Filter out AGENT_INACTIVE — those agents never ran
     List<ExecutionTrace> activeTraces =
@@ -368,6 +350,10 @@ public class InjectStatusService {
 
   public Iterable<InjectStatus> saveAll(@NotNull List<InjectStatus> injectStatuses) {
     return this.injectStatusRepository.saveAll(injectStatuses);
+  }
+
+  public InjectStatus save(@NotNull InjectStatus injectStatus) {
+    return this.injectStatusRepository.save(injectStatus);
   }
 
   @Lock(type = LockResourceType.INJECT, key = "#injectId")

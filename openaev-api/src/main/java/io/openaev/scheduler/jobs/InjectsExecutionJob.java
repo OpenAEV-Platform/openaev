@@ -147,14 +147,6 @@ public class InjectsExecutionJob implements Job {
                     delayForSimulationCompletedEvent));
   }
 
-  /**
-   * Handles injects stuck in PENDING beyond the configured threshold.
-   *
-   * <p>For each timed-out inject: adds a COMPLETE/TIMEOUT trace for every agent that never sent a
-   * COMPLETE callback, then recomputes the inject global status via {@code updateFinalInjectStatus}
-   * so that the final status is derived from all COMPLETE traces (SUCCESS, ERROR, TIMEOUT, etc.)
-   * rather than being force-set.
-   */
   public void handlePendingInject() {
     List<Inject> pendingInjects =
         injectHelper.getAllPendingInjectsWithThresholdMinutes(this.injectExecutionThreshold);
@@ -175,7 +167,7 @@ public class InjectsExecutionJob implements Job {
                 + this.injectExecutionThreshold
                 + " minutes threshold.",
             ExecutionTraceAction.EXECUTION);
-        injectStatusService.saveAll(List.of(status));
+        injectStatusService.save(status);
       } else {
         // Find agents that already have a COMPLETE trace
         java.util.Set<String> completedAgentIds =
