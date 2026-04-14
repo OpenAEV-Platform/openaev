@@ -7,25 +7,32 @@ import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.config.SessionHelper;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.User;
+import io.openaev.engine.model.auditlog.EsAuditLog;
 import io.openaev.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 /**
- * Audit log service — Phase 1: console-only.
+ * Audit log service — builds structured {@link EsAuditLog} events for CRUD and authentication
+ * operations.
  *
- * <p>Builds the full audit event JSON and writes it to a dedicated {@code AUDIT_LOG} logger. This
- * logger is configured at INFO level in {@code logback-spring.xml} independently of the root/package
- * log levels, so audit events always appear even when the application runs at WARN level.
+ * <p>Events are always written to a dedicated {@code AUDIT_LOG} logger (console output). When
+ * {@code openaev.audit-logs.opensearch.enabled=true}, events are additionally indexed into the
+ * search engine (OpenSearch / Elasticsearch) via {@link AuditOpenSearchService} for subsequent
+ * querying through the {@code /api/audit-logs/search} endpoint.
  */
 @Service
 @RequiredArgsConstructor
@@ -49,9 +56,7 @@ public class AuditLogService {
   /** Fields redacted only when the entity type is User (PII protection). */
   private static final Set<String> USER_PII_FIELDS = Set.of("name", "user_email");
 
-  /**
-   * Resource types classified as administration — auth events, RBAC changes, platform settings.
-   */
+  /** Resource types classified as administration — auth events, RBAC changes, platform settings. */
   private static final Set<ResourceType> ADMINISTRATION_RESOURCE_TYPES =
       Set.of(
           ResourceType.USER,
@@ -64,15 +69,26 @@ public class AuditLogService {
   private final ObjectMapper objectMapper;
   private final UserService userService;
 
+  /**
+   * Optional search-engine indexing service — present only when {@code
+   * openaev.audit-logs.opensearch.enabled=true}.
+   */
+  private Optional<AuditOpenSearchService> auditOpenSearchService = Optional.empty();
+
+  @Autowired(required = false)
+  public void setAuditOpenSearchService(AuditOpenSearchService auditOpenSearchService) {
+    this.auditOpenSearchService = Optional.ofNullable(auditOpenSearchService);
+  }
+
   @Value("${openaev.audit-logs.enabled:true}")
   private boolean enabled;
 
   // -- Public API --
 
   /**
-   * Logs a mutation (create/update/delete/duplicate) audit event to the console.
+   * Logs a mutation (create/update/delete/duplicate/status_change) audit event.
    *
-   * @param eventScope "create", "update", "delete", or "duplicate"
+   * @param eventScope "create", "update", "delete", "duplicate", or "status_change"
    * @param eventStatus "success" or "error"
    * @param resourceType the resource type from the {@code @AccessControl} annotation
    * @param entityId the resolved entity ID (may be empty for creates before persist)
@@ -98,26 +114,7 @@ public class AuditLogService {
     try {
       String entityTypeName = formatResourceType(resourceType);
       boolean isAdmin = ADMINISTRATION_RESOURCE_TYPES.contains(resourceType);
-      String eventAccess = isAdmin ? "administration" : "extended";
 
-      // Build context_data
-      ObjectNode contextData = objectMapper.createObjectNode();
-      if (entityId != null && !entityId.isEmpty()) {
-        contextData.put("id", entityId);
-      }
-      contextData.put("entity_type", entityTypeName);
-      if (parentId != null && !parentId.isEmpty()) {
-        contextData.put("parent_id", parentId);
-      }
-      if (sourceId != null && !sourceId.isEmpty()) {
-        contextData.put("source_id", sourceId);
-      }
-      if (input != null) {
-        contextData.set("input", redact(input, entityTypeName));
-      }
-      if (oldValue != null) {
-        contextData.set("old_value", redact(oldValue, entityTypeName));
-      }
       String displayName = entityName != null ? entityName : entityId;
       String message;
       if ("status_change".equals(eventScope)) {
@@ -125,39 +122,54 @@ public class AuditLogService {
       } else {
         message = eventScope + "s " + entityTypeName + " `" + displayName + "`";
       }
-      contextData.put("message", message);
 
-      ObjectNode event = buildBaseEvent("mutation", eventStatus, eventAccess, eventScope);
-      event.set("context_data", contextData);
+      EsAuditLog doc =
+          buildBaseAuditLog(
+              "mutation", eventStatus, isAdmin ? "administration" : "extended", eventScope);
 
-      writeToConsole(event);
+      // -- context_data (LinkedHashMap preserves insertion order) --
+      Map<String, Object> ctx = new LinkedHashMap<>();
+      if (entityId != null && !entityId.isEmpty()) {
+        ctx.put("id", entityId);
+      }
+      ctx.put("entity_type", entityTypeName);
+      if (parentId != null && !parentId.isEmpty()) {
+        ctx.put("parent_id", parentId);
+      }
+      if (sourceId != null && !sourceId.isEmpty()) {
+        ctx.put("source_entity_id", sourceId);
+      }
+
+      // Redacted input + old_value
+      if (input != null) {
+        ctx.put("input", objectMapper.convertValue(redact(input, entityTypeName), Map.class));
+      }
+      if (oldValue != null) {
+        ctx.put(
+            "old_value", objectMapper.convertValue(redact(oldValue, entityTypeName), Map.class));
+      }
+      ctx.put("message", message);
+      doc.setContextData(ctx);
+
+      emit(doc);
     } catch (Exception e) {
       log.warn("[AUDIT] Failed to log mutation event: {}", e.getMessage(), e);
     }
   }
 
   /**
-   * Logs an authentication audit event to the console.
+   * Logs an authentication audit event.
    *
    * @param eventScope "login", "logout", or "unauthorized"
    * @param eventStatus "success" or "error"
    * @param provider auth provider name (e.g. "local", "auth0", "saml2")
    * @param reason error reason (exception class name); null on success
    */
-  public void logAuthEvent(
-      String eventScope, String eventStatus, String provider, String reason) {
+  public void logAuthEvent(String eventScope, String eventStatus, String provider, String reason) {
     if (!enabled) {
       return;
     }
     try {
-      ObjectNode contextData = objectMapper.createObjectNode();
-      if (provider != null) {
-        contextData.put("provider", provider);
-      }
-      if (reason != null) {
-        contextData.put("reason", reason);
-      }
-
       // Build human-readable message
       String message;
       if ("error".equals(eventStatus)) {
@@ -167,12 +179,22 @@ public class AuditLogService {
       } else {
         message = eventScope + " from provider `" + provider + "`";
       }
-      contextData.put("message", message);
 
-      ObjectNode event = buildBaseEvent("authentication", eventStatus, "administration", eventScope);
-      event.set("context_data", contextData);
+      EsAuditLog doc =
+          buildBaseAuditLog("authentication", eventStatus, "administration", eventScope);
 
-      writeToConsole(event);
+      // -- context_data --
+      Map<String, Object> ctx = new LinkedHashMap<>();
+      if (provider != null) {
+        ctx.put("provider", provider);
+      }
+      if (reason != null) {
+        ctx.put("reason", reason);
+      }
+      ctx.put("message", message);
+      doc.setContextData(ctx);
+
+      emit(doc);
     } catch (Exception e) {
       log.warn("[AUDIT] Failed to log auth event: {}", e.getMessage(), e);
     }
@@ -213,36 +235,28 @@ public class AuditLogService {
     return "changes status of " + entityTypeName + " `" + displayName + "`";
   }
 
-  /** Builds the top-level event envelope with all common fields. */
-  private ObjectNode buildBaseEvent(
+  /**
+   * Builds the common part of an {@link EsAuditLog} with all envelope and user fields populated.
+   */
+  private EsAuditLog buildBaseAuditLog(
       String eventType, String eventStatus, String eventAccess, String eventScope) {
     Instant now = Instant.now();
-    String nowStr = now.toString();
 
-    ObjectNode event = objectMapper.createObjectNode();
-    event.put("id", UUID.randomUUID().toString());
-    event.put("entity_type", "Activity");
-    event.put("created_at", nowStr);
-    event.put("event_type", eventType);
-    event.put("event_status", eventStatus);
-    event.put("event_access", eventAccess);
-    event.put("event_scope", eventScope);
+    EsAuditLog doc = new EsAuditLog();
+    doc.setId(UUID.randomUUID().toString());
+    doc.setCreatedAt(now);
+    doc.setTimestamp(now);
+
+    doc.setEventType(eventType);
+    doc.setEventStatus(eventStatus);
+    doc.setEventAccess(eventAccess);
+    doc.setEventScope(eventScope);
 
     // User context
-    String userId = resolveUserId();
-    if (userId != null) {
-      event.put("user_id", userId);
-    } else {
-      event.putNull("user_id");
-    }
+    doc.setUserId(resolveUserId());
+    populateUserMetadata(doc);
 
-    ObjectNode userMetadata = buildUserMetadata();
-    if (userMetadata != null) {
-      event.set("user_metadata", userMetadata);
-    }
-
-    event.put("timestamp", nowStr);
-    return event;
+    return doc;
   }
 
   /** Resolves the current user ID from the security context, or null if anonymous. */
@@ -258,17 +272,19 @@ public class AuditLogService {
     }
   }
 
-  /** Builds the user_metadata object from the current HTTP request. */
-  private ObjectNode buildUserMetadata() {
-    ObjectNode metadata = objectMapper.createObjectNode();
+  /** Populates user metadata (email, IP, user agent) on the given audit log document. */
+  private void populateUserMetadata(EsAuditLog doc) {
+    EsAuditLog.UserMetadata meta = new EsAuditLog.UserMetadata();
+    boolean hasData = false;
 
     // User email — denormalized for display
     try {
-      String userId = resolveUserId();
+      String userId = doc.getUserId();
       if (userId != null) {
         User user = userService.user(userId);
         if (user != null && user.getEmail() != null) {
-          metadata.put("user_email", user.getEmail());
+          meta.setUserEmail(user.getEmail());
+          hasData = true;
         }
       }
     } catch (Exception e) {
@@ -280,26 +296,29 @@ public class AuditLogService {
     if (request != null) {
       String userAgent = request.getHeader("User-Agent");
       if (userAgent != null) {
-        metadata.put("user_agent", userAgent);
+        meta.setUserAgent(userAgent);
+        hasData = true;
       }
-      String xForwardedFor = request.getHeader("X-Forwarded-For");
-      if (xForwardedFor != null) {
-        metadata.put("x_forwarded_for", xForwardedFor);
+      String xff = request.getHeader("X-Forwarded-For");
+      if (xff != null && !xff.isEmpty()) {
+        meta.setXForwardedFor(xff);
       }
       String ip = resolveClientIp(request);
       if (ip != null) {
-        metadata.put("ip", ip);
+        meta.setIp(ip);
+        hasData = true;
       }
     }
 
-    return metadata.isEmpty() ? null : metadata;
+    if (hasData) {
+      doc.setUserMetadata(meta);
+    }
   }
 
   /** Resolves client IP: X-Forwarded-For → X-Real-IP → remoteAddr. */
   private String resolveClientIp(HttpServletRequest request) {
     String xff = request.getHeader("X-Forwarded-For");
     if (xff != null && !xff.isEmpty()) {
-      // X-Forwarded-For may contain multiple IPs — take the first (original client)
       return xff.split(",")[0].trim();
     }
     String xRealIp = request.getHeader("X-Real-IP");
@@ -347,7 +366,7 @@ public class AuditLogService {
     if (resourceType == null) {
       return "Unknown";
     }
-    String raw = resourceType.name(); // e.g. "PLATFORM_SETTING"
+    String raw = resourceType.name();
     String[] parts = raw.split("_");
     StringBuilder sb = new StringBuilder();
     for (String part : parts) {
@@ -356,17 +375,17 @@ public class AuditLogService {
       }
       sb.append(part.charAt(0)).append(part.substring(1).toLowerCase());
     }
-    return sb.toString(); // e.g. "Platform Setting"
+    return sb.toString();
   }
 
-  /** Pretty-prints the event JSON and writes it to the AUDIT_LOG logger. */
-  private void writeToConsole(ObjectNode event) {
+  /** Serializes the audit log to the console and forwards to the search engine if enabled. */
+  private void emit(EsAuditLog doc) {
     try {
-      String json = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(event);
+      String json = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(doc);
       AUDIT.info("[AUDIT] {}", json);
     } catch (Exception e) {
       log.warn("[AUDIT] Failed to serialize audit event: {}", e.getMessage(), e);
     }
+    auditOpenSearchService.ifPresent(service -> service.indexAuditEvent(doc));
   }
 }
-

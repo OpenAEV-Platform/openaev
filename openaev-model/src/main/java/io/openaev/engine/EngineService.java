@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
+import org.springframework.data.domain.Page;
 
 public interface EngineService {
 
@@ -141,6 +142,42 @@ public interface EngineService {
    * @return the list of results
    */
   List<EsSearch> search(RawUserAuth user, String search, Filters.FilterGroup filter);
+
+  /**
+   * Paginated search on a specific ES index.
+   *
+   * @param indexName the name of the index (without the prefix — it will be prepended
+   *     automatically)
+   * @param search the search string (nullable)
+   * @param filter a filter group (nullable)
+   * @param page zero-based page number
+   * @param size page size (number of results per page)
+   * @param clazz the class of the documents to deserialize
+   * @param <T> the document type
+   * @return a page of results
+   */
+  <T> Page<T> paginatedSearch(
+      String indexName,
+      String search,
+      Filters.FilterGroup filter,
+      int page,
+      int size,
+      Class<T> clazz);
+
+  /**
+   * Indexes a single document into the specified search engine index.
+   *
+   * <p>Used for real-time indexing of individual documents (e.g. audit log events) as opposed to
+   * the periodic bulk-indexing pipeline ({@link #bulkProcessing}).
+   *
+   * @param index the full index name (including prefix, e.g. {@code openaev_audit-log})
+   * @param id the document ID
+   * @param document the document to index (must be serializable by the engine's JSON mapper)
+   * @throws IOException if the indexing operation fails
+   */
+  default void indexDocument(String index, String id, Object document) throws IOException {
+    throw new UnsupportedOperationException("indexDocument not supported by this engine");
+  }
 
   /**
    * Get engine version of the engine

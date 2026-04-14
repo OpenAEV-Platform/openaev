@@ -81,6 +81,15 @@ public class EngineConfig {
 
     /** Default SSL certificate verification setting. */
     public static final boolean REJECT_UNAUTHORIZED = true;
+
+    /** Default audit-log retention period in days (1 year). */
+    public static final int AUDIT_LOG_RETENTION_DAYS = 365;
+
+    /** Default audit-log rollover max primary shard size. */
+    public static final String AUDIT_LOG_ROLLOVER_MAX_SIZE = "5gb";
+
+    /** Default audit-log rollover max index age. */
+    public static final String AUDIT_LOG_ROLLOVER_MAX_AGE = "1d";
   }
 
   private String engineSelector = Defaults.ENGINE_SELECTOR;
@@ -116,4 +125,19 @@ public class EngineConfig {
   private String password;
 
   private boolean rejectUnauthorized = Defaults.REJECT_UNAUTHORIZED;
+
+  // -- Audit-log index lifecycle --
+
+  /**
+   * Retention period (in days) for the audit-log index. After this period, old audit-log indexes
+   * are deleted. Set to {@code 0} or negative to disable the dedicated retention policy (the shared
+   * rollover policy will be used instead).
+   */
+  private int auditLogRetentionDays = Defaults.AUDIT_LOG_RETENTION_DAYS;
+
+  /** Maximum primary shard size before the audit-log index rolls over. */
+  private String auditLogRolloverMaxSize = Defaults.AUDIT_LOG_ROLLOVER_MAX_SIZE;
+
+  /** Maximum index age before the audit-log index rolls over. */
+  private String auditLogRolloverMaxAge = Defaults.AUDIT_LOG_ROLLOVER_MAX_AGE;
 }
