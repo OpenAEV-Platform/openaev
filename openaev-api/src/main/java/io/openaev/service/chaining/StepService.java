@@ -6,11 +6,11 @@ import io.openaev.api.chaining.InjectExecutionStep;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.StepDelayQueueRepository;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
-import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
 import java.util.*;
@@ -19,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -31,6 +32,7 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
 
   public final ConditionService conditionService;
   private final QueueChainingService queueChainingService;
+  private final StepDelayQueueRepository stepDelayQueueRepository;
 
   /**
    * Create step templates
@@ -38,7 +40,7 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
    * @param workflowId id of the workflow linked to the step templates
    * @param steps list of input to create step templates
    */
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public void createStepTemplates(String workflowId, List<StepsCreateInput.StepCreateInput> steps)
       throws ChainingException {
     Workflow workflow =
@@ -62,8 +64,8 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
    *
    * @param simulationId id of the simulation to start
    */
-  @Transactional(rollbackOn = Exception.class)
-  public void startWorkflow(String simulationId) throws ChainingException {
+  @Transactional(rollbackFor = Exception.class)
+  public void startWorkflowBySimulationId(String simulationId) throws ChainingException {
     Workflow workflowTemplate =
         workflowService
             .findWorkflowTemplateBySimulationId(simulationId)
@@ -71,12 +73,48 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
                 () ->
                     new ElementNotFoundException(
                         "Workflow (TEMPLATE) not found. Simulation ID: " + simulationId));
+    Workflow workflowRun = workflowService.launchWorkflowSimulation(workflowTemplate);
+    startWorkflow(workflowRun, workflowTemplate);
+  }
+
+  /**
+   * Start workflow for given scenario
+   *
+   * @param scenarioId id of the scenario to start
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void startWorkflowByScenarioIdAndSimulation(String scenarioId, Exercise simulation)
+      throws ChainingException {
+    Workflow workflowTemplateScenario =
+        workflowService
+            .findWorkflowTemplateByScenarioId(scenarioId)
+            .orElseThrow(
+                () ->
+                    new ElementNotFoundException(
+                        "Workflow (TEMPLATE) not found. Scenario ID: " + scenarioId));
+    Workflow workflowRun =
+        workflowService.launchWorkflowScenario(workflowTemplateScenario, simulation);
+
+    Workflow workflowTemplateSimulation = workflowRun.getWorkflowTemplate();
+    copyStepTemplate(workflowTemplateScenario, workflowTemplateSimulation);
+
+    startWorkflow(workflowRun, workflowTemplateSimulation);
+  }
+
+  @Transactional(rollbackFor = Exception.class)
+  public void copyStepTemplate(Workflow workflowTemplateFrom, Workflow workflowTemplateTo) {
+    List<Step> stepsTemplate = findAllStepTemplateByWorkflow(workflowTemplateFrom.getId());
+
+    // Copy steps template & Conditions
+    // Todo add condition not linked to a step
+    List<Step> stepsTemplateCopy = copyStepsTemplate(stepsTemplate, workflowTemplateTo);
+    saveSteps(stepsTemplateCopy);
+  }
+
+  private void startWorkflow(Workflow workflowRun, Workflow workflowTemplate)
+      throws ChainingException {
     // Get all step template
-    List<Step> stepsTemplate = this.findAllStepTemplateByWorkflow(workflowTemplate.getId());
-    // todo Check edition content
-    // If edited increase version workflow template
-    // Create new workflow RUN save
-    Workflow workflowRun = workflowService.launchWorkflow(workflowTemplate);
+    List<Step> stepsTemplate = findAllStepTemplateByWorkflow(workflowTemplate.getId());
 
     if (stepsTemplate.isEmpty()) {
       log.info(
@@ -88,7 +126,7 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
       return;
     }
 
-    // Find step template with condition valid
+    // Step template with valid conditions
     List<Step> stepWithValidCondition = new ArrayList<>();
 
     for (Step step : stepsTemplate) {
@@ -96,12 +134,12 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
       stepReadyOpt.ifPresent(stepWithValidCondition::add);
     }
 
-    // IF NONE STEP TEMPLATE WITH CONDITION VALID update WORKFLOW with status END
-    // todo manage steptemplate with time condition in queue delay : can be done after new
-    // implémentation of the queue delay (in db)
-    /*if (stepWithValidCondition.isEmpty()) {
-        workflowRun.setStatus(WorkflowStatus.END);
-    }*/
+    // If none step TEMPLATE with valid conditions && no step template delayed update workflow with
+    // status END
+    if (stepWithValidCondition.isEmpty()
+        && stepDelayQueueRepository.findAllByWorkflowRun(workflowRun).isEmpty()) {
+      workflowRun.setStatus(WorkflowStatus.END);
+    }
   }
 
   /**
@@ -266,7 +304,7 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
                     new IllegalArgumentException(
                         "New step (TEMPLATE): Only 1 condition can be first parent"));
 
-    Step stepFrom = getStepFromCondition(firstCondition.getStepFrom());
+    Step stepFrom = findStepFromCondition(firstCondition.getStepFrom());
 
     Condition first =
         Condition.builder()
@@ -299,7 +337,7 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
           temporaryConditions.getOrDefault(currentTemporaryId, new ArrayList<>());
 
       for (ConditionCreateInput condition : conditions) {
-        Step stepFromCondition = getStepFromCondition(condition.getStepFrom());
+        Step stepFromCondition = findStepFromCondition(condition.getStepFrom());
 
         Condition current =
             Condition.builder()
@@ -317,6 +355,110 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
         temporaryIdAndSaveId.put(condition.getTemporaryId(), current);
 
         currentId.add(condition.getTemporaryId());
+      }
+    }
+  }
+
+  @Transactional(rollbackFor = Exception.class)
+  List<Step> copyStepsTemplate(List<Step> stepsFrom, Workflow workflowTo) {
+    List<Step> stepsCopied = new ArrayList<>();
+    for (Step step : stepsFrom) {
+      String data = step.getData();
+      if (workflowTo.getSimulation() != null)
+        data = StepService.setField(data, "inject_exercise", workflowTo.getSimulation().getId());
+
+      Step copy =
+          Step.builder()
+              .stepAction(step.getStepAction())
+              .output(step.getOutput())
+              .output_parser(step.getOutput_parser())
+              .input(step.getInput())
+              .data(data)
+              .limitExecution(step.getLimitExecution())
+              .status(StepStatus.TEMPLATE)
+              .workflow(workflowTo)
+              .build();
+
+      copy = saveStep(copy);
+      copyStepConditionTemplate(step, copy);
+      stepsCopied.add(copy);
+    }
+    return stepsCopied;
+  }
+
+  @Transactional(rollbackFor = Exception.class)
+  void copyStepConditionTemplate(Step step, Step stepCopied) {
+    List<Condition> conditions = conditionService.findAllConditionsByStepId(step.getId());
+    if (conditions == null || conditions.isEmpty()) {
+      return;
+    }
+    Condition firstCondition =
+        conditions.stream()
+            .filter(condition -> condition.getConditionParent() == null)
+            .reduce(
+                (a, b) -> {
+                  throw new IllegalArgumentException(
+                      "New step (TEMPLATE): Only 1 condition can be first parent");
+                })
+            .orElseThrow(
+                () ->
+                    new IllegalArgumentException(
+                        "New step (TEMPLATE): Only 1 condition can be first parent"));
+
+    Step stepFrom =
+        firstCondition.getStepFrom() == null
+            ? null
+            : findStepFromCondition(firstCondition.getStepFrom().getId());
+
+    Condition first =
+        Condition.builder()
+            .step(stepCopied)
+            .type(firstCondition.getType())
+            .key(firstCondition.getKey())
+            .value(firstCondition.getValue())
+            .stepFrom(stepFrom)
+            .build();
+
+    first = conditionService.saveCondition(first);
+
+    Map<String, Condition> temporaryIdAndSaveId = new HashMap<>();
+    temporaryIdAndSaveId.put(firstCondition.getId(), first);
+
+    Map<String, List<Condition>> temporaryConditions =
+        conditions.stream()
+            .filter(condition -> condition.getConditionParent() != null)
+            .collect(Collectors.groupingBy(condition -> condition.getConditionParent().getId()));
+
+    Queue<String> currentId = new LinkedList<>();
+    currentId.add(firstCondition.getId());
+
+    while (!currentId.isEmpty()) {
+      String currentTemporaryId = currentId.poll();
+
+      List<Condition> conditionsTemplate =
+          temporaryConditions.getOrDefault(currentTemporaryId, new ArrayList<>());
+
+      for (Condition condition : conditionsTemplate) {
+        Step stepFromCondition =
+            condition.getStepFrom() == null
+                ? null
+                : findStepFromCondition(condition.getStepFrom().getId());
+
+        Condition current =
+            Condition.builder()
+                .type(condition.getType())
+                .key(condition.getKey())
+                .value(condition.getValue())
+                .conditionParent(temporaryIdAndSaveId.get(condition.getConditionParent().getId()))
+                .step(stepCopied)
+                .stepFrom(stepFromCondition)
+                .build();
+
+        current = conditionService.saveCondition(current);
+
+        temporaryIdAndSaveId.put(condition.getId(), current);
+
+        currentId.add(condition.getId());
       }
     }
   }
@@ -426,6 +568,24 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
    */
   public Set<String> findStepIdsByExpectationIds(final Set<String> expectationIds) {
     return stepRepository.findStepIdsByExpectationIds(expectationIds);
+  }
+
+  public List<Step> findAllStepExecutedByWorkflowRunId(String id) {
+    return stepRepository.findAllStepByWorkflow_IdAndStatusIn(
+        id, List.of(StepStatus.RUN, StepStatus.READY));
+  }
+
+  private Step findStepFromCondition(String stepFromId) {
+    if (stepFromId != null) {
+      return stepRepository
+          .findById(stepFromId)
+          .orElseThrow(
+              () ->
+                  new ElementNotFoundException(
+                      "Condition references a non-existing step (field: stepFrom). Step ID: "
+                          + stepFromId));
+    }
+    return null;
   }
 
   /**
@@ -771,18 +931,6 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
    * @return the persisted {@link Step} corresponding to the given identifier, or {@code null} if
    *     the identifier is {@code null} {@link Step} is found
    */
-  private Step getStepFromCondition(String stepFromId) {
-    if (stepFromId != null) {
-      return stepRepository
-          .findById(stepFromId)
-          .orElseThrow(
-              () ->
-                  new ElementNotFoundException(
-                      "Condition references a non-existing step (field: stepFrom). Step ID: "
-                          + stepFromId));
-    }
-    return null;
-  }
 
   /**
    * Consume ready event from queue

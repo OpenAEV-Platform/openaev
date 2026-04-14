@@ -22,6 +22,7 @@ import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.fixtures.*;
@@ -77,6 +78,9 @@ class ScenarioServiceTest extends IntegrationTest {
   @InjectMocks private ScenarioService scenarioService;
   @Autowired private ScenarioMapper scenarioMapper;
 
+  @Mock private WorkflowService workflowService;
+  @Autowired private PreviewFeatureService previewFeatureService;
+
   @Mock private LicenseCacheManager licenseCacheManager;
   @Autowired private ExerciseMapper exerciseMapper;
   @Mock private ActionMetricCollector actionMetricCollector;
@@ -111,7 +115,8 @@ class ScenarioServiceTest extends IntegrationTest {
             injectRepository,
             lessonsCategoryRepository,
             healthCheckUtils,
-            scenarioMapper);
+            scenarioMapper,
+            workflowService);
   }
 
   @AfterAll

@@ -24,18 +24,18 @@ public class AgentService {
 
   private final AgentRepository agentRepository;
 
-  public Optional<Agent> getAgentForAnAsset(
+  public Optional<Agent> getAgentForAnAssetByExecutorId(
       String assetId,
       String user,
       Agent.DEPLOYMENT_MODE deploymentMode,
       Agent.PRIVILEGE privilege,
-      String executor) {
-    return agentRepository.findByAssetExecutorUserDeploymentAndPrivilege(
-        assetId, user, deploymentMode.name(), privilege.name(), executor);
+      String executorId) {
+    return agentRepository.findByAssetExecutorIdUserDeploymentAndPrivilege(
+        assetId, user, deploymentMode.name(), privilege.name(), executorId);
   }
 
-  public List<Agent> getAgentsByExecutorType(String executor, String tenantId) {
-    return agentRepository.findByExecutorType(executor, tenantId);
+  public List<Agent> getAgentsByExecutorId(String executorId) {
+    return agentRepository.findByExecutorId(executorId);
   }
 
   public Agent createOrUpdateAgent(@NotNull final Agent agent) {

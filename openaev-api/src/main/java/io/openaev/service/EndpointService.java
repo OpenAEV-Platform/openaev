@@ -530,12 +530,12 @@ public class EndpointService {
     Agent.PRIVILEGE privilege =
         input.isElevated() ? Agent.PRIVILEGE.admin : Agent.PRIVILEGE.standard;
     Optional<Agent> existingAgent =
-        agentService.getAgentForAnAsset(
+        agentService.getAgentForAnAssetByExecutorId(
             endpoint.getId(),
             input.getExecutedByUser(),
             deploymentMode,
             privilege,
-            input.getExecutor().getType());
+            input.getExecutor().getId());
     Agent agent;
     if (existingAgent.isPresent()) {
       agent = existingAgent.get();

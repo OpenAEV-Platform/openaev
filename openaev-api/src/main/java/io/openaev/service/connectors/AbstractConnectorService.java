@@ -71,16 +71,44 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
         isVerified && instance instanceof ConnectorInstancePersisted
             ? ((ConnectorInstancePersisted) instance).getCatalogConnector()
             : catalogConnectorService.findBySlug(connector.getType()).orElse(null);
+    // Override connector name with instance-specific name (e.g. EXECUTOR_NAME) if present
+    if (instance instanceof ConnectorInstancePersisted persistedInstance) {
+      getConfiguredConnectorName(persistedInstance).ifPresent(connector::setName);
+    }
     return mapToOutput(connector, catalogConnector, instance, true);
   }
 
   private T createExternalConnector(String collectorId, ConnectorInstancePersisted instance) {
     T newConnector = createNewConnector();
     newConnector.setId(collectorId);
-    newConnector.setName(instance.getCatalogConnector().getTitle());
+    newConnector.setName(resolveConnectorName(instance));
     newConnector.setExternal(true);
     newConnector.setType(instance.getCatalogConnector().getSlug());
     return newConnector;
+  }
+
+  /**
+   * Resolves the display name for a connector from the instance's configuration. Looks for the
+   * {@code COLLECTOR_NAME / INJECTOR_NAME / EXECUTOR_NAME} configuration key. Falls back to the
+   * catalog connector title if no name configuration is found.
+   */
+  private String resolveConnectorName(ConnectorInstancePersisted instance) {
+    return getConfiguredConnectorName(instance).orElse(instance.getCatalogConnector().getTitle());
+  }
+
+  /**
+   * Extracts the custom connector name from the instance configuration, if explicitly set. Looks
+   * for the {@code COLLECTOR_NAME / INJECTOR_NAME / EXECUTOR_NAME} configuration key.
+   *
+   * @return the configured name, or empty if no custom name is set
+   */
+  private Optional<String> getConfiguredConnectorName(ConnectorInstancePersisted instance) {
+    String nameKey = connectorType.getIdKeyName().replace("_ID", "_NAME");
+    return instance.getConfigurations().stream()
+        .filter(c -> nameKey.equals(c.getKey()))
+        .map(c -> c.getValue().asText())
+        .filter(name -> name != null && !name.isBlank())
+        .findFirst();
   }
 
   /**

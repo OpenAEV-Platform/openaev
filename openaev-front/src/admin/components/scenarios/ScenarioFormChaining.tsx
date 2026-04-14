@@ -73,6 +73,7 @@ const ScenarioFormChaining: FunctionComponent<Props> = ({
         scenario_message_header: z.string().optional(),
         scenario_message_footer: z.string().optional(),
         scenario_custom_dashboard: z.string().optional(),
+        scenario_is_chaining: z.boolean().optional(),
       }),
     ),
     defaultValues: initialValues,

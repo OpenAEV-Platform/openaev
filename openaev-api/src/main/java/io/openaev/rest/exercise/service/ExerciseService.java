@@ -32,6 +32,7 @@ import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.expectation.ExpectationType;
 import io.openaev.rest.atomic_testing.form.TargetSimple;
 import io.openaev.rest.document.DocumentService;
+import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.form.ExerciseSimple;
 import io.openaev.rest.exercise.form.ExercisesGlobalScoresInput;
@@ -43,6 +44,7 @@ import io.openaev.rest.scenario.service.ScenarioStatisticService;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
+import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
@@ -134,6 +136,8 @@ public class ExerciseService {
   private final PauseExerciseService pauseExerciseService;
   private final FileService fileService;
 
+  private final StepService stepService;
+
   // region properties
   @Value("${openaev.mail.imap.enabled}")
   private boolean imapEnabled;
@@ -168,15 +172,17 @@ public class ExerciseService {
    * Create a simulation with the chaining enabled OR a normal one
    *
    * @param simulation the simulation to create
-   * @param isChaining uses the chaining engine or not
    * @return the created simulation
    */
   @Transactional(rollbackFor = Exception.class)
-  public Exercise createSimulation(@NotNull final Exercise simulation, boolean isChaining) {
+  public Exercise createSimulationChaining(@NotNull final Exercise simulation)
+      throws ChainingException {
+
+    workflowService.isPreviewFeatureChainingEnable();
+
     Exercise savedSimulation = createExercise(simulation);
-    if (isChaining && previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)) {
-      workflowService.creationWorkflow(savedSimulation);
-    }
+    workflowService.creationWorkflow(savedSimulation);
+
     return savedSimulation;
   }
 
@@ -216,7 +222,7 @@ public class ExerciseService {
   @Transactional
   public Exercise getDuplicateExercise(@NotBlank String exerciseId) {
     Exercise exerciseOrigin = exerciseRepository.findById(exerciseId).orElseThrow();
-    Exercise exercise = copyExercice(exerciseOrigin);
+    Exercise exercise = copyExercise(exerciseOrigin);
     Exercise exerciseDuplicate = exerciseRepository.save(exercise);
     actionMetricCollector.addSimulationCreatedCount();
     duplicateGrants(exerciseDuplicate, exerciseOrigin);
@@ -230,7 +236,7 @@ public class ExerciseService {
     return exerciseRepository.save(exerciseDuplicate);
   }
 
-  private Exercise copyExercice(Exercise exerciseOrigin) {
+  private Exercise copyExercise(Exercise exerciseOrigin) {
     Exercise exerciseDuplicate = new Exercise();
     exerciseDuplicate.setName(duplicateString(exerciseOrigin.getName()));
     exerciseDuplicate.setCategory(exerciseOrigin.getCategory());
@@ -536,7 +542,8 @@ public class ExerciseService {
   }
 
   @Transactional(rollbackFor = Exception.class)
-  public Exercise changeExerciseStatus(ExerciseStatus status, String exerciseId) {
+  public Exercise changeExerciseStatus(ExerciseStatus status, String exerciseId)
+      throws ChainingException {
     Exercise exercise =
         this.exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
     // Check if next status is possible
@@ -549,6 +556,13 @@ public class ExerciseService {
     boolean isCloseState =
         ExerciseStatus.CANCELED.equals(exercise.getStatus())
             || ExerciseStatus.FINISHED.equals(exercise.getStatus());
+    if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
+        && workflowService.isSimulationChaining(exercise.getId())) {
+      if (ExerciseStatus.SCHEDULED.equals(exercise.getStatus())
+          && ExerciseStatus.RUNNING.equals(status)) {
+        stepService.startWorkflowBySimulationId(exercise.getId());
+      }
+    }
     if (isCloseState && ExerciseStatus.SCHEDULED.equals(status)) {
       exercise.setStart(null);
       exercise.setEnd(null);
@@ -589,6 +603,12 @@ public class ExerciseService {
           this.exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
       // Delete exercise transient files (communications, ...)
       fileService.deleteDirectory(exerciseId);
+      if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
+          && workflowService.isSimulationChaining(exercise.getId())) {
+        // DELETE injects
+        List<Inject> injects = this.injectRepository.findByExerciseId(exerciseId);
+        this.injectRepository.deleteAll(injects);
+      }
     }
     // In case of manual start
     if (ExerciseStatus.SCHEDULED.equals(exercise.getStatus())
@@ -602,6 +622,11 @@ public class ExerciseService {
     // we log the pause date to be able to recompute inject dates.
     if (ExerciseStatus.PAUSED.equals(exercise.getStatus())
         && ExerciseStatus.RUNNING.equals(status)) {
+      if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
+          && workflowService.isSimulationChaining(exercise.getId())) {
+        throw new ChainingException(
+            "Pausing a chained simulation is not allowed yet, please contact support");
+      }
       Instant lastPause = exercise.getCurrentPause().orElseThrow(ElementNotFoundException::new);
       exercise.setCurrentPause(null);
       Pause pause = new Pause();
@@ -613,12 +638,35 @@ public class ExerciseService {
     // If pause is asked, just set the pause date.
     if (ExerciseStatus.RUNNING.equals(exercise.getStatus())
         && ExerciseStatus.PAUSED.equals(status)) {
+      if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
+          && workflowService.isSimulationChaining(exercise.getId())) {
+        throw new ChainingException(
+            "Pausing a chained simulation is not allowed yet, please contact support");
+      }
       exercise.setCurrentPause(Instant.now());
     }
     // Cancelation
     if (ExerciseStatus.RUNNING.equals(exercise.getStatus())
         && ExerciseStatus.CANCELED.equals(status)) {
       exercise.setEnd(now());
+      if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)) {
+        // End WORKFLOW + STEP + delete injects
+        List<Workflow> run = workflowService.findWorkflowRunBySimulationId(exercise.getId());
+        if (!run.isEmpty()) {
+          List<Step> stepsToUpdate = new ArrayList<>();
+          run.forEach(
+              workflow -> {
+                workflow.setStatus(WorkflowStatus.END);
+                List<Step> steps = stepService.findAllStepExecutedByWorkflowRunId(workflow.getId());
+                steps.forEach(step -> step.setStatus(StepStatus.END));
+                stepsToUpdate.addAll(steps);
+              });
+          stepService.saveSteps(stepsToUpdate);
+          workflowService.saveAll(run);
+          List<Inject> injects = this.injectRepository.findByExerciseId(exerciseId);
+          this.injectRepository.deleteAll(injects);
+        }
+      }
     }
     exercise.setUpdatedAt(now());
     exercise.setStatus(status);
