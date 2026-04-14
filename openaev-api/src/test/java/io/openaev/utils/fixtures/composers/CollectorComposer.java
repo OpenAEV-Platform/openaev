@@ -1,6 +1,7 @@
 package io.openaev.utils.fixtures.composers;
 
 import io.openaev.database.model.Collector;
+import io.openaev.database.model.CollectorType;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.utils.fixtures.CollectorTypeFixture;
 import java.util.Optional;
@@ -32,9 +33,12 @@ public class CollectorComposer extends ComposerBase<Collector> {
     public CollectorComposer.Composer persist() {
       securityPlatformComposer.ifPresent(SecurityPlatformComposer.Composer::persist);
       // Ensure the corresponding CollectorType exists in the database
-      collectorTypeComposer
-          .forCollectorType(CollectorTypeFixture.createCollectorType(collector.getType()))
-          .persist();
+      CollectorType collectorType =
+          collectorTypeComposer
+              .forCollectorType(CollectorTypeFixture.createCollectorType(collector.getType()))
+              .persist()
+              .get();
+      collector.setCollectorType(collectorType);
       collectorRepository.save(this.collector);
       return this;
     }

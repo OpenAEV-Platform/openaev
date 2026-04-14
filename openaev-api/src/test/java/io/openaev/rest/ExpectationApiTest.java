@@ -126,6 +126,7 @@ class ExpectationApiTest extends IntegrationTest {
     collector.setId(UUID.randomUUID().toString());
     collector.setName("collector-name");
     collector.setType(collectorType1.getName());
+    collector.setCollectorType(collectorType1);
     collector.setExternal(true);
     savedCollector = collectorRepository.save(collector);
 
@@ -133,6 +134,7 @@ class ExpectationApiTest extends IntegrationTest {
     collector2.setId(UUID.randomUUID().toString());
     collector2.setName("collector-2-name");
     collector2.setType(collectorType2.getName());
+    collector2.setCollectorType(collectorType2);
     collector2.setExternal(true);
     savedCollector2 = collectorRepository.save(collector2);
   }

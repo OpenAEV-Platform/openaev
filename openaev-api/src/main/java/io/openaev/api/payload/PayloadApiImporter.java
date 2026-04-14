@@ -25,7 +25,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 @Slf4j
 @RestController
-@RequestMapping(PayloadApi.PAYLOAD_URI)
+@RequestMapping({PayloadApi.PAYLOAD_URI, PayloadApi.TENANT_PAYLOAD_URI})
 @RequiredArgsConstructor
 public class PayloadApiImporter extends RestBehavior {
 

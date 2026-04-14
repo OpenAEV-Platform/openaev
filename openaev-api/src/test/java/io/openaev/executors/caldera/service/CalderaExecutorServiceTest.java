@@ -4,27 +4,29 @@ import static io.openaev.executors.caldera.service.CalderaExecutorService.toArch
 import static io.openaev.executors.caldera.service.CalderaExecutorService.toPlatform;
 import static io.openaev.utils.time.TimeUtils.toInstant;
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 import io.openaev.context.TenantContext;
-import io.openaev.database.model.Endpoint;
-import io.openaev.database.model.Executor;
-import io.openaev.database.model.Tenant;
+import io.openaev.database.model.*;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.caldera.client.CalderaExecutorClient;
+import io.openaev.executors.caldera.client.model.Ability;
 import io.openaev.executors.caldera.config.CalderaExecutorConfig;
 import io.openaev.executors.caldera.model.Agent;
+import io.openaev.rest.exception.AgentException;
 import io.openaev.service.AgentService;
 import io.openaev.service.EndpointService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.PlatformSettingsService;
+import io.openaev.utils.fixtures.*;
 import io.openaev.utils.mapper.EndpointMapper;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
+import java.util.*;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -51,19 +53,19 @@ public class CalderaExecutorServiceTest {
 
   @Mock private CalderaExecutorConfig config;
 
-  @Mock private CalderaExecutorContextService calderaExecutorContextService;
+  @Mock private InjectorService injectorService;
 
   @Mock private EndpointService endpointService;
 
   @Mock private AgentService agentService;
-
-  @Mock private InjectorService injectorService;
 
   @Mock private PlatformSettingsService platformSettingsService;
 
   @Mock private Executor executor;
 
   @InjectMocks private CalderaExecutorService calderaExecutorService;
+
+  @InjectMocks private CalderaExecutorContextService calderaExecutorContextService;
 
   private Endpoint calderaEndpoint;
   private Endpoint randomEndpoint;
@@ -165,5 +167,54 @@ public class CalderaExecutorServiceTest {
     assertArrayEquals(new String[] {CALDERA_AGENT_IP}, capturedEndpoint.getIps());
     assertEquals(Endpoint.PLATFORM_TYPE.Windows, capturedEndpoint.getPlatform());
     assertEquals(Endpoint.PLATFORM_ARCH.x86_64, capturedEndpoint.getArch());
+  }
+
+  @Nested
+  @DisplayName("launchExecutorSubprocess legacy inject fallback")
+  class LaunchExecutorSubprocessLegacyFallback {
+
+    @Test
+    @DisplayName(
+        "given legacy inject without injector, should fallback to contract and call exploit")
+    void given_legacyInjectWithoutInjector_should_fallbackToContractAndCallExploit()
+        throws AgentException, com.fasterxml.jackson.core.JsonProcessingException {
+      // Arrange
+      when(config.isEnable()).thenReturn(true);
+      Injector injector = InjectorFixture.createDefaultPayloadInjector();
+      injector.setId("injectorId");
+      InjectorContract contract =
+          InjectorContractFixture.createPayloadInjectorContract(
+              injector,
+              PayloadFixture.createCommand(
+                  "cmd",
+                  "whoami",
+                  List.of(),
+                  "whoami",
+                  Set.of(io.openaev.rest.domain.enums.PresetDomain.getToClassify())));
+      Inject inject =
+          InjectFixture.createTechnicalInject(
+              contract, "Legacy Inject", EndpointFixture.createEndpoint());
+      inject.setId("legacyInjectId");
+      // inject.setInjector is NOT called — simulates a legacy inject
+
+      Endpoint endpoint = EndpointFixture.createEndpoint();
+      io.openaev.database.model.Agent agent = new io.openaev.database.model.Agent();
+      agent.setId("agentId");
+      agent.setExternalReference("agentExtRef");
+      agent.setAsset(endpoint);
+      agent.setPrivilege(io.openaev.database.model.Agent.PRIVILEGE.admin);
+      agent.setDeploymentMode(io.openaev.database.model.Agent.DEPLOYMENT_MODE.session);
+      agent.setExecutedByUser("root");
+
+      Ability ability = new Ability();
+      ability.setAbility_id("abilityId");
+      calderaExecutorContextService.injectorExecutorAbilities.put(injector.getId(), ability);
+
+      // Act
+      calderaExecutorContextService.launchExecutorSubprocess(inject, endpoint, agent);
+
+      // Assert
+      verify(client).exploit(eq("base64"), eq("agentExtRef"), eq("abilityId"), any());
+    }
   }
 }

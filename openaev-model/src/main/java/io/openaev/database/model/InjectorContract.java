@@ -6,15 +6,18 @@ import static lombok.AccessLevel.NONE;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.hypersistence.utils.hibernate.type.basic.PostgreSQLHStoreType;
 import io.openaev.annotation.Queryable;
+import io.openaev.context.TenantContext;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.converter.ContentConverter;
+import io.openaev.helper.CompositeIdResolvableI;
 import io.openaev.helper.MonoIdDeserializerHelper;
 import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.helper.MultiIdSetSerializer;
@@ -24,6 +27,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.*;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import lombok.Getter;
 import lombok.Setter;
@@ -38,7 +42,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 @Table(name = "injectors_contracts")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
-public class InjectorContract implements TenantBase {
+public class InjectorContract implements TenantBase, CompositeIdResolvableI {
 
   @EmbeddedId @JsonIgnore private InjectorContractId compositeId = new InjectorContractId();
 
@@ -277,7 +281,7 @@ public class InjectorContract implements TenantBase {
 
   @JsonProperty("injector_contract_atomic_testing")
   public boolean getAtomicTestingEffective() {
-    return isAtomicTesting;
+    return Boolean.TRUE.equals(isAtomicTesting);
   }
 
   // Fixes a bug due to a new version of jackson and lombok
@@ -307,16 +311,21 @@ public class InjectorContract implements TenantBase {
         : Collections.emptyList();
   }
 
+  /** Returns a map of injector ID → injector name for all linked injectors. */
+  @JsonProperty("injector_contract_injector_names")
+  private Map<String, String> getInjectorNames() {
+    return injectors != null
+        ? injectors.stream()
+            .collect(
+                Collectors.toMap(
+                    Injector::getId, Injector::getName, (a, b) -> a, LinkedHashMap::new))
+        : Collections.emptyMap();
+  }
+
   @JsonProperty("injector_contract_injector_type")
   public String getInjectorType() {
     Injector first = getFirstInjector();
     return first != null ? first.getType() : null;
-  }
-
-  @JsonProperty("injector_contract_injector_type_name")
-  public String getInjectorName() {
-    Injector first = getFirstInjector();
-    return first != null ? first.getName() : null;
   }
 
   @JsonIgnore
@@ -350,6 +359,15 @@ public class InjectorContract implements TenantBase {
   @Override
   public int hashCode() {
     return Objects.hash(compositeId);
+  }
+
+  @Override
+  public Object resolveCompositeId(String rawId, DeserializationContext ctxt) {
+    String tenantId = TenantContext.getCurrentTenant();
+    InjectorContractId compositeId = new InjectorContractId();
+    compositeId.setId(rawId);
+    compositeId.setTenantId(tenantId);
+    return compositeId;
   }
 
   // -- INJECTOR CONTRACT CONTENT --

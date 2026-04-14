@@ -62,4 +62,8 @@ public class ScenarioInput {
 
   @JsonProperty("scenario_custom_dashboard")
   private String customDashboard;
+
+  /** Indicate if this scenario will use the chaining engine or the legacy one */
+  @JsonProperty("scenario_is_chaining")
+  private Boolean isChaining = false;
 }

@@ -77,7 +77,20 @@ const UpdateInject: React.FC<Props> = ({
   const { inject }: { inject: InjectStore } = useHelper((helper: InjectHelper) => ({ inject: helper.getInject(injectId) }));
   const contractPayload = inject?.inject_injector_contract?.injector_contract_payload;
   const injectorContract = inject?.inject_injector_contract;
+  const injectorNamesMap = injectorContract?.injector_contract_injector_names ?? {};
   const [documentsMap, setDocumentsMap] = useState<Record<string, Document> | null>(null);
+
+  // Resolve the displayed injector name from the selected injector (or first available)
+  const [selectedInjectorName, setSelectedInjectorName] = useState<string>('');
+  useEffect(() => {
+    const currentInjectorId = inject?.inject_injector;
+    if (currentInjectorId && injectorNamesMap[currentInjectorId]) {
+      setSelectedInjectorName(injectorNamesMap[currentInjectorId]);
+    } else {
+      const firstValue = Object.values(injectorNamesMap)[0];
+      setSelectedInjectorName(firstValue ?? '');
+    }
+  }, [inject?.inject_injector, injectorContract]);
 
   useDataLoader(() => {
     setIsInjectLoading(true);
@@ -114,7 +127,7 @@ const UpdateInject: React.FC<Props> = ({
     if (injectorContract?.injector_contract_needs_executor) {
       return t('TTP Unknown');
     }
-    return injectorContract?.injector_contract_injector_type_name ? t(injectorContract?.injector_contract_injector_type_name) : '';
+    return selectedInjectorName ? t(selectedInjectorName) : '';
   };
 
   const injectFormContent = (
@@ -196,6 +209,8 @@ const UpdateInject: React.FC<Props> = ({
               articlesFromExerciseOrScenario={articlesFromExerciseOrScenario}
               uriVariable={uriVariable}
               variablesFromExerciseOrScenario={variablesFromExerciseOrScenario}
+              injectorNames={injectorNamesMap}
+              onInjectorChange={(_id, name) => setSelectedInjectorName(name)}
             />
           )}
         </TabPanel>

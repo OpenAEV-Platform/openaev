@@ -1,5 +1,6 @@
 package io.openaev.rest.challenge;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.database.specification.ChallengeSpecification.fromIds;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
@@ -33,6 +34,9 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class ChallengeApi extends RestBehavior {
 
+  public static final String CHALLENGE_URI = "/api/challenges";
+  private static final String TENANT_CHALLENGE_URI = TENANT_PREFIX + "/challenges";
+
   private final ChallengeRepository challengeRepository;
   private final ChallengeFlagRepository challengeFlagRepository;
   private final TagRepository tagRepository;
@@ -40,7 +44,7 @@ public class ChallengeApi extends RestBehavior {
   private final ChallengeService challengeService;
   private final DocumentService documentService;
 
-  @GetMapping("/api/challenges")
+  @GetMapping({CHALLENGE_URI, TENANT_CHALLENGE_URI})
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.CHALLENGE)
   public Iterable<Challenge> challenges() {
     return fromIterable(challengeRepository.findAll()).stream()
@@ -49,7 +53,7 @@ public class ChallengeApi extends RestBehavior {
   }
 
   @LogExecutionTime
-  @PostMapping("/api/challenges/find")
+  @PostMapping({CHALLENGE_URI + "/find", TENANT_CHALLENGE_URI + "/find"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.CHALLENGE)
   @org.springframework.transaction.annotation.Transactional(readOnly = true)
   public List<Challenge> findEndpoints(
@@ -57,7 +61,7 @@ public class ChallengeApi extends RestBehavior {
     return this.challengeRepository.findAll(fromIds(challengeIds));
   }
 
-  @PutMapping("/api/challenges/{challengeId}")
+  @PutMapping({CHALLENGE_URI + "/{challengeId}", TENANT_CHALLENGE_URI + "/{challengeId}"})
   @AccessControl(
       resourceId = "#challengeId",
       actionPerformed = Action.WRITE,
@@ -90,7 +94,7 @@ public class ChallengeApi extends RestBehavior {
     return challengeService.enrichChallengeWithExercisesOrScenarios(saveChallenge);
   }
 
-  @PostMapping("/api/challenges")
+  @PostMapping({CHALLENGE_URI, TENANT_CHALLENGE_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.CHALLENGE)
   @Transactional(rollbackOn = Exception.class)
   public Challenge createChallenge(@Valid @RequestBody ChallengeInput input) {
@@ -113,7 +117,7 @@ public class ChallengeApi extends RestBehavior {
     return challengeRepository.save(challenge);
   }
 
-  @DeleteMapping("/api/challenges/{challengeId}")
+  @DeleteMapping({CHALLENGE_URI + "/{challengeId}", TENANT_CHALLENGE_URI + "/{challengeId}"})
   @AccessControl(
       resourceId = "#challengeId",
       actionPerformed = Action.DELETE,
@@ -123,7 +127,7 @@ public class ChallengeApi extends RestBehavior {
     challengeRepository.deleteById(challengeId);
   }
 
-  @PostMapping("/api/challenges/{challengeId}/try")
+  @PostMapping({CHALLENGE_URI + "/{challengeId}/try", TENANT_CHALLENGE_URI + "/{challengeId}/try"})
   @AccessControl(
       resourceId = "#challengeId",
       actionPerformed = Action.WRITE,
@@ -135,7 +139,10 @@ public class ChallengeApi extends RestBehavior {
     return challengeService.tryChallenge(challengeId, input);
   }
 
-  @GetMapping("/api/challenges/{challengeId}/documents")
+  @GetMapping({
+    CHALLENGE_URI + "/{challengeId}/documents",
+    TENANT_CHALLENGE_URI + "/{challengeId}/documents"
+  })
   @AccessControl(
       resourceId = "#challengeId",
       actionPerformed = Action.READ,

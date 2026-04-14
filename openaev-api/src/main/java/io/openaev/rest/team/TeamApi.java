@@ -1,5 +1,6 @@
 package io.openaev.rest.team;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.database.specification.TeamSpecification.*;
 import static io.openaev.helper.DatabaseHelper.updateRelation;
 import static io.openaev.helper.StreamHelper.fromIterable;
@@ -62,6 +63,7 @@ import org.springframework.web.bind.annotation.*;
 public class TeamApi extends RestBehavior {
 
   public static final String TEAM_URI = "/api/teams";
+  private static final String TENANT_TEAM_URI = TENANT_PREFIX + "/teams";
 
   private final ExerciseRepository exerciseRepository;
   private final ScenarioRepository scenarioRepository;
@@ -73,7 +75,7 @@ public class TeamApi extends RestBehavior {
   private final UserService userService;
 
   @LogExecutionTime
-  @GetMapping(TEAM_URI)
+  @GetMapping({TEAM_URI, TENANT_TEAM_URI})
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TEAM)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The list of teams")})
   @Operation(summary = "List teams", description = "Return the teams")
@@ -86,7 +88,7 @@ public class TeamApi extends RestBehavior {
   }
 
   @LogExecutionTime
-  @PostMapping("/api/teams/search")
+  @PostMapping({"/api/teams/search", TENANT_TEAM_URI + "/search"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.TEAM)
   @Transactional(readOnly = true)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The list of teams")})
@@ -100,7 +102,7 @@ public class TeamApi extends RestBehavior {
   }
 
   @LogExecutionTime
-  @PostMapping("/api/teams/find")
+  @PostMapping({"/api/teams/find", TENANT_TEAM_URI + "/find"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.TEAM)
   @Transactional(readOnly = true)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The list of teams")})
@@ -109,7 +111,7 @@ public class TeamApi extends RestBehavior {
     return this.teamService.find(fromIds(teamIds));
   }
 
-  @GetMapping("/api/teams/{teamId}")
+  @GetMapping({"/api/teams/{teamId}", TENANT_TEAM_URI + "/{teamId}"})
   @AccessControl(
       resourceId = "#teamId",
       actionPerformed = Action.READ,
@@ -120,7 +122,7 @@ public class TeamApi extends RestBehavior {
     return teamRepository.findById(teamId).orElseThrow(ElementNotFoundException::new);
   }
 
-  @GetMapping("/api/teams/{teamId}/players")
+  @GetMapping({"/api/teams/{teamId}/players", TENANT_TEAM_URI + "/{teamId}/players"})
   @AccessControl(
       resourceId = "#teamId",
       actionPerformed = Action.READ,
@@ -133,7 +135,7 @@ public class TeamApi extends RestBehavior {
     return teamRepository.findById(teamId).orElseThrow(ElementNotFoundException::new).getUsers();
   }
 
-  @PostMapping(TEAM_URI)
+  @PostMapping({TEAM_URI, TENANT_TEAM_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.TEAM)
   @Transactional(rollbackFor = Exception.class)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The created team")})
@@ -150,7 +152,7 @@ public class TeamApi extends RestBehavior {
     return teamRepository.save(team);
   }
 
-  @PostMapping("/api/teams/upsert")
+  @PostMapping({"/api/teams/upsert", TENANT_TEAM_URI + "/upsert"})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.TEAM)
   @Transactional(rollbackFor = Exception.class)
   @ApiResponses(
@@ -184,7 +186,7 @@ public class TeamApi extends RestBehavior {
     }
   }
 
-  @DeleteMapping("/api/teams/{teamId}")
+  @DeleteMapping({"/api/teams/{teamId}", TENANT_TEAM_URI + "/{teamId}"})
   @AccessControl(
       resourceId = "#teamId",
       actionPerformed = Action.DELETE,
@@ -195,7 +197,7 @@ public class TeamApi extends RestBehavior {
     teamRepository.deleteById(teamId);
   }
 
-  @PutMapping("/api/teams/{teamId}")
+  @PutMapping({"/api/teams/{teamId}", TENANT_TEAM_URI + "/{teamId}"})
   @AccessControl(
       resourceId = "#teamId",
       actionPerformed = Action.WRITE,
@@ -214,7 +216,7 @@ public class TeamApi extends RestBehavior {
     return teamRepository.save(team);
   }
 
-  @PutMapping("/api/teams/{teamId}/players")
+  @PutMapping({"/api/teams/{teamId}/players", TENANT_TEAM_URI + "/{teamId}/players"})
   @AccessControl(
       resourceId = "#teamId",
       actionPerformed = Action.WRITE,
@@ -233,7 +235,7 @@ public class TeamApi extends RestBehavior {
   }
 
   // -- OPTION --
-  @GetMapping(TEAM_URI + "/options")
+  @GetMapping({TEAM_URI + "/options", TENANT_TEAM_URI + "/options"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.TEAM)
   public List<FilterUtilsJpa.Option> optionsByName(
       @RequestParam(required = false) final String searchText,
@@ -287,7 +289,7 @@ public class TeamApi extends RestBehavior {
     return options;
   }
 
-  @PostMapping(TEAM_URI + "/options")
+  @PostMapping({TEAM_URI + "/options", TENANT_TEAM_URI + "/options"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.TEAM)
   public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
     return fromIterable(this.teamRepository.findAllById(ids)).stream()

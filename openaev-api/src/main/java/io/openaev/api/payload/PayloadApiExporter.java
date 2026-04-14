@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping(PayloadApi.PAYLOAD_URI)
+@RequestMapping({PayloadApi.PAYLOAD_URI, PayloadApi.TENANT_PAYLOAD_URI})
 @RequiredArgsConstructor
 public class PayloadApiExporter extends RestBehavior {
 

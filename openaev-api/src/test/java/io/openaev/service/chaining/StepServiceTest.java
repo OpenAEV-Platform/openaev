@@ -10,6 +10,7 @@ import io.openaev.api.chaining.InjectExecutionStep;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.StepDelayQueueRepository;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -39,6 +40,7 @@ public class StepServiceTest {
   @Mock private ConditionService conditionService;
   @Mock private QueueChainingService queueChainingService;
   @Mock private StepDelayQueueService stepDelayQueueService;
+  @Mock private StepDelayQueueRepository stepDelayQueueRepository;
 
   @Spy @InjectMocks StepService stepService;
   private QueueChainingJob queueChainingJob;
@@ -260,7 +262,7 @@ public class StepServiceTest {
 
       Workflow workflowRun = mock(Workflow.class);
 
-      when(workflowService.launchWorkflow(workflowTemplate)).thenReturn(workflowRun);
+      when(workflowService.launchWorkflowSimulation(workflowTemplate)).thenReturn(workflowRun);
       when(workflowService.findWorkflowTemplateBySimulationId(simulationId))
           .thenReturn(Optional.of(workflowTemplate));
 
@@ -268,7 +270,7 @@ public class StepServiceTest {
           .thenReturn(Collections.emptyList());
 
       // -------- Act --------
-      stepService.startWorkflow(simulationId);
+      stepService.startWorkflowBySimulationId(simulationId);
 
       // -------- Assert --------
       verify(workflowService).findWorkflowTemplateBySimulationId(simulationIdCaptor.capture());
@@ -278,7 +280,7 @@ public class StepServiceTest {
           .findAllByStepTemplateIdIsNullAndWorkflowId(workflowTemplateIdCaptor.capture());
       assertEquals(templateWorkflowId, workflowTemplateIdCaptor.getValue());
 
-      verify(workflowService).launchWorkflow(workflowCaptor.capture());
+      verify(workflowService).launchWorkflowSimulation(workflowCaptor.capture());
       assertEquals(simulationId, simulationIdCaptor.getValue());
 
       verify(stepService, never()).ready(any(Step.class), any(Workflow.class), any());
@@ -299,7 +301,7 @@ public class StepServiceTest {
 
       when(workflowService.findWorkflowTemplateBySimulationId(simulationId))
           .thenReturn(Optional.of(workflowTemplate));
-      when(workflowService.launchWorkflow(workflowTemplate)).thenReturn(workflowRun);
+      when(workflowService.launchWorkflowSimulation(workflowTemplate)).thenReturn(workflowRun);
 
       when(stepRepository.findAllByStepTemplateIdIsNullAndWorkflowId(templateWorkflowId))
           .thenReturn(stepTemplates);
@@ -326,7 +328,7 @@ public class StepServiceTest {
           .ready(any(Step.class), eq(workflowRun), isNull());
 
       // -------- Act --------
-      stepService.startWorkflow(simulationId);
+      stepService.startWorkflowBySimulationId(simulationId);
 
       // -------- Assert --------
       verify(workflowService).findWorkflowTemplateBySimulationId(simulationIdCaptor.capture());
@@ -336,7 +338,7 @@ public class StepServiceTest {
           .findAllByStepTemplateIdIsNullAndWorkflowId(workflowTemplateIdCaptor.capture());
       assertEquals(templateWorkflowId, workflowTemplateIdCaptor.getValue());
 
-      verify(workflowService).launchWorkflow(workflowTemplate);
+      verify(workflowService).launchWorkflowSimulation(workflowTemplate);
       assertEquals(simulationId, simulationIdCaptor.getValue());
 
       verify(stepService, times(stepTemplates.size()))
@@ -369,6 +371,65 @@ public class StepServiceTest {
           // Boundary: 1 element
           Arguments.of(List.of(s1), Set.of()),
           Arguments.of(List.of(s1), Set.of(0)));
+    }
+
+    @ParameterizedTest(name = "validStep={0}, delayedTemplate={1} -> endExpected={2}")
+    @MethodSource("workflowStatusMatrixInputs")
+    void shouldSetWorkflowStatusAccordingToValidStepAndDelayedTemplate(
+        boolean hasValidStep, boolean hasDelayedTemplate, boolean shouldEndWorkflow)
+        throws ChainingException {
+      // -------- Prepare --------
+      String simulationId = UUID.randomUUID().toString();
+      String templateWorkflowId = UUID.randomUUID().toString();
+
+      Workflow workflowTemplate = mock(Workflow.class);
+      when(workflowTemplate.getId()).thenReturn(templateWorkflowId);
+
+      Workflow workflowRun = mock(Workflow.class);
+      Step stepTemplate = mock(Step.class);
+
+      when(workflowService.findWorkflowTemplateBySimulationId(simulationId))
+          .thenReturn(Optional.of(workflowTemplate));
+      when(workflowService.launchWorkflowSimulation(workflowTemplate)).thenReturn(workflowRun);
+      when(stepRepository.findAllByStepTemplateIdIsNullAndWorkflowId(templateWorkflowId))
+          .thenReturn(List.of(stepTemplate));
+
+      doReturn(hasValidStep ? Optional.of(mock(Step.class)) : Optional.empty())
+          .when(stepService)
+          .ready(stepTemplate, workflowRun, null);
+
+      if (!hasValidStep) {
+        when(stepDelayQueueRepository.findAllByWorkflowRun(workflowRun))
+            .thenReturn(hasDelayedTemplate ? List.of(mock(StepDelayQueue.class)) : List.of());
+      }
+
+      // -------- Act --------
+      stepService.startWorkflowBySimulationId(simulationId);
+
+      // -------- Assert --------
+      if (shouldEndWorkflow) {
+        verify(workflowRun).setStatus(WorkflowStatus.END);
+      } else {
+        verify(workflowRun, never()).setStatus(WorkflowStatus.END);
+      }
+
+      if (hasValidStep) {
+        verify(stepDelayQueueRepository, never()).findAllByWorkflowRun(workflowRun);
+      } else {
+        verify(stepDelayQueueRepository).findAllByWorkflowRun(workflowRun);
+      }
+    }
+
+    private static Stream<Arguments> workflowStatusMatrixInputs() {
+      return Stream.of(
+          // no step valid && no delayed template -> END
+          Arguments.of(false, false, true),
+          // no step valid && delayed template exists -> RUN
+          Arguments.of(false, true, false),
+          // step valid && no delayed template -> RUN
+          Arguments.of(true, false, false),
+          // step valid && delayed template exists -> RUN
+          Arguments.of(true, true, false));
     }
   }
 
@@ -1273,7 +1334,9 @@ public class StepServiceTest {
 
     when(actionStep.create(any(), eq(workflow))).thenReturn(Optional.of(step));
 
-    doThrow(new IllegalArgumentException()).when(stepService).stepConditionTemplate(any(), any());
+    doThrow(new IllegalArgumentException())
+        .when(stepService)
+        .stepConditionTemplate(any(StepsCreateInput.StepCreateInput.class), any());
 
     assertThrows(
         IllegalArgumentException.class,
