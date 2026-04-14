@@ -1,5 +1,5 @@
-# ==============================================================================
-# OpenAEV — Git Hooks Installer (PowerShell)
+﻿# ==============================================================================
+# OpenAEV -- Git Hooks Installer (PowerShell)
 # ==============================================================================
 #
 # Installs local Git hooks for the OpenAEV project:
@@ -12,7 +12,7 @@
 #                          Blocks the first commit attempt; acknowledge by
 #                          committing again.
 #
-# The hooks themselves are bash scripts — Git on Windows runs them through
+# The hooks themselves are bash scripts -- Git on Windows runs them through
 # Git Bash automatically. This PowerShell script just writes them to disk.
 #
 # Usage:
@@ -26,7 +26,7 @@
 #   - Yarn (in openaev-front/)
 #   - Maven wrapper (mvnw / mvnw.cmd) at project root
 #
-# The hooks are local to your clone — they are NOT versioned in .git/.
+# The hooks are local to your clone -- they are NOT versioned in .git/.
 # Re-run this script after a fresh clone or if hooks are updated.
 # ==============================================================================
 
@@ -390,24 +390,24 @@ $PrepareCommitMsgPath = Join-Path $HooksDir "prepare-commit-msg"
 # Done
 # ==============================================================================
 Write-Host ""
-Write-Host "╔══════════════════════════════════════════════════════════════╗"
-Write-Host "║  ✅  Git hooks installed successfully!                      ║"
-Write-Host "╚══════════════════════════════════════════════════════════════╝"
+Write-Host "================================================================"
+Write-Host "  [OK] Git hooks installed successfully!"
+Write-Host "================================================================"
 Write-Host ""
 Write-Host "  Installed hooks:"
-Write-Host "    pre-commit           — Spotless + ESLint auto-fix"
-Write-Host "    prepare-commit-msg   — Immutable collection warnings"
+Write-Host "    pre-commit           -- Spotless + ESLint auto-fix"
+Write-Host "    prepare-commit-msg   -- Immutable collection warnings"
 Write-Host ""
 Write-Host "  Hooks will be skipped during rebase, merge, and cherry-pick."
 Write-Host ""
 Write-Host "  Prerequisites:"
-Write-Host "    Git for Windows      (provides bash for running the hooks)"
-Write-Host "    Java 21              (JAVA_HOME or auto-detected)"
-Write-Host "    Node.js >= 22.11.0   (nvm, fnm, or system)"
-Write-Host "    mvnw / mvnw.cmd      (at project root)"
-Write-Host "    yarn                 (in openaev-front/)"
+Write-Host '    Git for Windows      (provides bash for running the hooks)'
+Write-Host '    Java 21              (JAVA_HOME or auto-detected)'
+Write-Host '    Node.js >= 22.11.0   (nvm, fnm, or system)'
+Write-Host '    mvnw / mvnw.cmd      (at project root)'
+Write-Host '    yarn                 (in openaev-front/)'
 Write-Host ""
 Write-Host "  To uninstall:"
-Write-Host "    Remove-Item .git\hooks\pre-commit, .git\hooks\prepare-commit-msg"
+Write-Host '    Remove-Item .git\hooks\pre-commit, .git\hooks\prepare-commit-msg'
 Write-Host ""
 
