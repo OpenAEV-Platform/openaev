@@ -51,7 +51,16 @@ export const computeStatusStyle = (status: string | undefined | null) => {
   const normalized = (status ?? '').toUpperCase();
 
   const statusMap: Record<string, typeof colorStyles[keyof typeof colorStyles]> = {
+    // -- Common --
+    'SUCCESS': colorStyles.green,
     'ERROR': colorStyles.red,
+
+    // -- ExecutionTraceStatus --
+    // Success statuses
+    'WARNING': colorStyles.green,
+    'ACCESS_DENIED': colorStyles.green,
+
+    // Error statuses
     'COMMAND_NOT_FOUND': colorStyles.red,
     'COMMAND_CANNOT_BE_EXECUTED': colorStyles.red,
     'INVALID_USAGE': colorStyles.red,
@@ -61,16 +70,12 @@ export const computeStatusStyle = (status: string | undefined | null) => {
     'MAYBE_PREVENTED': colorStyles.red,
     'MAYBE_PARTIAL_PREVENTED': colorStyles.red,
 
-    // Success statuses (from ExecutionTraceStatus.SUCCESS_STATUSES)
-    'SUCCESS': colorStyles.green,
-    'WARNING': colorStyles.green,
-    'ACCESS_DENIED': colorStyles.green,
-
     // Not counted statuses (from ExecutionTraceStatus)
     'ASSET_AGENTLESS': colorStyles.blueGrey,
     'AGENT_INACTIVE': colorStyles.blueGrey,
     'INFO': colorStyles.blue,
 
+    // -- ExecutionStatus --
     // Inject-level statuses (from ExecutionStatus)
     'PARTIAL': colorStyles.orange,
     'EXECUTING': colorStyles.blue,
