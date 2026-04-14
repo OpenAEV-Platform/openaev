@@ -2,16 +2,11 @@ package io.openaev.service.connector_instances;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
-import io.openaev.executors.Injector;
-import io.openaev.integration.ComponentRequest;
 import io.openaev.integration.Manager;
 import io.openaev.integration.ManagerFactory;
 import java.util.Optional;
