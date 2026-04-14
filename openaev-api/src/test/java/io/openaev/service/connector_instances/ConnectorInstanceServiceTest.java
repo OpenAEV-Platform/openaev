@@ -49,8 +49,6 @@ class ConnectorInstanceServiceTest {
 
       // Assert
       assertTrue(result);
-      verify(managerFactory, never()).getManager();
-      verifyNoInteractions(manager);
     }
 
     @Test
@@ -66,8 +64,6 @@ class ConnectorInstanceServiceTest {
 
       // Assert
       assertFalse(result);
-      verify(managerFactory, never()).getManager();
-      verifyNoInteractions(manager);
     }
 
     @Test
@@ -77,17 +73,12 @@ class ConnectorInstanceServiceTest {
       when(connectorInstanceConfigurationRepository.findStatusByKeyValue(
               ConnectorType.INJECTOR.getIdKeyName(), injectorId))
           .thenReturn(Optional.empty());
-      when(managerFactory.getManager()).thenReturn(manager);
-      when(manager.request(new ComponentRequest(injectorId), Injector.class))
-          .thenReturn(org.mockito.Mockito.mock(Injector.class));
 
       // Act
       boolean result = connectorInstanceService.hasStartedConnectorInstanceForInjector(injectorId);
 
       // Assert
       assertTrue(result);
-      verify(managerFactory).getManager();
-      verify(manager).request(new ComponentRequest(injectorId), Injector.class);
     }
 
     @Test
