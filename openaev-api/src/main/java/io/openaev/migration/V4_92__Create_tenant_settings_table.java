@@ -7,10 +7,6 @@ import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
-/**
- * Creates the {@code tenant_settings} table and migrates default dashboard settings from the
- * platform-level {@code parameters} table into it for the default tenant.
- */
 @Component
 public class V4_92__Create_tenant_settings_table extends BaseJavaMigration {
 
