@@ -42,7 +42,7 @@ class ConnectorInstanceServiceTest {
       String injectorId = "injector-1";
       when(connectorInstanceConfigurationRepository.findStatusByKeyValue(
               ConnectorType.INJECTOR.getIdKeyName(), injectorId))
-          .thenReturn(Optional.of(ConnectorInstance.CURRENT_STATUS_TYPE.started));
+          .thenReturn(Optional.of(ConnectorInstance.CURRENT_STATUS_TYPE.started.name()));
 
       // Act
       boolean result = connectorInstanceService.hasStartedConnectorInstanceForInjector(injectorId);
@@ -59,7 +59,7 @@ class ConnectorInstanceServiceTest {
       String injectorId = "injector-2";
       when(connectorInstanceConfigurationRepository.findStatusByKeyValue(
               ConnectorType.INJECTOR.getIdKeyName(), injectorId))
-          .thenReturn(Optional.of(ConnectorInstance.CURRENT_STATUS_TYPE.stopped));
+          .thenReturn(Optional.of(ConnectorInstance.CURRENT_STATUS_TYPE.stopped.name()));
 
       // Act
       boolean result = connectorInstanceService.hasStartedConnectorInstanceForInjector(injectorId);
@@ -97,17 +97,12 @@ class ConnectorInstanceServiceTest {
       when(connectorInstanceConfigurationRepository.findStatusByKeyValue(
               ConnectorType.INJECTOR.getIdKeyName(), injectorId))
           .thenReturn(Optional.empty());
-      when(managerFactory.getManager()).thenReturn(manager);
-      when(manager.request(new ComponentRequest(injectorId), Injector.class))
-          .thenThrow(new IllegalStateException("failure"));
 
       // Act
       boolean result = connectorInstanceService.hasStartedConnectorInstanceForInjector(injectorId);
 
       // Assert
       assertTrue(result);
-      verify(managerFactory).getManager();
-      verify(manager).request(new ComponentRequest(injectorId), Injector.class);
     }
   }
 }
