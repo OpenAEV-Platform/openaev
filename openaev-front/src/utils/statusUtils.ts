@@ -111,58 +111,64 @@ export const getStatusColor = (theme: Theme, status: string | undefined): string
   const normalized = (status ?? '').toLowerCase();
 
   const colorMap: Record<string, string> = {
+    // -- Common --
+    'success': theme.palette.success.main,
+    'error': theme.palette.error.main,
+
+    // -- ExecutionTraceStatus --
+    // Success statuses
+    'warning': theme.palette.success.main,
+    'access_denied': theme.palette.success.main,
+    // Error statuses
+    'command_not_found': theme.palette.error.main,
+    'command_cannot_be_executed': theme.palette.error.main,
+    'invalid_usage': theme.palette.error.main,
+    'timeout': theme.palette.error.main,
+    'interrupted': theme.palette.error.main,
+    // @deprecated — rerouted to error in backend
+    'maybe_prevented': colorStyles.purple.color,
+    'maybe_partial_prevented': colorStyles.lightPurple.color,
+    // Not counted statuses
+    'asset_agentless': theme.palette.grey['500'],
+    'agent_inactive': theme.palette.grey['500'],
+
+    // -- ExecutionStatus --
+    'partial': colorStyles.orange.color,
+    'executing': colorStyles.blue.color,
+    'pending': theme.palette.grey['500'],
+    'queuing': colorStyles.yellow.color,
+    'draft': theme.palette.grey['500'],
+
+    // -- Expectation display labels --
     // Success
     'prevented': theme.palette.success.main,
     'detected': theme.palette.success.main,
     'not vulnerable': theme.palette.success.main,
     'successful': theme.palette.success.main,
-    'finished': theme.palette.grey['500'],
-    'success': theme.palette.success.main,
     '100': theme.palette.success.main,
     'ok': theme.palette.success.main,
-
     // Partial
-    'partial': colorStyles.orange.color,
     'partially prevented': theme.palette.warning.main,
     'partially detected': theme.palette.warning.main,
-    'update': colorStyles.orange.color,
-    'paused': theme.palette.warning.main,
-    'maybe_prevented': colorStyles.purple.color,
-    'maybe_partial_prevented': colorStyles.lightPurple.color,
-
-    // Pending
-    'pending': theme.palette.grey['500'],
-    'scheduled': colorStyles.blue.color,
-    'queuing': colorStyles.yellow.color,
-    'executing': colorStyles.blue.color,
-    'draft': theme.palette.grey['500'],
-    'on-going': theme.palette.success.main,
-    'running': theme.palette.success.main,
-    'not_planned': theme.palette.grey['500'],
-
     // Failed
     'failed': theme.palette.error.main,
     'undetected': theme.palette.error.main,
     'unprevented': theme.palette.error.main,
     'vulnerable': theme.palette.error.main,
     '0': theme.palette.error.main,
-    'replace': theme.palette.error.main,
+
+    // -- Simulation statuses --
+    'running': theme.palette.success.main,
+    'on-going': theme.palette.success.main,
+    'scheduled': colorStyles.blue.color,
+    'paused': theme.palette.warning.main,
     'canceled': colorStyles.canceled.color,
-    'error': theme.palette.error.main,
-    'command_not_found': theme.palette.error.main,
-    'command_cannot_be_executed': theme.palette.error.main,
-    'invalid_usage': theme.palette.error.main,
-    'timeout': theme.palette.error.main,
-    'interrupted': theme.palette.error.main,
+    'finished': theme.palette.grey['500'],
+    'not_planned': theme.palette.grey['500'],
 
-    // Success trace statuses
-    'warning': theme.palette.success.main,
-    'access_denied': theme.palette.success.main,
-
-    // Not counted trace statuses
-    'asset_agentless': theme.palette.grey['500'],
-    'agent_inactive': theme.palette.grey['500'],
-
+    // -- Misc --
+    'update': colorStyles.orange.color,
+    'replace': theme.palette.error.main,
   };
 
   return colorMap[normalized] ?? theme.palette.error.main;
