@@ -35,9 +35,9 @@ public class V4_71__Add_index_connector_instance extends BaseJavaMigration {
 
       statement.execute(
           """
-                CREATE INDEX IF NOT EXISTS idx_cil_instance_id
-                ON connector_instance_logs (connector_instance_id);
-                """);
+          CREATE INDEX IF NOT EXISTS idx_cil_instance_id
+          ON connector_instance_logs (connector_instance_id);
+          """);
     }
   }
 }
