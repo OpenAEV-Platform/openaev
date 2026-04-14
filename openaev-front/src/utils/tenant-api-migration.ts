@@ -13,8 +13,6 @@ const TENANT_MIGRATION_TODO: string[] = [
   // PR4 — Teams & Players
   '/api/players',
   // PR9 — Reference data & Misc
-  '/api/attack_patterns',
-  '/api/kill_chain_phases',
   '/api/domains',
   '/api/mappers',
   '/api/tag-rules',
