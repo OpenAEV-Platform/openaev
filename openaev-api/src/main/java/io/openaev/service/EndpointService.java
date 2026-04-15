@@ -19,6 +19,7 @@ import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toList;
 
 import io.openaev.config.OpenAEVConfig;
+import io.openaev.database.specification.AssetAgentJobSpecification;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.executors.model.AgentRegisterInput;
@@ -26,6 +27,7 @@ import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.rest.asset.endpoint.form.EndpointOutput;
 import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.mapper.EndpointMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -105,6 +107,7 @@ public class EndpointService {
   private final TagRepository tagRepository;
   private final AgentService agentService;
   private final AssetService assetService;
+  private final InjectStatusService injectStatusService;
 
   // -- CRUD --
   public Endpoint createEndpoint(@NotNull final Endpoint endpoint) {
@@ -464,6 +467,22 @@ public class EndpointService {
       assetAgentJobRepository.save(assetAgentJob);
     }
     return endpoint;
+  }
+
+  public List<AssetAgentJob> getEndpointJobs(final EndpointRegisterInput input) {
+    List<AssetAgentJob> jobs =
+        this.assetAgentJobRepository.findAll(
+            AssetAgentJobSpecification.forEndpoint(
+                input.getExternalReference(),
+                input.isService()
+                    ? Agent.DEPLOYMENT_MODE.service.name()
+                    : Agent.DEPLOYMENT_MODE.session.name(),
+                input.isElevated()
+                    ? Agent.PRIVILEGE.admin.name()
+                    : Agent.PRIVILEGE.standard.name(),
+                input.getExecutedByUser()));
+    injectStatusService.addJobRetrievalTraces(jobs);
+    return jobs;
   }
 
   private void addSourceTagToEndpoint(Endpoint endpoint, AgentRegisterInput input) {
