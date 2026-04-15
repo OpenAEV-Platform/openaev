@@ -21,14 +21,15 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
+@RequestMapping({DashboardApi.DASHBOARD_URI, DashboardApi.TENANT_DASHBOARD_URI})
 public class DashboardApi extends RestBehavior {
 
   public static final String DASHBOARD_URI = "/api/dashboards";
-  private static final String TENANT_DASHBOARD_URI = TENANT_PREFIX + "/dashboards";
+  public static final String TENANT_DASHBOARD_URI = TENANT_PREFIX + "/dashboards";
 
   private final DashboardService dashboardService;
 
-  @PostMapping({DASHBOARD_URI + "/count/{widgetId}", TENANT_DASHBOARD_URI + "/count/{widgetId}"})
+  @PostMapping("/count/{widgetId}")
   @AccessControl(
       resourceId = "#widgetId",
       actionPerformed = Action.READ,
@@ -39,10 +40,7 @@ public class DashboardApi extends RestBehavior {
     return this.dashboardService.count(widgetId, parameters);
   }
 
-  @PostMapping({
-    DASHBOARD_URI + "/average/{widgetId}",
-    TENANT_DASHBOARD_URI + "/average/{widgetId}"
-  })
+  @PostMapping("/average/{widgetId}")
   @AccessControl(
       resourceId = "#widgetId",
       actionPerformed = Action.READ,
@@ -53,7 +51,7 @@ public class DashboardApi extends RestBehavior {
     return this.dashboardService.average(widgetId, parameters);
   }
 
-  @PostMapping({DASHBOARD_URI + "/series/{widgetId}", TENANT_DASHBOARD_URI + "/series/{widgetId}"})
+  @PostMapping("/series/{widgetId}")
   @AccessControl(
       resourceId = "#widgetId",
       actionPerformed = Action.READ,
@@ -64,10 +62,7 @@ public class DashboardApi extends RestBehavior {
     return this.dashboardService.series(widgetId, parameters);
   }
 
-  @PostMapping({
-    DASHBOARD_URI + "/entities/{widgetId}",
-    TENANT_DASHBOARD_URI + "/entities/{widgetId}"
-  })
+  @PostMapping("/entities/{widgetId}")
   @AccessControl(
       resourceId = "#widgetId",
       actionPerformed = Action.READ,
@@ -81,10 +76,7 @@ public class DashboardApi extends RestBehavior {
         input == null ? null : input.getPagination());
   }
 
-  @PostMapping({
-    DASHBOARD_URI + "/entities-runtime/{widgetId}",
-    TENANT_DASHBOARD_URI + "/entities-runtime/{widgetId}"
-  })
+  @PostMapping("/entities-runtime/{widgetId}")
   @AccessControl(
       resourceId = "#widgetId",
       actionPerformed = Action.READ,
@@ -94,10 +86,7 @@ public class DashboardApi extends RestBehavior {
     return this.dashboardService.widgetToEntitiesRuntime(widgetId, input);
   }
 
-  @PostMapping({
-    DASHBOARD_URI + "/attack-paths/{widgetId}",
-    TENANT_DASHBOARD_URI + "/attack-paths/{widgetId}"
-  })
+  @PostMapping("/attack-paths/{widgetId}")
   @AccessControl(
       resourceId = "#widgetId",
       actionPerformed = Action.READ,
@@ -109,7 +98,7 @@ public class DashboardApi extends RestBehavior {
     return this.dashboardService.attackPaths(widgetId, parameters);
   }
 
-  @GetMapping({DASHBOARD_URI + "/search/{search}", TENANT_DASHBOARD_URI + "/search/{search}"})
+  @GetMapping("/search/{search}")
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DASHBOARD)
   public List<EsSearch> search(@PathVariable final String search) {
     return this.dashboardService.search(search);
