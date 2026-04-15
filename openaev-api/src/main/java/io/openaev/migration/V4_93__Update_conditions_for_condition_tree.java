@@ -104,55 +104,6 @@ public class V4_93__Update_conditions_for_condition_tree extends BaseJavaMigrati
           "CREATE INDEX IF NOT EXISTS idx_conditions_steps_step_id ON conditions_steps(step_id);");
       stmt.execute(
           "CREATE INDEX IF NOT EXISTS idx_conditions_steps_condition_id ON conditions_steps(condition_id);");
-
-      stmt.execute(
-          """
-          DO $$
-          BEGIN
-            IF EXISTS (
-              SELECT 1 FROM information_schema.table_constraints
-              WHERE table_name = 'conditions_steps'
-                AND constraint_type = 'PRIMARY KEY'
-                AND constraint_name = 'conditions_steps_pkey'
-            ) THEN
-              ALTER TABLE conditions_steps DROP CONSTRAINT conditions_steps_pkey;
-            END IF;
-          END $$;
-          """);
-
-      stmt.execute("ALTER TABLE conditions_steps ALTER COLUMN condition_step_id SET NOT NULL;");
-
-      stmt.execute(
-          """
-          DO $$
-          BEGIN
-            IF NOT EXISTS (
-              SELECT 1 FROM information_schema.table_constraints
-              WHERE table_name = 'conditions_steps'
-                AND constraint_type = 'PRIMARY KEY'
-                AND constraint_name = 'conditions_steps_pkey'
-            ) THEN
-              ALTER TABLE conditions_steps
-                ADD CONSTRAINT conditions_steps_pkey PRIMARY KEY (condition_step_id);
-            END IF;
-          END $$;
-          """);
-
-      stmt.execute(
-          """
-          DO $$
-          BEGIN
-            IF NOT EXISTS (
-              SELECT 1 FROM information_schema.table_constraints
-              WHERE table_name = 'conditions_steps'
-                AND constraint_type = 'UNIQUE'
-                AND constraint_name = 'uk_conditions_steps_condition_step'
-            ) THEN
-              ALTER TABLE conditions_steps
-                ADD CONSTRAINT uk_conditions_steps_condition_step UNIQUE (condition_id, step_id);
-            END IF;
-          END $$;
-          """);
     }
   }
 }
