@@ -217,10 +217,7 @@ public class AuditLogAspect {
         && result instanceof Collection<?> collection
         && !collection.isEmpty()) {
       List<Base> childEntities =
-          collection.stream()
-              .filter(Base.class::isInstance)
-              .map(Base.class::cast)
-              .toList();
+          collection.stream().filter(Base.class::isInstance).map(Base.class::cast).toList();
       if (!childEntities.isEmpty()) {
         Class<?> expectedParentClass = ENTITY_CLASS_MAP.get(resourceType);
         // Verify these are truly child entities, not the parent type itself
@@ -230,7 +227,9 @@ public class AuditLogAspect {
               REVERSE_ENTITY_CLASS_MAP.get(childEntities.getFirst().getClass());
           // Build per-child input nodes from the request body array (if available)
           List<JsonNode> perChildInputs = List.of();
-          if (inputNode != null && inputNode.isArray() && inputNode.size() == childEntities.size()) {
+          if (inputNode != null
+              && inputNode.isArray()
+              && inputNode.size() == childEntities.size()) {
             perChildInputs = new java.util.ArrayList<>();
             for (JsonNode element : inputNode) {
               perChildInputs.add(stripInsignificantValues(element));
@@ -494,7 +493,8 @@ public class AuditLogAspect {
       }
       return objectMapper.valueToTree(entity);
     } catch (Exception e) {
-      log.debug("[AUDIT] Failed to snapshot entity {}/{}: {}", resourceType, entityId, e.getMessage());
+      log.debug(
+          "[AUDIT] Failed to snapshot entity {}/{}: {}", resourceType, entityId, e.getMessage());
       return null;
     }
   }
@@ -526,8 +526,13 @@ public class AuditLogAspect {
     // Try common name fields in order of precedence
     for (String field :
         new String[] {
-          "scenario_name", "exercise_name", "inject_title", "user_firstname", "name",
-          "role_name", "group_name"
+          "scenario_name",
+          "exercise_name",
+          "inject_title",
+          "user_firstname",
+          "name",
+          "role_name",
+          "group_name"
         }) {
       JsonNode node = snapshot.get(field);
       if (node != null && node.isTextual()) {
@@ -810,22 +815,18 @@ public class AuditLogAspect {
           Map.entry(ResourceType.CHALLENGE, Class.forName("io.openaev.database.model.Challenge")),
           Map.entry(ResourceType.PAYLOAD, Class.forName("io.openaev.database.model.Payload")),
           Map.entry(
-              ResourceType.ASSET_GROUP,
-              Class.forName("io.openaev.database.model.AssetGroup")),
+              ResourceType.ASSET_GROUP, Class.forName("io.openaev.database.model.AssetGroup")),
           Map.entry(ResourceType.OBJECTIVE, Class.forName("io.openaev.database.model.Objective")),
           Map.entry(
-              ResourceType.ORGANIZATION,
-              Class.forName("io.openaev.database.model.Organization")),
+              ResourceType.ORGANIZATION, Class.forName("io.openaev.database.model.Organization")),
           Map.entry(
               ResourceType.KILL_CHAIN_PHASE,
               Class.forName("io.openaev.database.model.KillChainPhase")),
           Map.entry(
               ResourceType.ATTACK_PATTERN,
               Class.forName("io.openaev.database.model.AttackPattern")),
-          Map.entry(
-              ResourceType.USER_GROUP, Class.forName("io.openaev.database.model.Group")),
-          Map.entry(
-              ResourceType.GROUP_ROLE, Class.forName("io.openaev.database.model.Role")));
+          Map.entry(ResourceType.USER_GROUP, Class.forName("io.openaev.database.model.Group")),
+          Map.entry(ResourceType.GROUP_ROLE, Class.forName("io.openaev.database.model.Role")));
     } catch (ClassNotFoundException e) {
       log.error("[AUDIT] Failed to build entity class map: {}", e.getMessage(), e);
       return Map.of();
@@ -839,4 +840,3 @@ public class AuditLogAspect {
     return Map.copyOf(reverse);
   }
 }
-

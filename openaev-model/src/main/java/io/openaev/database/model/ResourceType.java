@@ -44,6 +44,7 @@ public enum ResourceType {
   CATALOG,
   CONNECTOR_INSTANCE_LOG,
   TENANT,
+  AUDIT_LOG,
   PLATFORM_ROLE,
   PLATFORM_GROUP,
   // Special resource types

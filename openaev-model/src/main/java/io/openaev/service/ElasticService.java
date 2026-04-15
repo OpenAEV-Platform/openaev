@@ -46,6 +46,9 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.logging.log4j.util.Strings;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 
 @Slf4j
 public class ElasticService implements EngineService {
@@ -1011,6 +1014,43 @@ public class ElasticService implements EngineService {
     return List.of();
   }
 
+  public <T> Page<T> paginatedSearch(
+      String indexName,
+      String search,
+      Filters.FilterGroup filter,
+      int page,
+      int size,
+      Class<T> clazz) {
+    Query query = buildQuery(null, search, filter, new HashMap<>(), new HashMap<>());
+    String index = engineConfig.getIndexPrefix() + "_" + indexName;
+    int from = page * size;
+    try {
+      SearchResponse<T> response =
+          elasticClient.search(
+              b ->
+                  b.index(index)
+                      .from(from)
+                      .size(size)
+                      .query(query)
+                      .sort(
+                          SortOptions.of(
+                              s ->
+                                  s.field(
+                                      FieldSort.of(f -> f.field("_score").order(SortOrder.Desc))))),
+              clazz);
+      long totalHits = response.hits().total() != null ? response.hits().total().value() : 0L;
+      List<T> results =
+          response.hits().hits().stream()
+              .filter(hit -> hit.source() != null)
+              .map(Hit::source)
+              .toList();
+      return new PageImpl<>(results, PageRequest.of(page, size), totalHits);
+    } catch (IOException e) {
+      log.error(String.format("query exception: %s", e.getMessage()), e);
+    }
+    return new PageImpl<>(List.of(), PageRequest.of(page, size), 0);
+  }
+
   @Override
   public String getEngineVersion() {
     try {
@@ -1025,6 +1065,17 @@ public class ElasticService implements EngineService {
       log.warn("Unable to retrieve engine version", e);
     }
     return null;
+  }
+
+  @Override
+  public void indexDocument(String index, String id, Object document) throws IOException {
+    elasticClient.index(
+        new IndexRequest.Builder<>().index(index).id(id).document(document).build());
+  }
+
+  @Override
+  public ObjectMapper getObjectMapper() {
+    return driver.getObjectMapper();
   }
 
   // endregion
