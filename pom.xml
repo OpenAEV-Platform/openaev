@@ -55,13 +55,13 @@
                 <enabled>true</enabled>
             </snapshots>
         </repository>
-        <!-- OpenSAML 4.3.2 bundled locally — Shibboleth Maven repo (build.shibboleth.net) is
-             no longer publicly accessible (403 Forbidden since early 2025).
-             JARs were copied from the local Maven cache into this project-local repo. -->
+        <!-- OpenSAML 4.3.2 — Shibboleth Maven repo (build.shibboleth.net) is no longer
+             publicly accessible (403 Forbidden since early 2025).
+             JBoss public Nexus mirrors the required OpenSAML artifacts. -->
         <repository>
-            <id>local-opensaml</id>
-            <name>Local OpenSAML Repository</name>
-            <url>file://${maven.multiModuleProjectDirectory}/lib/opensaml-repo</url>
+            <id>jboss-public</id>
+            <name>JBoss Public Repository</name>
+            <url>https://repository.jboss.org/nexus/content/groups/public/</url>
         </repository>
     </repositories>
 
