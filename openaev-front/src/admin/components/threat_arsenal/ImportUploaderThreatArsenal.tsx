@@ -6,7 +6,7 @@ import { makeStyles } from 'tss-react/mui';
 import { importPayload } from '../../../actions/payloads/payload-actions';
 import Dialog from '../../../components/common/dialog/Dialog';
 import { useFormatter } from '../../../components/i18n';
-import { type ThreatArsenalAction} from '../../../utils/api-types';
+import { type ThreatArsenalAction } from '../../../utils/api-types';
 import { useAppDispatch } from '../../../utils/hooks';
 
 const ACCEPTED_MIME_TYPES = new Set(['application/zip', 'application/x-zip-compressed']);
@@ -168,15 +168,14 @@ const ImportUploaderThreatArsenal: FunctionComponent<Props> = ({ onImport }) => 
     }
     setUploading(true);
 
-    const importedResults: ThreatArsenalAction[] = [];
-    for (const file of selectedFiles) {
+    const importPromises = selectedFiles.map(async (file) => {
       const formData = new FormData();
       formData.append('file', file);
       const result = await dispatch(importPayload(formData)) as { data?: ThreatArsenalAction[] };
-      if (result?.data) {
-        importedResults.push(...result.data);
-      }
-    }
+      return result?.data ?? [];
+    });
+
+    const importedResults = (await Promise.all(importPromises)).flat();
 
     if (importedResults.length > 0 && onImport) {
       onImport(importedResults);

@@ -3,7 +3,6 @@
 import type { ContractVariable } from '../actions/contract/contract';
 import type { ExpectationInput } from '../admin/components/common/injects/expectations/Expectation';
 import type * as ApiTypes from './api-types';
-import type { Domain } from './api-types';
 
 type ThreatArsenalActionCreateInputOmit
   = 'action_type'
