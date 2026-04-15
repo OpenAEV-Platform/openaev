@@ -5377,6 +5377,25 @@ export interface PageInjectTestStatusOutput {
   totalPages?: number;
 }
 
+export interface PageInjectorContractBaseOutput {
+  content?: InjectorContractBaseOutput[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
 export interface PageKillChainPhase {
   content?: KillChainPhase[];
   empty?: boolean;
@@ -6006,96 +6025,6 @@ export interface PayloadOutput {
   payload_updated_at: string;
 }
 
-export interface PayloadOutput {
-  /** Command content for command payloads */
-  command_content?: string;
-  /** Executor used for command payloads */
-  command_executor?: string;
-  /** Hostname resolved by DNS resolution payloads */
-  dns_resolution_hostname?: string;
-  /** Executable file path for executable payloads */
-  executable_file?: string;
-  /** Dropped file path for file-drop payloads */
-  file_drop_file?: string;
-  /** Payload input arguments definition */
-  payload_arguments?: PayloadArgument[];
-  /** MITRE ATT&CK patterns associated with the payload */
-  payload_attack_patterns?: string[];
-  /** Cleanup command executed after payload run */
-  payload_cleanup_command?: string;
-  /** Executor used for cleanup operations */
-  payload_cleanup_executor?: string;
-  /** Collector type associated with this payload */
-  payload_collector_type?: string;
-  /**
-   * Payload creation timestamp
-   * @format date-time
-   */
-  payload_created_at: string;
-  /** Payload description */
-  payload_description?: string;
-  /** Detection and remediation mappings for this payload */
-  payload_detection_remediations?: DetectionRemediation[];
-  /** Domains related to the payload */
-  payload_domains?: string[];
-  /** CPU architecture targeted for payload execution */
-  payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
-  /** Expected output types for payload execution */
-  payload_expectations?: (
-    | "TEXT"
-    | "DOCUMENT"
-    | "ARTICLE"
-    | "CHALLENGE"
-    | "MANUAL"
-    | "PREVENTION"
-    | "DETECTION"
-    | "VULNERABILITY"
-  )[];
-  /** External reference identifier */
-  payload_external_id?: string;
-  /**
-   * Payload unique identifier
-   * @minLength 1
-   */
-  payload_id: string;
-  /**
-   * Payload display name
-   * @minLength 1
-   */
-  payload_name: string;
-  /**
-   * Parsers used to process payload outputs
-   * @uniqueItems true
-   */
-  payload_output_parsers?: OutputParser[];
-  /** Supported endpoint platforms for this payload */
-  payload_platforms?: (
-    | "Linux"
-    | "Windows"
-    | "MacOS"
-    | "Container"
-    | "Service"
-    | "Generic"
-    | "Internal"
-    | "Unknown"
-  )[];
-  /** Prerequisites required before payload execution */
-  payload_prerequisites?: PayloadPrerequisite[];
-  /** Payload source origin */
-  payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
-  /** Current payload lifecycle status */
-  payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
-  /** Tags attached to the payload */
-  payload_tags?: string[];
-  /** Payload implementation type */
-  payload_type?: string;
-  /**
-   * Payload last update timestamp
-   * @format date-time
-   */
-  payload_updated_at: string;
-}
-
 export interface PayloadPrerequisite {
   check_command?: string;
   description?: string | null;
@@ -6104,8 +6033,6 @@ export interface PayloadPrerequisite {
   /** @minLength 1 */
   get_command: string;
 }
-
-export type PayloadResult = any;
 
 export interface PayloadSimple {
   payload_collector_type?: string;
@@ -7666,7 +7593,8 @@ export interface TargetSimple {
     | "ASSETS_GROUPS"
     | "PLAYERS"
     | "TEAMS"
-    | "ENDPOINTS";
+    | "ENDPOINTS"
+    | "INJECTOR_CONTRACTS";
 }
 
 export interface Team {
