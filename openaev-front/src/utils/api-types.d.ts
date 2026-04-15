@@ -1317,6 +1317,8 @@ export interface ConfigurationInput {
 export interface ConnectorIds {
   catalog_connector_id?: string;
   connector_instance_id?: string;
+  /** Whether the connector entity is registered in the database. False when a connector instance has been deployed but the connector has not yet started. */
+  connector_registered?: boolean;
 }
 
 export interface ConnectorInstanceConfiguration {
@@ -7063,8 +7065,6 @@ export interface SettingsPlatformWhitemarkUpdateInput {
 }
 
 export interface SettingsUpdateInput {
-  /** Default home dashboard of the platform */
-  platform_home_dashboard?: string;
   /**
    * Language of the platform
    * @minLength 1
@@ -7075,10 +7075,6 @@ export interface SettingsUpdateInput {
    * @minLength 1
    */
   platform_name: string;
-  /** Default scenario dashboard of the platform */
-  platform_scenario_dashboard?: string;
-  /** Default simulation dashboard of the platform */
-  platform_simulation_dashboard?: string;
   /**
    * Theme of the platform
    * @minLength 1
@@ -7585,6 +7581,18 @@ export interface TenantOutput {
   tenant_id: string;
   /** @minLength 1 */
   tenant_name: string;
+}
+
+export interface TenantSettingsOutput {
+  platform_home_dashboard?: string;
+  platform_scenario_dashboard?: string;
+  platform_simulation_dashboard?: string;
+}
+
+export interface TenantSettingsUpdateInput {
+  platform_home_dashboard?: string;
+  platform_scenario_dashboard?: string;
+  platform_simulation_dashboard?: string;
 }
 
 export interface ThemeInput {
