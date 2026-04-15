@@ -1073,6 +1073,11 @@ public class ElasticService implements EngineService {
         new IndexRequest.Builder<>().index(index).id(id).document(document).build());
   }
 
+  @Override
+  public ObjectMapper getObjectMapper() {
+    return driver.getObjectMapper();
+  }
+
   // endregion
 
   private String toElasticField(@NotBlank final String field) {

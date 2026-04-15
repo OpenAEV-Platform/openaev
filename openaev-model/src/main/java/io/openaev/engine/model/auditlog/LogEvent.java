@@ -1,5 +1,7 @@
 package io.openaev.engine.model.auditlog;
 
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.annotation.Indexable;
 import java.time.Instant;
@@ -19,8 +21,9 @@ import lombok.Setter;
  */
 @Getter
 @Setter
+@JsonInclude(JsonInclude.Include.ALWAYS)
 @Indexable(index = "audit-log", label = "Audit Log")
-public class EsAuditLog {
+public class LogEvent {
 
   // -- Document identity --
 
@@ -91,6 +94,9 @@ public class EsAuditLog {
   /** User metadata: request-level information about the actor. */
   @Getter
   @Setter
+  @JsonAutoDetect(
+      getterVisibility = JsonAutoDetect.Visibility.NONE,
+      fieldVisibility = JsonAutoDetect.Visibility.ANY)
   public static class UserMetadata {
 
     /** Denormalized email address of the actor. */

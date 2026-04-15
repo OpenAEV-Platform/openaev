@@ -1168,6 +1168,11 @@ public class OpenSearchService implements EngineService {
         new IndexRequest.Builder<>().index(index).id(id).document(document).build());
   }
 
+  @Override
+  public ObjectMapper getObjectMapper() {
+    return driver.getObjectMapper();
+  }
+
   // endregion
 
   /**
