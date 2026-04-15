@@ -60,12 +60,6 @@
             <name>JBoss Public Repository</name>
             <url>https://repository.jboss.org/nexus/content/groups/public/</url>
         </repository>
-        <repository>
-            <id>jboss-public</id>
-            <url>https://repository.jboss.org/nexus/content/groups/public/</url>
-            <releases><enabled>true</enabled></releases>
-            <snapshots><enabled>false</enabled></snapshots>
-        </repository>
     </repositories>
 
     <dependencies>
