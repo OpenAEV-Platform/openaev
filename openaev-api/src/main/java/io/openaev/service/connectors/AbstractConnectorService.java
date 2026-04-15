@@ -175,8 +175,9 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
         connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValue(
             this.connectorType.getIdKeyName(), connectorId);
     if (relatedIds != null) {
+      boolean registered = getConnectorById(connectorId) != null;
       return catalogConnectorMapper.toConnectorIds(
-          relatedIds.getCatalogConnectorId(), relatedIds.getConnectorInstanceId());
+          relatedIds.getCatalogConnectorId(), relatedIds.getConnectorInstanceId(), registered);
     }
 
     // Connector already deployed without catalog, we will try to search matching catalog comparing
@@ -185,10 +186,10 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
     CatalogConnector catalogConnector =
         catalogConnectorService.findBySlug(connector.getType()).orElse(null);
     if (catalogConnector != null) {
-      return catalogConnectorMapper.toConnectorIds(catalogConnector.getId(), null);
+      return catalogConnectorMapper.toConnectorIds(catalogConnector.getId(), null, true);
     }
 
     // If nothing match this collector is manually deployed
-    return catalogConnectorMapper.toConnectorIds(null, null);
+    return catalogConnectorMapper.toConnectorIds(null, null, true);
   }
 }
