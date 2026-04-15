@@ -18,6 +18,7 @@ const TENANT_MIGRATION_TODO: string[] = [
   '/api/fulltextsearch',
   '/api/users',
   '/api/variables',
+  '/api/xtmhub',
 ];
 
 export default TENANT_MIGRATION_TODO;
