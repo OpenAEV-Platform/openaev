@@ -13,6 +13,7 @@ import io.openaev.service.queue.Queueable;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
 import lombok.RequiredArgsConstructor;
@@ -151,6 +152,73 @@ public class RabbitmqService {
       throws IOException, TimeoutException {
     return new BatchQueueService<>(
         clazz, queueExecution, rabbitmqConfig.getPrefix(), mapper, queueConfig, rabbitmqDriver);
+  }
+
+  /**
+   * Declares a set of tenant-scoped RabbitMQ queues (exchange + queue + binding) for each provided
+   * queue configuration.
+   *
+   * @param tenantId the tenant ID used to namespace the queues
+   * @param queueConfigs the queue configurations to declare
+   */
+  public void declareQueuesForTenant(String tenantId, List<QueueConfig> queueConfigs)
+      throws IOException, TimeoutException {
+    if (queueConfigs == null || queueConfigs.isEmpty()) {
+      return;
+    }
+
+    String tenantPrefix = rabbitmqConfig.getPrefix() + "-" + tenantId;
+    Map<String, Object> queueOptions = new HashMap<>();
+    queueOptions.put("x-queue-type", rabbitmqConfig.getQueueType());
+
+    try (Connection connection = connectionFactory.newConnection();
+        Channel channel = connection.createChannel()) {
+      for (QueueConfig config : queueConfigs) {
+        String queueName = tenantPrefix + "_execution_" + config.getQueueName();
+        String exchangeName = tenantPrefix + "_amqp." + config.getQueueName() + ".exchange";
+        String routingKey = tenantPrefix + "_push_routing_" + config.getQueueName();
+
+        channel.exchangeDeclare(exchangeName, "direct", true);
+        channel.queueDeclare(queueName, true, false, false, queueOptions);
+        channel.queueBind(queueName, exchangeName, routingKey);
+        log.debug(
+            "Declared queue '{}' with exchange '{}' for tenant '{}'",
+            queueName,
+            exchangeName,
+            tenantId);
+      }
+    }
+  }
+
+  /**
+   * Deletes all tenant-scoped queues and exchanges for each provided queue configuration.
+   *
+   * @param tenantId the tenant ID whose queues should be deleted
+   * @param queueConfigs the queue configurations to delete
+   */
+  public void deleteQueuesForTenant(String tenantId, List<QueueConfig> queueConfigs)
+      throws IOException, TimeoutException {
+    if (queueConfigs == null || queueConfigs.isEmpty()) {
+      return;
+    }
+
+    String tenantPrefix = rabbitmqConfig.getPrefix() + "-" + tenantId;
+
+    try (Connection connection = connectionFactory.newConnection();
+        Channel channel = connection.createChannel()) {
+      for (QueueConfig config : queueConfigs) {
+        String queueName = tenantPrefix + "_execution_" + config.getQueueName();
+        String exchangeName = tenantPrefix + "_amqp." + config.getQueueName() + ".exchange";
+
+        channel.queueDelete(queueName);
+        channel.exchangeDelete(exchangeName);
+        log.debug(
+            "Deleted queue '{}' and exchange '{}' for tenant '{}'",
+            queueName,
+            exchangeName,
+            tenantId);
+      }
+    }
   }
 
   /**
