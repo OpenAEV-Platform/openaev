@@ -157,42 +157,29 @@ public class InjectsExecutionJob implements Job {
 
     for (Inject inject : pendingInjects) {
       InjectStatus status = inject.getStatus().orElseThrow(ElementNotFoundException::new);
+      // Find agents that already have a COMPLETE trace
+      java.util.Set<String> completedAgentIds =
+          status.getTraces().stream()
+              .filter(t -> ExecutionTraceAction.COMPLETE.equals(t.getAction()))
+              .filter(t -> t.getAgent() != null)
+              .map(t -> t.getAgent().getId())
+              .collect(Collectors.toSet());
 
-      if (status.getTraces() == null
-          || status.getTraces().isEmpty()
-          || !injectStatusService.isAllInjectAgentsExecuted(inject)) {
-        status.setName(ExecutionStatus.ERROR);
-        status.addWarningTrace(
-            "Execution delay detected: Inject exceeded the "
-                + this.injectExecutionThreshold
-                + " minutes threshold.",
-            ExecutionTraceAction.EXECUTION);
-        injectStatusService.save(status);
-      } else {
-        // Find agents that already have a COMPLETE trace
-        java.util.Set<String> completedAgentIds =
-            status.getTraces().stream()
-                .filter(t -> ExecutionTraceAction.COMPLETE.equals(t.getAction()))
-                .filter(t -> t.getAgent() != null)
-                .map(t -> t.getAgent().getId())
-                .collect(Collectors.toSet());
+      // Get all agents expected to execute this inject
+      List<Agent> allAgents = injectService.getAgentsByInject(inject);
 
-        // Get all agents expected to execute this inject
-        List<Agent> allAgents = injectService.getAgentsByInject(inject);
-
-        // Add a COMPLETE/TIMEOUT trace for each agent that never responded
-        for (Agent agent : allAgents) {
-          if (!completedAgentIds.contains(agent.getId())) {
-            status.addTrace(
-                ExecutionTraceStatus.TIMEOUT,
-                "Agent "
-                    + agent.getExecutedByUser()
-                    + " did not respond within the "
-                    + this.injectExecutionThreshold
-                    + " minutes threshold.",
-                ExecutionTraceAction.COMPLETE,
-                agent);
-          }
+      // Add a COMPLETE/TIMEOUT trace for each agent that never responded
+      for (Agent agent : allAgents) {
+        if (!completedAgentIds.contains(agent.getId())) {
+          status.addTrace(
+              ExecutionTraceStatus.TIMEOUT,
+              "Agent "
+                  + agent.getExecutedByUser()
+                  + " did not respond within the "
+                  + this.injectExecutionThreshold
+                  + " minutes threshold.",
+              ExecutionTraceAction.COMPLETE,
+              agent);
         }
         // Recompute the inject global status from all COMPLETE traces
         injectStatusService.updateFinalInjectStatus(status);

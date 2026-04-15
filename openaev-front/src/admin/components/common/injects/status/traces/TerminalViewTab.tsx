@@ -2,10 +2,10 @@ import { Paper } from '@mui/material';
 import { type FunctionComponent, useMemo } from 'react';
 
 import useFetchInjectExecutionResult from '../../../../../../actions/inject_status/useFetchInjectExecutionResult';
+import Empty from '../../../../../../components/Empty';
+import { useFormatter } from '../../../../../../components/i18n';
 import type { InjectTarget } from '../../../../../../utils/api-types';
 import TerminalView from './TerminalView';
-import Empty from "../../../../../../components/Empty";
-import {useFormatter} from "../../../../../../components/i18n";
 
 interface Props {
   injectId: string;
