@@ -8,7 +8,7 @@ import io.openaev.database.model.Inject;
 import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.rest.helper.queue.BatchQueueService;
+import io.openaev.service.queue.BatchQueueService;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionCallback;
 import jakarta.annotation.Resource;

@@ -38,7 +38,7 @@ import io.openaev.rest.atomic_testing.form.ExecutionTraceOutput;
 import io.openaev.rest.atomic_testing.form.InjectStatusOutput;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exercise.service.ExerciseService;
-import io.openaev.rest.helper.queue.BatchQueueService;
+import io.openaev.service.queue.BatchQueueService;
 import io.openaev.rest.inject.form.*;
 import io.openaev.rest.inject.service.BatchingInjectStatusService;
 import io.openaev.rest.inject.service.InjectStatusService;
