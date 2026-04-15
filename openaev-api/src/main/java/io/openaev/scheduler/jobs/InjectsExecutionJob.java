@@ -173,10 +173,27 @@ public class InjectsExecutionJob implements Job {
       return;
     }
 
-    for (Inject inject : pendingInjects) {
-      InjectStatus status = inject.getStatus().orElseThrow(ElementNotFoundException::new);
-      // Find agents that already have a COMPLETE trace
-      Set<String> completedAgentIds = ExecutionTraceUtils.getCompletedAgentIds(status.getTraces());
+    List<InjectStatus> updatedStatuses =
+        pendingInjects.stream()
+            .map(
+                inject -> {
+                  InjectStatus status =
+                      inject.getStatus().orElseThrow(ElementNotFoundException::new);
+                  if (status.getTraces() == null
+                      || status.getTraces().isEmpty()
+                      || !injectStatusService.isAllInjectAgentsExecuted(inject)) {
+                    status.setName(ExecutionStatus.MAYBE_PREVENTED);
+                    status.addWarningTrace(
+                        "Execution delay detected: Inject exceeded the "
+                            + this.injectExecutionThreshold
+                            + " minutes threshold.",
+                        ExecutionTraceAction.EXECUTION);
+                  } else {
+                    injectStatusService.updateFinalInjectStatus(status);
+                  }
+                  return status;
+                })
+            .collect(Collectors.toList());
 
       // Get all agents expected to execute this inject
       List<Agent> allAgents = injectService.getAgentsByInject(inject);

@@ -11,6 +11,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.queue.BatchQueueService;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionCallback;
+import io.openaev.service.queue.BatchQueueService;
 import jakarta.annotation.Resource;
 import jakarta.transaction.Transactional;
 import java.io.IOException;

@@ -110,6 +110,20 @@ public class PlatformTriggers {
         .build();
   }
 
+  /**
+   * Create a trigger to run the requeue system for the execution traces
+   *
+   * @return the trigger
+   */
+  @Bean
+  public Trigger executionTracesBatchRequeueTrigger() {
+    return newTrigger()
+        .forJob(this.platformJobs.getExecutionTracesBatchRequeueJob())
+        .withIdentity("ExecutionTracesBatchRequeueTrigger")
+        .withSchedule(repeatSecondlyForever(15))
+        .build();
+  }
+
   @Bean
   @Profile("!test")
   @Conditional(InjectChainingCondition.class)

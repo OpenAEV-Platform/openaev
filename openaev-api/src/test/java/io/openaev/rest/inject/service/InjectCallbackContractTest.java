@@ -13,6 +13,7 @@ import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionCallback;
 import io.openaev.rest.inject.form.InjectExecutionInput;
 import io.openaev.service.InjectExpectationService;
+import io.openaev.service.queue.BatchQueueService;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -52,6 +53,7 @@ class InjectCallbackContractTest {
   @Mock private InjectStatusService injectStatusService;
   @Mock private FindingService findingService;
   @Mock private StructuredOutputUtils structuredOutputUtils;
+  @Mock private BatchQueueService<InjectExecutionCallback> injectTraceQueueService;
 
   private InjectExecutionService injectExecutionService;
   private BatchingInjectStatusService batchingService;
@@ -79,6 +81,7 @@ class InjectCallbackContractTest {
     batchingService =
         new BatchingInjectStatusService(
             injectRepository, agentRepository, structuredOutputUtils, injectExecutionService);
+    batchingService.setInjectTraceQueueService(injectTraceQueueService);
   }
 
   private CallbackInvoker syncInvoker() {
@@ -132,11 +135,17 @@ class InjectCallbackContractTest {
   }
 
   // ========================================================================
-  // Contract: both paths reject non-PENDING complete actions
+  // Contract: neither path processes a complete action on a non-PENDING inject.
+  //
+  // Note: the two paths diverge on *how* they reject it — the sync path still
+  // throws DataIntegrityViolationException, while the async batch path silently
+  // queues the callback for later retry (handled by ExecutionTracesBatchRequeueJob).
+  // What remains a true contract is that neither path delegates the execution
+  // processing in that situation.
   // ========================================================================
   @ParameterizedTest(name = "{0}")
   @MethodSource("bothPaths")
-  @DisplayName("should reject complete action for non-PENDING inject")
+  @DisplayName("should not process complete action for non-PENDING inject")
   void shouldRejectNonPendingCompleteAction(String path) {
     Inject inject = createInjectWithStatus("inject-1", ExecutionStatus.EXECUTING);
 
@@ -148,11 +157,11 @@ class InjectCallbackContractTest {
     CallbackInvoker invoker = invokerFor(path);
 
     if ("sync".equals(path)) {
-      // Sync path throws DataIntegrityViolationException (not caught internally)
+      // Sync path still throws DataIntegrityViolationException (not caught internally)
       assertThrows(
           DataIntegrityViolationException.class, () -> invoker.invoke("inject-1", null, input));
     } else {
-      // Async path catches the exception as a general Exception
+      // Async batch path does not throw — it queues the callback for retry instead.
       assertDoesNotThrow(() -> invoker.invoke("inject-1", null, input));
     }
 

@@ -59,8 +59,7 @@ public class PayloadApiImporter extends RestBehavior {
   public ResponseEntity<JsonApiDocument<ResourceObject>> importJson(
       @RequestPart("file") @NotNull MultipartFile file) throws Exception {
     try {
-      ZipJsonService.ImportOutput<Payload> response =
-          zipJsonApi.handleImport(file, "payload_name", IMPORT_OPTIONS, null);
+      ZipJsonService.ImportOutput<Payload> response = zipJsonApi.handleImport(file, "payload_name");
       payloadService.updateInjectorContractsForPayload(response.persistedData());
       return ResponseEntity.ok(response.jsonApiDocument());
     } catch (Exception ex) {
