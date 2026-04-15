@@ -48,6 +48,7 @@ import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.List;
@@ -398,7 +399,12 @@ public class SecurityCoverageService {
     if (scenario.getRecurrence() == null) {
       // schedule first start in 2 minutes
       // so that it is picked up soon after setting it up
-      Instant start = Instant.now().plus(2, ChronoUnit.MINUTES);
+      Instant start =
+          Instant.now()
+              .plus(2, ChronoUnit.MINUTES)
+              .atZone(ZoneId.of("UTC"))
+              .truncatedTo(ChronoUnit.SECONDS)
+              .toInstant();
       if (!StringUtils.isBlank(securityCoverage.getScheduling())) {
         scenario.setRecurrenceStart(start);
         scenario.setRecurrence(securityCoverage.getScheduling());
