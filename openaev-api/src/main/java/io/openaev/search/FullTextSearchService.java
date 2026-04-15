@@ -8,6 +8,7 @@ import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.SpecificationUtils;
+import io.openaev.database.specification.TenantSpecification;
 import io.openaev.service.UserService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.PostConstruct;
@@ -157,7 +158,7 @@ public class FullTextSearchService<T extends Base> {
                     currentUser.isAdminOrBypass(),
                     currentUser.getCapabilities().contains(capaForClass),
                     Grant.GRANT_TYPE.OBSERVER))
-            .and(SpecificationUtils.fromTenant(TenantContext.getCurrentTenant()));
+            .and(TenantSpecification.fromTenant(TenantContext.getCurrentTenant()));
 
     return buildPaginationJPA(repository::findAll, searchPaginationInput, clazzT, specs)
         .map(this::transform);
@@ -292,7 +293,7 @@ public class FullTextSearchService<T extends Base> {
                               .getCapabilities()
                               .contains(capaByClassMap.get(tClass).orElse(Capability.BYPASS)),
                           Grant.GRANT_TYPE.OBSERVER))
-                  .and(SpecificationUtils.fromTenant(TenantContext.getCurrentTenant()));
+                  .and(TenantSpecification.fromTenant(TenantContext.getCurrentTenant()));
           long count = repository.count(specs);
           results.put(tClass, new FullTextSearchCountResult(tClass.getSimpleName(), count));
         });
