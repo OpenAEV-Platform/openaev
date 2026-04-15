@@ -7,7 +7,7 @@ import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.config.SessionHelper;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.User;
-import io.openaev.engine.model.auditlog.EsAuditLog;
+import io.openaev.engine.model.auditlog.LogEvent;
 import io.openaev.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
@@ -26,7 +26,7 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 /**
- * Audit log service — builds structured {@link EsAuditLog} events for CRUD and authentication
+ * Audit log service — builds structured {@link LogEvent} events for CRUD and authentication
  * operations.
  *
  * <p>Events are always written to a dedicated {@code AUDIT_LOG} logger (console output). When
@@ -123,7 +123,7 @@ public class AuditLogService {
         message = eventScope + "s " + entityTypeName + " `" + displayName + "`";
       }
 
-      EsAuditLog doc =
+      LogEvent doc =
           buildBaseAuditLog(
               "mutation", eventStatus, isAdmin ? "administration" : "extended", eventScope);
 
@@ -180,7 +180,7 @@ public class AuditLogService {
         message = eventScope + " from provider `" + provider + "`";
       }
 
-      EsAuditLog doc =
+      LogEvent doc =
           buildBaseAuditLog("authentication", eventStatus, "administration", eventScope);
 
       // -- context_data --
@@ -236,13 +236,13 @@ public class AuditLogService {
   }
 
   /**
-   * Builds the common part of an {@link EsAuditLog} with all envelope and user fields populated.
+   * Builds the common part of an {@link LogEvent} with all envelope and user fields populated.
    */
-  private EsAuditLog buildBaseAuditLog(
+  private LogEvent buildBaseAuditLog(
       String eventType, String eventStatus, String eventAccess, String eventScope) {
     Instant now = Instant.now();
 
-    EsAuditLog doc = new EsAuditLog();
+    LogEvent doc = new LogEvent();
     doc.setId(UUID.randomUUID().toString());
     doc.setCreatedAt(now);
     doc.setTimestamp(now);
@@ -273,8 +273,8 @@ public class AuditLogService {
   }
 
   /** Populates user metadata (email, IP, user agent) on the given audit log document. */
-  private void populateUserMetadata(EsAuditLog doc) {
-    EsAuditLog.UserMetadata meta = new EsAuditLog.UserMetadata();
+  private void populateUserMetadata(LogEvent doc) {
+    LogEvent.UserMetadata meta = new LogEvent.UserMetadata();
     boolean hasData = false;
 
     // User email — denormalized for display
@@ -379,7 +379,7 @@ public class AuditLogService {
   }
 
   /** Serializes the audit log to the console and forwards to the search engine if enabled. */
-  private void emit(EsAuditLog doc) {
+  private void emit(LogEvent doc) {
     try {
       String json = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(doc);
       AUDIT.info("[AUDIT] {}", json);

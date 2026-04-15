@@ -1,14 +1,14 @@
 package io.openaev.rest.audit_log;
 
-import io.openaev.engine.model.auditlog.EsAuditLog;
+import io.openaev.engine.model.auditlog.LogEvent;
 
-/** Maps {@link EsAuditLog} engine documents to {@link AuditLogOutput} DTOs. */
+/** Maps {@link LogEvent} engine documents to {@link AuditLogOutput} DTOs. */
 public class AuditLogMapper {
 
   private AuditLogMapper() {}
 
-  public static AuditLogOutput toOutput(EsAuditLog doc) {
-    EsAuditLog.UserMetadata meta = doc.getUserMetadata();
+  public static AuditLogOutput toOutput(LogEvent doc) {
+    LogEvent.UserMetadata meta = doc.getUserMetadata();
     return new AuditLogOutput(
         doc.getId(),
         doc.getEventType(),

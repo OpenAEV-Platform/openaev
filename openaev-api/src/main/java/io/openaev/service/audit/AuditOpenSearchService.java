@@ -2,7 +2,7 @@ package io.openaev.service.audit;
 
 import io.openaev.config.EngineConfig;
 import io.openaev.engine.EngineService;
-import io.openaev.engine.model.auditlog.EsAuditLog;
+import io.openaev.engine.model.auditlog.LogEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -14,7 +14,7 @@ import org.springframework.stereotype.Service;
  * querying via the {@code /api/audit-logs/search} endpoint.
  *
  * <p>This service is only active when {@code openaev.audit-logs.opensearch.enabled=true}. It
- * receives a fully-populated {@link EsAuditLog} from {@link AuditLogService} and indexes it
+ * receives a fully-populated {@link LogEvent} from {@link AuditLogService} and indexes it
  * asynchronously to avoid blocking the API response.
  */
 @Service
@@ -31,10 +31,10 @@ public class AuditOpenSearchService {
   /**
    * Asynchronously indexes a fully-populated audit log document into the search engine.
    *
-   * @param doc the {@link EsAuditLog} already built by {@link AuditLogService}
+   * @param doc the {@link LogEvent} already built by {@link AuditLogService}
    */
   @Async
-  public void indexAuditEvent(EsAuditLog doc) {
+  public void indexAuditEvent(LogEvent doc) {
     try {
       String index = engineConfig.getIndexPrefix() + "_" + AUDIT_LOG_INDEX;
       engineService.indexDocument(index, doc.getId(), doc);

@@ -20,7 +20,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Indexable(index = "audit-log", label = "Audit Log")
-public class EsAuditLog {
+public class LogEvent {
 
   // -- Document identity --
 
