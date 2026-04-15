@@ -10,7 +10,7 @@
   ",": ",",
   ".": ".",
   "(last 180 days)": "(последние 180 дней)",
-  "[${exercise.name}] Lessons learned questionnaire": "[${exercise.name}] Опросник \"Извлеченные уроки",
+  "[{exerciseName}] Lessons learned questionnaire": "[{exerciseName}] Опросник \"Извлеченные уроки",
   "{executor_name} documentation": "{executor_name} документация",
   "{executor_name} documentation.": "{executor_name} документация.",
   "&": "&",
