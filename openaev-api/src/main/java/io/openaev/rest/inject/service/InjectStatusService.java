@@ -23,6 +23,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -100,6 +101,7 @@ public class InjectStatusService {
     }
     List<InjectStatus> statuses =
         injectStatusRepository.findAllByInjectIdIn(jobsByInjectId.keySet());
+    List<InjectStatus> modified = new ArrayList<>();
     for (InjectStatus status : statuses) {
       for (AssetAgentJob job : jobsByInjectId.getOrDefault(status.getInject().getId(), List.of())) {
         status.addTrace(
@@ -107,9 +109,14 @@ public class InjectStatusService {
             "Implant spawn by the agent",
             ExecutionTraceAction.START,
             job.getAgent());
+        if (!modified.contains(status)) {
+          modified.add(status);
+        }
       }
     }
-    injectStatusRepository.saveAll(statuses);
+    if (!modified.isEmpty()) {
+      injectStatusRepository.saveAll(modified);
+    }
   }
 
   private int getCompleteTrace(Inject inject) {
