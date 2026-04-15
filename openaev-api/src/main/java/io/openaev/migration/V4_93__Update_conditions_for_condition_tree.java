@@ -92,7 +92,7 @@ public class V4_93__Update_conditions_for_condition_tree extends BaseJavaMigrati
             condition_id VARCHAR(255) NOT NULL,
             step_id VARCHAR(255) NOT NULL,
             is_root BOOLEAN NOT NULL DEFAULT FALSE,
-            PRIMARY KEY (condition_id, step_id),
+            PRIMARY KEY (condition_step_id),
             CONSTRAINT fk_conditions_steps_condition
               FOREIGN KEY (condition_id) REFERENCES conditions(condition_id) ON DELETE CASCADE,
             CONSTRAINT fk_conditions_steps_step
