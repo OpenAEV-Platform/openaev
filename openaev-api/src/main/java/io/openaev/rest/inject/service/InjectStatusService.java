@@ -25,6 +25,8 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -86,6 +88,28 @@ public class InjectStatusService {
             startTime);
     injectStatus.addTrace(trace);
     injectStatusRepository.save(injectStatus);
+  }
+
+  public void addJobRetrievalTraces(List<AssetAgentJob> jobs) {
+    Map<String, List<AssetAgentJob>> jobsByInjectId =
+        jobs.stream()
+            .filter(j -> j.getInject() != null && j.getAgent() != null)
+            .collect(Collectors.groupingBy(j -> j.getInject().getId()));
+    if (jobsByInjectId.isEmpty()) {
+      return;
+    }
+    List<InjectStatus> statuses =
+        injectStatusRepository.findAllByInjectIdIn(jobsByInjectId.keySet());
+    for (InjectStatus status : statuses) {
+      for (AssetAgentJob job : jobsByInjectId.getOrDefault(status.getInject().getId(), List.of())) {
+        status.addTrace(
+            ExecutionTraceStatus.INFO,
+            "Implant spawn by the agent",
+            ExecutionTraceAction.START,
+            job.getAgent());
+      }
+    }
+    injectStatusRepository.saveAll(statuses);
   }
 
   private int getCompleteTrace(Inject inject) {
