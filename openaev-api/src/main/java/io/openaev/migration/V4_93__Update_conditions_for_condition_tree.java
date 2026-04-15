@@ -84,10 +84,11 @@ public class V4_93__Update_conditions_for_condition_tree extends BaseJavaMigrati
             FOREIGN KEY (step_from_id) REFERENCES steps(step_id) ON DELETE SET NULL;
           """);
 
-      // --- conditions_steps link table (merged from former V4_79 + V4_80) ---
+      // conditions_steps link table
       stmt.execute(
           """
           CREATE TABLE IF NOT EXISTS conditions_steps (
+              condition_step_id VARCHAR(255) NOT NULL,
             condition_id VARCHAR(255) NOT NULL,
             step_id VARCHAR(255) NOT NULL,
             is_root BOOLEAN NOT NULL DEFAULT FALSE,
@@ -103,17 +104,6 @@ public class V4_93__Update_conditions_for_condition_tree extends BaseJavaMigrati
           "CREATE INDEX IF NOT EXISTS idx_conditions_steps_step_id ON conditions_steps(step_id);");
       stmt.execute(
           "CREATE INDEX IF NOT EXISTS idx_conditions_steps_condition_id ON conditions_steps(condition_id);");
-
-      // Surrogate key refactor on link table.
-      stmt.execute(
-          "ALTER TABLE conditions_steps ADD COLUMN IF NOT EXISTS condition_step_id VARCHAR(255);");
-
-      stmt.execute(
-          """
-          UPDATE conditions_steps
-          SET condition_step_id = CONCAT(condition_id, '_', step_id)
-          WHERE condition_step_id IS NULL;
-          """);
 
       stmt.execute(
           """
