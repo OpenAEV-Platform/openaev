@@ -11,7 +11,6 @@ import {
   type ThreatArsenalActionCreateInput as ApiThreatArsenalActionCreateInput,
 } from '../../../utils/api-types';
 import { type ThreatArsenalActionCreateCustomInput } from '../../../utils/api-types-custom';
-import { useAppDispatch } from '../../../utils/hooks';
 import { type DetectionRemediationForm } from '../payloads/utils/payloadFormToPayloadInput';
 import ThreatArsenalActionForm from './ThreatArsenalActionForm';
 
@@ -43,7 +42,6 @@ const CreateThreatArsenalAction: FunctionComponent<Props> = ({ onCreate }) => {
   const [open, setOpen] = useState(false);
   const { t } = useFormatter();
   const { classes } = useStyles();
-  const dispatch = useAppDispatch();
 
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);

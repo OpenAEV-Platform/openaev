@@ -75,6 +75,10 @@ class ThreatArsenalFormComponent {
     await this.commandsTab.click();
   };
 
+  async switchToGeneralTab() {
+    await this.generalTab.click();
+  };
+
   async selectDomain(domains: string | string[]) {
     const values = Array.isArray(domains) ? domains : [domains];
 
@@ -148,4 +152,3 @@ class ThreatArsenalFormComponent {
 }
 
 export default ThreatArsenalFormComponent;
-

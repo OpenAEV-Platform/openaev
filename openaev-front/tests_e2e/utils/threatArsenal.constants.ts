@@ -46,4 +46,3 @@ export const ArchitectureConfigs = [
     defaultValue: Architectures.ALL,
   },
 ];
-

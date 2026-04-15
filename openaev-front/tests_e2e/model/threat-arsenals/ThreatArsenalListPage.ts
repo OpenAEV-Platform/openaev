@@ -31,4 +31,3 @@ class ThreatArsenalListPage {
 }
 
 export default ThreatArsenalListPage;
-

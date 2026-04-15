@@ -4296,6 +4296,8 @@ export interface InjectorContractFullOutput {
     | "Internal"
     | "Unknown"
   )[];
+  /** Tag IDs */
+  injector_contract_tags?: string[];
   /**
    * Timestamp when the injector contract was last updated
    * @format date-time

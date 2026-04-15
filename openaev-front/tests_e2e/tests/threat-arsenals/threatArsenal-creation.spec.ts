@@ -192,8 +192,9 @@ test.describe('Threat Arsenal form', () => {
     await threatArsenalForm.selectExecutor('PowerShell');
     await threatArsenalForm.commandField.fill('echo test');
 
+    await threatArsenalForm.switchToGeneralTab();
     await threatArsenalForm.save();
-    await expect(page.getByText('The element has been successfully updated')).toBeVisible();
+    await expect(page.getByText('The element has been successfully created')).toBeVisible();
     await expect(threatArsenalList.addButton).toBeVisible();
     await threatArsenalList.searchThreatArsenal(actionName);
     await expect(threatArsenalList.getItem(1)).toContainText(actionName);

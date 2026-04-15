@@ -116,6 +116,15 @@ public class ThreatArsenalService {
         .toList();
   }
 
+  /**
+   * Returns the number of injector contracts per domain, applying the given search filters.
+   *
+   * <p>Translates {@code action_*} filter keys to their {@code injector_contract_*} counterparts
+   * and applies the architecture filter before delegating to {@link InjectorContractService}.
+   *
+   * @param input the search and pagination parameters (only filters are used)
+   * @return a list of domain counts
+   */
   public List<InjectorContractDomainCountOutput> getDomainCounts(SearchPaginationInput input) {
     SearchPaginationInput filtered = handleArchitectureFilter(this.translateSearchInput(input));
     return injectorContractService.getDomainCounts(filtered);
