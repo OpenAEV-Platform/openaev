@@ -10,7 +10,7 @@
   ",": ",",
   ".": ".",
   "(last 180 days)": "(last 180 days)",
-  "[${exercise.name}] Lessons learned questionnaire": "[${exercise.name}] Lessons learned questionnaire",
+  "[{exerciseName}] Lessons learned questionnaire": "[{exerciseName}] Lessons learned questionnaire",
   "{executor_name} documentation": "{executor_name} documentation",
   "{executor_name} documentation.": "{executor_name} documentation.",
   "&": "&",

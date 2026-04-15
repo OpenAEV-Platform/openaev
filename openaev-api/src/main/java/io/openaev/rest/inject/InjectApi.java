@@ -29,6 +29,7 @@ import io.openaev.rest.helper.ValidationErrorBag;
 import io.openaev.rest.helper.queue.executor.BatchExecutionTraceExecutor;
 import io.openaev.rest.inject.form.*;
 import io.openaev.rest.inject.output.InjectOutput;
+import io.openaev.rest.inject.service.BatchingInjectStatusService;
 import io.openaev.rest.inject.service.ExecutableInjectService;
 import io.openaev.rest.inject.service.InjectExecutionService;
 import io.openaev.rest.inject.service.InjectExportService;
@@ -96,6 +97,7 @@ public class InjectApi extends RestBehavior {
   private final UserService userService;
   private final DocumentService documentService;
   private final BatchExecutionTraceExecutor batchExecutionTraceExecutor;
+  private final BatchingInjectStatusService batchingInjectStatusService;
 
   private final InjectMapper injectMapper;
 
@@ -112,12 +114,14 @@ public class InjectApi extends RestBehavior {
   public void init() throws IOException, TimeoutException {
     if (openAEVConfig.getQueueConfig().get("inject-trace") != null) {
       // Initializing the queue for batching the inject execution trace
-      injectTraceQueueService =
-          rabbitmqService.createBatchQueueService(
-              InjectExecutionCallback.class,
-              batchExecutionTraceExecutor::handleInjectExecutionCallbackList,
-              objectMapper,
-              openAEVConfig.getQueueConfig().get("inject-trace"));
+        injectTraceQueueService =
+                rabbitmqService.createBatchQueueService(
+                        InjectExecutionCallback.class,
+                        batchExecutionTraceExecutor::handleInjectExecutionCallbackList,
+                        objectMapper,
+                        openAEVConfig.getQueueConfig().get("inject-trace"));
+      // Share the queue with the batching service so it can requeue delayed callbacks
+      batchingInjectStatusService.setInjectTraceQueueService(injectTraceQueueService);
     }
   }
 

@@ -5,6 +5,7 @@ import static io.openaev.utils.constants.Constants.IMPORTED_OBJECT_NAME_SUFFIX;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -13,17 +14,19 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
+import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
+import io.openaev.database.repository.InjectorContractRepository;
+import io.openaev.database.repository.PayloadRepository;
+import io.openaev.integration.Manager;
+import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
 import io.openaev.jsonapi.JsonApiDocument;
 import io.openaev.jsonapi.Relationship;
 import io.openaev.jsonapi.ResourceIdentifier;
 import io.openaev.jsonapi.ResourceObject;
 import io.openaev.service.ZipJsonService;
 import io.openaev.utils.mockUser.WithMockUser;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,12 +40,15 @@ import org.springframework.transaction.annotation.Transactional;
 class PayloadApiImporterTest extends IntegrationTest {
 
   @Autowired private MockMvc mockMvc;
+  @Autowired private ObjectMapper objectMapper;
   @Autowired private ZipJsonService<Payload> zipJsonService;
+  @Autowired private PayloadRepository payloadRepository;
+  @Autowired private InjectorContractRepository injectorContractRepository;
+  @Autowired private OpenaevInjectorIntegrationFactory openaevInjectorIntegrationFactory;
 
-  @Test
-  @DisplayName("Import a payload returns complete entity")
-  void import_payload_returns_payload_with_relationship() throws Exception {
-    // -- PREPARE --
+  // -- HELPERS --
+
+  private Map<String, Object> buildDefaultPayloadAttributes() {
     Map<String, Object> attributes = new HashMap<>();
     attributes.put("payload_type", "Command");
     attributes.put("command_executor", "psh");
@@ -54,28 +60,93 @@ class PayloadApiImporterTest extends IntegrationTest {
     attributes.put("payload_expectations", new String[] {"VULNERABILITY"});
     attributes.put("payload_status", "VERIFIED");
     attributes.put("payload_execution_arch", "ALL_ARCHITECTURES");
+    return attributes;
+  }
+
+  private MockMultipartFile buildZipFile(JsonApiDocument<ResourceObject> document)
+      throws Exception {
+    byte[] zip = zipJsonService.writeZip(document, emptyMap());
+    return new MockMultipartFile("file", "payload.zip", "application/zip", zip);
+  }
+
+  private String performImport(MockMultipartFile zipFile) throws Exception {
+    return mockMvc
+        .perform(multipart(PAYLOAD_URI + "/import").file(zipFile))
+        .andExpect(status().is2xxSuccessful())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+  }
+
+  // -- TESTS --
+
+  @Test
+  @DisplayName("Import payload should create injector contract")
+  void importPayloadShouldCreateInjectorContract() throws Exception {
+    new Manager(List.of(openaevInjectorIntegrationFactory)).monitorIntegrations();
+
+    // -- PREPARE --
+    String domainId = "02e33774-33ae-4d65-91fd-a9c0e1a37c7b";
+    Map<String, Object> domainAttributes = new HashMap<>();
+    domainAttributes.put("domain_id", domainId);
+    domainAttributes.put("domain_name", "Data Exfiltration");
+    domainAttributes.put("domain_color", "#9933CC");
+    domainAttributes.put("domain_created_at", "2026-02-02T14:55:27.442379Z");
+    domainAttributes.put("domain_updated_at", "2026-02-02T14:55:27.442379Z");
+    ResourceObject domainElement =
+        new ResourceObject(domainId, "domains", domainAttributes, emptyMap());
 
     JsonApiDocument<ResourceObject> document =
         new JsonApiDocument<>(
-            new ResourceObject(null, "command", attributes, emptyMap()), emptyList());
+            new ResourceObject(
+                null,
+                "command",
+                buildDefaultPayloadAttributes(),
+                Map.of(
+                    "payload_domains",
+                    new Relationship(List.of(new ResourceIdentifier(domainId, "domains"))))),
+            List.of(domainElement));
 
-    byte[] zip = zipJsonService.writeZip(document, emptyMap());
-    MockMultipartFile zipFile =
-        new MockMultipartFile("file", "payload.zip", "application/zip", zip);
+    MockMultipartFile zipFile = buildZipFile(document);
 
     // -- EXECUTE --
-    String response =
-        mockMvc
-            .perform(multipart(PAYLOAD_URI + "/import").file(zipFile))
-            .andExpect(status().is2xxSuccessful())
-            .andReturn()
-            .getResponse()
-            .getContentAsString();
+    String response = performImport(zipFile);
 
     // -- ASSERT --
     assertNotNull(response);
 
-    JsonNode json = new ObjectMapper().readTree(response);
+    JsonNode json = objectMapper.readTree(response);
+    String payloadId = json.at("/data/attributes/payload_id").asText();
+    assertNotNull(payloadId);
+
+    Optional<Payload> payloadPersisted = payloadRepository.findById(payloadId);
+    assertFalse(payloadPersisted.isEmpty(), "Payload should have been persisted in the database");
+
+    List<InjectorContract> injectorContracts =
+        injectorContractRepository.findInjectorContractsByPayload(payloadPersisted.get());
+    assertNotNull(injectorContracts);
+    assertEquals(1, injectorContracts.size());
+    assertEquals(payloadId, injectorContracts.getFirst().getPayload().getId());
+  }
+
+  @Test
+  @DisplayName("Import a payload returns complete entity")
+  void importPayloadReturnsPayloadWithRelationship() throws Exception {
+    // -- PREPARE --
+    JsonApiDocument<ResourceObject> document =
+        new JsonApiDocument<>(
+            new ResourceObject(null, "command", buildDefaultPayloadAttributes(), emptyMap()),
+            emptyList());
+
+    MockMultipartFile zipFile = buildZipFile(document);
+
+    // -- EXECUTE --
+    String response = performImport(zipFile);
+
+    // -- ASSERT --
+    assertNotNull(response);
+
+    JsonNode json = objectMapper.readTree(response);
 
     // Payload
     assertEquals("command", json.at("/data/type").asText());
@@ -97,40 +168,22 @@ class PayloadApiImporterTest extends IntegrationTest {
     Map<String, Object> prerequisite1 =
         Map.of("executor", "sh", "get_command", "which curl", "check_command", "curl --version");
 
-    Map<String, Object> attributes = new HashMap<>();
-    attributes.put("payload_type", "Command");
-    attributes.put("command_executor", "psh");
-    attributes.put("command_content", "echo \"toto\"");
-    attributes.put("payload_name", "Echo");
-    attributes.put("payload_description", "");
-    attributes.put("payload_platforms", new String[] {"Windows"});
+    Map<String, Object> attributes = buildDefaultPayloadAttributes();
     attributes.put("payload_arguments", List.of(argument1, argument2));
     attributes.put("payload_prerequisites", List.of(prerequisite1));
-    attributes.put("payload_source", "MANUAL");
-    attributes.put("payload_expectations", new String[] {"VULNERABILITY"});
-    attributes.put("payload_status", "VERIFIED");
-    attributes.put("payload_execution_arch", "ALL_ARCHITECTURES");
 
     JsonApiDocument<ResourceObject> document =
         new JsonApiDocument<>(
             new ResourceObject(null, "command", attributes, emptyMap()), emptyList());
 
-    byte[] zip = zipJsonService.writeZip(document, emptyMap());
-    MockMultipartFile zipFile =
-        new MockMultipartFile("file", "payload.zip", "application/zip", zip);
+    MockMultipartFile zipFile = buildZipFile(document);
 
     // -- EXECUTE --
-    String response =
-        mockMvc
-            .perform(multipart(PAYLOAD_URI + "/import").file(zipFile))
-            .andExpect(status().is2xxSuccessful())
-            .andReturn()
-            .getResponse()
-            .getContentAsString();
+    String response = performImport(zipFile);
 
     // -- ASSERT --
     assertNotNull(response);
-    JsonNode json = new ObjectMapper().readTree(response);
+    JsonNode json = objectMapper.readTree(response);
     assertEquals("command", json.at("/data/type").asText());
     assertEquals(
         "Echo" + IMPORTED_OBJECT_NAME_SUFFIX, json.at("/data/attributes/payload_name").asText());
@@ -158,38 +211,24 @@ class PayloadApiImporterTest extends IntegrationTest {
   @Test
   @DisplayName("Import payload with empty array fields")
   void importPayloadWithEmptyArrayFields() throws Exception {
-    Map<String, Object> attributes = new HashMap<>();
-    attributes.put("payload_type", "Command");
-    attributes.put("command_executor", "psh");
-    attributes.put("command_content", "echo \"toto\"");
-    attributes.put("payload_name", "Echo");
-    attributes.put("payload_description", "");
+    // -- PREPARE --
+    Map<String, Object> attributes = buildDefaultPayloadAttributes();
     attributes.put("payload_platforms", new String[] {}); // empty array
     attributes.put("payload_arguments", new String[] {}); // empty array
     attributes.put("payload_prerequisites", new String[] {}); // empty array
-    attributes.put("payload_source", "MANUAL");
-    attributes.put("payload_expectations", new String[] {"VULNERABILITY"});
-    attributes.put("payload_status", "VERIFIED");
-    attributes.put("payload_execution_arch", "ALL_ARCHITECTURES");
 
     JsonApiDocument<ResourceObject> document =
         new JsonApiDocument<>(
             new ResourceObject(null, "command", attributes, emptyMap()), emptyList());
 
-    byte[] zip = zipJsonService.writeZip(document, emptyMap());
-    MockMultipartFile zipFile =
-        new MockMultipartFile("file", "payload.zip", "application/zip", zip);
+    MockMultipartFile zipFile = buildZipFile(document);
 
-    String response =
-        mockMvc
-            .perform(multipart(PAYLOAD_URI + "/import").file(zipFile))
-            .andExpect(status().is2xxSuccessful())
-            .andReturn()
-            .getResponse()
-            .getContentAsString();
+    // -- EXECUTE --
+    String response = performImport(zipFile);
 
+    // -- ASSERT --
     assertNotNull(response);
-    JsonNode json = new ObjectMapper().readTree(response);
+    JsonNode json = objectMapper.readTree(response);
     assertEquals(0, json.at("/data/attributes/payload_platforms").size());
     assertEquals(0, json.at("/data/attributes/payload_arguments").size());
     assertEquals(0, json.at("/data/attributes/payload_prerequisites").size());
@@ -238,17 +277,9 @@ class PayloadApiImporterTest extends IntegrationTest {
                     List.of(new ResourceIdentifier(elementId, "contract_output_elements")))));
 
     // Payload + OutputParser
-    Map<String, Object> payloadAttrs = new HashMap<>();
-    payloadAttrs.put("payload_type", "Command");
-    payloadAttrs.put("command_executor", "psh");
-    payloadAttrs.put("command_content", "ipconfig");
+    Map<String, Object> payloadAttrs = buildDefaultPayloadAttributes();
     payloadAttrs.put("payload_name", "Payload With Output Parser");
-    payloadAttrs.put("payload_description", "");
-    payloadAttrs.put("payload_platforms", new String[] {"Windows"});
-    payloadAttrs.put("payload_source", "MANUAL");
-    payloadAttrs.put("payload_expectations", new String[] {"VULNERABILITY"});
-    payloadAttrs.put("payload_status", "VERIFIED");
-    payloadAttrs.put("payload_execution_arch", "ALL_ARCHITECTURES");
+    payloadAttrs.put("command_content", "ipconfig");
 
     JsonApiDocument<ResourceObject> document =
         new JsonApiDocument<>(
@@ -261,22 +292,14 @@ class PayloadApiImporterTest extends IntegrationTest {
                     new Relationship(List.of(new ResourceIdentifier(parserId, "output_parsers"))))),
             List.of(outputParserResource, contractOutputElementResource, regexGroupResource));
 
-    byte[] zip = zipJsonService.writeZip(document, emptyMap());
-    MockMultipartFile zipFile =
-        new MockMultipartFile("file", "payload.zip", "application/zip", zip);
+    MockMultipartFile zipFile = buildZipFile(document);
 
     // -- EXECUTE --
-    String response =
-        mockMvc
-            .perform(multipart(PAYLOAD_URI + "/import").file(zipFile))
-            .andExpect(status().is2xxSuccessful())
-            .andReturn()
-            .getResponse()
-            .getContentAsString();
+    String response = performImport(zipFile);
 
     // -- ASSERT --
     assertNotNull(response);
-    JsonNode json = new ObjectMapper().readTree(response);
+    JsonNode json = objectMapper.readTree(response);
 
     assertEquals("command", json.at("/data/type").asText());
     assertEquals(
@@ -402,17 +425,11 @@ class PayloadApiImporterTest extends IntegrationTest {
                         new ResourceIdentifier(element2Id, "contract_output_elements")))));
 
     // Payload + OutputParser
-    Map<String, Object> payloadAttrs = new HashMap<>();
-    payloadAttrs.put("payload_type", "Command");
+    Map<String, Object> payloadAttrs = buildDefaultPayloadAttributes();
+    payloadAttrs.put("payload_name", "Payload With Multiple Elements");
     payloadAttrs.put("command_executor", "bash");
     payloadAttrs.put("command_content", "netstat -an");
-    payloadAttrs.put("payload_name", "Payload With Multiple Elements");
-    payloadAttrs.put("payload_description", "");
     payloadAttrs.put("payload_platforms", new String[] {"Linux"});
-    payloadAttrs.put("payload_source", "MANUAL");
-    payloadAttrs.put("payload_expectations", new String[] {"VULNERABILITY"});
-    payloadAttrs.put("payload_status", "VERIFIED");
-    payloadAttrs.put("payload_execution_arch", "ALL_ARCHITECTURES");
 
     JsonApiDocument<ResourceObject> document =
         new JsonApiDocument<>(
@@ -431,22 +448,14 @@ class PayloadApiImporterTest extends IntegrationTest {
                 regexGroup2,
                 regexGroup3));
 
-    byte[] zip = zipJsonService.writeZip(document, emptyMap());
-    MockMultipartFile zipFile =
-        new MockMultipartFile("file", "payload.zip", "application/zip", zip);
+    MockMultipartFile zipFile = buildZipFile(document);
 
     // -- EXECUTE --
-    String response =
-        mockMvc
-            .perform(multipart(PAYLOAD_URI + "/import").file(zipFile))
-            .andExpect(status().is2xxSuccessful())
-            .andReturn()
-            .getResponse()
-            .getContentAsString();
+    String response = performImport(zipFile);
 
     // -- ASSERT --
     assertNotNull(response);
-    JsonNode json = new ObjectMapper().readTree(response);
+    JsonNode json = objectMapper.readTree(response);
     assertEquals("command", json.at("/data/type").asText());
     assertEquals(
         "Payload With Multiple Elements" + IMPORTED_OBJECT_NAME_SUFFIX,
@@ -473,36 +482,23 @@ class PayloadApiImporterTest extends IntegrationTest {
   @Test
   @DisplayName("Import payload with null (missing) array fields")
   void importPayloadWithNullArrayFields() throws Exception {
-    Map<String, Object> attributes = new HashMap<>();
-    attributes.put("payload_type", "Command");
-    attributes.put("command_executor", "psh");
-    attributes.put("command_content", "echo \"toto\"");
-    attributes.put("payload_name", "Echo");
-    attributes.put("payload_description", "");
-    // omit payload_platforms, payload_arguments, payload_prerequisites
-    attributes.put("payload_source", "MANUAL");
-    attributes.put("payload_expectations", new String[] {"VULNERABILITY"});
-    attributes.put("payload_status", "VERIFIED");
-    attributes.put("payload_execution_arch", "ALL_ARCHITECTURES");
+    // -- PREPARE --
+    Map<String, Object> attributes = buildDefaultPayloadAttributes();
+    // Remove array fields to simulate missing/null values
+    attributes.remove("payload_platforms");
 
     JsonApiDocument<ResourceObject> document =
         new JsonApiDocument<>(
             new ResourceObject(null, "command", attributes, emptyMap()), emptyList());
 
-    byte[] zip = zipJsonService.writeZip(document, emptyMap());
-    MockMultipartFile zipFile =
-        new MockMultipartFile("file", "payload.zip", "application/zip", zip);
+    MockMultipartFile zipFile = buildZipFile(document);
 
-    String response =
-        mockMvc
-            .perform(multipart(PAYLOAD_URI + "/import").file(zipFile))
-            .andExpect(status().is2xxSuccessful())
-            .andReturn()
-            .getResponse()
-            .getContentAsString();
+    // -- EXECUTE --
+    String response = performImport(zipFile);
 
+    // -- ASSERT --
     assertNotNull(response);
-    JsonNode json = new ObjectMapper().readTree(response);
+    JsonNode json = objectMapper.readTree(response);
     assertEquals(0, json.at("/data/attributes/payload_platforms").size());
     assertEquals(0, json.at("/data/attributes/payload_arguments").size());
     assertEquals(0, json.at("/data/attributes/payload_prerequisites").size());
