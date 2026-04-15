@@ -4,7 +4,6 @@ import static io.openaev.database.specification.InjectorSpecification.byName;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.AgentUtils.AVAILABLE_ARCHITECTURES;
 import static io.openaev.utils.AgentUtils.AVAILABLE_PLATFORMS;
-import static io.openaev.utils.SecurityUtils.validateJFrogUri;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -30,7 +29,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
-import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
@@ -191,7 +189,10 @@ public class InjectorApi extends RestBehavior {
     String filename = "";
     String resourcePath = "/openaev-implant/" + platform + "/" + architecture + "/";
 
-    if (implantBinaryOrigin.equals("local")) { // if we want the local binaries
+    // TODO: change just for testing, THAT SHOULD NOT BE MERGED
+    filename = "openaev-implant-" + version + (platform.equals("windows") ? ".exe" : "");
+    in = getClass().getResourceAsStream("/implants" + resourcePath + filename);
+    /*if (implantBinaryOrigin.equals("local")) { // if we want the local binaries
       filename = "openaev-implant-" + version + (platform.equals("windows") ? ".exe" : "");
       in = getClass().getResourceAsStream("/implants" + resourcePath + filename);
     } else if (implantBinaryOrigin.equals(
@@ -199,7 +200,7 @@ public class InjectorApi extends RestBehavior {
       filename =
           "openaev-implant-" + implantBinaryVersion + (platform.equals("windows") ? ".exe" : "");
       in = new BufferedInputStream(validateJFrogUri(resourcePath, filename).toURL().openStream());
-    }
+    }*/
 
     if (in != null) {
       HttpHeaders headers = new HttpHeaders();
