@@ -73,6 +73,5 @@ class EndpointServiceTest {
       assertThat(result).isEmpty();
       verify(injectStatusService).addJobRetrievalTraces(List.of());
     }
-
   }
 }
