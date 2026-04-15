@@ -57,7 +57,7 @@ public class TenantXtmHubRegistration implements TenantBase {
 
   @Getter(onMethod_ = @JsonIgnore)
   @Transient
-  private final ResourceType resourceType = ResourceType.PLATFORM_SETTING;
+  private final ResourceType resourceType = ResourceType.XTM_HUB_REGISTRATION;
 
   @Override
   public boolean isUserHasAccess(User user) {

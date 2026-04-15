@@ -36,7 +36,7 @@ public class XtmHubApi extends RestBehavior {
       summary = "Get XTM Hub registration",
       description = "Returns the current tenant's XTM Hub registration, or null if not registered")
   @ApiResponses({@ApiResponse(responseCode = "200", description = "Registration or null")})
-  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PLATFORM_SETTING)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.XTM_HUB_REGISTRATION)
   @Transactional(readOnly = true)
   public TenantXtmHubRegistration getRegistration() {
     return this.xtmHubService.getRegistration().orElse(null);
@@ -50,7 +50,7 @@ public class XtmHubApi extends RestBehavior {
       summary = "Register OpenAEV into XTM Hub",
       description = "Save registration data into the XTM Hub registration entity")
   @ApiResponses({@ApiResponse(responseCode = "200", description = "Successful registration")})
-  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.XTM_HUB_REGISTRATION)
   @Transactional(rollbackFor = Exception.class)
   public TenantXtmHubRegistration register(@Valid @RequestBody XtmHubRegisterInput input) {
     return this.xtmHubService.register(input.getToken());
@@ -63,7 +63,7 @@ public class XtmHubApi extends RestBehavior {
       summary = "Unregister OpenAEV from XTM Hub",
       description = "Delete XTM Hub registration data from Settings.")
   @ApiResponses({@ApiResponse(responseCode = "204", description = "Successful unregistration")})
-  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.XTM_HUB_REGISTRATION)
   @Transactional(rollbackFor = Exception.class)
   public void unregister() {
     this.xtmHubService.unregister();

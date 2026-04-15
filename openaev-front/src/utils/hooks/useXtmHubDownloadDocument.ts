@@ -29,7 +29,7 @@ const useXtmHubDownloadDocument = ({ serviceInstanceId, fileId, onSuccess, onErr
     const isTryingToDownloadDocument = !!fileId && !!serviceInstanceId;
     const isPlatformRegistered = registration?.registration_status === 'REGISTERED';
     if (isTryingToDownloadDocument && !isPlatformRegistered) {
-      if (ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS)) {
+      if (ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS)) {
         setDialogConnectivityLostStatus(DialogConnectivityLostStatus.authorized);
       } else {
         setDialogConnectivityLostStatus(DialogConnectivityLostStatus.unauthorized);

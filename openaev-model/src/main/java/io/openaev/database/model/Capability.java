@@ -315,12 +315,19 @@ public enum Capability {
       CapabilityGroup.TENANT_SETTINGS,
       EnumSet.of(CapabilityScope.TENANT),
       pair(ResourceType.TENANT_SETTING, Action.READ),
-      pair(ResourceType.TENANT_SETTING, Action.SEARCH)),
+      pair(ResourceType.TENANT_SETTING, Action.SEARCH),
+      pair(ResourceType.XTM_HUB_REGISTRATION, Action.READ),
+      pair(ResourceType.XTM_HUB_REGISTRATION, Action.SEARCH)),
   MANAGE_TENANT_SETTINGS(
       ACCESS_TENANT_SETTINGS,
       pair(ResourceType.TENANT_SETTING, Action.WRITE),
-      pair(ResourceType.TENANT_SETTING, Action.CREATE)),
-  DELETE_TENANT_SETTINGS(MANAGE_TENANT_SETTINGS, pair(ResourceType.TENANT_SETTING, Action.DELETE)),
+      pair(ResourceType.TENANT_SETTING, Action.CREATE),
+      pair(ResourceType.XTM_HUB_REGISTRATION, Action.WRITE),
+      pair(ResourceType.XTM_HUB_REGISTRATION, Action.CREATE)),
+  DELETE_TENANT_SETTINGS(
+      MANAGE_TENANT_SETTINGS,
+      pair(ResourceType.TENANT_SETTING, Action.DELETE),
+      pair(ResourceType.XTM_HUB_REGISTRATION, Action.DELETE)),
 
   // Platform Groups & Roles
   ACCESS_PLATFORM_GROUPS_AND_ROLES(
