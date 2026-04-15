@@ -54,9 +54,9 @@
             </snapshots>
         </repository>
         <repository>
-            <id>shibboleth_repository</id>
-            <name>Shibboleth Maven Repository</name>
-            <url>https://build.shibboleth.net/nexus/content/repositories/releases/</url>
+            <id>jboss-public</id>
+            <name>JBoss Public Repository</name>
+            <url>https://repository.jboss.org/nexus/content/groups/public/</url>
         </repository>
     </repositories>
 
