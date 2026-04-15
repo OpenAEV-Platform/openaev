@@ -55,6 +55,14 @@
                 <enabled>true</enabled>
             </snapshots>
         </repository>
+        <!-- OpenSAML 4.3.2 bundled locally — Shibboleth Maven repo (build.shibboleth.net) is
+             no longer publicly accessible (403 Forbidden since early 2025).
+             JARs were copied from the local Maven cache into this project-local repo. -->
+        <repository>
+            <id>local-opensaml</id>
+            <name>Local OpenSAML Repository</name>
+            <url>file://${project.basedir}/lib/opensaml-repo</url>
+        </repository>
     </repositories>
 
 
