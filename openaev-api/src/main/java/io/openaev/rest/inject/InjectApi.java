@@ -114,12 +114,12 @@ public class InjectApi extends RestBehavior {
   public void init() throws IOException, TimeoutException {
     if (openAEVConfig.getQueueConfig().get("inject-trace") != null) {
       // Initializing the queue for batching the inject execution trace
-        injectTraceQueueService =
-                rabbitmqService.createBatchQueueService(
-                        InjectExecutionCallback.class,
-                        batchExecutionTraceExecutor::handleInjectExecutionCallbackList,
-                        objectMapper,
-                        openAEVConfig.getQueueConfig().get("inject-trace"));
+      injectTraceQueueService =
+          rabbitmqService.createBatchQueueService(
+              InjectExecutionCallback.class,
+              batchExecutionTraceExecutor::handleInjectExecutionCallbackList,
+              objectMapper,
+              openAEVConfig.getQueueConfig().get("inject-trace"));
       // Share the queue with the batching service so it can requeue delayed callbacks
       batchingInjectStatusService.setInjectTraceQueueService(injectTraceQueueService);
     }
