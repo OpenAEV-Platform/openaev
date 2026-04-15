@@ -1,8 +1,11 @@
 package io.openaev.api.xtmhub;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+
 import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
+import io.openaev.database.model.TenantXtmHubRegistration;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.xtmhub.XtmHubService;
@@ -22,35 +25,48 @@ import org.springframework.web.bind.annotation.*;
 public class XtmHubApi extends RestBehavior {
 
   public static final String XTMHUB_URI = "/api/xtmhub";
+  public static final String TENANT_XTMHUB_URI = TENANT_PREFIX + "/xtmhub";
 
   private final XtmHubService xtmHubService;
 
+  @GetMapping(
+      value = {XTMHUB_URI + "/registration", TENANT_XTMHUB_URI + "/registration"},
+      produces = MediaType.APPLICATION_JSON_VALUE)
+  @Operation(
+      summary = "Get XTM Hub registration",
+      description = "Returns the current tenant's XTM Hub registration, or null if not registered")
+  @ApiResponses({@ApiResponse(responseCode = "200", description = "Registration or null")})
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PLATFORM_SETTING)
+  @Transactional(readOnly = true)
+  public TenantXtmHubRegistration getRegistration() {
+    return this.xtmHubService.getRegistration().orElse(null);
+  }
+
   @PutMapping(
-      value = XTMHUB_URI + "/register",
+      value = {XTMHUB_URI + "/register", TENANT_XTMHUB_URI + "/register"},
       consumes = MediaType.APPLICATION_JSON_VALUE,
       produces = MediaType.APPLICATION_JSON_VALUE)
   @Operation(
       summary = "Register OpenAEV into XTM Hub",
-      description = "Save registration data into settings from XTM Hub registration")
+      description = "Save registration data into the XTM Hub registration entity")
   @ApiResponses({@ApiResponse(responseCode = "200", description = "Successful registration")})
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @Transactional(rollbackFor = Exception.class)
-  public PlatformSettings register(@Valid @RequestBody XtmHubRegisterInput input) {
+  public TenantXtmHubRegistration register(@Valid @RequestBody XtmHubRegisterInput input) {
     return this.xtmHubService.register(input.getToken());
   }
 
   @PutMapping(
-      value = XTMHUB_URI + "/unregister",
-      consumes = MediaType.APPLICATION_JSON_VALUE,
-      produces = MediaType.APPLICATION_JSON_VALUE)
+      value = {XTMHUB_URI + "/unregister", TENANT_XTMHUB_URI + "/unregister"},
+      consumes = MediaType.APPLICATION_JSON_VALUE)
   @Operation(
       summary = "Unregister OpenAEV from XTM Hub",
       description = "Delete XTM Hub registration data from Settings.")
-  @ApiResponses({@ApiResponse(responseCode = "200", description = "Successful unregistration")})
+  @ApiResponses({@ApiResponse(responseCode = "204", description = "Successful unregistration")})
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @Transactional(rollbackFor = Exception.class)
-  public PlatformSettings unregister() {
-    return this.xtmHubService.unregister();
+  public void unregister() {
+    this.xtmHubService.unregister();
   }
 
   @PostMapping(
