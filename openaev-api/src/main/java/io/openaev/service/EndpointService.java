@@ -19,9 +19,9 @@ import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toList;
 
 import io.openaev.config.OpenAEVConfig;
-import io.openaev.database.specification.AssetAgentJobSpecification;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
+import io.openaev.database.specification.AssetAgentJobSpecification;
 import io.openaev.executors.model.AgentRegisterInput;
 import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.rest.asset.endpoint.form.EndpointOutput;
@@ -477,9 +477,7 @@ public class EndpointService {
                 input.isService()
                     ? Agent.DEPLOYMENT_MODE.service.name()
                     : Agent.DEPLOYMENT_MODE.session.name(),
-                input.isElevated()
-                    ? Agent.PRIVILEGE.admin.name()
-                    : Agent.PRIVILEGE.standard.name(),
+                input.isElevated() ? Agent.PRIVILEGE.admin.name() : Agent.PRIVILEGE.standard.name(),
                 input.getExecutedByUser()));
     injectStatusService.addJobRetrievalTraces(jobs);
     return jobs;
