@@ -24,7 +24,7 @@ public class V4_92__Update_conditions_for_condition_tree extends BaseJavaMigrati
       stmt.execute(
           "ALTER TABLE steps ADD COLUMN IF NOT EXISTS step_condition_key_types VARCHAR(255);");
 
-      // Legacy compatibility: if old conditions.step_id still exists, it must be nullable.
+      // Legacy cleanup: drop the old conditions.step_id column if it still exists.
       stmt.execute(
           """
           DO $$
@@ -35,7 +35,7 @@ public class V4_92__Update_conditions_for_condition_tree extends BaseJavaMigrati
               WHERE table_name = 'conditions'
                 AND column_name = 'step_id'
             ) THEN
-              ALTER TABLE conditions ALTER COLUMN step_id DROP NOT NULL;
+              ALTER TABLE conditions DROP COLUMN step_id;
             END IF;
           END $$;
           """);
@@ -44,6 +44,24 @@ public class V4_92__Update_conditions_for_condition_tree extends BaseJavaMigrati
           "CREATE INDEX IF NOT EXISTS idx_conditions_workflow_id ON conditions(condition_workflow_id);");
       stmt.execute(
           "CREATE INDEX IF NOT EXISTS idx_conditions_key_type ON conditions(condition_key_type);");
+
+      // FK on condition_workflow_id → workflows(workflow_id) ON DELETE CASCADE
+      // so deleting a workflow cascades to all its conditions (and transitively to
+      // conditions_steps).
+      stmt.execute(
+          """
+          DO $$
+          BEGIN
+            IF NOT EXISTS (
+              SELECT 1 FROM pg_constraint
+              WHERE conname = 'fk_conditions_workflow'
+            ) THEN
+              ALTER TABLE conditions
+                ADD CONSTRAINT fk_conditions_workflow
+                FOREIGN KEY (condition_workflow_id) REFERENCES workflows(workflow_id) ON DELETE CASCADE;
+            END IF;
+          END $$;
+          """);
 
       // Fix step_from_id FK to use ON DELETE SET NULL so deleting a step nullifies the reference.
       stmt.execute(

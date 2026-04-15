@@ -56,14 +56,6 @@ public class StepApi {
 
   // -- READ --
 
-  @Operation(summary = "List all step templates")
-  @ApiResponses({@ApiResponse(responseCode = "200", description = "All step templates retrieved")})
-  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION_OR_SCENARIO)
-  @GetMapping
-  public List<StepOutput> findAll() {
-    return stepService.findAllStepTemplates().stream().map(StepMapper::toOutput).toList();
-  }
-
   @Operation(summary = "Get a step template by ID")
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "Step template found"),

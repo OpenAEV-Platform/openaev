@@ -1206,7 +1206,7 @@ export interface Condition {
 
 /** Condition used to execute a step. Can be a Template or an Execution depending on the status of stepFrom. */
 export interface ConditionCreateInput {
-  /** Value to be compared */
+  /** Key to be compared */
   condition_key?: string;
   /** Condition key subtype */
   condition_key_subtype?: "port" | "ipv4" | "ipv6" | "username" | "password";

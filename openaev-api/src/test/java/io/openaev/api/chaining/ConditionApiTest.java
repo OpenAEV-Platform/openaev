@@ -43,21 +43,6 @@ class ConditionApiTest {
   }
 
   @Test
-  void findAll_shouldReturnMappedList() {
-    Condition root1 = conditionTree("c-1", "wf-1", "ev-1", "d-1");
-    Condition root2 = conditionTree("c-2", "wf-2", "ev-2", "d-2");
-
-    when(conditionService.findAll()).thenReturn(List.of(root1, root2));
-
-    List<EventOutput> result = conditionApi.findAll();
-
-    assertEquals(2, result.size());
-    assertEquals("c-1", result.get(0).getId());
-    assertEquals("c-2", result.get(1).getId());
-    verify(conditionService).findAll();
-  }
-
-  @Test
   void findAllByWorkflow_shouldReturnMappedList() {
     Condition root = conditionTree("c-wf", "wf-9", "ev-9", "d");
     when(conditionService.findConditionRootsByWorkflowId("wf-9")).thenReturn(List.of(root));

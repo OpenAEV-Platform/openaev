@@ -44,7 +44,7 @@ public class ConditionCreateInput {
   private String value;
 
   /** Condition key: Key to be compared */
-  @Schema(description = "Value to be compared")
+  @Schema(description = "Key to be compared")
   @JsonProperty("condition_key")
   private String key;
 

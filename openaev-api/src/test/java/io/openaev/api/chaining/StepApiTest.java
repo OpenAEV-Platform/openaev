@@ -47,22 +47,6 @@ class StepApiTest {
   }
 
   @Test
-  void findAll_shouldReturnMappedList() {
-    when(stepService.findAllStepTemplates())
-        .thenReturn(
-            List.of(
-                step("s-1", 1, StepStatus.TEMPLATE, "{}"),
-                step("s-2", 3, StepStatus.TEMPLATE, "{\"x\":true}")));
-
-    List<StepOutput> result = stepApi.findAll();
-
-    assertEquals(2, result.size());
-    assertEquals("s-1", result.get(0).getId());
-    assertEquals("s-2", result.get(1).getId());
-    verify(stepService).findAllStepTemplates();
-  }
-
-  @Test
   void findById_shouldReturnMappedStep() {
     when(stepService.findStepTemplateById("step-42"))
         .thenReturn(step("step-42", 1, StepStatus.TEMPLATE, "{}"));
