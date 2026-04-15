@@ -105,6 +105,17 @@ public class ConnectorInstanceService {
     return instancesInMemory;
   }
 
+  /**
+   * Checks whether a started connector instance exists for the given injector.
+   *
+   * <p>Only applies to connectors persisted in the database. If no record is found, meaning the
+   * injector was deployed manually with no attached instance. {@code true} is returned to avoid
+   * blocking executions. The same applies if any exception occurs.
+   *
+   * @param injectorId the injector ID to look up
+   * @return {@code false} only if a connector instance is explicitly found with a non-started
+   *     status; {@code true} otherwise
+   */
   @Transactional(readOnly = true)
   public boolean hasStartedConnectorInstanceForInjector(final String injectorId) {
     try {
