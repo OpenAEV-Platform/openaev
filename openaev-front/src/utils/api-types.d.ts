@@ -996,6 +996,7 @@ export interface Command {
   /** @format date-time */
   payload_created_at: string;
   payload_description?: string;
+  payload_detection_remediations?: DetectionRemediation[];
   /** @uniqueItems true */
   payload_domains: Domain[];
   payload_elevation_required?: boolean;
@@ -1542,7 +1543,6 @@ export interface DetectionRemediation {
   /** @format date-time */
   detection_remediation_created_at?: string;
   detection_remediation_id: string;
-  detection_remediation_payload_id: Payload;
   /** @format date-time */
   detection_remediation_updated_at?: string;
   detection_remediation_values: string;
@@ -1625,6 +1625,7 @@ export interface DnsResolution {
   /** @format date-time */
   payload_created_at: string;
   payload_description?: string;
+  payload_detection_remediations?: DetectionRemediation[];
   /** @uniqueItems true */
   payload_domains: Domain[];
   payload_elevation_required?: boolean;
@@ -2372,6 +2373,7 @@ export interface Executable {
   /** @format date-time */
   payload_created_at: string;
   payload_description?: string;
+  payload_detection_remediations?: DetectionRemediation[];
   /** @uniqueItems true */
   payload_domains: Domain[];
   payload_elevation_required?: boolean;
@@ -2745,6 +2747,7 @@ export interface FileDrop {
   /** @format date-time */
   payload_created_at: string;
   payload_description?: string;
+  payload_detection_remediations?: DetectionRemediation[];
   /** @uniqueItems true */
   payload_domains: Domain[];
   payload_elevation_required?: boolean;
@@ -4289,6 +4292,7 @@ export interface NetworkTraffic {
   /** @format date-time */
   payload_created_at: string;
   payload_description?: string;
+  payload_detection_remediations?: DetectionRemediation[];
   /** @uniqueItems true */
   payload_domains: Domain[];
   payload_elevation_required?: boolean;
