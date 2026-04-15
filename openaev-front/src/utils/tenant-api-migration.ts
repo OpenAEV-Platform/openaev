@@ -13,20 +13,12 @@ const TENANT_MIGRATION_TODO: string[] = [
   // PR4 — Teams & Players
   '/api/players',
   // PR9 — Reference data & Misc
-  '/api/domains',
   '/api/mappers',
   '/api/tag-rules',
-  '/api/dashboards',
-  '/api/custom-dashboards',
   '/api/fulltextsearch',
-  '/api/schemas',
-  '/api/engine',
   '/api/users',
-  '/api/xtmhub',
-  '/api/xtm-composer',
   '/api/variables',
-  '/api/reports',
-  '/api/stream',
+  '/api/xtmhub',
 ];
 
 export default TENANT_MIGRATION_TODO;

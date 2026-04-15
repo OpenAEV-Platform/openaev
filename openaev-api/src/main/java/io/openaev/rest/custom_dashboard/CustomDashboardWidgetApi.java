@@ -1,6 +1,7 @@
 package io.openaev.rest.custom_dashboard;
 
 import static io.openaev.rest.custom_dashboard.CustomDashboardApi.CUSTOM_DASHBOARDS_URI;
+import static io.openaev.rest.custom_dashboard.CustomDashboardApi.TENANT_CUSTOM_DASHBOARDS_URI;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
@@ -18,11 +19,16 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping(CustomDashboardWidgetApi.CUSTOM_DASHBOARDS_WIDGET_URI)
+@RequestMapping({
+  CustomDashboardWidgetApi.CUSTOM_DASHBOARDS_WIDGET_URI,
+  CustomDashboardWidgetApi.TENANT_CUSTOM_DASHBOARDS_WIDGET_URI
+})
 @RequiredArgsConstructor
 public class CustomDashboardWidgetApi extends RestBehavior {
 
   public static final String CUSTOM_DASHBOARDS_WIDGET_URI = CUSTOM_DASHBOARDS_URI + "/{id}/widgets";
+  public static final String TENANT_CUSTOM_DASHBOARDS_WIDGET_URI =
+      TENANT_CUSTOM_DASHBOARDS_URI + "/{id}/widgets";
   private final WidgetService widgetService;
 
   // -- CRUD --

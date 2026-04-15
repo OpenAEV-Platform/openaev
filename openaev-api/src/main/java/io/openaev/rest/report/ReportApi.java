@@ -1,5 +1,6 @@
 package io.openaev.rest.report;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 
 import io.openaev.aop.AccessControl;
@@ -24,11 +25,14 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 public class ReportApi extends RestBehavior {
 
+  private static final String REPORT_URI = "/api/reports";
+  private static final String TENANT_REPORT_URI = TENANT_PREFIX + "/reports";
+
   private final ExerciseService exerciseService;
   private final ReportService reportService;
   private final InjectService injectService;
 
-  @GetMapping("/api/reports/{reportId}")
+  @GetMapping({REPORT_URI + "/{reportId}", TENANT_REPORT_URI + "/{reportId}"})
   @AccessControl(
       resourceId = "#reportId",
       actionPerformed = Action.READ,
