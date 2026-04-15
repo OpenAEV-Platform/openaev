@@ -44,16 +44,6 @@ public interface TenantRepository
       nativeQuery = true)
   void addUserToTenant(@Param("userId") String userId, @Param("tenantId") String tenantId);
 
-  /** Links all existing users to a tenant. Does nothing for already-existing links. */
-  @Modifying(flushAutomatically = true, clearAutomatically = true)
-  @Query(
-      value =
-          "INSERT INTO users_tenants (user_id, tenant_id) "
-              + "SELECT u.user_id, :tenantId FROM users u "
-              + "ON CONFLICT DO NOTHING",
-      nativeQuery = true)
-  void addAllUsersToTenant(@Param("tenantId") String tenantId);
-
   // -- DELETE --
 
   @Modifying(clearAutomatically = true, flushAutomatically = true)
