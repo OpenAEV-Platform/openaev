@@ -18,10 +18,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.Function;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -105,6 +102,14 @@ public class ZipJsonService<T extends Base> {
   }
 
   /**
+   * Result of an import operation.
+   *
+   * @param jsonApiDocument JSON:API representation exported from the persisted entity
+   * @param persistedData persisted root entity instance
+   */
+  public record ImportOutput<T>(JsonApiDocument<ResourceObject> jsonApiDocument, T persistedData) {}
+
+  /**
    * Imports an entity from a ZIP archive.
    *
    * <p>This method parses the ZIP archive, extracts the JSON API document and associated files,
@@ -115,10 +120,10 @@ public class ZipJsonService<T extends Base> {
    * @param includeOptions options controlling which relationships to include
    * @param sanityCheck function to validate/modify the entity before persistence
    * @param suffix suffix to append to the entity name (e.g., " (copy)")
-   * @return the JSON API document for the imported entity
+   * @return import output containing the exported JSON:API document and persisted entity
    * @throws IOException if reading the archive fails
    */
-  public JsonApiDocument<ResourceObject> handleImport(
+  public ImportOutput<T> handleImport(
       byte[] fileBytes,
       String nameAttributeKey,
       IncludeOptions includeOptions,
@@ -138,7 +143,7 @@ public class ZipJsonService<T extends Base> {
     importer.handleImportDocument(doc, parsed.extras);
     T persisted = importer.handleImportEntity(doc, includeOptions, sanityCheck);
 
-    return exporter.handleExport(persisted, includeOptions);
+    return new ImportOutput<>(exporter.handleExport(persisted, includeOptions), persisted);
   }
 
   private void addDocumentToExtras(Document doc, Map<String, byte[]> out) {

@@ -3,8 +3,7 @@ package io.openaev.scheduler;
 import static io.openaev.scheduler.jobs.TenantPurgeJob.TENANT_PURGE_TRIGGER;
 import static io.openaev.scheduler.jobs.user_event.UserEventRetentionJob.USER_EVENT_RETENTION_TRIGGER;
 import static org.quartz.CronScheduleBuilder.cronSchedule;
-import static org.quartz.SimpleScheduleBuilder.repeatMinutelyForever;
-import static org.quartz.SimpleScheduleBuilder.simpleSchedule;
+import static org.quartz.SimpleScheduleBuilder.*;
 import static org.quartz.TriggerBuilder.newTrigger;
 
 import io.openaev.service.InjectChainingCondition;
@@ -108,6 +107,20 @@ public class PlatformTriggers {
         .forJob(this.platformJobs.userEventRetentionJobDetail())
         .withIdentity(USER_EVENT_RETENTION_TRIGGER)
         .withSchedule(cronSchedule("0 0 0 * * ?"))
+        .build();
+  }
+
+  /**
+   * Create a trigger to run the requeue system for the execution traces
+   *
+   * @return the trigger
+   */
+  @Bean
+  public Trigger executionTracesBatchRequeueTrigger() {
+    return newTrigger()
+        .forJob(this.platformJobs.getExecutionTracesBatchRequeueJob())
+        .withIdentity("ExecutionTracesBatchRequeueTrigger")
+        .withSchedule(repeatSecondlyForever(15))
         .build();
   }
 

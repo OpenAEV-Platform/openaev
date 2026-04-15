@@ -1225,6 +1225,8 @@ export interface ConfigurationInput {
 export interface ConnectorIds {
   catalog_connector_id?: string;
   connector_instance_id?: string;
+  /** Whether the connector entity is registered in the database. False when a connector instance has been deployed but the connector has not yet started. */
+  connector_registered?: boolean;
 }
 
 export interface ConnectorInstanceConfiguration {
