@@ -7,6 +7,7 @@ import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.config.SessionHelper;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.User;
+import io.openaev.engine.EngineService;
 import io.openaev.engine.model.auditlog.LogEvent;
 import io.openaev.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -16,7 +17,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,7 +35,6 @@ import org.springframework.web.context.request.ServletRequestAttributes;
  * querying through the {@code /api/audit-logs/search} endpoint.
  */
 @Service
-@RequiredArgsConstructor
 public class AuditLogService {
 
   /**
@@ -46,6 +45,13 @@ public class AuditLogService {
 
   /** Standard class logger for internal warnings/errors. */
   private static final Logger log = LoggerFactory.getLogger(AuditLogService.class);
+
+  /**
+   * ObjectMapper reused from the search engine driver — guarantees identical serialization between
+   * the log appender and the ES/OS transport. Resolved lazily from {@link EngineService} because
+   * the engine bean may not be available at construction time.
+   */
+  private final ObjectMapper objectMapper;
 
   private static final String REDACTED = "*** Redacted ***";
 
@@ -66,8 +72,12 @@ public class AuditLogService {
           ResourceType.TENANT,
           ResourceType.ORGANIZATION);
 
-  private final ObjectMapper objectMapper;
   private final UserService userService;
+
+  public AuditLogService(UserService userService, EngineService engineService) {
+    this.userService = userService;
+    this.objectMapper = engineService.getObjectMapper();
+  }
 
   /**
    * Optional search-engine indexing service — present only when {@code
@@ -180,8 +190,7 @@ public class AuditLogService {
         message = eventScope + " from provider `" + provider + "`";
       }
 
-      LogEvent doc =
-          buildBaseAuditLog("authentication", eventStatus, "administration", eventScope);
+      LogEvent doc = buildBaseAuditLog("authentication", eventStatus, "administration", eventScope);
 
       // -- context_data --
       Map<String, Object> ctx = new LinkedHashMap<>();
@@ -235,9 +244,7 @@ public class AuditLogService {
     return "changes status of " + entityTypeName + " `" + displayName + "`";
   }
 
-  /**
-   * Builds the common part of an {@link LogEvent} with all envelope and user fields populated.
-   */
+  /** Builds the common part of an {@link LogEvent} with all envelope and user fields populated. */
   private LogEvent buildBaseAuditLog(
       String eventType, String eventStatus, String eventAccess, String eventScope) {
     Instant now = Instant.now();

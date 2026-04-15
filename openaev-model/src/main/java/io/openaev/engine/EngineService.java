@@ -1,5 +1,6 @@
 package io.openaev.engine;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.CustomDashboardParameters;
 import io.openaev.database.model.Filters;
 import io.openaev.database.raw.RawUserAuth;
@@ -185,4 +186,13 @@ public interface EngineService {
    * @return the version of the engine
    */
   String getEngineVersion();
+
+  /**
+   * Returns the ObjectMapper used by the search engine client for document serialization. Other
+   * components (e.g. audit log service) can reuse this to ensure consistent serialization between
+   * the log appender and the search engine transport.
+   *
+   * @return the engine's ObjectMapper
+   */
+  ObjectMapper getObjectMapper();
 }

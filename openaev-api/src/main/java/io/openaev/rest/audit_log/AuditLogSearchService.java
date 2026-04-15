@@ -27,4 +27,3 @@ public class AuditLogSearchService {
     throw new UnsupportedOperationException("Audit log search not yet implemented (Task 12)");
   }
 }
-

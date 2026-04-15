@@ -1,6 +1,8 @@
 package io.openaev.driver;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.openaev.config.EngineConfig;
@@ -68,6 +70,31 @@ public class OpenSearchDriver {
   private final IndexingStatusRepository indexingStatusRepository;
 
   /**
+   * Shared ObjectMapper used by the OpenSearch client for JSON serialization. Exposed via {@link
+   * #getObjectMapper()} so that other components (e.g. audit log service) can reuse the exact same
+   * serialization settings.
+   */
+  private final ObjectMapper engineObjectMapper = createEngineObjectMapper();
+
+  /** Returns the ObjectMapper used by the OpenSearch client for document serialization. */
+  public ObjectMapper getObjectMapper() {
+    return engineObjectMapper;
+  }
+
+  /**
+   * Creates the ObjectMapper shared by the OpenSearch client and any component that needs to
+   * serialize documents consistently with the search engine.
+   */
+  static ObjectMapper createEngineObjectMapper() {
+    ObjectMapper mapper = new ObjectMapper();
+    mapper.registerModule(new JavaTimeModule());
+    mapper.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
+    mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+    mapper.setSerializationInclusion(JsonInclude.Include.ALWAYS);
+    return mapper;
+  }
+
+  /**
    * Initializing the standard client
    *
    * @return the OpenSearchClient
@@ -118,10 +145,7 @@ public class OpenSearchDriver {
               .setDefaultCredentialsProvider(credentialsProvider)
               .setConnectionManager(connectionManager);
         });
-    JacksonJsonpMapper jsonpMapper = new JacksonJsonpMapper();
-    jsonpMapper.objectMapper().registerModule(new JavaTimeModule());
-    jsonpMapper.objectMapper().configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
-    jsonpMapper.objectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+    JacksonJsonpMapper jsonpMapper = new JacksonJsonpMapper(engineObjectMapper);
     builder.setMapper(jsonpMapper);
     final OpenSearchTransport transport = builder.build();
     return new OpenSearchClient(transport);

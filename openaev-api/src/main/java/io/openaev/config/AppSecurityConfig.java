@@ -102,7 +102,8 @@ public class AppSecurityConfig {
         .logout(
             logout ->
                 logout
-                    // Audit Log: audit handler fires first, then Spring Security's built-in SecurityContextLogoutHandler
+                    // Audit Log: audit handler fires first, then Spring Security's built-in
+                    // SecurityContextLogoutHandler
                     // invalidates the session and clears cookies
                     .addLogoutHandler(
                         (request, response, authentication) -> {
