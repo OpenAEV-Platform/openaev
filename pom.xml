@@ -61,7 +61,7 @@
         <repository>
             <id>local-opensaml</id>
             <name>Local OpenSAML Repository</name>
-            <url>file://${project.basedir}/lib/opensaml-repo</url>
+            <url>file://${maven.multiModuleProjectDirectory}/lib/opensaml-repo</url>
         </repository>
     </repositories>
 
