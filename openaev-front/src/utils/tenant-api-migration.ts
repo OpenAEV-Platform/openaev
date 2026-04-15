@@ -16,11 +16,6 @@ const TENANT_MIGRATION_TODO: string[] = [
   '/api/mappers',
   '/api/tag-rules',
   '/api/fulltextsearch',
-  '/api/schemas',
-  '/api/engine',
-  '/api/xtmhub',
-  '/api/xtm-composer',
-  '/api/users',
   '/api/variables',
   '/api/xtmhub',
 ];
