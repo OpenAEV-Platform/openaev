@@ -80,6 +80,7 @@ public class InitAdminCommandLineRunner implements CommandLineRunner {
 
     this.userRepository.createAdmin(
         ADMIN_UUID, ADMIN_FIRSTNAME, ADMIN_LASTNAME, this.adminEmail, encodedPassword());
+    // TODO multi-tenancy: add admin to default tenant ?
     return this.userRepository.findById(ADMIN_UUID).orElseThrow();
   }
 

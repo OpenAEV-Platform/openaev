@@ -1,11 +1,13 @@
 package io.openaev.datapack.packs;
 
 import static io.openaev.config.SessionHelper.currentUser;
+import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CweRepository;
 import io.openaev.database.repository.GroupRepository;
+import io.openaev.database.repository.TenantRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.database.repository.VulnerabilityRepository;
 import io.openaev.datapack.DataPack;
@@ -26,6 +28,7 @@ public class V20260330_Default_tenant_data extends DataPack {
   private final RoleService roleService;
   private final GroupRepository groupRepository;
   private final UserRepository userRepository;
+  private final TenantRepository tenantRepository;
 
   public V20260330_Default_tenant_data(
       DataPackService dataPackService,
@@ -33,13 +36,15 @@ public class V20260330_Default_tenant_data extends DataPack {
       CweRepository cweRepository,
       RoleService roleService,
       GroupRepository groupRepository,
-      UserRepository userRepository) {
+      UserRepository userRepository,
+      TenantRepository tenantRepository) {
     super(dataPackService);
     this.cweRepository = cweRepository;
     this.vulnerabilityRepository = vulnerabilityRepository;
     this.roleService = roleService;
     this.groupRepository = groupRepository;
     this.userRepository = userRepository;
+    this.tenantRepository = tenantRepository;
   }
 
   @Override
@@ -71,6 +76,10 @@ public class V20260330_Default_tenant_data extends DataPack {
               }
               groupRepository.save(group);
             });
+      } else {
+        // TODO multi-tenancy: here or flyway migration ?
+        // Add all existing users to default tenant
+        tenantRepository.addAllUsersToTenant(DEFAULT_TENANT_UUID);
       }
       return true;
     } catch (Exception e) {
