@@ -17,18 +17,14 @@ class PresetTenantDataTest {
     private final Set<Capability> capabilities = PresetTenantData.DEFAULT_ROLES.get("Observer");
 
     @Test
-    @DisplayName("given_observerRole_should_containAccessTenantSettings")
-    void given_observerRole_should_containAccessTenantSettings() {
-      // -- ASSERT --
-      assertThat(capabilities).contains(Capability.ACCESS_TENANT_SETTINGS);
-    }
-
-    @Test
-    @DisplayName("given_observerRole_should_notContainManageOrDeleteTenantSettings")
-    void given_observerRole_should_notContainManageOrDeleteTenantSettings() {
+    @DisplayName("given_observerRole_should_notContainTenantSettingsCapabilities")
+    void given_observerRole_should_notContainTenantSettingsCapabilities() {
       // -- ASSERT --
       assertThat(capabilities)
-          .doesNotContain(Capability.MANAGE_TENANT_SETTINGS, Capability.DELETE_TENANT_SETTINGS);
+          .doesNotContain(
+              Capability.ACCESS_TENANT_SETTINGS,
+              Capability.MANAGE_TENANT_SETTINGS,
+              Capability.DELETE_TENANT_SETTINGS);
     }
 
     @Test
@@ -36,7 +32,9 @@ class PresetTenantDataTest {
     void given_observerRole_should_onlyHaveAccessCapabilities() {
       // -- ASSERT --
       assertThat(capabilities)
-          .allMatch(c -> c.name().startsWith("ACCESS_"), "Observer should only have ACCESS_* capabilities");
+          .allMatch(
+              c -> c.name().startsWith("ACCESS_"),
+              "Observer should only have ACCESS_* capabilities");
     }
   }
 
@@ -47,11 +45,11 @@ class PresetTenantDataTest {
     private final Set<Capability> capabilities = PresetTenantData.DEFAULT_ROLES.get("Manager");
 
     @Test
-    @DisplayName("given_managerRole_should_containAllTenantSettingsCapabilities")
-    void given_managerRole_should_containAllTenantSettingsCapabilities() {
+    @DisplayName("given_managerRole_should_notContainTenantSettingsCapabilities")
+    void given_managerRole_should_notContainTenantSettingsCapabilities() {
       // -- ASSERT --
       assertThat(capabilities)
-          .contains(
+          .doesNotContain(
               Capability.ACCESS_TENANT_SETTINGS,
               Capability.MANAGE_TENANT_SETTINGS,
               Capability.DELETE_TENANT_SETTINGS);
@@ -77,4 +75,3 @@ class PresetTenantDataTest {
     assertThat(PresetTenantData.DEFAULT_ROLES).containsOnlyKeys("Observer", "Manager", "Admin");
   }
 }
-

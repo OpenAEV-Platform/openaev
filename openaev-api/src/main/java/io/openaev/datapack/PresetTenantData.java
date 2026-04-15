@@ -164,8 +164,7 @@ public class PresetTenantData {
               Capability.ACCESS_CHANNELS,
               Capability.ACCESS_CHALLENGES,
               Capability.ACCESS_LESSONS_LEARNED,
-              Capability.ACCESS_SECURITY_PLATFORMS,
-              Capability.ACCESS_TENANT_SETTINGS),
+              Capability.ACCESS_SECURITY_PLATFORMS),
           MANAGER,
           Set.of(
               Capability.ACCESS_ASSESSMENT,
@@ -200,10 +199,7 @@ public class PresetTenantData {
               Capability.DELETE_LESSONS_LEARNED,
               Capability.ACCESS_SECURITY_PLATFORMS,
               Capability.DELETE_SECURITY_PLATFORMS,
-              Capability.MANAGE_SECURITY_PLATFORMS,
-              Capability.ACCESS_TENANT_SETTINGS,
-              Capability.MANAGE_TENANT_SETTINGS,
-              Capability.DELETE_TENANT_SETTINGS),
+              Capability.MANAGE_SECURITY_PLATFORMS),
           ADMIN,
           Set.of(Capability.BYPASS));
 }
