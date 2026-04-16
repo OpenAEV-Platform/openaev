@@ -31,14 +31,12 @@ class TemplateHelperTest {
   class SstiProtection {
 
     @Test
-    @DisplayName(
-        "given inject subject with Execute payload should not run OS command")
+    @DisplayName("given inject subject with Execute payload should not run OS command")
     void given_inject_subject_with_execute_payload_should_not_run_os_command()
         throws IOException, TemplateException {
       // -- Arrange --
       // Attacker submits an inject whose subject contains an SSTI payload
-      String maliciousSubject =
-          "${\"freemarker.template.utility.Execute\"?new()(\"id\")}";
+      String maliciousSubject = "${\"freemarker.template.utility.Execute\"?new()(\"id\")}";
       Map<String, Object> context = injectContext();
 
       // -- Act --
@@ -46,13 +44,13 @@ class TemplateHelperTest {
 
       // -- Assert --
       // If the command executed, output would contain OS user info (e.g. "uid=")
-      assertFalse(rendered.contains("uid="),
+      assertFalse(
+          rendered.contains("uid="),
           "Execute built-in must not run OS commands — SAFER_RESOLVER may be missing");
     }
 
     @Test
-    @DisplayName(
-        "given inject subject with curl exfiltration should not execute curl")
+    @DisplayName("given inject subject with curl exfiltration should not execute curl")
     void given_inject_subject_with_curl_exfiltration_should_not_execute_curl()
         throws IOException, TemplateException {
       // -- Arrange --
@@ -66,13 +64,13 @@ class TemplateHelperTest {
 
       // -- Assert --
       assertFalse(rendered.isEmpty(), "Template should produce some output");
-      assertFalse(rendered.contains("<!DOCTYPE") || rendered.contains("HTTP"),
+      assertFalse(
+          rendered.contains("<!DOCTYPE") || rendered.contains("HTTP"),
           "Execute built-in must not perform HTTP requests — SAFER_RESOLVER may be missing");
     }
 
     @Test
-    @DisplayName(
-        "given inject subject with ObjectConstructor should not instantiate classes")
+    @DisplayName("given inject subject with ObjectConstructor should not instantiate classes")
     void given_inject_subject_with_object_constructor_should_not_instantiate()
         throws IOException, TemplateException {
       // -- Arrange --
@@ -84,13 +82,13 @@ class TemplateHelperTest {
       String rendered = TemplateHelper.buildContentWithDataMap(maliciousSubject, context);
 
       // -- Assert --
-      assertFalse(rendered.contains("ProcessBuilder"),
+      assertFalse(
+          rendered.contains("ProcessBuilder"),
           "ObjectConstructor must not instantiate arbitrary classes — SAFER_RESOLVER may be missing");
     }
 
     @Test
-    @DisplayName(
-        "given inject subject with JndiObjectFactory should not perform JNDI lookup")
+    @DisplayName("given inject subject with JndiObjectFactory should not perform JNDI lookup")
     void given_inject_subject_with_jndi_should_not_perform_lookup()
         throws IOException, TemplateException {
       // -- Arrange --
@@ -102,7 +100,8 @@ class TemplateHelperTest {
       String rendered = TemplateHelper.buildContentWithDataMap(maliciousSubject, context);
 
       // -- Assert --
-      assertFalse(rendered.contains("attacker.example.com"),
+      assertFalse(
+          rendered.contains("attacker.example.com"),
           "JndiObjectFactory must not perform JNDI lookups — SAFER_RESOLVER may be missing");
     }
 
@@ -122,12 +121,13 @@ class TemplateHelperTest {
       String rendered = TemplateHelper.buildContentWithDataMap(maliciousBody, context);
 
       // -- Assert --
-      assertTrue(rendered.contains("Hello John"),
-          "Legitimate variables should still be resolved");
-      assertTrue(rendered.contains("welcome to Crisis Simulation"),
+      assertTrue(rendered.contains("Hello John"), "Legitimate variables should still be resolved");
+      assertTrue(
+          rendered.contains("welcome to Crisis Simulation"),
           "Legitimate variables should still be resolved");
       // whoami would return a username string without "${"
-      assertTrue(rendered.contains("${"),
+      assertTrue(
+          rendered.contains("${"),
           "Blocked SSTI expression should be preserved as literal text, not executed");
     }
   }
@@ -153,8 +153,7 @@ class TemplateHelperTest {
 
     @Test
     @DisplayName("given null content should return empty string")
-    void given_null_content_should_return_empty_string()
-        throws IOException, TemplateException {
+    void given_null_content_should_return_empty_string() throws IOException, TemplateException {
       // -- Act --
       String rendered = TemplateHelper.buildContentWithDataMap(null, injectContext());
 
