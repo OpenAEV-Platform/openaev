@@ -1892,7 +1892,7 @@
   "Template": "Modèle",
   "Tenant name": "Nom",
   "tenant_name": "Nom",
-  "TENANT_SETTING": "Paramètres du locataire",
+  "TENANT_SETTINGS": "Paramètres du locataire",
   "TENANTS": "Locataires",
   "Tenants management": "Gestion des tenants",
   "Terminal view": "Vue du terminal",

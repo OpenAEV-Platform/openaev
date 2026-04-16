@@ -312,7 +312,7 @@ public enum Capability {
   // Tenant Settings
   ACCESS_TENANT_SETTINGS(
       null,
-      CapabilityGroup.TENANT_SETTING,
+      CapabilityGroup.TENANT_SETTINGS,
       EnumSet.of(CapabilityScope.TENANT),
       pair(ResourceType.TENANT_SETTING, Action.READ),
       pair(ResourceType.TENANT_SETTING, Action.SEARCH)),

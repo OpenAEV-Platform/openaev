@@ -86,7 +86,7 @@ class CapabilityTreeBuilderTest {
     // -- ASSERT --
     assertThat(tree).anyMatch(n -> ASSESSMENT.name().equals(n.value()));
     assertThat(tree).anyMatch(n -> TARGETS.name().equals(n.value()));
-    assertThat(tree).anyMatch(n -> TENANT_SETTING.name().equals(n.value()));
+    assertThat(tree).anyMatch(n -> TENANT_SETTINGS.name().equals(n.value()));
     assertThat(tree).noneMatch(n -> TENANTS.name().equals(n.value()));
     assertThat(tree).noneMatch(n -> PLATFORM_GROUPS_AND_ROLES.name().equals(n.value()));
   }
@@ -100,7 +100,7 @@ class CapabilityTreeBuilderTest {
     // TENANT_SETTING is a non-checkable category node in the tenant scope
     CapabilityOutput tenantSettingCategory =
         tree.stream()
-            .filter(n -> TENANT_SETTING.name().equals(n.value()))
+            .filter(n -> TENANT_SETTINGS.name().equals(n.value()))
             .findFirst()
             .orElseThrow();
     assertThat(tenantSettingCategory.checkable()).isFalse();
@@ -133,7 +133,7 @@ class CapabilityTreeBuilderTest {
     List<CapabilityOutput> tree = CapabilityTreeBuilder.buildTree(PLATFORM);
 
     // -- ASSERT --
-    assertThat(tree).noneMatch(n -> TENANT_SETTING.name().equals(n.value()));
+    assertThat(tree).noneMatch(n -> TENANT_SETTINGS.name().equals(n.value()));
     assertThat(flattenValues(tree)).doesNotContain(ACCESS_TENANT_SETTINGS.name());
   }
 

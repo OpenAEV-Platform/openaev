@@ -11,37 +11,37 @@ const settingsEntries = (ability: AppAbility): LeftMenuItem[] =>
       icon: () => (<SettingsOutlined />),
       label: 'Settings',
       href: 'settings',
-      userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
+      userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS),
       subItems: [
         {
           link: '/admin/settings/parameters',
           label: 'Parameters',
-          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
+          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS),
         },
         {
           link: '/admin/settings/security',
           label: 'Security',
-          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
+          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS),
         },
         {
           link: '/admin/settings/asset_rules',
           label: 'Customization',
-          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
+          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS),
         },
         {
           link: '/admin/settings/taxonomies',
           label: 'Taxonomies',
-          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
+          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS),
         },
         {
           link: '/admin/settings/data_ingestion',
           label: 'Data ingestion',
-          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
+          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS),
         },
         {
           link: '/admin/settings/experience',
           label: 'Filigran Experience',
-          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
+          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS),
         },
       ],
     }]);
