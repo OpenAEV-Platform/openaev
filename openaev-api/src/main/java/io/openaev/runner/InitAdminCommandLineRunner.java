@@ -1,5 +1,6 @@
 package io.openaev.runner;
 
+import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static io.openaev.database.model.Token.ADMIN_TOKEN_UUID;
 import static io.openaev.database.model.User.ADMIN_FIRSTNAME;
 import static io.openaev.database.model.User.ADMIN_LASTNAME;
@@ -8,6 +9,7 @@ import static org.springframework.util.StringUtils.hasText;
 
 import io.openaev.database.model.Token;
 import io.openaev.database.model.User;
+import io.openaev.database.repository.TenantRepository;
 import io.openaev.database.repository.TokenRepository;
 import io.openaev.database.repository.UserRepository;
 import jakarta.validation.constraints.NotNull;
@@ -36,14 +38,16 @@ public class InitAdminCommandLineRunner implements CommandLineRunner {
   private String adminToken;
 
   private final UserRepository userRepository;
-
+  private final TenantRepository tenantRepository;
   private final TokenRepository tokenRepository;
 
   public InitAdminCommandLineRunner(
       @NotNull final UserRepository userRepository,
-      @NotNull final TokenRepository tokenRepository) {
+      @NotNull final TokenRepository tokenRepository,
+      @NotNull final TenantRepository tenantRepository) {
     this.userRepository = userRepository;
     this.tokenRepository = tokenRepository;
+    this.tenantRepository = tenantRepository;
   }
 
   @Override
@@ -80,6 +84,7 @@ public class InitAdminCommandLineRunner implements CommandLineRunner {
 
     this.userRepository.createAdmin(
         ADMIN_UUID, ADMIN_FIRSTNAME, ADMIN_LASTNAME, this.adminEmail, encodedPassword());
+    tenantRepository.addUserToTenant(ADMIN_UUID, DEFAULT_TENANT_UUID);
     return this.userRepository.findById(ADMIN_UUID).orElseThrow();
   }
 
