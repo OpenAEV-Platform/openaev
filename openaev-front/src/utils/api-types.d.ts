@@ -1549,8 +1549,6 @@ export interface CreateExerciseInput {
   exercise_custom_dashboard?: string;
   exercise_description?: string;
   exercise_is_chaining?: boolean;
-  /** @format email */
-  exercise_mail_from?: string;
   /**
    * @minLength 0
    * @maxLength 100
@@ -2973,6 +2971,11 @@ export interface Exercise {
    * @minLength 1
    */
   exercise_mail_from: string;
+  /**
+   * @minLength 0
+   * @maxLength 100
+   * @pattern ^[^\r\n\x00]*$
+   */
   exercise_mail_from_name?: string;
   exercise_mails_reply_to?: string[];
   exercise_main_focus?: string;
@@ -6795,6 +6798,11 @@ export interface Scenario {
    * @minLength 1
    */
   scenario_mail_from: string;
+  /**
+   * @minLength 0
+   * @maxLength 100
+   * @pattern ^[^\r\n\x00]*$
+   */
   scenario_mail_from_name?: string;
   scenario_mails_reply_to?: string[];
   scenario_main_focus?: string;
@@ -6845,8 +6853,6 @@ export interface ScenarioInput {
   scenario_external_reference?: string;
   scenario_external_url?: string;
   scenario_is_chaining?: boolean;
-  /** @format email */
-  scenario_mail_from?: string;
   /**
    * @minLength 0
    * @maxLength 100
@@ -7658,8 +7664,6 @@ export interface UpdateExerciseInput {
   exercise_custom_dashboard?: string;
   exercise_description?: string;
   exercise_is_chaining?: boolean;
-  /** @format email */
-  exercise_mail_from?: string;
   /**
    * @minLength 0
    * @maxLength 100
@@ -7717,8 +7721,6 @@ export interface UpdateScenarioInput {
   scenario_external_reference?: string;
   scenario_external_url?: string;
   scenario_is_chaining?: boolean;
-  /** @format email */
-  scenario_mail_from?: string;
   /**
    * @minLength 0
    * @maxLength 100

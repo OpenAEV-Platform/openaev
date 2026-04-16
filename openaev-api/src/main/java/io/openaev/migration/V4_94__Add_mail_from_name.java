@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V4_71__Add_mail_from_name extends BaseJavaMigration {
+public class V4_94__Add_mail_from_name extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
