@@ -323,17 +323,23 @@ public class V1_DataImporter implements Importer {
    */
   private Set<Tag> mergeTagIds(
       Map<String, Base> baseIds,
-      @Nullable JsonNode node1,
+      JsonNode node1,
       String key1,
       @Nullable JsonNode node2,
-      String key2) {
+      @Nullable String key2) {
     Set<Tag> tags = new LinkedHashSet<>();
-    Stream.of(resolveJsonIds(node1, key1).stream(), resolveJsonIds(node2, key2).stream())
-        .flatMap(s -> s)
+    resolveJsonIds(node1, key1).stream()
         .map(baseIds::get)
         .filter(Objects::nonNull)
         .map(Tag.class::cast)
         .forEach(tags::add);
+    if (node2 != null) {
+      resolveJsonIds(node2, key2).stream()
+          .map(baseIds::get)
+          .filter(Objects::nonNull)
+          .map(Tag.class::cast)
+          .forEach(tags::add);
+    }
     return tags;
   }
 
@@ -350,13 +356,14 @@ public class V1_DataImporter implements Importer {
    */
   protected Set<Domain> mergeDomains(
       Map<String, Base> baseIds,
-      @Nullable JsonNode node1,
-      @Nullable String prefix1,
+      JsonNode node1,
+      String prefix1,
       @Nullable JsonNode node2,
       @Nullable String prefix2) {
-    Set<Domain> domains = new LinkedHashSet<>();
-    domains.addAll(importDomains(node1, prefix1, baseIds));
-    domains.addAll(importDomains(node2, prefix2, baseIds));
+    Set<Domain> domains = new LinkedHashSet<>(importDomains(node1, prefix1, baseIds));
+    if (node2 != null) {
+      domains.addAll(importDomains(node2, prefix2, baseIds));
+    }
     if (domains.isEmpty()) {
       domains.add(
           domainService.findOptionalByName(PresetDomain.getToClassify().getName()).orElseThrow());
@@ -376,13 +383,14 @@ public class V1_DataImporter implements Importer {
    */
   private Set<AttackPattern> mergeAttackPatterns(
       Map<String, Base> baseIds,
-      @Nullable JsonNode node1,
+      JsonNode node1,
       String prefix1,
       @Nullable JsonNode node2,
-      String prefix2) {
-    Set<AttackPattern> patterns = new LinkedHashSet<>();
-    patterns.addAll(importAttackPattern(node1, prefix1, baseIds));
-    patterns.addAll(importAttackPattern(node2, prefix2, baseIds));
+      @Nullable String prefix2) {
+    Set<AttackPattern> patterns = new LinkedHashSet<>(importAttackPattern(node1, prefix1, baseIds));
+    if (node2 != null) {
+      patterns.addAll(importAttackPattern(node2, prefix2, baseIds));
+    }
     return patterns;
   }
 
@@ -1394,29 +1402,29 @@ public class V1_DataImporter implements Importer {
     injectorContract.setTags(
         mergeTagIds(
             baseIds,
-            importNode.get("injector_contract_payload"),
-            "payload_tags",
             importNode,
-            "injector_contract_tags"));
+            "injector_contract_tags",
+            importNode.get("injector_contract_payload"),
+            "payload_tags"));
 
     // Domains
     injectorContract.setDomains(
         mergeDomains(
             baseIds,
-            importNode.get("injector_contract_payload"),
-            "payload_",
             importNode,
-            "injector_contract_"));
+            "injector_contract_",
+            importNode.get("injector_contract_payload"),
+            "payload_"));
 
     // Attack patterns
     injectorContract.setAttackPatterns(
         new ArrayList<>(
             mergeAttackPatterns(
                 baseIds,
-                importNode.get("injector_contract_payload"),
-                "payload_",
                 importNode,
-                "injector_contract_")));
+                "injector_contract_",
+                importNode.get("injector_contract_payload"),
+                "payload_")));
 
     injectorContract.setAtomicTesting(
         importNode.get("injector_contract_atomic_testing").booleanValue());
