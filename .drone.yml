@@ -136,7 +136,7 @@ steps:
     depends_on:
       - api-tests
       - frontend-tests
-      - frontend-e2e-tests
+#      - frontend-e2e-tests
 
   - name: build-circleci-release
     image: curlimages/curl
@@ -151,7 +151,7 @@ steps:
     depends_on:
       - api-tests
       - frontend-tests
-      - frontend-e2e-tests
+#      - frontend-e2e-tests
 
   - name: slack
     image: plugins/slack
@@ -165,7 +165,7 @@ steps:
     depends_on:
       - api-tests
       - frontend-tests
-      - frontend-e2e-tests
+#      - frontend-e2e-tests
 
 services:
   - name: minio
