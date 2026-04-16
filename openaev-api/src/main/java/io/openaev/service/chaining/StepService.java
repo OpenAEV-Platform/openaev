@@ -2,6 +2,7 @@ package io.openaev.service.chaining;
 
 import com.google.gson.*;
 import io.openaev.api.chaining.ActionStep;
+import io.openaev.api.chaining.ConditionMapper;
 import io.openaev.api.chaining.InjectExecutionStep;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepInput;
@@ -36,10 +37,11 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
   private final StepDelayQueueRepository stepDelayQueueRepository;
 
   /**
-   * Create step templates
+   * Create a single step template.
    *
-   * @param workflowId id of the workflow linked to the step templates
-   * @param steps list of input to create step templates
+   * @param workflowId id of the workflow linked to the step template
+   * @param stepInput input to create the step template
+   * @return created step template
    */
   @Transactional(rollbackFor = Exception.class)
   public Step createStepTemplate(String workflowId, StepsCreateInput.StepInput stepInput)
@@ -47,13 +49,11 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     Workflow workflow =
         workflowService.getWorkflowByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
 
-    for (StepsCreateInput.StepCreateInput stepInput : steps) {
-      ActionStep actionStep = factoryAction(stepInput.getStepAction(), null);
-
-      Step step =
-          actionStep
-              .create(stepInput, workflow)
-              .orElseThrow(() -> new ChainingException("Failed to create step (TEMPLATE)"));
+    ActionStep actionStep = factoryAction(stepInput.getStepAction(), null);
+    Step step =
+        actionStep
+            .create(stepInput, workflow)
+            .orElseThrow(() -> new ChainingException("Failed to create step (TEMPLATE)"));
 
     step = saveStep(step);
     stepConditionTemplate(stepInput.getConditions(), workflowId, step);

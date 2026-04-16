@@ -6,7 +6,6 @@ import io.openaev.api.chaining.dto.EventOutput;
 import io.openaev.database.model.Condition;
 import io.openaev.database.model.ConditionType;
 import io.openaev.database.model.MappingType;
-import io.openaev.database.model.Step;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -87,7 +86,7 @@ public class ConditionMapper {
         .type(c.getType() != null ? c.getType().name() : null)
         .value(c.getValue())
         .conditionParentId(parentId)
-        .mappingType(resolveMappingType(input))
+        .mappingType(c.getMappingType())
         .build();
   }
 

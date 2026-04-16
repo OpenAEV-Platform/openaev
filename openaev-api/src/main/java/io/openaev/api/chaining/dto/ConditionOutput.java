@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.model.ConditionKeySubtype;
 import io.openaev.database.model.ConditionKeyType;
+import io.openaev.database.model.MappingType;
 import lombok.*;
 
 /** Nested output DTO for a single condition inside an event. */

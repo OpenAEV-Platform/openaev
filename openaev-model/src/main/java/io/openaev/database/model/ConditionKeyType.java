@@ -65,9 +65,6 @@ public enum ConditionKeyType {
   @JsonProperty("vulnerability")
   VULNERABILITY,
 
-  @JsonProperty("account_with_password_not_required")
-  AccountWithPasswordNotRequired("account_with_password_not_required"),
-
   @JsonProperty("asset")
   ASSET;
 }
