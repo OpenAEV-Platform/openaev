@@ -35,9 +35,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.test.util.ReflectionTestUtils;
 
 @Transactional
 @WithMockUser(isAdmin = true)
@@ -578,16 +578,10 @@ class PayloadApiImporterTest extends IntegrationTest {
 
     ResourceObject firstRemediation =
         buildDetectionRemediationResource(
-            firstRemediationId,
-            "{\"rule\":\"first\"}",
-            "collectors",
-            collectorResourceId);
+            firstRemediationId, "{\"rule\":\"first\"}", "collectors", collectorResourceId);
     ResourceObject secondRemediation =
         buildDetectionRemediationResource(
-            secondRemediationId,
-            "{\"rule\":\"second\"}",
-            "collectors",
-            collectorResourceId);
+            secondRemediationId, "{\"rule\":\"second\"}", "collectors", collectorResourceId);
 
     JsonApiDocument<ResourceObject> document =
         new JsonApiDocument<>(
@@ -600,7 +594,8 @@ class PayloadApiImporterTest extends IntegrationTest {
                     new Relationship(
                         List.of(
                             new ResourceIdentifier(firstRemediationId, "detection_remediations"),
-                            new ResourceIdentifier(secondRemediationId, "detection_remediations"))))),
+                            new ResourceIdentifier(
+                                secondRemediationId, "detection_remediations"))))),
             List.of(firstRemediation, secondRemediation, collectorResource));
 
     MockMultipartFile zipFile = buildZipFile(document);
