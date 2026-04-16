@@ -192,5 +192,4 @@ public class SpecificationUtils {
   public static <T extends Base> Specification<T> hasIdIn(List<String> ids) {
     return (root, query, cb) -> root.get("id").in(ids);
   }
-
 }
