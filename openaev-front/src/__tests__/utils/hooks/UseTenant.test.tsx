@@ -368,7 +368,7 @@ describe('useTenant', () => {
       expect(mockFetchUserTenants).toHaveBeenCalledTimes(2);
     });
 
-    it('given_reloadWithPreferredTenantId_should_selectPreferredTenant', async () => {
+    it('given_reloadWithPreferredTenantId_should_navigateToPreferredTenant', async () => {
       // Arrange
       mockTenantsResponse([TENANT_ALPHA, TENANT_BETA]);
       const useTenant = await importUseTenant();
@@ -387,10 +387,14 @@ describe('useTenant', () => {
         await result.current.reloadUserTenants(TENANT_GAMMA.tenant_id);
       });
 
-      // Assert
-      await waitFor(() => {
-        expect(result.current.currentUserTenant?.tenant_id).toBe(TENANT_GAMMA.tenant_id);
-      });
+      // Assert — navigateToTenant triggers a full page navigation (skips setTenant)
+      expect(mockBuildTenantUrl).toHaveBeenCalledWith(
+        TENANT_GAMMA.tenant_id,
+        expect.any(String),
+        expect.any(String),
+        expect.any(String),
+      );
+      expect(window.location.href).toContain(TENANT_GAMMA.tenant_id);
     });
 
     it('given_reloadWithNonexistentPreferredId_should_fallbackToFirstTenant', async () => {
