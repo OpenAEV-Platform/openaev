@@ -16,9 +16,7 @@ import io.openaev.rest.payload.form.PayloadUpdateInput;
 import io.openaev.rest.payload.form.PayloadUpsertInput;
 import io.openaev.rest.payload.output_parser.OutputParserService;
 import jakarta.validation.constraints.NotNull;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -104,8 +102,6 @@ public class PayloadUtils {
       payloadCreateInput.setCleanupCommand(payloadNode.get("payload_cleanup_command").textValue());
     }
 
-    // TODO: tag
-    payloadCreateInput.setTagIds(new ArrayList<>());
     return payloadCreateInput;
   }
 

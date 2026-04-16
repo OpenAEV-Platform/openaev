@@ -38,6 +38,7 @@ import io.openaev.service.InjectorService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import jakarta.activation.MimetypesFileTypeMap;
+import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -225,10 +226,19 @@ public class V1_DataImporter implements Importer {
   }
 
   // -- DOMAINS --
+  /**
+   * Imports domains from a single JSON node. Does not apply the "ToClassify" fallback — use {@code
+   * mergeDomains} when merging from multiple sources with fallback.
+   *
+   * @param importNode the JSON node to extract domains from
+   * @param prefix the field prefix (e.g. "payload_")
+   * @param baseIds the shared ID-to-entity mapping used for deduplication and caching
+   * @return a list of resolved domains (may be empty if no domains found in the node)
+   */
   @VisibleForTesting
-  protected List<String> importDomains(
+  private List<Domain> importDomains(
       JsonNode importNode, String prefix, Map<String, Base> baseIds) {
-    List<String> domainIds = new ArrayList<>();
+    List<Domain> domains = new ArrayList<>();
     resolveJsonElements(importNode, prefix + "domains")
         .forEach(
             nodeDomain -> {
@@ -239,15 +249,14 @@ public class V1_DataImporter implements Importer {
               String id = idNode.textValue();
 
               if (baseIds.get(id) != null) {
-                // Already import
-                domainIds.add(baseIds.get(id).getId());
+                domains.add((Domain) baseIds.get(id));
                 return;
               }
 
               Optional<Domain> existingDomain = this.domainService.findOptionalById(id);
               if (existingDomain.isPresent()) {
                 baseIds.put(id, existingDomain.get());
-                domainIds.add(existingDomain.get().getId());
+                domains.add(existingDomain.get());
               } else {
                 Domain createdDomain =
                     this.domainService.upsert(
@@ -255,26 +264,17 @@ public class V1_DataImporter implements Importer {
                         nodeDomain.get("domain_color").textValue(),
                         new Tenant(TenantContext.getCurrentTenant()));
                 baseIds.put(createdDomain.getId(), createdDomain);
-                domainIds.add(createdDomain.getId());
+                domains.add(createdDomain);
               }
             });
 
-    // if no domain found we marked it as "TOCLASSIFY"
-    if (domainIds.isEmpty()) {
-      domainIds.add(
-          domainService
-              .findOptionalByName(PresetDomain.getToClassify().getName())
-              .orElseThrow()
-              .getId());
-    }
-
-    return domainIds;
+    return domains;
   }
 
   // -- ATTACK PATTERN --
-  private List<String> importAttackPattern(
+  private List<AttackPattern> importAttackPattern(
       JsonNode importNode, String prefix, Map<String, Base> baseIds) {
-    ArrayList<String> attackPatternIds = new ArrayList<>();
+    ArrayList<AttackPattern> attackPatterns = new ArrayList<>();
     resolveJsonElements(importNode, prefix + "attack_patterns")
         .forEach(
             nodeAttackPattern -> {
@@ -285,7 +285,7 @@ public class V1_DataImporter implements Importer {
               String id = idNode.textValue();
 
               if (baseIds.get(id) != null) {
-                // Already import
+                attackPatterns.add((AttackPattern) baseIds.get(id));
                 return;
               }
               String name = nodeAttackPattern.get("attack_pattern_external_id").textValue();
@@ -295,7 +295,7 @@ public class V1_DataImporter implements Importer {
                       List.of(name), TenantContext.getCurrentTenant());
               if (!existingAttackPattern.isEmpty()) {
                 baseIds.put(id, existingAttackPattern.getFirst());
-                attackPatternIds.add(existingAttackPattern.getFirst().getId());
+                attackPatterns.add(existingAttackPattern.getFirst());
               } else {
                 AttackPattern attackPatternCreated =
                     this.attackPatternRepository.save(
@@ -303,10 +303,87 @@ public class V1_DataImporter implements Importer {
                             nodeAttackPattern,
                             importKillChainPhase(nodeAttackPattern, "attack_pattern_", baseIds)));
                 baseIds.put(id, attackPatternCreated);
-                attackPatternIds.add(attackPatternCreated.getId());
+                attackPatterns.add(attackPatternCreated);
               }
             });
-    return attackPatternIds;
+    return attackPatterns;
+  }
+
+  // -- MERGE HELPERS (tags, domains, attack patterns from two nodes) --
+
+  /**
+   * Resolves and merges tags from two JSON nodes using their respective field keys.
+   *
+   * @param baseIds shared ID-to-entity mapping
+   * @param node1 first JSON node (may be {@code null})
+   * @param key1 tag field key for the first node (e.g. "payload_tags")
+   * @param node2 second JSON node (may be {@code null})
+   * @param key2 tag field key for the second node (e.g. "injector_contract_tags")
+   * @return a deduplicated set of resolved tags
+   */
+  private Set<Tag> mergeTagIds(
+      Map<String, Base> baseIds,
+      @Nullable JsonNode node1,
+      String key1,
+      @Nullable JsonNode node2,
+      String key2) {
+    Set<Tag> tags = new LinkedHashSet<>();
+    Stream.of(resolveJsonIds(node1, key1).stream(), resolveJsonIds(node2, key2).stream())
+        .flatMap(s -> s)
+        .map(baseIds::get)
+        .filter(Objects::nonNull)
+        .map(Tag.class::cast)
+        .forEach(tags::add);
+    return tags;
+  }
+
+  /**
+   * Imports and merges domains from two JSON nodes. Falls back to the "ToClassify" domain if no
+   * domain is found from either source.
+   *
+   * @param baseIds shared ID-to-entity mapping
+   * @param node1 first JSON node (may be {@code null})
+   * @param prefix1 field prefix for the first node (e.g. "payload_")
+   * @param node2 second JSON node (may be {@code null})
+   * @param prefix2 field prefix for the second node (e.g. "injector_contract_")
+   * @return a deduplicated set of resolved domains, never empty
+   */
+  protected Set<Domain> mergeDomains(
+      Map<String, Base> baseIds,
+      @Nullable JsonNode node1,
+      @Nullable String prefix1,
+      @Nullable JsonNode node2,
+      @Nullable String prefix2) {
+    Set<Domain> domains = new LinkedHashSet<>();
+    domains.addAll(importDomains(node1, prefix1, baseIds));
+    domains.addAll(importDomains(node2, prefix2, baseIds));
+    if (domains.isEmpty()) {
+      domains.add(
+          domainService.findOptionalByName(PresetDomain.getToClassify().getName()).orElseThrow());
+    }
+    return domains;
+  }
+
+  /**
+   * Imports and merges attack patterns from two JSON nodes.
+   *
+   * @param baseIds shared ID-to-entity mapping
+   * @param node1 first JSON node (may be {@code null})
+   * @param prefix1 field prefix for the first node (e.g. "payload_")
+   * @param node2 second JSON node (may be {@code null})
+   * @param prefix2 field prefix for the second node (e.g. "injector_contract_")
+   * @return a deduplicated set of resolved attack patterns
+   */
+  private Set<AttackPattern> mergeAttackPatterns(
+      Map<String, Base> baseIds,
+      @Nullable JsonNode node1,
+      String prefix1,
+      @Nullable JsonNode node2,
+      String prefix2) {
+    Set<AttackPattern> patterns = new LinkedHashSet<>();
+    patterns.addAll(importAttackPattern(node1, prefix1, baseIds));
+    patterns.addAll(importAttackPattern(node2, prefix2, baseIds));
+    return patterns;
   }
 
   private AttackPattern createAttackPattern(
@@ -1120,7 +1197,8 @@ public class V1_DataImporter implements Importer {
               // provided by the injector
               Payload createdPayload = injectorContract.map(ic -> ic.getPayload()).orElse(null);
               injectorContractId =
-                  importInjectorContractFromStarterPack(injectContractNode, createdPayload).getId();
+                  importInjectorContractFromStarterPack(injectContractNode, createdPayload, baseIds)
+                      .getId();
             } else {
               log.warn(
                   "Import Inject Failed: Unresolved injector contract ID on inject: {}", injectId);
@@ -1300,8 +1378,9 @@ public class V1_DataImporter implements Importer {
    * @return
    */
   private InjectorContract importInjectorContractFromStarterPack(
-      JsonNode importNode, Payload payload) {
+      JsonNode importNode, Payload payload, Map<String, Base> baseIds) {
     InjectorContract injectorContract = new InjectorContract();
+
     injectorContract.setId(importNode.get("injector_contract_id").textValue());
     injectorContract.setCustom(false);
     injectorContract.setContent(importNode.get("injector_contract_content").textValue());
@@ -1310,6 +1389,35 @@ public class V1_DataImporter implements Importer {
     injectorContract.setTenant(dummyInjector.getTenant());
     injectorContract.setConvertedContent((ObjectNode) importNode.get("convertedContent"));
     injectorContract.setExternalId(importNode.get("injector_contract_external_id").textValue());
+
+    // Tags
+    injectorContract.setTags(
+        mergeTagIds(
+            baseIds,
+            importNode.get("injector_contract_payload"),
+            "payload_tags",
+            importNode,
+            "injector_contract_tags"));
+
+    // Domains
+    injectorContract.setDomains(
+        mergeDomains(
+            baseIds,
+            importNode.get("injector_contract_payload"),
+            "payload_",
+            importNode,
+            "injector_contract_"));
+
+    // Attack patterns
+    injectorContract.setAttackPatterns(
+        new ArrayList<>(
+            mergeAttackPatterns(
+                baseIds,
+                importNode.get("injector_contract_payload"),
+                "payload_",
+                importNode,
+                "injector_contract_")));
+
     injectorContract.setAtomicTesting(
         importNode.get("injector_contract_atomic_testing").booleanValue());
     injectorContract.setManual(importNode.get("injector_contract_manual").booleanValue());
@@ -1388,6 +1496,35 @@ public class V1_DataImporter implements Importer {
     return outputParserInputs;
   }
 
+  private PayloadCreateInput buildPayloadCreateInput(
+      Map<String, Base> baseIds, JsonNode payloadNode, @Nullable JsonNode injectorContractNode) {
+    PayloadCreateInput payloadCreateInput = buildPayload(payloadNode);
+    payloadCreateInput.setOutputParsers(
+        buildOutputParsersFromPayloadJsonNode(payloadNode, baseIds));
+    payloadCreateInput.setDetectionRemediations(buildDetectionRemediationsJsonNode(payloadNode));
+
+    // Tags — merge from payload and injector contract nodes
+    Set<Tag> tags =
+        mergeTagIds(
+            baseIds, payloadNode, "payload_tags", injectorContractNode, "injector_contract_tags");
+    payloadCreateInput.setTagIds(tags.stream().map(Tag::getId).collect(Collectors.toList()));
+
+    // Domains — merge from payload and injector contract nodes, fallback to ToClassify
+    Set<Domain> domains =
+        mergeDomains(baseIds, payloadNode, "payload_", injectorContractNode, "injector_contract_");
+    payloadCreateInput.setDomainIds(
+        domains.stream().map(Domain::getId).collect(Collectors.toList()));
+
+    // Attack patterns — merge from payload and injector contract nodes
+    Set<AttackPattern> attackPatterns =
+        mergeAttackPatterns(
+            baseIds, payloadNode, "payload_", injectorContractNode, "injector_contract_");
+    payloadCreateInput.setAttackPatternsIds(
+        attackPatterns.stream().map(AttackPattern::getId).collect(Collectors.toList()));
+
+    return payloadCreateInput;
+  }
+
   private String importPayloadAsMain(
       @NotNull final JsonNode importNode, Map<String, Base> baseIds) {
     JsonNode payloadNode = importNode.get("payload_information");
@@ -1420,21 +1557,8 @@ public class V1_DataImporter implements Importer {
         }
       }
     }
+    PayloadCreateInput payloadCreateInput = buildPayloadCreateInput(baseIds, payloadNode, null);
 
-    PayloadCreateInput payloadCreateInput = buildPayload(payloadNode);
-    payloadCreateInput.setOutputParsers(
-        buildOutputParsersFromPayloadJsonNode(payloadNode, baseIds));
-    payloadCreateInput.setDomainIds(importDomains(payloadNode, "payload_", baseIds));
-
-    List<String> attackPatternIds = importAttackPattern(payloadNode, "payload_", baseIds);
-
-    payloadCreateInput.setAttackPatternsIds(attackPatternIds);
-    payloadCreateInput.setDetectionRemediations(buildDetectionRemediationsJsonNode(payloadNode));
-    payloadCreateInput.setTagIds(
-        resolveJsonIds(payloadNode, "payload_tags").stream()
-            .map(baseIds::get)
-            .map(Base::getId)
-            .collect(Collectors.toList()));
     PayloadCreationService.PayloadInjectorContractCreationResult result =
         this.payloadCreationService.createPayload(payloadCreateInput);
     if (result.injectorContract() != null) {
@@ -1462,32 +1586,11 @@ public class V1_DataImporter implements Importer {
               "file_drop_file", baseIds.get(payloadNode.get("file_drop_file").textValue()).getId());
     }
 
-    PayloadCreateInput payloadCreateInput = buildPayload(payloadNode);
-    payloadCreateInput.setOutputParsers(
-        buildOutputParsersFromPayloadJsonNode(payloadNode, baseIds));
-
-    payloadCreateInput.setDomainIds(importDomains(payloadNode, "payload_", baseIds));
-
-    List<String> attackPatternIds = importAttackPattern(payloadNode, "payload_", baseIds);
-    payloadCreateInput.setAttackPatternsIds(attackPatternIds);
-    payloadCreateInput.setDetectionRemediations(buildDetectionRemediationsJsonNode(payloadNode));
-
-    // Merge payload-level tags with injector-contract-level tags
-    Set<String> tagIds = new LinkedHashSet<>();
-    resolveJsonIds(payloadNode, "payload_tags").stream()
-        .map(baseIds::get)
-        .filter(Objects::nonNull)
-        .map(Base::getId)
-        .forEach(tagIds::add);
-    resolveJsonIds(injectContractNode, "injector_contract_tags").stream()
-        .map(baseIds::get)
-        .filter(Objects::nonNull)
-        .map(Base::getId)
-        .forEach(tagIds::add);
-    payloadCreateInput.setTagIds(new ArrayList<>(tagIds));
-
+    PayloadCreateInput payloadCreateInput =
+        buildPayloadCreateInput(baseIds, payloadNode, injectContractNode);
     PayloadCreationService.PayloadInjectorContractCreationResult result =
         this.payloadCreationService.createPayload(payloadCreateInput);
+
     if (result.injectorContract() != null) {
       return result.injectorContract();
     } else {

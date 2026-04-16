@@ -18,11 +18,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -228,11 +224,11 @@ class V1_DataImporterTest extends IntegrationTest {
     Domain domainToClassify =
         domainRepository.findByName(PresetDomain.getToClassify().getName()).orElseThrow();
 
-    List<String> importDomainIds =
-        this.importer.importDomains(this.importNode, "payload_", new HashMap<>());
+    Set<Domain> importDomain =
+        this.importer.mergeDomains(new HashMap<>(), this.importNode, "payload_", null, null);
 
-    assertEquals(1, importDomainIds.size());
-    assertEquals(domainToClassify.getId(), importDomainIds.get(0));
+    assertEquals(1, importDomain.size());
+    assertEquals(domainToClassify.getId(), importDomain.stream().findFirst().get().getId());
   }
 
   @Test
