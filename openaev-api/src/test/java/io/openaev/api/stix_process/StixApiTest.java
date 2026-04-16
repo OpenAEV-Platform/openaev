@@ -510,6 +510,7 @@ class StixApiTest extends IntegrationTest {
           .isEqualTo("security-coverage--4c3b91e2-3b47-4f84-b2e6-d27e3f0581c1");
       assertThat(createdScenario.getRecurrence()).asString().isEqualTo("P1D");
       // recurrence duration is set to P30D
+      assertThat(createdScenario.getRecurrenceStart().getNano()).isEqualTo(0);
       assertThat(createdScenario.getRecurrenceEnd())
           .isEqualTo(createdScenario.getRecurrenceStart().plus(30, ChronoUnit.DAYS));
       assertThat(createdScenario.getTags().stream().map(Tag::getName).toList())
