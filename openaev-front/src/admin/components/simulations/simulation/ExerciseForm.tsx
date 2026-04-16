@@ -5,8 +5,8 @@ import { type FunctionComponent, useState } from 'react';
 import { Controller, type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import Button from '../../../../components/common/button/Button';
 import type { LoggedHelper } from '../../../../actions/helper';
+import Button from '../../../../components/common/button/Button';
 import SelectField from '../../../../components/fields/SelectField';
 import TagField from '../../../../components/fields/TagField';
 import TextField from '../../../../components/fields/TextField';
@@ -257,7 +257,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
         label={t('Sender email from')}
         style={{ marginTop: 20 }}
         error={!!errors.exercise_mail_from_name}
-        helperText={errors.exercise_mail_from_name && errors.exercise_mail_from_name?.message}
+        helperText={errors.exercise_mail_from_name?.message}
         inputProps={register('exercise_mail_from_name')}
         disabled={disabled}
       />
@@ -321,7 +321,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
         label={t('Messages header')}
         style={{ marginTop: 20 }}
         error={!!errors.exercise_message_header}
-        helperText={errors.exercise_message_header && errors.exercise_message_header?.message}
+        helperText={errors.exercise_message_header?.message}
         inputProps={register('exercise_message_header')}
         disabled={disabled}
       />
@@ -331,7 +331,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
         label={t('Messages footer')}
         style={{ marginTop: 20 }}
         error={!!errors.exercise_message_footer}
-        helperText={errors.exercise_message_footer && errors.exercise_message_footer?.message}
+        helperText={errors.exercise_message_footer?.message}
         inputProps={register('exercise_message_footer')}
         disabled={disabled}
       />

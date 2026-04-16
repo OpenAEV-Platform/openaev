@@ -5,8 +5,8 @@ import { type FunctionComponent, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import Button from '../../../components/common/button/Button';
 import type { LoggedHelper } from '../../../actions/helper';
+import Button from '../../../components/common/button/Button';
 import Tabs, { type TabsEntry } from '../../../components/common/tabs/Tabs';
 import useTabs from '../../../components/common/tabs/useTabs';
 import SelectField from '../../../components/fields/SelectField';
@@ -236,7 +236,7 @@ const ScenarioForm: FunctionComponent<Props> = ({
               fullWidth
               label={t('Sender email from')}
               error={!!errors.scenario_mail_from_name}
-              helperText={errors.scenario_mail_from_name && errors.scenario_mail_from_name?.message}
+              helperText={errors.scenario_mail_from_name?.message}
               inputProps={register('scenario_mail_from_name')}
               disabled={disabled}
             />
@@ -297,7 +297,7 @@ const ScenarioForm: FunctionComponent<Props> = ({
               fullWidth
               label={t('Messages header')}
               error={!!errors.scenario_message_header}
-              helperText={errors.scenario_message_header && errors.scenario_message_header?.message}
+              helperText={errors.scenario_message_header?.message}
               inputProps={register('scenario_message_header')}
               disabled={disabled}
             />
@@ -306,7 +306,7 @@ const ScenarioForm: FunctionComponent<Props> = ({
               fullWidth
               label={t('Messages footer')}
               error={!!errors.scenario_message_footer}
-              helperText={errors.scenario_message_footer && errors.scenario_message_footer?.message}
+              helperText={errors.scenario_message_footer?.message}
               inputProps={register('scenario_message_footer')}
               disabled={disabled}
             />
@@ -340,4 +340,3 @@ const ScenarioForm: FunctionComponent<Props> = ({
 ;
 
 export default ScenarioForm;
-;
