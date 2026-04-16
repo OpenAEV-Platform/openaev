@@ -1,7 +1,5 @@
 package io.openaev.rest.tag_rule;
 
-import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
-
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.UserRoleDescription;
@@ -34,7 +32,6 @@ import org.springframework.web.bind.annotation.*;
 public class TagRuleApi extends RestBehavior {
 
   public static final String TAG_RULE_URI = "/api/tag-rules";
-  private static final String TENANT_TAG_RULE_URI = TENANT_PREFIX + "/tag-rules";
 
   private final TagRuleService tagRuleService;
   private final TagRuleMapper tagRuleMapper;
@@ -46,7 +43,7 @@ public class TagRuleApi extends RestBehavior {
   }
 
   @LogExecutionTime
-  @GetMapping({TagRuleApi.TAG_RULE_URI + "/{tagRuleId}", TENANT_TAG_RULE_URI + "/{tagRuleId}"})
+  @GetMapping(TagRuleApi.TAG_RULE_URI + "/{tagRuleId}")
   @AccessControl(
       resourceId = "#tagRuleId",
       actionPerformed = Action.READ,
@@ -59,7 +56,7 @@ public class TagRuleApi extends RestBehavior {
   }
 
   @LogExecutionTime
-  @GetMapping({TagRuleApi.TAG_RULE_URI, TENANT_TAG_RULE_URI})
+  @GetMapping(TagRuleApi.TAG_RULE_URI)
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TAG_RULE)
   @Operation(description = "Get All TagRules", summary = "Get TagRules")
   @ApiResponses(
@@ -69,7 +66,7 @@ public class TagRuleApi extends RestBehavior {
   }
 
   @LogExecutionTime
-  @DeleteMapping({TagRuleApi.TAG_RULE_URI + "/{tagRuleId}", TENANT_TAG_RULE_URI + "/{tagRuleId}"})
+  @DeleteMapping(TagRuleApi.TAG_RULE_URI + "/{tagRuleId}")
   @AccessControl(
       resourceId = "#tagRuleId",
       actionPerformed = Action.DELETE,
@@ -87,7 +84,7 @@ public class TagRuleApi extends RestBehavior {
   }
 
   @LogExecutionTime
-  @PostMapping({TagRuleApi.TAG_RULE_URI, TENANT_TAG_RULE_URI})
+  @PostMapping(TagRuleApi.TAG_RULE_URI)
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.TAG_RULE)
   @Transactional(rollbackFor = Exception.class)
   @Operation(summary = "Create TagRule", description = "Tag and Asset Groups needs to exists")
@@ -102,7 +99,7 @@ public class TagRuleApi extends RestBehavior {
   }
 
   @LogExecutionTime
-  @PutMapping({TagRuleApi.TAG_RULE_URI + "/{tagRuleId}", TENANT_TAG_RULE_URI + "/{tagRuleId}"})
+  @PutMapping(TagRuleApi.TAG_RULE_URI + "/{tagRuleId}")
   @AccessControl(
       resourceId = "#tagRuleId",
       actionPerformed = Action.WRITE,
@@ -122,7 +119,7 @@ public class TagRuleApi extends RestBehavior {
   }
 
   @LogExecutionTime
-  @PostMapping({TagRuleApi.TAG_RULE_URI + "/search", TENANT_TAG_RULE_URI + "/search"})
+  @PostMapping(TagRuleApi.TAG_RULE_URI + "/search")
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.TAG_RULE)
   @Operation(
       description = "Search TagRules corresponding to search criteria",
