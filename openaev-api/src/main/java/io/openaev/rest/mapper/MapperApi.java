@@ -1,6 +1,5 @@
 package io.openaev.rest.mapper;
 
-import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import com.fasterxml.jackson.core.type.TypeReference;
