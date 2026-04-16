@@ -48,12 +48,12 @@ public class InjectTestStatus extends BaseInjectStatus {
     int numberOfError =
         (int)
             execution.getTraces().stream()
-                .filter(ex -> ex.getStatus().isError())
+                .filter(ex -> ExecutionTraceStatus.ERROR.equals(ex.getStatus()))
                 .count();
     int numberOfSuccess =
         (int)
             execution.getTraces().stream()
-                .filter(ex -> ex.getStatus().isSuccess())
+                .filter(ex -> ExecutionTraceStatus.SUCCESS.equals(ex.getStatus()))
                 .count();
     ExecutionStatus globalStatus =
         numberOfSuccess > 0 ? ExecutionStatus.SUCCESS : ExecutionStatus.ERROR;

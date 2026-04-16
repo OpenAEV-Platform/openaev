@@ -13,9 +13,6 @@ public class InjectStatusUtils {
    * Compute the global execution status from a list of COMPLETE traces (one per agent).
    *
    * <p>Filters out AGENT_INACTIVE traces. If no active traces remain, returns ERROR.
-   *
-   * @param traces the list of traces to evaluate
-   * @return the aggregated execution status
    */
   public static ExecutionStatus computeStatus(List<ExecutionTrace> traces) {
     List<ExecutionTrace> activeTraces =
@@ -48,4 +45,3 @@ public class InjectStatusUtils {
     return ExecutionStatus.PARTIAL;
   }
 }
-

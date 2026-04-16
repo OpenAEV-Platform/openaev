@@ -160,8 +160,7 @@ public class InjectsExecutionJob implements Job {
     for (Inject inject : pendingInjects) {
       InjectStatus status = inject.getStatus().orElseThrow(ElementNotFoundException::new);
       // Find agents that already have a COMPLETE trace
-      Set<String> completedAgentIds =
-          ExecutionTraceUtils.getCompletedAgentIds(status.getTraces());
+      Set<String> completedAgentIds = ExecutionTraceUtils.getCompletedAgentIds(status.getTraces());
 
       // Get all agents expected to execute this inject
       List<Agent> allAgents = injectService.getAgentsByInject(inject);
@@ -171,7 +170,6 @@ public class InjectsExecutionJob implements Job {
         if (!completedAgentIds.contains(agent.getId())) {
           ExecutionTraceUtils.addTimeoutTrace(status, agent, this.injectExecutionThreshold);
         }
-        // Recompute the inject global status from all COMPLETE traces
         injectStatusService.updateFinalInjectStatus(status);
       }
     }

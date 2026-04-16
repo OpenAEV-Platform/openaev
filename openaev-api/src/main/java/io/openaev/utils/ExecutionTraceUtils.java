@@ -45,12 +45,7 @@ public class ExecutionTraceUtils {
 
   // -- QUERY --
 
-  /**
-   * Returns the IDs of agents that already have a COMPLETE trace.
-   *
-   * @param traces the list of execution traces to inspect
-   * @return set of agent IDs with a COMPLETE action
-   */
+  /** Returns the IDs of agents that already have a COMPLETE trace. */
   public static Set<String> getCompletedAgentIds(List<ExecutionTrace> traces) {
     return traces.stream()
         .filter(t -> ExecutionTraceAction.COMPLETE.equals(t.getAction()))
@@ -64,10 +59,6 @@ public class ExecutionTraceUtils {
   /**
    * Adds a COMPLETE/TIMEOUT trace to the given inject status for an agent that did not respond
    * within the configured threshold.
-   *
-   * @param status the inject status to add the trace to
-   * @param agent the agent that timed out
-   * @param thresholdMinutes the timeout threshold in minutes
    */
   public static void addTimeoutTrace(InjectStatus status, Agent agent, int thresholdMinutes) {
     status.addTrace(
@@ -84,9 +75,6 @@ public class ExecutionTraceUtils {
   /**
    * Adds a START/INFO trace to the given inject status indicating that an implant was spawned by
    * the agent.
-   *
-   * @param status the inject status to add the trace to
-   * @param agent the agent that retrieved the job
    */
   public static void addJobRetrievalTrace(InjectStatus status, Agent agent) {
     status.addTrace(
@@ -104,15 +92,13 @@ public class ExecutionTraceUtils {
    *   <li>If execution succeeded but cleanup failed → SUCCESS_WITH_CLEANUP_FAIL
    *   <li>If all succeeded → SUCCESS
    * </ul>
-   *
-   * @param agentTraces the traces belonging to a single agent
-   * @return the computed status, or {@code null} if no success/error traces were found
    */
   public static ExecutionTraceStatus computeAgentTraceStatus(List<ExecutionTrace> agentTraces) {
     boolean hasSuccess = false;
     boolean hasCleanupError = false;
     boolean hasPrerequisiteError = false;
-    Set<ExecutionTraceStatus> executionErrors = java.util.EnumSet.noneOf(ExecutionTraceStatus.class);
+    Set<ExecutionTraceStatus> executionErrors =
+        java.util.EnumSet.noneOf(ExecutionTraceStatus.class);
 
     for (ExecutionTrace trace : agentTraces) {
       ExecutionTraceStatus status = trace.getStatus();
@@ -129,7 +115,8 @@ public class ExecutionTraceUtils {
 
     // Non-cleanup, non-prerequisite error takes priority
     if (!executionErrors.isEmpty()) {
-      return executionErrors.size() == 1 ? executionErrors.iterator().next()
+      return executionErrors.size() == 1
+          ? executionErrors.iterator().next()
           : ExecutionTraceStatus.ERROR;
     }
     if (hasPrerequisiteError) {
