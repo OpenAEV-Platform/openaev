@@ -16,6 +16,7 @@ import io.openaev.rest.asset.endpoint.form.*;
 import io.openaev.rest.asset.endpoint.output.EndpointTargetOutput;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.service.EndpointService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.HttpReqRespUtils;
@@ -44,6 +45,7 @@ public class EndpointApi extends RestBehavior {
   public static final String ENDPOINT_URI = "/api/endpoints";
 
   private final EndpointService endpointService;
+  private final InjectStatusService injectStatusService;
   private final EndpointRepository endpointRepository;
   private final AssetAgentJobRepository assetAgentJobRepository;
 
@@ -77,7 +79,9 @@ public class EndpointApi extends RestBehavior {
   @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
   @Transactional(rollbackFor = Exception.class)
   public List<AssetAgentJob> getEndpointJobs(@RequestBody final EndpointRegisterInput input) {
-    return this.endpointService.getEndpointJobs(input);
+    List<AssetAgentJob> jobs = this.endpointService.getEndpointJobs(input);
+    this.injectStatusService.addJobRetrievalTraces(jobs);
+    return jobs;
   }
 
   @Deprecated(since = "1.11.0")

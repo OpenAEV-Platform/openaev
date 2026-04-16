@@ -27,7 +27,6 @@ import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.rest.asset.endpoint.form.EndpointOutput;
 import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
 import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.mapper.EndpointMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -107,7 +106,6 @@ public class EndpointService {
   private final TagRepository tagRepository;
   private final AgentService agentService;
   private final AssetService assetService;
-  private final InjectStatusService injectStatusService;
 
   // -- CRUD --
   public Endpoint createEndpoint(@NotNull final Endpoint endpoint) {
@@ -470,17 +468,14 @@ public class EndpointService {
   }
 
   public List<AssetAgentJob> getEndpointJobs(final EndpointRegisterInput input) {
-    List<AssetAgentJob> jobs =
-        this.assetAgentJobRepository.findAll(
-            AssetAgentJobSpecification.forEndpoint(
-                input.getExternalReference(),
-                input.isService()
-                    ? Agent.DEPLOYMENT_MODE.service.name()
-                    : Agent.DEPLOYMENT_MODE.session.name(),
-                input.isElevated() ? Agent.PRIVILEGE.admin.name() : Agent.PRIVILEGE.standard.name(),
-                input.getExecutedByUser()));
-    injectStatusService.addJobRetrievalTraces(jobs);
-    return jobs;
+    return this.assetAgentJobRepository.findAll(
+        AssetAgentJobSpecification.forEndpoint(
+            input.getExternalReference(),
+            input.isService()
+                ? Agent.DEPLOYMENT_MODE.service.name()
+                : Agent.DEPLOYMENT_MODE.session.name(),
+            input.isElevated() ? Agent.PRIVILEGE.admin.name() : Agent.PRIVILEGE.standard.name(),
+            input.getExecutedByUser()));
   }
 
   private void addSourceTagToEndpoint(Endpoint endpoint, AgentRegisterInput input) {

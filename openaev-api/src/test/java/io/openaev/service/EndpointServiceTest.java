@@ -2,13 +2,12 @@ package io.openaev.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.when;
 
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.AssetAgentJob;
 import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
-import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.utils.fixtures.AgentFixture;
 import io.openaev.utils.fixtures.AssetAgentJobFixture;
 import java.util.List;
@@ -25,7 +24,6 @@ import org.springframework.data.jpa.domain.Specification;
 class EndpointServiceTest {
 
   @Mock private AssetAgentJobRepository assetAgentJobRepository;
-  @Mock private InjectStatusService injectStatusService;
 
   @InjectMocks private EndpointService endpointService;
 
@@ -52,11 +50,10 @@ class EndpointServiceTest {
 
       // Assert
       assertThat(result).containsExactly(job);
-      verify(injectStatusService).addJobRetrievalTraces(List.of(job));
     }
 
     @Test
-    void given_noMatchingJobs_should_returnEmptyListAndStillCallTraces() {
+    void given_noMatchingJobs_should_returnEmptyList() {
       // Arrange
       EndpointRegisterInput input = new EndpointRegisterInput();
       input.setExternalReference("ref-unknown");
@@ -71,7 +68,6 @@ class EndpointServiceTest {
 
       // Assert
       assertThat(result).isEmpty();
-      verify(injectStatusService).addJobRetrievalTraces(List.of());
     }
   }
 }
