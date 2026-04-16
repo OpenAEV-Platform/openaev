@@ -51,11 +51,6 @@ class TenantUserServiceTest extends IntegrationTest {
     TenantContext.setCurrentTenant(tenant.getId());
   }
 
-  @AfterEach
-  void tearDown() {
-    TenantContext.clearCurrentTenant();
-  }
-
   // -- HELPERS --
 
   private User persistedUserInTenant(String firstName, String lastName, String email) {

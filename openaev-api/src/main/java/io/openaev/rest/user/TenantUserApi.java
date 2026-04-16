@@ -1,6 +1,7 @@
 package io.openaev.rest.user;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+import static io.openaev.rest.user.TenantUserApi.TENANT_USER_URI;
 import static io.openaev.rest.user.TenantUserApi.USER_URI;
 
 import io.openaev.aop.AccessControl;
@@ -36,7 +37,7 @@ import org.springframework.web.bind.annotation.*;
         @ExternalDocumentation(
             description = "Documentation about users",
             url = "https://docs.openaev.io/latest/administration/users/"))
-@RequestMapping({USER_URI, TenantUserApi.TENANT_USER_URI})
+@RequestMapping({USER_URI, TENANT_USER_URI})
 public class TenantUserApi extends RestBehavior {
 
   public static final String USER_URI = "/api/users";
