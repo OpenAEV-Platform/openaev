@@ -710,7 +710,6 @@ class ChainingIntegrationTest extends IntegrationTest {
     CreateExerciseInput input = new CreateExerciseInput();
     input.setName("Test Simulation Chaining");
     input.setIsChaining(true);
-    input.setFrom("simulation@test.local");
     input.setReplyTos(new ArrayList<>());
     return input;
   }

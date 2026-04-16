@@ -53,7 +53,7 @@ const ExerciseCreation = () => {
     exercise_severity: 'high',
     exercise_tags: [],
     exercise_start_date: null,
-    exercise_mail_from: settings.default_mailer,
+    exercise_mail_from_name: settings.default_mailer_name ?? '',
     exercise_mails_reply_to: [settings.default_reply_to ? settings.default_reply_to : ''],
     exercise_message_header: t('SIMULATION HEADER'),
     exercise_message_footer: t('SIMULATION FOOTER'),

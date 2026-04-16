@@ -5,6 +5,7 @@ import static io.openaev.database.model.ExecutionTrace.getNewInfoTrace;
 import static io.openaev.database.model.ExecutionTrace.getNewSuccessTrace;
 import static io.openaev.helper.TemplateHelper.buildContextualContent;
 import static java.util.stream.Collectors.joining;
+import static org.springframework.util.StringUtils.hasText;
 
 import io.openaev.database.model.DataAttachment;
 import io.openaev.database.model.Execution;
@@ -39,6 +40,7 @@ public class EmailService {
       Execution execution,
       List<ExecutionContext> usersContext,
       String from,
+      String fromName,
       List<String> replyTos,
       String inReplyTo,
       String subject,
@@ -46,13 +48,23 @@ public class EmailService {
       List<DataAttachment> attachments)
       throws Exception {
     sendEmail(
-        execution, usersContext, from, replyTos, inReplyTo, false, subject, message, attachments);
+        execution,
+        usersContext,
+        from,
+        fromName,
+        replyTos,
+        inReplyTo,
+        false,
+        subject,
+        message,
+        attachments);
   }
 
   public void sendEmail(
       Execution execution,
       List<ExecutionContext> usersContext,
       String from,
+      String fromName,
       List<String> replyTos,
       String inReplyTo,
       boolean mustBeEncrypted,
@@ -68,7 +80,8 @@ public class EmailService {
     String contextualBody = buildContextualContent(message, interpolationContext);
 
     MimeMessage mimeMessage =
-        buildMimeMessage(from, replyTos, inReplyTo, contextualSubject, contextualBody, attachments);
+        buildMimeMessage(
+            from, fromName, replyTos, inReplyTo, contextualSubject, contextualBody, attachments);
     mimeMessage.setRecipients(
         Message.RecipientType.TO,
         usersContext.stream()
@@ -89,6 +102,7 @@ public class EmailService {
           getEncryptedMimeMessage(
               singleUserContext,
               from,
+              fromName,
               replyTos,
               subject,
               singleUserContext.getUser().getEmail(),
@@ -151,6 +165,7 @@ public class EmailService {
 
   private MimeMessage buildMimeMessage(
       String from,
+      String fromName,
       List<String> replyTos,
       String inReplyTo,
       String subject,
@@ -158,7 +173,7 @@ public class EmailService {
       List<DataAttachment> attachments)
       throws Exception {
     MimeMessage mimeMessage = this.smtpService.createMimeMessage();
-    mimeMessage.setFrom(from);
+    setFromAddress(mimeMessage, from, fromName);
     mimeMessage.setReplyTo(
         replyTos.stream().map(this::getInternetAddress).toArray(InternetAddress[]::new));
 
@@ -189,6 +204,7 @@ public class EmailService {
   private MimeMessage getEncryptedMimeMessage(
       ExecutionContext userContext,
       String from,
+      String fromName,
       List<String> replyTos,
       String subject,
       String email,
@@ -197,7 +213,7 @@ public class EmailService {
     PGPPublicKey userPgpKey = emailPgp.getUserPgpKey(userContext.getUser());
     // Need to create another email that will wrap everything.
     MimeMessage encMessage = this.smtpService.createMimeMessage();
-    encMessage.setFrom(from);
+    setFromAddress(encMessage, from, fromName);
     encMessage.setReplyTo(
         replyTos.stream().map(this::getInternetAddress).toArray(InternetAddress[]::new));
     encMessage.setSubject(subject, "utf-8");
@@ -226,6 +242,19 @@ public class EmailService {
     // Fill the message with the multipart content
     encMessage.setContent(encMultipart);
     return encMessage;
+  }
+
+  private void setFromAddress(MimeMessage mimeMessage, String from, String fromName)
+      throws MessagingException {
+    if (hasText(fromName)) {
+      try {
+        mimeMessage.setFrom(new InternetAddress(from, fromName, "UTF-8"));
+      } catch (java.io.UnsupportedEncodingException e) {
+        mimeMessage.setFrom(from);
+      }
+    } else {
+      mimeMessage.setFrom(from);
+    }
   }
 
   private void sendEmailWithRetry(Execution execution, MimeMessage mimeMessage)

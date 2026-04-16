@@ -4,6 +4,7 @@ import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.database.criteria.GenericCriteria.countQuery;
 import static io.openaev.database.specification.ScenarioSpecification.findGrantedFor;
 import static io.openaev.database.specification.TeamSpecification.fromIds;
+import static io.openaev.helper.MailHelper.resolveFromName;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.rest.scenario.utils.ScenarioUtils.handleCustomFilter;
 import static io.openaev.service.ImportService.EXPORT_ENTRY_ATTACHMENT;
@@ -159,9 +160,11 @@ public class ScenarioService {
     if (!hasText(scenario.getFrom())) {
       if (this.imapEnabled) {
         scenario.setFrom(this.imapUsername);
+        scenario.setFromName(resolveFromName(null, this.imapUsername));
         scenario.setReplyTos(new ArrayList<>(Arrays.asList(this.imapUsername)));
       } else {
         scenario.setFrom(this.openAEVConfig.getDefaultMailer());
+        scenario.setFromName(this.openAEVConfig.getDefaultMailerName());
         scenario.setReplyTos(
             new ArrayList<>(Arrays.asList(this.openAEVConfig.getDefaultReplyTo())));
       }
@@ -838,6 +841,7 @@ public class ScenarioService {
     scenarioDuplicate.setHeader(scenario.getHeader());
     scenarioDuplicate.setMainFocus(scenario.getMainFocus());
     scenarioDuplicate.setFrom(scenario.getFrom());
+    scenarioDuplicate.setFromName(scenario.getFromName());
     scenarioDuplicate.setExternalUrl(scenario.getExternalUrl());
     scenarioDuplicate.setTags(new HashSet<>(scenario.getTags()));
     scenarioDuplicate.setInjects(new HashSet<>(scenario.getInjects()));
