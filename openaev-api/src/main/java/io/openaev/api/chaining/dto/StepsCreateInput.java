@@ -15,7 +15,7 @@ import lombok.*;
 public class StepsCreateInput {
   /** The Steps. */
   @JsonProperty("steps")
-  public List<StepCreateInput> steps;
+  public List<StepInput> steps;
 
   /** Workflow template ID */
   @JsonProperty("workflow_id")
@@ -27,7 +27,7 @@ public class StepsCreateInput {
   @Builder
   @AllArgsConstructor
   @NoArgsConstructor
-  public static class StepCreateInput {
+  public static class StepInput {
 
     /**
      * Step action: INJECT_EXECUTION. A step can process different actions depending on its step
@@ -49,6 +49,10 @@ public class StepsCreateInput {
      */
     @JsonProperty("conditions")
     private List<ConditionCreateInput> conditions;
+
+    /** IDs of existing condition trees (roots) to link to this step. */
+    @JsonProperty("condition_ids")
+    private List<String> conditionIds;
 
     /**
      * Data Step. Contains the expected object depending on the step action. INJECT_EXECUTION →

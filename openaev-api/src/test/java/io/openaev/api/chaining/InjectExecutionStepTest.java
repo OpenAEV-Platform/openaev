@@ -158,7 +158,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
   @Test
   void create_shouldThrowException_whenStepDataIsNull() {
-    StepsCreateInput.StepCreateInput stepInput = new StepsCreateInput.StepCreateInput();
+    StepsCreateInput.StepInput stepInput = new StepsCreateInput.StepInput();
     Workflow workflow = new Workflow();
     workflow.setSimulation(ExerciseFixture.createDefaultExercise());
 
@@ -215,14 +215,12 @@ public class InjectExecutionStepTest extends IntegrationTest {
   public void createTest() throws JsonProcessingException, ChainingException {
     // PREPARE
     InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
-    StepsCreateInput.StepCreateInput step =
-        InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+    StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .key("ip")
+            .keyType(ConditionKeyType.IPV4)
             .value("output.message.ip")
-            .stepFrom("firstStep")
             .type(ConditionType.MAPPER)
             .build();
     step.setConditions(Collections.singletonList(conditionMapper));
@@ -245,8 +243,9 @@ public class InjectExecutionStepTest extends IntegrationTest {
         StepService.getField(
             stepTemplate.getData(), "inject_injector_contract.injector_contract_id"));
     assertEquals("output.message.ip", StepService.getField(stepTemplate.getInput(), "input.path"));
-    assertEquals("firstStep", StepService.getField(stepTemplate.getInput(), "input.id_step_from"));
-    assertEquals("ip", StepService.getField(stepTemplate.getInput(), "input.key"));
+    assertEquals(
+        ConditionKeyType.IPV4.name(),
+        StepService.getField(stepTemplate.getInput(), "input.keyType"));
   }
 
   /**
@@ -269,14 +268,12 @@ public class InjectExecutionStepTest extends IntegrationTest {
     mapper.readValue(injectInputJson, InjectInput.class);
     InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
 
-    StepsCreateInput.StepCreateInput step =
-        InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+    StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .key("ip")
+            .keyType(ConditionKeyType.IPV4)
             .value("output.message.ip")
-            .stepFrom("firstStep")
             .type(ConditionType.MAPPER)
             .build();
     step.setConditions(Collections.singletonList(conditionMapper));
@@ -321,14 +318,12 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     mapper.readValue(injectInputJson, InjectInput.class);
     InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
-    StepsCreateInput.StepCreateInput step =
-        InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+    StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .key("ip")
+            .keyType(ConditionKeyType.IPV4)
             .value("output.message.ip")
-            .stepFrom("firstStep")
             .type(ConditionType.MAPPER)
             .build();
     step.setConditions(Collections.singletonList(conditionMapper));
@@ -360,14 +355,12 @@ public class InjectExecutionStepTest extends IntegrationTest {
     // New StepsCreateInput & ConditionCreateInput
     mapper.readValue(injectInputJson, InjectInput.class);
     InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
-    StepsCreateInput.StepCreateInput step =
-        InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+    StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .key("ip")
+            .keyType(ConditionKeyType.IPV4)
             .value("output.message.ip")
-            .stepFrom("firstStep")
             .type(ConditionType.MAPPER)
             .build();
     step.setConditions(Collections.singletonList(conditionMapper));
@@ -413,14 +406,12 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     mapper.readValue(injectInputJson, InjectInput.class);
     InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
-    StepsCreateInput.StepCreateInput step =
-        InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+    StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .key("ip")
+            .keyType(ConditionKeyType.IPV4)
             .value("output.message.ip")
-            .stepFrom("firstStep")
             .type(ConditionType.MAPPER)
             .build();
     step.setConditions(Collections.singletonList(conditionMapper));
@@ -464,14 +455,12 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     mapper.readValue(injectInputJson, InjectInput.class);
     InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
-    StepsCreateInput.StepCreateInput step =
-        InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+    StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .key("ip")
+            .keyType(ConditionKeyType.IPV4)
             .value("output.message.ip")
-            .stepFrom("firstStep")
             .type(ConditionType.MAPPER)
             .build();
     step.setConditions(Collections.singletonList(conditionMapper));
@@ -525,14 +514,12 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     mapper.readValue(injectInputJson, InjectInput.class);
     InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
-    StepsCreateInput.StepCreateInput step =
-        InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+    StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .key("ip")
+            .keyType(ConditionKeyType.IPV4)
             .value("output.message.ip")
-            .stepFrom("firstStep")
             .type(ConditionType.MAPPER)
             .build();
     step.setConditions(Collections.singletonList(conditionMapper));

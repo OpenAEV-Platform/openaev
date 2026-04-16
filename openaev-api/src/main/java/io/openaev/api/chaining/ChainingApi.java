@@ -7,6 +7,9 @@ import static io.openaev.helper.StreamHelper.iterableToSet;
 import static org.springframework.util.StringUtils.hasText;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.api.chaining.dto.ChainingOutput;
+import io.openaev.api.chaining.dto.EventOutput;
+import io.openaev.api.chaining.dto.StepOutput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.TagRepository;
@@ -19,9 +22,13 @@ import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.scenario.form.ScenarioInput;
 import io.openaev.service.PlatformSettingsService;
+import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import java.util.List;
@@ -49,6 +56,25 @@ public class ChainingApi extends RestBehavior {
   private final WorkflowService workflowService;
   private final StepService stepService;
   private final TagRepository tagRepository;
+  private final ConditionService conditionService;
+
+  // -- READ --
+
+  @Operation(summary = "Get all chaining data", description = "Returns all conditions and steps")
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "Chaining data retrieved successfully")
+  })
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION_OR_SCENARIO)
+  @GetMapping
+  public ChainingOutput findAll() {
+    List<EventOutput> conditions =
+        conditionService.findAll().stream().map(ConditionMapper::toOutput).toList();
+
+    List<StepOutput> steps =
+        stepService.findAllStepTemplates().stream().map(StepMapper::toOutput).toList();
+
+    return new ChainingOutput(conditions, steps);
+  }
 
   // CREATE SIMULATION
   @PostMapping(SIMULATION_URI)
@@ -96,8 +122,7 @@ public class ChainingApi extends RestBehavior {
     if (workflowService.isSimulationChaining(simulationId)) {
       exerciseService.findById(simulationId);
 
-      StepsCreateInput.StepCreateInput step =
-          InjectExecutionStep.getInjectAsStepsCreateInput(input);
+      StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(input);
 
       Workflow workflow =
           workflowService
@@ -180,8 +205,7 @@ public class ChainingApi extends RestBehavior {
     if (workflowService.isScenarioChaining(scenarioId)) {
       this.scenarioService.scenario(scenarioId);
 
-      StepsCreateInput.StepCreateInput step =
-          InjectExecutionStep.getInjectAsStepsCreateInput(input);
+      StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(input);
 
       Workflow workflow =
           workflowService

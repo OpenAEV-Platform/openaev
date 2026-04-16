@@ -846,6 +846,11 @@ export interface CatalogConnectorSimpleOutput {
   catalog_connector_short_description?: string;
 }
 
+export interface ChainingOutput {
+  conditions?: EventOutput[];
+  steps?: StepOutput[];
+}
+
 export interface Challenge {
   challenge_category?: string;
   challenge_content?: string;
@@ -1199,6 +1204,93 @@ export interface Condition {
   value?: boolean;
 }
 
+/** Condition used to execute a step. Can be a Template or an Execution depending on the status of stepFrom. */
+export interface ConditionCreateInput {
+  /** Key to be compared */
+  condition_key?: string;
+  /** Condition key subtype */
+  condition_key_subtype?: "port" | "ipv4" | "ipv6" | "username" | "password";
+  /** Path to the value in the output of the step from */
+  condition_key_type?:
+    | "execution_time"
+    | "step_template_id"
+    | "text"
+    | "status"
+    | "number"
+    | "port"
+    | "portscan"
+    | "ipv4"
+    | "ipv6"
+    | "credentials"
+    | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "asset";
+  /** ID of the step linked to the key */
+  condition_step_from?: string;
+  /** Temporary ID of the condition */
+  condition_temporary_id?: string;
+  /** Temporary ID of the parent condition */
+  condition_temporary_id_condition_parent?: string;
+  /** Condition type: AND, OR, EQ, NEQ, IS_NULL, IS_NOT_NULL, GT, GTE, LT, LTE, IN, NIN, AFTER, BEFORE, MAPPER, or DEPEND_ON */
+  condition_type?:
+    | "AND"
+    | "OR"
+    | "EQ"
+    | "NEQ"
+    | "IS_NULL"
+    | "IS_NOT_NULL"
+    | "GT"
+    | "GTE"
+    | "LT"
+    | "LTE"
+    | "IN"
+    | "NIN"
+    | "AFTER"
+    | "BEFORE"
+    | "MAPPER"
+    | "DEPEND_ON";
+  /** Value to be compared */
+  condition_value?: string;
+}
+
+export interface ConditionOutput {
+  condition_id?: string;
+  condition_key_subtype?: "port" | "ipv4" | "ipv6" | "username" | "password";
+  condition_key_type?:
+    | "execution_time"
+    | "step_template_id"
+    | "text"
+    | "status"
+    | "number"
+    | "port"
+    | "portscan"
+    | "ipv4"
+    | "ipv6"
+    | "credentials"
+    | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "asset";
+  condition_parent_id?: string;
+  condition_type?: string;
+  condition_value?: string;
+}
+
 export interface Configuration {
   /** Configuration is encrypted */
   configuration_is_encrypted?: boolean;
@@ -1225,6 +1317,8 @@ export interface ConfigurationInput {
 export interface ConnectorIds {
   catalog_connector_id?: string;
   connector_instance_id?: string;
+  /** Whether the connector entity is registered in the database. False when a connector instance has been deployed but the connector has not yet started. */
+  connector_registered?: boolean;
 }
 
 export interface ConnectorInstanceConfiguration {
@@ -2624,6 +2718,32 @@ export interface Evaluation {
 export interface EvaluationInput {
   /** @format int64 */
   evaluation_score?: number;
+}
+
+export interface EventInput {
+  /** @minItems 1 */
+  event_conditions: ConditionCreateInput[];
+  event_description?: string;
+  /** @minLength 1 */
+  event_name: string;
+  event_step_ids?: string[];
+  /** @minLength 1 */
+  event_workflow_id: string;
+}
+
+export interface EventOutput {
+  event_conditions?: ConditionOutput[];
+  /** @format date-time */
+  event_created_at?: string;
+  event_description?: string;
+  /** @minLength 1 */
+  event_id: string;
+  /** @minLength 1 */
+  event_name: string;
+  /** @format date-time */
+  event_updated_at?: string;
+  /** @minLength 1 */
+  event_workflow_id: string;
 }
 
 export interface Executable {
@@ -7100,6 +7220,48 @@ export interface StatusPayloadOutput {
   /** @uniqueItems true */
   payload_tags?: string[];
   payload_type?: string;
+}
+
+export interface StepInput {
+  step_action: "INJECT_EXECUTION";
+  step_condition_ids?: string[];
+  step_conditions?: ConditionCreateInput[];
+  step_data_step?: InjectInput;
+  /** @minLength 1 */
+  step_workflow_id: string;
+}
+
+export interface StepOutput {
+  step_condition_key_types?: (
+    | "execution_time"
+    | "step_template_id"
+    | "text"
+    | "status"
+    | "number"
+    | "port"
+    | "portscan"
+    | "ipv4"
+    | "ipv6"
+    | "credentials"
+    | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "asset"
+  )[];
+  /** @format date-time */
+  step_created_at?: string;
+  step_data?: JsonNode;
+  step_id?: string;
+  step_status?: "TEMPLATE" | "READY" | "RUN" | "END";
+  /** @format date-time */
+  step_updated_at?: string;
 }
 
 export type StreamingResponseBody = any;

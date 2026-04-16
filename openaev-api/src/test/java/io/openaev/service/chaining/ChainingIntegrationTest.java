@@ -212,9 +212,9 @@ class ChainingIntegrationTest extends IntegrationTest {
               .orElseThrow();
 
       InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
-      StepsCreateInput.StepCreateInput step1 = buildValidStepInput();
+      StepsCreateInput.StepInput step1 = buildValidStepInput();
       step1.setDataStep(injectInput);
-      StepsCreateInput.StepCreateInput step2 = buildValidStepInput();
+      StepsCreateInput.StepInput step2 = buildValidStepInput();
       step2.setDataStep(injectInput);
 
       long stepCountBefore = stepRepository.count();
@@ -343,7 +343,7 @@ class ChainingIntegrationTest extends IntegrationTest {
               .orElseThrow();
 
       InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
-      StepsCreateInput.StepCreateInput step = buildValidStepInput();
+      StepsCreateInput.StepInput step = buildValidStepInput();
       step.setDataStep(injectInput);
       stepService.createStepTemplates(workflowTemplate.getId(), List.of(step));
 
@@ -429,7 +429,7 @@ class ChainingIntegrationTest extends IntegrationTest {
 
       // Add a step with an inject to the workflow template
       InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
-      StepsCreateInput.StepCreateInput step = buildValidStepInput();
+      StepsCreateInput.StepInput step = buildValidStepInput();
       step.setDataStep(injectInput);
       stepService.createStepTemplates(workflowTemplate.getId(), List.of(step));
       String simulation =
@@ -510,7 +510,7 @@ class ChainingIntegrationTest extends IntegrationTest {
 
       // Add a step with an inject to the workflow template
       InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
-      StepsCreateInput.StepCreateInput step = buildValidStepInput();
+      StepsCreateInput.StepInput step = buildValidStepInput();
       step.setDataStep(injectInput);
       stepService.createStepTemplates(workflowTemplate.getId(), List.of(step));
 
@@ -744,7 +744,7 @@ class ChainingIntegrationTest extends IntegrationTest {
         StepService.setField(actual.getData(), "inject_exercise", ""),
         "Step data must be the same expected for simulation id (inject_exercise)");
     assertEquals(expected.getOutput(), actual.getOutput());
-    assertEquals(expected.getOutput_parser(), actual.getOutput_parser());
+    assertEquals(expected.getOutputParser(), actual.getOutputParser());
     assertEquals(expected.getConditionExecuted(), actual.getConditionExecuted());
     assertEquals(expected.getLimitExecution(), actual.getLimitExecution());
   }
@@ -756,8 +756,8 @@ class ChainingIntegrationTest extends IntegrationTest {
     return input;
   }
 
-  private StepsCreateInput.StepCreateInput buildValidStepInput() {
-    StepsCreateInput.StepCreateInput stepInput = new StepsCreateInput.StepCreateInput();
+  private StepsCreateInput.StepInput buildValidStepInput() {
+    StepsCreateInput.StepInput stepInput = new StepsCreateInput.StepInput();
     stepInput.setStepAction(StepActionClass.INJECT_EXECUTION);
 
     ConditionCreateInput root = new ConditionCreateInput();

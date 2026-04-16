@@ -171,7 +171,7 @@ class StepServiceIntegrationTest extends IntegrationTest {
             .get();
     String workflowId = workflow.getId();
 
-    StepsCreateInput.StepCreateInput input = buildInvalidInputCondition();
+    StepsCreateInput.StepInput input = buildInvalidInputCondition();
     input.setDataStep(injectInput);
 
     long countBefore = stepRepository.count();
@@ -201,10 +201,10 @@ class StepServiceIntegrationTest extends IntegrationTest {
             .get();
     String workflowId = workflow.getId();
 
-    StepsCreateInput.StepCreateInput input1 = buildInvalidInput();
+    StepsCreateInput.StepInput input1 = buildInvalidInput();
     input1.setDataStep(injectInput);
 
-    StepsCreateInput.StepCreateInput input2 = buildInvalidInput();
+    StepsCreateInput.StepInput input2 = buildInvalidInput();
     input2.setDataStep(injectInput);
 
     long countBefore = stepRepository.count();
@@ -230,9 +230,9 @@ class StepServiceIntegrationTest extends IntegrationTest {
             .get();
     String workflowId = workflow.getId();
 
-    StepsCreateInput.StepCreateInput input1 = buildInvalidInput();
+    StepsCreateInput.StepInput input1 = buildInvalidInput();
     input1.setDataStep(injectInput);
-    StepsCreateInput.StepCreateInput input2 = buildInvalidInput();
+    StepsCreateInput.StepInput input2 = buildInvalidInput();
 
     long countBefore = stepRepository.count();
 
@@ -251,51 +251,47 @@ class StepServiceIntegrationTest extends IntegrationTest {
     assertEquals(countBefore, countAfter);
   }
 
-  private StepsCreateInput.StepCreateInput buildInvalidInputCondition() {
+  private StepsCreateInput.StepInput buildInvalidInputCondition() {
 
-    StepsCreateInput.StepCreateInput stepInput = new StepsCreateInput.StepCreateInput();
+    StepsCreateInput.StepInput stepInput = new StepsCreateInput.StepInput();
     stepInput.setStepAction(StepActionClass.INJECT_EXECUTION);
     stepInput.setDataStep(new InjectInput());
     ConditionCreateInput root1 = new ConditionCreateInput();
     root1.setTemporaryId("tmp-1");
     root1.setTemporaryIdConditionParent(null); // root
     root1.setType(ConditionType.EQ);
-    root1.setKey("status");
+    root1.setKeyType(ConditionKeyType.STATUS);
     root1.setValue("A");
-    root1.setStepFrom(null);
 
     ConditionCreateInput root2 = new ConditionCreateInput();
     root2.setTemporaryId("tmp-2");
     root2.setTemporaryIdConditionParent(null); // second root → BOOM
     root2.setType(ConditionType.EQ);
-    root2.setKey("status");
+    root2.setKeyType(ConditionKeyType.STATUS);
     root2.setValue("B");
-    root2.setStepFrom(null);
 
     stepInput.setConditions(List.of(root1, root2));
     return stepInput;
   }
 
-  private StepsCreateInput.StepCreateInput buildInvalidInput() {
+  private StepsCreateInput.StepInput buildInvalidInput() {
 
-    StepsCreateInput.StepCreateInput stepInput = new StepsCreateInput.StepCreateInput();
+    StepsCreateInput.StepInput stepInput = new StepsCreateInput.StepInput();
     stepInput.setStepAction(StepActionClass.INJECT_EXECUTION);
     stepInput.setDataStep(new InjectInput());
     ConditionCreateInput root1 = new ConditionCreateInput();
     root1.setTemporaryId("tmp-1");
     root1.setTemporaryIdConditionParent(null); // root
     root1.setType(ConditionType.EQ);
-    root1.setKey("status");
+    root1.setKeyType(ConditionKeyType.STATUS);
     root1.setValue("A");
-    root1.setStepFrom(null);
 
     ConditionCreateInput root2 = new ConditionCreateInput();
     root2.setTemporaryId("tmp-2");
     root2.setTemporaryIdConditionParent("tmp-1"); // root
     root2.setType(ConditionType.EQ);
-    root2.setKey("status");
+    root2.setKeyType(ConditionKeyType.STATUS);
     root2.setValue("B");
-    root2.setStepFrom(null);
 
     stepInput.setConditions(List.of(root1, root2));
     return stepInput;

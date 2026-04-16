@@ -15,7 +15,7 @@ public interface ActionStep {
    * @param workflow the workflow
    * @return the step
    */
-  Optional<Step> create(StepsCreateInput.StepCreateInput stepInput, Workflow workflow)
+  Optional<Step> create(StepsCreateInput.StepInput stepInput, Workflow workflow)
       throws ChainingException;
 
   /**
