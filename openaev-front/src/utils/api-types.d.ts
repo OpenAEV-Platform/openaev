@@ -6930,6 +6930,8 @@ export interface ScenarioOutput {
    * @format int64
    */
   scenario_users_number?: number;
+  /** Workflow ID associated with the scenario */
+  scenario_workflow_id?: string;
 }
 
 export interface ScenarioRecurrenceInput {
@@ -7139,6 +7141,7 @@ export interface SimulationDetails {
   exercise_users?: string[];
   /** @format int64 */
   exercise_users_number?: number;
+  exercise_workflow_id?: string;
 }
 
 export interface SimulationsResultsLatest {
@@ -8155,12 +8158,7 @@ export interface WidgetConfiguration {
     | "LAST_SEMESTER"
     | "LAST_YEAR";
   title?: string;
-  widget_configuration_type:
-    | "flat"
-    | "average"
-    | "list"
-    | "temporal-histogram"
-    | "structural-histogram";
+  widget_configuration_type: string;
 }
 
 export interface WidgetInput {

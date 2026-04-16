@@ -195,7 +195,8 @@ public interface ExerciseRepository
               + " coalesce(array_agg(ut.user_id) FILTER ( WHERE ut.user_id IS NOT NULL ), '{}') as exercise_users, "
               + " coalesce(array_agg(la.lessons_answer_id) FILTER ( WHERE la.lessons_answer_id IS NOT NULL ), '{}') as lessons_answers, "
               + " coalesce(array_agg(logs.log_id) FILTER ( WHERE logs.log_id IS NOT NULL ), '{}') as logs, "
-              + " coalesce(array_agg(inj.inject_id) FILTER ( WHERE inj.inject_id IS NOT NULL ), '{}') as inject_ids "
+              + " coalesce(array_agg(inj.inject_id) FILTER ( WHERE inj.inject_id IS NOT NULL ), '{}') as inject_ids, "
+              + " w.workflow_id AS exercise_workflow_id "
               + "FROM exercises ex "
               + "LEFT JOIN scenarios_exercises se ON se.exercise_id = ex.exercise_id "
               + "LEFT JOIN exercise_mails_reply_to emrt ON emrt.exercise_id = ex.exercise_id "
@@ -207,8 +208,9 @@ public interface ExerciseRepository
               + "LEFT JOIN lessons_answers la ON la.lessons_answer_question = lq.lessons_question_id "
               + "LEFT JOIN logs ON logs.log_exercise = ex.exercise_id "
               + "LEFT JOIN injects inj ON ex.exercise_id = inj.inject_exercise "
+              + "LEFT JOIN workflows w ON w.workflow_simulation_id = ex.exercise_id "
               + "WHERE ex.exercise_id = :exerciseId "
-              + "GROUP BY ex.exercise_id, inj.inject_scenario, se.scenario_id ;",
+              + "GROUP BY ex.exercise_id, inj.inject_scenario, se.scenario_id, w.workflow_id ;",
       nativeQuery = true)
   RawSimulationIndexing rawDetailsById(@Param("exerciseId") String exerciseId);
 

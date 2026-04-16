@@ -129,4 +129,8 @@ public class ScenarioOutput {
   @JsonProperty("scenario_all_users_number")
   @Schema(description = "Total number of users of the scenario")
   private long scenarioAllUsersNumber;
+
+  @JsonProperty("scenario_workflow_id")
+  @Schema(description = "Workflow ID associated with the scenario")
+  private String workflowId;
 }
