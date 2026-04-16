@@ -47,6 +47,25 @@ const useTenant = (me: User | undefined, logged: unknown) => {
   const { currentUserTenant, setTenant } = useTenantState();
   const location = useLocation();
 
+  /**
+   * Resolves a tenant by ID from the given list and activates it.
+   * When the browser URL doesn't already point to that tenant, triggers
+   * a full page navigation (skipping setTenant to avoid a broken intermediate render).
+   * Returns true if a matching tenant was found.
+   */
+  const navigateToTenant = useCallback((tenantId: string, tenants: TenantOutput[]): boolean => {
+    const target = tenants.find(t => t.tenant_id === tenantId);
+    if (!target) return false;
+    if (extractTenantFromUrl() !== target.tenant_id) {
+      // Full page navigation — the reload will re-initialise tenant state,
+      // so we intentionally skip setTenant to avoid a broken intermediate render.
+      window.location.href = buildTenantUrl(target.tenant_id, location.pathname, location.search, location.hash);
+    } else {
+      setTenant(target);
+    }
+    return true;
+  }, [setTenant, location]);
+
   const loadUserTenants = useCallback(async (newCurrentTenantId?: string) => {
     if (!me) return;
 
@@ -55,51 +74,36 @@ const useTenant = (me: User | undefined, logged: unknown) => {
 
     if (tenants && tenants.length > 0) {
       setUserTenants(tenants);
-      // If a preferred tenant is requested and exists in the list, select it
-      const newCurrentTenant = newCurrentTenantId
-        ? tenants.find(tenant => tenant.tenant_id === newCurrentTenantId)
-        : undefined;
-      if (newCurrentTenant) {
-        setTenant(newCurrentTenant);
-      } else {
-        // Resolve tenant from URL (per-tab, multi-tab safe).
-        // Falls back to the first tenant in the list (post-login / public pages).
-        const urlTenantId = extractTenantFromUrl();
-        const currentTenant = urlTenantId
-          ? tenants.find(tenant => tenant.tenant_id === urlTenantId)
-          : undefined;
-        setTenant(currentTenant ?? tenants[0]);
+      // If a preferred tenant is requested, switch to it
+      if (newCurrentTenantId && navigateToTenant(newCurrentTenantId, tenants)) {
+        return;
       }
+      // Resolve tenant from URL (per-tab, multi-tab safe).
+      // Falls back to the first tenant in the list (post-login / public pages).
+      const urlTenantId = extractTenantFromUrl();
+      if (urlTenantId && navigateToTenant(urlTenantId, tenants)) {
+        return;
+      }
+      setTenant(tenants[0]);
     } else {
       setUserTenants([]);
       setTenant(null);
     }
-  }, [me]);
+  }, [me, navigateToTenant, setTenant]);
 
   useEffect(() => {
     if (me && logged) {
-      // On page load / hard refresh the URL is the source of truth.
-      // Pass the URL tenant ID so loadUserTenants selects the right one.
       const urlTenantId = extractTenantFromUrl() ?? undefined;
       loadUserTenants(urlTenantId);
     }
   }, [me, logged, loadUserTenants]);
 
-  // When switching tenants, navigate to the new tenant URL prefix.
-  // location.pathname is tenant-free (basename strips it), so we rebuild
-  // the full URL with the new tenant segment. The full page navigation
-  // triggers a reload where BrowserRouter picks up the new basename.
   const switchUserTenant = useCallback(async (tenantId: string) => {
     if (tenantId === currentUserTenant?.tenant_id) {
       return;
     }
-
-    const current = userTenants.find(t => (t.tenant_id === tenantId));
-    if (current) {
-      setTenant(current);
-      window.location.href = buildTenantUrl(tenantId, location.pathname, location.search, location.hash);
-    }
-  }, [currentUserTenant, userTenants, setTenant, location]);
+    navigateToTenant(tenantId, userTenants);
+  }, [currentUserTenant, userTenants, navigateToTenant]);
 
   return {
     userTenants,
