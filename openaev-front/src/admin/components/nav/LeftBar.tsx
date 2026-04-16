@@ -220,12 +220,12 @@ const LeftBar = () => {
     },
   ];
   entries.push(
-      {
-        userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
-        items: [
-          ...platformEntries(ability),
-        ],
-      },
+    {
+      userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
+      items: [
+        ...platformEntries(ability),
+      ],
+    },
   );
   entries.push(
     {
