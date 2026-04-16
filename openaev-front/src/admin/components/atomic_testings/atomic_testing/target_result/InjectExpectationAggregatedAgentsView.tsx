@@ -37,6 +37,7 @@ const InjectExpectationAggregatedAgentsView = ({ inject, expectationType, target
           setInjectExpectationsWithAgents(result.data ?? []);
         }
       })
+      .catch(() => {}) // error already notified by simpleCall
       .finally(() => {
         if (active) {
           setLoading(false);
