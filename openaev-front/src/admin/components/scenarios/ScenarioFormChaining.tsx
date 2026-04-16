@@ -206,17 +206,6 @@ const ScenarioFormChaining: FunctionComponent<Props> = ({
               />
             )}
           />
-          {isCreation && (
-            <FormControlLabel
-              control={(
-                <Checkbox
-                  checked={isScenarioAssistantChecked}
-                  onChange={() => setIsScenarioAssistantChecked(!isScenarioAssistantChecked)}
-                />
-              )}
-              label={t('Use the scenario assistant')}
-            />
-          )}
         </>
         {!isChaining && (
           <Accordion
