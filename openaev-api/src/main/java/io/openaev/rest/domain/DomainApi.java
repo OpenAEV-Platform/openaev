@@ -1,5 +1,7 @@
 package io.openaev.rest.domain;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.database.model.Action;
@@ -21,21 +23,23 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequiredArgsConstructor
 @Tag(name = "Domain API", description = "Operations related to Domain")
+@RequestMapping({DomainApi.DOMAIN_URI, DomainApi.TENANT_DOMAIN_URI})
 public class DomainApi extends RestBehavior {
 
   public static final String DOMAIN_URI = "/api/domains";
+  public static final String TENANT_DOMAIN_URI = TENANT_PREFIX + "/domains";
   private final DomainService domainService;
 
   @LogExecutionTime
   @Operation(summary = "Search Domains")
-  @GetMapping(DOMAIN_URI)
+  @GetMapping
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.DOMAIN)
   public List<Domain> domains() {
     return domainService.searchDomains();
   }
 
   @Operation(summary = "Get a Domain by ID", description = "Fetches detailed Domain info by ID")
-  @GetMapping(DOMAIN_URI + "/{domainId}")
+  @GetMapping("/{domainId}")
   @AccessControl(
       resourceId = "#domainId",
       actionPerformed = Action.READ,
@@ -44,7 +48,7 @@ public class DomainApi extends RestBehavior {
     return domainService.findById(domainId);
   }
 
-  @PostMapping(DOMAIN_URI + "/{domainId}/upsert")
+  @PostMapping("/{domainId}/upsert")
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.DOMAIN)
   @Transactional(rollbackOn = Exception.class)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The upserted domain")})
@@ -55,14 +59,14 @@ public class DomainApi extends RestBehavior {
 
   // -- OPTION --
 
-  @GetMapping(DOMAIN_URI + "/options")
+  @GetMapping("/options")
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DOMAIN)
   public List<FilterUtilsJpa.Option> findAllAsOptionsByName(
       @RequestParam(required = false) final String searchText) {
     return domainService.findAllAsOptionsByName(searchText);
   }
 
-  @PostMapping(DOMAIN_URI + "/options")
+  @PostMapping("/options")
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DOMAIN)
   public List<FilterUtilsJpa.Option> findAllAsOptionsById(@RequestBody final List<String> ids) {
     return domainService.findAllAsOptionsById(ids);

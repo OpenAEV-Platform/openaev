@@ -9,6 +9,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.database.repository.WorkflowScopeRuleRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.service.PreviewFeatureService;
 import io.openaev.utils.fixtures.WorkflowFixture;
 import java.util.*;
 import java.util.stream.Stream;
@@ -31,9 +32,13 @@ class WorkflowServiceTest {
 
   @Mock private WorkflowRepository workflowRepository;
   @Mock private WorkflowScopeRuleRepository workflowScopeRuleRepository;
+  @Mock private PreviewFeatureService previewFeatureService;
 
   @InjectMocks private WorkflowService workflowService;
 
+  // ========================================================================
+  // getWorkflowById Tests
+  // ========================================================================
   @Nested
   @DisplayName("getWorkflowByIdAndStatus")
   class GetWorkflowByIdAndStatusTests {
@@ -43,16 +48,18 @@ class WorkflowServiceTest {
     @Test
     @DisplayName("should return workflow when found")
     void shouldReturnWorkflowWhenFound() {
+      // Prepare
       String workflowId = UUID.randomUUID().toString();
       Workflow workflow = mock(Workflow.class);
       workflow.setStatus(WorkflowStatus.TEMPLATE);
-
       when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
           .thenReturn(Optional.of(workflow));
 
+      // Act
       Workflow result =
           workflowService.getWorkflowByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
 
+      // Assert
       verify(workflowRepository)
           .findByIdAndStatus(workflowIdCaptor.capture(), eq(WorkflowStatus.TEMPLATE));
       assertEquals(workflowId, workflowIdCaptor.getValue());
@@ -62,11 +69,13 @@ class WorkflowServiceTest {
 
     @Test
     @DisplayName("should throw ElementNotFoundException when not found")
-    void shouldThrowWhenWorkflowNotFound() {
+    void shouldThrowExceptionWhenNotFound() {
+      // Prepare
       String workflowId = UUID.randomUUID().toString();
       when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
           .thenReturn(Optional.empty());
 
+      // Act & Assert
       ElementNotFoundException exception =
           assertThrows(
               ElementNotFoundException.class,
@@ -78,6 +87,9 @@ class WorkflowServiceTest {
     }
   }
 
+  // ========================================================================
+  // creationWorkflow Tests
+  // ========================================================================
   @Nested
   @DisplayName("creationWorkflow")
   class CreationWorkflowTests {
@@ -87,10 +99,13 @@ class WorkflowServiceTest {
     @Test
     @DisplayName("should create workflow template with inline configuration defaults")
     void shouldCreateWorkflowTemplateWithInlineConfigurationDefaults() {
+      // Prepare
       Exercise exercise = mock(Exercise.class);
 
+      // Act
       workflowService.creationWorkflow(exercise);
 
+      // Assert
       verify(workflowRepository).save(workflowCaptor.capture());
       Workflow savedWorkflow = workflowCaptor.getValue();
       assertEquals(0, savedWorkflow.getVersion());
@@ -127,6 +142,9 @@ class WorkflowServiceTest {
     }
   }
 
+  // ========================================================================
+  // launchWorkflow Tests
+  // ========================================================================
   @Nested
   @DisplayName("launchWorkflow")
   class LaunchWorkflowTests {
@@ -140,13 +158,14 @@ class WorkflowServiceTest {
       Exercise simulation = mock(Exercise.class);
       Workflow template = mock(Workflow.class);
       when(template.isEdited()).thenReturn(true);
+      when(template.getWorkflowsExecuted()).thenReturn(List.of(new Workflow()));
       when(template.getVersion()).thenReturn(1);
       when(template.getSimulation()).thenReturn(simulation);
       when(workflowRepository.save(any(Workflow.class)))
           .thenAnswer(invocation -> invocation.getArgument(0));
 
       // Act
-      workflowService.launchWorkflow(template);
+      workflowService.launchWorkflowSimulation(template);
 
       // Assert
       verify(template).setEdited(false);
@@ -169,7 +188,7 @@ class WorkflowServiceTest {
       when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
 
       // Act
-      workflowService.launchWorkflow(workflowTemplate);
+      workflowService.launchWorkflowSimulation(workflowTemplate);
 
       // Assert
       verify(workflowTemplate, never()).setEdited(anyBoolean());
@@ -191,7 +210,7 @@ class WorkflowServiceTest {
       when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
 
       // Act
-      Workflow result = workflowService.launchWorkflow(workflowTemplate);
+      Workflow result = workflowService.launchWorkflowSimulation(workflowTemplate);
 
       // Assert
       verify(workflowRepository).save(workflowCaptor.capture());
@@ -229,7 +248,7 @@ class WorkflowServiceTest {
           .thenAnswer(invocation -> invocation.getArgument(0));
 
       // Act
-      Workflow result = workflowService.launchWorkflow(template);
+      Workflow result = workflowService.launchWorkflowSimulation(template);
 
       // Assert
       assertTrue(result.isRateLimitEnabled());
@@ -270,7 +289,7 @@ class WorkflowServiceTest {
           .thenAnswer(invocation -> invocation.getArgument(0));
 
       // Act
-      Workflow result = workflowService.launchWorkflow(template);
+      Workflow result = workflowService.launchWorkflowSimulation(template);
 
       // Assert — one save: for the run (no version bump since template is not edited)
       verify(workflowRepository, times(1)).save(any(Workflow.class));
@@ -286,6 +305,9 @@ class WorkflowServiceTest {
     }
   }
 
+  // ========================================================================
+  // isSimulationChaining Tests
+  // ========================================================================
   @Nested
   @DisplayName("isSimulationChaining")
   class IsSimulationChainingTests {
@@ -314,6 +336,9 @@ class WorkflowServiceTest {
     }
   }
 
+  // ========================================================================
+  // findWorkflowTemplateBySimulationId Tests
+  // ========================================================================
   @Nested
   @DisplayName("findWorkflowTemplateBySimulationId")
   class FindWorkflowTemplateBySimulationIdTests {
@@ -349,6 +374,9 @@ class WorkflowServiceTest {
     }
   }
 
+  // ========================================================================
+  // deleteWorkflow Tests
+  // ========================================================================
   @Nested
   @DisplayName("deleteWorkflow")
   class DeleteWorkflowTests {
@@ -468,7 +496,8 @@ class WorkflowServiceTest {
 
       // Service now owns the apply logic — no manual mapper call needed
       WorkflowService service =
-          new WorkflowService(workflowRepository, workflowScopeRuleRepository);
+          new WorkflowService(
+              workflowRepository, workflowScopeRuleRepository, previewFeatureService);
 
       when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
           .thenReturn(Optional.of(workflow));
@@ -561,7 +590,8 @@ class WorkflowServiceTest {
           WorkflowConfigurationInput.builder().workflowScopeRules(List.of(ruleInput)).build();
 
       WorkflowService service =
-          new WorkflowService(workflowRepository, workflowScopeRuleRepository);
+          new WorkflowService(
+              workflowRepository, workflowScopeRuleRepository, previewFeatureService);
       when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
           .thenReturn(Optional.of(workflow));
       when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));

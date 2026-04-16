@@ -1282,10 +1282,9 @@ public class V1_DataImporter implements Importer {
    * starterpack before the real contract is created by the real injector
    *
    * @param importNode contract node
-   * @return
+   * @return the dummy injector
    */
   private Injector createOrGetDummyInjector(JsonNode importNode) {
-
     return injectorService.createOrGetDummyInjector(
         importNode.get("injector_contract_injector_type").asText(),
         importNode.get("injector_contract_injector_type_name").asText());
@@ -1305,9 +1304,9 @@ public class V1_DataImporter implements Importer {
     injectorContract.setId(importNode.get("injector_contract_id").textValue());
     injectorContract.setCustom(false);
     injectorContract.setContent(importNode.get("injector_contract_content").textValue());
-    Injector injector = createOrGetDummyInjector(importNode);
-    injectorContract.setInjector(injector);
-    injectorContract.setTenant(injector.getTenant());
+    Injector dummyInjector = createOrGetDummyInjector(importNode);
+    injectorContract.addInjector(dummyInjector);
+    injectorContract.setTenant(dummyInjector.getTenant());
     injectorContract.setConvertedContent((ObjectNode) importNode.get("convertedContent"));
     injectorContract.setExternalId(importNode.get("injector_contract_external_id").textValue());
     injectorContract.setAtomicTesting(
@@ -1321,7 +1320,9 @@ public class V1_DataImporter implements Importer {
         new ObjectMapper()
             .convertValue(importNode.get("injector_contract_labels"), new TypeReference<>() {}));
     injectorContract.setPayload(payload);
-    return injectorContractRepository.save(injectorContract);
+    InjectorContract saved = injectorContractRepository.save(injectorContract);
+    dummyInjector.linkContract(saved);
+    return saved;
   }
 
   public static ContractOutputType formatStringToContractOutputType(String value) {

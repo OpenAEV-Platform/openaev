@@ -1,5 +1,7 @@
 package io.openaev.rest.inject_expectation_trace;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.database.model.Action;
@@ -26,11 +28,16 @@ import org.springframework.web.bind.annotation.*;
 
 @RequiredArgsConstructor
 @RestController
-@RequestMapping(InjectExpectationTraceApi.INJECT_EXPECTATION_TRACES_URI)
+@RequestMapping({
+  InjectExpectationTraceApi.INJECT_EXPECTATION_TRACES_URI,
+  InjectExpectationTraceApi.TENANT_INJECT_EXPECTATION_TRACES_URI
+})
 @Slf4j
 public class InjectExpectationTraceApi extends RestBehavior {
 
   public static final String INJECT_EXPECTATION_TRACES_URI = "/api/inject-expectations-traces";
+  public static final String TENANT_INJECT_EXPECTATION_TRACES_URI =
+      TENANT_PREFIX + "/inject-expectations-traces";
 
   private final InjectExpectationTraceService injectExpectationTraceService;
   private final InjectExpectationTraceRepository injectExpectationTraceRepository;

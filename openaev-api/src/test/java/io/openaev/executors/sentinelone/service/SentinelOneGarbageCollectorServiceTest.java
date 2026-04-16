@@ -1,11 +1,9 @@
 package io.openaev.executors.sentinelone.service;
 
-import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_TYPE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Agent;
 import io.openaev.executors.sentinelone.config.SentinelOneExecutorConfig;
 import io.openaev.executors.sentinelone.model.SentinelOneAction;
@@ -13,30 +11,37 @@ import io.openaev.service.AgentService;
 import io.openaev.utils.fixtures.AgentFixture;
 import io.openaev.utils.fixtures.EndpointFixture;
 import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 public class SentinelOneGarbageCollectorServiceTest {
 
+  private static final String EXECUTOR_ID = "test-executor-id";
+
   @Mock private AgentService agentService;
   @Mock private SentinelOneExecutorContextService sentinelOneExecutorContextService;
   @Mock SentinelOneExecutorConfig config;
 
-  @InjectMocks private SentinelOneGarbageCollectorService sentinelOneGarbageCollectorService;
+  private SentinelOneGarbageCollectorService sentinelOneGarbageCollectorService;
+
+  @BeforeEach
+  void setUp() {
+    sentinelOneGarbageCollectorService =
+        new SentinelOneGarbageCollectorService(
+            config, sentinelOneExecutorContextService, agentService, EXECUTOR_ID);
+  }
 
   @Test
   void test_run_garbageCollector_withSentinelOneAgents() {
     // Init datas
     Agent agent = AgentFixture.createDefaultAgentService();
     agent.setAsset(EndpointFixture.createEndpoint());
-    when(agentService.getAgentsByExecutorType(
-            SENTINELONE_EXECUTOR_TYPE, TenantContext.getCurrentTenant()))
-        .thenReturn(List.of(agent));
+    when(agentService.getAgentsByExecutorId(EXECUTOR_ID)).thenReturn(List.of(agent));
     when(config.getWindowsScriptId()).thenReturn("test script");
     // Run method to test
     sentinelOneGarbageCollectorService.run();

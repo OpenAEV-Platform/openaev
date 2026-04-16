@@ -19,6 +19,8 @@ public class InjectExpectationResult {
 
   private String sourceName;
 
+  private String sourceAssetId;
+
   private String sourcePlatform;
 
   private String date;

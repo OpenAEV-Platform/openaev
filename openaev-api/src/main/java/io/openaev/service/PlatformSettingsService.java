@@ -9,7 +9,6 @@ import static java.util.Optional.ofNullable;
 import io.openaev.config.EngineConfig;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.OpenAEVPrincipal;
-import io.openaev.config.RabbitmqConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.SettingRepository;
@@ -17,7 +16,6 @@ import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.ee.License;
 import io.openaev.engine.EngineService;
 import io.openaev.expectation.ExpectationPropertiesConfig;
-import io.openaev.helper.RabbitMQHelper;
 import io.openaev.opencti.config.OpenCTIConfig;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.settings.PreviewFeature;
@@ -78,7 +76,7 @@ public class PlatformSettingsService {
 
   @Resource private OpenAEVConfig openAEVConfig;
   @Resource private ExpectationPropertiesConfig expectationPropertiesConfig;
-  @Resource private RabbitmqConfig rabbitmqConfig;
+  @Resource private RabbitmqService rabbitmqService;
   @Resource private EngineConfig engineConfig;
   @Autowired private LicenseCacheManager licenseCacheManager;
 
@@ -253,7 +251,7 @@ public class PlatformSettingsService {
         platformSettings.setPlatformVersion(openAEVConfig.getVersion());
         platformSettings.setPostgreVersion(settingRepository.getServerVersion());
         platformSettings.setJavaVersion(Runtime.version().toString());
-        platformSettings.setRabbitMQVersion(RabbitMQHelper.getRabbitMQVersion(rabbitmqConfig));
+        platformSettings.setRabbitMQVersion(rabbitmqService.getVersion());
         platformSettings.setAnalyticsEngineType(engineConfig.getEngineSelector());
         platformSettings.setAnalyticsEngineVersion(engineService.getEngineVersion());
       }
@@ -397,28 +395,12 @@ public class PlatformSettingsService {
     return this.settingRepository.findByKey(key);
   }
 
-  private void addSettingIfExists(
-      List<Setting> settingsToSave, Map<String, Setting> dbSettings, String key, String value) {
-    if (value != null) {
-      settingsToSave.add(resolveFromMap(dbSettings, key, value));
-    }
-  }
-
   public PlatformSettings updateBasicConfigurationSettings(SettingsUpdateInput input) {
     Map<String, Setting> dbSettings = mapOfSettings(fromIterable(this.settingRepository.findAll()));
     List<Setting> settingsToSave = new ArrayList<>();
     settingsToSave.add(resolveFromMap(dbSettings, PLATFORM_NAME.key(), input.getName()));
     settingsToSave.add(resolveFromMap(dbSettings, DEFAULT_THEME.key(), input.getTheme()));
     settingsToSave.add(resolveFromMap(dbSettings, DEFAULT_LANG.key(), input.getLang()));
-    addSettingIfExists(
-        settingsToSave, dbSettings, DEFAULT_HOME_DASHBOARD.key(), input.getHomeDashboard());
-    addSettingIfExists(
-        settingsToSave, dbSettings, DEFAULT_SCENARIO_DASHBOARD.key(), input.getScenarioDashboard());
-    addSettingIfExists(
-        settingsToSave,
-        dbSettings,
-        DEFAULT_SIMULATION_DASHBOARD.key(),
-        input.getSimulationDashboard());
     settingRepository.saveAll(settingsToSave);
     return findSettings();
   }

@@ -114,8 +114,12 @@ public class InjectSpecification {
       new HashSet<>(Arrays.asList("openaev_email", "openaev_ovh_sms"));
 
   public static Specification<Inject> testable() {
-    return (root, query, cb) ->
-        root.get("injectorContract").get("injector").get("type").in(VALID_TESTABLE_TYPES);
+    return (root, query, cb) -> {
+      if (query != null) {
+        query.distinct(true);
+      }
+      return root.join("injectorContract").join("injectors").get("type").in(VALID_TESTABLE_TYPES);
+    };
   }
 
   public static Specification<Inject> isAtomicTesting() {

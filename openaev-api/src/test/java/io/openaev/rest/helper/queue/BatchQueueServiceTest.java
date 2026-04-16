@@ -8,8 +8,10 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import io.openaev.config.QueueConfig;
-import io.openaev.config.RabbitMQSslConfiguration;
-import io.openaev.config.RabbitmqConfig;
+import io.openaev.driver.RabbitmqDriver;
+import io.openaev.service.queue.BatchQueueService;
+import io.openaev.service.queue.QueueExecution;
+import io.openaev.service.queue.Queueable;
 import java.io.IOException;
 import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,7 +20,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.MockedConstruction;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
@@ -26,25 +27,18 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class BatchQueueServiceTest {
 
   @Mock private QueueExecution<TestQueueable> queueExecution;
+  @Mock private RabbitmqDriver rabbitmqDriver;
+  @Mock private ConnectionFactory connectionFactory;
   @Mock private Connection connection;
   @Mock private Channel publisherChannel;
   @Mock private Channel consumerChannel;
 
-  private RabbitmqConfig rabbitmqConfig;
+  private static final String RABBITMQ_PREFIX = "test_";
   private QueueConfig queueConfig;
-  private RabbitMQSslConfiguration rabbitMQSslConfiguration;
   private ObjectMapper mapper;
 
   @BeforeEach
   void setUp() {
-    rabbitmqConfig = new RabbitmqConfig();
-    rabbitmqConfig.setPrefix("test_");
-    rabbitmqConfig.setHostname("localhost");
-    rabbitmqConfig.setPort(5672);
-    rabbitmqConfig.setUser("guest");
-    rabbitmqConfig.setPass("guest");
-    rabbitmqConfig.setVhost("/");
-
     queueConfig = new QueueConfig();
     queueConfig.setQueueName("test-queue");
     queueConfig.setPublisherNumber(1);
@@ -56,6 +50,15 @@ class BatchQueueServiceTest {
     queueConfig.setConsumerQos(10);
 
     mapper = new ObjectMapper();
+  }
+
+  /** Helper to create a BatchQueueService with the mocked RabbitmqDriver. */
+  private BatchQueueService<TestQueueable> createService() throws IOException, TimeoutException {
+    when(rabbitmqDriver.createBatchConnectionFactory(anyInt())).thenReturn(connectionFactory);
+    when(connectionFactory.newConnection()).thenReturn(connection);
+    when(connection.createChannel()).thenReturn(publisherChannel, consumerChannel);
+    return new BatchQueueService<>(
+        TestQueueable.class, queueExecution, RABBITMQ_PREFIX, mapper, queueConfig, rabbitmqDriver);
   }
 
   // ========================================================================
@@ -94,73 +97,46 @@ class BatchQueueServiceTest {
     @Test
     @DisplayName("should initialize BatchQueueService with valid configuration")
     void shouldInitializeWithValidConfiguration() throws IOException, TimeoutException {
-      try (MockedConstruction<ConnectionFactory> mockedFactory =
-          mockConstruction(
-              ConnectionFactory.class,
-              (mock, context) -> {
-                when(mock.newConnection()).thenReturn(connection);
-              })) {
-
-        when(connection.createChannel()).thenReturn(publisherChannel, consumerChannel);
-
-        BatchQueueService<TestQueueable> service =
-            new BatchQueueService<>(
-                TestQueueable.class,
-                queueExecution,
-                rabbitmqConfig,
-                mapper,
-                queueConfig,
-                rabbitMQSslConfiguration);
-
-        assertNotNull(service);
-        service.stop();
-      }
+      BatchQueueService<TestQueueable> service = createService();
+      assertNotNull(service);
+      service.stop();
     }
 
     @Test
     @DisplayName("should throw IOException when connection fails")
-    void shouldThrowIOExceptionWhenConnectionFails() {
-      try (MockedConstruction<ConnectionFactory> mockedFactory =
-          mockConstruction(
-              ConnectionFactory.class,
-              (mock, context) -> {
-                when(mock.newConnection()).thenThrow(new IOException("Connection failed"));
-              })) {
+    void shouldThrowIOExceptionWhenConnectionFails() throws IOException, TimeoutException {
+      when(rabbitmqDriver.createBatchConnectionFactory(anyInt())).thenReturn(connectionFactory);
+      when(connectionFactory.newConnection()).thenThrow(new IOException("Connection failed"));
 
-        assertThrows(
-            IOException.class,
-            () ->
-                new BatchQueueService<>(
-                    TestQueueable.class,
-                    queueExecution,
-                    rabbitmqConfig,
-                    mapper,
-                    queueConfig,
-                    rabbitMQSslConfiguration));
-      }
+      assertThrows(
+          IOException.class,
+          () ->
+              new BatchQueueService<>(
+                  TestQueueable.class,
+                  queueExecution,
+                  RABBITMQ_PREFIX,
+                  mapper,
+                  queueConfig,
+                  rabbitmqDriver));
     }
 
     @Test
     @DisplayName("should throw TimeoutException when connection times out")
-    void shouldThrowTimeoutExceptionWhenConnectionTimesOut() {
-      try (MockedConstruction<ConnectionFactory> mockedFactory =
-          mockConstruction(
-              ConnectionFactory.class,
-              (mock, context) -> {
-                when(mock.newConnection()).thenThrow(new TimeoutException("Connection timed out"));
-              })) {
+    void shouldThrowTimeoutExceptionWhenConnectionTimesOut() throws IOException, TimeoutException {
+      when(rabbitmqDriver.createBatchConnectionFactory(anyInt())).thenReturn(connectionFactory);
+      when(connectionFactory.newConnection())
+          .thenThrow(new TimeoutException("Connection timed out"));
 
-        assertThrows(
-            TimeoutException.class,
-            () ->
-                new BatchQueueService<>(
-                    TestQueueable.class,
-                    queueExecution,
-                    rabbitmqConfig,
-                    mapper,
-                    queueConfig,
-                    rabbitMQSslConfiguration));
-      }
+      assertThrows(
+          TimeoutException.class,
+          () ->
+              new BatchQueueService<>(
+                  TestQueueable.class,
+                  queueExecution,
+                  RABBITMQ_PREFIX,
+                  mapper,
+                  queueConfig,
+                  rabbitmqDriver));
     }
   }
 
@@ -174,62 +150,28 @@ class BatchQueueServiceTest {
     @Test
     @DisplayName("should publish element to queue")
     void shouldPublishElementToQueue() throws IOException, TimeoutException {
-      try (MockedConstruction<ConnectionFactory> mockedFactory =
-          mockConstruction(
-              ConnectionFactory.class,
-              (mock, context) -> {
-                when(mock.newConnection()).thenReturn(connection);
-              })) {
+      BatchQueueService<TestQueueable> service = createService();
 
-        when(connection.createChannel()).thenReturn(publisherChannel, consumerChannel);
+      TestQueueable element = new TestQueueable("key1");
+      service.publish(element);
 
-        BatchQueueService<TestQueueable> service =
-            new BatchQueueService<>(
-                TestQueueable.class,
-                queueExecution,
-                rabbitmqConfig,
-                mapper,
-                queueConfig,
-                rabbitMQSslConfiguration);
-
-        TestQueueable element = new TestQueueable("key1");
-        service.publish(element);
-
-        verify(publisherChannel)
-            .basicPublish(anyString(), anyString(), isNull(), any(byte[].class));
-        service.stop();
-      }
+      verify(publisherChannel).basicPublish(anyString(), anyString(), isNull(), any(byte[].class));
+      service.stop();
     }
 
     @Test
     @DisplayName("should throw IOException when publish fails")
     void shouldThrowIOExceptionWhenPublishFails() throws IOException, TimeoutException {
-      try (MockedConstruction<ConnectionFactory> mockedFactory =
-          mockConstruction(
-              ConnectionFactory.class,
-              (mock, context) -> {
-                when(mock.newConnection()).thenReturn(connection);
-              })) {
+      BatchQueueService<TestQueueable> service = createService();
 
-        when(connection.createChannel()).thenReturn(publisherChannel, consumerChannel);
-        doThrow(new IOException("Publish failed"))
-            .when(publisherChannel)
-            .basicPublish(anyString(), anyString(), isNull(), any(byte[].class));
+      doThrow(new IOException("Publish failed"))
+          .when(publisherChannel)
+          .basicPublish(anyString(), anyString(), isNull(), any(byte[].class));
 
-        BatchQueueService<TestQueueable> service =
-            new BatchQueueService<>(
-                TestQueueable.class,
-                queueExecution,
-                rabbitmqConfig,
-                mapper,
-                queueConfig,
-                rabbitMQSslConfiguration);
+      TestQueueable element = new TestQueueable("key1");
 
-        TestQueueable element = new TestQueueable("key1");
-
-        assertThrows(IOException.class, () -> service.publish(element));
-        service.stop();
-      }
+      assertThrows(IOException.class, () -> service.publish(element));
+      service.stop();
     }
   }
 
@@ -243,56 +185,23 @@ class BatchQueueServiceTest {
     @Test
     @DisplayName("should purge queue")
     void shouldPurgeQueue() throws IOException, TimeoutException {
-      try (MockedConstruction<ConnectionFactory> mockedFactory =
-          mockConstruction(
-              ConnectionFactory.class,
-              (mock, context) -> {
-                when(mock.newConnection()).thenReturn(connection);
-              })) {
+      BatchQueueService<TestQueueable> service = createService();
 
-        when(connection.createChannel()).thenReturn(publisherChannel, consumerChannel);
+      service.forcePurge();
 
-        BatchQueueService<TestQueueable> service =
-            new BatchQueueService<>(
-                TestQueueable.class,
-                queueExecution,
-                rabbitmqConfig,
-                mapper,
-                queueConfig,
-                rabbitMQSslConfiguration);
-
-        service.forcePurge();
-
-        verify(publisherChannel).queuePurge(anyString());
-        service.stop();
-      }
+      verify(publisherChannel).queuePurge(anyString());
+      service.stop();
     }
 
     @Test
     @DisplayName("should throw IOException when purge fails")
     void shouldThrowIOExceptionWhenPurgeFails() throws IOException, TimeoutException {
-      try (MockedConstruction<ConnectionFactory> mockedFactory =
-          mockConstruction(
-              ConnectionFactory.class,
-              (mock, context) -> {
-                when(mock.newConnection()).thenReturn(connection);
-              })) {
+      BatchQueueService<TestQueueable> service = createService();
 
-        when(connection.createChannel()).thenReturn(publisherChannel, consumerChannel);
-        doThrow(new IOException("Purge failed")).when(publisherChannel).queuePurge(anyString());
+      doThrow(new IOException("Purge failed")).when(publisherChannel).queuePurge(anyString());
 
-        BatchQueueService<TestQueueable> service =
-            new BatchQueueService<>(
-                TestQueueable.class,
-                queueExecution,
-                rabbitmqConfig,
-                mapper,
-                queueConfig,
-                rabbitMQSslConfiguration);
-
-        assertThrows(IOException.class, service::forcePurge);
-        service.stop();
-      }
+      assertThrows(IOException.class, service::forcePurge);
+      service.stop();
     }
   }
 
@@ -306,65 +215,33 @@ class BatchQueueServiceTest {
     @Test
     @DisplayName("should close channels and connection")
     void shouldCloseChannelsAndConnection() throws IOException, TimeoutException {
-      try (MockedConstruction<ConnectionFactory> mockedFactory =
-          mockConstruction(
-              ConnectionFactory.class,
-              (mock, context) -> {
-                when(mock.newConnection()).thenReturn(connection);
-              })) {
+      BatchQueueService<TestQueueable> service = createService();
 
-        when(connection.createChannel()).thenReturn(publisherChannel, consumerChannel);
-        when(publisherChannel.isOpen()).thenReturn(true);
-        when(consumerChannel.isOpen()).thenReturn(true);
-        when(connection.isOpen()).thenReturn(true);
+      when(publisherChannel.isOpen()).thenReturn(true);
+      when(consumerChannel.isOpen()).thenReturn(true);
+      when(connection.isOpen()).thenReturn(true);
 
-        BatchQueueService<TestQueueable> service =
-            new BatchQueueService<>(
-                TestQueueable.class,
-                queueExecution,
-                rabbitmqConfig,
-                mapper,
-                queueConfig,
-                rabbitMQSslConfiguration);
+      service.stop();
 
-        service.stop();
-
-        verify(publisherChannel).close();
-        verify(consumerChannel).close();
-        verify(connection).close();
-      }
+      verify(publisherChannel).close();
+      verify(consumerChannel).close();
+      verify(connection).close();
     }
 
     @Test
     @DisplayName("should not close already closed channels")
     void shouldNotCloseAlreadyClosedChannels() throws IOException, TimeoutException {
-      try (MockedConstruction<ConnectionFactory> mockedFactory =
-          mockConstruction(
-              ConnectionFactory.class,
-              (mock, context) -> {
-                when(mock.newConnection()).thenReturn(connection);
-              })) {
+      BatchQueueService<TestQueueable> service = createService();
 
-        when(connection.createChannel()).thenReturn(publisherChannel, consumerChannel);
-        when(publisherChannel.isOpen()).thenReturn(false);
-        when(consumerChannel.isOpen()).thenReturn(false);
-        when(connection.isOpen()).thenReturn(false);
+      when(publisherChannel.isOpen()).thenReturn(false);
+      when(consumerChannel.isOpen()).thenReturn(false);
+      when(connection.isOpen()).thenReturn(false);
 
-        BatchQueueService<TestQueueable> service =
-            new BatchQueueService<>(
-                TestQueueable.class,
-                queueExecution,
-                rabbitmqConfig,
-                mapper,
-                queueConfig,
-                rabbitMQSslConfiguration);
+      service.stop();
 
-        service.stop();
-
-        verify(publisherChannel, never()).close();
-        verify(consumerChannel, never()).close();
-        verify(connection, never()).close();
-      }
+      verify(publisherChannel, never()).close();
+      verify(consumerChannel, never()).close();
+      verify(connection, never()).close();
     }
   }
 
@@ -378,36 +255,19 @@ class BatchQueueServiceTest {
     @Test
     @DisplayName("should process empty batch without error")
     void shouldProcessEmptyBatchWithoutError() throws IOException, TimeoutException {
-      try (MockedConstruction<ConnectionFactory> mockedFactory =
-          mockConstruction(
-              ConnectionFactory.class,
-              (mock, context) -> {
-                when(mock.newConnection()).thenReturn(connection);
-              })) {
+      BatchQueueService<TestQueueable> service = createService();
 
-        when(connection.createChannel()).thenReturn(publisherChannel, consumerChannel);
+      // Should not throw
+      service.processBufferedBatch(0);
 
-        BatchQueueService<TestQueueable> service =
-            new BatchQueueService<>(
-                TestQueueable.class,
-                queueExecution,
-                rabbitmqConfig,
-                mapper,
-                queueConfig,
-                rabbitMQSslConfiguration);
-
-        // Should not throw
-        service.processBufferedBatch(0);
-
-        // Wait for async processing
-        try {
-          Thread.sleep(100);
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-        }
-
-        service.stop();
+      // Wait for async processing
+      try {
+        Thread.sleep(100);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
       }
+
+      service.stop();
     }
   }
 
@@ -421,31 +281,14 @@ class BatchQueueServiceTest {
     @Test
     @DisplayName("should allow setting queue execution after construction")
     void shouldAllowSettingQueueExecutionAfterConstruction() throws IOException, TimeoutException {
-      try (MockedConstruction<ConnectionFactory> mockedFactory =
-          mockConstruction(
-              ConnectionFactory.class,
-              (mock, context) -> {
-                when(mock.newConnection()).thenReturn(connection);
-              })) {
+      BatchQueueService<TestQueueable> service = createService();
 
-        when(connection.createChannel()).thenReturn(publisherChannel, consumerChannel);
+      QueueExecution<TestQueueable> newExecution = elements -> elements;
+      service.setQueueExecution(newExecution);
 
-        BatchQueueService<TestQueueable> service =
-            new BatchQueueService<>(
-                TestQueueable.class,
-                queueExecution,
-                rabbitmqConfig,
-                mapper,
-                queueConfig,
-                rabbitMQSslConfiguration);
-
-        QueueExecution<TestQueueable> newExecution = elements -> elements;
-        service.setQueueExecution(newExecution);
-
-        // Should not throw
-        assertNotNull(service);
-        service.stop();
-      }
+      // Should not throw
+      assertNotNull(service);
+      service.stop();
     }
   }
 

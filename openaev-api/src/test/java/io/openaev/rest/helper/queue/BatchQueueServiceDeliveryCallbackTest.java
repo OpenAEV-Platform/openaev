@@ -9,8 +9,11 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rabbitmq.client.*;
 import io.openaev.config.QueueConfig;
-import io.openaev.config.RabbitMQSslConfiguration;
-import io.openaev.config.RabbitmqConfig;
+import io.openaev.driver.RabbitmqDriver;
+import io.openaev.service.queue.BatchQueueService;
+import io.openaev.service.queue.DeliveryContext;
+import io.openaev.service.queue.QueueExecution;
+import io.openaev.service.queue.Queueable;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
@@ -27,7 +30,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
-import org.mockito.MockedConstruction;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
@@ -40,26 +42,19 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class BatchQueueServiceDeliveryCallbackTest {
 
   @Mock private QueueExecution<SerializableQueueable> queueExecution;
+  @Mock private RabbitmqDriver rabbitmqDriver;
+  @Mock private ConnectionFactory connectionFactory;
   @Mock private Connection connection;
   @Mock private Channel publisherChannel;
   @Mock private Channel consumerChannel;
-  @Mock private RabbitMQSslConfiguration rabbitMQSslConfiguration;
 
+  private static final String RABBITMQ_PREFIX = "test_";
   private ObjectMapper mapper;
   private BatchQueueService<SerializableQueueable> service;
-  private MockedConstruction<ConnectionFactory> mockedFactory;
   private DeliverCallback deliverCallback;
 
   @BeforeEach
   void setUp() throws Exception {
-    RabbitmqConfig rabbitmqConfig = new RabbitmqConfig();
-    rabbitmqConfig.setPrefix("test_");
-    rabbitmqConfig.setHostname("localhost");
-    rabbitmqConfig.setPort(5672);
-    rabbitmqConfig.setUser("guest");
-    rabbitmqConfig.setPass("guest");
-    rabbitmqConfig.setVhost("/");
-
     QueueConfig queueConfig = new QueueConfig();
     queueConfig.setQueueName("test-queue");
     queueConfig.setPublisherNumber(1);
@@ -75,21 +70,18 @@ class BatchQueueServiceDeliveryCallbackTest {
     // In production, getUniqueElementKey() IS serialized to JSON but ignored on read.
     mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
-    mockedFactory =
-        mockConstruction(
-            ConnectionFactory.class,
-            (mock, context) -> when(mock.newConnection()).thenReturn(connection));
-
+    when(rabbitmqDriver.createBatchConnectionFactory(anyInt())).thenReturn(connectionFactory);
+    when(connectionFactory.newConnection()).thenReturn(connection);
     when(connection.createChannel()).thenReturn(publisherChannel, consumerChannel);
 
     service =
         new BatchQueueService<>(
             SerializableQueueable.class,
             queueExecution,
-            rabbitmqConfig,
+            RABBITMQ_PREFIX,
             mapper,
             queueConfig,
-            rabbitMQSslConfiguration);
+            rabbitmqDriver);
 
     // Capture the DeliverCallback registered with the consumer channel
     ArgumentCaptor<DeliverCallback> captor = ArgumentCaptor.forClass(DeliverCallback.class);
@@ -109,7 +101,6 @@ class BatchQueueServiceDeliveryCallbackTest {
   @AfterEach
   void tearDown() throws IOException, TimeoutException {
     if (service != null) service.stop();
-    if (mockedFactory != null) mockedFactory.close();
   }
 
   @SuppressWarnings("unchecked")

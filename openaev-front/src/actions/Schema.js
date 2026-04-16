@@ -30,6 +30,12 @@ export const platformParameters = new schema.Entity(
   { idAttribute: () => 'parameters' },
 );
 
+export const tenantSettings = new schema.Entity(
+  'tenantSettings',
+  {},
+  { idAttribute: () => 'settings' },
+);
+
 export const token = new schema.Entity(
   'tokens',
   {},
@@ -382,6 +388,9 @@ export const storeHelper = state => ({
   getPlatformSettings: () => {
     return state.referential.getIn(['entities', 'platformParameters', 'parameters']) || Map({});
   },
+  getTenantSettings: () => {
+    return state.referential.getIn(['entities', 'tenantSettings', 'settings']) || Map({});
+  },
   getPlatformName: () => {
     return state.referential.getIn(['entities', 'platformParameters', 'parameters', 'platform_name']) || 'OpenAEV - Open Adversarial Exposure Validation Platform';
   },
@@ -486,7 +495,6 @@ export const storeHelper = state => ({
   getDomains: () => entities('domains', state),
   // catalog
   getCatalogConnectors: () => entities('catalog_connectors', state),
-  getUnDeployedCatalogConnectors: () => entities('catalog_connectors', state).filter(c => c.get('instance_deployed_count') === 0),
   getCatalogConnector: id => entity(id, 'catalog_connectors', state),
   getConnectorInstance: id => entity(id, 'connectorinstances', state),
   // capabilities

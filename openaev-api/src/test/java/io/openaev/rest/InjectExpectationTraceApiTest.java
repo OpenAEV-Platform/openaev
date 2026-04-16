@@ -77,6 +77,7 @@ class InjectExpectationTraceApiTest extends IntegrationTest {
     collector.setName("collector-name");
     collector.setSecurityPlatform(savedSecurityPlatform);
     collector.setType("type");
+    collector.setCollectorType(collectorType);
     collector.setExternal(true);
     savedCollector = collectorRepository.save(collector);
 

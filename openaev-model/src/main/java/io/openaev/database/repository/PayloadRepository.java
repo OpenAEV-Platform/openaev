@@ -24,7 +24,7 @@ public interface PayloadRepository
   @Query(
       value =
           "SELECT p.payload_external_id FROM payloads p"
-              + " JOIN collectors c ON c.collector_type = p.payload_collector_type"
+              + " JOIN collectors c ON c.collector_type_id = p.payload_collector_type"
               + " WHERE c.collector_id = :collectorId",
       nativeQuery = true)
   List<String> findAllExternalIdsByCollectorId(@NotNull @Param("collectorId") String collectorId);

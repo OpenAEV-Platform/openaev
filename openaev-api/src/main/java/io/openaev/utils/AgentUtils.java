@@ -2,6 +2,7 @@ package io.openaev.utils;
 
 import io.openaev.database.model.*;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import org.hibernate.Hibernate;
 
@@ -41,6 +42,20 @@ public class AgentUtils {
       List.of(
           Endpoint.PLATFORM_ARCH.x86_64.name().toLowerCase(),
           Endpoint.PLATFORM_ARCH.arm64.name().toLowerCase());
+
+  /** All keys must be lowercase */
+  private static final Map<String, String> ARCHITECTURE_ALIAS =
+      Map.of("aarch64", Endpoint.PLATFORM_ARCH.arm64.name().toLowerCase());
+
+  /**
+   * Will transform a supported architecture name alias into its canonical name
+   *
+   * @param architecture architecture for which to possibly find a canonical name
+   * @return canonical architecture string
+   */
+  public static String getCanonicalArchitectureString(String architecture) {
+    return ARCHITECTURE_ALIAS.getOrDefault(architecture.toLowerCase(), architecture.toLowerCase());
+  }
 
   /**
    * Retrieves all active and valid agents from an asset for a specific inject.

@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
@@ -15,6 +16,8 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface TagRepository extends CrudRepository<Tag, String>, JpaSpecificationExecutor<Tag> {
+
+  long countByIdIn(Set<String> ids);
 
   @NotNull
   Optional<Tag> findById(@NotNull String id);

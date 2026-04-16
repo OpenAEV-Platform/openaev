@@ -26,6 +26,9 @@ public interface TenantRepository
       nativeQuery = true)
   List<Tenant> findTenantsByUserId(@Param("userId") String userId);
 
+  /** Counts active (non-soft-deleted) tenants. */
+  long countByDeletedAtIsNull();
+
   /** Returns soft-deleted tenants whose grace period has expired. */
   @Query("SELECT t FROM Tenant t WHERE t.deletedAt IS NOT NULL AND t.deletedAt < :cutoffDate")
   List<Tenant> findAllExpiredSoftDeleted(@Param("cutoffDate") Instant cutoffDate);

@@ -142,7 +142,19 @@ export interface AggregatedFindingOutput {
     | "ipv4"
     | "ipv6"
     | "credentials"
-    | "cve";
+    | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account";
   /**
    * Finding Value
    * @minLength 1
@@ -378,6 +390,7 @@ export interface AtomicTestingInput {
   inject_content?: object;
   inject_description?: string;
   inject_documents?: InjectDocumentInput[];
+  inject_injector?: string;
   inject_injector_contract?: string;
   inject_tags?: string[];
   inject_teams?: string[];
@@ -655,6 +668,16 @@ type BasePayloadCreateInputPayloadTypeMapping<Key, Type> = {
 type BasePayloadPayloadTypeMapping<Key, Type> = {
   payload_type: Key;
 } & Type;
+
+export interface BrokerConnectionInfo {
+  host?: string;
+  pass?: string;
+  /** @format int32 */
+  port?: number;
+  use_ssl?: boolean;
+  user?: string;
+  vhost?: string;
+}
 
 export interface CVEBulkInsertInput {
   cves: CveCreateInput[];
@@ -1183,6 +1206,8 @@ export interface Condition {
 
 /** Condition used to execute a step. Can be a Template or an Execution depending on the status of stepFrom. */
 export interface ConditionCreateInput {
+  /** Key to be compared */
+  condition_key?: string;
   /** Condition key subtype */
   condition_key_subtype?: "port" | "ipv4" | "ipv6" | "username" | "password";
   /** Path to the value in the output of the step from */
@@ -1297,6 +1322,8 @@ export interface ConfigurationInput {
 export interface ConnectorIds {
   catalog_connector_id?: string;
   connector_instance_id?: string;
+  /** Whether the connector entity is registered in the database. False when a connector instance has been deployed but the connector has not yet started. */
+  connector_registered?: boolean;
 }
 
 export interface ConnectorInstanceConfiguration {
@@ -1399,7 +1426,19 @@ export interface ContractOutputElement {
     | "ipv4"
     | "ipv6"
     | "credentials"
-    | "cve";
+    | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account";
   /** @format date-time */
   contract_output_element_updated_at: string;
   listened?: boolean;
@@ -1440,7 +1479,19 @@ export interface ContractOutputElementInput {
     | "ipv4"
     | "ipv6"
     | "credentials"
-    | "cve";
+    | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account";
 }
 
 /** Represents the rules for parsing the output of an execution. */
@@ -1477,7 +1528,19 @@ export interface ContractOutputElementSimple {
     | "ipv4"
     | "ipv6"
     | "credentials"
-    | "cve";
+    | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account";
 }
 
 export interface CreateConnectorInstanceInput {
@@ -1515,27 +1578,6 @@ export interface CreateNotificationRuleInput {
   subject: string;
   trigger: string;
   type: string;
-}
-
-export interface CreateUserInput {
-  /** True if the user is admin */
-  user_admin?: boolean;
-  /**
-   * The email of the user
-   * @format email
-   * @minLength 1
-   */
-  user_email: string;
-  /** First name of the user */
-  user_firstname?: string;
-  /** Last name of the user */
-  user_lastname?: string;
-  /** Organization of the user */
-  user_organization?: string;
-  /** Password of the user as plain text */
-  user_plain_password?: string;
-  /** Tags of the user */
-  user_tags?: string[];
 }
 
 export interface CustomDashboard {
@@ -1829,6 +1871,7 @@ export interface DirectInjectInput {
   inject_content?: object;
   inject_description?: string;
   inject_documents?: InjectDocumentInput[];
+  inject_injector?: string;
   inject_injector_contract?: string;
   inject_title?: string;
   inject_users?: string[];
@@ -2688,7 +2731,6 @@ export interface EventInput {
   event_description?: string;
   /** @minLength 1 */
   event_name: string;
-  event_step_from?: string;
   event_step_ids?: string[];
   /** @minLength 1 */
   event_workflow_id: string;
@@ -2703,7 +2745,6 @@ export interface EventOutput {
   event_id: string;
   /** @minLength 1 */
   event_name: string;
-  event_step_from?: string;
   /** @format date-time */
   event_updated_at?: string;
   /** @minLength 1 */
@@ -3223,7 +3264,19 @@ export interface Finding {
     | "ipv4"
     | "ipv6"
     | "credentials"
-    | "cve";
+    | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account";
   /** @format date-time */
   finding_updated_at: string;
   finding_users?: string[];
@@ -3245,7 +3298,19 @@ export interface FindingInput {
     | "ipv4"
     | "ipv6"
     | "credentials"
-    | "cve";
+    | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account";
   /** @minLength 1 */
   finding_value: string;
 }
@@ -3691,6 +3756,7 @@ export interface InjectExpectationResult {
   result: string;
   /** @format double */
   score?: number;
+  sourceAssetId?: string;
   sourceId?: string;
   sourceName?: string;
   sourcePlatform?: string;
@@ -4098,6 +4164,7 @@ export interface Injector {
     | "IMAP"
     | "NUCLEI"
     | "NMAP"
+    | "NETEXEC"
     | "OpenAEV Email"
     | "OpenAEV Implant"
   )[];
@@ -4116,16 +4183,6 @@ export interface Injector {
   listened?: boolean;
 }
 
-export interface InjectorConnection {
-  host?: string;
-  pass?: string;
-  /** @format int32 */
-  port?: number;
-  use_ssl?: boolean;
-  user?: string;
-  vhost?: string;
-}
-
 export interface InjectorContract {
   convertedContent?: object;
   injector_contract_arch?: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
@@ -4142,9 +4199,9 @@ export interface InjectorContract {
   /** @minLength 1 */
   injector_contract_id: string;
   injector_contract_import_available?: boolean;
-  injector_contract_injector: string;
+  injector_contract_injector_names?: Record<string, string>;
   injector_contract_injector_type?: string;
-  injector_contract_injector_type_name?: string;
+  injector_contract_injectors?: string[];
   injector_contract_labels?: Record<string, string>;
   injector_contract_manual?: boolean;
   injector_contract_needs_executor?: boolean;
@@ -4243,10 +4300,12 @@ export interface InjectorContractFullOutput {
    * @minLength 1
    */
   injector_contract_id: string;
-  /** Injector name */
-  injector_contract_injector_name?: string;
+  /** Map of injector ID to injector name for all injectors linked to this contract */
+  injector_contract_injector_names?: Record<string, string>;
   /** Injector type */
   injector_contract_injector_type?: string;
+  /** Injector IDs linked to this contract */
+  injector_contract_injectors?: string[];
   /** Labels */
   injector_contract_labels?: Record<string, string>;
   /** Payload type */
@@ -4393,7 +4452,7 @@ export interface InjectorOutput {
 }
 
 export interface InjectorRegistration {
-  connection?: InjectorConnection;
+  connection?: BrokerConnectionInfo;
   listen?: string;
 }
 
@@ -6186,7 +6245,7 @@ export interface PlatformSettings {
 }
 
 export interface PlayerInput {
-  /** @pattern ^\+[\d\s\-.()]+$ */
+  /** @pattern ^$|^\+[\d\s\-.()]+$ */
   user_phone2?: string;
   user_country?: string;
   /**
@@ -6198,7 +6257,7 @@ export interface PlayerInput {
   user_lastname?: string;
   user_organization?: string;
   user_pgp_key?: string;
-  /** @pattern ^\+[\d\s\-.()]+$ */
+  /** @pattern ^$|^\+[\d\s\-.()]+$ */
   user_phone?: string;
   user_tags?: string[];
   user_teams?: string[];
@@ -6494,7 +6553,19 @@ export interface RelatedFindingOutput {
     | "ipv4"
     | "ipv6"
     | "credentials"
-    | "cve";
+    | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account";
   /**
    * Finding Value
    * @minLength 1
@@ -6768,6 +6839,7 @@ export interface ScenarioInput {
   scenario_description?: string;
   scenario_external_reference?: string;
   scenario_external_url?: string;
+  scenario_is_chaining?: boolean;
   /** @format email */
   scenario_mail_from?: string;
   scenario_mails_reply_to?: string[];
@@ -6998,8 +7070,6 @@ export interface SettingsPlatformWhitemarkUpdateInput {
 }
 
 export interface SettingsUpdateInput {
-  /** Default home dashboard of the platform */
-  platform_home_dashboard?: string;
   /**
    * Language of the platform
    * @minLength 1
@@ -7010,10 +7080,6 @@ export interface SettingsUpdateInput {
    * @minLength 1
    */
   platform_name: string;
-  /** Default scenario dashboard of the platform */
-  platform_scenario_dashboard?: string;
-  /** Default simulation dashboard of the platform */
-  platform_simulation_dashboard?: string;
   /**
    * Theme of the platform
    * @minLength 1
@@ -7166,20 +7232,39 @@ export interface StepInput {
   step_condition_ids?: string[];
   step_conditions?: ConditionCreateInput[];
   step_data_step?: InjectInput;
-  /** @format int32 */
-  step_limit_execution?: number;
   /** @minLength 1 */
   step_workflow_id: string;
 }
 
 export interface StepOutput {
+  step_condition_key_types?: (
+    | "execution_time"
+    | "step_template_id"
+    | "text"
+    | "status"
+    | "number"
+    | "port"
+    | "portscan"
+    | "ipv4"
+    | "ipv6"
+    | "credentials"
+    | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "asset"
+  )[];
   /** @format date-time */
   step_created_at?: string;
-  step_data?: string;
+  step_data?: JsonNode;
   step_id?: string;
-  /** @format int32 */
-  step_limit_execution?: number;
-  step_status?: string;
+  step_status?: "TEMPLATE" | "READY" | "RUN" | "END";
   /** @format date-time */
   step_updated_at?: string;
 }
@@ -7503,6 +7588,18 @@ export interface TenantOutput {
   tenant_name: string;
 }
 
+export interface TenantSettingsOutput {
+  platform_home_dashboard?: string;
+  platform_scenario_dashboard?: string;
+  platform_simulation_dashboard?: string;
+}
+
+export interface TenantSettingsUpdateInput {
+  platform_home_dashboard?: string;
+  platform_scenario_dashboard?: string;
+  platform_simulation_dashboard?: string;
+}
+
 export interface ThemeInput {
   /** Accent color of the theme */
   accent_color?: string;
@@ -7602,6 +7699,7 @@ export interface UpdateScenarioInput {
   scenario_description?: string;
   scenario_external_reference?: string;
   scenario_external_url?: string;
+  scenario_is_chaining?: boolean;
   /** @format email */
   scenario_mail_from?: string;
   scenario_mails_reply_to?: string[];
@@ -7619,36 +7717,6 @@ export interface UpdateUserInfoInput {
   user_phone2?: string;
   user_pgp_key?: string;
   user_phone?: string;
-}
-
-export interface UpdateUserInput {
-  /**
-   * Secondary phone of the user
-   * @pattern ^\+[\d\s\-.()]+$
-   */
-  user_phone2?: string;
-  /** True if the user is admin */
-  user_admin?: boolean;
-  /**
-   * The email of the user
-   * @format email
-   */
-  user_email?: string;
-  /** First name of the user */
-  user_firstname?: string;
-  /** Last name of the user */
-  user_lastname?: string;
-  /** Organization of the user */
-  user_organization?: string;
-  /** PGP key of the user */
-  user_pgp_key?: string;
-  /**
-   * Phone of the user
-   * @pattern ^\+[\d\s\-.()]+$
-   */
-  user_phone?: string;
-  /** Tags of the user */
-  user_tags?: string[];
 }
 
 export interface UpdateUsersTeamInput {
@@ -7777,31 +7845,42 @@ export interface User {
   user_updated_at: string;
 }
 
-export interface UserOutput {
-  /** True if the user is admin */
+export interface UserInput {
+  /** @pattern ^$|^\+[\d\s\-.()]+$ */
+  user_phone2?: string;
   user_admin?: boolean;
   /**
-   * Email of the user
+   * @format email
    * @minLength 1
    */
   user_email: string;
-  /** First name of the user */
   user_firstname?: string;
+  user_lastname?: string;
+  user_organization?: string;
+  user_pgp_key?: string;
+  /** @pattern ^$|^\+[\d\s\-.()]+$ */
+  user_phone?: string;
+  user_plain_password?: string;
+  user_tags?: string[];
+}
+
+export interface UserOutput {
+  user_phone2?: string;
+  user_admin?: boolean;
   /**
-   * User ID
+   * @format email
    * @minLength 1
    */
+  user_email: string;
+  user_firstname?: string;
+  /** @minLength 1 */
   user_id: string;
-  /** Last name of the user */
   user_lastname?: string;
-  /** Organization of the user */
   user_organization_id?: string;
-  /** Organization of the user */
   user_organization_name?: string;
-  /**
-   * Tags of the user
-   * @uniqueItems true
-   */
+  user_pgp_key?: string;
+  user_phone?: string;
+  /** @uniqueItems true */
   user_tags?: string[];
 }
 
@@ -7855,15 +7934,6 @@ export interface VariableInput {
    */
   variable_key: string;
   variable_value?: string;
-}
-
-export interface ViolationErrorBag {
-  /** The error */
-  error?: string;
-  /** The message of the error */
-  message?: string;
-  /** The type of error */
-  type?: string;
 }
 
 export interface VulnerabilityBulkInsertInput {

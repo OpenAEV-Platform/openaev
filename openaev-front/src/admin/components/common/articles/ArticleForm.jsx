@@ -18,6 +18,7 @@ import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
 import RestrictionAccess from '../../../../utils/permissions/RestrictionAccess';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { buildTenantApiPath } from '../../../../utils/tenant-url-helper.ts';
 import ChannelIcon from '../../components/channels/ChannelIcon';
 import DocumentPopover from '../../components/documents/DocumentPopover';
 import DocumentType from '../../components/documents/DocumentType';
@@ -340,7 +341,7 @@ const ArticleForm = ({
                     <ListItemButton
                       key={document.document_id}
                       component="a"
-                      href={`/api/documents/${document.document_id}/file`}
+                      href={buildTenantApiPath(`/api/documents/${document.document_id}/file`)}
                     >
                       <ListItemIcon>
                         <AttachmentOutlined />

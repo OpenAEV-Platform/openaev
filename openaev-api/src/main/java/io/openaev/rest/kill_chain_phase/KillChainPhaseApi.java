@@ -1,5 +1,6 @@
 package io.openaev.rest.kill_chain_phase;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.database.specification.KillChainPhaseSpecification.byName;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
@@ -31,19 +32,20 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
+@RequestMapping({KillChainPhaseApi.KILL_CHAIN_PHASE_URI, TENANT_PREFIX + "/kill_chain_phases"})
 public class KillChainPhaseApi extends RestBehavior {
 
   public static final String KILL_CHAIN_PHASE_URI = "/api/kill_chain_phases";
 
   private final KillChainPhaseRepository killChainPhaseRepository;
 
-  @GetMapping("/api/kill_chain_phases")
+  @GetMapping
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.KILL_CHAIN_PHASE)
   public Iterable<KillChainPhase> killChainPhases() {
     return killChainPhaseRepository.findAll();
   }
 
-  @PostMapping("/api/kill_chain_phases/search")
+  @PostMapping("/search")
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.KILL_CHAIN_PHASE)
   public Page<KillChainPhase> killChainPhases(
       @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
@@ -54,7 +56,7 @@ public class KillChainPhaseApi extends RestBehavior {
         KillChainPhase.class);
   }
 
-  @GetMapping("/api/kill_chain_phases/{killChainPhaseId}")
+  @GetMapping("/{killChainPhaseId}")
   @AccessControl(
       resourceId = "#killChainPhaseId",
       actionPerformed = Action.READ,
@@ -65,7 +67,7 @@ public class KillChainPhaseApi extends RestBehavior {
         .orElseThrow(ElementNotFoundException::new);
   }
 
-  @PutMapping("/api/kill_chain_phases/{killChainPhaseId}")
+  @PutMapping("/{killChainPhaseId}")
   @AccessControl(
       resourceId = "#killChainPhaseId",
       actionPerformed = Action.WRITE,
@@ -82,7 +84,7 @@ public class KillChainPhaseApi extends RestBehavior {
     return killChainPhaseRepository.save(killchainPhase);
   }
 
-  @PostMapping("/api/kill_chain_phases")
+  @PostMapping
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.KILL_CHAIN_PHASE)
   @Transactional(rollbackOn = Exception.class)
   public KillChainPhase createKillChainPhase(@Valid @RequestBody KillChainPhaseCreateInput input) {
@@ -91,7 +93,7 @@ public class KillChainPhaseApi extends RestBehavior {
     return killChainPhaseRepository.save(killChainPhase);
   }
 
-  @PostMapping("/api/kill_chain_phases/upsert")
+  @PostMapping("/upsert")
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.KILL_CHAIN_PHASE)
   @Transactional(rollbackOn = Exception.class)
   public Iterable<KillChainPhase> upsertKillChainPhases(
@@ -129,7 +131,7 @@ public class KillChainPhaseApi extends RestBehavior {
     return this.killChainPhaseRepository.saveAll(upserted);
   }
 
-  @DeleteMapping("/api/kill_chain_phases/{killChainPhaseId}")
+  @DeleteMapping("/{killChainPhaseId}")
   @AccessControl(
       resourceId = "#killChainPhaseId",
       actionPerformed = Action.DELETE,
@@ -140,7 +142,7 @@ public class KillChainPhaseApi extends RestBehavior {
 
   // -- OPTION --
 
-  @GetMapping(KILL_CHAIN_PHASE_URI + "/options")
+  @GetMapping("/options")
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.KILL_CHAIN_PHASE)
   public List<FilterUtilsJpa.Option> optionsByName(
       @RequestParam(required = false) final String searchText) {
@@ -152,7 +154,7 @@ public class KillChainPhaseApi extends RestBehavior {
         .toList();
   }
 
-  @PostMapping(KILL_CHAIN_PHASE_URI + "/options")
+  @PostMapping("/options")
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.KILL_CHAIN_PHASE)
   public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
     return fromIterable(this.killChainPhaseRepository.findAllById(ids)).stream()

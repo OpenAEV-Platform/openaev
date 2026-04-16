@@ -147,7 +147,7 @@ class ConditionApiTest {
     child.setId(rootId + "-child");
     child.setWorkflowId(workflowId);
     child.setType(ConditionType.EQ);
-    child.setKeyType(ConditionKeyType.PortsScan);
+    child.setKeyType(ConditionKeyType.PORTSCAN);
     child.setValue("445");
     child.setMappingType(MappingType.LOCAL);
     child.setConditionParent(root);

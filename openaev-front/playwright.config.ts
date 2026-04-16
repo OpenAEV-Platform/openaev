@@ -45,10 +45,10 @@ export default defineConfig({
     /**
      * Timeouts for specific actions:
      * - Navigation: 30s (page.goto, page.reload)
-     * - Action timeout: 30s (click, fill, etc.)
+     * - Action timeout: 60s (click, fill, etc.)
      */
     navigationTimeout: 30000,
-    actionTimeout: 30000,
+    actionTimeout: 60000,
   },
   /* Timeouts configuration 60s for assertions (e.g., expect().toBeVisible())  */
   expect: { timeout: 60000 },

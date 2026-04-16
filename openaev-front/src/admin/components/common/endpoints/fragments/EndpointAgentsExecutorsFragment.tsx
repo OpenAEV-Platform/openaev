@@ -8,6 +8,7 @@ import { type EndpointOutput } from '../../../../../utils/api-types';
 import { getExecutorsCount } from '../../../../../utils/endpoints/utils';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
+import { buildTenantApiPath } from '../../../../../utils/tenant-url-helper';
 
 type Props = { endpoint: EndpointOutput };
 
@@ -45,7 +46,7 @@ const EndpointActiveFragment = (props: Props) => {
                 }}
                 >
                   <img
-                    src={`/api/images/executors/icons/${executorType}`}
+                    src={buildTenantApiPath(`/api/images/executors/icons/${executorType}`)}
                     alt={executorType}
                     style={{
                       width: 20,

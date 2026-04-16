@@ -1,6 +1,7 @@
 package io.openaev.scheduler.jobs;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -26,6 +27,7 @@ import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockito.ArgumentCaptor;
@@ -52,6 +54,7 @@ class InjectsExecutionJobTest extends IntegrationTest {
   @Autowired private EntityManager entityManager;
   @Autowired private SecurityCoverageSendJobRepository securityCoverageSendJobRepository;
   @Autowired private SecurityCoverageComposer securityCoverageComposer;
+  @Autowired private ExecutionTraceComposer executionTraceComposer;
 
   @Autowired private ComchecksExecutionJob comchecksExecutionJob;
   @Autowired private ComcheckRepository comcheckRepository;
@@ -260,5 +263,134 @@ class InjectsExecutionJobTest extends IntegrationTest {
     assertNotNull(
         emailInject.getInjectorContract().orElse(null), "Injector contract should be set");
     assertNotNull(emailInject.getInjector(), "Injector should be set from the email contract");
+  }
+
+  @Nested
+  @DisplayName("handlePendingInject")
+  class HandlePendingInjectTest {
+
+    @Test
+    @DisplayName("given pending inject without traces should mark status as maybe prevented")
+    void given_pendingInjectWithoutTraces_should_markStatusAsMaybePrevented() {
+      // Arrange
+      InjectStatus statusToSave = InjectStatusFixture.createPendingInjectStatus();
+      statusToSave.setTrackingSentDate(Instant.now().minus(20, ChronoUnit.MINUTES));
+      Inject inject =
+          injectComposer
+              .forInject(InjectFixture.getDefaultInject())
+              .withInjectStatus(injectStatusComposer.forInjectStatus(statusToSave))
+              .persist()
+              .get();
+      entityManager.flush();
+
+      // Act
+      job.handlePendingInject();
+      entityManager.flush();
+      entityManager.clear();
+
+      // Assert
+      Inject savedInject = injectRepository.findById(inject.getId()).orElseThrow();
+      InjectStatus savedStatus = savedInject.getStatus().orElseThrow();
+      assertEquals(ExecutionStatus.MAYBE_PREVENTED, savedStatus.getName());
+      assertTrue(
+          savedStatus.getTraces().stream()
+              .anyMatch(
+                  trace ->
+                      ExecutionTraceStatus.WARNING.equals(trace.getStatus())
+                          && trace
+                              .getMessage()
+                              .contains("Execution delay detected: Inject exceeded the")));
+    }
+
+    @Test
+    @DisplayName(
+        "given pending inject without complete traces should mark status as maybe prevented")
+    void given_pendingInjectWithoutCompleteTraces_should_markStatusAsMaybePrevented() {
+      // Arrange
+      AgentComposer.Composer agentComposerRef =
+          agentComposer.forAgent(AgentFixture.createDefaultAgentService());
+      InjectStatus statusToSave = InjectStatusFixture.createPendingInjectStatus();
+      statusToSave.setTrackingSentDate(Instant.now().minus(20, ChronoUnit.MINUTES));
+      InjectStatusComposer.Composer statusComposer =
+          injectStatusComposer
+              .forInjectStatus(statusToSave)
+              .withExecutionTrace(
+                  executionTraceComposer
+                      .forExecutionTrace(ExecutionTraceFixture.createDefaultExecutionTraceStart())
+                      .withAgent(agentComposerRef));
+
+      Inject inject =
+          injectComposer
+              .forInject(InjectFixture.getDefaultInject())
+              .withEndpoint(
+                  endpointComposer
+                      .forEndpoint(EndpointFixture.createEndpoint())
+                      .withAgent(agentComposerRef))
+              .withInjectStatus(statusComposer)
+              .persist()
+              .get();
+      entityManager.flush();
+
+      // Act
+      job.handlePendingInject();
+      entityManager.flush();
+      entityManager.clear();
+
+      // Assert
+      Inject savedInject = injectRepository.findById(inject.getId()).orElseThrow();
+      InjectStatus savedStatus = savedInject.getStatus().orElseThrow();
+      assertEquals(ExecutionStatus.MAYBE_PREVENTED, savedStatus.getName());
+      assertTrue(
+          savedStatus.getTraces().stream()
+              .anyMatch(
+                  trace ->
+                      ExecutionTraceStatus.WARNING.equals(trace.getStatus())
+                          && trace
+                              .getMessage()
+                              .contains("Execution delay detected: Inject exceeded the")));
+    }
+
+    @Test
+    @DisplayName("given pending inject with complete traces should compute final status")
+    void given_pendingInjectWithCompleteTraces_should_computeFinalStatus() {
+      // Arrange
+      AgentComposer.Composer agentComposerRef =
+          agentComposer.forAgent(AgentFixture.createDefaultAgentService());
+      InjectStatus statusToSave = InjectStatusFixture.createPendingInjectStatus();
+      statusToSave.setTrackingSentDate(Instant.now().minus(20, ChronoUnit.MINUTES));
+      InjectStatusComposer.Composer statusComposer =
+          injectStatusComposer
+              .forInjectStatus(statusToSave)
+              .withExecutionTrace(
+                  executionTraceComposer
+                      .forExecutionTrace(
+                          ExecutionTraceFixture.createDefaultExecutionTraceComplete())
+                      .withAgent(agentComposerRef));
+
+      Inject inject =
+          injectComposer
+              .forInject(InjectFixture.getDefaultInject())
+              .withEndpoint(
+                  endpointComposer
+                      .forEndpoint(EndpointFixture.createEndpoint())
+                      .withAgent(agentComposerRef))
+              .withInjectStatus(statusComposer)
+              .persist()
+              .get();
+      entityManager.flush();
+
+      // Act
+      job.handlePendingInject();
+      entityManager.flush();
+      entityManager.clear();
+
+      // Assert
+      Inject savedInject = injectRepository.findById(inject.getId()).orElseThrow();
+      InjectStatus savedStatus = savedInject.getStatus().orElseThrow();
+      assertEquals(ExecutionStatus.SUCCESS, savedStatus.getName());
+      assertTrue(
+          savedStatus.getTraces().stream()
+              .noneMatch(trace -> ExecutionTraceStatus.WARNING.equals(trace.getStatus())));
+    }
   }
 }

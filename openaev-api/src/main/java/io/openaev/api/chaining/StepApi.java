@@ -1,11 +1,11 @@
 package io.openaev.api.chaining;
 
-import static io.openaev.api.chaining.dto.StepMapper.toCreateInput;
-import static io.openaev.api.chaining.dto.StepMapper.toOutput;
+import static io.openaev.api.chaining.StepMapper.toOutput;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.api.chaining.dto.StepInput;
 import io.openaev.api.chaining.dto.StepOutput;
+import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.exception.ChainingException;
@@ -44,20 +44,17 @@ public class StepApi {
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   public StepOutput createStep(@Valid @RequestBody StepInput input) throws ChainingException {
-    return toOutput(stepService.createStepTemplate(input.getWorkflowId(), toCreateInput(input)));
+    StepsCreateInput.StepInput createInput =
+        StepsCreateInput.StepInput.builder()
+            .stepAction(input.getStepAction())
+            .conditions(input.getConditions())
+            .conditionIds(input.getConditionIds())
+            .dataStep(input.getDataStep())
+            .build();
+    return toOutput(stepService.createStepTemplate(input.getWorkflowId(), createInput));
   }
 
   // -- READ --
-
-  @Operation(summary = "List all step templates")
-  @ApiResponses({@ApiResponse(responseCode = "200", description = "All step templates retrieved")})
-  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION_OR_SCENARIO)
-  @GetMapping
-  public List<StepOutput> findAll() {
-    return stepService.findAllStepTemplates().stream()
-        .map(io.openaev.api.chaining.dto.StepMapper::toOutput)
-        .toList();
-  }
 
   @Operation(summary = "Get a step template by ID")
   @ApiResponses({
@@ -76,7 +73,7 @@ public class StepApi {
   @GetMapping(params = "workflow_id")
   public List<StepOutput> findByWorkflowId(@RequestParam("workflow_id") String workflowId) {
     return stepService.findAllStepTemplateByWorkflow(workflowId).stream()
-        .map(io.openaev.api.chaining.dto.StepMapper::toOutput)
+        .map(StepMapper::toOutput)
         .toList();
   }
 
@@ -92,7 +89,7 @@ public class StepApi {
   @PutMapping("/{stepId}")
   public StepOutput updateStep(@PathVariable String stepId, @Valid @RequestBody StepInput input)
       throws ChainingException {
-    return toOutput(stepService.updateStepTemplate(stepId, toCreateInput(input)));
+    return toOutput(stepService.updateStepTemplate(stepId, input));
   }
 
   // -- DELETE --

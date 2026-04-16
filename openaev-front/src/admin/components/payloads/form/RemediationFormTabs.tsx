@@ -15,6 +15,7 @@ import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import RestrictionAccess from '../../../../utils/permissions/RestrictionAccess';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { buildTenantApiPath } from '../../../../utils/tenant-url-helper';
 import RemediationFormTab from './RemediationFormTab';
 
 interface RemediationFormTabsProps { payloadId?: string }
@@ -86,7 +87,7 @@ const RemediationFormTabs = ({ payloadId }: RemediationFormTabsProps) => {
                         label={(
                           <Box display="flex" alignItems="center">
                             <img
-                              src={`/api/images/collectors/${tab.collector_type}`}
+                              src={buildTenantApiPath(`/api/images/collectors/${tab.collector_type}`)}
                               alt={tab.collector_type}
                               style={{
                                 width: 20,

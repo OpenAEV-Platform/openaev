@@ -1,6 +1,6 @@
 package io.openaev.api.chaining;
 
-import io.openaev.api.chaining.dto.StepInput;
+import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.Workflow;
 import io.openaev.rest.exception.ChainingException;
@@ -15,7 +15,8 @@ public interface ActionStep {
    * @param workflow the workflow
    * @return the step
    */
-  Optional<Step> create(StepInput stepInput, Workflow workflow) throws ChainingException;
+  Optional<Step> create(StepsCreateInput.StepInput stepInput, Workflow workflow)
+      throws ChainingException;
 
   /**
    * Creates a Ready step. The step is created with status READY based on a step template.

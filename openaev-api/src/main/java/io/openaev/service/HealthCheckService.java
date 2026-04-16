@@ -1,16 +1,11 @@
 package io.openaev.service;
 
 import com.cronutils.utils.VisibleForTesting;
-import com.rabbitmq.client.Connection;
-import com.rabbitmq.client.ConnectionFactory;
 import io.minio.MinioClient;
-import io.openaev.config.RabbitMQSslConfiguration;
-import io.openaev.config.RabbitmqConfig;
 import io.openaev.database.repository.HealthCheckRepository;
 import io.openaev.driver.MinioDriver;
 import io.openaev.service.exception.HealthCheckFailureException;
 import java.io.IOException;
-import java.security.*;
 import java.util.concurrent.TimeoutException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,25 +17,20 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class HealthCheckService {
 
-  private final RabbitMQSslConfiguration rabbitMQSslConfiguration;
   private final HealthCheckRepository healthCheckRepository;
   private final MinioDriver minioDriver;
   private final MinioService minioService;
-  private final RabbitmqConfig rabbitmqConfig;
+  private final RabbitmqService rabbitmqService;
 
   /**
    * Run health checks by testing connection to the service dependencies (database/rabbitMq/file
    * storage)
    *
-   * @throws HealthCheckFailureException
+   * @throws HealthCheckFailureException if any dependency check fails
    */
   public void runHealthCheck() throws HealthCheckFailureException {
     runDatabaseCheck();
-    try {
-      runRabbitMQCheck(createRabbitMQConnectionFactory());
-    } catch (Exception e) {
-      throw new HealthCheckFailureException(e.getMessage());
-    }
+    runRabbitMQCheck();
     runFileStorageCheck();
   }
 
@@ -50,47 +40,11 @@ public class HealthCheckService {
   }
 
   @VisibleForTesting
-  protected ConnectionFactory createRabbitMQConnectionFactory()
-      throws NoSuchAlgorithmException, KeyManagementException {
-    ConnectionFactory factory = new ConnectionFactory();
-    factory.setHost(rabbitmqConfig.getHostname());
-    factory.setPort(rabbitmqConfig.getPort());
-    factory.setUsername(rabbitmqConfig.getUser());
-    factory.setPassword(rabbitmqConfig.getPass());
-    factory.setVirtualHost(rabbitmqConfig.getVhost());
-    // Configure SSL if enabled
-    if (rabbitmqConfig.isSsl()) {
-      try {
-        rabbitMQSslConfiguration.configureSsl(factory, rabbitmqConfig);
-      } catch (Exception e) {
-        log.error("Failed to configure SSL for RabbitMQ connection", e);
-        throw new IllegalStateException("Failed to configure SSL for RabbitMQ", e);
-      }
-    }
-    factory.setConnectionTimeout(2000);
-    return factory;
-  }
-
-  @VisibleForTesting
-  protected void runRabbitMQCheck(ConnectionFactory connectionFactory)
-      throws HealthCheckFailureException {
-    // Declare queueing
-    Connection connection = null;
+  protected void runRabbitMQCheck() throws HealthCheckFailureException {
     try {
-      connection = connectionFactory.newConnection();
-      connection.createChannel();
+      rabbitmqService.checkHealth();
     } catch (IOException | TimeoutException e) {
       throw new HealthCheckFailureException("RabbitMQ check failure", e);
-    } finally {
-      if (connection != null) {
-        try {
-          connection.close();
-        } catch (IOException e) {
-          log.error(
-              "Unable to close RabbitMQ connection. You should worry as this could impact performance",
-              e);
-        }
-      }
     }
   }
 

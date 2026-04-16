@@ -83,7 +83,32 @@ public class PayloadService {
   public void updateInjectorContractsForPayload(Payload payload) {
     List<Injector> injectors =
         this.injectorRepository.findAllByPayloadsAndTenantId(true, payload.getTenant().getId());
-    injectors.forEach(injector -> updateInjectorContract(injector, payload));
+
+    // Find or create the single contract for this payload
+    List<InjectorContract> existingContracts =
+        injectorContractRepository.findInjectorContractsByPayload(payload);
+    InjectorContract contract;
+    if (!existingContracts.isEmpty()) {
+      contract = existingContracts.getFirst();
+    } else {
+      contract = new InjectorContract();
+      contract.setId(String.valueOf(UUID.randomUUID()));
+    }
+
+    // Use the first injector for building contract content (they all share the same type)
+    Injector referenceInjector = injectors.isEmpty() ? null : injectors.getFirst();
+    if (referenceInjector != null) {
+      setInjectorContractPropertyBasedOnPayload(contract, payload, referenceInjector);
+      contract = injectorContractRepository.save(contract);
+
+      // Link contract to all payload-supporting injectors via the owning side
+      for (Injector injector : injectors) {
+        if (!injector.getContracts().contains(contract)) {
+          injector.getContracts().add(contract);
+          injectorRepository.save(injector);
+        }
+      }
+    }
   }
 
   private void setInjectorContractPropertyBasedOnPayload(
@@ -92,7 +117,7 @@ public class PayloadService {
     injectorContract.setLabels(labels);
     injectorContract.setNeedsExecutor(true);
     injectorContract.setManual(false);
-    injectorContract.setInjector(injector);
+    injectorContract.addInjector(injector);
     injectorContract.setPayload(payload);
     injectorContract.setPlatforms(payload.getPlatforms());
     injectorContract.setDomains(
@@ -112,24 +137,6 @@ public class PayloadService {
     } catch (JsonProcessingException e) {
       throw new RuntimeException(e);
     }
-  }
-
-  private void updateInjectorContract(Injector injector, Payload payload) {
-    Optional<InjectorContract> injectorContract =
-        injectorContractRepository.findInjectorContractByInjectorAndPayload(injector, payload);
-
-    InjectorContract injectorContractToUpdate;
-    if (injectorContract.isPresent()) {
-      injectorContractToUpdate = injectorContract.get();
-    } else {
-      String contractId = String.valueOf(UUID.randomUUID());
-      injectorContractToUpdate = new InjectorContract();
-      injectorContractToUpdate.setId(contractId);
-      injectorContractToUpdate.setTenant(injector.getTenant());
-    }
-
-    setInjectorContractPropertyBasedOnPayload(injectorContractToUpdate, payload, injector);
-    injectorContractRepository.save(injectorContractToUpdate);
   }
 
   private ContractChoiceInformation obfuscatorField(String executor) {

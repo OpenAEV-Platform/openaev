@@ -25,9 +25,6 @@ public class StepInput {
   @NotNull
   private StepActionClass stepAction;
 
-  @JsonProperty("step_limit_execution")
-  private int limitExecution;
-
   @JsonProperty("step_conditions")
   @Valid
   private List<ConditionCreateInput> conditions;

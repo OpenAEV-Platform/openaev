@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useLocalStorage } from 'usehooks-ts';
+import { useLocation } from 'react-router';
 
 import { fetchUserTenants } from '../../actions/user/user-tenant-actions';
 import { TENANT_SWITCH_SUCCESS } from '../../constants/ActionTypes';
 import { type TenantOutput, type User } from '../api-types';
 import { useAppDispatch } from '../hooks';
-
-export const TENANT_STORAGE_KEY = 'current-tenant-storage';
+import { buildTenantUrl, extractTenantFromUrl } from '../tenant-url-helper';
 
 /**
  * Internal hook that encapsulates the current-tenant state and
@@ -37,13 +36,16 @@ const useTenantState = () => {
 /**
  * Hook that manages the full tenant lifecycle:
  * - Fetches the tenants accessible to the current user
- * - Persists the selected tenant in local storage
- * - Provides a switch function to change the active tenant
+ * - Resolves the current tenant from the URL (per-tab, multi-tab safe)
+ * - Provides a switch function that navigates to the new tenant URL
+ *
+ * After login (when the URL has no tenant segment yet), the hook
+ * falls back to the first tenant in the user's tenant list.
  */
 const useTenant = (me: User | undefined, logged: unknown) => {
   const [userTenants, setUserTenants] = useState<TenantOutput[]>([]);
-  const [currentTenantStorage, setCurrentTenantStorage] = useLocalStorage<TenantOutput | null>(TENANT_STORAGE_KEY, null);
   const { currentUserTenant, setTenant } = useTenantState();
+  const location = useLocation();
 
   const loadUserTenants = useCallback(async (newCurrentTenantId?: string) => {
     if (!me) return;
@@ -59,33 +61,34 @@ const useTenant = (me: User | undefined, logged: unknown) => {
         : undefined;
       if (newCurrentTenant) {
         setTenant(newCurrentTenant);
-        setCurrentTenantStorage(newCurrentTenant);
       } else {
-        // Otherwise, if local storage tenant is still valid use it, otherwise switch to first tenant in list
-        const currentTenant = tenants.find(tenant => (tenant.tenant_id === currentTenantStorage?.tenant_id));
-        if (currentTenant) {
-          setTenant(currentTenant);
-          setCurrentTenantStorage(currentTenant);
-        } else {
-          setTenant(tenants[0]);
-          setCurrentTenantStorage(tenants[0]);
-        }
+        // Resolve tenant from URL (per-tab, multi-tab safe).
+        // Falls back to the first tenant in the list (post-login / public pages).
+        const urlTenantId = extractTenantFromUrl();
+        const currentTenant = urlTenantId
+          ? tenants.find(tenant => tenant.tenant_id === urlTenantId)
+          : undefined;
+        setTenant(currentTenant ?? tenants[0]);
       }
     } else {
       setUserTenants([]);
       setTenant(null);
-      setCurrentTenantStorage(null);
     }
   }, [me]);
 
   useEffect(() => {
     if (me && logged) {
-      loadUserTenants();
+      // On page load / hard refresh the URL is the source of truth.
+      // Pass the URL tenant ID so loadUserTenants selects the right one.
+      const urlTenantId = extractTenantFromUrl() ?? undefined;
+      loadUserTenants(urlTenantId);
     }
   }, [me, logged, loadUserTenants]);
 
-  // TODO multi-tenancy: Multi executors dev
-  // When switching tenants we need to navigate to the new tenant URL prefix and reload tenant-scoped data
+  // When switching tenants, navigate to the new tenant URL prefix.
+  // location.pathname is tenant-free (basename strips it), so we rebuild
+  // the full URL with the new tenant segment. The full page navigation
+  // triggers a reload where BrowserRouter picks up the new basename.
   const switchUserTenant = useCallback(async (tenantId: string) => {
     if (tenantId === currentUserTenant?.tenant_id) {
       return;
@@ -94,10 +97,9 @@ const useTenant = (me: User | undefined, logged: unknown) => {
     const current = userTenants.find(t => (t.tenant_id === tenantId));
     if (current) {
       setTenant(current);
-      setCurrentTenantStorage(current);
-      window.location.reload();
+      window.location.href = buildTenantUrl(tenantId, location.pathname, location.search, location.hash);
     }
-  }, [currentUserTenant, userTenants, setCurrentTenantStorage, setTenant]);
+  }, [currentUserTenant, userTenants, setTenant, location]);
 
   return {
     userTenants,

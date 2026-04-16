@@ -54,17 +54,15 @@ public class ConditionMapper {
     List<ConditionOutput> conditionOutputs =
         deduplicatedById.values().stream().map(ConditionMapper::toConditionOutput).toList();
 
-    String stepFromId = root.getStepFrom() != null ? root.getStepFrom().getId() : null;
-
-    return new EventOutput(
-        root.getId(),
-        root.getName(),
-        root.getDescription(),
-        root.getWorkflowId(),
-        conditionOutputs,
-        stepFromId,
-        root.getCreationDate(),
-        root.getUpdateDate());
+    return EventOutput.builder()
+        .id(root.getId())
+        .name(root.getName())
+        .description(root.getDescription())
+        .workflowId(root.getWorkflowId())
+        .conditions(conditionOutputs)
+        .createdAt(root.getCreationDate())
+        .updatedAt(root.getUpdateDate())
+        .build();
   }
 
   private static void collectTree(Condition node, List<Condition> result) {
@@ -82,15 +80,15 @@ public class ConditionMapper {
   private static ConditionOutput toConditionOutput(Condition c) {
     String parentId = c.getConditionParent() != null ? c.getConditionParent().getId() : null;
 
-    ConditionOutput output = new ConditionOutput();
-    output.setId(c.getId());
-    output.setKeyType(c.getKeyType());
-    output.setKeySubtype(c.getKeySubtype());
-    output.setType(c.getType() != null ? c.getType().name() : null);
-    output.setValue(c.getValue());
-    output.setConditionParentId(parentId);
-    output.setMappingType(c.getMappingType());
-    return output;
+    return ConditionOutput.builder()
+        .id(c.getId())
+        .keyType(c.getKeyType())
+        .keySubtype(c.getKeySubtype())
+        .type(c.getType() != null ? c.getType().name() : null)
+        .value(c.getValue())
+        .conditionParentId(parentId)
+        .mappingType(resolveMappingType(input))
+        .build();
   }
 
   /**
@@ -109,22 +107,20 @@ public class ConditionMapper {
     return input.getMappingType();
   }
 
-  public static Condition toCondition(ConditionCreateInput input, Step stepFrom) {
-    return toCondition(input, stepFrom, null);
+  public static Condition toCondition(ConditionCreateInput input) {
+    return toCondition(input, null);
   }
 
-  public static Condition toCondition(
-      ConditionCreateInput input, Step stepFrom, Condition conditionParent) {
+  public static Condition toCondition(ConditionCreateInput input, Condition conditionParent) {
     Objects.requireNonNull(input, "condition create input must not be null");
 
-    Condition condition = new Condition();
-    condition.setKeyType(input.getKeyType());
-    condition.setKeySubtype(input.getKeySubtype());
-    condition.setType(input.getType());
-    condition.setValue(input.getValue());
-    condition.setMappingType(resolveMappingType(input));
-    condition.setStepFrom(stepFrom);
-    condition.setConditionParent(conditionParent);
-    return condition;
+    return Condition.builder()
+        .keyType(input.getKeyType())
+        .keySubtype(input.getKeySubtype())
+        .type(input.getType())
+        .value(input.getValue())
+        .conditionParent(conditionParent)
+        .mappingType(resolveMappingType(input))
+        .build();
   }
 }

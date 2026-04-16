@@ -6,74 +6,68 @@ import lombok.Getter;
 @Getter
 public enum ConditionKeyType {
   @JsonProperty("execution_time")
-  ExecutionTime("execution_time"),
+  EXECUTION_TIME,
 
   @JsonProperty("step_template_id")
-  StepTemplateId("step_template_id"),
+  STEP_TEMPLATE_ID,
 
   @JsonProperty("text")
-  Text("text"),
+  TEXT,
 
   @JsonProperty("status")
-  Status("status"),
+  STATUS,
 
   @JsonProperty("number")
-  Number("number"),
+  NUMBER,
 
   @JsonProperty("port")
-  Port("port"),
+  PORT,
 
   @JsonProperty("portscan")
-  PortsScan("portscan"),
+  PORTSCAN,
 
   @JsonProperty("ipv4")
-  IPv4("ipv4"),
+  IPV4,
 
   @JsonProperty("ipv6")
-  IPv6("ipv6"),
+  IPV6,
 
   @JsonProperty("credentials")
-  Credentials("credentials"),
+  CREDENTIALS,
 
   @JsonProperty("cve")
-  CVE("cve"),
+  CVE,
 
   @JsonProperty("username")
-  Username("username"),
+  USERNAME,
 
   @JsonProperty("share")
-  Share("share"),
+  SHARE,
 
   @JsonProperty("admin_username")
-  AdminUsername("admin_username"),
+  ADMIN_USERNAME,
 
   @JsonProperty("group")
-  Group("group"),
+  GROUP,
 
   @JsonProperty("computer")
-  Computer("computer"),
+  COMPUTER,
 
   @JsonProperty("password_policy")
-  PasswordPolicy("password_policy"),
+  PASSWORD_POLICY,
 
   @JsonProperty("delegation")
-  Delegation("delegation"),
+  DELEGATION,
 
   @JsonProperty("sid")
-  Sid("sid"),
+  SID,
 
   @JsonProperty("vulnerability")
-  Vulnerability("vulnerability"),
+  VULNERABILITY,
 
   @JsonProperty("account_with_password_not_required")
   AccountWithPasswordNotRequired("account_with_password_not_required"),
 
   @JsonProperty("asset")
-  Asset("asset");
-
-  private final String label;
-
-  ConditionKeyType(String label) {
-    this.label = label;
-  }
+  ASSET;
 }

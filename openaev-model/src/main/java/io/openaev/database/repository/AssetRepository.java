@@ -30,4 +30,6 @@ public interface AssetRepository
               + "WHERE ia.inject_id in :injectIds",
       nativeQuery = true)
   List<Object[]> assetsByInjectIds(Set<String> injectIds);
+
+  List<Asset> findByTenantId(String tenantId);
 }

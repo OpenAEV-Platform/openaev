@@ -81,7 +81,8 @@ public class InjectorContractComposer extends ComposerBase<InjectorContract> {
       this.injectorContract.setId(challengeInjectorContract.getId());
       this.injectorContract.setContent(challengeInjectorContract.getContent());
       this.injectorContract.setConvertedContent(challengeInjectorContract.getConvertedContent());
-      this.injectorContract.setInjector(challengeInjectorContract.getInjector());
+      this.injectorContract.getInjectors().clear();
+      this.injectorContract.addInjectors(challengeInjectorContract.getInjectors());
       this.injectorContract.setPlatforms(challengeInjectorContract.getPlatforms());
       this.injectorContract.setUpdatedAt(challengeInjectorContract.getUpdatedAt());
       this.injectorContract.setCreatedAt(challengeInjectorContract.getCreatedAt());
@@ -100,7 +101,8 @@ public class InjectorContractComposer extends ComposerBase<InjectorContract> {
       this.injectorContract.setId(articleInjectorContract.getId());
       this.injectorContract.setContent(articleInjectorContract.getContent());
       this.injectorContract.setConvertedContent(articleInjectorContract.getConvertedContent());
-      this.injectorContract.setInjector(articleInjectorContract.getInjector());
+      this.injectorContract.getInjectors().clear();
+      this.injectorContract.addInjector(articleInjectorContract.getFirstInjector());
       this.injectorContract.setPlatforms(articleInjectorContract.getPlatforms());
       this.injectorContract.setUpdatedAt(articleInjectorContract.getUpdatedAt());
       this.injectorContract.setCreatedAt(articleInjectorContract.getCreatedAt());
@@ -110,7 +112,8 @@ public class InjectorContractComposer extends ComposerBase<InjectorContract> {
     }
 
     public Composer withInjector(Injector injector) {
-      this.injectorContract.setInjector(injector);
+      this.injectorContract.getInjectors().clear();
+      this.injectorContract.addInjector(injector);
       return this;
     }
 
@@ -144,11 +147,18 @@ public class InjectorContractComposer extends ComposerBase<InjectorContract> {
       attackPatternComposer.forEach(AttackPatternComposer.Composer::persist);
       vulnerabilityComposer.forEach(VulnerabilityComposer.Composer::persist);
       if (!WELL_KNOWN_CONTRACT_IDS.contains(injectorContract.getId())) {
-        entityManager.persist(injectorContract.getInjector());
-        injectorRepository.save(injectorContract.getInjector());
-        // for some reason hibernate refuses to save the entity with the repository
+        // Persist injectors first — they are the owning side of the ManyToMany
+        // join table. Before the ManyToOne→ManyToMany migration, the FK on
+        // injectors_contracts forced implicit persistence; now it must be explicit.
+        for (Injector injector : new ArrayList<>(injectorContract.getInjectors())) {
+          if (!entityManager.contains(injector)) {
+            entityManager.persist(injector);
+          }
+        }
         entityManager.persist(injectorContract);
-        injectorContractRepository.save(injectorContract);
+        for (Injector injector : new ArrayList<>(injectorContract.getInjectors())) {
+          injector.linkContract(injectorContract);
+        }
       }
       return this;
     }
