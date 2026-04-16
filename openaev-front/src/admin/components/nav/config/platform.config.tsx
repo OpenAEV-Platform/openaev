@@ -43,7 +43,7 @@ const platformEntries = (ability: AppAbility): LeftMenuItem[] => {
             ? (
                 <EEChip
                   clickable
-                  featureDetectedInfo={t('Tenants')}
+                  featureDetectedInfo={t('TENANTS')}
                 />
               )
             : undefined,

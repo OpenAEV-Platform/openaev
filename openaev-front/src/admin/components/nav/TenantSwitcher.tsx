@@ -119,7 +119,7 @@ const TenantSwitcher: FunctionComponent = () => {
                       <EEChip
                         style={{ marginLeft: theme.spacing(1) }}
                         clickable
-                        featureDetectedInfo={t('Tenants')}
+                        featureDetectedInfo={t('TENANTS')}
                       />
                     )}
                   </>
