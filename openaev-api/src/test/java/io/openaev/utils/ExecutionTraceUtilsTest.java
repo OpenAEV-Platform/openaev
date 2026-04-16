@@ -65,7 +65,8 @@ class ExecutionTraceUtilsTest {
     }
 
     @Test
-    @DisplayName("Given execution success and cleanup error should return SUCCESS_WITH_CLEANUP_FAIL")
+    @DisplayName(
+        "Given execution success and cleanup error should return SUCCESS_WITH_CLEANUP_FAIL")
     void given_execution_success_and_cleanup_error_should_return_success_with_cleanup_fail() {
       // -- ARRANGE --
       List<ExecutionTrace> traces =
@@ -96,8 +97,7 @@ class ExecutionTraceUtilsTest {
     void given_execution_error_should_take_priority_over_prerequisite_failure() {
       // -- ARRANGE --
       List<ExecutionTrace> traces =
-          List.of(
-              buildTrace(ERROR, PREREQUISITE_CHECK), buildTrace(COMMAND_NOT_FOUND, EXECUTION));
+          List.of(buildTrace(ERROR, PREREQUISITE_CHECK), buildTrace(COMMAND_NOT_FOUND, EXECUTION));
 
       // -- ACT --
       ExecutionTraceStatus result = ExecutionTraceUtils.computeAgentTraceStatus(traces);
@@ -107,4 +107,3 @@ class ExecutionTraceUtilsTest {
     }
   }
 }
-

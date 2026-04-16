@@ -246,7 +246,6 @@ public class InjectStatusService {
     }
   }
 
-
   public InjectStatus fromExecution(Execution execution, InjectStatus injectStatus) {
     if (!execution.getTraces().isEmpty()) {
       List<ExecutionTrace> traces =
