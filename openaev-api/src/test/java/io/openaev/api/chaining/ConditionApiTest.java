@@ -10,7 +10,6 @@ import io.openaev.database.model.Condition;
 import io.openaev.database.model.ConditionKeyType;
 import io.openaev.database.model.ConditionType;
 import io.openaev.database.model.MappingType;
-import io.openaev.database.model.Step;
 import io.openaev.service.chaining.ConditionService;
 import java.time.Instant;
 import java.util.List;
@@ -40,7 +39,6 @@ class ConditionApiTest {
     assertEquals("cond-root", result.getId());
     assertEquals("event-1", result.getName());
     assertEquals("wf-1", result.getWorkflowId());
-    assertEquals("step-from-1", result.getStepFrom());
     assertEquals(2, result.getConditions().size());
     assertEquals(
         MappingType.LOCAL,
@@ -53,21 +51,6 @@ class ConditionApiTest {
   }
 
   @Test
-  void findAll_shouldReturnMappedList() {
-    Condition root1 = conditionTree("c-1", "wf-1", "ev-1", "d-1");
-    Condition root2 = conditionTree("c-2", "wf-2", "ev-2", "d-2");
-
-    when(conditionService.findAll()).thenReturn(List.of(root1, root2));
-
-    List<EventOutput> result = conditionApi.findAll();
-
-    assertEquals(2, result.size());
-    assertEquals("c-1", result.get(0).getId());
-    assertEquals("c-2", result.get(1).getId());
-    verify(conditionService).findAll();
-  }
-
-  @Test
   void findAllByWorkflow_shouldReturnMappedList() {
     Condition root = conditionTree("c-wf", "wf-9", "ev-9", "d");
     when(conditionService.findConditionRootsByWorkflowId("wf-9")).thenReturn(List.of(root));
@@ -75,8 +58,8 @@ class ConditionApiTest {
     List<EventOutput> result = conditionApi.findAllByWorkflow("wf-9");
 
     assertEquals(1, result.size());
-    assertEquals("c-wf", result.get(0).getId());
-    assertEquals("wf-9", result.get(0).getWorkflowId());
+    assertEquals("c-wf", result.getFirst().getId());
+    assertEquals("wf-9", result.getFirst().getWorkflowId());
     verify(conditionService).findConditionRootsByWorkflowId("wf-9");
   }
 
@@ -123,7 +106,6 @@ class ConditionApiTest {
         .name("event-1")
         .description("desc-1")
         .workflowId("wf-1")
-        .stepFrom("step-from-1")
         .conditions(List.of(root))
         .build();
   }
@@ -138,10 +120,6 @@ class ConditionApiTest {
     root.setType(ConditionType.AND);
     root.setCreationDate(Instant.parse("2026-03-01T10:00:00Z"));
     root.setUpdateDate(Instant.parse("2026-03-01T10:01:00Z"));
-
-    Step stepFrom = new Step();
-    stepFrom.setId("step-from-1");
-    root.setStepFrom(stepFrom);
 
     Condition child = new Condition();
     child.setId(rootId + "-child");

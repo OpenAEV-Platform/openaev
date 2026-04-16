@@ -491,7 +491,7 @@ public class ConditionServiceTest {
         } else {
           assertNotNull(result);
           assertEquals(1, result.size());
-          assertSame(depExec, result.get(0));
+          assertSame(depExec, result.getFirst());
           verify(conditionService).isDependOn(stepFromTemplateId);
         }
       }
@@ -571,7 +571,7 @@ public class ConditionServiceTest {
       verify(conditionRepository).save(condition);
       verify(conditionRepository, never()).delete(any());
       assertEquals(1, condition.getConditionSteps().size());
-      assertEquals("step-B", condition.getConditionSteps().get(0).getStep().getId());
+      assertEquals("step-B", condition.getConditionSteps().getFirst().getStep().getId());
     }
   }
 
@@ -766,8 +766,6 @@ public class ConditionServiceTest {
     @Test
     void shouldPreserveMappingType_whenMapperConditionHasExplicitValue() {
       // -------- Prepare --------
-      String stepFromId = "step-from-mr";
-
       ConditionCreateInput mapperInput = new ConditionCreateInput();
       mapperInput.setTemporaryId("tmp-mapper");
       mapperInput.setType(ConditionType.MAPPER);
@@ -777,14 +775,9 @@ public class ConditionServiceTest {
           EventInput.builder()
               .name("ev-mr")
               .workflowId("wf-mr")
-              .stepFrom(stepFromId)
               .conditions(List.of(mapperInput))
               .build();
 
-      Step stepFrom = new Step();
-      stepFrom.setId(stepFromId);
-
-      when(stepRepository.findById(stepFromId)).thenReturn(Optional.of(stepFrom));
       when(conditionRepository.save(any(Condition.class))).thenAnswer(inv -> inv.getArgument(0));
 
       // -------- Act --------
@@ -798,8 +791,6 @@ public class ConditionServiceTest {
     @Test
     void shouldDefaultMappingTypeToDefault_whenMapperConditionHasNullMappingType() {
       // -------- Prepare --------
-      String stepFromId = "step-from-def";
-
       ConditionCreateInput mapperInput = new ConditionCreateInput();
       mapperInput.setTemporaryId("tmp-mapper");
       mapperInput.setType(ConditionType.MAPPER);
@@ -809,14 +800,9 @@ public class ConditionServiceTest {
           EventInput.builder()
               .name("ev-def")
               .workflowId("wf-def")
-              .stepFrom(stepFromId)
               .conditions(List.of(mapperInput))
               .build();
 
-      Step stepFrom = new Step();
-      stepFrom.setId(stepFromId);
-
-      when(stepRepository.findById(stepFromId)).thenReturn(Optional.of(stepFrom));
       when(conditionRepository.save(any(Condition.class))).thenAnswer(inv -> inv.getArgument(0));
 
       // -------- Act --------
@@ -833,8 +819,6 @@ public class ConditionServiceTest {
     @Test
     void shouldLeaveMappingTypeNull_whenNonMapperCondition() {
       // -------- Prepare --------
-      String stepFromId = "step-from-nm";
-
       ConditionCreateInput eqInput = new ConditionCreateInput();
       eqInput.setTemporaryId("tmp-eq");
       eqInput.setType(ConditionType.EQ);
@@ -844,14 +828,9 @@ public class ConditionServiceTest {
           EventInput.builder()
               .name("ev-nm")
               .workflowId("wf-nm")
-              .stepFrom(stepFromId)
               .conditions(List.of(eqInput))
               .build();
 
-      Step stepFrom = new Step();
-      stepFrom.setId(stepFromId);
-
-      when(stepRepository.findById(stepFromId)).thenReturn(Optional.of(stepFrom));
       when(conditionRepository.save(any(Condition.class))).thenAnswer(inv -> inv.getArgument(0));
 
       // -------- Act --------
