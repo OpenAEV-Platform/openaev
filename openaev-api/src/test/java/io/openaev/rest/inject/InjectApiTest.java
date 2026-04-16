@@ -1100,14 +1100,15 @@ class InjectApiTest extends IntegrationTest {
         // Check inject status
         assertEquals(ExecutionStatus.PENDING, injectStatusSaved.getName());
         assertEquals(2, injectStatusSaved.getTraces().size());
-        // The status of the complete trace should be ERROR
+        // The status of the complete trace should be COMMAND_NOT_FOUND (granular error status)
         List<ExecutionTrace> completeTraces =
             injectStatusSaved.getTraces().stream()
                 .filter(t -> ExecutionTraceAction.COMPLETE.equals(t.getAction()))
                 .toList();
         assertEquals(1, completeTraces.size());
         assertEquals(
-            ExecutionTraceStatus.ERROR, completeTraces.stream().findFirst().get().getStatus());
+            ExecutionTraceStatus.COMMAND_NOT_FOUND,
+            completeTraces.stream().findFirst().get().getStatus());
       }
 
       @DisplayName(
@@ -1316,9 +1317,11 @@ class InjectApiTest extends IntegrationTest {
       }
 
       @Test
-      @DisplayName("Should compute agent status as ERROR when mixed SUCCESS and COMMAND_NOT_FOUND")
+      @DisplayName(
+          "Should compute agent status as COMMAND_NOT_FOUND when mixed SUCCESS and COMMAND_NOT_FOUND")
       void shouldComputeAgentStatusAsErrorForMixedSuccessAndError() throws Exception {
-        testAgentStatusFunction("SUCCESS", "COMMAND_NOT_FOUND", ExecutionTraceStatus.ERROR);
+        testAgentStatusFunction(
+            "SUCCESS", "COMMAND_NOT_FOUND", ExecutionTraceStatus.COMMAND_NOT_FOUND);
       }
 
       @Test

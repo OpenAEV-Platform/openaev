@@ -170,8 +170,8 @@ public class InjectsExecutionJob implements Job {
         if (!completedAgentIds.contains(agent.getId())) {
           ExecutionTraceUtils.addTimeoutTrace(status, agent, this.injectExecutionThreshold);
         }
-        injectStatusService.updateFinalInjectStatus(status);
       }
+      injectStatusService.updateFinalInjectStatus(status);
     }
 
     injectStatusService.saveAll(
