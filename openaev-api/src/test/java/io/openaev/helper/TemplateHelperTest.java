@@ -27,8 +27,7 @@ class TemplateHelperTest {
 
     @Test
     @DisplayName("given content with variables should resolve them")
-    void given_content_with_variables_should_resolve_them()
-        throws IOException, TemplateException {
+    void given_content_with_variables_should_resolve_them() throws IOException, TemplateException {
       // -- Arrange --
       String content = "${greeting} ${firstname} ${lastname}";
 
