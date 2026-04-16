@@ -4,7 +4,6 @@ import static io.openaev.utils.ExecutionTraceUtils.convertExecutionAction;
 import static org.springframework.util.StringUtils.hasText;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.google.common.annotations.VisibleForTesting;
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
 import io.openaev.database.helper.ExecutionTraceRepositoryHelper;
@@ -17,13 +16,13 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionInput;
 import io.openaev.rest.inject.form.InjectUpdateStatusInput;
+import io.openaev.utils.ExecutionTraceUtils;
 import io.openaev.utils.InjectUtils;
 import jakarta.annotation.Nullable;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -102,24 +101,17 @@ public class InjectStatusService {
         injectStatusRepository.findAllByInjectIdIn(jobsByInjectId.keySet());
     for (InjectStatus status : statuses) {
       for (AssetAgentJob job : jobsByInjectId.getOrDefault(status.getInject().getId(), List.of())) {
-        status.addTrace(
-            ExecutionTraceStatus.INFO,
-            "Implant spawn by the agent",
-            ExecutionTraceAction.START,
-            job.getAgent());
+        ExecutionTraceUtils.addJobRetrievalTrace(status, job.getAgent());
       }
     }
     injectStatusRepository.saveAll(statuses);
   }
 
   private int getCompleteTrace(Inject inject) {
-    return inject.getStatus().map(InjectStatus::getTraces).orElse(Collections.emptyList()).stream()
-        .filter(trace -> ExecutionTraceAction.COMPLETE.equals(trace.getAction()))
-        .filter(trace -> trace.getAgent() != null)
-        .map(trace -> trace.getAgent().getId())
-        .distinct()
-        .toList()
-        .size();
+    return inject
+        .getStatus()
+        .map(s -> ExecutionTraceUtils.getCompletedAgentIds(s.getTraces()).size())
+        .orElse(0);
   }
 
   public boolean isAllInjectAgentsExecuted(Inject inject) {
@@ -130,7 +122,7 @@ public class InjectStatusService {
 
   public void updateFinalInjectStatus(InjectStatus injectStatus) {
     ExecutionStatus finalStatus =
-        computeStatus(
+        ExecutionTraceUtils.computeStatus(
             injectStatus.getTraces().stream()
                 .filter(t -> ExecutionTraceAction.COMPLETE.equals(t.getAction()))
                 .toList());
@@ -197,64 +189,6 @@ public class InjectStatusService {
     return ExecutionTrace.from(base, structuredOutput);
   }
 
-  @VisibleForTesting
-  protected void computeExecutionTraceStatusIfNeeded(
-      InjectStatus injectStatus, ExecutionTrace executionTrace, Agent agent) {
-
-    // if the execution trace is COMPLETED with a status different than INFO -> no compute
-    if (agent == null || !executionTrace.getAction().equals(ExecutionTraceAction.COMPLETE)) {
-      return;
-    }
-
-    ExecutionTraceStatus computedStatus =
-        computeAgentTraceStatus(
-            injectStatus.getTraces().stream()
-                .filter(t -> t.getAgent() != null)
-                .filter(t -> t.getAgent().getId().equals(agent.getId()))
-                .toList());
-
-    if (computedStatus == null) {
-      return;
-    }
-
-    if (ExecutionTraceStatus.INFO.equals(executionTrace.getStatus())) {
-      // Implant sent INFO → use the computed status directly
-      executionTrace.setStatus(computedStatus);
-    } else if (computedStatus.isError() && !executionTrace.getStatus().isError()) {
-      // Executor sent a pre-computed status → override only if computed is more severe
-      executionTrace.setStatus(computedStatus);
-    }
-  }
-
-  @VisibleForTesting
-  protected ExecutionTraceStatus computeAgentTraceStatus(List<ExecutionTrace> agentTraces) {
-    boolean hasSuccess = false;
-    ExecutionTraceStatus singleErrorStatus = null;
-    boolean multipleErrorStatuses = false;
-
-    for (ExecutionTrace trace : agentTraces) {
-      ExecutionTraceStatus status = trace.getStatus();
-      if (status.isError()) {
-        if (singleErrorStatus == null) {
-          singleErrorStatus = status;
-        } else if (!singleErrorStatus.equals(status)) {
-          multipleErrorStatuses = true;
-        }
-      } else if (status.isSuccess()) {
-        hasSuccess = true;
-      }
-    }
-
-    // Error takes priority at agent level
-    if (singleErrorStatus != null) {
-      return multipleErrorStatuses ? ExecutionTraceStatus.ERROR : singleErrorStatus;
-    }
-    if (hasSuccess) {
-      return ExecutionTraceStatus.SUCCESS;
-    }
-    return null;
-  }
-
   public void updateInjectStatus(
       Inject inject, Agent agent, InjectExecutionInput input, ObjectNode structuredOutput) {
     InjectStatus injectStatus = inject.getStatus().orElseThrow(ElementNotFoundException::new);
@@ -285,39 +219,37 @@ public class InjectStatusService {
     log.debug("Successfully updated inject: {}", inject.getId());
   }
 
-  public ExecutionStatus computeStatus(List<ExecutionTrace> traces) {
-    // Filter out AGENT_INACTIVE — those agents never ran
-    List<ExecutionTrace> activeTraces =
-        traces.stream()
-            .filter(t -> !ExecutionTraceStatus.AGENT_INACTIVE.equals(t.getStatus()))
-            .toList();
+  /**
+   * Compute the status of the COMPLETE trace based on the agent's previous traces. The implant
+   * sends COMPLETE with INFO status, and we compute the real status from the individual traces.
+   */
+  protected void computeExecutionTraceStatusIfNeeded(
+      InjectStatus injectStatus, ExecutionTrace executionTrace, Agent agent) {
 
-    // If no active agent executed, it is an error
-    if (activeTraces.isEmpty()) {
-      return ExecutionStatus.ERROR;
+    if (agent == null || !executionTrace.getAction().equals(ExecutionTraceAction.COMPLETE)) {
+      return;
     }
 
-    boolean hasError = false;
-    boolean hasSuccess = false;
+    ExecutionTraceStatus computedStatus =
+        ExecutionTraceUtils.computeAgentTraceStatus(
+            injectStatus.getTraces().stream()
+                .filter(t -> t.getAgent() != null)
+                .filter(t -> t.getAgent().getId().equals(agent.getId()))
+                .toList());
 
-    for (ExecutionTrace trace : activeTraces) {
-      ExecutionTraceStatus status = trace.getStatus();
-      if (status.isError()) {
-        hasError = true;
-      } else if (status.isSuccess()) {
-        hasSuccess = true;
-      }
-      // INFO, AGENT_INACTIVE — not counted
+    if (computedStatus == null) {
+      return;
     }
 
-    if (hasError && !hasSuccess) {
-      return ExecutionStatus.ERROR;
+    if (ExecutionTraceStatus.INFO.equals(executionTrace.getStatus())) {
+      // Implant sent INFO → use the computed status directly
+      executionTrace.setStatus(computedStatus);
+    } else if (computedStatus.isError() && !executionTrace.getStatus().isError()) {
+      // Override only if computed is more severe
+      executionTrace.setStatus(computedStatus);
     }
-    if (hasSuccess && !hasError) {
-      return ExecutionStatus.SUCCESS;
-    }
-    return ExecutionStatus.PARTIAL;
   }
+
 
   public InjectStatus fromExecution(Execution execution, InjectStatus injectStatus) {
     if (!execution.getTraces().isEmpty()) {

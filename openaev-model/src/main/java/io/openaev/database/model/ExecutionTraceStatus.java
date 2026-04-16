@@ -6,6 +6,7 @@ public enum ExecutionTraceStatus {
 
   // -- Success status --
   SUCCESS,
+  SUCCESS_WITH_CLEANUP_FAIL,
   WARNING,
   ACCESS_DENIED,
 
@@ -13,6 +14,7 @@ public enum ExecutionTraceStatus {
   ERROR,
   COMMAND_NOT_FOUND,
   COMMAND_CANNOT_BE_EXECUTED,
+  PREREQUISITE_FAILED,
   INVALID_USAGE,
   TIMEOUT,
   INTERRUPTED,
@@ -37,6 +39,7 @@ public enum ExecutionTraceStatus {
           ERROR,
           COMMAND_NOT_FOUND,
           COMMAND_CANNOT_BE_EXECUTED,
+          PREREQUISITE_FAILED,
           INVALID_USAGE,
           TIMEOUT,
           INTERRUPTED,
@@ -47,7 +50,7 @@ public enum ExecutionTraceStatus {
 
   /** Trace statuses that indicate a successful execution. */
   public static final Set<ExecutionTraceStatus> SUCCESS_STATUSES =
-      Set.of(SUCCESS, WARNING, ACCESS_DENIED);
+      Set.of(SUCCESS, SUCCESS_WITH_CLEANUP_FAIL, WARNING, ACCESS_DENIED);
 
   public boolean isError() {
     return ERROR_STATUSES.contains(this);

@@ -57,12 +57,14 @@ export const computeStatusStyle = (status: string | undefined | null) => {
 
     // -- ExecutionTraceStatus --
     // Success statuses
+    'SUCCESS_WITH_CLEANUP_FAIL': colorStyles.orange,
     'WARNING': colorStyles.green,
     'ACCESS_DENIED': colorStyles.green,
 
     // Error statuses
     'COMMAND_NOT_FOUND': colorStyles.red,
     'COMMAND_CANNOT_BE_EXECUTED': colorStyles.red,
+    'PREREQUISITE_FAILED': colorStyles.red,
     'INVALID_USAGE': colorStyles.red,
     'TIMEOUT': colorStyles.red,
     'INTERRUPTED': colorStyles.red,

@@ -64,8 +64,8 @@ const useAgentStatus = (traces: ExecutionTraceOutput[]): AgentStatus => {
       executorName: agent?.agent_executor?.executor_name,
       executorType: agent?.agent_executor?.executor_type,
       statusName,
-      trackingStart: startTrace?.execution_time ?? sorted[0]?.execution_time,
-      trackingEnd: finalTrace?.execution_time ?? sorted.at(-1)?.execution_time,
+      trackingStart: startTrace?.execution_time,
+      trackingEnd: finalTrace?.execution_time,
       traces: sorted,
       tracesByAction: grouped,
     };

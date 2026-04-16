@@ -24,12 +24,14 @@ import io.openaev.scheduler.jobs.exception.ErrorMessagesPreExecutionException;
 import io.openaev.service.NotificationEventService;
 import io.openaev.service.SecurityCoverageSendJobService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
+import io.openaev.utils.ExecutionTraceUtils;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Resource;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.Spliterators;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -158,12 +160,8 @@ public class InjectsExecutionJob implements Job {
     for (Inject inject : pendingInjects) {
       InjectStatus status = inject.getStatus().orElseThrow(ElementNotFoundException::new);
       // Find agents that already have a COMPLETE trace
-      java.util.Set<String> completedAgentIds =
-          status.getTraces().stream()
-              .filter(t -> ExecutionTraceAction.COMPLETE.equals(t.getAction()))
-              .filter(t -> t.getAgent() != null)
-              .map(t -> t.getAgent().getId())
-              .collect(Collectors.toSet());
+      Set<String> completedAgentIds =
+          ExecutionTraceUtils.getCompletedAgentIds(status.getTraces());
 
       // Get all agents expected to execute this inject
       List<Agent> allAgents = injectService.getAgentsByInject(inject);
@@ -171,15 +169,7 @@ public class InjectsExecutionJob implements Job {
       // Add a COMPLETE/TIMEOUT trace for each agent that never responded
       for (Agent agent : allAgents) {
         if (!completedAgentIds.contains(agent.getId())) {
-          status.addTrace(
-              ExecutionTraceStatus.TIMEOUT,
-              "Agent "
-                  + agent.getExecutedByUser()
-                  + " did not respond within the "
-                  + this.injectExecutionThreshold
-                  + " minutes threshold.",
-              ExecutionTraceAction.COMPLETE,
-              agent);
+          ExecutionTraceUtils.addTimeoutTrace(status, agent, this.injectExecutionThreshold);
         }
         // Recompute the inject global status from all COMPLETE traces
         injectStatusService.updateFinalInjectStatus(status);
