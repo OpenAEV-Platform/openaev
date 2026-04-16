@@ -1465,7 +1465,6 @@
   "Payload": "페이로드",
   "Payload changed since rule was edited": "규칙이 편집된 후 페이로드가 변경되었습니다",
   "Payload domains": "도메인",
-  "Payload info": "페이로드 정보",
   "payload_attack_patterns": "공격 패턴",
   "payload_description": "설명",
   "payload_domains": "도메인",

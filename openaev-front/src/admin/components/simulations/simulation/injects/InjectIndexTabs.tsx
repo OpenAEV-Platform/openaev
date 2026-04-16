@@ -88,7 +88,7 @@ const InjectIndexTabs = ({ injectResultOverview, exercise, backlabel, backuri }:
           component={Link}
           to={computePath(`/admin/simulations/${exercise.exercise_id}/injects/${injectResultOverview.inject_id}/payload_info`)}
           value={`/admin/simulations/${exercise.exercise_id}/injects/${injectResultOverview.inject_id}/payload_info`}
-          label={t('Payload info')}
+          label={t('Action info')}
           className={classes.item}
         />
       )}

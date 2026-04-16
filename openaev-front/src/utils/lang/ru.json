@@ -1465,7 +1465,6 @@
   "Payload": "Полезная нагрузка",
   "Payload changed since rule was edited": "Полезная нагрузка изменилась с момента редактирования правила",
   "Payload domains": "Домены",
-  "Payload info": "Информация о полезной нагрузке",
   "payload_attack_patterns": "Шаблоны атак",
   "payload_description": "Описание",
   "payload_domains": "Домены",
