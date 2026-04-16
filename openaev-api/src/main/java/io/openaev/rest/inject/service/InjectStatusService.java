@@ -17,6 +17,7 @@ import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionInput;
 import io.openaev.rest.inject.form.InjectUpdateStatusInput;
 import io.openaev.utils.ExecutionTraceUtils;
+import io.openaev.utils.InjectStatusUtils;
 import io.openaev.utils.InjectUtils;
 import jakarta.annotation.Nullable;
 import jakarta.persistence.EntityManager;
@@ -122,7 +123,7 @@ public class InjectStatusService {
 
   public void updateFinalInjectStatus(InjectStatus injectStatus) {
     ExecutionStatus finalStatus =
-        ExecutionTraceUtils.computeStatus(
+        InjectStatusUtils.computeStatus(
             injectStatus.getTraces().stream()
                 .filter(t -> ExecutionTraceAction.COMPLETE.equals(t.getAction()))
                 .toList());
@@ -196,8 +197,8 @@ public class InjectStatusService {
     // Creating the Execution Trace
     ExecutionTrace executionTrace =
         createExecutionTrace(injectStatus, input, agent, structuredOutput);
-    // Update the status of the execution trace if needed
-    computeExecutionTraceStatusIfNeeded(injectStatus, executionTrace, agent);
+    // Resolve the placeholder status of the COMPLETE trace
+    resolveCompleteTraceStatus(injectStatus, executionTrace, agent);
     injectStatus.addTrace(executionTrace);
     // Save the trace using a low level call to the database
     String executionTraceId = executionTraceRepositoryHelper.saveExecutionTrace(executionTrace);
@@ -220,13 +221,16 @@ public class InjectStatusService {
   }
 
   /**
-   * Compute the status of the COMPLETE trace based on the agent's previous traces. The implant
-   * sends COMPLETE with INFO status, and we compute the real status from the individual traces.
+   * Resolves the status of a COMPLETE trace when the implant sent the default INFO placeholder. The
+   * real status is computed from the agent's previous traces (prerequisite, execution, cleanup). If
+   * the implant sent an explicit status (not INFO), it is kept as-is.
    */
-  protected void computeExecutionTraceStatusIfNeeded(
+  protected void resolveCompleteTraceStatus(
       InjectStatus injectStatus, ExecutionTrace executionTrace, Agent agent) {
 
-    if (agent == null || !executionTrace.getAction().equals(ExecutionTraceAction.COMPLETE)) {
+    if (agent == null
+        || !ExecutionTraceAction.COMPLETE.equals(executionTrace.getAction())
+        || !ExecutionTraceStatus.INFO.equals(executionTrace.getStatus())) {
       return;
     }
 
@@ -237,15 +241,7 @@ public class InjectStatusService {
                 .filter(t -> t.getAgent().getId().equals(agent.getId()))
                 .toList());
 
-    if (computedStatus == null) {
-      return;
-    }
-
-    if (ExecutionTraceStatus.INFO.equals(executionTrace.getStatus())) {
-      // Implant sent INFO → use the computed status directly
-      executionTrace.setStatus(computedStatus);
-    } else if (computedStatus.isError() && !executionTrace.getStatus().isError()) {
-      // Override only if computed is more severe
+    if (computedStatus != null) {
       executionTrace.setStatus(computedStatus);
     }
   }
