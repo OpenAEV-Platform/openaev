@@ -1,7 +1,6 @@
 import { DeviceHubOutlined } from '@mui/icons-material';
 
 import { type LeftMenuItem } from '../../../../components/common/menu/leftmenu/leftmenu-model';
-import { useFormatter } from '../../../../components/i18n';
 import { type AppAbility } from '../../../../utils/permissions/ability';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { isFeatureEnabled } from '../../../../utils/utils';
@@ -14,9 +13,6 @@ export const PLATFORM_PARAMETERS_ROUTE = `${PLATFORM_ROUTE}/${SETTINGS_PATH}`;
 export const PLATFORM_TENANTS_ROUTE = `${PLATFORM_ROUTE}/${TENANTS_PATH}`;
 
 const platformEntries = (ability: AppAbility): LeftMenuItem[] => {
-  // Standard hooks
-  const { t } = useFormatter();
-
   if (!isFeatureEnabled('MULTI_TENANCY')) {
     return [];
   }
@@ -25,7 +21,7 @@ const platformEntries = (ability: AppAbility): LeftMenuItem[] => {
     {
       path: PLATFORM_ROUTE,
       icon: () => (<DeviceHubOutlined />),
-      label: t('Platform'),
+      label: 'Platform',
       href: 'platform',
       userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS)
         || ability.can(ACTIONS.ACCESS, SUBJECTS.TENANTS)
