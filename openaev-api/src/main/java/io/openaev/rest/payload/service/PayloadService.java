@@ -44,6 +44,7 @@ import io.openaev.rest.injector_contract.form.InjectorContractDomainDTO;
 import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.output.PayloadOutput;
 import io.openaev.rest.tag.TagService;
+import io.openaev.service.ExpectationService;
 import io.openaev.service.UserService;
 import io.openaev.utils.mapper.PayloadMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -79,6 +80,7 @@ public class PayloadService {
   private final PayloadUtils payloadUtils;
   private final DomainService domainService;
   private final TagService tagService;
+  private final ExpectationService expectationService;
 
   private final PayloadMapper payloadMapper;
 
@@ -231,29 +233,33 @@ public class PayloadService {
   }
 
   private ContractExpectations expectations(InjectExpectation.EXPECTATION_TYPE[] expectationTypes) {
-    List<Expectation> expectations = new ArrayList<>();
+    List<Expectation> predefined = new ArrayList<>();
     if (expectationTypes != null) {
       for (InjectExpectation.EXPECTATION_TYPE type : expectationTypes) {
         switch (type) {
-          case TEXT -> expectations.add(this.expectationBuilderService.buildTextExpectation());
+          case TEXT -> predefined.add(this.expectationBuilderService.buildTextExpectation());
           case DOCUMENT ->
-              expectations.add(this.expectationBuilderService.buildDocumentExpectation());
-          case ARTICLE ->
-              expectations.add(this.expectationBuilderService.buildArticleExpectation());
+              predefined.add(this.expectationBuilderService.buildDocumentExpectation());
+          case ARTICLE -> predefined.add(this.expectationBuilderService.buildArticleExpectation());
           case CHALLENGE ->
-              expectations.add(this.expectationBuilderService.buildChallengeExpectation());
-          case MANUAL -> expectations.add(this.expectationBuilderService.buildManualExpectation());
+              predefined.add(this.expectationBuilderService.buildChallengeExpectation());
+          case MANUAL -> predefined.add(this.expectationBuilderService.buildManualExpectation());
           case PREVENTION ->
-              expectations.add(this.expectationBuilderService.buildPreventionExpectation());
+              predefined.add(this.expectationBuilderService.buildPreventionExpectation());
           case DETECTION ->
-              expectations.add(this.expectationBuilderService.buildDetectionExpectation());
+              predefined.add(this.expectationBuilderService.buildDetectionExpectation());
           case VULNERABILITY ->
-              expectations.add(this.expectationBuilderService.buildVulnerabilityExpectation());
+              predefined.add(this.expectationBuilderService.buildVulnerabilityExpectation());
           default -> throw new IllegalArgumentException("Unsupported expectation type: " + type);
         }
       }
     }
-    return expectationsField(expectations);
+
+    // Payload contracts are technical injects: merge base expectations with technical defaults.
+    List<Expectation> available =
+        expectationService.buildAvailableExpectationsForInject(predefined, false);
+
+    return expectationsField(predefined, available);
   }
 
   public PayloadOutput convertPayloadInjectorContractCreationToPayloadOutput(
