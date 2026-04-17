@@ -10,7 +10,7 @@ const OutputFormTab = () => {
   const { t } = useFormatter();
   const theme = useTheme();
   const { control, setValue } = useFormContext();
-  const outputParserName = 'payload_output_parsers.0.output_parser_contract_output_elements';
+  const outputParserName = 'action_output_parsers.0.output_parser_contract_output_elements';
 
   const { fields: contractOutputElements, append: outputElementAppend, remove: outputElementRemove } = useFieldArray({
     control,
@@ -19,17 +19,17 @@ const OutputFormTab = () => {
 
   useEffect(() => {
     if (contractOutputElements.length === 1) {
-      setValue('payload_output_parsers.0.output_parser_mode', 'STDOUT');
-      setValue('payload_output_parsers.0.output_parser_type', 'REGEX');
+      setValue('action_output_parsers.0.output_parser_mode', 'STDOUT');
+      setValue('action_output_parsers.0.output_parser_type', 'REGEX');
     } else if (contractOutputElements.length === 0) {
-      setValue('payload_output_parsers', []);
+      setValue('action_output_parsers', []);
     }
   }, [contractOutputElements]);
 
   return (
     <>
       <Typography>
-        {t('Define structured outputs by parsing the raw output of your payload.')}
+        {t('Define structured outputs by parsing the raw output of your action.')}
 &nbsp;
         <a
           href="https://docs.openaev.io/latest/usage/payloads/payloads/#output-parser"

@@ -157,8 +157,6 @@ public class InjectSearchService {
     Expression<String[]> assetIdsExpression = createJoinArrayAggOnId(cb, injectRoot, "assets");
     Expression<String[]> assetGroupIdsExpression =
         createJoinArrayAggOnId(cb, injectRoot, "assetGroups");
-    Expression<String[]> domainsPayloadIdExpression =
-        createJoinArrayAggOnIdForJoin(cb, payloadJoin, "domains");
     Expression<String[]> domainsContractIdExpression =
         createJoinArrayAggOnIdForJoin(cb, injectorContractJoin, "domains");
 
@@ -178,7 +176,6 @@ public class InjectSearchService {
         assetIdsExpression.alias("inject_assets"),
         assetGroupIdsExpression.alias("inject_asset_groups"),
         injectorJoin.get("type").alias("inject_type"),
-        domainsPayloadIdExpression.alias("payload_domains"),
         domainsContractIdExpression.alias("injector_contract_domains"),
         injectDependency.alias("inject_depends_on"));
 
@@ -511,8 +508,6 @@ public class InjectSearchService {
     Expression<String[]> assetIdsExpression = createJoinArrayAggOnId(cb, injectRoot, "assets");
     Expression<String[]> assetGroupIdsExpression =
         createJoinArrayAggOnId(cb, injectRoot, "assetGroups");
-    Expression<String[]> domainsPayloadIdExpression =
-        createJoinArrayAggOnIdForJoin(cb, payloadJoin, "domains");
     Expression<String[]> domainsContractIdExpression =
         createJoinArrayAggOnIdForJoin(cb, injectorContractJoin, "domains");
 
@@ -536,7 +531,6 @@ public class InjectSearchService {
         statusJoin.get("trackingSentDate").alias("status_tracking_sent_date"),
         teamIdsExpression.alias("inject_teams"),
         assetIdsExpression.alias("inject_assets"),
-        domainsPayloadIdExpression.alias("payload_domains"),
         domainsContractIdExpression.alias("injector_contract_domains"),
         assetGroupIdsExpression.alias("inject_asset_groups"));
 
@@ -576,7 +570,6 @@ public class InjectSearchService {
                         .id(payloadId)
                         .type(tuple.get("payload_type", String.class))
                         .collectorType(tuple.get("payload_collector_type", String.class))
-                        .domains(tuple.get("payload_domains", String[].class))
                         .build();
               }
 

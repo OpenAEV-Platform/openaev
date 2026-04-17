@@ -28,7 +28,6 @@ import io.openaev.utilstest.RabbitMQTestListener;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.StreamSupport;
 import org.junit.jupiter.api.*;
 import org.mockito.Mock;
@@ -338,13 +337,10 @@ public class StarterPackTest extends IntegrationTest {
   @DisplayName("Should init StarterPack with honey.scan.me asset")
   public void shouldInitStarterPackWithDefaultAssets() throws JsonProcessingException {
     // PREPARE
-    Set<Domain> domains =
-        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
-
     ContractAsset contractAsset = new ContractAsset(ContractCardinality.Multiple);
     contractAsset.setLinkedFields(InjectorContractFixture.buildMandatoryOnConditionValue("assets"));
     Injector injector = InjectorFixture.createDefaultPayloadInjector();
-    Payload payload = PayloadFixture.createDefaultCommand(domains);
+    Payload payload = PayloadFixture.createDefaultCommand();
     InjectorContract injectorContract =
         InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
             injector, payload, List.of(contractAsset));
@@ -352,6 +348,7 @@ public class StarterPackTest extends IntegrationTest {
     injectorContract.setId("2e7fc079-4444-4531-4444-928fe4a1fc0b");
     injectorContractComposer
         .forInjectorContract(injectorContract)
+        .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
         .withInjector(injector)
         .withPayload(payloadComposer.forPayload(payload))
         .persist();
@@ -399,14 +396,11 @@ public class StarterPackTest extends IntegrationTest {
   @DisplayName("Should init StarterPack with All endpoints asset group")
   public void shouldInitStarterPackWithDefaultAssetGroups() throws JsonProcessingException {
     // PREPARE
-    Set<Domain> domains =
-        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
-
     ContractAssetGroup contractAssetGroup = new ContractAssetGroup(ContractCardinality.Multiple);
     contractAssetGroup.setLinkedFields(
         InjectorContractFixture.buildMandatoryOnConditionValue("asset_groups"));
     Injector injector = InjectorFixture.createDefaultPayloadInjector();
-    Payload payload = PayloadFixture.createDefaultCommand(domains);
+    Payload payload = PayloadFixture.createDefaultCommand();
     InjectorContract injectorContract =
         InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
             injector, payload, List.of(contractAssetGroup));
@@ -415,6 +409,7 @@ public class StarterPackTest extends IntegrationTest {
     injectorContractComposer
         .forInjectorContract(injectorContract)
         .withInjector(injector)
+        .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()).persist())
         .withPayload(payloadComposer.forPayload(payload))
         .persist();
 

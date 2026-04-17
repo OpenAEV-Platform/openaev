@@ -64,16 +64,13 @@ public class InjectTargetSearchTest extends IntegrationTest {
   }
 
   private InjectComposer.Composer getInjectWrapper() {
-    Set<Domain> domains =
-        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
-
     return injectComposer
         .forInject(InjectFixture.getInjectWithoutContract())
         .withInjectorContract(
             injectContractComposer
                 .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
-                .withPayload(
-                    payloadComposer.forPayload(PayloadFixture.createDefaultCommand(domains))));
+                .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
+                .withPayload(payloadComposer.forPayload(PayloadFixture.createDefaultCommand())));
   }
 
   private AssetGroupComposer.Composer getAssetGroupWrapperWithFilter(Filters.Filter dynamicFilter) {
@@ -86,16 +83,13 @@ public class InjectTargetSearchTest extends IntegrationTest {
   }
 
   private InjectComposer.Composer getInjectWithAllTeams() {
-    Set<Domain> domains =
-        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
-
     return injectComposer
         .forInject(InjectFixture.getInjectWithAllTeams())
         .withInjectorContract(
             injectContractComposer
                 .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
-                .withPayload(
-                    payloadComposer.forPayload(PayloadFixture.createDefaultCommand(domains))));
+                .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
+                .withPayload(payloadComposer.forPayload(PayloadFixture.createDefaultCommand())));
   }
 
   private ExerciseComposer.Composer getExerciseComposerWithName() {

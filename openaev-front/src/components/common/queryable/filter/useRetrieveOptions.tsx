@@ -53,6 +53,7 @@ const useRetrieveOptions = () => {
           handleOptions(response, filterDefaultValues);
         });
         break;
+      case 'action_injectors':
       case 'injector_contract_injectors':
       case 'inject_injector_contract':
         searchInjectorByIdAsOptions(ids, contextId).then((response) => {
@@ -74,7 +75,7 @@ const useRetrieveOptions = () => {
           setOptions(response.data);
         });
         break;
-      case 'payload_domains':
+      case 'action_domains':
       case 'injector_contract_domains':
       case 'inject_contract_domains':
         searchDomainsByIdsAsOption(ids).then((response) => {
@@ -111,7 +112,7 @@ const useRetrieveOptions = () => {
       case 'asset_group_tags':
       case 'exercise_tags':
       case 'inject_tags':
-      case 'payload_tags':
+      case 'action_tags':
       case 'scenario_tags':
       case 'target_tags':
       case 'team_tags':

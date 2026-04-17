@@ -2,7 +2,6 @@ package io.openaev.database.model;
 
 import static java.time.Instant.now;
 import static java.util.Optional.ofNullable;
-import static lombok.AccessLevel.NONE;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -131,15 +130,40 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
     return platforms;
   }
 
-  @Queryable(filterable = true, dynamicValues = true, path = "payload.executionArch")
+  @Queryable(
+      filterable = true,
+      path = "payload.executionArch",
+      refEnumClazz = Payload.PAYLOAD_EXECUTION_ARCH.class)
   @JsonProperty("injector_contract_arch")
   @Enumerated(EnumType.STRING)
   public Payload.PAYLOAD_EXECUTION_ARCH getArch() {
     return ofNullable(getPayload()).map(Payload::getExecutionArch).orElse(null);
   }
 
+  @Schema(implementation = String[].class)
+  @Getter
+  @ManyToMany(fetch = FetchType.EAGER)
+  @JoinTable(
+      name = "injector_contract_tags",
+      joinColumns = {
+        @JoinColumn(name = "injector_contract_id", referencedColumnName = "injector_contract_id"),
+        @JoinColumn(name = "tenant_id", referencedColumnName = "tenant_id")
+      },
+      inverseJoinColumns = @JoinColumn(name = "tag_id"))
+  @JsonSerialize(using = MultiIdSetSerializer.class)
+  @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
+  @JsonProperty("injector_contract_tags")
+  @Queryable(filterable = true, dynamicValues = true, path = "tags.id")
+  private Set<Tag> tags = new HashSet<>();
+
+  // UpdatedAt now used to sync with linked object
+  public void setTags(Set<Tag> tags) {
+    this.updatedAt = now();
+    this.tags = tags;
+  }
+
   @Queryable(filterable = true)
-  @ManyToOne(fetch = FetchType.EAGER)
+  @OneToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "injector_contract_payload")
   @JsonProperty("injector_contract_payload")
   private Payload payload;
@@ -153,7 +177,7 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
   @Column(name = "injector_contract_updated_at")
   @JsonProperty("injector_contract_updated_at")
   @NotNull
-  @Queryable(sortable = true)
+  @Queryable(filterable = true, sortable = true)
   @UpdateTimestamp
   private Instant updatedAt = now();
 
@@ -229,6 +253,7 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
     this.attackPatterns = attackPatterns;
   }
 
+  @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.EAGER)
   @JoinTable(
       name = "injectors_contracts_domains",
@@ -237,18 +262,11 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
         @JoinColumn(name = "tenant_id", referencedColumnName = "tenant_id")
       },
       inverseJoinColumns = @JoinColumn(name = "domain_id"))
-  @Getter(NONE)
-  private Set<Domain> domains = new HashSet<>();
-
   @JsonProperty("injector_contract_domains")
-  @Queryable(
-      filterable = true,
-      dynamicValues = true,
-      paths = {"payload.domains.id", "domains.id"},
-      clazz = String[].class)
-  public Set<Domain> getDomains() {
-    return this.payload != null ? this.payload.getDomains() : this.domains;
-  }
+  @Queryable(filterable = true, dynamicValues = true, paths = "domains.id")
+  @JsonSerialize(using = MultiIdSetSerializer.class)
+  @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
+  private Set<Domain> domains = new HashSet<>();
 
   @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.EAGER)

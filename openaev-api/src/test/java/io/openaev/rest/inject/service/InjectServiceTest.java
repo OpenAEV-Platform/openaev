@@ -43,6 +43,7 @@ import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.mapper.InjectExpectationMapper;
 import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.mapper.InjectStatusMapper;
+import io.openaev.utils.mapper.PayloadMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import java.util.*;
 import java.util.ArrayList;
@@ -87,6 +88,7 @@ class InjectServiceTest {
   @Mock private InjectUtils injectUtils;
 
   @Mock private InjectStatusMapper injectStatusMapper;
+  @Mock private PayloadMapper payloadMapper;
 
   @Mock private InjectExpectationMapper injectExpectationMapper;
 
@@ -124,6 +126,7 @@ class InjectServiceTest {
         "injectMapper",
         new InjectMapper(
             injectStatusMapper,
+            payloadMapper,
             injectExpectationMapper,
             injectUtils,
             new HealthCheckUtils(new ExecutorUtils())));

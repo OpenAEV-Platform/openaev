@@ -42,8 +42,4 @@ public class InjectorContractSimple {
   @JsonProperty("injector_contract_labels")
   @NotBlank
   private Map<String, String> labels = new HashMap<>();
-
-  public String[] getDomains() {
-    return this.payload != null ? this.payload.getDomains() : this.domains;
-  }
 }

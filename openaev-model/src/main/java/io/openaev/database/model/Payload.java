@@ -6,7 +6,6 @@ import static lombok.AccessLevel.NONE;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
@@ -17,9 +16,6 @@ import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
 import io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE;
 import io.openaev.helper.CollectorTypeNameSerializer;
-import io.openaev.helper.MonoIdDeserializerHelper;
-import io.openaev.helper.MultiIdListSerializer;
-import io.openaev.helper.MultiIdSetSerializer;
 import io.openaev.jsonapi.IncludeOption;
 import io.swagger.v3.oas.annotations.media.DiscriminatorMapping;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -116,24 +112,6 @@ public class Payload implements GrantableBase, TenantBase {
   @NotEmpty
   private PLATFORM_TYPE[] platforms = new PLATFORM_TYPE[0];
 
-  @Schema(implementation = String[].class)
-  @Setter
-  @ManyToMany(fetch = FetchType.EAGER)
-  @JoinTable(
-      name = "payloads_attack_patterns",
-      joinColumns = @JoinColumn(name = "payload_id"),
-      inverseJoinColumns = @JoinColumn(name = "attack_pattern_id"))
-  @JsonSerialize(using = MultiIdListSerializer.class)
-  @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
-  @JsonProperty("payload_attack_patterns")
-  @Queryable(
-      filterable = true,
-      searchable = true,
-      dynamicValues = true,
-      paths = {"attackPatterns.id", "attackPatterns.externalId"},
-      clazz = String[].class)
-  private List<AttackPattern> attackPatterns = new ArrayList<>();
-
   @Setter
   @Column(name = "payload_cleanup_executor")
   @JsonProperty("payload_cleanup_executor")
@@ -218,20 +196,6 @@ public class Payload implements GrantableBase, TenantBase {
   @JsonProperty("payload_detection_remediations")
   private List<DetectionRemediation> detectionRemediations = new ArrayList<>();
 
-  // -- TAG --
-
-  @Schema(implementation = String[].class)
-  @Queryable(filterable = true, dynamicValues = true)
-  @ManyToMany(fetch = FetchType.LAZY)
-  @JoinTable(
-      name = "payloads_tags",
-      joinColumns = @JoinColumn(name = "payload_id"),
-      inverseJoinColumns = @JoinColumn(name = "tag_id"))
-  @JsonSerialize(using = MultiIdSetSerializer.class)
-  @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
-  @JsonProperty("payload_tags")
-  private Set<Tag> tags = new HashSet<>();
-
   // -- OUTPUT PARSERS
 
   @OneToMany(
@@ -252,16 +216,6 @@ public class Payload implements GrantableBase, TenantBase {
   @SQLRestriction("grant_resource_type = 'PAYLOAD'") // Must be present in Grant.GRANT_RESOURCE_TYPE
   @JsonIgnore
   private List<Grant> grants = new ArrayList<>();
-
-  @ManyToMany(fetch = FetchType.EAGER)
-  @NotEmpty
-  @Queryable(filterable = true, searchable = true, dynamicValues = true)
-  @JoinTable(
-      name = "payloads_domains",
-      joinColumns = @JoinColumn(name = "payload_id"),
-      inverseJoinColumns = @JoinColumn(name = "domain_id"))
-  @JsonProperty("payload_domains")
-  private Set<Domain> domains = new HashSet<>();
 
   // -- AUDIT --
 

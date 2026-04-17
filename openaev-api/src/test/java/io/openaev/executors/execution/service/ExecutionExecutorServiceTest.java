@@ -17,7 +17,6 @@ import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.utils.ExecutorUtils;
 import io.openaev.integration.Manager;
 import io.openaev.integration.ManagerFactory;
-import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.exception.AgentException;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.inject.service.InjectService;
@@ -72,13 +71,7 @@ public class ExecutionExecutorServiceTest {
   void test_launchExecutorContext_noAssetException() throws Exception {
 
     // Init datas
-    Command payloadCommand =
-        PayloadFixture.createCommand(
-            "cmd",
-            "whoami",
-            List.of(),
-            "whoami",
-            new HashSet<>(Set.of(PresetDomain.getToClassify())));
+    Command payloadCommand = PayloadFixture.createCommand("cmd", "whoami", List.of(), "whoami");
     Injector injector = InjectorFixture.createDefaultPayloadInjector();
     Map<String, String> executorCommands = new HashMap<>();
     executorCommands.put(
@@ -88,7 +81,8 @@ public class ExecutionExecutorServiceTest {
     endpoint.setId("0123456789");
     Inject inject =
         InjectFixture.createTechnicalInject(
-            InjectorContractFixture.createPayloadInjectorContract(injector, payloadCommand),
+            InjectorContractFixture.createPayloadInjectorContractWithDefaultDomain(
+                injector, payloadCommand),
             "Inject",
             endpoint);
     inject.setStatus(InjectStatusFixture.createPendingInjectStatus());
@@ -253,13 +247,7 @@ public class ExecutionExecutorServiceTest {
       agent.setLastSeen(Instant.now());
       endpoint.setAgents(List.of(agent));
 
-      Command payloadCommand =
-          PayloadFixture.createCommand(
-              "cmd",
-              "whoami",
-              List.of(),
-              "whoami",
-              new HashSet<>(Set.of(PresetDomain.getToClassify())));
+      Command payloadCommand = PayloadFixture.createCommand("cmd", "whoami", List.of(), "whoami");
       Injector injector = InjectorFixture.createDefaultPayloadInjector();
       Map<String, String> executorCommands = new HashMap<>();
       executorCommands.put(
@@ -394,13 +382,7 @@ public class ExecutionExecutorServiceTest {
       agent2.setAsset(endpoint2);
       agent2.setLastSeen(Instant.now());
 
-      Command payloadCommand =
-          PayloadFixture.createCommand(
-              "cmd",
-              "whoami",
-              List.of(),
-              "whoami",
-              new HashSet<>(Set.of(PresetDomain.getToClassify())));
+      Command payloadCommand = PayloadFixture.createCommand("cmd", "whoami", List.of(), "whoami");
       Injector injector = InjectorFixture.createDefaultPayloadInjector();
       Inject inject =
           InjectFixture.createTechnicalInject(

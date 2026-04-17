@@ -52,7 +52,7 @@ public class DetectionRemediationRequest {
         payloadInput.getArguments());
   }
 
-  public DetectionRemediationRequest(Payload payloadInput) {
+  public DetectionRemediationRequest(Payload payloadInput, List<AttackPattern> attackPatterns) {
     if (Arrays.stream(TYPE_NOT_IMPLEMENTED).anyMatch(type -> type.equals(payloadInput.getType()))) {
       throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED, TYPE_NOT_IMPLEMENTED_ERROR);
     }
@@ -76,7 +76,7 @@ public class DetectionRemediationRequest {
         hostname,
         payloadInput.getDescription(),
         payloadInput.getPlatforms(),
-        payloadInput.getAttackPatterns(),
+        attackPatterns,
         payloadInput.getExecutionArch(),
         payloadInput.getArguments());
   }
@@ -88,7 +88,7 @@ public class DetectionRemediationRequest {
       String attackCommand,
       String hostname,
       String description,
-      Endpoint.PLATFORM_TYPE[] plateform,
+      Endpoint.PLATFORM_TYPE[] platform,
       List<AttackPattern> attackPatterns,
       @NotNull Payload.PAYLOAD_EXECUTION_ARCH executionArch,
       List<PayloadArgument> arguments) {
@@ -114,10 +114,10 @@ public class DetectionRemediationRequest {
     if (description != null)
       payloadDetectionRemediation.append("Description: ").append(description).append("\n");
 
-    if (plateform != null && plateform.length > 0)
+    if (platform != null && platform.length > 0)
       payloadDetectionRemediation
           .append("Platform : ")
-          .append(Arrays.stream(plateform).map(Enum::name).collect(Collectors.joining(", ")))
+          .append(Arrays.stream(platform).map(Enum::name).collect(Collectors.joining(", ")))
           .append("\n");
 
     if (attackPatterns != null && !attackPatterns.isEmpty())

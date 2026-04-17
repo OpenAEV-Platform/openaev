@@ -59,14 +59,17 @@ public class DetectionRemediationService {
   }
 
   public DetectionRemediation getOrCreateDetectionRemediationWithAIRulesByCollector(
-      List<DetectionRemediation> detectionRemediations, Payload payload, String collectorType) {
+      List<DetectionRemediation> detectionRemediations,
+      Payload payload,
+      String collectorType,
+      List<AttackPattern> attackPatterns) {
     // GET or Create Detection remediation linked to selected payload and EDR/SIEM
     DetectionRemediation detectionRemediation =
         this.getOrCreateDetectionRemediationByCollector(
             collectorType, detectionRemediations, payload);
 
     // GET AI rules from webservice
-    DetectionRemediationRequest request = new DetectionRemediationRequest(payload);
+    DetectionRemediationRequest request = new DetectionRemediationRequest(payload, attackPatterns);
     DetectionRemediationAIResponse rules =
         detectionRemediationAIService.callRemediationDetectionAIWebservice(request, collectorType);
 

@@ -31,18 +31,18 @@ const GeneralFormTab = () => {
 
   return (
     <>
-      <TextFieldController name="payload_name" label={t('Name')} required />
-      <TextFieldController name="payload_description" label={t('Description')} multiline={true} rows={3} />
-      <AttackPatternFieldController name="payload_attack_patterns" label={t('Attack patterns')} />
-      <TagFieldController name="payload_tags" label={t('Tags')} />
+      <TextFieldController name="action_name" label={t('Name')} required />
+      <TextFieldController name="action_description" label={t('Description')} multiline={true} rows={3} />
+      <AttackPatternFieldController name="action_attack_patterns" label={t('Attack patterns')} />
+      <TagFieldController name="action_tags" label={t('Tags')} />
       <DomainFieldController
-        name="payload_domains"
-        label={t('Payload domains')}
+        name="action_domains"
+        label={t('Domains')}
         domains={domainOptions}
         required
       />
       <SelectFieldController
-        name="payload_expectations"
+        name="action_expectations"
         label={t('Expectations')}
         items={expectationsItems}
         required={true}

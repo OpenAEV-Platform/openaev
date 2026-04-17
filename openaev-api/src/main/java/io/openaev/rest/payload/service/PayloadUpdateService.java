@@ -40,7 +40,8 @@ public class PayloadUpdateService {
   private final DocumentService documentService;
 
   @Transactional(rollbackOn = Exception.class)
-  public Payload updatePayload(String payloadId, PayloadUpdateInput input) {
+  public PayloadCreationService.PayloadInjectorContractCreationResult updatePayload(
+      String payloadId, PayloadUpdateInput input) {
     if (enterpriseEditionService.isEnterpriseLicenseInactive(
         licenseCacheManager.getEnterpriseEditionInfo())) {
       input.setDetectionRemediations(null);
@@ -53,7 +54,7 @@ public class PayloadUpdateService {
     return update(input, payload, attackPatterns);
   }
 
-  private Payload update(
+  private PayloadCreationService.PayloadInjectorContractCreationResult update(
       PayloadUpdateInput input, Payload existingPayload, List<AttackPattern> attackPatterns) {
     PayloadType payloadType = PayloadType.fromString(existingPayload.getType());
     validateArchitecture(payloadType.key, input.getExecutionArch());
@@ -61,13 +62,10 @@ public class PayloadUpdateService {
     Payload payload = (Payload) Hibernate.unproxy(existingPayload);
     payloadUtils.copyProperties(input, payload);
 
-    payload.setAttackPatterns(attackPatterns);
     // Somehow, loading tags can create a detached error on detection remediation.
     // Detaching the collection before and reattaching it after bypass the issue
     List<DetectionRemediation> originalDrs = new ArrayList<>(payload.getDetectionRemediations());
     payload.setDetectionRemediations(Collections.emptyList());
-    payload.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
-    payload.setDomains(iterableToSet(domainRepository.findAllById(input.getDomainIds())));
     payload.setDetectionRemediations(originalDrs);
 
     if (payload instanceof Executable executable) {
@@ -77,7 +75,13 @@ public class PayloadUpdateService {
     }
 
     Payload saved = payloadRepository.save(payload);
-    payloadService.updateInjectorContractsForPayload(saved);
-    return saved;
+    InjectorContract injectorContract =
+        payloadService.synchroniseInjectorContractBasedOnPayload(
+            saved,
+            attackPatterns,
+            iterableToSet(domainRepository.findAllById(input.getDomainIds())),
+            iterableToSet(tagRepository.findAllById(input.getTagIds())));
+    return new PayloadCreationService.PayloadInjectorContractCreationResult(
+        saved, injectorContract);
   }
 }

@@ -12,8 +12,8 @@ class LeftMenuComponent {
     return this.page.getByLabel('Integrations').click();
   }
 
-  goToPayloads() {
-    return this.page.getByRole('menuitem', { name: 'Payloads' }).click();
+  goToThreatArsenal() {
+    return this.page.getByRole('menuitem', { name: 'Threat Arsenals' }).click();
   };
 
   async goToTeams() {

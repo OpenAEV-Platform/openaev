@@ -3,7 +3,6 @@ package io.openaev.rest.payload.service;
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_ASSET_SEPARATOR;
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_PROPERTY;
 import static io.openaev.database.model.Tag.OPENCTI_TAG_NAME;
-import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.SupportedLanguage.en;
 import static io.openaev.helper.SupportedLanguage.fr;
 import static io.openaev.injector_contract.Contract.executableContract;
@@ -25,10 +24,8 @@ import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
-import io.openaev.database.repository.AttackPatternRepository;
-import io.openaev.database.repository.InjectorContractRepository;
-import io.openaev.database.repository.InjectorRepository;
-import io.openaev.database.repository.PayloadRepository;
+import io.openaev.database.raw.RawPayloadRelatedIds;
+import io.openaev.database.repository.*;
 import io.openaev.database.specification.SpecificationUtils;
 import io.openaev.expectation.ExpectationBuilderService;
 import io.openaev.helper.SupportedLanguage;
@@ -42,15 +39,19 @@ import io.openaev.model.inject.form.Expectation;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.domain.enums.PresetDomain;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.injector_contract.form.InjectorContractDomainDTO;
 import io.openaev.rest.payload.PayloadUtils;
+import io.openaev.rest.payload.output.PayloadOutput;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.UserService;
+import io.openaev.utils.mapper.PayloadMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
@@ -72,47 +73,59 @@ public class PayloadService {
   private final PayloadRepository payloadRepository;
   private final InjectorRepository injectorRepository;
   private final InjectorContractRepository injectorContractRepository;
-  private final AttackPatternRepository attackPatternRepository;
   private final ExpectationBuilderService expectationBuilderService;
   private final UserService userService;
-  private final DomainService domainService;
-  private final TagService tagService;
   private final DocumentService documentService;
   private final PayloadUtils payloadUtils;
+  private final DomainService domainService;
+  private final TagService tagService;
 
-  public void updateInjectorContractsForPayload(Payload payload) {
+  private final PayloadMapper payloadMapper;
+
+  public InjectorContract synchroniseInjectorContractBasedOnPayload(
+      Payload payload, List<AttackPattern> attackPatterns, Set<Domain> domains, Set<Tag> tags) {
     List<Injector> injectors =
         this.injectorRepository.findAllByPayloadsAndTenantId(true, payload.getTenant().getId());
 
-    // Find or create the single contract for this payload
-    List<InjectorContract> existingContracts =
-        injectorContractRepository.findInjectorContractsByPayload(payload);
-    InjectorContract contract;
-    if (!existingContracts.isEmpty()) {
-      contract = existingContracts.getFirst();
-    } else {
-      contract = new InjectorContract();
-      contract.setId(String.valueOf(UUID.randomUUID()));
+    Injector referenceInjector = injectors.isEmpty() ? null : injectors.getFirst();
+    if (referenceInjector == null) {
+      return null;
     }
 
-    // Use the first injector for building contract content (they all share the same type)
-    Injector referenceInjector = injectors.isEmpty() ? null : injectors.getFirst();
-    if (referenceInjector != null) {
-      setInjectorContractPropertyBasedOnPayload(contract, payload, referenceInjector);
-      contract = injectorContractRepository.save(contract);
+    InjectorContract injectorContractToUpdate =
+        injectorContractRepository
+            .findInjectorContractByPayload(payload)
+            .orElseGet(
+                () -> {
+                  String contractId = String.valueOf(UUID.randomUUID());
+                  InjectorContract newContract = new InjectorContract();
+                  newContract.setId(contractId);
+                  return newContract;
+                });
 
-      // Link contract to all payload-supporting injectors via the owning side
-      for (Injector injector : injectors) {
-        if (!injector.getContracts().contains(contract)) {
-          injector.getContracts().add(contract);
-          injectorRepository.save(injector);
-        }
+    setInjectorContractPropertyBasedOnPayload(
+        injectorContractToUpdate, payload, attackPatterns, domains, tags, referenceInjector);
+    InjectorContract injectorContractSaved =
+        injectorContractRepository.save(injectorContractToUpdate);
+
+    // Link contract to all payload-supporting injectors via the owning side
+    for (Injector injector : injectors) {
+      if (!injector.getContracts().contains(injectorContractSaved)) {
+        injector.getContracts().add(injectorContractSaved);
+        injectorRepository.save(injector);
       }
     }
+
+    return injectorContractSaved;
   }
 
   private void setInjectorContractPropertyBasedOnPayload(
-      InjectorContract injectorContract, Payload payload, Injector injector) {
+      @NotNull InjectorContract injectorContract,
+      @NotNull Payload payload,
+      List<AttackPattern> attackPatterns,
+      Set<Domain> domains,
+      Set<Tag> tags,
+      Injector injector) {
     Map<String, String> labels = Map.of("en", payload.getName(), "fr", payload.getName());
     injectorContract.setLabels(labels);
     injectorContract.setNeedsExecutor(true);
@@ -120,17 +133,14 @@ public class PayloadService {
     injectorContract.addInjector(injector);
     injectorContract.setPayload(payload);
     injectorContract.setPlatforms(payload.getPlatforms());
-    injectorContract.setDomains(
-        domainService.upsertDomainEntities(
-            new HashSet<>(Set.of(PresetDomain.getToClassify())), payload.getTenant().getId()));
-    injectorContract.setAttackPatterns(
-        fromIterable(
-            attackPatternRepository.findAllById(
-                payload.getAttackPatterns().stream().map(AttackPattern::getId).toList())));
+    injectorContract.setDomains(new HashSet<>(domains));
+    injectorContract.setTags(new HashSet<>(tags));
+    injectorContract.setAttackPatterns(new ArrayList<>(attackPatterns));
     injectorContract.setAtomicTesting(true);
 
     try {
-      Contract contract = buildContract(injectorContract.getId(), injector, payload);
+      Contract contract =
+          buildContract(injectorContract.getId(), injector, payload, new HashSet<>(domains));
       String content = mapper.writeValueAsString(contract);
       injectorContract.setContent(content);
       injectorContract.setConvertedContent(mapper.readValue(content, ObjectNode.class));
@@ -174,7 +184,8 @@ public class PayloadService {
   private Contract buildContract(
       @NotNull final String contractId,
       @NotNull final Injector injector,
-      @NotNull final Payload payload) {
+      @NotNull final Payload payload,
+      final Set<Domain> domains) {
     Map<SupportedLanguage, String> labels = Map.of(en, injector.getName(), fr, injector.getName());
     ContractConfig contractConfig =
         new ContractConfig(
@@ -221,7 +232,7 @@ public class PayloadService {
         builder.build(),
         Arrays.asList(payload.getPlatforms()),
         true,
-        payload.getDomains());
+        domains);
   }
 
   private ContractExpectations expectations(InjectExpectation.EXPECTATION_TYPE[] expectationTypes) {
@@ -250,11 +261,58 @@ public class PayloadService {
     return expectationsField(expectations);
   }
 
-  public Payload duplicate(@NotBlank final String payloadId) {
+  public PayloadOutput convertPayloadInjectorContractCreationToPayloadOutput(
+      PayloadCreationService.PayloadInjectorContractCreationResult result) {
+    return payloadMapper.toPayloadOutput(
+        result.payload(),
+        result.injectorContract().getAttackPatterns().stream()
+            .map(AttackPattern::getId)
+            .collect(Collectors.toList()),
+        result.injectorContract().getDomains().stream()
+            .map(Domain::getId)
+            .collect(Collectors.toList()),
+        result.injectorContract().getTags().stream().map(Tag::getId).collect(Collectors.toList()));
+  }
+
+  public record PayloadWithRelatedEntities(
+      Payload payload,
+      List<String> attackPatternIds,
+      List<String> domainIds,
+      List<String> tagIds) {}
+
+  public PayloadWithRelatedEntities findPayloadWithRelatedEntities(String payloadId) {
+    Payload payload =
+        payloadRepository.findById(payloadId).orElseThrow(ElementNotFoundException::new);
+    RawPayloadRelatedIds relatedIds =
+        injectorContractRepository.findRelatedIdsByPayloadId(payloadId).orElse(null);
+
+    List<String> attackPatternIds =
+        relatedIds != null ? relatedIds.getAttack_pattern_ids() : List.of();
+    List<String> domainIds = relatedIds != null ? relatedIds.getDomain_ids() : List.of();
+    List<String> tagIds = relatedIds != null ? relatedIds.getTag_ids() : List.of();
+
+    return new PayloadWithRelatedEntities(payload, attackPatternIds, domainIds, tagIds);
+  }
+
+  public PayloadCreationService.PayloadInjectorContractCreationResult duplicate(
+      @NotBlank final String payloadId) {
     Payload origin = this.payloadRepository.findById(payloadId).orElseThrow();
+    Optional<InjectorContract> originInjectorContract =
+        injectorContractRepository.findInjectorContractByPayload(origin);
+
     Payload duplicated = payloadRepository.save(generateDuplicatedPayload(origin));
-    this.updateInjectorContractsForPayload(duplicated);
-    return duplicated;
+    InjectorContract injectorContract =
+        this.synchroniseInjectorContractBasedOnPayload(
+            duplicated,
+            originInjectorContract.isPresent()
+                ? originInjectorContract.get().getAttackPatterns()
+                : List.of(),
+            originInjectorContract.isPresent()
+                ? originInjectorContract.get().getDomains()
+                : Set.of(),
+            originInjectorContract.isPresent() ? originInjectorContract.get().getTags() : Set.of());
+    return new PayloadCreationService.PayloadInjectorContractCreationResult(
+        duplicated, injectorContract);
   }
 
   public Payload generateDuplicatedPayload(Payload originalPayload) {
@@ -370,21 +428,20 @@ public class PayloadService {
     fileDrop.setType(FileDrop.FILE_DROP_TYPE);
     fileDrop.setPlatforms(ALL_PLATFORMS);
     fileDrop.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES);
-    fileDrop.setDomains(
-        domainService.upserts(
-            Set.of(InjectorContractDomainDTO.fromDomain(PresetDomain.getEndpoint())),
-            TenantContext.getCurrentTenant()));
-
     fileDrop.setExpectations(
         new InjectExpectation.EXPECTATION_TYPE[] {
           InjectExpectation.EXPECTATION_TYPE.PREVENTION,
           InjectExpectation.EXPECTATION_TYPE.DETECTION
         });
 
-    fileDrop.setTags(tagService.findOrCreateTagsFromNames(new HashSet<>(Set.of(OPENCTI_TAG_NAME))));
-
     FileDrop saved = payloadRepository.save(fileDrop);
-    updateInjectorContractsForPayload(saved);
+    synchroniseInjectorContractBasedOnPayload(
+        saved,
+        List.of(),
+        domainService.upserts(
+            Set.of(InjectorContractDomainDTO.fromDomain(PresetDomain.getEndpoint())),
+            TenantContext.getCurrentTenant()),
+        tagService.findOrCreateTagsFromNames(new HashSet<>(Set.of(OPENCTI_TAG_NAME))));
     return saved;
   }
 
@@ -432,19 +489,17 @@ public class PayloadService {
           InjectExpectation.EXPECTATION_TYPE.DETECTION
         });
 
-    dynamicDnsResolutionPayload.setDomains(
+    DnsResolution saved = payloadRepository.save(dynamicDnsResolutionPayload);
+    synchroniseInjectorContractBasedOnPayload(
+        saved,
+        List.of(),
         domainService.upsertDomainEntities(
             Set.of(
                 PresetDomain.getEndpoint(),
                 PresetDomain.getNetwork(),
                 PresetDomain.getUrlFiltering()),
-            TenantContext.getCurrentTenant()));
-
-    dynamicDnsResolutionPayload.setTags(
+            TenantContext.getCurrentTenant()),
         tagService.findOrCreateTagsFromNames(new HashSet<>(Set.of(OPENCTI_TAG_NAME))));
-
-    DnsResolution saved = payloadRepository.save(dynamicDnsResolutionPayload);
-    updateInjectorContractsForPayload(saved);
     return saved;
   }
 }

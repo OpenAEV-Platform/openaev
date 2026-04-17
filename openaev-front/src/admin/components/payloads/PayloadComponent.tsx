@@ -1,7 +1,7 @@
 import { AttachmentOutlined } from '@mui/icons-material';
 import { Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type CSSProperties, Fragment, type FunctionComponent } from 'react';
+import { type CSSProperties, Fragment, type FunctionComponent, useMemo } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { type AttackPatternHelper } from '../../../actions/attack_patterns/attackpattern-helper';
@@ -16,7 +16,7 @@ import {
   type AttackPattern,
   type Command,
   type DnsResolution,
-  type Document,
+  type Document, type Domain,
   type Executable,
   type FileDrop,
   type Payload as PayloadType,
@@ -71,9 +71,12 @@ const inlineStyles: Record<string, CSSProperties> = {
 interface Props {
   selectedPayload: PayloadType | null;
   documentsMap: Record<string, Document> | null;
+  attackPatternIds: string[];
+  domains: Domain[] | string[];
+  tagIds: string[];
 }
 
-const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documentsMap }) => {
+const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documentsMap, attackPatternIds, domains, tagIds }) => {
   // Standard hooks
   const { classes } = useStyles();
   const { t } = useFormatter();
@@ -103,6 +106,12 @@ const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documents
     }
     return argument.default_value;
   };
+
+  const attackPatterns = useMemo(() => {
+    return attackPatternIds
+      .map(id => attackPatternsMap[id])
+      .filter(Boolean) as AttackPattern[];
+  }, [attackPatternsMap, attackPatternIds]);
 
   return (
     <div className={classes.payloadContainer}>
@@ -136,10 +145,10 @@ const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documents
           >
             {t('Attack patterns')}
           </Typography>
-
-          {selectedPayload?.payload_attack_patterns && selectedPayload?.payload_attack_patterns.length === 0 ? '-' : selectedPayload?.payload_attack_patterns?.map((attackPatternId: string) => attackPatternsMap?.[attackPatternId]).map((attackPattern: AttackPattern) => (
-            <AttackPatternChip key={attackPattern.attack_pattern_id} attackPattern={attackPattern}></AttackPatternChip>
-          ))}
+          {attackPatterns.length === 0 ? '-'
+            : attackPatterns?.map(a => (
+                <AttackPatternChip key={a.attack_pattern_id} attackPattern={a}></AttackPatternChip>
+              ))}
         </div>
 
         <div>
@@ -181,7 +190,7 @@ const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documents
           </Typography>
           <ItemTags
             variant="reduced-view"
-            tags={selectedPayload?.payload_tags}
+            tags={tagIds}
           />
         </div>
         <div>
@@ -194,7 +203,7 @@ const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documents
           {selectedPayload && (
             <ItemDomains
               variant="list"
-              domains={selectedPayload?.payload_domains}
+              domains={domains}
             />
           )}
         </div>

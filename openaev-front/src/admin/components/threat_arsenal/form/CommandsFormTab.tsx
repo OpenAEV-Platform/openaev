@@ -12,26 +12,26 @@ import { useFormatter } from '../../../../components/i18n';
 import { type PayloadArgument } from '../../../../utils/api-types';
 import PayloadArgumentsField from './PayloadArgumentsField';
 
-interface Props { disabledPayloadType?: boolean }
+interface Props { disabledActionType?: boolean }
 
-const CommandsFormTab = ({ disabledPayloadType = false }: Props) => {
+const CommandsFormTab = ({ disabledActionType = false }: Props) => {
   const { t } = useFormatter();
   const theme = useTheme();
   const { control, setValue, getValues, watch } = useFormContext();
-  const payloadType = watch('payload_type');
+  const actionType = watch('action_type');
 
   const { fields: argumentsFields, append: argumentsAppend, remove: argumentsRemove } = useFieldArray({
     control,
-    name: 'payload_arguments',
+    name: 'action_arguments',
   });
   const { fields: prerequisitesFields, append: prerequisitesAppend, remove: prerequisitesRemove } = useFieldArray({
     control,
-    name: 'payload_prerequisites',
+    name: 'action_prerequisites',
   });
 
   useEffect(() => {
-    if (payloadType != 'Command') {
-      const args = getValues('payload_arguments') ?? [];
+    if (actionType !== 'Command') {
+      const args = getValues('action_arguments') ?? [];
       const argToRemoveIndex: number[] = [];
       (args as unknown as PayloadArgument[]).forEach((arg, index) => {
         if (arg.type == 'targeted-asset') {
@@ -41,14 +41,14 @@ const CommandsFormTab = ({ disabledPayloadType = false }: Props) => {
 
       argumentsRemove(argToRemoveIndex);
     }
-    if (!(payloadType == 'Command' || payloadType == 'Executable')) {
-      setValue('payload_execution_arch', 'ALL_ARCHITECTURES'); // Automatically set arch to 'all'
-    } else if (!disabledPayloadType && payloadType === 'Executable' && getValues('payload_execution_arch') === 'ALL_ARCHITECTURES') {
-      setValue('payload_execution_arch', '');
+    if (!(actionType === 'Command' || actionType === 'Executable')) {
+      setValue('action_execution_arch', 'ALL_ARCHITECTURES'); // Automatically set arch to 'all'
+    } else if (!disabledActionType && actionType === 'Executable' && getValues('action_execution_arch') === 'ALL_ARCHITECTURES') {
+      setValue('action_execution_arch', '');
     }
-  }, [payloadType]);
+  }, [actionType]);
 
-  const payloadTypesItems = [
+  const typesItems = [
     {
       value: 'Command',
       label: t('Command Line'),
@@ -76,7 +76,7 @@ const CommandsFormTab = ({ disabledPayloadType = false }: Props) => {
       value: 'arm64',
       label: t('arm64'),
     },
-    ...(payloadType !== 'Executable'
+    ...(actionType !== 'Executable'
       ? [{
           value: 'ALL_ARCHITECTURES',
           label: t('ALL_ARCHITECTURES'),
@@ -102,20 +102,20 @@ const CommandsFormTab = ({ disabledPayloadType = false }: Props) => {
 
   return (
     <>
-      <SelectFieldController name="payload_type" label={t('Type')} items={payloadTypesItems} required disabled={disabledPayloadType} />
-      {payloadType && payloadType != '' && (
+      <SelectFieldController name="action_type" label={t('Type')} items={typesItems} required disabled={disabledActionType} />
+      {actionType && actionType != '' && (
         <div style={{
           display: 'grid',
           gridTemplateColumns: '1fr 1fr',
           gap: theme.spacing(2),
         }}
         >
-          <SelectFieldController disabled={!(payloadType == 'Command' || payloadType == 'Executable')} name="payload_execution_arch" label={t('Architecture')} items={architecturesItems} required />
-          <PlatformFieldController name="payload_platforms" label={t('Platforms')} required />
+          <SelectFieldController disabled={!(actionType == 'Command' || actionType == 'Executable')} name="action_execution_arch" label={t('Architecture')} items={architecturesItems} required />
+          <PlatformFieldController name="action_platforms" label={t('Platforms')} required />
         </div>
       )}
 
-      {payloadType === 'Command' && (
+      {actionType === 'Command' && (
         <>
           <Typography variant="h5" marginTop={theme.spacing(3)}>{t('Attack command')}</Typography>
           <SelectFieldController name="command_executor" label={t('Executor')} items={executorsItems} required />
@@ -123,7 +123,7 @@ const CommandsFormTab = ({ disabledPayloadType = false }: Props) => {
         </>
       )}
 
-      {payloadType === 'Executable' && (
+      {actionType === 'Executable' && (
         <Controller
           control={control}
           name="executable_file"
@@ -142,7 +142,7 @@ const CommandsFormTab = ({ disabledPayloadType = false }: Props) => {
         />
       )}
 
-      {payloadType === 'FileDrop' && (
+      {actionType === 'FileDrop' && (
         <Controller
           control={control}
           name="file_drop_file"
@@ -161,19 +161,19 @@ const CommandsFormTab = ({ disabledPayloadType = false }: Props) => {
         />
       )}
 
-      {payloadType === 'DnsResolution' && (
+      {actionType === 'DnsResolution' && (
         <TextFieldController name="dns_resolution_hostname" label={t('Hostname')} required />
       )}
 
-      {payloadType && payloadType != '' && (
+      {actionType && actionType != '' && (
         <>
           {/* ARGUMENTS */}
           <Typography variant="h5" marginTop={theme.spacing(3)}>{t('Arguments')}</Typography>
           {argumentsFields.map((argsField, argIndex) => (
             <PayloadArgumentsField
               key={argsField.id}
-              canSelectTargetAsset={payloadType == 'Command'}
-              argumentName={`payload_arguments.${argIndex}`}
+              canSelectTargetAsset={actionType == 'Command'}
+              argumentName={`action_arguments.${argIndex}`}
               onArgumentRemoveClick={() => argumentsRemove(argIndex)}
             />
           ))}
@@ -205,9 +205,9 @@ const CommandsFormTab = ({ disabledPayloadType = false }: Props) => {
               }}
               key={prerequisitesField.id}
             >
-              <SelectFieldController name={`payload_prerequisites.${prerequisitesIndex}.executor` as const} label={t('Executor')} items={executorsItems} required />
-              <TextFieldController name={`payload_prerequisites.${prerequisitesIndex}.get_command` as const} label={t('Get command')} required />
-              <TextFieldController name={`payload_prerequisites.${prerequisitesIndex}.check_command` as const} label={t('Check command')} />
+              <SelectFieldController name={`action_prerequisites.${prerequisitesIndex}.executor` as const} label={t('Executor')} items={executorsItems} required />
+              <TextFieldController name={`action_prerequisites.${prerequisitesIndex}.get_command` as const} label={t('Get command')} required />
+              <TextFieldController name={`action_prerequisites.${prerequisitesIndex}.check_command` as const} label={t('Check command')} />
               <IconButton
                 onClick={() => prerequisitesRemove(prerequisitesIndex)}
                 size="small"
@@ -237,8 +237,8 @@ const CommandsFormTab = ({ disabledPayloadType = false }: Props) => {
 
           {/* CLEANUP */}
           <Typography variant="h5" marginTop={theme.spacing(3)}>{t('Cleanup command')}</Typography>
-          <SelectFieldController name="payload_cleanup_executor" label={t('Executor')} items={executorsItems} />
-          <TextFieldController variant="outlined" multiline rows={3} name="payload_cleanup_command" />
+          <SelectFieldController name="action_cleanup_executor" label={t('Executor')} items={executorsItems} />
+          <TextFieldController variant="outlined" multiline rows={3} name="action_cleanup_command" />
         </>
       )}
     </>

@@ -654,12 +654,9 @@ class InjectApiTest extends IntegrationTest {
               .withInjectorContract(
                   injectorContractComposer
                       .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+                      .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                       .withInjector(InjectorFixture.createDefaultPayloadInjector())
-                      .withPayload(
-                          payloadComposer
-                              .forPayload(payloadCommand)
-                              .withDomain(
-                                  domainComposer.forDomain(DomainFixture.getRandomDomain()))))
+                      .withPayload(payloadComposer.forPayload(payloadCommand)))
               .persist()
               .get();
 
@@ -756,11 +753,8 @@ class InjectApiTest extends IntegrationTest {
                   injectorContractComposer
                       .forInjectorContract(injectorContract)
                       .withInjector(InjectorFixture.createDefaultPayloadInjector())
-                      .withPayload(
-                          payloadComposer
-                              .forPayload(payloadCommand)
-                              .withDomain(
-                                  domainComposer.forDomain(DomainFixture.getRandomDomain()))))
+                      .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
+                      .withPayload(payloadComposer.forPayload(payloadCommand)))
               .withEndpoint(endpointWrapper1)
               .withEndpoint(endpointWrapper2)
               .persist()
@@ -812,12 +806,10 @@ class InjectApiTest extends IntegrationTest {
               .withInjectorContract(
                   injectorContractComposer
                       .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+                      .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                       .withInjector(InjectorFixture.createDefaultPayloadInjector())
                       .withPayload(
-                          payloadComposer
-                              .forPayload(PayloadFixture.createDefaultCommand())
-                              .withDomain(
-                                  domainComposer.forDomain(DomainFixture.getRandomDomain()))))
+                          payloadComposer.forPayload(PayloadFixture.createDefaultCommand())))
               .withExpectation(
                   injectExpectationComposer
                       .forExpectation(
@@ -878,11 +870,8 @@ class InjectApiTest extends IntegrationTest {
                           InjectorContractFixture.createPayloadInjectorContractWithObfuscator(
                               payloadCommand.getExecutor()))
                       .withInjector(InjectorFixture.createDefaultPayloadInjector())
-                      .withPayload(
-                          payloadComposer
-                              .forPayload(payloadCommand)
-                              .withDomain(
-                                  domainComposer.forDomain(DomainFixture.getRandomDomain()))))
+                      .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
+                      .withPayload(payloadComposer.forPayload(payloadCommand)))
               .persist()
               .get();
       doNothing()
@@ -930,12 +919,9 @@ class InjectApiTest extends IntegrationTest {
                       .forInjectorContract(
                           InjectorContractFixture.createPayloadInjectorContractWithObfuscator(
                               payloadCommand.getExecutor()))
+                      .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                       .withInjector(InjectorFixture.createDefaultPayloadInjector())
-                      .withPayload(
-                          payloadComposer
-                              .forPayload(payloadCommand)
-                              .withDomain(
-                                  domainComposer.forDomain(DomainFixture.getRandomDomain()))))
+                      .withPayload(payloadComposer.forPayload(payloadCommand)))
               .persist()
               .get();
       doNothing()
@@ -983,12 +969,9 @@ class InjectApiTest extends IntegrationTest {
                       .forInjectorContract(
                           InjectorContractFixture.createPayloadInjectorContractWithObfuscator(
                               payloadCommand.getExecutor()))
+                      .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                       .withInjector(InjectorFixture.createDefaultPayloadInjector())
-                      .withPayload(
-                          payloadComposer
-                              .forPayload(payloadCommand)
-                              .withDomain(
-                                  domainComposer.forDomain(DomainFixture.getRandomDomain()))))
+                      .withPayload(payloadComposer.forPayload(payloadCommand)))
               .persist()
               .get();
       doNothing()
@@ -1070,9 +1053,7 @@ class InjectApiTest extends IntegrationTest {
      */
     private Object[] buildInjectWithOutputParser(OutputParser outputParser) throws Exception {
       Domain domain = injectTestHelper.forceSaveDomain(DomainFixture.getRandomDomain());
-      Command command =
-          PayloadFixture.createCommand(
-              "bash", "echo test", null, null, new HashSet<>(Set.of(domain)));
+      Command command = PayloadFixture.createCommand("bash", "echo test", null, null);
       command.setOutputParsers(Set.of(outputParser));
       Payload payloadSaved = injectTestHelper.forceSavePayload(command);
 
@@ -1082,6 +1063,7 @@ class InjectApiTest extends IntegrationTest {
       InjectorContract injectorContract =
           InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
               injector, payloadSaved, List.of());
+      injectorContract.setDomains(Set.of(domain));
       injectorContract.setContent(injectorContract.getConvertedContent().toString());
       InjectorContract injectorContractSaved =
           injectTestHelper.forceSaveInjectorContract(injectorContract);
@@ -1374,9 +1356,7 @@ class InjectApiTest extends IntegrationTest {
         OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(CVEOutputElement));
 
         Domain domainSaved = injectTestHelper.forceSaveDomain(DomainFixture.getRandomDomain());
-        Command payloadCommand =
-            PayloadFixture.createCommand(
-                "bash", "command", null, null, new HashSet<>(Set.of(domainSaved)));
+        Command payloadCommand = PayloadFixture.createCommand("bash", "command", null, null);
         payloadCommand.setOutputParsers(Set.of(outputParser));
         Payload payloadSaved = injectTestHelper.forceSavePayload(payloadCommand);
 
@@ -1386,6 +1366,7 @@ class InjectApiTest extends IntegrationTest {
         InjectorContract injectorContract =
             InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
                 injector, payloadSaved, List.of());
+        injectorContract.setDomains(Set.of(domainSaved));
         InjectorContractFixture.addTargetedAssetFields(
             injectorContract, "asset-key", ContractTargetedProperty.seen_ip);
         injectorContract.setContent(injectorContract.getConvertedContent().toString());
@@ -3747,10 +3728,10 @@ class InjectApiTest extends IntegrationTest {
           .withInjectorContract(
               injectorContractComposer
                   .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+                  .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                   .withPayload(
                       payloadComposer
                           .forPayload(PayloadFixture.createDefaultFileDrop())
-                          .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                           .withFileDrop(
                               documentComposer.forDocument(
                                   DocumentFixture.getDocument(
@@ -3765,10 +3746,10 @@ class InjectApiTest extends IntegrationTest {
           .withInjectorContract(
               injectorContractComposer
                   .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+                  .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                   .withPayload(
                       payloadComposer
                           .forPayload(PayloadFixture.createDefaultExecutable())
-                          .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                           .withExecutable(
                               documentComposer.forDocument(
                                   DocumentFixture.getDocument(FileFixture.getBeadFileContent())))))
@@ -3916,10 +3897,10 @@ class InjectApiTest extends IntegrationTest {
               .withInjectorContract(
                   injectorContractComposer
                       .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+                      .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                       .withPayload(
                           payloadComposer
                               .forPayload(PayloadFixture.createDefaultCommand())
-                              .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                               .withDetectionRemediation(
                                   detectionRemediationComposer
                                       .forDetectionRemediation(

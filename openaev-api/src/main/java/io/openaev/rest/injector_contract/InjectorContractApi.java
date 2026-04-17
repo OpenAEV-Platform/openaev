@@ -16,7 +16,12 @@ import io.openaev.rest.injector_contract.form.InjectorContractUpdateMappingInput
 import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
 import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractDomainCountOutput;
+import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -41,26 +46,39 @@ public class InjectorContractApi extends RestBehavior {
   /**
    * Searches injector contracts with pagination and filtering.
    *
-   * <p>Can return either full or base details based on the input flag.
+   * <p>When {@code input.includeFullDetails} is {@code true} (the default), the response contains
+   * {@link InjectorContractFullOutput} entries; otherwise {@link InjectorContractBaseOutput}
+   * entries are returned.
    *
    * @param input the search and pagination parameters
-   * @return a page of injector contract outputs
+   * @return a paged list of injector contract outputs in the selected format
    */
+  @Operation(summary = "Search injector contracts")
+  @ApiResponse(
+      responseCode = "200",
+      content =
+          @Content(
+              schema =
+                  @Schema(
+                      oneOf = {
+                        InjectorContractBaseOutput.class,
+                        InjectorContractFullOutput.class,
+                      })))
   @PostMapping({INJECTOR_CONTRACT_URL + "/search", TENANT_INJECTOR_CONTRACT_URL + "/search"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
   public Page<? extends InjectorContractBaseOutput> injectorContracts(
       @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
-    if (input.isIncludeFullDetails()) {
-      return buildPaginationCriteriaBuilder(
-          this.injectorContractService::getSinglePageFullDetails,
-          handleArchitectureFilter(input),
-          InjectorContract.class);
-    } else {
-      return buildPaginationCriteriaBuilder(
-          this.injectorContractService::getSinglePageBaseDetails,
-          handleArchitectureFilter(input),
-          InjectorContract.class);
-    }
+    return buildPaginationCriteriaBuilder(
+        (spec, specCount, pageable) ->
+            this.injectorContractService.getSinglePage(
+                spec,
+                specCount,
+                pageable,
+                input.isIncludeFullDetails()
+                    ? InjectorContractService.OutputMode.FULL
+                    : InjectorContractService.OutputMode.BASE),
+        handleArchitectureFilter(input),
+        InjectorContract.class);
   }
 
   @PostMapping({

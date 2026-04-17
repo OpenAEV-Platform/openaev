@@ -8,6 +8,7 @@ import lombok.*;
 @Data
 @NoArgsConstructor
 public class InjectorContractSearchPaginationInput extends SearchPaginationInput {
+
   @JsonProperty("include_full_details")
   private boolean includeFullDetails = true;
 }

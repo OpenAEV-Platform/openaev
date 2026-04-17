@@ -12,9 +12,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.database.model.InjectExpectation;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.injector_contract.outputs.InjectorContractContentOutputElement;
 import jakarta.validation.constraints.NotNull;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Spliterators;
 import java.util.stream.StreamSupport;
@@ -103,6 +105,28 @@ public class InjectorContractContentUtils {
     }
 
     return null;
+  }
+
+  public InjectExpectation.EXPECTATION_TYPE[] getPredefinedExpectations(
+      InjectorContract injectorContract) {
+    ObjectNode convertedContent = injectorContract.getConvertedContent();
+    List<InjectExpectation.EXPECTATION_TYPE> predefinedExpectations = new ArrayList<>();
+
+    if (!convertedContent.has(FIELDS) || !convertedContent.get(FIELDS).isArray()) {
+      return predefinedExpectations.toArray(new InjectExpectation.EXPECTATION_TYPE[0]);
+    }
+
+    ArrayNode fieldsArray = (ArrayNode) convertedContent.get(FIELDS);
+    ArrayNode fieldsNode = fieldsArray.deepCopy();
+    for (JsonNode field : fieldsNode) {
+      String key = field.get(CONTRACT_ELEMENT_CONTENT_KEY).asText();
+      if (CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS.equals(key)) {
+        predefinedExpectations.add(
+            InjectExpectation.EXPECTATION_TYPE.valueOf(
+                field.get(PREDEFINED_EXPECTATIONS).asText()));
+      }
+    }
+    return predefinedExpectations.toArray(new InjectExpectation.EXPECTATION_TYPE[0]);
   }
 
   /**

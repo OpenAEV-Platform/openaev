@@ -16,7 +16,6 @@ import io.openaev.executors.model.AgentRegisterInput;
 import io.openaev.executors.sentinelone.client.SentinelOneExecutorClient;
 import io.openaev.executors.sentinelone.config.SentinelOneExecutorConfig;
 import io.openaev.executors.sentinelone.model.SentinelOneAgent;
-import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
@@ -99,9 +98,7 @@ public class SentinelOneExecutorServiceTest {
     doNothing().when(enterpriseEditionService).throwEEExecutorService(any(), any(), any());
     when(config.getApiBatchExecutionActionPagination()).thenReturn(1);
     when(config.getWindowsScriptId()).thenReturn("1234567890");
-    Command payloadCommand =
-        PayloadFixture.createCommand(
-            "cmd", "whoami", List.of(), "whoami", Set.of(PresetDomain.getToClassify()));
+    Command payloadCommand = PayloadFixture.createCommand("cmd", "whoami", List.of(), "whoami");
     Injector injector = InjectorFixture.createDefaultPayloadInjector();
     Map<String, String> executorCommands = new HashMap<>();
     executorCommands.put(
@@ -109,7 +106,8 @@ public class SentinelOneExecutorServiceTest {
     injector.setExecutorCommands(executorCommands);
     Inject inject =
         InjectFixture.createTechnicalInject(
-            InjectorContractFixture.createPayloadInjectorContract(injector, payloadCommand),
+            InjectorContractFixture.createPayloadInjectorContractWithDefaultDomain(
+                injector, payloadCommand),
             "Inject",
             EndpointFixture.createEndpoint());
     inject.setId("injectId");

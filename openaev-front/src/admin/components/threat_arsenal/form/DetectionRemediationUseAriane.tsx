@@ -8,9 +8,9 @@ import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
 import { isNotEmptyField } from '../../../../utils/utils';
 import EEChip from '../../common/entreprise_edition/EEChip';
 import EETooltip from '../../common/entreprise_edition/EETooltip';
+import Loader from '../../payloads/Loader';
 import useIsEligibleArianeCollector from '../hook/useIsEligibleArianeCollector';
 import useIsEligibleArianePayloadType from '../hook/useIsEligibleArianePayloadType';
-import Loader from '../Loader';
 import { useSnapshotRemediation } from '../utils/useSnapshotRemediation';
 
 export interface Props {

@@ -54,6 +54,7 @@ const useSearchOptions = () => {
           handleOptions(response, config.defaultValues);
         });
         break;
+      case 'action_injectors':
       case 'injector_contract_injectors':
       case 'inject_injector_contract':
         searchInjectorsByNameAsOption(search, contextId).then((response) => {
@@ -75,7 +76,7 @@ const useSearchOptions = () => {
           setOptions(response.data);
         });
         break;
-      case 'payload_domains':
+      case 'action_domains':
       case 'injector_contract_domains':
       case 'inject_contract_domains':
         searchDomainsByNameAsOption(search).then((response) => {
@@ -102,7 +103,7 @@ const useSearchOptions = () => {
       case 'asset_group_tags':
       case 'exercise_tags':
       case 'inject_tags':
-      case 'payload_tags':
+      case 'action_tags':
       case 'scenario_tags':
       case 'target_tags':
       case 'team_tags':

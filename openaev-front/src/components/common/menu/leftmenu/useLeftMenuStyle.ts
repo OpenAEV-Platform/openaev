@@ -18,10 +18,11 @@ const useLeftMenuStyle = () => {
   };
 
   const getMenuItemSx = (selected: boolean): SxProps<Theme> => ({
-    'px': 2,
+    'px': 1,
     'pr': 1,
     'py': 0,
     'height': '36px',
+    'textOverflow': 'ellipsis',
     'borderLeft': selected
       ? `2px solid ${theme.palette.primary.main}`
       : '2px solid transparent',

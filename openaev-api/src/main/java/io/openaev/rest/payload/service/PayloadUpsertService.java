@@ -7,6 +7,7 @@ import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.CollectorTypeRepository;
+import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.collector.service.CollectorService;
@@ -40,6 +41,7 @@ public class PayloadUpsertService {
   private final PayloadRepository payloadRepository;
   private final CollectorService collectorService;
   private final CollectorTypeRepository collectorTypeRepository;
+  private final InjectorContractRepository injectorContractRepository;
   private final DocumentService documentService;
   private final DomainService domainService;
 
@@ -84,7 +86,16 @@ public class PayloadUpsertService {
       payload.setCollectorType(collectorType);
     }
 
-    payload.setDomains(
+    if (payload instanceof Executable executable) {
+      executable.setExecutableFile(documentService.document(input.getExecutableFile()));
+    } else if (payload instanceof FileDrop fileDrop) {
+      fileDrop.setFileDropFile(documentService.document(input.getFileDropFile()));
+    }
+
+    Payload saved = payloadRepository.save(payload);
+    payloadService.synchroniseInjectorContractBasedOnPayload(
+        saved,
+        attackPatterns,
         input.getDomains() != null
             ? domainService.upserts(input.getDomains(), TenantContext.getCurrentTenant())
             : new HashSet<>(
@@ -94,18 +105,8 @@ public class PayloadUpsertService {
                             .name(PresetDomain.getToClassify().getName())
                             .color(PresetDomain.getToClassify().getColor())
                             .tenant(new Tenant(TenantContext.getCurrentTenant()))
-                            .build()))));
-    payload.setAttackPatterns(attackPatterns);
-    payload.setTags(this.tagService.tagSet((input.getTagIds())));
-
-    if (payload instanceof Executable executable) {
-      executable.setExecutableFile(documentService.document(input.getExecutableFile()));
-    } else if (payload instanceof FileDrop fileDrop) {
-      fileDrop.setFileDropFile(documentService.document(input.getFileDropFile()));
-    }
-
-    Payload saved = payloadRepository.save(payload);
-    payloadService.updateInjectorContractsForPayload(saved);
+                            .build()))),
+        this.tagService.tagSet((input.getTagIds())));
     return saved;
   }
 
@@ -124,16 +125,15 @@ public class PayloadUpsertService {
       payload.setCollectorType(collectorType);
     }
 
+    Optional<InjectorContract> existingInjectorContracts =
+        injectorContractRepository.findInjectorContractByPayload(payload);
     final Set<Domain> existingDomains =
-        this.domainService.upsertDomainEntities(
-            payload.getDomains(), TenantContext.getCurrentTenant());
+        existingInjectorContracts.isPresent()
+            ? this.domainService.upsertDomainEntities(
+                existingInjectorContracts.get().getDomains(), TenantContext.getCurrentTenant())
+            : Set.of();
     final Set<Domain> domainsToAdd =
         this.domainService.upserts(input.getDomains(), TenantContext.getCurrentTenant());
-    payload.setDomains(
-        this.domainService.mergeDomains(
-            existingDomains, domainsToAdd, new Tenant(TenantContext.getCurrentTenant())));
-    payload.setAttackPatterns(attackPatterns);
-    payload.setTags(this.tagService.tagSet((input.getTagIds())));
 
     if (payload instanceof Executable executable) {
       executable.setExecutableFile(documentService.document(input.getExecutableFile()));
@@ -142,7 +142,12 @@ public class PayloadUpsertService {
     }
 
     Payload saved = payloadRepository.save(payload);
-    payloadService.updateInjectorContractsForPayload(saved);
+    payloadService.synchroniseInjectorContractBasedOnPayload(
+        saved,
+        attackPatterns,
+        this.domainService.mergeDomains(
+            existingDomains, domainsToAdd, new Tenant(TenantContext.getCurrentTenant())),
+        this.tagService.tagSet((input.getTagIds())));
     return saved;
   }
 }
