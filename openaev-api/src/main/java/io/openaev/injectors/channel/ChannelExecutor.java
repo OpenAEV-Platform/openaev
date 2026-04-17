@@ -92,6 +92,7 @@ public class ChannelExecutor extends Injector {
         // Send the publication message.
         if (content.isEmailing()) {
           String from = exercise.getFrom();
+          String fromName = exercise.getFromName();
           List<String> replyTos = exercise.getReplyTos();
           List<ExecutionContext> users = injection.getUsers();
           List<Document> documents =
@@ -125,6 +126,7 @@ public class ChannelExecutor extends Injector {
                       execution,
                       List.of(userInjectContext),
                       from,
+                      fromName,
                       replyTos,
                       content.getInReplyTo(),
                       encrypted,

@@ -206,6 +206,7 @@ public class PlatformSettingsService {
       platformSettings.setDefaultMailer(openAEVConfig.getDefaultMailer());
       platformSettings.setDefaultReplyTo(openAEVConfig.getDefaultReplyTo());
     }
+    platformSettings.setDefaultMailerName(openAEVConfig.getDefaultMailerName());
     platformSettings.setSmtpServiceAvailable(
         ofNullable(dbSettings.get(SMTP_SERVICE_AVAILABLE.key()))
             .map(Setting::getValue)

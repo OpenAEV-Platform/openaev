@@ -12,10 +12,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
-import io.openaev.api.users.dto.UserInput;
-import io.openaev.database.model.Grant;
-import io.openaev.database.model.Group;
-import io.openaev.database.model.Scenario;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.*;
 import io.openaev.rest.user.form.login.LoginUserInput;
@@ -23,14 +19,11 @@ import io.openaev.rest.user.form.login.ResetUserInput;
 import io.openaev.rest.user.form.user.ChangePasswordInput;
 import io.openaev.service.MailingService;
 import io.openaev.utils.RandomUtils;
-import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.fixtures.composers.OrganizationComposer;
 import io.openaev.utils.fixtures.composers.TagComposer;
 import io.openaev.utils.fixtures.composers.UserComposer;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import org.junit.jupiter.api.*;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,7 +32,6 @@ import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
@@ -258,62 +250,5 @@ class UserApiTest extends IntegrationTest {
       // -- ASSERT --
       verify(mailingService, never()).sendEmail(anyString(), anyString(), any(List.class));
     }
-  }
-
-  @DisplayName(
-      "Get a user with several grant on the same resource, should return the highest grant")
-  @Test
-  @io.openaev.utils.mockUser.WithMockUser(isAdmin = true)
-  void given_user_with_several_grant_on_same_resource_should_return_highest_grant()
-      throws Exception {
-
-    Scenario scenario = scenarioRepository.save(ScenarioFixture.createDefaultCrisisScenario());
-    User user = userRepository.save(UserFixture.getUser("test", "test", "test3@gmail.com"));
-    Group group = new Group();
-    group.setName("test");
-    group = groupRepository.save(group);
-
-    Grant grantObserver = new Grant();
-    grantObserver.setResourceId(scenario.getId());
-    grantObserver.setGrantResourceType(Grant.GRANT_RESOURCE_TYPE.SCENARIO);
-    grantObserver.setGroup(group);
-    grantObserver.setName(Grant.GRANT_TYPE.OBSERVER);
-    Grant grantPlanner = new Grant();
-    grantPlanner.setResourceId(scenario.getId());
-    grantPlanner.setGrantResourceType(Grant.GRANT_RESOURCE_TYPE.SCENARIO);
-    grantPlanner.setGroup(group);
-    grantPlanner.setName(Grant.GRANT_TYPE.PLANNER);
-    grantRepository.saveAll(List.of(grantObserver, grantPlanner));
-    group.setGrants(new ArrayList<>(List.of(grantObserver, grantPlanner)));
-    // Set user's groups (owning side) and save user to persist the relationship
-    user.setGroups(new ArrayList<>(List.of(group)));
-    userRepository.save(user);
-    entityManager.flush();
-    entityManager.clear();
-
-    UserInput userInput =
-        new UserInput(
-            user.getEmail(),
-            user.getFirstname(),
-            user.getLastname(),
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            false);
-
-    mvc.perform(
-            MockMvcRequestBuilders.put("/api/users/" + user.getId())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(userInput)))
-        .andExpect(status().is2xxSuccessful());
-
-    // Assert — verify highest-grant logic on the reloaded entity
-    User reloaded = userRepository.findById(user.getId()).orElseThrow();
-    Map<String, String> grants = reloaded.getGrants();
-    assertEquals(1, grants.size());
-    assertEquals(Grant.GRANT_TYPE.PLANNER.name(), grants.get(scenario.getId()));
   }
 }

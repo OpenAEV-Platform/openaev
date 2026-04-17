@@ -1,11 +1,14 @@
 package io.openaev.config;
 
+import static io.openaev.helper.MailHelper.resolveFromName;
 import static org.springframework.util.StringUtils.hasText;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Map;
+import lombok.AccessLevel;
 import lombok.Data;
+import lombok.Getter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
@@ -79,6 +82,15 @@ public class OpenAEVConfig {
   @JsonProperty("default_mailer")
   @Value("${openbas.default-mailer:${openaev.default-mailer:#{null}}}")
   private String defaultMailer;
+
+  @Getter(AccessLevel.NONE)
+  @JsonProperty("default_mailer_name")
+  @Value("${openaev.default-mailer-name:#{null}}")
+  private String defaultMailerName;
+
+  public String getDefaultMailerName() {
+    return resolveFromName(defaultMailerName, defaultMailer);
+  }
 
   @JsonProperty("default_reply_to")
   @Value("${openbas.default-reply-to:${openaev.default-reply-to:#{null}}}")

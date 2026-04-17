@@ -1,5 +1,6 @@
 package io.openaev.rest.settings.response;
 
+import static io.openaev.helper.MailHelper.resolveFromName;
 import static lombok.AccessLevel.NONE;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -250,6 +251,15 @@ public class PlatformSettings {
   @JsonProperty("default_mailer")
   @Schema(description = "Sender mail to use by default for injects")
   private String defaultMailer;
+
+  @Getter(NONE)
+  @JsonProperty("default_mailer_name")
+  @Schema(description = "Sender display name to use by default for injects")
+  private String defaultMailerName;
+
+  public String getDefaultMailerName() {
+    return resolveFromName(defaultMailerName, defaultMailer);
+  }
 
   @JsonProperty("default_reply_to")
   @Schema(description = "Reply to mail to use by default for injects")

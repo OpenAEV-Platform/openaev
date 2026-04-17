@@ -44,6 +44,13 @@ public interface TenantRepository
       nativeQuery = true)
   void addUserToTenant(@Param("userId") String userId, @Param("tenantId") String tenantId);
 
+  /** Detaches a user from a tenant without deleting the user. */
+  @Modifying(flushAutomatically = true, clearAutomatically = true)
+  @Query(
+      value = "DELETE FROM users_tenants WHERE user_id = :userId AND tenant_id = :tenantId",
+      nativeQuery = true)
+  void removeUserFromTenant(@Param("userId") String userId, @Param("tenantId") String tenantId);
+
   // -- DELETE --
 
   @Modifying(clearAutomatically = true, flushAutomatically = true)
