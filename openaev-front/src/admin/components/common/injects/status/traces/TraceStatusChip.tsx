@@ -4,8 +4,8 @@ import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
 import { useFormatter } from '../../../../../../components/i18n';
-import { getStatusColor } from '../../../../../../utils/statusUtils';
 import { getStatusLabel, getStatusTooltip } from '../../../../../../utils/statusLabels';
+import { getStatusColor } from '../../../../../../utils/statusUtils';
 
 // -- STATUS TOOLTIP --
 
@@ -23,7 +23,7 @@ const StatusTooltip: FunctionComponent<StatusTooltipProps> = ({ title, descripti
       arrow
       title={(
         <div style={{ padding: theme.spacing(0.5) }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: theme.typography.fontWeightBold}}>
+          <Typography variant="subtitle2" sx={{ fontWeight: theme.typography.fontWeightBold }}>
             {title}
           </Typography>
           <Typography variant="body2">
@@ -41,10 +41,8 @@ const StatusTooltip: FunctionComponent<StatusTooltipProps> = ({ title, descripti
         },
         arrow: {
           sx: {
-            color: theme.palette.background.paper,
-            '&::before': {
-              border: `1px solid ${theme.palette.divider}`,
-            },
+            'color': theme.palette.background.paper,
+            '&::before': { border: `1px solid ${theme.palette.divider}` },
           },
         },
       }}
@@ -56,13 +54,9 @@ const StatusTooltip: FunctionComponent<StatusTooltipProps> = ({ title, descripti
 
 // -- TRACE STATUS CHIP --
 
-interface TraceStatusChipProps {
-  status: string;
-}
+interface TraceStatusChipProps { status: string }
 
-const TraceStatusChip: FunctionComponent<TraceStatusChipProps> = ({
-  status,
-}) => {
+const TraceStatusChip: FunctionComponent<TraceStatusChipProps> = ({ status }) => {
   const { t } = useFormatter();
   const theme = useTheme();
   const statusColor = getStatusColor(theme, status);
@@ -75,16 +69,14 @@ const TraceStatusChip: FunctionComponent<TraceStatusChipProps> = ({
       label={label}
       icon={tooltip ? <HelpOutlineOutlined sx={{ fontSize: theme.typography.caption.fontSize }} /> : undefined}
       sx={{
-        backgroundColor: alpha(statusColor, 0.08),
-        color: statusColor,
-        fontSize: theme.typography.caption.fontSize,
-        fontWeight: theme.typography.fontWeightBold,
-        textTransform: 'uppercase',
-        borderRadius: Number(theme.shape.borderRadius) / 2,
-        height: theme.spacing(3),
-        '& .MuiChip-icon': {
-          color: 'inherit',
-        },
+        'backgroundColor': alpha(statusColor, 0.08),
+        'color': statusColor,
+        'fontSize': theme.typography.caption.fontSize,
+        'fontWeight': theme.typography.fontWeightBold,
+        'textTransform': 'uppercase',
+        'borderRadius': Number(theme.shape.borderRadius) / 2,
+        'height': theme.spacing(3),
+        '& .MuiChip-icon': { color: 'inherit' },
       }}
     />
   );
@@ -99,4 +91,3 @@ const TraceStatusChip: FunctionComponent<TraceStatusChipProps> = ({
 };
 
 export default TraceStatusChip;
-

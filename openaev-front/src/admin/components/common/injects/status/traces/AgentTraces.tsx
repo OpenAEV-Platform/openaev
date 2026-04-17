@@ -3,11 +3,11 @@ import { useTheme } from '@mui/material/styles';
 
 import ExpandableSection from '../../../../../../components/common/ExpandableSection';
 import { useFormatter } from '../../../../../../components/i18n';
-import TraceStatusChip from './TraceStatusChip';
 import { type ExecutionTraceOutput } from '../../../../../../utils/api-types';
 import AgentStatusHeader from './AgentStatusHeader';
 import ExecutionTime from './ExecutionTime';
 import TraceMessage from './TraceMessage';
+import TraceStatusChip from './TraceStatusChip';
 import useAgentStatus from './useAgentStatus';
 
 interface Props {

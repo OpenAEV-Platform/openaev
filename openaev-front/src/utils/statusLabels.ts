@@ -56,4 +56,3 @@ export const getStatusTooltip = (status: string | undefined | null): string | un
   if (!status) return undefined;
   return statusTooltipMap[status.toUpperCase()];
 };
-
