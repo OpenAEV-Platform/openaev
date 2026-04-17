@@ -3,7 +3,7 @@ import { useTheme } from '@mui/material/styles';
 
 import ExpandableSection from '../../../../../../components/common/ExpandableSection';
 import { useFormatter } from '../../../../../../components/i18n';
-import ItemStatus from '../../../../../../components/ItemStatus';
+import TraceStatusChip from './TraceStatusChip';
 import { type ExecutionTraceOutput } from '../../../../../../utils/api-types';
 import AgentStatusHeader from './AgentStatusHeader';
 import ExecutionTime from './ExecutionTime';
@@ -27,9 +27,8 @@ const AgentTraces = ({ traces, isInitialExpanded = false }: Props) => {
     >
       <div style={{ margin: theme.spacing(0, 2) }}>
         {isInitialExpanded && (
-          <ItemStatus
+          <TraceStatusChip
             status={agentStatus.statusName}
-            label={t(agentStatus.statusName)}
           />
         )}
         <ExecutionTime
