@@ -256,13 +256,6 @@ export const executor = new schema.Entity(
 );
 export const arrayOfExecutors = new schema.Array(executor);
 
-export const payload = new schema.Entity(
-  'payloads',
-  {},
-  { idAttribute: 'payload_id' },
-);
-export const arrayOfPayloads = new schema.Array(payload);
-
 export const mitigation = new schema.Entity(
   'mitigations',
   {},

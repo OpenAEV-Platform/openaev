@@ -23,4 +23,8 @@ public class InjectorContractUpdateMappingInput {
   @JsonProperty("contract_domains")
   @Schema(description = "Set list of domains")
   private List<String> domainIds = new ArrayList<>();
+
+  @JsonProperty("contract_tags_ids")
+  @Schema(description = "Set list of tags ids")
+  private List<String> tagIds = new ArrayList<>();
 }

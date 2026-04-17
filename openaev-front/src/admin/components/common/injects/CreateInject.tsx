@@ -1,13 +1,14 @@
 import { Add, HelpOutlined, HighlightOffOutlined, KeyboardArrowRight } from '@mui/icons-material';
-import { Avatar, Checkbox, Chip, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Slide, Tooltip } from '@mui/material';
+import {
+  Avatar, Checkbox, Chip,
+  Grid, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Slide, Tooltip,
+} from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type AxiosResponse } from 'axios';
 import {
   type CSSProperties,
   type FunctionComponent,
   type SyntheticEvent,
   useContext,
-  useEffect,
   useMemo,
   useState,
 } from 'react';
@@ -15,11 +16,12 @@ import { makeStyles } from 'tss-react/mui';
 
 import { type AttackPatternHelper } from '../../../../actions/attack_patterns/attackpattern-helper';
 import { type DomainHelper } from '../../../../actions/domains/domain-helper';
-import { fetchDomainCounts, searchInjectorContracts } from '../../../../actions/InjectorContracts';
+import { searchInjectorContracts } from '../../../../actions/InjectorContracts';
 import { type InjectorHelper } from '../../../../actions/injectors/injector-helper';
 import { type InjectOutputType, type InjectStore } from '../../../../actions/injects/Inject';
 import { type KillChainPhaseHelper } from '../../../../actions/kill_chain_phases/killchainphase-helper';
 import Drawer from '../../../../components/common/Drawer';
+import { generateFilterId } from '../../../../components/common/queryable/filter/FilterUtils';
 import { initSorting } from '../../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import SortHeadersComponentV2 from '../../../../components/common/queryable/sort/SortHeadersComponentV2';
@@ -35,20 +37,18 @@ import {
   type AttackPattern, type Domain,
   type FilterGroup,
   type InjectInput,
-  type InjectorContract, type InjectorContractDomainCountOutput,
+  type InjectorContract,
   type InjectorContractFullOutput,
   type KillChainPhase,
   type Variable,
 } from '../../../../utils/api-types';
 import { type InjectorContractConverted } from '../../../../utils/api-types-custom';
-import { type Error as APIError, notifyErrorHandler } from '../../../../utils/error/errorHandlerUtil';
 import useEntityToggle from '../../../../utils/hooks/useEntityToggle';
 import computeAttackPatterns from '../../../../utils/injector_contract/InjectorContractUtils';
 import { isNotEmptyField } from '../../../../utils/utils';
-import { buildOrderedDomains } from '../../workspaces/custom_dashboards/widgets/viz/domains/SecurityDomainsWidgetUtils';
 import { InjectContext } from '../Context';
-import buildIconBarElements from '../domains/DomainsIcons';
 import IconBar from '../domains/IconBar';
+import useDomainIconFilter from '../domains/useDomainIconFilter';
 import BulkToolBar from '../toolBar/BulkToolBar';
 import { type ToolTasks } from '../toolBar/BulkToolBar-model';
 import InjectForm from './form/InjectForm';
@@ -210,6 +210,7 @@ const CreateInject: FunctionComponent<Props> = ({
     }
 
     filterGroup.filters?.push({
+      id: generateFilterId(),
       key: 'injector_contract_atomic_testing',
       operator: 'eq',
       values: ['true'],
@@ -374,91 +375,11 @@ const CreateInject: FunctionComponent<Props> = ({
       : null;
   }
   const domainOptions: Domain[] = useHelper((helper: DomainHelper) => helper.getDomains());
-
-  // Domains
-  const [selectedDomains, setSelectedDomains] = useState<string[]>([]);
-  const [domainCounts, setDomainCounts] = useState<Record<string, number>>({});
-  const DOMAIN_FILTER_KEY = 'injector_contract_domains';
-
-  const handleDomainClick = (domainId: string) => {
-    if (!queryableHelpers?.filterHelpers) return;
-
-    const isAlreadySelected = selectedDomains.includes(domainId);
-    const updated = isAlreadySelected
-      ? selectedDomains.filter(id => id !== domainId)
-      : [...selectedDomains, domainId];
-
-    if (updated.length === 0) {
-      queryableHelpers.filterHelpers.handleRemoveFilterByKey(DOMAIN_FILTER_KEY);
-    } else {
-      const domainFilterExists = searchPaginationInput?.filterGroup?.filters?.some(
-        f => f.key === DOMAIN_FILTER_KEY,
-      );
-
-      if (!domainFilterExists) {
-        queryableHelpers.filterHelpers.handleAddFilterWithEmptyValue({
-          key: DOMAIN_FILTER_KEY,
-          operator: 'contains',
-          values: updated,
-          mode: 'or',
-        });
-      } else {
-        queryableHelpers.filterHelpers.handleAddMultipleValueFilter(
-          DOMAIN_FILTER_KEY,
-          updated,
-        );
-      }
-    }
-  };
-
-  // Fetch and update domain counts whenever search filters change
-  useEffect(() => {
-    if (searchPaginationInput) {
-      fetchDomainCounts(searchPaginationInput)
-        .then((response: AxiosResponse<InjectorContractDomainCountOutput[]>) => {
-          const data = response?.data;
-
-          if (Array.isArray(data)) {
-            const countsMap = data.reduce((acc, curr) => {
-              if (curr.domain) {
-                acc[curr.domain] = curr.count ?? 0;
-              }
-              return acc;
-            }, {} as Record<string, number>);
-
-            setDomainCounts(countsMap);
-          } else {
-            notifyErrorHandler({
-              status: 400,
-              message: 'Invalid data format received',
-            });
-          }
-        })
-        .catch((error: unknown) => {
-          notifyErrorHandler(error as APIError);
-        });
-    }
-  }, [searchPaginationInput]);
-
-  // Sync icon bar selection with the global filter group
-  useEffect(() => {
-    const domainFilter = searchPaginationInput?.filterGroup?.filters?.find(
-      f => f.key === DOMAIN_FILTER_KEY,
-    );
-
-    if (domainFilter && Array.isArray(domainFilter.values)) {
-      setSelectedDomains(domainFilter.values as string[]);
-    } else {
-      setSelectedDomains([]);
-    }
-  }, [searchPaginationInput?.filterGroup]);
-
-  const iconBarElements = useMemo(
-    () => buildIconBarElements(domainOptions, handleDomainClick, selectedDomains, domainCounts),
-    [domainOptions, selectedDomains, domainCounts],
-  );
-
-  const iconBarOrderedDomains = useMemo(() => buildOrderedDomains(iconBarElements), [iconBarElements]);
+  const { iconBarOrderedDomains } = useDomainIconFilter({
+    domainOptions,
+    searchPaginationInput,
+    queryableHelpers,
+  });
 
   return (
     <Drawer
@@ -468,7 +389,7 @@ const CreateInject: FunctionComponent<Props> = ({
       variant="full"
       disableEnforceFocus
     >
-      <>
+      <Grid>
         <IconBar elements={iconBarOrderedDomains} />
         <div
           style={{
@@ -683,7 +604,7 @@ const CreateInject: FunctionComponent<Props> = ({
             )
           }
         </div>
-      </>
+      </Grid>
     </Drawer>
   );
 };

@@ -190,12 +190,11 @@ class InjectImportTest extends IntegrationTest {
                 injectorContractComposer
                     .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
                     .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+                    .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
+                    .withTag(tagComposer.forTag(TagFixture.getTagWithText("secret payload tag")))
                     .withPayload(
                         payloadComposer
                             .forPayload(PayloadFixture.createDefaultCommand())
-                            .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
-                            .withTag(
-                                tagComposer.forTag(TagFixture.getTagWithText("secret payload tag")))
                             .withDetectionRemediation(
                                 detectionRemediationComposer
                                     .forDetectionRemediation(createDetectionRemediation())
@@ -209,20 +208,18 @@ class InjectImportTest extends IntegrationTest {
             .withInjectorContract(
                 injectorContractComposer
                     .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+                    .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                     .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+                    .withTag(tagComposer.forTag(TagFixture.getTagWithText("secret file drop tag")))
                     .withPayload(
                         payloadComposer
                             .forPayload(PayloadFixture.createDefaultFileDrop())
-                            .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                             .withFileDrop(
                                 documentComposer
                                     .forDocument(
                                         DocumentFixture.getDocument(
                                             FileFixture.getBadCoffeeFileContent()))
-                                    .withInMemoryFile(FileFixture.getBadCoffeeFileContent()))
-                            .withTag(
-                                tagComposer.forTag(
-                                    TagFixture.getTagWithText("secret file drop tag")))))
+                                    .withInMemoryFile(FileFixture.getBadCoffeeFileContent()))))
             .withTag(
                 tagComposer.forTag(TagFixture.getTagWithText("filedrop inject with payload tag"))),
         injectComposer
@@ -230,20 +227,20 @@ class InjectImportTest extends IntegrationTest {
             .withInjectorContract(
                 injectorContractComposer
                     .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+                    .withTag(
+                        tagComposer.forTag(
+                            TagFixture.getTagWithText("secret executable payload tag")))
                     .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+                    .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                     .withPayload(
                         payloadComposer
                             .forPayload(PayloadFixture.createDefaultExecutable())
-                            .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                             .withExecutable(
                                 documentComposer
                                     .forDocument(
                                         DocumentFixture.getDocument(
                                             FileFixture.getBeadFileContent()))
-                                    .withInMemoryFile(FileFixture.getBeadFileContent()))
-                            .withTag(
-                                tagComposer.forTag(
-                                    TagFixture.getTagWithText("secret executable payload tag")))))
+                                    .withInMemoryFile(FileFixture.getBeadFileContent()))))
             .withTag(
                 tagComposer.forTag(
                     TagFixture.getTagWithText("executable inject with payload tag"))));

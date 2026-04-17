@@ -2,9 +2,15 @@ package io.openaev.utils;
 
 import static org.springframework.util.StringUtils.hasText;
 
+import io.openaev.database.model.Filters.FilterMode;
 import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +44,80 @@ public final class OperationUtilsJpa {
   }
 
   // -- NOT CONTAINS --
+
+  /**
+   * Builds a NOT EXISTS subquery predicate ensuring that none of the given texts match any element
+   * in the joined collection.
+   *
+   * <p>Use this variant instead of {@link #notContainsTexts} when the field is backed by a
+   * many-to-many join table (i.e. {@code PropertySchema.getJoinTable() != null}). The plain {@code
+   * NOT LIKE} approach produces wrong results for multi-valued associations because a single
+   * non-matching row is enough to satisfy the predicate even when another row does match.
+   *
+   * <p>Generated SQL pattern (one correlated subquery per text value, all combined with AND):
+   *
+   * <pre>{@code
+   * NOT EXISTS (
+   *   SELECT 1
+   *   FROM <RootEntity> r2
+   *   JOIN r2.<joinRelation> d
+   *   WHERE r2 = <outerRoot> AND LOWER(d.<labelPath>) LIKE '%text%'
+   * )
+   * }</pre>
+   *
+   * @param root the root entity
+   * @param query the criteria query (needed to create the subquery)
+   * @param cb the criteria builder
+   * @param joinRelation the name of the collection attribute on the root entity (e.g. "domains")
+   * @param labelPath the attribute name on the joined entity to match against (e.g. "name" or "id")
+   * @param texts the list of text values that must NOT be present
+   * @param <T> root entity type
+   * @return a conjunction of NOT EXISTS predicates, one per text value
+   */
+  public static <T> Predicate notContainsTexts(
+      Root<T> root,
+      CriteriaQuery<?> query,
+      CriteriaBuilder cb,
+      String joinRelation,
+      String labelPath,
+      List<String> texts) {
+
+    if (isEmpty(texts)) {
+      return cb.conjunction();
+    }
+
+    Predicate[] predicates =
+        texts.stream()
+            .map(text -> notContainsText(root, query, cb, joinRelation, labelPath, text))
+            .toArray(Predicate[]::new);
+
+    return cb.and(predicates);
+  }
+
+  private static <T, U> Predicate notContainsText(
+      Root<T> root,
+      CriteriaQuery<?> query,
+      CriteriaBuilder cb,
+      String joinRelation,
+      String labelPath,
+      String text) {
+
+    if (isEmpty(text)) {
+      return cb.conjunction();
+    }
+
+    String pattern = "%" + text.toLowerCase() + "%";
+
+    Subquery<Integer> subquery = query.subquery(Integer.class);
+    Root<T> subRoot = subquery.correlate(root);
+    Join<T, U> join = subRoot.join(joinRelation, JoinType.LEFT);
+
+    subquery
+        .select(cb.literal(1))
+        .where(cb.like(cb.lower(join.get(labelPath).as(String.class)), pattern));
+
+    return cb.not(cb.exists(subquery));
+  }
 
   public static Predicate notContainsTexts(
       Expression<String> paths, CriteriaBuilder cb, List<String> texts, Class<?> type) {
@@ -78,7 +158,11 @@ public final class OperationUtilsJpa {
   // -- CONTAINS --
 
   public static Predicate containsTexts(
-      Expression<String> paths, CriteriaBuilder cb, List<String> texts, Class<?> type) {
+      Expression<String> paths,
+      CriteriaBuilder cb,
+      List<String> texts,
+      Class<?> type,
+      FilterMode mode) {
     if (isEmpty(texts)) {
       return cb.conjunction();
     }
@@ -86,7 +170,12 @@ public final class OperationUtilsJpa {
     Predicate[] predicates =
         texts.stream().map(text -> containsText(paths, cb, text, type)).toArray(Predicate[]::new);
 
-    return cb.or(predicates);
+    return FilterMode.and.equals(mode) ? cb.and(predicates) : cb.or(predicates);
+  }
+
+  public static Predicate containsTexts(
+      Expression<String> paths, CriteriaBuilder cb, List<String> texts, Class<?> type) {
+    return containsTexts(paths, cb, texts, type, FilterMode.or);
   }
 
   public static Predicate containsText(

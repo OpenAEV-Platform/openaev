@@ -7,7 +7,7 @@ import { makeStyles } from 'tss-react/mui';
 import { useLocalStorage } from 'usehooks-ts';
 
 import { fetchAttackPatterns } from '../actions/AttackPattern';
-import fetchDomains from '../actions/domains/domain-actions';
+import { fetchDomains } from '../actions/domains/domain-actions';
 import { type LoggedHelper } from '../actions/helper';
 import { fetchKillChainPhases } from '../actions/KillChainPhase';
 import { fetchTags } from '../actions/tags/tag-action';
@@ -47,8 +47,8 @@ const IndexComponents = lazy(() => import('./components/components/Index'));
 const IndexIntegrations = lazy(() => import('./components/integrations/Index'));
 const IndexAgents = lazy(() => import('./components/agents/Agents'));
 const IndexCustomDashboard = lazy(() => import('./components/workspaces/custom_dashboards/Index'));
-const Payloads = lazy(() => import('./components/payloads/Payloads'));
 const IndexSettings = lazy(() => import('./components/settings/Index'));
+const ThreatArsenal = lazy(() => import('./components/threat_arsenal/ThreatArsenal'));
 
 const useStyles = makeStyles()(theme => ({ toolbar: theme.mixins.toolbar as CSSObject }));
 
@@ -215,7 +215,18 @@ const Index = () => {
                 />
               )}
             />
-            <Route path="payloads" element={errorWrapper(Payloads)()} />
+            <Route
+              path="threat-arsenal"
+              element={(
+                <ProtectedRoute
+                  checks={[{
+                    action: ACTIONS.ACCESS,
+                    subject: SUBJECTS.PAYLOADS,
+                  }]}
+                  Component={errorWrapper(ThreatArsenal)()}
+                />
+              )}
+            />
             <Route
               path="integrations/*"
               element={(

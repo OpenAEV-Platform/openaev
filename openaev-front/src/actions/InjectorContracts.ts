@@ -3,10 +3,9 @@ import { type Dispatch } from 'redux';
 import { delReferential, getReferential, postReferential, putReferential, simpleCall, simplePostCall } from '../utils/Action';
 import {
   type InjectorContract,
-  type InjectorContractAddInput,
+  type InjectorContractAddInput, type InjectorContractSearchPaginationInput,
   type InjectorContractUpdateInput,
   type InjectorContractUpdateMappingInput,
-  type SearchPaginationInput,
 } from '../utils/api-types';
 import * as schema from './Schema';
 
@@ -24,7 +23,7 @@ export const fetchInjectorsContracts = () => (dispatch: Dispatch) => {
   return getReferential(schema.arrayOfInjectorContracts, `${INJECTOR_CONTRACT_URI}`)(dispatch);
 };
 
-export const searchInjectorContracts = (paginationInput: SearchPaginationInput) => {
+export const searchInjectorContracts = (paginationInput: InjectorContractSearchPaginationInput) => {
   const data = paginationInput;
   const uri = `${INJECTOR_CONTRACT_URI}/search`;
   return simplePostCall(uri, data);
@@ -41,13 +40,6 @@ export const updateInjectorContractMapping = (injectorContractId: InjectorContra
 
 export const addInjectorContract = (data: InjectorContractAddInput) => (dispatch: Dispatch) => {
   return postReferential(schema.injectorContract, `${INJECTOR_CONTRACT_URI}`, data)(dispatch);
-};
-
-// This action must use InjectorContractSearchPaginationInput to stay
-// synchronized with the search route filters
-export const fetchDomainCounts = (data: SearchPaginationInput) => {
-  const uri = `${INJECTOR_CONTRACT_URI}/domain-counts`;
-  return simplePostCall(uri, data);
 };
 
 export const deleteInjectorContract = (injectorContractId: InjectorContract['injector_contract_id']) => (dispatch: Dispatch) => {

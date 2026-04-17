@@ -18,9 +18,9 @@ import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { buildTenantApiPath } from '../../../../utils/tenant-url-helper';
 import RemediationFormTab from './RemediationFormTab';
 
-interface RemediationFormTabsProps { payloadId?: string }
+interface RemediationFormTabsProps { actionId?: string }
 
-const RemediationFormTabs = ({ payloadId }: RemediationFormTabsProps) => {
+const RemediationFormTabs = ({ actionId }: RemediationFormTabsProps) => {
   const [tabs, setTabs] = useState<Collector[]>([]);
   const [activeTab, setActiveTab] = useState<number>(0);
   const { t } = useFormatter();
@@ -42,9 +42,9 @@ const RemediationFormTabs = ({ payloadId }: RemediationFormTabsProps) => {
       dispatch(fetchCollectors()).finally(() => {
         setLoading(false);
       });
-    } else if (payloadId) {
+    } else if (actionId) {
       setLoading(true);
-      dispatch(fetchCollectorsForPayload(payloadId)).finally(() => {
+      dispatch(fetchCollectorsForPayload(actionId)).finally(() => {
         setLoading(false);
       });
     }
@@ -63,7 +63,7 @@ const RemediationFormTabs = ({ payloadId }: RemediationFormTabsProps) => {
     <>
       <Typography variant="h5" gutterBottom>{t('Security platform')}</Typography>
       {loading && <Loader variant="inElement" />}
-      {(hasPlatformSettingsCapabilities || payloadId) ? (
+      {(hasPlatformSettingsCapabilities || actionId) ? (
         <>
           {tabs.length === 0
             ? (
@@ -76,7 +76,7 @@ const RemediationFormTabs = ({ payloadId }: RemediationFormTabsProps) => {
                   <Tabs
                     value={activeTab}
                     onChange={handleActiveTabChange}
-                    aria-label="tabs for payload form"
+                    aria-label="tabs for remediation"
                     variant="scrollable"
                     scrollButtons="auto"
                     allowScrollButtonsMobile

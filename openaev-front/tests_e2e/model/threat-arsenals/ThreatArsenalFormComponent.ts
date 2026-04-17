@@ -2,7 +2,7 @@ import { type Locator, type Page } from '@playwright/test';
 
 import MuiFormHelpers from '../../utils/MuiFormHelpers';
 
-class PayloadFormComponent {
+class ThreatArsenalFormComponent {
   readonly page: Page;
 
   // Form tabs
@@ -65,7 +65,7 @@ class PayloadFormComponent {
 
   getArgumentValue(index: number, field: string) {
     return this.page
-      .locator(`[name="payload_arguments.${index}.${field}"]`)
+      .locator(`[name="action_arguments.${index}.${field}"]`)
       .inputValue();
   }
 
@@ -73,6 +73,10 @@ class PayloadFormComponent {
 
   async switchToCommandsTab() {
     await this.commandsTab.click();
+  };
+
+  async switchToGeneralTab() {
+    await this.generalTab.click();
   };
 
   async selectDomain(domains: string | string[]) {
@@ -105,8 +109,8 @@ class PayloadFormComponent {
     await MuiFormHelpers.selectSingleOption(this.page, this.architectureField, architecture);
   }
 
-  async selectExecutor(architecture: string) {
-    await MuiFormHelpers.selectSingleOption(this.page, this.executorField, architecture);
+  async selectExecutor(executor: string) {
+    await MuiFormHelpers.selectSingleOption(this.page, this.executorField, executor);
   }
 
   async getArchitectureOptions() {
@@ -122,7 +126,7 @@ class PayloadFormComponent {
     key?: string;
     defaultValue?: string;
   }) {
-    const prefix = `payload_arguments.${index}`;
+    const prefix = `action_arguments.${index}`;
     if (data.key) {
       await this.page.locator(`[name="${prefix}.key"]`).fill(data.key);
     }
@@ -138,7 +142,7 @@ class PayloadFormComponent {
 
   async removeArgument(index: number) {
     await this.page
-      .getByTestId(`payload_arguments.${index}.delete-btn`)
+      .getByTestId(`action_arguments.${index}.delete-btn`)
       .click();
   }
 
@@ -147,4 +151,4 @@ class PayloadFormComponent {
   }
 }
 
-export default PayloadFormComponent;
+export default ThreatArsenalFormComponent;

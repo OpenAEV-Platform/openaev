@@ -16,9 +16,11 @@ import io.openaev.schema.PropertySchema;
 import io.openaev.schema.SchemaUtils;
 import jakarta.annotation.Nullable;
 import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.*;
@@ -167,9 +169,12 @@ public final class FilterUtilsJpa {
           Expression<U> paths = toPath(singlePathPropertySchema, root, joinMap);
           predicates.add(
               toPredicate(
+                  root,
+                  query,
                   paths,
                   filter,
                   cb,
+                  filterableProperty,
                   filterableProperty.getJoinTable() != null
                       ? String.class
                       : filterableProperty.getType()));
@@ -188,38 +193,57 @@ public final class FilterUtilsJpa {
       Expression<U> paths = toPath(filterableProperty, root, joinMap);
       // In case of join table, we will use ID so type is String
       return toPredicate(
+          root,
+          query,
           paths,
           filter,
           cb,
+          filterableProperty,
           filterableProperty.getJoinTable() != null ? String.class : filterableProperty.getType());
     };
   }
 
-  public static <U> Predicate toPredicate(
+  public static <T, U> Predicate toPredicate(
+      @NotNull final Root<T> root,
+      @NotNull final CriteriaQuery<?> query,
       @NotNull final Expression<U> paths,
       @NotNull final Filter filter,
       @NotNull final CriteriaBuilder cb,
+      @NotNull final PropertySchema propertySchema,
       @NotNull final Class<?> type) {
     FilterOperator operator = filter.getOperator();
     if (operator == null) {
       operator = FilterOperator.eq;
     }
     BiFunction<Expression<U>, List<String>, Predicate> operation =
-        computeOperation(operator, cb, type);
+        computeOperation(operator, cb, type, filter, root, query, propertySchema);
     return operation.apply(paths, filter.getValues());
   }
 
   // -- OPERATOR --
 
   @SuppressWarnings("unchecked")
-  private static <U> BiFunction<Expression<U>, List<String>, Predicate> computeOperation(
+  private static <T, U> BiFunction<Expression<U>, List<String>, Predicate> computeOperation(
       @NotNull final FilterOperator operator,
       @NotNull final CriteriaBuilder cb,
-      @NotNull final Class<?> type) {
+      @NotNull final Class<?> type,
+      @NotNull final Filter filter,
+      @NotNull final Root<T> root,
+      @NotNull final CriteriaQuery<?> query,
+      @NotNull final PropertySchema propertySchema) {
+
+    FilterMode mode = Optional.ofNullable(filter.getMode()).orElse(FilterMode.or);
+    String joinRelation =
+        propertySchema.getJoinTable() != null ? propertySchema.getJoinTable().getJoinOn() : null;
+
     return switch (operator) {
       case not_contains ->
-          (paths, texts) -> notContainsTexts((Expression<String>) paths, cb, texts, type);
-      case contains -> (paths, texts) -> containsTexts((Expression<String>) paths, cb, texts, type);
+          (paths, texts) ->
+              joinRelation == null
+                  ? notContainsTexts((Expression<String>) paths, cb, texts, type)
+                  : notContainsTexts(root, query, cb, joinRelation, "id", texts);
+      case contains ->
+          (paths, texts) -> containsTexts((Expression<String>) paths, cb, texts, type, mode);
       case not_starts_with ->
           (paths, texts) -> notStartWithTexts((Expression<String>) paths, cb, texts, type);
       case starts_with ->

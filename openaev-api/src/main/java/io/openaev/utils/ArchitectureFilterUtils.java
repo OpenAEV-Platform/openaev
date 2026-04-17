@@ -64,6 +64,7 @@ public class ArchitectureFilterUtils {
           if (payloadFilter.getValues().contains(Payload.PAYLOAD_EXECUTION_ARCH.x86_64.name())
               || payloadFilter.getValues().contains(Payload.PAYLOAD_EXECUTION_ARCH.arm64.name())) {
             payloadFilter.getValues().add(ALL_ARCHITECTURES);
+            payloadFilter.setMode(Filters.FilterMode.or);
           }
         });
 

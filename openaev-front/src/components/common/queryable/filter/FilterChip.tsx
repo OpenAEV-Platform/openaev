@@ -33,7 +33,7 @@ const FilterChip: FunctionComponent<Props> = ({
 
   const handleRemoveFilter = () => {
     if (helpers) {
-      helpers.handleRemoveFilterByKey(filter.key);
+      helpers.handleRemoveFilterById(filter.id);
     }
   };
 
@@ -74,6 +74,7 @@ const FilterChip: FunctionComponent<Props> = ({
                 propertySchema={propertySchema}
                 handleOpen={handleOpen}
                 contextId={contextId}
+                helpers={helpers}
               />
             </span>
           </Tooltip>

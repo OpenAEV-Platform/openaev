@@ -48,10 +48,10 @@ const FilterChips: FunctionComponent<Props> = ({
       {filters.map((filter, idx) => {
         const property = propertySchema(filter);
         if (!property) {
-          return <Fragment key={filter.key}></Fragment>;
+          return <Fragment key={filter.id}></Fragment>;
         }
         return (
-          <Fragment key={filter.key}>
+          <Fragment key={filter.id}>
             {idx !== 0 && <ClickableModeChip onClick={handleSwitchMode} mode={filterGroup?.mode} />}
             <FilterChip
               filter={filter}

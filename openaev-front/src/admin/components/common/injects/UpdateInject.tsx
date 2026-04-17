@@ -97,7 +97,7 @@ const UpdateInject: React.FC<Props> = ({
     dispatch(fetchInject(injectId)).then(() => {
       const payloadId = inject?.inject_injector_contract?.injector_contract_payload?.payload_id;
       if (payloadId) {
-        setAvailableTabs(['Inject details', 'Payload info', 'Logical chains']);
+        setAvailableTabs(['Inject details', 'Action info', 'Logical chains']);
       }
       setIsInjectLoading(false);
     });
@@ -107,7 +107,7 @@ const UpdateInject: React.FC<Props> = ({
   const handleTabChange = (_: SyntheticEvent, newValue: string) => {
     setActiveTab(newValue);
 
-    if (newValue === 'Payload info' && !documentsMap) {
+    if (newValue === 'Action info' && !documentsMap) {
       fetchDocumentsPayloadByInject(injectId, contractPayload?.payload_id)
         .then(documents => setDocumentsMap(arrayToRecord<Document, 'document_id'>(documents, 'document_id')));
     }
@@ -215,13 +215,16 @@ const UpdateInject: React.FC<Props> = ({
           )}
         </TabPanel>
 
-        {/* Payload info */}
+        {/* Action info */}
         {contractPayload && !isAtomic && (
-          <TabPanel value="Payload info" keepMounted className={classes.tabPanel}>
+          <TabPanel value="Action info" keepMounted className={classes.tabPanel}>
             {!isInjectLoading && (
               <PayloadComponent
                 documentsMap={documentsMap}
                 selectedPayload={contractPayload}
+                attackPatternIds={inject?.inject_injector_contract.injector_contract_attack_patterns ?? []}
+                domains={inject?.inject_injector_contract.injector_contract_domains ?? []}
+                tagIds={inject?.inject_injector_contract.injector_contract_tags ?? []}
               />
             )}
           </TabPanel>

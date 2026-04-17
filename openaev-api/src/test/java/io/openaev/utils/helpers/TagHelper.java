@@ -42,9 +42,7 @@ public class TagHelper {
             .flatMap(
                 inject ->
                     inject.getInjectorContract().isPresent()
-                        ? inject.getInjectorContract().get().getPayload() != null
-                            ? inject.getInjectorContract().get().getPayload().getTags().stream()
-                            : Stream.of()
+                        ? inject.getInjectorContract().get().getTags().stream()
                         : Stream.of())
             .toList());
     return tags;
@@ -84,9 +82,7 @@ public class TagHelper {
             .flatMap(
                 inject ->
                     inject.getInjectorContract().isPresent()
-                        ? inject.getInjectorContract().get().getPayload() != null
-                            ? inject.getInjectorContract().get().getPayload().getTags().stream()
-                            : Stream.of()
+                        ? inject.getInjectorContract().get().getTags().stream()
                         : Stream.of())
             .toList());
     return tags;
@@ -136,9 +132,7 @@ public class TagHelper {
             .flatMap(
                 inject ->
                     inject.getInjectorContract().isPresent()
-                        ? inject.getInjectorContract().get().getPayload() != null
-                            ? inject.getInjectorContract().get().getPayload().getTags().stream()
-                            : Stream.of()
+                        ? inject.getInjectorContract().get().getTags().stream()
                         : Stream.of())
             .toList());
     return tags;
