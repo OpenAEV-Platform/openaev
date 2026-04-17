@@ -2,6 +2,7 @@ import { type AxiosResponse } from 'axios';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { fetchDomainCounts } from '../../../../actions/domains/domain-actions';
+import { generateFilterId } from '../../../../components/common/queryable/filter/FilterUtils';
 import { type QueryableHelpers } from '../../../../components/common/queryable/QueryableHelpers';
 import {
   type Domain,
@@ -60,6 +61,7 @@ const useDomainIconFilter = ({
       filterHelpers.handleAddMultipleValueFilter(domainFilterKey, nextSelectedDomains);
     } else {
       filterHelpers.handleAddFilterWithEmptyValue({
+        id: generateFilterId(),
         key: domainFilterKey,
         operator: 'contains',
         values: nextSelectedDomains,
