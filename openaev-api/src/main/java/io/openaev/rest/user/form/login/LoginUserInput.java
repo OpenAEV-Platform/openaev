@@ -22,4 +22,8 @@ public class LoginUserInput {
   @JsonProperty
   @Schema(description = "The password of the user")
   private String password;
+
+  @JsonProperty
+  @Schema(description = "The tenant ID the user is logging into (optional)")
+  private String tenantId;
 }

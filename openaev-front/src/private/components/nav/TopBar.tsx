@@ -2,7 +2,7 @@ import { AccountCircleOutlined } from '@mui/icons-material';
 import { AppBar, IconButton, Menu, MenuItem, type MenuProps, Toolbar } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type MouseEvent as ReactMouseEvent, useState } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { logout } from '../../../actions/Application';
@@ -35,7 +35,6 @@ const TopBar: FunctionComponent = () => {
   const theme = useTheme();
   const { classes } = useStyles();
   const { t } = useFormatter();
-  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<MenuProps['anchorEl']>(null);
   const dispatch = useAppDispatch();
@@ -49,7 +48,7 @@ const TopBar: FunctionComponent = () => {
   };
   const handleLogout = async () => {
     await dispatch(logout());
-    navigate('/');
+    window.location.href = '/';
     setOpen(false);
   };
   return (

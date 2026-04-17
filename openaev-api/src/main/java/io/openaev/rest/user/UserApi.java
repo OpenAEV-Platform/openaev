@@ -15,6 +15,7 @@ import io.openaev.rest.user.form.login.ResetUserInput;
 import io.openaev.rest.user.form.user.ChangePasswordInput;
 import io.openaev.service.MailingService;
 import io.openaev.service.UserService;
+import io.openaev.service.tenants.TenantService;
 import io.openaev.service.user_events.UserEventService;
 import io.openaev.utils.RandomUtils;
 import io.swagger.v3.oas.annotations.ExternalDocumentation;
@@ -58,6 +59,7 @@ public class UserApi extends RestBehavior {
   private final MailingService mailingService;
   private final RandomUtils randomUtils;
   private final UserEventService userEventService;
+  private final TenantService tenantService;
 
   private final Map<String, String> resetTokenMap = new PassiveExpiringMap<>(tenMinutes);
 
@@ -77,6 +79,17 @@ public class UserApi extends RestBehavior {
     if (optionalUser.isPresent()) {
       User user = optionalUser.get();
       if (userService.isUserPasswordValid(user, input.getPassword())) {
+        // Verify tenant membership if a tenant ID was provided
+        if (input.getTenantId() != null && !input.getTenantId().isBlank()) {
+          boolean belongsToTenant =
+              tenantService.findTenantsByUserId(user.getId()).stream()
+                  .anyMatch(t -> t.getId().equals(input.getTenantId()));
+          if (!belongsToTenant) {
+            userEventService.createLoginFailedEvent(
+                "local login", AccessDeniedException.class.getSimpleName());
+            throw new AccessDeniedException("User does not belong to the requested tenant.");
+          }
+        }
         userService.createUserSession(user);
         userEventService.createLoginSuccessEvent(user);
         return user;
