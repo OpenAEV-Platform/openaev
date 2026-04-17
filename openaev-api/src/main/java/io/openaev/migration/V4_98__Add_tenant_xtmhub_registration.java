@@ -8,7 +8,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V4_94__Add_tenant_xtmhub_registration extends BaseJavaMigration {
+public class V4_98__Add_tenant_xtmhub_registration extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
