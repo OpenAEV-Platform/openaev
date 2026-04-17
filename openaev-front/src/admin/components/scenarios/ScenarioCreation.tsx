@@ -88,7 +88,6 @@ const ScenarioCreation: FunctionComponent = () => {
             onSubmit={onSubmit}
             initialValues={initialValues}
             handleClose={() => setOpen(false)}
-            isCreation
             isChaining={engineType === 'chaining'}
           />
         )}
