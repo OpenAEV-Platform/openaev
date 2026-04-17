@@ -10,7 +10,6 @@ import { useTheme } from '@mui/material/styles';
 import { useContext } from 'react';
 
 import { useFormatter } from '../../../../../components/i18n';
-import ItemNumberDifference from '../../../../../components/ItemNumberDifference';
 import { type Widget } from '../../../../../utils/api-types';
 import { CustomDashboardContext } from '../CustomDashboardContext';
 import { ALL_TIME_TIME_RANGE, getTimeRangeFromDashboard, getTimeRangeItem } from './configuration/common/TimeRangeUtils';
@@ -121,7 +120,7 @@ const WidgetTitle = ({ widget, setFullscreen, readOnly, handleWidgetUpdate, hand
       style={{
         display: 'flex',
         alignItems: 'center',
-        marginBottom: 4,
+        marginBottom: 10,
         height: 22,
       }}
     >
@@ -132,24 +131,15 @@ const WidgetTitle = ({ widget, setFullscreen, readOnly, handleWidgetUpdate, hand
           margin: 0,
           fontSize: 12,
           fontWeight: 500,
+          textTransform: 'uppercase',
           whiteSpace: 'nowrap',
           overflow: 'hidden',
           textOverflow: 'ellipsis',
+          flex: 1,
         }}
       >
         {widgetTitle}
       </Typography>
-      {isNumberWidget && vizData.type === WidgetVizDataType.NUMBER && vizData.data && (
-        <Box sx={{
-          display: 'flex',
-          alignItems: 'center',
-          ml: 1,
-        }}
-        >
-          <ItemNumberDifference difference={vizData.data.difference_count} description="" />
-        </Box>
-      )}
-      <Box sx={{ flex: 1 }} />
       {isNumberWidget && numberTooltipContent && (
         <Tooltip
           title={numberTooltipContent}
