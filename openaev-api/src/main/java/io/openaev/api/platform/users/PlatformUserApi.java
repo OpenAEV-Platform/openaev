@@ -4,6 +4,7 @@ import static io.openaev.api.users.dto.UserMapper.toOutput;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.api.users.dto.UserInput;
+import io.openaev.api.users.dto.UserMapper;
 import io.openaev.api.users.dto.UserOutput;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
@@ -11,6 +12,8 @@ import io.openaev.service.UserService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
@@ -60,6 +63,16 @@ public class PlatformUserApi {
   public Page<UserOutput> search(
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return userService.search(searchPaginationInput);
+  }
+
+  @Operation(summary = "Find platform users by IDs")
+  @AccessControl(
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.PLATFORM_USER,
+      isEnterpriseEdition = true)
+  @PostMapping("/find")
+  public List<UserOutput> find(@RequestBody @Valid @NotNull final List<String> userIds) {
+    return userService.find(userIds).stream().map(UserMapper::toOutput).toList();
   }
 
   // -- UPDATE --

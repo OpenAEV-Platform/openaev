@@ -10,7 +10,7 @@ import { useQueryable } from '../../../../components/common/queryable/useQueryab
 import SelectList, { type SelectListElements } from '../../../../components/common/SelectList';
 import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
-import { type UserOutput } from '../../../../utils/api-types';
+import { type SearchPaginationInput, type UserOutput } from '../../../../utils/api-types';
 import { resolveUserName } from '../../../../utils/String';
 
 interface Props {
@@ -19,6 +19,8 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onSubmit: (userIds: string[]) => void;
+  searchUsersFn?: (input: SearchPaginationInput) => Promise<{ data: UserOutput[] }>;
+  findUsersFn?: (userIds: string[]) => Promise<{ data: UserOutput[] }>;
 }
 
 const GroupManageUsers: FunctionComponent<Props> = ({
@@ -27,6 +29,8 @@ const GroupManageUsers: FunctionComponent<Props> = ({
   open,
   onClose,
   onSubmit,
+  searchUsersFn = searchUsers,
+  findUsersFn = findUsers,
 }) => {
   // Standard hooks
   const { t } = useFormatter();
@@ -36,7 +40,7 @@ const GroupManageUsers: FunctionComponent<Props> = ({
   const [isLoading, setIsLoading] = useState<boolean>(false);
   useEffect(() => {
     if (open) {
-      findUsers(initialState).then(result => setSelectedUserValues(result.data));
+      findUsersFn(initialState).then(result => setSelectedUserValues(result.data));
     }
   }, [open, initialState]);
 
@@ -69,7 +73,7 @@ const GroupManageUsers: FunctionComponent<Props> = ({
   const { queryableHelpers, searchPaginationInput } = useQueryable(buildSearchPagination({}));
   const paginationComponent = (
     <PaginationComponentV2
-      fetch={input => searchUsers(input)}
+      fetch={input => searchUsersFn(input)}
       searchPaginationInput={searchPaginationInput}
       setContent={setUserValues}
       setLoading={setIsLoading}

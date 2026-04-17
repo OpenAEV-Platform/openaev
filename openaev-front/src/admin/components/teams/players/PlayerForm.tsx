@@ -90,7 +90,7 @@ const PlayerForm: FunctionComponent<PlayerFormProps> = ({
             name="user_organization"
             values={values}
             setFieldValue={form.mutators.setValue}
-            userRight={ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS)}
+            userRight={ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS)}
           />
           <CountryField
             name="user_country"

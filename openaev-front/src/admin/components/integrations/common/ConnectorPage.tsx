@@ -71,8 +71,8 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
         detailsTitle
         instanceCurrentStatus={instance?.connector_instance_current_status}
         instanceRequestedStatus={instance?.connector_instance_requested_status}
-        showUpdateButtons={ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS)}
-        showMigrateButton={connector?.isExternal === true && !instance && isXtmComposerUp && ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS)}
+        showUpdateButtons={ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS)}
+        showMigrateButton={connector?.isExternal === true && !instance && isXtmComposerUp && ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS)}
         onMigrateBtnClick={onMigrateBtnClick}
         disabledUpdateButtons={!isEnterpriseEdition || (!isXtmComposerUp && catalogConnector?.catalog_connector_manager_supported)}
       />

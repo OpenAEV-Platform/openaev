@@ -19,6 +19,11 @@ export const searchPlatformUsers = (paginationInput: SearchPaginationInput) => {
   return simplePostCall(uri, paginationInput);
 };
 
+export const findPlatformUsers = (userIds: string[]) => {
+  const uri = `${PLATFORM_USERS_URI}/find`;
+  return simplePostCall(uri, userIds);
+};
+
 // -- UPDATE --
 
 export const updatePlatformUser

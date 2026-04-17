@@ -150,7 +150,7 @@ const Tags = () => {
             </ListItem>
           ))}
         </List>
-        <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
+        <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
           <CreateTag
             onCreate={result => setTags([result, ...tags])}
           />

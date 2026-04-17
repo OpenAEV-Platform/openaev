@@ -82,7 +82,7 @@ const XlsMappers = () => {
           searchPaginationInput={searchPaginationInput}
           setContent={setMappers}
         >
-          <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
+          <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
             <ImportUploaderMapper />
           </Can>
         </PaginationComponent>
@@ -145,7 +145,7 @@ const XlsMappers = () => {
           }
           {!mappers ? (<Empty message={t('No data available')} />) : null}
         </List>
-        <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
+        <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
           <XlsMapperCreation onCreate={result => setMappers([result, ...mappers])} />
         </Can>
       </div>

@@ -28,7 +28,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 @TestInstance(PER_CLASS)
 @Transactional
-@WithMockUser(withCapabilities = {Capability.ACCESS_PLATFORM_SETTINGS})
+@WithMockUser(withCapabilities = {Capability.ACCESS_TENANT_SETTINGS})
 @DisplayName("Catalog Connector Api Integration Tests")
 public class CatalogConnectorApiTest extends IntegrationTest {
 

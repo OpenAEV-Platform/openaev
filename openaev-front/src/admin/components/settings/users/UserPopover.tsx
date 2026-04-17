@@ -7,7 +7,7 @@ import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
 import type { ChangePasswordInput, UserOutput } from '../../../../utils/api-types';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
-import type { Actions, Subjects } from '../../../../utils/permissions/types';
+import { type Actions, type Subjects } from '../../../../utils/permissions/types';
 import UserPasswordForm from './UserPasswordForm';
 import UserUpdate from './UserUpdate';
 

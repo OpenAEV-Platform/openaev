@@ -1,6 +1,7 @@
 import { type FC, useEffect, useState } from 'react';
 
 import { fetchPlatformGroupUserIds } from '../../../../../actions/platform/platform-group/platform-group-action';
+import { findPlatformUsers, searchPlatformUsers } from '../../../../../actions/platform/users/platform-user-action';
 import GroupManageUsers from '../../../settings/groups/GroupManageUsers';
 
 interface Props {
@@ -34,6 +35,8 @@ const PlatformGroupManageUsers: FC<Props> = ({
       open={open}
       onClose={onClose}
       onSubmit={onSubmit}
+      searchUsersFn={searchPlatformUsers}
+      findUsersFn={findPlatformUsers}
     />
   );
 };

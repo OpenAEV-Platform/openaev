@@ -63,7 +63,7 @@ const AtomicTestingRemediations = () => {
 
   const isRemediationTab = location.pathname.includes('/remediations');
 
-  const hasPlatformSettingsCapabilities = ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS);
+  const hasSecurityPlatformsAccess = ability.can(ACTIONS.ACCESS, SUBJECTS.SECURITY_PLATFORMS);
   const [loading, setLoading] = useState(false);
 
   const { collectors } = useHelper((helper: CollectorHelper) => ({ collectors: helper.getExistingCollectors() }));
@@ -75,7 +75,7 @@ const AtomicTestingRemediations = () => {
   const [typing, setTyping] = useState<boolean>(!!snapshot?.get(tabs[activeTab]?.collector_type)?.isLoading);
 
   useDataLoader(() => {
-    if (hasPlatformSettingsCapabilities) {
+    if (hasSecurityPlatformsAccess) {
       setLoading(true);
       dispatch(fetchCollectors()).finally(() => {
         setLoading(false);
@@ -201,7 +201,7 @@ const AtomicTestingRemediations = () => {
     <>
       <Typography variant="h5" gutterBottom>{t('Security platform')}</Typography>
       {loading && <Loader variant="inElement" />}
-      {(hasPlatformSettingsCapabilities || injectId) ? (
+      {(hasSecurityPlatformsAccess || injectId) ? (
         <>
           {tabs.length === 0
             ? (

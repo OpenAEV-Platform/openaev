@@ -192,7 +192,7 @@ const KillChainPhases = () => {
             </ListItem>
           ))}
         </List>
-        <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
+        <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
           <CreateKillChainPhase
             onCreate={result => setKillChainPhases([result, ...killChainPhases])}
           />

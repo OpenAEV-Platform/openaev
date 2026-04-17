@@ -187,8 +187,8 @@ const Users = () => {
                     });
                   }}
                   permissions={{
-                    manage: [ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS],
-                    delete: [ACTIONS.DELETE, SUBJECTS.PLATFORM_SETTINGS],
+                    manage: [ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS],
+                    delete: [ACTIONS.DELETE, SUBJECTS.TENANT_SETTINGS],
                   }}
                   inList
                 />
@@ -224,7 +224,7 @@ const Users = () => {
             </ListItem>
           ))}
         </List>
-        <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
+        <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
           <CreateUser
             onCreate={(result: User) => setUsers([result, ...users])}
           />

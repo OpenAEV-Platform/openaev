@@ -161,7 +161,7 @@ const Vulnerabilities = () => {
             </ListItem>
           ))}
         </List>
-        <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
+        <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
           <CreateVulnerability
             onCreate={(result: VulnerabilitySimple) => setVulnerabilities([result, ...vulnerabilities])}
           />
