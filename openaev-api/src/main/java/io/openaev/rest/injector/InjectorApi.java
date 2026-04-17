@@ -191,15 +191,9 @@ public class InjectorApi extends RestBehavior {
     String filename = "";
     String resourcePath = "/openaev-implant/" + platform + "/" + architecture + "/";
 
-    if (implantBinaryOrigin.equals("local")) { // if we want the local binaries
       filename = "openaev-implant-" + version + (platform.equals("windows") ? ".exe" : "");
       in = getClass().getResourceAsStream("/implants" + resourcePath + filename);
-    } else if (implantBinaryOrigin.equals(
-        "repository")) { // if we want a specific version from artifactory
-      filename =
-          "openaev-implant-" + implantBinaryVersion + (platform.equals("windows") ? ".exe" : "");
-      in = new BufferedInputStream(validateJFrogUri(resourcePath, filename).toURL().openStream());
-    }
+
 
     if (in != null) {
       HttpHeaders headers = new HttpHeaders();
