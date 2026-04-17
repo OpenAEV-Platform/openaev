@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.model.ConditionKeySubtype;
 import io.openaev.database.model.ConditionKeyType;
 import io.openaev.database.model.ConditionType;
+import io.openaev.database.model.MappingType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 
@@ -57,6 +58,16 @@ public class ConditionCreateInput {
           "Condition type: AND, OR, EQ, NEQ, IS_NULL, IS_NOT_NULL, GT, GTE, LT, LTE, IN, NIN, AFTER, BEFORE, MAPPER, or DEPEND_ON")
   @JsonProperty("condition_type")
   private ConditionType type;
+
+  /**
+   * Mapping type: DEFAULT, LOCAL, or GLOBAL. Required when condition type is MAPPER, must be null
+   * otherwise.
+   */
+  @Schema(
+      description =
+          "Mapping type: DEFAULT, LOCAL, or GLOBAL. Required when condition type is MAPPER, must be null otherwise.")
+  @JsonProperty("condition_mapping_type")
+  private MappingType mappingType;
 
   /** ID of the step linked to the key - time-based logic */
   @Schema(description = "ID of the step linked to the key")

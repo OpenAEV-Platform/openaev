@@ -29,6 +29,7 @@ import io.openaev.service.scenario.ScenarioService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import java.util.List;
@@ -42,6 +43,10 @@ import org.springframework.web.server.ResponseStatusException;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping({CHAINING_URI, TENANT_CHAINING_URI})
+@Tag(
+    name = "Chaining API",
+    description =
+        "Operations related to Chaining feature, including conditions, steps, simulations and scenarios chaining.")
 public class ChainingApi extends RestBehavior {
 
   public static final String TENANT_CHAINING_URI = TENANT_PREFIX + "/chaining";

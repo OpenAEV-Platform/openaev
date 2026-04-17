@@ -1233,6 +1233,8 @@ export interface ConditionCreateInput {
     | "sid"
     | "vulnerability"
     | "asset";
+  /** Mapping type: DEFAULT, LOCAL, or GLOBAL. Required when condition type is MAPPER, must be null otherwise. */
+  condition_mapping_type?: "DEFAULT" | "LOCAL" | "GLOBAL";
   /** ID of the step linked to the key */
   condition_step_from?: string;
   /** Temporary ID of the condition */
@@ -1286,6 +1288,7 @@ export interface ConditionOutput {
     | "sid"
     | "vulnerability"
     | "asset";
+  condition_mapping_type?: "DEFAULT" | "LOCAL" | "GLOBAL";
   condition_parent_id?: string;
   condition_type?: string;
   condition_value?: string;

@@ -1,5 +1,7 @@
 package io.openaev.service.chaining;
 
+import static io.openaev.api.chaining.ConditionMapper.resolveMappingType;
+
 import io.openaev.api.chaining.ConditionMapper;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.EventInput;
@@ -63,6 +65,7 @@ public class ConditionService {
             .type(rootInput.getType())
             .keyType(rootInput.getKeyType())
             .keySubtype(rootInput.getKeySubtype())
+            .mappingType(resolveMappingType(rootInput))
             .build();
 
     return persistConditionTree(
@@ -232,6 +235,7 @@ public class ConditionService {
     root.setType(rootInput.getType());
     root.setKeyType(rootInput.getKeyType());
     root.setKeySubtype(rootInput.getKeySubtype());
+    root.setMappingType(resolveMappingType(rootInput));
 
     if (root.getConditionChildren() != null) {
       root.getConditionChildren().clear();

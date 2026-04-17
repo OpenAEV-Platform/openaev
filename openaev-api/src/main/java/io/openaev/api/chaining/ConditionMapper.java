@@ -4,6 +4,8 @@ import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.ConditionOutput;
 import io.openaev.api.chaining.dto.EventOutput;
 import io.openaev.database.model.Condition;
+import io.openaev.database.model.ConditionType;
+import io.openaev.database.model.MappingType;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -84,7 +86,24 @@ public class ConditionMapper {
         .type(c.getType() != null ? c.getType().name() : null)
         .value(c.getValue())
         .conditionParentId(parentId)
+        .mappingType(c.getMappingType())
         .build();
+  }
+
+  /**
+   * Resolves the effective {@link MappingType} for a condition input.
+   *
+   * <p>When the condition type is {@link ConditionType#MAPPER} and no mapping type is provided,
+   * defaults to {@link MappingType#DEFAULT}.
+   *
+   * @param input the condition input to resolve
+   * @return the resolved mapping type, or {@code null} for non-MAPPER conditions
+   */
+  public static MappingType resolveMappingType(ConditionCreateInput input) {
+    if (input.getType() == ConditionType.MAPPER && input.getMappingType() == null) {
+      return MappingType.DEFAULT;
+    }
+    return input.getMappingType();
   }
 
   public static Condition toCondition(ConditionCreateInput input) {
@@ -100,6 +119,7 @@ public class ConditionMapper {
         .type(input.getType())
         .value(input.getValue())
         .conditionParent(conditionParent)
+        .mappingType(resolveMappingType(input))
         .build();
   }
 }
