@@ -8,7 +8,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V4_95__Migrate_users_to_default_tenant extends BaseJavaMigration {
+public class V4_94__Migrate_users_to_default_tenant extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
