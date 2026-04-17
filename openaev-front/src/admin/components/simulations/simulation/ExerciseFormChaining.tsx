@@ -109,6 +109,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
         InputLabelProps={{ required: true }}
         control={control}
         setValue={setValue}
+        askAi={true}
         maxLength={255}
       />
       <GridLegacy container spacing={2}>
@@ -198,6 +199,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
         inputProps={register('exercise_description')}
         control={control}
         setValue={setValue}
+        askAi={true}
       />
       {!edit
         && (
