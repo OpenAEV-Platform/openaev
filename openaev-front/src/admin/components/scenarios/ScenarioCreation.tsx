@@ -30,7 +30,10 @@ const ScenarioCreation: FunctionComponent = () => {
   }, []);
 
   const onSubmit = (data: ScenarioInput, isScenarioAssistantChecked?: boolean) => {
-    dispatch(addScenario({ ...data })).then(
+    dispatch(addScenario({
+      ...data,
+      scenario_is_chaining: engineType === 'chaining',
+    })).then(
       (result: {
         result: string;
         entities: { scenarios: Record<string, Scenario> };
@@ -85,7 +88,6 @@ const ScenarioCreation: FunctionComponent = () => {
             onSubmit={onSubmit}
             initialValues={initialValues}
             handleClose={() => setOpen(false)}
-            isCreation
             isChaining={engineType === 'chaining'}
           />
         )}

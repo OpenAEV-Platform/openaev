@@ -17,7 +17,7 @@ import EEChip from './entreprise_edition/EEChip';
 const ChainingIllustration: FunctionComponent<{ isDark: boolean }> = ({ isDark }) => (
   <img
     src={isDark ? chainingIllustrationDark : chainingIllustrationLight}
-    alt="Chaining scenario illustration"
+    alt="Chaining illustration"
     style={{
       width: 160,
       height: 60,
@@ -32,7 +32,7 @@ const ChainingIllustration: FunctionComponent<{ isDark: boolean }> = ({ isDark }
 const TimeBasedIllustration: FunctionComponent<{ isDark: boolean }> = ({ isDark }) => (
   <img
     src={isDark ? timeBasedIllustrationDark : timeBasedIllustrationLight}
-    alt="Time-based scenario illustration"
+    alt="Time-based illustration"
     style={{
       width: 160,
       height: 60,
@@ -46,11 +46,13 @@ export type EngineType = 'chaining' | 'time-based' | null;
 interface EngineTypeSelectionProps {
   selected: EngineType;
   onSelect: (type: EngineType) => void;
+  context?: 'scenario' | 'simulation';
 }
 
 const EngineTypeSelection: FunctionComponent<EngineTypeSelectionProps> = ({
   selected,
   onSelect,
+  context = 'scenario',
 }) => {
   const { t } = useFormatter();
   const theme = useTheme();
@@ -60,6 +62,8 @@ const EngineTypeSelection: FunctionComponent<EngineTypeSelectionProps> = ({
     setEEFeatureDetectedInfo,
   } = useEnterpriseEdition();
 
+  const isSimulation = context === 'simulation';
+
   const options: Array<{
     type: NonNullable<EngineType>;
     title: string;
@@ -67,19 +71,19 @@ const EngineTypeSelection: FunctionComponent<EngineTypeSelectionProps> = ({
   }> = [
     {
       type: 'chaining',
-      title: t('chaining.chaining-scenario.title'),
+      title: t(isSimulation ? 'chaining.chaining-simulation.title' : 'chaining.chaining-scenario.title'),
       description: t('chaining.chaining-scenario.description'),
     },
     {
       type: 'time-based',
-      title: t('chaining.chaining-timebased.title'),
+      title: t(isSimulation ? 'chaining.chaining-timebased-simulation.title' : 'chaining.chaining-timebased.title'),
       description: t('chaining.chaining-timebased.description'),
     },
   ];
 
   const handleCardClick = (type: NonNullable<EngineType>) => {
     if (type === 'chaining' && !isEnterpriseEdition) {
-      setEEFeatureDetectedInfo(t('chaining.chaining-scenario.title'));
+      setEEFeatureDetectedInfo(t(isSimulation ? 'chaining.chaining-simulation.title' : 'chaining.chaining-scenario.title'));
       openEnterpriseEditionDialog();
       return;
     }
@@ -96,7 +100,7 @@ const EngineTypeSelection: FunctionComponent<EngineTypeSelectionProps> = ({
       }}
       >
         <Typography variant="body2" color="text.secondary">
-          {t('chaining.select-type')}
+          {t(isSimulation ? 'chaining.select-type-simulation' : 'chaining.select-type')}
         </Typography>
         <Link
           href="https://docs.openaev.io/latest/usage/chaining/"
@@ -111,7 +115,7 @@ const EngineTypeSelection: FunctionComponent<EngineTypeSelectionProps> = ({
           }}
         >
           <OpenInNew sx={{ fontSize: 14 }} />
-          {t('chaining.doc-link')}
+          {isSimulation ? t('chaining.doc-link-simulation') : t('chaining.doc-link')}
         </Link>
       </Stack>
       <Stack

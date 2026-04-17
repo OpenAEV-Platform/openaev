@@ -101,7 +101,16 @@ public class ScenarioApi extends RestBehavior {
               .map(this.customDashboardService::customDashboard)
               .orElse(null));
     }
-    return this.scenarioService.createScenario(scenario);
+    Scenario savedScenario = this.scenarioService.createScenario(scenario);
+
+    // If the chaining feature flag is enabled and the engine is "chaining", create and link a
+    // workflow to the scenario
+    if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
+        && Boolean.TRUE.equals(input.getIsChaining())) {
+      workflowService.creationWorkflow(savedScenario);
+    }
+
+    return savedScenario;
   }
 
   @PostMapping({SCENARIO_URI + "/{scenarioId}", TENANT_SCENARIO_URI + "/{scenarioId}"})

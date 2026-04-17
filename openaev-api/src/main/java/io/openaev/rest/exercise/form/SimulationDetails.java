@@ -122,6 +122,9 @@ public class SimulationDetails {
   @JsonProperty("exercise_custom_dashboard")
   private String customDashboard;
 
+  @JsonProperty("exercise_workflow_id")
+  private String workflowId;
+
   // -- PLATFORMS --
 
   @JsonProperty("exercise_platforms")
@@ -191,7 +194,8 @@ public class SimulationDetails {
         .objectives(objectives)
         .lessonsAnswersNumber(exercise.getLessons_answers().stream().distinct().toList().size())
         .allUsersNumber(exercise.getExercise_users().stream().distinct().toList().size())
-        .logsNumber(exercise.getLogs().stream().distinct().toList().size());
+        .logsNumber(exercise.getLogs().stream().distinct().toList().size())
+        .workflowId(exercise.getExercise_workflow_id());
 
     return details.build();
   }

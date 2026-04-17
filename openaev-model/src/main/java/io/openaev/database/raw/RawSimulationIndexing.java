@@ -217,4 +217,11 @@ public interface RawSimulationIndexing extends RawTenant {
    * @return list of inject IDs
    */
   List<String> getInject_ids();
+
+  /**
+   * Returns the workflow ID associated with this exercise, if using the chaining engine.
+   *
+   * @return the workflow ID, or {@code null} if not using chaining
+   */
+  String getExercise_workflow_id();
 }

@@ -197,4 +197,11 @@ public interface RawScenario {
    * @return the total user count
    */
   Long getScenario_all_users_number();
+
+  /**
+   * Returns the workflow ID associated with this scenario, if any.
+   *
+   * @return the workflow ID, or {@code null} if no workflow is linked
+   */
+  String getScenario_workflow_id();
 }

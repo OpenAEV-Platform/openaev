@@ -33,8 +33,10 @@ import io.openaev.rest.exercise.service.ExportService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.form.InjectExpectationResultsByAttackPattern;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
+import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
@@ -104,6 +106,8 @@ public class ExerciseApi extends RestBehavior {
   private final ScenarioService scenarioService;
   private final UserService userService;
   private final PlatformSettingsService platformSettingsService;
+  private final WorkflowService workflowService;
+  private final PreviewFeatureService previewFeatureService;
 
   // endregion
 
@@ -381,7 +385,16 @@ public class ExerciseApi extends RestBehavior {
               .map(this.customDashboardService::customDashboard)
               .orElse(null));
     }
-    return this.exerciseService.createExercise(exercise);
+    Exercise savedExercise = this.exerciseService.createExercise(exercise);
+
+    // If the chaining feature flag is enabled and the engine is "chaining", create and link a
+    // workflow to the simulation
+    if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
+        && Boolean.TRUE.equals(input.getIsChaining())) {
+      workflowService.creationWorkflow(savedExercise);
+    }
+
+    return savedExercise;
   }
 
   @PostMapping({EXERCISE_URI + "/{exerciseId}", TENANT_EXERCISE_URI + "/{exerciseId}"})

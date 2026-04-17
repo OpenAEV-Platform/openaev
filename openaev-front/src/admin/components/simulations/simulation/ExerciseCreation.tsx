@@ -77,6 +77,7 @@ const ExerciseCreation = () => {
         <EngineTypeSelection
           selected={engineType}
           onSelect={handleTypeSelected}
+          context="simulation"
         />
         {/* if scenario type is selected (standard or chaining), then display the form */}
         {engineType !== null && (
