@@ -29,6 +29,7 @@ import io.openaev.jsonapi.Relationship;
 import io.openaev.jsonapi.ResourceIdentifier;
 import io.openaev.jsonapi.ResourceObject;
 import io.openaev.service.ZipJsonService;
+import io.openaev.utils.fixtures.DetectionRemediationFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.*;
 import org.junit.jupiter.api.DisplayName;
@@ -82,22 +83,6 @@ class PayloadApiImporterTest extends IntegrationTest {
         .andReturn()
         .getResponse()
         .getContentAsString();
-  }
-
-  private ResourceObject buildDetectionRemediationResource(
-      String remediationId, String values, String collectorType, String collectorId) {
-    Map<String, Object> attributes = new HashMap<>();
-    attributes.put("detection_remediation_values", values);
-    attributes.put("author_rule", "HUMAN");
-
-    Map<String, Relationship> relationships = new HashMap<>();
-    if (collectorType != null && collectorId != null) {
-      relationships.put(
-          "detection_remediation_collector_type",
-          new Relationship(new ResourceIdentifier(collectorId, collectorType)));
-    }
-
-    return new ResourceObject(remediationId, "detection_remediations", attributes, relationships);
   }
 
   private ResourceObject buildCollectorResource(String collectorResourceId, String collectorType) {
@@ -577,10 +562,10 @@ class PayloadApiImporterTest extends IntegrationTest {
         buildCollectorResource(collectorResourceId, existingCollector.getType());
 
     ResourceObject firstRemediation =
-        buildDetectionRemediationResource(
+        DetectionRemediationFixture.buildDetectionRemediationResource(
             firstRemediationId, "{\"rule\":\"first\"}", "collectors", collectorResourceId);
     ResourceObject secondRemediation =
-        buildDetectionRemediationResource(
+        DetectionRemediationFixture.buildDetectionRemediationResource(
             secondRemediationId, "{\"rule\":\"second\"}", "collectors", collectorResourceId);
 
     JsonApiDocument<ResourceObject> document =
