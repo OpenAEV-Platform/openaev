@@ -5,6 +5,7 @@ import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.InjectorContractId;
 import io.openaev.database.model.Payload;
 import io.openaev.database.raw.RawInjectorsContracts;
+import io.openaev.database.raw.RawPayloadRelatedIds;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Optional;
@@ -102,7 +103,35 @@ public interface InjectorContractRepository
   List<InjectorContract> findByInjectorsContaining(@NotNull Injector injector);
 
   @NotNull
-  List<InjectorContract> findInjectorContractsByPayload(@NotNull Payload payload);
+  Optional<InjectorContract> findInjectorContractByPayload(@NotNull Payload payload);
+
+  @Query(
+      value =
+          """
+      SELECT ic.injector_contract_payload AS payload_id,
+             COALESCE(ap.attack_pattern_ids, ARRAY[]::text[]) AS attack_pattern_ids,
+             COALESCE(d.domain_ids, ARRAY[]::text[]) AS domain_ids,
+             COALESCE(t.tag_ids, ARRAY[]::text[]) AS tag_ids
+      FROM injectors_contracts ic
+      LEFT JOIN LATERAL (
+          SELECT array_remove(array_agg(icap.attack_pattern_id), NULL) AS attack_pattern_ids
+          FROM injectors_contracts_attack_patterns icap
+          WHERE icap.injector_contract_id = ic.injector_contract_id
+      ) ap ON true
+      LEFT JOIN LATERAL (
+          SELECT array_remove(array_agg(icd.domain_id), NULL) AS domain_ids
+          FROM injectors_contracts_domains icd
+          WHERE icd.injector_contract_id = ic.injector_contract_id
+      ) d ON true
+      LEFT JOIN LATERAL (
+          SELECT array_remove(array_agg(ict.tag_id), NULL) AS tag_ids
+          FROM injector_contract_tags ict
+          WHERE ict.injector_contract_id = ic.injector_contract_id
+      ) t ON true
+      WHERE ic.injector_contract_payload = :payloadId
+      """,
+      nativeQuery = true)
+  Optional<RawPayloadRelatedIds> findRelatedIdsByPayloadId(@Param("payloadId") String payloadId);
 
   @Modifying
   @Query("DELETE FROM InjectorContract ic WHERE ic.compositeId.id = :id")

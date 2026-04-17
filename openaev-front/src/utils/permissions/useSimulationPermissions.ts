@@ -3,11 +3,11 @@ import { useContext } from 'react';
 import { type ExercisesHelper } from '../../actions/exercises/exercise-helper';
 import { type LoggedHelper, type UserHelper } from '../../actions/helper';
 import { useHelper } from '../../store';
-import { type Exercise } from '../api-types';
+import { type SimulationDetails } from '../api-types';
 import { AbilityContext } from './permissionsContext';
 import { ACTIONS, SUBJECTS } from './types';
 
-const useSimulationPermissions = (exerciseId: string, fullExercise?: Exercise) => {
+const useSimulationPermissions = (exerciseId: string, fullExercise?: SimulationDetails) => {
   const ability = useContext(AbilityContext);
 
   const { exercise, me, logged } = useHelper((helper: ExercisesHelper & UserHelper & LoggedHelper) => {

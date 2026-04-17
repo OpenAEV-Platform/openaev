@@ -1,15 +1,13 @@
 import { type Locator, type Page } from '@playwright/test';
 
-class PayloadListPage {
+class ThreatArsenalListPage {
   readonly page: Page;
-  readonly container: Locator;
   readonly addButton: Locator;
   readonly listContainer: Locator;
   readonly searchContainer: Locator;
 
   constructor(page: Page) {
     this.page = page;
-    this.container = page.getByTestId('payload-list-page');
     this.addButton = page.getByRole('button', { name: 'Add' });
     this.listContainer = page.locator('.MuiListItem-root');
     this.searchContainer = page.getByPlaceholder('Search these results...');
@@ -20,16 +18,16 @@ class PayloadListPage {
   }
 
   async waitForLoad() {
-    await this.container.waitFor({ state: 'visible' });
+    await this.page.waitForURL('**/threat-arsenal**');
   }
 
-  async openCreatePayload() {
+  async openCreateThreatArsenal() {
     await this.addButton.click();
   }
 
-  async searchPayload(search: string) {
+  async searchThreatArsenal(search: string) {
     await this.searchContainer.fill(search);
   }
 }
 
-export default PayloadListPage;
+export default ThreatArsenalListPage;

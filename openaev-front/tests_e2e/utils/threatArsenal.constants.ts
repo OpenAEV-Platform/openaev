@@ -1,6 +1,6 @@
-import type PayloadFormComponent from '../model/payloads/PayloadFormComponent';
+import type ThreatArsenalFormComponent from '../model/threat-arsenals/ThreatArsenalFormComponent';
 
-export const PayloadCommandTypes = {
+export const ThreatArsenalCommandTypes = {
   COMMAND_LINE: 'Command Line',
   EXECUTABLE: 'Executable',
   FILE_DROP: 'File Drop',
@@ -13,36 +13,36 @@ export const Architectures = {
   ALL: 'All architectures',
 } as const;
 
-export type PayloadFormFields = keyof Omit<PayloadFormComponent, 'page'>;
+export type ThreatArsenalFormFields = keyof Omit<ThreatArsenalFormComponent, 'page'>;
 
 export const GeneralTabFields = {
   requiredFields: ['nameField'],
   optionalFields: ['descriptionField', 'attackPatternsField', 'tagsField', 'expectationsField'],
 };
 
-export const CommandTypeFields = {
+export const CommandTypeFields: Record<string, readonly string[]> = {
   common: ['typeField', 'architectureField', 'platformsField', 'argumentBtn', 'prerequisiteBtn'],
-  [PayloadCommandTypes.COMMAND_LINE]: ['executorField', 'commandField'],
-  [PayloadCommandTypes.EXECUTABLE]: ['documentsAddBtn'],
-  [PayloadCommandTypes.FILE_DROP]: ['documentsAddBtn'],
-  [PayloadCommandTypes.DNS_RESOLUTION]: ['hostnameField'],
+  [ThreatArsenalCommandTypes.COMMAND_LINE]: ['executorField', 'commandField'],
+  [ThreatArsenalCommandTypes.EXECUTABLE]: ['documentsAddBtn'],
+  [ThreatArsenalCommandTypes.FILE_DROP]: ['documentsAddBtn'],
+  [ThreatArsenalCommandTypes.DNS_RESOLUTION]: ['hostnameField'],
 } as const;
 
 export const ArchitectureConfigs = [
   {
-    commandType: PayloadCommandTypes.COMMAND_LINE,
+    commandType: ThreatArsenalCommandTypes.COMMAND_LINE,
     expectedOptions: [Architectures.X86_64, Architectures.ARM64, Architectures.ALL],
   },
   {
-    commandType: PayloadCommandTypes.EXECUTABLE,
+    commandType: ThreatArsenalCommandTypes.EXECUTABLE,
     expectedOptions: [Architectures.X86_64, Architectures.ARM64],
   },
   {
-    commandType: PayloadCommandTypes.FILE_DROP,
+    commandType: ThreatArsenalCommandTypes.FILE_DROP,
     defaultValue: Architectures.ALL,
   },
   {
-    commandType: PayloadCommandTypes.DNS_RESOLUTION,
+    commandType: ThreatArsenalCommandTypes.DNS_RESOLUTION,
     defaultValue: Architectures.ALL,
   },
 ];

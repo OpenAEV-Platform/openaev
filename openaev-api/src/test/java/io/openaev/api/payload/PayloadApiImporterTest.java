@@ -122,11 +122,10 @@ class PayloadApiImporterTest extends IntegrationTest {
     Optional<Payload> payloadPersisted = payloadRepository.findById(payloadId);
     assertFalse(payloadPersisted.isEmpty(), "Payload should have been persisted in the database");
 
-    List<InjectorContract> injectorContracts =
-        injectorContractRepository.findInjectorContractsByPayload(payloadPersisted.get());
-    assertNotNull(injectorContracts);
-    assertEquals(1, injectorContracts.size());
-    assertEquals(payloadId, injectorContracts.getFirst().getPayload().getId());
+    Optional<InjectorContract> injectorContract =
+        injectorContractRepository.findInjectorContractByPayload(payloadPersisted.get());
+    assertTrue(injectorContract.isPresent());
+    assertEquals(payloadId, injectorContract.get().getPayload().getId());
   }
 
   @Test

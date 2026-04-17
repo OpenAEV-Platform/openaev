@@ -1,11 +1,12 @@
 import type { Dispatch } from 'redux';
 
 import { getReferential, simpleCall, simplePostCall } from '../../utils/Action';
+import { type SearchPaginationInput } from '../../utils/api-types';
 import { arrayOfDomains } from './domain-schema';
 
 const DOMAIN_URI = '/api/domains';
 
-const fetchDomains = () => (dispatch: Dispatch) => {
+export const fetchDomains = () => (dispatch: Dispatch) => {
   return getReferential(arrayOfDomains, DOMAIN_URI)(dispatch);
 };
 // -- OPTION --
@@ -19,4 +20,9 @@ export const searchDomainsByIdsAsOption = (ids: string[]) => {
   return simplePostCall(`${DOMAIN_URI}/options`, ids);
 };
 
-export default fetchDomains;
+// This action must use InjectorContractSearchPaginationInput to stay
+// synchronized with the search route filters
+export const fetchDomainCounts = (apiPrefix: string, data: SearchPaginationInput) => {
+  const uri = `/api/${apiPrefix}/domain-counts`;
+  return simplePostCall(uri, data);
+};

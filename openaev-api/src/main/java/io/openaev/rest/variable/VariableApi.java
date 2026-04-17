@@ -22,8 +22,6 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 public class VariableApi extends RestBehavior {
 
-  public static final String VARIABLE_URI = "/api/variables";
-
   private final VariableService variableService;
   private final ScenarioService scenarioService;
   private final ExerciseRepository exerciseRepository;

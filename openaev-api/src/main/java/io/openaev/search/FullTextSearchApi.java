@@ -1,5 +1,7 @@
 package io.openaev.search;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+
 import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Base;
 import io.openaev.rest.helper.RestBehavior;
@@ -20,17 +22,18 @@ import org.springframework.web.bind.annotation.RestController;
 public class FullTextSearchApi extends RestBehavior {
 
   public static final String GLOBAL_SEARCH_URI = "/api/fulltextsearch";
+  private static final String TENANT_GLOBAL_SEARCH_URI = TENANT_PREFIX + "/fulltextsearch";
 
   private final FullTextSearchService<? extends Base> fullTextSearchService;
 
-  @PostMapping(GLOBAL_SEARCH_URI)
+  @PostMapping({GLOBAL_SEARCH_URI, TENANT_GLOBAL_SEARCH_URI})
   @AccessControl(skipRBAC = true)
   public Map<? extends Class<? extends Base>, FullTextSearchService.FullTextSearchCountResult>
       fullTextSearch(@Valid @RequestBody final SearchTerm searchTerm) {
     return this.fullTextSearchService.fullTextSearch(searchTerm.getSearchTerm());
   }
 
-  @PostMapping(GLOBAL_SEARCH_URI + "/{clazz}")
+  @PostMapping({GLOBAL_SEARCH_URI + "/{clazz}", TENANT_GLOBAL_SEARCH_URI + "/{clazz}"})
   @AccessControl(skipRBAC = true)
   public Page<FullTextSearchService.FullTextSearchResult> fullTextSearch(
       @PathVariable @NotBlank final String clazz,

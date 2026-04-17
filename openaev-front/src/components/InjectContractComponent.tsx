@@ -1,5 +1,5 @@
-import { Autocomplete, type SelectChangeEvent, TextField } from '@mui/material';
-import { type FunctionComponent, type SyntheticEvent, useEffect, useState } from 'react';
+import { Autocomplete, TextField } from '@mui/material';
+import { type FunctionComponent, useEffect, useState } from 'react';
 import { type FieldError } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 
@@ -7,6 +7,7 @@ import { searchInjectorContracts } from '../actions/InjectorContracts';
 import InjectIcon from '../admin/components/common/injects/InjectIcon';
 import { type FilterGroup, type InjectorContract } from '../utils/api-types';
 import { isNotEmptyField } from '../utils/utils';
+import { generateFilterId } from './common/queryable/filter/FilterUtils';
 import { initSorting, type Page } from './common/queryable/Page';
 import { useFormatter } from './i18n';
 
@@ -41,9 +42,7 @@ const InjectContractComponent: FunctionComponent<Props> = ({
 
   // Pagination
   const [contracts, setContracts] = useState<InjectorContract[]>([]);
-  const searchContract = (event: SyntheticEvent) => {
-    const selectChangeEvent = event as SelectChangeEvent;
-    const val = selectChangeEvent?.target.value ?? '';
+  const searchContract = (val: string) => {
     return contracts.filter(
       type => type.injector_contract_id.includes(val)
         || tPick(type.injector_contract_labels).includes(val),
@@ -54,6 +53,7 @@ const InjectContractComponent: FunctionComponent<Props> = ({
     mode: 'and',
     filters: [
       {
+        id: generateFilterId(),
         key: 'injector_contract_import_available',
         operator: 'eq',
         mode: 'and',
@@ -96,7 +96,7 @@ const InjectContractComponent: FunctionComponent<Props> = ({
             style={{ marginTop: 20 }}
             variant="outlined"
             size="small"
-            InputLabelProps={{ required: true }}
+            slotProps={{ inputLabel: { required: true } }}
             error={!!error}
             helperText={error?.message}
           />
@@ -108,7 +108,7 @@ const InjectContractComponent: FunctionComponent<Props> = ({
         setValue(injectorContract?.injector_contract_id);
         onChange(injectorContract?.injector_contract_id);
       }}
-      onInputChange={event => searchContract(event)}
+      onInputChange={(_, inputValue) => searchContract(inputValue)}
       renderOption={(props, option) => (
         <li {...props}>
           <div className={classes.icon}>

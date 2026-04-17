@@ -1,27 +1,49 @@
 import * as qs from 'qs';
-import * as R from 'ramda';
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { z } from 'zod';
 
-import { type SearchPaginationInput } from '../../../../utils/api-types';
+import { type Filter, type SearchPaginationInput } from '../../../../utils/api-types';
+import { generateFilterId } from '../filter/FilterUtils';
 import { buildSearchPagination, SearchPaginationInputSchema } from '../QueryableUtils';
 import { type UriHelpers } from './UriHelpers';
 
 export const retrieveFromUri = (localStorageKey: string, searchParams: URLSearchParams): SearchPaginationInput | null => {
   const encodedParams = searchParams.get('query') || '';
-  const params = atob(encodedParams);
-  const paramsJson = qs.parse(params, { allowEmptyArrays: true }) as unknown as SearchPaginationInput & { key: string };
-  if (!R.isEmpty(paramsJson) && paramsJson.key === localStorageKey) {
-    try {
-      const parse = SearchPaginationInputSchema.parse(paramsJson);
-      return buildSearchPagination(parse);
-    } catch (err) {
-      if (err instanceof z.ZodError) {
-        // URI validation failed - return null to use default pagination
-        return null;
-      }
+  if (!encodedParams) {
+    return null;
+  }
+
+  let params: string;
+  try {
+    params = atob(encodedParams);
+  } catch {
+    return null;
+  }
+  const paramsJson = qs.parse(params, { allowEmptyArrays: true }) as unknown as SearchPaginationInput & { key?: string };
+  if (Object.keys(paramsJson).length > 0 && paramsJson.key === localStorageKey) {
+    const parseResult = SearchPaginationInputSchema.safeParse(paramsJson);
+    if (parseResult.success) {
+      const normalizedFilters: Filter[] | undefined = parseResult.data.filterGroup?.filters?.map((filter) => {
+        const existingId = (filter as { id?: string }).id;
+        return {
+          ...filter,
+          id: existingId || generateFilterId(),
+        } as Filter;
+      });
+
+      const normalized = {
+        ...parseResult.data,
+        filterGroup: parseResult.data.filterGroup
+          ? {
+              ...parseResult.data.filterGroup,
+              filters: normalizedFilters,
+            }
+          : undefined,
+      };
+      return buildSearchPagination(normalized as Partial<SearchPaginationInput>);
     }
+    // URI validation failed - return null to use default pagination
+    return null;
   }
   return null;
 };

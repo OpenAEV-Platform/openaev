@@ -435,7 +435,8 @@ public class InjectorContractApiTest extends IntegrationTest {
                           "injector_contract_atomic_testing":true,
                           "injector_contract_import_available":false,"injector_contract_arch":null,
                           "injector_contract_injector_type":"openaev_implant",
-                          "injector_contract_domains":[]
+                          "injector_contract_domains":[],
+                          "injector_contract_tags":[]
                         }
                         """,
                     injectorContractInternalId));
@@ -538,7 +539,8 @@ public class InjectorContractApiTest extends IntegrationTest {
                           "injector_contract_atomic_testing":true,
                           "injector_contract_import_available":false,"injector_contract_arch":null,
                           "injector_contract_injector_type":"openaev_implant",
-                          "injector_contract_domains":[]
+                          "injector_contract_domains":[],
+                          "injector_contract_tags":[]
                         }
                         """,
                     injectorContractInternalId,
@@ -604,7 +606,8 @@ public class InjectorContractApiTest extends IntegrationTest {
                           "injector_contract_atomic_testing":true,
                           "injector_contract_import_available":false,"injector_contract_arch":null,
                           "injector_contract_injector_type":"openaev_implant",
-                          "injector_contract_domains":[]
+                          "injector_contract_domains":[],
+                          "injector_contract_tags":[]
                         }
                         """,
                     injectorContractInternalId,
@@ -670,7 +673,8 @@ public class InjectorContractApiTest extends IntegrationTest {
                           "injector_contract_atomic_testing":true,
                           "injector_contract_import_available":false,"injector_contract_arch":null,
                           "injector_contract_injector_type":"openaev_implant",
-                          "injector_contract_domains":[]
+                          "injector_contract_domains":[],
+                          "injector_contract_tags":[]
                         }
                         """,
                     injectorContractInternalId,
@@ -739,7 +743,8 @@ public class InjectorContractApiTest extends IntegrationTest {
                           "injector_contract_atomic_testing":true,
                           "injector_contract_import_available":false,"injector_contract_arch":null,
                           "injector_contract_injector_type":"openaev_implant",
-                          "injector_contract_domains":[]
+                          "injector_contract_domains":[],
+                          "injector_contract_tags":[]
                         }
                         """,
                     injectorContractInternalId,
@@ -1085,7 +1090,8 @@ public class InjectorContractApiTest extends IntegrationTest {
                                     "injector_contract_atomic_testing":true,
                                     "injector_contract_import_available":false,"injector_contract_arch":null,
                                     "injector_contract_injector_type":"openaev_implant",
-                                    "injector_contract_domains":[]
+                                    "injector_contract_domains":[],
+                                    "injector_contract_tags":[]
                                   }""",
                     newId));
       }
@@ -1117,13 +1123,7 @@ public class InjectorContractApiTest extends IntegrationTest {
                 .getContentAsString();
 
         assertThatJson(response)
-            .whenIgnoringPaths(
-                "injector_contract_created_at",
-                "injector_contract_updated_at",
-                "injector_contract_domains[*].domain_created_at",
-                "injector_contract_domains[*].domain_updated_at",
-                "injector_contract_domains[*].domain_id",
-                "injector_contract_domains[*].listened")
+            .whenIgnoringPaths("injector_contract_created_at", "injector_contract_updated_at")
             .isEqualTo(
                 String.format(
                     """
@@ -1140,9 +1140,10 @@ public class InjectorContractApiTest extends IntegrationTest {
                                       "injector_contract_atomic_testing":true,
                                       "injector_contract_import_available":false,"injector_contract_arch":null,
                                       "injector_contract_injector_type":"openaev_email",
-                                      "injector_contract_domains":[{domain_name: "%s", domain_color: "%s"}]
+                                      "injector_contract_domains":["%s"],
+                                      "injector_contract_tags": []
                                     }""",
-                    newId, domain.getName(), domain.getColor()));
+                    newId, domain.getId()));
       }
 
       @Test
@@ -1362,16 +1363,13 @@ public class InjectorContractApiTest extends IntegrationTest {
     private int preExistingContractsCount;
 
     private void createStaticInjectorContract(boolean addPayload) {
-      Set<Domain> domains =
-          domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
-
       InjectorContractComposer.Composer icComposer =
           injectorContractComposer
               .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+              .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()).persist())
               .withInjector(injectorFixture.getWellKnownOaevImplantInjector());
       if (addPayload) {
-        icComposer.withPayload(
-            payloadComposer.forPayload(PayloadFixture.createDefaultCommand(domains)));
+        icComposer.withPayload(payloadComposer.forPayload(PayloadFixture.createDefaultCommand()));
       }
       InjectorContract ic = icComposer.persist().get();
       if (addPayload) {

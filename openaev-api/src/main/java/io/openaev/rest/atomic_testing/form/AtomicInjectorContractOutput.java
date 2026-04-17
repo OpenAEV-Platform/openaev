@@ -35,6 +35,9 @@ public class AtomicInjectorContractOutput {
   @JsonProperty("injector_contract_payload")
   private PayloadSimple payload;
 
+  @JsonProperty("injector_contract_domains")
+  private List<String> domains;
+
   @Builder.Default
   @JsonProperty("injector_contract_labels")
   @NotBlank

@@ -37,8 +37,13 @@ const MenuItemSingle: FunctionComponent<Props> = ({ navOpen, item }) => {
             sx={{ pt: 0.1 }}
             slotProps={{
               primary: {
-                fontSize: '14px',
-                color: textColor,
+                sx: {
+                  fontSize: '14px',
+                  color: textColor,
+                  overflow: 'hidden',
+                  whiteSpace: 'nowrap',
+                  textOverflow: 'ellipsis',
+                },
               },
             }}
           />

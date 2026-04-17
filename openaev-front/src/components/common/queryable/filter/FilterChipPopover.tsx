@@ -31,13 +31,13 @@ const FilterChipPopover: FunctionComponent<Props> = ({
   const { t } = useFormatter();
 
   const handleChangeOperator = (event: SelectChangeEvent) => {
-    helpers.handleChangeOperatorFilters(filter.key, event.target.value as Filter['operator']);
+    helpers.handleChangeOperatorById(filter.id, event.target.value as Filter['operator']);
   };
 
   const displayOperatorAndFilter = () => {
     // Specific field
     if (propertySchema.schema_property_name === 'scenario_recurrence') {
-      return (<ScenarioStatusFilter propertySchema={propertySchema} helpers={helpers} />);
+      return (<ScenarioStatusFilter propertySchema={propertySchema} helpers={helpers} filter={filter} />);
     }
 
     const operators = availableOperators(propertySchema);
