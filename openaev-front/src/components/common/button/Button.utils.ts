@@ -1,11 +1,11 @@
 import type { Theme } from '@mui/material/styles';
 
-import { hasCustomColor } from '../../../utils/theme';
+// import { hasCustomColor } from '../../../utils/theme';
 import type { ButtonVariant } from './Button';
 import type { ButtonColorKey, ButtonSize, ColorDefinition, GradientColor, GradientVariant } from './Button.types';
 
 export const getColorDefinitions = (theme: Theme): Record<ButtonColorKey, ColorDefinition> => {
-  const hasCustomBorder = hasCustomColor(theme, 'theme_primary');
+  // const hasCustomBorder = hasCustomColor(theme, 'theme_primary');
 
   return {
     default: {
@@ -48,9 +48,9 @@ export const getColorDefinitions = (theme: Theme): Record<ButtonColorKey, ColorD
       hover: theme.palette.primary.dark ?? '',
       focus: theme.palette.primary.light ?? '',
       text: theme.palette.primary.contrastText ?? '',
-      border: hasCustomBorder
+      border:/* hasCustomBorder
         ? theme.palette.border.primary
-        : theme.palette.border.main ?? '',
+        :*/ theme.palette.border.main ?? '',
     },
     success: {
       main: theme.palette.success.main ?? '',

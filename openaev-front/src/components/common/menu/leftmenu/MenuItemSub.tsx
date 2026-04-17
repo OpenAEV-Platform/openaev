@@ -5,6 +5,7 @@ import { Link, useLocation } from 'react-router';
 import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
 import { useFormatter } from '../../../i18n';
 import { type LeftMenuSubItem } from './leftmenu-model';
+import StyledTooltip from './StyledTooltip';
 import { type LeftMenuHelpers, type LeftMenuState } from './useLeftMenu';
 import useLeftMenuStyle from './useLeftMenuStyle';
 
@@ -21,10 +22,11 @@ const MenuItemSub: FunctionComponent<Props> = ({
   state,
   helpers,
 }) => {
+  // Standard hooks
   const { t } = useFormatter();
   const location = useLocation();
   const theme = useTheme();
-  const { iconSx, textColor } = useLeftMenuStyle();
+  const leftMenuStyle = useLeftMenuStyle();
 
   const { navOpen, selectedMenu, anchors } = state;
   const { handleSelectedMenuOpen, handleSelectedMenuClose } = helpers;
@@ -58,21 +60,13 @@ const MenuItemSub: FunctionComponent<Props> = ({
         aria-label={t(label)}
         component={Link}
         to={link}
-        selected={false}
+        selected={exact ? isCurrentTab : location.pathname.includes(link)}
         dense
         onClick={handleItemClick}
-        sx={{
-          'px': 2.5,
-          'py': 1,
-          '&:hover': { backgroundColor: theme.palette.leftBar.hover },
-        }}
+        sx={{ paddingLeft: navOpen ? '20px' : undefined }}
       >
         {icon && (
-          <ListItemIcon sx={{
-            ...iconSx,
-            opacity: isCurrentTab ? 1 : 0.5,
-          }}
-          >
+          <ListItemIcon style={{ ...leftMenuStyle.listItemIcon }}>
             {icon()}
           </ListItemIcon>
         )}
@@ -85,11 +79,14 @@ const MenuItemSub: FunctionComponent<Props> = ({
         >
           <ListItemText
             primary={t(label)}
-            sx={{ pt: 0.1 }}
             slotProps={{
-              primary: {
-                fontSize: '12px',
-                color: itemTextColor,
+            primary: {
+              paddingLeft: navOpen ? `${theme.spacing(1)}` : `${theme.spacing(2)}`,
+              fontWeight: theme.typography.h4.fontWeight,
+              fontSize: theme.typography.h4.fontSize,
+              whiteSpace: 'nowrap',
+                overflow: 'hidden',
+              textOverflow: 'ellipsis',
               },
             }}
           />
@@ -102,14 +99,14 @@ const MenuItemSub: FunctionComponent<Props> = ({
   if (navOpen) {
     return (
       <Collapse in={selectedMenu === menu} timeout="auto" unmountOnExit>
-        <MenuList
-          component="nav"
-          disablePadding
-          sx={{ backgroundColor: theme.palette.designSystem.background.main }}
-        >
-          {subItems.map((item) => {
-            if (!item.userRight) return null;
-            return renderMenuItem(item, true);
+        <MenuList component="nav" disablePadding>
+          {subItems.map((items) => {
+            if (!items.userRight) return null;
+            return (
+              <StyledTooltip key={items.label} title={t(items.label)} placement="right">
+                {renderMenuItem(items)}
+              </StyledTooltip>
+            );
           })}
         </MenuList>
       </Collapse>
@@ -132,23 +129,19 @@ const MenuItemSub: FunctionComponent<Props> = ({
       onClose={handleSelectedMenuClose}
       disableRestoreFocus
       disableScrollLock
-      elevation={0}
       slotProps={{
         paper: {
+          elevation: 1,
           onMouseEnter: () => handleSelectedMenuOpen(menu),
           onMouseLeave: handleSelectedMenuClose,
-          sx: {
-            pointerEvents: 'auto',
-            width: 180,
-            backgroundColor: theme.palette.leftBar.popoverItem,
-          },
+          sx: { pointerEvents: 'auto' },
         },
       }}
     >
-      <MenuList component="nav" disablePadding>
+      <MenuList component="nav">
         {subItems.map((entry) => {
           if (!entry.userRight) return null;
-          return renderMenuItem(entry, false);
+          return renderMenuItem(entry);
         })}
       </MenuList>
     </Popover>
