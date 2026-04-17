@@ -11,6 +11,7 @@ import SelectList, { type SelectListElements } from '../../../../components/comm
 import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import { type SearchPaginationInput, type UserOutput } from '../../../../utils/api-types';
+import { type Page } from '../../../../components/common/queryable/Page';
 import { resolveUserName } from '../../../../utils/String';
 
 interface Props {
@@ -19,7 +20,7 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onSubmit: (userIds: string[]) => void;
-  searchUsersFn?: (input: SearchPaginationInput) => Promise<{ data: UserOutput[] }>;
+  searchUsersFn?: (input: SearchPaginationInput) => Promise<{ data: Page<UserOutput> }>;
   findUsersFn?: (userIds: string[]) => Promise<{ data: UserOutput[] }>;
 }
 
