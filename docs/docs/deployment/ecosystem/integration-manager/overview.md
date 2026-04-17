@@ -43,7 +43,7 @@ To learn more about Xtm Composer architecture, refer to the [dedicated documenta
 ## Browsing the catalog
 - Navigate to **Integrations > Catalog**
 - Use the search bar to find collectors, injectors and executors by name or description. You can also apply filters (e.g., by collector, executor or injector type).
-- If a collector, injector or executor has already been deployed, it will no longer appear in the Catalog. Instead, you’ll find it in its associated page (Collectors, Injectors, or Executors).
+- If a collector, injector or executor has already been deployed, it will no longer appear in the Catalog. Instead, you'll find it in its associated page (Collectors, Injectors, or Executors).
 
 ## Deploying a collector, injector or executor
 
@@ -69,6 +69,29 @@ To learn more about Xtm Composer architecture, refer to the [dedicated documenta
 6. From the instance view, you can also check the **Logs** tab. The displayed logs depend on the logging level configured.
 
 ![Connector started](../../assets/integration-manager/connector-started.png)
+
+## Migrating an existing connector
+
+If you have a connector that was previously deployed manually (outside the Integration Manager), you can **migrate** it so that its settings are managed directly from the UI.
+
+### Prerequisites
+
+- An **Enterprise Edition license** is active
+- The **Integration Manager** is running
+- The user has the **Manage Platform Settings** permission
+- The connector is **external** (not built-in) and has no existing managed instance
+
+### Migration flow
+
+1. Navigate to the connector's card in the Catalog or its detail page. A **Migrate** button is displayed when the conditions above are met.
+2. Click **Migrate**. A drawer opens with the configuration form (same fields as a new deployment).
+3. Fill in the required configuration options.
+4. Click **Migrate** to confirm. The connector is re-registered under the Integration Manager, preserving its existing identifier.
+5. You are redirected to the new managed instance view.
+
+After migration, the connector can be fully managed from the UI: start/stop, update configuration, and view logs — just like any other deployed instance.
+
+The initial connector may be shut down at this point. Remove the container, or contact your customer support if the OpenAEV instance is managed by a service provider.
 
 ## Managing the instances
 
