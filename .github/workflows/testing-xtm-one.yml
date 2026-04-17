@@ -1,0 +1,36 @@
+name: OpenAEV CI for testing-xtm-one
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - testing-xtm-one
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: testing-xtm-one-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  wf-publish-image:
+    name: Trigger feature deploy workflow (testing-xtm-one)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch test-feature-branch workflow
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const branch = "testing-xtm-one";
+
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: "test-feature-branch.yml",
+              ref: branch,
+              inputs: {
+                openaev_config: '{ "SPRING_PROFILES_ACTIVE": "ci" }',
+              },
+            });
