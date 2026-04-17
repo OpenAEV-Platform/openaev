@@ -26,12 +26,7 @@ import jakarta.annotation.Resource;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.PersistenceContext;
-import jakarta.persistence.Tuple;
-import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.CriteriaBuilder;
-import jakarta.persistence.criteria.CriteriaQuery;
-import jakarta.persistence.criteria.Predicate;
-import jakarta.persistence.criteria.Root;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
@@ -44,7 +39,6 @@ import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
@@ -140,37 +134,17 @@ public class UserService {
 
   // -- READ --
 
+  /** Returns a user by ID (platform scope, no tenant filtering). */
   @Transactional(readOnly = true)
   public User user(@NotBlank final String userId) {
-    return this.userRepository
+    return userRepository
         .findById(userId)
         .orElseThrow(() -> new ElementNotFoundException("User not found with id: " + userId));
   }
 
-  public List<User> users() {
-    return this.userRepository.findAll();
-  }
-
-  @Transactional(readOnly = true)
-  public List<UserOutput> find(Specification<User> specification) {
-    CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-    CriteriaQuery<Tuple> cq = cb.createTupleQuery();
-    Root<User> root = cq.from(User.class);
-    UserQueryHelper.select(cb, cq, root);
-
-    if (specification != null) {
-      Predicate predicate = specification.toPredicate(root, cq, cb);
-      if (predicate != null) {
-        cq.where(predicate);
-      }
-    }
-
-    TypedQuery<Tuple> query = entityManager.createQuery(cq);
-    return UserQueryHelper.execution(query);
-  }
-
   // -- SEARCH --
 
+  /** Searches users with pagination (platform scope, no tenant filtering). */
   @Transactional(readOnly = true)
   public Page<UserOutput> search(SearchPaginationInput searchPaginationInput) {
     CriteriaBuilder cb = entityManager.getCriteriaBuilder();

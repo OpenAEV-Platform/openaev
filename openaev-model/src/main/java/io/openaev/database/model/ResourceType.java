@@ -47,6 +47,7 @@ public enum ResourceType {
   TENANT_SETTING,
   PLATFORM_ROLE,
   PLATFORM_GROUP,
+  PLATFORM_USER,
   // Special resource types
   UNKNOWN,
   SIMULATION_OR_SCENARIO, // Used to represent either a simulation or a scenario.

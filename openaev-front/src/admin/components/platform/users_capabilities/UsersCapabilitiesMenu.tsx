@@ -1,8 +1,8 @@
-import { GroupsOutlined, SecurityOutlined } from '@mui/icons-material';
+import { GroupsOutlined, PermIdentityOutlined, SecurityOutlined } from '@mui/icons-material';
 import { type FunctionComponent, memo } from 'react';
 
 import RightMenu, { type RightMenuEntry } from '../../../../components/common/menu/RightMenu';
-import { PLATFORM_GROUPS_ROUTE, PLATFORM_ROLES_ROUTE } from './users-capabilities-constants';
+import { PLATFORM_GROUPS_ROUTE, PLATFORM_ROLES_ROUTE, PLATFORM_USERS_ROUTE } from './users-capabilities-constants';
 
 const UsersCapabilitiesMenuComponent: FunctionComponent = () => {
   const entries: RightMenuEntry[] = [
@@ -15,6 +15,11 @@ const UsersCapabilitiesMenuComponent: FunctionComponent = () => {
       path: PLATFORM_GROUPS_ROUTE,
       icon: () => (<GroupsOutlined />),
       label: 'Groups',
+    },
+    {
+      path: PLATFORM_USERS_ROUTE,
+      icon: () => (<PermIdentityOutlined />),
+      label: 'Users',
     },
   ];
 

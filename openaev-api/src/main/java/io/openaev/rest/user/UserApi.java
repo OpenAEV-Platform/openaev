@@ -1,17 +1,11 @@
 package io.openaev.rest.user;
 
-import static io.openaev.api.users.dto.UserMapper.toOutput;
-import static io.openaev.database.specification.UserSpecification.fromIds;
-
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.UserRoleDescription;
-import io.openaev.api.users.dto.UserInput;
-import io.openaev.api.users.dto.UserOutput;
 import io.openaev.config.SessionManager;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.User;
-import io.openaev.database.raw.RawUser;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.InputValidationException;
@@ -23,7 +17,6 @@ import io.openaev.service.MailingService;
 import io.openaev.service.UserService;
 import io.openaev.service.user_events.UserEventService;
 import io.openaev.utils.RandomUtils;
-import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.ExternalDocumentation;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -33,14 +26,11 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.collections4.map.PassiveExpiringMap;
-import org.springframework.data.domain.Page;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -218,81 +208,5 @@ public class UserApi extends RestBehavior {
     User user = userRepository.findById(userId).orElseThrow(ElementNotFoundException::new);
     user.setPassword(userService.encodeUserPassword(input.getPassword()));
     return userRepository.save(user);
-  }
-
-  // -- CREATE --
-
-  @Operation(
-      summary = "Create a user",
-      description = "Creates a new user (Enterprise edition only)")
-  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.USER)
-  @PostMapping(USER_URI)
-  @ResponseStatus(HttpStatus.CREATED)
-  public UserOutput create(@Valid @RequestBody UserInput input) {
-    return toOutput(userService.createUser(input));
-  }
-
-  // -- READ --
-
-  @Operation(summary = "Get user by ID", description = "Retrieves a user by its unique identifier")
-  @AccessControl(
-      resourceId = "#userId",
-      actionPerformed = Action.READ,
-      resourceType = ResourceType.USER)
-  @GetMapping(USER_URI + "/{userId}")
-  public UserOutput getById(@PathVariable String userId) {
-    return toOutput(userService.user(userId));
-  }
-
-  @Operation(
-      summary = "Find users by IDs",
-      description = "Retrieves a list of users based on their IDs")
-  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.USER)
-  @PostMapping(USER_URI + "/find")
-  public List<UserOutput> find(@RequestBody @Valid @NotNull final List<String> userIds) {
-    return userService.find(fromIds(userIds));
-  }
-
-  @Operation(description = "List all the users", summary = "List users")
-  @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The list of users")})
-  @GetMapping(USER_URI)
-  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.USER)
-  public List<RawUser> users() {
-    return userRepository.rawAll();
-  }
-
-  // -- SEARCH --
-
-  @Operation(summary = "Search users", description = "Search users with pagination and filtering")
-  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.USER)
-  @PostMapping(USER_URI + "/search")
-  public Page<UserOutput> search(
-      @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
-    return userService.search(searchPaginationInput);
-  }
-
-  // -- UPDATE --
-
-  @Operation(summary = "Update a user", description = "Updates an existing user")
-  @AccessControl(
-      resourceId = "#userId",
-      actionPerformed = Action.WRITE,
-      resourceType = ResourceType.USER)
-  @PutMapping(USER_URI + "/{userId}")
-  public UserOutput update(@PathVariable String userId, @Valid @RequestBody UserInput input) {
-    return toOutput(userService.updateUser(userId, input));
-  }
-
-  // -- DELETE --
-
-  @Operation(summary = "Delete a user", description = "Deletes a user by its ID")
-  @AccessControl(
-      resourceId = "#userId",
-      actionPerformed = Action.DELETE,
-      resourceType = ResourceType.USER)
-  @DeleteMapping(USER_URI + "/{userId}")
-  @ResponseStatus(HttpStatus.NO_CONTENT)
-  public void delete(@PathVariable String userId) {
-    userService.delete(userId);
   }
 }

@@ -27,7 +27,10 @@ public class PlatformRoleApi {
   // -- CREATE --
 
   @Operation(summary = "Create a platform role")
-  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PLATFORM_ROLE)
+  @AccessControl(
+      actionPerformed = Action.CREATE,
+      resourceType = ResourceType.PLATFORM_ROLE,
+      isEnterpriseEdition = true)
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   public PlatformRoleOutput create(@Valid @RequestBody PlatformRoleInput input) {
@@ -42,7 +45,8 @@ public class PlatformRoleApi {
   @AccessControl(
       resourceId = "#platformRoleId",
       actionPerformed = Action.READ,
-      resourceType = ResourceType.PLATFORM_ROLE)
+      resourceType = ResourceType.PLATFORM_ROLE,
+      isEnterpriseEdition = true)
   @GetMapping("/{platformRoleId}")
   public PlatformRoleOutput findById(@PathVariable String platformRoleId) {
     return toOutput(platformRoleService.findById(platformRoleId));
@@ -52,14 +56,18 @@ public class PlatformRoleApi {
   @AccessControl(
       resourceId = "#platformRoleId",
       actionPerformed = Action.READ,
-      resourceType = ResourceType.PLATFORM_ROLE)
+      resourceType = ResourceType.PLATFORM_ROLE,
+      isEnterpriseEdition = true)
   @GetMapping("/{platformRoleId}/capabilities")
   public Set<Capability> findCapabilities(@PathVariable String platformRoleId) {
     return platformRoleService.findById(platformRoleId).getCapabilities();
   }
 
   @Operation(summary = "Search platform roles")
-  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.PLATFORM_ROLE)
+  @AccessControl(
+      actionPerformed = Action.SEARCH,
+      resourceType = ResourceType.PLATFORM_ROLE,
+      isEnterpriseEdition = true)
   @PostMapping("/search")
   public Page<PlatformRoleOutput> search(
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
@@ -67,7 +75,10 @@ public class PlatformRoleApi {
   }
 
   @Operation(summary = "Find platform roles by IDs")
-  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.PLATFORM_ROLE)
+  @AccessControl(
+      actionPerformed = Action.SEARCH,
+      resourceType = ResourceType.PLATFORM_ROLE,
+      isEnterpriseEdition = true)
   @PostMapping("/find")
   public List<PlatformRoleOutput> find(@RequestBody @Valid final List<String> ids) {
     return platformRoleService.findByIds(ids).stream().map(PlatformRoleMapper::toOutput).toList();
@@ -79,7 +90,8 @@ public class PlatformRoleApi {
   @AccessControl(
       resourceId = "#platformRoleId",
       actionPerformed = Action.WRITE,
-      resourceType = ResourceType.PLATFORM_ROLE)
+      resourceType = ResourceType.PLATFORM_ROLE,
+      isEnterpriseEdition = true)
   @PutMapping("/{platformRoleId}")
   public PlatformRoleOutput update(
       @PathVariable String platformRoleId, @Valid @RequestBody PlatformRoleInput input) {
@@ -94,7 +106,8 @@ public class PlatformRoleApi {
   @AccessControl(
       resourceId = "#platformRoleId",
       actionPerformed = Action.DELETE,
-      resourceType = ResourceType.PLATFORM_ROLE)
+      resourceType = ResourceType.PLATFORM_ROLE,
+      isEnterpriseEdition = true)
   @DeleteMapping("/{platformRoleId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void delete(@PathVariable String platformRoleId) {
