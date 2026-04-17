@@ -4,9 +4,11 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import static io.openaev.utils.pagination.SortUtilsRuntime.toSortRuntime;
 import static org.springframework.util.StringUtils.hasText;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.SpecificationUtils;
+import io.openaev.database.specification.TenantSpecification;
 import io.openaev.service.UserService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.PostConstruct;
@@ -155,7 +157,8 @@ public class FullTextSearchService<T extends Base> {
                     currentUser.getId(),
                     currentUser.isAdminOrBypass(),
                     currentUser.getCapabilities().contains(capaForClass),
-                    Grant.GRANT_TYPE.OBSERVER));
+                    Grant.GRANT_TYPE.OBSERVER))
+            .and(TenantSpecification.fromTenant(TenantContext.getCurrentTenant()));
 
     return buildPaginationJPA(repository::findAll, searchPaginationInput, clazzT, specs)
         .map(this::transform);
@@ -289,7 +292,8 @@ public class FullTextSearchService<T extends Base> {
                           currentUser
                               .getCapabilities()
                               .contains(capaByClassMap.get(tClass).orElse(Capability.BYPASS)),
-                          Grant.GRANT_TYPE.OBSERVER));
+                          Grant.GRANT_TYPE.OBSERVER))
+                  .and(TenantSpecification.fromTenant(TenantContext.getCurrentTenant()));
           long count = repository.count(specs);
           results.put(tClass, new FullTextSearchCountResult(tClass.getSimpleName(), count));
         });
