@@ -105,6 +105,7 @@ const ScenarioFormChaining: FunctionComponent<Props> = ({
             InputLabelProps={{ required: true }}
             control={control}
             setValue={setValue}
+            askAi={true}
           />
           <div style={{
             display: 'flex',
@@ -189,6 +190,7 @@ const ScenarioFormChaining: FunctionComponent<Props> = ({
             inputProps={register('scenario_description')}
             control={control}
             setValue={setValue}
+            askAi={true}
           />
           <Controller
             control={control}
