@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V4_95__Add_mapping_type_to_conditions extends BaseJavaMigration {
+public class V4_96__Add_mapping_type_to_conditions extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
