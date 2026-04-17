@@ -45,7 +45,7 @@ import org.springframework.web.bind.annotation.*;
 public class EndpointApi extends RestBehavior {
 
   public static final String ENDPOINT_URI = "/api/endpoints";
-  private static final String TENANT_ENDPOINT_URI = TENANT_PREFIX + "/endpoints";
+  public static final String TENANT_ENDPOINT_URI = TENANT_PREFIX + "/endpoints";
 
   private final EndpointService endpointService;
   private final EndpointRepository endpointRepository;
