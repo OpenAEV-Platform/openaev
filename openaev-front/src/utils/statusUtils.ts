@@ -152,6 +152,7 @@ export const getStatusColor = (theme: Theme, status: string | undefined): string
     // Partial
     'partially prevented': theme.palette.warning.main,
     'partially detected': theme.palette.warning.main,
+    'success_with_cleanup_fail': theme.palette.warning.main,
     // Failed
     'failed': theme.palette.error.main,
     'undetected': theme.palette.error.main,
