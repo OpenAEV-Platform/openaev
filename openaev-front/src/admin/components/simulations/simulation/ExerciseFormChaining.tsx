@@ -11,12 +11,14 @@ import { type FunctionComponent, useState } from 'react';
 import { Controller, type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
+import type { LoggedHelper } from '../../../../actions/helper';
 import Button from '../../../../components/common/button/Button';
 import SelectField from '../../../../components/fields/SelectField';
 import TagField from '../../../../components/fields/TagField';
 import TextField from '../../../../components/fields/TextField';
 import { useFormatter } from '../../../../components/i18n';
-import { type CreateExerciseInput } from '../../../../utils/api-types';
+import { useHelper } from '../../../../store';
+import { type CreateExerciseInput, type PlatformSettings } from '../../../../utils/api-types';
 import { zodImplement } from '../../../../utils/Zod';
 import { scenarioCategories } from '../../scenarios/constants';
 import { EXERCISE_NAME_MAX_LENGTH, EXERCISE_NAME_MIN_LENGTH } from '../constants';
@@ -45,7 +47,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
     exercise_main_focus: 'incident-response',
     exercise_severity: 'high',
     exercise_tags: [],
-    exercise_mail_from: '',
+    exercise_mail_from_name: '',
     exercise_mails_reply_to: [],
     exercise_message_header: '',
     exercise_message_footer: '',
@@ -54,6 +56,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
 }) => {
   // Standard hooks
   const { t } = useFormatter();
+  const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
   const [inputValue, setInputValue] = useState('');
 
   const {
@@ -75,7 +78,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
         exercise_description: z.string().optional(),
         exercise_start_date: z.iso.datetime().optional().nullable(),
         exercise_tags: z.string().array().optional(),
-        exercise_mail_from: z.email(t('Should be a valid email address')).optional(),
+        exercise_mail_from_name: z.string().max(100, t('Should not exceed {max_length} characters', { max_length: '100' })).optional(),
         exercise_mails_reply_to: z.array(z.email(t('Should be a valid email address'))).optional(),
         exercise_message_header: z.string().optional(),
         exercise_message_footer: z.string().optional(),
@@ -263,9 +266,17 @@ const ExerciseForm: FunctionComponent<Props> = ({
               fullWidth
               label={t('Sender email address')}
               style={{ marginTop: 20 }}
-              error={!!errors.exercise_mail_from}
-              helperText={errors.exercise_mail_from && errors.exercise_mail_from?.message}
-              inputProps={register('exercise_mail_from')}
+              value={settings.default_mailer ?? ''}
+              disabled
+            />
+            <MuiTextField
+              variant="standard"
+              fullWidth
+              label={t('Sender email from')}
+              style={{ marginTop: 20 }}
+              error={!!errors.exercise_mail_from_name}
+              helperText={errors.exercise_mail_from_name?.message}
+              inputProps={register('exercise_mail_from_name')}
               disabled={disabled}
             />
 
@@ -340,7 +351,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
               label={t('Messages header')}
               style={{ marginTop: 20 }}
               error={!!errors.exercise_message_header}
-              helperText={errors.exercise_message_header && errors.exercise_message_header?.message}
+              helperText={errors.exercise_message_header?.message}
               inputProps={register('exercise_message_header')}
               disabled={disabled}
             />
@@ -350,7 +361,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
               label={t('Messages footer')}
               style={{ marginTop: 20 }}
               error={!!errors.exercise_message_footer}
-              helperText={errors.exercise_message_footer && errors.exercise_message_footer?.message}
+              helperText={errors.exercise_message_footer?.message}
               inputProps={register('exercise_message_footer')}
               disabled={disabled}
             />

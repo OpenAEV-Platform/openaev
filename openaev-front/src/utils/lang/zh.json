@@ -1711,6 +1711,7 @@
   "Send the lessons learned questionnaire": "发送经验教训调查问卷",
   "Send the questionnaire": "发送调查问卷",
   "Sender email address": "发送者邮箱地址",
+  "Sender email from": "发送者显示名称",
   "Sending the questionnaire will emit an email to each player with a unique link to access and fill it.": "发送问卷后,将向每位选手发送一封电子邮件,其中包含访问和填写问卷的唯一链接.",
   "Sent at": "发送至",
   "Sent date": "发送日期",

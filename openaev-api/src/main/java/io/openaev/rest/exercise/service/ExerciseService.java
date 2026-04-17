@@ -5,6 +5,7 @@ import static io.openaev.database.criteria.GenericCriteria.countQuery;
 import static io.openaev.database.model.Grant.GRANT_RESOURCE_TYPE.SIMULATION;
 import static io.openaev.database.specification.ExerciseSpecification.*;
 import static io.openaev.database.specification.TeamSpecification.fromIds;
+import static io.openaev.helper.MailHelper.resolveFromName;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.JpaUtils.arrayAggOnId;
 import static io.openaev.utils.StringUtils.duplicateString;
@@ -157,9 +158,11 @@ public class ExerciseService {
     if (!StringUtils.hasText(exercise.getFrom())) {
       if (imapEnabled) {
         exercise.setFrom(imapUsername);
+        exercise.setFromName(resolveFromName(null, this.imapUsername));
         exercise.setReplyTos(List.of(imapUsername));
       } else {
         exercise.setFrom(openAEVConfig.getDefaultMailer());
+        exercise.setFromName(this.openAEVConfig.getDefaultMailerName());
         exercise.setReplyTos(new ArrayList<>(List.of(openAEVConfig.getDefaultReplyTo())));
       }
     }
@@ -242,6 +245,7 @@ public class ExerciseService {
     exerciseDuplicate.setCategory(exerciseOrigin.getCategory());
     exerciseDuplicate.setDescription(exerciseOrigin.getDescription());
     exerciseDuplicate.setFrom(exerciseOrigin.getFrom());
+    exerciseDuplicate.setFromName(exerciseOrigin.getFromName());
     exerciseDuplicate.setFooter(exerciseOrigin.getFooter());
     exerciseDuplicate.setScenario(exerciseOrigin.getScenario());
     exerciseDuplicate.setHeader(exerciseOrigin.getHeader());

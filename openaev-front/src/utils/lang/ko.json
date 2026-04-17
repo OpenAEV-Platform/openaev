@@ -1711,6 +1711,7 @@
   "Send the lessons learned questionnaire": "교훈을 얻은 설문지 보내기",
   "Send the questionnaire": "설문지 보내기",
   "Sender email address": "발신자 이메일 주소",
+  "Sender email from": "발신자 표시 이름",
   "Sending the questionnaire will emit an email to each player with a unique link to access and fill it.": "설문지를 보내면 각 플레이어에게 설문지에 액세스하여 작성할 수 있는 고유 링크가 포함된 이메일이 전송됩니다.",
   "Sent at": "보낸 사람",
   "Sent date": "보낸 날짜",
