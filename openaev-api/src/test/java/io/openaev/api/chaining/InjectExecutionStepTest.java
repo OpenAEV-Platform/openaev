@@ -200,8 +200,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
    *
    * <ul>
    *   <li>An {@link InjectInput} JSON payload is correctly deserialized
-   *   <li>An Inject step is generated using {@link
-   *       InjectExecutionStep#getInjectAsStepsCreateInput(InjectInput)}
+   *   <li>An Inject step is generated using {@link InjectExecutionStep#toStepInput(InjectInput)}
    *   <li>A MAPPER condition is correctly transformed into step input mapping
    *   <li>The step template is created with the expected action and status
    *   <li>The step data contains a valid serialized inject with its injector contract

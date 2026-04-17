@@ -8,6 +8,7 @@ import io.openaev.api.chaining.dto.EventInput;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Condition;
 import io.openaev.database.model.ConditionType;
+import io.openaev.database.model.MappingType;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.Workflow;
 import io.openaev.database.repository.ConditionRepository;
@@ -490,7 +491,7 @@ public class ConditionServiceTest {
         } else {
           assertNotNull(result);
           assertEquals(1, result.size());
-          assertSame(depExec, result.get(0));
+          assertSame(depExec, result.getFirst());
           verify(conditionService).isDependOn(stepFromTemplateId);
         }
       }
@@ -570,7 +571,7 @@ public class ConditionServiceTest {
       verify(conditionRepository).save(condition);
       verify(conditionRepository, never()).delete(any());
       assertEquals(1, condition.getConditionSteps().size());
-      assertEquals("step-B", condition.getConditionSteps().get(0).getStep().getId());
+      assertEquals("step-B", condition.getConditionSteps().getFirst().getStep().getId());
     }
   }
 
@@ -752,6 +753,91 @@ public class ConditionServiceTest {
       assertThrows(
           EntityNotFoundException.class,
           () -> conditionService.updateConditionTree("missing-root", input));
+    }
+  }
+
+  /* ============================================================
+   * MappingTypeResolution
+   * ============================================================ */
+  @Nested
+  class MappingTypeResolution {
+
+    /** MAPPER condition with explicit LOCAL → stays LOCAL. */
+    @Test
+    void shouldPreserveMappingType_whenMapperConditionHasExplicitValue() {
+      // -------- Prepare --------
+      ConditionCreateInput mapperInput = new ConditionCreateInput();
+      mapperInput.setTemporaryId("tmp-mapper");
+      mapperInput.setType(ConditionType.MAPPER);
+      mapperInput.setMappingType(MappingType.LOCAL);
+
+      EventInput input =
+          EventInput.builder()
+              .name("ev-mr")
+              .workflowId("wf-mr")
+              .conditions(List.of(mapperInput))
+              .build();
+
+      when(conditionRepository.save(any(Condition.class))).thenAnswer(inv -> inv.getArgument(0));
+
+      // -------- Act --------
+      Condition root = conditionService.createConditionTree(input);
+
+      // -------- Assert --------
+      assertEquals(MappingType.LOCAL, root.getMappingType());
+    }
+
+    /** MAPPER condition with no mappingType → defaults to DEFAULT. */
+    @Test
+    void shouldDefaultMappingTypeToDefault_whenMapperConditionHasNullMappingType() {
+      // -------- Prepare --------
+      ConditionCreateInput mapperInput = new ConditionCreateInput();
+      mapperInput.setTemporaryId("tmp-mapper");
+      mapperInput.setType(ConditionType.MAPPER);
+      mapperInput.setMappingType(null); // not provided — should be auto-defaulted
+
+      EventInput input =
+          EventInput.builder()
+              .name("ev-def")
+              .workflowId("wf-def")
+              .conditions(List.of(mapperInput))
+              .build();
+
+      when(conditionRepository.save(any(Condition.class))).thenAnswer(inv -> inv.getArgument(0));
+
+      // -------- Act --------
+      Condition root = conditionService.createConditionTree(input);
+
+      // -------- Assert --------
+      assertEquals(
+          MappingType.DEFAULT,
+          root.getMappingType(),
+          "mappingType should be auto-defaulted to DEFAULT for MAPPER conditions");
+    }
+
+    /** Non-MAPPER condition never carries a mappingType. */
+    @Test
+    void shouldLeaveMappingTypeNull_whenNonMapperCondition() {
+      // -------- Prepare --------
+      ConditionCreateInput eqInput = new ConditionCreateInput();
+      eqInput.setTemporaryId("tmp-eq");
+      eqInput.setType(ConditionType.EQ);
+      eqInput.setValue("445");
+
+      EventInput input =
+          EventInput.builder()
+              .name("ev-nm")
+              .workflowId("wf-nm")
+              .conditions(List.of(eqInput))
+              .build();
+
+      when(conditionRepository.save(any(Condition.class))).thenAnswer(inv -> inv.getArgument(0));
+
+      // -------- Act --------
+      Condition root = conditionService.createConditionTree(input);
+
+      // -------- Assert --------
+      assertNull(root.getMappingType(), "mappingType must be null for non-MAPPER conditions");
     }
   }
 }

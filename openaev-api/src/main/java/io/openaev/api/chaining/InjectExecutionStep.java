@@ -415,6 +415,7 @@ public class InjectExecutionStep implements ActionStep {
         input.put("key", condition.getKey());
         input.put("keyType", condition.getKeyType() != null ? condition.getKeyType().name() : null);
         input.put("path", condition.getValue());
+        input.put("mappingType", condition.getMappingType());
         input.put("id_step_from", condition.getStepFrom());
 
         inputs.add(input);
@@ -438,7 +439,7 @@ public class InjectExecutionStep implements ActionStep {
    * Converts an {@link InjectInput} into a list of {@link StepsCreateInput.StepInput}.
    *
    * @param input the inject input
-   * @return list of step create inputs
+   * @return step input
    */
   public static StepsCreateInput.StepInput getInjectAsStepsCreateInput(InjectInput input) {
     StepsCreateInput.StepInput stepCreateInput = new StepsCreateInput.StepInput();
@@ -452,6 +453,7 @@ public class InjectExecutionStep implements ActionStep {
               .type(ConditionType.AFTER)
               .key(null)
               .keyType(null)
+              .mappingType(null)
               .value(String.valueOf(input.getDependsDuration()))
               .build();
       stepCreateInput.setConditions(List.of(conditionCreateInput));

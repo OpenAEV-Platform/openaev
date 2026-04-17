@@ -61,6 +61,12 @@ public class Condition implements Base {
   @Schema(description = "Type")
   private ConditionType type;
 
+  @Column(name = "condition_mapping_type")
+  @Enumerated(EnumType.STRING)
+  @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+  @Schema(description = "Mapping type, ex: DEFAULT, LOCAL or GLOBAL")
+  private MappingType mappingType;
+
   @Column(name = "condition_value")
   @Schema(description = "Value")
   private String value;
