@@ -25,7 +25,7 @@ const TenantParameters = () => {
   const dispatch = useAppDispatch();
   const { t } = useFormatter();
   const ability = useContext(AbilityContext);
-  const cannotManage = ability.cannot(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS);
+  const cannotManage = ability.cannot(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS);
 
   const { tenantSettings, settings }: {
     tenantSettings: TenantSettingsOutput;
