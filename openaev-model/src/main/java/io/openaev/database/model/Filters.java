@@ -4,7 +4,9 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 import javax.annotation.Nullable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -63,15 +65,28 @@ public class Filters {
     }
 
     // -- UTILS --
+    public Optional<Filter> findById(@NotBlank final String filterId) {
+      if (this.getFilters() == null) {
+        return Optional.empty();
+      }
+      return this.getFilters().stream().filter(filter -> matchesId(filter, filterId)).findFirst();
+    }
+
+    public void removeById(@NotBlank final String filterId) {
+      if (this.getFilters() == null) {
+        return;
+      }
+      List<Filter> newFilters =
+          this.getFilters().stream().filter(filter -> !matchesId(filter, filterId)).toList();
+      this.setFilters(newFilters);
+    }
 
     public Optional<Filter> findByKey(@NotBlank final String filterKey) {
       if (this.getFilters() == null) {
         return Optional.empty();
       }
 
-      return this.getFilters().stream()
-          .filter(filter -> filter.getKey().equals(filterKey))
-          .findFirst();
+      return this.getFilters().stream().filter(filter -> matchesKey(filter, filterKey)).findFirst();
     }
 
     public void removeByKey(@NotBlank final String filterKey) {
@@ -80,8 +95,18 @@ public class Filters {
       }
 
       List<Filter> newFilters =
-          this.getFilters().stream().filter(filter -> !filter.getKey().equals(filterKey)).toList();
+          this.getFilters().stream().filter(filter -> !matchesKey(filter, filterKey)).toList();
       this.setFilters(newFilters);
+    }
+
+    private static boolean matchesId(
+        @Nullable final Filter filter, @NotBlank final String filterId) {
+      return filter != null && Objects.equals(filter.getId(), filterId);
+    }
+
+    private static boolean matchesKey(
+        @Nullable final Filter filter, @NotBlank final String filterKey) {
+      return filter != null && Objects.equals(filter.getKey(), filterKey);
     }
   }
 
@@ -90,7 +115,7 @@ public class Filters {
   @NoArgsConstructor
   @AllArgsConstructor
   public static class Filter {
-
+    @NotNull private String id;
     @NotNull private String key;
     @Builder.Default private FilterMode mode = FilterMode.and;
     private List<String> values;
@@ -98,6 +123,7 @@ public class Filters {
 
     public static Filter getNewDefaultEqualFilter(String key, List<String> values) {
       Filter filter = new Filter();
+      filter.setId(UUID.randomUUID().toString());
       filter.setKey(key);
       filter.setMode(Filters.FilterMode.or);
       filter.setOperator(Filters.FilterOperator.eq);

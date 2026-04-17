@@ -1,6 +1,7 @@
 import qs from 'qs';
 import { type NavigateFunction } from 'react-router';
 
+import { generateFilterId } from '../../../../../../../../components/common/queryable/filter/FilterUtils';
 import { buildSearchPagination } from '../../../../../../../../components/common/queryable/QueryableUtils';
 import {
   ATOMIC_BASE_URL,
@@ -50,6 +51,7 @@ const navigationHandlers: Record<string, NavigationHandler> = {
           mode: 'and',
           filters: [
             {
+              id: generateFilterId(),
               key: 'finding_type',
               operator: 'eq',
               mode: 'or',
@@ -77,9 +79,9 @@ const navigationHandlers: Record<string, NavigationHandler> = {
 
   'expectation-inject': (element, navigate) => {
     const expectation = element as EsInjectExpectation;
-    const injectUrl = expectation.base_simulation_side != null
-      ? `${SIMULATION_BASE_URL}/${expectation.base_simulation_side}/injects/${expectation.base_inject_side}`
-      : `${ATOMIC_BASE_URL}/${expectation.base_inject_side}`;
+    const injectUrl = expectation.base_simulation_side == null
+      ? `${ATOMIC_BASE_URL}/${expectation.base_inject_side}`
+      : `${SIMULATION_BASE_URL}/${expectation.base_simulation_side}/injects/${expectation.base_inject_side}`;
     const target = getTargetTypeFromInjectExpectation(expectation);
     navigate(`${injectUrl}?expectation_id=${expectation.base_id}&target=${target.type}`);
   },
@@ -92,6 +94,7 @@ const navigationHandlers: Record<string, NavigationHandler> = {
           mode: 'and',
           filters: [
             {
+              id: generateFilterId(),
               key: 'finding_type',
               operator: 'eq',
               mode: 'or',

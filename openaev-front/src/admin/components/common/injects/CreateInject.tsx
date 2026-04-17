@@ -20,6 +20,7 @@ import { type InjectorHelper } from '../../../../actions/injectors/injector-help
 import { type InjectOutputType, type InjectStore } from '../../../../actions/injects/Inject';
 import { type KillChainPhaseHelper } from '../../../../actions/kill_chain_phases/killchainphase-helper';
 import Drawer from '../../../../components/common/Drawer';
+import { generateFilterId } from '../../../../components/common/queryable/filter/FilterUtils';
 import { initSorting } from '../../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import SortHeadersComponentV2 from '../../../../components/common/queryable/sort/SortHeadersComponentV2';
@@ -210,6 +211,7 @@ const CreateInject: FunctionComponent<Props> = ({
     }
 
     filterGroup.filters?.push({
+      id: generateFilterId(),
       key: 'injector_contract_atomic_testing',
       operator: 'eq',
       values: ['true'],
@@ -397,6 +399,7 @@ const CreateInject: FunctionComponent<Props> = ({
 
       if (!domainFilterExists) {
         queryableHelpers.filterHelpers.handleAddFilterWithEmptyValue({
+          id: generateFilterId(),
           key: DOMAIN_FILTER_KEY,
           operator: 'contains',
           values: updated,

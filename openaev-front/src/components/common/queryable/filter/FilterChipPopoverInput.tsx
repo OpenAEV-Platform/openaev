@@ -1,12 +1,13 @@
 import { Autocomplete, Checkbox, TextField } from '@mui/material';
 import { DateTimePicker } from '@mui/x-date-pickers';
-import { type FunctionComponent, useContext, useEffect } from 'react';
+import { type FunctionComponent, useContext, useEffect, useState } from 'react';
 
 import { type Filter, type PropertySchemaDTO } from '../../../../utils/api-types';
 import { type GroupOption, type Option } from '../../../../utils/Option';
 import { useFormatter } from '../../../i18n';
 import { FilterContext } from './context';
 import { type FilterHelpers } from './FilterHelpers';
+import { getSelectedOptions } from './FilterUtils';
 import useSearchOptions, { type SearchOptionsConfig } from './useSearchOptions';
 import wordsToExcludeFromTranslation from './WordsToExcludeFromTranslation';
 
@@ -22,7 +23,9 @@ export const BasicTextInput: FunctionComponent<Props> = ({
 }) => {
   // Standard hooks
   const { t } = useFormatter();
-
+  const handleValueChange = (value: string) => {
+    helpers.handleUpdateValuesById(filter.id, [value.trim()]);
+  };
   return (
     <TextField
       variant="outlined"
@@ -33,17 +36,11 @@ export const BasicTextInput: FunctionComponent<Props> = ({
       autoFocus
       onKeyDown={(event) => {
         if (event.key === 'Enter') {
-          helpers.handleAddSingleValueFilter(
-            filter.key,
-            (event.target as HTMLInputElement).value.trim(),
-          );
+          handleValueChange((event.target as HTMLInputElement).value);
         }
       }}
       onBlur={(event) => {
-        helpers.handleAddSingleValueFilter(
-          filter.key,
-          (event.target as HTMLInputElement).value.trim(),
-        );
+        handleValueChange((event.target as HTMLInputElement).value);
       }}
     />
   );
@@ -57,8 +54,14 @@ export const BasicSelectInput: FunctionComponent<Props & { propertySchema: Prope
 }) => {
   // Standard hooks
   const { t } = useFormatter();
+  const [inputValue, setInputValue] = useState('');
   const { options, setOptions, searchOptions } = useSearchOptions();
   const { defaultValues } = useContext(FilterContext);
+  const selectedOptions = getSelectedOptions(options, filter.values ?? [], t);
+  const mergedOptions = [
+    ...selectedOptions,
+    ...options.filter(option => !selectedOptions.some(selectedOption => selectedOption.id === option.id)),
+  ];
   const handleSearchOptions = (search: string) => {
     const searchOptionsConfig: SearchOptionsConfig = {
       filterKey: filter.key,
@@ -90,7 +93,7 @@ export const BasicSelectInput: FunctionComponent<Props & { propertySchema: Prope
     const newValues = isIncluded
       ? (filter.values?.filter(v => v !== optionId) ?? [])
       : [...(filter.values ?? []), optionId];
-    helpers.handleAddMultipleValueFilter(filter.key, newValues);
+    helpers.handleUpdateValuesById(filter.id, newValues);
   };
 
   return (
@@ -100,10 +103,20 @@ export const BasicSelectInput: FunctionComponent<Props & { propertySchema: Prope
       autoHighlight
       multiple
       noOptionsText={t('No available options')}
-      options={options}
+      options={mergedOptions}
+      value={selectedOptions}
+      inputValue={inputValue}
+      renderValue={() => null}
+      isOptionEqualToValue={(option, value) => option.id === value.id}
       groupBy={(option: GroupOption | Option) => 'group' in option ? option.group : ''}
       getOptionLabel={option => option.label ?? ''}
-      onInputChange={(_, search) => handleSearchOptions(search)}
+      onInputChange={(_, search, reason) => {
+        if (reason === 'reset') {
+          return;
+        }
+        setInputValue(search);
+        handleSearchOptions(search);
+      }}
       renderInput={paramsInput => (
         <TextField
           {...paramsInput}
@@ -148,16 +161,15 @@ export const BasicFilterDate: FunctionComponent<Props> = ({
 }) => {
   // Standard hooks
   const { t } = useFormatter();
-
+  const handleValueChange = (date: Date) => {
+    helpers.handleUpdateValuesById(filter.id, [date.toISOString()]);
+  };
   return (
     <DateTimePicker
       label={t(filter.key)}
       onChange={(date) => {
         if (date) {
-          helpers.handleAddSingleValueFilter(
-            filter.key,
-            date.toISOString(),
-          );
+          handleValueChange(date);
         }
       }}
       slotProps={{
