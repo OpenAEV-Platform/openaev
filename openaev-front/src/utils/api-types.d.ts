@@ -207,6 +207,7 @@ export interface ArgumentTypeOutput {
     | "username"
     | "password"
     | "severity"
+    | "domain"
   )[];
   argument_type:
     | "text"
@@ -217,6 +218,18 @@ export interface ArgumentTypeOutput {
     | "ipv6"
     | "credentials"
     | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account"
     | "document"
     | "targeted-asset";
 }
@@ -5790,7 +5803,14 @@ export interface PayloadArgument {
   key: string;
   separator?: string | null;
   /** Optional sub-field key for structured output types */
-  subtype?: "host" | "port" | "service" | "username" | "password" | "severity";
+  subtype?:
+    | "host"
+    | "port"
+    | "service"
+    | "username"
+    | "password"
+    | "severity"
+    | "domain";
   type:
     | "text"
     | "number"
@@ -5800,6 +5820,18 @@ export interface PayloadArgument {
     | "ipv6"
     | "credentials"
     | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account"
     | "document"
     | "targeted-asset";
 }

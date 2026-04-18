@@ -27,7 +27,10 @@ public enum ArgumentSubType {
   Password("password"),
 
   @JsonProperty("severity")
-  Severity("severity");
+  Severity("severity"),
+
+  @JsonProperty("domain")
+  Domain("domain");
 
   public final String label;
 
