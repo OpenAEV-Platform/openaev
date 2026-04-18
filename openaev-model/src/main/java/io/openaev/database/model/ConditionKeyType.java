@@ -67,6 +67,4 @@ public enum ConditionKeyType {
 
   @JsonProperty("asset")
   ASSET;
-
-
 }
