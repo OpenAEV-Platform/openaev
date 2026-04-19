@@ -142,7 +142,19 @@ export interface AggregatedFindingOutput {
     | "ipv4"
     | "ipv6"
     | "credentials"
-    | "cve";
+    | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account";
   /**
    * Finding Value
    * @minLength 1
@@ -355,6 +367,7 @@ export interface AtomicInjectorContractOutput {
   convertedContent?: object;
   /** @minLength 1 */
   injector_contract_content: string;
+  injector_contract_domains?: string[];
   /** @minLength 1 */
   injector_contract_id: string;
   injector_contract_labels: Record<string, string>;
@@ -378,6 +391,7 @@ export interface AtomicTestingInput {
   inject_content?: object;
   inject_description?: string;
   inject_documents?: InjectDocumentInput[];
+  inject_injector?: string;
   inject_injector_contract?: string;
   inject_tags?: string[];
   inject_teams?: string[];
@@ -538,7 +552,6 @@ type BaseInjectorContractBaseOutputInjectorContractHasFullDetailsMapping<
 interface BasePayload {
   listened?: boolean;
   payload_arguments?: PayloadArgument[];
-  payload_attack_patterns?: string[];
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
   payload_collector_type?: string;
@@ -546,11 +559,6 @@ interface BasePayload {
   payload_created_at: string;
   payload_description?: string;
   payload_detection_remediations?: DetectionRemediation[];
-  /**
-   * @minItems 1
-   * @uniqueItems true
-   */
-  payload_domains: Domain[];
   payload_elevation_required?: boolean;
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations?: (
@@ -584,7 +592,6 @@ interface BasePayload {
   payload_prerequisites?: PayloadPrerequisite[];
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
-  payload_tags?: string[];
   payload_type?: string;
   /** @format date-time */
   payload_updated_at: string;
@@ -655,6 +662,16 @@ type BasePayloadCreateInputPayloadTypeMapping<Key, Type> = {
 type BasePayloadPayloadTypeMapping<Key, Type> = {
   payload_type: Key;
 } & Type;
+
+export interface BrokerConnectionInfo {
+  host?: string;
+  pass?: string;
+  /** @format int32 */
+  port?: number;
+  use_ssl?: boolean;
+  user?: string;
+  vhost?: string;
+}
 
 export interface CVEBulkInsertInput {
   cves: CveCreateInput[];
@@ -1092,7 +1109,6 @@ export interface Command {
   command_executor: string;
   listened?: boolean;
   payload_arguments?: PayloadArgument[];
-  payload_attack_patterns?: string[];
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
   payload_collector_type?: string;
@@ -1100,11 +1116,6 @@ export interface Command {
   payload_created_at: string;
   payload_description?: string;
   payload_detection_remediations?: DetectionRemediation[];
-  /**
-   * @minItems 1
-   * @uniqueItems true
-   */
-  payload_domains: Domain[];
   payload_elevation_required?: boolean;
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations?: (
@@ -1138,7 +1149,6 @@ export interface Command {
   payload_prerequisites?: PayloadPrerequisite[];
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
-  payload_tags?: string[];
   payload_type?: string;
   /** @format date-time */
   payload_updated_at: string;
@@ -1183,7 +1193,7 @@ export interface Condition {
 
 /** Condition used to execute a step. Can be a Template or an Execution depending on the status of stepFrom. */
 export interface ConditionCreateInput {
-  /** Property to be mapped */
+  /** Key to be compared */
   condition_key?: string;
   /** Condition key subtype */
   condition_key_subtype?: "port" | "ipv4" | "ipv6" | "username" | "password";
@@ -1209,7 +1219,6 @@ export interface ConditionCreateInput {
     | "delegation"
     | "sid"
     | "vulnerability"
-    | "account_with_password_not_required"
     | "asset";
   /** Mapping type: DEFAULT, LOCAL, or GLOBAL. Required when condition type is MAPPER, must be null otherwise. */
   condition_mapping_type?: "DEFAULT" | "LOCAL" | "GLOBAL";
@@ -1266,7 +1275,6 @@ export interface ConditionOutput {
     | "delegation"
     | "sid"
     | "vulnerability"
-    | "account_with_password_not_required"
     | "asset";
   condition_mapping_type?: "DEFAULT" | "LOCAL" | "GLOBAL";
   condition_parent_id?: string;
@@ -1300,6 +1308,8 @@ export interface ConfigurationInput {
 export interface ConnectorIds {
   catalog_connector_id?: string;
   connector_instance_id?: string;
+  /** Whether the connector entity is registered in the database. False when a connector instance has been deployed but the connector has not yet started. */
+  connector_registered?: boolean;
 }
 
 export interface ConnectorInstanceConfiguration {
@@ -1402,7 +1412,19 @@ export interface ContractOutputElement {
     | "ipv4"
     | "ipv6"
     | "credentials"
-    | "cve";
+    | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account";
   /** @format date-time */
   contract_output_element_updated_at: string;
   listened?: boolean;
@@ -1443,7 +1465,19 @@ export interface ContractOutputElementInput {
     | "ipv4"
     | "ipv6"
     | "credentials"
-    | "cve";
+    | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account";
 }
 
 /** Represents the rules for parsing the output of an execution. */
@@ -1480,7 +1514,19 @@ export interface ContractOutputElementSimple {
     | "ipv4"
     | "ipv6"
     | "credentials"
-    | "cve";
+    | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account";
 }
 
 export interface CreateConnectorInstanceInput {
@@ -1494,8 +1540,12 @@ export interface CreateExerciseInput {
   exercise_custom_dashboard?: string;
   exercise_description?: string;
   exercise_is_chaining?: boolean;
-  /** @format email */
-  exercise_mail_from?: string;
+  /**
+   * @minLength 0
+   * @maxLength 100
+   * @pattern ^[^\r\n\x00]*$
+   */
+  exercise_mail_from_name?: string;
   exercise_mails_reply_to?: string[];
   exercise_main_focus?: string;
   exercise_message_footer?: string;
@@ -1518,27 +1568,6 @@ export interface CreateNotificationRuleInput {
   subject: string;
   trigger: string;
   type: string;
-}
-
-export interface CreateUserInput {
-  /** True if the user is admin */
-  user_admin?: boolean;
-  /**
-   * The email of the user
-   * @format email
-   * @minLength 1
-   */
-  user_email: string;
-  /** First name of the user */
-  user_firstname?: string;
-  /** Last name of the user */
-  user_lastname?: string;
-  /** Organization of the user */
-  user_organization?: string;
-  /** Password of the user as plain text */
-  user_plain_password?: string;
-  /** Tags of the user */
-  user_tags?: string[];
 }
 
 export interface CustomDashboard {
@@ -1832,6 +1861,7 @@ export interface DirectInjectInput {
   inject_content?: object;
   inject_description?: string;
   inject_documents?: InjectDocumentInput[];
+  inject_injector?: string;
   inject_injector_contract?: string;
   inject_title?: string;
   inject_users?: string[];
@@ -1841,7 +1871,6 @@ export interface DnsResolution {
   dns_resolution_hostname: string;
   listened?: boolean;
   payload_arguments?: PayloadArgument[];
-  payload_attack_patterns?: string[];
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
   payload_collector_type?: string;
@@ -1849,11 +1878,6 @@ export interface DnsResolution {
   payload_created_at: string;
   payload_description?: string;
   payload_detection_remediations?: DetectionRemediation[];
-  /**
-   * @minItems 1
-   * @uniqueItems true
-   */
-  payload_domains: Domain[];
   payload_elevation_required?: boolean;
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations?: (
@@ -1887,7 +1911,6 @@ export interface DnsResolution {
   payload_prerequisites?: PayloadPrerequisite[];
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
-  payload_tags?: string[];
   payload_type?: string;
   /** @format date-time */
   payload_updated_at: string;
@@ -2691,7 +2714,6 @@ export interface EventInput {
   event_description?: string;
   /** @minLength 1 */
   event_name: string;
-  event_step_from?: string;
   event_step_ids?: string[];
   /** @minLength 1 */
   event_workflow_id: string;
@@ -2706,7 +2728,6 @@ export interface EventOutput {
   event_id: string;
   /** @minLength 1 */
   event_name: string;
-  event_step_from?: string;
   /** @format date-time */
   event_updated_at?: string;
   /** @minLength 1 */
@@ -2717,7 +2738,6 @@ export interface Executable {
   executable_file: string;
   listened?: boolean;
   payload_arguments?: PayloadArgument[];
-  payload_attack_patterns?: string[];
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
   payload_collector_type?: string;
@@ -2725,11 +2745,6 @@ export interface Executable {
   payload_created_at: string;
   payload_description?: string;
   payload_detection_remediations?: DetectionRemediation[];
-  /**
-   * @minItems 1
-   * @uniqueItems true
-   */
-  payload_domains: Domain[];
   payload_elevation_required?: boolean;
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations?: (
@@ -2763,7 +2778,6 @@ export interface Executable {
   payload_prerequisites?: PayloadPrerequisite[];
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
-  payload_tags?: string[];
   payload_type?: string;
   /** @format date-time */
   payload_updated_at: string;
@@ -2934,6 +2948,12 @@ export interface Exercise {
    * @minLength 1
    */
   exercise_mail_from: string;
+  /**
+   * @minLength 0
+   * @maxLength 100
+   * @pattern ^[^\r\n\x00]*$
+   */
+  exercise_mail_from_name?: string;
   exercise_mails_reply_to?: string[];
   exercise_main_focus?: string;
   exercise_message_footer?: string;
@@ -3118,7 +3138,6 @@ export interface FileDrop {
   file_drop_file: string;
   listened?: boolean;
   payload_arguments?: PayloadArgument[];
-  payload_attack_patterns?: string[];
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
   payload_collector_type?: string;
@@ -3126,11 +3145,6 @@ export interface FileDrop {
   payload_created_at: string;
   payload_description?: string;
   payload_detection_remediations?: DetectionRemediation[];
-  /**
-   * @minItems 1
-   * @uniqueItems true
-   */
-  payload_domains: Domain[];
   payload_elevation_required?: boolean;
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations?: (
@@ -3164,7 +3178,6 @@ export interface FileDrop {
   payload_prerequisites?: PayloadPrerequisite[];
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
-  payload_tags?: string[];
   payload_type?: string;
   /** @format date-time */
   payload_updated_at: string;
@@ -3177,6 +3190,7 @@ export interface FileDrop {
 }
 
 export interface Filter {
+  id: string;
   key: string;
   mode?: "and" | "or";
   operator?:
@@ -3226,7 +3240,19 @@ export interface Finding {
     | "ipv4"
     | "ipv6"
     | "credentials"
-    | "cve";
+    | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account";
   /** @format date-time */
   finding_updated_at: string;
   finding_users?: string[];
@@ -3248,7 +3274,19 @@ export interface FindingInput {
     | "ipv4"
     | "ipv6"
     | "credentials"
-    | "cve";
+    | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account";
   /** @minLength 1 */
   finding_value: string;
 }
@@ -3694,6 +3732,7 @@ export interface InjectExpectationResult {
   result: string;
   /** @format double */
   score?: number;
+  sourceAssetId?: string;
   sourceId?: string;
   sourceName?: string;
   sourcePlatform?: string;
@@ -4101,6 +4140,7 @@ export interface Injector {
     | "IMAP"
     | "NUCLEI"
     | "NMAP"
+    | "NETEXEC"
     | "OpenAEV Email"
     | "OpenAEV Implant"
   )[];
@@ -4119,16 +4159,6 @@ export interface Injector {
   listened?: boolean;
 }
 
-export interface InjectorConnection {
-  host?: string;
-  pass?: string;
-  /** @format int32 */
-  port?: number;
-  use_ssl?: boolean;
-  user?: string;
-  vhost?: string;
-}
-
 export interface InjectorContract {
   convertedContent?: object;
   injector_contract_arch?: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
@@ -4139,15 +4169,14 @@ export interface InjectorContract {
   /** @format date-time */
   injector_contract_created_at: string;
   injector_contract_custom?: boolean;
-  /** @uniqueItems true */
-  injector_contract_domains?: Domain[];
+  injector_contract_domains?: string[];
   injector_contract_external_id?: string;
   /** @minLength 1 */
   injector_contract_id: string;
   injector_contract_import_available?: boolean;
-  injector_contract_injector: string;
+  injector_contract_injector_names?: Record<string, string>;
   injector_contract_injector_type?: string;
-  injector_contract_injector_type_name?: string;
+  injector_contract_injectors?: string[];
   injector_contract_labels?: Record<string, string>;
   injector_contract_manual?: boolean;
   injector_contract_needs_executor?: boolean;
@@ -4162,6 +4191,7 @@ export interface InjectorContract {
     | "Internal"
     | "Unknown"
   )[];
+  injector_contract_tags?: string[];
   /** @format date-time */
   injector_contract_updated_at: string;
   injector_contract_vulnerabilities?: string[];
@@ -4246,10 +4276,12 @@ export interface InjectorContractFullOutput {
    * @minLength 1
    */
   injector_contract_id: string;
-  /** Injector name */
-  injector_contract_injector_name?: string;
+  /** Map of injector ID to injector name for all injectors linked to this contract */
+  injector_contract_injector_names?: Record<string, string>;
   /** Injector type */
   injector_contract_injector_type?: string;
+  /** Injector IDs linked to this contract */
+  injector_contract_injectors?: string[];
   /** Labels */
   injector_contract_labels?: Record<string, string>;
   /** Payload type */
@@ -4265,6 +4297,8 @@ export interface InjectorContractFullOutput {
     | "Internal"
     | "Unknown"
   )[];
+  /** Tag IDs */
+  injector_contract_tags?: string[];
   /**
    * Timestamp when the injector contract was last updated
    * @format date-time
@@ -4356,6 +4390,8 @@ export interface InjectorContractUpdateMappingInput {
   contract_attack_patterns_ids?: string[];
   /** Set list of domains */
   contract_domains: string[];
+  /** Set list of tags ids */
+  contract_tags_ids?: string[];
   contract_vulnerability_ids?: string[];
 }
 
@@ -4396,7 +4432,7 @@ export interface InjectorOutput {
 }
 
 export interface InjectorRegistration {
-  connection?: InjectorConnection;
+  connection?: BrokerConnectionInfo;
   listen?: string;
 }
 
@@ -4850,7 +4886,6 @@ export interface NetworkTraffic {
   network_traffic_port_src: number;
   network_traffic_protocol: string;
   payload_arguments?: PayloadArgument[];
-  payload_attack_patterns?: string[];
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
   payload_collector_type?: string;
@@ -4858,11 +4893,6 @@ export interface NetworkTraffic {
   payload_created_at: string;
   payload_description?: string;
   payload_detection_remediations?: DetectionRemediation[];
-  /**
-   * @minItems 1
-   * @uniqueItems true
-   */
-  payload_domains: Domain[];
   payload_elevation_required?: boolean;
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations?: (
@@ -4896,7 +4926,6 @@ export interface NetworkTraffic {
   payload_prerequisites?: PayloadPrerequisite[];
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
-  payload_tags?: string[];
   payload_type?: string;
   /** @format date-time */
   payload_updated_at: string;
@@ -5814,6 +5843,96 @@ export interface PayloadInput {
   payload_type?: string;
 }
 
+export interface PayloadOutput {
+  /** Command content for command payloads */
+  command_content?: string;
+  /** Executor used for command payloads */
+  command_executor?: string;
+  /** Hostname resolved by DNS resolution payloads */
+  dns_resolution_hostname?: string;
+  /** Executable file path for executable payloads */
+  executable_file?: string;
+  /** Dropped file path for file-drop payloads */
+  file_drop_file?: string;
+  /** Payload input arguments definition */
+  payload_arguments?: PayloadArgument[];
+  /** MITRE ATT&CK patterns associated with the payload */
+  payload_attack_patterns?: string[];
+  /** Cleanup command executed after payload run */
+  payload_cleanup_command?: string;
+  /** Executor used for cleanup operations */
+  payload_cleanup_executor?: string;
+  /** Collector type associated with this payload */
+  payload_collector_type?: string;
+  /**
+   * Payload creation timestamp
+   * @format date-time
+   */
+  payload_created_at: string;
+  /** Payload description */
+  payload_description?: string;
+  /** Detection and remediation mappings for this payload */
+  payload_detection_remediations?: DetectionRemediation[];
+  /** Domains related to the payload */
+  payload_domains?: string[];
+  /** CPU architecture targeted for payload execution */
+  payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
+  /** Expected output types for payload execution */
+  payload_expectations?: (
+    | "TEXT"
+    | "DOCUMENT"
+    | "ARTICLE"
+    | "CHALLENGE"
+    | "MANUAL"
+    | "PREVENTION"
+    | "DETECTION"
+    | "VULNERABILITY"
+  )[];
+  /** External reference identifier */
+  payload_external_id?: string;
+  /**
+   * Payload unique identifier
+   * @minLength 1
+   */
+  payload_id: string;
+  /**
+   * Payload display name
+   * @minLength 1
+   */
+  payload_name: string;
+  /**
+   * Parsers used to process payload outputs
+   * @uniqueItems true
+   */
+  payload_output_parsers?: OutputParser[];
+  /** Supported endpoint platforms for this payload */
+  payload_platforms?: (
+    | "Linux"
+    | "Windows"
+    | "MacOS"
+    | "Container"
+    | "Service"
+    | "Generic"
+    | "Internal"
+    | "Unknown"
+  )[];
+  /** Prerequisites required before payload execution */
+  payload_prerequisites?: PayloadPrerequisite[];
+  /** Payload source origin */
+  payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
+  /** Current payload lifecycle status */
+  payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
+  /** Tags attached to the payload */
+  payload_tags?: string[];
+  /** Payload implementation type */
+  payload_type?: string;
+  /**
+   * Payload last update timestamp
+   * @format date-time
+   */
+  payload_updated_at: string;
+}
+
 export interface PayloadPrerequisite {
   check_command?: string;
   description?: string | null;
@@ -5825,8 +5944,8 @@ export interface PayloadPrerequisite {
 
 export interface PayloadSimple {
   payload_collector_type?: string;
-  payload_domains?: string[];
   payload_id?: string;
+  payload_status?: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
 }
 
@@ -6038,6 +6157,8 @@ export interface PlatformSettings {
   auth_openid_enable?: boolean;
   /** Sender mail to use by default for injects */
   default_mailer?: string;
+  /** Sender display name to use by default for injects */
+  default_mailer_name?: string;
   /** Reply to mail to use by default for injects */
   default_reply_to?: string;
   /** List of enabled dev features */
@@ -6189,7 +6310,7 @@ export interface PlatformSettings {
 }
 
 export interface PlayerInput {
-  /** @pattern ^\+[\d\s\-.()]+$ */
+  /** @pattern ^$|^\+[\d\s\-.()]+$ */
   user_phone2?: string;
   user_country?: string;
   /**
@@ -6201,7 +6322,7 @@ export interface PlayerInput {
   user_lastname?: string;
   user_organization?: string;
   user_pgp_key?: string;
-  /** @pattern ^\+[\d\s\-.()]+$ */
+  /** @pattern ^$|^\+[\d\s\-.()]+$ */
   user_phone?: string;
   user_tags?: string[];
   user_teams?: string[];
@@ -6497,7 +6618,19 @@ export interface RelatedFindingOutput {
     | "ipv4"
     | "ipv6"
     | "credentials"
-    | "cve";
+    | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account";
   /**
    * Finding Value
    * @minLength 1
@@ -6723,6 +6856,12 @@ export interface Scenario {
    * @minLength 1
    */
   scenario_mail_from: string;
+  /**
+   * @minLength 0
+   * @maxLength 100
+   * @pattern ^[^\r\n\x00]*$
+   */
+  scenario_mail_from_name?: string;
   scenario_mails_reply_to?: string[];
   scenario_main_focus?: string;
   scenario_message_footer?: string;
@@ -6771,8 +6910,13 @@ export interface ScenarioInput {
   scenario_description?: string;
   scenario_external_reference?: string;
   scenario_external_url?: string;
-  /** @format email */
-  scenario_mail_from?: string;
+  scenario_is_chaining?: boolean;
+  /**
+   * @minLength 0
+   * @maxLength 100
+   * @pattern ^[^\r\n\x00]*$
+   */
+  scenario_mail_from_name?: string;
   scenario_mails_reply_to?: string[];
   scenario_main_focus?: string;
   scenario_message_footer?: string;
@@ -6866,6 +7010,8 @@ export interface ScenarioOutput {
    * @format int64
    */
   scenario_users_number?: number;
+  /** Workflow ID associated with the scenario */
+  scenario_workflow_id?: string;
 }
 
 export interface ScenarioRecurrenceInput {
@@ -7001,8 +7147,6 @@ export interface SettingsPlatformWhitemarkUpdateInput {
 }
 
 export interface SettingsUpdateInput {
-  /** Default home dashboard of the platform */
-  platform_home_dashboard?: string;
   /**
    * Language of the platform
    * @minLength 1
@@ -7013,10 +7157,6 @@ export interface SettingsUpdateInput {
    * @minLength 1
    */
   platform_name: string;
-  /** Default scenario dashboard of the platform */
-  platform_scenario_dashboard?: string;
-  /** Default simulation dashboard of the platform */
-  platform_simulation_dashboard?: string;
   /**
    * Theme of the platform
    * @minLength 1
@@ -7081,6 +7221,7 @@ export interface SimulationDetails {
   exercise_users?: string[];
   /** @format int64 */
   exercise_users_number?: number;
+  exercise_workflow_id?: string;
 }
 
 export interface SimulationsResultsLatest {
@@ -7169,20 +7310,39 @@ export interface StepInput {
   step_condition_ids?: string[];
   step_conditions?: ConditionCreateInput[];
   step_data_step?: InjectInput;
-  /** @format int32 */
-  step_limit_execution?: number;
   /** @minLength 1 */
   step_workflow_id: string;
 }
 
 export interface StepOutput {
+  step_condition_key_types?: (
+    | "execution_time"
+    | "step_template_id"
+    | "text"
+    | "status"
+    | "number"
+    | "port"
+    | "portscan"
+    | "ipv4"
+    | "ipv6"
+    | "credentials"
+    | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "asset"
+  )[];
   /** @format date-time */
   step_created_at?: string;
-  step_data?: string;
+  step_data?: JsonNode;
   step_id?: string;
-  /** @format int32 */
-  step_limit_execution?: number;
-  step_status?: string;
+  step_status?: "TEMPLATE" | "READY" | "RUN" | "END";
   /** @format date-time */
   step_updated_at?: string;
 }
@@ -7506,6 +7666,18 @@ export interface TenantOutput {
   tenant_name: string;
 }
 
+export interface TenantSettingsOutput {
+  platform_home_dashboard?: string;
+  platform_scenario_dashboard?: string;
+  platform_simulation_dashboard?: string;
+}
+
+export interface TenantSettingsUpdateInput {
+  platform_home_dashboard?: string;
+  platform_scenario_dashboard?: string;
+  platform_simulation_dashboard?: string;
+}
+
 export interface ThemeInput {
   /** Accent color of the theme */
   accent_color?: string;
@@ -7525,6 +7697,242 @@ export interface ThemeInput {
   primary_color?: string;
   /** Secondary color of the theme */
   secondary_color?: string;
+}
+
+export interface ThreatArsenalAction {
+  /**
+   * Attack Patterns IDs
+   * @minItems 1
+   * @uniqueItems true
+   */
+  action_attack_patterns_ids: string[];
+  /**
+   * Domain IDs
+   * @minItems 1
+   * @uniqueItems true
+   */
+  action_domains_ids: string[];
+  /** Injector type */
+  action_injector_type?: string;
+  /** Labels */
+  action_labels?: Record<string, string>;
+  /** Payload attached */
+  action_payload?: PayloadSimple;
+  /** Platforms */
+  action_platforms?: (
+    | "Linux"
+    | "Windows"
+    | "MacOS"
+    | "Container"
+    | "Service"
+    | "Generic"
+    | "Internal"
+    | "Unknown"
+  )[];
+  /**
+   * Tags Ids
+   * @uniqueItems true
+   */
+  action_tags_ids?: string[];
+  /** Injector contract external Id */
+  injector_contract_external_id?: string;
+  injector_contract_has_full_details?: boolean;
+  /**
+   * Injector contract Id
+   * @minLength 1
+   */
+  injector_contract_id: string;
+  /**
+   * Timestamp when the injector contract was last updated
+   * @format date-time
+   */
+  injector_contract_updated_at: string;
+}
+
+export interface ThreatArsenalActionCreateInput {
+  action_arguments?: PayloadArgument[];
+  action_attack_patterns?: string[];
+  action_cleanup_command?: string | null;
+  action_cleanup_executor?: string | null;
+  action_description?: string;
+  /** List of detection remediation gaps for collectors */
+  action_detection_remediations?: DetectionRemediationInput[];
+  /** Set list of domains */
+  action_domains: string[];
+  action_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
+  action_expectations: (
+    | "TEXT"
+    | "DOCUMENT"
+    | "ARTICLE"
+    | "CHALLENGE"
+    | "MANUAL"
+    | "PREVENTION"
+    | "DETECTION"
+    | "VULNERABILITY"
+  )[];
+  /** @minLength 1 */
+  action_name: string;
+  /**
+   * Set of output parsers
+   * @uniqueItems true
+   */
+  action_output_parsers?: OutputParserInput[];
+  /** @minItems 1 */
+  action_platforms: (
+    | "Linux"
+    | "Windows"
+    | "MacOS"
+    | "Container"
+    | "Service"
+    | "Generic"
+    | "Internal"
+    | "Unknown"
+  )[];
+  action_prerequisites?: PayloadPrerequisite[];
+  action_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
+  action_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
+  action_tags?: string[];
+  /** @minLength 1 */
+  action_type: string;
+  command_content?: string | null;
+  command_executor?: string | null;
+  dns_resolution_hostname?: string;
+  executable_file?: string;
+  file_drop_file?: string;
+}
+
+export interface ThreatArsenalActionFullOutput {
+  /** Action input arguments definition */
+  action_arguments?: PayloadArgument[];
+  /** MITRE ATT&CK patterns associated with the action */
+  action_attack_patterns?: string[];
+  /** Cleanup command executed after action run */
+  action_cleanup_command?: string;
+  /** Executor used for cleanup operations */
+  action_cleanup_executor?: string;
+  /** Collector type associated with this action */
+  action_collector_type?: string;
+  /**
+   * Action creation timestamp
+   * @format date-time
+   */
+  action_created_at: string;
+  /** Action description */
+  action_description?: string;
+  /** Detection and remediation mappings for this action */
+  action_detection_remediations?: DetectionRemediation[];
+  /** Domains related to the action */
+  action_domains?: string[];
+  /** CPU architecture targeted for action execution */
+  action_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
+  /** Expected output types for action execution */
+  action_expectations?: (
+    | "TEXT"
+    | "DOCUMENT"
+    | "ARTICLE"
+    | "CHALLENGE"
+    | "MANUAL"
+    | "PREVENTION"
+    | "DETECTION"
+    | "VULNERABILITY"
+  )[];
+  /** External reference identifier */
+  action_external_id?: string;
+  /**
+   * Action unique identifier
+   * @minLength 1
+   */
+  action_id: string;
+  /** Action display name */
+  action_labels: Record<string, string>;
+  /**
+   * Parsers used to process action outputs
+   * @uniqueItems true
+   */
+  action_output_parsers?: OutputParser[];
+  /** Supported endpoint platforms for this action */
+  action_platforms?: (
+    | "Linux"
+    | "Windows"
+    | "MacOS"
+    | "Container"
+    | "Service"
+    | "Generic"
+    | "Internal"
+    | "Unknown"
+  )[];
+  /** Prerequisites required before action execution */
+  action_prerequisites?: PayloadPrerequisite[];
+  /** Action source origin */
+  action_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
+  /** Current action lifecycle status */
+  action_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
+  /** Tags attached to the action */
+  action_tags?: string[];
+  /** Action implementation type */
+  action_type?: string;
+  /**
+   * Action last update timestamp
+   * @format date-time
+   */
+  action_updated_at: string;
+  /** Command content for command actions */
+  command_content?: string;
+  /** Executor used for command actions */
+  command_executor?: string;
+  /** Hostname resolved by DNS resolution actions */
+  dns_resolution_hostname?: string;
+  /** Executable file path for executable actions */
+  executable_file?: string;
+  /** Dropped file path for file-drop actions */
+  file_drop_file?: string;
+}
+
+export interface ThreatArsenalActionUpdateInput {
+  action_arguments?: PayloadArgument[];
+  action_attack_patterns?: string[];
+  action_cleanup_command?: string | null;
+  action_cleanup_executor?: string | null;
+  action_description?: string;
+  /** List of detection remediation gaps for collectors */
+  action_detection_remediations?: DetectionRemediationInput[];
+  /** Update list of domains */
+  action_domains: string[];
+  action_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
+  action_expectations: (
+    | "TEXT"
+    | "DOCUMENT"
+    | "ARTICLE"
+    | "CHALLENGE"
+    | "MANUAL"
+    | "PREVENTION"
+    | "DETECTION"
+    | "VULNERABILITY"
+  )[];
+  /** @minLength 1 */
+  action_name: string;
+  /**
+   * Set of output parsers
+   * @uniqueItems true
+   */
+  action_output_parsers?: OutputParserInput[];
+  action_platforms?: (
+    | "Linux"
+    | "Windows"
+    | "MacOS"
+    | "Container"
+    | "Service"
+    | "Generic"
+    | "Internal"
+    | "Unknown"
+  )[];
+  action_prerequisites?: PayloadPrerequisite[];
+  action_tags?: string[];
+  command_content?: string | null;
+  command_executor?: string | null;
+  dns_resolution_hostname?: string;
+  executable_file?: string;
+  file_drop_file?: string;
 }
 
 export interface Token {
@@ -7553,8 +7961,12 @@ export interface UpdateExerciseInput {
   exercise_custom_dashboard?: string;
   exercise_description?: string;
   exercise_is_chaining?: boolean;
-  /** @format email */
-  exercise_mail_from?: string;
+  /**
+   * @minLength 0
+   * @maxLength 100
+   * @pattern ^[^\r\n\x00]*$
+   */
+  exercise_mail_from_name?: string;
   exercise_mails_reply_to?: string[];
   exercise_main_focus?: string;
   exercise_message_footer?: string;
@@ -7605,8 +8017,13 @@ export interface UpdateScenarioInput {
   scenario_description?: string;
   scenario_external_reference?: string;
   scenario_external_url?: string;
-  /** @format email */
-  scenario_mail_from?: string;
+  scenario_is_chaining?: boolean;
+  /**
+   * @minLength 0
+   * @maxLength 100
+   * @pattern ^[^\r\n\x00]*$
+   */
+  scenario_mail_from_name?: string;
   scenario_mails_reply_to?: string[];
   scenario_main_focus?: string;
   scenario_message_footer?: string;
@@ -7622,36 +8039,6 @@ export interface UpdateUserInfoInput {
   user_phone2?: string;
   user_pgp_key?: string;
   user_phone?: string;
-}
-
-export interface UpdateUserInput {
-  /**
-   * Secondary phone of the user
-   * @pattern ^\+[\d\s\-.()]+$
-   */
-  user_phone2?: string;
-  /** True if the user is admin */
-  user_admin?: boolean;
-  /**
-   * The email of the user
-   * @format email
-   */
-  user_email?: string;
-  /** First name of the user */
-  user_firstname?: string;
-  /** Last name of the user */
-  user_lastname?: string;
-  /** Organization of the user */
-  user_organization?: string;
-  /** PGP key of the user */
-  user_pgp_key?: string;
-  /**
-   * Phone of the user
-   * @pattern ^\+[\d\s\-.()]+$
-   */
-  user_phone?: string;
-  /** Tags of the user */
-  user_tags?: string[];
 }
 
 export interface UpdateUsersTeamInput {
@@ -7780,31 +8167,42 @@ export interface User {
   user_updated_at: string;
 }
 
-export interface UserOutput {
-  /** True if the user is admin */
+export interface UserInput {
+  /** @pattern ^$|^\+[\d\s\-.()]+$ */
+  user_phone2?: string;
   user_admin?: boolean;
   /**
-   * Email of the user
+   * @format email
    * @minLength 1
    */
   user_email: string;
-  /** First name of the user */
   user_firstname?: string;
+  user_lastname?: string;
+  user_organization?: string;
+  user_pgp_key?: string;
+  /** @pattern ^$|^\+[\d\s\-.()]+$ */
+  user_phone?: string;
+  user_plain_password?: string;
+  user_tags?: string[];
+}
+
+export interface UserOutput {
+  user_phone2?: string;
+  user_admin?: boolean;
   /**
-   * User ID
+   * @format email
    * @minLength 1
    */
+  user_email: string;
+  user_firstname?: string;
+  /** @minLength 1 */
   user_id: string;
-  /** Last name of the user */
   user_lastname?: string;
-  /** Organization of the user */
   user_organization_id?: string;
-  /** Organization of the user */
   user_organization_name?: string;
-  /**
-   * Tags of the user
-   * @uniqueItems true
-   */
+  user_pgp_key?: string;
+  user_phone?: string;
+  /** @uniqueItems true */
   user_tags?: string[];
 }
 
@@ -7858,15 +8256,6 @@ export interface VariableInput {
    */
   variable_key: string;
   variable_value?: string;
-}
-
-export interface ViolationErrorBag {
-  /** The error */
-  error?: string;
-  /** The message of the error */
-  message?: string;
-  /** The type of error */
-  type?: string;
 }
 
 export interface VulnerabilityBulkInsertInput {

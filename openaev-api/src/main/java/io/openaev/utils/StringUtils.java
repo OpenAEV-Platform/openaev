@@ -25,7 +25,7 @@ public class StringUtils {
   }
 
   /** Suffix appended to duplicated entity names. */
-  private static final String DUPLICATE_SUFFIX = " (duplicate)";
+  public static final String DUPLICATE_SUFFIX = " (duplicate)";
 
   /**
    * Creates a duplicate name by appending a suffix to the original name.
@@ -54,6 +54,16 @@ public class StringUtils {
    * @return {@code true} if the regex compiles successfully, {@code false} otherwise
    */
   public static boolean isValidRegex(String regex) {
+    if (regex.length() > 100) {
+      throw new IllegalArgumentException("Regex too long");
+    }
+    // Optionally: block patterns with nested quantifiers (most common ReDoS source)
+    // Example: a pattern like (a+)+ or (.+)+
+    if (regex.matches(".*\\([^(]*[+*][^)]*\\)[+*].*")) {
+      // This regex is a basic detector: "(<anything with + or *>)[+*]"  (nested quantifier)
+      throw new IllegalArgumentException(
+          "Regex contains nested quantifiers, which are not allowed for security reasons.");
+    }
     try {
       Pattern.compile(regex);
       return true;

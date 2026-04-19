@@ -1,16 +1,21 @@
 package io.openaev.security.token;
 
-import lombok.NoArgsConstructor;
+import io.openaev.database.model.User;
+import io.openaev.service.UserService;
+import java.util.Optional;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 @Component
 @Slf4j
-@NoArgsConstructor
+@RequiredArgsConstructor
 public class PlainTokenExtractor implements ExtractorBase {
 
+  private final UserService userService;
+
   @Override
-  public String extractToken(String value) {
-    return value;
+  public Optional<User> authUser(String value) {
+    return userService.findByToken(value);
   }
 }

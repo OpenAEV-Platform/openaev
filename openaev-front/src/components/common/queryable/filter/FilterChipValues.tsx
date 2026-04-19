@@ -6,6 +6,7 @@ import { type Filter, type PropertySchemaDTO } from '../../../../utils/api-types
 import { type Option } from '../../../../utils/Option';
 import { useFormatter } from '../../../i18n';
 import { FilterContext } from './context';
+import { type FilterHelpers } from './FilterHelpers';
 import { convertOperatorToIcon } from './FilterUtils';
 import useRetrieveOptions from './useRetrieveOptions';
 import type { SearchOptionsConfig } from './useSearchOptions';
@@ -37,6 +38,7 @@ interface Props {
   isTooltip?: boolean;
   handleOpen?: () => void;
   contextId?: string;
+  helpers?: FilterHelpers;
 }
 
 const FilterChipValues: FunctionComponent<Props> = ({
@@ -45,6 +47,7 @@ const FilterChipValues: FunctionComponent<Props> = ({
   isTooltip = false,
   handleOpen,
   contextId,
+  helpers,
 }) => {
   // Standard hooks
   const { t, fldt } = useFormatter();
@@ -65,11 +68,18 @@ const FilterChipValues: FunctionComponent<Props> = ({
     }
   }, [filter]);
 
-  const i18nMode = (mode: Filter['mode']) => (
-    <div className={classes.mode}>
-      {t(mode === 'and' ? 'AND' : 'OR')}
-    </div>
-  );
+  const i18nMode = (mode: Filter['mode']) => {
+    const canClick = !!helpers && (filter.values?.length ?? 0) > 1;
+    return (
+      <div
+        className={cx({ [classes.mode]: true })}
+        onClick={canClick ? () => helpers!.handleSwitchLocalModeById(filter.id) : undefined}
+        style={canClick ? { cursor: 'pointer' } : undefined}
+      >
+        {t(mode === 'and' ? 'and' : 'or')}
+      </div>
+    );
+  };
 
   const toValues = (opts: Option[], mode: Filter['mode']) => opts.map((o, idx) => (
     <Fragment key={o.id}>
@@ -104,7 +114,7 @@ const FilterChipValues: FunctionComponent<Props> = ({
     let str = '';
     options.forEach((o, idx) => {
       if (idx > 0) {
-        str = `${str} ${t('OR')}`;
+        str = `${str} ${t('or')}`;
       }
       if (propertySchema?.schema_property_type.includes('instant')) {
         str = `${str} ${o.label ? fldt(o.label) : o.label}`;

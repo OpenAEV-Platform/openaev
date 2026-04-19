@@ -6,6 +6,8 @@ import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.IntegrationTest;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepInput;
 import io.openaev.database.model.*;
@@ -24,11 +26,7 @@ import io.openaev.service.TeamService;
 import io.openaev.service.UserService;
 import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.StepService;
-import io.openaev.utils.fixtures.AgentFixture;
-import io.openaev.utils.fixtures.AssetFixture;
-import io.openaev.utils.fixtures.InjectorContractFixture;
-import io.openaev.utils.fixtures.InjectorFixture;
-import io.openaev.utils.fixtures.WorkflowFixture;
+import io.openaev.utils.fixtures.*;
 import io.openaev.utils.helpers.InjectTestHelper;
 import java.util.*;
 import org.junit.jupiter.api.Assertions;
@@ -42,7 +40,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @Transactional
-public class InjectExecutionStepTest {
+public class InjectExecutionStepTest extends IntegrationTest {
   @MockitoBean private InjectorContractService injectorContractService;
   @MockitoBean private UserService userService;
   @MockitoBean private TeamService teamService;
@@ -68,8 +66,10 @@ public class InjectExecutionStepTest {
     Injector injectorSaved = injectorRepository.save(injector);
 
     InjectorContract injectorContract = InjectorContractFixture.createImplantInjectorContract();
-    injectorContract.setInjector(injectorSaved);
+    injectorContract.addInjector(injectorSaved);
     injectorContractSaved = injectorContractRepository.save(injectorContract);
+    injectorSaved.getContracts().add(injectorContractSaved);
+    injectorRepository.save(injectorSaved);
 
     doReturn(injectorContractSaved).when(injectorContractService).injectorContract(any());
     doReturn(new User()).when(userService).currentUser();
@@ -157,7 +157,7 @@ public class InjectExecutionStepTest {
                         """
             .formatted(
                 injectorContractSaved.getId(),
-                injectorContractSaved.getInjector().getId(),
+                injectorContractSaved.getFirstInjector().getId(),
                 asset.getId());
   }
 
@@ -226,8 +226,9 @@ public class InjectExecutionStepTest {
 
   @Test
   void create_shouldThrowException_whenStepDataIsNull() {
-    StepInput stepInput = new StepInput();
+    StepsCreateInput.StepInput stepInput = new StepsCreateInput.StepInput();
     Workflow workflow = new Workflow();
+    workflow.setSimulation(ExerciseFixture.createDefaultExercise());
 
     IllegalArgumentException ex =
         Assertions.assertThrows(
@@ -281,18 +282,18 @@ public class InjectExecutionStepTest {
   public void createTest() throws JsonProcessingException, ChainingException {
     // PREPARE
     InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
-    StepInput step = InjectExecutionStep.toStepInput(injectInput);
+    StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .keyType(ConditionKeyType.IPv4)
+            .keyType(ConditionKeyType.IPV4)
             .value("output.message.ip")
-            .stepFrom("firstStep")
             .type(ConditionType.MAPPER)
             .build();
     step.setConditions(Collections.singletonList(conditionMapper));
 
     Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
+    workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
 
     // ACT
     Optional<Step> stepTemplateOpt = injectExecutionStep.create(step, workflowTemplate);
@@ -308,13 +309,10 @@ public class InjectExecutionStepTest {
         injectorContractSaved.getId(),
         StepService.getField(
             stepTemplate.getData(), "inject_injector_contract.injector_contract_id"));
+    assertEquals("output.message.ip", StepService.getField(stepTemplate.getInput(), "input.path"));
     assertEquals(
-        "output.message.ip", StepService.getField(stepTemplate.getInput(), "input.0.value"));
-    assertEquals(
-        "firstStep", StepService.getField(stepTemplate.getInput(), "input.0.id_step_from"));
-    assertEquals(
-        ConditionKeyType.IPv4.name(),
-        StepService.getField(stepTemplate.getInput(), "input.0.keyType"));
+        ConditionKeyType.IPV4.name(),
+        StepService.getField(stepTemplate.getInput(), "input.keyType"));
   }
 
   /**
@@ -337,18 +335,18 @@ public class InjectExecutionStepTest {
     mapper.readValue(injectInputJson, InjectInput.class);
     InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
 
-    StepInput step = InjectExecutionStep.toStepInput(injectInput);
+    StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .keyType(ConditionKeyType.IPv4)
+            .keyType(ConditionKeyType.IPV4)
             .value("output.message.ip")
-            .stepFrom("firstStep")
             .type(ConditionType.MAPPER)
             .build();
     step.setConditions(Collections.singletonList(conditionMapper));
 
     Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
+    workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
 
     // ACT
     Optional<Step> stepTemplateOpt = injectExecutionStep.create(step, workflowTemplate);
@@ -383,16 +381,16 @@ public class InjectExecutionStepTest {
   public void runTest() throws JsonProcessingException, ChainingException {
     // PREPARE
     Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
+    workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
 
     mapper.readValue(injectInputJson, InjectInput.class);
     InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
-    StepInput step = InjectExecutionStep.toStepInput(injectInput);
+    StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .keyType(ConditionKeyType.IPv4)
+            .keyType(ConditionKeyType.IPV4)
             .value("output.message.ip")
-            .stepFrom("firstStep")
             .type(ConditionType.MAPPER)
             .build();
     step.setConditions(Collections.singletonList(conditionMapper));
@@ -424,21 +422,21 @@ public class InjectExecutionStepTest {
     // New StepsCreateInput & ConditionCreateInput
     mapper.readValue(injectInputJson, InjectInput.class);
     InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
-    StepInput step = InjectExecutionStep.toStepInput(injectInput);
+    StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .keyType(ConditionKeyType.IPv4)
+            .keyType(ConditionKeyType.IPV4)
             .value("output.message.ip")
-            .stepFrom("firstStep")
             .type(ConditionType.MAPPER)
             .build();
     step.setConditions(Collections.singletonList(conditionMapper));
     // ACT CREATE + READY + RUN
 
+    Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
+    workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
     // PERSIST STEP TEMPLATE
-    Optional<Step> stepTemplateOpt =
-        injectExecutionStep.create(step, WorkflowFixture.getDefaultWorkflowTemplate());
+    Optional<Step> stepTemplateOpt = injectExecutionStep.create(step, workflowTemplate);
     assertTrue(stepTemplateOpt.isPresent());
     Step stepTemplate = stepTemplateOpt.get();
 
@@ -450,11 +448,14 @@ public class InjectExecutionStepTest {
     assertTrue(stepReadyOpt.isPresent());
     Step stepReady = stepReadyOpt.get();
 
-    String injectorId =
+    String injectorIdsJson =
         StepService.getField(
-            stepReady.getData(), "inject_injector_contract.injector_contract_injector");
-    assertNotNull(injectorId);
-    injectorRepository.deleteById(injectorId);
+            stepReady.getData(), "inject_injector_contract.injector_contract_injectors");
+    assertNotNull(injectorIdsJson);
+    String[] injectorIds = mapper.readValue(injectorIdsJson, String[].class);
+    for (String id : injectorIds) {
+      injectorRepository.deleteById(id);
+    }
 
     // ACT
     ChainingException ex =
@@ -468,16 +469,16 @@ public class InjectExecutionStepTest {
       throws JsonProcessingException, ChainingException {
     // PREPARE
     Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
+    workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
 
     mapper.readValue(injectInputJson, InjectInput.class);
     InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
-    StepInput step = InjectExecutionStep.toStepInput(injectInput);
+    StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .keyType(ConditionKeyType.IPv4)
+            .keyType(ConditionKeyType.IPV4)
             .value("output.message.ip")
-            .stepFrom("firstStep")
             .type(ConditionType.MAPPER)
             .build();
     step.setConditions(Collections.singletonList(conditionMapper));
@@ -487,23 +488,25 @@ public class InjectExecutionStepTest {
     Step stepTemplate = stepTemplateOpt.get();
 
     Workflow workflowRun = WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN);
+    workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
 
     Optional<Step> stepReadyOpt =
         injectExecutionStep.ready(stepTemplate, "{\"input\" : \"do defined\"}", workflowRun);
     assertTrue(stepReadyOpt.isPresent());
     Step stepReady = stepReadyOpt.get();
 
-    String injectorId =
-        StepService.getField(
-            stepReady.getData(), "inject_injector_contract.injector_contract_injector");
+    String injectorId = StepService.getField(stepReady.getData(), "inject_injector");
     assertNotNull(injectorId);
-    stepReady.setData(
-        StepService.setField(
-            stepReady.getData(), "inject_injector_contract.injector_contract_injector", ""));
+    stepReady.setData(StepService.setField(stepReady.getData(), "inject_injector", ""));
 
     Optional<Step> stepRunOpt = injectExecutionStep.run(stepReady);
 
     // ASSERT
+    Assertions.assertEquals(
+        "Injector not found for injectorContractId "
+            + injectorContractSaved.getId()
+            + " and step (READY) ID null",
+        ex.getMessage());
     assertTrue(stepRunOpt.isPresent());
     assertNotNull(StepService.getField(stepRunOpt.get().getData(), "inject_id"));
   }
@@ -516,16 +519,16 @@ public class InjectExecutionStepTest {
     doThrow(exception).when(executor).directExecute(any());
 
     Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
+    workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
 
     mapper.readValue(injectInputJson, InjectInput.class);
     InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
-    StepInput step = InjectExecutionStep.toStepInput(injectInput);
+    StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .keyType(ConditionKeyType.IPv4)
+            .keyType(ConditionKeyType.IPV4)
             .value("output.message.ip")
-            .stepFrom("firstStep")
             .type(ConditionType.MAPPER)
             .build();
     step.setConditions(Collections.singletonList(conditionMapper));
@@ -550,10 +553,11 @@ public class InjectExecutionStepTest {
 
     verify(executor).directExecute(any());
 
-    verify(injectStatusService).failInjectStatus(any(), eq("direct execute throw an exception"));
-
     // ASSERT
     Assertions.assertTrue(ex.getMessage().contains("Inject execution failed. Inject ID: "));
+    String idInject = ex.getMessage().replace("Inject execution failed. Inject ID: ", "");
+    Assertions.assertFalse(
+        injectRepository.findById(idInject).isPresent(), idInject + " should not be persisted");
   }
 
   /**
@@ -574,15 +578,16 @@ public class InjectExecutionStepTest {
   public void updateTest() throws JsonProcessingException, ChainingException {
     // PREPARE
     Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
+    workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
+
     mapper.readValue(injectInputJson, InjectInput.class);
     InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
-    StepInput step = InjectExecutionStep.toStepInput(injectInput);
+    StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .keyType(ConditionKeyType.IPv4)
+            .keyType(ConditionKeyType.IPV4)
             .value("output.message.ip")
-            .stepFrom("firstStep")
             .type(ConditionType.MAPPER)
             .build();
     step.setConditions(Collections.singletonList(conditionMapper));
@@ -609,5 +614,30 @@ public class InjectExecutionStepTest {
     // ASSERT
     assertNotNull(StepService.getField(runUpdated.getOutput(), "outputs.agent_id"));
     assertEquals("testValue", StepService.getField(runUpdated.getOutput(), "outputs.message.test"));
+  }
+
+  public static InjectorContract getInjectorContract() throws JsonProcessingException {
+    ObjectMapper mapper = new ObjectMapper();
+    InjectorContract injectorContract = new InjectorContract();
+    injectorContract.setContent(
+        "{\"config\":{\"type\":\"openaev_implant\",\"expose\":true,\"label\":{\"en\":\"OpenAEV Implant\",\"fr\":\"OpenAEV Implant\"},\"color_dark\":\"#000000\",\"color_light\":\"#000000\"},\"label\":{\"en\":\"WHOAMI\",\"fr\":\"WHOAMI\"},\"manual\":false,\"fields\":[{\"key\":\"assets\",\"label\":\"Source assets\",\"mandatory\":false,\"readOnly\":false,\"mandatoryGroups\":[\"assets\",\"asset_groups\"],\"mandatoryConditionFields\":null,\"mandatoryConditionValues\":null,\"visibleConditionFields\":null,\"visibleConditionValues\":null,\"linkedFields\":[],\"linkedValues\":[],\"cardinality\":\"n\",\"defaultValue\":[],\"type\":\"asset\"},{\"key\":\"asset_groups\",\"label\":\"Source asset groups\",\"mandatory\":false,\"readOnly\":false,\"mandatoryGroups\":[\"assets\",\"asset_groups\"],\"mandatoryConditionFields\":null,\"mandatoryConditionValues\":null,\"visibleConditionFields\":null,\"visibleConditionValues\":null,\"linkedFields\":[],\"linkedValues\":[],\"cardinality\":\"n\",\"defaultValue\":[],\"type\":\"asset-group\"},{\"key\":\"obfuscator\",\"label\":\"Obfuscators\",\"mandatory\":false,\"readOnly\":false,\"mandatoryGroups\":null,\"mandatoryConditionFields\":null,\"mandatoryConditionValues\":null,\"visibleConditionFields\":null,\"visibleConditionValues\":null,\"linkedFields\":[],\"linkedValues\":[],\"cardinality\":\"1\",\"defaultValue\":[\"plain-text\"],\"choices\":[{\"label\":\"plain-text\",\"value\":\"plain-text\",\"information\":\"\"},{\"label\":\"base64\",\"value\":\"base64\",\"information\":\"CMD does not support base64 obfuscation\"}],\"type\":\"choice\"},{\"key\":\"expectations\",\"label\":\"Expectations\",\"mandatory\":false,\"readOnly\":false,\"mandatoryGroups\":null,\"mandatoryConditionFields\":null,\"mandatoryConditionValues\":null,\"visibleConditionFields\":null,\"visibleConditionValues\":null,\"linkedFields\":[],\"linkedValues\":[],\"cardinality\":\"n\",\"defaultValue\":[],\"predefinedExpectations\":[{\"expectation_type\":\"PREVENTION\",\"expectation_name\":\"Prevention\",\"expectation_description\":null,\"expectation_score\":100.0,\"expectation_expectation_group\":false,\"expectation_expiration_time\":21600},{\"expectation_type\":\"DETECTION\",\"expectation_name\":\"Detection\",\"expectation_description\":null,\"expectation_score\":100.0,\"expectation_expectation_group\":false,\"expectation_expiration_time\":21600}],\"type\":\"expectation\"}],\"variables\":[{\"key\":\"user\",\"label\":\"User that will receive the injection\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[{\"key\":\"user.id\",\"label\":\"Id of the user in the platform\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"user.email\",\"label\":\"Email of the user\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"user.firstname\",\"label\":\"First name of the user\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"user.lastname\",\"label\":\"Last name of the user\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"user.lang\",\"label\":\"Language of the user\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]}]},{\"key\":\"exercise\",\"label\":\"Exercise of the current injection\",\"type\":\"Object\",\"cardinality\":\"1\",\"children\":[{\"key\":\"exercise.id\",\"label\":\"Id of the user in the platform\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"exercise.name\",\"label\":\"Name of the exercise\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"exercise.description\",\"label\":\"Description of the exercise\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]}]},{\"key\":\"teams\",\"label\":\"List of team name for the injection\",\"type\":\"String\",\"cardinality\":\"n\",\"children\":[]},{\"key\":\"player_uri\",\"label\":\"Player interface platform link\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"challenges_uri\",\"label\":\"Challenges interface platform link\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"scoreboard_uri\",\"label\":\"Scoreboard interface platform link\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"lessons_uri\",\"label\":\"Lessons learned interface platform link\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]}],\"context\":{},\"contract_id\":\"73bfd988-b0bd-4740-bb7e-a6209a538835\",\"contract_attack_patterns_external_ids\":[],\"is_atomic_testing\":true,\"needs_executor\":true,\"platforms\":[\"MacOS\"],\"domains\":[{\"listened\":true,\"domain_id\":\"948e3cdc-c345-45dd-80cb-943804c09a3a\",\"domain_name\":\"Endpoint\",\"domain_color\":\"#389CFF\",\"domain_created_at\":\"2026-02-03T12:15:01.323228Z\",\"domain_updated_at\":\"2026-02-03T12:15:01.323228Z\"}]}");
+    injectorContract.setConvertedContent(
+        (ObjectNode) mapper.readTree(injectorContract.getContent()));
+    injectorContract.setId("73bfd988-b0bd-4740-bb7e-a6209a538835");
+    Map<String, String> labels = new HashMap<>();
+    labels.put("en", "WHOAMI");
+    labels.put("fr", "WHOAMI");
+    injectorContract.setLabels(labels);
+    injectorContract.setManual(false);
+    Injector injector = new Injector();
+    injector.setId("injectorId");
+    injectorContract.addInjector(injector);
+    injectorContract.setAtomicTesting(false);
+    injectorContract.setCustom(false);
+    injectorContract.setPlatforms(new Endpoint.PLATFORM_TYPE[] {Endpoint.PLATFORM_TYPE.MacOS});
+    injectorContract.setNeedsExecutor(true);
+    injectorContract.setImportAvailable(false);
+
+    return injectorContract;
   }
 }

@@ -41,6 +41,7 @@ import Loader from '../../../components/Loader';
 import { useHelper } from '../../../store';
 import { useQueryParameter } from '../../../utils/Environment';
 import useSimulationPermissions from '../../../utils/permissions/useSimulationPermissions';
+import { buildTenantApiPath } from '../../../utils/tenant-url-helper.ts';
 
 const useStyles = makeStyles()(() => ({
   root: {
@@ -385,7 +386,7 @@ const ChallengesPlayer = () => {
                           divider={true}
                           button={true}
                           component="a"
-                          href={`/api/documents/${document.document_id}/file`}
+                          href={buildTenantApiPath(`/api/documents/${document.document_id}/file`)}
                         >
                           <ListItemIcon>
                             <AttachmentOutlined />

@@ -6,13 +6,11 @@ import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.IntegrationTest;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepInput;
 import io.openaev.database.model.*;
-import io.openaev.database.repository.InjectRepository;
-import io.openaev.database.repository.InjectorContractRepository;
-import io.openaev.database.repository.InjectorRepository;
-import io.openaev.database.repository.StepRepository;
+import io.openaev.database.repository.*;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.inject.form.InjectInput;
@@ -27,6 +25,7 @@ import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.WorkflowComposer;
 import io.openaev.utils.helpers.InjectTestHelper;
 import java.util.*;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,7 +34,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.mock.mockito.SpyBean;
 
 @SpringBootTest
-class StepServiceIntegrationTest {
+class StepServiceIntegrationTest extends IntegrationTest {
 
   @Autowired private StepService stepService;
 
@@ -58,6 +57,7 @@ class StepServiceIntegrationTest {
   String injectInputJson;
   InjectorContract injectorContractSaved;
   @SpyBean private StepService spyStepService;
+  @Autowired private WorkflowRepository workflowRepository;
 
   @BeforeEach
   void beforeEach() throws Exception {
@@ -65,8 +65,11 @@ class StepServiceIntegrationTest {
     Injector injectorSaved = injectorRepository.save(injector);
 
     InjectorContract injectorContract = InjectorContractFixture.createImplantInjectorContract();
-    injectorContract.setInjector(injectorSaved);
+    injectorContract.addInjector(injectorSaved);
     injectorContractSaved = injectorContractRepository.save(injectorContract);
+    // Link on the owning side and save to persist the join table
+    injectorSaved.getContracts().add(injectorContractSaved);
+    injectorRepository.save(injectorSaved);
 
     doReturn(injectorContractSaved).when(injectorContractService).injectorContract(any());
     doReturn(new User()).when(userService).currentUser();
@@ -152,6 +155,11 @@ class StepServiceIntegrationTest {
             .formatted(injectorContractSaved.getId(), asset.getId());
   }
 
+  @AfterEach
+  void afterEach() {
+    workflowRepository.deleteAll();
+  }
+
   @Test
   void should_rollback_when_condition_fails() throws JsonProcessingException {
     InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
@@ -163,7 +171,7 @@ class StepServiceIntegrationTest {
             .get();
     String workflowId = workflow.getId();
 
-    StepInput input = buildInvalidInputCondition();
+    StepsCreateInput.StepInput input = buildInvalidInputCondition();
     input.setDataStep(injectInput);
 
     long countBefore = stepRepository.count();
@@ -193,10 +201,10 @@ class StepServiceIntegrationTest {
             .get();
     String workflowId = workflow.getId();
 
-    StepInput input1 = buildInvalidInput();
+    StepsCreateInput.StepInput input1 = buildInvalidInput();
     input1.setDataStep(injectInput);
 
-    StepInput input2 = buildInvalidInput();
+    StepsCreateInput.StepInput input2 = buildInvalidInput();
     input2.setDataStep(injectInput);
 
     long countBefore = stepRepository.count();
@@ -222,9 +230,9 @@ class StepServiceIntegrationTest {
             .get();
     String workflowId = workflow.getId();
 
-    StepInput input1 = buildInvalidInput();
+    StepsCreateInput.StepInput input1 = buildInvalidInput();
     input1.setDataStep(injectInput);
-    StepInput input2 = buildInvalidInput();
+    StepsCreateInput.StepInput input2 = buildInvalidInput();
 
     long countBefore = stepRepository.count();
 
@@ -243,51 +251,47 @@ class StepServiceIntegrationTest {
     assertEquals(countBefore, countAfter);
   }
 
-  private StepInput buildInvalidInputCondition() {
+  private StepsCreateInput.StepInput buildInvalidInputCondition() {
 
-    StepInput stepInput = new StepInput();
+    StepsCreateInput.StepInput stepInput = new StepsCreateInput.StepInput();
     stepInput.setStepAction(StepActionClass.INJECT_EXECUTION);
     stepInput.setDataStep(new InjectInput());
     ConditionCreateInput root1 = new ConditionCreateInput();
     root1.setTemporaryId("tmp-1");
     root1.setTemporaryIdConditionParent(null); // root
     root1.setType(ConditionType.EQ);
-    root1.setKeyType(ConditionKeyType.Status);
+    root1.setKeyType(ConditionKeyType.STATUS);
     root1.setValue("A");
-    root1.setStepFrom(null);
 
     ConditionCreateInput root2 = new ConditionCreateInput();
     root2.setTemporaryId("tmp-2");
     root2.setTemporaryIdConditionParent(null); // second root → BOOM
     root2.setType(ConditionType.EQ);
-    root2.setKeyType(ConditionKeyType.Status);
+    root2.setKeyType(ConditionKeyType.STATUS);
     root2.setValue("B");
-    root2.setStepFrom(null);
 
     stepInput.setConditions(List.of(root1, root2));
     return stepInput;
   }
 
-  private StepInput buildInvalidInput() {
+  private StepsCreateInput.StepInput buildInvalidInput() {
 
-    StepInput stepInput = new StepInput();
+    StepsCreateInput.StepInput stepInput = new StepsCreateInput.StepInput();
     stepInput.setStepAction(StepActionClass.INJECT_EXECUTION);
     stepInput.setDataStep(new InjectInput());
     ConditionCreateInput root1 = new ConditionCreateInput();
     root1.setTemporaryId("tmp-1");
     root1.setTemporaryIdConditionParent(null); // root
     root1.setType(ConditionType.EQ);
-    root1.setKeyType(ConditionKeyType.Status);
+    root1.setKeyType(ConditionKeyType.STATUS);
     root1.setValue("A");
-    root1.setStepFrom(null);
 
     ConditionCreateInput root2 = new ConditionCreateInput();
     root2.setTemporaryId("tmp-2");
     root2.setTemporaryIdConditionParent("tmp-1"); // root
     root2.setType(ConditionType.EQ);
-    root2.setKeyType(ConditionKeyType.Status);
+    root2.setKeyType(ConditionKeyType.STATUS);
     root2.setValue("B");
-    root2.setStepFrom(null);
 
     stepInput.setConditions(List.of(root1, root2));
     return stepInput;

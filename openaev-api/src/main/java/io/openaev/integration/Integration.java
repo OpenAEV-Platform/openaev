@@ -62,6 +62,7 @@ public abstract class Integration {
       if (connectorInstance == null) {
         // the instance cannot be found again in the DB
         // exit early to finally block
+        log.warn("Integration initialise: instance not found in DB, stopping.");
         this.stop();
         return;
       }
@@ -91,6 +92,8 @@ public abstract class Integration {
         return;
       }
       if (isRunning && hasHashChanged) {
+        log.info(
+            "Integration: restarting instance {} (hash changed)", this.connectorInstance.getId());
         this.stop();
         this.start();
         return;
@@ -98,7 +101,12 @@ public abstract class Integration {
       if (isStartingRequested && isStopped) {
         this.start();
       }
-
+    } catch (Exception e) {
+      log.error(
+          "Error during initialization of integration for instance id '{}'",
+          this.connectorInstance.getId(),
+          e);
+      throw e;
     } finally {
       // always save instance if applicable (e.g. state has changed)
       // even if something went wrong when starting the integration
@@ -121,6 +129,33 @@ public abstract class Integration {
 
     if (candidates.size() > 1) {
       throw new IllegalStateException("Too many components qualify for request.");
+    }
+
+    return candidates.stream()
+        .map(candidate -> (T) FieldUtils.getField(this, candidate))
+        .filter(Objects::nonNull)
+        .toList();
+  }
+
+  /**
+   * Resolves a component solely by its Java type, ignoring the @QualifiedComponent identifier. This
+   * is useful when the caller already knows which Integration to target (e.g. via
+   * requestForInstance) and only needs the component of the right type.
+   *
+   * @param componentType the desired Java type
+   * @return the component instance, or empty list if not found / not initialized
+   * @param <T> the desired type
+   * @throws IllegalStateException if more than one field of the requested type is found
+   */
+  public <T> List<T> requestComponentByType(Class<T> componentType) throws IllegalStateException {
+    List<Field> candidates =
+        FieldUtils.getAllFields(this.getClass()).stream()
+            .filter(f -> f.isAnnotationPresent(QualifiedComponent.class))
+            .filter(f -> componentType.isAssignableFrom(f.getType()))
+            .toList();
+
+    if (candidates.size() > 1) {
+      throw new IllegalStateException("Too many components qualify for requested type.");
     }
 
     return candidates.stream()

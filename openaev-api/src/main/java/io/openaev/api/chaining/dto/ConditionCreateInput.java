@@ -49,6 +49,11 @@ public class ConditionCreateInput {
   @JsonProperty("condition_value")
   private String value;
 
+  /** Condition key: Key to be compared */
+  @Schema(description = "Key to be compared")
+  @JsonProperty("condition_key")
+  private String key;
+
   /**
    * "Condition type: AND, OR, EQ, NEQ, IS_NULL, IS_NOT_NULL, GT, GTE, LT, LTE, IN, NIN, AFTER,
    * BEFORE, MAPPER, or DEPEND_ON"
@@ -69,7 +74,7 @@ public class ConditionCreateInput {
   @JsonProperty("condition_mapping_type")
   private MappingType mappingType;
 
-  /** ID of the step linked to the key */
+  /** ID of the step linked to the key - time-based logic */
   @Schema(description = "ID of the step linked to the key")
   @JsonProperty("condition_step_from")
   private String stepFrom;

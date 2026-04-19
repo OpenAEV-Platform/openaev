@@ -28,7 +28,7 @@ jobs:
             nodejs npm git tini gcc g++ make musl-dev cargo openjdk21-jdk maven postfix postfix-pcre
       - name: Setup Node.js
         run: |
-          npm install -g  yarn
+          npm install -g corepack
         shell: alpine.sh --root {0}
       - name: Build into Alpine
         run: |
@@ -43,7 +43,7 @@ jobs:
       - run: cp openaev-api/target/openaev-api.jar openaev-build/
       - name: Docker meta
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: filigran/openaev-platform
           tags: |
@@ -53,7 +53,7 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Login to DockerHub
         if: github.event_name != 'pull_request'
@@ -63,7 +63,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Build and push
         id: buildpush
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ./Dockerfile_ga
@@ -81,7 +81,7 @@ jobs:
     steps:
       - name: Docker meta
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: filigran/openaev-platform
           tags: |

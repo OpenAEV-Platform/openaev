@@ -6,6 +6,7 @@ import ExpandableSection from '../../../../../../components/common/ExpandableSec
 import { useFormatter } from '../../../../../../components/i18n';
 import ItemStatus from '../../../../../../components/ItemStatus';
 import { type ExecutionTraceOutput } from '../../../../../../utils/api-types';
+import { buildTenantApiPath } from '../../../../../../utils/tenant-url-helper';
 import ExecutionTime from './ExecutionTime';
 import TraceMessage from './TraceMessage';
 
@@ -91,7 +92,7 @@ const AgentTraces = ({ traces, isInitialExpanded = false }: Props) => {
           <Typography variant="h3">{t('Executor')}</Typography>
           {agentStatus.executorType && (
             <img
-              src={`/api/images/executors/icons/${agentStatus.executorType}`}
+              src={buildTenantApiPath(`/api/images/executors/icons/${agentStatus.executorType}`)}
               alt={agentStatus.executorType}
               style={{
                 width: 20,

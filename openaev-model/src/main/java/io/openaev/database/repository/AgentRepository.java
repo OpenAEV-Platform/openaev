@@ -17,24 +17,20 @@ public interface AgentRepository
 
   @Query(
       value =
-          "SELECT a.* FROM agents a left join executors ex on a.agent_executor = ex.executor_id "
-              + "where a.agent_asset = :assetId and a.agent_executed_by_user = :user and a.agent_deployment_mode = :deployment "
-              + "and a.agent_privilege = :privilege and a.agent_parent is null and a.agent_inject is null and ex.executor_type = :executor",
+          "SELECT a.* FROM agents a "
+              + "WHERE a.agent_asset = :assetId AND a.agent_executed_by_user = :user "
+              + "AND a.agent_deployment_mode = :deployment AND a.agent_privilege = :privilege "
+              + "AND a.agent_parent IS NULL AND a.agent_inject IS NULL "
+              + "AND a.agent_executor = :executorId",
       nativeQuery = true)
-  Optional<Agent> findByAssetExecutorUserDeploymentAndPrivilege(
+  Optional<Agent> findByAssetExecutorIdUserDeploymentAndPrivilege(
       @Param("assetId") String assetId,
       @Param("user") String user,
       @Param("deployment") String deployment,
       @Param("privilege") String privilege,
-      @Param("executor") String executor);
+      @Param("executorId") String executorId);
 
-  @Query(
-      value =
-          "SELECT a.* FROM agents a left join executors ex on a.agent_executor = ex.executor_id "
-              + "where ex.executor_type = :executor and a.tenant_id = :tenantId",
-      nativeQuery = true)
-  List<Agent> findByExecutorType(
-      @Param("executor") String executor, @Param("tenantId") String tenantId);
+  List<Agent> findByExecutorId(String executorId);
 
   List<Agent> findByExternalReferenceAndTenantId(String externalReference, String tenantId);
 

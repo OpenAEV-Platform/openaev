@@ -37,6 +37,7 @@ import io.openaev.injector_contract.fields.ContractTargetedAsset;
 import io.openaev.integration.Manager;
 import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
 import io.openaev.integration.impl.injectors.manual.ManualInjectorIntegrationFactory;
+import io.openaev.rest.domain.enums.PresetDomain;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -115,7 +116,7 @@ public class InjectorContractFixture {
       throws JsonProcessingException {
     InjectorContract injectorContract =
         createPayloadInjectorContractWithFieldsContent(customFieldsContent);
-    injectorContract.setInjector(injector);
+    injectorContract.addInjector(injector);
     injectorContract.setPayload(payloadCommand);
     return injectorContract;
   }
@@ -123,7 +124,7 @@ public class InjectorContractFixture {
   @SneakyThrows
   private static InjectorContract createDefaultInjectorContractInternal() {
     InjectorContract injectorContract = new InjectorContract();
-    injectorContract.setInjector(createDefaultPayloadInjector());
+    injectorContract.addInjector(createDefaultPayloadInjector());
     injectorContract.setId(UUID.randomUUID().toString());
     setDefaultTenant(injectorContract);
 
@@ -158,6 +159,13 @@ public class InjectorContractFixture {
     InjectorContract injectorContract = createDefaultInjectorContract();
     injectorContract.setPlatforms(platforms);
     return injectorContract;
+  }
+
+  public static InjectorContract createPayloadInjectorContractWithDefaultDomain(
+      Injector injector, Payload payloadCommand) throws JsonProcessingException {
+    InjectorContract contract = createPayloadInjectorContract(injector, payloadCommand);
+    contract.setDomains(new HashSet<>(Set.of(PresetDomain.getToClassify())));
+    return contract;
   }
 
   public static InjectorContract createPayloadInjectorContract(

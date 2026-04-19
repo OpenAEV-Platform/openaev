@@ -15,7 +15,6 @@ import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.form.PayloadCreateInput;
 import jakarta.transaction.Transactional;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -31,33 +30,31 @@ public class PayloadCreationService {
   private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
 
-  private final TagRepository tagRepository;
   private final AttackPatternRepository attackPatternRepository;
   private final PayloadRepository payloadRepository;
-  private final DocumentService documentService;
+  private final TagRepository tagRepository;
   private final DomainService domainService;
+  private final DocumentService documentService;
+
+  public record PayloadInjectorContractCreationResult(
+      Payload payload, InjectorContract injectorContract) {}
 
   @Transactional(rollbackOn = Exception.class)
-  public Payload createPayload(PayloadCreateInput input) {
+  public PayloadInjectorContractCreationResult createPayload(PayloadCreateInput input) {
     if (enterpriseEditionService.isEnterpriseLicenseInactive(
         licenseCacheManager.getEnterpriseEditionInfo())) {
       input.setDetectionRemediations(null);
     }
-    List<AttackPattern> attackPatterns =
-        fromIterable(attackPatternRepository.findAllById(input.getAttackPatternsIds()));
-    return create(input, attackPatterns);
+
+    return create(input);
   }
 
-  private Payload create(PayloadCreateInput input, List<AttackPattern> attackPatterns) {
+  private PayloadInjectorContractCreationResult create(PayloadCreateInput input) {
     PayloadType payloadType = PayloadType.fromString(input.getType());
     validateArchitecture(payloadType.key, input.getExecutionArch());
 
     Payload payload = payloadType.getPayloadSupplier().get();
     payloadUtils.copyProperties(input, payload);
-
-    payload.setAttackPatterns(attackPatterns);
-    payload.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
-    payload.setDomains(iterableToSet(domainService.findAllById(input.getDomainIds())));
 
     if (payload instanceof Executable executable) {
       executable.setExecutableFile(documentService.document(input.getExecutableFile()));
@@ -65,8 +62,13 @@ public class PayloadCreationService {
       fileDrop.setFileDropFile(documentService.document(input.getFileDropFile()));
     }
 
-    Payload saved = payloadRepository.save(payload);
-    payloadService.updateInjectorContractsForPayload(saved);
-    return saved;
+    Payload payloadSaved = payloadRepository.save(payload);
+    InjectorContract injectorContract =
+        payloadService.synchroniseInjectorContractBasedOnPayload(
+            payloadSaved,
+            fromIterable(attackPatternRepository.findAllById(input.getAttackPatternsIds())),
+            iterableToSet(domainService.findAllById(input.getDomainIds())),
+            iterableToSet(tagRepository.findAllById(input.getTagIds())));
+    return new PayloadInjectorContractCreationResult(payloadSaved, injectorContract);
   }
 }

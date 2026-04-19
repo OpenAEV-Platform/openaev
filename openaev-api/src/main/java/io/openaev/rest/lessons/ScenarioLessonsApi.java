@@ -1,6 +1,8 @@
 package io.openaev.rest.lessons;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
+import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
+import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import static java.time.Instant.now;
 
 import io.openaev.aop.AccessControl;
@@ -21,8 +23,6 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class ScenarioLessonsApi extends RestBehavior {
 
-  public static final String SCENARIO_URI = "/api/scenarios/";
-
   private final ScenarioRepository scenarioRepository;
   private final TeamRepository teamRepository;
   private final LessonsTemplateRepository lessonsTemplateRepository;
@@ -31,7 +31,10 @@ public class ScenarioLessonsApi extends RestBehavior {
   private final LessonsAnswerRepository lessonsAnswerRepository;
   private final UserRepository userRepository;
 
-  @GetMapping(SCENARIO_URI + "{scenarioId}/lessons_categories")
+  @GetMapping({
+    SCENARIO_URI + "/{scenarioId}/lessons_categories",
+    TENANT_SCENARIO_URI + "/{scenarioId}/lessons_categories"
+  })
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -40,7 +43,10 @@ public class ScenarioLessonsApi extends RestBehavior {
     return lessonsCategoryRepository.findAll(LessonsCategorySpecification.fromScenario(scenarioId));
   }
 
-  @PostMapping(SCENARIO_URI + "{scenarioId}/lessons_apply_template/{lessonsTemplateId}")
+  @PostMapping({
+    SCENARIO_URI + "/{scenarioId}/lessons_apply_template/{lessonsTemplateId}",
+    TENANT_SCENARIO_URI + "/{scenarioId}/lessons_apply_template/{lessonsTemplateId}"
+  })
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
@@ -80,7 +86,10 @@ public class ScenarioLessonsApi extends RestBehavior {
     return lessonsCategoryRepository.findAll(LessonsCategorySpecification.fromScenario(scenarioId));
   }
 
-  @PostMapping(SCENARIO_URI + "{scenarioId}/lessons_categories")
+  @PostMapping({
+    SCENARIO_URI + "/{scenarioId}/lessons_categories",
+    TENANT_SCENARIO_URI + "/{scenarioId}/lessons_categories"
+  })
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
@@ -96,7 +105,10 @@ public class ScenarioLessonsApi extends RestBehavior {
     return lessonsCategoryRepository.save(lessonsCategory);
   }
 
-  @PostMapping(SCENARIO_URI + "{scenarioId}/lessons_empty")
+  @PostMapping({
+    SCENARIO_URI + "/{scenarioId}/lessons_empty",
+    TENANT_SCENARIO_URI + "/{scenarioId}/lessons_empty"
+  })
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
@@ -117,7 +129,10 @@ public class ScenarioLessonsApi extends RestBehavior {
     return lessonsCategories;
   }
 
-  @PutMapping(SCENARIO_URI + "{scenarioId}/lessons_categories/{lessonsCategoryId}")
+  @PutMapping({
+    SCENARIO_URI + "/{scenarioId}/lessons_categories/{lessonsCategoryId}",
+    TENANT_SCENARIO_URI + "/{scenarioId}/lessons_categories/{lessonsCategoryId}"
+  })
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
@@ -136,7 +151,10 @@ public class ScenarioLessonsApi extends RestBehavior {
     return lessonsCategoryRepository.save(lessonsTemplateCategory);
   }
 
-  @DeleteMapping(SCENARIO_URI + "{scenarioId}/lessons_categories/{lessonsCategoryId}")
+  @DeleteMapping({
+    SCENARIO_URI + "/{scenarioId}/lessons_categories/{lessonsCategoryId}",
+    TENANT_SCENARIO_URI + "/{scenarioId}/lessons_categories/{lessonsCategoryId}"
+  })
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
@@ -147,7 +165,10 @@ public class ScenarioLessonsApi extends RestBehavior {
     lessonsCategoryRepository.deleteById(lessonsCategoryId);
   }
 
-  @PutMapping(SCENARIO_URI + "{scenarioId}/lessons_categories/{lessonsCategoryId}/teams")
+  @PutMapping({
+    SCENARIO_URI + "/{scenarioId}/lessons_categories/{lessonsCategoryId}/teams",
+    TENANT_SCENARIO_URI + "/{scenarioId}/lessons_categories/{lessonsCategoryId}/teams"
+  })
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
@@ -166,7 +187,10 @@ public class ScenarioLessonsApi extends RestBehavior {
     return lessonsCategoryRepository.save(lessonsCategory);
   }
 
-  @GetMapping(SCENARIO_URI + "{scenarioId}/lessons_questions")
+  @GetMapping({
+    SCENARIO_URI + "/{scenarioId}/lessons_questions",
+    TENANT_SCENARIO_URI + "/{scenarioId}/lessons_questions"
+  })
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -183,8 +207,10 @@ public class ScenarioLessonsApi extends RestBehavior {
         .toList();
   }
 
-  @GetMapping(
-      SCENARIO_URI + "{scenarioId}/lessons_categories/{lessonsCategoryId}/lessons_questions")
+  @GetMapping({
+    SCENARIO_URI + "/{scenarioId}/lessons_categories/{lessonsCategoryId}/lessons_questions",
+    TENANT_SCENARIO_URI + "/{scenarioId}/lessons_categories/{lessonsCategoryId}/lessons_questions"
+  })
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -195,8 +221,10 @@ public class ScenarioLessonsApi extends RestBehavior {
         LessonsQuestionSpecification.fromCategory(lessonsCategoryId));
   }
 
-  @PostMapping(
-      SCENARIO_URI + "{scenarioId}/lessons_categories/{lessonsCategoryId}/lessons_questions")
+  @PostMapping({
+    SCENARIO_URI + "/{scenarioId}/lessons_categories/{lessonsCategoryId}/lessons_questions",
+    TENANT_SCENARIO_URI + "/{scenarioId}/lessons_categories/{lessonsCategoryId}/lessons_questions"
+  })
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
@@ -215,9 +243,12 @@ public class ScenarioLessonsApi extends RestBehavior {
     return lessonsQuestionRepository.save(lessonsQuestion);
   }
 
-  @PutMapping(
-      SCENARIO_URI
-          + "{scenarioId}/lessons_categories/{lessonsCategoryId}/lessons_questions/{lessonsQuestionId}")
+  @PutMapping({
+    SCENARIO_URI
+        + "/{scenarioId}/lessons_categories/{lessonsCategoryId}/lessons_questions/{lessonsQuestionId}",
+    TENANT_SCENARIO_URI
+        + "/{scenarioId}/lessons_categories/{lessonsCategoryId}/lessons_questions/{lessonsQuestionId}"
+  })
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
@@ -235,9 +266,12 @@ public class ScenarioLessonsApi extends RestBehavior {
     return lessonsQuestionRepository.save(lessonsQuestion);
   }
 
-  @DeleteMapping(
-      SCENARIO_URI
-          + "{scenarioId}/lessons_categories/{lessonsCategoryId}/lessons_questions/{lessonsQuestionId}")
+  @DeleteMapping({
+    SCENARIO_URI
+        + "/{scenarioId}/lessons_categories/{lessonsCategoryId}/lessons_questions/{lessonsQuestionId}",
+    TENANT_SCENARIO_URI
+        + "/{scenarioId}/lessons_categories/{lessonsCategoryId}/lessons_questions/{lessonsQuestionId}"
+  })
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,

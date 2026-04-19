@@ -874,22 +874,23 @@ public class SecurityCoverageInjectService {
       Payload payload,
       Map<AssetGroup, List<Endpoint>> assetsFromGroupMap,
       Scenario scenario) {
-    List<InjectorContract> injectorContracts =
-        injectorContractRepository.findInjectorContractsByPayload(payload);
-    Set<Tag> tags = tagService.findOrCreateTagsFromNames(new HashSet<>(Set.of(OPENCTI_TAG_NAME)));
+    Optional<InjectorContract> injectorContract =
+        injectorContractRepository.findInjectorContractByPayload(payload);
 
-    List<Inject> injectsToCreate =
-        injectorContracts.stream()
-            .map(
-                injectorContract ->
-                    createInjectAndAssociateToScenario(
-                        hostname,
-                        injectorContract,
-                        new ArrayList<>(assetsFromGroupMap.keySet()),
-                        scenario,
-                        tags))
-            .toList();
-    injectRepository.saveAll(injectsToCreate);
+    if (injectorContract.isEmpty()) {
+      return;
+    }
+
+    Set<Tag> tags = tagService.findOrCreateTagsFromNames(new HashSet<>(Set.of(OPENCTI_TAG_NAME)));
+    Inject injectToCreate =
+        createInjectAndAssociateToScenario(
+            hostname,
+            injectorContract.get(),
+            new ArrayList<>(assetsFromGroupMap.keySet()),
+            scenario,
+            tags);
+
+    injectRepository.save(injectToCreate);
   }
 
   /**
@@ -928,23 +929,24 @@ public class SecurityCoverageInjectService {
    */
   private void createInjectsByInjectorContracts(
       Payload payload, Map<AssetGroup, List<Endpoint>> assetsFromGroupMap, Scenario scenario) {
-    List<InjectorContract> injectorContracts =
-        injectorContractRepository.findInjectorContractsByPayload(payload);
+    Optional<InjectorContract> injectorContract =
+        injectorContractRepository.findInjectorContractByPayload(payload);
+    if (injectorContract.isEmpty()) {
+      return;
+    }
+
     Set<Tag> tags = tagService.findOrCreateTagsFromNames(new HashSet<>(Set.of(OPENCTI_TAG_NAME)));
 
-    List<Inject> injectsToCreate =
-        injectorContracts.stream()
-            .map(
-                injectorContract ->
-                    createInjectAndAssociateToScenario(
-                        payload.getName(),
-                        payload.getDescription(),
-                        injectorContract,
-                        new ArrayList<>(assetsFromGroupMap.keySet()),
-                        scenario,
-                        tags))
-            .toList();
-    scenario.getInjects().addAll(injectsToCreate);
-    injectRepository.saveAll(injectsToCreate);
+    Inject injectToCreate =
+        createInjectAndAssociateToScenario(
+            payload.getName(),
+            payload.getDescription(),
+            injectorContract.get(),
+            new ArrayList<>(assetsFromGroupMap.keySet()),
+            scenario,
+            tags);
+
+    scenario.getInjects().add(injectToCreate);
+    injectRepository.save(injectToCreate);
   }
 }

@@ -3,31 +3,47 @@ package io.openaev.service.chaining;
 import io.openaev.database.model.Condition;
 import io.openaev.database.model.ConditionKeyType;
 import io.openaev.database.model.ConditionType;
-import java.util.Objects;
+import io.openaev.database.model.MappingType;
 
 public class ConditionFactory {
-  private static Condition build(ConditionType type, ConditionKeyType keyType, String value) {
-    Condition condition = new Condition();
-    condition.setType(type);
-    condition.setKeyType(keyType);
-    condition.setValue(value);
-    return condition;
+
+  private static Condition build(
+      String key,
+      ConditionType type,
+      ConditionKeyType keyType,
+      String value,
+      MappingType mappingType) {
+    return Condition.builder()
+        .key(key)
+        .type(type)
+        .keyType(keyType)
+        .value(value)
+        .mappingType(mappingType)
+        .build();
   }
 
   public static Condition executionOf(Condition source, Object goal) {
-    Objects.requireNonNull(source, "source condition must not be null");
-    Objects.requireNonNull(source.getType(), "source condition type must not be null");
+    if (source == null || source.getType() == null) {
+      throw new IllegalArgumentException("Source conditions must not be null and must have a type");
+    }
 
     return build(
-        ConditionType.DEPEND_ON,
-        ConditionKeyType.ExecutionTime,
-        goal != null ? goal.toString() : null);
+        source.getKey(),
+        source.getType(),
+        ConditionKeyType.EXECUTION_TIME,
+        goal != null ? goal.toString() : null,
+        source.getMappingType());
   }
 
   public static Condition dependOn(String stepTemplateId) {
     if (stepTemplateId == null || stepTemplateId.isBlank()) {
       throw new IllegalArgumentException("stepTemplateId must not be null or blank");
     }
-    return build(ConditionType.DEPEND_ON, ConditionKeyType.StepTemplateId, stepTemplateId);
+    return build(
+        stepTemplateId,
+        ConditionType.DEPEND_ON,
+        ConditionKeyType.STEP_TEMPLATE_ID,
+        stepTemplateId,
+        null);
   }
 }

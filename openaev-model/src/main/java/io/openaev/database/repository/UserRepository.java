@@ -68,15 +68,17 @@ public interface UserRepository
               + "       array_remove(array_agg(tg.tag_id), null) as user_tags,"
               + "       array_remove(array_agg(grp.group_id), null) as user_groups,"
               + "       array_remove(array_agg(tm.team_id), null) as user_teams from users us"
+              + "       join users_tenants ut on us.user_id = ut.user_id"
               + "       left join users_groups usr_grp on us.user_id = usr_grp.user_id"
               + "       left join groups grp on usr_grp.group_id = grp.group_id"
               + "       left join users_teams usr_tm on us.user_id = usr_tm.user_id"
               + "       left join teams tm on usr_tm.team_id = tm.team_id"
               + "       left join users_tags usr_tg on us.user_id = usr_tg.user_id"
               + "       left join tags tg on usr_tg.tag_id = tg.tag_id"
+              + "      where ut.tenant_id = :tenantId"
               + "      group by us.user_id;",
       nativeQuery = true)
-  List<RawUser> rawAll();
+  List<RawUser> rawAllInTenant(@Param("tenantId") String tenantId);
 
   @Query(
       value =
@@ -146,30 +148,6 @@ public interface UserRepository
   List<RawPlayer> rawPlayersByScenarioId(@Param("scenarioId") String scenarioId);
 
   @Query(
-      value =
-          "select      us.user_id,"
-              + "      us.user_firstname,"
-              + "      us.user_lastname,"
-              + "      us.user_email,"
-              + "      us.user_organization from users us where us.user_organization is null or us.user_organization in :organizationIds",
-      nativeQuery = true)
-  List<RawPlayer> rawPlayersAccessibleFromOrganizations(
-      @Param("organizationIds") List<String> organizationIds);
-
-  @Query(
-      value =
-          "SELECT us.user_id, "
-              + "us.user_firstname, "
-              + "us.user_lastname, "
-              + "us.user_email, "
-              + "us.user_phone, "
-              + "us.user_organization "
-              + "FROM users us "
-              + "WHERE us.user_id IN :ids ;",
-      nativeQuery = true)
-  Set<RawUser> rawUserByIds(@Param("ids") Set<String> ids);
-
-  @Query(
       "SELECT DISTINCT u "
           + "FROM User u "
           + "LEFT JOIN u.groups g "
@@ -186,4 +164,10 @@ public interface UserRepository
 
   @Query("SELECT u FROM User u JOIN Token t ON u.id = t.user.id WHERE t.value = :token")
   Optional<User> findByToken(@Param("token") String token);
+
+  // -- DELETE --
+
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
+  @Query(value = "DELETE FROM users u WHERE u.user_id = :userId", nativeQuery = true)
+  int deleteByIdNative(@Param("userId") String userId);
 }

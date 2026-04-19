@@ -25,11 +25,12 @@ import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import RestrictionAccess from '../../../../utils/permissions/RestrictionAccess';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { buildTenantApiPath } from '../../../../utils/tenant-url-helper';
 import { isNotEmptyField } from '../../../../utils/utils';
-import DetectionRemediationInfo from '../../payloads/form/DetectionRemediationInfo';
-import DetectionRemediationUseAriane from '../../payloads/form/DetectionRemediationUseAriane';
-import { type SnapshotEditionRemediationType } from '../../payloads/utils/SnapshotRemediationContext';
-import { useSnapshotRemediation } from '../../payloads/utils/useSnapshotRemediation';
+import DetectionRemediationInfo from '../../threat_arsenal/form/DetectionRemediationInfo';
+import DetectionRemediationUseAriane from '../../threat_arsenal/form/DetectionRemediationUseAriane';
+import { type SnapshotEditionRemediationType } from '../../threat_arsenal/utils/SnapshotRemediationContext';
+import { useSnapshotRemediation } from '../../threat_arsenal/utils/useSnapshotRemediation';
 
 const useStyles = makeStyles()(theme => ({
   paperContainer: {
@@ -218,7 +219,7 @@ const AtomicTestingRemediations = () => {
                         label={(
                           <Box display="flex" alignItems="center">
                             <img
-                              src={`/api/images/collectors/${tab.collector_type}`}
+                              src={buildTenantApiPath(`/api/images/collectors/${tab.collector_type}`)}
                               alt={tab.collector_type}
                               style={{
                                 width: 20,

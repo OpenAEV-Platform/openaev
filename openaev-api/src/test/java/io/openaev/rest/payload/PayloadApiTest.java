@@ -36,7 +36,6 @@ import io.openaev.utils.fixtures.composers.DomainComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.annotation.Resource;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.*;
@@ -65,6 +64,11 @@ class PayloadApiTest extends IntegrationTest {
   @Resource private ObjectMapper objectMapper;
 
   @MockitoBean private EnterpriseEditionService enterpriseEditionService;
+
+  @BeforeEach
+  void beforeEach() throws Exception {
+    new Manager(List.of(openaevInjectorIntegrationFactory)).monitorIntegrations();
+  }
 
   @BeforeAll
   void beforeAll() {
@@ -252,8 +256,6 @@ class PayloadApiTest extends IntegrationTest {
     @Test
     @DisplayName("Create Payload with targeted asset")
     void given_targetedAssetArgument_should_create_payload_with_targeted_asset() throws Exception {
-      new Manager(List.of(openaevInjectorIntegrationFactory)).monitorIntegrations();
-
       Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
       PayloadCreateInput input =
           PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(
@@ -522,9 +524,7 @@ class PayloadApiTest extends IntegrationTest {
   @WithMockUser(withCapabilities = {Capability.MANAGE_PAYLOADS})
   void upsertCommandPayloadToValidateArchitecture() throws Exception {
     Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
-
-    Payload payload =
-        payloadRepository.save(PayloadFixture.createDefaultCommand(new HashSet<>(Set.of(domain))));
+    Payload payload = payloadRepository.save(PayloadFixture.createDefaultCommand());
     payload.setExternalId("external-id");
 
     // -- Without property architecture

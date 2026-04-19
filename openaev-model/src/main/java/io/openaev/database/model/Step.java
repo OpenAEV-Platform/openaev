@@ -55,7 +55,7 @@ public class Step implements Base {
   @Column(name = "step_output_parser", columnDefinition = "jsonb")
   @JsonProperty("step_output_parser")
   @Schema(description = "Output parser configuration in JSON format")
-  private String output_parser;
+  private String outputParser;
 
   @Type(JsonType.class)
   @Column(name = "step_input", columnDefinition = "jsonb")
@@ -87,6 +87,11 @@ public class Step implements Base {
   @JdbcTypeCode(SqlTypes.NAMED_ENUM)
   @Schema(description = "Current status of the step")
   private StepStatus status;
+
+  @Type(JsonType.class)
+  @Column(name = "step_condition_key_types", columnDefinition = "jsonb")
+  @JsonProperty("step_condition_key_types")
+  private List<ConditionKeyType> conditionKeyTypes;
 
   @Column(name = "step_created_at")
   @JsonProperty("step_created_at")

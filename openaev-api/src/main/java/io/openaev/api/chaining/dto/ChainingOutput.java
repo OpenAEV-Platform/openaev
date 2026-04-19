@@ -14,8 +14,8 @@ import lombok.Setter;
 public class ChainingOutput {
 
   @JsonProperty("conditions")
-  private List<EventOutput> conditions;
+  private List<EventOutput> events;
 
   @JsonProperty("steps")
-  private List<StepOutput> steps;
+  private List<StepOutput> actions;
 }

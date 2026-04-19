@@ -85,7 +85,9 @@ const Healthchecks = ({ healthchecks, scenarioId }: Props) => {
         }}
       >
         <AccordionSummary expandIcon={<ExpandMore />}>
-          <Typography variant="h1" marginBottom={0}>{t('Scenario configuration')}</Typography>
+          <Typography variant="h6" sx={{ color: theme.palette.warning.main }}>
+            {t('Scenario configuration')}
+          </Typography>
         </AccordionSummary>
         <AccordionDetails style={{
           display: 'flex',

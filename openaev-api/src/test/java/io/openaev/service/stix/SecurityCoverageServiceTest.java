@@ -203,6 +203,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                           .sourceName("Unit Tests")
                           .sourceType("manual")
                           .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
+                          .sourceAssetId(UUID.randomUUID().toString())
                           .build())));
     }
 
@@ -276,10 +277,8 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
       SecurityCoverage coverage = securityCoverageComposer.generatedItems.getFirst();
       DomainObject expectedAssessmentWithCoverage =
           getExpectedMainSecurityCoverage(coverage, injectComposer.generatedItems);
-      List<DomainObject> expectedPlatformIdentities =
-          securityPlatformComposer.generatedItems.stream()
-              .map(SecurityPlatform::toStixDomainObject)
-              .toList();
+
+      List<DomainObject> expectedPlatformIdentities = getExpectedPlatformIdentities();
 
       // main assessment is completed with coverage
       assertMainAssessment(bundle, generatedCoverage, expectedAssessmentWithCoverage);
@@ -606,6 +605,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                             .sourceName("Unit Tests")
                             .sourceType("manual")
                             .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
+                            .sourceAssetId(UUID.randomUUID().toString())
                             .build())));
 
     Inject failedInject =
@@ -628,6 +628,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                           .sourceName("Unit Tests")
                           .sourceType("manual")
                           .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
+                          .sourceAssetId(UUID.randomUUID().toString())
                           .build()));
               exp.setScore(0.0);
             });
@@ -655,7 +656,6 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
     // assert
     SecurityCoverage generatedCoverage = securityCoverageComposer.generatedItems.getFirst();
     List<Inject> generatedInjects = injectComposer.generatedItems;
-    List<SecurityPlatform> generatedSecurityPlatforms = securityPlatformComposer.generatedItems;
 
     DomainObject expectedAssessmentWithCoverage =
         addPropertiesToDomainObject(
@@ -664,8 +664,6 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                 ExtendedProperties.VALID_FROM.toString(), new Timestamp(simulationStartTime),
                 ExtendedProperties.LAST_RESULT.toString(), new Timestamp(simulationStartTime),
                 ExtendedProperties.VALID_TO.toString(), new Timestamp(nextSimulationStartTime)));
-    List<DomainObject> expectedPlatformIdentities =
-        generatedSecurityPlatforms.stream().map(SecurityPlatform::toStixDomainObject).toList();
 
     // main assessment is completed with coverage
     assertThatJson(
@@ -675,6 +673,8 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
             CommonProperties.EXTERNAL_URI.toString(),
             CommonProperties.AUTO_ENRICHMENT_DISABLE.toString())
         .isEqualTo(expectedAssessmentWithCoverage.toStix(mapper));
+
+    List<DomainObject> expectedPlatformIdentities = getExpectedPlatformIdentities();
 
     // security platforms are present in bundle as Identities
     for (DomainObject platformSdo : expectedPlatformIdentities) {
@@ -816,6 +816,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                             .sourceName("Unit Tests")
                             .sourceType("manual")
                             .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
+                            .sourceAssetId(UUID.randomUUID().toString())
                             .build())));
     // start the exercise
     Instant sroStartTime = Instant.parse("2003-02-15T09:45:02Z");
@@ -893,6 +894,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                             .sourceName("Unit Tests")
                             .sourceType("manual")
                             .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
+                            .sourceAssetId(UUID.randomUUID().toString())
                             .build())));
     // start the exercise
     Instant sroStartTime = Instant.parse("2003-02-15T19:45:02Z");
@@ -966,6 +968,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                             .sourceName("Unit Tests")
                             .sourceType("manual")
                             .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
+                            .sourceAssetId(UUID.randomUUID().toString())
                             .build())));
     // start the exercise
     Instant sroStartTime = Instant.parse("2003-02-15T19:45:02Z");
@@ -993,5 +996,20 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
           .isEqualTo(new Timestamp(sroStartTime));
       assertThat(sro.hasProperty(RelationshipObject.Properties.STOP_TIME.toString())).isFalse();
     }
+  }
+
+  private List<DomainObject> getExpectedPlatformIdentities() {
+    Set<String> involvedPlatformNames =
+        injectComposer.generatedItems.stream()
+            .flatMap(inject -> inject.getExpectations().stream())
+            .flatMap(exp -> exp.getResults().stream())
+            .map(InjectExpectationResult::getSourceName)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
+
+    return securityPlatformComposer.generatedItems.stream()
+        .filter(sp -> involvedPlatformNames.contains(sp.getName()))
+        .map(SecurityPlatform::toStixDomainObject)
+        .toList();
   }
 }

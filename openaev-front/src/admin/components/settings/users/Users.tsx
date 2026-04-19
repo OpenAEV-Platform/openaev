@@ -4,8 +4,7 @@ import { useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import { fetchOrganizations } from '../../../../actions/Organization';
-import { searchUsers } from '../../../../actions/users/User';
+import { deleteUser, searchUsers } from '../../../../actions/users/User';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import ExportButton from '../../../../components/common/ExportButton';
 import { initSorting } from '../../../../components/common/queryable/Page';
@@ -17,7 +16,6 @@ import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import { type User, type UserOutput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
-import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import SecurityMenu from '../SecurityMenu';
@@ -52,25 +50,18 @@ const useStyles = makeStyles()(() => ({
 
 const inlineStyles = {
   user_email: { width: '20%' },
-  user_firstname: { width: '15%' },
-  user_lastname: { width: '15%' },
-  user_organization: {
-    width: '15%',
-    cursor: 'default',
-  },
+  user_firstname: { width: '12%' },
+  user_lastname: { width: '12%' },
   user_admin: { width: '10%' },
-  user_tags: { width: '25%' },
+  user_organization_name: { width: '18%' },
+  user_tags: { width: '20%' },
 };
 
 const Users = () => {
   // Standard hooks
   const { classes } = useStyles();
-  const dispatch = useAppDispatch();
   const { t } = useFormatter();
-
-  useDataLoader(() => {
-    dispatch(fetchOrganizations());
-  });
+  const dispatch = useAppDispatch();
 
   // Headers
   const headers = [
@@ -90,19 +81,19 @@ const Users = () => {
       isSortable: true,
     },
     {
-      field: 'user_organization',
+      field: 'user_admin',
+      label: 'Admin',
+      isSortable: false,
+    },
+    {
+      field: 'user_organization_name',
       label: 'Organization',
       isSortable: false,
     },
     {
-      field: 'user_admin',
-      label: 'Administrator',
-      isSortable: true,
-    },
-    {
       field: 'user_tags',
       label: 'Tags',
-      isSortable: true,
+      isSortable: false,
     },
   ];
 
@@ -123,6 +114,9 @@ const Users = () => {
       'user_email',
       'user_firstname',
       'user_lastname',
+      'user_admin',
+      'user_organization_name',
+      'user_tags',
     ],
     exportData: users,
     exportFileName: `${t('Users')}.csv`,
@@ -185,8 +179,18 @@ const Users = () => {
               secondaryAction={(
                 <UserPopover
                   user={user}
-                  onUpdate={(result: User) => setUsers(users.map(u => (u.user_id !== result.user_id ? u : result)))}
-                  onDelete={(result: string) => setUsers(users.filter(u => (u.user_id !== result)))}
+                  actions={['Delete']}
+                  onSubmitUpdate={() => {}}
+                  onSubmitDelete={() => {
+                    dispatch(deleteUser(user.user_id)).then(() => {
+                      setUsers(users.filter(u => u.user_id !== user.user_id));
+                    });
+                  }}
+                  permissions={{
+                    manage: [ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS],
+                    delete: [ACTIONS.DELETE, SUBJECTS.PLATFORM_SETTINGS],
+                  }}
+                  inList
                 />
               )}
             >
@@ -205,11 +209,11 @@ const Users = () => {
                     <div className={classes.bodyItem} style={inlineStyles.user_lastname}>
                       {user.user_lastname}
                     </div>
-                    <div className={classes.bodyItem} style={inlineStyles.user_organization}>
-                      {user.user_organization_name}
-                    </div>
                     <div className={classes.bodyItem} style={inlineStyles.user_admin}>
                       {user.user_admin ? (<CheckCircleOutlined fontSize="small" />) : ('-')}
+                    </div>
+                    <div className={classes.bodyItem} style={inlineStyles.user_organization_name}>
+                      {user.user_organization_name ?? '-'}
                     </div>
                     <div className={classes.bodyItem} style={inlineStyles.user_tags}>
                       <ItemTags variant="list" tags={user.user_tags} />

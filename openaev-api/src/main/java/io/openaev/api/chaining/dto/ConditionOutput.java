@@ -15,6 +15,7 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class ConditionOutput {
   @JsonProperty("condition_id")
   private String id;

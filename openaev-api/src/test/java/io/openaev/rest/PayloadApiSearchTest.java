@@ -15,12 +15,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Document;
-import io.openaev.database.model.Domain;
 import io.openaev.database.model.Payload;
 import io.openaev.database.repository.DocumentRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.utils.fixtures.DocumentFixture;
-import io.openaev.utils.fixtures.DomainFixture;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.fixtures.composers.DomainComposer;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -28,7 +26,6 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.pagination.SortField;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -45,22 +42,18 @@ public class PayloadApiSearchTest extends IntegrationTest {
 
   @BeforeAll
   void beforeAll() {
-
-    Set<Domain> domains =
-        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
-
-    Payload command = createDefaultCommand(domains);
+    Payload command = createDefaultCommand();
     Payload commandSaved = this.payloadRepository.save(command);
     PAYLOAD_COMMAND_IDS.add(commandSaved.getId());
 
-    Payload dnsResolution = createDefaultDnsResolution(domains);
+    Payload dnsResolution = createDefaultDnsResolution();
     Payload dnsResolutionSaved = this.payloadRepository.save(dnsResolution);
     PAYLOAD_COMMAND_IDS.add(dnsResolutionSaved.getId());
 
     Document document = DocumentFixture.getDocumentJpeg();
     Document documentSaved = this.documentRepository.save(document);
 
-    Payload executable = createDefaultExecutable(documentSaved, domains);
+    Payload executable = createDefaultExecutable(documentSaved);
     Payload executableSaved = this.payloadRepository.save(executable);
     PAYLOAD_COMMAND_IDS.add(executableSaved.getId());
   }

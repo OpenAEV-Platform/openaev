@@ -7,8 +7,10 @@ import static io.openaev.database.model.Payload.PAYLOAD_EXECUTION_ARCH.*;
 import static io.openaev.database.specification.InjectSpecification.*;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
+import static io.openaev.service.InjectExpectationUtils.extractAssetIdsFromInjectExpectationsResults;
 import static io.openaev.utils.AgentUtils.isPrimaryAgent;
 import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
+import static io.openaev.utils.InjectUtils.extractInjectExpectationsFromInjects;
 import static io.openaev.utils.StringUtils.duplicateString;
 import static io.openaev.utils.mapper.InjectStatusMapper.toExecutionTracesOutput;
 import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
@@ -96,7 +98,6 @@ public class InjectService {
   private final InjectRepository injectRepository;
   private final InjectDocumentRepository injectDocumentRepository;
   private final InjectorService injectorService;
-  private final InjectorRepository injectorRepository;
   private final InjectStatusRepository injectStatusRepository;
   private final InjectMapper injectMapper;
   private final MethodSecurityExpressionHandler methodSecurityExpressionHandler;
@@ -113,37 +114,13 @@ public class InjectService {
   private final ImapService imapService;
   private final HealthCheckUtils healthCheckUtils;
   private final InjectorContractContentUtils injectorContractContentUtils;
+  private final InjectUtils injectUtils;
 
   private final LicenseCacheManager licenseCacheManager;
   @Resource protected ObjectMapper mapper;
 
   private SecurityExpression getAmbientSecurityExpression() {
     return ((SecurityExpressionHandler) methodSecurityExpressionHandler).getSecurityExpression();
-  }
-
-  /**
-   * Resolves the {@link Injector} for an inject being created or updated.
-   *
-   * <p>If {@code injectorId} is provided (non-blank), it is looked up by ID. Otherwise, the
-   * injector is auto-resolved from the contract's linked injector (current ManyToOne relationship).
-   *
-   * @param injectorId explicit injector ID from the input (may be null/blank)
-   * @param injectorContract the contract associated with the inject
-   * @return the resolved Injector, or {@code null} if no contract is provided
-   */
-  private Injector resolveInjector(
-      @Nullable String injectorId, @Nullable InjectorContract injectorContract) {
-    if (StringUtils.isNotBlank(injectorId)) {
-      return injectorRepository
-          .findById(injectorId)
-          .orElseThrow(
-              () -> new ElementNotFoundException("Injector not found with id: " + injectorId));
-    }
-    // Auto-resolve from the contract's linked injector (single-instance fallback)
-    if (injectorContract != null && injectorContract.getInjector() != null) {
-      return injectorContract.getInjector();
-    }
-    return null;
   }
 
   // -- CRUD --
@@ -176,8 +153,8 @@ public class InjectService {
     InjectorContract injectorContract =
         this.injectorContractService.injectorContract(input.getInjectorContract());
     // Get common attributes
-    Inject inject = input.toInject(injectorContract);
-    inject.setInjector(resolveInjector(input.getInjectorId(), injectorContract));
+    Injector injector = injectUtils.resolveInjector(input.getInjectorId(), injectorContract);
+    Inject inject = input.toInject(injectorContract, injector);
     inject.setUser(this.userService.currentUser());
     inject.setTeams(fromIterable(teamRepository.findAllById(input.getTeams())));
     inject.setAssets(fromIterable(assetService.assets(input.getAssets())));
@@ -285,7 +262,7 @@ public class InjectService {
     inject.setTitle(title);
     inject.setDescription(description);
     inject.setInjectorContract(injectorContract);
-    inject.setInjector(resolveInjector(null, injectorContract));
+    inject.setInjector(injectUtils.resolveInjector(null, injectorContract));
     inject.setDependsDuration(0L);
     inject.setEnabled(enabled);
     inject.setContent(
@@ -704,7 +681,7 @@ public class InjectService {
 
     // Resolve injector explicitly (BeanUtils cannot copy String → Injector)
     if (StringUtils.isNotBlank(input.getInjectorId())) {
-      inject.setInjector(resolveInjector(input.getInjectorId(), null));
+      inject.setInjector(injectUtils.resolveInjector(input.getInjectorId(), null));
     }
 
     // Set dependencies
@@ -879,6 +856,13 @@ public class InjectService {
             throw new BadRequestException("Invalid field to update: " + operation.getField());
       }
     }
+  }
+
+  public void resetInjectByExerciseId(String simulationId) {
+    List<Inject> injects = injectRepository.findAllInjectBySimulationId(simulationId);
+    if (injects.isEmpty()) return;
+    injects.forEach(Inject::clean);
+    injectRepository.saveAll(injects);
   }
 
   /**
@@ -1364,6 +1348,20 @@ public class InjectService {
     healthChecks.addAll(healthCheckUtils.runContentChecks(inject));
 
     return healthChecks;
+  }
+
+  /**
+   * Extract all security platform from a list of injects
+   *
+   * @param injects to extract security platforms
+   * @return distinct security platforms
+   */
+  public List<SecurityPlatform> extractSecurityPlatforms(List<Inject> injects) {
+    Stream<InjectExpectation> allInjectExpectationsStream =
+        extractInjectExpectationsFromInjects(injects);
+    Set<String> assetIds =
+        extractAssetIdsFromInjectExpectationsResults(allInjectExpectationsStream);
+    return assetService.securityPlatformsByIds(assetIds);
   }
 
   /**

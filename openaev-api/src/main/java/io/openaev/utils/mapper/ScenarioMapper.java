@@ -102,6 +102,7 @@ public class ScenarioMapper {
             rawScenario.getScenario_all_users_number() != null
                 ? rawScenario.getScenario_all_users_number()
                 : 0)
+        .workflowId(rawScenario.getScenario_workflow_id())
         .build();
   }
 

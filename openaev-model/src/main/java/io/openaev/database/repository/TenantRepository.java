@@ -26,6 +26,9 @@ public interface TenantRepository
       nativeQuery = true)
   List<Tenant> findTenantsByUserId(@Param("userId") String userId);
 
+  /** Counts active (non-soft-deleted) tenants. */
+  long countByDeletedAtIsNull();
+
   /** Returns soft-deleted tenants whose grace period has expired. */
   @Query("SELECT t FROM Tenant t WHERE t.deletedAt IS NOT NULL AND t.deletedAt < :cutoffDate")
   List<Tenant> findAllExpiredSoftDeleted(@Param("cutoffDate") Instant cutoffDate);
@@ -40,6 +43,13 @@ public interface TenantRepository
               + " ON CONFLICT DO NOTHING",
       nativeQuery = true)
   void addUserToTenant(@Param("userId") String userId, @Param("tenantId") String tenantId);
+
+  /** Detaches a user from a tenant without deleting the user. */
+  @Modifying(flushAutomatically = true, clearAutomatically = true)
+  @Query(
+      value = "DELETE FROM users_tenants WHERE user_id = :userId AND tenant_id = :tenantId",
+      nativeQuery = true)
+  void removeUserFromTenant(@Param("userId") String userId, @Param("tenantId") String tenantId);
 
   // -- DELETE --
 

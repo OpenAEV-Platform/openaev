@@ -3,10 +3,6 @@ package io.openaev.service;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.service.FileService.INJECTORS_IMAGES_BASE_PATH;
 
-import com.rabbitmq.client.Connection;
-import com.rabbitmq.client.ConnectionFactory;
-import io.openaev.asset.QueueService;
-import io.openaev.config.RabbitmqConfig;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AttackPatternRepository;
@@ -21,7 +17,6 @@ import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.injector.form.InjectorCreateInput;
 import io.openaev.rest.injector.form.InjectorOutput;
-import io.openaev.rest.injector.response.InjectorConnection;
 import io.openaev.rest.injector.response.InjectorRegistration;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.injector_contract.form.InjectorContractInput;
@@ -31,10 +26,8 @@ import io.openaev.service.connectors.AbstractConnectorService;
 import io.openaev.service.exception.InjectorRegistrationException;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import io.openaev.utils.mapper.InjectorMapper;
-import jakarta.annotation.Resource;
 import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotBlank;
-import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
 import java.util.*;
@@ -42,6 +35,7 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -51,7 +45,6 @@ import org.springframework.web.multipart.MultipartFile;
 public class InjectorService extends AbstractConnectorService<Injector, InjectorOutput> {
   public static final String DUMMY_SUFFIX = "_dummy";
 
-  @Resource private RabbitmqConfig rabbitmqConfig;
   private final InjectorRepository injectorRepository;
   private final InjectorContractRepository injectorContractRepository;
   private final AttackPatternRepository attackPatternRepository;
@@ -62,7 +55,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
 
   private final InjectorMapper injectorMapper;
 
-  private final QueueService queueService;
+  private final RabbitmqService rabbitmqService;
 
   @Autowired
   public InjectorService(
@@ -73,11 +66,11 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
       FileService fileService,
       ConnectorInstanceService connectorInstanceService,
       CatalogConnectorService catalogConnectorService,
-      InjectorContractService injectorContractService,
+      @Lazy InjectorContractService injectorContractService,
       DomainService domainService,
       InjectorMapper injectorMapper,
       CatalogConnectorMapper catalogConnectorMapper,
-      QueueService queueService) {
+      RabbitmqService rabbitmqService) {
     super(
         ConnectorType.INJECTOR,
         connectorInstanceConfigurationRepository,
@@ -91,7 +84,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     this.injectorContractService = injectorContractService;
     this.domainService = domainService;
     this.injectorMapper = injectorMapper;
-    this.queueService = queueService;
+    this.rabbitmqService = rabbitmqService;
   }
 
   @Override
@@ -163,21 +156,6 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     deleteDummyInjectorIfItExists(injectorType, null);
   }
 
-  /**
-   * This method will check if the injector type is a dummy if yes it will remove the dummy suffix
-   * if no it will return the parameter It is used to send the execution to the correct injector
-   * even if the current one is just a dummy injector
-   *
-   * @param injectorType
-   * @return
-   */
-  public String getOriginInjectorType(@NotBlank final String injectorType) {
-    if (injectorType.endsWith(DUMMY_SUFFIX)) {
-      return injectorType.substring(0, injectorType.length() - DUMMY_SUFFIX.length());
-    }
-    return injectorType;
-  }
-
   public List<Injector> findAll() {
     return StreamSupport.stream(injectorRepository.findAll().spliterator(), false)
         .collect(Collectors.toList());
@@ -215,26 +193,15 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
 
   public InjectorRegistration registerExternalInjector(
       InjectorCreateInput input, Optional<MultipartFile> file) {
-    ConnectionFactory factory = this.queueService.createConnectionFactory();
-    // Declare queueing
-    Connection connection = null;
     try {
       // Upload icon
       if (file.isPresent() && "image/png".equals(file.get().getContentType())) {
         fileService.uploadFile(
             FileService.INJECTORS_IMAGES_BASE_PATH + input.getType() + ".png", file.get());
       }
-      connection = factory.newConnection();
-      this.queueService.createChannel(connection, "_injector_" + input.getType(), input.getType());
-      String queueName = rabbitmqConfig.getPrefix() + "_injector_" + input.getType();
+      String queueName = this.rabbitmqService.registerQueue(input.getId());
       // We need to support upsert for registration
       Injector injector = injectorRepository.findById(input.getId()).orElse(null);
-      if (injector == null) {
-        Injector injectorChecking =
-            injectorRepository
-                .findByTypeAndTenantId(input.getType(), TenantContext.getCurrentTenant())
-                .orElse(null);
-      }
       if (injector != null) {
         updateExistingExternalInjector(
             injector,
@@ -265,31 +232,17 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
                 .map(in -> injectorContractService.convertInjectorFromInput(in, savedInjector))
                 .toList();
         injectorContractRepository.saveAll(injectorContracts);
+        // Link contracts on the owning side now that they are persisted
+        savedInjector.getContracts().addAll(injectorContracts);
+        // Persist the owning side to save join table entries
+        injectorRepository.save(savedInjector);
 
         // delete the dummy injector if it was created when importing the starter pack
         deleteDummyInjectorIfItExists(input.getType(), savedInjector);
       }
-      InjectorConnection conn =
-          new InjectorConnection(
-              rabbitmqConfig.getHostname(),
-              rabbitmqConfig.getVhost(),
-              rabbitmqConfig.isSsl(),
-              rabbitmqConfig.getPort(),
-              rabbitmqConfig.getUser(),
-              rabbitmqConfig.getPass());
-      return new InjectorRegistration(conn, queueName);
+      return new InjectorRegistration(rabbitmqService.getConnectionInfo(), queueName);
     } catch (Exception e) {
       throw new RuntimeException(e);
-    } finally {
-      if (connection != null) {
-        try {
-          connection.close();
-        } catch (IOException e) {
-          log.error(
-              "Unable to close RabbitMQ connection. You should worry as this could impact performance",
-              e);
-        }
-      }
     }
   }
 
@@ -359,7 +312,11 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
             .map(in -> injectorContractService.convertInjectorFromInput(in, injector))
             .toList();
     injectorContractRepository.deleteAllById(toDeletes);
+    // Remove deleted contracts from the owning-side collection to keep it in sync
+    injector.getContracts().removeIf(c -> toDeletes.contains(c.getId()));
     injectorContractRepository.saveAll(toCreates);
+    // Link new contracts on the owning side now that they are persisted
+    injector.getContracts().addAll(toCreates);
     return injectorRepository.save(injector);
   }
 
@@ -469,9 +426,12 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
             dummyInjector -> {
               if (newInjector != null) {
                 List<InjectorContract> injectorContracts =
-                    injectorContractRepository.findInjectorContractsByInjector(dummyInjector);
+                    injectorContractRepository.findByInjectorsContaining(dummyInjector);
                 injectorContracts.forEach(
-                    injectorContract -> injectorContract.setInjector(newInjector));
+                    injectorContract -> {
+                      injectorContract.getInjectors().remove(dummyInjector);
+                      injectorContract.getInjectors().add(newInjector);
+                    });
                 injectorContractRepository.saveAll(injectorContracts);
               }
               injectorRepository.delete(dummyInjector);
@@ -546,7 +506,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
 
       if (matchingContract.isPresent()) {
         this.injectorContractService.updateBuiltInInjectorContract(
-            contractDB, matchingContract.get(), isPayloads);
+            contractDB, matchingContract.get(), isPayloads, injector);
         existingIds.add(contractDB.getId());
         toUpdate.add(contractDB);
       } else if (shouldDeleteContract(contractDB, injector)) {
@@ -566,8 +526,12 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
 
     // Persist changes
     injectorContractRepository.deleteAllById(toDelete);
+    // Remove deleted contracts from the owning-side collection to keep it in sync
+    injector.getContracts().removeIf(c -> toDelete.contains(c.getId()));
     injectorContractRepository.saveAll(toCreate);
     injectorContractRepository.saveAll(toUpdate);
+    // Link new contracts on the owning side now that they are persisted
+    injector.getContracts().addAll(toCreate);
     injectorRepository.save(injector);
   }
 
@@ -610,6 +574,10 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
                         contract, savedInjector, isPayloads))
             .toList();
     injectorContractRepository.saveAll(injectorContracts);
+    // Now that contracts are persisted, link them on the owning side (Injector.contracts)
+    savedInjector.getContracts().addAll(injectorContracts);
+    // Persist the owning side to save join table entries
+    injectorRepository.save(savedInjector);
     return savedInjector;
   }
 

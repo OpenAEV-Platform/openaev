@@ -17,6 +17,7 @@ import { searchScenarioSimulationsAsOption } from '../../../../actions/scenarios
 import { searchSimulationAsOptions } from '../../../../actions/simulations/simulation-action';
 import { searchTagAsOption } from '../../../../actions/tags/tag-action';
 import { searchTeamsAsOption } from '../../../../actions/teams/team-actions';
+import ContractOutputElementType, { CONTRACT_OUTPUT_ELEMENT_TYPE_KEYS } from '../../../../admin/components/findings/ContractOutputElementType';
 import { type GroupOption, type Option } from '../../../../utils/Option';
 import { useFormatter } from '../../../i18n';
 import { CUSTOM_DASHBOARD, SCENARIO_SIMULATIONS, SCENARIOS, SIMULATIONS } from './constants';
@@ -53,7 +54,8 @@ const useSearchOptions = () => {
           handleOptions(response, config.defaultValues);
         });
         break;
-      case 'injector_contract_injector':
+      case 'action_injectors':
+      case 'injector_contract_injectors':
       case 'inject_injector_contract':
         searchInjectorsByNameAsOption(search, contextId).then((response) => {
           setOptions(response.data);
@@ -74,7 +76,7 @@ const useSearchOptions = () => {
           setOptions(response.data);
         });
         break;
-      case 'payload_domains':
+      case 'action_domains':
       case 'injector_contract_domains':
       case 'inject_contract_domains':
         searchDomainsByNameAsOption(search).then((response) => {
@@ -101,7 +103,7 @@ const useSearchOptions = () => {
       case 'asset_group_tags':
       case 'exercise_tags':
       case 'inject_tags':
-      case 'payload_tags':
+      case 'action_tags':
       case 'scenario_tags':
       case 'target_tags':
       case 'team_tags':
@@ -158,6 +160,17 @@ const useSearchOptions = () => {
           setOptions(response.data);
         });
         break;
+      case 'finding_type': {
+        const typeOptions = CONTRACT_OUTPUT_ELEMENT_TYPE_KEYS
+          .filter(type => !search || t(ContractOutputElementType[type]).toLowerCase().includes(search.toLowerCase()))
+          .map(type => ({
+            id: type,
+            label: ContractOutputElementType[type],
+          }))
+          .sort((a, b) => t(a.label).localeCompare(t(b.label)));
+        setOptions(typeOptions);
+        break;
+      }
       case 'finding_simulation':
         searchExerciseLinkedToFindingsAsOption(search, contextId).then((response) => {
           setOptions(response.data);

@@ -48,7 +48,7 @@ public class MailingService {
             .findById(EmailContract.EMAIL_DEFAULT)
             .orElseThrow(ElementNotFoundException::new);
     inject.setInjectorContract(emailContract);
-    inject.setInjector(emailContract.getInjector());
+    inject.setInjector(emailContract.getFirstInjector());
 
     inject
         .getInjectorContract()
@@ -80,7 +80,7 @@ public class MailingService {
               io.openaev.executors.Injector executor =
                   managerFactory
                       .getManager()
-                      .requestInjectorExecutorByType(injectorContract.getInjector().getType());
+                      .requestInjectorExecutorByType(injectorContract.getFirstInjector().getType());
               executor.executeInjection(injection);
             });
   }

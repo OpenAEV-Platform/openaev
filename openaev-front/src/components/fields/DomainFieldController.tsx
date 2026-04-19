@@ -3,7 +3,7 @@ import type { CSSProperties } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 
 import type { Domain } from '../../utils/api-types';
-import { buildDomainAutocompleteState, cleanSelectedDomains, TO_CLASSIFY } from '../../utils/domains/domainUtils';
+import { buildDomainAutocompleteState, TO_CLASSIFY } from '../../utils/domains/domainUtils';
 import AutocompleteField from './AutocompleteField';
 
 interface DomainFieldControllerProps {
@@ -57,8 +57,7 @@ const DomainFieldController = ({
             value={currentIds}
             error={!!error}
             onInputChange={() => {}}
-            onChange={(ids: string[]) =>
-              onChange(cleanSelectedDomains(domains, ids))}
+            onChange={onChange}
             renderOption={(props, option) => {
               if (option.label === TO_CLASSIFY) return null;
               return (

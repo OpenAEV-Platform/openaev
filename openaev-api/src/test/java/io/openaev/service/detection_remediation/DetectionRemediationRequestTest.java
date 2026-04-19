@@ -27,9 +27,9 @@ public class DetectionRemediationRequestTest extends IntegrationTest {
     Command payload = new Command();
     List<AttackPattern> attackPatterns = getAttackPatterns();
 
-    List<String> attackPatternsIds =
-        payload.getAttackPatterns().stream().map(AttackPattern::getId).toList();
+    List<String> attackPatternsIds = attackPatterns.stream().map(AttackPattern::getId).toList();
     PayloadInput payloadInput = getPayloadInput(payload, attackPatternsIds);
+
     DetectionRemediationRequest detectionRemediationRequest =
         new DetectionRemediationRequest(payloadInput, attackPatterns);
     String payloadValue = detectionRemediationRequest.getPayload();
@@ -61,8 +61,7 @@ public class DetectionRemediationRequestTest extends IntegrationTest {
 
     List<AttackPattern> attackPatterns = getAttackPatterns();
 
-    List<String> attackPatternsIds =
-        payload.getAttackPatterns().stream().map(AttackPattern::getId).toList();
+    List<String> attackPatternsIds = attackPatterns.stream().map(AttackPattern::getId).toList();
     PayloadInput payloadInput = getPayloadInput(payload, attackPatternsIds);
     DetectionRemediationRequest detectionRemediationRequest =
         new DetectionRemediationRequest(payloadInput, attackPatterns);
@@ -92,9 +91,9 @@ public class DetectionRemediationRequestTest extends IntegrationTest {
   public void getPayloadValueForWebserviceFromPayloadInject_Command() {
     Command payload = new Command();
     List<AttackPattern> attackPatterns = getAttackPatterns();
-    getPayload(payload, attackPatterns);
+    getPayload(payload);
     DetectionRemediationRequest detectionRemediationRequest =
-        new DetectionRemediationRequest(payload);
+        new DetectionRemediationRequest(payload, attackPatterns);
 
     String payloadValue = detectionRemediationRequest.getPayload();
     assertThat(payloadValue)
@@ -123,9 +122,9 @@ public class DetectionRemediationRequestTest extends IntegrationTest {
   public void getPayloadValueForWebserviceFromPayloadInject_DnsResolution() {
     DnsResolution payload = new DnsResolution();
     List<AttackPattern> attackPatterns = getAttackPatterns();
-    getPayload(payload, attackPatterns);
+    getPayload(payload);
     DetectionRemediationRequest detectionRemediationRequest =
-        new DetectionRemediationRequest(payload);
+        new DetectionRemediationRequest(payload, attackPatterns);
 
     String payloadValue = detectionRemediationRequest.getPayload();
     assertThat(payloadValue)
@@ -192,7 +191,7 @@ public class DetectionRemediationRequestTest extends IntegrationTest {
     return input;
   }
 
-  private void getPayload(Payload payload, List<AttackPattern> attackPatterns) {
+  private void getPayload(Payload payload) {
 
     // USED FOR DetectionRemediationRequest.payload value construction
     payload.setName("VaultcmdCredentialsAccess");
@@ -207,7 +206,6 @@ public class DetectionRemediationRequestTest extends IntegrationTest {
                 """);
     payload.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES);
     payload.setArguments(getPayloadArguments());
-    payload.setAttackPatterns(attackPatterns);
     switch (payload) {
       case Command command -> {
         command.setExecutor("cmd");
@@ -228,7 +226,6 @@ public class DetectionRemediationRequestTest extends IntegrationTest {
     payload.setCleanupExecutor("sh");
     payload.setCleanupCommand("rm /tmp/encoded.dat \n" + "rm /tmp/art.sh");
 
-    payload.setTags(Set.of(TagFixture.getTag()));
     payload.setOutputParsers(Set.of(OutputParserFixture.getDefaultOutputParser()));
   }
 

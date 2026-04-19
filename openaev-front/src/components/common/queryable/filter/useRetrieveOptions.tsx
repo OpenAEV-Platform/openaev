@@ -16,6 +16,7 @@ import { searchScenarioByIdAsOption } from '../../../../actions/scenarios/scenar
 import { searchSimulationByIdAsOptions } from '../../../../actions/simulations/simulation-action';
 import { searchTagByIdAsOption } from '../../../../actions/tags/tag-action';
 import { searchTeamByIdAsOption } from '../../../../actions/teams/team-actions';
+import ContractOutputElementType from '../../../../admin/components/findings/ContractOutputElementType';
 import { type GroupOption, type Option } from '../../../../utils/Option';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
@@ -52,7 +53,8 @@ const useRetrieveOptions = () => {
           handleOptions(response, filterDefaultValues);
         });
         break;
-      case 'injector_contract_injector':
+      case 'action_injectors':
+      case 'injector_contract_injectors':
       case 'inject_injector_contract':
         searchInjectorByIdAsOptions(ids, contextId).then((response) => {
           setOptions(response.data);
@@ -73,7 +75,7 @@ const useRetrieveOptions = () => {
           setOptions(response.data);
         });
         break;
-      case 'payload_domains':
+      case 'action_domains':
       case 'injector_contract_domains':
       case 'inject_contract_domains':
         searchDomainsByIdsAsOption(ids).then((response) => {
@@ -110,7 +112,7 @@ const useRetrieveOptions = () => {
       case 'asset_group_tags':
       case 'exercise_tags':
       case 'inject_tags':
-      case 'payload_tags':
+      case 'action_tags':
       case 'scenario_tags':
       case 'target_tags':
       case 'team_tags':
@@ -153,6 +155,12 @@ const useRetrieveOptions = () => {
         searchInjectByIdAsOption(ids).then((response) => {
           setOptions(response.data);
         });
+        break;
+      case 'finding_type':
+        setOptions(ids.map(id => ({
+          id,
+          label: ContractOutputElementType[id as keyof typeof ContractOutputElementType] ?? id,
+        })));
         break;
       case 'finding_simulation':
         searchExerciseByIdAsOption(ids).then((response) => {

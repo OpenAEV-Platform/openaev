@@ -13,13 +13,18 @@ import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
 import NotFound from '../../../../components/NotFound';
 import { useHelper } from '../../../../store';
-import { type NotificationRuleOutput, type Scenario } from '../../../../utils/api-types';
+import {
+  type NotificationRuleOutput,
+  type Scenario,
+  type ScenarioOutput,
+} from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import handle from '../../../../utils/period/Period';
 import { type PeriodExpressionHandler } from '../../../../utils/period/PeriodExpressionHandler';
 import { INHERITED_CONTEXT } from '../../../../utils/permissions/types';
 import useScenarioPermissions from '../../../../utils/permissions/useScenarioPermissions';
+import { isFeatureEnabled } from '../../../../utils/utils';
 import { DocumentContext, type DocumentContextType, InjectContext, PermissionsContext, type PermissionsContextType } from '../../common/Context';
 import ScenarioNotificationRulesDrawer from './notification_rule/ScenarioNotificationRulesDrawer';
 import injectContextForScenario from './ScenarioContext';
@@ -32,13 +37,16 @@ const Tests = lazy(() => import('./tests/ScenarioTests'));
 const Lessons = lazy(() => import('./lessons/ScenarioLessons'));
 const ScenarioFindings = lazy(() => import('./findings/ScenarioFindings'));
 const ScenarioAnalysis = lazy(() => import('./analysis/ScenarioAnalysis'));
+const ScenarioScope = lazy(() => import('./scope/ScenarioScope'));
+const ScenarioLogic = lazy(() => import('./logic/ScenarioLogic'));
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
-const IndexScenarioComponent: FunctionComponent<{ scenario: Scenario }> = ({ scenario }) => {
+const IndexScenarioComponent: FunctionComponent<{ scenario: ScenarioOutput }> = ({ scenario }) => {
   const { t, locale, fld } = useFormatter();
   const location = useLocation();
   const theme = useTheme();
+  const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
   const permissionsContext: PermissionsContextType = {
     permissions: useScenarioPermissions(scenario.scenario_id),
     inherited_context: INHERITED_CONTEXT.SCENARIO,
@@ -157,55 +165,86 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: Scenario }> = ({ sce
             flexDirection="row"
             justifyContent="space-between"
           >
-            <Tabs
-              style={{ flex: 1 }}
-              value={tabValue}
-              variant="scrollable"
-              scrollButtons="auto"
-            >
-              <Tab
-                component={Link}
-                to={`/admin/scenarios/${scenario.scenario_id}`}
-                value={`/admin/scenarios/${scenario.scenario_id}`}
-                label={t('Overview')}
-              />
-              <Tab
-                component={Link}
-                to={`/admin/scenarios/${scenario.scenario_id}/definition`}
-                value={`/admin/scenarios/${scenario.scenario_id}/definition`}
-                label={t('Definition')}
-              />
-              <Tab
-                component={Link}
-                to={`/admin/scenarios/${scenario.scenario_id}/injects`}
-                value={`/admin/scenarios/${scenario.scenario_id}/injects`}
-                label={t('Injects')}
-              />
-              <Tab
-                component={Link}
-                to={`/admin/scenarios/${scenario.scenario_id}/tests`}
-                value={`/admin/scenarios/${scenario.scenario_id}/tests`}
-                label={t('Tests')}
-              />
-              <Tab
-                component={Link}
-                to={`/admin/scenarios/${scenario.scenario_id}/lessons`}
-                value={`/admin/scenarios/${scenario.scenario_id}/lessons`}
-                label={t('Lessons learned')}
-              />
-              <Tab
-                component={Link}
-                to={`/admin/scenarios/${scenario.scenario_id}/findings`}
-                value={`/admin/scenarios/${scenario.scenario_id}/findings`}
-                label={t('Findings')}
-              />
-              <Tab
-                component={Link}
-                to={`/admin/scenarios/${scenario.scenario_id}/analysis`}
-                value={`/admin/scenarios/${scenario.scenario_id}/analysis`}
-                label={t('Analysis')}
-              />
-            </Tabs>
+            {
+              isChainingFeatureEnabled && scenario.scenario_workflow_id ? (
+                <Tabs
+                  style={{ flex: 1 }}
+                  value={tabValue}
+                  variant="scrollable"
+                  scrollButtons="auto"
+                >
+                  <Tab
+                    component={Link}
+                    to={`/admin/scenarios/${scenario.scenario_id}`}
+                    value={`/admin/scenarios/${scenario.scenario_id}`}
+                    label={t('Overview')}
+                  />
+                  <Tab
+                    component={Link}
+                    to={`/admin/scenarios/${scenario.scenario_id}/scope`}
+                    value={`/admin/scenarios/${scenario.scenario_id}/scope`}
+                    label={t('Scope')}
+                  />
+                  <Tab
+                    component={Link}
+                    to={`/admin/scenarios/${scenario.scenario_id}/logic`}
+                    value={`/admin/scenarios/${scenario.scenario_id}/logic`}
+                    label={t('Logic')}
+                  />
+                </Tabs>
+              ) : (
+                <Tabs
+                  style={{ flex: 1 }}
+                  value={tabValue}
+                  variant="scrollable"
+                  scrollButtons="auto"
+                >
+                  <Tab
+                    component={Link}
+                    to={`/admin/scenarios/${scenario.scenario_id}`}
+                    value={`/admin/scenarios/${scenario.scenario_id}`}
+                    label={t('Overview')}
+                  />
+                  <Tab
+                    component={Link}
+                    to={`/admin/scenarios/${scenario.scenario_id}/definition`}
+                    value={`/admin/scenarios/${scenario.scenario_id}/definition`}
+                    label={t('Definition')}
+                  />
+                  <Tab
+                    component={Link}
+                    to={`/admin/scenarios/${scenario.scenario_id}/injects`}
+                    value={`/admin/scenarios/${scenario.scenario_id}/injects`}
+                    label={t('Injects')}
+                  />
+                  <Tab
+                    component={Link}
+                    to={`/admin/scenarios/${scenario.scenario_id}/tests`}
+                    value={`/admin/scenarios/${scenario.scenario_id}/tests`}
+                    label={t('Tests')}
+                  />
+                  <Tab
+                    component={Link}
+                    to={`/admin/scenarios/${scenario.scenario_id}/lessons`}
+                    value={`/admin/scenarios/${scenario.scenario_id}/lessons`}
+                    label={t('Lessons learned')}
+                  />
+                  <Tab
+                    component={Link}
+                    to={`/admin/scenarios/${scenario.scenario_id}/findings`}
+                    value={`/admin/scenarios/${scenario.scenario_id}/findings`}
+                    label={t('Findings')}
+                  />
+                  <Tab
+                    component={Link}
+                    to={`/admin/scenarios/${scenario.scenario_id}/analysis`}
+                    value={`/admin/scenarios/${scenario.scenario_id}/analysis`}
+                    label={t('Analysis')}
+                  />
+                </Tabs>
+              )
+            }
+
             <div style={{
               display: 'flex',
               flexDirection: 'row',
@@ -291,6 +330,8 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: Scenario }> = ({ sce
               <Route path="lessons" element={errorWrapper(Lessons)()} />
               <Route path="findings" element={errorWrapper(ScenarioFindings)()} />
               <Route path="analysis" element={errorWrapper(ScenarioAnalysis)()} />
+              <Route path="scope" element={errorWrapper(ScenarioScope)()} />
+              <Route path="logic" element={errorWrapper(ScenarioLogic)()} />
               {/* Not found */}
               <Route path="*" element={<NotFound />} />
             </Routes>

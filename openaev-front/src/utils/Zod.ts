@@ -1,6 +1,8 @@
 import { setIn } from 'final-form';
 import { z, type ZodError, type ZodType } from 'zod';
 
+export const PHONE_REGEX = /^\+[\d\s\-.()]+$/;
+
 type ZodImplements<Model> = {
   [key in keyof Model]-?: undefined extends Model[key]
     ? null extends Model[key]

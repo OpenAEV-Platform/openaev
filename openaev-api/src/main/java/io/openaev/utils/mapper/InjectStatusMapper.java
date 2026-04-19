@@ -29,13 +29,7 @@ public class InjectStatusMapper {
     buildInjectStatusOutput(output, injectTestStatus, injectTestStatus.getTraces());
 
     output.setInjectId(injectTestStatus.getInject().getId());
-    output.setInjectType(
-        injectTestStatus
-            .getInject()
-            .getInjectorContract()
-            .map(InjectorContract::getInjector)
-            .map(Injector::getType)
-            .orElse(null));
+    output.setInjectType(injectTestStatus.getInject().getType());
     output.setInjectTitle(injectTestStatus.getInject().getTitle());
 
     return output;

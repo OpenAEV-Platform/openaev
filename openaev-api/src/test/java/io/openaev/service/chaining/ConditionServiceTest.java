@@ -267,7 +267,7 @@ public class ConditionServiceTest {
 
       // -------- Assert --------
       assertNotNull(result);
-      assertEquals(ConditionKeyType.StepTemplateId, result.getKeyType());
+      assertEquals(ConditionKeyType.STEP_TEMPLATE_ID, result.getKeyType());
       assertEquals(ConditionType.DEPEND_ON, result.getType());
       assertEquals(stepTemplateId, result.getValue());
     }
@@ -321,6 +321,9 @@ public class ConditionServiceTest {
       // time condition template: AFTER with "0ms" from workflowCreatedAt
       Condition timeTemplate = mock(Condition.class);
       when(timeTemplate.getType()).thenReturn(ConditionType.AFTER);
+      when(timeTemplate.getValue()).thenReturn("0");
+
+      when(conditionRepository.findAllLinkedToStepId(stepId)).thenReturn(List.of(timeTemplate));
 
       when(conditionRepository.findAllLinkedToStepId(stepId)).thenReturn(List.of(timeTemplate));
 
@@ -352,6 +355,9 @@ public class ConditionServiceTest {
 
       Condition timeTemplate = mock(Condition.class);
       when(timeTemplate.getType()).thenReturn(ConditionType.AFTER);
+      when(timeTemplate.getValue()).thenReturn("60000"); // +60s from start
+
+      when(conditionRepository.findAllLinkedToStepId(stepId)).thenReturn(List.of(timeTemplate));
 
       when(conditionRepository.findAllLinkedToStepId(stepId)).thenReturn(List.of(timeTemplate));
 
@@ -424,6 +430,13 @@ public class ConditionServiceTest {
 
         String nextId = UUID.randomUUID().toString();
         when(nextStepTemplateToExecute.getId()).thenReturn(nextId);
+        when(workflowRun.getId()).thenReturn(workflowRunId);
+
+        // Evaluated only when at least one dependent step has output.
+        if (hasOutput) {
+          when(nextStepTemplateToExecute.getLimitExecution()).thenReturn(3);
+          when(stepService.countExecutedStep(workflowRunId, nextId)).thenReturn(underLimit ? 2 : 3);
+        }
 
         Condition depTemplate = mockCondition();
 
@@ -435,519 +448,90 @@ public class ConditionServiceTest {
                 nextStepTemplateToExecute, "{\"in\":1}", workflowRun, stepService);
 
         // -------- Assert --------
-        assertNotNull(result);
-        assertTrue(result.isEmpty());
-        verify(conditionService, never()).isDependOn(anyString());
-        verifyNoInteractions(stepService);
+        if (expectedNull) {
+          assertNull(result);
+          verify(conditionService, never()).isDependOn(anyString());
+        } else {
+          assertNotNull(result);
+          assertEquals(1, result.size());
+          assertSame(depExec, result.getFirst());
+          verify(conditionService).isDependOn(stepFromTemplateId);
+        }
       }
 
-      private Condition mockCondition() {
-        Condition c = mock(Condition.class);
-        when(c.getType()).thenReturn(ConditionType.DEPEND_ON);
-        return c;
-      }
-    }
-  }
 
-  /* ============================================================
-   * deleteAllConditionsByStepId
-   * ============================================================ */
-  @Nested
-  class DeleteAllConditionsByStepId {
-
-    @Test
-    void shouldDoNothing_whenNoConditionLinkedToStep() {
-      String stepId = UUID.randomUUID().toString();
-      when(conditionRepository.findAllLinkedToStepId(stepId)).thenReturn(List.of());
-
-      conditionService.deleteAllConditionsByStepId(stepId);
-
-      verify(conditionRepository).findAllLinkedToStepId(stepId);
-      verify(conditionRepository, never()).save(any());
-      verify(conditionRepository, never()).delete(any());
-    }
-
-    @Test
-    void shouldDeleteCondition_whenUnlinkedAndNoStepFromAndNoRemainingLinks() {
-      String removedStepId = "step-A";
-
-      Condition condition = new Condition();
-      Step stepA = new Step();
-      stepA.setId(removedStepId);
-      conditionService.linkToStep(condition, stepA, true);
-
-      when(conditionRepository.findAllLinkedToStepId(removedStepId)).thenReturn(List.of(condition));
-      when(conditionRepository.save(any(Condition.class)))
-          .thenAnswer(invocation -> invocation.getArgument(0));
-
-      conditionService.deleteAllConditionsByStepId(removedStepId);
-
-      verify(conditionRepository).save(condition);
-      verify(conditionRepository).delete(condition);
-      assertTrue(condition.getConditionSteps().isEmpty());
-    }
-
-    @Test
-    void shouldKeepCondition_whenStillLinkedToAnotherStep() {
-      String removedStepId = "step-A";
-
-      Condition condition = new Condition();
-      Step stepA = new Step();
-      stepA.setId(removedStepId);
-      Step stepB = new Step();
-      stepB.setId("step-B");
-      conditionService.linkToStep(condition, stepA, true);
-      conditionService.linkToStep(condition, stepB, false);
-
-      when(conditionRepository.findAllLinkedToStepId(removedStepId)).thenReturn(List.of(condition));
-      when(conditionRepository.save(any(Condition.class)))
-          .thenAnswer(invocation -> invocation.getArgument(0));
-
-      conditionService.deleteAllConditionsByStepId(removedStepId);
-
-      verify(conditionRepository).save(condition);
-      verify(conditionRepository, never()).delete(any());
-      assertEquals(1, condition.getConditionSteps().size());
-      assertEquals("step-B", condition.getConditionSteps().get(0).getStep().getId());
-    }
-
-    @Test
-    void shouldKeepCondition_whenStepFromIsPresent() {
-      String removedStepId = "step-A";
-
-      Condition condition = new Condition();
-      Step stepA = new Step();
-      stepA.setId(removedStepId);
-      conditionService.linkToStep(condition, stepA, true);
-
-      Step stepFrom = new Step();
-      stepFrom.setId("step-from");
-      condition.setStepFrom(stepFrom);
-
-      when(conditionRepository.findAllLinkedToStepId(removedStepId)).thenReturn(List.of(condition));
-      when(conditionRepository.save(any(Condition.class)))
-          .thenAnswer(invocation -> invocation.getArgument(0));
-
-      conditionService.deleteAllConditionsByStepId(removedStepId);
-
-      verify(conditionRepository).save(condition);
-      verify(conditionRepository, never()).delete(any());
-      assertTrue(condition.getConditionSteps().isEmpty());
-      assertNotNull(condition.getStepFrom());
-    }
-  }
-
-  /* ============================================================
-   * linkExistingConditionsToStep
-   * ============================================================ */
-  @Nested
-  class LinkExistingConditionsToStep {
-
-    @Test
-    void shouldLinkAllExistingRootConditionsToStep() {
-      Step step = new Step();
-      step.setId("step-1");
-
-      Condition root1 = new Condition();
-      root1.setId("c-1");
-      Condition root2 = new Condition();
-      root2.setId("c-2");
-
-      when(conditionRepository.findById("c-1")).thenReturn(Optional.of(root1));
-      when(conditionRepository.findById("c-2")).thenReturn(Optional.of(root2));
-
-      conditionService.linkExistingConditionsToStep(step, List.of("c-1", "c-2"));
-
-      verify(conditionRepository).save(root1);
-      verify(conditionRepository).save(root2);
-      assertEquals(1, root1.getConditionSteps().size());
-      assertEquals("step-1", root1.getConditionSteps().getFirst().getStep().getId());
-      assertEquals(1, root2.getConditionSteps().size());
-      assertEquals("step-1", root2.getConditionSteps().getFirst().getStep().getId());
-    }
-
-    @Test
-    void shouldDoNothing_whenConditionIdsAreEmpty() {
-      Step step = new Step();
-      step.setId("step-1");
-
-      conditionService.linkExistingConditionsToStep(step, List.of());
-
-      verify(conditionRepository, never()).findById(anyString());
-      verify(conditionRepository, never()).save(any());
-    }
-  }
-
-  /* ============================================================
-   * createConditionTree
-   * ============================================================ */
-  @Nested
-  class CreateConditionTree {
-
-    @Test
-    void shouldCreateRootAndChildrenAndLinkSteps() {
-      String workflowId = "wf-1";
-      String rootStepFromId = "step-from-root";
-      String childStepFromId = "step-from-child";
-      String linkedStepId = "linked-step";
-
-      ConditionCreateInput rootInput = new ConditionCreateInput();
-      rootInput.setTemporaryId("tmp-root");
-      rootInput.setType(ConditionType.AND);
-
-      ConditionCreateInput childInput = new ConditionCreateInput();
-      childInput.setTemporaryId("tmp-child");
-      childInput.setTemporaryIdConditionParent("tmp-root");
-      childInput.setType(ConditionType.EQ);
-      childInput.setKeyType(ConditionKeyType.PortsScan);
-      childInput.setValue("445");
-      childInput.setStepFrom(childStepFromId);
-
-      EventInput input =
-          EventInput.builder()
-              .name("event-1")
-              .description("desc-1")
-              .workflowId(workflowId)
-              .stepFrom(rootStepFromId)
-              .conditions(List.of(rootInput, childInput))
-              .stepIds(List.of(linkedStepId))
-              .build();
-
-      Step rootStepFrom = new Step();
-      rootStepFrom.setId(rootStepFromId);
-      Step childStepFrom = new Step();
-      childStepFrom.setId(childStepFromId);
-      Step linkedStep = new Step();
-      linkedStep.setId(linkedStepId);
-
-      when(stepRepository.findById(rootStepFromId)).thenReturn(Optional.of(rootStepFrom));
-      when(stepRepository.findById(childStepFromId)).thenReturn(Optional.of(childStepFrom));
-      when(stepRepository.findAllById(List.of(linkedStepId))).thenReturn(List.of(linkedStep));
-      when(conditionRepository.save(any(Condition.class)))
-          .thenAnswer(invocation -> invocation.getArgument(0));
-
-      Condition createdRoot = conditionService.createConditionTree(input);
-
-      assertNotNull(createdRoot);
-      assertEquals("event-1", createdRoot.getName());
-      assertEquals("desc-1", createdRoot.getDescription());
-      assertEquals(workflowId, createdRoot.getWorkflowId());
-      assertEquals(ConditionType.AND, createdRoot.getType());
-      assertNotNull(createdRoot.getStepFrom());
-      assertEquals(rootStepFromId, createdRoot.getStepFrom().getId());
-      assertEquals(1, createdRoot.getConditionChildren().size());
-
-      verify(stepRepository).findAllById(List.of(linkedStepId));
-
-      Condition savedChild = createdRoot.getConditionChildren().getFirst();
-      assertEquals("445", savedChild.getValue());
-      assertNotNull(savedChild.getConditionParent());
-      assertEquals(rootStepFromId, savedChild.getConditionParent().getStepFrom().getId());
-      assertEquals(childStepFromId, savedChild.getStepFrom().getId());
-    }
-
-    @Test
-    void shouldThrowWhenRootStepFromDoesNotExist() {
-      ConditionCreateInput rootInput = new ConditionCreateInput();
-      rootInput.setTemporaryId("tmp-root");
-      rootInput.setType(ConditionType.AND);
-
-      EventInput input =
-          EventInput.builder()
-              .name("event")
-              .workflowId("wf")
-              .stepFrom("missing-step")
-              .conditions(List.of(rootInput))
-              .build();
-
-      when(stepRepository.findById("missing-step")).thenReturn(Optional.empty());
-
-      assertThrows(
-          EntityNotFoundException.class, () -> conditionService.createConditionTree(input));
-    }
-  }
-
-  /* ============================================================
-   * updateConditionTree
-   * ============================================================ */
-  @Nested
-  class UpdateConditionTree {
-
-    @Test
-    void shouldUpdateRootAndRebuildChildrenAndLinks() {
-      String rootId = "root-1";
-      String workflowId = "wf-new";
-      String newRootStepFromId = "step-from-new";
-      String linkedStepId = "linked-step";
-
-      Condition existingRoot = new Condition();
-      existingRoot.setId(rootId);
-      existingRoot.setName("old-name");
-      existingRoot.setDescription("old-desc");
-      existingRoot.setWorkflowId("wf-old");
-      existingRoot.setType(ConditionType.OR);
-
-      Condition oldChild = new Condition();
-      oldChild.setConditionParent(existingRoot);
-      existingRoot.getConditionChildren().add(oldChild);
-
-      Step oldLinkedStep = new Step();
-      oldLinkedStep.setId("old-linked-step");
-      conditionService.linkToStep(oldChild, oldLinkedStep, true);
-
-      ConditionCreateInput rootInput = new ConditionCreateInput();
-      rootInput.setTemporaryId("tmp-root");
-      rootInput.setType(ConditionType.AND);
-
-      ConditionCreateInput childInput = new ConditionCreateInput();
-      childInput.setTemporaryId("tmp-child");
-      childInput.setTemporaryIdConditionParent("tmp-root");
-      childInput.setType(ConditionType.EQ);
-      childInput.setKeyType(ConditionKeyType.Status);
-      childInput.setValue("ok");
-
-      EventInput input =
-          EventInput.builder()
-              .name("new-name")
-              .description("new-desc")
-              .workflowId(workflowId)
-              .stepFrom(newRootStepFromId)
-              .conditions(List.of(rootInput, childInput))
-              .stepIds(List.of(linkedStepId))
-              .build();
-
-      Step newRootStepFrom = new Step();
-      newRootStepFrom.setId(newRootStepFromId);
-      Step linkedStep = new Step();
-      linkedStep.setId(linkedStepId);
-
-      when(conditionRepository.findById(rootId)).thenReturn(Optional.of(existingRoot));
-      when(stepRepository.findById(newRootStepFromId)).thenReturn(Optional.of(newRootStepFrom));
-      when(stepRepository.findAllById(List.of(linkedStepId))).thenReturn(List.of(linkedStep));
-      when(conditionRepository.saveAndFlush(existingRoot)).thenReturn(existingRoot);
-      when(conditionRepository.save(any(Condition.class)))
-          .thenAnswer(invocation -> invocation.getArgument(0));
-
-      Condition updated = conditionService.updateConditionTree(rootId, input);
-
-      assertEquals("new-name", updated.getName());
-      assertEquals("new-desc", updated.getDescription());
-      assertEquals(workflowId, updated.getWorkflowId());
-      assertEquals(ConditionType.AND, updated.getType());
-      assertEquals(newRootStepFromId, updated.getStepFrom().getId());
-      assertEquals(1, updated.getConditionChildren().size());
-      assertEquals("ok", updated.getConditionChildren().getFirst().getValue());
-
-      verify(conditionRepository).saveAndFlush(existingRoot);
-      verify(conditionRepository, atLeast(2)).save(any(Condition.class));
-    }
-
-    @Test
-    void shouldThrowWhenRootConditionDoesNotExist() {
-      EventInput input =
-          EventInput.builder().name("x").workflowId("wf").conditions(List.of()).build();
-      when(conditionRepository.findById("missing-root")).thenReturn(Optional.empty());
-
-      assertThrows(
-          EntityNotFoundException.class,
-          () -> conditionService.updateConditionTree("missing-root", input));
-    }
-  }
-
-  /* ============================================================
-   * extractKeyTypesFromOutput
-   * ============================================================ */
-  @Nested
-  class ExtractKeyTypesFromOutput {
-
-    @Test
-    void shouldReturnEmptySet_whenInputIsNull() {
-      // Arrange / Act
-      Set<ConditionKeyType> result = conditionService.extractKeyTypesFromOutput(null);
-
-      // Assert
-      assertNotNull(result);
-      assertTrue(result.isEmpty());
-    }
-
-    @Test
-    void shouldReturnEmptySet_whenInputIsBlank() {
-      // Arrange / Act
-      Set<ConditionKeyType> result = conditionService.extractKeyTypesFromOutput("   ");
-
-      // Assert
-      assertNotNull(result);
-      assertTrue(result.isEmpty());
-    }
-
-    @Test
-    void shouldReturnEmptySet_whenJsonIsNullLiteral() {
-      // Gson parses "null" as a null List → guarded by the null check
-      Set<ConditionKeyType> result = conditionService.extractKeyTypesFromOutput("null");
-
-      assertNotNull(result);
-      assertTrue(result.isEmpty());
-    }
-
-    @Test
-    void shouldReturnEmptySet_whenJsonArrayIsEmpty() {
-      Set<ConditionKeyType> result = conditionService.extractKeyTypesFromOutput("[]");
-
-      assertNotNull(result);
-      assertTrue(result.isEmpty());
-    }
-
-    @Test
-    void shouldReturnSingleKeyType_whenOneValidEntry() {
-      // Arrange
-      String output = "[{\"key\":\"IPv4\",\"value\":\"10.0.0.1\"}]";
-
-      // Act
-      Set<ConditionKeyType> result = conditionService.extractKeyTypesFromOutput(output);
-
-      // Assert
-      assertEquals(Set.of(ConditionKeyType.IPv4), result);
-    }
-
-    @Test
-    void shouldReturnMultipleKeyTypes_whenSeveralDistinctValidEntries() {
-      // Arrange
-      String output =
-          "[{\"key\":\"IPv4\",\"value\":\"10.0.0.1\"}"
-              + ",{\"key\":\"Text\",\"value\":\"admin\"}"
-              + ",{\"key\":\"Port\",\"value\":\"443\"}]";
-
-      // Act
-      Set<ConditionKeyType> result = conditionService.extractKeyTypesFromOutput(output);
-
-      // Assert
-      assertEquals(
-          Set.of(ConditionKeyType.IPv4, ConditionKeyType.Text, ConditionKeyType.Port), result);
-    }
-
-    @Test
-    void shouldDeduplicateKeyTypes_whenSameKeyAppearsMultipleTimes() {
-      // Arrange
-      String output =
-          "[{\"key\":\"Text\",\"value\":\"admin\"}" + ",{\"key\":\"Text\",\"value\":\"root\"}]";
-
-      // Act
-      Set<ConditionKeyType> result = conditionService.extractKeyTypesFromOutput(output);
-
-      // Assert
-      assertEquals(1, result.size());
-      assertTrue(result.contains(ConditionKeyType.Text));
-    }
-
-    @Test
-    void shouldIgnoreEntriesWithNullKey_andReturnRemainingKeyTypes() {
-      // Arrange – one entry has no "key" field, the other has a valid one
-      String output = "[{\"value\":\"10.0.0.1\"}" + ",{\"key\":\"Number\",\"value\":\"42\"}]";
-
-      // Act
-      Set<ConditionKeyType> result = conditionService.extractKeyTypesFromOutput(output);
-
-      // Assert
-      assertEquals(Set.of(ConditionKeyType.Number), result);
-    }
-
-    @Test
-    void shouldReturnEmptySet_whenAllKeysAreNull() {
-      // Arrange
-      String output = "[{\"value\":\"10.0.0.1\"},{\"value\":\"admin\"}]";
-
-      // Act
-      Set<ConditionKeyType> result = conditionService.extractKeyTypesFromOutput(output);
-
-      // Assert
-      assertNotNull(result);
-      assertTrue(result.isEmpty());
-    }
-
-    @Test
-    void shouldReturnEmptySet_whenJsonIsMalformed() {
-      // Arrange – malformed JSON triggers JsonSyntaxException → caught → empty set
-      Set<ConditionKeyType> result = conditionService.extractKeyTypesFromOutput("{malformed-json");
-
-      // Assert
-      assertNotNull(result);
-      assertTrue(result.isEmpty());
-    }
-  }
-
-  /* ============================================================
-   * MappingTypeResolution
-   * ============================================================ */
-  @Nested
-  class MappingTypeResolution {
-
-    /** MAPPER condition with explicit LOCAL → stays LOCAL. */
-    @Test
-    void shouldPreserveMappingType_whenMapperConditionHasExplicitValue() {
-      // -------- Prepare --------
-      String stepFromId = "step-from-mr";
-
-      ConditionCreateInput mapperInput = new ConditionCreateInput();
-      mapperInput.setTemporaryId("tmp-mapper");
-      mapperInput.setType(ConditionType.MAPPER);
-      mapperInput.setMappingType(MappingType.LOCAL);
-
-      EventInput input =
-          EventInput.builder()
-              .name("ev-mr")
-              .workflowId("wf-mr")
-              .stepFrom(stepFromId)
-              .conditions(List.of(mapperInput))
-              .build();
-
-      Step stepFrom = new Step();
-      stepFrom.setId(stepFromId);
-
-      when(stepRepository.findById(stepFromId)).thenReturn(Optional.of(stepFrom));
-      when(conditionRepository.save(any(Condition.class))).thenAnswer(inv -> inv.getArgument(0));
-
-      // -------- Act --------
-      Condition root = conditionService.createConditionTree(input);
-
-      // -------- Assert --------
-      assertEquals(MappingType.LOCAL, root.getMappingType());
-    }
-
-    /** MAPPER condition with no mappingType → defaults to DEFAULT. */
-    @Test
-    void shouldDefaultMappingTypeToDefault_whenMapperConditionHasNullMappingType() {
-      // -------- Prepare --------
-      String stepFromId = "step-from-def";
-
-      ConditionCreateInput mapperInput = new ConditionCreateInput();
-      mapperInput.setTemporaryId("tmp-mapper");
-      mapperInput.setType(ConditionType.MAPPER);
-      mapperInput.setMappingType(null); // not provided — should be auto-defaulted
-
-      EventInput input =
-          EventInput.builder()
-              .name("ev-def")
-              .workflowId("wf-def")
-              .stepFrom(stepFromId)
-              .conditions(List.of(mapperInput))
-              .build();
-
-      Step stepFrom = new Step();
-      stepFrom.setId(stepFromId);
-
-      when(stepRepository.findById(stepFromId)).thenReturn(Optional.of(stepFrom));
-      when(conditionRepository.save(any(Condition.class))).thenAnswer(inv -> inv.getArgument(0));
-
-      // -------- Act --------
-      Condition root = conditionService.createConditionTree(input);
-
-      // -------- Assert --------
-      assertEquals(
-          MappingType.DEFAULT,
-          root.getMappingType(),
-          "mappingType should be auto-defaulted to DEFAULT for MAPPER conditions");
-    }
-
+      /* ============================================================
+       * MappingTypeResolution
+       * ============================================================ */
+      @Nested
+      class MappingTypeResolution {
+
+        /** MAPPER condition with explicit LOCAL → stays LOCAL. */
+        @Test
+        void shouldPreserveMappingType_whenMapperConditionHasExplicitValue() {
+          // -------- Prepare --------
+          String stepFromId = "step-from-mr";
+
+          ConditionCreateInput mapperInput = new ConditionCreateInput();
+          mapperInput.setTemporaryId("tmp-mapper");
+          mapperInput.setType(ConditionType.MAPPER);
+          mapperInput.setMappingType(MappingType.LOCAL);
+
+          EventInput input =
+              EventInput.builder()
+                  .name("ev-mr")
+                  .workflowId("wf-mr")
+                  .stepFrom(stepFromId)
+                  .conditions(List.of(mapperInput))
+                  .build();
+
+          Step stepFrom = new Step();
+          stepFrom.setId(stepFromId);
+
+          when(stepRepository.findById(stepFromId)).thenReturn(Optional.of(stepFrom));
+          when(conditionRepository.save(any(Condition.class))).thenAnswer(inv -> inv.getArgument(0));
+
+          // -------- Act --------
+          Condition root = conditionService.createConditionTree(input);
+
+          // -------- Assert --------
+          assertEquals(MappingType.LOCAL, root.getMappingType());
+        }
+
+        /** MAPPER condition with no mappingType → defaults to DEFAULT. */
+        @Test
+        void shouldDefaultMappingTypeToDefault_whenMapperConditionHasNullMappingType() {
+          // -------- Prepare --------
+          String stepFromId = "step-from-def";
+
+          ConditionCreateInput mapperInput = new ConditionCreateInput();
+          mapperInput.setTemporaryId("tmp-mapper");
+          mapperInput.setType(ConditionType.MAPPER);
+          mapperInput.setMappingType(null); // not provided — should be auto-defaulted
+
+          EventInput input =
+              EventInput.builder()
+                  .name("ev-def")
+                  .workflowId("wf-def")
+                  .stepFrom(stepFromId)
+                  .conditions(List.of(mapperInput))
+                  .build();
+
+          Step stepFrom = new Step();
+          stepFrom.setId(stepFromId);
+
+          when(stepRepository.findById(stepFromId)).thenReturn(Optional.of(stepFrom));
+          when(conditionRepository.save(any(Condition.class))).thenAnswer(inv -> inv.getArgument(0));
+
+          // -------- Act --------
+          Condition root = conditionService.createConditionTree(input);
+
+          // -------- Assert --------
+          assertEquals(
+              MappingType.DEFAULT,
+              root.getMappingType(),
+              "mappingType should be auto-defaulted to DEFAULT for MAPPER conditions");
+        }
     /** Non-MAPPER condition never carries a mappingType. */
     @Test
     void shouldLeaveMappingTypeNull_whenNonMapperCondition() {
@@ -1304,6 +888,335 @@ public class ConditionServiceTest {
             conditionService.isFilterConditionValid(
                 "any", leaf(ConditionType.DEPEND_ON, "some-id")));
       }
+    }
+  }
+
+  /* ============================================================
+   * deleteAllConditionsByStepId
+   * ============================================================ */
+  @Nested
+  class DeleteAllConditionsByStepId {
+
+    @Test
+    void shouldDoNothing_whenNoConditionLinkedToStep() {
+      String stepId = UUID.randomUUID().toString();
+      when(conditionRepository.findAllLinkedToStepId(stepId)).thenReturn(List.of());
+
+      conditionService.deleteAllConditionsByStepId(stepId);
+
+      verify(conditionRepository).findAllLinkedToStepId(stepId);
+      verify(conditionRepository, never()).save(any());
+      verify(conditionRepository, never()).delete(any());
+    }
+
+    @Test
+    void shouldDeleteCondition_whenUnlinkedAndNoStepFromAndNoRemainingLinks() {
+      String removedStepId = "step-A";
+
+      Condition condition = new Condition();
+      Step stepA = new Step();
+      stepA.setId(removedStepId);
+      conditionService.linkToStep(condition, stepA, true);
+
+      when(conditionRepository.findAllLinkedToStepId(removedStepId)).thenReturn(List.of(condition));
+      when(conditionRepository.save(any(Condition.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
+
+      conditionService.deleteAllConditionsByStepId(removedStepId);
+
+      verify(conditionRepository).save(condition);
+      verify(conditionRepository).delete(condition);
+      assertTrue(condition.getConditionSteps().isEmpty());
+    }
+
+    @Test
+    void shouldKeepCondition_whenStillLinkedToAnotherStep() {
+      String removedStepId = "step-A";
+
+      Condition condition = new Condition();
+      Step stepA = new Step();
+      stepA.setId(removedStepId);
+      Step stepB = new Step();
+      stepB.setId("step-B");
+      conditionService.linkToStep(condition, stepA, true);
+      conditionService.linkToStep(condition, stepB, false);
+
+      when(conditionRepository.findAllLinkedToStepId(removedStepId)).thenReturn(List.of(condition));
+      when(conditionRepository.save(any(Condition.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
+
+      conditionService.deleteAllConditionsByStepId(removedStepId);
+
+      verify(conditionRepository).save(condition);
+      verify(conditionRepository, never()).delete(any());
+      assertEquals(1, condition.getConditionSteps().size());
+      assertEquals("step-B", condition.getConditionSteps().getFirst().getStep().getId());
+    }
+  }
+
+  /* ============================================================
+   * linkExistingConditionsToStep
+   * ============================================================ */
+  @Nested
+  class LinkExistingConditionsToStep {
+
+    @Test
+    void shouldLinkAllExistingRootConditionsToStep() {
+      Step step = new Step();
+      step.setId("step-1");
+
+      Condition root1 = new Condition();
+      root1.setId("c-1");
+      Condition root2 = new Condition();
+      root2.setId("c-2");
+
+      when(conditionRepository.findById("c-1")).thenReturn(Optional.of(root1));
+      when(conditionRepository.findById("c-2")).thenReturn(Optional.of(root2));
+
+      conditionService.linkExistingConditionsToStep(step, List.of("c-1", "c-2"));
+
+      verify(conditionRepository).save(root1);
+      verify(conditionRepository).save(root2);
+      assertEquals(1, root1.getConditionSteps().size());
+      assertEquals("step-1", root1.getConditionSteps().getFirst().getStep().getId());
+      assertEquals(1, root2.getConditionSteps().size());
+      assertEquals("step-1", root2.getConditionSteps().getFirst().getStep().getId());
+    }
+
+    @Test
+    void shouldDoNothing_whenConditionIdsAreEmpty() {
+      Step step = new Step();
+      step.setId("step-1");
+
+      conditionService.linkExistingConditionsToStep(step, List.of());
+
+      verify(conditionRepository, never()).findById(anyString());
+      verify(conditionRepository, never()).save(any());
+    }
+  }
+
+  /* ============================================================
+   * createConditionTree
+   * ============================================================ */
+  @Nested
+  class CreateConditionTree {
+
+    @Test
+    void shouldCreateRootAndChildrenAndLinkSteps() {
+      String workflowId = "wf-1";
+      String linkedStepId = "linked-step";
+
+      ConditionCreateInput rootInput = new ConditionCreateInput();
+      rootInput.setTemporaryId("tmp-root");
+      rootInput.setType(ConditionType.AND);
+
+      ConditionCreateInput childInput = new ConditionCreateInput();
+      childInput.setTemporaryId("tmp-child");
+      childInput.setTemporaryIdConditionParent("tmp-root");
+      childInput.setType(ConditionType.EQ);
+      childInput.setKeyType(ConditionKeyType.PORTSCAN);
+      childInput.setValue("445");
+
+      EventInput input =
+          EventInput.builder()
+              .name("event-1")
+              .description("desc-1")
+              .workflowId(workflowId)
+              .conditions(List.of(rootInput, childInput))
+              .stepIds(List.of(linkedStepId))
+              .build();
+
+      Step linkedStep = new Step();
+      linkedStep.setId(linkedStepId);
+
+      when(stepRepository.findAllById(List.of(linkedStepId))).thenReturn(List.of(linkedStep));
+      when(conditionRepository.save(any(Condition.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
+
+      Condition createdRoot = conditionService.createConditionTree(input);
+
+      assertNotNull(createdRoot);
+      assertEquals("event-1", createdRoot.getName());
+      assertEquals("desc-1", createdRoot.getDescription());
+      assertEquals(workflowId, createdRoot.getWorkflowId());
+      assertEquals(ConditionType.AND, createdRoot.getType());
+      assertEquals(1, createdRoot.getConditionChildren().size());
+
+      verify(stepRepository).findAllById(List.of(linkedStepId));
+
+      Condition savedChild = createdRoot.getConditionChildren().getFirst();
+      assertEquals("445", savedChild.getValue());
+      assertEquals(workflowId, savedChild.getWorkflowId());
+      assertNotNull(savedChild.getConditionParent());
+    }
+  }
+
+  /* ============================================================
+   * updateConditionTree
+   * ============================================================ */
+  @Nested
+  class UpdateConditionTree {
+
+    @Test
+    void shouldUpdateRootAndRebuildChildrenAndLinks() {
+      String rootId = "root-1";
+      String workflowId = "wf-new";
+      String linkedStepId = "linked-step";
+
+      Condition existingRoot = new Condition();
+      existingRoot.setId(rootId);
+      existingRoot.setName("old-name");
+      existingRoot.setDescription("old-desc");
+      existingRoot.setWorkflowId("wf-old");
+      existingRoot.setType(ConditionType.OR);
+
+      Condition oldChild = new Condition();
+      oldChild.setConditionParent(existingRoot);
+      existingRoot.getConditionChildren().add(oldChild);
+
+      Step oldLinkedStep = new Step();
+      oldLinkedStep.setId("old-linked-step");
+      conditionService.linkToStep(oldChild, oldLinkedStep, true);
+
+      ConditionCreateInput rootInput = new ConditionCreateInput();
+      rootInput.setTemporaryId("tmp-root");
+      rootInput.setType(ConditionType.AND);
+
+      ConditionCreateInput childInput = new ConditionCreateInput();
+      childInput.setTemporaryId("tmp-child");
+      childInput.setTemporaryIdConditionParent("tmp-root");
+      childInput.setType(ConditionType.EQ);
+      childInput.setKeyType(ConditionKeyType.STATUS);
+      childInput.setValue("ok");
+
+      EventInput input =
+          EventInput.builder()
+              .name("new-name")
+              .description("new-desc")
+              .workflowId(workflowId)
+              .conditions(List.of(rootInput, childInput))
+              .stepIds(List.of(linkedStepId))
+              .build();
+
+      Step linkedStep = new Step();
+      linkedStep.setId(linkedStepId);
+
+      when(conditionRepository.findById(rootId)).thenReturn(Optional.of(existingRoot));
+      when(stepRepository.findAllById(List.of(linkedStepId))).thenReturn(List.of(linkedStep));
+      when(conditionRepository.save(any(Condition.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
+
+      Condition updated = conditionService.updateConditionTree(rootId, input);
+
+      assertEquals("new-name", updated.getName());
+      assertEquals("new-desc", updated.getDescription());
+      assertEquals(workflowId, updated.getWorkflowId());
+      assertEquals(ConditionType.AND, updated.getType());
+      assertEquals(1, updated.getConditionChildren().size());
+      assertEquals("ok", updated.getConditionChildren().getFirst().getValue());
+      assertEquals(workflowId, updated.getConditionChildren().getFirst().getWorkflowId());
+
+      verify(conditionRepository, atLeast(2)).save(any(Condition.class));
+    }
+
+    @Test
+    void shouldThrowWhenRootConditionDoesNotExist() {
+      ConditionCreateInput rootInput = new ConditionCreateInput();
+      rootInput.setTemporaryId("tmp-root");
+      rootInput.setType(ConditionType.AND);
+
+      EventInput input =
+          EventInput.builder().name("x").workflowId("wf").conditions(List.of(rootInput)).build();
+      when(conditionRepository.findById("missing-root")).thenReturn(Optional.empty());
+
+      assertThrows(
+          EntityNotFoundException.class,
+          () -> conditionService.updateConditionTree("missing-root", input));
+    }
+  }
+
+  /* ============================================================
+   * MappingTypeResolution
+   * ============================================================ */
+  @Nested
+  class MappingTypeResolution {
+
+    /** MAPPER condition with explicit LOCAL → stays LOCAL. */
+    @Test
+    void shouldPreserveMappingType_whenMapperConditionHasExplicitValue() {
+      // -------- Prepare --------
+      ConditionCreateInput mapperInput = new ConditionCreateInput();
+      mapperInput.setTemporaryId("tmp-mapper");
+      mapperInput.setType(ConditionType.MAPPER);
+      mapperInput.setMappingType(MappingType.LOCAL);
+
+      EventInput input =
+          EventInput.builder()
+              .name("ev-mr")
+              .workflowId("wf-mr")
+              .conditions(List.of(mapperInput))
+              .build();
+
+      when(conditionRepository.save(any(Condition.class))).thenAnswer(inv -> inv.getArgument(0));
+
+      // -------- Act --------
+      Condition root = conditionService.createConditionTree(input);
+
+      // -------- Assert --------
+      assertEquals(MappingType.LOCAL, root.getMappingType());
+    }
+
+    /** MAPPER condition with no mappingType → defaults to DEFAULT. */
+    @Test
+    void shouldDefaultMappingTypeToDefault_whenMapperConditionHasNullMappingType() {
+      // -------- Prepare --------
+      ConditionCreateInput mapperInput = new ConditionCreateInput();
+      mapperInput.setTemporaryId("tmp-mapper");
+      mapperInput.setType(ConditionType.MAPPER);
+      mapperInput.setMappingType(null); // not provided — should be auto-defaulted
+
+      EventInput input =
+          EventInput.builder()
+              .name("ev-def")
+              .workflowId("wf-def")
+              .conditions(List.of(mapperInput))
+              .build();
+
+      when(conditionRepository.save(any(Condition.class))).thenAnswer(inv -> inv.getArgument(0));
+
+      // -------- Act --------
+      Condition root = conditionService.createConditionTree(input);
+
+      // -------- Assert --------
+      assertEquals(
+          MappingType.DEFAULT,
+          root.getMappingType(),
+          "mappingType should be auto-defaulted to DEFAULT for MAPPER conditions");
+    }
+
+    /** Non-MAPPER condition never carries a mappingType. */
+    @Test
+    void shouldLeaveMappingTypeNull_whenNonMapperCondition() {
+      // -------- Prepare --------
+      ConditionCreateInput eqInput = new ConditionCreateInput();
+      eqInput.setTemporaryId("tmp-eq");
+      eqInput.setType(ConditionType.EQ);
+      eqInput.setValue("445");
+
+      EventInput input =
+          EventInput.builder()
+              .name("ev-nm")
+              .workflowId("wf-nm")
+              .conditions(List.of(eqInput))
+              .build();
+
+      when(conditionRepository.save(any(Condition.class))).thenAnswer(inv -> inv.getArgument(0));
+
+      // -------- Act --------
+      Condition root = conditionService.createConditionTree(input);
+
+      // -------- Assert --------
+      assertNull(root.getMappingType(), "mappingType must be null for non-MAPPER conditions");
     }
   }
 }

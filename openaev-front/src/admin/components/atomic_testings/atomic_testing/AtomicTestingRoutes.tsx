@@ -5,7 +5,7 @@ import { errorWrapper } from '../../../../components/Error';
 import NotFound from '../../../../components/NotFound';
 import type { InjectResultOverviewOutput } from '../../../../utils/api-types';
 import { externalContractTypesWithFindings } from '../../../../utils/injector_contract/InjectorContractUtils';
-import SnapshotRemediationProvider from '../../payloads/utils/SnapshotRemediationProvider';
+import SnapshotRemediationProvider from '../../threat_arsenal/utils/SnapshotRemediationProvider';
 
 interface Props { injectResultOverview: InjectResultOverviewOutput }
 

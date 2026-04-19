@@ -6,23 +6,17 @@ import lombok.Getter;
 @Getter
 public enum ConditionKeySubtype {
   @JsonProperty("port")
-  Port("port"),
+  PORT,
 
   @JsonProperty("ipv4")
-  IPv4("ipv4"),
+  IPV4,
 
   @JsonProperty("ipv6")
-  IPv6("ipv6"),
+  IPV6,
 
   @JsonProperty("username")
-  Username("username"),
+  USERNAME,
 
   @JsonProperty("password")
-  Password("password");
-
-  private final String label;
-
-  ConditionKeySubtype(String label) {
-    this.label = label;
-  }
+  PASSWORD;
 }

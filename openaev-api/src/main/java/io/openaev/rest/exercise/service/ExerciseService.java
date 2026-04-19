@@ -5,12 +5,15 @@ import static io.openaev.database.criteria.GenericCriteria.countQuery;
 import static io.openaev.database.model.Grant.GRANT_RESOURCE_TYPE.SIMULATION;
 import static io.openaev.database.specification.ExerciseSpecification.*;
 import static io.openaev.database.specification.TeamSpecification.fromIds;
+import static io.openaev.helper.MailHelper.resolveFromName;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.JpaUtils.arrayAggOnId;
 import static io.openaev.utils.StringUtils.duplicateString;
 import static io.openaev.utils.constants.Constants.ARTICLES;
 import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilderWithNullHandling;
+import static java.time.Duration.between;
 import static java.time.Instant.now;
+import static java.time.temporal.ChronoUnit.MINUTES;
 import static java.util.Collections.emptyList;
 import static java.util.Optional.ofNullable;
 
@@ -23,10 +26,14 @@ import io.openaev.database.raw.RawExerciseSimple;
 import io.openaev.database.raw.RawInjectExpectationIndexing;
 import io.openaev.database.raw.RawSimulationIndexing;
 import io.openaev.database.repository.*;
+import io.openaev.database.specification.LessonsAnswerSpecification;
+import io.openaev.database.specification.LessonsCategorySpecification;
+import io.openaev.database.specification.LessonsQuestionSpecification;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.expectation.ExpectationType;
 import io.openaev.rest.atomic_testing.form.TargetSimple;
 import io.openaev.rest.document.DocumentService;
+import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.form.ExerciseSimple;
 import io.openaev.rest.exercise.form.ExercisesGlobalScoresInput;
@@ -38,6 +45,7 @@ import io.openaev.rest.scenario.service.ScenarioStatisticService;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
+import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
@@ -63,6 +71,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.hibernate.query.criteria.HibernateCriteriaBuilder;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
@@ -72,12 +81,15 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 
 @RequiredArgsConstructor
 @Validated
 @Service
+@Slf4j
 public class ExerciseService {
 
   @PersistenceContext private EntityManager entityManager;
@@ -104,10 +116,14 @@ public class ExerciseService {
   private final InjectExpectationRepository injectExpectationRepository;
   private final ArticleRepository articleRepository;
   private final ExerciseRepository exerciseRepository;
+  private final InjectStatusRepository injectStatusRepository;
+  private final PauseRepository pauseRepository;
+  private final LessonsQuestionRepository lessonsQuestionRepository;
   private final TeamRepository teamRepository;
   private final UserRepository userRepository;
   private final ExerciseTeamUserRepository exerciseTeamUserRepository;
   private final InjectRepository injectRepository;
+  private final LessonsAnswerRepository lessonsAnswerRepository;
   private final LessonsCategoryRepository lessonsCategoryRepository;
   private final LessonsService lessonsService;
 
@@ -117,6 +133,11 @@ public class ExerciseService {
 
   private final WorkflowService workflowService;
   private final PreviewFeatureService previewFeatureService;
+
+  private final PauseExerciseService pauseExerciseService;
+  private final FileService fileService;
+
+  private final StepService stepService;
 
   // region properties
   @Value("${openaev.mail.imap.enabled}")
@@ -137,9 +158,11 @@ public class ExerciseService {
     if (!StringUtils.hasText(exercise.getFrom())) {
       if (imapEnabled) {
         exercise.setFrom(imapUsername);
+        exercise.setFromName(resolveFromName(null, this.imapUsername));
         exercise.setReplyTos(List.of(imapUsername));
       } else {
         exercise.setFrom(openAEVConfig.getDefaultMailer());
+        exercise.setFromName(this.openAEVConfig.getDefaultMailerName());
         exercise.setReplyTos(new ArrayList<>(List.of(openAEVConfig.getDefaultReplyTo())));
       }
     }
@@ -152,15 +175,17 @@ public class ExerciseService {
    * Create a simulation with the chaining enabled OR a normal one
    *
    * @param simulation the simulation to create
-   * @param isChaining uses the chaining engine or not
    * @return the created simulation
    */
   @Transactional(rollbackFor = Exception.class)
-  public Exercise createSimulation(@NotNull final Exercise simulation, boolean isChaining) {
+  public Exercise createSimulationChaining(@NotNull final Exercise simulation)
+      throws ChainingException {
+
+    workflowService.isPreviewFeatureChainingEnable();
+
     Exercise savedSimulation = createExercise(simulation);
-    if (isChaining && previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)) {
-      workflowService.creationWorkflow(savedSimulation);
-    }
+    workflowService.creationWorkflow(savedSimulation);
+
     return savedSimulation;
   }
 
@@ -200,7 +225,7 @@ public class ExerciseService {
   @Transactional
   public Exercise getDuplicateExercise(@NotBlank String exerciseId) {
     Exercise exerciseOrigin = exerciseRepository.findById(exerciseId).orElseThrow();
-    Exercise exercise = copyExercice(exerciseOrigin);
+    Exercise exercise = copyExercise(exerciseOrigin);
     Exercise exerciseDuplicate = exerciseRepository.save(exercise);
     actionMetricCollector.addSimulationCreatedCount();
     duplicateGrants(exerciseDuplicate, exerciseOrigin);
@@ -214,12 +239,13 @@ public class ExerciseService {
     return exerciseRepository.save(exerciseDuplicate);
   }
 
-  private Exercise copyExercice(Exercise exerciseOrigin) {
+  private Exercise copyExercise(Exercise exerciseOrigin) {
     Exercise exerciseDuplicate = new Exercise();
     exerciseDuplicate.setName(duplicateString(exerciseOrigin.getName()));
     exerciseDuplicate.setCategory(exerciseOrigin.getCategory());
     exerciseDuplicate.setDescription(exerciseOrigin.getDescription());
     exerciseDuplicate.setFrom(exerciseOrigin.getFrom());
+    exerciseDuplicate.setFromName(exerciseOrigin.getFromName());
     exerciseDuplicate.setFooter(exerciseOrigin.getFooter());
     exerciseDuplicate.setScenario(exerciseOrigin.getScenario());
     exerciseDuplicate.setHeader(exerciseOrigin.getHeader());
@@ -517,6 +543,168 @@ public class ExerciseService {
    */
   public void deleteById(String simulationId) {
     exerciseRepository.deleteById(simulationId);
+  }
+
+  @Transactional(rollbackFor = Exception.class)
+  public Exercise changeExerciseStatus(ExerciseStatus status, String exerciseId)
+      throws ChainingException {
+    Exercise exercise =
+        this.exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
+    // Check if next status is possible
+    List<ExerciseStatus> nextPossibleStatus = exercise.nextPossibleStatus();
+    if (!nextPossibleStatus.contains(status)) {
+      throw new UnsupportedOperationException(
+          "Exercise can't support moving to status " + status.name());
+    }
+    // In case of rescheduled of an exercise.
+    boolean isCloseState =
+        ExerciseStatus.CANCELED.equals(exercise.getStatus())
+            || ExerciseStatus.FINISHED.equals(exercise.getStatus());
+    if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
+        && workflowService.isSimulationChaining(exercise.getId())) {
+      if (ExerciseStatus.SCHEDULED.equals(exercise.getStatus())
+          && ExerciseStatus.RUNNING.equals(status)) {
+        stepService.startWorkflowBySimulationId(exercise.getId());
+      }
+    }
+    if (isCloseState && ExerciseStatus.SCHEDULED.equals(status)) {
+      exercise.setStart(null);
+      exercise.setEnd(null);
+      // Reset pauses
+      exercise.setCurrentPause(null);
+      pauseRepository.deleteAll(pauseRepository.findAllForExercise(exerciseId));
+      // Reset injects outcome, communications and expectations
+      this.injectStatusRepository.deleteAllById(
+          exercise.getInjects().stream()
+              .map(Inject::getStatus)
+              .map(i -> i.map(InjectStatus::getId).orElse(""))
+              .toList());
+      exercise.getInjects().forEach(Inject::clean);
+      // Reset lessons learned answers
+      List<LessonsAnswer> lessonsAnswers =
+          lessonsCategoryRepository
+              .findAll(LessonsCategorySpecification.fromExercise(exerciseId))
+              .stream()
+              .flatMap(
+                  lessonsCategory ->
+                      lessonsQuestionRepository
+                          .findAll(
+                              LessonsQuestionSpecification.fromCategory(lessonsCategory.getId()))
+                          .stream()
+                          .flatMap(
+                              lessonsQuestion ->
+                                  lessonsAnswerRepository
+                                      .findAll(
+                                          LessonsAnswerSpecification.fromQuestion(
+                                              lessonsQuestion.getId()))
+                                      .stream()))
+              .toList();
+      lessonsAnswerRepository.deleteAll(lessonsAnswers);
+      entityManager.flush();
+      entityManager.clear();
+      // Reload exercise after clearing entity manager to avoid detached entity issues
+      exercise =
+          this.exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
+      // Delete exercise transient files (communications, ...)
+      fileService.deleteDirectory(exerciseId);
+      if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
+          && workflowService.isSimulationChaining(exercise.getId())) {
+        // DELETE injects
+        List<Inject> injects = this.injectRepository.findByExerciseId(exerciseId);
+        this.injectRepository.deleteAll(injects);
+      }
+    }
+    // In case of manual start
+    if (ExerciseStatus.SCHEDULED.equals(exercise.getStatus())
+        && ExerciseStatus.RUNNING.equals(status)) {
+      throwIfExerciseNotLaunchable(exercise);
+      Instant nextMinute = now().truncatedTo(MINUTES).plus(1, MINUTES);
+      exercise.setStart(nextMinute);
+      actionMetricCollector.addSimulationPlayedCount();
+    }
+    // If exercise move from pause to running state,
+    // we log the pause date to be able to recompute inject dates.
+    if (ExerciseStatus.PAUSED.equals(exercise.getStatus())
+        && ExerciseStatus.RUNNING.equals(status)) {
+      if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
+          && workflowService.isSimulationChaining(exercise.getId())) {
+        throw new ChainingException(
+            "Pausing a chained simulation is not allowed yet, please contact support");
+      }
+      Instant lastPause = exercise.getCurrentPause().orElseThrow(ElementNotFoundException::new);
+      exercise.setCurrentPause(null);
+      Pause pause = new Pause();
+      pause.setDate(lastPause);
+      pause.setExercise(exercise);
+      pause.setDuration(between(lastPause, now()).getSeconds());
+      pauseRepository.save(pause);
+    }
+    // If pause is asked, just set the pause date.
+    if (ExerciseStatus.RUNNING.equals(exercise.getStatus())
+        && ExerciseStatus.PAUSED.equals(status)) {
+      if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
+          && workflowService.isSimulationChaining(exercise.getId())) {
+        throw new ChainingException(
+            "Pausing a chained simulation is not allowed yet, please contact support");
+      }
+      exercise.setCurrentPause(Instant.now());
+    }
+    // Cancelation
+    if (ExerciseStatus.RUNNING.equals(exercise.getStatus())
+        && ExerciseStatus.CANCELED.equals(status)) {
+      exercise.setEnd(now());
+      if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)) {
+        // End WORKFLOW + STEP + delete injects
+        List<Workflow> run = workflowService.findWorkflowRunBySimulationId(exercise.getId());
+        if (!run.isEmpty()) {
+          List<Step> stepsToUpdate = new ArrayList<>();
+          run.forEach(
+              workflow -> {
+                workflow.setStatus(WorkflowStatus.END);
+                List<Step> steps = stepService.findAllStepExecutedByWorkflowRunId(workflow.getId());
+                steps.forEach(step -> step.setStatus(StepStatus.END));
+                stepsToUpdate.addAll(steps);
+              });
+          stepService.saveSteps(stepsToUpdate);
+          workflowService.saveAll(run);
+          List<Inject> injects = this.injectRepository.findByExerciseId(exerciseId);
+          this.injectRepository.deleteAll(injects);
+        }
+      }
+    }
+    exercise.setUpdatedAt(now());
+    exercise.setStatus(status);
+    return exerciseRepository.save(exercise);
+  }
+
+  private void resetExercise(Exercise exercise) {
+    // 1. DELETE PAUSES
+    pauseExerciseService.deleteAllPauseByExerciseId(exercise.getId());
+
+    // 2. RESET INJECTS (status, communications, findings, expectations, collect status)
+    // Fetched separately from exercise.getInjects() for performance (avoids Eager loading overhead)
+    injectService.resetInjectByExerciseId(exercise.getId());
+
+    // 3. RESET LESSONS ANSWERS
+    lessonsService.resetLessonsAnswer(exercise.getId());
+
+    // 4. SCHEDULE MINIO CLEANUP (after commit to avoid cleanup on rollback)
+    TransactionSynchronizationManager.registerSynchronization(
+        new TransactionSynchronization() {
+          @Override
+          public void afterCommit() {
+            try {
+              fileService.deleteDirectory(exercise.getId());
+            } catch (Exception e) {
+              log.error("Failed to delete directory for exercise {}", exercise.getId(), e);
+            }
+          }
+        });
+
+    // 5. RESET EXERCISE DATES
+    exercise.setStart(null);
+    exercise.setEnd(null);
+    exercise.setCurrentPause(null);
   }
 
   public void throwIfExerciseNotLaunchable(Exercise exercise) {

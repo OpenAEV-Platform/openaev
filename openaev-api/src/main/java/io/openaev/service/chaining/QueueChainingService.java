@@ -2,12 +2,11 @@ package io.openaev.service.chaining;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.config.OpenAEVConfig;
-import io.openaev.config.RabbitMQSslConfiguration;
-import io.openaev.config.RabbitmqConfig;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.Workflow;
-import io.openaev.rest.helper.queue.BatchQueueService;
-import io.openaev.rest.helper.queue.QueueExecution;
+import io.openaev.service.RabbitmqService;
+import io.openaev.service.queue.BatchQueueService;
+import io.openaev.service.queue.QueueExecution;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import java.io.IOException;
@@ -24,10 +23,9 @@ import org.springframework.stereotype.Service;
 @Service
 public class QueueChainingService {
 
-  private final RabbitmqConfig rabbitmqConfig;
+  private final RabbitmqService rabbitmqService;
   private final OpenAEVConfig openAEVConfig;
   private final ObjectMapper objectMapper;
-  private final RabbitMQSslConfiguration rabbitMQSslConfiguration;
 
   @Setter private BatchQueueService<StepEvent> readyQueueService;
   @Setter private BatchQueueService<ExternalUpdateEvent> updateQueueService;
@@ -52,23 +50,19 @@ public class QueueChainingService {
 
     // Initializing the queue to manage tasks to schedule
     readyQueueService =
-        new BatchQueueService<>(
+        rabbitmqService.createBatchQueueService(
             StepEvent.class,
             null,
-            rabbitmqConfig,
             objectMapper,
-            openAEVConfig.getQueueConfig().get("workflows-ready"),
-            rabbitMQSslConfiguration);
+            openAEVConfig.getQueueConfig().get("workflows-ready"));
 
     // Initializing the queue to manage update event from external sources
     updateQueueService =
-        new BatchQueueService<>(
+        rabbitmqService.createBatchQueueService(
             ExternalUpdateEvent.class,
             null,
-            rabbitmqConfig,
             objectMapper,
-            openAEVConfig.getQueueConfig().get("workflows-update"),
-            rabbitMQSslConfiguration);
+            openAEVConfig.getQueueConfig().get("workflows-update"));
   }
 
   @PreDestroy

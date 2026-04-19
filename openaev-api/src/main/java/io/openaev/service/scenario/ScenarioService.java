@@ -4,6 +4,7 @@ import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.database.criteria.GenericCriteria.countQuery;
 import static io.openaev.database.specification.ScenarioSpecification.findGrantedFor;
 import static io.openaev.database.specification.TeamSpecification.fromIds;
+import static io.openaev.helper.MailHelper.resolveFromName;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.rest.scenario.utils.ScenarioUtils.handleCustomFilter;
 import static io.openaev.service.ImportService.EXPORT_ENTRY_ATTACHMENT;
@@ -24,7 +25,10 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
-import io.openaev.database.raw.*;
+import io.openaev.database.raw.RawExerciseSimple;
+import io.openaev.database.raw.RawPaginationScenario;
+import io.openaev.database.raw.RawScenario;
+import io.openaev.database.raw.RawScenarioSimpleIndexing;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.ScenarioSpecification;
 import io.openaev.ee.EnterpriseEditionService;
@@ -32,6 +36,7 @@ import io.openaev.export.Mixins;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.helper.ObjectMapperHelper;
+import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.exports.ExerciseFileExport;
 import io.openaev.rest.exercise.exports.VariableMixin;
@@ -46,6 +51,7 @@ import io.openaev.rest.scenario.response.ScenarioOutput;
 import io.openaev.rest.scenario.response.ScenarioTeamUserOutput;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
+import io.openaev.service.chaining.WorkflowService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.mapper.ExerciseMapper;
@@ -128,6 +134,7 @@ public class ScenarioService {
   private final HealthCheckUtils healthCheckUtils;
 
   private final ScenarioMapper scenarioMapper;
+  private final WorkflowService workflowService;
 
   @Transactional
   public Scenario createScenario(@NotNull final Scenario scenario) {
@@ -136,13 +143,28 @@ public class ScenarioService {
     return this.scenarioRepository.save(scenario);
   }
 
+  @Transactional
+  public Scenario createScenarioChaining(@NotNull final Scenario scenario)
+      throws ChainingException {
+    workflowService.isPreviewFeatureChainingEnable();
+
+    computeEmails(scenario);
+    this.actionMetricCollector.addScenarioCreatedCount();
+    Scenario savedScenario = this.scenarioRepository.save(scenario);
+    workflowService.creationWorkflow(savedScenario);
+
+    return savedScenario;
+  }
+
   public void computeEmails(@NotNull Scenario scenario) {
     if (!hasText(scenario.getFrom())) {
       if (this.imapEnabled) {
         scenario.setFrom(this.imapUsername);
+        scenario.setFromName(resolveFromName(null, this.imapUsername));
         scenario.setReplyTos(new ArrayList<>(Arrays.asList(this.imapUsername)));
       } else {
         scenario.setFrom(this.openAEVConfig.getDefaultMailer());
+        scenario.setFromName(this.openAEVConfig.getDefaultMailerName());
         scenario.setReplyTos(
             new ArrayList<>(Arrays.asList(this.openAEVConfig.getDefaultReplyTo())));
       }
@@ -536,7 +558,7 @@ public class ScenarioService {
                   .ifPresent(
                       injectorContract -> {
                         if (injectorContract.getPayload() != null) {
-                          scenarioTags.addAll(injectorContract.getPayload().getTags());
+                          scenarioTags.addAll(injectorContract.getTags());
                         }
                       });
             });
@@ -580,10 +602,10 @@ public class ScenarioService {
 
     // load the killchainphases
     scenario.getInjects().stream()
-        .map(Inject::getPayload)
+        .map(Inject::getInjectorContract)
         .filter(Optional::isPresent)
         .map(Optional::get)
-        .flatMap(payload -> payload.getAttackPatterns().stream())
+        .flatMap(i -> i.getAttackPatterns().stream())
         .distinct()
         .toList()
         .stream()
@@ -819,6 +841,7 @@ public class ScenarioService {
     scenarioDuplicate.setHeader(scenario.getHeader());
     scenarioDuplicate.setMainFocus(scenario.getMainFocus());
     scenarioDuplicate.setFrom(scenario.getFrom());
+    scenarioDuplicate.setFromName(scenario.getFromName());
     scenarioDuplicate.setExternalUrl(scenario.getExternalUrl());
     scenarioDuplicate.setTags(new HashSet<>(scenario.getTags()));
     scenarioDuplicate.setInjects(new HashSet<>(scenario.getInjects()));

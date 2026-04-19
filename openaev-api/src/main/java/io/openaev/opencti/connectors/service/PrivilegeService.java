@@ -7,8 +7,6 @@ import io.openaev.database.model.Role;
 import io.openaev.database.model.User;
 import io.openaev.opencti.connectors.ConnectorBase;
 import io.openaev.rest.group.form.GroupCreateInput;
-import io.openaev.rest.user.form.user.CreateUserInput;
-import io.openaev.rest.user.form.user.UpdateUserInput;
 import io.openaev.service.GroupService;
 import io.openaev.service.RoleService;
 import io.openaev.service.UserService;
@@ -24,6 +22,10 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Slf4j
 public class PrivilegeService {
+
+  private static final String CONNECTOR_EMAIL_PATTERN = "connector-%s@openaev.invalid";
+  private static final String CONNECTOR_LASTNAME = "OpenCTI Connector";
+
   private final RoleService roleService;
   private final GroupService groupService;
   private final UserService userService;
@@ -31,48 +33,45 @@ public class PrivilegeService {
   @Transactional
   public void ensurePrivilegedUserExistsForConnector(ConnectorBase connector) {
     Group group = createWellKnownGroupWithRole(createWellKnownRole());
+    String email = CONNECTOR_EMAIL_PATTERN.formatted(connector.getId());
 
     Optional<User> connectorUser = userService.findByToken(connector.getToken());
-    Optional<User> existingEmailUser =
-        userService.findByEmailIgnoreCase(
-            "connector-%s@openaev.invalid".formatted(connector.getId()));
+    Optional<User> existingEmailUser = userService.findByEmailIgnoreCase(email);
 
-    if (connectorUser.isEmpty()) {
-
-      if (existingEmailUser.isPresent()) {
-        log.warn(
-            "User with email {} already exists, but no token found. Reusing existing user.",
-            existingEmailUser.get().getEmail());
-        existingEmailUser
-            .get()
-            .setTokens(
-                new ArrayList<>(
-                    List.of(
-                        userService.createUserToken(
-                            existingEmailUser.get(), connector.getToken()))));
-        existingEmailUser.get().setGroups(new ArrayList<>(List.of(group)));
-        userService.updateUser(existingEmailUser.get());
-        return;
-      }
-
-      CreateUserInput input = new CreateUserInput();
-      input.setAdmin(false);
-      input.setFirstname(connector.getName());
-      input.setLastname("OpenCTI Connector");
-      input.setToken(connector.getToken());
-      input.setEmail("connector-%s@openaev.invalid".formatted(connector.getId()));
-      User u = userService.createUser(input, 1); // magic number; Active
-      u.setGroups(new ArrayList<>(List.of(group)));
-      userService.updateUser(u);
+    if (connectorUser.isPresent()) {
+      // Token-matched user already exists — update its attributes
+      applyConnectorAttributes(connectorUser.get(), connector, email, group);
+      userService.saveUser(connectorUser.get());
+    } else if (existingEmailUser.isPresent()) {
+      // Email-matched user exists but has no token — reuse and attach token
+      log.warn(
+          "User with email {} already exists, but no token found. Reusing existing user.",
+          existingEmailUser.get().getEmail());
+      existingEmailUser
+          .get()
+          .setTokens(
+              new ArrayList<>(
+                  List.of(
+                      userService.createUserToken(existingEmailUser.get(), connector.getToken()))));
+      applyConnectorAttributes(existingEmailUser.get(), connector, email, group);
+      userService.saveUser(existingEmailUser.get());
     } else {
-      UpdateUserInput input = new UpdateUserInput();
-      input.setAdmin(false);
-      input.setFirstname(connector.getName());
-      input.setLastname("OpenCTI Connector");
-      input.setEmail("connector-%s@openaev.invalid".formatted(connector.getId()));
-      connectorUser.get().setGroups(new ArrayList<>(List.of(group)));
-      userService.updateUser(connectorUser.get(), input);
+      // No user exists — create one
+      User user =
+          userService.createInternalUser(
+              email, connector.getName(), CONNECTOR_LASTNAME, false, connector.getToken());
+      user.setGroups(new ArrayList<>(List.of(group)));
+      userService.saveUser(user);
     }
+  }
+
+  private void applyConnectorAttributes(
+      User user, ConnectorBase connector, String email, Group group) {
+    user.setFirstname(connector.getName());
+    user.setLastname(CONNECTOR_LASTNAME);
+    user.setEmail(email);
+    user.setAdmin(false);
+    user.setGroups(new ArrayList<>(List.of(group)));
   }
 
   private Role createWellKnownRole() {

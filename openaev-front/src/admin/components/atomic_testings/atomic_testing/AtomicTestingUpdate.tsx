@@ -27,6 +27,7 @@ const AtomicTestingUpdate: FunctionComponent<Props> = ({
         'inject_title',
         'inject_type',
         'inject_injector_contract',
+        'inject_injector',
         'inject_description',
         'inject_content',
         'inject_all_teams',

@@ -111,8 +111,6 @@ public class ScenarioApiTest extends IntegrationTest {
     // -- PREPARE --
     String name = "My scenario";
     scenarioInput.setName(name);
-    String from = "no-reply@openaev.io";
-    scenarioInput.setFrom(from);
 
     // -- EXECUTE --
     String response =
@@ -146,8 +144,6 @@ public class ScenarioApiTest extends IntegrationTest {
     ScenarioInput scenarioInput = new ScenarioInput();
     String name = "My scenario";
     scenarioInput.setName(name);
-    String from = "no-reply@openaev.io";
-    scenarioInput.setFrom(from);
 
     settingRepository.save(
         settingRepository
@@ -244,7 +240,6 @@ public class ScenarioApiTest extends IntegrationTest {
     ScenarioInput scenarioInput = new ScenarioInput();
     String subtitle = "A subtitle";
     scenarioInput.setName(testScenario.getName());
-    scenarioInput.setFrom(testScenario.getFrom());
     scenarioInput.setSubtitle(subtitle);
 
     // -- EXECUTE --

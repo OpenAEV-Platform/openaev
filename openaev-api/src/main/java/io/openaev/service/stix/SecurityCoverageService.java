@@ -23,7 +23,6 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.tag.TagService;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
-import io.openaev.service.AssetService;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.stix.error.BundleValidationError;
@@ -49,6 +48,7 @@ import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.List;
@@ -71,7 +71,6 @@ public class SecurityCoverageService {
   private final InjectService injectService;
   private final ResultUtils resultUtils;
   private final ExerciseService exerciseService;
-  private final AssetService assetService;
 
   private final ScenarioRepository scenarioRepository;
   private final SecurityCoverageRepository securityCoverageRepository;
@@ -400,7 +399,12 @@ public class SecurityCoverageService {
     if (scenario.getRecurrence() == null) {
       // schedule first start in 2 minutes
       // so that it is picked up soon after setting it up
-      Instant start = Instant.now().plus(2, ChronoUnit.MINUTES);
+      Instant start =
+          Instant.now()
+              .plus(2, ChronoUnit.MINUTES)
+              .atZone(ZoneId.of("UTC"))
+              .truncatedTo(ChronoUnit.SECONDS)
+              .toInstant();
       if (!StringUtils.isBlank(securityCoverage.getScheduling())) {
         scenario.setRecurrenceStart(start);
         scenario.setRecurrence(securityCoverage.getScheduling());
@@ -511,7 +515,8 @@ public class SecurityCoverageService {
           objects);
     }
 
-    for (SecurityPlatform securityPlatform : assetService.securityPlatforms()) {
+    for (SecurityPlatform securityPlatform :
+        injectService.extractSecurityPlatforms(simulation.getInjects())) {
       DomainObject platformIdentity = securityPlatform.toStixDomainObject();
       objects.add(platformIdentity);
 

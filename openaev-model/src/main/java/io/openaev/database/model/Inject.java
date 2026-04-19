@@ -179,7 +179,7 @@ public class Inject implements GrantableBase, Injection, TenantBase {
         formula = @JoinFormula(value = "tenant_id", referencedColumnName = "tenant_id"))
   })
   @JsonProperty("inject_injector_contract")
-  @Queryable(filterable = true, dynamicValues = true, path = "injectorContract.injector.id")
+  @Queryable(filterable = true, dynamicValues = true, path = "injector.id")
   private InjectorContract injectorContract;
 
   @Getter
@@ -514,8 +514,11 @@ public class Inject implements GrantableBase, Injection, TenantBase {
   @JsonProperty("inject_type")
   @Queryable(filterable = true, path = "injectorContract.labels", clazz = Map.class)
   public String getType() {
+    if (this.injector != null) {
+      return this.injector.getType();
+    }
     return getInjectorContract()
-        .map(InjectorContract::getInjector)
+        .map(InjectorContract::getFirstInjector)
         .map(Injector::getType)
         .orElse(null);
   }
@@ -532,7 +535,7 @@ public class Inject implements GrantableBase, Injection, TenantBase {
   @JsonProperty("inject_contract_domains")
   @Queryable(
       filterable = true,
-      paths = {"injectorContract.domains.id", "injectorContract.payload.domains.id"},
+      paths = {"injectorContract.domains.id"},
       dynamicValues = true,
       clazz = String[].class)
   private Set<Domain> getDomains() {

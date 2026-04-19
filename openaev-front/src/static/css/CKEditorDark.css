@@ -18,6 +18,7 @@ body[data-theme="dark"] {
   /* -- Overrides generic colors. ------------------------------------------------------------- */
 
   --ck-color-base-foreground: var(--ck-custom-background) !important;
+  --ck-content-font-color: hsl(0, 0%, 98%) !important;
   --ck-color-focus-border: #00b1ff !important;
   --ck-color-text: hsl(0, 0%, 98%) !important;
   --ck-color-shadow-drop: transparent !important;

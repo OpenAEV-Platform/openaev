@@ -75,8 +75,8 @@ class ConditionApiTest {
     List<EventOutput> result = conditionApi.findAllByWorkflow("wf-9");
 
     assertEquals(1, result.size());
-    assertEquals("c-wf", result.get(0).getId());
-    assertEquals("wf-9", result.get(0).getWorkflowId());
+    assertEquals("c-wf", result.getFirst().getId());
+    assertEquals("wf-9", result.getFirst().getWorkflowId());
     verify(conditionService).findConditionRootsByWorkflowId("wf-9");
   }
 
@@ -147,7 +147,7 @@ class ConditionApiTest {
     child.setId(rootId + "-child");
     child.setWorkflowId(workflowId);
     child.setType(ConditionType.EQ);
-    child.setKeyType(ConditionKeyType.PortsScan);
+    child.setKeyType(ConditionKeyType.PORTSCAN);
     child.setValue("445");
     child.setMappingType(MappingType.LOCAL);
     child.setConditionParent(root);

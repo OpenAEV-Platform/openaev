@@ -48,6 +48,8 @@ public class ChallengeExecutor extends Injector {
     String challengeId = challenge.getId();
     String exerciseId = exercise.getId();
     return this.context.getOpenAEVConfig().getBaseUrl()
+        + "/"
+        + exercise.getTenant().getId()
         + "/challenges/"
         + exerciseId
         + "?user="
@@ -84,6 +86,7 @@ public class ChallengeExecutor extends Injector {
         // Send the publication message.
         Exercise exercise = injection.getInjection().getExercise();
         String from = exercise.getFrom();
+        String fromName = exercise.getFromName();
         List<String> replyTos = exercise.getReplyTos();
         List<ExecutionContext> users = injection.getUsers();
         List<Document> documents =
@@ -114,6 +117,7 @@ public class ChallengeExecutor extends Injector {
                     execution,
                     List.of(userInjectContext),
                     from,
+                    fromName,
                     replyTos,
                     content.getInReplyTo(),
                     encrypted,
