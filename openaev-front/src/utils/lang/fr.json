@@ -521,7 +521,7 @@
   "DELETE_PLATFORM_GROUPS_AND_ROLES": "Supprimer les groupes et les rôles de la plate-forme",
   "DELETE_SECURITY_PLATFORMS": "Supprimer les plates-formes de sécurité",
   "DELETE_TEAMS_AND_PLAYERS": "Supprimer les équipes et les joueurs",
-  "DELETE_TENANT_SETTINGS": "Supprimer les paramètres du locataire",
+  "DELETE_TENANT_SETTINGS": "Supprimer les paramètres du tenant",
   "DELETE_TENANTS": "Supprimer les locataires",
   "Deleted": "Supprimé",
   "Deploy": "Déployer",
