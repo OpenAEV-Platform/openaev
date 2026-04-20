@@ -86,8 +86,8 @@ public class UserApi extends RestBehavior {
                   .anyMatch(t -> t.getId().equals(input.getTenantId()));
           if (!belongsToTenant) {
             userEventService.createLoginFailedEvent(
-                "local login", AccessDeniedException.class.getSimpleName());
-            throw new AccessDeniedException("User does not belong to the requested tenant.");
+                "local login", BadCredentialsException.class.getSimpleName());
+            throw new BadCredentialsException("User does not belong to the requested tenant.");
           }
         }
         userService.createUserSession(user);
