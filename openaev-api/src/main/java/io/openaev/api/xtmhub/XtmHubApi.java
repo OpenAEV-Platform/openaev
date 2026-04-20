@@ -6,7 +6,6 @@ import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.helper.RestBehavior;
-import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.xtmhub.XtmHubService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -81,17 +80,18 @@ public class XtmHubApi extends RestBehavior {
   }
 
   @PostMapping(
-      value = XTMHUB_URI + "/refresh-connectivity",
+      value = {XTMHUB_URI + "/refresh-connectivity", TENANT_XTMHUB_URI + "/refresh-connectivity"},
       consumes = MediaType.APPLICATION_JSON_VALUE,
       produces = MediaType.APPLICATION_JSON_VALUE)
   @Operation(
       summary = "Refresh connectivity with XTM Hub",
       description = "Refresh status in settings and version in XTM Hub")
   @ApiResponses({@ApiResponse(responseCode = "200", description = "Successful refresh")})
-  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.XTM_HUB_REGISTRATION)
   @Transactional(rollbackFor = Exception.class)
-  public PlatformSettings refreshConnectivity() {
-    return this.xtmHubService.refreshConnectivity();
+  public XtmHubRegistrationOutput refreshConnectivity() {
+    return xtmHubRegistrationMapper.toXtmHubRegistrationOutput(
+        this.xtmHubService.refreshConnectivity());
   }
 
   @PutMapping(value = XTMHUB_URI + "/auto-register", consumes = MediaType.APPLICATION_JSON_VALUE)

@@ -612,6 +612,20 @@ public class PlatformSettingsService {
     return findSettings();
   }
 
+  public void updateXTMHubEmailNotification(boolean shouldSendConnectivityEmail) {
+    Optional<Setting> current =
+        this.settingRepository.findByKey(XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL.key());
+    boolean currentValue = current.map(s -> Boolean.parseBoolean(s.getValue())).orElse(true);
+    if (currentValue != shouldSendConnectivityEmail) {
+      Setting setting =
+          resolve(
+              current,
+              XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL.key(),
+              String.valueOf(shouldSendConnectivityEmail));
+      settingRepository.save(setting);
+    }
+  }
+
   public PlatformSettings deleteXTMHubRegistration() {
     Map<String, Setting> dbSettings = mapOfSettings(fromIterable(this.settingRepository.findAll()));
 

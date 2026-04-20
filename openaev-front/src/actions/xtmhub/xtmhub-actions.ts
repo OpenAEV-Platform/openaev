@@ -71,7 +71,7 @@ export const unregisterPlatform = (registrationId: string) => (dispatch: Dispatc
 export const refreshConnectivity = () => (dispatch: Dispatch) => {
   const uri = `${XTM_HUB_URI}/refresh-connectivity`;
   return postReferential(
-    schema.platformParameters,
+    schema.tenantXtmHubRegistration,
     uri,
     {},
     undefined,

@@ -59,15 +59,16 @@ public class XtmHubClient {
     }
   }
 
-  public XtmHubConnectivityStatus refreshRegistrationStatus(
-      String platformId, String platformVersion, String token) {
+  public XtmHubConnectivityStatus refreshRegistrationStatusSingleTenant(
+      String platformId, String platformVersion, String token, String url, String tenantId) {
     try (CloseableHttpClient httpClient = httpClientFactory.httpClientCustom()) {
       HttpPost httpPost = new HttpPost(this.graphqlEndpoint);
       httpPost.addHeader("Accept", "application/json");
       httpPost.addHeader(CONTENT_TYPE, APPLICATION_JSON_VALUE);
       httpPost.addHeader(ACCEPT, APPLICATION_JSON_VALUE);
 
-      StringEntity httpBody = buildRefreshStatusBody(platformId, platformVersion, token);
+      StringEntity httpBody =
+          buildRefreshStatusSingleTenantBody(platformId, platformVersion, token, url, tenantId);
       httpPost.setEntity(httpBody);
       return httpClient.execute(httpPost, this::parseResponseAsConnectivityStatus);
     } catch (Exception e) {
@@ -138,30 +139,32 @@ public class XtmHubClient {
   }
 
   @NotNull
-  private StringEntity buildRefreshStatusBody(
-      String platformId, String platformVersion, String token) {
+  private StringEntity buildRefreshStatusSingleTenantBody(
+      String platformId, String platformVersion, String token, String url, String tenantId) {
     String mutationBody =
         String.format(
             """
-        {
-          "query": "
-            mutation RefreshPlatformRegistrationConnectivityStatus($input: RefreshPlatformRegistrationConnectivityStatusInput!) {
-              refreshPlatformRegistrationConnectivityStatus(input: $input) {
-                status
-              }
-            }
-          ",
-          "variables": {
-            "input": {
-              "platformId": "%s",
-              "platformVersion": "%s",
-              "token": "%s",
-              "platformIdentifier": "%s"
-            }
-          }
-        }
-        """,
-            platformId, platformVersion, token, platformIdentifier);
+                {
+                  "query": "
+                    mutation refreshPlatformRegistrationConnectivityStatusSingleTenant($input: RefreshPlatformRegistrationConnectivityStatusSingleTenantInput!) {
+                      refreshPlatformRegistrationConnectivityStatusSingleTenant(input: $input) {
+                        status
+                      }
+                    }
+                  ",
+                  "variables": {
+                    "input": {
+                      "platformId": "%s",
+                      "platformVersion": "%s",
+                      "token": "%s",
+                      "platformIdentifier": "%s",
+                      "url": "%s",
+                      "tenantId": "%s"
+                    }
+                  }
+                }
+                """,
+            platformId, platformVersion, token, platformIdentifier, url, tenantId);
 
     JsonElement element = JsonParser.parseString(mutationBody);
     return new StringEntity(element.toString());
@@ -213,7 +216,7 @@ public class XtmHubClient {
               .getAsJsonObject()
               .get("data")
               .getAsJsonObject()
-              .get("refreshPlatformRegistrationConnectivityStatus")
+              .get("refreshPlatformRegistrationConnectivityStatusSingleTenant")
               .getAsJsonObject()
               .get("status")
               .getAsString();
