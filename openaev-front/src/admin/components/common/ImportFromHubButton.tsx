@@ -3,6 +3,7 @@ import { useTheme } from '@mui/material/styles';
 
 import { useFormatter } from '../../../components/i18n';
 import useAuth from '../../../utils/hooks/useAuth';
+import { DEFAULT_TENANT_UUID } from '../../../utils/tenant-url-helper';
 import { getUrl, isNotEmptyField } from '../../../utils/utils';
 import GradientButton from './GradientButton';
 
@@ -11,13 +12,17 @@ interface ImportFromHubButtonProps extends ButtonProps { serviceIdentifier: stri
 const ImportFromHubButton = ({ serviceIdentifier }: ImportFromHubButtonProps) => {
   const { t } = useFormatter();
   const theme = useTheme();
-  const { settings } = useAuth();
+  const { settings, currentUserTenant } = useAuth();
   if (!settings.xtm_hub_enable) {
     return null;
   }
 
+  const tenantId = currentUserTenant?.tenant_id ?? DEFAULT_TENANT_UUID;
   const importFromHubUrl = isNotEmptyField(settings?.xtm_hub_url)
-    ? getUrl(`/redirect/${serviceIdentifier}?oaev_instance_id=${settings.platform_id}`, settings?.xtm_hub_url)
+    ? getUrl(
+        `/redirect/${serviceIdentifier}?platform_id=${settings.platform_id}&tenant_id=${tenantId}`,
+        settings?.xtm_hub_url,
+      )
     : '';
 
   return (
