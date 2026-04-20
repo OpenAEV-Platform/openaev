@@ -4,8 +4,8 @@ import { type Dispatch } from 'redux';
 import * as Constants from '../constants/ActionTypes';
 import { getReferential, postReferential, putReferential, simpleCall } from '../utils/Action';
 import type { PolicyInput, SettingsEnterpriseEditionUpdateInput, SettingsPlatformWhitemarkUpdateInput, SettingsUpdateInput, ThemeInput, User } from '../utils/api-types';
-import * as schema from './Schema';
 import { extractTenantFromUrl } from '../utils/tenant-url-helper';
+import * as schema from './Schema';
 
 interface ResetValues {
   password: string;
