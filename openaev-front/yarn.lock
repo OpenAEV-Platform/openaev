@@ -5284,7 +5284,19 @@ __metadata:
   languageName: node
   linkType: hard
 
-"dompurify@npm:3.3.3, dompurify@npm:^3.2.6":
+"dompurify@npm:3.4.0":
+  version: 3.4.0
+  resolution: "dompurify@npm:3.4.0"
+  dependencies:
+    "@types/trusted-types": "npm:^2.0.7"
+  dependenciesMeta:
+    "@types/trusted-types":
+      optional: true
+  checksum: 10c0/5593ac44ee20b9aa521c2120884effc98927fb9128c548183c75e79e0a04357c62ee913a049a267c8f396cb8c9d520ecf72562826c5524c46d4fe03c12063638
+  languageName: node
+  linkType: hard
+
+"dompurify@npm:^3.2.6":
   version: 3.3.3
   resolution: "dompurify@npm:3.3.3"
   dependencies:
@@ -9693,7 +9705,7 @@ __metadata:
     cross-env: "npm:10.1.0"
     d3-hierarchy: "npm:3.1.2"
     date-fns: "npm:4.1.0"
-    dompurify: "npm:3.3.3"
+    dompurify: "npm:3.4.0"
     esbuild: "npm:0.27.4"
     eslint: "npm:9.39.4"
     eslint-import-resolver-next: "npm:0.6.0"
