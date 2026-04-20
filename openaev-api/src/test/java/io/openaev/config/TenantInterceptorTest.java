@@ -1,9 +1,11 @@
 package io.openaev.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.repository.TenantRepository;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -13,7 +15,8 @@ import org.springframework.web.servlet.HandlerMapping;
 
 class TenantInterceptorTest {
 
-  private final TenantInterceptor interceptor = new TenantInterceptor();
+  private final TenantRepository tenantRepository = mock(TenantRepository.class);
+  private final TenantInterceptor interceptor = new TenantInterceptor(tenantRepository);
   private final MockHttpServletRequest request = new MockHttpServletRequest();
   private final MockHttpServletResponse response = new MockHttpServletResponse();
 
