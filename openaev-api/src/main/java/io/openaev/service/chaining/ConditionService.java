@@ -1,15 +1,6 @@
 package io.openaev.service.chaining;
 
 import static io.openaev.api.chaining.ConditionMapper.resolveMappingType;
-
-import io.openaev.api.chaining.ConditionMapper;
-import io.openaev.api.chaining.dto.ConditionCreateInput;
-import io.openaev.api.chaining.dto.EventInput;
-import io.openaev.database.model.*;
-import io.openaev.database.model.Condition;
-import io.openaev.database.model.ConditionType;
-import io.openaev.database.model.Step;
-import io.openaev.database.model.Workflow;
 import static java.util.Collections.emptyList;
 
 import com.google.gson.Gson;
@@ -19,6 +10,10 @@ import io.openaev.api.chaining.ConditionMapper;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.EventInput;
 import io.openaev.database.model.*;
+import io.openaev.database.model.Condition;
+import io.openaev.database.model.ConditionType;
+import io.openaev.database.model.Step;
+import io.openaev.database.model.Workflow;
 import io.openaev.database.repository.ConditionRepository;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.BadRequestException;
@@ -26,11 +21,6 @@ import io.openaev.rest.exception.ChainingException;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.*;
-import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
-import java.util.function.Consumer;
-import java.util.stream.Collectors;
 import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;

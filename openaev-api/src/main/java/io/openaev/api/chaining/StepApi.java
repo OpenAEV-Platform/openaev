@@ -1,7 +1,6 @@
 package io.openaev.api.chaining;
 
 import static io.openaev.api.chaining.StepMapper.toOutput;
-import static io.openaev.api.chaining.dto.StepMapper.toCreateInput;
 import static io.openaev.api.chaining.dto.StepMapper.toOutput;
 
 import io.openaev.aop.AccessControl;

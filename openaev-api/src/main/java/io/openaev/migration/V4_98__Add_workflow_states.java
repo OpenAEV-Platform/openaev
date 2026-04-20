@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V4_90__Add_workflow_states extends BaseJavaMigration {
+public class V4_98__Add_workflow_states extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {

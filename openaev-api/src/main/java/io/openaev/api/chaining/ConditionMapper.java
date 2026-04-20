@@ -6,7 +6,6 @@ import io.openaev.api.chaining.dto.EventOutput;
 import io.openaev.database.model.Condition;
 import io.openaev.database.model.ConditionType;
 import io.openaev.database.model.MappingType;
-import io.openaev.database.model.Step;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
