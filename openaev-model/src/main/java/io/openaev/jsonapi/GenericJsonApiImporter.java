@@ -272,12 +272,24 @@ public class GenericJsonApiImporter<T extends Base> {
 
         Collection<Object> target = instantiateCollection(f);
         for (ResourceIdentifier ri : ids) {
-          Object child =
-              resolveOrBuildEntity(
-                  ri, includedMap, entityCache, entitiesNeedingRemapping, includeOptions);
-          if (child != null) {
-            target.add(child);
-            setInverseRelation(child, entity);
+          try {
+            Object child =
+                resolveOrBuildEntity(
+                    ri, includedMap, entityCache, entitiesNeedingRemapping, includeOptions);
+            if (child != null) {
+              target.add(child);
+              setInverseRelation(child, entity);
+            }
+          } catch (IllegalArgumentException ex) {
+            // Child entity (or one of its dependencies) could not be resolved — skip it entirely
+            log.warn(
+                "Skipping child entity (id='{}') in relationship '{}': {}",
+                ri != null ? ri.id() : "null",
+                e.getKey(),
+                ex.getMessage());
+            if (ri != null) {
+              entityCache.remove(ri.id());
+            }
           }
         }
         replaceCollection(entity, f, target);
@@ -317,9 +329,14 @@ public class GenericJsonApiImporter<T extends Base> {
           included, includedMap, entityCache, entitiesNeedingRemapping, includeOptions, false);
     }
 
-    // Not present in the bundle, resolve it
-    Class<T> clazz = classForTypeOrThrow(type);
-    return hasText(id) ? entityManager.getReference(clazz, id) : null;
+    // Not present in the bundle
+    try {
+      Class<T> clazz = classForTypeOrThrow(type);
+      return hasText(id) ? entityManager.getReference(clazz, id) : null;
+    } catch (IllegalArgumentException e) {
+      log.warn("Skipping reference to unknown entity type '{}' (id='{}')", type, id);
+      return null;
+    }
   }
 
   private final Map<String, Class<T>> typeToClassCache = new HashMap<>();
