@@ -30,7 +30,6 @@ import io.openaev.utils.mapper.CatalogConnectorMapper;
 import io.openaev.utils.mapper.InjectorMapper;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
-import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotBlank;
 import java.io.InputStream;
 import java.time.Instant;
@@ -41,6 +40,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 @Slf4j
@@ -612,9 +612,10 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
   // -- TENANT DEPENDENCIES --
 
   /**
-   * Copies all built-in (non-external) injectors from the default tenant to the newly created
-   * tenant. Each injector gets a new UUID. Contracts that have already been copied by {@link
-   * InjectorContractService} are linked to the new injectors.
+   * Copies all built-in (non-external) injectors from the current tenant to the newly created
+   * tenant. Since all tenant are supposed to have them and we know for sure that the current tenant
+   * exists, we use it. Each injector gets a new UUID. Contracts that have already been copied by
+   * {@link InjectorContractService} are linked to the new injectors.
    */
   @Override
   public void createDependencyForTenant(Tenant tenant) throws DependenciesManagerException {

@@ -24,7 +24,6 @@ import io.openaev.service.connectors.AbstractConnectorService;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import io.openaev.utils.mapper.CollectorMapper;
 import jakarta.annotation.Resource;
-import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotNull;
 import java.io.InputStream;
 import java.time.Instant;
@@ -32,6 +31,7 @@ import java.util.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
@@ -246,8 +246,9 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
   // -- TENANT DEPENDENCIES --
 
   /**
-   * Copies all collector types and built-in (non-external) collectors from the default tenant to
-   * the newly created tenant. Each entity gets a new UUID.
+   * Copies all collector types and built-in (non-external) collectors from the current tenant to
+   * the newly created tenant. Since all tenant are supposed to have them and we know for sure that
+   * the current tenant exists, we use it. Each entity gets a new UUID.
    */
   @Override
   public void createDependencyForTenant(Tenant tenant) throws DependenciesManagerException {

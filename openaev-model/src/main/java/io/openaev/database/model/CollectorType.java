@@ -17,8 +17,7 @@ import org.hibernate.annotations.UuidGenerator;
  * Reference entity for collector type identifiers (e.g. "openaev_crowdstrike").
  *
  * <p>This table is independent of collector instances and has no cascade behavior. Rows are
- * inserted when a collector type is first registered and never deleted (even if all instances of
- * that type are removed). Detection rules survive instance lifecycle.
+ * inserted when a collector type is first registered.
  */
 @Entity
 @Table(name = "collector_types")

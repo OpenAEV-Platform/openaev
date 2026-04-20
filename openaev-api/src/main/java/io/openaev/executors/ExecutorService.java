@@ -22,7 +22,6 @@ import io.openaev.service.connectors.AbstractConnectorService;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import io.openaev.utils.mapper.ExecutorMapper;
 import jakarta.annotation.Resource;
-import jakarta.transaction.Transactional;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Optional;
@@ -30,6 +29,7 @@ import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
@@ -233,9 +233,11 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
   // -- TENANT DEPENDENCIES --
 
   /**
-   * Copies all built-in executors from the default tenant to the newly created tenant. Each
-   * executor gets a new UUID so it can coexist alongside the original. Also copies executor images
-   * (icons/banners) and catalog connector logos from MinIO so the new tenant can serve them.
+   * Copies all built-in executors from the current tenant to the newly created tenant. Since all
+   * tenant are supposed to have them and we know for sure that the current tenant exists, we use
+   * it. Each executor gets a new UUID so it can coexist alongside the original. Also copies
+   * executor images (icons/banners) and catalog connector logos from MinIO so the new tenant can
+   * serve them.
    */
   @Override
   public void createDependencyForTenant(Tenant tenant) throws DependenciesManagerException {
