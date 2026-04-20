@@ -397,6 +397,19 @@ class UserApiTest extends IntegrationTest {
                   .content(asJsonString(input)))
           .andExpect(status().isOk());
 
+      Awaitility.await()
+          .atMost(1, TimeUnit.SECONDS)
+          .until(
+              () -> {
+                try {
+                  ArgumentCaptor<List<User>> userCaptor = ArgumentCaptor.forClass(List.class);
+                  verify(mailingService).sendEmail(anyString(), anyString(), userCaptor.capture());
+                  return true;
+                } catch (Exception e) {
+                  return false;
+                }
+              });
+
       mvc.perform(
               post("/api/reset/" + firstToken)
                   .content(asJsonString(changePasswordInput))
