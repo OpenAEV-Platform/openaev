@@ -22,6 +22,7 @@ jobs:
       - name: Dispatch test-feature-branch workflow
         uses: actions/github-script@v8
         with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const branch = "testing-xtm-one";
 
