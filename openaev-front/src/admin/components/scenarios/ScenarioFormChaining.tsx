@@ -6,7 +6,6 @@ import {
   AccordionSummary,
   Autocomplete,
   Button,
-  Checkbox,
   Chip,
   MenuItem,
   TextField as MuiTextField,

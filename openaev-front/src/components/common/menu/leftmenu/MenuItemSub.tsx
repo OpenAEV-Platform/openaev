@@ -1,8 +1,7 @@
 import { Collapse, ListItemIcon, ListItemText, MenuItem, MenuList, Popover, useTheme } from '@mui/material';
-import { type FunctionComponent, type MouseEvent as ReactMouseEvent } from 'react';
+import { type FunctionComponent } from 'react';
 import { Link, useLocation } from 'react-router';
 
-import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
 import { useFormatter } from '../../../i18n';
 import { type LeftMenuSubItem } from './leftmenu-model';
 import StyledTooltip from './StyledTooltip';
@@ -30,30 +29,9 @@ const MenuItemSub: FunctionComponent<Props> = ({
 
   const { navOpen, selectedMenu, anchors } = state;
   const { handleSelectedMenuOpen, handleSelectedMenuClose } = helpers;
-  const {
-    isValidated: isValidatedEnterpriseEdition,
-    openDialog,
-    setEEFeatureDetectedInfo,
-  } = useEnterpriseEdition();
 
-  const renderMenuItem = ({ label, link, exact, icon, chip }: LeftMenuSubItem, inCollapse: boolean) => {
-    const isCurrentTab = exact ? location.pathname === link : location.pathname.includes(link);
-    const itemTextColor = isCurrentTab ? theme.palette.primary.main : textColor;
-
-    const handleItemClick = (event: ReactMouseEvent<HTMLElement>) => {
-      if (chip && !isValidatedEnterpriseEdition) {
-        event.preventDefault();
-        event.stopPropagation();
-        setEEFeatureDetectedInfo(t(label));
-        openDialog();
-        return;
-      }
-
-      if (!inCollapse) {
-        handleSelectedMenuClose();
-      }
-    };
-
+  const renderMenuItem = ({ label, link, exact, icon }: LeftMenuSubItem) => {
+    const isCurrentTab = location.pathname === link;
     return (
       <MenuItem
         key={label}
@@ -62,36 +40,27 @@ const MenuItemSub: FunctionComponent<Props> = ({
         to={link}
         selected={exact ? isCurrentTab : location.pathname.includes(link)}
         dense
-        onClick={handleItemClick}
         sx={{ paddingLeft: navOpen ? '20px' : undefined }}
+        onClick={!navOpen ? handleSelectedMenuClose : undefined}
       >
         {icon && (
           <ListItemIcon style={{ ...leftMenuStyle.listItemIcon }}>
             {icon()}
           </ListItemIcon>
         )}
-        <span
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            width: '100%',
-          }}
-        >
-          <ListItemText
-            primary={t(label)}
-            slotProps={{
+        <ListItemText
+          primary={t(label)}
+          slotProps={{
             primary: {
               paddingLeft: navOpen ? `${theme.spacing(1)}` : `${theme.spacing(2)}`,
               fontWeight: theme.typography.h4.fontWeight,
               fontSize: theme.typography.h4.fontSize,
               whiteSpace: 'nowrap',
-                overflow: 'hidden',
+              overflow: 'hidden',
               textOverflow: 'ellipsis',
-              },
-            }}
-          />
-          {chip}
-        </span>
+            },
+          }}
+        />
       </MenuItem>
     );
   };
