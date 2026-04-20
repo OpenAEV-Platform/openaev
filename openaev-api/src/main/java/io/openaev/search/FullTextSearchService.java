@@ -292,7 +292,8 @@ public class FullTextSearchService<T extends Base> {
                           currentUser
                               .getCapabilities()
                               .contains(capaByClassMap.get(tClass).orElse(Capability.BYPASS)),
-                          Grant.GRANT_TYPE.OBSERVER));
+                          Grant.GRANT_TYPE.OBSERVER))
+                  .and(TenantSpecification.fromTenant(TenantContext.getCurrentTenant()));
           long count = repository.count(specs);
           results.put(tClass, new FullTextSearchCountResult(tClass.getSimpleName(), count));
         });
