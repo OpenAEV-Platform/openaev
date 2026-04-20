@@ -15,7 +15,6 @@ import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.collectors.utils.CollectorsUtils;
 import io.openaev.database.model.*;
 import io.openaev.ee.EnterpriseEditionService;
-import io.openaev.injector_contract.fields.ContractFieldType;
 import io.openaev.rest.payload.form.DetectionRemediationInput;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
@@ -1458,7 +1457,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
   private List<PayloadArgument> getPayloadArguments() {
     PayloadArgument payloadArgumentText =
-        PayloadFixture.createPayloadArgument("guest_user", ContractFieldType.Text, "guest", null);
+        PayloadFixture.createPayloadArgument("guest_user", ArgumentType.Text, "guest", null);
     return new ArrayList<>(List.of(payloadArgumentText));
   }
 

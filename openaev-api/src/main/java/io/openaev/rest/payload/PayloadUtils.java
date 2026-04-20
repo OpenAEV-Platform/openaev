@@ -75,7 +75,10 @@ public class PayloadUtils {
     List<PayloadArgument> arguments = new ArrayList<>();
     for (JsonNode argumentNode : safeArray(payloadNode, "payload_arguments")) {
       PayloadArgument argument = new PayloadArgument();
-      argument.setType(argumentNode.get("type").textValue());
+      argument.setType(ArgumentType.fromLabel(argumentNode.get("type").textValue()));
+      if (argumentNode.hasNonNull("subtype")) {
+        argument.setSubtype(ArgumentSubType.fromLabel(argumentNode.get("subtype").textValue()));
+      }
       argument.setKey(argumentNode.get("key").textValue());
       argument.setDefaultValue(argumentNode.get("default_value").textValue());
       argument.setDescription(argumentNode.get("description").textValue());

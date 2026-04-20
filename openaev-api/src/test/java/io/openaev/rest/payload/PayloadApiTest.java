@@ -35,9 +35,7 @@ import io.openaev.utils.fixtures.composers.CollectorComposer;
 import io.openaev.utils.fixtures.composers.DomainComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.annotation.Resource;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -263,7 +261,7 @@ class PayloadApiTest extends IntegrationTest {
 
       PayloadArgument targetedAssetArgument = new PayloadArgument();
       targetedAssetArgument.setKey("URL");
-      targetedAssetArgument.setType("targeted-asset");
+      targetedAssetArgument.setType(ArgumentType.TargetedAsset);
       targetedAssetArgument.setDefaultValue("hostname");
       targetedAssetArgument.setSeparator("-u");
       input.setArguments(List.of(targetedAssetArgument));
@@ -314,9 +312,213 @@ class PayloadApiTest extends IntegrationTest {
     }
   }
 
-  @Test
-  @DisplayName("Update Executable Payload")
+  // ---- Payload Arguments ----
+
+  @Nested
   @WithMockUser(isAdmin = true)
+  @DisplayName("Payload Arguments")
+  class PayloadArguments {
+
+    /**
+     * All non-targeted-asset argument types (text, number, port, portscan, ipv4, ipv6, credentials,
+     * cve) must generate a {@code text} contract field so they are visible and editable in the
+     * inject form.
+     */
+    @Test
+    @DisplayName(
+        "Given all string-type arguments, should produce a text field in the injector contract for each")
+    void given_allStringTypeArguments_should_each_produce_text_field_in_contract()
+        throws Exception {
+      // Arrange
+      new Manager(List.of(openaevInjectorIntegrationFactory)).monitorIntegrations();
+
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      PayloadCreateInput input =
+          PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(
+              List.of(domain.getId()));
+      input.setArguments(
+          List.of(
+              PayloadFixture.createPayloadArgument("arg_text", ArgumentType.Text, "hello", null),
+              PayloadFixture.createPayloadArgument("arg_number", ArgumentType.Number, "42", null),
+              PayloadFixture.createPayloadArgument("arg_port", ArgumentType.Port, "8080", null),
+              PayloadFixture.createPayloadArgument(
+                  "arg_portscan", ArgumentType.PortsScan, "192.168.1.0/24", null),
+              PayloadFixture.createPayloadArgument("arg_ipv4", ArgumentType.IPv4, "10.0.0.1", null),
+              PayloadFixture.createPayloadArgument("arg_ipv6", ArgumentType.IPv6, "::1", null),
+              PayloadFixture.createPayloadArgument(
+                  "arg_credentials", ArgumentType.Credentials, "admin:pass", null),
+              PayloadFixture.createPayloadArgument(
+                  "arg_cve", ArgumentType.CVE, "CVE-2024-1234", null)));
+
+      // Act
+      String response =
+          mvc.perform(
+                  post(PAYLOAD_URI)
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input)))
+              .andExpect(status().is2xxSuccessful())
+              .andExpect(jsonPath("$.payload_arguments.length()").value(8))
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert — every argument is round-tripped with the correct type label
+      assertEquals("text", JsonPath.read(response, "$.payload_arguments[0].type"));
+      assertEquals("number", JsonPath.read(response, "$.payload_arguments[1].type"));
+      assertEquals("port", JsonPath.read(response, "$.payload_arguments[2].type"));
+      assertEquals("portscan", JsonPath.read(response, "$.payload_arguments[3].type"));
+      assertEquals("ipv4", JsonPath.read(response, "$.payload_arguments[4].type"));
+      assertEquals("ipv6", JsonPath.read(response, "$.payload_arguments[5].type"));
+      assertEquals("credentials", JsonPath.read(response, "$.payload_arguments[6].type"));
+      assertEquals("cve", JsonPath.read(response, "$.payload_arguments[7].type"));
+
+      // Assert — every argument key produces a "text" field in the injector contract
+      InjectorContract injectorContract =
+          injectorContractRepository
+              .findOne(byPayloadId(JsonPath.read(response, "$.payload_id")))
+              .orElse(null);
+      assertNotNull(injectorContract);
+
+      Set<String> argumentKeys =
+          Set.of(
+              "arg_text",
+              "arg_number",
+              "arg_port",
+              "arg_portscan",
+              "arg_ipv4",
+              "arg_ipv6",
+              "arg_credentials",
+              "arg_cve");
+      Map<String, String> keyToContractType = new HashMap<>();
+      ArrayNode contractFields = (ArrayNode) injectorContract.getConvertedContent().get("fields");
+      contractFields.forEach(
+          f -> {
+            String key = f.get("key").asText();
+            if (argumentKeys.contains(key)) {
+              keyToContractType.put(key, f.get("type").asText());
+            }
+          });
+
+      assertEquals(
+          8, keyToContractType.size(), "All 8 argument keys must appear in the injector contract");
+      keyToContractType.forEach(
+          (key, type) ->
+              assertEquals(
+                  "text", type, "Argument '" + key + "' must produce a text contract field"));
+    }
+
+    /**
+     * Subtypes are persisted at the payload-argument level and returned verbatim in the response.
+     * Three structured types are covered: portscan/host, credentials/username, cve/severity.
+     */
+    @Test
+    @DisplayName(
+        "Given arguments with subtypes, should persist and return the correct subtype for each")
+    void given_argumentsWithSubtypes_should_persist_and_return_subtypes() throws Exception {
+      // Arrange
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      PayloadCreateInput input =
+          PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(
+              List.of(domain.getId()));
+      input.setArguments(
+          List.of(
+              PayloadFixture.createPayloadArgument(
+                  "scan_host",
+                  ArgumentType.PortsScan,
+                  "192.168.1.0/24",
+                  null,
+                  ArgumentSubType.Host),
+              PayloadFixture.createPayloadArgument(
+                  "cred_user", ArgumentType.Credentials, "admin", null, ArgumentSubType.Username),
+              PayloadFixture.createPayloadArgument(
+                  "cve_severity",
+                  ArgumentType.CVE,
+                  "CVE-2024-1234",
+                  null,
+                  ArgumentSubType.Severity)));
+
+      // Act
+      String response =
+          mvc.perform(
+                  post(PAYLOAD_URI)
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input)))
+              .andExpect(status().is2xxSuccessful())
+              .andExpect(jsonPath("$.payload_arguments.length()").value(3))
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert — type and subtype are round-tripped correctly for each argument
+      assertEquals("portscan", JsonPath.read(response, "$.payload_arguments[0].type"));
+      assertEquals("host", JsonPath.read(response, "$.payload_arguments[0].subtype"));
+      assertEquals("credentials", JsonPath.read(response, "$.payload_arguments[1].type"));
+      assertEquals("username", JsonPath.read(response, "$.payload_arguments[1].subtype"));
+      assertEquals("cve", JsonPath.read(response, "$.payload_arguments[2].type"));
+      assertEquals("severity", JsonPath.read(response, "$.payload_arguments[2].subtype"));
+    }
+
+    /**
+     * An argument with a subtype still produces a plain {@code text} contract field — the subtype
+     * is a payload-level annotation, not a different UI component type.
+     */
+    @Test
+    @DisplayName(
+        "Given an argument with a subtype, should still produce a text field in the injector contract")
+    void given_argumentWithSubtype_should_produce_text_field_in_contract() throws Exception {
+      // Arrange
+      new Manager(List.of(openaevInjectorIntegrationFactory)).monitorIntegrations();
+
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      PayloadCreateInput input =
+          PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(
+              List.of(domain.getId()));
+      input.setArguments(
+          List.of(
+              PayloadFixture.createPayloadArgument(
+                  "scan_result",
+                  ArgumentType.PortsScan,
+                  "10.0.0.0/24",
+                  null,
+                  ArgumentSubType.Host)));
+
+      // Act
+      String response =
+          mvc.perform(
+                  post(PAYLOAD_URI)
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input)))
+              .andExpect(status().is2xxSuccessful())
+              .andExpect(jsonPath("$.payload_arguments[0].type").value("portscan"))
+              .andExpect(jsonPath("$.payload_arguments[0].subtype").value("host"))
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert — contract field type is still "text"; default value is preserved
+      InjectorContract injectorContract =
+          injectorContractRepository
+              .findOne(byPayloadId(JsonPath.read(response, "$.payload_id")))
+              .orElse(null);
+      assertNotNull(injectorContract);
+
+      JsonNode scanField = null;
+      ArrayNode contractFields = (ArrayNode) injectorContract.getConvertedContent().get("fields");
+      for (JsonNode f : contractFields) {
+        if ("scan_result".equals(f.get("key").asText())) {
+          scanField = f;
+          break;
+        }
+      }
+      assertNotNull(scanField, "Contract must contain a field for 'scan_result'");
+      assertEquals("text", scanField.get("type").asText());
+      assertEquals("10.0.0.0/24", scanField.get("defaultValue").asText());
+    }
+  }
+
+  @Test
+  @WithMockUser(isAdmin = true)
+  @DisplayName("Update Executable Payload")
   void updateExecutablePayload() throws Exception {
 
     Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
