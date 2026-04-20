@@ -69,6 +69,7 @@ const styles = theme => ({
   },
   itemHead: {
     paddingLeft: 10,
+    textTransform: 'uppercase',
     cursor: 'pointer',
   },
   item: {
@@ -1195,7 +1196,7 @@ class QuickInjectComponent extends Component {
                     attachedDocs,
                   )}
                   <Button
-                    color="primary"
+                    color="secondary"
                     variant="outlined"
                     disabled={submitting || isDisabled}
                     onClick={this.resetDefaultvalues.bind(

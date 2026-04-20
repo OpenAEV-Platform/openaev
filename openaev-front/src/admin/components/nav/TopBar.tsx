@@ -28,6 +28,7 @@ import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { isFeatureEnabled, isNotEmptyField } from '../../../utils/utils';
 import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+import { isFeatureEnabled } from '../../../utils/utils';
 import AskArianeButton from '../ariane/AskArianeButton';
 import TenantSwitcher from './TenantSwitcher';
 

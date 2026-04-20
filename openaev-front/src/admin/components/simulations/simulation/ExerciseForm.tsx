@@ -1,12 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Autocomplete, Chip, GridLegacy, MenuItem, TextField as MuiTextField, Typography } from '@mui/material';
+import { Autocomplete, Button, Chip, GridLegacy, MenuItem, TextField as MuiTextField, Typography } from '@mui/material';
 import { DateTimePicker as MuiDateTimePicker } from '@mui/x-date-pickers';
 import { type FunctionComponent, useState } from 'react';
 import { Controller, type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
 import type { LoggedHelper } from '../../../../actions/helper';
-import Button from '../../../../components/common/button/Button';
 import SelectField from '../../../../components/fields/SelectField';
 import TagField from '../../../../components/fields/TagField';
 import TextField from '../../../../components/fields/TextField';
@@ -341,7 +340,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
       }}
       >
         <Button
-          variant="secondary"
+          variant="contained"
           onClick={handleClose}
           style={{ marginRight: 10 }}
           disabled={isSubmitting}
@@ -349,7 +348,8 @@ const ExerciseForm: FunctionComponent<Props> = ({
           {t('Cancel')}
         </Button>
         <Button
-          variant="primary"
+          variant="contained"
+          color="secondary"
           type="submit"
           disabled={!isDirty || isSubmitting}
         >

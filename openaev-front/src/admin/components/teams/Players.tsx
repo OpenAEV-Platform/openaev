@@ -29,7 +29,7 @@ import CreatePlayer from './players/CreatePlayer';
 import PlayerPopover from './players/PlayerPopover';
 
 const useStyles = makeStyles()(() => ({
-  itemHead: {},
+  itemHead: { textTransform: 'uppercase' },
   item: { height: 50 },
 }));
 

@@ -1,11 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { FormControlLabel, Stack, Switch } from '@mui/material';
+import { Button, FormControlLabel, Stack, Switch } from '@mui/material';
 import { DatePicker, TimePicker } from '@mui/x-date-pickers';
 import { type ChangeEvent, type FunctionComponent, useState } from 'react';
 import { Controller, type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import Button from '../../../../components/common/button/Button';
 import { useFormatter } from '../../../../components/i18n';
 import { type ExerciseUpdateStartDateInput } from '../../../../utils/api-types';
 import { minutesInFuture } from '../../../../utils/Time';
@@ -175,7 +174,6 @@ const ExerciseDateForm: FunctionComponent<Props> = ({
       >
         {handleClose && (
           <Button
-            variant="secondary"
             onClick={handleClose.bind(this)}
             style={{ marginRight: 10 }}
           >
@@ -183,7 +181,7 @@ const ExerciseDateForm: FunctionComponent<Props> = ({
           </Button>
         )}
         <Button
-          variant="primary"
+          color="secondary"
           type="submit"
         >
           {t('Save')}

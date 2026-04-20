@@ -7,6 +7,7 @@ import { useFormatter } from '../../i18n';
 
 const useStyles = makeStyles()(theme => ({
   labelChip: {
+    textTransform: 'uppercase',
     borderRadius: theme.borderRadius,
     marginBottom: 5,
     height: 20,
@@ -28,15 +29,10 @@ const LabelChip: FunctionComponent<Props> = ({
   const { classes } = useStyles();
   const theme = useTheme();
 
-  const chipStyle = theme.palette.labelChipMap.get(color) ?? {
-    backgroundColor: 'rgba(149, 150, 157, 0.2)',
-    color: '#95969D',
-  };
-
   return (
     <Chip
       className={classes.labelChip}
-      style={chipStyle}
+      style={theme.palette.labelChipMap.get(color)}
       sx={{ width: size }}
       label={t(label)}
     />

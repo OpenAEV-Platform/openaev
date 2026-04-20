@@ -19,7 +19,7 @@ const MenuItemLogo: FunctionComponent<Props> = ({
   onClick,
 }) => {
   // Standard hooks
-  const { iconSx } = useLeftMenuStyle();
+  const leftMenuStyle = useLeftMenuStyle();
   const theme = useTheme();
   const { palette } = theme;
   const isDarkMode = palette.mode === 'dark';
@@ -31,7 +31,7 @@ const MenuItemLogo: FunctionComponent<Props> = ({
       onClick={onClick}
     >
       <Tooltip title="By Filigran">
-        <ListItemIcon sx={iconSx}>
+        <ListItemIcon style={{ ...leftMenuStyle.listItemIcon }}>
           <img
             src={fileUri(isDarkMode ? logoFiligranDark : logoFiligranLight)}
             alt="logo"

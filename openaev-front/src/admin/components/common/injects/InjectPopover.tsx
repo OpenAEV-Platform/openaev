@@ -1,11 +1,10 @@
-import { Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import { type FunctionComponent, useContext, useState } from 'react';
 import { Link } from 'react-router';
 
 import { duplicateInjectForExercise, duplicateInjectForScenario } from '../../../../actions/Inject';
 import { type InjectStore } from '../../../../actions/injects/Inject';
 import { exportInject } from '../../../../actions/injects/inject-action';
-import Button from '../../../../components/common/button/Button';
 import ButtonPopover from '../../../../components/common/ButtonPopover';
 import DialogDelete from '../../../../components/common/DialogDelete';
 import DialogDuplicate from '../../../../components/common/DialogDuplicate';
@@ -293,10 +292,10 @@ const InjectPopover: FunctionComponent<Props> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="secondary" onClick={handleCloseDone}>
+          <Button onClick={handleCloseDone}>
             {t('Cancel')}
           </Button>
-          <Button variant="primary" onClick={submitDone}>
+          <Button color="secondary" onClick={submitDone}>
             {t('Mark')}
           </Button>
         </DialogActions>
@@ -325,10 +324,10 @@ const InjectPopover: FunctionComponent<Props> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="secondary" onClick={handleCloseEnable}>
+          <Button onClick={handleCloseEnable}>
             {t('Cancel')}
           </Button>
-          <Button variant="primary" onClick={submitEnable}>
+          <Button color="secondary" onClick={submitEnable}>
             {t('Enable')}
           </Button>
         </DialogActions>
@@ -345,10 +344,10 @@ const InjectPopover: FunctionComponent<Props> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="secondary" onClick={handleCloseDisable}>
+          <Button onClick={handleCloseDisable}>
             {t('Cancel')}
           </Button>
-          <Button variant="primary" onClick={submitDisable}>
+          <Button color="secondary" onClick={submitDisable}>
             {t('Disable')}
           </Button>
         </DialogActions>
@@ -365,10 +364,10 @@ const InjectPopover: FunctionComponent<Props> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="secondary" onClick={handleCloseTrigger}>
+          <Button onClick={handleCloseTrigger}>
             {t('Cancel')}
           </Button>
-          <Button variant="primary" onClick={submitTrigger}>
+          <Button color="secondary" onClick={submitTrigger}>
             {t('Trigger')}
           </Button>
         </DialogActions>

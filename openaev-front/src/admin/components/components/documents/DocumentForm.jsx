@@ -105,7 +105,7 @@ const DocumentForm = (props) => {
             </Button>
             <Button
               variant="contained"
-              color="primary"
+              color="secondary"
               type="submit"
               disabled={pristine || submitting}
               startIcon={submitting && <CircularProgress size={20} />}

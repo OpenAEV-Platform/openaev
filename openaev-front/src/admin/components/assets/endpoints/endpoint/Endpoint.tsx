@@ -34,6 +34,7 @@ const useStyles = makeStyles()(theme => ({
     fontSize: 12,
     lineHeight: '12px',
     height: 20,
+    textTransform: 'uppercase',
     borderRadius: 4,
     width: 100,
   },

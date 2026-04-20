@@ -44,7 +44,7 @@ const ChannelPreview = () => {
       <div className={classes.root}>
         {permissions.isLoggedIn && permissions.canAccess && (
           <Button
-            color="primary"
+            color="secondary"
             variant="outlined"
             component={Link}
             to={`/channels/${exerciseId}/${channelId}?article=${articleId}&user=${userId}&preview=false`}

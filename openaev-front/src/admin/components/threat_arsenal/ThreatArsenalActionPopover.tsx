@@ -1,5 +1,14 @@
 import { MoreVert } from '@mui/icons-material';
-import { Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Menu, MenuItem } from '@mui/material';
+import {
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  IconButton,
+  Menu,
+  MenuItem,
+} from '@mui/material';
 import { type MouseEvent, useContext, useState } from 'react';
 
 import { deletePayload } from '../../../actions/payloads/payload-actions';
@@ -8,7 +17,6 @@ import {
   fetchThreatArsenalAction,
   updateThreatArsenalAction,
 } from '../../../actions/threat_arsenals/ThreatArsenal-actions';
-import Button from '../../../components/common/button/Button';
 import DialogDelete from '../../../components/common/DialogDelete';
 import Drawer from '../../../components/common/Drawer';
 import Transition from '../../../components/common/Transition';
@@ -219,8 +227,8 @@ const ThreatArsenalActionPopover = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="secondary" onClick={handleCloseDuplicate}>{t('Cancel')}</Button>
-          <Button variant="primary" onClick={submitDuplicate}>{t('Duplicate')}</Button>
+          <Button onClick={handleCloseDuplicate}>{t('Cancel')}</Button>
+          <Button color="secondary" onClick={submitDuplicate}>{t('Duplicate')}</Button>
         </DialogActions>
       </Dialog>
 

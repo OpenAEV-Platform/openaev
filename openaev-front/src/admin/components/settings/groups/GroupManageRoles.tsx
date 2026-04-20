@@ -99,7 +99,7 @@ const GroupManageRoles: FC<GroupManageRolesProps> = (
           <Button variant="contained" style={{ marginRight: theme.spacing(1) }} onClick={onClose}>
             {t('Cancel')}
           </Button>
-          <Button variant="contained" color="primary" onClick={handleSubmit}>
+          <Button variant="contained" color="secondary" onClick={handleSubmit}>
             {t('Update')}
           </Button>
         </div>

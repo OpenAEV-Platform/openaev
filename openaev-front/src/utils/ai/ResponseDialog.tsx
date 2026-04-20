@@ -1,5 +1,5 @@
 import { LoadingButton } from '@mui/lab';
-import { Alert, Dialog, DialogActions, DialogContent, DialogTitle, TextField } from '@mui/material';
+import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, TextField } from '@mui/material';
 // As we can ask AI after and follow up, there is a dependency lifecycle here that can be accepted
 // TODO: Cleanup a bit in upcoming version
 // eslint-disable-next-line import/no-cycle
@@ -11,7 +11,6 @@ import { type FunctionComponent, useEffect, useRef } from 'react';
 // eslint-disable-next-line import/no-cycle
 import TextFieldAskAI from '../../admin/components/common/form/TextFieldAskAI';
 import CKEditor from '../../components/CKEditor';
-import Button from '../../components/common/button/Button';
 import { useFormatter } from '../../components/i18n';
 import { isNotEmptyField } from '../utils';
 
@@ -204,11 +203,11 @@ const ResponseDialog: FunctionComponent<ResponseDialogProps> = ({
           </Alert>
         </DialogContent>
         <DialogActions>
-          <Button variant="secondary" onClick={handleClose}>
+          <Button onClick={handleClose}>
             {t('Close')}
           </Button>
           {isAcceptable && (
-            <LoadingButton loading={isDisabled} color="primary" onClick={() => handleAccept(content)}>
+            <LoadingButton loading={isDisabled} color="secondary" onClick={() => handleAccept(content)}>
               {t('Accept')}
             </LoadingButton>
           )}

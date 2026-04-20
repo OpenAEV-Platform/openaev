@@ -1,10 +1,9 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { MenuItem, TextField } from '@mui/material';
+import { Button, MenuItem, TextField } from '@mui/material';
 import { type FunctionComponent } from 'react';
 import { Controller, type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import Button from '../../../../components/common/button/Button';
 import FileLoader from '../../../../components/fields/FileLoader';
 import TagField from '../../../../components/fields/TagField';
 import { useFormatter } from '../../../../components/i18n';
@@ -160,7 +159,7 @@ const SecurityPlatformForm: FunctionComponent<Props> = ({
       }}
       >
         <Button
-          variant="secondary"
+          variant="contained"
           onClick={handleClose}
           style={{ marginRight: 10 }}
           disabled={isSubmitting}
@@ -168,7 +167,8 @@ const SecurityPlatformForm: FunctionComponent<Props> = ({
           {t('Cancel')}
         </Button>
         <Button
-          variant="primary"
+          variant="contained"
+          color="secondary"
           type="submit"
           disabled={!isDirty || isSubmitting}
         >
