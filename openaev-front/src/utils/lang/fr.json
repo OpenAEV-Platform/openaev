@@ -1914,7 +1914,7 @@
   "Template": "Modèle",
   "Tenant name": "Nom",
   "tenant_name": "Nom",
-  "TENANT_SETTINGS": "Paramètres du locataire",
+  "TENANT_SETTINGS": "Paramètres du tenant",
   "TENANTS": "Locataires",
   "Tenants management": "Gestion des tenants",
   "Terminal view": "Vue du terminal",
