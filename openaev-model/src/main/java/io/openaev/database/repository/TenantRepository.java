@@ -16,6 +16,17 @@ public interface TenantRepository
 
   // -- READ --
 
+  /** Checks whether a user belongs to a given tenant. */
+  @Query(
+      value =
+          "SELECT COUNT(*) > 0 FROM users_tenants ut"
+              + " JOIN tenants t ON t.tenant_id = ut.tenant_id"
+              + " WHERE ut.user_id = :userId AND ut.tenant_id = :tenantId"
+              + " AND t.tenant_deleted_at IS NULL",
+      nativeQuery = true)
+  boolean existsByUserIdAndTenantId(
+      @Param("userId") String userId, @Param("tenantId") String tenantId);
+
   /** Returns all tenants a given user has access to via the users_tenants join table. */
   @Query(
       value =
