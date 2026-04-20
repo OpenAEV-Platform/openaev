@@ -26,7 +26,6 @@ import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.RoleService;
 import io.openaev.utils.fixtures.DetectionRemediationFixture;
-import io.openaev.utils.fixtures.DomainFixture;
 import io.openaev.utils.fixtures.ExecutorFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.fixtures.PayloadFixture;
@@ -624,12 +623,7 @@ class TenantServiceTest extends IntegrationTest {
           StreamHelper.fromIterable(collectorTypeRepository.findAll()).getFirst();
 
       Payload payload =
-          payloadComposer
-              .forPayload(
-                  PayloadFixture.createDefaultCommand(
-                      domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet()))
-              .persist()
-              .get();
+          payloadComposer.forPayload(PayloadFixture.createDefaultCommand()).persist().get();
       DetectionRemediation dr = DetectionRemediationFixture.createDefaultDetectionRemediation();
       dr.setPayload(payload);
       dr.setCollectorType(copiedType);
