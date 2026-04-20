@@ -225,7 +225,7 @@ describe('useTenant', () => {
       const useTenant = await importUseTenant();
 
       // Act
-      const { result } = renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
+      renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
 
       // Assert — should trigger full page navigation to first tenant
       await waitFor(() => {
