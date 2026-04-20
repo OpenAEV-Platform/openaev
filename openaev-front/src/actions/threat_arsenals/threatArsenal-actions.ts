@@ -38,5 +38,5 @@ export const exportThreatArsenalAction = (actionId: string) => {
 };
 
 export const importThreatArsenalAction = (content: FormData) => {
-  return simplePostCall(`${THREAT_ARSENAL_URI}/import`, content, { params: { include: true } });
+  return simplePostCall(`${THREAT_ARSENAL_URI}/import`, content, { params: { include: true } }, true, true);
 };
