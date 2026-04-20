@@ -210,18 +210,16 @@ public class PayloadService {
           .getArguments()
           .forEach(
               payloadArgument -> {
-                if (ContractFieldType.Text.label.equals(payloadArgument.getType())) {
+                if (ArgumentType.TargetedAsset == payloadArgument.getType()) {
+                  List<ContractElement> targetedAssetsFields =
+                      targetedAssetFields(payloadArgument.getKey(), payloadArgument);
+                  targetedAssetsFields.forEach(builder::mandatory);
+                } else {
                   builder.mandatory(
                       textField(
                           payloadArgument.getKey(),
                           payloadArgument.getKey(),
                           payloadArgument.getDefaultValue()));
-
-                } else if (ContractFieldType.TargetedAsset.label.equals(
-                    payloadArgument.getType())) {
-                  List<ContractElement> targetedAssetsFields =
-                      targetedAssetFields(payloadArgument.getKey(), payloadArgument);
-                  targetedAssetsFields.forEach(builder::mandatory);
                 }
               });
     }
@@ -478,7 +476,7 @@ public class PayloadService {
     dynamicDnsResolutionPayload.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES);
 
     PayloadArgument argument = new PayloadArgument();
-    argument.setType("text");
+    argument.setType(ArgumentType.Text);
     argument.setKey(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY);
     argument.setDefaultValue("filigran.io");
     dynamicDnsResolutionPayload.setArguments(new ArrayList<>(List.of(argument)));

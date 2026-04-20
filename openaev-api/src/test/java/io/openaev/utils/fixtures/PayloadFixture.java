@@ -6,7 +6,6 @@ import static io.openaev.database.model.Payload.PAYLOAD_SOURCE.MANUAL;
 import static io.openaev.database.model.Payload.PAYLOAD_STATUS.VERIFIED;
 
 import io.openaev.database.model.*;
-import io.openaev.injector_contract.fields.ContractFieldType;
 import jakarta.annotation.Nullable;
 import java.util.*;
 
@@ -133,12 +132,23 @@ public class PayloadFixture {
   }
 
   public static PayloadArgument createPayloadArgument(
-      String key, ContractFieldType type, String defaultValue, String separator) {
+      String key, ArgumentType type, String defaultValue, String separator) {
     PayloadArgument payloadArgument = new PayloadArgument();
     payloadArgument.setKey(key);
-    payloadArgument.setType(type.label);
+    payloadArgument.setType(type);
     payloadArgument.setDefaultValue(defaultValue);
     payloadArgument.setSeparator(separator);
+    return payloadArgument;
+  }
+
+  public static PayloadArgument createPayloadArgument(
+      String key,
+      ArgumentType type,
+      String defaultValue,
+      String separator,
+      ArgumentSubType subtype) {
+    PayloadArgument payloadArgument = createPayloadArgument(key, type, defaultValue, separator);
+    payloadArgument.setSubtype(subtype);
     return payloadArgument;
   }
 }

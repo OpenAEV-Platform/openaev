@@ -130,11 +130,46 @@ class ThreatArsenalFormComponent {
     if (data.key) {
       await this.page.locator(`[name="${prefix}.key"]`).fill(data.key);
     }
+
     if (data.type) {
-      // There is already one type field for the type of command
-      await this.page.getByRole('combobox', { name: 'Type *' }).nth(index + 1).click();
-      await this.page.getByRole('option', { name: data.type }).click();
+      const typeCombobox = this.page.getByRole('combobox', { name: 'Type *' }).nth(index + 1);
+      const typeValue = data.type.toLowerCase().replace(/\s+/g, '-');
+
+      // Wait for the combobox to be visible and enabled
+      await typeCombobox.waitFor({ state: 'visible' });
+      await typeCombobox.click();
+
+      const listbox = this.page.getByRole('listbox').last();
+      await listbox.waitFor({ state: 'visible' });
+
+      // Prefer data-value for stability across translations (e.g. Text vs Texte).
+      const optionByValue = listbox.locator(`[role="option"][data-value="${typeValue}"]`).first();
+      const optionByLabel = listbox.getByRole('option', {
+        name: data.type,
+        exact: true,
+      }).first();
+
+      const matched = await Promise.race([
+        optionByValue.waitFor({
+          state: 'visible',
+          timeout: 1200,
+        }).then(() => 'value' as const),
+        optionByLabel.waitFor({
+          state: 'visible',
+          timeout: 1200,
+        }).then(() => 'label' as const),
+      ]).catch(() => null);
+
+      if (matched === 'value') {
+        await optionByValue.click();
+      } else if (matched === 'label') {
+        await optionByLabel.click();
+      } else {
+        await this.page.keyboard.press('Escape');
+        throw new Error(`Argument type option not found: ${data.type}`);
+      }
     }
+
     if (data.defaultValue) {
       await this.page.locator(`[name="${prefix}.default_value"]`).fill(data.defaultValue);
     }

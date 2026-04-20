@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.openaev.IntegrationTest;
 import io.openaev.api.detection_remediation.dto.PayloadInput;
 import io.openaev.database.model.*;
-import io.openaev.injector_contract.fields.ContractFieldType;
 import io.openaev.utils.fixtures.OutputParserFixture;
 import io.openaev.utils.fixtures.PayloadFixture;
 import io.openaev.utils.fixtures.TagFixture;
@@ -231,7 +230,7 @@ public class DetectionRemediationRequestTest extends IntegrationTest {
 
   private List<PayloadArgument> getPayloadArguments() {
     PayloadArgument payloadArgumentText =
-        PayloadFixture.createPayloadArgument("guest_user", ContractFieldType.Text, "guest", null);
+        PayloadFixture.createPayloadArgument("guest_user", ArgumentType.Text, "guest", null);
     return new ArrayList<>(List.of(payloadArgumentText));
   }
 
