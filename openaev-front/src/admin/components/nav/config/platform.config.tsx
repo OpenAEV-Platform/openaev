@@ -25,7 +25,7 @@ const platformEntries = (ability: AppAbility): LeftMenuItem[] => {
     {
       path: PLATFORM_ROUTE,
       icon: () => (<DeviceHubOutlined />),
-      label: t('Platform'),
+      label: 'Platform',
       href: 'platform',
       userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS)
         || (isMultiTenancyEnabled && ability.can(ACTIONS.ACCESS, SUBJECTS.TENANTS))

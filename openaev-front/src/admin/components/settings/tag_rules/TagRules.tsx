@@ -135,7 +135,7 @@ const TagRules = () => {
           </ListItem>
         ))}
       </List>
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
+      <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
         <TagRuleCreate
           onCreate={result => setTagRules([...tagRules, result])}
         />

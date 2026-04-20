@@ -52,7 +52,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @TestInstance(PER_CLASS)
 @Transactional
 @DisplayName("Injector Api Integration Tests")
-@WithMockUser(withCapabilities = {Capability.ACCESS_PLATFORM_SETTINGS})
+@WithMockUser(withCapabilities = {Capability.ACCESS_TENANT_SETTINGS})
 public class InjectorApiTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
 
@@ -258,7 +258,7 @@ public class InjectorApiTest extends IntegrationTest {
 
   @Nested
   @DisplayName("Register external injector")
-  @WithMockUser(withCapabilities = {Capability.MANAGE_PLATFORM_SETTINGS})
+  @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
   class RegisterExternalInjector {
 
     @Test
