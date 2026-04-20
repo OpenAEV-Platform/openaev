@@ -1,7 +1,7 @@
+  private final TenantInterceptor interceptor = new TenantInterceptor();
 package io.openaev.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
 
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
