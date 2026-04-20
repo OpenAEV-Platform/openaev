@@ -7219,13 +7219,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"html-to-image@patch:html-to-image@1.11.13#./patches/html-to-image.patch::locator=openaev-front%40workspace%3A.":
-  version: 1.11.13
-  resolution: "html-to-image@patch:html-to-image@npm%3A1.11.13#./patches/html-to-image.patch::version=1.11.13&hash=76d05f&locator=openaev-front%40workspace%3A."
-  checksum: 10c0/fb9d1e16a7630f74500d2194270849aa73629dde61fbb6b30b62a5da44c5e5b1a96fd1df3c8a151313e7f557489b3d1b82018d8d25465b03a0a6505919784e17
-  languageName: node
-  linkType: hard
-
 "html-url-attributes@npm:^3.0.0":
   version: 3.0.1
   resolution: "html-url-attributes@npm:3.0.1"
@@ -10293,18 +10286,6 @@ __metadata:
     apexcharts: ">=4.0.0"
     react: ">=0.13"
   checksum: 10c0/0533cd8b44df4d6a0b157c8a8adbcddb33a0575420b3fa1b5c90fa8553a39884bcc1122cce912252e452c8bffd1c4eaf2d9f9cfa4e515e81e7067fa36fcffe52
-  languageName: node
-  linkType: hard
-
-"react-apexcharts@patch:react-apexcharts@1.7.0#./patches/react-apexcharts.patch::locator=openaev-front%40workspace%3A.":
-  version: 1.7.0
-  resolution: "react-apexcharts@patch:react-apexcharts@npm%3A1.7.0#./patches/react-apexcharts.patch::version=1.7.0&hash=fc1890&locator=openaev-front%40workspace%3A."
-  dependencies:
-    prop-types: "npm:^15.8.1"
-  peerDependencies:
-    apexcharts: ">=4.0.0"
-    react: ">=0.13"
-  checksum: 10c0/439b84a7483d9102c19e463ab978a8963c4af747ee98df4aca5d4b4b1e7b5387a0e2d6d6e4373d7effb71648c2a07c87f5774a3b17e0a5f6ffc068a1decbcd44
   languageName: node
   linkType: hard
 

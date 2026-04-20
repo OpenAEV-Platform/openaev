@@ -2,6 +2,7 @@ package io.openaev.rest.injector_contract;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.utils.ArchitectureFilterUtils.handleArchitectureFilter;
+import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
@@ -54,17 +55,11 @@ public class InjectorContractApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
   public Page<? extends InjectorContractBaseOutput> injectorContracts(
       @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
-    if (input.isIncludeFullDetails()) {
-      return buildPaginationCriteriaBuilder(
-          this.injectorContractService::getSinglePageFullDetails,
-          handleArchitectureFilter(input),
-          InjectorContract.class);
-    } else {
-      return buildPaginationCriteriaBuilder(
-          this.injectorContractService::getSinglePageBaseDetails,
-          handleArchitectureFilter(input),
-          InjectorContract.class);
-    }
+    InjectorContractService.OutputMode outputMode =
+        input.isIncludeFullDetails()
+            ? InjectorContractService.OutputMode.FULL
+            : InjectorContractService.OutputMode.BASE;
+    return this.injectorContractService.searchInjectorContracts(outputMode, input);
   }
 
   @PostMapping({
