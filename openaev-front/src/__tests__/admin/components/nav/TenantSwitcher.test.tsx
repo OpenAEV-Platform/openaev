@@ -8,6 +8,13 @@ import TenantSwitcher from '../../../../admin/components/nav/TenantSwitcher';
 import { type TenantOutput } from '../../../../utils/api-types';
 import { UserContext, type UserContextType } from '../../../../utils/hooks/useAuth';
 
+vi.mock('../../../../utils/hooks/useEnterpriseEdition', () => ({
+  default: () => ({
+    isValidated: true,
+    openDialog: vi.fn(),
+  }),
+}));
+
 // -- TEST DATA --
 
 const TENANT_ALPHA: TenantOutput = {
