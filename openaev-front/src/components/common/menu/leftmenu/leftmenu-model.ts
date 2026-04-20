@@ -25,5 +25,6 @@ export interface LeftMenuSubItem {
   link: string;
   label: string;
   icon?: () => ReactElement;
+  chip?: ReactElement;
   userRight?: boolean;
 }

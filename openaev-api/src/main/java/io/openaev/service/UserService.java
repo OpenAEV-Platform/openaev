@@ -142,6 +142,15 @@ public class UserService {
         .orElseThrow(() -> new ElementNotFoundException("User not found with id: " + userId));
   }
 
+  /** Finds users by IDs (platform scope, no tenant filtering). */
+  @Transactional(readOnly = true)
+  public List<User> find(@NotNull final List<String> userIds) {
+    if (userIds.isEmpty()) {
+      return List.of();
+    }
+    return userRepository.findAllById(userIds);
+  }
+
   // -- SEARCH --
 
   /** Searches users with pagination (platform scope, no tenant filtering). */

@@ -217,7 +217,8 @@ public interface ScenarioRepository
               + "       kc.scenario_kill_chain_phases, "
               + "       pf.scenario_platforms, "
               + "       tg.scenario_tags, "
-              + "       su.scenario_teams_users "
+              + "       su.scenario_teams_users, "
+              + "       w.workflow_id AS scenario_workflow_id "
               + "FROM scenarios s "
               + "LEFT JOIN all_users au ON au.scenario_id = s.scenario_id "
               + "LEFT JOIN scenario_users su ON su.scenario_id = s.scenario_id "
@@ -225,6 +226,7 @@ public interface ScenarioRepository
               + "LEFT JOIN kill_chain kc ON kc.scenario_id = s.scenario_id "
               + "LEFT JOIN platforms pf ON pf.scenario_id = s.scenario_id "
               + "LEFT JOIN tags tg ON tg.scenario_id = s.scenario_id "
+              + "LEFT JOIN workflows w ON w.workflow_scenario_id = s.scenario_id "
               + "WHERE s.scenario_id = :scenarioId",
       nativeQuery = true)
   RawScenario getScenarioById(@Param("scenarioId") final String scenarioId);

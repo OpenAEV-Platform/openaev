@@ -202,7 +202,7 @@ const AttackPatterns = () => {
             </ListItem>
           ))}
         </List>
-        <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
+        <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
           <CreateAttackPattern
             onCreate={result => setAttackPatterns([result, ...attackPatterns])}
           />

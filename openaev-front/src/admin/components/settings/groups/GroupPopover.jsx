@@ -155,7 +155,7 @@ class GroupPopoverComponent extends Component {
     return (
       <>
 
-        <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
+        <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
           <IconButton
             color="primary"
             onClick={this.handlePopoverOpen.bind(this)}

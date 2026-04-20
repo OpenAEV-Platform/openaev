@@ -49,12 +49,12 @@ const ConnectorPopover = ({ connectorInstanceId, connectorName, disabled = false
     {
       label: 'Update',
       action: () => onOpenUpdateConnectorInstanceDrawer(),
-      userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS),
+      userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS),
     },
     {
       label: 'Delete',
       action: handleDelete,
-      userRight: ability.can(ACTIONS.DELETE, SUBJECTS.PLATFORM_SETTINGS),
+      userRight: ability.can(ACTIONS.DELETE, SUBJECTS.TENANT_SETTINGS),
     }];
 
   return (

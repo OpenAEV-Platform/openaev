@@ -4,9 +4,7 @@ import {
   Accordion,
   AccordionDetails, AccordionSummary,
   Autocomplete,
-  Checkbox,
   Chip,
-  FormControlLabel,
   MenuItem,
   TextField as MuiTextField, Typography,
 } from '@mui/material';
@@ -32,7 +30,6 @@ interface Props {
   editing?: boolean;
   disabled?: boolean;
   initialValues: ScenarioInput;
-  isCreation?: boolean;
   isChaining?: boolean;
 }
 
@@ -42,14 +39,12 @@ const ScenarioFormChaining: FunctionComponent<Props> = ({
   editing,
   initialValues,
   disabled,
-  isCreation = false,
   isChaining = false,
 }) => {
   // Standard hooks
   const theme = useTheme();
   const { t } = useFormatter();
   const [inputValue, setInputValue] = useState('');
-  const [isScenarioAssistantChecked, setIsScenarioAssistantChecked] = useState(false);
   const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
 
   const {
@@ -91,7 +86,7 @@ const ScenarioFormChaining: FunctionComponent<Props> = ({
           gap: theme.spacing(2),
         }}
         id="scenarioForm"
-        onSubmit={handleSubmit((data: ScenarioInput) => onSubmit(data, isScenarioAssistantChecked))}
+        onSubmit={handleSubmit((data: ScenarioInput) => onSubmit(data, false))}
       >
         <Typography
           variant="h2"
@@ -209,17 +204,6 @@ const ScenarioFormChaining: FunctionComponent<Props> = ({
               />
             )}
           />
-          {isCreation && (
-            <FormControlLabel
-              control={(
-                <Checkbox
-                  checked={isScenarioAssistantChecked}
-                  onChange={() => setIsScenarioAssistantChecked(!isScenarioAssistantChecked)}
-                />
-              )}
-              label={t('Use the scenario assistant')}
-            />
-          )}
         </>
         {!isChaining && (
           <Accordion

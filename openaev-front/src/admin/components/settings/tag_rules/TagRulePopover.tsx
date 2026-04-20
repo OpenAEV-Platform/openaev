@@ -44,7 +44,7 @@ const TagRulePopover: FunctionComponent<Props> = ({
     {
       label: 'Update',
       action: handleOpenEdit,
-      userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS),
+      userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS),
     },
   ];
 
@@ -53,7 +53,7 @@ const TagRulePopover: FunctionComponent<Props> = ({
     entries.push({
       label: 'Delete',
       action: handleOpenDelete,
-      userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS),
+      userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS),
 
     });
   }

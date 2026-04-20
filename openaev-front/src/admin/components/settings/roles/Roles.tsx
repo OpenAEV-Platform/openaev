@@ -74,7 +74,7 @@ const Roles = () => {
           disableFilters
         />
         <RolesList roles={roles} queryableHelpers={queryableHelpers} loading={loading} secondaryAction={secondaryAction} />
-        <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
+        <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
           <CreateRole onCreate={(result: RoleOutput) => setRoles([...roles, result])} />
         </Can>
 

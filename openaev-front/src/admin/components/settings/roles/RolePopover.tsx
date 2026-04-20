@@ -52,12 +52,12 @@ const RolePopover: FunctionComponent<RolePopoverProps> = ({ onDelete, onUpdate, 
   if (onUpdate) entries.push({
     label: 'Update',
     action: () => handleUpdate(),
-    userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS),
+    userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS),
   });
   if (onDelete) entries.push({
     label: 'Delete',
     action: () => handleDelete(),
-    userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS),
+    userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS),
   });
 
   const onSubmit = (data: RoleInput) => {

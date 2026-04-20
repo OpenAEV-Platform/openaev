@@ -70,7 +70,7 @@ const ParametersForm: FunctionComponent<ParametersForms> = ({
         <SelectFieldController name="platform_theme" label={t('Default theme')} items={themeItems(t)} disabled={canNotManage} />
         <SelectFieldController name="platform_lang" label={t('Default language')} items={langItems(t)} disabled={canNotManage} />
         <div>
-          <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
+          <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
             <Button
               variant="contained"
               color="primary"
