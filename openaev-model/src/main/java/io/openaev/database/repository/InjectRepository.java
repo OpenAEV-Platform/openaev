@@ -46,12 +46,26 @@ public interface InjectRepository
   @NotNull
   Optional<Inject> findById(@NotNull String id);
 
+  @NotNull
+  Optional<Inject> findWithStatusById(@NotNull String id);
+
+  // -- SIMULATION --
+
   List<Inject> findByExerciseId(@NotNull String exerciseId);
+
+  Optional<Inject> findByIdAndExerciseId(@NotNull String id, @NotNull String exerciseId);
+
+  boolean existsByIdAndExerciseId(@NotNull String id, @NotNull String exerciseId);
+
+  // -- SCENARIO --
+
+  Optional<Inject> findByIdAndScenarioId(@NotNull String id, @NotNull String scenarioId);
+
+  boolean existsByIdAndScenarioId(@NotNull String id, @NotNull String scenarioId);
 
   Set<Inject> findByScenarioId(@NotNull String scenarioId);
 
-  @NotNull
-  Optional<Inject> findWithStatusById(@NotNull String id);
+  // -- INDEXING --
 
   @Query(
       value =
