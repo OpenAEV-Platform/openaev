@@ -30,7 +30,6 @@ import io.openaev.database.repository.*;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.executors.Executor;
 import io.openaev.injector_contract.ContractTargetedProperty;
-import io.openaev.injector_contract.fields.ContractFieldType;
 import io.openaev.integration.Manager;
 import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
@@ -690,10 +689,10 @@ class InjectApiTest extends IntegrationTest {
       Command payloadCommand = PayloadFixture.createCommand("bash", command, null, null);
       PayloadArgument targetedAssetArgument =
           PayloadFixture.createPayloadArgument(
-              "asset-separate-by-space", ContractFieldType.TargetedAsset, "hostname", "-u");
+              "asset-separate-by-space", ArgumentType.TargetedAsset, "hostname", "-u");
       PayloadArgument targetedAssetArgument2 =
           PayloadFixture.createPayloadArgument(
-              "asset-separate-by-comma", ContractFieldType.TargetedAsset, "seen_ip", ",");
+              "asset-separate-by-comma", ArgumentType.TargetedAsset, "seen_ip", ",");
       payloadCommand.setArguments(List.of(targetedAssetArgument, targetedAssetArgument2));
 
       InjectorContract injectorContract = InjectorContractFixture.createDefaultInjectorContract();

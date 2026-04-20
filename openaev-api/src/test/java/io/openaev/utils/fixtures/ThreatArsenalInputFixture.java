@@ -165,7 +165,7 @@ public class ThreatArsenalInputFixture {
       List<String> domainIds) {
     PayloadArgument targetedAssetArgument = new PayloadArgument();
     targetedAssetArgument.setKey("URL");
-    targetedAssetArgument.setType("targeted-asset");
+    targetedAssetArgument.setType(ArgumentType.TargetedAsset);
     targetedAssetArgument.setDefaultValue("hostname");
     targetedAssetArgument.setSeparator("-u");
 

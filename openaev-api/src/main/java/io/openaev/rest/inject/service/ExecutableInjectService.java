@@ -9,7 +9,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
-import io.openaev.injector_contract.fields.ContractFieldType;
 import io.openaev.injectors.openaev.model.OpenAEVImplantInjectContent;
 import io.openaev.injectors.openaev.util.OpenAEVObfuscationMap;
 import io.openaev.rest.document.DocumentService;
@@ -99,7 +98,7 @@ public class ExecutableInjectService {
 
       // If the argument is a targeted asset, we need to fetch the asset details
       if (defaultPayloadArgument != null
-          && ContractFieldType.TargetedAsset.label.equals(defaultPayloadArgument.getType())) {
+          && ArgumentType.TargetedAsset == defaultPayloadArgument.getType()) {
         value =
             getTargetedAssetArgumentValue(
                 argumentKey, injectContent, defaultPayloadArgument, injectorContractContentFields);
@@ -115,7 +114,7 @@ public class ExecutableInjectService {
         // by the implant
         boolean isDocArg =
             defaultPayloadArgument != null
-                && defaultPayloadArgument.getType().equalsIgnoreCase("document");
+                && (ArgumentType.Document == defaultPayloadArgument.getType());
         if (isDocArg && !value.isEmpty()) {
           try {
             Document doc = documentService.document(value);

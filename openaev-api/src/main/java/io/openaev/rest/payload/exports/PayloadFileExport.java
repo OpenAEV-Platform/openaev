@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.database.model.ArgumentType;
 import io.openaev.database.model.Document;
 import io.openaev.database.model.Payload;
 import io.openaev.database.repository.DocumentRepository;
@@ -41,7 +42,7 @@ public class PayloadFileExport extends FileExportBase {
   @JsonProperty("payload_arguments_documents")
   private List<Document> getArgumentsDocuments() {
     return this.payload.getArguments().stream()
-        .filter(payloadArgument -> payloadArgument.getType().equals("document"))
+        .filter(payloadArgument -> ArgumentType.Document == payloadArgument.getType())
         .map(payloadArgument -> this.documentRepository.findById(payloadArgument.getDefaultValue()))
         .flatMap(Optional::stream)
         .toList();
