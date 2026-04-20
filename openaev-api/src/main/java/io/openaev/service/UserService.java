@@ -16,17 +16,25 @@ import io.openaev.database.model.User;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.GroupSpecification;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exception.InputValidationException;
+import io.openaev.rest.user.form.login.ResetUserInput;
+import io.openaev.rest.user.form.user.ChangePasswordInput;
 import io.openaev.rest.user.form.user.CreateUserInput;
 import io.openaev.rest.user.form.user.UpdateUserInput;
+import io.openaev.utils.RandomUtils;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.collections4.map.PassiveExpiringMap;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
@@ -53,6 +61,9 @@ public class UserService {
   @Value("${openbas.admin.email:${openaev.admin.email:#{null}}}")
   private String adminEmail;
 
+  private static final long tenMinutes = 1000L * 60L * 10L;
+  private final Map<String, String> resetTokenMap = new PassiveExpiringMap<>(tenMinutes);
+
   /** Password encoder using Argon2 algorithm (Spring Security 5.8 defaults). */
   private final Argon2PasswordEncoder passwordEncoder =
       Argon2PasswordEncoder.defaultsForSpringSecurity_v5_8();
@@ -63,6 +74,8 @@ public class UserService {
   private GroupRepository groupRepository;
   private OrganizationRepository organizationRepository;
   private CacheManager cacheManager;
+  private MailingService mailingService;
+  private final RandomUtils randomUtils;
 
   /** Cache for admin users to improve lookup performance. */
   private Cache adminCache;
@@ -97,6 +110,11 @@ public class UserService {
     this.tokenRepository = tokenRepository;
   }
 
+  @Autowired
+  public void setMailingService(@Lazy MailingService mailingService) {
+    this.mailingService = mailingService;
+  }
+
   /**
    * Returns the total count of users in the system.
    *
@@ -107,6 +125,98 @@ public class UserService {
   }
 
   // region users
+
+  /**
+   * Creates a reset token for the specified user; also sends an email with the created token
+   *
+   * @param input input object for the specific user account to reset
+   */
+  @Async
+  public void requestPasswordReset(ResetUserInput input) {
+    Optional<User> optionalUser = userRepository.findByEmailIgnoreCase(input.getLogin());
+    // always compute a random value to reduce gap in time
+    // spent between user found and user not found branches
+    // note: we still spend more time in the "user found" branch
+    // due to sending an email
+    String resetToken = randomUtils.getRandomAlphanumeric(64);
+    if (optionalUser.isPresent()) {
+      User user = optionalUser.get();
+      String username = user.getName() != null ? user.getName() : user.getEmail();
+      if ("fr".equals(input.getLang())) {
+        String subject = "Code de récupération OpenAEV: " + resetToken;
+        String body =
+            "Bonjour "
+                + username
+                + ",</br>"
+                + "Nous avons reçu une demande de réinitialisation de votre mot de passe OpenAEV.</br>"
+                + "Entrez le code de réinitialisation du mot de passe suivant : "
+                + resetToken;
+        mailingService.sendEmail(subject, body, List.of(user));
+      } else {
+        String subject = "OpenAEV account recovery code: " + resetToken;
+        String body =
+            "Hi "
+                + username
+                + ",</br>"
+                + "A request has been made to reset your OpenAEV password.</br>"
+                + "Enter the following password recovery code: "
+                + resetToken;
+        mailingService.sendEmail(subject, body, List.of(user));
+      }
+      // Store in memory reset token
+      synchronized (resetTokenMap) {
+        resetTokenMap.put(user.getId(), resetToken);
+      }
+    }
+  }
+
+  /**
+   * Applies a change of password for the specified account and reset token
+   *
+   * @param token the reset token; must be valid and associated with the user account
+   * @param input change password input object
+   * @return a User object for the affected user account
+   * @throws InputValidationException if the token does not exist or is not associated with the user
+   *     account
+   */
+  public User resetPassword(String token, ChangePasswordInput input)
+      throws InputValidationException {
+    String userId = null;
+    synchronized (resetTokenMap) {
+      for (Map.Entry<String, String> entry : resetTokenMap.entrySet()) {
+        if (entry.getValue().equals(token)) {
+          userId = entry.getKey(); // don't break out
+        }
+      }
+    }
+
+    if (userId == null) {
+      throw new AccessDeniedException("Invalid credentials");
+    }
+
+    String password = input.getPassword();
+    String passwordValidation = input.getPasswordValidation();
+    if (!passwordValidation.equals(password)) {
+      throw new InputValidationException("password_validation", "Bad password validation");
+    }
+    User changeUser = userRepository.findById(userId).orElseThrow(ElementNotFoundException::new);
+    changeUser.setPassword(encodeUserPassword(password));
+    User savedUser = userRepository.save(changeUser);
+    synchronized (resetTokenMap) {
+      resetTokenMap.remove(userId);
+    }
+    return savedUser;
+  }
+
+  /**
+   * checks a reset token exists
+   *
+   * @param token the reset token
+   * @return true if it exists
+   */
+  public boolean getResetToken(String token) {
+    return resetTokenMap.get(token) != null;
+  }
 
   /**
    * Validates a user's password against their stored hash.
