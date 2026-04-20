@@ -13,6 +13,7 @@ import co.elastic.clients.util.TriConsumer;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.api.threat_arsenal.dto.ThreatArsenalAction;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawInjectorsContracts;

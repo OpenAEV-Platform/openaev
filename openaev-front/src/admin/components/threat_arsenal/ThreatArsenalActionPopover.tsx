@@ -13,7 +13,7 @@ import { type MouseEvent, useContext, useState } from 'react';
 
 import { deletePayload } from '../../../actions/payloads/payload-actions';
 import {
-  duplicateThreatArsenalAction,
+  duplicateThreatArsenalAction, exportThreatArsenalAction,
   fetchThreatArsenalAction,
   updateThreatArsenalAction,
 } from '../../../actions/threat_arsenals/ThreatArsenal-actions';

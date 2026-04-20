@@ -1,8 +1,12 @@
-package io.openaev.rest.threat_arsenal;
+package io.openaev.api.threat_arsenal;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.api.threat_arsenal.dto.ThreatArsenalAction;
+import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionCreateInput;
+import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionFullOutput;
+import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionUpdateInput;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.injector_contract.InjectorContractService;

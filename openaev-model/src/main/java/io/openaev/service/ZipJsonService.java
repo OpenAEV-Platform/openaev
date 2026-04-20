@@ -106,8 +106,13 @@ public class ZipJsonService<T extends Base> {
    *
    * @param jsonApiDocument JSON:API representation exported from the persisted entity
    * @param persistedData persisted root entity instance
+   * @param sourceDocument the original JSON:API document as read from the imported file (before
+   *     persistence); useful for reading legacy relationships that no longer exist on the entity
    */
-  public record ImportOutput<T>(JsonApiDocument<ResourceObject> jsonApiDocument, T persistedData) {}
+  public record ImportOutput<T>(
+      JsonApiDocument<ResourceObject> jsonApiDocument,
+      T persistedData,
+      JsonApiDocument<ResourceObject> sourceDocument) {}
 
   /**
    * Imports an entity from a ZIP archive.
@@ -143,7 +148,7 @@ public class ZipJsonService<T extends Base> {
     importer.handleImportDocument(doc, parsed.extras);
     T persisted = importer.handleImportEntity(doc, includeOptions, sanityCheck);
 
-    return new ImportOutput<>(exporter.handleExport(persisted, includeOptions), persisted);
+    return new ImportOutput<>(exporter.handleExport(persisted, includeOptions), persisted, doc);
   }
 
   private void addDocumentToExtras(Document doc, Map<String, byte[]> out) {

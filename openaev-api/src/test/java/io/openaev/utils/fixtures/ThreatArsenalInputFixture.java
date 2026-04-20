@@ -4,6 +4,7 @@ import static io.openaev.utils.fixtures.payload_fixture.ContractOutputElementInp
 import static io.openaev.utils.fixtures.payload_fixture.OutputParserInputFixture.createDefaultOutputParseInput;
 import static io.openaev.utils.fixtures.payload_fixture.RegexGroupInputFixture.createDefaultRegexGroupInputIPV6;
 
+import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionCreateInput;
 import io.openaev.database.model.*;
 import io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE;
 import io.openaev.database.model.Payload.PAYLOAD_EXECUTION_ARCH;
@@ -12,7 +13,6 @@ import io.openaev.database.model.Payload.PAYLOAD_STATUS;
 import io.openaev.rest.payload.contract_output_element.ContractOutputElementInput;
 import io.openaev.rest.payload.output_parser.OutputParserInput;
 import io.openaev.rest.payload.regex_group.RegexGroupInput;
-import io.openaev.rest.threat_arsenal.dto.ThreatArsenalActionCreateInput;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;

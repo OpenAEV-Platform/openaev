@@ -14,7 +14,7 @@ import { type CSSProperties, useMemo, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import type { DomainHelper } from '../../../actions/domains/domain-helper';
-import { searchThreatArsenalActions } from '../../../actions/threat_arsenals/ThreatArsenal-actions';
+import { searchThreatArsenalActions } from '../../../actions/threat_arsenals/threatArsenal-actions';
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import ExportButton from '../../../components/common/ExportButton';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';

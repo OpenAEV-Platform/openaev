@@ -1,10 +1,11 @@
-package io.openaev.rest.threat_arsenal;
+package io.openaev.api.threat_arsenal;
 
 import static io.openaev.utils.ArchitectureFilterUtils.handleArchitectureFilter;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 import static io.openaev.utils.ThreatArsenalFilterUtils.ACTION_TO_ENTITY_FIELDS;
 import static io.openaev.utils.ThreatArsenalFilterUtils.ENTITY_TO_ACTION_FIELDS;
 
+import io.openaev.api.threat_arsenal.dto.*;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -17,7 +18,6 @@ import io.openaev.rest.payload.form.PayloadUpdateInput;
 import io.openaev.rest.payload.service.PayloadCreationService;
 import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.rest.payload.service.PayloadUpdateService;
-import io.openaev.rest.threat_arsenal.dto.*;
 import io.openaev.schema.SchemaUtils;
 import io.openaev.schema.model.PropertySchemaDTO;
 import io.openaev.utils.ThreatArsenalFilterUtils;
@@ -188,8 +188,7 @@ public class ThreatArsenalService {
     InjectorContract injectorContract = injectorContractService.injectorContract(actionId);
     Payload payload = injectorContract.getPayload();
     if (payload == null) {
-      throw new ElementNotFoundException(
-          "Only payload linked to injector contract can be updated ");
+      throw new ElementNotFoundException("Only injector contract based on payload can be updated ");
     }
 
     // convert ThreatArsenalActionUpdateInput into PayloadUpdateInput

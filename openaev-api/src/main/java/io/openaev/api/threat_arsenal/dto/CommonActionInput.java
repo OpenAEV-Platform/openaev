@@ -1,4 +1,4 @@
-package io.openaev.rest.threat_arsenal.dto;
+package io.openaev.api.threat_arsenal.dto;
 
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.InjectExpectation;
