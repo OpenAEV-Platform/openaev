@@ -9,9 +9,11 @@ import static org.mockserver.model.HttpRequest.request;
 import static org.mockserver.model.HttpResponse.response;
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import io.openaev.authorisation.HttpClientFactory;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantXtmHubRegistration;
 import io.openaev.database.repository.TenantXtmHubRegistrationRepository;
@@ -23,6 +25,8 @@ import io.openaev.service.UserService;
 import io.openaev.utilstest.DefaultTenantExtension;
 import io.openaev.xtmhub.config.XtmHubConfig;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.junit.jupiter.api.*;
@@ -201,467 +205,612 @@ class XtmHubServiceTest {
     registration.setRegistrationUserId("user-123");
     registration.setRegistrationUserName("John Doe");
     registration.setLastConnectivityCheck(lastCheck);
+    registration.setTenant(new Tenant(TenantContext.getCurrentTenant()));
     return registration;
   }
 
-  // =====================================================================
-  // refreshConnectivity tests
-  // =====================================================================
-
-  @Test
-  @DisplayName("Should call XTM Hub refresh endpoint when registration is present")
-  void refreshConnectivity_WhenRegistrationIsPresent_ShouldCallXtmHub() {
-    // Given
-    String token = "valid-token";
-    String platformId = "platform-123";
-    String platformVersion = "1.0.0";
-    String platformBaseUrl = "http://localhost";
-    LocalDateTime lastCheck = now.minusHours(1);
-
-    TenantXtmHubRegistration registration = buildRegistration(token, lastCheck);
-    when(tenantXtmHubRegistrationRepository.findByTenantId(any()))
-        .thenReturn(Optional.of(registration));
-
-    mockSettings.setPlatformId(platformId);
-    mockSettings.setPlatformVersion(platformVersion);
-    mockSettings.setPlatformBaseUrl(platformBaseUrl);
-    mockSettings.setXtmHubShouldSendConnectivityEmail("true");
-    when(platformSettingsService.findSettings()).thenReturn(mockSettings);
-    whenHubReturnsConnectivityStatus("active");
-
-    // When
-    xtmHubService.refreshConnectivity();
-
-    // Then
-    verifyRefreshConnectivityRequest(platformId, platformVersion, token, platformBaseUrl);
+  /**
+   * Stubs MockServer to return connectivity statuses for multiple tenants from the all-tenants
+   * mutation. The map key is tenantId, value is the status label.
+   */
+  private void whenHubReturnsAllTenantsConnectivityStatuses(Map<String, String> tenantStatuses) {
+    StringBuilder statuses = new StringBuilder();
+    tenantStatuses.forEach(
+        (tenantId, status) -> {
+          if (!statuses.isEmpty()) statuses.append(",");
+          statuses.append("{\"tenantId\":\"%s\",\"status\":\"%s\"}".formatted(tenantId, status));
+        });
+    mockServer
+        .when(request().withMethod("POST").withPath(GRAPHQL_PATH))
+        .respond(
+            response()
+                .withStatusCode(200)
+                .withHeader(CONTENT_TYPE, APPLICATION_JSON_VALUE)
+                .withBody(
+                    "{\"data\":{\"refreshPlatformRegistrationConnectivityStatusAllTenants\":{\"statuses\":[%s]}}}"
+                        .formatted(statuses)));
   }
 
-  @Test
-  @DisplayName("Should return null when no registration exists")
-  void refreshConnectivity_WhenRegistrationIsAbsent_ShouldReturnNull() {
-    // Given — repository returns empty by default (setUp)
+  @Nested
+  @DisplayName("refreshConnectivity")
+  class RefreshConnectivity {
 
-    // When
-    TenantXtmHubRegistration result = xtmHubService.refreshConnectivity();
+    @Test
+    @DisplayName("Should call XTM Hub refresh endpoint when registration is present")
+    void whenRegistrationIsPresent_ShouldCallXtmHub() {
+      // Given
+      String token = "valid-token";
+      String platformId = "platform-123";
+      String platformVersion = "1.0.0";
+      String platformBaseUrl = "http://localhost";
+      LocalDateTime lastCheck = now.minusHours(1);
 
-    // Then
-    assertNull(result);
-    verifyNoRequestSentToHub();
-    verifyNoInteractions(xtmHubEmailService);
-    verify(platformSettingsService, never()).updateXTMHubEmailNotification(anyBoolean());
+      TenantXtmHubRegistration registration = buildRegistration(token, lastCheck);
+      when(tenantXtmHubRegistrationRepository.findByTenantId(any()))
+          .thenReturn(Optional.of(registration));
+
+      mockSettings.setPlatformId(platformId);
+      mockSettings.setPlatformVersion(platformVersion);
+      mockSettings.setPlatformBaseUrl(platformBaseUrl);
+      when(platformSettingsService.findSettings()).thenReturn(mockSettings);
+      whenHubReturnsConnectivityStatus("active");
+
+      // When
+      xtmHubService.refreshConnectivity();
+
+      // Then
+      verifyRefreshConnectivityRequest(platformId, platformVersion, token, platformBaseUrl);
+    }
+
+    @Test
+    @DisplayName("Should return null when no registration exists")
+    void whenRegistrationIsAbsent_ShouldReturnNull() {
+      // Given — repository returns empty by default (setUp)
+
+      // When
+      TenantXtmHubRegistration result = xtmHubService.refreshConnectivity();
+
+      // Then
+      assertNull(result);
+      verifyNoRequestSentToHub();
+      verifyNoInteractions(xtmHubEmailService);
+      verify(platformSettingsService, never()).updateXTMHubEmailNotification(anyBoolean());
+    }
+
+    @Test
+    @DisplayName("Should remove XTM Hub registration when platform is not found in the hub")
+    void whenPlatformIsNotFound_ShouldRemoveRegistration() {
+      // Given
+      String token = "valid-token";
+      String platformId = "platform-123";
+      String platformVersion = "1.0.0";
+
+      TenantXtmHubRegistration registration = buildRegistration(token, now.minusHours(1));
+      when(tenantXtmHubRegistrationRepository.findByTenantId(any()))
+          .thenReturn(Optional.of(registration));
+
+      mockSettings.setPlatformId(platformId);
+      mockSettings.setPlatformVersion(platformVersion);
+      mockSettings.setPlatformBaseUrl("http://localhost");
+
+      when(platformSettingsService.findSettings()).thenReturn(mockSettings);
+      whenHubReturnsConnectivityStatus("not_found");
+
+      // When
+      xtmHubService.refreshConnectivity();
+
+      // Then
+      verify(platformSettingsService).deleteXTMHubRegistration();
+      verifyNoInteractions(xtmHubEmailService);
+    }
+
+    @Test
+    @DisplayName("Should update registration as REGISTERED when connectivity is ACTIVE")
+    void whenConnectivityIsActive_ShouldUpdateAsRegistered() {
+      // Given
+      String token = "valid-token";
+      LocalDateTime lastCheck = now.minusHours(12);
+
+      TenantXtmHubRegistration registration = buildRegistration(token, lastCheck);
+      when(tenantXtmHubRegistrationRepository.findByTenantId(any()))
+          .thenReturn(Optional.of(registration));
+
+      mockSettings.setPlatformId("platform-123");
+      mockSettings.setPlatformVersion("1.0.0");
+      mockSettings.setPlatformBaseUrl("http://localhost");
+
+      when(platformSettingsService.findSettings()).thenReturn(mockSettings);
+      whenHubReturnsConnectivityStatus("active");
+      when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+      // When
+      TenantXtmHubRegistration result = xtmHubService.refreshConnectivity();
+
+      // Then
+      ArgumentCaptor<TenantXtmHubRegistration> captor =
+          ArgumentCaptor.forClass(TenantXtmHubRegistration.class);
+      verify(tenantXtmHubRegistrationRepository).save(captor.capture());
+      assertEquals(captor.getValue(), result);
+      assertThat(captor.getValue().getRegistrationStatus())
+          .isEqualTo(XtmHubRegistrationStatus.REGISTERED);
+
+      verify(platformSettingsService, never()).updateXTMHubEmailNotification(anyBoolean());
+      verifyNoInteractions(xtmHubEmailService);
+    }
+
+    @Test
+    @DisplayName("Should update registration as LOST_CONNECTIVITY when connectivity is inactive")
+    void whenConnectivityIsInactive_ShouldUpdateAsLostConnectivity() {
+      // Given
+      String token = "valid-token";
+      LocalDateTime lastCheck = now.minusHours(12);
+
+      TenantXtmHubRegistration registration = buildRegistration(token, lastCheck);
+      when(tenantXtmHubRegistrationRepository.findByTenantId(any()))
+          .thenReturn(Optional.of(registration));
+
+      mockSettings.setPlatformId("platform-123");
+      mockSettings.setPlatformVersion("1.0.0");
+      mockSettings.setPlatformBaseUrl("http://localhost");
+
+      when(platformSettingsService.findSettings()).thenReturn(mockSettings);
+      whenHubReturnsConnectivityStatus("inactive");
+      when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+      // When
+      TenantXtmHubRegistration result = xtmHubService.refreshConnectivity();
+
+      // Then
+      ArgumentCaptor<TenantXtmHubRegistration> captor =
+          ArgumentCaptor.forClass(TenantXtmHubRegistration.class);
+      verify(tenantXtmHubRegistrationRepository).save(captor.capture());
+      assertEquals(captor.getValue(), result);
+      assertThat(captor.getValue().getRegistrationStatus())
+          .isEqualTo(XtmHubRegistrationStatus.LOST_CONNECTIVITY);
+      assertThat(captor.getValue().getLastConnectivityCheck()).isEqualTo(lastCheck);
+
+      verifyNoInteractions(xtmHubEmailService);
+      verify(platformSettingsService, never()).updateXTMHubEmailNotification(anyBoolean());
+    }
+
+    @Test
+    @DisplayName("Should handle null lastConnectivityCheck by using current time")
+    void whenLastConnectivityCheckIsNull_ShouldUseCurrentTime() {
+      // Given
+      TenantXtmHubRegistration registration = buildRegistration("valid-token", null);
+      when(tenantXtmHubRegistrationRepository.findByTenantId(any()))
+          .thenReturn(Optional.of(registration));
+
+      mockSettings.setPlatformId("platform-123");
+      mockSettings.setPlatformVersion("1.0.0");
+      mockSettings.setPlatformBaseUrl("http://localhost");
+
+      when(platformSettingsService.findSettings()).thenReturn(mockSettings);
+      whenHubReturnsConnectivityStatus("inactive");
+      when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+      // When
+      TenantXtmHubRegistration result = xtmHubService.refreshConnectivity();
+
+      // Then
+      assertNotNull(result);
+      verifyNoInteractions(xtmHubEmailService);
+      verify(platformSettingsService, never()).updateXTMHubEmailNotification(anyBoolean());
+    }
   }
 
-  @Test
-  @DisplayName("Should remove XTM Hub registration when platform is not found in the hub")
-  void refreshConnectivity_WhenPlatformIsNotFound_ShouldRemoveRegistration() {
-    // Given
-    String token = "valid-token";
-    String platformId = "platform-123";
-    String platformVersion = "1.0.0";
-
-    TenantXtmHubRegistration registration = buildRegistration(token, now.minusHours(1));
-    when(tenantXtmHubRegistrationRepository.findByTenantId(any()))
-        .thenReturn(Optional.of(registration));
-
-    mockSettings.setPlatformId(platformId);
-    mockSettings.setPlatformVersion(platformVersion);
-    mockSettings.setPlatformBaseUrl("http://localhost");
-
-    when(platformSettingsService.findSettings()).thenReturn(mockSettings);
-    whenHubReturnsConnectivityStatus("not_found");
-
-    // When
-    xtmHubService.refreshConnectivity();
-
-    // Then
-    verify(platformSettingsService).deleteXTMHubRegistration();
-    verifyNoInteractions(xtmHubEmailService);
+  /** Returns the parsed GraphQL body for the all-tenants request. */
+  private JsonObject getAllTenantsRequestBody() {
+    var recorded =
+        mockServer.retrieveRecordedRequests(request().withMethod("POST").withPath(GRAPHQL_PATH));
+    assertThat(recorded).hasSize(1);
+    return JsonParser.parseString(recorded[0].getBodyAsString()).getAsJsonObject();
   }
 
-  @Test
-  @DisplayName("Should update registration as REGISTERED when connectivity is ACTIVE")
-  void refreshConnectivity_WhenConnectivityIsActive_ShouldUpdateAsRegistered() {
-    // Given
-    String token = "valid-token";
-    LocalDateTime lastCheck = now.minusHours(12);
+  @Nested
+  @DisplayName("refreshConnectivityAllTenants")
+  class RefreshConnectivityAllTenants {
 
-    TenantXtmHubRegistration registration = buildRegistration(token, lastCheck);
-    when(tenantXtmHubRegistrationRepository.findByTenantId(any()))
-        .thenReturn(Optional.of(registration));
+    @Test
+    @DisplayName("Should do nothing when no registrations exist")
+    void whenNoRegistrations_ShouldDoNothing() {
+      // Given
+      when(tenantXtmHubRegistrationRepository.findAll()).thenReturn(List.of());
 
-    mockSettings.setPlatformId("platform-123");
-    mockSettings.setPlatformVersion("1.0.0");
-    mockSettings.setPlatformBaseUrl("http://localhost");
-    mockSettings.setXtmHubShouldSendConnectivityEmail("true");
+      // When
+      xtmHubService.refreshConnectivityAllTenants();
 
-    when(platformSettingsService.findSettings()).thenReturn(mockSettings);
-    whenHubReturnsConnectivityStatus("active");
-    when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+      // Then
+      verifyNoRequestSentToHub();
+      verifyNoInteractions(xtmHubEmailService);
+      verify(platformSettingsService, never()).updateXTMHubEmailNotification(anyBoolean());
+      verify(tenantXtmHubRegistrationRepository, never()).save(any());
+    }
 
-    // When
-    TenantXtmHubRegistration result = xtmHubService.refreshConnectivity();
+    @Test
+    @DisplayName("Should save active tenants as REGISTERED and delete NOT_FOUND tenants")
+    void whenMixedStatuses_ShouldSaveActiveAndDeleteNotFound() {
+      // Given
+      TenantContext.setCurrentTenant("tenant-active");
+      TenantXtmHubRegistration activeReg = buildRegistration("token-1", now.minusHours(1));
+      TenantContext.setCurrentTenant("tenant-not-found");
+      TenantXtmHubRegistration notFoundReg = buildRegistration("token-2", now.minusHours(1));
+      String activeTenantId = activeReg.getTenant().getId();
+      String notFoundTenantId = notFoundReg.getTenant().getId();
 
-    // Then
-    ArgumentCaptor<TenantXtmHubRegistration> captor =
-        ArgumentCaptor.forClass(TenantXtmHubRegistration.class);
-    verify(tenantXtmHubRegistrationRepository).save(captor.capture());
-    assertEquals(captor.getValue(), result);
-    assertThat(captor.getValue().getRegistrationStatus())
-        .isEqualTo(XtmHubRegistrationStatus.REGISTERED);
+      when(tenantXtmHubRegistrationRepository.findAll())
+          .thenReturn(List.of(activeReg, notFoundReg));
+      when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-    verify(platformSettingsService).updateXTMHubEmailNotification(true);
-    verifyNoInteractions(xtmHubEmailService);
+      mockSettings.setPlatformId("platform-123");
+      mockSettings.setPlatformVersion("1.0.0");
+      mockSettings.setPlatformBaseUrl("http://localhost");
+      mockSettings.setXtmHubShouldSendConnectivityEmail("true");
+      when(platformSettingsService.findSettings()).thenReturn(mockSettings);
+
+      whenHubReturnsAllTenantsConnectivityStatuses(
+          Map.of(activeTenantId, "active", notFoundTenantId, "not_found"));
+
+      // When
+      xtmHubService.refreshConnectivityAllTenants();
+
+      // Then
+      verify(tenantXtmHubRegistrationRepository).deleteByTenantId(notFoundTenantId);
+      verify(tenantXtmHubRegistrationRepository, never()).deleteByTenantId(activeTenantId);
+
+      ArgumentCaptor<TenantXtmHubRegistration> captor =
+          ArgumentCaptor.forClass(TenantXtmHubRegistration.class);
+      verify(tenantXtmHubRegistrationRepository, times(1)).save(captor.capture());
+      assertThat(captor.getValue().getRegistrationStatus())
+          .isEqualTo(XtmHubRegistrationStatus.REGISTERED);
+
+      verifyNoInteractions(xtmHubEmailService);
+      verify(platformSettingsService, times(1)).updateXTMHubEmailNotification(true);
+    }
+
+    @Test
+    @DisplayName(
+        "Should send email and update flag when tenant lost connectivity for more than 24h")
+    void whenTenantLostConnectivityMoreThan24h_ShouldSendEmail() {
+      // Given
+      TenantContext.setCurrentTenant("tenant-1");
+      LocalDateTime lastCheck = now.minusHours(25);
+      TenantXtmHubRegistration reg = buildRegistration("token-1", lastCheck);
+      String tenantId = reg.getTenant().getId();
+
+      when(tenantXtmHubRegistrationRepository.findAll()).thenReturn(List.of(reg));
+      when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+      mockSettings.setPlatformId("platform-123");
+      mockSettings.setPlatformVersion("1.0.0");
+      mockSettings.setPlatformBaseUrl("http://localhost");
+      mockSettings.setXtmHubShouldSendConnectivityEmail("true");
+      when(platformSettingsService.findSettings()).thenReturn(mockSettings);
+
+      whenHubReturnsAllTenantsConnectivityStatuses(Map.of(tenantId, "inactive"));
+
+      // When
+      xtmHubService.refreshConnectivityAllTenants();
+
+      // Then
+      verify(xtmHubEmailService).sendLostConnectivityEmail();
+      verify(platformSettingsService).updateXTMHubEmailNotification(false);
+
+      ArgumentCaptor<TenantXtmHubRegistration> captor =
+          ArgumentCaptor.forClass(TenantXtmHubRegistration.class);
+      verify(tenantXtmHubRegistrationRepository).save(captor.capture());
+      assertThat(captor.getValue().getRegistrationStatus())
+          .isEqualTo(XtmHubRegistrationStatus.LOST_CONNECTIVITY);
+      assertThat(captor.getValue().getLastConnectivityCheck()).isEqualTo(lastCheck);
+    }
+
+    @Test
+    @DisplayName("Should not send email when tenant lost connectivity for less than 24h")
+    void whenTenantLostConnectivityLessThan24h_ShouldNotSendEmail() {
+      // Given
+      TenantContext.setCurrentTenant("tenant-1");
+      LocalDateTime lastCheck = now.minusHours(12);
+      TenantXtmHubRegistration reg = buildRegistration("token-1", lastCheck);
+      String tenantId = reg.getTenant().getId();
+
+      when(tenantXtmHubRegistrationRepository.findAll()).thenReturn(List.of(reg));
+      when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+      mockSettings.setPlatformId("platform-123");
+      mockSettings.setPlatformVersion("1.0.0");
+      mockSettings.setPlatformBaseUrl("http://localhost");
+      mockSettings.setXtmHubShouldSendConnectivityEmail("true");
+      when(platformSettingsService.findSettings()).thenReturn(mockSettings);
+
+      whenHubReturnsAllTenantsConnectivityStatuses(Map.of(tenantId, "inactive"));
+
+      // When
+      xtmHubService.refreshConnectivityAllTenants();
+
+      // Then
+      verifyNoInteractions(xtmHubEmailService);
+      verify(platformSettingsService).updateXTMHubEmailNotification(true);
+
+      ArgumentCaptor<TenantXtmHubRegistration> captor =
+          ArgumentCaptor.forClass(TenantXtmHubRegistration.class);
+      verify(tenantXtmHubRegistrationRepository).save(captor.capture());
+      assertThat(captor.getValue().getRegistrationStatus())
+          .isEqualTo(XtmHubRegistrationStatus.LOST_CONNECTIVITY);
+    }
+
+    @Test
+    @DisplayName("Should not send email when connectivity is lost but email sending is disabled")
+    void whenEmailSendingIsDisabled_ShouldNotSendEmail() {
+      // Given
+      TenantContext.setCurrentTenant("tenant-1");
+      LocalDateTime lastCheck = now.minusHours(25);
+      TenantXtmHubRegistration reg = buildRegistration("token-1", lastCheck);
+      String tenantId = reg.getTenant().getId();
+
+      when(tenantXtmHubRegistrationRepository.findAll()).thenReturn(List.of(reg));
+      when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+      mockSettings.setPlatformId("platform-123");
+      mockSettings.setPlatformVersion("1.0.0");
+      mockSettings.setPlatformBaseUrl("http://localhost");
+      mockSettings.setXtmHubShouldSendConnectivityEmail("false");
+      when(platformSettingsService.findSettings()).thenReturn(mockSettings);
+
+      whenHubReturnsAllTenantsConnectivityStatuses(Map.of(tenantId, "inactive"));
+
+      // When
+      xtmHubService.refreshConnectivityAllTenants();
+
+      // Then
+      verifyNoInteractions(xtmHubEmailService);
+      verify(platformSettingsService).updateXTMHubEmailNotification(true);
+    }
+
+    @Test
+    @DisplayName("Should default to INACTIVE when hub does not return a status for a tenant")
+    void whenHubMissesTenant_ShouldDefaultToInactive() {
+      // Given
+      TenantContext.setCurrentTenant("tenant-1");
+      TenantXtmHubRegistration reg = buildRegistration("token-1", now.minusHours(1));
+
+      when(tenantXtmHubRegistrationRepository.findAll()).thenReturn(List.of(reg));
+      when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+      mockSettings.setPlatformId("platform-123");
+      mockSettings.setPlatformVersion("1.0.0");
+      mockSettings.setPlatformBaseUrl("http://localhost");
+      mockSettings.setXtmHubShouldSendConnectivityEmail("true");
+      when(platformSettingsService.findSettings()).thenReturn(mockSettings);
+
+      // Hub returns statuses for a different tenant only
+      whenHubReturnsAllTenantsConnectivityStatuses(Map.of("other-tenant", "active"));
+
+      // When
+      xtmHubService.refreshConnectivityAllTenants();
+
+      // Then
+      ArgumentCaptor<TenantXtmHubRegistration> captor =
+          ArgumentCaptor.forClass(TenantXtmHubRegistration.class);
+      verify(tenantXtmHubRegistrationRepository).save(captor.capture());
+      assertThat(captor.getValue().getRegistrationStatus())
+          .isEqualTo(XtmHubRegistrationStatus.LOST_CONNECTIVITY);
+    }
+
+    @Test
+    @DisplayName("Should send correct url per tenant in the GraphQL request body")
+    void whenRegistrationsExist_ShouldSendCorrectUrlPerTenant() {
+      // Given
+      TenantContext.setCurrentTenant("tenant-1");
+      TenantXtmHubRegistration reg1 = buildRegistration("token-1", now.minusHours(1));
+      TenantContext.setCurrentTenant("tenant-2");
+      TenantXtmHubRegistration reg2 = buildRegistration("token-2", now.minusHours(1));
+
+      when(tenantXtmHubRegistrationRepository.findAll()).thenReturn(List.of(reg1, reg2));
+      when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+      mockSettings.setPlatformId("platform-123");
+      mockSettings.setPlatformVersion("1.0.0");
+      mockSettings.setPlatformBaseUrl("http://localhost");
+      mockSettings.setXtmHubShouldSendConnectivityEmail("true");
+      when(platformSettingsService.findSettings()).thenReturn(mockSettings);
+
+      whenHubReturnsAllTenantsConnectivityStatuses(
+          Map.of("tenant-1", "active", "tenant-2", "active"));
+
+      // When
+      xtmHubService.refreshConnectivityAllTenants();
+
+      // Then
+      JsonArray tenants =
+          getAllTenantsRequestBody()
+              .getAsJsonObject("variables")
+              .getAsJsonObject("input")
+              .getAsJsonArray("tenants");
+
+      assertThat(tenants).hasSize(2);
+      tenants.forEach(
+          element -> {
+            JsonObject entry = element.getAsJsonObject();
+            String tenantId = entry.get("tenantId").getAsString();
+            String expectedUrl = "http://localhost/" + tenantId;
+            assertThat(entry.get("url").getAsString()).isEqualTo(expectedUrl);
+          });
+    }
   }
 
-  @Test
-  @DisplayName(
-      "Should update registration as LOST_CONNECTIVITY when connectivity is not ACTIVE and not send email if less than 24 hours")
-  void refreshConnectivity_WhenConnectivityLostLessThan24Hours_ShouldNotSendEmail() {
-    // Given
-    String token = "valid-token";
-    LocalDateTime lastCheck = now.minusHours(12);
+  @Nested
+  @DisplayName("autoRegister")
+  class AutoRegister {
 
-    TenantXtmHubRegistration registration = buildRegistration(token, lastCheck);
-    when(tenantXtmHubRegistrationRepository.findByTenantId(any()))
-        .thenReturn(Optional.of(registration));
+    @Test
+    @DisplayName("Should compute contract level as CE for non-enterprise license")
+    void withNonEnterpriseLicense_ShouldUseCEContract() {
+      // Given
+      String token = "valid-token";
+      License license = new License();
+      license.setLicenseEnterprise(false);
+      mockSettings.setPlatformLicense(license);
+      mockSettings.setPlatformId("platform-123");
+      when(platformSettingsService.findSettings()).thenReturn(mockSettings);
+      when(userService.globalCount()).thenReturn(1L);
+      whenHubAutoRegisters(true);
 
-    mockSettings.setPlatformId("platform-123");
-    mockSettings.setPlatformVersion("1.0.0");
-    mockSettings.setPlatformBaseUrl("http://localhost");
-    mockSettings.setXtmHubShouldSendConnectivityEmail("true");
+      // When
+      xtmHubService.autoRegister(token);
 
-    when(platformSettingsService.findSettings()).thenReturn(mockSettings);
-    whenHubReturnsConnectivityStatus("inactive");
-    when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+      // Then
+      JsonObject input = verifyAutoRegisterRequest(token, "platform-123");
+      assertThat(input.getAsJsonObject("platform").get("contract").getAsString()).isEqualTo("CE");
+    }
 
-    // When
-    TenantXtmHubRegistration result = xtmHubService.refreshConnectivity();
+    @Test
+    @DisplayName("Should compute contract level as trial for enterprise trial license")
+    void withEnterpriseTrialLicense_ShouldUseTrialContract() {
+      // Given
+      String token = "valid-token";
+      License license = new License();
+      license.setLicenseEnterprise(true);
+      license.setType(LicenseTypeEnum.trial);
+      mockSettings.setPlatformLicense(license);
+      mockSettings.setPlatformId("platform-123");
+      when(platformSettingsService.findSettings()).thenReturn(mockSettings);
+      when(userService.globalCount()).thenReturn(1L);
+      whenHubAutoRegisters(true);
 
-    // Then
-    ArgumentCaptor<TenantXtmHubRegistration> captor =
-        ArgumentCaptor.forClass(TenantXtmHubRegistration.class);
-    verify(tenantXtmHubRegistrationRepository).save(captor.capture());
-    assertEquals(captor.getValue(), result);
-    assertThat(captor.getValue().getRegistrationStatus())
-        .isEqualTo(XtmHubRegistrationStatus.LOST_CONNECTIVITY);
-    assertThat(captor.getValue().getLastConnectivityCheck()).isEqualTo(lastCheck);
+      // When
+      xtmHubService.autoRegister(token);
 
-    verify(platformSettingsService).updateXTMHubEmailNotification(true);
-    verifyNoInteractions(xtmHubEmailService);
+      // Then
+      JsonObject input = verifyAutoRegisterRequest(token, "platform-123");
+      assertThat(input.getAsJsonObject("platform").get("contract").getAsString())
+          .isEqualTo("trial");
+    }
+
+    @Test
+    @DisplayName("Should compute contract level as EE for enterprise license")
+    void withEnterpriseStandardLicense_ShouldUseEEContract() {
+      // Given
+      String token = "valid-token";
+      License license = new License();
+      license.setLicenseEnterprise(true);
+      license.setType(LicenseTypeEnum.standard);
+      mockSettings.setPlatformLicense(license);
+      mockSettings.setPlatformId("platform-123");
+      when(platformSettingsService.findSettings()).thenReturn(mockSettings);
+      when(userService.globalCount()).thenReturn(1L);
+      whenHubAutoRegisters(true);
+
+      // When
+      xtmHubService.autoRegister(token);
+
+      // Then
+      JsonObject input = verifyAutoRegisterRequest(token, "platform-123");
+      assertThat(input.getAsJsonObject("platform").get("contract").getAsString()).isEqualTo("EE");
+    }
+
+    @Test
+    @DisplayName("Should update registration entity when auto-register succeeds")
+    void whenSuccessful_ShouldUpdateRegistrationStatus() {
+      // Given
+      String token = "valid-token";
+      License license = new License();
+      license.setLicenseEnterprise(true);
+      license.setType(LicenseTypeEnum.trial);
+      mockSettings.setPlatformLicense(license);
+      mockSettings.setPlatformId("platform-123");
+      mockSettings.setPlatformName("Test Platform");
+      mockSettings.setPlatformBaseUrl("http://localhost");
+      mockSettings.setPlatformVersion("1.0.0");
+      when(platformSettingsService.findSettings()).thenReturn(mockSettings);
+      when(userService.globalCount()).thenReturn(1L);
+      whenHubAutoRegisters(true);
+
+      // When
+      xtmHubService.autoRegister(token);
+
+      // Then
+      verify(platformSettingsService)
+          .updateXTMHubRegistration(
+              eq(token),
+              any(LocalDateTime.class),
+              eq(XtmHubRegistrationStatus.REGISTERED),
+              isNull(),
+              isNull(),
+              eq(false));
+    }
+
+    @Test
+    @DisplayName("Should send correct platform payload to XTM Hub")
+    void whenSuccessful_ShouldSendCorrectPayloadToHub() {
+      // Given
+      String token = "valid-token";
+      License license = new License();
+      license.setLicenseEnterprise(true);
+      license.setType(LicenseTypeEnum.trial);
+      mockSettings.setPlatformLicense(license);
+      mockSettings.setPlatformId("platform-123");
+      mockSettings.setPlatformName("Test Platform");
+      mockSettings.setPlatformBaseUrl("http://localhost");
+      mockSettings.setPlatformVersion("1.0.0");
+      when(platformSettingsService.findSettings()).thenReturn(mockSettings);
+      when(userService.globalCount()).thenReturn(1L);
+      whenHubAutoRegisters(true);
+
+      // When
+      xtmHubService.autoRegister(token);
+
+      // Then
+      JsonObject input = verifyAutoRegisterRequest(token, "platform-123");
+      JsonObject platform = input.getAsJsonObject("platform");
+      assertThat(platform.get("contract").getAsString()).isEqualTo("trial");
+      assertThat(platform.get("id").getAsString()).isEqualTo("platform-123");
+      assertThat(platform.get("title").getAsString()).isEqualTo("Test Platform");
+      assertThat(platform.get("url").getAsString()).isEqualTo("http://localhost");
+      assertThat(platform.get("version").getAsString()).isEqualTo("1.0.0");
+      assertThat(input.get("existing_users_count").getAsLong()).isEqualTo(1L);
+    }
+
+    @Test
+    @DisplayName("Should throw BAD_GATEWAY when XtmHub client returns false")
+    void whenClientReturnsFalse_ShouldThrowBadGateway() {
+      // Given
+      String token = "valid-token";
+      License license = new License();
+      license.setLicenseEnterprise(false);
+      mockSettings.setPlatformLicense(license);
+      mockSettings.setPlatformId("platform-123");
+      mockSettings.setPlatformName("Test Platform");
+      mockSettings.setPlatformBaseUrl("http://localhost");
+      mockSettings.setPlatformVersion("1.0.0");
+      when(platformSettingsService.findSettings()).thenReturn(mockSettings);
+      when(userService.globalCount()).thenReturn((long) 1);
+      whenHubAutoRegisters(false);
+
+      // When
+      ResponseStatusException exception =
+          assertThrows(ResponseStatusException.class, () -> xtmHubService.autoRegister(token));
+
+      // Then
+      assertEquals(HttpStatus.BAD_GATEWAY, exception.getStatusCode());
+      assertNotNull(exception.getReason());
+      assertTrue(exception.getReason().contains("Failed to register"));
+
+      verify(tenantXtmHubRegistrationRepository, never()).save(any(TenantXtmHubRegistration.class));
+    }
   }
 
-  @Test
-  @DisplayName("Should not send connectivity email when email is disabled from configuration")
-  void refreshConnectivity_WhenEmailDisabledFromConfig_ShouldNotSendEmail() {
-    // Given
-    xtmHubConfig.setConnectivityEmailEnable(false);
-    LocalDateTime lastCheck = now.minusHours(25);
+  @Nested
+  @DisplayName("unregister")
+  class Unregister {
 
-    TenantXtmHubRegistration registration = buildRegistration("valid-token", lastCheck);
-    when(tenantXtmHubRegistrationRepository.findByTenantId(any()))
-        .thenReturn(Optional.of(registration));
+    @Test
+    @DisplayName("Should delete tenant registration")
+    void shouldDeleteTenantRegistration() {
+      // When
+      xtmHubService.unregister();
 
-    mockSettings.setPlatformId("platform-123");
-    mockSettings.setPlatformVersion("1.0.0");
-    mockSettings.setPlatformBaseUrl("http://localhost");
-    mockSettings.setXtmHubShouldSendConnectivityEmail("true");
-
-    when(platformSettingsService.findSettings()).thenReturn(mockSettings);
-    whenHubReturnsConnectivityStatus("inactive");
-    when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-
-    // When
-    TenantXtmHubRegistration result = xtmHubService.refreshConnectivity();
-
-    // Then
-    assertNotNull(result);
-    verifyNoInteractions(xtmHubEmailService);
-  }
-
-  @Test
-  @DisplayName(
-      "Should send connectivity email when connectivity is lost for more than 24 hours and email sending is enabled")
-  void refreshConnectivity_WhenConnectivityLostMoreThan24HoursAndEmailEnabled_ShouldSendEmail() {
-    // Given
-    LocalDateTime lastCheck = now.minusHours(25);
-
-    TenantXtmHubRegistration registration = buildRegistration("valid-token", lastCheck);
-    when(tenantXtmHubRegistrationRepository.findByTenantId(any()))
-        .thenReturn(Optional.of(registration));
-
-    mockSettings.setPlatformId("platform-123");
-    mockSettings.setPlatformVersion("1.0.0");
-    mockSettings.setPlatformBaseUrl("http://localhost");
-    mockSettings.setXtmHubShouldSendConnectivityEmail("true");
-
-    when(platformSettingsService.findSettings()).thenReturn(mockSettings);
-    whenHubReturnsConnectivityStatus("inactive");
-    when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-
-    // When
-    TenantXtmHubRegistration result = xtmHubService.refreshConnectivity();
-
-    // Then
-    assertNotNull(result);
-    verify(xtmHubEmailService).sendLostConnectivityEmail();
-
-    ArgumentCaptor<TenantXtmHubRegistration> captor =
-        ArgumentCaptor.forClass(TenantXtmHubRegistration.class);
-    verify(tenantXtmHubRegistrationRepository).save(captor.capture());
-    assertThat(captor.getValue().getRegistrationStatus())
-        .isEqualTo(XtmHubRegistrationStatus.LOST_CONNECTIVITY);
-
-    verify(platformSettingsService).updateXTMHubEmailNotification(false);
-  }
-
-  @Test
-  @DisplayName("Should not send email when connectivity is lost but email sending is disabled")
-  void refreshConnectivity_WhenConnectivityLostButEmailDisabled_ShouldNotSendEmail() {
-    // Given
-    LocalDateTime lastCheck = now.minusHours(25);
-
-    TenantXtmHubRegistration registration = buildRegistration("valid-token", lastCheck);
-    when(tenantXtmHubRegistrationRepository.findByTenantId(any()))
-        .thenReturn(Optional.of(registration));
-
-    mockSettings.setPlatformId("platform-123");
-    mockSettings.setPlatformVersion("1.0.0");
-    mockSettings.setPlatformBaseUrl("http://localhost");
-    mockSettings.setXtmHubShouldSendConnectivityEmail("false");
-
-    when(platformSettingsService.findSettings()).thenReturn(mockSettings);
-    whenHubReturnsConnectivityStatus("inactive");
-    when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-
-    // When
-    TenantXtmHubRegistration result = xtmHubService.refreshConnectivity();
-
-    // Then
-    assertNotNull(result);
-    verifyNoInteractions(xtmHubEmailService);
-    verify(platformSettingsService).updateXTMHubEmailNotification(true);
-  }
-
-  @Test
-  @DisplayName("Should handle null lastConnectivityCheck by using current time")
-  void refreshConnectivity_WhenLastConnectivityCheckIsNull_ShouldUseCurrentTime() {
-    // Given
-    TenantXtmHubRegistration registration = buildRegistration("valid-token", null);
-    when(tenantXtmHubRegistrationRepository.findByTenantId(any()))
-        .thenReturn(Optional.of(registration));
-
-    mockSettings.setPlatformId("platform-123");
-    mockSettings.setPlatformVersion("1.0.0");
-    mockSettings.setPlatformBaseUrl("http://localhost");
-    mockSettings.setXtmHubShouldSendConnectivityEmail("true");
-
-    when(platformSettingsService.findSettings()).thenReturn(mockSettings);
-    whenHubReturnsConnectivityStatus("inactive");
-    when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-
-    // When
-    TenantXtmHubRegistration result = xtmHubService.refreshConnectivity();
-
-    // Then
-    assertNotNull(result);
-    verifyNoInteractions(xtmHubEmailService); // Not sent as it's considered first check
-    verify(platformSettingsService).updateXTMHubEmailNotification(true);
-  }
-
-  @Test
-  @DisplayName("Should handle exactly 24 hours difference")
-  void refreshConnectivity_WhenExactly24HoursPassed_ShouldSendEmail() {
-    // Given
-    LocalDateTime lastCheck = now.minusHours(24);
-
-    TenantXtmHubRegistration registration = buildRegistration("valid-token", lastCheck);
-    when(tenantXtmHubRegistrationRepository.findByTenantId(any()))
-        .thenReturn(Optional.of(registration));
-
-    mockSettings.setPlatformId("platform-123");
-    mockSettings.setPlatformVersion("1.0.0");
-    mockSettings.setPlatformBaseUrl("http://localhost");
-    mockSettings.setXtmHubShouldSendConnectivityEmail("true");
-
-    when(platformSettingsService.findSettings()).thenReturn(mockSettings);
-    whenHubReturnsConnectivityStatus("inactive");
-    when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-
-    // When
-    TenantXtmHubRegistration result = xtmHubService.refreshConnectivity();
-
-    // Then
-    assertNotNull(result);
-    verify(xtmHubEmailService).sendLostConnectivityEmail();
-    verify(platformSettingsService).updateXTMHubEmailNotification(false);
-  }
-
-  // =====================================================================
-  // autoRegister tests
-  // =====================================================================
-
-  @Test
-  @DisplayName("Should compute contract level as CE for non-enterprise license")
-  void autoRegister_WithNonEnterpriseLicense_ShouldUseCEContract() {
-    // Given
-    String token = "valid-token";
-    License license = new License();
-    license.setLicenseEnterprise(false);
-    mockSettings.setPlatformLicense(license);
-    mockSettings.setPlatformId("platform-123");
-    when(platformSettingsService.findSettings()).thenReturn(mockSettings);
-    when(userService.globalCount()).thenReturn(1L);
-    whenHubAutoRegisters(true);
-
-    // When
-    xtmHubService.autoRegister(token);
-
-    // Then
-    JsonObject input = verifyAutoRegisterRequest(token, "platform-123");
-    assertThat(input.getAsJsonObject("platform").get("contract").getAsString()).isEqualTo("CE");
-  }
-
-  @Test
-  @DisplayName("Should compute contract level as trial for enterprise trial license")
-  void autoRegister_WithEnterpriseTrialLicense_ShouldUseTrialContract() {
-    // Given
-    String token = "valid-token";
-    License license = new License();
-    license.setLicenseEnterprise(true);
-    license.setType(LicenseTypeEnum.trial);
-    mockSettings.setPlatformLicense(license);
-    mockSettings.setPlatformId("platform-123");
-    when(platformSettingsService.findSettings()).thenReturn(mockSettings);
-    when(userService.globalCount()).thenReturn(1L);
-    whenHubAutoRegisters(true);
-
-    // When
-    xtmHubService.autoRegister(token);
-
-    // Then
-    JsonObject input = verifyAutoRegisterRequest(token, "platform-123");
-    assertThat(input.getAsJsonObject("platform").get("contract").getAsString()).isEqualTo("trial");
-  }
-
-  @Test
-  @DisplayName("Should compute contract level as EE for enterprise license")
-  void autoRegister_WithEnterpriseStandardLicense_ShouldUseEEContract() {
-    // Given
-    String token = "valid-token";
-    License license = new License();
-    license.setLicenseEnterprise(true);
-    license.setType(LicenseTypeEnum.standard);
-    mockSettings.setPlatformLicense(license);
-    mockSettings.setPlatformId("platform-123");
-    when(platformSettingsService.findSettings()).thenReturn(mockSettings);
-    when(userService.globalCount()).thenReturn(1L);
-    whenHubAutoRegisters(true);
-
-    // When
-    xtmHubService.autoRegister(token);
-
-    // Then
-    JsonObject input = verifyAutoRegisterRequest(token, "platform-123");
-    assertThat(input.getAsJsonObject("platform").get("contract").getAsString()).isEqualTo("EE");
-  }
-
-  @Test
-  @DisplayName("Should update registration entity when auto-register succeeds")
-  void autoRegister_WhenSuccessful_ShouldUpdateRegistrationStatus() {
-    // Given
-    String token = "valid-token";
-    License license = new License();
-    license.setLicenseEnterprise(true);
-    license.setType(LicenseTypeEnum.trial);
-    mockSettings.setPlatformLicense(license);
-    mockSettings.setPlatformId("platform-123");
-    mockSettings.setPlatformName("Test Platform");
-    mockSettings.setPlatformBaseUrl("http://localhost");
-    mockSettings.setPlatformVersion("1.0.0");
-    when(platformSettingsService.findSettings()).thenReturn(mockSettings);
-    when(userService.globalCount()).thenReturn(1L);
-    whenHubAutoRegisters(true);
-
-    // When
-    xtmHubService.autoRegister(token);
-
-    // Then
-    verify(platformSettingsService)
-        .updateXTMHubRegistration(
-            eq(token),
-            any(LocalDateTime.class),
-            eq(XtmHubRegistrationStatus.REGISTERED),
-            isNull(),
-            isNull(),
-            eq(false));
-  }
-
-  @Test
-  @DisplayName("Should send correct platform payload to XTM Hub")
-  void autoRegister_WhenSuccessful_ShouldSendCorrectPayloadToHub() {
-    // Given
-    String token = "valid-token";
-    License license = new License();
-    license.setLicenseEnterprise(true);
-    license.setType(LicenseTypeEnum.trial);
-    mockSettings.setPlatformLicense(license);
-    mockSettings.setPlatformId("platform-123");
-    mockSettings.setPlatformName("Test Platform");
-    mockSettings.setPlatformBaseUrl("http://localhost");
-    mockSettings.setPlatformVersion("1.0.0");
-    when(platformSettingsService.findSettings()).thenReturn(mockSettings);
-    when(userService.globalCount()).thenReturn(1L);
-    whenHubAutoRegisters(true);
-
-    // When
-    xtmHubService.autoRegister(token);
-
-    // Then
-    JsonObject input = verifyAutoRegisterRequest(token, "platform-123");
-    JsonObject platform = input.getAsJsonObject("platform");
-    assertThat(platform.get("contract").getAsString()).isEqualTo("trial");
-    assertThat(platform.get("id").getAsString()).isEqualTo("platform-123");
-    assertThat(platform.get("title").getAsString()).isEqualTo("Test Platform");
-    assertThat(platform.get("url").getAsString()).isEqualTo("http://localhost");
-    assertThat(platform.get("version").getAsString()).isEqualTo("1.0.0");
-    assertThat(input.get("existing_users_count").getAsLong()).isEqualTo(1L);
-  }
-
-  @Test
-  @DisplayName("Should throw BAD_GATEWAY when XtmHub client returns false")
-  void autoRegister_WhenClientReturnsFalse_ShouldThrowBadGateway() {
-    // Given
-    String token = "valid-token";
-    License license = new License();
-    license.setLicenseEnterprise(false);
-    mockSettings.setPlatformLicense(license);
-    mockSettings.setPlatformId("platform-123");
-    mockSettings.setPlatformName("Test Platform");
-    mockSettings.setPlatformBaseUrl("http://localhost");
-    mockSettings.setPlatformVersion("1.0.0");
-    when(platformSettingsService.findSettings()).thenReturn(mockSettings);
-    when(userService.globalCount()).thenReturn((long) 1);
-    whenHubAutoRegisters(false);
-
-    // When
-    ResponseStatusException exception =
-        assertThrows(ResponseStatusException.class, () -> xtmHubService.autoRegister(token));
-
-    // Then
-    assertEquals(HttpStatus.BAD_GATEWAY, exception.getStatusCode());
-    assertNotNull(exception.getReason());
-    assertTrue(exception.getReason().contains("Failed to register"));
-
-    verify(tenantXtmHubRegistrationRepository, never()).save(any(TenantXtmHubRegistration.class));
-  }
-
-  @Test
-  @DisplayName("Should delete tenant registration when unregister is called")
-  void unregister_ShouldDeleteTenantRegistration() {
-    // When
-    xtmHubService.unregister();
-
-    // Then
-    verify(tenantXtmHubRegistrationRepository).deleteByTenantId(Tenant.DEFAULT_TENANT_UUID);
+      // Then
+      verify(tenantXtmHubRegistrationRepository).deleteByTenantId(Tenant.DEFAULT_TENANT_UUID);
+    }
   }
 }

@@ -11,6 +11,10 @@ import io.openaev.utils.LicenseUtils;
 import io.openaev.xtmhub.config.XtmHubConfig;
 import jakarta.validation.constraints.NotBlank;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -85,9 +89,52 @@ public class XtmHubService {
       return null;
     }
 
-    handleConnectivityLossNotification(settings, checkResult);
+    return updateRegistrationStatus(registration.get(), checkResult);
+  }
 
-    return updateRegistrationStatus(settings, registration.get(), checkResult);
+  public void refreshConnectivityAllTenants() {
+    PlatformSettings settings = platformSettingsService.findSettings();
+
+    List<TenantXtmHubRegistration> registrations =
+        new ArrayList<>(tenantXtmHubRegistrationRepository.findAll());
+
+    if (registrations.isEmpty()) {
+      return;
+    }
+
+    Map<String, TenantRegistrationDetails> tenants = new HashMap<>();
+    for (TenantXtmHubRegistration registration : registrations) {
+      String tenantId = registration.getTenant().getId();
+      String url = settings.getPlatformBaseUrl() + "/" + tenantId;
+      tenants.put(tenantId, new TenantRegistrationDetails(registration.getToken(), url));
+    }
+
+    Map<String, XtmHubConnectivityStatus> statuses =
+        xtmHubClient.refreshRegistrationStatusAllTenants(
+            settings.getPlatformId(), settings.getPlatformVersion(), tenants);
+
+    for (TenantXtmHubRegistration registration : registrations) {
+      TenantContext.setCurrentTenant(registration.getTenant().getId());
+
+      XtmHubConnectivityStatus status =
+          statuses.getOrDefault(
+              registration.getTenant().getId(), XtmHubConnectivityStatus.INACTIVE);
+
+      if (status == XtmHubConnectivityStatus.NOT_FOUND) {
+        log.warn(
+            "Platform was not found on XTM Hub for tenant {}", registration.getTenant().getId());
+        tenantXtmHubRegistrationRepository.deleteByTenantId(registration.getTenant().getId());
+        continue;
+      }
+
+      ConnectivityCheckResult checkResult =
+          new ConnectivityCheckResult(status, parseLastConnectivityCheck(registration));
+
+      handleConnectivityLossNotification(settings, checkResult);
+      updateEmailNotificationFlag(settings, checkResult);
+      updateRegistrationStatus(registration, checkResult);
+    }
+    TenantContext.clearCurrentTenant();
   }
 
   private TenantXtmHubRegistration findOrCreateRegistration() {
@@ -151,9 +198,7 @@ public class XtmHubService {
   }
 
   private TenantXtmHubRegistration updateRegistrationStatus(
-      PlatformSettings settings,
-      TenantXtmHubRegistration registration,
-      ConnectivityCheckResult checkResult) {
+      TenantXtmHubRegistration registration, ConnectivityCheckResult checkResult) {
 
     XtmHubRegistrationStatus newStatus =
         checkResult.status() == XtmHubConnectivityStatus.ACTIVE
@@ -165,14 +210,17 @@ public class XtmHubService {
             ? LocalDateTime.now()
             : checkResult.lastCheck();
 
-    boolean shouldKeepEmailNotificationEnabled =
-        !shouldSendConnectivityLossEmail(settings, checkResult);
-
-    platformSettingsService.updateXTMHubEmailNotification(shouldKeepEmailNotificationEnabled);
     registration.setRegistrationStatus(newStatus);
     registration.setLastConnectivityCheck(updatedLastCheck);
 
     return tenantXtmHubRegistrationRepository.save(registration);
+  }
+
+  private void updateEmailNotificationFlag(
+      PlatformSettings settings, ConnectivityCheckResult checkResult) {
+    boolean shouldKeepEmailNotificationEnabled =
+        !shouldSendConnectivityLossEmail(settings, checkResult);
+    platformSettingsService.updateXTMHubEmailNotification(shouldKeepEmailNotificationEnabled);
   }
 
   /** Encapsulates the result of a connectivity check */
