@@ -1,4 +1,3 @@
-import { Typography } from '@mui/material';
 import { useContext, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -24,11 +23,6 @@ interface Props {
 }
 
 const useStyles = makeStyles()(theme => ({
-  container: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr 1fr',
-    justifyItems: 'center',
-  },
   paddingTop: { paddingTop: theme.spacing(2) },
   gap: {
     display: 'flex',
@@ -102,24 +96,6 @@ const TargetResultsDetail = ({ inject, target, isAgentless }: Props) => {
   }, [openIdParams, sortedGroupedTargetResults]);
 
   const tabs: TabConfig[] = [];
-  Object.entries(sortedGroupedTargetResults).forEach(([type, expectationResults]) => (
-    tabs.push({
-      key: type,
-      label: t(`TYPE_${type}`),
-      component: (
-        expectationResults.map(expectationResult => (
-          <InjectExpectationProvider key={expectationResult.inject_expectation_id} inject={inject}>
-            <InjectExpectationCard
-              injectExpectation={expectationResult}
-              inject={inject}
-              isAgentless={isAgentless}
-              target={target}
-            />
-          </InjectExpectationProvider>
-        ))
-      ),
-    })
-  ));
   if (!isAssetGroups(target)) {
     tabs.push({
       key: 'execution',
@@ -147,19 +123,27 @@ const TargetResultsDetail = ({ inject, target, isAgentless }: Props) => {
     }
   }
 
+  Object.entries(sortedGroupedTargetResults).forEach(([type, expectationResults]) => (
+    tabs.push({
+      key: type,
+      label: t(`TYPE_${type}`),
+      component: (
+        expectationResults.map(expectationResult => (
+          <InjectExpectationProvider key={expectationResult.inject_expectation_id} inject={inject}>
+            <InjectExpectationCard
+              injectExpectation={expectationResult}
+              inject={inject}
+              isAgentless={isAgentless}
+              target={target}
+            />
+          </InjectExpectationProvider>
+        ))
+      ),
+    })
+  ));
+
   return (
     <Paper>
-      <div className={classes.container}>
-        <Typography sx={{ justifySelf: 'center' }} variant="h3" gutterBottom>{t('Name')}</Typography>
-        <Typography variant="h3" gutterBottom>{t('Type')}</Typography>
-        <Typography sx={{ justifySelf: 'center' }} variant="h3" gutterBottom>{t('Platform')}</Typography>
-      </div>
-      <div className={classes.container}>
-        <Typography sx={{ justifySelf: 'center' }}>{target.target_name}</Typography>
-        <Typography>{target.target_type}</Typography>
-        <Typography sx={{ justifySelf: 'center' }}>{target.target_subtype ?? t('N/A')}</Typography>
-      </div>
-
       <TargetResultsReactFlow
         className={`${classes.paddingTop} ${classes.gap}`}
         injectStatusName={injectResultOverviewOutput?.inject_status?.status_name}

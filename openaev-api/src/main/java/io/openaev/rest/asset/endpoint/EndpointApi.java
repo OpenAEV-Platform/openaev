@@ -5,19 +5,18 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.RBAC;
 import io.openaev.database.model.Action;
-import io.openaev.database.model.Agent;
 import io.openaev.database.model.AssetAgentJob;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.database.repository.EndpointRepository;
-import io.openaev.database.repository.TagRepository;
 import io.openaev.database.specification.AssetAgentJobSpecification;
 import io.openaev.database.specification.EndpointSpecification;
 import io.openaev.rest.asset.endpoint.form.*;
 import io.openaev.rest.asset.endpoint.output.EndpointTargetOutput;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.service.EndpointService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.HttpReqRespUtils;
@@ -46,9 +45,9 @@ public class EndpointApi extends RestBehavior {
   public static final String ENDPOINT_URI = "/api/endpoints";
 
   private final EndpointService endpointService;
+  private final InjectStatusService injectStatusService;
   private final EndpointRepository endpointRepository;
   private final AssetAgentJobRepository assetAgentJobRepository;
-  private final TagRepository tagRepository;
 
   private final EndpointMapper endpointMapper;
 
@@ -80,14 +79,9 @@ public class EndpointApi extends RestBehavior {
   @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
   @Transactional(rollbackFor = Exception.class)
   public List<AssetAgentJob> getEndpointJobs(@RequestBody final EndpointRegisterInput input) {
-    return this.assetAgentJobRepository.findAll(
-        AssetAgentJobSpecification.forEndpoint(
-            input.getExternalReference(),
-            input.isService()
-                ? Agent.DEPLOYMENT_MODE.service.name()
-                : Agent.DEPLOYMENT_MODE.session.name(),
-            input.isElevated() ? Agent.PRIVILEGE.admin.name() : Agent.PRIVILEGE.standard.name(),
-            input.getExecutedByUser()));
+    List<AssetAgentJob> jobs = this.endpointService.getEndpointJobs(input);
+    this.injectStatusService.addJobRetrievalTraces(jobs);
+    return jobs;
   }
 
   @Deprecated(since = "1.11.0")
