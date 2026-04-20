@@ -2,6 +2,7 @@ package io.openaev.database.repository;
 
 import io.openaev.database.model.InjectStatus;
 import jakarta.validation.constraints.NotNull;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -24,6 +25,8 @@ public interface InjectStatusRepository
   List<InjectStatus> pendingForInjectType(@Param("injectType") String injectType);
 
   Optional<InjectStatus> findByInjectId(@NotNull String injectId);
+
+  List<InjectStatus> findAllByInjectIdIn(Collection<String> injectIds);
 
   @Query(
       value =

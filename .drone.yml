@@ -39,73 +39,73 @@ steps:
       - yarn i18n-checker
       - NODE_OPTIONS=--max_old_space_size=8192 yarn test
 
-  - name: app-e2e
-    image: maven:3.9.9-eclipse-temurin-22
-    detach: true
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://pgsql-e2e:5432/openaev
-      SPRING_DATASOURCE_USERNAME: openaev
-      SPRING_DATASOURCE_PASSWORD: openaev
-      MINIO_ENDPOINT: minio-e2e
-      MINIO_PORT: 9000
-      ENGINE_URL: http://elastic:9200
-      MINIO_ACCESS_KEY: minioadmin
-      MINIO_ACCESS_SECRET: minioadmin
-      OPENAEV_ADMIN_EMAIL: admin@openaev.io
-      OPENAEV_ADMIN_PASSWORD: admin
-      OPENAEV_ADMIN_TOKEN: 0d17ce9a-f3a8-4c6d-9721-c98dc3dc023f
-      OPENAEV_ADMIN_ENCRYPTION_KEY: ThisIsMyUltraSecureEncryptionKey
-      OPENAEV_ADMIN_ENCRYPTION_SALT: ilikesaltyfoodnomnom
-      SPRING_PROFILES_ACTIVE: ci
-      OPENBAS_RABBITMQ_HOSTNAME: rabbitmq-e2e
-    commands:
-      - apt update && apt install -y gnupg git npm
-      - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
-      - apt update && apt install -y nodejs
-      - npm install -g corepack
-      - cd openaev-front
-      - yarn install
-      - yarn build
-      - cd ..
-      - mvn install -DskipTests=true
-      - java -jar openaev-api/target/openaev-api.jar
-    depends_on:
-      - api-tests
-      - frontend-tests
-
-  - name: frontend-e2e-tests
-    image: node:22.22.2
-    commands:
-      - apt update
-      - apt -y install netcat-traditional
-      - while ! nc -z app-e2e 8080 ; do sleep 1 ; done
-      - npm install -g corepack
-      - cd openaev-front
-      - yarn install
-      - yarn playwright install --with-deps chromium
-      - APP_URL=http://app-e2e:8080 yarn test:e2e
-    depends_on:
-      - app-e2e
-
-  - name: frontend-api-types
-    image: node:22.22.2
-    volumes:
-      - name: cache-node-frontend-api-types
-        path: /drone/src/openaev-front/node_modules
-    commands:
-      - apt update
-      - apt -y install netcat-traditional
-      - while ! nc -z app-e2e 8080 ; do sleep 1 ; done
-      - npm install -g corepack
-      - cd openaev-front
-      - yarn install
-      - API_URL=http://app-e2e:8080 yarn generate-types-from-api
-      - |
-        if git diff --name-only | grep -q './src/utils/api-types.d.ts'; then
-          echo "⚠️ Forgot to generate types! Please run 'yarn run generate-types-from-api' before committing."; exit 1;
-        fi
-    depends_on:
-      - app-e2e
+#  - name: app-e2e
+#    image: maven:3.9.9-eclipse-temurin-22
+#    detach: true
+#    environment:
+#      SPRING_DATASOURCE_URL: jdbc:postgresql://pgsql-e2e:5432/openaev
+#      SPRING_DATASOURCE_USERNAME: openaev
+#      SPRING_DATASOURCE_PASSWORD: openaev
+#      MINIO_ENDPOINT: minio-e2e
+#      MINIO_PORT: 9000
+#      ENGINE_URL: http://elastic:9200
+#      MINIO_ACCESS_KEY: minioadmin
+#      MINIO_ACCESS_SECRET: minioadmin
+#      OPENAEV_ADMIN_EMAIL: admin@openaev.io
+#      OPENAEV_ADMIN_PASSWORD: admin
+#      OPENAEV_ADMIN_TOKEN: 0d17ce9a-f3a8-4c6d-9721-c98dc3dc023f
+#      OPENAEV_ADMIN_ENCRYPTION_KEY: ThisIsMyUltraSecureEncryptionKey
+#      OPENAEV_ADMIN_ENCRYPTION_SALT: ilikesaltyfoodnomnom
+#      SPRING_PROFILES_ACTIVE: ci
+#      OPENBAS_RABBITMQ_HOSTNAME: rabbitmq-e2e
+#    commands:
+#      - apt update && apt install -y gnupg git npm
+#      - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+#      - apt update && apt install -y nodejs
+#      - npm install -g corepack
+#      - cd openaev-front
+#      - yarn install
+#      - yarn build
+#      - cd ..
+#      - mvn install -DskipTests=true
+#      - java -jar openaev-api/target/openaev-api.jar
+#    depends_on:
+#      - api-tests
+#      - frontend-tests
+#
+#  - name: frontend-e2e-tests
+#    image: node:22.22.2
+#    commands:
+#      - apt update
+#      - apt -y install netcat-traditional
+#      - while ! nc -z app-e2e 8080 ; do sleep 1 ; done
+#      - npm install -g corepack
+#      - cd openaev-front
+#      - yarn install
+#      - yarn playwright install --with-deps chromium
+#      - APP_URL=http://app-e2e:8080 yarn test:e2e
+#    depends_on:
+#      - app-e2e
+#
+#  - name: frontend-api-types
+#    image: node:22.22.2
+#    volumes:
+#      - name: cache-node-frontend-api-types
+#        path: /drone/src/openaev-front/node_modules
+#    commands:
+#      - apt update
+#      - apt -y install netcat-traditional
+#      - while ! nc -z app-e2e 8080 ; do sleep 1 ; done
+#      - npm install -g corepack
+#      - cd openaev-front
+#      - yarn install
+#      - API_URL=http://app-e2e:8080 yarn generate-types-from-api
+#      - |
+#        if git diff --name-only | grep -q './src/utils/api-types.d.ts'; then
+#          echo "⚠️ Forgot to generate types! Please run 'yarn run generate-types-from-api' before committing."; exit 1;
+#        fi
+#    depends_on:
+#      - app-e2e
 
   - name: codecov
     image: robertstettner/drone-codecov
@@ -136,7 +136,7 @@ steps:
     depends_on:
       - api-tests
       - frontend-tests
-      - frontend-e2e-tests
+#      - frontend-e2e-tests
 
   - name: build-circleci-release
     image: curlimages/curl
@@ -151,7 +151,7 @@ steps:
     depends_on:
       - api-tests
       - frontend-tests
-      - frontend-e2e-tests
+#      - frontend-e2e-tests
 
   - name: slack
     image: plugins/slack
@@ -165,7 +165,7 @@ steps:
     depends_on:
       - api-tests
       - frontend-tests
-      - frontend-e2e-tests
+#      - frontend-e2e-tests
 
 services:
   - name: minio

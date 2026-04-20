@@ -38,7 +38,6 @@ const AtomicTestingTitle = ({ injectResultOverview }: Props) => {
         </Typography>
       </Tooltip>
       <ItemStatus
-        isInject
         status={injectResultOverview.inject_status?.status_name}
         label={t(injectResultOverview.inject_status?.status_name ?? 'Unknown')}
       />

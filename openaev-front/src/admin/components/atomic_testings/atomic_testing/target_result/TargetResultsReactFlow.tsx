@@ -183,28 +183,21 @@ const TargetResultsReactFlow = ({ className = '', injectStatusName, targetResult
 
   useEffect(() => {
     let steps: Steptarget[] = [];
-    if (targetResultsByType === undefined || Object.keys(targetResultsByType).length == 0) {
-      steps = [...computeInitialSteps(initialSteps), ...[{
-        label: t('Unknown result'),
-        status: 'PENDING',
-      }]];
-    } else {
-      const newSteps: Steptarget[] = Object.entries(targetResultsByType).flatMap(([type, expectations]) => {
-        return expectations.map((expectation: InjectExpectationsStore) => ({
-          key: 'result',
-          label: (
-            <span>
-              {getStatusLabel(type, [expectation.inject_expectation_status ?? 'UNKNOWN'])}
-              <br />
-              {truncate(expectation.inject_expectation_name, 20)}
-            </span>
-          ),
-          type: type,
-          status: getStatus([expectation.inject_expectation_status ?? 'UNKNOWN']),
-        }));
-      });
-      steps = [...computeInitialSteps(initialSteps), ...newSteps];
-    }
+    const newSteps: Steptarget[] = Object.entries(targetResultsByType).flatMap(([type, expectations]) => {
+      return expectations.map((expectation: InjectExpectationsStore) => ({
+        key: 'result',
+        label: (
+          <span>
+            {getStatusLabel(type, [expectation.inject_expectation_status ?? 'UNKNOWN'])}
+            <br />
+            {truncate(expectation.inject_expectation_name, 20)}
+          </span>
+        ),
+        type: type,
+        status: getStatus([expectation.inject_expectation_status ?? 'UNKNOWN']),
+      }));
+    });
+    steps = [...computeInitialSteps(initialSteps), ...newSteps];
 
     setEdges([...Array(steps.length - 1)].map((_, i) => createEdge(i)));
     setNodes(steps.map((step, index) => createNode(step, steps.length, index)));

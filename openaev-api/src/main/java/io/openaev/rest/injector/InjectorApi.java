@@ -60,11 +60,12 @@ public class InjectorApi extends RestBehavior {
   @Value("${info.app.version:unknown}")
   String version;
 
-  @Value("${executor.openaev.binaries.origin:local}")
-  private String executorOpenaevBinariesOrigin;
+  @Value("${executor.openaev-implant.binaries.origin:${executor.openaev.binaries.origin:local}}")
+  private String implantBinaryOrigin;
 
-  @Value("${executor.openaev.binaries.version:${info.app.version:unknown}}")
-  private String executorOpenaevBinariesVersion;
+  @Value(
+      "${executor.openaev-implant.binaries.version:${executor.openaev.binaries.version:${info.app.version:unknown}}}")
+  private String implantBinaryVersion;
 
   @GetMapping(INJECT0R_URI)
   @Operation(
@@ -190,15 +191,13 @@ public class InjectorApi extends RestBehavior {
     String filename = "";
     String resourcePath = "/openaev-implant/" + platform + "/" + architecture + "/";
 
-    if (executorOpenaevBinariesOrigin.equals("local")) { // if we want the local binaries
+    if (implantBinaryOrigin.equals("local")) { // if we want the local binaries
       filename = "openaev-implant-" + version + (platform.equals("windows") ? ".exe" : "");
       in = getClass().getResourceAsStream("/implants" + resourcePath + filename);
-    } else if (executorOpenaevBinariesOrigin.equals(
+    } else if (implantBinaryOrigin.equals(
         "repository")) { // if we want a specific version from artifactory
       filename =
-          "openaev-implant-"
-              + executorOpenaevBinariesVersion
-              + (platform.equals("windows") ? ".exe" : "");
+          "openaev-implant-" + implantBinaryVersion + (platform.equals("windows") ? ".exe" : "");
       in = new BufferedInputStream(validateJFrogUri(resourcePath, filename).toURL().openStream());
     }
 
