@@ -7,8 +7,6 @@ import static org.mockito.Mockito.when;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
-import io.openaev.integration.Manager;
-import io.openaev.integration.ManagerFactory;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -22,8 +20,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class ConnectorInstanceServiceTest {
 
   @Mock private ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository;
-  @Mock private ManagerFactory managerFactory;
-  @Mock private Manager manager;
 
   @InjectMocks private ConnectorInstanceService connectorInstanceService;
 
@@ -65,21 +61,6 @@ class ConnectorInstanceServiceTest {
     void given_missingStatusInDatabase_should_useFallbackRequestAndReturnTrueWhenRequestSucceeds() {
       // Arrange
       String injectorId = "injector-3";
-      when(connectorInstanceConfigurationRepository.findStatusByKeyValue(
-              ConnectorType.INJECTOR.getIdKeyName(), injectorId))
-          .thenReturn(Optional.empty());
-
-      // Act
-      boolean result = connectorInstanceService.hasStartedConnectorInstanceForInjector(injectorId);
-
-      // Assert
-      assertTrue(result);
-    }
-
-    @Test
-    void given_missingStatusAndFallbackFailure_should_returnTrueForCatalogUnsupportedHandling() {
-      // Arrange
-      String injectorId = "injector-4";
       when(connectorInstanceConfigurationRepository.findStatusByKeyValue(
               ConnectorType.INJECTOR.getIdKeyName(), injectorId))
           .thenReturn(Optional.empty());
