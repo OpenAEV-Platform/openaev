@@ -1,7 +1,8 @@
 import { Collapse, ListItemIcon, ListItemText, MenuItem, MenuList, Popover, useTheme } from '@mui/material';
-import { type FunctionComponent } from 'react';
+import { type FunctionComponent, type MouseEvent as ReactMouseEvent } from 'react';
 import { Link, useLocation } from 'react-router';
 
+import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
 import { useFormatter } from '../../../i18n';
 import { type LeftMenuSubItem } from './leftmenu-model';
 import { type LeftMenuHelpers, type LeftMenuState } from './useLeftMenu';
@@ -27,10 +28,29 @@ const MenuItemSub: FunctionComponent<Props> = ({
 
   const { navOpen, selectedMenu, anchors } = state;
   const { handleSelectedMenuOpen, handleSelectedMenuClose } = helpers;
+  const {
+    isValidated: isValidatedEnterpriseEdition,
+    openDialog,
+    setEEFeatureDetectedInfo,
+  } = useEnterpriseEdition();
 
-  const renderMenuItem = ({ label, link, exact, icon }: LeftMenuSubItem, inCollapse: boolean) => {
+  const renderMenuItem = ({ label, link, exact, icon, chip }: LeftMenuSubItem, inCollapse: boolean) => {
     const isCurrentTab = exact ? location.pathname === link : location.pathname.includes(link);
     const itemTextColor = isCurrentTab ? theme.palette.primary.main : textColor;
+
+    const handleItemClick = (event: ReactMouseEvent<HTMLElement>) => {
+      if (chip && !isValidatedEnterpriseEdition) {
+        event.preventDefault();
+        event.stopPropagation();
+        setEEFeatureDetectedInfo(t(label));
+        openDialog();
+        return;
+      }
+
+      if (!inCollapse) {
+        handleSelectedMenuClose();
+      }
+    };
 
     return (
       <MenuItem
@@ -40,7 +60,7 @@ const MenuItemSub: FunctionComponent<Props> = ({
         to={link}
         selected={false}
         dense
-        onClick={!inCollapse ? handleSelectedMenuClose : undefined}
+        onClick={handleItemClick}
         sx={{
           'px': 2.5,
           'py': 1,
@@ -56,16 +76,25 @@ const MenuItemSub: FunctionComponent<Props> = ({
             {icon()}
           </ListItemIcon>
         )}
-        <ListItemText
-          primary={t(label)}
-          sx={{ pt: 0.1 }}
-          slotProps={{
-            primary: {
-              fontSize: '12px',
-              color: itemTextColor,
-            },
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            width: '100%',
           }}
-        />
+        >
+          <ListItemText
+            primary={t(label)}
+            sx={{ pt: 0.1 }}
+            slotProps={{
+              primary: {
+                fontSize: '12px',
+                color: itemTextColor,
+              },
+            }}
+          />
+          {chip}
+        </span>
       </MenuItem>
     );
   };
