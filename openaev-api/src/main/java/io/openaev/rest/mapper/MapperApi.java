@@ -72,7 +72,7 @@ public class MapperApi extends RestBehavior {
   public Page<RawPaginationImportMapper> getImportMapper(
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return buildPaginationJPA(
-        this.importMapperRepository::findAll, searchPaginationInput, ImportMapper.class)
+            this.importMapperRepository::findAll, searchPaginationInput, ImportMapper.class)
         .map(RawPaginationImportMapper::new);
   }
 

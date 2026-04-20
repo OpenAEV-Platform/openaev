@@ -29,8 +29,8 @@ public class VariableApi extends RestBehavior {
   // -- EXERCISES --
 
   @PostMapping({
-      EXERCISE_URI + "/{exerciseId}/variables",
-      TENANT_EXERCISE_URI + "/{exerciseId}/variables"
+    EXERCISE_URI + "/{exerciseId}/variables",
+    TENANT_EXERCISE_URI + "/{exerciseId}/variables"
   })
   @AccessControl(
       resourceId = "#exerciseId",
@@ -48,8 +48,8 @@ public class VariableApi extends RestBehavior {
   }
 
   @GetMapping({
-      EXERCISE_URI + "/{exerciseId}/variables",
-      TENANT_EXERCISE_URI + "/{exerciseId}/variables"
+    EXERCISE_URI + "/{exerciseId}/variables",
+    TENANT_EXERCISE_URI + "/{exerciseId}/variables"
   })
   @AccessControl(
       resourceId = "#exerciseId",
@@ -60,8 +60,8 @@ public class VariableApi extends RestBehavior {
   }
 
   @PutMapping({
-      EXERCISE_URI + "/{exerciseId}/variables/{variableId}",
-      TENANT_EXERCISE_URI + "/{exerciseId}/variables/{variableId}"
+    EXERCISE_URI + "/{exerciseId}/variables/{variableId}",
+    TENANT_EXERCISE_URI + "/{exerciseId}/variables/{variableId}"
   })
   @AccessControl(
       resourceId = "#exerciseId",
@@ -78,8 +78,8 @@ public class VariableApi extends RestBehavior {
   }
 
   @DeleteMapping({
-      EXERCISE_URI + "/{exerciseId}/variables/{variableId}",
-      TENANT_EXERCISE_URI + "/{exerciseId}/variables/{variableId}"
+    EXERCISE_URI + "/{exerciseId}/variables/{variableId}",
+    TENANT_EXERCISE_URI + "/{exerciseId}/variables/{variableId}"
   })
   @AccessControl(
       resourceId = "#exerciseId",
@@ -96,8 +96,8 @@ public class VariableApi extends RestBehavior {
   // -- SCENARIOS --
 
   @PostMapping({
-      SCENARIO_URI + "/{scenarioId}/variables",
-      TENANT_SCENARIO_URI + "/{scenarioId}/variables"
+    SCENARIO_URI + "/{scenarioId}/variables",
+    TENANT_SCENARIO_URI + "/{scenarioId}/variables"
   })
   @AccessControl(
       resourceId = "#scenarioId",
@@ -114,8 +114,8 @@ public class VariableApi extends RestBehavior {
   }
 
   @GetMapping({
-      SCENARIO_URI + "/{scenarioId}/variables",
-      TENANT_SCENARIO_URI + "/{scenarioId}/variables"
+    SCENARIO_URI + "/{scenarioId}/variables",
+    TENANT_SCENARIO_URI + "/{scenarioId}/variables"
   })
   @AccessControl(
       resourceId = "#scenarioId",
@@ -126,8 +126,8 @@ public class VariableApi extends RestBehavior {
   }
 
   @PutMapping({
-      SCENARIO_URI + "/{scenarioId}/variables/{variableId}",
-      TENANT_SCENARIO_URI + "/{scenarioId}/variables/{variableId}"
+    SCENARIO_URI + "/{scenarioId}/variables/{variableId}",
+    TENANT_SCENARIO_URI + "/{scenarioId}/variables/{variableId}"
   })
   @AccessControl(
       resourceId = "#scenarioId",
@@ -144,8 +144,8 @@ public class VariableApi extends RestBehavior {
   }
 
   @DeleteMapping({
-      SCENARIO_URI + "/{scenarioId}/variables/{variableId}",
-      TENANT_SCENARIO_URI + "/{scenarioId}/variables/{variableId}"
+    SCENARIO_URI + "/{scenarioId}/variables/{variableId}",
+    TENANT_SCENARIO_URI + "/{scenarioId}/variables/{variableId}"
   })
   @AccessControl(
       resourceId = "#scenarioId",

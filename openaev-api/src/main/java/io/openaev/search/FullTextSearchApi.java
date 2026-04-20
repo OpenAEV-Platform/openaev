@@ -29,7 +29,7 @@ public class FullTextSearchApi extends RestBehavior {
   @PostMapping({GLOBAL_SEARCH_URI, TENANT_GLOBAL_SEARCH_URI})
   @AccessControl(skipRBAC = true)
   public Map<? extends Class<? extends Base>, FullTextSearchService.FullTextSearchCountResult>
-  fullTextSearch(@Valid @RequestBody final SearchTerm searchTerm) {
+      fullTextSearch(@Valid @RequestBody final SearchTerm searchTerm) {
     return this.fullTextSearchService.fullTextSearch(searchTerm.getSearchTerm());
   }
 

@@ -78,8 +78,8 @@ public class TagRuleApi extends RestBehavior {
   @Operation(summary = "Delete TagRule", description = "TagRule needs to exists")
   @ApiResponses(
       value = {
-          @ApiResponse(responseCode = "200", description = "TagRule deleted"),
-          @ApiResponse(responseCode = "404", description = "TagRule not found")
+        @ApiResponse(responseCode = "200", description = "TagRule deleted"),
+        @ApiResponse(responseCode = "404", description = "TagRule not found")
       })
   public void deleteTagRule(
       @PathVariable @NotBlank @Schema(description = "ID of the tag rule") final String tagRuleId) {
@@ -93,8 +93,8 @@ public class TagRuleApi extends RestBehavior {
   @Operation(summary = "Create TagRule", description = "Tag and Asset Groups needs to exists")
   @ApiResponses(
       value = {
-          @ApiResponse(responseCode = "200", description = "TagRule created"),
-          @ApiResponse(responseCode = "404", description = "Tag or Asset Group not found")
+        @ApiResponse(responseCode = "200", description = "TagRule created"),
+        @ApiResponse(responseCode = "404", description = "Tag or Asset Group not found")
       })
   public TagRuleOutput createTagRule(@Valid @RequestBody final TagRuleInput input) {
     return tagRuleMapper.toTagRuleOutput(
@@ -111,8 +111,8 @@ public class TagRuleApi extends RestBehavior {
   @Operation(summary = "Update TagRule", description = "Tag and Asset Groups needs to exists")
   @ApiResponses(
       value = {
-          @ApiResponse(responseCode = "200", description = "TagRule updated"),
-          @ApiResponse(responseCode = "404", description = "TagRule, Tag or Asset Group not found")
+        @ApiResponse(responseCode = "200", description = "TagRule updated"),
+        @ApiResponse(responseCode = "404", description = "TagRule, Tag or Asset Group not found")
       })
   public TagRuleOutput updateTagRule(
       @PathVariable @NotBlank @Schema(description = "ID of the tag rule") final String tagRuleId,
@@ -129,9 +129,9 @@ public class TagRuleApi extends RestBehavior {
       summary = "Search TagRules")
   @ApiResponses(
       value = {
-          @ApiResponse(
-              responseCode = "200",
-              description = "The list of all TagRules corresponding to the search criteria")
+        @ApiResponse(
+            responseCode = "200",
+            description = "The list of all TagRules corresponding to the search criteria")
       })
   public Page<TagRuleOutput> searchTagRules(
       @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
