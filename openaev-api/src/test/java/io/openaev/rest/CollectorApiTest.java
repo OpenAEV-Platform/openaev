@@ -35,7 +35,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @TestInstance(PER_CLASS)
 @Transactional
 @DisplayName("Collector Api Integration Tests")
-@WithMockUser(withCapabilities = {Capability.ACCESS_PLATFORM_SETTINGS})
+@WithMockUser(withCapabilities = {Capability.ACCESS_TENANT_SETTINGS})
 public class CollectorApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
@@ -241,7 +241,7 @@ public class CollectorApiTest extends IntegrationTest {
 
   @Nested
   @DisplayName("Register collector")
-  @WithMockUser(withCapabilities = {Capability.MANAGE_PLATFORM_SETTINGS})
+  @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
   class RegisterCollector {
 
     @Test

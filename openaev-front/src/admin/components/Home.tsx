@@ -53,7 +53,7 @@ const Home = () => {
       noDashboardSlot={(
         <NoDashboardComponent
           actionComponent={(
-            <Can I={ACTIONS.ACCESS} a={SUBJECTS.PLATFORM_SETTINGS}>
+            <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
               <SelectDashboardButton
                 variant="text"
                 handleApplyChange={handleSelectNewDashboard}

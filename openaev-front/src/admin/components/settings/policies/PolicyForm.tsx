@@ -49,7 +49,7 @@ const PolicyForm: FunctionComponent<Props> = ({
           askAi={false}
           inInject={false}
           inArticle={false}
-          disabled={ability.cannot(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS)}
+          disabled={ability.cannot(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS)}
         />
         <MarkDownFieldController
           name="platform_consent_message"
@@ -58,7 +58,7 @@ const PolicyForm: FunctionComponent<Props> = ({
           askAi={false}
           inInject={false}
           inArticle={false}
-          disabled={ability.cannot(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS)}
+          disabled={ability.cannot(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS)}
         />
         <MarkDownFieldController
           name="platform_consent_confirm_text"
@@ -67,10 +67,10 @@ const PolicyForm: FunctionComponent<Props> = ({
           askAi={false}
           inInject={false}
           inArticle={false}
-          disabled={ability.cannot(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS)}
+          disabled={ability.cannot(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS)}
         />
         <div style={{ marginTop: 20 }}>
-          <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
+          <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
             <Button
               variant="contained"
               color="primary"

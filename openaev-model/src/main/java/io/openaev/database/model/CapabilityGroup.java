@@ -11,6 +11,7 @@ public enum CapabilityGroup {
   CONTENT,
   PLATFORM_SETTINGS,
   TENANTS,
+  TENANT_SETTINGS,
   PLATFORM_GROUPS_AND_ROLES,
   STIX,
 }

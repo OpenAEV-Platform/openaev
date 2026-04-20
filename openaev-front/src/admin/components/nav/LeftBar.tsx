@@ -188,31 +188,31 @@ const LeftBar = () => {
           icon: () => (<DnsOutlined />),
           label: 'Integrations',
           href: 'integrations',
-          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
+          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS),
           subItems: [
             {
               link: '/admin/integrations/catalog',
               label: 'Catalog',
               icon: () => (<Widgets fontSize="small" />),
-              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
+              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS),
             },
             {
               link: '/admin/integrations/injectors',
               label: 'Injectors',
               icon: () => (<SmartButtonOutlined fontSize="small" />),
-              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
+              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS),
             },
             {
               link: '/admin/integrations/collectors',
               label: 'Collectors',
               icon: () => (<OnlinePredictionOutlined fontSize="small" />),
-              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
+              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS),
             },
             {
               link: '/admin/integrations/executors',
               label: 'Executors',
               icon: () => (<TerminalOutlined fontSize="small" />),
-              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
+              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS),
             },
           ],
         },
@@ -221,9 +221,16 @@ const LeftBar = () => {
   ];
   entries.push(
     {
-      userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
+      userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS),
       items: [
         ...settingsEntries(ability),
+      ],
+    },
+  );
+  entries.push(
+    {
+      userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
+      items: [
         ...platformEntries(ability),
       ],
     },

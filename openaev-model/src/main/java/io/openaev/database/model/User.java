@@ -260,6 +260,10 @@ public class User implements Base {
   @JsonIgnore
   private List<Tenant> tenants = new ArrayList<>();
 
+  @ManyToMany(mappedBy = "users", fetch = FetchType.LAZY)
+  @JsonIgnore
+  private Set<PlatformGroup> platformGroups = new HashSet<>();
+
   @Getter(onMethod_ = @JsonIgnore)
   @Transient
   private final ResourceType resourceType = ResourceType.USER;
@@ -339,10 +343,18 @@ public class User implements Base {
   @JsonProperty("user_capabilities")
   @Enumerated(EnumType.STRING)
   public Set<Capability> getCapabilities() {
-    return getGroups().stream()
+    Set<Capability> capabilities = new HashSet<>();
+    // Tenant capabilities (groups → roles → capabilities)
+    getGroups().stream()
         .flatMap(group -> group.getRoles().stream())
         .flatMap(role -> role.getCapabilities().stream())
-        .collect(Collectors.toSet());
+        .forEach(capabilities::add);
+    // Platform capabilities (platform groups → platform roles → capabilities)
+    getPlatformGroups().stream()
+        .flatMap(pg -> pg.getPlatformRoles().stream())
+        .flatMap(pr -> pr.getCapabilities().stream())
+        .forEach(capabilities::add);
+    return capabilities;
   }
 
   @JsonProperty("user_grants")
