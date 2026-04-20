@@ -3,7 +3,6 @@ import * as R from 'ramda';
 import { type FunctionComponent, useContext, useEffect, useMemo, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import availableExpectationsForInjectorContract from '../../../../../actions/expectations/expectation-actions';
 import { useFormatter } from '../../../../../components/i18n';
 import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, INHERITED_CONTEXT, SUBJECTS } from '../../../../../utils/permissions/types';
@@ -27,15 +26,17 @@ interface InjectExpectationsProps {
   handleExpectations: (expectations: ExpectationInput[]) => void;
   readOnly?: boolean;
   injectId?: string;
-  injectorContractId: string;
+  predefinedExpectations?: ExpectationInput[];
+  availableExpectations?: ExpectationInput[];
 }
 
 const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
   expectationDatas,
   handleExpectations,
+  readOnly = false,
   injectId,
-  injectorContractId,
-  readOnly,
+  predefinedExpectations = [],
+  availableExpectations = [],
 }) => {
   // Standard hooks
   const { classes } = useStyles();
@@ -46,14 +47,17 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
     || (inherited_context === INHERITED_CONTEXT.NONE && ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, injectId));
 
   const [sortedExpectations, setSortedExpectations] = useState<ExpectationInput[]>([]);
-  const [availableExpectations, setAvailableExpectations] = useState<ExpectationInput[]>([]);
-  const [sortBy] = useState('expectation_name');
+  const [sortBy] = useState<keyof ExpectationInput>('expectation_name');
   const [sortAsc] = useState(true);
 
-  // Filter predefinedExpectations already included into expectations
+  const expectationsAvailableInContract = availableExpectations.length > 0
+    ? availableExpectations
+    : predefinedExpectations;
+
+  // Filter contract available expectations already included into current inject expectations.
   // Manual expectations can be added as many times as we want
-  const predefinedExpectations = useMemo(() => availableExpectations
-    .filter(pe => !sortedExpectations.map(e => e.expectation_type).includes(pe.expectation_type) || pe.expectation_type === 'MANUAL'), [sortedExpectations, availableExpectations]);
+  const addableAvailableExpectations = useMemo(() => expectationsAvailableInContract
+    .filter(pe => !sortedExpectations.map(e => e.expectation_type).includes(pe.expectation_type) || pe.expectation_type === 'MANUAL'), [sortedExpectations, expectationsAvailableInContract]);
 
   const sortExpectations = R.sortWith(
     sortAsc
@@ -67,14 +71,6 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
     }
   }, [expectationDatas]);
 
-  useEffect(() => {
-    if (!availableExpectations || availableExpectations.length === 0) {
-      availableExpectationsForInjectorContract(injectorContractId).then((result: { data: ExpectationInput[] }) => {
-        setAvailableExpectations(result.data);
-      });
-    }
-  }, [availableExpectations]);
-
   // -- ACTIONS --
 
   const handleAddExpectation = (expectation: ExpectationInput) => {
@@ -84,7 +80,7 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
   };
 
   const handleUpdateExpectation = (expectation: ExpectationInput, idx: number) => {
-    const values = sortedExpectations.map((item, i) => (i !== idx ? item : expectation));
+    const values = sortedExpectations.map((item, i) => (i === idx ? expectation : item));
     setSortedExpectations(sortExpectations(values));
     handleExpectations(values);
   };
@@ -111,15 +107,17 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
           <ListItem
             key={expectation.expectation_name}
             divider
-            secondaryAction={(
-              <ExpectationPopover
-                index={idx}
-                expectation={expectation}
-                injectId={injectId}
-                handleUpdate={handleUpdateExpectation}
-                handleDelete={handleRemoveExpectation}
-              />
-            )}
+            secondaryAction={(readOnly
+              ? undefined
+              : (
+                  <ExpectationPopover
+                    index={idx}
+                    expectation={expectation}
+                    injectId={injectId}
+                    handleUpdate={handleUpdateExpectation}
+                    handleDelete={handleRemoveExpectation}
+                  />
+                ))}
           >
             <ListItemIcon>
               {typeIcon(expectation.expectation_type)}
@@ -145,12 +143,13 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
           </ListItem>
         ))}
       </List>
-      { userCanAddExpectations && predefinedExpectations?.length !== 0
+      { !readOnly && userCanAddExpectations && addableAvailableExpectations.length !== 0
         && (
           <InjectAddExpectation
             disabled={readOnly}
             handleAddExpectation={handleAddExpectation}
             predefinedExpectations={predefinedExpectations}
+            availableExpectations={addableAvailableExpectations}
           />
         )}
     </>
