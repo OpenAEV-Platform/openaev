@@ -1,32 +1,16 @@
 package io.openaev.api.payload;
 
-import static io.openaev.helper.StreamHelper.fromIterable;
-import static io.openaev.helper.StreamHelper.iterableToSet;
-
 import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
-import io.openaev.database.model.Payload;
 import io.openaev.database.model.ResourceType;
-import io.openaev.database.repository.AttackPatternRepository;
-import io.openaev.database.repository.DomainRepository;
-import io.openaev.database.repository.TagRepository;
 import io.openaev.jsonapi.IncludeOptions;
-import io.openaev.jsonapi.IncludeOptions.IncludeMode;
 import io.openaev.jsonapi.JsonApiDocument;
-import io.openaev.jsonapi.Relationship;
-import io.openaev.jsonapi.ResourceIdentifier;
 import io.openaev.jsonapi.ResourceObject;
-import io.openaev.jsonapi.ZipJsonApi;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.payload.PayloadApi;
-import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.service.ImportService;
-import io.openaev.service.ZipJsonService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.constraints.NotNull;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -37,6 +21,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.util.Map;
 
 @Slf4j
 @RestController
@@ -50,15 +36,12 @@ public class PayloadApiImporter extends RestBehavior {
    * its business key, the entire detection remediation is skipped.
    */
   private static final IncludeOptions IMPORT_OPTIONS =
-      IncludeOptions.of(
-          Map.of("detection_remediation_collector_type", IncludeMode.IF_EXISTS_IN_DB));
+          IncludeOptions.of(
+                  Map.of("detection_remediation_collector_type", IncludeOptions.IncludeMode.IF_EXISTS_IN_DB));
 
-  private final ZipJsonApi<Payload> zipJsonApi;
+
+  private final PayloadImportService payloadImportService;
   private final ImportService importService;
-  private final PayloadService payloadService;
-  private final AttackPatternRepository attackPatternRepository;
-  private final DomainRepository domainRepository;
-  private final TagRepository tagRepository;
 
   /**
    * Imports a payload from a JSON:API document (legacy format).
@@ -80,40 +63,13 @@ public class PayloadApiImporter extends RestBehavior {
   public ResponseEntity<JsonApiDocument<ResourceObject>> importJson(
       @RequestPart("file") @NotNull MultipartFile file) throws Exception {
     try {
-      ZipJsonService.ImportOutput<Payload> response = zipJsonApi.handleImport(file, "payload_name", IMPORT_OPTIONS, null);
-
-      // Extract legacy relationship IDs from the original source document.
-      // These fields (attack_patterns, domains, tags) no longer exist on Payload
-      // but may be present in legacy exports — they now live on InjectorContract.
-      Map<String, Relationship> rels =
-          response.sourceDocument().data().relationships() != null
-              ? response.sourceDocument().data().relationships()
-              : Collections.emptyMap();
-
-      List<String> attackPatternIds = extractRelationshipIds(rels, "payload_attack_patterns");
-      List<String> domainIds = extractRelationshipIds(rels, "payload_domains");
-      List<String> tagIds = extractRelationshipIds(rels, "payload_tags");
-
-      payloadService.synchroniseInjectorContractBasedOnPayload(
-          response.persistedData(),
-          fromIterable(attackPatternRepository.findAllById(attackPatternIds)),
-          iterableToSet(domainRepository.findAllById(domainIds)),
-          iterableToSet(tagRepository.findAllById(tagIds)));
-
-      return ResponseEntity.ok(response.jsonApiDocument());
+      PayloadImportService.PayloadImportResult result =
+          payloadImportService.importPayload(file);
+      return ResponseEntity.ok(result.payloadOutput().jsonApiDocument());
     } catch (Exception ex) {
       log.warn("Fallback to old import due to {}", ex.getMessage(), ex);
-      // Fall back to the legacy importer
       importService.handleFileImport(file, null, null);
       return ResponseEntity.ok().build();
     }
-  }
-
-  private List<String> extractRelationshipIds(Map<String, Relationship> rels, String relName) {
-    Relationship rel = rels.get(relName);
-    if (rel == null) {
-      return Collections.emptyList();
-    }
-    return rel.asMany().stream().map(ResourceIdentifier::id).toList();
   }
 }
