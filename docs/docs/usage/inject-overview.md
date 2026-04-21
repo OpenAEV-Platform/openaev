@@ -1,364 +1,91 @@
 # Injects
 
-Injects are fundamental elements of simulations within OpenAEV, each representing a discrete action to be executed
-during a Scenario. Managed and facilitated by various [injectors](injectors.md), each inject type serves a distinct
-purpose, contributing to the comprehensive evaluation of defenses.
+Injects are the building blocks of security testing in OpenAEV. Each Inject represents a single action (phishing
+email, command execution, DNS resolution…) that OpenAEV executes against your infrastructure during a
+[Scenario](scenario.md) or as a standalone [Atomic test](atomic.md).
 
-## Create an inject
+## Create an Inject
 
-Whether intended for [Atomic testing](atomic.md) or for a [Simulation](simulation.md), the process for creating injects
-remains consistent within OpenAEV.
+Creating an Inject means defining **what** to execute, **against whom**, and **what outcome to expect**. Every Inject is
+powered by an [Injector](injectors.md), the connector that knows how to deliver the action (email, agent command,
+API call, etc.).
 
-![Capture of a filtered list of inject during selection process](assets/example_inject_filtering.png)
+### Benefits
 
-### For Atomic testing
+- **Validate defenses**: test whether your security stack prevents or detects a specific technique.
+- **Build realistic Scenarios**: combine multiple Injects into a full attack chain.
+- **Measure response**: check if your teams react as expected when facing a threat.
 
-To create an inject for atomic testing, navigate to the "Atomic testing" section located in the left-hand banner. Click
-on the "+" icon in the bottom right corner to initiate the inject creation process.
+### Steps
 
-### For Scenarios and Simulations
+The creation workflow is the same whether you work from Atomic testing or from a Scenario/Simulation.
 
-For injects intended for use within simulations, access the desired Scenario or Simulation and navigate to the "Injects"
-tab. Click on the "+" icon in the bottom right corner of the screen to open the inject creation panel.
+#### 1. Open the creation panel
 
-Note that an inject defined in a Scenario will be used in all the scenario's subsequent simulations. An Inject defined
-at the simulation level will not be replicated into the Scenario itself, thus it will not be replicated in future
-scenario's simulations.
+| Context | Where to go |
+|---------|-------------|
+| Atomic testing | **Atomic testing** in the left menu, then click the **+** button (bottom-right) |
+| Scenario / Simulation | Open the Scenario or Simulation → **Injects** tab → click the **+** button (bottom-right) |
 
-<a id="inject-creation-section"></a>
-
-### Inject creation process
-
-Once the inject creation panel is open, you can proceed to configure the inject according to your requirements. Key
-steps in the creation process include:
-
-#### 1. Choose the type of inject
-
-You first need to select an inject in the list of available ones (on the left of the creation screen). Logos on the left
-of each line indicates which Injector is associated with each [inject](inject-overview.md). Depending on your integrations, this
-list can be long.
-
-To facilitate the selection into this possibly very long list, you can search injects by name and filter the list by
-selecting a precise MITRE ATT&CK techniques for instance.
-
-#### 2. Set inject parameters
-
-When selecting an inject on the left, the form on the right populates itself with a by-default title and propose you to
-define:
-
-- Descriptive information: Fill in details such as the title, description, and relevant tags to categorize the inject
-  effectively.
-- Execution timing: If you are creating your inject in the context of a scenario or simulation, you have to set the
-  timing for when the inject should be executed within the simulation timeline, ensuring it aligns with the overall
-  scenario progression.
-
-By clicking on "Inject content", you can define now or later:
-
-- [Inject targets](targets.md): Specify the targets for the inject, which may include [players and teams](people.md)
-  or [assets and assets groups](assets.md) depending on the inject chosen.
-- [Expectations](expectations.md): Define the expected outcomes or responses to the inject, outlining the desired
-  actions or behaviors by players.
-- Attachments: Attach any relevant documents or resources to provide additional context or information related to the
-  inject.
-- Additional fields: Depending on the type of Inject selected, you may have access to additional fields specific to that
-  inject type. These fields may include the subject and body of an email, channel pressure settings for public
-  communications, obfuscation options, and more.
-
-The "available variables" button helps you to use already defined variables into compatible fields.
-
-![screenshot of the inject creation panel](assets/email_inject_definition.png)
-
-By following these steps and providing the necessary information, you can create injects tailored to your specific
-testing or simulation objectives.
-
-### Output Parsing
-- The injector captures and parses the JSON output of Nuclei, and returns:
-
-- Confirmed findings (if any) with severity and CVE IDs
-
-- Other lines as unstructured output
-
-
-### Target Selection
-
-The targets vary based on the provided input type:
-
-#### If target type is **Assets**:
-
-| Targeted Property   | Source Property        |
-|---------------------|------------------------|
-| Seen IP             | Seen IP address        |
-| Local IP (first)    | IP Addresses (first)   |
-| Hostname            | Hostname               |
-
-#### If target type is **Manual**:
-
-- Hostnames or IP addresses are provided directly as comma-separated values.
-
-### Results
-
-Scan results are categorized into:
-
-- **CVEs** (based on template classifications)
-- **Other vulnerabilities** (general issues found)
-
-If no vulnerabilities are detected, the injector will clearly indicate this with a **"Nothing Found"** message.
-
-## Resources
-
-* [Nuclei Documentation](https://github.com/projectdiscovery/nuclei)
-* [Official Nuclei Templates](https://github.com/projectdiscovery/nuclei-templates)
-
-## Inject tests
-
-You can test direct contact injects in simulations and scenarios.
-
-!!! warning
-
-    For now, only email and sms inject are concerned by this feature.
+![Filtered list of Injects during selection](assets/example_inject_filtering.png)
 
 !!! note
 
-    Only the latest test is displayed for each inject.
+    An Inject defined in a Scenario applies to all subsequent Simulations of that Scenario. An Inject added directly to a Simulation is **not** replicated back into the Scenario.
 
-### Unit test
+#### 2. Choose the Inject type
 
-You can test injects one at a time.
+The left panel lists all available Inject types. Each row shows the Injector logo so you can identify the source at a
+glance. Use the search bar or filter by [MITRE ATT&CK](https://attack.mitre.org/) technique to narrow the list.
 
-![Inject test in a Simulation](assets/inject_test_single.png)
+#### 3. Configure the Inject
 
-In the injects list of your simulation/scenario, open the contextual menu of an email or sms inject. Click on "Test". A
-confirmation dialog appears, you can confirm the test or cancel it.
+Select an Inject type on the left. The right panel loads a form with a default title. Fill in:
 
-![Inject test result in a Simulation](assets/inject_test_result.png)
+| Section | What to define |
+|---------|---------------|
+| **General** | Title, description, tags, and execution timing (for Scenarios/Simulations) |
+| **Targets** | [Endpoints and Asset groups](assets.md) or [Players and Teams](people.md) |
+| **Expectations** | [Expected outcomes](expectations.md): prevention, detection, human response |
+| **Attachments** | Supporting documents or resources |
+| **Inject-specific fields** | Email subject/body, obfuscation options, channel pressure, etc. |
 
-After launching the test, an alert appears at the top of the page. You can click on the "dedicated page" link. You are
-redirected to the tests list, a drawer with the execution details of the test opens.
+Use the **available variables** button to insert predefined variables into compatible fields.
 
-![Inject test details in a Simulation](assets/inject_test_details.png)
+![Inject creation panel](assets/email_inject_definition.png)
 
-!!! warning
+### In practice
 
-    The option is disabled if your inject doesn't have any teams.
+You want to test whether your EDR blocks a `Mimikatz` execution (MITRE ATT&CK T1003):
 
-### Bulk test
+1. Open **Atomic testing**, then click **+**.
+2. Filter by technique **T1003: OS Credential Dumping**.
+3. Select the matching command-line Inject.
+4. Assign your target Windows Endpoint.
+5. Add a **Prevention** expectation.
+6. Save and launch.
 
-You can test injects in bulk.
+---
 
-![Inject test in bulk in a Simulation](assets/inject_test_bulk.png)
+## Output parsing and results
 
-Select the injects you want to test then click on the bug icon. A confirmation dialog appears, you can cancel or confirm
-the launch of the test.
+Some Inject types produce structured output that OpenAEV parses automatically to extract actionable results (CVEs,
+vulnerabilities, alerts…) without any manual work. The parsing logic depends on the Injector and is handled by each
+integration individually.
 
-![Inject test in bulk in a Simulation](assets/inject_test_bulk_confirmation_dialog.png)
+Many community and official integrations are available. Check the
+[OpenAEV integrations repository](https://github.com/OpenAEV-Platform) for the full list of supported tools and
+connectors.
 
-As mentioned in the dialog, only sms and emails injects will be tested. The emails/sms are sent to the current user.
+---
 
-After the launch of the test, you are redirected to the tests list page.
+## Go further
 
-### Replay tests
-
-Each test in the list has a menu allowing users to delete or replay the test.
-
-![Inject test replay](assets/inject_replay_test.png)
-
-After confirming the replay of the test, the details are updated.
-
-The user can also replay all the tests in the list. An icon similar to the one in the injects toolbar is available at
-the top of the list. After clicking on it, the user confirms the tests launch and the details are updated.
-
-## Inject status
-
-### Inject status using the OpenAEV agent
-
-#### Navigating between active inject targets
-
-All targets that are selected for the inject are available on the Targets panel on the left side of the screen. There is
-a
-tab for each target type (Asset group, Endpoint, Agent, Team and Player), and only the tabs that have at least one
-active
-target are visible on the screen.
-
-Since there may be a large number of targets of the same type (depending on your selection), a pagination utility
-with various filters is provided to help skim through the list.
-
-#### Viewing Execution Traces
-
-When you create a technical Inject, you assign it to endpoints, each of which may have one or multiple agents. As the
-inject executes, agents communicate their progress to the OAEV Server, which logs detailed execution traces.
-
-In the "Execution details" tab, you can see the traces related to the overall execution of the inject. On the "
-Execution" tab
-found in the inject’s overview page, you’ll find the traces for each individual target, including both
-endpoints and agents. This helps you easily track the progress of the execution at both the agent and endpoint levels.
-Each agent produces several traces, which represent different steps of the execution process such as:
-
-- Prerequisite checks (validation before execution)
-- Prerequisite retrieval (only if the check fails)
-- Attack command
-- Cleanup commands
-
-![Inject execution details](assets/inject-execution-details.png)
-
-!!! warning
-
-    If a prerequisite check succeeds, the prerequisite retrieval step is skipped. However, the UI always marks prerequisite checks as "SUCCESS"—to verify execution results, you must inspect the stderr logs.
-
-**Trace Statuses**
-
-Each execution step reports a status:
-
-- ✅ SUCCESS – Command executed successfully
-- ⚠️ WARNING – Executed with minor issues
-- ❓MAYBE_PREVENTED – A generic error occurred, possibly due to firewall restrictions
-- 🚫 COMMAND_CANNOT_BE_EXECUTED – Found but couldn't execute (e.g., permission issues)
-- ❌COMMAND_NOT_FOUND – Executor couldn’t find the command
-- 🛑 ERROR – General failure
-
-All execution logs are stored on the OAEV Server, which later processes them to determine agent and inject statuses.
-
-**Agent Status Computation**
-
-When an agent completes execution, the server retrieves all traces and computes an agent status based on the following
-rules:
-
-- All traces SUCCESS → Agent status = <span style="color: #4caf50">INJECT EXECUTED</span>
-- All traces ERROR → Agent status = <span style="color: #f44336">ERROR</span>
-- All traces MAYBE_PREVENTED → Agent status = <span style="color: #673ab7">MAYBE_PREVENTED</span>
-- At least one SUCCESS trace → Agent status = <span style="color: #ff9800">PARTIAL</span>
-- Otherwise → Agent status = MAYBE_PARTIAL_PREVENTED
-
-**Inject Status Computation**
-
-After all agents have completed their execution, the system calculates the Inject status using the same logic applied to
-compute the agent status.
-
-**Alert Details**
-
-Once an inject has been executed, it is possible to access the alerts' details on the different security platforms
-(SIEM or EDR) linked to the EDRs present on the tested assets.
-
-![Inject execution traces details](assets/inject-expectation-traces-1.png)
-
-By selecting an agent on the `Targets` panel, you can access the traces details that were retrieved by OpenAEV.
-
-On the above example, we can see that there are 2 agents on the `vm3.oaev.lan` asset. We can see there are detections on
-the
-OpenAEV agent, while the Crowdstrike agent hasn't had any yet (it can take several minutes for the traces to
-show up in OpenAEV).
-
-By clicking on the OpenAEV agent, we can see that the inject's payload was already detected by the CrowdStrike Falcon
-EDR
-while more detections might arrive at a later point.
-We can also see that there was one alert identified on CrowdStrike Falcon EDR.
-
-To get the details of this alert, you can click on the CrowdStrike line to see this:
-
-![Inject execution traces alert details](assets/inject-expectation-traces-2.png)
-
-On this new panel, you can click on the alert name, and you will be redirected to the alert details on the corresponding
-security platform.
-
-!!! warning
-
-    It can take some time for the details to appear after the execution of an inject, sometime up to several minutes.
-
-#### Adding manual results
-
-In some cases, or for some kinds of injects, it may not be possible to automate results retrieval. In this case, you
-can manually add results to an inject by clicking on the `shield` icon named `Add a result`.
-
-![Adding a manual result](assets/inject-expectation-manual-result-1.png)
-
-This will open the following popup:
-
-![Adding a manual result popup](assets/inject-expectation-manual-result-2.png)
-
-You can then fill the form with the result you want to add.
-
-## Conditional execution of injects
-
-You can add conditions to an inject, ensuring it is triggered at a specific time only if the specified conditions are
-met. These conditions typically relate to whether an expectation is fulfilled or not, but they can also pertain to the
-success or failure of an execution. There are several methods to achieve this.
-
-### Using the update form
-
-You can set conditions when updating an inject. In the inject update form, there is a tab "Logical Chains" for that.
-
-![Logical chains form](assets/inject-chaining.png)
-
-As you can see, you can assign a Parent and multiple Children. A Parent indicates that the current inject will only
-execute if the conditions set on the Parent are met at the time of execution. Similarly, a Child will execute at the
-specified time only if the conditions set on the current inject are satisfied.
-
-The conditions you can set include the expectations for the inject and whether its execution was successful or not. You
-can select the desired expectation and Success/Fail status by clicking on them.
-
-![Modifying chains value form](assets/inject-chaining-value.png)
-
-You can also toggle whether all conditions must be met or just one by clicking on the small OR/AND cards. Note that
-these settings are interconnected, so you cannot assign different values to them
-
-### Using the timeline
-
-You also have the possibility to quickly create conditions between injects. To do that, you can go to the timeline view
-of injects and place your cursor on the small point on the left and right of each injects. You can then drag and drop a
-link from a point to another.
-
-![Creating chains in the timeline](assets/inject-chaining-timeline.gif)
-
-The links created in this way will default to an expectation of "Execution is Success" and must be updated using the
-injects' update form. Additionally, you can reposition links between injects or remove them entirely by dragging them to
-an empty space.
-
-## Export & Import Injects
-
-The Export & Import functionality allows users to transfer injects between **simulations, scenarios, and atomic testings
-**. Injects are exported along with their configuration details and can be imported across different instances.
-
-### Export Injects
-
-Users can export injects from **simulations, scenarios, or atomic tests**. The exported injects will retain their
-configuration details, which include:
-
-- **Arguments**
-- **Content**
-- **Tags**
-- **Expectations**
-
-### **Export Rules**
-
-- **Multiple injects** can be exported at once for **scenarios and simulations**.
-- **Atomic testing restriction**: Only **one atomic test** can be exported at a time.
-- **Teams/Players** can be optionally included in the export.
-- **Assets** are **never** exported.
-- **Permissions Required**: Read privileges are required on the **Scenario** or **Simulation** to perform an export.
-  Atomic testings require Admin privileges.
-
-![Export in atomic](assets/export-popover.png)
-![Export in atomic](assets/export-inject-atomic.png)
-![Export in simulation](assets/export-inject-simulation.png)
-![Export in simulation menu](assets/export-inject-simulation-menu.png)
-![Export in scenario](assets/export-inject-scenario.png)
-![Export in scenario menu](assets/export-inject-scenario-menu.png)
-
-### **Import Injects**
-
-Users can import injects into **simulations, scenarios, or atomic tests**, regardless of the instance from which they
-were originally exported.
-
-### **Import Rules**
-
-- Injects from any source (atomic testing, scenarios, or simulations) can be imported into any other instance (
-  scenarios, simulations, or atomic testing).
-- **Permissions Required**: Write privileges are required on the **destination object** (Scenario or Simulation) to
-  perform an import. Atomic testings require Admin privileges.
-
-![Import in atomic](assets/import-popover.png)
-![Import in atomic](assets/import-inject-atomic.png)
-![Import in simulation](assets/import-inject-simulation.png)
-![Import in scenario](assets/import-inject-scenario.png)
-
-This feature enables seamless sharing of injects across different environments, ensuring flexibility and efficiency in
-exercises.
+- [Inject types](inject-types.md): full list of available actions.
+- [Inject tests](inject-tests.md): dry-run email and SMS Injects before launching a Simulation.
+- [Inject status](inject-status.md): understand execution traces, trace statuses, and how statuses are computed.
+- [Chaining and transfer](inject-chaining.md): conditional execution and export/import between Scenarios.
+- [Targets](targets.md): control where the Inject runs.
+- [Expectations](expectations/overview.md): define success criteria.
+- [Findings](findings.md): see parsed results after execution.
+- [Inject results](inject-result.md): full breakdown of your security posture against a test.

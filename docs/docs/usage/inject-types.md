@@ -74,118 +74,16 @@ HTTP requests GET, POST, and PUT, can be sent. The corresponding injects are nam
 
 <a id="integration-section"></a>
 
-## Integrations with Agents and CyberRanges
+## Technical Injects via the OpenAEV Agent
 
-Injects executed on remote systems are facilitated by Injectors like [Caldera](inject-caldera.md) or Airbus CyberRange.
-These actions simulate real-world attack techniques, allowing administrators to gauge the effectiveness of their
-security posture in response to various technical actions attackers may take.
+Technical Injects execute commands and Payloads directly on target Endpoints through the
+[OpenAEV Agent](openaev-agent.md). They simulate real-world attack techniques, allowing you to gauge the effectiveness
+of your security posture against the actions an attacker would take.
 
-There are over 1,700 such injects covering all the TTPs in the MITRE ATT&CK matrix.
+## Agentless Injectors
 
-## Nmap
+Some Injects do not require an Agent on the target. Injectors like Nmap or Nuclei run scans and attacks remotely,
+targeting endpoints by IP or hostname without any installed agent.
 
-### Behavior
-
-The injector enables new inject contracts, supporting the following Nmap scan types:
-
-#### Nmap - FIN Scan
-
-Command executed:
-
-```shell
-nmap -Pn -sF
-```
-
-#### Nmap - SYN Scan
-
-Command executed:
-
-```shell
-nmap -Pn -sS
-```
-
-#### Nmap - TCP Connect Scan
-
-Command executed:
-
-```shell
-nmap -Pn -sT
-```
-
-#### Target Selection
-
-The targets vary based on the provided options:
-
-If type of targets is Assets:
-
-| Targeted property | Asset property       | 
-|-------------------|----------------------|
-| Seen IP           | Seen IP address      |
-| Local IP (first)  | IP Addresses (first) |
-| Hostname          | Hostname             |
-
-If type of targets is Manual:
-
-- Hostnames or IP addresses are provided directly as comma-separated values.
-
-### Resources
-
-- Official Nmap Documentation: https://nmap.org/docs.html
-- Options Explanation:
-  - -Pn: Host Discovery
-  - -sS: SYN Scan
-  - -sT: TCP Connect Scan
-  - -sF: FIN Scan
-
-## Nuclei
-
-### Behavior
-
-The Nuclei injector supports contract-based scans by dynamically constructing and executing Nuclei commands based on provided tags or templates.
-
-#### Supported Contracts
-
-The following scan types are supported via `-tags`:
-
-- Cloud
-- Misconfiguration
-- Exposure
-- Panel
-- XSS
-- WordPress
-- HTTP
-
-The CVE scan uses the `-tags cve` argument and enforces JSON output.
-
-The Template scan accepts a manual template via `-t <template>` or `template_path`.
-
-#### Target Selection
-
-Targets are selected based on the `target_selector` field.
-
-##### If target type is **Assets**:
-
-| Selected Property | Uses Asset Field         |
-|-------------------|-------------------------|
-| Seen IP           | endpoint_seen_ip         |
-| Local IP          | First IP from endpoint_ips |
-| Hostname          | endpoint_hostname       |
-
-##### If target type is **Manual**:
-
-Hostnames or IP addresses are provided directly as comma-separated values.
-
-#### Results
-
-Scan results are categorized into:
-
-- **CVEs** (based on template classifications)
-- **Other vulnerabilities** (general issues found)
-
-If no vulnerabilities are detected, the injector will clearly indicate this with a **"Nothing Found"** message.
-
-### Resources
-
-* [Nuclei Documentation](https://github.com/projectdiscovery/nuclei)
-* [Official Nuclei Templates](https://github.com/projectdiscovery/nuclei-templates)
-* http://testphp.vulnweb.com/ is a safe, intentionally vulnerable target provided by Acunetix for security testing purposes
+The full list of available Injectors (agent-based and agentless) is maintained in the
+[OpenAEV Injectors repository](https://github.com/OpenAEV-Platform/injectors).
