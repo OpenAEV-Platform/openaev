@@ -1120,16 +1120,13 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
           }
 
           // Sync & Validate: Only if mappers are MappingType.LOCAL
-          boolean hasChanged =
-              workflowStateService.syncMappersToLocalPartition(
-                  targetTemplate, workflowExecution, currentOutput, rootCondition, mappers);
+          workflowStateService.syncMappersToLocalPartition(
+              targetTemplate, workflowExecution, currentOutput, rootCondition, mappers);
 
-          if (hasChanged) {
-            try {
-              ready(targetTemplate, workflowExecution, null);
-            } catch (ChainingException e) {
-              log.debug("Step {} not ready yet", targetTemplate.getId());
-            }
+          try {
+            ready(targetTemplate, workflowExecution, null);
+          } catch (ChainingException e) {
+            log.debug("Step {} not ready yet", targetTemplate.getId());
           }
         }
       }
