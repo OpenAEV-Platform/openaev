@@ -1,5 +1,7 @@
 package io.openaev.service.chaining;
 
+import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.Step;
@@ -54,7 +56,8 @@ public class QueueChainingService {
             StepEvent.class,
             null,
             objectMapper,
-            openAEVConfig.getQueueConfig().get("workflows-ready"));
+            openAEVConfig.getQueueConfig().get("workflows-ready"),
+            DEFAULT_TENANT_UUID);
 
     // Initializing the queue to manage update event from external sources
     updateQueueService =
@@ -62,7 +65,8 @@ public class QueueChainingService {
             ExternalUpdateEvent.class,
             null,
             objectMapper,
-            openAEVConfig.getQueueConfig().get("workflows-update"));
+            openAEVConfig.getQueueConfig().get("workflows-update"),
+            DEFAULT_TENANT_UUID);
   }
 
   @PreDestroy

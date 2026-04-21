@@ -13,6 +13,7 @@ import io.openaev.service.queue.Queueable;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
 import lombok.RequiredArgsConstructor;
@@ -47,6 +48,15 @@ public class RabbitmqService {
 
   /** Exchange key suffix used for constructing the full exchange name. */
   public static final String EXCHANGE_KEY = "_amqp.connector.exchange";
+
+  private static final String EXECUTION_PREFIX = "_execution_";
+  private static final String EXCHANGE_SUFFIX_PREFIX = "_amqp.";
+  private static final String EXCHANGE_SUFFIX_POSTFIX = ".exchange";
+  private static final String TOPIC_EXCHANGE_TYPE = "topic";
+  private static final String DIRECT_EXCHANGE_TYPE = "direct";
+  private static final String QUORUM_QUEUE_TYPE = "quorum";
+  private static final String X_QUEUE_TYPE = "x-queue-type";
+  private static final String INJECTOR_PREFIX = "_injector_";
 
   private final RabbitmqConfig rabbitmqConfig;
   private final ConnectionFactory connectionFactory;
@@ -154,6 +164,113 @@ public class RabbitmqService {
   }
 
   /**
+   * Creates a tenant-scoped {@link BatchQueueService} whose queues are namespaced under the given
+   * tenant. Queue names follow the pattern {@code <prefix>-<tenantId>_execution_<queueName>}.
+   *
+   * @param <T> the type of element processed by the queue
+   * @param clazz the class of element that will be deserialized from queue messages
+   * @param queueExecution the callback to handle batches of elements
+   * @param mapper the Jackson {@link ObjectMapper}
+   * @param queueConfig the queue configuration
+   * @param tenantId the tenant identifier used in queue naming
+   * @return a fully initialized and connected {@link BatchQueueService}
+   * @throws IOException if an I/O error occurs while connecting to RabbitMQ
+   * @throws TimeoutException if the connection to RabbitMQ times out
+   */
+  public <T extends Queueable> BatchQueueService<T> createBatchQueueService(
+      Class<T> clazz,
+      QueueExecution<T> queueExecution,
+      ObjectMapper mapper,
+      QueueConfig queueConfig,
+      String tenantId)
+      throws IOException, TimeoutException {
+    String tenantPrefix = rabbitmqConfig.getPrefix() + "-" + tenantId;
+    return new BatchQueueService<>(
+        clazz, queueExecution, tenantPrefix, mapper, queueConfig, rabbitmqDriver);
+  }
+
+  /**
+   * Declares a set of tenant-scoped RabbitMQ queues (exchange + queue + binding) for each provided
+   * queue configuration, plus the tenant-scoped connector exchange.
+   *
+   * <p>Idempotent: if the queues/exchanges already exist with the same settings the calls are
+   * no-ops.
+   *
+   * <p>Exchange type is {@code "topic"} and queue type comes from {@link
+   * RabbitmqConfig#getQueueType()} to match what {@link BatchQueueService} declares internally.
+   *
+   * @param tenantId the tenant ID used to namespace the queues
+   * @param queueConfigs the queue configurations to declare
+   */
+  public void declareQueuesForTenant(String tenantId, List<QueueConfig> queueConfigs)
+      throws IOException, TimeoutException {
+    if (queueConfigs == null || queueConfigs.isEmpty()) {
+      return;
+    }
+
+    String tenantPrefix = rabbitmqConfig.getPrefix() + "-" + tenantId;
+    // Must match BatchQueueService.createChannels() which hardcodes "quorum"
+    Map<String, Object> queueOptions = new HashMap<>();
+    queueOptions.put(X_QUEUE_TYPE, QUORUM_QUEUE_TYPE);
+
+    try (Connection connection = connectionFactory.newConnection();
+        Channel channel = connection.createChannel()) {
+      for (QueueConfig config : queueConfigs) {
+        String queueName = tenantPrefix + EXECUTION_PREFIX + config.getQueueName();
+        String exchangeName =
+            tenantPrefix + EXCHANGE_SUFFIX_PREFIX + config.getQueueName() + EXCHANGE_SUFFIX_POSTFIX;
+        String routingKey = tenantPrefix + ROUTING_KEY + config.getQueueName();
+
+        channel.exchangeDeclare(exchangeName, TOPIC_EXCHANGE_TYPE, true);
+        channel.queueDeclare(queueName, true, false, false, queueOptions);
+        channel.queueBind(queueName, exchangeName, routingKey);
+        log.debug(
+            "Declared queue '{}' with exchange '{}' for tenant '{}'",
+            queueName,
+            exchangeName,
+            tenantId);
+      }
+
+      // Declare tenant-scoped connector exchange
+      String connectorExchange = tenantPrefix + EXCHANGE_KEY;
+      channel.exchangeDeclare(connectorExchange, DIRECT_EXCHANGE_TYPE, true);
+      log.debug("Declared connector exchange '{}' for tenant '{}'", connectorExchange, tenantId);
+    }
+  }
+
+  /**
+   * Deletes all tenant-scoped queues and exchanges for each provided queue configuration.
+   *
+   * @param tenantId the tenant ID whose queues should be deleted
+   * @param queueConfigs the queue configurations to delete
+   */
+  public void deleteQueuesForTenant(String tenantId, List<QueueConfig> queueConfigs)
+      throws IOException, TimeoutException {
+    if (queueConfigs == null || queueConfigs.isEmpty()) {
+      return;
+    }
+
+    String tenantPrefix = rabbitmqConfig.getPrefix() + "-" + tenantId;
+
+    try (Connection connection = connectionFactory.newConnection();
+        Channel channel = connection.createChannel()) {
+      for (QueueConfig config : queueConfigs) {
+        String queueName = tenantPrefix + EXECUTION_PREFIX + config.getQueueName();
+        String exchangeName =
+            tenantPrefix + EXCHANGE_SUFFIX_PREFIX + config.getQueueName() + EXCHANGE_SUFFIX_POSTFIX;
+
+        channel.queueDelete(queueName);
+        channel.exchangeDelete(exchangeName);
+        log.debug(
+            "Deleted queue '{}' and exchange '{}' for tenant '{}'",
+            queueName,
+            exchangeName,
+            tenantId);
+      }
+    }
+  }
+
+  /**
    * Registers an injector queue by creating a connection, declaring the exchange/queue/binding, and
    * returning the full queue name.
    *
@@ -163,7 +280,7 @@ public class RabbitmqService {
    * @throws TimeoutException if the connection times out
    */
   public String registerQueue(String identifier) throws IOException, TimeoutException {
-    String queueName = "_injector_" + identifier;
+    String queueName = INJECTOR_PREFIX + identifier;
     try (Connection connection = connectionFactory.newConnection()) {
       createChannel(connection, queueName, identifier);
     }
@@ -226,10 +343,10 @@ public class RabbitmqService {
     String fullExchangeKey = rabbitmqConfig.getPrefix() + EXCHANGE_KEY;
 
     Map<String, Object> queueOptions = new HashMap<>();
-    queueOptions.put("x-queue-type", rabbitmqConfig.getQueueType());
+    queueOptions.put(X_QUEUE_TYPE, rabbitmqConfig.getQueueType());
 
     try (Channel channel = connection.createChannel()) {
-      channel.exchangeDeclare(fullExchangeKey, "direct", true);
+      channel.exchangeDeclare(fullExchangeKey, DIRECT_EXCHANGE_TYPE, true);
       channel.queueDeclare(fullQueueName, true, false, false, queueOptions);
       channel.queueBind(fullQueueName, fullExchangeKey, fullRoutingKey);
     } catch (TimeoutException e) {

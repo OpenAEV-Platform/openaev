@@ -2,6 +2,7 @@ package io.openaev.rest.inject;
 
 import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static io.openaev.helper.StreamHelper.fromIterable;
 
 import co.elastic.clients.util.VisibleForTesting;
@@ -119,7 +120,8 @@ public class InjectApi extends RestBehavior {
               InjectExecutionCallback.class,
               batchExecutionTraceExecutor::handleInjectExecutionCallbackList,
               objectMapper,
-              openAEVConfig.getQueueConfig().get("inject-trace"));
+              openAEVConfig.getQueueConfig().get("inject-trace"),
+              DEFAULT_TENANT_UUID);
       // Share the queue with the batching service so it can requeue delayed callbacks
       batchingInjectStatusService.setInjectTraceQueueService(injectTraceQueueService);
     }
