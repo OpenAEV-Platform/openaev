@@ -3,8 +3,8 @@ package io.openaev.config;
 import static io.openaev.config.SessionHelper.ANONYMOUS_USER;
 import static io.openaev.config.TenantUriUtils.TENANT_ID_PATH_VARIABLE;
 
+import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.TenantContext;
-import io.openaev.database.repository.TenantRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.Map;
@@ -25,7 +25,7 @@ import org.springframework.web.servlet.HandlerMapping;
 @RequiredArgsConstructor
 public class TenantInterceptor implements HandlerInterceptor {
 
-  private final TenantRepository tenantRepository;
+  private final TenantMembershipCacheManager tenantMembershipCacheManager;
 
   @Override
   @SuppressWarnings("unchecked")
@@ -43,7 +43,8 @@ public class TenantInterceptor implements HandlerInterceptor {
           && !ANONYMOUS_USER.equals(authentication.getPrincipal())) {
         OpenAEVPrincipal principal = (OpenAEVPrincipal) authentication.getPrincipal();
         if (!principal.isAdmin()
-            && !tenantRepository.existsByUserIdAndTenantId(principal.getId(), tenantId)) {
+            && !tenantMembershipCacheManager.existsByUserIdAndTenantId(
+                principal.getId(), tenantId)) {
           throw new AccessDeniedException("User does not have access to the requested tenant.");
         }
       }

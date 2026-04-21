@@ -25,10 +25,16 @@ public class CachingConfig {
      * Execution traces for instance can receive several thousands a sec and not fetching the user
      * everytime helps for the RBAC
      */
-    CaffeineCacheManager cacheManager = new CaffeineCacheManager("license", "global", "adminUsers");
+    CaffeineCacheManager cacheManager =
+        new CaffeineCacheManager("license", "global", "adminUsers", "tenantMembership");
 
     cacheManager.setCaffeine(
         Caffeine.newBuilder().expireAfterWrite(Duration.ofDays(1)).maximumSize(100));
+
+    // Tenant membership cache: short TTL, higher capacity (keyed by userId:tenantId)
+    cacheManager.registerCustomCache(
+        "tenantMembership",
+        Caffeine.newBuilder().expireAfterWrite(Duration.ofMinutes(5)).maximumSize(10_000).build());
 
     return cacheManager;
   }
