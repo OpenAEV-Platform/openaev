@@ -2,8 +2,9 @@ FROM node:22.16.0-alpine3.20 AS front-builder
 
 WORKDIR /opt/openaev-build/openaev-front
 COPY openaev-front/packages ./packages
-COPY openaev-front/.yarn ./.yarn
+COPY openaev-front/patches ./patches
 COPY openaev-front/package.json openaev-front/yarn.lock openaev-front/.yarnrc.yml ./
+RUN npm install -g corepack
 RUN yarn install
 COPY openaev-front /opt/openaev-build/openaev-front
 RUN yarn build
