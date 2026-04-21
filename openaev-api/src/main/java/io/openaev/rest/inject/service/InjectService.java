@@ -53,6 +53,7 @@ import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;
 import io.openaev.rest.security.SecurityExpression;
 import io.openaev.rest.security.SecurityExpressionHandler;
 import io.openaev.rest.tag.TagService;
+import io.openaev.rest.threat_arsenal.ThreatArsenalService;
 import io.openaev.service.*;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.InjectUtils;
@@ -120,6 +121,7 @@ public class InjectService {
   private final HealthCheckUtils healthCheckUtils;
   private final InjectorContractContentUtils injectorContractContentUtils;
   private final InjectUtils injectUtils;
+  private final ThreatArsenalService threatArsenalService;
 
   private final LicenseCacheManager licenseCacheManager;
   @Resource protected ObjectMapper mapper;
@@ -1440,7 +1442,7 @@ public class InjectService {
   private Page<? extends InjectorContractBaseOutput> fetchInjectorContractsPage(
       InjectorContractSearchPaginationInput input, int pageNumber) {
     input.setPage(pageNumber);
-    return injectorContractService.searchInjectorContracts(
+    return threatArsenalService.searchInjectorContracts(
         InjectorContractService.OutputMode.FULL, input);
   }
 

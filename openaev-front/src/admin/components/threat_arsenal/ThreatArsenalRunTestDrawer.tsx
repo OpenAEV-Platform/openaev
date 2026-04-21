@@ -5,10 +5,7 @@ import { type FunctionComponent, useState } from 'react';
 
 import Drawer from '../../../components/common/Drawer';
 import { useFormatter } from '../../../components/i18n';
-import {
-  type InjectorContractActionOutput,
-  type SearchPaginationInput,
-} from '../../../utils/api-types';
+import { type SearchPaginationInput, type ThreatArsenalAction } from '../../../utils/api-types';
 import ThreatArsenalAtomicTestCreationComponent from './ThreatArsenalAtomicTestCreationComponent';
 import ThreatArsenalExecutionModeCardComponent from './ThreatArsenalExecutionModeCardComponent';
 import ThreatArsenalScenarioCreationComponent from './ThreatArsenalScenarioCreationComponent';
@@ -17,8 +14,8 @@ import ThreatArsenalScenarioUpdateComponent from './ThreatArsenalScenarioUpdateC
 interface Props {
   isExclusionMode: boolean;
   isOnlyOneItemSelected: boolean;
-  selectedElements: Record<string, InjectorContractActionOutput>;
-  deSelectedElements: Record<string, InjectorContractActionOutput>;
+  selectedElements: Record<string, ThreatArsenalAction>;
+  deSelectedElements: Record<string, ThreatArsenalAction>;
   searchPaginationInput: SearchPaginationInput;
   open: boolean;
   onClose: (deselectAll?: boolean) => void;

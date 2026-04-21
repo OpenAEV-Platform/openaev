@@ -4366,6 +4366,7 @@ export interface InjectorContractInput {
 export interface InjectorContractSearchPaginationInput {
   /** Filter object to search within filterable attributes */
   filterGroup?: FilterGroup;
+  include_content_details?: boolean;
   include_full_details?: boolean;
   injector_contract_ids_to_ignore?: string[];
   injector_contract_ids_to_process?: string[];
@@ -5326,25 +5327,6 @@ export interface PageInjectTarget {
 
 export interface PageInjectTestStatusOutput {
   content?: InjectTestStatusOutput[];
-  empty?: boolean;
-  first?: boolean;
-  last?: boolean;
-  /** @format int32 */
-  number?: number;
-  /** @format int32 */
-  numberOfElements?: number;
-  pageable?: PageableObject;
-  /** @format int32 */
-  size?: number;
-  sort?: SortObject[];
-  /** @format int64 */
-  totalElements?: number;
-  /** @format int32 */
-  totalPages?: number;
-}
-
-export interface PageInjectorContractBaseOutput {
-  content?: InjectorContractBaseOutput[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
@@ -7784,6 +7766,284 @@ export interface ThemeInput {
   primary_color?: string;
   /** Secondary color of the theme */
   secondary_color?: string;
+}
+
+export interface ThreatArsenalAction {
+  /**
+   * Attack Patterns IDs
+   * @minItems 1
+   * @uniqueItems true
+   */
+  action_attack_patterns_ids: string[];
+  /**
+   * Domain IDs
+   * @minItems 1
+   * @uniqueItems true
+   */
+  action_domains_ids: string[];
+  /** Injector type */
+  action_injector_type?: string;
+  /** Labels */
+  action_labels?: Record<string, string>;
+  /** Payload attached */
+  action_payload?: PayloadSimple;
+  /** Platforms */
+  action_platforms?: (
+    | "Linux"
+    | "Windows"
+    | "MacOS"
+    | "Container"
+    | "Service"
+    | "Generic"
+    | "Internal"
+    | "Unknown"
+  )[];
+  /**
+   * Tags Ids
+   * @uniqueItems true
+   */
+  action_tags_ids?: string[];
+  /** Injector contract external Id */
+  injector_contract_external_id?: string;
+  injector_contract_has_full_details?: boolean;
+  /**
+   * Injector contract Id
+   * @minLength 1
+   */
+  injector_contract_id: string;
+  /**
+   * Timestamp when the injector contract was last updated
+   * @format date-time
+   */
+  injector_contract_updated_at: string;
+}
+
+export interface ThreatArsenalActionCreateInput {
+  action_arguments?: PayloadArgument[];
+  action_attack_patterns?: string[];
+  action_cleanup_command?: string | null;
+  action_cleanup_executor?: string | null;
+  action_description?: string;
+  /** List of detection remediation gaps for collectors */
+  action_detection_remediations?: DetectionRemediationInput[];
+  /** Set list of domains */
+  action_domains: string[];
+  action_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
+  action_expectations: (
+    | "TEXT"
+    | "DOCUMENT"
+    | "ARTICLE"
+    | "CHALLENGE"
+    | "MANUAL"
+    | "PREVENTION"
+    | "DETECTION"
+    | "VULNERABILITY"
+  )[];
+  /** @minLength 1 */
+  action_name: string;
+  /**
+   * Set of output parsers
+   * @uniqueItems true
+   */
+  action_output_parsers?: OutputParserInput[];
+  /** @minItems 1 */
+  action_platforms: (
+    | "Linux"
+    | "Windows"
+    | "MacOS"
+    | "Container"
+    | "Service"
+    | "Generic"
+    | "Internal"
+    | "Unknown"
+  )[];
+  action_prerequisites?: PayloadPrerequisite[];
+  action_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
+  action_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
+  action_tags?: string[];
+  /** @minLength 1 */
+  action_type: string;
+  command_content?: string | null;
+  command_executor?: string | null;
+  dns_resolution_hostname?: string;
+  executable_file?: string;
+  file_drop_file?: string;
+}
+
+export interface ThreatArsenalActionFullOutput {
+  /** Action input arguments definition */
+  action_arguments?: PayloadArgument[];
+  /** MITRE ATT&CK patterns associated with the action */
+  action_attack_patterns?: string[];
+  /** Cleanup command executed after action run */
+  action_cleanup_command?: string;
+  /** Executor used for cleanup operations */
+  action_cleanup_executor?: string;
+  /** Collector type associated with this action */
+  action_collector_type?: string;
+  /**
+   * Action creation timestamp
+   * @format date-time
+   */
+  action_created_at: string;
+  /** Action description */
+  action_description?: string;
+  /** Detection and remediation mappings for this action */
+  action_detection_remediations?: DetectionRemediation[];
+  /** Domains related to the action */
+  action_domains?: string[];
+  /** CPU architecture targeted for action execution */
+  action_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
+  /** Expected output types for action execution */
+  action_expectations?: (
+    | "TEXT"
+    | "DOCUMENT"
+    | "ARTICLE"
+    | "CHALLENGE"
+    | "MANUAL"
+    | "PREVENTION"
+    | "DETECTION"
+    | "VULNERABILITY"
+  )[];
+  /** External reference identifier */
+  action_external_id?: string;
+  /**
+   * Action unique identifier
+   * @minLength 1
+   */
+  action_id: string;
+  /** Action display name */
+  action_labels: Record<string, string>;
+  /**
+   * Parsers used to process action outputs
+   * @uniqueItems true
+   */
+  action_output_parsers?: OutputParser[];
+  /** Supported endpoint platforms for this action */
+  action_platforms?: (
+    | "Linux"
+    | "Windows"
+    | "MacOS"
+    | "Container"
+    | "Service"
+    | "Generic"
+    | "Internal"
+    | "Unknown"
+  )[];
+  /** Prerequisites required before action execution */
+  action_prerequisites?: PayloadPrerequisite[];
+  /** Action source origin */
+  action_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
+  /** Current action lifecycle status */
+  action_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
+  /** Tags attached to the action */
+  action_tags?: string[];
+  /** Action implementation type */
+  action_type?: string;
+  /**
+   * Action last update timestamp
+   * @format date-time
+   */
+  action_updated_at: string;
+  /** Command content for command actions */
+  command_content?: string;
+  /** Executor used for command actions */
+  command_executor?: string;
+  /** Hostname resolved by DNS resolution actions */
+  dns_resolution_hostname?: string;
+  /** Executable file path for executable actions */
+  executable_file?: string;
+  /** Dropped file path for file-drop actions */
+  file_drop_file?: string;
+}
+
+export interface ThreatArsenalActionUpdateInput {
+  action_arguments?: PayloadArgument[];
+  action_attack_patterns?: string[];
+  action_cleanup_command?: string | null;
+  action_cleanup_executor?: string | null;
+  action_description?: string;
+  /** List of detection remediation gaps for collectors */
+  action_detection_remediations?: DetectionRemediationInput[];
+  /** Update list of domains */
+  action_domains: string[];
+  action_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
+  action_expectations: (
+    | "TEXT"
+    | "DOCUMENT"
+    | "ARTICLE"
+    | "CHALLENGE"
+    | "MANUAL"
+    | "PREVENTION"
+    | "DETECTION"
+    | "VULNERABILITY"
+  )[];
+  /** @minLength 1 */
+  action_name: string;
+  /**
+   * Set of output parsers
+   * @uniqueItems true
+   */
+  action_output_parsers?: OutputParserInput[];
+  action_platforms?: (
+    | "Linux"
+    | "Windows"
+    | "MacOS"
+    | "Container"
+    | "Service"
+    | "Generic"
+    | "Internal"
+    | "Unknown"
+  )[];
+  action_prerequisites?: PayloadPrerequisite[];
+  action_tags?: string[];
+  command_content?: string | null;
+  command_executor?: string | null;
+  dns_resolution_hostname?: string;
+  executable_file?: string;
+  file_drop_file?: string;
+}
+
+export interface ThreatArsenalActionWithContentOutput {
+  /** CPU architecture targeted for action execution */
+  action_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
+  /** Action content */
+  action_content?: string;
+  /**
+   * Action injectors names
+   * @minLength 1
+   */
+  action_injector_name: string;
+  /** Action implementation injector type */
+  action_injector_type?: string;
+  /** Action display labels */
+  action_labels: Record<string, string>;
+  /** Action implementation payload type */
+  action_payload_type?: string;
+  /** Supported endpoint platforms for this action */
+  action_platforms?: (
+    | "Linux"
+    | "Windows"
+    | "MacOS"
+    | "Container"
+    | "Service"
+    | "Generic"
+    | "Internal"
+    | "Unknown"
+  )[];
+  /** Injector contract external Id */
+  injector_contract_external_id?: string;
+  injector_contract_has_full_details?: boolean;
+  /**
+   * Injector contract Id
+   * @minLength 1
+   */
+  injector_contract_id: string;
+  /**
+   * Timestamp when the injector contract was last updated
+   * @format date-time
+   */
+  injector_contract_updated_at: string;
 }
 
 export interface Token {

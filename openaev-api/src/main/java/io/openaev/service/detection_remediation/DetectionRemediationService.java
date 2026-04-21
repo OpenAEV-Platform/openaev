@@ -1,6 +1,7 @@
 package io.openaev.service.detection_remediation;
 
 import io.openaev.api.detection_remediation.dto.PayloadInput;
+import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.CollectorType;
 import io.openaev.database.model.DetectionRemediation;
 import io.openaev.database.model.Payload;
@@ -24,8 +25,12 @@ public class DetectionRemediationService {
   private final CollectorTypeRepository collectorTypeRepository;
 
   public String getRulesDetectionRemediationAI(PayloadInput input, String collector) {
+
+    List<AttackPattern> attackPatterns =
+        attackPatternService.getAttackPattern(input.getAttackPatternsIds());
+
     // GET rules from webservice
-    DetectionRemediationRequest request = new DetectionRemediationRequest(input);
+    DetectionRemediationRequest request = new DetectionRemediationRequest(input, attackPatterns);
     DetectionRemediationAIResponse rules =
         detectionRemediationAIService.callRemediationDetectionAIWebservice(request, collector);
 
@@ -54,14 +59,17 @@ public class DetectionRemediationService {
   }
 
   public DetectionRemediation getOrCreateDetectionRemediationWithAIRulesByCollector(
-      List<DetectionRemediation> detectionRemediations, Payload payload, String collectorType) {
+      List<DetectionRemediation> detectionRemediations,
+      Payload payload,
+      String collectorType,
+      List<AttackPattern> attackPatterns) {
     // GET or Create Detection remediation linked to selected payload and EDR/SIEM
     DetectionRemediation detectionRemediation =
         this.getOrCreateDetectionRemediationByCollector(
             collectorType, detectionRemediations, payload);
 
     // GET AI rules from webservice
-    DetectionRemediationRequest request = new DetectionRemediationRequest(payload);
+    DetectionRemediationRequest request = new DetectionRemediationRequest(payload, attackPatterns);
     DetectionRemediationAIResponse rules =
         detectionRemediationAIService.callRemediationDetectionAIWebservice(request, collectorType);
 

@@ -22,13 +22,13 @@
     "check-ts": "tsc",
     "generate-types-from-api": "swagger-typescript-api generate --no-client --path=${API_URL:-http://localhost:8080}/api-docs --output=src/utils --name=api-types.d.ts --sort-types",
     "test": "vitest run",
-    "test:e2e": "yarn playwright test",
-    "test:e2e:ui": "yarn playwright test --ui",
+    "test:e2e": "yarn playwright test --workers=1 --retries=2",
+    "test:e2e:ui": "yarn playwright test --ui --workers=1",
     "test:e2e:coverage": "E2E_COVERAGE=true yarn playwright test && yarn show-report-e2e",
     "generate-test-e2e": "yarn playwright codegen http://localhost:3001/",
     "show-report-e2e": "start \"\" test-results/report.html && start \"\" test-results/coverage/index.html"
   },
-  "packageManager": "yarn@4.12.0",
+  "packageManager": "yarn@4.13.0+sha512.5c20ba010c99815433e5c8453112165e673f1c7948d8d2b267f4b5e52097538658388ebc9f9580656d9b75c5cc996f990f611f99304a2197d4c56d21eea370e7",
   "engines": {
     "node": ">= 22.11.0"
   },
@@ -147,6 +147,8 @@
   },
   "resolutions": {
     "@types/react": "19.2.14",
-    "form-data": "4.0.5"
+    "form-data": "4.0.5",
+    "html-to-image": "patch:html-to-image@1.11.13#./patches/html-to-image.patch",
+    "react-apexcharts": "patch:react-apexcharts@1.7.0#./patches/react-apexcharts.patch"
   }
 }

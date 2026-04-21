@@ -4,15 +4,15 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import { createAtomicTesting } from '../../../actions/atomic_testings/atomic-testing-actions';
-import { searchInjectorContracts } from '../../../actions/InjectorContracts';
+import { searchThreatArsenalActions } from '../../../actions/threat_arsenals/ThreatArsenal-actions';
 import { useFormatter } from '../../../components/i18n';
 import {
   type InjectInput,
   type InjectorContract,
-  type InjectorContractFullOutput,
-  type InjectorContractSearchPaginationInput, type ThreatArsenalAction,
+  type InjectorContractSearchPaginationInput,
+  type ThreatArsenalAction, type ThreatArsenalActionWithContentOutput,
 } from '../../../utils/api-types';
-import type { InjectorContractConverted } from '../../../utils/api-types-custom';
+import { type ThreatArsenalContentConverted } from '../../../utils/api-types-custom';
 import { EndpointContext } from '../../../utils/context/endpoint/EndpointContext';
 import endpointContextForAtomicTesting from '../../../utils/context/endpoint/EndpointContextForAtomicTesting';
 import { isNotEmptyField } from '../../../utils/utils';
@@ -30,13 +30,11 @@ interface Props {
   handleClose: () => void;
 }
 
-type InjectorContractFullOutputWithContractContent = InjectorContractFullOutput & { injector_contract_content: InjectorContractConverted['convertedContent'] };
-
 const ThreatArsenalAtomicTestCreationComponent = ({ isExclusionMode, selectedElements, deSelectedElements, searchPaginationInput, handleClose }: Props) => {
   const { tPick } = useFormatter();
   const navigate = useNavigate();
 
-  const [selectedContract, setSelectedContract] = useState<InjectorContractFullOutputWithContractContent | null>(null);
+  const [selectedAction, setSelectedAction] = useState<ThreatArsenalContentConverted | null>(null);
 
   const onSubmitInject = async (data: InjectInput) => {
     const result = await createAtomicTesting(data);
@@ -44,18 +42,19 @@ const ThreatArsenalAtomicTestCreationComponent = ({ isExclusionMode, selectedEle
   };
 
   useEffect(() => {
-    searchInjectorContracts({
+    searchThreatArsenalActions({
       ...searchPaginationInput,
-      include_full_details: true,
+      include_content_details: true,
       injector_contract_ids_to_process: isExclusionMode ? [] : Object.keys(selectedElements),
       injector_contract_ids_to_ignore: isExclusionMode ? Object.keys(deSelectedElements) : [],
-    }).then((response: AxiosResponse<{ content: InjectorContractFullOutputWithContractContent[] }>) => {
+    }).then((response: AxiosResponse<{ content: ThreatArsenalActionWithContentOutput[] }>) => {
       if (response?.data?.content?.[0]) {
-        const selectedContract = response.data.content[0];
-        selectedContract.injector_contract_content = typeof selectedContract.injector_contract_content === 'string'
-          ? JSON.parse(selectedContract.injector_contract_content)
-          : selectedContract.injector_contract_content;
-        setSelectedContract(selectedContract);
+        setSelectedAction({
+          ...response.data.content[0],
+          convertedContent: typeof response.data.content[0]?.action_content === 'string'
+            ? JSON.parse(response.data.content[0].action_content)
+            : {},
+        });
       }
     });
   }, []);
@@ -67,44 +66,47 @@ const ThreatArsenalAtomicTestCreationComponent = ({ isExclusionMode, selectedEle
         overflowX: 'hidden',
       }}
       >
-        {selectedContract && (
+        {selectedAction && (
           <>
             <InjectCardComponent
               avatar={(
                 <InjectIcon
-                  type={selectedContract.injector_contract_payload_type ?? selectedContract.injector_contract_injector_type}
-                  isPayload={isNotEmptyField(selectedContract.injector_contract_payload_type)}
+                  type={selectedAction.action_payload_type ?? selectedAction.action_injector_type}
+                  isPayload={isNotEmptyField(selectedAction.action_payload_type)}
                 />
               )}
-              title={selectedContract.injector_contract_injector_name || ''}
-              content={tPick(selectedContract.injector_contract_labels)}
+              title={selectedAction.action_injector_name ?? ''}
+              content={tPick(selectedAction.action_labels)}
               action={<></>}
             />
             <TeamContext.Provider value={teamContextForAtomicTesting()}>
               <EndpointContext.Provider value={endpointContextForAtomicTesting()}>
                 <InjectForm
                   handleClose={handleClose}
-                  disabled={!selectedContract}
+                  disabled={!selectedAction}
                   isAtomic={true}
                   isCreation={true}
                   defaultInject={{
                     inject_id: '',
-                    inject_title: tPick(selectedContract.injector_contract_labels),
+                    inject_title: tPick(selectedAction.action_labels),
                     inject_description: '',
                     inject_depends_duration: 0,
                     inject_injector_contract: {
-                      injector_contract_id: selectedContract.injector_contract_id ?? '',
-                      injector_contract_arch: selectedContract.injector_contract_arch,
-                      injector_contract_platforms: selectedContract.injector_contract_platforms,
+                      injector_contract_id: selectedAction.injector_contract_id ?? '',
+                      injector_contract_arch: selectedAction.action_arch,
+                      injector_contract_platforms: selectedAction.action_platforms,
+                      injector_contract_content: selectedAction.action_content,
+                      injector_contract_created_at: '',
+                      injector_contract_updated_at: '',
                     } as InjectorContract,
-                    inject_type: selectedContract.injector_contract_content?.config?.type,
+                    inject_type: selectedAction.convertedContent?.config?.type,
                     inject_teams: [],
                     inject_assets: [],
                     inject_asset_groups: [],
                     inject_documents: [],
-                    inject_content: { expectations: selectedContract.injector_contract_content.fields.find(f => f.type == 'expectation')?.predefinedExpectations },
+                    inject_content: { expectations: selectedAction.convertedContent.fields.find(f => f.type === 'expectation')?.predefinedExpectations },
                   }}
-                  injectorContractContent={selectedContract.injector_contract_content}
+                  injectorContractContent={selectedAction.convertedContent}
                   onSubmitInject={onSubmitInject}
                   uriVariable=""
                   articlesFromExerciseOrScenario={[]}

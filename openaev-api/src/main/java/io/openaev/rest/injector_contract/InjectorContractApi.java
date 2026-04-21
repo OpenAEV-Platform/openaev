@@ -46,20 +46,41 @@ public class InjectorContractApi extends RestBehavior {
   /**
    * Searches injector contracts with pagination and filtering.
    *
-   * <p>Can return either full or base details based on the input flag.
+   * <p>When {@code input.includeFullDetails} is {@code true} (the default), the response contains
+   * {@link InjectorContractFullOutput} entries; otherwise {@link InjectorContractBaseOutput}
+   * entries are returned.
    *
    * @param input the search and pagination parameters
    * @return a paged list of injector contract outputs in the selected format
    */
+  @Operation(summary = "Search injector contracts")
+  @ApiResponse(
+      responseCode = "200",
+      content =
+          @Content(
+              schema =
+                  @Schema(
+                      oneOf = {
+                        InjectorContractBaseOutput.class,
+                        InjectorContractFullOutput.class,
+                      })))
   @PostMapping({INJECTOR_CONTRACT_URL + "/search", TENANT_INJECTOR_CONTRACT_URL + "/search"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
   public Page<? extends InjectorContractBaseOutput> injectorContracts(
       @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
-    InjectorContractService.OutputMode outputMode =
-        input.isIncludeFullDetails()
-            ? InjectorContractService.OutputMode.FULL
-            : InjectorContractService.OutputMode.BASE;
-    return this.injectorContractService.searchInjectorContracts(outputMode, input);
+    return buildPaginationCriteriaBuilder(
+        (spec, specCount, pageable) ->
+            this.injectorContractService.getSinglePage(
+                spec,
+                specCount,
+                pageable,
+                input.isIncludeFullDetails()
+                    ? InjectorContractService.OutputMode.FULL
+                    : InjectorContractService.OutputMode.BASE,
+                input.getInjectorContractIdsToIgnore(),
+                input.getInjectorContractIdsToProcess()),
+        handleArchitectureFilter(input),
+        InjectorContract.class);
   }
 
   @PostMapping({

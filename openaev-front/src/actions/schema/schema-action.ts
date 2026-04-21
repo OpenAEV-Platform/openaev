@@ -1,7 +1,7 @@
 import { simpleCall, simplePostCall } from '../../utils/Action';
 
 export const filterableProperties = (clazz: string, filterNames: string[] = []) => {
-  const uri = clazz == 'ThreatArsenal' ? `/api/threat_arsenals/schemas?filterableOnly=${true}` : `/api/schemas/${clazz}?filterableOnly=${true}`;
+  const uri = clazz === 'ThreatArsenal' ? `/api/threat_arsenals/schemas?filterableOnly=${true}` : `/api/schemas/${clazz}?filterableOnly=${true}`;
   return simplePostCall(uri, filterNames);
 };
 

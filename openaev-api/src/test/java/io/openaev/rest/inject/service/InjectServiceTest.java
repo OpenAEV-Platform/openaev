@@ -11,10 +11,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawInject;
-import io.openaev.database.repository.InjectRepository;
-import io.openaev.database.repository.InjectStatusRepository;
-import io.openaev.database.repository.InjectorRepository;
-import io.openaev.database.repository.TeamRepository;
+import io.openaev.database.repository.*;
 import io.openaev.executors.utils.ExecutorUtils;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
@@ -27,6 +24,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.*;
 import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import io.openaev.rest.injector_contract.InjectorContractService;
+import io.openaev.service.AssetGroupService;
 import io.openaev.service.AssetService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.UserService;
@@ -69,6 +67,8 @@ class InjectServiceTest {
 
   @Mock private AssetService assetService;
 
+  @Mock private AssetGroupService assetGroupService;
+
   @Mock private TeamRepository teamRepository;
 
   @Mock private InjectStatusRepository injectStatusRepository;
@@ -76,6 +76,7 @@ class InjectServiceTest {
   @Mock private InjectUtils injectUtils;
 
   @Mock private InjectStatusMapper injectStatusMapper;
+
   @Mock private PayloadMapper payloadMapper;
 
   @Mock private InjectExpectationMapper injectExpectationMapper;
@@ -91,10 +92,6 @@ class InjectServiceTest {
   @Mock private CollectorService collectorService;
 
   @Mock private InjectorService injectorService;
-
-  @Mock private InjectorRepository injectorRepository;
-
-  @Mock private PayloadMapper payloadMapper;
 
   @Spy private InjectorContractContentUtils injectorContractContentUtils;
 

@@ -46,9 +46,10 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
   public static final String ID_FIELD_NAME = "id";
   public static final String COMPOSITE_ID_FIELD_NAME = "compositeId";
 
+  // -- Delegate accessors for Base / TenantBase interfaces --
   @EmbeddedId @JsonIgnore private InjectorContractId compositeId = new InjectorContractId();
 
-  @Column(name = "injector_contract_id")
+  @Override
   @JsonProperty("injector_contract_id")
   @NotBlank
   public String getId() {

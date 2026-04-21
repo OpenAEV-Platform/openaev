@@ -101,7 +101,16 @@ public class ScenarioApi extends RestBehavior {
               .map(this.customDashboardService::customDashboard)
               .orElse(null));
     }
-    return this.scenarioService.createScenario(scenario);
+    Scenario savedScenario = this.scenarioService.createScenario(scenario);
+
+    // If the chaining feature flag is enabled and the engine is "chaining", create and link a
+    // workflow to the scenario
+    if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
+        && Boolean.TRUE.equals(input.getIsChaining())) {
+      workflowService.creationWorkflow(savedScenario);
+    }
+
+    return savedScenario;
   }
 
   @PostMapping({
@@ -121,7 +130,7 @@ public class ScenarioApi extends RestBehavior {
     SCENARIO_URI + "/with-injector-contracts",
     TENANT_SCENARIO_URI + "/with-injector-contracts"
   })
-  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SCENARIO)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SCENARIO)
   public List<Scenario> updateScenariosWithInjectorContracts(
       @Valid @RequestBody final ScenarioIdsAndInjectorContractsInputs inputs) {
     return this.scenarioService.updateScenariosWithInjectorContracts(

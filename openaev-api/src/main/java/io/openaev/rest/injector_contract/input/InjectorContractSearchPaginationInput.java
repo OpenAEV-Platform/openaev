@@ -13,6 +13,9 @@ public class InjectorContractSearchPaginationInput extends SearchPaginationInput
   @JsonProperty("include_full_details")
   private boolean includeFullDetails = true;
 
+  @JsonProperty("include_content_details")
+  private boolean includeContentDetails = false;
+
   @JsonProperty("injector_contract_ids_to_ignore")
   private List<String> injectorContractIdsToIgnore;
 

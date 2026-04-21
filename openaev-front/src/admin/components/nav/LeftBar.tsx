@@ -89,6 +89,12 @@ const LeftBar = () => {
       userRight: true,
       items: [
         {
+          path: `/admin/threat-arsenal`,
+          icon: () => (<LayersOutlined />),
+          label: 'Threat Arsenals',
+          userRight: true,
+        },
+        {
           path: `/admin/assets`,
           icon: () => (<DnsOutlined />),
           label: 'Assets',

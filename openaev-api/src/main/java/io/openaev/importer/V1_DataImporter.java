@@ -1534,7 +1534,7 @@ public class V1_DataImporter implements Importer {
   }
 
   private String importPayloadAsMain(
-          @NotNull final JsonNode importNode, Map<String, Base> baseIds) {
+      @NotNull final JsonNode importNode, Map<String, Base> baseIds) {
     JsonNode payloadNode = importNode.get("payload_information");
     if (payloadNode == null) {
       return null;
@@ -1542,14 +1542,14 @@ public class V1_DataImporter implements Importer {
 
     if (payloadNode.has("executable_file")) {
       ((ObjectNode) payloadNode)
-              .put(
-                      "executable_file",
-                      baseIds.get(payloadNode.get("executable_file").textValue()).getId());
+          .put(
+              "executable_file",
+              baseIds.get(payloadNode.get("executable_file").textValue()).getId());
     }
     if (payloadNode.has("file_drop_file")) {
       ((ObjectNode) payloadNode)
-              .put(
-                      "file_drop_file", baseIds.get(payloadNode.get("file_drop_file").textValue()).getId());
+          .put(
+              "file_drop_file", baseIds.get(payloadNode.get("file_drop_file").textValue()).getId());
     }
 
     if (payloadNode.has("payload_arguments")) {
@@ -1557,10 +1557,10 @@ public class V1_DataImporter implements Importer {
         if (argNode.has("type") && "document".equals(argNode.get("type").asText())) {
           JsonNode defaultValueNode = argNode.get("default_value");
           if (defaultValueNode != null
-                  && !defaultValueNode.asText().isBlank()
-                  && baseIds.containsKey(defaultValueNode.asText())) {
+              && !defaultValueNode.asText().isBlank()
+              && baseIds.containsKey(defaultValueNode.asText())) {
             ((ObjectNode) argNode)
-                    .put("default_value", baseIds.get(defaultValueNode.asText()).getId());
+                .put("default_value", baseIds.get(defaultValueNode.asText()).getId());
           }
         }
       }
@@ -1568,7 +1568,7 @@ public class V1_DataImporter implements Importer {
     PayloadCreateInput payloadCreateInput = buildPayloadCreateInput(baseIds, payloadNode, null);
 
     PayloadCreationService.PayloadInjectorContractCreationResult result =
-            this.payloadCreationService.createPayload(payloadCreateInput);
+        this.payloadCreationService.createPayload(payloadCreateInput);
     if (result.injectorContract() != null) {
       return result.injectorContract().getId();
     } else {
