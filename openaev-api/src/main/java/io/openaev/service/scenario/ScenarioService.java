@@ -1064,8 +1064,7 @@ public class ScenarioService {
       workflowService
           .findWorkflowTemplateByScenarioId(scenarioId)
           .ifPresent(
-              workflow ->
-                  healthChecks.addAll(healthCheckUtils.runScopeDefinitionChecks(workflow)));
+              workflow -> healthChecks.addAll(healthCheckUtils.runScopeDefinitionChecks(workflow)));
     } catch (ChainingException e) {
       log.debug("Skipping scope definition check: {}", e.getMessage());
     }
