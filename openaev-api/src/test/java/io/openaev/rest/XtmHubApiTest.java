@@ -72,7 +72,8 @@ public class XtmHubApiTest extends IntegrationTest {
         XtmHubRegistrationStatus.REGISTERED.name(),
         (String) JsonPath.read(response, "$.tenant_xtmhub_registration_status"));
     assertEquals(
-        testUserHolder.get().getId(), (String) JsonPath.read(response, "$.tenant_xtmhub_registration_user_id"));
+        testUserHolder.get().getId(),
+        (String) JsonPath.read(response, "$.tenant_xtmhub_registration_user_id"));
     assertEquals(
         testUserHolder.get().getName(),
         (String) JsonPath.read(response, "$.tenant_xtmhub_registration_user_name"));
@@ -143,7 +144,8 @@ public class XtmHubApiTest extends IntegrationTest {
 
     // Then
     assertNotNull(JsonPath.read(response, "$.tenant_xtmhub_registration_id"));
-    assertEquals("token-get", (String) JsonPath.read(response, "$.tenant_xtmhub_registration_token"));
+    assertEquals(
+        "token-get", (String) JsonPath.read(response, "$.tenant_xtmhub_registration_token"));
     assertEquals(
         XtmHubRegistrationStatus.REGISTERED.name(),
         (String) JsonPath.read(response, "$.tenant_xtmhub_registration_status"));
