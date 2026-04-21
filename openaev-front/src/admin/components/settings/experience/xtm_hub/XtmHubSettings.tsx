@@ -7,7 +7,7 @@ import type { LoggedHelper } from '../../../../../actions/helper';
 import { fetchXtmHubRegistration, refreshConnectivity } from '../../../../../actions/xtmhub/xtmhub-actions';
 import { useFormatter } from '../../../../../components/i18n';
 import { useHelper } from '../../../../../store';
-import { type PlatformSettings, type TenantXtmHubRegistration } from '../../../../../utils/api-types';
+import { type PlatformSettings, type XtmHubRegistrationOutput } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useAuth from '../../../../../utils/hooks/useAuth';
 import { Can } from '../../../../../utils/permissions/permissionsContext';
@@ -20,7 +20,7 @@ const XtmHubSettings: React.FC = () => {
   const { t } = useFormatter();
   const theme = useTheme();
   const { isXTMHubAccessible } = useAuth();
-  const registration: TenantXtmHubRegistration | null = useHelper((helper: LoggedHelper) => helper.getXtmHubRegistration());
+  const registration: XtmHubRegistrationOutput | null = useHelper((helper: LoggedHelper) => helper.getXtmHubRegistration());
   const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
   const dispatch = useAppDispatch();
   const hasFetchedRegistration = useRef(false);

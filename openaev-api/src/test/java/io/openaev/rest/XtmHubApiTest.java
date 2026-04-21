@@ -66,18 +66,18 @@ public class XtmHubApiTest extends IntegrationTest {
             .getResponse()
             .getContentAsString();
 
-    assertNotNull(JsonPath.read(response, "$.registration_id"));
-    assertEquals(token, (String) JsonPath.read(response, "$.registration_token"));
+    assertNotNull(JsonPath.read(response, "$.tenant_xtmhub_registration_id"));
+    assertEquals(token, (String) JsonPath.read(response, "$.tenant_xtmhub_registration_token"));
     assertEquals(
         XtmHubRegistrationStatus.REGISTERED.name(),
-        (String) JsonPath.read(response, "$.registration_status"));
+        (String) JsonPath.read(response, "$.tenant_xtmhub_registration_status"));
     assertEquals(
-        testUserHolder.get().getId(), (String) JsonPath.read(response, "$.registration_user_id"));
+        testUserHolder.get().getId(), (String) JsonPath.read(response, "$.tenant_xtmhub_registration_user_id"));
     assertEquals(
         testUserHolder.get().getName(),
-        (String) JsonPath.read(response, "$.registration_user_name"));
-    assertNotNull(JsonPath.read(response, "$.registration_date"));
-    assertNotNull(JsonPath.read(response, "$.registration_last_connectivity_check"));
+        (String) JsonPath.read(response, "$.tenant_xtmhub_registration_user_name"));
+    assertNotNull(JsonPath.read(response, "$.tenant_xtmhub_registration_date"));
+    assertNotNull(JsonPath.read(response, "$.tenant_xtmhub_registration_last_connectivity_check"));
 
     // Verify the entity was actually persisted in the database for the correct tenant
     TenantXtmHubRegistration saved =
@@ -142,24 +142,19 @@ public class XtmHubApiTest extends IntegrationTest {
             .getContentAsString();
 
     // Then
-    assertNotNull(JsonPath.read(response, "$.registration_id"));
-    assertEquals("token-get", (String) JsonPath.read(response, "$.registration_token"));
+    assertNotNull(JsonPath.read(response, "$.tenant_xtmhub_registration_id"));
+    assertEquals("token-get", (String) JsonPath.read(response, "$.tenant_xtmhub_registration_token"));
     assertEquals(
         XtmHubRegistrationStatus.REGISTERED.name(),
-        (String) JsonPath.read(response, "$.registration_status"));
+        (String) JsonPath.read(response, "$.tenant_xtmhub_registration_status"));
   }
 
   @Test
   @WithMockUser(isAdmin = true)
-  @DisplayName("Should return empty body when not registered")
-  public void whenGetRegistrationAndNotRegistered_ShouldReturn200WithEmptyBody() throws Exception {
-    String body =
-        mvc.perform(get(XtmHubApi.XTMHUB_URI + "/registration").accept(MediaType.APPLICATION_JSON))
-            .andExpect(status().isOk())
-            .andReturn()
-            .getResponse()
-            .getContentAsString();
-    assertTrue(body.isEmpty());
+  @DisplayName("Should return 204 when not registered")
+  public void whenGetRegistrationAndNotRegistered_ShouldReturn204() throws Exception {
+    mvc.perform(get(XtmHubApi.XTMHUB_URI + "/registration").accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isNoContent());
   }
 
   @Test
