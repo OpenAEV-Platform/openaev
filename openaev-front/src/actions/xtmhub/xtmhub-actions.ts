@@ -1,34 +1,47 @@
+import { normalize } from 'normalizr';
 import type { Dispatch } from 'redux';
 
 import * as Constants from '../../constants/ActionTypes';
 import { store } from '../../store';
-import { getReferential, postReferential, putReferential, simplePutCall } from '../../utils/Action';
+import { postReferential, putReferential, simpleCall, simplePutCall } from '../../utils/Action';
 import * as schema from '../Schema';
 
 const XTM_HUB_URI = '/api/xtmhub';
 
+const clearStaleRegistrations = (dispatch: Dispatch) => {
+  const stale = store.getState().referential.getIn(['entities', 'tenantXtmHubRegistrations']);
+  if (stale) {
+    stale.keySeq().forEach((id: string) => {
+      dispatch({
+        type: Constants.DATA_DELETE_SUCCESS,
+        payload: {
+          type: 'tenantXtmHubRegistrations',
+          id,
+        },
+      });
+    });
+  }
+};
+
 export const fetchXtmHubRegistration = () => (dispatch: Dispatch) => {
   const uri = `${XTM_HUB_URI}/registration`;
-  return getReferential(schema.tenantXtmHubRegistration, uri)(dispatch)
-    .then((data) => {
-      if (!data) {
-        // Not registered — clear any stale entries left in the store
-        const stale = store.getState().referential.getIn(['entities', 'tenantXtmHubRegistrations']);
-        if (stale) {
-          stale.keySeq().forEach((id: string) => {
-            dispatch({
-              type: Constants.DATA_DELETE_SUCCESS,
-              payload: {
-                type: 'tenantXtmHubRegistrations',
-                id,
-              },
-            });
-          });
-        }
+  dispatch({ type: Constants.DATA_FETCH_SUBMITTED });
+  return simpleCall(uri, undefined, false)
+    .then((response) => {
+      if (response.status === 204 || !response.data) {
+        clearStaleRegistrations(dispatch);
+      } else {
+        dispatch({
+          type: Constants.DATA_FETCH_SUCCESS,
+          payload: normalize(response.data, schema.tenantXtmHubRegistration),
+        });
       }
     })
-    .catch(() => {
-      // error already dispatched and notified by getReferential
+    .catch((error) => {
+      dispatch({
+        type: Constants.DATA_FETCH_ERROR,
+        payload: error,
+      });
     });
 };
 

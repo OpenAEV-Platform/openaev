@@ -39,7 +39,7 @@ export const tenantSettings = new schema.Entity(
 export const tenantXtmHubRegistration = new schema.Entity(
   'tenantXtmHubRegistrations',
   {},
-  { idAttribute: 'registration_id' },
+  { idAttribute: 'tenant_xtmhub_registration_id' },
 );
 
 export const token = new schema.Entity(

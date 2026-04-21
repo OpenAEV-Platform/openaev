@@ -12,7 +12,7 @@ const XtmHubRegisteredSection: React.FC = () => {
 
   return (
     <List style={{ padding: 0 }}>
-      {registration?.registration_status === 'REGISTERED' && (
+      {registration?.tenant_xtmhub_registration_status === 'REGISTERED' && (
         <>
           <ListItem divider={true}>
             <ListItemText primary={t('Registration status')} />
@@ -26,7 +26,7 @@ const XtmHubRegisteredSection: React.FC = () => {
             <ListItemText primary={t('Registration date')} />
             <ItemBoolean
               variant="xlarge"
-              neutralLabel={fd(registration.registration_date)}
+              neutralLabel={fd(registration.tenant_xtmhub_registration_date)}
               status={null}
             />
           </ListItem>
@@ -34,13 +34,13 @@ const XtmHubRegisteredSection: React.FC = () => {
             <ListItemText primary={t('Registered by')} />
             <ItemBoolean
               variant="xlarge"
-              neutralLabel={registration.registration_user_name}
+              neutralLabel={registration.tenant_xtmhub_registration_user_name}
               status={null}
             />
           </ListItem>
         </>
       )}
-      {registration?.registration_status === 'LOST_CONNECTIVITY' && (
+      {registration?.tenant_xtmhub_registration_status === 'LOST_CONNECTIVITY' && (
         <>
           <ListItem divider={true}>
             <ListItemText primary={t('Registration status')} />
@@ -54,7 +54,7 @@ const XtmHubRegisteredSection: React.FC = () => {
             <ListItemText primary={t('Last successful check')} />
             <ItemBoolean
               variant="xlarge"
-              neutralLabel={fd(registration.registration_last_connectivity_check)}
+              neutralLabel={fd(registration.tenant_xtmhub_registration_last_connectivity_check)}
               status={null}
             />
           </ListItem>

@@ -132,8 +132,8 @@ const renderXtmHubTab = ({ registrationStatus = null, settingsOverrides = {}, cu
   vi.mocked(useHelper).mockReturnValue(
     registrationStatus
       ? {
-          registration_status: registrationStatus,
-          registration_id: 'reg-1',
+          tenant_xtmhub_registration_status: registrationStatus,
+          tenant_xtmhub_registration_id: 'reg-1',
         }
       : null,
   );

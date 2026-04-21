@@ -46,7 +46,7 @@ const XtmHubTab: React.FC = () => {
     null,
   );
 
-  const isRegistered = registration?.registration_status === 'REGISTERED';
+  const isRegistered = registration?.tenant_xtmhub_registration_status === 'REGISTERED';
   const platformIdentifiers = {
     tenant_id: currentUserTenant?.tenant_id ?? DEFAULT_TENANT_UUID,
     platform_id: settings?.platform_id ?? '',
@@ -87,7 +87,7 @@ const XtmHubTab: React.FC = () => {
   };
 
   const handleUnregistration = () => {
-    dispatch(unregisterPlatform(registration?.registration_id ?? '')).then(
+    dispatch(unregisterPlatform(registration?.tenant_xtmhub_registration_id ?? '')).then(
       () => {
         setIsDialogOpen(false);
         setShowConfirmation(false);

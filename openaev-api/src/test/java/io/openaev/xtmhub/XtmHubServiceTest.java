@@ -20,6 +20,7 @@ import io.openaev.ee.LicenseTypeEnum;
 import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.service.PlatformSettingsService;
 import io.openaev.service.UserService;
+import io.openaev.utilstest.DefaultTenantExtension;
 import io.openaev.xtmhub.config.XtmHubConfig;
 import java.time.LocalDateTime;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
@@ -33,7 +34,7 @@ import org.mockserver.socket.PortFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
-@ExtendWith(MockitoExtension.class)
+@ExtendWith({MockitoExtension.class, DefaultTenantExtension.class})
 class XtmHubServiceTest {
 
   private static final String GRAPHQL_PATH = "/graphql-api";

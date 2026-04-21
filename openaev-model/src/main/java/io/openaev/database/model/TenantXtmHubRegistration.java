@@ -6,6 +6,7 @@ import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.xtmhub.XtmHubRegistrationStatus;
 import jakarta.persistence.*;
+import org.hibernate.annotations.Filter;
 import java.time.LocalDateTime;
 import java.util.Objects;
 import lombok.Data;
@@ -16,6 +17,7 @@ import org.hibernate.annotations.UuidGenerator;
 @Entity
 @Table(name = "tenant_xtmhub_registrations")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 public class TenantXtmHubRegistration implements TenantBase {
 
   @Id
@@ -58,11 +60,6 @@ public class TenantXtmHubRegistration implements TenantBase {
   @Getter(onMethod_ = @JsonIgnore)
   @Transient
   private final ResourceType resourceType = ResourceType.XTM_HUB_REGISTRATION;
-
-  @Override
-  public boolean isUserHasAccess(User user) {
-    return user.isAdmin();
-  }
 
   @Override
   public boolean equals(Object o) {

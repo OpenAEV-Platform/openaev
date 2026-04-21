@@ -166,11 +166,13 @@ const TopBar: FunctionComponent = () => {
       sub.unsubscribe();
     };
   });
-  useEffect(() => {
-    dispatch(fetchXtmHubRegistration());
-  }, []);
   const ability = useContext(AbilityContext);
-  const isRegistered = registration?.registration_status === 'REGISTERED';
+  useEffect(() => {
+    if (ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS)) {
+      dispatch(fetchXtmHubRegistration());
+    }
+  }, []);
+  const isRegistered = registration?.tenant_xtmhub_registration_status === 'REGISTERED';
   const isXtmHubExternal = isRegistered || !isXTMHubAccessible || !ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS);
 
   const handleLogout = async () => {

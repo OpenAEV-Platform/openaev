@@ -27,7 +27,7 @@ const useXtmHubDownloadDocument = ({ serviceInstanceId, fileId, onSuccess, onErr
 
   useEffect(() => {
     const isTryingToDownloadDocument = !!fileId && !!serviceInstanceId;
-    const isPlatformRegistered = registration?.registration_status === 'REGISTERED';
+    const isPlatformRegistered = registration?.tenant_xtmhub_registration_status === 'REGISTERED';
     if (isTryingToDownloadDocument && !isPlatformRegistered) {
       if (ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS)) {
         setDialogConnectivityLostStatus(DialogConnectivityLostStatus.authorized);

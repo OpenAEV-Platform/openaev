@@ -319,7 +319,8 @@ public enum Capability {
       pair(ResourceType.CATALOG, Action.WRITE),
       pair(ResourceType.CATALOG, Action.CREATE),
       pair(ResourceType.XTM_HUB_REGISTRATION, Action.WRITE),
-      pair(ResourceType.XTM_HUB_REGISTRATION, Action.CREATE)),
+      pair(ResourceType.XTM_HUB_REGISTRATION, Action.CREATE),
+      pair(ResourceType.XTM_HUB_REGISTRATION, Action.DELETE)),
   DELETE_TENANT_SETTINGS(
       MANAGE_TENANT_SETTINGS,
       pair(ResourceType.TENANT_SETTING, Action.DELETE),
@@ -335,8 +336,7 @@ public enum Capability {
       pair(ResourceType.MAPPER, Action.DELETE),
       pair(ResourceType.COLLECTOR, Action.DELETE),
       pair(ResourceType.INJECTOR, Action.DELETE),
-      pair(ResourceType.INJECTOR_CONTRACT, Action.DELETE),
-      pair(ResourceType.XTM_HUB_REGISTRATION, Action.DELETE)),
+      pair(ResourceType.INJECTOR_CONTRACT, Action.DELETE)),
 
   // Platform Groups & Roles
   ACCESS_PLATFORM_GROUPS_AND_ROLES(

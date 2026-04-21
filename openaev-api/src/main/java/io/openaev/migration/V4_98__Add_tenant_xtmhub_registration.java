@@ -21,7 +21,7 @@ public class V4_98__Add_tenant_xtmhub_registration extends BaseJavaMigration {
                       CONSTRAINT tenant_xtmhub_registration_pkey PRIMARY KEY,
                   tenant_id                            VARCHAR(255) NOT NULL
                       CONSTRAINT tenant_xtmhub_registration_tenant_fk
-                          REFERENCES tenants (tenant_id),
+                          REFERENCES tenants (tenant_id) ON DELETE CASCADE,
                   registration_token                   TEXT,
                   registration_date                    TIMESTAMP,
                   registration_status                  VARCHAR(255),

@@ -7748,19 +7748,6 @@ export interface TenantSettingsUpdateInput {
   platform_simulation_dashboard?: string;
 }
 
-export interface TenantXtmHubRegistration {
-  listened?: boolean;
-  /** @format date-time */
-  registration_date?: string;
-  registration_id?: string;
-  /** @format date-time */
-  registration_last_connectivity_check?: string;
-  registration_status?: "REGISTERED" | "UNREGISTERED" | "LOST_CONNECTIVITY";
-  registration_token?: string;
-  registration_user_id?: string;
-  registration_user_name?: string;
-}
-
 export interface ThemeInput {
   /** Accent color of the theme */
   accent_color?: string;
@@ -8803,4 +8790,19 @@ export interface XtmHubRegisterInput {
    * @minLength 1
    */
   token: string;
+}
+
+export interface XtmHubRegistrationOutput {
+  /** @format date-time */
+  tenant_xtmhub_registration_date?: string;
+  tenant_xtmhub_registration_id?: string;
+  /** @format date-time */
+  tenant_xtmhub_registration_last_connectivity_check?: string;
+  tenant_xtmhub_registration_status?:
+    | "REGISTERED"
+    | "UNREGISTERED"
+    | "LOST_CONNECTIVITY";
+  tenant_xtmhub_registration_token?: string;
+  tenant_xtmhub_registration_user_id?: string;
+  tenant_xtmhub_registration_user_name?: string;
 }
