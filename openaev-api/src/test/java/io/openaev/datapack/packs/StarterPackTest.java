@@ -17,6 +17,7 @@ import io.openaev.injector_contract.fields.ContractAsset;
 import io.openaev.injector_contract.fields.ContractAssetGroup;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.*;
+import io.openaev.utils.fixtures.DomainFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.fixtures.PayloadFixture;

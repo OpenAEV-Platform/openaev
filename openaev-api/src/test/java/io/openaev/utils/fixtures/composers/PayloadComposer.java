@@ -4,6 +4,8 @@ import io.openaev.api.detection_remediation.dto.PayloadInput;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.PayloadRepository;
 import java.util.*;
+
+import io.openaev.utils.fixtures.composers.payload_composers.OutputParserComposer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -48,14 +50,6 @@ public class PayloadComposer extends ComposerBase<Payload> {
       }
       documentComposer = Optional.of(newDocumentComposer);
       ((Executable) payload).setExecutableFile(newDocumentComposer.get());
-      return this;
-    }
-
-    public Composer withOutputParser(OutputParserComposer.Composer outputParserComposer) {
-      outputParserComposers.add(outputParserComposer);
-      Set<OutputParser> outputParsers = payload.getOutputParsers();
-      outputParsers.add(outputParserComposer.get());
-      this.payload.setOutputParsers(outputParsers);
       return this;
     }
 

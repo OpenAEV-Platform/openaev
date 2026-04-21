@@ -12,7 +12,7 @@ import {
   type InjectorContractSearchPaginationInput,
   type ThreatArsenalAction, type ThreatArsenalActionWithContentOutput,
 } from '../../../utils/api-types';
-import { type ThreatArsenalContentConverted } from '../../../utils/api-types-custom';
+import {ContractElement, type ThreatArsenalContentConverted} from '../../../utils/api-types-custom';
 import { EndpointContext } from '../../../utils/context/endpoint/EndpointContext';
 import endpointContextForAtomicTesting from '../../../utils/context/endpoint/EndpointContextForAtomicTesting';
 import { isNotEmptyField } from '../../../utils/utils';
@@ -104,7 +104,7 @@ const ThreatArsenalAtomicTestCreationComponent = ({ isExclusionMode, selectedEle
                     inject_assets: [],
                     inject_asset_groups: [],
                     inject_documents: [],
-                    inject_content: { expectations: selectedAction.convertedContent.fields.find(f => f.type === 'expectation')?.predefinedExpectations },
+                    inject_content: { expectations: selectedAction.convertedContent.fields.find((f: ContractElement) => f.type === 'expectation')?.predefinedExpectations },
                   }}
                   injectorContractContent={selectedAction.convertedContent}
                   onSubmitInject={onSubmitInject}

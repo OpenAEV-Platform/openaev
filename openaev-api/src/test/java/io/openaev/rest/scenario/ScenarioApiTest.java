@@ -531,7 +531,7 @@ public class ScenarioApiTest extends IntegrationTest {
     // -- PREPARE --
     ScenarioInput scenarioInput = new ScenarioInput();
     scenarioInput.setName("Scenario with injector contracts");
-    scenarioInput.setFrom("no-reply@openaev.io");
+    scenarioInput.setFromName("no-reply@openaev.io");
 
     InjectorContractSearchPaginationInput paginationInput =
         createInjectorContractSearchPaginationInput();
@@ -606,7 +606,7 @@ public class ScenarioApiTest extends IntegrationTest {
   private InjectorContractSearchPaginationInput createInjectorContractSearchPaginationInput() {
     InjectorContractSearchPaginationInput paginationInput =
         new InjectorContractSearchPaginationInput();
-    paginationInput.setOutputMode(InjectorContractSearchPaginationInput.OutputMode.FULL);
+    paginationInput.setIncludeFullDetails(true);
     paginationInput.setInjectorContractIdsToProcess(
         List.of(injectorContractFixture.getWellKnownSingleEmailContract().getId()));
     return paginationInput;

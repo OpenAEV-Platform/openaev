@@ -8,7 +8,7 @@ import Button from '../../../components/common/button/Button';
 import ScenariosField, { type MultiSelectScenario } from '../../../components/fields/ScenariosField';
 import { useFormatter } from '../../../components/i18n';
 import {
-  type InjectorContractActionOutput,
+  type ThreatArsenalAction,
   type InjectorContractSearchPaginationInput,
   type Scenario,
   type ScenarioIdsAndInjectorContractsInputs,
@@ -16,8 +16,8 @@ import {
 
 interface Props {
   isExclusionMode: boolean;
-  selectedElements: Record<string, InjectorContractActionOutput>;
-  deSelectedElements: Record<string, InjectorContractActionOutput>;
+  selectedElements: Record<string, ThreatArsenalAction>;
+  deSelectedElements: Record<string, ThreatArsenalAction>;
   searchPaginationInput: InjectorContractSearchPaginationInput;
   handleClose: () => void;
 }
