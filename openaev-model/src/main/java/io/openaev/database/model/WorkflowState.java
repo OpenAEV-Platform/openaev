@@ -14,7 +14,7 @@ import org.hibernate.annotations.UuidGenerator;
 @Table(
     name = "workflow_states",
     uniqueConstraints = {
-      @UniqueConstraint(columnNames = {"workflow_execution_id", "step_template_id"})
+      @UniqueConstraint(columnNames = {"workflow_execution_id", "workflow_step_template_id"})
     })
 @Getter
 @Setter
