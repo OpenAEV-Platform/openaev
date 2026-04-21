@@ -36,9 +36,6 @@ public class EventOutput {
   @JsonProperty("event_conditions")
   private List<ConditionOutput> conditions;
 
-  @JsonProperty("event_step_from")
-  private String stepFrom;
-
   @JsonProperty("event_created_at")
   private Instant createdAt;
 

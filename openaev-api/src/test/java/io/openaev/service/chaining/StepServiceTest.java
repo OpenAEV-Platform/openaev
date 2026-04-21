@@ -283,11 +283,11 @@ public class StepServiceTest {
               List.of(
                   mockCondition("ROOT", ConditionKeyType.TEXT, null),
                   mockCondition("A", ConditionKeyType.PORT, "ROOT"),
-                  mockCondition("B", ConditionKeyType.IPV4, "A")),
+                  mockCondition("B", ConditionKeyType.IPv4, "A")),
               Map.of(
                   ConditionKeyType.TEXT, Optional.empty(),
                   ConditionKeyType.PORT, Optional.of(ConditionKeyType.TEXT),
-                  ConditionKeyType.IPV4, Optional.of(ConditionKeyType.PORT))));
+                  ConditionKeyType.IPv4, Optional.of(ConditionKeyType.PORT))));
     }
   }
 

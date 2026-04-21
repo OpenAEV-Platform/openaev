@@ -32,13 +32,6 @@ public class EventInput {
   List<ConditionCreateInput> conditions;
 
   /**
-   * Optional step ID that this event depends on (step_from). Maps to the stepFrom field of the root
-   * condition.
-   */
-  @JsonProperty("event_step_from")
-  String stepFrom;
-
-  /**
    * Optional list of step IDs to link to the root condition via the conditions_steps join table.
    * Each step will be linked with is_root=true on the root condition.
    */

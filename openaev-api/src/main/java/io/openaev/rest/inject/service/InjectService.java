@@ -414,7 +414,6 @@ public class InjectService {
     return injectMapper.toInjectResultOverviewOutput(savedInject);
   }
 
-  // TODO Check in checkConditions for chaining
   public void throwIfInjectNotLaunchable(Inject inject) {
     if (enterpriseEditionService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
       return;

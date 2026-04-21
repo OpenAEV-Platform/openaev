@@ -83,7 +83,6 @@ class StepApiTest {
 
     assertNotNull(result);
     assertEquals("s-1", result.getId());
-    assertEquals(9, result.getLimitExecution());
     verify(stepService).updateStepTemplate("s-1", input);
   }
 

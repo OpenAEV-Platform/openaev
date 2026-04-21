@@ -519,7 +519,7 @@ public class InjectExecutionStep implements ActionStep {
    *
    * @param step the {@link Step} containing the JSON data for the inject
    * @return the deserialized {@link Inject} object with its injector set if found; {@code null} if
-   *     the injector or r or contract is missing or if an exception occurs during deserialization
+   *     the injector or contract is missing or if an exception occurs during deserialization
    */
   private Inject getInjectFromDataStep(Step step) throws ChainingException {
     ObjectMapper om =

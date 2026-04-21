@@ -52,15 +52,6 @@ public class ConditionApi extends RestBehavior {
   }
 
   // -- READ --
-
-  @Operation(summary = "Get all condition trees")
-  @ApiResponses({@ApiResponse(responseCode = "200", description = "Condition trees retrieved")})
-  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION_OR_SCENARIO)
-  @GetMapping
-  public List<EventOutput> findAll() {
-    return conditionService.findAll().stream().map(ConditionMapper::toOutput).toList();
-  }
-
   @Operation(
       summary = "Get a condition tree by root ID",
       description = "Retrieves a condition tree by its root condition ID")
