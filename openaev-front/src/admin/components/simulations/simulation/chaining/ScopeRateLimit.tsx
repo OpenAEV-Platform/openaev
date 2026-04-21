@@ -9,7 +9,6 @@ import {
   Switch,
   Typography,
 } from '@mui/material';
-
 import { useTheme } from '@mui/material/styles';
 
 import { useFormatter } from '../../../../../components/i18n';

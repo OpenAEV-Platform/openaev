@@ -300,7 +300,7 @@ class WorkflowApiTest extends IntegrationTest {
         WorkflowConfigurationInput.builder()
             .rateLimitEnabled(true)
             .maxAttempts(3)
-            .maxTemporalRateSeconds(60L) // above @Max(59)
+            .maxTemporalRateSeconds(3600L) // above @Max(3540)
             .safeModeEnabled(true)
             .build();
 
