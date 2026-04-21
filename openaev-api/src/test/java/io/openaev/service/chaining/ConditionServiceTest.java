@@ -312,8 +312,7 @@ public class ConditionServiceTest {
       Condition timeTemplate = mock(Condition.class);
       when(timeTemplate.getType()).thenReturn(ConditionType.AFTER);
       when(timeTemplate.getValue()).thenReturn("0");
-
-      when(conditionRepository.findAllLinkedToStepId(stepId)).thenReturn(List.of(timeTemplate));
+      when(workflowRun.getWorkflowCreatedAt()).thenReturn(Instant.now().minusSeconds(60));
 
       when(conditionRepository.findAllLinkedToStepId(stepId)).thenReturn(List.of(timeTemplate));
 
@@ -344,6 +343,9 @@ public class ConditionServiceTest {
 
       Condition timeTemplate = mock(Condition.class);
       when(timeTemplate.getType()).thenReturn(ConditionType.AFTER);
+      when(timeTemplate.getValue()).thenReturn("60000"); // +60s from start
+      // workflowCreatedAt = now → goal = now + 60s = future → not yet valid
+      when(workflowRun.getWorkflowCreatedAt()).thenReturn(Instant.now());
 
       when(conditionRepository.findAllLinkedToStepId(stepId)).thenReturn(List.of(timeTemplate));
 
@@ -352,11 +354,17 @@ public class ConditionServiceTest {
           conditionService.checkCondition(stepTemplate, "{\"in\":1}", workflowRun, stepService);
 
       // -------- Assert --------
-      assertNotNull(result);
-      assertTrue(result.isEmpty());
-      verify(conditionService, never())
+      assertNull(result);
+      verify(conditionService)
           .isTimeConditionValid(eq(timeTemplate), any(Instant.class), any(Instant.class));
-      verifyNoInteractions(stepDelayQueueService);
+      verify(stepDelayQueueService)
+          .pushStepTemplateIntoStepDelayQueue(
+              any(Step.class),
+              any(Instant.class),
+              any(),
+              anyLong(),
+              any(Workflow.class),
+              any(Instant.class));
     }
 
     @Test

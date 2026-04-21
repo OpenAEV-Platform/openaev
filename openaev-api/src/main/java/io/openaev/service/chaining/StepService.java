@@ -1189,7 +1189,7 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
             .toList();
 
     if (mappers.isEmpty()) {
-      return new ArrayList<>();
+      return List.of(new ConditionService.ExecutionBatch(null, List.of()));
     }
 
     // Fetch States

@@ -175,6 +175,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
     mapperCondition.setKey("target_ip");
 
     doReturn(List.of(mapperCondition)).when(conditionService).findAllConditionsByStepId("step-1");
+    doReturn(true).when(conditionService).isMapperCondition(mapperCondition);
 
     // Act
     com.fasterxml.jackson.databind.node.ObjectNode updated =
