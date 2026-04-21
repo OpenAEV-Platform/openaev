@@ -2,7 +2,7 @@ import type { Dispatch } from 'redux';
 
 import { getReferential, putReferential } from '../../utils/Action';
 import type { WorkflowConfigurationInput } from '../../utils/api-types';
-import { workflowConfigurationSchema } from './workflow-schema';
+import workflowConfigurationSchema from './workflow-schema';
 
 const WORKFLOW_URI = '/api/workflows';
 
