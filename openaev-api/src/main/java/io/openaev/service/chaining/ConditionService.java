@@ -15,6 +15,7 @@ import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
@@ -563,35 +564,35 @@ public class ConditionService {
     // Time conditions
     // TODO manage multi time condition (AND, OR: g C1 BEFORE OR C2 AFTER)
     // Compute expected start time for the condition to be considered as valid
-    /*
+
     List<Condition> timeConditions =
-    conditionsTemplate.stream().filter(this::isTimeCondition).toList();
+        conditionsTemplate.stream().filter(this::isTimeCondition).toList();
 
     // Time conditions
     // TODO manage multi time condition (AND, OR: g C1 BEFORE OR C2 AFTER)
     // Compute expected start time for the condition to be considered as valid
     for (Condition condition : timeConditions) {
-          Instant now = Instant.now();
-          Instant start = workflowRun.getWorkflowCreatedAt();
-          // TODO: can this happen ? Shouldn't it throw an exception instead?
-          if (start == null) {
-            start = now;
-          }
-          long value = Long.parseLong(condition.getValue());
-          Instant goal = start.plus(value, ChronoUnit.MILLIS);
+      Instant now = Instant.now();
+      Instant start = workflowRun.getWorkflowCreatedAt();
+      // TODO: can this happen ? Shouldn't it throw an exception instead?
+      if (start == null) {
+        start = now;
+      }
+      long value = Long.parseLong(condition.getValue());
+      Instant goal = start.plus(value, ChronoUnit.MILLIS);
 
-          if (isTimeConditionValid(condition, now, goal)) {
-            conditionsExecution.add(ConditionFactory.executionOf(condition, goal));
-            continue;
-          }
-          if (condition.getType().equals(ConditionType.AFTER)) {
-            long delay = ChronoUnit.MILLIS.between(now, goal);
+      if (isTimeConditionValid(condition, now, goal)) {
+        conditionsExecution.add(ConditionFactory.executionOf(condition, goal));
+        continue;
+      }
+      if (condition.getType().equals(ConditionType.AFTER)) {
+        long delay = ChronoUnit.MILLIS.between(now, goal);
 
-            stepDelayQueueService.pushStepTemplateIntoStepDelayQueue(
-                nextStepTemplateToExecute, now, input, delay, workflowRun, goal);
-            return null;
-          }
-        }*/
+        stepDelayQueueService.pushStepTemplateIntoStepDelayQueue(
+            nextStepTemplateToExecute, now, input, delay, workflowRun, goal);
+        return null;
+      }
+    }
 
     // Filter conditions
     /*
