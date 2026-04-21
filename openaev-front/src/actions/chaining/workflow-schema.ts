@@ -1,1 +1,7 @@
-import { schema } from 'normalizr';export const workflowConfiguration = new schema.Entity(  'workflowconfigurations',  {},  { idAttribute: 'workflow_configuration_id' },);
+import { schema } from 'normalizr';
+
+export const workflowConfigurationSchema = (workflowId: string) => new schema.Entity(
+  'workflowconfigurations',
+  {},
+  { idAttribute: () => workflowId },
+);
