@@ -89,7 +89,7 @@ public class ScenarioInjectService {
   // -- PRIVATE --
 
   /** Checks that an inject belongs to the given scenario. Throws if not found. */
-  public void checkInjectForScenario(
+  private void checkInjectForScenario(
       @NotBlank final String scenarioId, @NotBlank final String injectId) {
     if (!injectRepository.existsByIdAndScenarioId(injectId, scenarioId)) {
       throw new ElementNotFoundException(
