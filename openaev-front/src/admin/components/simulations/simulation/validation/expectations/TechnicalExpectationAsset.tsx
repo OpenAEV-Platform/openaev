@@ -134,7 +134,7 @@ const TechnicalExpectationAsset: FunctionComponent<Props> = ({
                 )}
             </div>
             <Button
-              color="primary"
+              color="secondary"
               variant="contained"
               onClick={() => setOpen(false)}
             >

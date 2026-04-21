@@ -1,10 +1,9 @@
-import { Dialog as DialogMUI, DialogActions, DialogContent, DialogContentText } from '@mui/material';
+import { Button, Dialog as DialogMUI, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import type React from 'react';
 import { useState } from 'react';
 import { type FunctionComponent } from 'react';
 
 import { useFormatter } from '../i18n';
-import Button from './button/Button';
 import Transition from './Transition';
 
 interface DialogConfirmationProps {
@@ -47,9 +46,9 @@ const DialogConfirmation: FunctionComponent<DialogConfirmationProps> = ({
         )}
       </DialogContent>
       <DialogActions>
-        <Button variant="secondary" onClick={handleClose}>{t('Cancel')}</Button>
+        <Button onClick={handleClose}>{t('Cancel')}</Button>
         {handleSubmit && (
-          <Button variant="primary" loading={loading} onClick={handleLoadingAndSubmit}>
+          <Button color="secondary" loading={loading} onClick={handleLoadingAndSubmit}>
             {submitLabel}
           </Button>
         )}

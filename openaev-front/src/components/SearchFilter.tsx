@@ -8,9 +8,9 @@ import { useFormatter } from './i18n';
 
 const useStyles = makeStyles()(theme => ({
   searchRoot: {
-    'borderRadius': 4,
+    'borderRadius': 5,
     'padding': '0 10px',
-    'backgroundColor': theme.palette.background.secondary,
+    'backgroundColor': theme.palette.background.paper,
     '&.inDrawer': { height: 30 },
     '&.topBar': {
       marginRight: 5,
@@ -84,23 +84,10 @@ const SearchInput: FunctionComponent<Props> = ({
       placeholder={placeholder ?? `${t('Search these results')}...`}
       onChange={handleChange}
       onKeyDown={handleKeyDown}
-      sx={{
-        '& .MuiOutlinedInput-root': {
-          '& fieldset': { borderColor: 'transparent' },
-          '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.7)' },
-          '&.Mui-focused fieldset': { borderColor: 'primary.main' },
-          '&.Mui-focused:hover fieldset': { borderColor: 'primary.main' },
-        },
-        '& .MuiInputBase-input::placeholder': { opacity: 0.7 },
-      }}
       InputProps={{
         startAdornment: (
           <InputAdornment position="start">
-            <Search sx={{
-              fontSize: 20,
-              opacity: 0.7,
-            }}
-            />
+            <Search fontSize="small" />
           </InputAdornment>
         ),
         classes: {

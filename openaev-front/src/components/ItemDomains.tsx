@@ -8,14 +8,25 @@ import { useHelper } from '../store';
 import { type Domain } from '../utils/api-types';
 import { TO_CLASSIFY } from '../utils/domains/domainUtils';
 import { getLabelOfRemainingItems, truncate } from '../utils/String';
-import Tag from './common/tag/Tag';
 
-const useStyles = makeStyles()(() => ({
+const useStyles = makeStyles()(theme => ({
   inline: {
     display: 'inline',
     alignItems: 'center',
     flexWrap: 'nowrap',
     overflow: 'hidden',
+  },
+  domainChip: {
+    height: theme.spacing(3),
+    fontSize: theme.typography.pxToRem(12),
+    marginRight: theme.spacing(1),
+    borderRadius: theme.shape.borderRadius,
+  },
+  domainChipInList: {
+    fontSize: theme.typography.pxToRem(12),
+    height: theme.spacing(2.5),
+    float: 'left',
+    textTransform: 'uppercase',
   },
 }));
 
@@ -33,33 +44,45 @@ const ItemDomains = ({ domains, variant }: ItemsDomainsProps) => {
 
   const resolvedDomains: Domain[] = useMemo(() => {
     if (!domains) return [];
+
     const isArrayOfIds = typeof domains[0] === 'string';
+
     if (isArrayOfIds) {
       return allDomains.filter(d =>
         (domains as string[]).includes(d.domain_id),
       );
     }
+
     return domains as Domain[];
   }, [domains, allDomains]);
 
-  const truncateLimit = variant === 'reduced-view' ? 12 : 20;
+  let truncateLimit = 20;
+  let style = classes.domainChip;
+
+  if (variant === 'list') {
+    style = `${classes.domainChip} ${classes.domainChipInList}`;
+  }
+  if (variant === 'reduced-view') {
+    style = `${classes.domainChip} ${classes.domainChipInList}`;
+    truncateLimit = 12;
+  }
 
   const renderList = () =>
     resolvedDomains
       .filter(d => d.domain_name !== TO_CLASSIFY)
       .map(domain => (
-        <span
-          key={domain.domain_id}
-          style={{
-            marginRight: 7,
-            display: 'inline-block',
-          }}
-        >
-          <Tag
+        <Tooltip key={domain.domain_id} title={domain.domain_name}>
+          <Chip
+            variant="outlined"
+            classes={{ root: style }}
             label={truncate(domain.domain_name, truncateLimit)}
-            color={domain.domain_color}
+            style={{
+              color: domain.domain_color,
+              borderColor: domain.domain_color,
+              backgroundColor: 'transparent',
+            }}
           />
-        </span>
+        </Tooltip>
       ));
 
   const renderSingle = () => {
@@ -70,26 +93,25 @@ const ItemDomains = ({ domains, variant }: ItemsDomainsProps) => {
 
     return (
       <>
-        <span style={{
-          marginRight: 7,
-          display: 'inline-block',
-        }}
-        >
-          <Tag
+        <Tooltip title={primaryDomain.domain_name}>
+          <Chip
+            variant="outlined"
+            classes={{ root: style }}
             label={truncate(primaryDomain.domain_name, truncateLimit)}
-            color={primaryDomain.domain_color}
+            style={{
+              color: primaryDomain.domain_color,
+              borderColor: primaryDomain.domain_color,
+              backgroundColor: 'transparent',
+            }}
           />
-        </span>
+        </Tooltip>
+
         {resolvedDomains.length > 1 && (
           <Tooltip title={tooltipLabel}>
             <Chip
-              size="small"
+              variant="outlined"
+              classes={{ root: style }}
               label={`+${resolvedDomains.length - 1}`}
-              sx={{
-                borderRadius: 1,
-                height: 25,
-                fontSize: 12,
-              }}
             />
           </Tooltip>
         )}

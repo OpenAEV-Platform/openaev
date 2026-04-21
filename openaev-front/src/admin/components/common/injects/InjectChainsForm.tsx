@@ -833,7 +833,7 @@ const InjectChainsForm: FunctionComponent<Props> = ({ values, form, injects, isD
           {t('Parent')}
         </Typography>
         <IconButton
-          color="primary"
+          color="secondary"
           aria-label="Add"
           size="large"
           disabled={parents.length > 0
@@ -919,7 +919,7 @@ const InjectChainsForm: FunctionComponent<Props> = ({ values, form, injects, isD
                 </Box>
                 <div style={{ justifyContent: 'left' }}>
                   <Button
-                    color="primary"
+                    color="secondary"
                     aria-label="Add"
                     size="large"
                     onClick={() => {
@@ -945,7 +945,7 @@ const InjectChainsForm: FunctionComponent<Props> = ({ values, form, injects, isD
           {t('Children')}
         </Typography>
         <IconButton
-          color="primary"
+          color="secondary"
           aria-label="Add"
           size="large"
           disabled={addChildrenButtonDisabled || isDisabled}
@@ -1030,7 +1030,7 @@ const InjectChainsForm: FunctionComponent<Props> = ({ values, form, injects, isD
                 </Box>
                 <div style={{ justifyContent: 'left' }}>
                   <Button
-                    color="primary"
+                    color="secondary"
                     aria-label="Add"
                     size="large"
                     onClick={() => {

@@ -2,7 +2,7 @@ import {
   SlowMotionVideoOutlined,
   VisibilityOutlined,
 } from '@mui/icons-material';
-import { Button, IconButton, Tooltip, Typography } from '@mui/material';
+import { Button, IconButton, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useContext } from 'react';
 import { Link } from 'react-router';
@@ -39,7 +39,7 @@ const useStyles = makeStyles()(() => ({
 
 const ContextualChallenges = ({ challenges, linkToInjects }) => {
   // Standard hooks
-  useStyles();
+  const { classes } = useStyles();
   const { t } = useFormatter();
   const theme = useTheme();
 
@@ -54,29 +54,22 @@ const ContextualChallenges = ({ challenges, linkToInjects }) => {
   const sortedChallenges = filtering.filterAndSort(challenges);
   return (
     <>
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        marginBottom: 10,
-      }}
-      >
-        <Typography variant="h4" gutterBottom={false} style={{ margin: 0 }}>
-          {t('Used challenges (in injects)')}
-        </Typography>
+      <div style={{ float: 'left' }}>
         <Tooltip title={t('Preview challenges page')}>
           <IconButton
             color="primary"
-            aria-label="Preview"
+            aria-label="Add"
             component={Link}
             to={previewChallengeUrl()}
             target="_blank"
-            size="small"
-            sx={{ ml: 0.5 }}
+            classes={{ root: classes.createButton }}
+            size="large"
           >
             <VisibilityOutlined fontSize="small" />
           </IconButton>
         </Tooltip>
       </div>
+      <div className="clearfix" />
       {sortedChallenges.length === 0 && (
         <Empty message={(
           <div style={{ textAlign: 'center' }}>

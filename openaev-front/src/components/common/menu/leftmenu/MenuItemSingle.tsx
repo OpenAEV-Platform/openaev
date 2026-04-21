@@ -1,9 +1,10 @@
-import { ListItemIcon, ListItemText, MenuItem, Tooltip } from '@mui/material';
+import { ListItemIcon, ListItemText, MenuItem } from '@mui/material';
 import { type FunctionComponent } from 'react';
 import { Link, useLocation } from 'react-router';
 
 import { useFormatter } from '../../../i18n';
 import { type LeftMenuItem } from './leftmenu-model';
+import StyledTooltip from './StyledTooltip';
 import useLeftMenuStyle from './useLeftMenuStyle';
 
 interface Props {
@@ -12,44 +13,36 @@ interface Props {
 }
 
 const MenuItemSingle: FunctionComponent<Props> = ({ navOpen, item }) => {
+  // Standard hooks
   const { t } = useFormatter();
   const location = useLocation();
-  const { iconSx, iconSelectedSx, getMenuItemSx, textColor } = useLeftMenuStyle();
+  const leftMenuStyle = useLeftMenuStyle();
 
   const isCurrentTab = location.pathname === item.path;
-
   return (
-    <Tooltip title={!navOpen ? t(item.label) : ''} placement="right">
+    <StyledTooltip title={!navOpen && t(item.label)} placement="right">
       <MenuItem
         aria-label={t(item.label)}
         component={Link}
         to={item.path}
-        selected={false}
+        selected={isCurrentTab}
         dense
-        sx={getMenuItemSx(isCurrentTab)}
+        sx={{
+          paddingRight: '2px',
+          height: 35,
+        }}
       >
-        <ListItemIcon sx={isCurrentTab ? iconSelectedSx : iconSx}>
+        <ListItemIcon style={{ ...leftMenuStyle.listItemIcon }}>
           {item.icon()}
         </ListItemIcon>
         {navOpen && (
           <ListItemText
             primary={t(item.label)}
-            sx={{ pt: 0.1 }}
-            slotProps={{
-              primary: {
-                sx: {
-                  fontSize: '14px',
-                  color: textColor,
-                  overflow: 'hidden',
-                  whiteSpace: 'nowrap',
-                  textOverflow: 'ellipsis',
-                },
-              },
-            }}
+            slotProps={{ primary: { sx: { ...leftMenuStyle.listItemText } } }}
           />
         )}
       </MenuItem>
-    </Tooltip>
+    </StyledTooltip>
   );
 };
 

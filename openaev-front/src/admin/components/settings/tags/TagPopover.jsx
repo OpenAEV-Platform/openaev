@@ -1,12 +1,11 @@
 import { MoreVert } from '@mui/icons-material';
-import { Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Menu, MenuItem } from '@mui/material';
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Menu, MenuItem } from '@mui/material';
 import * as PropTypes from 'prop-types';
 import * as R from 'ramda';
 import { Component } from 'react';
 import { connect } from 'react-redux';
 
 import { deleteTag, updateTag } from '../../../../actions/tags/tag-action';
-import Button from '../../../../components/common/button/Button';
 import Drawer from '../../../../components/common/Drawer';
 import Transition from '../../../../components/common/Transition';
 import inject18n from '../../../../components/i18n';
@@ -113,10 +112,10 @@ class TagPopoverComponent extends Component {
             </DialogContentText>
           </DialogContent>
           <DialogActions>
-            <Button variant="secondary" onClick={this.handleCloseDelete.bind(this)}>
+            <Button onClick={this.handleCloseDelete.bind(this)}>
               {t('Cancel')}
             </Button>
-            <Button variant="primary" onClick={this.submitDelete.bind(this)}>
+            <Button color="secondary" onClick={this.submitDelete.bind(this)}>
               {t('Delete')}
             </Button>
           </DialogActions>

@@ -1,11 +1,10 @@
 import { MoreVert } from '@mui/icons-material';
-import { Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Menu, MenuItem } from '@mui/material';
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Menu, MenuItem } from '@mui/material';
 import * as R from 'ramda';
 import { useState } from 'react';
 import { useDispatch } from 'react-redux';
 
 import { deleteAttackPattern, updateAttackPattern } from '../../../../actions/AttackPattern';
-import Button from '../../../../components/common/button/Button';
 import Drawer from '../../../../components/common/Drawer';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
@@ -94,8 +93,8 @@ const AttackPatternPopover = ({ attackPattern, killChainPhasesMap, onUpdate, onD
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="secondary" onClick={handleCloseDelete}>{t('Cancel')}</Button>
-          <Button variant="primary" onClick={submitDelete}>
+          <Button onClick={handleCloseDelete}>{t('Cancel')}</Button>
+          <Button color="secondary" onClick={submitDelete}>
             {t('Delete')}
           </Button>
         </DialogActions>

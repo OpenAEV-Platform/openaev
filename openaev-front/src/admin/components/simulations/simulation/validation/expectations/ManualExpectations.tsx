@@ -36,18 +36,20 @@ const useStyles = makeStyles()(theme => ({
   chipInList: {
     height: 20,
     borderRadius: 4,
+    textTransform: 'uppercase',
     width: 200,
   },
   chipStatusAcc: {
     height: 30,
     borderRadius: 4,
+    textTransform: 'uppercase',
     width: 150,
     float: 'right',
     marginLeft: 5,
   },
   points: {
     height: 20,
-    backgroundColor: 'rgba(236, 64, 122, 0.2)',
+    backgroundColor: 'rgba(236, 64, 122, 0.08)',
     border: '1px solid #ec407a',
     color: '#ec407a',
   },
