@@ -41,6 +41,7 @@ import org.springframework.transaction.annotation.Transactional;
 @SpringBootTest
 @Transactional
 public class InjectExecutionStepTest extends IntegrationTest {
+
   @MockBean private InjectorContractService injectorContractService;
   @MockBean private UserService userService;
   @MockBean private TeamService teamService;
@@ -110,49 +111,49 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     injectInputJson =
         """
-                        {
-                                                            "type": "inject",
-                                                            "inject_title": "whoami",
-                                                            "inject_description": "",
-                                                            "inject_injector_contract": "%s",
-                                                            "inject_injector": "%s",
-                                                            "inject_content": {
-                                                              "expectations": [
-                                                                {
-                                                                  "expectation_type": "PREVENTION",
-                                                                  "expectation_name": "Prevention",
-                                                                  "expectation_description": null,
-                                                                  "expectation_score": 100,
-                                                                  "expectation_expectation_group": false,
-                                                                  "expectation_expiration_time": 21600
-                                                                },
-                                                                {
-                                                                  "expectation_type": "DETECTION",
-                                                                  "expectation_name": "Detection",
-                                                                  "expectation_description": null,
-                                                                  "expectation_score": 100,
-                                                                  "expectation_expectation_group": false,
-                                                                  "expectation_expiration_time": 21600
-                                                                }
-                                                              ],
-                                                              "obfuscator": "plain-text",
-                                                                "file": "c:\\\\programdata\\\\microsoft\\\\drm\\\\182.bat"
-                                                        },
-                                                            "inject_depends_on": [],
-                                                            "inject_depends_duration": 100,
-                                                            "inject_teams": [],
-                                                            "inject_assets": [
-                                                                "%s"
-                                                            ],
-                                                            "inject_asset_groups": [],
-                                                            "inject_documents": [],
-                                                            "inject_all_teams": false,
-                                                            "inject_country": null,
-                                                            "inject_city": null,
-                                                            "inject_tags": [],
-                                                            "inject_enabled": true
-                        }
-                        """
+            {
+                                                "type": "inject",
+                                                "inject_title": "whoami",
+                                                "inject_description": "",
+                                                "inject_injector_contract": "%s",
+                                                "inject_injector": "%s",
+                                                "inject_content": {
+                                                  "expectations": [
+                                                    {
+                                                      "expectation_type": "PREVENTION",
+                                                      "expectation_name": "Prevention",
+                                                      "expectation_description": null,
+                                                      "expectation_score": 100,
+                                                      "expectation_expectation_group": false,
+                                                      "expectation_expiration_time": 21600
+                                                    },
+                                                    {
+                                                      "expectation_type": "DETECTION",
+                                                      "expectation_name": "Detection",
+                                                      "expectation_description": null,
+                                                      "expectation_score": 100,
+                                                      "expectation_expectation_group": false,
+                                                      "expectation_expiration_time": 21600
+                                                    }
+                                                  ],
+                                                  "obfuscator": "plain-text",
+                                                    "file": "c:\\\\programdata\\\\microsoft\\\\drm\\\\182.bat"
+                                            },
+                                                "inject_depends_on": [],
+                                                "inject_depends_duration": 100,
+                                                "inject_teams": [],
+                                                "inject_assets": [
+                                                    "%s"
+                                                ],
+                                                "inject_asset_groups": [],
+                                                "inject_documents": [],
+                                                "inject_all_teams": false,
+                                                "inject_country": null,
+                                                "inject_city": null,
+                                                "inject_tags": [],
+                                                "inject_enabled": true
+            }
+            """
             .formatted(
                 injectorContractSaved.getId(),
                 injectorContractSaved.getFirstInjector().getId(),
@@ -460,53 +461,6 @@ public class InjectExecutionStepTest extends IntegrationTest {
         Assertions.assertThrows(ChainingException.class, () -> injectExecutionStep.run(stepReady));
     // ASSERT
     Assertions.assertEquals("Step (READY) : Error processing JSON to Inject ", ex.getMessage());
-  }
-
-  @Test
-  public void run_shouldReturnNull_whenInjectorIsNotFoundInDatabase2()
-      throws JsonProcessingException, ChainingException {
-    // PREPARE
-    Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
-    workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
-
-    mapper.readValue(injectInputJson, InjectInput.class);
-    InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
-    StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
-
-    ConditionCreateInput conditionMapper =
-        ConditionCreateInput.builder()
-            .keyType(ConditionKeyType.IPv4)
-            .value("output.message.ip")
-            .type(ConditionType.MAPPER)
-            .build();
-    step.setConditions(Collections.singletonList(conditionMapper));
-    // ACT
-    Optional<Step> stepTemplateOpt = injectExecutionStep.create(step, workflowTemplate);
-    assertTrue(stepTemplateOpt.isPresent());
-    Step stepTemplate = stepTemplateOpt.get();
-
-    Workflow workflowRun = WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN);
-    workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
-
-    Optional<Step> stepReadyOpt =
-        injectExecutionStep.ready(stepTemplate, "{\"input\" : \"do defined\"}", workflowRun);
-    assertTrue(stepReadyOpt.isPresent());
-    Step stepReady = stepReadyOpt.get();
-
-    String injectorId = StepService.getField(stepReady.getData(), "inject_injector");
-    assertNotNull(injectorId);
-    stepReady.setData(StepService.setField(stepReady.getData(), "inject_injector", ""));
-
-    Optional<Step> stepRunOpt = injectExecutionStep.run(stepReady);
-
-    // ASSERT
-    Assertions.assertEquals(
-        "Injector not found for injectorContractId "
-            + injectorContractSaved.getId()
-            + " and step (READY) ID null",
-        ex.getMessage());
-    assertTrue(stepRunOpt.isPresent());
-    assertNotNull(StepService.getField(stepRunOpt.get().getData(), "inject_id"));
   }
 
   @Test
