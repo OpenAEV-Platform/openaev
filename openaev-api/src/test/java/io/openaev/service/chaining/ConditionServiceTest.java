@@ -344,9 +344,6 @@ public class ConditionServiceTest {
 
       Condition timeTemplate = mock(Condition.class);
       when(timeTemplate.getType()).thenReturn(ConditionType.AFTER);
-      when(timeTemplate.getValue()).thenReturn("60000"); // +60s from start
-
-      when(conditionRepository.findAllLinkedToStepId(stepId)).thenReturn(List.of(timeTemplate));
 
       when(conditionRepository.findAllLinkedToStepId(stepId)).thenReturn(List.of(timeTemplate));
 

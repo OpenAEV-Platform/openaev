@@ -459,6 +459,8 @@ public class StepServiceTest {
           .when(stepService)
           .ready(stepTemplate, workflowRun, null);
 
+      doNothing().when(stepService).prepareInitialWorkflowState(workflowRun);
+
       if (!hasValidStep) {
         when(stepDelayQueueRepository.findAllByWorkflowRun(workflowRun))
             .thenReturn(hasDelayedTemplate ? List.of(mock(StepDelayQueue.class)) : List.of());
