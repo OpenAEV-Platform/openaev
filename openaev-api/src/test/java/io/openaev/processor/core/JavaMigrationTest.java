@@ -8,13 +8,16 @@ import static org.mockito.Mockito.*;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.QueueConfig;
 import io.openaev.context.TenantContext;
+import io.openaev.database.model.DataPack;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.InjectorRepository;
+import io.openaev.processor.MigrationProcessingResult;
 import io.openaev.service.DataPackService;
 import io.openaev.service.RabbitmqService;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -390,6 +393,86 @@ class JavaMigrationTest {
         verify(rabbitmqService, never()).safeDeleteQueue("openbas_injector_broken");
         verify(rabbitmqService).safeDeleteQueue("openbas_injector_openaev_nmap");
       }
+    }
+  }
+
+  // ── JavaMigration base class ───────────────────────────────────────────────
+
+  @Nested
+  @DisplayName("JavaMigration — base process() logic")
+  class JavaMigrationBase {
+
+    @Mock private DataPackService dataPackService;
+
+    private boolean doMigrateResult;
+    private JavaMigration migration;
+    private Tenant tenant;
+
+    @BeforeEach
+    void setUp() {
+      doMigrateResult = true;
+      migration =
+          new JavaMigration(dataPackService) {
+            @Override
+            protected boolean doMigrate() {
+              return doMigrateResult;
+            }
+          };
+      tenant = new Tenant();
+      tenant.setId(Tenant.DEFAULT_TENANT_UUID);
+    }
+
+    @Test
+    @DisplayName("given already processed migration should return SKIPPED")
+    void given_alreadyProcessedMigration_should_returnSkipped() {
+      // Arrange
+      when(dataPackService.findByIdAndTenant(eq(migration.getMigrationId()), eq(tenant)))
+          .thenReturn(Optional.of(mock(DataPack.class)));
+
+      // Act
+      MigrationProcessingResult result = migration.process(tenant);
+
+      // Assert
+      assertThat(result).isEqualTo(MigrationProcessingResult.SKIPPED);
+      verify(dataPackService, never()).registerDataPack(any(), any());
+    }
+
+    @Test
+    @DisplayName("given first run with successful doMigrate should return PROCESSED and register")
+    void given_firstRunSuccess_should_returnProcessedAndRegister() {
+      // Arrange
+      when(dataPackService.findByIdAndTenant(eq(migration.getMigrationId()), eq(tenant)))
+          .thenReturn(Optional.empty());
+
+      // Act
+      MigrationProcessingResult result = migration.process(tenant);
+
+      // Assert
+      assertThat(result).isEqualTo(MigrationProcessingResult.PROCESSED);
+      verify(dataPackService).registerDataPack(eq(migration.getMigrationId()), eq(tenant));
+    }
+
+    @Test
+    @DisplayName("given first run with failed doMigrate should return PROCESSED but not register")
+    void given_firstRunFailure_should_returnProcessedButNotRegister() {
+      // Arrange
+      doMigrateResult = false;
+      when(dataPackService.findByIdAndTenant(eq(migration.getMigrationId()), eq(tenant)))
+          .thenReturn(Optional.empty());
+
+      // Act
+      MigrationProcessingResult result = migration.process(tenant);
+
+      // Assert
+      assertThat(result).isEqualTo(MigrationProcessingResult.PROCESSED);
+      verify(dataPackService, never()).registerDataPack(any(), any());
+    }
+
+    @Test
+    @DisplayName("migrationId should be the canonical class name")
+    void given_migration_should_haveMigrationIdAsCanonicalName() {
+      // Assert
+      assertThat(migration.getMigrationId()).isNotNull().contains("JavaMigrationTest");
     }
   }
 }
