@@ -377,7 +377,7 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
           rootConditions.stream().allMatch(c -> c.getType() == ConditionType.MAPPER);
       if (!allMapper) {
         throw new IllegalArgumentException(
-            "New step (TEMPLATE): Only 1 condition can be first parent for non-MAPPER types");
+            "New step (TEMPLATE): Only 1 condition can be first parent");
       }
     }
 

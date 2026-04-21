@@ -116,7 +116,7 @@ public class ConditionService {
       boolean allMapper = rootInputs.stream().allMatch(r -> r.getType() == ConditionType.MAPPER);
       if (!allMapper) {
         throw new IllegalArgumentException(
-            "New step (TEMPLATE): Only 1 condition can be first parent for non-MAPPER types");
+            "New step (TEMPLATE): Only 1 condition can be first parent");
       }
     }
 
