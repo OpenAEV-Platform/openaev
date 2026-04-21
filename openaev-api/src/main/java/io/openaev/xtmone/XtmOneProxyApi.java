@@ -3,6 +3,7 @@ package io.openaev.xtmone;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.jsonwebtoken.Jwts;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.SessionHelper;
 import io.openaev.database.model.User;
@@ -14,12 +15,14 @@ import jakarta.annotation.Resource;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.util.Base64;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
@@ -56,22 +59,29 @@ public class XtmOneProxyApi extends RestBehavior {
   @Resource private ObjectMapper mapper;
 
   /**
-   * Issue a minimal unsigned JWT for the current user, trusted by copilot via
-   * the "openaev" issuer in TRUSTED_PLATFORM_ISSUERS.
+   * Issue an HMAC-SHA256 signed JWT for the current user, trusted by copilot via the "openaev"
+   * issuer in TRUSTED_PLATFORM_ISSUERS.
    */
   private String issuePlatformJwt() {
     var principal = SessionHelper.currentUser();
     User user = userRepository.findById(principal.getId()).orElse(null);
     String email = user != null ? user.getEmail() : "admin@openaev.io";
     String name = user != null ? user.getNameOrEmail() : "OpenAEV User";
-    long now = Instant.now().getEpochSecond();
-    // Build an unsigned JWT (alg: none) — copilot trusts "openaev" issuer without signature verification
-    String header = Base64.getUrlEncoder().withoutPadding().encodeToString("{\"alg\":\"none\",\"typ\":\"JWT\"}".getBytes(StandardCharsets.UTF_8));
-    String payload = Base64.getUrlEncoder().withoutPadding().encodeToString(
-        String.format("{\"iss\":\"openaev\",\"email\":\"%s\",\"name\":\"%s\",\"iat\":%d,\"exp\":%d}",
-            email.replace("\"", ""), name.replace("\"", ""), now, now + 300)
-        .getBytes(StandardCharsets.UTF_8));
-    return header + "." + payload + ".";
+    Instant now = Instant.now();
+    // Derive an HMAC-SHA256 key from the XTM One token for JWT signing
+    byte[] keyBytes =
+        xtmOneConfig.getToken().getBytes(StandardCharsets.UTF_8).length >= 32
+            ? xtmOneConfig.getToken().getBytes(StandardCharsets.UTF_8)
+            : java.util.Arrays.copyOf(xtmOneConfig.getToken().getBytes(StandardCharsets.UTF_8), 32);
+    SecretKey signingKey = new SecretKeySpec(keyBytes, "HmacSHA256");
+    return Jwts.builder()
+        .issuer("openaev")
+        .claim("email", email)
+        .claim("name", name)
+        .issuedAt(Date.from(now))
+        .expiration(Date.from(now.plusSeconds(300)))
+        .signWith(signingKey)
+        .compact();
   }
 
   // ── GET /api/chatbot/config ────────────────────────────────────────────
@@ -80,8 +90,10 @@ public class XtmOneProxyApi extends RestBehavior {
   public ResponseEntity<Map<String, Object>> getChatbotConfig() {
     return ResponseEntity.ok(
         Map.of(
-            "xtm_one_url", xtmOneConfig.getUrl() != null ? xtmOneConfig.getUrl() : "",
-            "xtm_one_configured", xtmOneConfig.isConfigured()));
+            "xtm_one_url",
+            xtmOneConfig.getUrl() != null ? xtmOneConfig.getUrl() : "",
+            "xtm_one_configured",
+            xtmOneConfig.isConfigured()));
   }
 
   // ── GET /api/chatbot/agents ────────────────────────────────────────────
@@ -104,11 +116,14 @@ public class XtmOneProxyApi extends RestBehavior {
             .map(
                 a ->
                     Map.of(
-                        "id", a.getAgentId(),
-                        "name", a.getAgentName(),
-                        "slug", a.getAgentSlug() != null ? a.getAgentSlug() : "",
+                        "id",
+                        a.getAgentId(),
+                        "name",
+                        a.getAgentName(),
+                        "slug",
+                        a.getAgentSlug() != null ? a.getAgentSlug() : "",
                         "description",
-                            a.getAgentDescription() != null ? a.getAgentDescription() : ""))
+                        a.getAgentDescription() != null ? a.getAgentDescription() : ""))
             .toList();
 
     return ResponseEntity.ok(agents);
@@ -123,8 +138,7 @@ public class XtmOneProxyApi extends RestBehavior {
           .body("{\"error\": \"XTM One is not configured\"}");
     }
 
-    String url =
-        xtmOneConfig.getUrl().replaceAll("/+$", "") + "/api/v1/platform/chat/sessions";
+    String url = xtmOneConfig.getUrl().replaceAll("/+$", "") + "/api/v1/platform/chat/sessions";
     return proxyPost(url, body, 15);
   }
 
@@ -136,15 +150,13 @@ public class XtmOneProxyApi extends RestBehavior {
       StreamingResponseBody errorBody =
           out ->
               out.write(
-                  "{\"error\": \"XTM One is not configured\"}"
-                      .getBytes(StandardCharsets.UTF_8));
+                  "{\"error\": \"XTM One is not configured\"}".getBytes(StandardCharsets.UTF_8));
       return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
           .contentType(MediaType.APPLICATION_JSON)
           .body(errorBody);
     }
 
-    String url =
-        xtmOneConfig.getUrl().replaceAll("/+$", "") + "/api/v1/platform/chat/messages";
+    String url = xtmOneConfig.getUrl().replaceAll("/+$", "") + "/api/v1/platform/chat/messages";
 
     StreamingResponseBody responseBody =
         outputStream -> {
@@ -153,10 +165,7 @@ public class XtmOneProxyApi extends RestBehavior {
             httpPost.addHeader("Authorization", "Bearer " + issuePlatformJwt());
             httpPost.addHeader("Content-Type", "application/json");
             httpPost.addHeader("X-Platform-Product", "openaev");
-            httpPost.setConfig(
-                RequestConfig.custom()
-                    .setResponseTimeout(Timeout.DISABLED)
-                    .build());
+            httpPost.setConfig(RequestConfig.custom().setResponseTimeout(Timeout.DISABLED).build());
             httpPost.setEntity(new StringEntity(body, ContentType.APPLICATION_JSON));
 
             httpClient.execute(
@@ -173,13 +182,100 @@ public class XtmOneProxyApi extends RestBehavior {
                   return null;
                 });
           } catch (Exception e) {
-            log.error("[XTM One] Streaming proxy error: {}", e.getMessage(), e);
-            String errorEvent =
-                "data: "
-                    + "{\"type\":\"error\",\"content\":\"Proxy error: "
-                    + e.getMessage().replace("\"", "'")
-                    + "\"}\n\n";
-            outputStream.write(errorEvent.getBytes(StandardCharsets.UTF_8));
+            log.error("[XTM One] Streaming proxy error", e);
+            try {
+              String safeError =
+                  mapper.writeValueAsString(Map.of("type", "error", "content", "Proxy error"));
+              outputStream.write(("data: " + safeError + "\n\n").getBytes(StandardCharsets.UTF_8));
+            } catch (Exception ignored) {
+              outputStream.write(
+                  "data: {\"type\":\"error\",\"content\":\"Proxy error\"}\n\n"
+                      .getBytes(StandardCharsets.UTF_8));
+            }
+            outputStream.flush();
+          }
+        };
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.TEXT_EVENT_STREAM);
+    headers.setCacheControl("no-cache, no-transform");
+    headers.set("Connection", "keep-alive");
+    headers.set("X-Accel-Buffering", "no");
+    headers.set("Transfer-Encoding", "chunked");
+
+    return new ResponseEntity<>(responseBody, headers, HttpStatus.OK);
+  }
+
+  // ── POST /api/chatbot/agent/stream (streaming SSE) ─────────────────────
+
+  @PostMapping(value = "/api/chatbot/agent/stream", produces = "text/event-stream")
+  public ResponseEntity<StreamingResponseBody> postAgentStream(@RequestBody JsonNode body) {
+    if (!xtmOneConfig.isConfigured()) {
+      StreamingResponseBody errorBody =
+          out ->
+              out.write(
+                  "data: {\"type\":\"error\",\"content\":\"XTM One is not configured\"}\n\n"
+                      .getBytes(StandardCharsets.UTF_8));
+      return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+          .contentType(MediaType.TEXT_EVENT_STREAM)
+          .body(errorBody);
+    }
+
+    String agentSlug = body.has("agent_slug") ? body.get("agent_slug").asText() : null;
+    String content = body.has("content") ? body.get("content").asText() : null;
+
+    if (agentSlug == null || content == null) {
+      StreamingResponseBody errorBody =
+          out ->
+              out.write(
+                  "data: {\"type\":\"error\",\"content\":\"agent_slug and content are required\"}\n\n"
+                      .getBytes(StandardCharsets.UTF_8));
+      return ResponseEntity.badRequest().contentType(MediaType.TEXT_EVENT_STREAM).body(errorBody);
+    }
+
+    String url = xtmOneConfig.getUrl().replaceAll("/+$", "") + "/api/v1/platform/chat/messages";
+
+    StreamingResponseBody responseBody =
+        outputStream -> {
+          try (CloseableHttpClient httpClient = httpClientFactory.httpClientCustom()) {
+            HttpPost httpPost = new HttpPost(url);
+            httpPost.addHeader("Authorization", "Bearer " + issuePlatformJwt());
+            httpPost.addHeader("Content-Type", "application/json");
+            httpPost.addHeader("X-Platform-Product", "openaev");
+            httpPost.setConfig(RequestConfig.custom().setResponseTimeout(Timeout.DISABLED).build());
+
+            ObjectNode requestBody = mapper.createObjectNode();
+            requestBody.put("agent_slug", agentSlug);
+            requestBody.put("content", content);
+            requestBody.put("stream", true);
+            httpPost.setEntity(
+                new StringEntity(
+                    mapper.writeValueAsString(requestBody), ContentType.APPLICATION_JSON));
+
+            httpClient.execute(
+                httpPost,
+                (ClassicHttpResponse response) -> {
+                  try (InputStream is = response.getEntity().getContent()) {
+                    byte[] buffer = new byte[4096];
+                    int bytesRead;
+                    while ((bytesRead = is.read(buffer)) != -1) {
+                      outputStream.write(buffer, 0, bytesRead);
+                      outputStream.flush();
+                    }
+                  }
+                  return null;
+                });
+          } catch (Exception e) {
+            log.error("[XTM One] Agent stream proxy error", e);
+            try {
+              String safeError =
+                  mapper.writeValueAsString(Map.of("type", "error", "content", "Proxy error"));
+              outputStream.write(("data: " + safeError + "\n\n").getBytes(StandardCharsets.UTF_8));
+            } catch (Exception ignored) {
+              outputStream.write(
+                  "data: {\"type\":\"error\",\"content\":\"Proxy error\"}\n\n"
+                      .getBytes(StandardCharsets.UTF_8));
+            }
             outputStream.flush();
           }
         };
@@ -211,16 +307,14 @@ public class XtmOneProxyApi extends RestBehavior {
           .body("{\"error\": \"agent_slug and content are required\"}");
     }
 
-    String url =
-        xtmOneConfig.getUrl().replaceAll("/+$", "") + "/api/v1/platform/chat/messages";
+    String url = xtmOneConfig.getUrl().replaceAll("/+$", "") + "/api/v1/platform/chat/messages";
 
     try (CloseableHttpClient httpClient = httpClientFactory.httpClientCustom()) {
       HttpPost httpPost = new HttpPost(url);
       httpPost.addHeader("Authorization", "Bearer " + issuePlatformJwt());
       httpPost.addHeader("Content-Type", "application/json");
       httpPost.addHeader("X-Platform-Product", "openaev");
-      httpPost.setConfig(
-          RequestConfig.custom().setResponseTimeout(Timeout.ofSeconds(120)).build());
+      httpPost.setConfig(RequestConfig.custom().setResponseTimeout(Timeout.ofSeconds(120)).build());
 
       ObjectNode requestBody = mapper.createObjectNode();
       requestBody.put("agent_slug", agentSlug);
@@ -233,8 +327,7 @@ public class XtmOneProxyApi extends RestBehavior {
       }
 
       httpPost.setEntity(
-          new StringEntity(
-              mapper.writeValueAsString(requestBody), ContentType.APPLICATION_JSON));
+          new StringEntity(mapper.writeValueAsString(requestBody), ContentType.APPLICATION_JSON));
 
       return httpClient.execute(
           httpPost,
@@ -244,8 +337,7 @@ public class XtmOneProxyApi extends RestBehavior {
             if (status >= 200 && status < 300) {
               try {
                 JsonNode data = mapper.readTree(responseBody);
-                String responseContent =
-                    data.has("content") ? data.get("content").asText() : "";
+                String responseContent = data.has("content") ? data.get("content").asText() : "";
                 return ResponseEntity.ok(
                     mapper.writeValueAsString(
                         Map.of("content", responseContent, "status", "success")));
@@ -265,11 +357,7 @@ public class XtmOneProxyApi extends RestBehavior {
               }
               return ResponseEntity.ok(
                   mapper.writeValueAsString(
-                      Map.of(
-                          "content", "",
-                          "status", "error",
-                          "error", detail,
-                          "code", status)));
+                      Map.of("content", "", "status", "error", "error", detail, "code", status)));
             }
           });
     } catch (Exception e) {
@@ -277,11 +365,7 @@ public class XtmOneProxyApi extends RestBehavior {
       try {
         return ResponseEntity.ok(
             mapper.writeValueAsString(
-                Map.of(
-                    "content", "",
-                    "status", "error",
-                    "error", e.getMessage(),
-                    "code", 503)));
+                Map.of("content", "", "status", "error", "error", e.getMessage(), "code", 503)));
       } catch (Exception jsonErr) {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
             .body("{\"error\": \"Internal error\"}");
@@ -307,8 +391,7 @@ public class XtmOneProxyApi extends RestBehavior {
     }
 
     // Build the request to copilot
-    String url =
-        xtmOneConfig.getUrl().replaceAll("/+$", "") + "/api/v1/platform/chat/messages";
+    String url = xtmOneConfig.getUrl().replaceAll("/+$", "") + "/api/v1/platform/chat/messages";
     try {
       ObjectNode requestBody = mapper.createObjectNode();
       requestBody.put("agent_slug", agentSlug);
@@ -338,14 +421,17 @@ public class XtmOneProxyApi extends RestBehavior {
           for (JsonNode fileEntry : filesNode) {
             JsonNode extraction = fileEntry.get("extraction");
             if (extraction != null) {
-              extraction.fields().forEachRemaining(field -> {
-                for (JsonNode chunk : field.getValue()) {
-                  JsonNode predictions = chunk.get("predictions");
-                  if (predictions != null) {
-                    predictions.fieldNames().forEachRemaining(techniqueIds::add);
-                  }
-                }
-              });
+              extraction
+                  .fields()
+                  .forEachRemaining(
+                      field -> {
+                        for (JsonNode chunk : field.getValue()) {
+                          JsonNode predictions = chunk.get("predictions");
+                          if (predictions != null) {
+                            predictions.fieldNames().forEachRemaining(techniqueIds::add);
+                          }
+                        }
+                      });
             }
           }
         }
@@ -370,10 +456,10 @@ public class XtmOneProxyApi extends RestBehavior {
       }
 
       // Resolve external technique IDs to internal OpenAEV attack pattern UUIDs
-      List<String> internalIds = attackPatternService
-          .getAttackPatternsByExternalIds(techniqueIds).stream()
-          .map(ap -> ap.getId())
-          .toList();
+      List<String> internalIds =
+          attackPatternService.getAttackPatternsByExternalIds(techniqueIds).stream()
+              .map(ap -> ap.getId())
+              .toList();
 
       return ResponseEntity.ok(internalIds);
     } catch (Exception e) {
@@ -390,9 +476,7 @@ public class XtmOneProxyApi extends RestBehavior {
       httpPost.addHeader("Authorization", "Bearer " + issuePlatformJwt());
       httpPost.addHeader("Content-Type", "application/json");
       httpPost.setConfig(
-          RequestConfig.custom()
-              .setResponseTimeout(Timeout.ofSeconds(timeoutSeconds))
-              .build());
+          RequestConfig.custom().setResponseTimeout(Timeout.ofSeconds(timeoutSeconds)).build());
       httpPost.setEntity(new StringEntity(body, ContentType.APPLICATION_JSON));
 
       return httpClient.execute(
@@ -407,9 +491,14 @@ public class XtmOneProxyApi extends RestBehavior {
             }
           });
     } catch (Exception e) {
-      log.error("[XTM One] Proxy error to {}: {}", url, e.getMessage(), e);
-      return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-          .body("{\"error\": \"" + e.getMessage().replace("\"", "'") + "\"}");
+      log.error("[XTM One] Proxy error", e);
+      try {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+            .body(mapper.writeValueAsString(Map.of("error", "Upstream service unavailable")));
+      } catch (Exception jsonErr) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+            .body("{\"error\": \"Upstream service unavailable\"}");
+      }
     }
   }
 }

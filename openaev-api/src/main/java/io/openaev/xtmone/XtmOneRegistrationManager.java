@@ -106,7 +106,9 @@ public class XtmOneRegistrationManager {
       if (result.getIntentCatalog() != null) {
         intentCatalog = result.getIntentCatalog();
         int agentCount =
-            intentCatalog.stream().mapToInt(e -> e.getAgents() != null ? e.getAgents().size() : 0).sum();
+            intentCatalog.stream()
+                .mapToInt(e -> e.getAgents() != null ? e.getAgents().size() : 0)
+                .sum();
         log.info(
             "[XTM One] Intent catalog updated: {} intents, {} agents",
             intentCatalog.size(),
