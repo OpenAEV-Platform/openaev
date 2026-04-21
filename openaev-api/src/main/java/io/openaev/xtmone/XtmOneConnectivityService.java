@@ -4,13 +4,13 @@ import jakarta.annotation.PostConstruct;
 import java.time.Duration;
 import java.time.Instant;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.java.Log;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-@Log
+@Slf4j
 public class XtmOneConnectivityService {
 
   private final XtmOneConfig config;
@@ -33,7 +33,7 @@ public class XtmOneConnectivityService {
     try {
       xtmOneService.autoRegister();
     } catch (Exception e) {
-      log.warning("[XTM One] Connectivity tick error: " + e.getMessage());
+      log.warn("[XTM One] Connectivity tick error.", e);
     }
   }
 }

@@ -8,16 +8,15 @@ import io.openaev.output_processor.OutputProcessor;
 import io.openaev.output_processor.OutputProcessorFactory;
 import jakarta.annotation.Resource;
 import java.util.*;
-import java.util.logging.Level;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.java.Log;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-@Log
+@Slf4j
 @RequiredArgsConstructor
 @Component
 public class StructuredOutputUtils {
@@ -85,7 +84,7 @@ public class StructuredOutputUtils {
         return rootNode.get("stderr").asText();
       }
     } catch (Exception e) {
-      log.log(Level.WARNING, e.getMessage(), e);
+      log.warn(e.getMessage(), e);
     }
 
     return "";
@@ -116,7 +115,7 @@ public class StructuredOutputUtils {
                           | Pattern.CASE_INSENSITIVE
                           | Pattern.UNICODE_CHARACTER_CLASS);
                 } catch (PatternSyntaxException e) {
-                  log.log(Level.INFO, "Invalid regex pattern: " + r, e.getMessage());
+                  log.info("Invalid regex pattern: {}", r, e);
                   return null;
                 }
               });
@@ -193,7 +192,7 @@ public class StructuredOutputUtils {
     try {
       return new IntNode(Integer.parseInt(extracted));
     } catch (NumberFormatException e) {
-      log.warning("Invalid number format: " + extracted);
+      log.warn("Invalid number format: {}", extracted, e);
       return NullNode.getInstance();
     }
   }
@@ -211,7 +210,7 @@ public class StructuredOutputUtils {
         try {
           int groupIndex = Integer.parseInt(index);
           if (groupIndex > matcher.groupCount()) {
-            log.warning("Skipping invalid group index: " + groupIndex);
+            log.warn("Skipping invalid group index: {}", groupIndex);
             continue;
           }
 
@@ -221,7 +220,7 @@ public class StructuredOutputUtils {
           }
 
         } catch (NumberFormatException | IllegalStateException e) {
-          log.log(Level.SEVERE, "Invalid regex group index: " + index, e.getMessage());
+          log.error("Invalid regex group index: {}", index, e);
         }
       }
 

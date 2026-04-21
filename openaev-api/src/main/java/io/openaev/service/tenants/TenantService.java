@@ -18,13 +18,13 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.java.Log;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.ClassUtils;
 
-@Log
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(rollbackFor = Exception.class)
@@ -71,10 +71,9 @@ public class TenantService {
         }
       }
       if (remaining.size() == before) {
-        log.warning(
-            "Circular prerequisite detected among DependenciesManagers, "
-                + "appending remaining in original order: "
-                + remaining);
+        log.warn(
+            "Circular prerequisite detected among DependenciesManagers, appending remaining in original order: {}",
+            remaining);
         sorted.addAll(remaining);
         break;
       }
@@ -187,13 +186,11 @@ public class TenantService {
         }
         purgedIds.add(tenant.getId());
       } catch (DependenciesManagerException e) {
-        log.severe(
-            "Failed to clean dependencies for tenant "
-                + tenant.getId()
-                + " ("
-                + tenant.getName()
-                + "): "
-                + e.getMessage());
+        log.error(
+            "Failed to clean dependencies for tenant {} ({}): {}",
+            tenant.getId(),
+            tenant.getName(),
+            e.getMessage());
       }
     }
 

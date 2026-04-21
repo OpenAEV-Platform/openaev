@@ -12,7 +12,7 @@ import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.java.Log;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
-@Log
+@Slf4j
 @RestController
 @RequiredArgsConstructor
 public class XtmOneChatApi extends RestBehavior {
@@ -83,7 +83,7 @@ public class XtmOneChatApi extends RestBehavior {
         outputStream -> {
           InputStream sseStream = client.streamChatMessage(jwt, content, conversationId, agentSlug);
           if (sseStream == null) {
-            log.warning("[XTM One Chat] streamChatMessage returned null, agent=" + agentSlug);
+            log.warn("[XTM One Chat] streamChatMessage returned null, agent={}", agentSlug);
             outputStream.write(
                 ("data: "
                         + "{\"type\":\"error\",\"content\":\"Unable to connect to the AI assistant. Please try again.\"}"
@@ -100,8 +100,7 @@ public class XtmOneChatApi extends RestBehavior {
               outputStream.flush();
             }
           } catch (Exception e) {
-            log.warning(
-                "[XTM One Chat] Stream interrupted, agent=" + agentSlug + ": " + e.getMessage());
+            log.warn("[XTM One Chat] Stream interrupted, agent={}.", agentSlug, e);
           }
         };
 

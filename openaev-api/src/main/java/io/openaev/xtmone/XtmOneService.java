@@ -6,13 +6,13 @@ import io.openaev.service.PlatformSettingsService;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.java.Log;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-@Log
+@Slf4j
 public class XtmOneService {
 
   private final XtmOneConfig config;
@@ -89,14 +89,13 @@ public class XtmOneService {
           log.info("[XTM One] Chat web token discovered from registration");
         }
         log.info(
-            "[XTM One] Registration successful (ee_enabled="
-                + result.getOrDefault("ee_enabled", false)
-                + ")");
+            "[XTM One] Registration successful (ee_enabled={})",
+            result.getOrDefault("ee_enabled", false));
       } else {
-        log.warning("[XTM One] Registration failed, will retry on next tick");
+        log.warn("[XTM One] Registration failed, will retry on next tick");
       }
     } catch (Exception e) {
-      log.warning("[XTM One] Registration failed: " + e.getMessage() + ", will retry on next tick");
+      log.warn("[XTM One] Registration failed, will retry on next tick", e);
     }
   }
 }
