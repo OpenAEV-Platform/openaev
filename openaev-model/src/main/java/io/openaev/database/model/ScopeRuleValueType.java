@@ -8,7 +8,7 @@ public enum ScopeRuleValueType {
   IP("IPv4"),
   IP_SUBNET("Text"),
   DOMAIN("Text"),
-  ASSET_ID("Text"),
+  ASSET_ID("IPv4"),
   ASSET_GROUP_ID("Text");
   private final String contractOutputType;
 

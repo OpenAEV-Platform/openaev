@@ -31,7 +31,7 @@ public class StepInput {
 
   /** IDs of existing condition trees (roots) to link to this step. */
   @JsonProperty("step_condition_ids")
-  private List<String> conditionIds;
+  private List<String> conditionIds; // ConditionStep
 
   @JsonProperty("step_data_step")
   private InjectInput dataStep;

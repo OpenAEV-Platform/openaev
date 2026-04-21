@@ -44,6 +44,20 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
   private final StepRepository stepRepository;
 
   /**
+   * Create step templates.
+   *
+   * @param workflowId id of the workflow linked to the step templates
+   * @param steps list of input to create step templates
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void createStepTemplates(String workflowId, List<StepsCreateInput.StepInput> steps)
+      throws ChainingException {
+    for (StepsCreateInput.StepInput stepInput : steps) {
+      createStepTemplate(workflowId, stepInput);
+    }
+  }
+
+  /**
    * Create a single step template.
    *
    * @param workflowId id of the workflow linked to the step template
@@ -69,35 +83,6 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
   }
 
   /**
-   * Create step templates.
-   *
-   * @param workflowId id of the workflow linked to the step templates
-   * @param steps list of input to create step templates
-   */
-  @Transactional(rollbackFor = Exception.class)
-  public void createStepTemplates(String workflowId, List<StepsCreateInput.StepInput> steps)
-      throws ChainingException {
-    for (StepsCreateInput.StepInput stepInput : steps) {
-      createStepTemplate(workflowId, stepInput);
-    conditionService.linkExistingConditionsToStep(step, stepInput.getConditionIds());
-    return step;
-  }
-
-  /**
-   * Create step templates.
-   *
-   * @param workflowId id of the workflow linked to the step templates
-   * @param steps list of input to create step templates
-   */
-  @Transactional(rollbackOn = Exception.class)
-  public void createStepTemplates(String workflowId, List<StepInput> steps)
-      throws ChainingException {
-    for (StepInput stepInput : steps) {
-      createStepTemplate(workflowId, stepInput);
-    }
-  }
-
-  /**
    * Start workflow for given simulation
    *
    * @param simulationId id of the simulation to start
@@ -111,12 +96,6 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
                 () ->
                     new ElementNotFoundException(
                         "Workflow (TEMPLATE) not found. Simulation ID: " + simulationId));
-
-    // Get all step templates
-    List<Step> stepsTemplate = this.findAllStepTemplateByWorkflow(workflowTemplate.getId());
-    // todo Check edition content
-    // If edited increase version workflow template
-    // Create new workflow RUN save
     Workflow workflowRun = workflowService.launchWorkflowSimulation(workflowTemplate);
     startWorkflow(workflowRun, workflowTemplate);
   }
@@ -160,8 +139,6 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     // Get all step template
     List<Step> stepsTemplate = findAllStepTemplateByWorkflow(workflowTemplate.getId());
 
-    // We need at least one step template to start workflow (event if we have defined events), if
-    // not we can end it directly
     if (stepsTemplate.isEmpty()) {
       log.info(
           "No step template for workflow template {}. End running {}",
@@ -172,6 +149,7 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
       return;
     }
 
+    // Save data from Scope in WorkflowState
     prepareInitialWorkflowState(workflowRun);
 
     // Step template with valid conditions
@@ -182,19 +160,12 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
       stepReadyOpt.ifPresent(stepWithValidCondition::add);
     }
 
-      // IF NONE STEP TEMPLATE WITH CONDITION VALID update WORKFLOW with status END
-      // todo manage steptemplate with time condition in queue delay : can be done after new
-      // implémentation of the queue delay (in db)
-    /*if (stepWithValidCondition.isEmpty()) {
-        workflowRun.setStatus(WorkflowStatus.END);
-    }*/
-
     // If none step TEMPLATE with valid conditions && no step template delayed update workflow with
     // status END
-    /*if (stepWithValidCondition.isEmpty()
+    if (stepWithValidCondition.isEmpty()
         && stepDelayQueueRepository.findAllByWorkflowRun(workflowRun).isEmpty()) {
       workflowRun.setStatus(WorkflowStatus.END);
-    }*/
+    }
   }
 
   /**
@@ -230,7 +201,6 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
                       new ChainingException(
                           "Error creating step (READY) from step (TEMPLATE). Step ID: "
                               + nextStepTemplateToExecute.getId()));
-
       stepReady = saveStep(stepReady);
       Step finalStepReady = stepReady;
 
@@ -374,8 +344,9 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     List<Step> stepsCopied = new ArrayList<>();
     for (Step step : stepsFrom) {
       String data = step.getData();
-      if (workflowTo.getSimulation() != null)
+      if (workflowTo.getSimulation() != null) {
         data = StepService.setField(data, "inject_exercise", workflowTo.getSimulation().getId());
+      }
 
       Step copy =
           Step.builder()
@@ -566,7 +537,7 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     return StepsCreateInput.StepInput.builder()
         .stepAction(stepInput.getStepAction())
         .conditions(stepInput.getConditions())
-        .conditionIds(stepInput.getConditionIds())
+        .conditionIds(stepInput.getConditionIds()) //
         .dataStep(stepInput.getDataStep())
         .build();
   }
@@ -686,9 +657,7 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
   public static String getField(String jsonString, String path) {
     Map<String, Object> fieldsAndValue = getFields(jsonString, path);
     Object value = fieldsAndValue.get(path);
-    if (value == null) {
-      return null;
-    } else if (value == null || value instanceof JsonNull) {
+    if (value == null || value instanceof JsonNull) {
       return null;
     } else if (value instanceof JsonPrimitive) {
       return ((JsonPrimitive) value).getAsString();
@@ -1141,7 +1110,15 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     // Extract KeyTypes present in the new output
     Set<ConditionKeyType> keyTypes = conditionService.extractKeyTypesFromOutput(currentOutput);
 
-    // Fetch all Filter Conditions for this specific KeyType
+    // FIXME
+    // What happens if every mapper is global?
+    // For every output, we should fetch steps templates/conditions mappers which can use
+    // these outputs and check if local/global and it is local fetch filter condition
+    // and apply filter over output and save local data, but it is global then do nothing
+    // because we have already saved the data
+
+    // Fetch all Filter/Event Conditions for this specific KeyType
+    // These filter conditions has to be at Template level
     Map<ConditionKeyType, List<Condition>> filtersByKey =
         conditionService.findAllFilterConditionsByKeyTypes(keyTypes).stream()
             .collect(Collectors.groupingBy(Condition::getKeyType));
@@ -1155,6 +1132,7 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
         Condition rootCondition = conditionService.fetchRootCondition(filter);
 
         // Find all Steps linked to this Filter Tree
+        // These Steps has to be at Template level
         List<Step> targetSteps =
             rootCondition.getConditionSteps().stream().map(ConditionStep::getStep).toList();
 
@@ -1175,6 +1153,10 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
               workflowStateService.syncMappersToLocalPartition(
                   targetTemplate, workflowExecution, currentOutput, rootCondition, mappers);
 
+          // Fixme; What happens if every mapper is global, then action is not executed?
+          // or when that action will be executed?
+          // Maybe we dont need this hasChange flag and we have to ready all steps which
+          // are potential consumers
           if (hasChanged) {
             try {
               ready(targetTemplate, workflowExecution, null);
@@ -1200,8 +1182,10 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
   @Transactional
   public void prepareInitialWorkflowState(Workflow workflowExecution) {
     WorkflowState savedScopeData = workflowStateService.createGlobalState(workflowExecution);
-    String scopeJson = savedScopeData.getScope();
-    if (scopeJson == null || scopeJson.isBlank()) return;
+    String scopeJson = savedScopeData.getEntries();
+    if (scopeJson == null || scopeJson.isBlank()) {
+      return;
+    }
     try {
       Map<String, Object> root =
           gson.fromJson(scopeJson, new TypeToken<Map<String, Object>>() {}.getType());
@@ -1251,7 +1235,8 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
         workflowStateService.getLocalStateByWorkflowIdAndStepId(
             stepTemplate.getId(), workflowRun.getId());
 
-    if (localState == null) {
+    if (mappers.stream().anyMatch(m -> m.getMappingType() == MappingType.LOCAL)
+        && localState == null) {
       return new ArrayList<>();
     }
 

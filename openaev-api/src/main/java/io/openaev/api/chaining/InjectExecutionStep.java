@@ -14,6 +14,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.gson.*;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
+import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectorContractRepository;
@@ -77,7 +78,6 @@ public class InjectExecutionStep implements ActionStep {
   private final InjectService injectService;
   private final TagRuleService tagRuleService;
   private final AssetGroupService assetGroupService;
-  private final InjectStatusService injectStatusService;
   private final WorkflowStateService workflowStateService;
 
   private final InjectorContractRepository injectorContractRepository;
@@ -108,12 +108,12 @@ public class InjectExecutionStep implements ActionStep {
     } else if (workflow.getSimulation() != null) {
       data = stepData(newStep, workflow.getSimulation(), null);
     }
-    if (data == null)
+    if (data == null) {
       throw new ChainingException(
           "New step (TEMPLATE): Error processing Inject. Workflow has no simulation or scenario");
+    }
 
     String input = stepInputFromConditionMapper(newStep.getConditions());
-
     // TODO: get outputParser
     String outputParser = this.stepOutputParser("");
     Step stepTemplate =
@@ -322,8 +322,9 @@ public class InjectExecutionStep implements ActionStep {
           "Data step of new step (TEMPLATE) do not contain injector contract");
     }
 
-    if ((simulation == null && scenario == null) || (simulation != null && scenario != null))
+    if ((simulation == null && scenario == null) || (simulation != null && scenario != null)) {
       throw new IllegalArgumentException("Exactly one of exercise or scenario should be present");
+    }
 
     InjectorContract injectorContract =
         this.injectorContractService.injectorContract(data.getInjectorContract());
@@ -442,7 +443,6 @@ public class InjectExecutionStep implements ActionStep {
         input.put("key", condition.getKey());
         input.put("keyType", condition.getKeyType() != null ? condition.getKeyType().name() : null);
         input.put("path", condition.getValue());
-        input.put("mappingType", condition.getMappingType());
         input.put("id_step_from", condition.getStepFrom());
         // Related to mapping type default, local or global
         input.put("mappingType", condition.getMappingType());
@@ -551,9 +551,9 @@ public class InjectExecutionStep implements ActionStep {
                       new ChainingException(
                           "Injector contract not found for step (READY) ID: " + step.getId()));
 
-      injectorContract.setCompositeId(
-          new InjectorContractId(injectorContract.getId(), TenantContext.getCurrentTenant()));
-      inject.setInjectorContract(injectorContract);
+      managedContract.setCompositeId(
+          new InjectorContractId(managedContract.getId(), TenantContext.getCurrentTenant()));
+      inject.setInjectorContract(managedContract);
 
       // GET INJECTOR
       JsonNode injectorNode = root.path("inject_injector");
@@ -568,7 +568,7 @@ public class InjectExecutionStep implements ActionStep {
                 + step.getId());
       }
 
-      if (managedContract.getInjector() == null) {
+      if (managedContract.getInjectors().isEmpty()) {
         String injectorId = injectorNode.asText();
         Injector injector = inject.getInjector();
 
@@ -581,9 +581,9 @@ public class InjectExecutionStep implements ActionStep {
                   + " and step (READY) ID "
                   + step.getId());
         }
-        injector.setTenant(injectorContract.getTenant());
+        injector.setTenant(managedContract.getTenant());
         inject.setInjector(injector);
-        managedContract.setInjector(injector);
+        managedContract.getInjectors().add(injector);
       }
 
       // Modify payload arguments with inputs from step

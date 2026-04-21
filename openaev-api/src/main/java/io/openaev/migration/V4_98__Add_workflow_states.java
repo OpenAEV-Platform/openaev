@@ -17,9 +17,7 @@ public class V4_98__Add_workflow_states extends BaseJavaMigration {
               workflow_state_id VARCHAR(255) NOT NULL,
               workflow_execution_id VARCHAR(255) NOT NULL,
               workflow_step_template_id VARCHAR(255),
-              -- Column 1: Initial Whitelist/Scope (ips, domains, subnets, assets_id, asset_group_ids)
-              workflow_state_scope JSONB DEFAULT '{"inputs": [], "correlated": []}',
-              -- Column 2: Discoveries (Global) or Step Inputs & Hashes (Local)
+              -- Column 1: Discoveries (Global) or Step Inputs & Hashes (Local)
               workflow_state_entries JSONB NOT NULL DEFAULT '{"inputs": [], "correlated": [], "hashExecution": []}',
               workflow_state_created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
               workflow_state_updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
@@ -31,7 +29,6 @@ public class V4_98__Add_workflow_states extends BaseJavaMigration {
           );
 
           -- GIN INDEXES for high-performance JSON searching
-          CREATE INDEX idx_wf_state_scope_gin ON workflow_states USING GIN (workflow_state_scope jsonb_path_ops);
           CREATE INDEX idx_wf_state_entries_gin ON workflow_states USING GIN (workflow_state_entries jsonb_path_ops);
 
           -- Indexes for lookups and fast Global row access

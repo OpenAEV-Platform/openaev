@@ -229,9 +229,8 @@ public class WorkflowStateService {
    */
   public WorkflowState createGlobalState(Workflow workflowRun) {
     WorkflowStateEntries scopeEntries = createInitialScopeEntries(workflowRun);
-    WorkflowStateEntries discoveryEntries = createInitialEntries();
 
-    WorkflowState globalState = initializeGlobalState(workflowRun, scopeEntries, discoveryEntries);
+    WorkflowState globalState = initializeGlobalState(workflowRun, scopeEntries);
 
     save(globalState);
     log.debug("Initialized Global WorkflowState for workflow execution {}", workflowRun.getId());
@@ -270,14 +269,11 @@ public class WorkflowStateService {
   }
 
   private WorkflowState initializeGlobalState(
-      Workflow workflowRun,
-      WorkflowStateEntries scopeEntries,
-      WorkflowStateEntries discoveryEntries) {
+      Workflow workflowRun, WorkflowStateEntries scopeEntries) {
     return WorkflowState.builder()
         .workflowExecution(workflowRun)
         .stepTemplate(null) // NULL indicates the Global State bucket
-        .scope(gson.toJson(scopeEntries))
-        .entries(gson.toJson(discoveryEntries))
+        .entries(gson.toJson(scopeEntries))
         .build();
   }
 

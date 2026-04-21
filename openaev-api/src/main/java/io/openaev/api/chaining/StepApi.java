@@ -1,7 +1,6 @@
 package io.openaev.api.chaining;
 
 import static io.openaev.api.chaining.StepMapper.toOutput;
-import static io.openaev.api.chaining.dto.StepMapper.toOutput;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.api.chaining.dto.StepInput;
@@ -62,9 +61,7 @@ public class StepApi {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION_OR_SCENARIO)
   @GetMapping
   public List<StepOutput> findAll() {
-    return stepService.findAllStepTemplates().stream()
-        .map(io.openaev.api.chaining.dto.StepMapper::toOutput)
-        .toList();
+    return stepService.findAllStepTemplates().stream().map(StepMapper::toOutput).toList();
   }
 
   @Operation(summary = "Get a step template by ID")

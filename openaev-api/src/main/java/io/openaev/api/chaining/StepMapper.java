@@ -3,6 +3,7 @@ package io.openaev.api.chaining;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.api.chaining.dto.StepOutput;
+import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.database.model.Step;
 
 /** Mapper for Step template API DTOs. */
@@ -12,7 +13,7 @@ public final class StepMapper {
 
   private StepMapper() {}
 
-  public static StepInput toCreateInput(StepInput input) {
+  public static StepsCreateInput.StepInput toCreateInput(StepsCreateInput.StepInput input) {
     return input;
   }
 

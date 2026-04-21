@@ -33,10 +33,6 @@ public class WorkflowState implements Base {
   private String id;
 
   @Type(JsonType.class)
-  @Column(name = "workflow_state_scope", columnDefinition = "jsonb")
-  private String scope;
-
-  @Type(JsonType.class)
   @Column(name = "workflow_state_entries", columnDefinition = "jsonb")
   // @Convert(converter = WorkflowStateEntriesConverter.class)
   private String entries; // This maps to StateEntries object

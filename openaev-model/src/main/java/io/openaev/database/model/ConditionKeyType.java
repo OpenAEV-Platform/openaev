@@ -12,59 +12,59 @@ public enum ConditionKeyType {
   STEP_TEMPLATE_ID,
 
   @JsonProperty("text")
-  TEXT,
+  Text,
 
   @JsonProperty("status")
-  STATUS,
+  Status,
 
   @JsonProperty("number")
-  NUMBER,
+  Number,
 
   @JsonProperty("port")
-  PORT,
+  Port,
 
   @JsonProperty("portscan")
-  PORTSCAN,
+  Portscan,
 
   @JsonProperty("ipv4")
-  IPV4,
+  IPv4,
 
   @JsonProperty("ipv6")
-  IPV6,
+  IPv6,
 
   @JsonProperty("credentials")
-  CREDENTIALS,
+  Credentials,
 
   @JsonProperty("cve")
   CVE,
 
   @JsonProperty("username")
-  USERNAME,
+  Username,
 
   @JsonProperty("share")
-  SHARE,
+  Share,
 
   @JsonProperty("admin_username")
-  ADMIN_USERNAME,
+  AdminUsername,
 
   @JsonProperty("group")
-  GROUP,
+  Group,
 
   @JsonProperty("computer")
-  COMPUTER,
+  Computer,
 
   @JsonProperty("password_policy")
-  PASSWORD_POLICY,
+  PasswordPolicy,
 
   @JsonProperty("delegation")
-  DELEGATION,
+  Delegation,
 
   @JsonProperty("sid")
-  SID,
+  Sid,
 
   @JsonProperty("vulnerability")
-  VULNERABILITY,
+  Vulnerability,
 
   @JsonProperty("asset")
-  ASSET;
+  Asset;
 }

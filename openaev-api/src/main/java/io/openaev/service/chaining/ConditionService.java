@@ -1,7 +1,6 @@
 package io.openaev.service.chaining;
 
 import static io.openaev.api.chaining.ConditionMapper.resolveMappingType;
-import static java.util.Collections.emptyList;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
@@ -10,22 +9,16 @@ import io.openaev.api.chaining.ConditionMapper;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.EventInput;
 import io.openaev.database.model.*;
-import io.openaev.database.model.Condition;
-import io.openaev.database.model.ConditionType;
-import io.openaev.database.model.Step;
-import io.openaev.database.model.Workflow;
 import io.openaev.database.repository.ConditionRepository;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -46,6 +39,7 @@ public class ConditionService {
   private final StepDelayQueueService stepDelayQueueService;
 
   // -- CONDITION TREE CREATE --
+
   /**
    * Creates a condition tree from an {@link EventInput} payload.
    *
@@ -217,6 +211,7 @@ public class ConditionService {
   }
 
   // -- CONDITION TREE UPDATE --
+
   /**
    * Replaces an existing condition tree: updates root metadata and rebuilds child conditions.
    *
@@ -271,6 +266,7 @@ public class ConditionService {
   }
 
   // -- CONDITION TREE GET --
+
   /**
    * Finds a condition tree root by its ID.
    *
@@ -312,6 +308,7 @@ public class ConditionService {
   }
 
   // -- CONDITION TREE DELETE --
+
   /**
    * Deletes a condition tree root and all its children (cascade).
    *
@@ -647,137 +644,10 @@ public class ConditionService {
         return null;
       }
     }
-     */
+    // todo Mapped input-data step
     return conditionsExecution;
   }
 
-  /**
-   * Creates a DEPEND_ON condition for a step template dependency.
-   *
-   * @param idStepFromTemplate identifier of the dependent step template
-   * @return the DEPEND_ON condition
-   */
-  public Condition isDependOn(String idStepFromTemplate) {
-    return ConditionFactory.dependOn(idStepFromTemplate);
-  }
-
-  /**
-   * Links existing condition roots to a step via the conditions_steps join table.
-   *
-   * @param step the step to link
-   * @param conditionRootIds IDs of existing root conditions to link; ignored if null or empty
-   */
-  public void linkExistingConditionsToStep(Step step, List<String> conditionRootIds) {
-    if (conditionRootIds == null || conditionRootIds.isEmpty()) {
-      return;
-    }
-    for (String conditionRootId : conditionRootIds) {
-      Condition root = findConditionRootById(conditionRootId);
-      linkToStep(root, step, true);
-      conditionRepository.save(root);
-    }
-  }
-
-  // -- PRIVATE HELPERS --
-
-  /**
-   * Links a list of steps to a root condition via the conditions_steps join table.
-   *
-   * <p>Each step is linked with is_root=true since only the root condition carries the step
-   * association at tree level.
-   *
-   * @param root the root condition to link
-   * @param stepIds list of step IDs to link; ignored if null or empty
-   */
-  private void linkStepsToRoot(Condition root, List<String> stepIds) {
-    if (stepIds == null || stepIds.isEmpty()) {
-      return;
-    }
-
-    // Remove duplicates while preserving order
-    List<String> uniqueStepIds = new ArrayList<>(new LinkedHashSet<>(stepIds));
-
-    List<Step> steps = stepRepository.findAllById(uniqueStepIds);
-
-    if (steps.size() != uniqueStepIds.size()) {
-      Set<String> found = steps.stream().map(Step::getId).collect(Collectors.toSet());
-
-      List<String> missing = uniqueStepIds.stream().filter(id -> !found.contains(id)).toList();
-
-      throw new EntityNotFoundException("Steps not found: " + missing);
-    }
-
-    steps.forEach(step -> linkToStep(root, step, true));
-  }
-
-  /**
-   * Identifies the root condition input — the one with no parent reference.
-   *
-   * @param inputs flat list of condition inputs
-   * @return the root {@link ConditionCreateInput}
-   */
-  public ConditionCreateInput findRootConditionInput(List<ConditionCreateInput> inputs) {
-    return inputs.stream()
-        .filter(
-            conditionCreateInput -> conditionCreateInput.getTemporaryIdConditionParent() == null)
-        .reduce(
-            (a, b) -> {
-              throw new IllegalArgumentException(
-                  "New step (TEMPLATE): Only 1 condition can be first parent");
-            })
-        .orElseThrow(
-            () ->
-                new IllegalArgumentException(
-                    "New step (TEMPLATE): Only 1 condition can be first parent"));
-  }
-
-  public void linkToStep(Condition condition, Step step, boolean isRoot) {
-    if (condition == null || step == null || step.getId() == null) {
-      throw new BadRequestException("Steps must have a valid condition or step id");
-    }
-
-    List<ConditionStep> conditionSteps = condition.getConditionSteps();
-    if (conditionSteps == null) {
-      conditionSteps = new ArrayList<>();
-      condition.setConditionSteps(conditionSteps);
-    }
-
-    ConditionStep existingLink =
-        conditionSteps.stream()
-            .filter(link -> link.getStep() != null)
-            .filter(link -> Objects.equals(link.getStep().getId(), step.getId()))
-            .findFirst()
-            .orElse(null);
-
-    if (existingLink != null) {
-      // A link between this condition and step already exists.
-      // We update the root flag instead of creating a duplicate link.
-      existingLink.setRoot(isRoot);
-      return;
-    }
-
-    ConditionStep link = new ConditionStep();
-    link.setCondition(condition);
-    link.setStep(step);
-    link.setRoot(isRoot);
-    conditionSteps.add(link);
-  }
-
-  public void unlinkFromStep(Condition condition, String stepId) {
-    if (condition == null || stepId == null || stepId.isBlank()) {
-      return;
-    }
-
-    List<ConditionStep> conditionSteps = condition.getConditionSteps();
-    if (conditionSteps == null || conditionSteps.isEmpty()) {
-      return;
-    }
-
-    conditionSteps.removeIf(
-        link -> link.getStep() != null && Objects.equals(link.getStep().getId(), stepId));
-  }
-
-  //---
   /**
    * Creates a DEPEND_ON condition for a step template dependency.
    *
@@ -860,6 +730,38 @@ public class ConditionService {
                     "New step (TEMPLATE): Only 1 condition can be first parent"));
   }
 
+  public void linkToStep(Condition condition, Step step, boolean isRoot) {
+    if (condition == null || step == null || step.getId() == null) {
+      throw new BadRequestException("Steps must have a valid condition or step id");
+    }
+
+    List<ConditionStep> conditionSteps = condition.getConditionSteps();
+    if (conditionSteps == null) {
+      conditionSteps = new ArrayList<>();
+      condition.setConditionSteps(conditionSteps);
+    }
+
+    ConditionStep existingLink =
+        conditionSteps.stream()
+            .filter(link -> link.getStep() != null)
+            .filter(link -> Objects.equals(link.getStep().getId(), step.getId()))
+            .findFirst()
+            .orElse(null);
+
+    if (existingLink != null) {
+      // A link between this condition and step already exists.
+      // We update the root flag instead of creating a duplicate link.
+      existingLink.setRoot(isRoot);
+      return;
+    }
+
+    ConditionStep link = new ConditionStep();
+    link.setCondition(condition);
+    link.setStep(step);
+    link.setRoot(isRoot);
+    conditionSteps.add(link);
+  }
+
   /**
    * Saves child conditions in dependency order (parent before children).
    *
@@ -929,37 +831,6 @@ public class ConditionService {
                 new EntityNotFoundException(
                     "Condition references a non-existing step (field: step_from). Step ID: "
                         + stepFromId));
-  }
-
-  public void linkToStep(Condition condition, Step step, boolean isRoot) {
-    Objects.requireNonNull(condition, "condition must not be null");
-
-    if (step == null) {
-      return;
-    }
-
-    List<ConditionStep> conditionSteps = condition.getConditionSteps();
-    if (conditionSteps == null) {
-      throw new IllegalStateException("conditionSteps must not be null");
-    }
-
-    ConditionStep existingLink =
-        conditionSteps.stream()
-            .filter(link -> link.getStep() != null)
-            .filter(link -> Objects.equals(link.getStep().getId(), step.getId()))
-            .findFirst()
-            .orElse(null);
-
-    if (existingLink != null) {
-      existingLink.setRoot(isRoot);
-      return;
-    }
-
-    ConditionStep link = new ConditionStep();
-    link.setCondition(condition);
-    link.setStep(step);
-    link.setRoot(isRoot);
-    conditionSteps.add(link);
   }
 
   public void unlinkFromStep(Condition condition, String stepId) {
@@ -1035,5 +906,4 @@ public class ConditionService {
       return Collections.emptySet();
     }
   }
-
 }
