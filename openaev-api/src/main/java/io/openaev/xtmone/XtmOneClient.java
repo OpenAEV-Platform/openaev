@@ -16,12 +16,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.java.Log;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-@Log
+@Slf4j
 public class XtmOneClient {
 
   private final XtmOneConfig config;
@@ -114,10 +114,10 @@ public class XtmOneClient {
       if (response.statusCode() == 200) {
         return objectMapper.readValue(response.body(), Map.class);
       }
-      log.warning(
-          "[XTM One] Registration failed: HTTP " + response.statusCode() + " — " + response.body());
+      log.warn(
+          "[XTM One] Registration failed: HTTP {} — {}", response.statusCode(), response.body());
     } catch (Exception e) {
-      log.warning("[XTM One] Registration error: " + e.getMessage());
+      log.warn("[XTM One] Registration error.", e);
     }
     return null;
   }
@@ -137,9 +137,9 @@ public class XtmOneClient {
       if (response.statusCode() == 200) {
         return objectMapper.readValue(response.body(), List.class);
       }
-      log.warning("[XTM One] List chat agents failed: HTTP " + response.statusCode());
+      log.warn("[XTM One] List chat agents failed: HTTP {}", response.statusCode());
     } catch (Exception e) {
-      log.warning("[XTM One] List chat agents error: " + e.getMessage());
+      log.warn("[XTM One] List chat agents error.", e);
     }
     return List.of();
   }
@@ -164,9 +164,9 @@ public class XtmOneClient {
       if (response.statusCode() == 200) {
         return objectMapper.readValue(response.body(), Map.class);
       }
-      log.warning("[XTM One] Create session failed: HTTP " + response.statusCode());
+      log.warn("[XTM One] Create session failed: HTTP {}", response.statusCode());
     } catch (Exception e) {
-      log.warning("[XTM One] Create session error: " + e.getMessage());
+      log.warn("[XTM One] Create session error: ", e);
     }
     return null;
   }
@@ -174,7 +174,7 @@ public class XtmOneClient {
   public InputStream streamChatMessage(
       String jwt, String content, String conversationId, String agentSlug) {
     if (!config.isConfigured()) {
-      log.warning("[XTM One] Chat message skipped: not configured");
+      log.warn("[XTM One] Chat message skipped: not configured");
       return null;
     }
     try {
@@ -193,12 +193,12 @@ public class XtmOneClient {
       if (response.statusCode() == 200) {
         return response.body();
       }
-      log.warning(
-          "[XTM One] Chat message failed: HTTP " + response.statusCode() + ", agent=" + agentSlug);
+      log.warn(
+          "[XTM One] Chat message failed: HTTP {}, agent={}", response.statusCode(), agentSlug);
     } catch (java.net.http.HttpTimeoutException e) {
-      log.warning("[XTM One] Chat message timed out, agent=" + agentSlug);
+      log.warn("[XTM One] Chat message timed out, agent={}", agentSlug, e);
     } catch (Exception e) {
-      log.warning("[XTM One] Chat message error, agent=" + agentSlug + ": " + e.getMessage());
+      log.warn("[XTM One] Chat message error, agent={}.", agentSlug, e);
     }
     return null;
   }

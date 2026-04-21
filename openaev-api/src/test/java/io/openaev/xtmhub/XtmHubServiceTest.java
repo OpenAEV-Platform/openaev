@@ -12,11 +12,15 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import io.openaev.authorisation.HttpClientFactory;
+import io.openaev.database.model.Tenant;
+import io.openaev.database.model.TenantXtmHubRegistration;
+import io.openaev.database.repository.TenantXtmHubRegistrationRepository;
 import io.openaev.ee.License;
 import io.openaev.ee.LicenseTypeEnum;
 import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.service.PlatformSettingsService;
 import io.openaev.service.UserService;
+import io.openaev.utilstest.DefaultTenantExtension;
 import io.openaev.xtmhub.config.XtmHubConfig;
 import java.time.LocalDateTime;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
@@ -30,7 +34,7 @@ import org.mockserver.socket.PortFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
-@ExtendWith(MockitoExtension.class)
+@ExtendWith({MockitoExtension.class, DefaultTenantExtension.class})
 class XtmHubServiceTest {
 
   private static final String GRAPHQL_PATH = "/graphql-api";
@@ -43,6 +47,7 @@ class XtmHubServiceTest {
   @Mock private UserService userService;
   @Mock private XtmHubEmailService xtmHubEmailService;
   @Mock private HttpClientFactory httpClientFactory;
+  @Mock private TenantXtmHubRegistrationRepository tenantXtmHubRegistrationRepository;
 
   private XtmHubConfig xtmHubConfig;
   private XtmHubService xtmHubService;
@@ -73,6 +78,10 @@ class XtmHubServiceTest {
 
     // lenient: some tests (blank/null token) never reach the HTTP call
     lenient().when(httpClientFactory.httpClientCustom()).thenReturn(HttpClients.createDefault());
+    // findOrCreateRegistration — return empty so the entity is freshly created
+    lenient()
+        .when(tenantXtmHubRegistrationRepository.findByTenantId(any()))
+        .thenReturn(java.util.Optional.empty());
 
     XtmHubClient xtmHubClient =
         new XtmHubClient(xtmHubConfig, httpClientFactory, platformSettingsService);
@@ -80,7 +89,12 @@ class XtmHubServiceTest {
 
     xtmHubService =
         new XtmHubService(
-            platformSettingsService, userService, xtmHubConfig, xtmHubClient, xtmHubEmailService);
+            platformSettingsService,
+            userService,
+            xtmHubConfig,
+            xtmHubClient,
+            xtmHubEmailService,
+            tenantXtmHubRegistrationRepository);
   }
 
   @AfterEach
@@ -702,7 +716,16 @@ class XtmHubServiceTest {
     assertNotNull(exception.getReason());
     assertTrue(exception.getReason().contains("Failed to register"));
 
-    verify(platformSettingsService, never())
-        .updateXTMHubRegistration(any(), any(), any(), any(), any(), anyBoolean());
+    verify(tenantXtmHubRegistrationRepository, never()).save(any(TenantXtmHubRegistration.class));
+  }
+
+  @Test
+  @DisplayName("Should delete tenant registration when unregister is called")
+  void unregister_ShouldDeleteTenantRegistration() {
+    // When
+    xtmHubService.unregister();
+
+    // Then
+    verify(tenantXtmHubRegistrationRepository).deleteByTenantId(Tenant.DEFAULT_TENANT_UUID);
   }
 }

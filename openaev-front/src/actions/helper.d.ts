@@ -7,6 +7,7 @@ import {
   type Scenario,
   type ScenarioChallengesReader,
   type SimulationChallengesReader,
+  type TenantXtmHubRegistration,
   type Token,
   type User,
 } from '../utils/api-types';
@@ -32,6 +33,7 @@ export interface LoggedHelper {
   getTenantSettings: () => TenantSettings;
   getPlatformName: () => string;
   getUserLang: () => string;
+  getXtmHubRegistration: () => TenantXtmHubRegistration | null;
 }
 
 export interface ChallengeHelper {

@@ -235,6 +235,7 @@ public class PlatformSettingsService {
               .orElse(PLATFORM_NAME.defaultValue()));
       platformSettings.setPlatformBaseUrl(openAEVConfig.getBaseUrl());
       platformSettings.setPlatformAgentUrl(openAEVConfig.getBaseUrlForAgent());
+      platformSettings.setPlatformVersion(openAEVConfig.getVersion());
       platformSettings.setXtmOpenctiEnable(openCTIConfig.getEnable());
       platformSettings.setXtmOpenctiUrl(openCTIConfig.getUrl());
       platformSettings.setXtmOneConfigured(xtmOneConfig.isConfigured());
@@ -249,7 +250,6 @@ public class PlatformSettingsService {
 
       // Build admin settings
       if (user.isAdmin()) {
-        platformSettings.setPlatformVersion(openAEVConfig.getVersion());
         platformSettings.setPostgreVersion(settingRepository.getServerVersion());
         platformSettings.setJavaVersion(Runtime.version().toString());
         platformSettings.setRabbitMQVersion(rabbitmqService.getVersion());
