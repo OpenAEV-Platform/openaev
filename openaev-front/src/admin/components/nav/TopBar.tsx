@@ -6,9 +6,8 @@ import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { logout } from '../../../actions/Application';
-import type { LoggedHelper } from '../../../actions/helper';
+import { type LoggedHelper } from '../../../actions/helper';
 import { fetchXtmHubRegistration } from '../../../actions/xtmhub/xtmhub-actions';
-import IconButton from '../../../components/common/button/IconButton';
 import { useFormatter } from '../../../components/i18n';
 import ItemBoolean from '../../../components/ItemBoolean';
 import SearchInput from '../../../components/SearchFilter';
@@ -23,9 +22,6 @@ import { useHelper } from '../../../store';
 import { MESSAGING$, XTM_HUB_DEFAULT_URL } from '../../../utils/Environment';
 import { useAppDispatch } from '../../../utils/hooks';
 import useAuth from '../../../utils/hooks/useAuth';
-import { AbilityContext } from '../../../utils/permissions/permissionsContext';
-import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
-import { isFeatureEnabled, isNotEmptyField } from '../../../utils/utils';
 import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { isFeatureEnabled } from '../../../utils/utils';
@@ -99,69 +95,6 @@ const useStyles = makeStyles()(theme => ({
   },
 }));
 
-interface PopoverListItemProps {
-  logoSrc: string;
-  alt: string;
-  onClick: () => void;
-  href?: string;
-  to?: string;
-}
-
-const PopoverListItem: FunctionComponent<PopoverListItemProps> = ({ logoSrc, alt, onClick, href, to }) => {
-  const theme = useTheme();
-  const isExternal = !!href;
-  return (
-    <ListItemButton
-      {...(isExternal
-        ? {
-            component: 'a',
-            href,
-            target: '_blank',
-            rel: 'noopener noreferrer',
-          }
-        : {
-            component: Link,
-            to,
-          })}
-      onClick={onClick}
-      sx={{
-        borderRadius: 1,
-        px: 1,
-        py: 1.5,
-        display: 'flex',
-        justifyContent: 'space-between',
-        backgroundColor: theme.palette.leftBar.header.itemBackground,
-      }}
-    >
-      <ListItemIcon sx={{
-        width: 132,
-        p: 1,
-      }}
-      >
-        <Box sx={{
-          width: '100%',
-          height: '20px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-        >
-          <img
-            src={logoSrc}
-            style={{
-              width: '100%',
-              height: 'auto',
-              objectFit: 'contain',
-            }}
-            alt={alt}
-          />
-        </Box>
-      </ListItemIcon>
-      {isExternal && <OpenInNew style={{ fontSize: 16 }} />}
-    </ListItemButton>
-  );
-};
-
 const TopBar: FunctionComponent = () => {
   // Standard hooks
   const theme = useTheme();
@@ -171,8 +104,16 @@ const TopBar: FunctionComponent = () => {
   const { t } = useFormatter();
   const { settings, isXTMHubAccessible } = useAuth();
   const { bannerHeightNumber } = computeBannerSettings(settings);
-  const registration = useHelper((helper: LoggedHelper) => helper.getXtmHubRegistration());
   const ability = useContext(AbilityContext);
+  const dispatch = useAppDispatch();
+  useEffect(() => {
+    if (ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS)) {
+      dispatch(fetchXtmHubRegistration());
+    }
+  }, []);
+  const registration = useHelper((helper: LoggedHelper) => helper.getXtmHubRegistration());
+  const isRegistered = registration?.tenant_xtmhub_registration_status === 'REGISTERED';
+  const shouldXtmHubRedirectToSite = isRegistered || !isXTMHubAccessible || !ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS);
 
   const [xtmOpen, setXtmOpen] = useState<{
     open: boolean;
@@ -218,7 +159,6 @@ const TopBar: FunctionComponent = () => {
       anchorEl: null,
     });
   };
-  const dispatch = useAppDispatch();
   const [navOpen, setNavOpen] = useState(
     localStorage.getItem('navOpen') === 'true',
   );
@@ -231,15 +171,6 @@ const TopBar: FunctionComponent = () => {
       chatSub.unsubscribe();
     };
   });
-  const ability = useContext(AbilityContext);
-  useEffect(() => {
-    if (ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS)) {
-      dispatch(fetchXtmHubRegistration());
-    }
-  }, []);
-  const isRegistered = registration?.tenant_xtmhub_registration_status === 'REGISTERED';
-  const isXtmHubExternal = isRegistered || !isXTMHubAccessible || !ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS);
-
   const handleLogout = async () => {
     await dispatch(logout());
     navigate('/');
@@ -267,8 +198,6 @@ const TopBar: FunctionComponent = () => {
       alt="XTM Hub"
     />
   );
-  const shouldXtmHubRedirectToSite = settings.xtm_hub_registration_status === 'registered'
-    || !ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS);
 
   return (
     <AppBar
