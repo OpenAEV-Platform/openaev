@@ -9,9 +9,11 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawInject;
 import io.openaev.database.repository.*;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.utils.ExecutorUtils;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
@@ -19,14 +21,19 @@ import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.injectors.email.service.ImapService;
 import io.openaev.injectors.email.service.SmtpService;
 import io.openaev.rest.collector.service.CollectorService;
+import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.*;
 import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import io.openaev.rest.injector_contract.InjectorContractService;
+import io.openaev.rest.tag.TagService;
+import io.openaev.rest.threat_arsenal.ThreatArsenalService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.AssetService;
+import io.openaev.service.EndpointService;
 import io.openaev.service.InjectorService;
+import io.openaev.service.TagRuleService;
 import io.openaev.service.UserService;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.TargetType;
@@ -56,6 +63,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.access.expression.method.MethodSecurityExpressionHandler;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
@@ -71,7 +79,11 @@ class InjectServiceTest {
 
   @Mock private TeamRepository teamRepository;
 
+  @Mock private ExecutionTraceRepository executionTraceRepository;
+
   @Mock private InjectStatusRepository injectStatusRepository;
+
+  @Mock private InjectDocumentRepository injectDocumentRepository;
 
   @Mock private InjectUtils injectUtils;
 
@@ -84,6 +96,28 @@ class InjectServiceTest {
   @Mock private InjectorContractService injectorContractService;
 
   @Mock private UserService userService;
+
+  @Mock private EnterpriseEditionService enterpriseEditionService;
+
+  @Mock private EndpointService endpointService;
+
+  @Mock private MethodSecurityExpressionHandler methodSecurityExpressionHandler;
+
+  @Mock private TagRuleService tagRuleService;
+
+  @Mock private TagService tagService;
+
+  @Mock private DocumentService documentService;
+
+  @Mock private TagRepository tagRepository;
+
+  @Mock private DocumentRepository documentRepository;
+
+  @Mock private PayloadRepository payloadRepository;
+
+  @Mock private ThreatArsenalService threatArsenalService;
+
+  @Mock private LicenseCacheManager licenseCacheManager;
 
   @Mock private SmtpService smtpService;
 
