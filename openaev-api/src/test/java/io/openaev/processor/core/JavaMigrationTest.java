@@ -469,10 +469,20 @@ class JavaMigrationTest {
     }
 
     @Test
-    @DisplayName("migrationId should be the canonical class name")
-    void given_migration_should_haveMigrationIdAsCanonicalName() {
+    @DisplayName("migrationId should be the canonical class name for a named class")
+    void given_namedMigration_should_haveMigrationIdAsCanonicalName() {
+      // Arrange — use a real named subclass instead of an anonymous one
+      // (anonymous classes return null for getCanonicalName())
+      V20260420_Migrate_rabbitmq_queues namedMigration =
+          new V20260420_Migrate_rabbitmq_queues(
+              dataPackService,
+              mock(RabbitmqService.class),
+              mock(InjectorRepository.class),
+              mock(OpenAEVConfig.class));
+
       // Assert
-      assertThat(migration.getMigrationId()).isNotNull().contains("JavaMigrationTest");
+      assertThat(namedMigration.getMigrationId())
+          .isEqualTo(V20260420_Migrate_rabbitmq_queues.class.getCanonicalName());
     }
   }
 }
