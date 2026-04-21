@@ -10,8 +10,6 @@
  * PR9 — Reference data & Misc
  */
 const TENANT_MIGRATION_TODO: string[] = [
-  // PR4 — Teams & Players
-  '/api/players',
 ];
 
 export default TENANT_MIGRATION_TODO;
