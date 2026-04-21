@@ -8,10 +8,10 @@ import Button from '../../../components/common/button/Button';
 import ScenariosField, { type MultiSelectScenario } from '../../../components/fields/ScenariosField';
 import { useFormatter } from '../../../components/i18n';
 import {
-  type ThreatArsenalAction,
   type InjectorContractSearchPaginationInput,
   type Scenario,
   type ScenarioIdsAndInjectorContractsInputs,
+  type ThreatArsenalAction,
 } from '../../../utils/api-types';
 
 interface Props {

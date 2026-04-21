@@ -12,7 +12,7 @@ import {
   type InjectorContractSearchPaginationInput,
   type ThreatArsenalAction, type ThreatArsenalActionWithContentOutput,
 } from '../../../utils/api-types';
-import {ContractElement, type ThreatArsenalContentConverted} from '../../../utils/api-types-custom';
+import { type ContractElement, type ThreatArsenalContentConverted } from '../../../utils/api-types-custom';
 import { EndpointContext } from '../../../utils/context/endpoint/EndpointContext';
 import endpointContextForAtomicTesting from '../../../utils/context/endpoint/EndpointContextForAtomicTesting';
 import { isNotEmptyField } from '../../../utils/utils';

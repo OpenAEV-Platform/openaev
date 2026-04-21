@@ -1,7 +1,6 @@
 import { Card, CardActionArea, CardContent, Stack, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type ReactElement } from 'react';
-import { makeStyles } from 'tss-react/mui';
 
 interface Props {
   executionMode: {
