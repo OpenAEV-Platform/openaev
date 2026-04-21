@@ -295,6 +295,7 @@ public class ThreatArsenalService {
   /**
    * Search for Injector Contracts, depending on pagination input and filter
    *
+   * @param mode output mode
    * @param input to filter
    * @return the injector contracts search results
    */

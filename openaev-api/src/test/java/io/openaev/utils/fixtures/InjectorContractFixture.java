@@ -170,17 +170,7 @@ public class InjectorContractFixture {
 
   public static InjectorContract createPayloadInjectorContract(
       Injector injector, Payload payloadCommand) throws JsonProcessingException {
-    return createPayloadInjectorContract(
-        injector, payloadCommand, new HashSet<>(Set.of(PresetDomain.getToClassify())));
-  }
-
-  public static InjectorContract createPayloadInjectorContract(
-      Injector injector, Payload payloadCommand, Set<Domain> domains)
-      throws JsonProcessingException {
-    InjectorContract contract =
-        createPayloadInjectorContractWithFieldsContent(injector, payloadCommand, List.of());
-    contract.setDomains(domains);
-    return contract;
+    return createPayloadInjectorContractWithFieldsContent(injector, payloadCommand, List.of());
   }
 
   public static InjectorContract createPayloadInjectorContractWithObfuscator(String executor)
