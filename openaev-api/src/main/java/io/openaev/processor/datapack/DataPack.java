@@ -1,6 +1,7 @@
-package io.openaev.datapack;
+package io.openaev.processor.datapack;
 
 import io.openaev.database.model.Tenant;
+import io.openaev.processor.MigrationProcessingResult;
 import io.openaev.service.DataPackService;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -19,24 +20,21 @@ public abstract class DataPack {
   @Getter private final String packId = this.getClass().getCanonicalName();
 
   @Transactional(rollbackFor = Exception.class)
-  public DataPackProcessingResult process(Tenant tenant) {
+  public MigrationProcessingResult process(Tenant tenant) {
     return dataPackService
         .findByIdAndTenant(packId, tenant)
         .map(
             dataPack -> {
               log.debug("Already processed datapack '{}' for tenant {}.", packId, tenant.getId());
-              return DataPackProcessingResult.SKIPPED;
+              return MigrationProcessingResult.SKIPPED;
             })
         .orElseGet(
             () -> {
-              log.info(
-                  "Processing datapack '{}' for tenant {}.",
-                  this.getClass().getCanonicalName(),
-                  tenant.getId());
+              log.info("Processing datapack '{}' for tenant {}.", packId, tenant.getId());
               if (doProcess()) {
                 dataPackService.registerDataPack(packId, tenant);
               }
-              return DataPackProcessingResult.PROCESSED;
+              return MigrationProcessingResult.PROCESSED;
             });
   }
 }

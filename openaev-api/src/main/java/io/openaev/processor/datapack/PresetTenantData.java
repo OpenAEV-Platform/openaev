@@ -1,4 +1,4 @@
-package io.openaev.datapack;
+package io.openaev.processor.datapack;
 
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Cwe;

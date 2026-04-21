@@ -1,27 +1,36 @@
-package io.openaev.datapack;
+package io.openaev.processor;
 
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.multitenancy.DependenciesManager;
 import io.openaev.multitenancy.DependenciesManagerException;
+import io.openaev.processor.core.JavaMigration;
+import io.openaev.processor.datapack.DataPack;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import jakarta.annotation.PostConstruct;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 @Service
 @Slf4j
-@RequiredArgsConstructor
 @Profile("!test")
-public class DataPackProcessor implements DependenciesManager {
+public class MigrationProcessor implements DependenciesManager {
   private final List<DataPack> packs;
+  private final List<JavaMigration> migrations;
   private final TenantRepository tenantRepository;
+
+  public MigrationProcessor(
+      List<DataPack> packs, List<JavaMigration> migrations, TenantRepository tenantRepository) {
+    this.packs = packs != null ? packs : Collections.emptyList();
+    this.migrations = migrations != null ? migrations : Collections.emptyList();
+    this.tenantRepository = tenantRepository;
+  }
 
   @PostConstruct
   public void process() {
@@ -30,38 +39,44 @@ public class DataPackProcessor implements DependenciesManager {
   }
 
   private void init(List<Tenant> tenants) {
+    List<JavaMigration> sortedMigrations =
+        migrations.stream().sorted(Comparator.comparing(JavaMigration::getMigrationId)).toList();
     List<DataPack> sortedPacks =
         packs.stream().sorted(Comparator.comparing(DataPack::getPackId)).toList();
     for (Tenant tenant : tenants) {
-      // Context platform here but executed at OpenAEV start or from the tenant creation API so
-      // we can use the
-      // tenant context to process the datapack with the right tenant automatically before the
-      // transactional annotation in the process method
       TenantContext.setCurrentTenant(tenant.getId());
-      log.info(
-          "Processed {} additional datapacks for tenant {}.",
+      long migrationsProcessed =
+          sortedMigrations.stream()
+              .filter(
+                  migration ->
+                      MigrationProcessingResult.PROCESSED.equals(migration.process(tenant)))
+              .count();
+      long packsProcessed =
           sortedPacks.stream()
-              .filter(pack -> DataPackProcessingResult.PROCESSED.equals(pack.process(tenant)))
-              .count(),
-          tenant.getId());
+              .filter(pack -> MigrationProcessingResult.PROCESSED.equals(pack.process(tenant)))
+              .count();
+      log.info(
+          "Tenant {}: processed {} migrations, {} datapacks.",
+          tenant.getId(),
+          migrationsProcessed,
+          packsProcessed);
     }
   }
 
   @Override
   public void createDependencyForTenant(Tenant tenant) throws DependenciesManagerException {
-    log.info("Tenant {} created — datapacks init", tenant.getId());
+    log.info("Tenant {} created — migrations and datapacks init", tenant.getId());
     try {
       init(List.of(tenant));
     } catch (Exception e) {
       throw new DependenciesManagerException(
-          "Failed to process datapacks for tenant " + tenant.getId(), e);
+          "Failed to process migrations for tenant " + tenant.getId(), e);
     }
   }
 
   @Override
   public void deleteDependencyForTenant(String tenantId) {
-    // Automatic thanks to cascade delete
-    log.info("Deleting all data from datapack and datapack itself for tenant {}.", tenantId);
+    log.info("Deleting all migration data for tenant {}.", tenantId);
   }
 
   @Override
