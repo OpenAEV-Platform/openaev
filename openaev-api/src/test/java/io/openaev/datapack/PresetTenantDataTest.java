@@ -3,6 +3,7 @@ package io.openaev.datapack;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.database.model.Capability;
+import io.openaev.processor.datapack.PresetTenantData;
 import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;

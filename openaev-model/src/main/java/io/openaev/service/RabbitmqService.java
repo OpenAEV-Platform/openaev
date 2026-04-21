@@ -11,11 +11,20 @@ import io.openaev.service.queue.BatchQueueService;
 import io.openaev.service.queue.QueueExecution;
 import io.openaev.service.queue.Queueable;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -325,6 +334,166 @@ public class RabbitmqService {
     try (Connection connection = connectionFactory.newConnection()) {
       connection.createChannel().close();
     }
+  }
+
+  // -- MIGRATION HELPERS --
+
+  /**
+   * Drains all messages from a queue using {@code basicGet} and returns them as raw byte arrays.
+   *
+   * <p>Returns an empty list if the queue does not exist.
+   *
+   * @param queueName the full queue name (already prefixed)
+   * @return a list of message bodies
+   */
+  public List<byte[]> drainQueue(String queueName) throws IOException, TimeoutException {
+    List<byte[]> messages = new java.util.ArrayList<>();
+    try (Connection connection = connectionFactory.newConnection();
+        Channel channel = connection.createChannel()) {
+      // Passive declare to check if the queue exists; throws IOException if not
+      try {
+        channel.queueDeclarePassive(queueName);
+      } catch (IOException e) {
+        log.info("Queue '{}' does not exist — nothing to drain.", queueName);
+        return messages;
+      }
+      com.rabbitmq.client.GetResponse response;
+      while ((response = channel.basicGet(queueName, true)) != null) {
+        messages.add(response.getBody());
+      }
+      log.info("Drained {} messages from queue '{}'.", messages.size(), queueName);
+    }
+    return messages;
+  }
+
+  /**
+   * Publishes a batch of raw messages to the given exchange with the given routing key.
+   *
+   * @param exchange the target exchange name
+   * @param routingKey the routing key
+   * @param messages the list of message bodies to publish
+   */
+  public void publishBatch(String exchange, String routingKey, List<byte[]> messages)
+      throws IOException, TimeoutException {
+    if (messages.isEmpty()) {
+      return;
+    }
+    try (Connection connection = connectionFactory.newConnection();
+        Channel channel = connection.createChannel()) {
+      for (byte[] body : messages) {
+        channel.basicPublish(exchange, routingKey, null, body);
+      }
+      log.info(
+          "Published {} messages to exchange '{}' with routing key '{}'.",
+          messages.size(),
+          exchange,
+          routingKey);
+    }
+  }
+
+  /**
+   * Deletes a queue if it exists. Silently ignores errors (e.g. queue does not exist).
+   *
+   * @param queueName the full queue name to delete
+   */
+  public void safeDeleteQueue(String queueName) {
+    try (Connection connection = connectionFactory.newConnection();
+        Channel channel = connection.createChannel()) {
+      channel.queueDelete(queueName);
+      log.info("Deleted queue '{}'.", queueName);
+    } catch (Exception e) {
+      log.debug("Could not delete queue '{}' (may not exist): {}", queueName, e.getMessage());
+    }
+  }
+
+  /**
+   * Deletes an exchange if it exists. Silently ignores errors (e.g. exchange does not exist).
+   *
+   * @param exchangeName the full exchange name to delete
+   */
+  public void safeDeleteExchange(String exchangeName) {
+    try (Connection connection = connectionFactory.newConnection();
+        Channel channel = connection.createChannel()) {
+      channel.exchangeDelete(exchangeName);
+      log.info("Deleted exchange '{}'.", exchangeName);
+    } catch (Exception e) {
+      log.debug("Could not delete exchange '{}' (may not exist): {}", exchangeName, e.getMessage());
+    }
+  }
+
+  // -- MANAGEMENT API --
+
+  private static final Pattern NAME_PATTERN = Pattern.compile("\"name\"\\s*:\\s*\"([^\"]+)\"");
+
+  /**
+   * Lists all queue names from the RabbitMQ management API that start with the given prefix.
+   *
+   * @param prefix the prefix to filter queue names
+   * @return a list of matching queue names, or an empty list if the API is unreachable
+   */
+  public List<String> listQueueNamesWithPrefix(String prefix) {
+    return listNamesFromManagementApi("queues", prefix);
+  }
+
+  /**
+   * Lists all exchange names from the RabbitMQ management API that start with the given prefix.
+   *
+   * @param prefix the prefix to filter exchange names
+   * @return a list of matching exchange names, or an empty list if the API is unreachable
+   */
+  public List<String> listExchangeNamesWithPrefix(String prefix) {
+    return listNamesFromManagementApi("exchanges", prefix);
+  }
+
+  /**
+   * Queries the RabbitMQ management HTTP API for a list of resources (queues or exchanges) and
+   * returns names matching the given prefix.
+   */
+  private List<String> listNamesFromManagementApi(String resource, String prefix) {
+    List<String> result = new ArrayList<>();
+    try {
+      String scheme = rabbitmqConfig.isSsl() ? "https" : "http";
+      String encodedVhost = URLEncoder.encode(rabbitmqConfig.getVhost(), StandardCharsets.UTF_8);
+      URI uri =
+          URI.create(
+              scheme
+                  + "://"
+                  + rabbitmqConfig.getHostname()
+                  + ":"
+                  + rabbitmqConfig.getManagementPort()
+                  + "/api/"
+                  + resource
+                  + "/"
+                  + encodedVhost
+                  + "?columns=name");
+
+      String credentials = rabbitmqConfig.getUser() + ":" + rabbitmqConfig.getPass();
+      String authHeader =
+          "Basic "
+              + Base64.getEncoder().encodeToString(credentials.getBytes(StandardCharsets.UTF_8));
+
+      HttpRequest request =
+          HttpRequest.newBuilder().uri(uri).header("Authorization", authHeader).GET().build();
+
+      HttpResponse<String> response =
+          HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString());
+
+      if (response.statusCode() == 200) {
+        Matcher matcher = NAME_PATTERN.matcher(response.body());
+        while (matcher.find()) {
+          String name = matcher.group(1);
+          if (name.startsWith(prefix)) {
+            result.add(name);
+          }
+        }
+      } else {
+        log.warn(
+            "RabbitMQ management API returned status {} for {}.", response.statusCode(), resource);
+      }
+    } catch (Exception e) {
+      log.warn("Could not list {} from RabbitMQ management API: {}", resource, e.getMessage());
+    }
+    return result;
   }
 
   // -- INTERNAL --

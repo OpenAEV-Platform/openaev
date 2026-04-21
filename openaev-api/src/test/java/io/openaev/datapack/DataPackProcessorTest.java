@@ -8,7 +8,9 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.datapack.local_fixtures.TestDataPack;
+import io.openaev.processor.MigrationProcessor;
 import io.openaev.service.DataPackService;
+import java.util.Collections;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -25,7 +27,8 @@ public class DataPackProcessorTest extends IntegrationTest {
   @Test
   @DisplayName("Processor processes all known datapacks")
   public void processorProcessesAllKnownDatapacks() {
-    DataPackProcessor processor = new DataPackProcessor(List.of(testDataPack), tenantRepository);
+    MigrationProcessor processor =
+        new MigrationProcessor(List.of(testDataPack), Collections.emptyList(), tenantRepository);
 
     // act
     processor.process();
@@ -42,7 +45,8 @@ public class DataPackProcessorTest extends IntegrationTest {
   @Test
   @DisplayName("Already processed datapacks don't process again")
   public void alreadyProcessedDatapackDontProcessAgain() {
-    DataPackProcessor processor = new DataPackProcessor(List.of(testDataPack), tenantRepository);
+    MigrationProcessor processor =
+        new MigrationProcessor(List.of(testDataPack), Collections.emptyList(), tenantRepository);
     // fake registering the data pack
     dataPackService.registerDataPack(
         testDataPack.getPackId(), new Tenant(TenantContext.getCurrentTenant()));
