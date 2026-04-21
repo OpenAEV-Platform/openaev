@@ -150,29 +150,20 @@ public class SimulationInjectApi extends RestBehavior {
   }
 
   @GetMapping(EXERCISE_URI + "/{exerciseId}/injects/{injectId}")
-  @RBAC(
-      resourceId = "#exerciseId",
-      actionPerformed = Action.READ,
-      resourceType = ResourceType.SIMULATION)
+  @RBAC(resourceId = "#injectId", actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
   public Inject exerciseInject(@PathVariable String exerciseId, @PathVariable String injectId) {
     return simulationInjectService.findInjectForSimulation(exerciseId, injectId);
   }
 
   @GetMapping(EXERCISE_URI + "/{exerciseId}/injects/{injectId}/teams")
-  @RBAC(
-      resourceId = "#exerciseId",
-      actionPerformed = Action.READ,
-      resourceType = ResourceType.SIMULATION)
+  @RBAC(resourceId = "#injectId", actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
   public Iterable<Team> exerciseInjectTeams(
       @PathVariable String exerciseId, @PathVariable String injectId) {
     return simulationInjectService.findInjectTeamsForSimulation(exerciseId, injectId);
   }
 
   @GetMapping(EXERCISE_URI + "/{exerciseId}/injects/{injectId}/communications")
-  @RBAC(
-      resourceId = "#exerciseId",
-      actionPerformed = Action.READ,
-      resourceType = ResourceType.SIMULATION)
+  @RBAC(resourceId = "#injectId", actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
   public Iterable<Communication> exerciseInjectCommunications(
       @PathVariable String exerciseId, @PathVariable String injectId) {
     return simulationInjectService.findAndAckCommunicationsForSimulation(exerciseId, injectId);
@@ -208,9 +199,9 @@ public class SimulationInjectApi extends RestBehavior {
 
   @PostMapping(EXERCISE_URI + "/{exerciseId}/injects/{injectId}")
   @RBAC(
-      resourceId = "#exerciseId",
-      actionPerformed = Action.WRITE,
-      resourceType = ResourceType.SIMULATION)
+      resourceId = "#injectId",
+      actionPerformed = Action.CREATE,
+      resourceType = ResourceType.INJECT)
   public Inject duplicateInjectForExercise(
       @PathVariable @NotBlank final String exerciseId,
       @PathVariable @NotBlank final String injectId) {
@@ -273,9 +264,9 @@ public class SimulationInjectApi extends RestBehavior {
 
   @PutMapping(EXERCISE_URI + "/{exerciseId}/injects/{injectId}/activation")
   @RBAC(
-      resourceId = "#exerciseId",
+      resourceId = "#injectId",
       actionPerformed = Action.WRITE,
-      resourceType = ResourceType.SIMULATION)
+      resourceType = ResourceType.INJECT)
   public Inject updateInjectActivationForExercise(
       @PathVariable String exerciseId,
       @PathVariable String injectId,
@@ -286,7 +277,7 @@ public class SimulationInjectApi extends RestBehavior {
   @PutMapping(EXERCISE_URI + "/{exerciseId}/injects/{injectId}/trigger")
   @RBAC(
       resourceId = "#injectId",
-      actionPerformed = Action.LAUNCH,
+      actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
   public Inject updateInjectTrigger(
       @PathVariable String exerciseId, @PathVariable String injectId) {
