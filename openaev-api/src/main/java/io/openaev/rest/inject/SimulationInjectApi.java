@@ -285,9 +285,9 @@ public class SimulationInjectApi extends RestBehavior {
 
   @PutMapping(EXERCISE_URI + "/{exerciseId}/injects/{injectId}/trigger")
   @RBAC(
-      resourceId = "#exerciseId",
-      actionPerformed = Action.WRITE,
-      resourceType = ResourceType.SIMULATION)
+      resourceId = "#injectId",
+      actionPerformed = Action.LAUNCH,
+      resourceType = ResourceType.INJECT)
   public Inject updateInjectTrigger(
       @PathVariable String exerciseId, @PathVariable String injectId) {
     return simulationInjectService.triggerInjectForSimulation(exerciseId, injectId);
@@ -296,9 +296,9 @@ public class SimulationInjectApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   @PostMapping(EXERCISE_URI + "/{exerciseId}/injects/{injectId}/status")
   @RBAC(
-      resourceId = "#exerciseId",
+      resourceId = "#injectId",
       actionPerformed = Action.WRITE,
-      resourceType = ResourceType.SIMULATION)
+      resourceType = ResourceType.INJECT)
   public Inject setInjectStatus(
       @PathVariable String exerciseId,
       @PathVariable String injectId,
@@ -308,9 +308,9 @@ public class SimulationInjectApi extends RestBehavior {
 
   @PutMapping(EXERCISE_URI + "/{exerciseId}/injects/{injectId}/teams")
   @RBAC(
-      resourceId = "#exerciseId",
+      resourceId = "#injectId",
       actionPerformed = Action.WRITE,
-      resourceType = ResourceType.SIMULATION)
+      resourceType = ResourceType.INJECT)
   public Inject updateInjectTeams(
       @PathVariable String exerciseId,
       @PathVariable String injectId,
@@ -323,9 +323,9 @@ public class SimulationInjectApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   @DeleteMapping(EXERCISE_URI + "/{exerciseId}/injects/{injectId}")
   @RBAC(
-      resourceId = "#exerciseId",
+      resourceId = "#injectId",
       actionPerformed = Action.WRITE,
-      resourceType = ResourceType.SIMULATION)
+      resourceType = ResourceType.INJECT)
   public void deleteInject(@PathVariable String exerciseId, @PathVariable String injectId) {
     this.simulationInjectService.deleteInject(exerciseId, injectId);
   }

@@ -92,10 +92,7 @@ public class ScenarioInjectApi extends RestBehavior {
   }
 
   @GetMapping(SCENARIO_URI + "/{scenarioId}/injects/{injectId}")
-  @RBAC(
-      resourceId = "#injectId",
-      actionPerformed = Action.READ,
-      resourceType = ResourceType.INJECT)
+  @RBAC(resourceId = "#injectId", actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
   public Inject scenarioInject(
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String injectId) {
@@ -148,9 +145,9 @@ public class ScenarioInjectApi extends RestBehavior {
 
   @PostMapping(SCENARIO_URI + "/{scenarioId}/injects/{injectId}")
   @RBAC(
-      resourceId = "#scenarioId",
+      resourceId = "#injectId",
       actionPerformed = Action.WRITE,
-      resourceType = ResourceType.SCENARIO)
+      resourceType = ResourceType.INJECT)
   public Inject duplicateInjectForScenario(
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String injectId) {
@@ -163,9 +160,9 @@ public class ScenarioInjectApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   @PutMapping(SCENARIO_URI + "/{scenarioId}/injects/{injectId}")
   @RBAC(
-      resourceId = "#scenarioId",
+      resourceId = "#injectId",
       actionPerformed = Action.WRITE,
-      resourceType = ResourceType.SCENARIO)
+      resourceType = ResourceType.INJECT)
   public Inject updateInjectForScenario(
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String injectId,
@@ -175,9 +172,9 @@ public class ScenarioInjectApi extends RestBehavior {
 
   @PutMapping(SCENARIO_URI + "/{scenarioId}/injects/{injectId}/activation")
   @RBAC(
-      resourceId = "#scenarioId",
+      resourceId = "#injectId",
       actionPerformed = Action.WRITE,
-      resourceType = ResourceType.SCENARIO)
+      resourceType = ResourceType.INJECT)
   public Inject updateInjectActivationForScenario(
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String injectId,
@@ -190,9 +187,9 @@ public class ScenarioInjectApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   @DeleteMapping(SCENARIO_URI + "/{scenarioId}/injects/{injectId}")
   @RBAC(
-      resourceId = "#scenarioId",
+      resourceId = "#injectId",
       actionPerformed = Action.WRITE,
-      resourceType = ResourceType.SCENARIO)
+      resourceType = ResourceType.INJECT)
   public void deleteInjectForScenario(
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String injectId) {
