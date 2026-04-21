@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.IntegrationTest;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
+import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
@@ -33,23 +34,23 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @Transactional
 public class InjectExecutionStepTest extends IntegrationTest {
-  @MockitoBean private InjectorContractService injectorContractService;
-  @MockitoBean private UserService userService;
-  @MockitoBean private TeamService teamService;
-  @MockitoBean private AssetService assetService;
-  @MockitoBean private TagService tagService;
-  @MockitoBean private DocumentService documentService;
-  @MockitoBean private InjectService injectService;
-  @MockitoBean private io.openaev.executors.Executor executor;
-  @MockitoBean private InjectStatusService injectStatusService;
-  @MockitoBean private ConditionService conditionService;
+  @MockBean private InjectorContractService injectorContractService;
+  @MockBean private UserService userService;
+  @MockBean private TeamService teamService;
+  @MockBean private AssetService assetService;
+  @MockBean private TagService tagService;
+  @MockBean private DocumentService documentService;
+  @MockBean private InjectService injectService;
+  @MockBean private ConditionService conditionService;
+  @MockBean private io.openaev.executors.Executor executor;
+  @MockBean private InjectStatusService injectStatusService;
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private InjectorRepository injectorRepository;
   @Autowired private InjectRepository injectRepository;
@@ -78,8 +79,6 @@ public class InjectExecutionStepTest extends IntegrationTest {
     doReturn(null).when(documentService).document(any());
     doReturn(false).when(injectService).canApplyTargetType(any(), any());
     doReturn(new InjectStatus()).when(executor).directExecute(any());
-    doReturn(Collections.emptyList()).when(conditionService).findAllConditionsByStepId(any());
-    doReturn(true).when(conditionService).isMapperCondition(any());
 
     doAnswer(
             invocation -> {

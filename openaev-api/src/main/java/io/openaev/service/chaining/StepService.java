@@ -545,7 +545,7 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     return StepsCreateInput.StepInput.builder()
         .stepAction(stepInput.getStepAction())
         .conditions(stepInput.getConditions())
-        .conditionIds(stepInput.getConditionIds()) //
+        .conditionIds(stepInput.getConditionIds())
         .dataStep(stepInput.getDataStep())
         .build();
   }
@@ -984,36 +984,6 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
   }
 
   /**
-   * Retrieves a {@link Step} associated with a condition from its identifier.
-   *
-   * <p>If the provided {@code stepFromId} is not {@code null}, this method attempts to load the
-   * corresponding {@link Step} from the repository.
-   *
-   * <ul>
-   *   <li>If the step is found, it is returned.
-   *   <li>If the step is not found, a {@link ChainingException} is thrown, wrapping an {@link
-   *       ElementNotFoundException}.
-   *   <li>If {@code stepFromId} is {@code null}, this method returns {@code null}.
-   * </ul>
-   *
-   * @param stepFromId the identifier of the step referenced by a condition; may be {@code null}
-   * @return the persisted {@link Step} corresponding to the given identifier, or {@code null} if
-   *     the identifier is r is {@code null} {@link Step} is found
-   */
-  private Step getStepFromCondition(String stepFromId) {
-    if (stepFromId != null) {
-      return stepRepository
-          .findById(stepFromId)
-          .orElseThrow(
-              () ->
-                  new ElementNotFoundException(
-                      "Condition references a non-existing step (field: stepFrom). Step ID: "
-                          + stepFromId));
-    }
-    return null;
-  }
-
-  /**
    * Consume ready event from queue
    *
    * @param events list of events
@@ -1118,13 +1088,6 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     // Extract KeyTypes present in the new output
     Set<ConditionKeyType> keyTypes = conditionService.extractKeyTypesFromOutput(currentOutput);
 
-    // FIXME
-    // What happens if every mapper is global?
-    // For every output, we should fetch steps templates/conditions mappers which can use
-    // these outputs and check if local/global and it is local fetch filter condition
-    // and apply filter over output and save local data, but it is global then do nothing
-    // because we have already saved the data
-
     // Fetch all Filter/Event Conditions for this specific KeyType
     // These filter conditions has to be at Template level
     Map<ConditionKeyType, List<Condition>> filtersByKey =
@@ -1161,10 +1124,6 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
               workflowStateService.syncMappersToLocalPartition(
                   targetTemplate, workflowExecution, currentOutput, rootCondition, mappers);
 
-          // Fixme; What happens if every mapper is global, then action is not executed?
-          // or when that action will be executed?
-          // Maybe we dont need this hasChange flag and we have to ready all steps which
-          // are potential consumers
           if (hasChanged) {
             try {
               ready(targetTemplate, workflowExecution, null);

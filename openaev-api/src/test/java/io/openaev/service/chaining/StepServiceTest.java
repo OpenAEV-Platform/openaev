@@ -9,8 +9,8 @@ import io.openaev.api.chaining.ActionStep;
 import io.openaev.api.chaining.InjectExecutionStep;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepInput;
+import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.database.model.*;
-import io.openaev.database.model.ConditionKeyType;
 import io.openaev.database.repository.StepDelayQueueRepository;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.ChainingException;
@@ -177,64 +177,6 @@ public class StepServiceTest {
           .when(conditionService)
           .createConditionTree(any(), any(), any(), any(), isNull());
 
-      // Capture the arguments passed to createConditionTree and invoke the real BFS logic
-      // by delegating to ConditionService#findRootConditionInput so we can assert parent linkage.
-      // We use thenAnswer to exercise the factories and collect produced Conditions.
-      List<Condition> producedConditions = new ArrayList<>();
-
-      doAnswer(
-              invocation -> {
-                // arg 0 : conditionInputs
-                // arg 1 : rootFactory   Function<ConditionCreateInput, Condition>
-                // arg 2 : childFactory  BiFunction<ConditionCreateInput, Condition, Condition>
-                // arg 3 : linkCondition BiConsumer<Condition, Boolean>
-                // arg 4 : afterRootSaved Consumer<Condition>
-                @SuppressWarnings("unchecked")
-                List<ConditionCreateInput> conditionInputs = invocation.getArgument(0);
-                java.util.function.Function<ConditionCreateInput, Condition> rootFactory =
-                    invocation.getArgument(1);
-                java.util.function.BiFunction<ConditionCreateInput, Condition, Condition>
-                    childFactory = invocation.getArgument(2);
-
-                // Identify root (no parent)
-                ConditionCreateInput rootInput =
-                    conditionInputs.stream()
-                        .filter(c -> c.getTemporaryIdConditionParent() == null)
-                        .findFirst()
-                        .orElseThrow();
-
-                Condition root = rootFactory.apply(rootInput);
-                producedConditions.add(root);
-
-                Map<String, Condition> byTmpId = new HashMap<>();
-                byTmpId.put(rootInput.getTemporaryId(), root);
-
-                Map<String, List<ConditionCreateInput>> childrenByParent =
-                    conditionInputs.stream()
-                        .filter(c -> c.getTemporaryIdConditionParent() != null)
-                        .collect(
-                            java.util.stream.Collectors.groupingBy(
-                                ConditionCreateInput::getTemporaryIdConditionParent));
-
-                java.util.Queue<String> queue = new java.util.LinkedList<>();
-                queue.add(rootInput.getTemporaryId());
-
-                while (!queue.isEmpty()) {
-                  String cur = queue.poll();
-                  for (ConditionCreateInput childInput :
-                      childrenByParent.getOrDefault(cur, List.of())) {
-                    Condition parent = byTmpId.get(childInput.getTemporaryIdConditionParent());
-                    Condition child = childFactory.apply(childInput, parent);
-                    producedConditions.add(child);
-                    byTmpId.put(childInput.getTemporaryId(), child);
-                    queue.add(childInput.getTemporaryId());
-                  }
-                }
-                return null;
-              })
-          .when(conditionService)
-          .createConditionTree(any(), any(), any(), any(), isNull());
-
       stepService.createStepTemplates(workflowId, List.of(stepInput));
 
       // Verify createConditionTree was called once with the right inputs
@@ -257,10 +199,6 @@ public class StepServiceTest {
                   "Wrong parent for: " + childKey);
             }
           });
-
-      if (withStepFrom) {
-        assertNotNull(byKey.get(ConditionKeyType.Text).getStepFrom(), "Expected stepFrom on ROOT");
-      }
     }
 
     static Stream<Arguments> conditionTreeTestInputs() {
@@ -268,26 +206,26 @@ public class StepServiceTest {
       return Stream.of(
           Arguments.of(
               "Single root condition",
-              List.of(mockCondition("ROOT", ConditionKeyType.TEXT, null)),
-              Map.of(ConditionKeyType.TEXT, Optional.empty())),
+              List.of(mockCondition("ROOT", ConditionKeyType.Text, null)),
+              Map.of(ConditionKeyType.Text, Optional.empty())),
           Arguments.of(
               "Root with one child",
               List.of(
-                  mockCondition("ROOT", ConditionKeyType.TEXT, null),
-                  mockCondition("CHILD", ConditionKeyType.NUMBER, "ROOT")),
+                  mockCondition("ROOT", ConditionKeyType.Text, null),
+                  mockCondition("CHILD", ConditionKeyType.Number, "ROOT")),
               Map.of(
-                  ConditionKeyType.TEXT, Optional.empty(),
-                  ConditionKeyType.NUMBER, Optional.of(ConditionKeyType.TEXT))),
+                  ConditionKeyType.Text, Optional.empty(),
+                  ConditionKeyType.Number, Optional.of(ConditionKeyType.Text))),
           Arguments.of(
               "Root with two-level tree",
               List.of(
-                  mockCondition("ROOT", ConditionKeyType.TEXT, null),
-                  mockCondition("A", ConditionKeyType.PORT, "ROOT"),
+                  mockCondition("ROOT", ConditionKeyType.Text, null),
+                  mockCondition("A", ConditionKeyType.Port, "ROOT"),
                   mockCondition("B", ConditionKeyType.IPv4, "A")),
               Map.of(
-                  ConditionKeyType.TEXT, Optional.empty(),
-                  ConditionKeyType.PORT, Optional.of(ConditionKeyType.TEXT),
-                  ConditionKeyType.IPv4, Optional.of(ConditionKeyType.PORT))));
+                  ConditionKeyType.Text, Optional.empty(),
+                  ConditionKeyType.Port, Optional.of(ConditionKeyType.Text),
+                  ConditionKeyType.IPv4, Optional.of(ConditionKeyType.Port))));
     }
   }
 
@@ -305,11 +243,11 @@ public class StepServiceTest {
               StepActionClass.INJECT_EXECUTION,
               List.of(
                   ConditionCreateInput.builder()
-                      .keyType(ConditionKeyType.TEXT)
+                      .keyType(ConditionKeyType.Text)
                       .temporaryIdConditionParent(null)
                       .build(),
                   ConditionCreateInput.builder()
-                      .keyType(ConditionKeyType.NUMBER)
+                      .keyType(ConditionKeyType.Number)
                       .temporaryIdConditionParent(null)
                       .build()));
 
@@ -333,7 +271,7 @@ public class StepServiceTest {
       // Arrange
       ConditionCreateInput conditionCreateInput =
           ConditionCreateInput.builder()
-              .keyType(ConditionKeyType.TEXT)
+              .keyType(ConditionKeyType.Text)
               .temporaryIdConditionParent("X")
               .build();
       StepsCreateInput.StepInput stepInput =
@@ -1212,8 +1150,10 @@ public class StepServiceTest {
         when(stepRepository.findById(stepId))
             .thenReturn(stepFound ? Optional.of(step) : Optional.empty());
         if (stepFound)
-          // Avoid executing real run(...) logic
+        // Avoid executing real run(...) logic
+        {
           doNothing().when(stepService).run(any(Step.class));
+        }
 
         // -------- Act --------
         stepService.handleReadyStepEvent(event);
@@ -1520,7 +1460,7 @@ public class StepServiceTest {
       Workflow workflowExecution = mock(Workflow.class);
       WorkflowState savedScopeData = mock(WorkflowState.class);
 
-      when(savedScopeData.getScope())
+      when(savedScopeData.getEntries())
           .thenReturn("{\"inputs\":{\"campaign\":\"c1\"},\"metadata\":{\"v\":1}}");
       when(workflowStateService.createGlobalState(workflowExecution)).thenReturn(savedScopeData);
 
@@ -1536,7 +1476,7 @@ public class StepServiceTest {
       Workflow workflowExecution = mock(Workflow.class);
       WorkflowState savedScopeData = mock(WorkflowState.class);
 
-      when(savedScopeData.getScope()).thenReturn("   ");
+      when(savedScopeData.getEntries()).thenReturn("   ");
       when(workflowStateService.createGlobalState(workflowExecution)).thenReturn(savedScopeData);
 
       stepService.prepareInitialWorkflowState(workflowExecution);
@@ -1550,7 +1490,7 @@ public class StepServiceTest {
       WorkflowState savedScopeData = mock(WorkflowState.class);
       when(workflowExecution.getId()).thenReturn(UUID.randomUUID().toString());
 
-      when(savedScopeData.getScope()).thenReturn("{malformed-json");
+      when(savedScopeData.getEntries()).thenReturn("{malformed-json");
       when(workflowStateService.createGlobalState(workflowExecution)).thenReturn(savedScopeData);
 
       assertDoesNotThrow(() -> stepService.prepareInitialWorkflowState(workflowExecution));
@@ -1668,8 +1608,9 @@ public class StepServiceTest {
     assertNotNull(step);
     when(stepRepository.save(step)).thenReturn(step);
 
-    if (saveCondition)
+    if (saveCondition) {
       when(conditionService.saveCondition(any())).thenAnswer(i -> i.getArgument(0));
+    }
   }
 
   private StepsCreateInput.StepInput mockStep(
@@ -1678,7 +1619,9 @@ public class StepServiceTest {
     StepsCreateInput.StepInput step = mock(StepsCreateInput.StepInput.class);
 
     when(step.getStepAction()).thenReturn(actionClass);
-    if (!conditions.isEmpty()) when(step.getConditions()).thenReturn(conditions);
+    if (!conditions.isEmpty()) {
+      when(step.getConditions()).thenReturn(conditions);
+    }
 
     return step;
   }

@@ -25,21 +25,13 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 public class ConditionServiceTest {
 
-  @Spy
-  @InjectMocks
-  private ConditionService conditionService;
-  @Captor
-  private ArgumentCaptor<Condition> conditionCaptor;
-  @Captor
-  private ArgumentCaptor<List<Condition>> conditionsCaptor;
-  @Mock
-  private ConditionRepository conditionRepository;
-  @Mock
-  private StepRepository stepRepository;
-  @Mock
-  private QueueChainingService queueChainingService;
-  @Mock
-  private StepDelayQueueService stepDelayQueueService;
+  @Spy @InjectMocks private ConditionService conditionService;
+  @Captor private ArgumentCaptor<Condition> conditionCaptor;
+  @Captor private ArgumentCaptor<List<Condition>> conditionsCaptor;
+  @Mock private ConditionRepository conditionRepository;
+  @Mock private StepRepository stepRepository;
+  @Mock private QueueChainingService queueChainingService;
+  @Mock private StepDelayQueueService stepDelayQueueService;
 
   /* ============================================================
    * isTimeCondition
@@ -430,6 +422,9 @@ public class ConditionServiceTest {
         StepService stepService = mock(StepService.class);
 
         String nextId = UUID.randomUUID().toString();
+        String workflowRunId = UUID.randomUUID().toString();
+        String stepFromTemplateId = UUID.randomUUID().toString();
+
         when(nextStepTemplateToExecute.getId()).thenReturn(nextId);
         when(workflowRun.getId()).thenReturn(workflowRunId);
 
@@ -460,16 +455,13 @@ public class ConditionServiceTest {
         }
       }
 
-
       /* ============================================================
        * MappingTypeResolution
        * ============================================================ */
       @Nested
       class MappingTypeResolution {
 
-        /**
-         * MAPPER condition with explicit LOCAL → stays LOCAL.
-         */
+        /** MAPPER condition with explicit LOCAL → stays LOCAL. */
         @Test
         void shouldPreserveMappingType_whenMapperConditionHasExplicitValue() {
           // -------- Prepare --------
@@ -484,7 +476,6 @@ public class ConditionServiceTest {
               EventInput.builder()
                   .name("ev-mr")
                   .workflowId("wf-mr")
-                  .stepFrom(stepFromId)
                   .conditions(List.of(mapperInput))
                   .build();
 
@@ -492,7 +483,8 @@ public class ConditionServiceTest {
           stepFrom.setId(stepFromId);
 
           when(stepRepository.findById(stepFromId)).thenReturn(Optional.of(stepFrom));
-          when(conditionRepository.save(any(Condition.class))).thenAnswer(inv -> inv.getArgument(0));
+          when(conditionRepository.save(any(Condition.class)))
+              .thenAnswer(inv -> inv.getArgument(0));
 
           // -------- Act --------
           Condition root = conditionService.createConditionTree(input);
@@ -501,9 +493,7 @@ public class ConditionServiceTest {
           assertEquals(MappingType.LOCAL, root.getMappingType());
         }
 
-        /**
-         * MAPPER condition with no mappingType → defaults to DEFAULT.
-         */
+        /** MAPPER condition with no mappingType → defaults to DEFAULT. */
         @Test
         void shouldDefaultMappingTypeToDefault_whenMapperConditionHasNullMappingType() {
           // -------- Prepare --------
@@ -518,7 +508,6 @@ public class ConditionServiceTest {
               EventInput.builder()
                   .name("ev-def")
                   .workflowId("wf-def")
-                  .stepFrom(stepFromId)
                   .conditions(List.of(mapperInput))
                   .build();
 
@@ -526,7 +515,8 @@ public class ConditionServiceTest {
           stepFrom.setId(stepFromId);
 
           when(stepRepository.findById(stepFromId)).thenReturn(Optional.of(stepFrom));
-          when(conditionRepository.save(any(Condition.class))).thenAnswer(inv -> inv.getArgument(0));
+          when(conditionRepository.save(any(Condition.class)))
+              .thenAnswer(inv -> inv.getArgument(0));
 
           // -------- Act --------
           Condition root = conditionService.createConditionTree(input);
@@ -538,9 +528,7 @@ public class ConditionServiceTest {
               "mappingType should be auto-defaulted to DEFAULT for MAPPER conditions");
         }
 
-        /**
-         * Non-MAPPER condition never carries a mappingType.
-         */
+        /** Non-MAPPER condition never carries a mappingType. */
         @Test
         void shouldLeaveMappingTypeNull_whenNonMapperCondition() {
           // -------- Prepare --------
@@ -555,7 +543,6 @@ public class ConditionServiceTest {
               EventInput.builder()
                   .name("ev-nm")
                   .workflowId("wf-nm")
-                  .stepFrom(stepFromId)
                   .conditions(List.of(eqInput))
                   .build();
 
@@ -563,7 +550,8 @@ public class ConditionServiceTest {
           stepFrom.setId(stepFromId);
 
           when(stepRepository.findById(stepFromId)).thenReturn(Optional.of(stepFrom));
-          when(conditionRepository.save(any(Condition.class))).thenAnswer(inv -> inv.getArgument(0));
+          when(conditionRepository.save(any(Condition.class)))
+              .thenAnswer(inv -> inv.getArgument(0));
 
           // -------- Act --------
           Condition root = conditionService.createConditionTree(input);
@@ -650,7 +638,8 @@ public class ConditionServiceTest {
           Condition or = new Condition();
           or.setType(ConditionType.OR);
           or.getConditionChildren().add(leaf(ConditionType.EQ, "admin")); // fails for "other"
-          or.getConditionChildren().add(leaf(ConditionType.IS_NOT_NULL, null)); // passes for "other"
+          or.getConditionChildren()
+              .add(leaf(ConditionType.IS_NOT_NULL, null)); // passes for "other"
 
           // -------- Act / Assert --------
           assertTrue(conditionService.isFilterConditionValid("other", or));
@@ -694,13 +683,15 @@ public class ConditionServiceTest {
           @Test
           void isNotNull_shouldReturnTrue_whenValueIsNotNull() {
             assertTrue(
-                conditionService.isFilterConditionValid("val", leaf(ConditionType.IS_NOT_NULL, null)));
+                conditionService.isFilterConditionValid(
+                    "val", leaf(ConditionType.IS_NOT_NULL, null)));
           }
 
           @Test
           void isNotNull_shouldReturnFalse_whenValueIsNull() {
             assertFalse(
-                conditionService.isFilterConditionValid(null, leaf(ConditionType.IS_NOT_NULL, null)));
+                conditionService.isFilterConditionValid(
+                    null, leaf(ConditionType.IS_NOT_NULL, null)));
           }
 
           // -- EQ --
@@ -719,7 +710,8 @@ public class ConditionServiceTest {
 
           @Test
           void eq_shouldReturnFalse_whenActualValueIsNull() {
-            assertFalse(conditionService.isFilterConditionValid(null, leaf(ConditionType.EQ, "admin")));
+            assertFalse(
+                conditionService.isFilterConditionValid(null, leaf(ConditionType.EQ, "admin")));
           }
 
           // -- NEQ --
@@ -767,12 +759,14 @@ public class ConditionServiceTest {
 
           @Test
           void in_shouldReturnFalse_whenActualValueIsNull() {
-            assertFalse(conditionService.isFilterConditionValid(null, leaf(ConditionType.IN, "admin")));
+            assertFalse(
+                conditionService.isFilterConditionValid(null, leaf(ConditionType.IN, "admin")));
           }
 
           @Test
           void in_shouldReturnFalse_whenTargetIsNull() {
-            assertFalse(conditionService.isFilterConditionValid("admin", leaf(ConditionType.IN, null)));
+            assertFalse(
+                conditionService.isFilterConditionValid("admin", leaf(ConditionType.IN, null)));
           }
 
           // -- NIN --
@@ -821,7 +815,8 @@ public class ConditionServiceTest {
 
           @Test
           void gt_shouldReturnFalse_whenActualValueIsNotNumeric() {
-            assertFalse(conditionService.isFilterConditionValid("abc", leaf(ConditionType.GT, "5")));
+            assertFalse(
+                conditionService.isFilterConditionValid("abc", leaf(ConditionType.GT, "5")));
           }
 
           // -- GTE --
@@ -843,7 +838,8 @@ public class ConditionServiceTest {
 
           @Test
           void gte_shouldReturnFalse_whenActualValueIsNull() {
-            assertFalse(conditionService.isFilterConditionValid(null, leaf(ConditionType.GTE, "5")));
+            assertFalse(
+                conditionService.isFilterConditionValid(null, leaf(ConditionType.GTE, "5")));
           }
 
           // -- LT --
@@ -882,12 +878,14 @@ public class ConditionServiceTest {
 
           @Test
           void lte_shouldReturnFalse_whenActualIsGreaterThanTarget() {
-            assertFalse(conditionService.isFilterConditionValid("10", leaf(ConditionType.LTE, "5")));
+            assertFalse(
+                conditionService.isFilterConditionValid("10", leaf(ConditionType.LTE, "5")));
           }
 
           @Test
           void lte_shouldReturnFalse_whenActualValueIsNull() {
-            assertFalse(conditionService.isFilterConditionValid(null, leaf(ConditionType.LTE, "5")));
+            assertFalse(
+                conditionService.isFilterConditionValid(null, leaf(ConditionType.LTE, "5")));
           }
 
           @Test
@@ -926,7 +924,8 @@ public class ConditionServiceTest {
           stepA.setId(removedStepId);
           conditionService.linkToStep(condition, stepA, true);
 
-          when(conditionRepository.findAllLinkedToStepId(removedStepId)).thenReturn(List.of(condition));
+          when(conditionRepository.findAllLinkedToStepId(removedStepId))
+              .thenReturn(List.of(condition));
           when(conditionRepository.save(any(Condition.class)))
               .thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -949,7 +948,8 @@ public class ConditionServiceTest {
           conditionService.linkToStep(condition, stepA, true);
           conditionService.linkToStep(condition, stepB, false);
 
-          when(conditionRepository.findAllLinkedToStepId(removedStepId)).thenReturn(List.of(condition));
+          when(conditionRepository.findAllLinkedToStepId(removedStepId))
+              .thenReturn(List.of(condition));
           when(conditionRepository.save(any(Condition.class)))
               .thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -1022,7 +1022,7 @@ public class ConditionServiceTest {
           childInput.setTemporaryId("tmp-child");
           childInput.setTemporaryIdConditionParent("tmp-root");
           childInput.setType(ConditionType.EQ);
-          childInput.setKeyType(ConditionKeyType.PORTSCAN);
+          childInput.setKeyType(ConditionKeyType.Portscan);
           childInput.setValue("445");
 
           EventInput input =
@@ -1094,7 +1094,7 @@ public class ConditionServiceTest {
           childInput.setTemporaryId("tmp-child");
           childInput.setTemporaryIdConditionParent("tmp-root");
           childInput.setType(ConditionType.EQ);
-          childInput.setKeyType(ConditionKeyType.STATUS);
+          childInput.setKeyType(ConditionKeyType.Status);
           childInput.setValue("ok");
 
           EventInput input =
@@ -1134,7 +1134,11 @@ public class ConditionServiceTest {
           rootInput.setType(ConditionType.AND);
 
           EventInput input =
-              EventInput.builder().name("x").workflowId("wf").conditions(List.of(rootInput)).build();
+              EventInput.builder()
+                  .name("x")
+                  .workflowId("wf")
+                  .conditions(List.of(rootInput))
+                  .build();
           when(conditionRepository.findById("missing-root")).thenReturn(Optional.empty());
 
           assertThrows(
@@ -1149,9 +1153,7 @@ public class ConditionServiceTest {
       @Nested
       class MappingTypeResolution {
 
-        /**
-         * MAPPER condition with explicit LOCAL → stays LOCAL.
-         */
+        /** MAPPER condition with explicit LOCAL → stays LOCAL. */
         @Test
         void shouldPreserveMappingType_whenMapperConditionHasExplicitValue() {
           // -------- Prepare --------
@@ -1167,7 +1169,8 @@ public class ConditionServiceTest {
                   .conditions(List.of(mapperInput))
                   .build();
 
-          when(conditionRepository.save(any(Condition.class))).thenAnswer(inv -> inv.getArgument(0));
+          when(conditionRepository.save(any(Condition.class)))
+              .thenAnswer(inv -> inv.getArgument(0));
 
           // -------- Act --------
           Condition root = conditionService.createConditionTree(input);
@@ -1176,9 +1179,7 @@ public class ConditionServiceTest {
           assertEquals(MappingType.LOCAL, root.getMappingType());
         }
 
-        /**
-         * MAPPER condition with no mappingType → defaults to DEFAULT.
-         */
+        /** MAPPER condition with no mappingType → defaults to DEFAULT. */
         @Test
         void shouldDefaultMappingTypeToDefault_whenMapperConditionHasNullMappingType() {
           // -------- Prepare --------
@@ -1194,7 +1195,8 @@ public class ConditionServiceTest {
                   .conditions(List.of(mapperInput))
                   .build();
 
-          when(conditionRepository.save(any(Condition.class))).thenAnswer(inv -> inv.getArgument(0));
+          when(conditionRepository.save(any(Condition.class)))
+              .thenAnswer(inv -> inv.getArgument(0));
 
           // -------- Act --------
           Condition root = conditionService.createConditionTree(input);
@@ -1206,9 +1208,7 @@ public class ConditionServiceTest {
               "mappingType should be auto-defaulted to DEFAULT for MAPPER conditions");
         }
 
-        /**
-         * Non-MAPPER condition never carries a mappingType.
-         */
+        /** Non-MAPPER condition never carries a mappingType. */
         @Test
         void shouldLeaveMappingTypeNull_whenNonMapperCondition() {
           // -------- Prepare --------
@@ -1224,7 +1224,8 @@ public class ConditionServiceTest {
                   .conditions(List.of(eqInput))
                   .build();
 
-          when(conditionRepository.save(any(Condition.class))).thenAnswer(inv -> inv.getArgument(0));
+          when(conditionRepository.save(any(Condition.class)))
+              .thenAnswer(inv -> inv.getArgument(0));
 
           // -------- Act --------
           Condition root = conditionService.createConditionTree(input);
@@ -1234,3 +1235,5 @@ public class ConditionServiceTest {
         }
       }
     }
+  }
+}
