@@ -29,7 +29,7 @@ import listConfigRenderer, { defaultRenderer } from './elements/ListColumnConfig
 import navigationHandlers from './elements/ListNavigationHandler';
 
 const useStyles = makeStyles()(() => ({
-  itemHead: {},
+  itemHead: { textTransform: 'uppercase' },
   item: { height: 50 },
 }));
 
@@ -189,12 +189,7 @@ const ListWidget = ({
           />
         )}
 
-      <MuiList sx={{
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-      >
+      <MuiList>
         <MuiListItem
           classes={{ root: classes.itemHead }}
           style={{ paddingTop: 0 }}
@@ -203,18 +198,7 @@ const ListWidget = ({
           <ListItemIcon />
         </MuiListItem>
         {contentLoading && <Loader variant="inElement" />}
-        {!contentLoading && elements.length === 0 && (
-          <div style={{
-            textAlign: 'center',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flex: 1,
-          }}
-          >
-            {t('No data to display')}
-          </div>
-        )}
+        {!contentLoading && elements.length === 0 && <div style={{ textAlign: 'center' }}>{t('No data to display')}</div>}
         {!contentLoading && elements.map(element => (
           <ListWidgetItem
             key={element.base_id}

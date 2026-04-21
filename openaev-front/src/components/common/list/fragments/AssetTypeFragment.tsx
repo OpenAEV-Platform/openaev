@@ -10,6 +10,7 @@ const AssetTypeFragment = (props: Props) => {
     typeChip: {
       height: 20,
       borderRadius: 4,
+      textTransform: 'uppercase',
       width: 100,
       marginBottom: theme.spacing(0),
     },

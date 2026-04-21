@@ -10,12 +10,11 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 */
 
-import { Alert, Link, TextField } from '@mui/material';
+import { Alert, Button, Link, TextField } from '@mui/material';
 import { useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { updatePlatformEnterpriseEditionParameters } from '../../../../actions/Application';
-import Button from '../../../../components/common/button/Button';
 import Dialog from '../../../../components/common/dialog/Dialog';
 import { useFormatter } from '../../../../components/i18n';
 import type { SettingsEnterpriseEditionUpdateInput } from '../../../../utils/api-types';
@@ -57,9 +56,9 @@ const EnterpriseEditionAgreementDialog = () => {
       title={t('OpenAEV Enterprise Edition (EE) license agreement')}
       actions={(
         <>
-          <Button variant="secondary" onClick={onCloseEnterpriseEditionDialog}>{t('Cancel')}</Button>
+          <Button onClick={onCloseEnterpriseEditionDialog}>{t('Cancel')}</Button>
           <Button
-            variant="primary"
+            color="secondary"
             onClick={enableEnterpriseEdition}
             disabled={isEmptyField((enterpriseLicense))}
           >

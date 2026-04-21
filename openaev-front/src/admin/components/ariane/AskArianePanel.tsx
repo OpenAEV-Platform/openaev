@@ -2,6 +2,7 @@ import '@filigran/chatbot/styles.css';
 
 import { type ChatMode, ChatPanel } from '@filigran/chatbot';
 import { SvgIcon } from '@mui/material';
+import type { Theme } from '@mui/material/styles';
 import { useTheme } from '@mui/material/styles';
 import { LogoXtmOneIcon } from 'filigran-icon';
 import type React from 'react';
@@ -9,7 +10,6 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import { useFormatter } from '../../../components/i18n';
-import type { Theme } from '../../../components/Theme';
 import useAuth from '../../../utils/hooks/useAuth';
 
 interface AskArianePanelProps {

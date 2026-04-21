@@ -1,10 +1,9 @@
-import { Dialog as MuiDialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
+import { Button, Dialog as MuiDialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import { type FunctionComponent, useContext, useState } from 'react';
 
 import { type OrganizationHelper, type UserHelper } from '../../../../actions/helper';
 import { type TagHelper } from '../../../../actions/tags/tag-helper';
 import { deletePlayer, updatePlayer } from '../../../../actions/users/User';
-import Button from '../../../../components/common/button/Button';
 import ButtonPopover from '../../../../components/common/ButtonPopover';
 import DialogDelete from '../../../../components/common/DialogDelete';
 import Drawer from '../../../../components/common/Drawer';
@@ -179,8 +178,8 @@ const PlayerPopover: FunctionComponent<PlayerPopoverProps> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="secondary" onClick={handleCloseRemove}>{t('Cancel')}</Button>
-          <Button variant="primary" onClick={submitRemove}>
+          <Button onClick={handleCloseRemove}>{t('Cancel')}</Button>
+          <Button color="secondary" onClick={submitRemove}>
             {t('Remove')}
           </Button>
         </DialogActions>

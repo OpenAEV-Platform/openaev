@@ -1,10 +1,10 @@
 import {
+  DashboardOutlined,
   DescriptionOutlined,
   DevicesOtherOutlined,
   DnsOutlined,
   Groups3Outlined,
   GroupsOutlined,
-  Home,
   HubOutlined,
   InsertChartOutlined,
   LayersOutlined,
@@ -44,7 +44,7 @@ const LeftBar = () => {
       items: [
         {
           path: `/admin`,
-          icon: () => (<Home />),
+          icon: () => (<DashboardOutlined />),
           label: 'Home',
           userRight: true,
         },

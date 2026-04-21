@@ -1,7 +1,5 @@
-import { Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
 import type React from 'react';
-
-import Button from '../../../../../components/common/button/Button';
 
 interface ConfirmationDialogProps {
   open: boolean;
@@ -37,10 +35,10 @@ const XtmHubConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
         </DialogContentText>
       </DialogContent>
       <DialogActions>
-        <Button variant="secondary" onClick={onCancel}>
+        <Button onClick={onCancel} color="primary">
           {cancelButtonText}
         </Button>
-        <Button variant="primary" intent="destructive" onClick={onConfirm}>
+        <Button onClick={onConfirm} color="error" variant="contained" autoFocus>
           {confirmButtonText}
         </Button>
       </DialogActions>

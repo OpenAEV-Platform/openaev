@@ -1,30 +1,19 @@
-import { alpha, darken, lighten, type ThemeOptions } from '@mui/material';
-import { buttonClasses } from '@mui/material';
+import { buttonClasses, type ThemeOptions } from '@mui/material';
 
 import LogoCollapsed from '../static/images/logo_dark.png';
 import LogoText from '../static/images/logo_text_dark.png';
 import { hexToRGB } from '../utils/Colors';
 import { fileUri } from '../utils/Environment';
-import { type LabelColor, LabelColorDict } from './Theme';
+import { FONT_FAMILY_CODE, type LabelColor, LabelColorDict } from './Theme';
 
-const EE_COLOR = '#00f18d';
+const EE_COLOR = '#00f1bd';
 
 export const THEME_DARK_DEFAULT_BACKGROUND = '#070d19';
-const THEME_DARK_DEFAULT_BODY_END_GRADIENT = '#08101D';
-export const THEME_DARK_DEFAULT_PRIMARY = '#0fbcff';
-export const THEME_DARK_DEFAULT_SECONDARY = '#00f18d';
-export const THEME_DARK_DEFAULT_ACCENT = '#0f1e38';
-export const THEME_DARK_DEFAULT_PAPER = '#09101e';
-export const THEME_DARK_DEFAULT_TEXT = '#F2F2F3';
+const THEME_DARK_DEFAULT_PRIMARY = '#0fbcff';
+const THEME_DARK_DEFAULT_SECONDARY = '#00f1bd';
+const THEME_DARK_DEFAULT_ACCENT = '#0f1e38';
+const THEME_DARK_DEFAULT_PAPER = '#09101e';
 const THEME_DARK_DEFAULT_NAV = '#070d19';
-export const THEME_DARK_DIALOG_BACKGROUND = '#0F1D34';
-
-const getAppBodyGradientEndColor = (background: string | null): string => {
-  if (background && background !== THEME_DARK_DEFAULT_BACKGROUND) {
-    return lighten(background, 0.05);
-  }
-  return THEME_DARK_DEFAULT_BODY_END_GRADIENT;
-};
 
 const ThemeDark = (
   logo: string | null = null,
@@ -35,7 +24,7 @@ const ThemeDark = (
   primary: string | null = null,
   secondary: string | null = null,
   accent: string | null = null,
-  text_color = THEME_DARK_DEFAULT_TEXT,
+  text_color = '#ffffff',
 ): ThemeOptions => ({
   logo: logo || fileUri(LogoText),
   logo_collapsed: logo_collapsed || fileUri(LogoCollapsed),
@@ -44,67 +33,71 @@ const ThemeDark = (
     mode: 'dark',
     common: {
       white: '#ffffff',
-      grey: '#95969D',
-      lightGrey: '#E4E5E7',
+      black: '#000000',
+      grey: '#7A7C85',
+      lightGrey: '#ffffffb3',
     },
     error: {
-      main: '#F14337',
-      dark: '#881106',
+      main: '#f44336',
+      dark: '#c62828',
     },
-    warn: { main: '#E6700F' },
+    warn: { main: '#ffa726' },
     dangerZone: {
-      main: '#F44336',
-      light: '#F8958C',
-      dark: '#881106',
+      main: '#f6685e',
+      light: '#fbc2be',
+      dark: '#f44336',
       contrastText: '#000000',
     },
-    success: {
-      main: '#17AB1F',
-      dark: '#094E0B',
-    },
-    primary: {
-      main: primary || THEME_DARK_DEFAULT_PRIMARY,
-      light: primary ? alpha(primary, 0.08) : '#B2ECFF',
-    },
+    success: { main: '#03a847' },
+    warning: { main: '#ffa726' },
+    primary: { main: primary || THEME_DARK_DEFAULT_PRIMARY },
     secondary: { main: secondary || THEME_DARK_DEFAULT_SECONDARY },
-    gradient: { main: '#00f18d' },
+    gradient: { main: '#00f1bd' },
     border: {
-      primary: hexToRGB((primary || THEME_DARK_DEFAULT_PRIMARY), 0.3),
-      secondary: '#424751',
+      primary: hexToRGB(primary || THEME_DARK_DEFAULT_PRIMARY, 0.3),
+      secondary: hexToRGB(secondary || THEME_DARK_DEFAULT_SECONDARY, 0.3),
       pagination: hexToRGB('#ffffff', 0.5),
       paper: hexToRGB('#ffffff', 0.12),
-      main: '#252A35',
     },
     pagination: { main: '#ffffff' },
     chip: { main: '#ffffff' },
+    labelChipMap: new Map<string, LabelColor>([
+      [
+        LabelColorDict.Red, {
+          backgroundColor: 'rgba(244, 67, 54, 0.08)',
+          color: '#f44336',
+        }], [
+        LabelColorDict.Green, {
+          backgroundColor: 'rgba(76, 175, 80, 0.08)',
+          color: '#4caf50',
+        }], [
+        LabelColorDict.Orange, {
+          backgroundColor: 'rgba(246,177,27,0.08)',
+          color: '#f19710',
+        }],
+    ]),
     ai: {
-      main: '#B286FF',
-      light: '#D6C2FA',
-      dark: '#5E1AD5',
+      main: '#9575cd',
+      light: '#d1c4e9',
+      dark: '#673ab7',
       contrastText: '#000000',
-      background: 'rgba(28, 47, 73, 0.94)',
     },
     ee: {
       main: EE_COLOR,
-      contrastText: THEME_DARK_DEFAULT_TEXT,
+      contrastText: '#ffffff',
       background: hexToRGB(EE_COLOR, 0.2),
       lightBackground: hexToRGB(EE_COLOR, 0.08),
     },
     xtmhub: { main: '#00f1bd' },
-    labelChipMap: new Map<string, LabelColor>([
-      [LabelColorDict.Red, {
-        backgroundColor: 'rgba(241, 67, 55, 0.2)',
-        color: '#F14337',
-      }],
-      [LabelColorDict.Green, {
-        backgroundColor: 'rgba(23, 171, 31, 0.2)',
-        color: '#17AB1F',
-      }],
-      [LabelColorDict.Orange, {
-        backgroundColor: 'rgba(230, 112, 15, 0.2)',
-        color: '#E6700F',
-      }],
-    ]),
+    background: {
+      default: background || THEME_DARK_DEFAULT_BACKGROUND,
+      paper: paper || THEME_DARK_DEFAULT_PAPER,
+      nav: nav || THEME_DARK_DEFAULT_NAV,
+      accent: accent || THEME_DARK_DEFAULT_ACCENT,
+      shadow: 'rgba(200, 200, 200, 0.15)',
+      code: accent || THEME_DARK_DEFAULT_ACCENT,
+      paperInCard: paper || THEME_DARK_DEFAULT_PAPER,
+    },
     widgets: {
       securityDomains: {
         colors: {
@@ -115,172 +108,6 @@ const ThemeDark = (
           pending: 'rgba(248,243,243,0.74)',
           unknown: 'rgba(73,72,72,0.37)',
         },
-      },
-    },
-    background: {
-      default: background || THEME_DARK_DEFAULT_BACKGROUND,
-      paper: paper || THEME_DARK_DEFAULT_PAPER,
-      nav: nav || THEME_DARK_DEFAULT_NAV,
-      accent: accent || THEME_DARK_DEFAULT_ACCENT,
-      shadow: 'rgba(200, 200, 200, 0.15)',
-      secondary: paper === THEME_DARK_DEFAULT_PAPER
-        ? '#0C1524'
-        : (paper ?? '#0C1524'),
-      drawer: nav === THEME_DARK_DEFAULT_NAV
-        ? '#0f1d34'
-        : (darken(nav ?? '#0f1d34', 0.5)),
-      disabled: '#363B46',
-      gradient: {
-        start: background || THEME_DARK_DEFAULT_BACKGROUND,
-        end: getAppBodyGradientEndColor(background),
-      },
-      code: accent || THEME_DARK_DEFAULT_ACCENT,
-      paperInCard: paper || THEME_DARK_DEFAULT_PAPER,
-    },
-    text: {
-      secondary: THEME_DARK_DEFAULT_TEXT,
-      tertiary: '#848592',
-      light: '#AFB0B6',
-      disabled: '#75829A',
-    },
-    leftBar: {
-      header: { itemBackground: '#253348' },
-      popoverItem: '#070D19',
-      hover: '#253348',
-      text: '#F2F2F3',
-    },
-    severity: {
-      critical: '#EE3838',
-      high: '#E6700F',
-      medium: '#E1B823',
-      low: '#16AD34',
-      info: '#1565c0',
-      none: '#424242',
-      default: '#1C2F49',
-    },
-    designSystem: {
-      primary: {
-        main: '#0FBCFF',
-        light: '#B2ECFF',
-        dark: '#007399',
-      },
-      secondary: {
-        main: '#00F1BD',
-        light: '#BDFFED',
-        dark: '#009474',
-      },
-      destructive: {
-        main: '#F44336',
-        light: '#F8958C',
-        dark: '#881106',
-      },
-      ia: {
-        main: '#B286FF',
-        light: '#D6C2FA',
-        dark: '#5E1AD5',
-      },
-      background: {
-        main: '#070D19',
-        bg1: '#0C1524',
-        bg2: '#0D182A',
-        bg3: '#253348',
-        bg4: '#1C2F49',
-        disabled: '#363B46',
-      },
-      border: {
-        main: '#2B3447',
-        border1: '#424751',
-        border2: '#1C253A',
-      },
-      gradient: {
-        background: 'linear-gradient(100.35deg, #070D19 0%, #08101d 100%)',
-        ia: 'linear-gradient(90deg, #D6C2FA 0.67%, #B286FF 100.67%)',
-        focus: 'linear-gradient(90deg, #0FBCFF -3.68%, #00F1BD 106.62%)',
-      },
-      alert: {
-        info: {
-          primary: '#4DCCFF',
-          secondary: '#004C66',
-        },
-        success: {
-          primary: '#17AB1F',
-          secondary: '#094E0B',
-          tertiary: '#75F8B9',
-        },
-        alert: {
-          primary: '#F2BE3A',
-          secondary: '#573E05',
-        },
-        warning: {
-          primary: '#E6700F',
-          secondary: '#884106',
-        },
-        error: {
-          primary: '#F14337',
-          secondary: '#881106',
-        },
-      },
-      tertiary: {
-        grey: {
-          400: '#95969D',
-          700: '#494A50',
-          800: '#313235',
-        },
-        blue: {
-          500: '#0099CC',
-          900: '#003242',
-        },
-        darkBlue: {
-          300: '#7587FF',
-          500: '#0F2DFF',
-        },
-        turquoise: {
-          600: '#00BD94',
-          800: '#005744',
-        },
-        green: {
-          400: '#41E149',
-          600: '#17AB1F',
-          800: '#094E0B',
-        },
-        red: {
-          100: '#FBCBC5',
-          200: '#F8958C',
-          400: '#F14337',
-          500: '#E51E10',
-          600: '#B8180A',
-          700: '#881106',
-        },
-        orange: {
-          400: '#F2933A',
-          500: '#E6700F',
-        },
-        yellow: { 400: '#F2BE3A' },
-      },
-    },
-  },
-  tag: { overflowColor: primary || THEME_DARK_DEFAULT_PRIMARY },
-  button: {
-    sizes: {
-      default: {
-        height: '36px',
-        padding: '8px 16px',
-        minWidth: '36px',
-        width: '36px',
-        fontSize: '14px',
-        fontWeight: 600,
-        lineHeight: '21px',
-        iconSize: '16px',
-      },
-      small: {
-        height: '26px',
-        padding: '4px 12px',
-        minWidth: '26px',
-        width: '26px',
-        fontSize: '13px',
-        fontWeight: 600,
-        lineHeight: '21px',
-        iconSize: '14px',
       },
     },
   },
@@ -300,88 +127,63 @@ const ThemeDark = (
       color: text_color,
     },
     h1: {
-      'margin': '0 0 10px 0',
-      'padding': 0,
-      'fontWeight': 400,
-      'fontSize': 22,
-      'fontFamily': '"Geologica", sans-serif',
-      'color': text_color,
-      'textTransform': 'lowercase',
-      '&::first-letter': { textTransform: 'uppercase' },
+      margin: '0 0 10px 0',
+      padding: 0,
+      fontWeight: 400,
+      fontSize: 22,
+      fontFamily: '"Geologica", sans-serif',
+      color: text_color,
     },
     h2: {
-      'margin': '0 0 10px 0',
-      'padding': 0,
-      'fontWeight': 500,
-      'fontSize': 16,
-      'fontFamily': '"Geologica", sans-serif',
-      'color': text_color,
-      'textTransform': 'lowercase',
-      '&::first-letter': { textTransform: 'uppercase' },
+      margin: '0 0 10px 0',
+      padding: 0,
+      fontWeight: 500,
+      fontSize: 16,
+      textTransform: 'uppercase',
+      fontFamily: '"Geologica", sans-serif',
+      color: text_color,
     },
     h3: {
-      'margin': '0 0 10px 0',
-      'padding': 0,
-      'fontWeight': 400,
-      'fontSize': 13,
-      'fontFamily': '"Geologica", sans-serif',
-      'color': text_color,
-      'textTransform': 'lowercase',
-      '&::first-letter': { textTransform: 'uppercase' },
+      margin: '0 0 10px 0',
+      padding: 0,
+      fontWeight: 400,
+      fontSize: 13,
+      fontFamily: '"Geologica", sans-serif',
+      color: text_color,
     },
     h4: {
-      'height': 15,
-      'margin': '0 0 10px 0',
-      'padding': 0,
-      'fontSize': 12,
-      'fontWeight': 500,
-      'color': text_color,
-      'textTransform': 'lowercase',
-      '&::first-letter': { textTransform: 'uppercase' },
+      height: 15,
+      margin: '0 0 10px 0',
+      padding: 0,
+      textTransform: 'uppercase',
+      fontSize: 12,
+      fontWeight: 500,
+      color: text_color,
     },
     h5: {
-      'fontWeight': 700,
-      'fontSize': 16,
-      'color': text_color,
-      'fontFamily': '"Geologica", sans-serif',
-      'textTransform': 'lowercase',
-      '&::first-letter': { textTransform: 'uppercase' },
+      fontWeight: 400,
+      fontSize: 13,
+      textTransform: 'uppercase',
+      marginTop: -4,
+      color: text_color,
     },
     h6: {
-      'fontWeight': 600,
-      'fontSize': 14,
-      'color': text_color,
-      'fontFamily': '"Geologica", sans-serif',
-      'textTransform': 'lowercase',
-      '&::first-letter': { textTransform: 'uppercase' },
+      fontWeight: 400,
+      fontSize: 18,
+      color: text_color,
+      fontFamily: '"Geologica", sans-serif',
     },
     subtitle2: {
-      'fontWeight': 400,
-      'fontSize': 18,
-      'color': text_color,
-      'textTransform': 'lowercase',
-      '&::first-letter': { textTransform: 'uppercase' },
+      fontWeight: 400,
+      fontSize: 18,
+      color: text_color,
     },
   },
   components: {
     MuiAccordion: { defaultProps: { slotProps: { transition: { unmountOnExit: true } } } },
-    MuiIconButton: {
-      styleOverrides: {
-        root: {
-          borderRadius: 4,
-          padding: 6,
-        },
-      },
-    },
     MuiButton: {
       styleOverrides: {
         root: {
-          'textTransform': 'none',
-          'fontFamily': '"IBM Plex Sans", sans-serif',
-          'fontWeight': 600,
-          'fontSize': '14px',
-          'lineHeight': '21px',
-          'borderRadius': 4,
           [`&.${buttonClasses.outlined}.${buttonClasses.sizeSmall}`]: { padding: '4px 9px' },
           '&.icon-outlined': {
             'borderColor': hexToRGB('#ffffff', 0.15),
@@ -395,57 +197,10 @@ const ThemeDark = (
         },
       },
     },
-    MuiDialog: {
-      styleOverrides: {
-        paper: {
-          backgroundImage: 'none',
-          backgroundColor: paper === THEME_DARK_DEFAULT_PAPER
-            ? '#0F1D34'
-            : (paper ?? '#0F1D34'),
-          borderRadius: 4,
-        },
-      },
-    },
-    MuiDialogTitle: { defaultProps: { variant: 'h5' } },
-    MuiDialogActions: {
-      styleOverrides: {
-        root: ({ theme }) => ({
-          'gap': theme.spacing(1),
-          'padding': theme.spacing(2, 3),
-          'marginTop': theme.spacing(2),
-          'marginLeft': 0,
-          '& .MuiButton-root': { textTransform: 'none' },
-          '& > :not(style) ~ :not(style)': { marginLeft: 0 },
-        }),
-      },
-    },
-    MuiToggleButtonGroup: {
-      defaultProps: { size: 'small' },
-      styleOverrides: {
-        root: {
-          'height': 36,
-          '& .MuiTouchRipple-root': { display: 'none' },
-          '& .MuiToggleButton-root': {
-            'border': '1px solid #2B3447',
-            'color': primary,
-            '&:focus-visible': {
-              outline: 'none',
-              boxShadow: '0 0 0 2px #BDFFED',
-            },
-            '&.Mui-selected': { backgroundColor: hexToRGB(primary || THEME_DARK_DEFAULT_PRIMARY, 0.25) },
-            '&:hover:not(.Mui-selected)': { backgroundColor: hexToRGB(primary || THEME_DARK_DEFAULT_PRIMARY, 0.15) },
-          },
-        },
-      },
-    },
     MuiTooltip: {
       styleOverrides: {
         tooltip: { backgroundColor: 'rgba(0,0,0,0.7)' },
         arrow: { color: 'rgba(0,0,0,0.7)' },
-        popper: {
-          'textTransform': 'lowercase',
-          '&::first-letter': { textTransform: 'uppercase' },
-        },
       },
     },
     MuiFormControl: {
@@ -454,50 +209,20 @@ const ThemeDark = (
     },
     MuiTextField: {
       defaultProps: { variant: 'standard' },
-      styleOverrides: {
-        root: {
-          'color': text_color,
-          '& .MuiFormLabel-root:not(.MuiInputLabel-shrink):not(.Mui-error)': { color: '#AFB0B6' },
-        },
-      },
+      styleOverrides: { root: { color: text_color } },
     },
     MuiSelect: {
       defaultProps: { variant: 'standard' },
-      styleOverrides: {
-        root: {
-          'color': text_color,
-          '& fieldset': { border: 'none' },
-        },
-        outlined: {
-          backgroundColor: paper === THEME_DARK_DEFAULT_PAPER
-            ? '#0C1524'
-            : (paper ?? '#0C1524'),
-        },
-      },
+      styleOverrides: { root: { color: text_color } },
     },
-    MuiPaper: {
-      styleOverrides: {
-        root: { color: text_color },
-        outlined: {
-          background: paper === THEME_DARK_DEFAULT_PAPER
-            ? '#0C1524'
-            : (paper ?? '#0C1524'),
-          borderColor: 'transparent',
-        },
-      },
-    },
+    MuiPaper: { styleOverrides: { root: { color: text_color } } },
     MuiCssBaseline: {
       styleOverrides: {
         html: {
           scrollbarColor: `${background || THEME_DARK_DEFAULT_BACKGROUND} ${accent || THEME_DARK_DEFAULT_ACCENT}`,
           scrollbarWidth: 'thin',
-          background: `linear-gradient(100deg, ${background || THEME_DARK_DEFAULT_BACKGROUND} 0%, ${getAppBodyGradientEndColor(background)} 100%)`,
-          backgroundAttachment: 'fixed',
-          backgroundColor: background || THEME_DARK_DEFAULT_BACKGROUND,
         },
         body: {
-          'background': `linear-gradient(100deg, ${background || THEME_DARK_DEFAULT_BACKGROUND} 0%, ${getAppBodyGradientEndColor(background)} 100%)`,
-          'backgroundAttachment': 'fixed',
           'scrollbarColor': `${background || THEME_DARK_DEFAULT_BACKGROUND} ${accent || THEME_DARK_DEFAULT_ACCENT}`,
           'scrollbarWidth': 'thin',
           'html': { WebkitFontSmoothing: 'auto' },
@@ -513,18 +238,18 @@ const ThemeDark = (
             borderTopRightRadius: 'inherit',
           },
           'pre': {
-            fontFamily: 'Consolas, monaco, monospace',
+            fontFamily: FONT_FAMILY_CODE,
             color: `${text_color} !important`,
             background: `${accent || THEME_DARK_DEFAULT_ACCENT} !important`,
             borderRadius: 4,
           },
           'pre.light': {
-            fontFamily: 'Consolas, monaco, monospace',
+            fontFamily: FONT_FAMILY_CODE,
             background: `${nav || THEME_DARK_DEFAULT_NAV} !important`,
             borderRadius: 4,
           },
           'code': {
-            fontFamily: 'Consolas, monaco, monospace',
+            fontFamily: FONT_FAMILY_CODE,
             color: `${text_color} !important`,
             background: `${accent || THEME_DARK_DEFAULT_ACCENT} !important`,
             padding: 3,
@@ -542,14 +267,14 @@ const ThemeDark = (
           },
           '.error .w-md-editor': {
             'border': '0 !important',
-            'borderBottom': '2px solid #F14337 !important',
+            'borderBottom': '2px solid #f44336 !important',
             '&:hover': {
               border: '0 !important',
-              borderBottom: '2px solid #F14337 !important',
+              borderBottom: '2px solid #f44336 !important',
             },
             '&:focus': {
               border: '0 !important',
-              borderBottom: '2px solid #F14337 !important',
+              borderBottom: '2px solid #f44336 !important',
             },
           },
           '.w-md-editor-toolbar': {
@@ -600,60 +325,18 @@ const ThemeDark = (
         root: {
           '&.Mui-selected': {
             boxShadow: `2px 0 ${primary || THEME_DARK_DEFAULT_PRIMARY} inset`,
-            backgroundColor: `${hexToRGB(primary || THEME_DARK_DEFAULT_PRIMARY, 0.24)}`,
+            backgroundColor: hexToRGB(primary || THEME_DARK_DEFAULT_PRIMARY, 0.24),
           },
           '&.Mui-selected:hover': {
             boxShadow: `2px 0 ${primary || THEME_DARK_DEFAULT_PRIMARY} inset`,
-            backgroundColor: `${hexToRGB(primary || THEME_DARK_DEFAULT_PRIMARY, 0.32)}`,
+            backgroundColor: hexToRGB(primary || THEME_DARK_DEFAULT_PRIMARY, 0.32),
           },
         },
       },
     },
-    MuiTypography: {
-      styleOverrides: {
-        root: {
-          color: text_color,
-          textTransform: 'none',
-        },
-      },
-    },
+    MuiTypography: { styleOverrides: { root: { color: text_color } } },
     MuiInputBase: { styleOverrides: { root: { color: text_color } } },
-    MuiChip: {
-      styleOverrides: {
-        root: {
-          'color': text_color,
-          'textTransform': 'lowercase',
-          '&::first-letter': { textTransform: 'uppercase' },
-        },
-        label: {
-          'textTransform': 'lowercase',
-          '&::first-letter': { textTransform: 'uppercase' },
-        },
-      },
-    },
-    MuiTab: {
-      styleOverrides: {
-        root: {
-          'textTransform': 'lowercase',
-          'display': 'inline-block',
-          '&::first-letter': { textTransform: 'uppercase' },
-        },
-      },
-    },
-    MuiFab: { styleOverrides: { root: { textTransform: 'none' } } },
-    MuiAutocomplete: {
-      styleOverrides: {
-        root: {
-          '& .MuiFormLabel-root:not(.MuiInputLabel-shrink):not(.Mui-error)': { color: '#AFB0B6' },
-          '& .MuiOutlinedInput-root': {
-            'backgroundColor': paper === THEME_DARK_DEFAULT_PAPER
-              ? '#0C1524'
-              : (paper ?? '#0C1524'),
-            '& fieldset': { borderColor: 'transparent' },
-          },
-        },
-      },
-    },
+    MuiChip: { styleOverrides: { root: { color: text_color } } },
   },
 });
 

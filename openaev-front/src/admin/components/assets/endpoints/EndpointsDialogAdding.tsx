@@ -1,5 +1,5 @@
 import { DevicesOtherOutlined } from '@mui/icons-material';
-import { Box, Dialog, DialogActions, DialogContent, DialogTitle, Tooltip } from '@mui/material';
+import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { normalize } from 'normalizr';
 import { type FunctionComponent, useContext, useEffect, useMemo, useState } from 'react';
@@ -8,7 +8,6 @@ import { arrayOfEndpoints } from '../../../../actions/assets/asset-schema';
 import { findEndpoints, searchEndpoints } from '../../../../actions/assets/endpoint-actions';
 import { fetchExecutors } from '../../../../actions/executors/executor-action';
 import type { ExecutorHelper } from '../../../../actions/executors/executor-helper';
-import Button from '../../../../components/common/button/Button';
 import { buildFilter } from '../../../../components/common/queryable/filter/FilterUtils';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
@@ -258,9 +257,9 @@ const EndpointsDialogAdding: FunctionComponent<Props> = ({
         </Box>
       </DialogContent>
       <DialogActions>
-        <Button variant="secondary" onClick={handleClose}>{t('Cancel')}</Button>
+        <Button onClick={handleClose}>{t('Cancel')}</Button>
         {!isLoading && (
-          <Button variant="primary" onClick={handleSubmit}>
+          <Button color="secondary" onClick={handleSubmit}>
             {t('Update')}
           </Button>
         )}

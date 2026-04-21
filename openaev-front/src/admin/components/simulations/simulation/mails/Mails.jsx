@@ -41,6 +41,7 @@ import MailDistributionOverTimeLine from './MailDistributionOverTimeLine';
 const useStyles = makeStyles()(() => ({
   itemHead: {
     paddingLeft: 10,
+    textTransform: 'uppercase',
     cursor: 'pointer',
   },
   item: {
@@ -63,8 +64,9 @@ const useStyles = makeStyles()(() => ({
     fontSize: 12,
     height: 20,
     float: 'left',
+    textTransform: 'uppercase',
     borderRadius: 4,
-    backgroundColor: 'rgba(0, 177, 255, 0.2)',
+    backgroundColor: 'rgba(0, 177, 255, 0.08)',
     color: '#00b1ff',
     border: '1px solid #00b1ff',
   },
@@ -72,8 +74,9 @@ const useStyles = makeStyles()(() => ({
     fontSize: 12,
     height: 20,
     float: 'left',
+    textTransform: 'uppercase',
     borderRadius: 4,
-    backgroundColor: 'rgba(236, 64, 122, 0.2)',
+    backgroundColor: 'rgba(236, 64, 122, 0.08)',
     color: '#ec407a',
     border: '1px solid #ec407a',
   },

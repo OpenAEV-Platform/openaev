@@ -28,6 +28,7 @@ import DocumentType from '../documents/DocumentType';
 const useStyles = makeStyles()(() => ({
   itemHead: {
     paddingLeft: 10,
+    textTransform: 'uppercase',
     cursor: 'pointer',
   },
   item: {
@@ -413,7 +414,7 @@ const ChallengeForm = (props) => {
             </Button>
             <Button
               variant="contained"
-              color="primary"
+              color="secondary"
               type="submit"
               disabled={submitting || Object.keys(errors).length > 0}
             >

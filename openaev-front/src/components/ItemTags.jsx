@@ -1,16 +1,16 @@
-import { Chip, Tooltip } from '@mui/material';
+﻿import { Chip, Tooltip } from '@mui/material';
 import * as PropTypes from 'prop-types';
 import { useMemo } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { useHelper } from '../store';
+import { hexToRGB } from '../utils/Colors';
 import {
   getLabelOfRemainingItems,
   getRemainingItemsCount,
   getVisibleItems,
   truncate,
 } from '../utils/String';
-import Tag from './common/tag/Tag';
 
 const useStyles = makeStyles()(() => ({
   inline: {
@@ -36,6 +36,18 @@ const ItemTags = (props) => {
   const { tags, variant, limit = 2 } = props;
   const { classes } = useStyles();
 
+  let style = classes.tag;
+  let truncateLimit = 15;
+
+  if (variant === 'list') {
+    style = `${classes.tag} ${classes.tagInList}`;
+  }
+
+  if (variant === 'reduced-view') {
+    style = `${classes.tag} ${classes.tagInList}`;
+    truncateLimit = 6;
+  }
+
   const { allTags } = useHelper(helper => ({ allTags: helper.getTags() }));
 
   const resolvedTags = useMemo(
@@ -43,6 +55,7 @@ const ItemTags = (props) => {
     [allTags, tags],
   );
 
+  // 🔥 Remplacement de Ramda.sortWith / ascend / prop
   const orderedTags = useMemo(
     () =>
       [...resolvedTags].sort((a, b) =>
@@ -62,24 +75,23 @@ const ItemTags = (props) => {
     visibleTags,
   );
 
-  const truncateLimit = variant === 'reduced-view' ? 6 : 15;
-
   return (
     <div className={classes.inline}>
       {visibleTags.length > 0 ? (
         visibleTags.map(tag => (
-          <span
-            key={tag.tag_id}
-            style={{
-              marginRight: 7,
-              marginBottom: variant === 'list' || variant === 'reduced-view' ? 0 : 7,
-              display: 'inline-block',
-            }}
-          >
-            <Tag
-              label={truncate(tag.tag_name, truncateLimit)}
-              color={tag.tag_color}
-            />
+          <span key={tag.tag_id}>
+            <Tooltip title={tag.tag_name}>
+              <Chip
+                variant="outlined"
+                classes={{ root: style }}
+                label={truncate(tag.tag_name, truncateLimit)}
+                style={{
+                  color: tag.tag_color,
+                  borderColor: tag.tag_color,
+                  backgroundColor: hexToRGB(tag.tag_color),
+                }}
+              />
+            </Tooltip>
           </span>
         ))
       ) : (
@@ -90,7 +102,7 @@ const ItemTags = (props) => {
         <Tooltip title={tooltipLabel}>
           <Chip
             variant="outlined"
-            classes={{ root: variant === 'list' || variant === 'reduced-view' ? `${classes.tag} ${classes.tagInList}` : classes.tag }}
+            classes={{ root: style }}
             label={`+${remainingTagsCount}`}
           />
         </Tooltip>

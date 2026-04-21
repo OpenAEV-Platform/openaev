@@ -1,5 +1,5 @@
 import { FiberManualRecord } from '@mui/icons-material';
-import { Dialog, DialogActions, DialogContent, DialogContentText, List, ListItem, Typography } from '@mui/material';
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText, List, ListItem, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { useContext, useEffect, useState } from 'react';
@@ -7,7 +7,6 @@ import { useContext, useEffect, useState } from 'react';
 import { deleteDocument, updateDocument } from '../../../../actions/Document';
 import { fetchExercises } from '../../../../actions/Exercise';
 import { fetchScenarios } from '../../../../actions/scenarios/scenario-actions';
-import Button from '../../../../components/common/button/Button';
 import ButtonPopover from '../../../../components/common/ButtonPopover';
 import DialogDelete from '../../../../components/common/DialogDelete';
 import Drawer from '../../../../components/common/Drawer';
@@ -287,10 +286,10 @@ const DocumentPopover = (props) => {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="secondary" onClick={handleCloseRemove}>
+          <Button onClick={handleCloseRemove}>
             {t('Cancel')}
           </Button>
-          <Button variant="primary" onClick={submitRemove}>
+          <Button color="secondary" onClick={submitRemove}>
             {t('Remove')}
           </Button>
         </DialogActions>

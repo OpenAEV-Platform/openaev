@@ -76,7 +76,7 @@ const WidgetMultiSeriesSelection: FunctionComponent<{
           <Button
             variant="contained"
             disabled={getCurrentSeriesLimit(widgetType) === currentSeries.length}
-            color="primary"
+            color="secondary"
             onClick={handleAddSeries}
             style={{
               flex: 1,

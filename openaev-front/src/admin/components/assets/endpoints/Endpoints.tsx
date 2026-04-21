@@ -38,7 +38,7 @@ import EndpointPopover from './EndpointPopover';
 import ImportUploaderEndpoints from './ImportUploaderEndpoints';
 
 const useStyles = makeStyles()(() => ({
-  itemHead: {},
+  itemHead: { textTransform: 'uppercase' },
   item: { height: 50 },
 }));
 

@@ -21,7 +21,7 @@ import ContractOutputElementType from './ContractOutputElementType';
 import FindingDetail from './FindingDetail';
 
 const useStyles = makeStyles()(() => ({
-  itemHead: {},
+  itemHead: { textTransform: 'uppercase' },
   item: { height: 50 },
 }));
 

@@ -1,9 +1,9 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Button } from '@mui/material';
 import { type FunctionComponent } from 'react';
 import { type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import Button from '../../../../../components/common/button/Button';
 import TextField from '../../../../../components/fields/TextField';
 import { useFormatter } from '../../../../../components/i18n';
 import { type LessonsTemplateCategoryInput } from '../../../../../utils/api-types';
@@ -96,14 +96,15 @@ const LessonsTemplateCategoryForm: FunctionComponent<Props> = ({
       }}
       >
         <Button
-          variant="secondary"
+          variant="contained"
           onClick={handleClose}
           disabled={isSubmitting}
         >
           {t('Cancel')}
         </Button>
         <Button
-          variant="primary"
+          variant="contained"
+          color="secondary"
           type="submit"
           disabled={!isDirty || isSubmitting}
         >

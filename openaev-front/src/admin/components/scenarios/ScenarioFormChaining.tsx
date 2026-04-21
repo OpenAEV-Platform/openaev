@@ -2,11 +2,14 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { ExpandMore } from '@mui/icons-material';
 import {
   Accordion,
-  AccordionDetails, AccordionSummary,
+  AccordionDetails,
+  AccordionSummary,
   Autocomplete,
+  Button,
   Chip,
   MenuItem,
-  TextField as MuiTextField, Typography,
+  TextField as MuiTextField,
+  Typography,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useState } from 'react';
@@ -14,7 +17,6 @@ import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
 import type { LoggedHelper } from '../../../actions/helper';
-import Button from '../../../components/common/button/Button';
 import SelectField from '../../../components/fields/SelectField';
 import TagField from '../../../components/fields/TagField';
 import TextField from '../../../components/fields/TextField';
@@ -84,6 +86,7 @@ const ScenarioFormChaining: FunctionComponent<Props> = ({
           display: 'flex',
           flexDirection: 'column',
           gap: theme.spacing(2),
+          marginTop: theme.spacing(3),
         }}
         id="scenarioForm"
         onSubmit={handleSubmit((data: ScenarioInput) => onSubmit(data, false))}
@@ -322,14 +325,15 @@ const ScenarioFormChaining: FunctionComponent<Props> = ({
         }}
         >
           <Button
-            variant="secondary"
+            variant="contained"
             onClick={handleClose}
             disabled={isSubmitting}
           >
             {t('Cancel')}
           </Button>
           <Button
-            variant="primary"
+            variant="contained"
+            color="secondary"
             type="submit"
             disabled={!isDirty || isSubmitting}
           >

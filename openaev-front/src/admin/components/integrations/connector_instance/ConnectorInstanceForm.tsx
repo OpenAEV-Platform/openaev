@@ -1,13 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { InfoOutlined } from '@mui/icons-material';
-import { AccordionDetails, Tooltip, Typography } from '@mui/material';
+import { AccordionDetails, Button, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FormEvent, useMemo } from 'react';
 import { FormProvider, type SubmitHandler, useFieldArray, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
 import { Accordion, AccordionSummary } from '../../../../components/common/Accordion';
-import Button from '../../../../components/common/button/Button';
 import TextField from '../../../../components/fields/TextField';
 import TextFieldController from '../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../components/i18n';
@@ -326,14 +325,15 @@ const ConnectorInstanceForm = ({
         }}
         >
           <Button
-            variant="primary"
+            variant="contained"
+            color="secondary"
             type="submit"
             disabled={isSubmitting || disabled}
           >
             {t(getActionLabel())}
           </Button>
           <Button
-            variant="secondary"
+            variant="contained"
             onClick={onClose}
             disabled={isSubmitting}
           >

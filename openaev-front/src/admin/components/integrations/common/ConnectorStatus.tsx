@@ -13,6 +13,7 @@ const useStyles = makeStyles()(theme => ({
     padding: theme.spacing(2),
     fontSize: 12,
     height: 20,
+    textTransform: 'uppercase',
     borderRadius: 4,
     display: 'flex',
     alignItems: 'center',

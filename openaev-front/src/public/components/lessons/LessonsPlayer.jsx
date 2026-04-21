@@ -1,4 +1,4 @@
-import { Dialog, DialogActions, DialogContent, DialogContentText, GridLegacy, Paper, Typography } from '@mui/material';
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText, GridLegacy, Paper, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { useContext, useState } from 'react';
@@ -7,7 +7,6 @@ import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { ViewLessonContext } from '../../../admin/components/common/Context';
-import Button from '../../../components/common/button/Button';
 import Transition from '../../../components/common/Transition';
 import Empty from '../../../components/Empty';
 import OldTextField from '../../../components/fields/OldTextField';
@@ -79,7 +78,7 @@ const LessonsPlayer = (props) => {
       <div className={classes.root}>
         {permissions.isLoggedIn && permissions.canAccess && (
           <Button
-            color="primary"
+            color="secondary"
             variant="outlined"
             component={Link}
             to={`/lessons/${source.type}/${source.id}?user=${source.finalUserId}&preview=true`}
@@ -246,7 +245,7 @@ const LessonsPlayer = (props) => {
                   }}
                   >
                     <Button
-                      color="primary"
+                      color="secondary"
                       variant="contained"
                       onClick={() => setOpenValidate(true)}
                       disabled={lessonsAnswers.length > 0 || submitting || source.isUserAbsent}
@@ -269,14 +268,13 @@ const LessonsPlayer = (props) => {
                   </DialogContent>
                   <DialogActions>
                     <Button
-                      variant="secondary"
                       onClick={() => setOpenValidate(false)}
                       disabled={submitting}
                     >
                       {t('Cancel')}
                     </Button>
                     <Button
-                      variant="primary"
+                      color="secondary"
                       onClick={handleSubmit}
                       disabled={submitting}
                     >

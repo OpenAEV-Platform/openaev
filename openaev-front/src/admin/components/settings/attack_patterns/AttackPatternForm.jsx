@@ -1,7 +1,7 @@
+import { Button } from '@mui/material';
 import * as PropTypes from 'prop-types';
 import { Form } from 'react-final-form';
 
-import Button from '../../../../components/common/button/Button';
 import OldTextField from '../../../../components/fields/OldTextField';
 import { useFormatter } from '../../../../components/i18n';
 import KillChainPhaseField from '../../../../components/KillChainPhaseField';
@@ -66,7 +66,7 @@ const AttackPatternForm = (props) => {
           }}
           >
             <Button
-              variant="secondary"
+              variant="contained"
               onClick={handleClose}
               style={{ marginRight: 10 }}
               disabled={submitting}
@@ -74,7 +74,8 @@ const AttackPatternForm = (props) => {
               {t('Cancel')}
             </Button>
             <Button
-              variant="primary"
+              variant="contained"
+              color="secondary"
               type="submit"
               disabled={pristine || submitting}
             >

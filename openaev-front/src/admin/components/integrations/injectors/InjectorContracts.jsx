@@ -18,6 +18,7 @@ const useStyles = makeStyles()(() => ({
   list: { marginTop: 10 },
   itemHead: {
     paddingLeft: 10,
+    textTransform: 'uppercase',
     cursor: 'pointer',
   },
   item: {
@@ -32,6 +33,7 @@ const useStyles = makeStyles()(() => ({
     fontSize: 12,
     height: 20,
     float: 'left',
+    textTransform: 'uppercase',
     borderRadius: 4,
     marginRight: 5,
   },

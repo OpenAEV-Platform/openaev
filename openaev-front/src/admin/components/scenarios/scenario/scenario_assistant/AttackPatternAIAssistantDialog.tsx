@@ -175,7 +175,7 @@ const AttackPatternAIAssistantDialog = ({ open, onClose, onAttackPatternIdsFind 
           </Button>
           <Button
             variant="contained"
-            color="primary"
+            color="secondary"
             onClick={onSubmit}
             disabled={isLoading || (files.length === 0 && text.trim() === '')}
           >

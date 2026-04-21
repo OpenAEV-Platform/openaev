@@ -93,7 +93,11 @@ const CommandsInfoCard = ({ payloadOutput }: Props) => {
       {payloadOutput.payload_arguments?.length === 0 ? '-' : (
         <TableContainer className={classes.tableContainer} component={Paper}>
           <Table sx={{ minWidth: 650 }} aria-label="Table to show payload's arguments">
-            <TableHead sx={{ fontWeight: 'bold' }}>
+            <TableHead sx={{
+              textTransform: 'uppercase',
+              fontWeight: 'bold',
+            }}
+            >
               <TableCell>{t('Type')}</TableCell>
               {isChainingEnabled && <TableCell>{t('Sub-type')}</TableCell>}
               <TableCell>{t('Key')}</TableCell>
@@ -119,7 +123,11 @@ const CommandsInfoCard = ({ payloadOutput }: Props) => {
       {payloadOutput.payload_prerequisites?.length === 0 ? '-' : (
         <TableContainer className={classes.tableContainer} component={Paper}>
           <Table sx={{ minWidth: 650 }} aria-label="Table to show payload's prerequisites">
-            <TableHead sx={{ fontWeight: 'bold' }}>
+            <TableHead sx={{
+              textTransform: 'uppercase',
+              fontWeight: 'bold',
+            }}
+            >
               <TableCell width="30%">{t('Command executor')}</TableCell>
               <TableCell width="30%">{t('Get command')}</TableCell>
               <TableCell width="30%">{t('Check command')}</TableCell>
