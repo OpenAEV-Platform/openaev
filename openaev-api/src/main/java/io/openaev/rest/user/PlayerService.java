@@ -118,7 +118,6 @@ public class PlayerService {
     return savedUser;
   }
 
-  // TODO delete update player front + check Romuald's PR
   public User upsertPlayer(@Valid @RequestBody PlayerInput input) {
     Optional<User> user = userRepository.findByEmailIgnoreCase(input.getEmail());
     if (user.isPresent()) {
