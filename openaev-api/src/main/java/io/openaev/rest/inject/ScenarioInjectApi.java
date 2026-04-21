@@ -93,9 +93,9 @@ public class ScenarioInjectApi extends RestBehavior {
 
   @GetMapping(SCENARIO_URI + "/{scenarioId}/injects/{injectId}")
   @RBAC(
-      resourceId = "#scenarioId",
+      resourceId = "#injectId",
       actionPerformed = Action.READ,
-      resourceType = ResourceType.SCENARIO)
+      resourceType = ResourceType.INJECT)
   public Inject scenarioInject(
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String injectId) {
