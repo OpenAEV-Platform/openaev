@@ -6,11 +6,11 @@ import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.xtmhub.XtmHubRegistrationStatus;
 import jakarta.persistence.*;
-import org.hibernate.annotations.Filter;
 import java.time.LocalDateTime;
 import java.util.Objects;
 import lombok.Data;
 import lombok.Getter;
+import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UuidGenerator;
 
 @Data
