@@ -6,6 +6,7 @@ import {
   AccordionSummary,
   Alert, AlertTitle, Autocomplete, Button, Chip, GridLegacy, MenuItem, TextField as MuiTextField, Typography,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { DateTimePicker as MuiDateTimePicker } from '@mui/x-date-pickers';
 import { type FunctionComponent, useState } from 'react';
 import { Controller, type SubmitHandler, useForm } from 'react-hook-form';
@@ -55,6 +56,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
 }) => {
   // Standard hooks
   const { t } = useFormatter();
+  const theme = useTheme();
   const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
   const [inputValue, setInputValue] = useState('');
 
@@ -89,7 +91,16 @@ const ExerciseForm: FunctionComponent<Props> = ({
   });
 
   return (
-    <form id="exerciseForm" onSubmit={handleSubmit(onSubmit)}>
+    <form
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: theme.spacing(2),
+        marginTop: theme.spacing(3),
+      }}
+      id="exerciseForm"
+      onSubmit={handleSubmit(onSubmit)}
+    >
       <Typography
         variant="h2"
         gutterBottom
@@ -101,7 +112,6 @@ const ExerciseForm: FunctionComponent<Props> = ({
         variant="standard"
         fullWidth
         label={t('Name')}
-        style={{ marginTop: 20 }}
         error={!!errors.exercise_name}
         helperText={errors.exercise_name?.message}
         inputProps={register('exercise_name')}
@@ -118,7 +128,6 @@ const ExerciseForm: FunctionComponent<Props> = ({
             fullWidth={true}
             name="exercise_category"
             label={t('Category')}
-            style={{ marginTop: 20 }}
             error={!!errors.exercise_category}
             control={control}
             defaultValue={initialValues.exercise_category}
@@ -136,7 +145,6 @@ const ExerciseForm: FunctionComponent<Props> = ({
             fullWidth={true}
             name="exercise_main_focus"
             label={t('Main focus')}
-            style={{ marginTop: 20 }}
             error={!!errors.exercise_main_focus}
             control={control}
             defaultValue={initialValues.exercise_main_focus}
@@ -168,7 +176,6 @@ const ExerciseForm: FunctionComponent<Props> = ({
         fullWidth={true}
         name="exercise_severity"
         label={t('Severity')}
-        style={{ marginTop: 20 }}
         error={!!errors.exercise_severity}
         control={control}
         defaultValue={initialValues.exercise_severity}
@@ -192,7 +199,6 @@ const ExerciseForm: FunctionComponent<Props> = ({
         multiline
         rows={2}
         label={t('Description')}
-        style={{ marginTop: 20 }}
         error={!!errors.exercise_description}
         helperText={errors.exercise_description?.message}
         inputProps={register('exercise_description')}
@@ -214,7 +220,6 @@ const ExerciseForm: FunctionComponent<Props> = ({
                   textField: {
                     variant: 'standard',
                     fullWidth: true,
-                    style: { marginTop: 20 },
                     error: !!errors.exercise_start_date,
                     helperText: errors.exercise_start_date?.message,
                   },
@@ -235,7 +240,6 @@ const ExerciseForm: FunctionComponent<Props> = ({
             fieldValue={value ?? []}
             fieldOnChange={onChange}
             error={error}
-            style={{ marginTop: 20 }}
           />
         )}
       />
@@ -258,13 +262,13 @@ const ExerciseForm: FunctionComponent<Props> = ({
           <AccordionDetails sx={{
             display: 'flex',
             flexDirection: 'column',
+            gap: theme.spacing(2),
           }}
           >
             <MuiTextField
               variant="standard"
               fullWidth
               label={t('Sender email address')}
-              style={{ marginTop: 20 }}
               value={settings.default_mailer ?? ''}
               disabled
             />
@@ -272,7 +276,6 @@ const ExerciseForm: FunctionComponent<Props> = ({
               variant="standard"
               fullWidth
               label={t('Sender email from')}
-              style={{ marginTop: 20 }}
               error={!!errors.exercise_mail_from_name}
               helperText={errors.exercise_mail_from_name?.message}
               inputProps={register('exercise_mail_from_name')}
@@ -323,7 +326,6 @@ const ExerciseForm: FunctionComponent<Props> = ({
                         {...params}
                         variant="standard"
                         label={t('Reply to')}
-                        style={{ marginTop: 20 }}
                         error={!!fieldState.error}
                         helperText={errors.exercise_mails_reply_to?.find ? errors.exercise_mails_reply_to?.find(value => value != null)?.message ?? '' : ''}
                       />
@@ -348,7 +350,6 @@ const ExerciseForm: FunctionComponent<Props> = ({
               variant="standard"
               fullWidth
               label={t('Messages header')}
-              style={{ marginTop: 20 }}
               error={!!errors.exercise_message_header}
               helperText={errors.exercise_message_header?.message}
               inputProps={register('exercise_message_header')}
@@ -358,7 +359,6 @@ const ExerciseForm: FunctionComponent<Props> = ({
               variant="standard"
               fullWidth
               label={t('Messages footer')}
-              style={{ marginTop: 20 }}
               error={!!errors.exercise_message_footer}
               helperText={errors.exercise_message_footer?.message}
               inputProps={register('exercise_message_footer')}
@@ -368,14 +368,14 @@ const ExerciseForm: FunctionComponent<Props> = ({
         </Accordion>
       )}
       <div style={{
-        float: 'right',
-        marginTop: 20,
+        display: 'flex',
+        justifyContent: 'flex-end',
+        gap: theme.spacing(1),
       }}
       >
         <Button
           variant="contained"
           onClick={handleClose}
-          style={{ marginRight: 10 }}
           disabled={isSubmitting}
         >
           {t('Cancel')}

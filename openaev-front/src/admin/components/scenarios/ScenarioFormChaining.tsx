@@ -86,6 +86,7 @@ const ScenarioFormChaining: FunctionComponent<Props> = ({
           display: 'flex',
           flexDirection: 'column',
           gap: theme.spacing(2),
+          marginTop: theme.spacing(3),
         }}
         id="scenarioForm"
         onSubmit={handleSubmit((data: ScenarioInput) => onSubmit(data, false))}
