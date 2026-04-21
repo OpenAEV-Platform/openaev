@@ -1,18 +1,19 @@
-import { Typography } from '@mui/material';
 import { useParams } from 'react-router';
 
-import { useFormatter } from '../../../../../components/i18n';
+import type { ExercisesHelper } from '../../../../../actions/exercises/exercise-helper';
+import { useHelper } from '../../../../../store';
 import { type Exercise } from '../../../../../utils/api-types';
+import ScopeDefinition from '../chaining/ScopeDefinition';
 
 const SimulationScope = () => {
-  const { t } = useFormatter();
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { exerciseId } = useParams() as { exerciseId: Exercise['exercise_id'] };
 
+  const { exercise } = useHelper((helper: ExercisesHelper) => ({ exercise: helper.getExercise(exerciseId) }));
+
+  if (!exercise?.exercise_workflow_id) return null;
+
   return (
-    <div>
-      <Typography variant="h4">{t('Scope')}</Typography>
-    </div>
+    <ScopeDefinition workflowId={exercise.exercise_workflow_id} />
   );
 };
 

@@ -269,6 +269,12 @@ export const mitigation = new schema.Entity(
 );
 export const arrayOfMitigations = new schema.Array(mitigation);
 
+export const workflowConfigurationSchema = workflowId => new schema.Entity(
+  'workflowconfigurations',
+  {},
+  { idAttribute: () => workflowId },
+);
+
 token.define({ token_user: user });
 user.define({ user_organization: organization });
 
@@ -505,4 +511,6 @@ export const storeHelper = state => ({
   getPlatformCapabilitiesMap: () => maps('platform_capabilities', state),
   getTenantCapabilities: () => entities('tenant_capabilities', state),
   getTenantCapabilitiesMap: () => maps('tenant_capabilities', state),
+  // workflow configurations
+  getWorkflowConfiguration: id => entity(id, 'workflowconfigurations', state),
 });

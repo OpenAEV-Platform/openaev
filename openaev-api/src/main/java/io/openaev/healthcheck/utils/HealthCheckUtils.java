@@ -473,6 +473,26 @@ public class HealthCheckUtils {
   }
 
   /**
+   * Run scope definition check for a workflow template. Returns a warning when the workflow has no
+   * scope rules defined (neither whitelist nor blacklist).
+   *
+   * @param workflow the workflow template to check
+   * @return found healthchecks
+   */
+  public List<HealthCheck> runScopeDefinitionChecks(@NotNull final Workflow workflow) {
+    List<HealthCheck> result = new ArrayList<>();
+    if (workflow.getWorkflowScopeRules() == null || workflow.getWorkflowScopeRules().isEmpty()) {
+      result.add(
+          new HealthCheck(
+              HealthCheck.Type.SCOPE_DEFINITION,
+              HealthCheck.Detail.EMPTY,
+              HealthCheck.Status.WARNING,
+              now()));
+    }
+    return result;
+  }
+
+  /**
    * Remove all duplicates healthchecks
    *
    * @param healthChecks to filter

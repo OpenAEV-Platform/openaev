@@ -57,6 +57,10 @@ const Healthchecks = ({ healthchecks, scenarioId }: Props) => {
         window.open(`${documentationRootUrl}/latest/usage/injectors`);
         break;
       }
+      case 'SCOPE_DEFINITION': {
+        navigate(`/admin/scenarios/${scenarioId}/scope`);
+        break;
+      }
       default:
         return;
     }

@@ -1059,6 +1059,17 @@ public class ScenarioService {
     healthChecks.addAll(healthCheckUtils.runMissingContentChecks(scenario));
     healthChecks.addAll(healthCheckUtils.runTeamsChecks(scenario));
 
+    // Scope definition check
+    try {
+      workflowService
+          .findWorkflowTemplateByScenarioId(scenarioId)
+          .ifPresent(
+              workflow ->
+                  healthChecks.addAll(healthCheckUtils.runScopeDefinitionChecks(workflow)));
+    } catch (ChainingException e) {
+      log.debug("Skipping scope definition check: {}", e.getMessage());
+    }
+
     return healthChecks;
   }
 }

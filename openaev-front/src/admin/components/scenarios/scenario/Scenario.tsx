@@ -5,6 +5,7 @@ import {
   Chip,
   GridLegacy,
   Paper,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
@@ -47,7 +48,7 @@ import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import { isEmptyField } from '../../../../utils/utils';
+import { isEmptyField, isFeatureEnabled } from '../../../../utils/utils';
 import Healthchecks from '../../common/healthchecks/Healthchecks';
 import ExercisePopover from '../../simulations/simulation/ExercisePopover';
 import SimulationList from '../../simulations/SimulationList';
@@ -95,6 +96,13 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
 
   // Spy on modifications to reload healthchecks
   const [healthchecks, setHealthchecks] = useState<HealthCheck[]>([]);
+
+  const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
+  const scenarioWorkflowId = (scenario as unknown as Record<string, unknown>).scenario_workflow_id as string | undefined;
+  const isScopeMissing = isChainingFeatureEnabled
+    && !!scenarioWorkflowId
+    && healthchecks.some((hc: HealthCheck) => hc.type === ('SCOPE_DEFINITION' as HealthCheck['type']) && hc.detail === 'EMPTY');
+
   const agentsActive = useMemo(() => {
     const injectAssetIds: string[] = injects.flatMap((inject: Inject) => inject.inject_assets);
     return agents
@@ -186,7 +194,12 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
             {t('Threat intelligence')}
           </Button>
         </div>
-        <Typography variant="h4" style={{ alignContent: 'center' }}>{t('Latest 10 Finished Simulations')}</Typography>
+        <Typography
+          variant="h4"
+          style={{ alignContent: 'center' }}
+        >
+          {t('Latest 10 Finished Simulations')}
+        </Typography>
         <Paper classes={{ root: classes.paper }} variant="outlined">
           <GridLegacy container spacing={3}>
             <GridLegacy item xs={12} style={{ paddingTop: 10 }}>
@@ -210,7 +223,10 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
               >
                 {t('Severity')}
               </Typography>
-              <ItemSeverity severity={scenario.scenario_severity} label={t(scenario.scenario_severity ?? 'Unknown')} />
+              <ItemSeverity
+                severity={scenario.scenario_severity}
+                label={t(scenario.scenario_severity ?? 'Unknown')}
+              />
             </GridLegacy>
             <GridLegacy item xs={4} style={{ paddingTop: 10 }}>
               <Typography
@@ -220,7 +236,10 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
               >
                 {t('Category')}
               </Typography>
-              <ItemCategory category={scenario.scenario_category} label={t(scenario.scenario_category ?? 'Unknown')} />
+              <ItemCategory
+                category={scenario.scenario_category}
+                label={t(scenario.scenario_category ?? 'Unknown')}
+              />
             </GridLegacy>
             <GridLegacy item xs={4} style={{ paddingTop: 10 }}>
               <Typography
@@ -340,16 +359,25 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
           <div style={{ fontSize: 20 }}>
             {t('This scenario has never run, schedule or run it now!')}
           </div>
-          <Button
-            style={{ marginTop: 20 }}
-            startIcon={<PlayArrowOutlined />}
-            variant="contained"
-            color="primary"
-            size="large"
-            onClick={() => setOpenInstantiateSimulationAndStart(true)}
-          >
-            {t('Launch simulation now')}
-          </Button>
+          <Tooltip title={isScopeMissing ? t('A Chaining Scenario requires a defined scope.') : ''}>
+            <span style={{
+              display: 'inline-flex',
+              marginTop: 20,
+            }}
+            >
+
+              <Button
+                startIcon={<PlayArrowOutlined />}
+                variant="contained"
+                color="primary"
+                size="large"
+                disabled={isScopeMissing}
+                onClick={() => setOpenInstantiateSimulationAndStart(true)}
+              >
+                {t('Launch simulation now')}
+              </Button>
+            </span>
+          </Tooltip>
         </div>
       )}
       {!areAnyExercisesInScenario && scenario.scenario_recurrence && (
