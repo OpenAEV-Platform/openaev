@@ -282,7 +282,9 @@ public enum Capability {
       pair(ResourceType.INJECTOR, Action.READ),
       pair(ResourceType.INJECTOR, Action.SEARCH),
       pair(ResourceType.CATALOG, Action.READ),
-      pair(ResourceType.CATALOG, Action.SEARCH)),
+      pair(ResourceType.CATALOG, Action.SEARCH),
+      pair(ResourceType.XTM_HUB_REGISTRATION, Action.READ),
+      pair(ResourceType.XTM_HUB_REGISTRATION, Action.SEARCH)),
   MANAGE_TENANT_SETTINGS(
       ACCESS_TENANT_SETTINGS,
       pair(ResourceType.TENANT_SETTING, Action.WRITE),
@@ -315,7 +317,10 @@ public enum Capability {
       pair(ResourceType.INJECTOR_CONTRACT, Action.WRITE),
       pair(ResourceType.INJECTOR_CONTRACT, Action.CREATE),
       pair(ResourceType.CATALOG, Action.WRITE),
-      pair(ResourceType.CATALOG, Action.CREATE)),
+      pair(ResourceType.CATALOG, Action.CREATE),
+      pair(ResourceType.XTM_HUB_REGISTRATION, Action.WRITE),
+      pair(ResourceType.XTM_HUB_REGISTRATION, Action.CREATE),
+      pair(ResourceType.XTM_HUB_REGISTRATION, Action.DELETE)),
   DELETE_TENANT_SETTINGS(
       MANAGE_TENANT_SETTINGS,
       pair(ResourceType.TENANT_SETTING, Action.DELETE),

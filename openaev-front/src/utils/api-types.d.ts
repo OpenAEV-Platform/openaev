@@ -8791,3 +8791,18 @@ export interface XtmHubRegisterInput {
    */
   token: string;
 }
+
+export interface XtmHubRegistrationOutput {
+  /** @format date-time */
+  tenant_xtmhub_registration_date?: string;
+  tenant_xtmhub_registration_id?: string;
+  /** @format date-time */
+  tenant_xtmhub_registration_last_connectivity_check?: string;
+  tenant_xtmhub_registration_status?:
+    | "REGISTERED"
+    | "UNREGISTERED"
+    | "LOST_CONNECTIVITY";
+  tenant_xtmhub_registration_token?: string;
+  tenant_xtmhub_registration_user_id?: string;
+  tenant_xtmhub_registration_user_name?: string;
+}
