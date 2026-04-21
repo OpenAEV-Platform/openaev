@@ -537,8 +537,8 @@ class WorkflowStateServiceTest {
       // Global state has no linked step template
       assertNull(result.getStepTemplate());
       // scope and entries must be serialised JSON strings
-      assertNotNull(result.getScope());
-      assertFalse(result.getScope().isBlank());
+      assertNotNull(result.getEntries());
+      assertFalse(result.getEntries().isBlank());
       assertNotNull(result.getEntries());
       assertFalse(result.getEntries().isBlank());
       assertEquals(workflow, result.getWorkflowExecution());
@@ -567,7 +567,7 @@ class WorkflowStateServiceTest {
       verify(workflowStateRepository).save(stateCaptor.capture());
 
       // Scope JSON must contain the rule value
-      String scope = stateCaptor.getValue().getScope();
+      String scope = stateCaptor.getValue().getEntries();
       assertNotNull(scope);
       assertTrue(scope.contains("192.168.1.0/24"), "Scope should contain the whitelisted IP range");
     }
