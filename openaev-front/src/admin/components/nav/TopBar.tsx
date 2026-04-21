@@ -1,11 +1,13 @@
 import { AccountCircleOutlined, ArrowDropDown, ImportantDevicesOutlined, OpenInNew } from '@mui/icons-material';
 import { AppBar, Box, Divider, List, ListItemButton, ListItemIcon, Menu, MenuItem, Popover, Stack, Toolbar, Tooltip } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
-import { type FunctionComponent, type MouseEvent as ReactMouseEvent, useEffect, useState } from 'react';
+import { type FunctionComponent, type MouseEvent as ReactMouseEvent, useContext, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { logout } from '../../../actions/Application';
+import type { LoggedHelper } from '../../../actions/helper';
+import { fetchXtmHubRegistration } from '../../../actions/xtmhub/xtmhub-actions';
 import IconButton from '../../../components/common/button/IconButton';
 import { useFormatter } from '../../../components/i18n';
 import ItemBoolean from '../../../components/ItemBoolean';
@@ -16,9 +18,12 @@ import logoOpenCtiDark from '../../../static/images/logo_open_cti_dark.svg';
 import logoOpenCtiLight from '../../../static/images/logo_open_cti_light.svg';
 import logoXtmHubDark from '../../../static/images/logo_xtm_hub_dark.svg';
 import logoXtmHubLight from '../../../static/images/logo_xtm_hub_light.svg';
+import { useHelper } from '../../../store';
 import { MESSAGING$, XTM_HUB_DEFAULT_URL } from '../../../utils/Environment';
 import { useAppDispatch } from '../../../utils/hooks';
 import useAuth from '../../../utils/hooks/useAuth';
+import { AbilityContext } from '../../../utils/permissions/permissionsContext';
+import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { isFeatureEnabled, isNotEmptyField } from '../../../utils/utils';
 import AskArianeButton from '../ariane/AskArianeButton';
 import TenantSwitcher from './TenantSwitcher';
@@ -47,14 +52,78 @@ const useStyles = makeStyles()(theme => ({
   },
 }));
 
+interface PopoverListItemProps {
+  logoSrc: string;
+  alt: string;
+  onClick: () => void;
+  href?: string;
+  to?: string;
+}
+
+const PopoverListItem: FunctionComponent<PopoverListItemProps> = ({ logoSrc, alt, onClick, href, to }) => {
+  const theme = useTheme();
+  const isExternal = !!href;
+  return (
+    <ListItemButton
+      {...(isExternal
+        ? {
+            component: 'a',
+            href,
+            target: '_blank',
+            rel: 'noopener noreferrer',
+          }
+        : {
+            component: Link,
+            to,
+          })}
+      onClick={onClick}
+      sx={{
+        borderRadius: 1,
+        px: 1,
+        py: 1.5,
+        display: 'flex',
+        justifyContent: 'space-between',
+        backgroundColor: theme.palette.leftBar.header.itemBackground,
+      }}
+    >
+      <ListItemIcon sx={{
+        width: 132,
+        p: 1,
+      }}
+      >
+        <Box sx={{
+          width: '100%',
+          height: '20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+        >
+          <img
+            src={logoSrc}
+            style={{
+              width: '100%',
+              height: 'auto',
+              objectFit: 'contain',
+            }}
+            alt={alt}
+          />
+        </Box>
+      </ListItemIcon>
+      {isExternal && <OpenInNew style={{ fontSize: 16 }} />}
+    </ListItemButton>
+  );
+};
+
 const TopBar: FunctionComponent = () => {
   const theme = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
   const { classes } = useStyles();
   const { t } = useFormatter();
-  const { settings } = useAuth();
+  const { settings, isXTMHubAccessible } = useAuth();
   const { bannerHeightNumber } = computeBannerSettings(settings);
+  const registration = useHelper((helper: LoggedHelper) => helper.getXtmHubRegistration());
   const [switcherAnchor, setSwitcherAnchor] = useState<null | HTMLElement>(null);
   const switcherOpen = Boolean(switcherAnchor);
 
@@ -97,6 +166,15 @@ const TopBar: FunctionComponent = () => {
       sub.unsubscribe();
     };
   });
+  const ability = useContext(AbilityContext);
+  useEffect(() => {
+    if (ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS)) {
+      dispatch(fetchXtmHubRegistration());
+    }
+  }, []);
+  const isRegistered = registration?.tenant_xtmhub_registration_status === 'REGISTERED';
+  const isXtmHubExternal = isRegistered || !isXTMHubAccessible || !ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS);
+
   const handleLogout = async () => {
     await dispatch(logout());
     navigate('/');
@@ -191,91 +269,23 @@ const TopBar: FunctionComponent = () => {
           <List dense disablePadding sx={{ minWidth: 228 }}>
             <Tooltip title={isNotEmptyField(settings.xtm_opencti_url) ? t('Platform connected') : t('Get OpenCTI now')}>
               <span>
-                <ListItemButton
-                  component="a"
+                <PopoverListItem
+                  logoSrc={theme.palette.mode === 'dark' ? logoOpenCtiDark : logoOpenCtiLight}
+                  alt="OpenCTI"
                   href={settings.xtm_opencti_url || 'https://filigran.io'}
-                  target="_blank"
-                  rel="noopener noreferrer"
                   onClick={() => setSwitcherAnchor(null)}
-                  sx={{
-                    borderRadius: 1,
-                    px: 1,
-                    py: 1.5,
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    backgroundColor: theme.palette.leftBar.header.itemBackground,
-                  }}
-                >
-                  <ListItemIcon sx={{
-                    width: 132,
-                    p: 1,
-                  }}
-                  >
-                    <Box sx={{
-                      width: '100%',
-                      height: '20px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                    >
-                      <img
-                        src={theme.palette.mode === 'dark' ? logoOpenCtiDark : logoOpenCtiLight}
-                        style={{
-                          width: '100%',
-                          height: 'auto',
-                          objectFit: 'contain',
-                        }}
-                        alt="OpenCTI"
-                      />
-                    </Box>
-                  </ListItemIcon>
-                  <OpenInNew style={{ fontSize: 16 }} />
-                </ListItemButton>
+                />
               </span>
             </Tooltip>
             <Divider />
-            <ListItemButton
-              component="a"
-              href={settings.xtm_hub_url || XTM_HUB_DEFAULT_URL}
-              target="_blank"
-              rel="noopener noreferrer"
+            <PopoverListItem
+              logoSrc={theme.palette.mode === 'dark' ? logoXtmHubDark : logoXtmHubLight}
+              alt="XTM Hub"
+              {...(isXtmHubExternal
+                ? { href: settings.xtm_hub_url || XTM_HUB_DEFAULT_URL }
+                : { to: '/admin/settings/experience' })}
               onClick={() => setSwitcherAnchor(null)}
-              sx={{
-                borderRadius: 1,
-                px: 1,
-                py: 1.5,
-                display: 'flex',
-                justifyContent: 'space-between',
-                backgroundColor: theme.palette.leftBar.header.itemBackground,
-              }}
-            >
-              <ListItemIcon sx={{
-                width: 132,
-                p: 1,
-              }}
-              >
-                <Box sx={{
-                  width: '100%',
-                  height: '20px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-                >
-                  <img
-                    src={theme.palette.mode === 'dark' ? logoXtmHubDark : logoXtmHubLight}
-                    style={{
-                      width: '100%',
-                      height: 'auto',
-                      objectFit: 'contain',
-                    }}
-                    alt="XTM Hub"
-                  />
-                </Box>
-              </ListItemIcon>
-              <OpenInNew style={{ fontSize: 16 }} />
-            </ListItemButton>
+            />
           </List>
         </Popover>
         <div className={classes.menuContainer} style={{ marginLeft: 20 }}>

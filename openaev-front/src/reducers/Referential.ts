@@ -61,6 +61,7 @@ export const entitiesInitializer = Map({
     connector_instances: Map({}),
     platform_capabilities: Map({}),
     tenant_capabilities: Map({}),
+    tenantXtmHubRegistrations: Map({}),
   }),
 });
 

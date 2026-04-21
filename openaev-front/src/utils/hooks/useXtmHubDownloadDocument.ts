@@ -1,6 +1,8 @@
 import { useContext, useEffect, useState } from 'react';
 
+import type { LoggedHelper } from '../../actions/helper';
 import { DialogConnectivityLostStatus } from '../../admin/components/xtm_hub/dialog/connectivity-lost/DialogConnectivityLost.types';
+import { useHelper } from '../../store';
 import { AbilityContext } from '../permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../permissions/types';
 import XtmHubClient from '../xtm-hub-client';
@@ -20,11 +22,12 @@ const useXtmHubDownloadDocument = ({ serviceInstanceId, fileId, onSuccess, onErr
   const ability = useContext(AbilityContext);
   const { settings } = useContext(UserContext);
   const { userPlatformToken } = useXtmHubUserPlatformToken();
+  const registration = useHelper((helper: LoggedHelper) => helper.getXtmHubRegistration());
   const [dialogConnectivityLostStatus, setDialogConnectivityLostStatus] = useState<DialogConnectivityLostStatus>(DialogConnectivityLostStatus.unknown);
 
   useEffect(() => {
     const isTryingToDownloadDocument = !!fileId && !!serviceInstanceId;
-    const isPlatformRegistered = settings?.xtm_hub_registration_status === 'registered';
+    const isPlatformRegistered = registration?.tenant_xtmhub_registration_status === 'REGISTERED';
     if (isTryingToDownloadDocument && !isPlatformRegistered) {
       if (ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS)) {
         setDialogConnectivityLostStatus(DialogConnectivityLostStatus.authorized);
@@ -54,7 +57,7 @@ const useXtmHubDownloadDocument = ({ serviceInstanceId, fileId, onSuccess, onErr
     };
 
     fetchData();
-  }, [settings, serviceInstanceId, fileId, userPlatformToken]);
+  }, [settings, registration, serviceInstanceId, fileId, userPlatformToken]);
 
   return { dialogConnectivityLostStatus };
 };

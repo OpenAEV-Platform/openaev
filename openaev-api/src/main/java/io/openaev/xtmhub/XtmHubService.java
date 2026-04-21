@@ -1,6 +1,9 @@
 package io.openaev.xtmhub;
 
+import io.openaev.context.TenantContext;
+import io.openaev.database.model.TenantXtmHubRegistration;
 import io.openaev.database.model.User;
+import io.openaev.database.repository.TenantXtmHubRegistrationRepository;
 import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.service.PlatformSettingsService;
 import io.openaev.service.UserService;
@@ -8,6 +11,7 @@ import io.openaev.utils.LicenseUtils;
 import io.openaev.xtmhub.config.XtmHubConfig;
 import jakarta.validation.constraints.NotBlank;
 import java.time.LocalDateTime;
+import java.util.Optional;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -26,16 +30,23 @@ public class XtmHubService {
   private final XtmHubConfig xtmHubConfig;
   private final XtmHubClient xtmHubClient;
   private final XtmHubEmailService xtmHubEmailService;
+  private final TenantXtmHubRegistrationRepository tenantXtmHubRegistrationRepository;
 
-  public PlatformSettings register(@NotBlank final String token) {
+  public Optional<TenantXtmHubRegistration> getRegistration() {
+    return tenantXtmHubRegistrationRepository.findByTenantId(TenantContext.getCurrentTenant());
+  }
+
+  public TenantXtmHubRegistration register(@NotBlank final String token) {
     User currentUser = userService.currentUser();
-    return this.platformSettingsService.updateXTMHubRegistration(
-        token,
-        LocalDateTime.now(),
-        XtmHubRegistrationStatus.REGISTERED,
-        new XtmHubRegistererRecord(currentUser.getId(), currentUser.getName()),
-        LocalDateTime.now(),
-        true);
+
+    TenantXtmHubRegistration registration = findOrCreateRegistration();
+    registration.setToken(token);
+    registration.setRegistrationDate(LocalDateTime.now());
+    registration.setRegistrationStatus(XtmHubRegistrationStatus.REGISTERED);
+    registration.setRegistrationUserId(currentUser.getId());
+    registration.setRegistrationUserName(currentUser.getName());
+    registration.setLastConnectivityCheck(LocalDateTime.now());
+    return tenantXtmHubRegistrationRepository.save(registration);
   }
 
   public void autoRegister(@NotBlank final String token) {
@@ -56,8 +67,8 @@ public class XtmHubService {
         token, LocalDateTime.now(), XtmHubRegistrationStatus.REGISTERED, null, null, false);
   }
 
-  public PlatformSettings unregister() {
-    return this.platformSettingsService.deleteXTMHubRegistration();
+  public void unregister() {
+    tenantXtmHubRegistrationRepository.deleteByTenantId(TenantContext.getCurrentTenant());
   }
 
   public PlatformSettings refreshConnectivity() {
@@ -75,6 +86,12 @@ public class XtmHubService {
     handleConnectivityLossNotification(settings, checkResult);
 
     return updateRegistrationStatus(settings, checkResult);
+  }
+
+  private TenantXtmHubRegistration findOrCreateRegistration() {
+    return tenantXtmHubRegistrationRepository
+        .findByTenantId(TenantContext.getCurrentTenant())
+        .orElse(new TenantXtmHubRegistration());
   }
 
   private boolean isRegisteredWithXtmHub(PlatformSettings settings) {

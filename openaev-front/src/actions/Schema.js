@@ -36,6 +36,12 @@ export const tenantSettings = new schema.Entity(
   { idAttribute: () => 'settings' },
 );
 
+export const tenantXtmHubRegistration = new schema.Entity(
+  'tenantXtmHubRegistrations',
+  {},
+  { idAttribute: 'tenant_xtmhub_registration_id' },
+);
+
 export const token = new schema.Entity(
   'tokens',
   {},
@@ -391,6 +397,10 @@ export const storeHelper = state => ({
   getPlatformName: () => {
     const privateParams = state.referential.getIn(['entities', 'platformParameters', 'parameters']);
     return privateParams?.get('platform_name') || 'OpenAEV - Open Adversarial Exposure Validation Platform';
+  },
+  getXtmHubRegistration: () => {
+    const registrations = entities('tenantXtmHubRegistrations', state);
+    return registrations.first() ?? null;
   },
   // kill chain phases
   getKillChainPhase: id => entity(id, 'killchainphases', state),
