@@ -14,14 +14,6 @@ import { type ThreatArsenalActionCreateCustomInput } from '../../../utils/api-ty
 import { type DetectionRemediationForm } from '../payloads/utils/payloadFormToPayloadInput';
 import ThreatArsenalActionForm from './ThreatArsenalActionForm';
 
-const useStyles = makeStyles()({
-  createButton: {
-    position: 'fixed',
-    bottom: 30,
-    right: 30,
-  },
-});
-
 interface Props { onCreate?: (action: ThreatArsenalAction) => void }
 
 function handleCleanupCommandValue(cleanupCommand: string | null | undefined): string | null {
@@ -41,7 +33,6 @@ function handleCleanupExecutorValue(
 const CreateThreatArsenalAction: FunctionComponent<Props> = ({ onCreate }) => {
   const [open, setOpen] = useState(false);
   const { t } = useFormatter();
-  const { classes } = useStyles();
 
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
@@ -80,7 +71,11 @@ const CreateThreatArsenalAction: FunctionComponent<Props> = ({ onCreate }) => {
         onClick={handleOpen}
         color="primary"
         aria-label="Add"
-        className={classes.createButton}
+        sx={{
+          position: 'fixed',
+          bottom: 30,
+          right: 30,
+        }}
       >
         <Add />
       </Fab>

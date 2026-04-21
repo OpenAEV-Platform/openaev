@@ -14,26 +14,22 @@ interface Props {
   };
 }
 
-const useStyles = makeStyles()(() => ({
-  card: {
-    borderRadius: 0,
-    boxShadow: 'none',
-    backgroundImage: 'none',
-    backgroundColor: 'inherit',
-    borderBottomStyle: 'solid',
-    borderBottomWidth: 1,
-  },
-  cardTitle: { fontSize: 14 },
-  cardDescription: { fontSize: 12 },
-}));
-
 const ThreatArsenalExecutionModeCardComponent = ({ executionMode }: Props) => {
   const theme = useTheme();
-  const { classes } = useStyles();
 
   return (
     <Tooltip title={executionMode.tooltip}>
-      <Card style={{ borderBottomColor: theme.palette.border?.main }} classes={{ root: classes.card }}>
+      <Card
+        style={{ borderBottomColor: theme.palette.border?.main }}
+        sx={{
+          borderRadius: 0,
+          boxShadow: 'none',
+          backgroundImage: 'none',
+          backgroundColor: 'inherit',
+          borderBottomStyle: 'solid',
+          borderBottomWidth: 1,
+        }}
+      >
         <CardActionArea
           onClick={executionMode.onClick}
           disabled={executionMode.disabled}
@@ -50,13 +46,13 @@ const ThreatArsenalExecutionModeCardComponent = ({ executionMode }: Props) => {
             <Stack flexDirection="column">
               <Typography
                 style={{ color: executionMode.disabled ? theme.palette.text?.disabled : 'inherit' }}
-                className={classes.cardTitle}
+                sx={{ fontSize: 14 }}
               >
                 {executionMode.title}
               </Typography>
               <Typography
                 style={{ color: executionMode.disabled ? theme.palette.text?.disabled : 'inherit' }}
-                className={classes.cardDescription}
+                sx={{ fontSize: 12 }}
               >
                 {executionMode.description}
               </Typography>
