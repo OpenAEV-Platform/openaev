@@ -120,7 +120,8 @@ describe('useTenant', () => {
 
   describe('Initial load', () => {
     it('given_userAndLogged_should_fetchTenantsAndSelectFirst', async () => {
-      // Arrange
+      // Arrange — URL already points to ALPHA so setTenant is called
+      mockExtractTenantFromUrl.mockReturnValue(TENANT_ALPHA.tenant_id);
       mockTenantsResponse([TENANT_ALPHA, TENANT_BETA]);
       const useTenant = await importUseTenant();
 
@@ -217,34 +218,46 @@ describe('useTenant', () => {
       });
     });
 
-    it('given_noTenantInUrl_should_fallbackToFirstTenant', async () => {
+    it('given_noTenantInUrl_should_navigateToFirstTenant', async () => {
       // Arrange — no tenant UUID in URL (e.g. post-login at "/")
       mockExtractTenantFromUrl.mockReturnValue(null);
       mockTenantsResponse([TENANT_ALPHA, TENANT_BETA]);
       const useTenant = await importUseTenant();
 
       // Act
-      const { result } = renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
+      renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
 
-      // Assert — should fall back to first tenant (ALPHA)
+      // Assert — should trigger full page navigation to first tenant
       await waitFor(() => {
-        expect(result.current.currentUserTenant?.tenant_id).toBe(TENANT_ALPHA.tenant_id);
+        expect(mockBuildTenantUrl).toHaveBeenCalledWith(
+          TENANT_ALPHA.tenant_id,
+          expect.any(String),
+          expect.any(String),
+          expect.any(String),
+        );
       });
+      expect(window.location.href).toContain(TENANT_ALPHA.tenant_id);
     });
 
-    it('given_urlTenantNotInList_should_fallbackToFirstTenant', async () => {
+    it('given_urlTenantNotInList_should_navigateToFirstTenant', async () => {
       // Arrange — URL has a tenant UUID that is not in the user's tenant list
       mockExtractTenantFromUrl.mockReturnValue('unknown-tenant-id');
       mockTenantsResponse([TENANT_ALPHA, TENANT_BETA]);
       const useTenant = await importUseTenant();
 
       // Act
-      const { result } = renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
+      renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
 
-      // Assert — should fall back to first tenant (ALPHA)
+      // Assert — should trigger full page navigation to first tenant
       await waitFor(() => {
-        expect(result.current.currentUserTenant?.tenant_id).toBe(TENANT_ALPHA.tenant_id);
+        expect(mockBuildTenantUrl).toHaveBeenCalledWith(
+          TENANT_ALPHA.tenant_id,
+          expect.any(String),
+          expect.any(String),
+          expect.any(String),
+        );
       });
+      expect(window.location.href).toContain(TENANT_ALPHA.tenant_id);
     });
   });
 
@@ -252,7 +265,8 @@ describe('useTenant', () => {
 
   describe('Dispatch TENANT_SWITCH_SUCCESS', () => {
     it('given_tenantLoad_should_dispatchTenantSwitchSuccess', async () => {
-      // Arrange
+      // Arrange — URL already points to the tenant so setTenant is called (no full-page nav)
+      mockExtractTenantFromUrl.mockReturnValue(TENANT_ALPHA.tenant_id);
       mockTenantsResponse([TENANT_ALPHA]);
       const useTenant = await importUseTenant();
 
@@ -273,7 +287,8 @@ describe('useTenant', () => {
 
   describe('switchUserTenant', () => {
     it('given_differentTenantId_should_navigateToNewTenantUrl', async () => {
-      // Arrange
+      // Arrange — URL points to ALPHA so setTenant is called during init
+      mockExtractTenantFromUrl.mockReturnValue(TENANT_ALPHA.tenant_id);
       mockTenantsResponse([TENANT_ALPHA, TENANT_BETA]);
       const useTenant = await importUseTenant();
 
@@ -282,6 +297,10 @@ describe('useTenant', () => {
       await waitFor(() => {
         expect(result.current.currentUserTenant?.tenant_id).toBe(TENANT_ALPHA.tenant_id);
       });
+
+      // Reset mock so the switch triggers navigation
+      mockExtractTenantFromUrl.mockReturnValue(TENANT_ALPHA.tenant_id);
+      mockBuildTenantUrl.mockClear();
 
       // Act
       await act(async () => {
@@ -299,7 +318,8 @@ describe('useTenant', () => {
     });
 
     it('given_sameTenantId_should_notNavigate', async () => {
-      // Arrange
+      // Arrange — URL points to ALPHA so setTenant is called during init
+      mockExtractTenantFromUrl.mockReturnValue(TENANT_ALPHA.tenant_id);
       mockTenantsResponse([TENANT_ALPHA, TENANT_BETA]);
       const useTenant = await importUseTenant();
 
@@ -308,6 +328,8 @@ describe('useTenant', () => {
       await waitFor(() => {
         expect(result.current.currentUserTenant?.tenant_id).toBe(TENANT_ALPHA.tenant_id);
       });
+
+      mockBuildTenantUrl.mockClear();
 
       // Act
       await act(async () => {
@@ -319,7 +341,8 @@ describe('useTenant', () => {
     });
 
     it('given_unknownTenantId_should_notNavigate', async () => {
-      // Arrange
+      // Arrange — URL points to ALPHA so setTenant is called during init
+      mockExtractTenantFromUrl.mockReturnValue(TENANT_ALPHA.tenant_id);
       mockTenantsResponse([TENANT_ALPHA, TENANT_BETA]);
       const useTenant = await importUseTenant();
 
@@ -328,6 +351,8 @@ describe('useTenant', () => {
       await waitFor(() => {
         expect(result.current.currentUserTenant).not.toBeNull();
       });
+
+      mockBuildTenantUrl.mockClear();
 
       // Act
       await act(async () => {
@@ -343,7 +368,8 @@ describe('useTenant', () => {
 
   describe('reloadUserTenants', () => {
     it('given_reloadCalled_should_refetchTenants', async () => {
-      // Arrange
+      // Arrange — URL points to ALPHA so setTenant is called during init
+      mockExtractTenantFromUrl.mockReturnValue(TENANT_ALPHA.tenant_id);
       mockTenantsResponse([TENANT_ALPHA]);
       const useTenant = await importUseTenant();
 
@@ -369,7 +395,8 @@ describe('useTenant', () => {
     });
 
     it('given_reloadWithPreferredTenantId_should_navigateToPreferredTenant', async () => {
-      // Arrange
+      // Arrange — URL points to ALPHA so setTenant is called during init
+      mockExtractTenantFromUrl.mockReturnValue(TENANT_ALPHA.tenant_id);
       mockTenantsResponse([TENANT_ALPHA, TENANT_BETA]);
       const useTenant = await importUseTenant();
 
@@ -398,7 +425,8 @@ describe('useTenant', () => {
     });
 
     it('given_reloadWithNonexistentPreferredId_should_fallbackToFirstTenant', async () => {
-      // Arrange
+      // Arrange — URL points to ALPHA so setTenant is called during init
+      mockExtractTenantFromUrl.mockReturnValue(TENANT_ALPHA.tenant_id);
       mockTenantsResponse([TENANT_ALPHA, TENANT_BETA]);
       const useTenant = await importUseTenant();
 
