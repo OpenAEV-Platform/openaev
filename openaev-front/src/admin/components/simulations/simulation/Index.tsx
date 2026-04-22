@@ -1,4 +1,4 @@
-import { Box, Tab, Tabs } from '@mui/material';
+import { Alert, AlertTitle, Box, Tab, Tabs } from '@mui/material';
 import { type FunctionComponent, lazy, Suspense, useEffect, useState } from 'react';
 import { Link, Navigate, Route, Routes, useLocation, useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -234,6 +234,7 @@ const Index = () => {
   // Standard hooks
   const [pristine, setPristine] = useState(true);
   const [loading, setLoading] = useState(true);
+  const { t } = useFormatter();
   const dispatch = useAppDispatch();
   // Fetching data
   const { exerciseId } = useParams() as { exerciseId: ExerciseType['exercise_id'] };
@@ -262,7 +263,19 @@ const Index = () => {
 
   const exerciseInjectContext = injectContextForExercise(exercise);
 
-  if ((pristine && loading) || !exercise) {
+  // avoid to show loader if something trigger useDataLoader
+  if (pristine && loading) {
+    return <Loader />;
+  }
+  if (!loading && !exercise) {
+    return (
+      <Alert severity="warning">
+        <AlertTitle>{t('Warning')}</AlertTitle>
+        {t('Simulation is currently unavailable or you do not have sufficient permissions to access it.')}
+      </Alert>
+    );
+  }
+  if (!exercise) {
     return <Loader />;
   }
   return (

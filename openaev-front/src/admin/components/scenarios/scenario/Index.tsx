@@ -1,5 +1,5 @@
 import { NotificationsOutlined, UpdateOutlined } from '@mui/icons-material';
-import { Box, IconButton, Tab, Tabs, Tooltip, Typography } from '@mui/material';
+import { Alert, AlertTitle, Box, IconButton, Tab, Tabs, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, lazy, Suspense, useEffect, useState } from 'react';
 import { Link, Route, Routes, useLocation, useParams } from 'react-router';
@@ -347,6 +347,7 @@ const Index = () => {
   const dispatch = useAppDispatch();
   const [pristine, setPristine] = useState(true);
   const [loading, setLoading] = useState(true);
+  const { t } = useFormatter();
   // Fetching data
   const { scenarioId } = useParams() as { scenarioId: Scenario['scenario_id'] };
   const { scenario } = useHelper((helper: ScenariosHelper) => ({ scenario: helper.getScenario(scenarioId) }));
@@ -360,7 +361,19 @@ const Index = () => {
 
   const scenarioInjectContext = injectContextForScenario(scenario);
 
-  if ((pristine && loading) || !scenario) {
+  // avoid to show loader if something trigger useDataLoader
+  if (pristine && loading) {
+    return <Loader />;
+  }
+  if (!loading && !scenario) {
+    return (
+      <Alert severity="warning">
+        <AlertTitle>{t('Warning')}</AlertTitle>
+        {t('Scenario is currently unavailable or you do not have sufficient permissions to access it.')}
+      </Alert>
+    );
+  }
+  if (!scenario) {
     return <Loader />;
   }
   return (
