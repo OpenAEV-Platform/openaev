@@ -996,6 +996,7 @@ export interface Command {
   /** @format date-time */
   payload_created_at: string;
   payload_description?: string;
+  payload_detection_remediations?: DetectionRemediation[];
   /** @uniqueItems true */
   payload_domains: Domain[];
   payload_elevation_required?: boolean;
@@ -1542,7 +1543,6 @@ export interface DetectionRemediation {
   /** @format date-time */
   detection_remediation_created_at?: string;
   detection_remediation_id: string;
-  detection_remediation_payload_id: Payload;
   /** @format date-time */
   detection_remediation_updated_at?: string;
   detection_remediation_values: string;
@@ -1625,6 +1625,7 @@ export interface DnsResolution {
   /** @format date-time */
   payload_created_at: string;
   payload_description?: string;
+  payload_detection_remediations?: DetectionRemediation[];
   /** @uniqueItems true */
   payload_domains: Domain[];
   payload_elevation_required?: boolean;
@@ -2372,6 +2373,7 @@ export interface Executable {
   /** @format date-time */
   payload_created_at: string;
   payload_description?: string;
+  payload_detection_remediations?: DetectionRemediation[];
   /** @uniqueItems true */
   payload_domains: Domain[];
   payload_elevation_required?: boolean;
@@ -2431,16 +2433,22 @@ export interface ExecutionTrace {
   execution_message: string;
   execution_status?:
     | "SUCCESS"
+    | "SUCCESS_WITH_CLEANUP_FAIL"
+    | "WARNING"
+    | "ACCESS_DENIED"
     | "ERROR"
-    | "MAYBE_PREVENTED"
     | "COMMAND_NOT_FOUND"
     | "COMMAND_CANNOT_BE_EXECUTED"
-    | "WARNING"
-    | "PARTIAL"
-    | "MAYBE_PARTIAL_PREVENTED"
+    | "PREREQUISITE_FAILED"
+    | "INVALID_USAGE"
+    | "TIMEOUT"
+    | "INTERRUPTED"
     | "ASSET_AGENTLESS"
     | "AGENT_INACTIVE"
-    | "INFO";
+    | "INFO"
+    | "PARTIAL"
+    | "MAYBE_PREVENTED"
+    | "MAYBE_PARTIAL_PREVENTED";
   /** @format date-time */
   execution_time?: string;
   execution_trace_id: string;
@@ -2474,16 +2482,22 @@ export interface ExecutionTraceOutput {
    */
   execution_status:
     | "SUCCESS"
+    | "SUCCESS_WITH_CLEANUP_FAIL"
+    | "WARNING"
+    | "ACCESS_DENIED"
     | "ERROR"
-    | "MAYBE_PREVENTED"
     | "COMMAND_NOT_FOUND"
     | "COMMAND_CANNOT_BE_EXECUTED"
-    | "WARNING"
-    | "PARTIAL"
-    | "MAYBE_PARTIAL_PREVENTED"
+    | "PREREQUISITE_FAILED"
+    | "INVALID_USAGE"
+    | "TIMEOUT"
+    | "INTERRUPTED"
     | "ASSET_AGENTLESS"
     | "AGENT_INACTIVE"
-    | "INFO";
+    | "INFO"
+    | "PARTIAL"
+    | "MAYBE_PREVENTED"
+    | "MAYBE_PARTIAL_PREVENTED";
   /** @format date-time */
   execution_time: string;
 }
@@ -2745,6 +2759,7 @@ export interface FileDrop {
   /** @format date-time */
   payload_created_at: string;
   payload_description?: string;
+  payload_detection_remediations?: DetectionRemediation[];
   /** @uniqueItems true */
   payload_domains: Domain[];
   payload_elevation_required?: boolean;
@@ -3544,9 +3559,9 @@ export interface InjectStatus {
   status_id?: string;
   status_name:
     | "SUCCESS"
+    | "PARTIAL"
     | "ERROR"
     | "MAYBE_PREVENTED"
-    | "PARTIAL"
     | "MAYBE_PARTIAL_PREVENTED"
     | "DRAFT"
     | "QUEUING"
@@ -4289,6 +4304,7 @@ export interface NetworkTraffic {
   /** @format date-time */
   payload_created_at: string;
   payload_description?: string;
+  payload_detection_remediations?: DetectionRemediation[];
   /** @uniqueItems true */
   payload_domains: Domain[];
   payload_elevation_required?: boolean;

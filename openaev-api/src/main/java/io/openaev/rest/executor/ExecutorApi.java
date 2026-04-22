@@ -53,11 +53,12 @@ public class ExecutorApi extends RestBehavior {
   @Value("${info.app.version:unknown}")
   String version;
 
-  @Value("${executor.openaev.binaries.origin:local}")
-  private String executorOpenaevBinariesOrigin;
+  @Value("${executor.openaev-agent.binaries.origin:${executor.openaev.binaries.origin:local}}")
+  private String agentBinaryOrigin;
 
-  @Value("${executor.openaev.binaries.version:${info.app.version:unknown}}")
-  private String executorOpenaevBinariesVersion;
+  @Value(
+      "${executor.openaev-agent.binaries.version:${executor.openaev.binaries.version:${info.app.version:unknown}}}")
+  private String agentBinaryVersion;
 
   private final ExecutorRepository executorRepository;
   private final EndpointService endpointService;
@@ -224,15 +225,12 @@ public class ExecutorApi extends RestBehavior {
     String resourcePath = "/openaev-agent/" + platform + "/" + architecture + "/";
     String filename = "";
 
-    if (executorOpenaevBinariesOrigin.equals("local")) { // if we want the local binaries
+    if (agentBinaryOrigin.equals("local")) { // if we want the local binaries
       filename = "openaev-agent-" + version + (platform.equals("windows") ? ".exe" : "");
       in = getClass().getResourceAsStream("/agents" + resourcePath + filename);
-    } else if (executorOpenaevBinariesOrigin.equals(
+    } else if (agentBinaryOrigin.equals(
         "repository")) { // if we want a specific version from artifactory
-      filename =
-          "openaev-agent-"
-              + executorOpenaevBinariesVersion
-              + (platform.equals("windows") ? ".exe" : "");
+      filename = "openaev-agent-" + agentBinaryVersion + (platform.equals("windows") ? ".exe" : "");
       in = new BufferedInputStream(validateJFrogUri(resourcePath, filename).toURL().openStream());
     }
     if (in != null) {
@@ -308,17 +306,17 @@ public class ExecutorApi extends RestBehavior {
         filename = filename.concat(installationMode).concat("-");
       }
 
-      if (executorOpenaevBinariesOrigin.equals("local")) { // if we want the local binaries
+      if (agentBinaryOrigin.equals("local")) { // if we want the local binaries
         filename = filename.concat(version).concat(".exe");
         in = getClass().getResourceAsStream("/agents" + resourcePath + filename);
-      } else if (executorOpenaevBinariesOrigin.equals(
+      } else if (agentBinaryOrigin.equals(
           "repository")) { // if we want a specific version from artifactory
-        filename = filename.concat(executorOpenaevBinariesVersion).concat(".exe");
+        filename = filename.concat(agentBinaryVersion).concat(".exe");
         in = new BufferedInputStream(validateJFrogUri(resourcePath, filename).toURL().openStream());
       }
       if (in == null) {
         throw new UnsupportedOperationException(
-            "Agent version " + executorOpenaevBinariesVersion + " not found");
+            "Agent version " + agentBinaryVersion + " not found");
       }
       file = IOUtils.toByteArray(in);
     }

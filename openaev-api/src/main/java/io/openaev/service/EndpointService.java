@@ -21,6 +21,7 @@ import static java.util.stream.Collectors.toList;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
+import io.openaev.database.specification.AssetAgentJobSpecification;
 import io.openaev.executors.model.AgentRegisterInput;
 import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.rest.asset.endpoint.form.EndpointOutput;
@@ -91,11 +92,12 @@ public class EndpointService {
   @Value("${info.app.version:unknown}")
   String version;
 
-  @Value("${executor.openaev.binaries.origin:local}")
-  private String executorOpenaevBinariesOrigin;
+  @Value("${executor.openaev-agent.binaries.origin:${executor.openaev.binaries.origin:local}}")
+  private String agentBinaryOrigin;
 
-  @Value("${executor.openaev.binaries.version:${info.app.version:unknown}}")
-  private String executorOpenaevBinariesVersion;
+  @Value(
+      "${executor.openaev-agent.binaries.version:${executor.openaev.binaries.version:${info.app.version:unknown}}}")
+  private String agentBinaryVersion;
 
   private final EndpointRepository endpointRepository;
   private final ExecutorRepository executorRepository;
@@ -465,6 +467,17 @@ public class EndpointService {
     return endpoint;
   }
 
+  public List<AssetAgentJob> getEndpointJobs(final EndpointRegisterInput input) {
+    return this.assetAgentJobRepository.findAll(
+        AssetAgentJobSpecification.forEndpoint(
+            input.getExternalReference(),
+            input.isService()
+                ? Agent.DEPLOYMENT_MODE.service.name()
+                : Agent.DEPLOYMENT_MODE.session.name(),
+            input.isElevated() ? Agent.PRIVILEGE.admin.name() : Agent.PRIVILEGE.standard.name(),
+            input.getExecutedByUser()));
+  }
+
   private void addSourceTagToEndpoint(Endpoint endpoint, AgentRegisterInput input) {
     Set<Tag> existingTags =
         endpoint.getTags() != null ? new HashSet<>(endpoint.getTags()) : new HashSet<>();
@@ -623,17 +636,17 @@ public class EndpointService {
     String filename;
     String resourcePath = "/openaev-agent/" + platform.toLowerCase() + "/";
 
-    if (executorOpenaevBinariesOrigin.equals("local")) { // if we want the local binaries
+    if (agentBinaryOrigin.equals("local")) { // if we want the local binaries
       filename = file + "-" + version + "." + extension;
       in = getClass().getResourceAsStream("/agents" + resourcePath + filename);
-    } else if (executorOpenaevBinariesOrigin.equals(
+    } else if (agentBinaryOrigin.equals(
         "repository")) { // if we want a specific version from artifactory
-      filename = file + "-" + executorOpenaevBinariesVersion + "." + extension;
+      filename = file + "-" + agentBinaryVersion + "." + extension;
       in = new BufferedInputStream(validateJFrogUri(resourcePath, filename).toURL().openStream());
     }
     if (in == null) {
       throw new UnsupportedOperationException(
-          "Agent installer version " + executorOpenaevBinariesVersion + " not found");
+          "Agent installer version " + agentBinaryVersion + " not found");
     }
 
     if (installationDir == null) {

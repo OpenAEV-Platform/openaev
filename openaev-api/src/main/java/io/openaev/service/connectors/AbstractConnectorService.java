@@ -143,7 +143,7 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
    * @return connector instance ID and catalog connector ID if available, null values if not found
    */
   public ConnectorIds getConnectorRelationsId(String connectorId) {
-    ConnectorInstanceConfigurationRepository.ConnectorIdsFomDatabase relatedIds =
+    ConnectorInstanceConfigurationRepository.ConnectorIdsFromDatabase relatedIds =
         connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValue(
             this.connectorType.getIdKeyName(), connectorId);
     if (relatedIds != null) {
