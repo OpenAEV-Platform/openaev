@@ -113,6 +113,8 @@ public class XtmHubService {
         xtmHubClient.refreshRegistrationStatusAllTenants(
             settings.getPlatformId(), settings.getPlatformVersion(), tenants);
 
+    List<ConnectivityCheckResult> allCheckResults = new ArrayList<>();
+
     try {
       for (TenantXtmHubRegistration registration : registrations) {
         TenantContext.setCurrentTenant(registration.getTenant().getId());
@@ -131,13 +133,14 @@ public class XtmHubService {
         ConnectivityCheckResult checkResult =
             new ConnectivityCheckResult(status, parseLastConnectivityCheck(registration));
 
-        handleConnectivityLossNotification(settings, checkResult);
-        updateEmailNotificationFlag(settings, checkResult);
+        allCheckResults.add(checkResult);
         updateRegistrationStatus(registration, checkResult);
       }
     } finally {
       TenantContext.clearCurrentTenant();
     }
+
+    handleConnectivityLossNotification(settings, allCheckResults);
   }
 
   private TenantXtmHubRegistration findOrCreateRegistration() {
@@ -176,19 +179,34 @@ public class XtmHubService {
   }
 
   private void handleConnectivityLossNotification(
-      PlatformSettings settings, ConnectivityCheckResult checkResult) {
+      PlatformSettings settings, List<ConnectivityCheckResult> checkResults) {
+    if (checkResults.isEmpty()) {
+      return;
+    }
 
-    if (shouldSendConnectivityLossEmail(settings, checkResult)) {
+    boolean connectivityRestored =
+        checkResults.stream().anyMatch(r -> r.status() == XtmHubConnectivityStatus.ACTIVE);
+
+    if (connectivityRestored) {
+      platformSettingsService.updateXTMHubEmailNotification(true);
+      return;
+    }
+
+    if (shouldSendConnectivityLossEmail(settings, checkResults)) {
+      platformSettingsService.updateXTMHubEmailNotification(false);
       xtmHubEmailService.sendLostConnectivityEmail();
     }
   }
 
   private boolean shouldSendConnectivityLossEmail(
-      PlatformSettings settings, ConnectivityCheckResult checkResult) {
+      PlatformSettings settings, List<ConnectivityCheckResult> checkResults) {
 
-    return checkResult.status() != XtmHubConnectivityStatus.ACTIVE
-        && hasConnectivityBeenLostForTooLong(checkResult.lastCheck())
-        && isEmailNotificationEnabled(settings);
+    return isEmailNotificationEnabled(settings)
+        && checkResults.stream()
+            .allMatch(
+                r ->
+                    r.status() != XtmHubConnectivityStatus.ACTIVE
+                        && hasConnectivityBeenLostForTooLong(r.lastCheck()));
   }
 
   private boolean hasConnectivityBeenLostForTooLong(LocalDateTime lastCheck) {
@@ -217,13 +235,6 @@ public class XtmHubService {
     registration.setLastConnectivityCheck(updatedLastCheck);
 
     return tenantXtmHubRegistrationRepository.save(registration);
-  }
-
-  private void updateEmailNotificationFlag(
-      PlatformSettings settings, ConnectivityCheckResult checkResult) {
-    boolean shouldKeepEmailNotificationEnabled =
-        !shouldSendConnectivityLossEmail(settings, checkResult);
-    platformSettingsService.updateXTMHubEmailNotification(shouldKeepEmailNotificationEnabled);
   }
 
   /** Encapsulates the result of a connectivity check */

@@ -527,9 +527,9 @@ class XtmHubServiceTest {
       // When
       xtmHubService.refreshConnectivityAllTenants();
 
-      // Then
+      // Then — connectivity is still lost, threshold not reached: flag is not touched
       verifyNoInteractions(xtmHubEmailService);
-      verify(platformSettingsService).updateXTMHubEmailNotification(true);
+      verify(platformSettingsService, never()).updateXTMHubEmailNotification(anyBoolean());
 
       ArgumentCaptor<TenantXtmHubRegistration> captor =
           ArgumentCaptor.forClass(TenantXtmHubRegistration.class);
@@ -561,9 +561,9 @@ class XtmHubServiceTest {
       // When
       xtmHubService.refreshConnectivityAllTenants();
 
-      // Then
+      // Then — connectivity is still lost, flag already false: flag is not touched
       verifyNoInteractions(xtmHubEmailService);
-      verify(platformSettingsService).updateXTMHubEmailNotification(true);
+      verify(platformSettingsService, never()).updateXTMHubEmailNotification(anyBoolean());
     }
 
     @Test
@@ -594,6 +594,148 @@ class XtmHubServiceTest {
       verify(tenantXtmHubRegistrationRepository).save(captor.capture());
       assertThat(captor.getValue().getRegistrationStatus())
           .isEqualTo(XtmHubRegistrationStatus.LOST_CONNECTIVITY);
+    }
+
+    @Test
+    @DisplayName(
+        "Should send a single email when ALL tenants have lost connectivity for more than 24h")
+    void whenAllTenantsLostConnectivityMoreThan24h_ShouldSendEmailOnce() {
+      // Given
+      TenantContext.setCurrentTenant("tenant-1");
+      TenantXtmHubRegistration reg1 = buildRegistration("token-1", now.minusHours(25));
+      TenantContext.setCurrentTenant("tenant-2");
+      TenantXtmHubRegistration reg2 = buildRegistration("token-2", now.minusHours(30));
+
+      when(tenantXtmHubRegistrationRepository.findAll()).thenReturn(List.of(reg1, reg2));
+      when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+      mockSettings.setPlatformId("platform-123");
+      mockSettings.setPlatformVersion("1.0.0");
+      mockSettings.setPlatformBaseUrl("http://localhost");
+      mockSettings.setXtmHubShouldSendConnectivityEmail("true");
+      when(platformSettingsService.findSettings()).thenReturn(mockSettings);
+
+      whenHubReturnsAllTenantsConnectivityStatuses(
+          Map.of("tenant-1", "inactive", "tenant-2", "inactive"));
+
+      // When
+      xtmHubService.refreshConnectivityAllTenants();
+
+      // Then — email sent exactly once, not once per tenant
+      verify(xtmHubEmailService, times(1)).sendLostConnectivityEmail();
+      verify(platformSettingsService).updateXTMHubEmailNotification(false);
+    }
+
+    @Test
+    @DisplayName(
+        "Should not send email when only some tenants have lost connectivity — not all of them")
+    void whenOnlySomeTenantsLostConnectivity_ShouldNotSendEmail() {
+      // Given
+      TenantContext.setCurrentTenant("tenant-1");
+      TenantXtmHubRegistration reg1 = buildRegistration("token-1", now.minusHours(25));
+      TenantContext.setCurrentTenant("tenant-2");
+      TenantXtmHubRegistration reg2 = buildRegistration("token-2", now.minusHours(1));
+
+      when(tenantXtmHubRegistrationRepository.findAll()).thenReturn(List.of(reg1, reg2));
+      when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+      mockSettings.setPlatformId("platform-123");
+      mockSettings.setPlatformVersion("1.0.0");
+      mockSettings.setPlatformBaseUrl("http://localhost");
+      mockSettings.setXtmHubShouldSendConnectivityEmail("true");
+      when(platformSettingsService.findSettings()).thenReturn(mockSettings);
+
+      whenHubReturnsAllTenantsConnectivityStatuses(
+          Map.of("tenant-1", "inactive", "tenant-2", "active"));
+
+      // When
+      xtmHubService.refreshConnectivityAllTenants();
+
+      // Then — one tenant is still active, so no email should be sent
+      verifyNoInteractions(xtmHubEmailService);
+      verify(platformSettingsService).updateXTMHubEmailNotification(true);
+    }
+
+    @Test
+    @DisplayName(
+        "Should not send email again and not reset flag when all tenants are still lost and email was already sent")
+    void whenAllTenantsStillLostAndEmailAlreadySent_ShouldNotSendEmailAgain() {
+      // Given — flag=false simulates the email was already sent on a previous run
+      TenantContext.setCurrentTenant("tenant-1");
+      TenantXtmHubRegistration reg = buildRegistration("token-1", now.minusHours(30));
+      String tenantId = reg.getTenant().getId();
+
+      when(tenantXtmHubRegistrationRepository.findAll()).thenReturn(List.of(reg));
+      when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+      mockSettings.setPlatformId("platform-123");
+      mockSettings.setPlatformVersion("1.0.0");
+      mockSettings.setPlatformBaseUrl("http://localhost");
+      mockSettings.setXtmHubShouldSendConnectivityEmail("false"); // already sent, flag disabled
+      when(platformSettingsService.findSettings()).thenReturn(mockSettings);
+
+      whenHubReturnsAllTenantsConnectivityStatuses(Map.of(tenantId, "inactive"));
+
+      // When
+      xtmHubService.refreshConnectivityAllTenants();
+
+      // Then — no new email, and the flag is not touched (connectivity is still lost)
+      verifyNoInteractions(xtmHubEmailService);
+      verify(platformSettingsService, never()).updateXTMHubEmailNotification(anyBoolean());
+    }
+
+    @Test
+    @DisplayName("Should reset the email flag when connectivity is restored after having been lost")
+    void whenConnectivityRestoredAfterLoss_ShouldResetEmailFlag() {
+      // Given — flag=false simulates the email was sent on a previous run
+      TenantContext.setCurrentTenant("tenant-1");
+      TenantXtmHubRegistration reg = buildRegistration("token-1", now.minusHours(30));
+      String tenantId = reg.getTenant().getId();
+
+      when(tenantXtmHubRegistrationRepository.findAll()).thenReturn(List.of(reg));
+      when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+      mockSettings.setPlatformId("platform-123");
+      mockSettings.setPlatformVersion("1.0.0");
+      mockSettings.setPlatformBaseUrl("http://localhost");
+      mockSettings.setXtmHubShouldSendConnectivityEmail("false"); // was disabled after loss
+      when(platformSettingsService.findSettings()).thenReturn(mockSettings);
+
+      whenHubReturnsAllTenantsConnectivityStatuses(Map.of(tenantId, "active")); // now restored
+
+      // When
+      xtmHubService.refreshConnectivityAllTenants();
+
+      // Then — flag re-armed, no email
+      verifyNoInteractions(xtmHubEmailService);
+      verify(platformSettingsService).updateXTMHubEmailNotification(true);
+    }
+
+    @Test
+    @DisplayName("Should send email when no registrations exist after filtering NOT_FOUND")
+    void whenAllRegistrationsAreNotFound_ShouldNotSendEmail() {
+      // Given
+      TenantContext.setCurrentTenant("tenant-1");
+      TenantXtmHubRegistration reg = buildRegistration("token-1", now.minusHours(30));
+      String tenantId = reg.getTenant().getId();
+
+      when(tenantXtmHubRegistrationRepository.findAll()).thenReturn(List.of(reg));
+
+      mockSettings.setPlatformId("platform-123");
+      mockSettings.setPlatformVersion("1.0.0");
+      mockSettings.setPlatformBaseUrl("http://localhost");
+      mockSettings.setXtmHubShouldSendConnectivityEmail("true");
+      when(platformSettingsService.findSettings()).thenReturn(mockSettings);
+
+      whenHubReturnsAllTenantsConnectivityStatuses(Map.of(tenantId, "not_found"));
+
+      // When
+      xtmHubService.refreshConnectivityAllTenants();
+
+      // Then — registration deleted, checkResults is empty, no email
+      verify(tenantXtmHubRegistrationRepository).deleteByTenantId(tenantId);
+      verifyNoInteractions(xtmHubEmailService);
+      verify(platformSettingsService, never()).updateXTMHubEmailNotification(anyBoolean());
     }
 
     @Test
