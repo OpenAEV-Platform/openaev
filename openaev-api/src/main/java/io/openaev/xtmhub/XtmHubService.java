@@ -96,7 +96,7 @@ public class XtmHubService {
     PlatformSettings settings = platformSettingsService.findSettings();
 
     List<TenantXtmHubRegistration> registrations =
-        new ArrayList<>(tenantXtmHubRegistrationRepository.findAll());
+        new ArrayList<>(tenantXtmHubRegistrationRepository.findAllByTenantNotDeleted());
 
     if (registrations.isEmpty()) {
       return;

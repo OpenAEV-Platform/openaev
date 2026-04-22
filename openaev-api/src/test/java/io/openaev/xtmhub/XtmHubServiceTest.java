@@ -415,7 +415,7 @@ class XtmHubServiceTest {
     @DisplayName("Should do nothing when no registrations exist")
     void whenNoRegistrations_ShouldDoNothing() {
       // Given
-      when(tenantXtmHubRegistrationRepository.findAll()).thenReturn(List.of());
+      when(tenantXtmHubRegistrationRepository.findAllByTenantNotDeleted()).thenReturn(List.of());
 
       // When
       xtmHubService.refreshConnectivityAllTenants();
@@ -438,7 +438,7 @@ class XtmHubServiceTest {
       String activeTenantId = activeReg.getTenant().getId();
       String notFoundTenantId = notFoundReg.getTenant().getId();
 
-      when(tenantXtmHubRegistrationRepository.findAll())
+      when(tenantXtmHubRegistrationRepository.findAllByTenantNotDeleted())
           .thenReturn(List.of(activeReg, notFoundReg));
       when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
@@ -478,7 +478,7 @@ class XtmHubServiceTest {
       TenantXtmHubRegistration reg = buildRegistration("token-1", lastCheck);
       String tenantId = reg.getTenant().getId();
 
-      when(tenantXtmHubRegistrationRepository.findAll()).thenReturn(List.of(reg));
+      when(tenantXtmHubRegistrationRepository.findAllByTenantNotDeleted()).thenReturn(List.of(reg));
       when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
       mockSettings.setPlatformId("platform-123");
@@ -513,7 +513,7 @@ class XtmHubServiceTest {
       TenantXtmHubRegistration reg = buildRegistration("token-1", lastCheck);
       String tenantId = reg.getTenant().getId();
 
-      when(tenantXtmHubRegistrationRepository.findAll()).thenReturn(List.of(reg));
+      when(tenantXtmHubRegistrationRepository.findAllByTenantNotDeleted()).thenReturn(List.of(reg));
       when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
       mockSettings.setPlatformId("platform-123");
@@ -547,7 +547,7 @@ class XtmHubServiceTest {
       TenantXtmHubRegistration reg = buildRegistration("token-1", lastCheck);
       String tenantId = reg.getTenant().getId();
 
-      when(tenantXtmHubRegistrationRepository.findAll()).thenReturn(List.of(reg));
+      when(tenantXtmHubRegistrationRepository.findAllByTenantNotDeleted()).thenReturn(List.of(reg));
       when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
       mockSettings.setPlatformId("platform-123");
@@ -573,7 +573,7 @@ class XtmHubServiceTest {
       TenantContext.setCurrentTenant("tenant-1");
       TenantXtmHubRegistration reg = buildRegistration("token-1", now.minusHours(1));
 
-      when(tenantXtmHubRegistrationRepository.findAll()).thenReturn(List.of(reg));
+      when(tenantXtmHubRegistrationRepository.findAllByTenantNotDeleted()).thenReturn(List.of(reg));
       when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
       mockSettings.setPlatformId("platform-123");
@@ -606,7 +606,8 @@ class XtmHubServiceTest {
       TenantContext.setCurrentTenant("tenant-2");
       TenantXtmHubRegistration reg2 = buildRegistration("token-2", now.minusHours(30));
 
-      when(tenantXtmHubRegistrationRepository.findAll()).thenReturn(List.of(reg1, reg2));
+      when(tenantXtmHubRegistrationRepository.findAllByTenantNotDeleted())
+          .thenReturn(List.of(reg1, reg2));
       when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
       mockSettings.setPlatformId("platform-123");
@@ -636,7 +637,8 @@ class XtmHubServiceTest {
       TenantContext.setCurrentTenant("tenant-2");
       TenantXtmHubRegistration reg2 = buildRegistration("token-2", now.minusHours(1));
 
-      when(tenantXtmHubRegistrationRepository.findAll()).thenReturn(List.of(reg1, reg2));
+      when(tenantXtmHubRegistrationRepository.findAllByTenantNotDeleted())
+          .thenReturn(List.of(reg1, reg2));
       when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
       mockSettings.setPlatformId("platform-123");
@@ -665,7 +667,7 @@ class XtmHubServiceTest {
       TenantXtmHubRegistration reg = buildRegistration("token-1", now.minusHours(30));
       String tenantId = reg.getTenant().getId();
 
-      when(tenantXtmHubRegistrationRepository.findAll()).thenReturn(List.of(reg));
+      when(tenantXtmHubRegistrationRepository.findAllByTenantNotDeleted()).thenReturn(List.of(reg));
       when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
       mockSettings.setPlatformId("platform-123");
@@ -692,7 +694,7 @@ class XtmHubServiceTest {
       TenantXtmHubRegistration reg = buildRegistration("token-1", now.minusHours(30));
       String tenantId = reg.getTenant().getId();
 
-      when(tenantXtmHubRegistrationRepository.findAll()).thenReturn(List.of(reg));
+      when(tenantXtmHubRegistrationRepository.findAllByTenantNotDeleted()).thenReturn(List.of(reg));
       when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
       mockSettings.setPlatformId("platform-123");
@@ -719,7 +721,7 @@ class XtmHubServiceTest {
       TenantXtmHubRegistration reg = buildRegistration("token-1", now.minusHours(30));
       String tenantId = reg.getTenant().getId();
 
-      when(tenantXtmHubRegistrationRepository.findAll()).thenReturn(List.of(reg));
+      when(tenantXtmHubRegistrationRepository.findAllByTenantNotDeleted()).thenReturn(List.of(reg));
 
       mockSettings.setPlatformId("platform-123");
       mockSettings.setPlatformVersion("1.0.0");
@@ -747,7 +749,8 @@ class XtmHubServiceTest {
       TenantContext.setCurrentTenant("tenant-2");
       TenantXtmHubRegistration reg2 = buildRegistration("token-2", now.minusHours(1));
 
-      when(tenantXtmHubRegistrationRepository.findAll()).thenReturn(List.of(reg1, reg2));
+      when(tenantXtmHubRegistrationRepository.findAllByTenantNotDeleted())
+          .thenReturn(List.of(reg1, reg2));
       when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
       mockSettings.setPlatformId("platform-123");
@@ -777,6 +780,43 @@ class XtmHubServiceTest {
             String expectedUrl = "http://localhost/" + tenantId;
             assertThat(entry.get("url").getAsString()).isEqualTo(expectedUrl);
           });
+    }
+
+    @Test
+    @DisplayName("Should ignore soft-deleted tenants and not call hub for them")
+    void whenTenantIsSoftDeleted_ShouldNotBeIncludedInRefresh() {
+      // Given — the repository already excludes soft-deleted tenants,
+      // so only the non-deleted registration is returned.
+      TenantContext.setCurrentTenant("tenant-active");
+      TenantXtmHubRegistration activeReg = buildRegistration("token-active", now.minusHours(1));
+
+      when(tenantXtmHubRegistrationRepository.findAllByTenantNotDeleted())
+          .thenReturn(List.of(activeReg));
+      when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+      mockSettings.setPlatformId("platform-123");
+      mockSettings.setPlatformVersion("1.0.0");
+      mockSettings.setPlatformBaseUrl("http://localhost");
+      mockSettings.setXtmHubShouldSendConnectivityEmail("true");
+      when(platformSettingsService.findSettings()).thenReturn(mockSettings);
+
+      whenHubReturnsAllTenantsConnectivityStatuses(Map.of("tenant-active", "active"));
+
+      // When
+      xtmHubService.refreshConnectivityAllTenants();
+
+      // Then — only 1 tenant sent to hub (soft-deleted tenant is absent from the payload)
+      JsonArray tenants =
+          getAllTenantsRequestBody()
+              .getAsJsonObject("variables")
+              .getAsJsonObject("input")
+              .getAsJsonArray("tenants");
+      assertThat(tenants).hasSize(1);
+      assertThat(tenants.get(0).getAsJsonObject().get("tenantId").getAsString())
+          .isEqualTo("tenant-active");
+
+      verify(tenantXtmHubRegistrationRepository, times(1)).save(any());
+      verify(tenantXtmHubRegistrationRepository, never()).deleteByTenantId("tenant-deleted");
     }
   }
 
