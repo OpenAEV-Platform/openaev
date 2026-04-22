@@ -492,7 +492,7 @@ public class InjectExecutionStep implements ActionStep {
           ConditionCreateInput.builder()
               .temporaryId("0")
               .type(ConditionType.AFTER)
-              .keyType(null)
+              .key(null)
               .keyType(null)
               .mappingType(null)
               .value(String.valueOf(input.getDependsDuration()))
