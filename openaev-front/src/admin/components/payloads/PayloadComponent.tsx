@@ -324,7 +324,11 @@ const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documents
                 <TableContainer component={Paper}>
                   <Table sx={{ minWidth: 650 }}>
                     <TableHead>
-                      <TableRow sx={{ fontWeight: 'bold' }}>
+                      <TableRow sx={{
+                        textTransform: 'uppercase',
+                        fontWeight: 'bold',
+                      }}
+                      >
                         <TableCell>{t('Type')}</TableCell>
                         {isChainingEnabled && <TableCell>{t('Subtype')}</TableCell>}
                         <TableCell>{t('Key')}</TableCell>
@@ -375,7 +379,11 @@ const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documents
                   }}
                   >
                     <TableHead>
-                      <TableRow sx={{ fontWeight: 'bold' }}>
+                      <TableRow sx={{
+                        textTransform: 'uppercase',
+                        fontWeight: 'bold',
+                      }}
+                      >
                         <TableCell width="30%">{t('Command executor')}</TableCell>
                         <TableCell width="30%">{t('Get command')}</TableCell>
                         <TableCell width="30%">{t('Check command')}</TableCell>

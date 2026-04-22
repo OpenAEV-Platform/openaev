@@ -1,5 +1,5 @@
 import { CancelOutlined, PauseOutlined, PlayArrowOutlined, RestartAltOutlined } from '@mui/icons-material';
-import { Button as MuiButton, Dialog, DialogActions, DialogContent, DialogContentText, Tooltip, Typography } from '@mui/material';
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
@@ -7,7 +7,6 @@ import { makeStyles } from 'tss-react/mui';
 
 import { updateExerciseStatus } from '../../../../actions/Exercise';
 import { type ExercisesHelper } from '../../../../actions/exercises/exercise-helper';
-import Button from '../../../../components/common/button/Button';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
@@ -57,7 +56,7 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoadin
       case 'SCHEDULED': {
         if (permissions.canLaunch) {
           return (
-            <MuiButton
+            <Button
               style={{
                 marginRight: 10,
                 lineHeight: 'initial',
@@ -70,7 +69,7 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoadin
               disabled={isLoading}
             >
               {t('Start now')}
-            </MuiButton>
+            </Button>
           );
         }
         return (<div />);
@@ -78,7 +77,7 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoadin
       case 'RUNNING': {
         if (permissions.canLaunch) {
           return (
-            <MuiButton
+            <Button
               style={{ marginRight: 10 }}
               startIcon={<PauseOutlined />}
               variant="outlined"
@@ -88,7 +87,7 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoadin
               disabled={isLoading}
             >
               {t('Pause')}
-            </MuiButton>
+            </Button>
           );
         }
         return (<div />);
@@ -96,7 +95,7 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoadin
       case 'PAUSED': {
         if (permissions.canLaunch) {
           return (
-            <MuiButton
+            <Button
               style={{ marginRight: 10 }}
               variant="outlined"
               startIcon={<PlayArrowOutlined />}
@@ -105,7 +104,7 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoadin
               disabled={isLoading}
             >
               {t('Resume')}
-            </MuiButton>
+            </Button>
           );
         }
         return <div />;
@@ -121,7 +120,7 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoadin
       case 'PAUSED': {
         if (permissions.canLaunch) {
           return (
-            <MuiButton
+            <Button
               style={{ marginRight: 10 }}
               variant="outlined"
               startIcon={<CancelOutlined />}
@@ -130,7 +129,7 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoadin
               disabled={isLoading}
             >
               {t('Stop')}
-            </MuiButton>
+            </Button>
           );
         }
         return <div />;
@@ -139,7 +138,7 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoadin
       case 'CANCELED': {
         if (permissions.canLaunch) {
           return (
-            <MuiButton
+            <Button
               style={{ marginRight: 10 }}
               variant="outlined"
               startIcon={<RestartAltOutlined />}
@@ -148,7 +147,7 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoadin
               disabled={isLoading}
             >
               {t('Reset')}
-            </MuiButton>
+            </Button>
           );
         }
         return <div />;
@@ -188,11 +187,11 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoadin
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="secondary" onClick={() => setOpenChangeStatus(null)}>
+          <Button onClick={() => setOpenChangeStatus(null)}>
             {t('Cancel')}
           </Button>
           <Button
-            variant="primary"
+            color="secondary"
             onClick={() => submitUpdateStatus({ exercise_status: openChangeStatus })}
           >
             {t('Confirm')}

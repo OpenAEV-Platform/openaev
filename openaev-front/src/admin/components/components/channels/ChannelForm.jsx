@@ -81,7 +81,7 @@ class ChannelFormComponent extends Component {
               </Button>
               <Button
                 variant="contained"
-                color="primary"
+                color="secondary"
                 type="submit"
                 disabled={pristine || submitting}
               >

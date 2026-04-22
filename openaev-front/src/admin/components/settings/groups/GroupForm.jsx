@@ -1,8 +1,8 @@
+import { Button } from '@mui/material';
 import * as PropTypes from 'prop-types';
 import { Component } from 'react';
 import { Form } from 'react-final-form';
 
-import Button from '../../../../components/common/button/Button';
 import OldTextField from '../../../../components/fields/OldTextField';
 import inject18n from '../../../../components/i18n';
 
@@ -52,7 +52,7 @@ class GroupFormComponent extends Component {
             }}
             >
               <Button
-                variant="secondary"
+                variant="contained"
                 onClick={handleClose.bind(this)}
                 style={{ marginRight: 10 }}
                 disabled={submitting}
@@ -60,7 +60,8 @@ class GroupFormComponent extends Component {
                 {t('Cancel')}
               </Button>
               <Button
-                variant="primary"
+                variant="contained"
+                color="secondary"
                 type="submit"
                 disabled={pristine || submitting}
               >

@@ -8,6 +8,7 @@ const useStyles = makeStyles()(theme => ({
     fontSize: 12,
     height: 18,
     marginRight: theme.spacing(1),
+    textTransform: 'uppercase',
     borderRadius: 4,
     width: 180,
   },

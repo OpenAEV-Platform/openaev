@@ -1,71 +1,125 @@
-import { Box, CircularProgress, Tooltip } from '@mui/material';
+import { Box, Chip, CircularProgress, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import * as PropTypes from 'prop-types';
 import * as R from 'ramda';
 import { withStyles } from 'tss-react/mui';
 
-import Tag from './common/tag/Tag';
 import inject18n from './i18n';
 
-const styles = () => ({});
+const styles = () => ({
+  chip: {
+    fontSize: 12,
+    lineHeight: '12px',
+    height: 25,
+    marginRight: 7,
+    textTransform: 'uppercase',
+    borderRadius: 4,
+    width: 120,
+  },
+  chipLarge: {
+    fontSize: 12,
+    lineHeight: '12px',
+    height: 25,
+    marginRight: 7,
+    textTransform: 'uppercase',
+    borderRadius: 4,
+    width: 150,
+  },
+  chipXLarge: {
+    fontSize: 12,
+    lineHeight: '12px',
+    height: 25,
+    marginRight: 7,
+    textTransform: 'uppercase',
+    borderRadius: 4,
+    width: 250,
+  },
+  chipInList: {
+    fontSize: 12,
+    lineHeight: '12px',
+    height: 20,
+    float: 'left',
+    textTransform: 'uppercase',
+    borderRadius: 4,
+    width: 140,
+  },
+});
+
+const computeInlineStyles = theme => ({
+  green: {
+    backgroundColor: 'rgba(76, 175, 80, 0.08)',
+    color: '#4caf50',
+  },
+  red: {
+    backgroundColor: 'rgba(244, 67, 54, 0.08)',
+    color: '#f44336',
+  },
+  blue: {
+    backgroundColor: 'rgba(92, 123, 245, 0.08)',
+    color: '#5c7bf5',
+  },
+  ee: {
+    backgroundColor: theme.palette.ee.lightBackground,
+    color: theme.palette.ee.main,
+  },
+});
 
 const RenderChip = (props) => {
-  const { label, neutralLabel, status, variant, t, reverse } = props;
+  const { classes, label, neutralLabel, status, variant, t, reverse } = props;
   const theme = useTheme();
-
-  const getTagProps = () => {
-    if (status === true) {
-      return {
-        label: label,
-        color: reverse ? theme.palette.error.main : theme.palette.success.main,
-      };
-    }
-    if (status === false) {
-      return {
-        label: label,
-        color: reverse ? theme.palette.success.main : theme.palette.error.main,
-      };
-    }
-    if (status === 'ee') {
-      return {
-        label: neutralLabel || t('EE'),
-        color: theme.palette.ee.main,
-      };
-    }
-    if (status === null) {
-      return {
-        label: neutralLabel || t('Not applicable'),
-        color: null,
-      };
-    }
-    if (status === undefined) {
-      return {
-        label: <CircularProgress size={10} color="primary" />,
-        color: null,
-      };
-    }
-    return {
-      label: label,
-      color: null,
-    };
-  };
-
-  const tagProps = getTagProps();
-  let maxWidth = 120;
-  if (variant === 'xlarge') maxWidth = 250;
-  else if (variant === 'large') maxWidth = 150;
-  else if (variant === 'inList') maxWidth = 140;
-
+  let style = classes.chip;
+  if (variant === 'inList') {
+    style = classes.chipInList;
+  } else if (variant === 'large') {
+    style = classes.chipLarge;
+  } else if (variant === 'xlarge') {
+    style = classes.chipXLarge;
+  }
+  const inlineStyles = computeInlineStyles(theme);
+  if (status === true) {
+    return (
+      <Chip
+        classes={{ root: style }}
+        style={reverse ? inlineStyles.red : inlineStyles.green}
+        label={label}
+      />
+    );
+  }
+  if (status === null) {
+    return (
+      <Chip
+        classes={{ root: style }}
+        style={inlineStyles.blue}
+        label={neutralLabel || t('Not applicable')}
+      />
+    );
+  }
+  if (status === 'ee') {
+    return (
+      <Chip
+        classes={{ root: style }}
+        style={inlineStyles.ee}
+        label={neutralLabel || t('EE')}
+      />
+    );
+  }
+  if (status === undefined) {
+    return (
+      <Chip
+        classes={{ root: style }}
+        style={inlineStyles.blue}
+        label={<CircularProgress size={10} color="primary" />}
+      />
+    );
+  }
   return (
-    <Tag
-      label={tagProps.label}
-      color={tagProps.color}
-      maxWidth={maxWidth}
-      disableTooltip
+    <Chip
+      classes={{ root: style }}
+      style={reverse ? inlineStyles.green : inlineStyles.red}
+      label={label}
     />
   );
 };
-
 const ItemBooleanComponent = (props) => {
   const { tooltip } = props;
   if (tooltip) {

@@ -261,7 +261,7 @@ const ScenarioAssistantDrawer = ({ open, onClose, onSubmit }: Props) => {
             <TextFieldController type="number" label={t('Number of injects by TTP')} name="inject_by_ttp_number" required />
             <Button
               variant="contained"
-              color="primary"
+              color="secondary"
               type="submit"
               style={{ marginLeft: 'auto' }}
               disabled={isSubmitting || !isDirty}

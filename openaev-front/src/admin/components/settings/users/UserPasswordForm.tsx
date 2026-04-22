@@ -1,6 +1,6 @@
+import { Button } from '@mui/material';
 import { Form } from 'react-final-form';
 
-import Button from '../../../../components/common/button/Button';
 import OldTextField from '../../../../components/fields/OldTextField';
 import { useFormatter } from '../../../../components/i18n';
 
@@ -61,7 +61,7 @@ const UserPasswordForm = ({
             }}
           >
             <Button
-              variant="secondary"
+              variant="contained"
               onClick={handleClose}
               style={{ marginRight: 10 }}
               disabled={submitting}
@@ -69,7 +69,8 @@ const UserPasswordForm = ({
               {t('Cancel')}
             </Button>
             <Button
-              variant="primary"
+              variant="contained"
+              color="secondary"
               type="submit"
               disabled={pristine || submitting}
             >

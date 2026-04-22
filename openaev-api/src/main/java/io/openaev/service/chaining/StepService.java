@@ -363,37 +363,45 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     if (conditions == null || conditions.isEmpty()) {
       return;
     }
-    Condition firstCondition =
-        conditions.stream()
-            .filter(condition -> condition.getConditionParent() == null)
-            .reduce(
-                (a, b) -> {
-                  throw new IllegalArgumentException(
-                      "New step (TEMPLATE): Only 1 condition can be first parent");
-                })
-            .orElseThrow(
-                () ->
-                    new IllegalArgumentException(
-                        "New step (TEMPLATE): Only 1 condition can be first parent"));
+    List<Condition> rootConditions =
+        conditions.stream().filter(condition -> condition.getConditionParent() == null).toList();
 
-    Step stepFrom =
-        firstCondition.getStepFrom() == null
-            ? null
-            : findStepFromCondition(firstCondition.getStepFrom().getId());
+    if (rootConditions.isEmpty()) {
+      throw new IllegalArgumentException(
+          "New step (TEMPLATE): At least 1 condition must be a root (no parent)");
+    }
 
-    Condition first =
-        Condition.builder()
-            .type(firstCondition.getType())
-            .key(firstCondition.getKey())
-            .value(firstCondition.getValue())
-            .stepFrom(stepFrom)
-            .build();
-
-    conditionService.linkToStep(first, stepCopied, true);
-    first = conditionService.saveCondition(first);
+    // Multiple roots are only allowed when all roots are MAPPER conditions
+    if (rootConditions.size() > 1) {
+      boolean allMapper =
+          rootConditions.stream().allMatch(c -> c.getType() == ConditionType.MAPPER);
+      if (!allMapper) {
+        throw new IllegalArgumentException(
+            "New step (TEMPLATE): Only 1 condition can be first parent");
+      }
+    }
 
     Map<String, Condition> temporaryIdAndSaveId = new HashMap<>();
-    temporaryIdAndSaveId.put(firstCondition.getId(), first);
+
+    for (Condition firstCondition : rootConditions) {
+      Step stepFrom =
+          firstCondition.getStepFrom() == null
+              ? null
+              : findStepFromCondition(firstCondition.getStepFrom().getId());
+
+      Condition first =
+          Condition.builder()
+              .type(firstCondition.getType())
+              .key(firstCondition.getKey())
+              .value(firstCondition.getValue())
+              .stepFrom(stepFrom)
+              .build();
+
+      conditionService.linkToStep(first, stepCopied, true);
+      first = conditionService.saveCondition(first);
+
+      temporaryIdAndSaveId.put(firstCondition.getId(), first);
+    }
 
     Map<String, List<Condition>> temporaryConditions =
         conditions.stream()
@@ -401,7 +409,7 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
             .collect(Collectors.groupingBy(condition -> condition.getConditionParent().getId()));
 
     Queue<String> currentId = new LinkedList<>();
-    currentId.add(firstCondition.getId());
+    rootConditions.forEach(rc -> currentId.add(rc.getId()));
 
     while (!currentId.isEmpty()) {
       String currentTemporaryId = currentId.poll();

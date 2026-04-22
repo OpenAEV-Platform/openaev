@@ -80,7 +80,7 @@ const ChallengesPreview: FunctionComponent<Props> = ({
       <div className={classes.root}>
         {permissions.isLoggedIn && permissions.canAccess && value.linkToPlayerMode.length > 0 && (
           <Button
-            color="primary"
+            color="secondary"
             variant="outlined"
             component={Link}
             to={value.linkToPlayerMode}

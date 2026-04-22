@@ -1,5 +1,5 @@
 import { PlayArrowOutlined, Stop } from '@mui/icons-material';
-import { Button as MuiButton, Dialog, DialogActions, DialogContent, DialogContentText, Tooltip, Typography } from '@mui/material';
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type Dispatch, type SetStateAction, useContext, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
@@ -8,7 +8,6 @@ import { makeStyles } from 'tss-react/mui';
 import { playInjectsAssistantForScenario } from '../../../../actions/Inject';
 import { createRunningExerciseFromScenario, updateScenarioRecurrence } from '../../../../actions/scenarios/scenario-actions';
 import { type ScenariosHelper } from '../../../../actions/scenarios/scenario-helper';
-import Button from '../../../../components/common/button/Button';
 import LoaderDialog from '../../../../components/common/loader/LoaderDialog';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
@@ -168,7 +167,7 @@ const ScenarioHeader = ({
       <div className={classes.actions}>
         { canLaunch
           && scenario.scenario_recurrence && !ended ? (
-              <MuiButton
+              <Button
                 style={{ marginRight: theme.spacing(1) }}
                 startIcon={<Stop />}
                 variant="outlined"
@@ -177,13 +176,13 @@ const ScenarioHeader = ({
                 onClick={stop}
               >
                 {t('Stop')}
-              </MuiButton>
+              </Button>
             )
           : (
               <>
                 {canManage
                   && (
-                    <MuiButton
+                    <Button
                       style={{
                         marginRight: theme.spacing(1),
                         lineHeight: 'initial',
@@ -195,11 +194,11 @@ const ScenarioHeader = ({
                       onClick={() => setOpenScenarioAssistant(true)}
                     >
                       {t('Scenario assistant')}
-                    </MuiButton>
+                    </Button>
                   )}
                 {canLaunch
                   && (
-                    <MuiButton
+                    <Button
                       style={{
                         marginRight: theme.spacing(1),
                         lineHeight: 'initial',
@@ -211,7 +210,7 @@ const ScenarioHeader = ({
                       onClick={() => setOpenInstantiateSimulationAndStart(true)}
                     >
                       {t('Launch now')}
-                    </MuiButton>
+                    </Button>
                   )}
               </>
             )}
@@ -243,11 +242,11 @@ const ScenarioHeader = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="secondary" onClick={() => setOpenInstantiateSimulationAndStart(false)}>
+          <Button onClick={() => setOpenInstantiateSimulationAndStart(false)}>
             {t('Cancel')}
           </Button>
           <Button
-            variant="primary"
+            color="secondary"
             onClick={async () => {
               setOpenInstantiateSimulationAndStart(false);
               const exercise: Exercise = (await createRunningExerciseFromScenario(scenarioId)).data;

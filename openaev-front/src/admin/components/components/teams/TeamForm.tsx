@@ -1,3 +1,4 @@
+import { Button } from '@mui/material';
 import { type FunctionComponent, useContext } from 'react';
 import { Form } from 'react-final-form';
 import { makeStyles } from 'tss-react/mui';
@@ -5,7 +6,6 @@ import { z } from 'zod';
 
 import { type TeamInputForm } from '../../../../actions/teams/Team';
 import CheckboxField from '../../../../components/CheckboxField';
-import Button from '../../../../components/common/button/Button';
 import OldTextField from '../../../../components/fields/OldTextField';
 import { useFormatter } from '../../../../components/i18n';
 import OrganizationField from '../../../../components/OrganizationField';
@@ -86,11 +86,12 @@ const TeamForm: FunctionComponent<TeamFormProps> = ({
             />
           )}
           <div className={classes.container} style={{ marginTop: 20 }}>
-            <Button variant="secondary" onClick={handleClose} disabled={submitting}>
+            <Button variant="contained" onClick={handleClose} disabled={submitting}>
               {t('Cancel')}
             </Button>
             <Button
-              variant="primary"
+              variant="contained"
+              color="secondary"
               type="submit"
               data-testid="team-form-submit-button"
               disabled={pristine || submitting}

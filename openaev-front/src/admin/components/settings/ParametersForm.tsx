@@ -73,7 +73,7 @@ const ParametersForm: FunctionComponent<ParametersForms> = ({
           <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
             <Button
               variant="contained"
-              color="primary"
+              color="secondary"
               type="submit"
               disabled={!isDirty || isSubmitting}
             >

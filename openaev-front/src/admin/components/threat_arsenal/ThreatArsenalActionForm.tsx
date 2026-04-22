@@ -1,11 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Box } from '@mui/material';
+import { Box, Button } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type SyntheticEvent, useEffect } from 'react';
 import { type FieldValues, FormProvider, type SubmitHandler, useForm, useWatch } from 'react-hook-form';
 import { z, type ZodTypeAny } from 'zod';
 
-import Button from '../../../components/common/button/Button';
 import Tabs, { type TabsEntry } from '../../../components/common/tabs/Tabs';
 import useTabs from '../../../components/common/tabs/useTabs';
 import { useFormatter } from '../../../components/i18n';
@@ -306,14 +305,15 @@ const ThreatArsenalActionForm = ({
           }}
           >
             <Button
-              variant="primary"
+              variant="contained"
+              color="secondary"
               type="submit"
               disabled={isSubmitting || !isDirty}
             >
               {editing ? t('Update') : t('Create')}
             </Button>
             <Button
-              variant="secondary"
+              variant="contained"
               onClick={handleClose}
               disabled={isSubmitting}
             >

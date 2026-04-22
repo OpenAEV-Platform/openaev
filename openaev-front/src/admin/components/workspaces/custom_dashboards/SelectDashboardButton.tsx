@@ -1,7 +1,6 @@
-import { Button as MuiButton } from '@mui/material';
+import { Button } from '@mui/material';
 import { useState } from 'react';
 
-import Button from '../../../../components/common/button/Button';
 import ButtonPopover from '../../../../components/common/ButtonPopover';
 import Dialog from '../../../../components/common/dialog/Dialog';
 import CustomDashboardAutocompleteField from '../../../../components/fields/CustomDashboardAutocompleteField';
@@ -41,15 +40,15 @@ const SelectDashboardButton = ({ defaultDashboardId = '', variant = 'popover', h
               style={{ alignSelf: 'start' }}
             />
           )
-        : <MuiButton onClick={handleOpenSelectDashboardDialog} variant="text">{t('Select a dashboard')}</MuiButton>}
+        : <Button onClick={handleOpenSelectDashboardDialog} variant="text">{t('Select a dashboard')}</Button>}
       <Dialog
         title={t('Select a dashboard')}
         open={openSelectDashboardDialog}
         handleClose={handleCloseSelectDashboardDialog}
         actions={(
           <>
-            <Button variant="secondary" onClick={handleCloseSelectDashboardDialog}>{t('Cancel')}</Button>
-            <Button variant="primary" onClick={onHandleSubmit}>
+            <Button onClick={handleCloseSelectDashboardDialog}>{t('Cancel')}</Button>
+            <Button color="secondary" onClick={onHandleSubmit}>
               {t('Continue')}
             </Button>
           </>
