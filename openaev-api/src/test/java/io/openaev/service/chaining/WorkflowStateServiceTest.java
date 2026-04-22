@@ -847,12 +847,9 @@ class WorkflowStateServiceTest {
           .thenReturn(localState);
 
       // Act
-      boolean result =
-          workflowStateService.syncMappersToLocalPartition(
-              template, workflow, "{}", null, List.of());
+      workflowStateService.syncMappersToLocalPartition(template, workflow, "{}", null, List.of());
 
       // Assert
-      assertFalse(result);
       verify(workflowStateRepository, never()).save(any());
     }
 
@@ -877,16 +874,14 @@ class WorkflowStateServiceTest {
           .thenReturn(localState);
 
       // Act
-      boolean result =
-          workflowStateService.syncMappersToLocalPartition(
-              template,
-              workflow,
-              buildOutput(ConditionKeyType.IPv4, "1.1.1.1"),
-              null,
-              List.of(globalMapper));
+      workflowStateService.syncMappersToLocalPartition(
+          template,
+          workflow,
+          buildOutput(ConditionKeyType.IPv4, "1.1.1.1"),
+          null,
+          List.of(globalMapper));
 
       // Assert
-      assertFalse(result);
       verify(workflowStateRepository, never()).save(any());
     }
 
@@ -911,12 +906,10 @@ class WorkflowStateServiceTest {
           .thenReturn(localState);
 
       // Act
-      boolean result =
-          workflowStateService.syncMappersToLocalPartition(
-              template, workflow, "   ", null, List.of(mapper));
+      workflowStateService.syncMappersToLocalPartition(
+          template, workflow, "   ", null, List.of(mapper));
 
       // Assert
-      assertFalse(result);
       verify(workflowStateRepository, never()).save(any());
     }
 
@@ -942,16 +935,14 @@ class WorkflowStateServiceTest {
       when(conditionService.isFilterConditionValid(any(), eq(filter))).thenReturn(false);
 
       // Act
-      boolean result =
-          workflowStateService.syncMappersToLocalPartition(
-              template,
-              workflow,
-              buildOutput(ConditionKeyType.IPv4, "192.168.1.1"),
-              filter,
-              List.of(mapper));
+      workflowStateService.syncMappersToLocalPartition(
+          template,
+          workflow,
+          buildOutput(ConditionKeyType.IPv4, "192.168.1.1"),
+          filter,
+          List.of(mapper));
 
       // Assert
-      assertFalse(result);
       verify(workflowStateRepository, never()).save(any());
     }
 
@@ -977,16 +968,14 @@ class WorkflowStateServiceTest {
       when(conditionService.isFilterConditionValid(any(), eq(filter))).thenReturn(true);
 
       // Act
-      boolean result =
-          workflowStateService.syncMappersToLocalPartition(
-              template,
-              workflow,
-              buildOutput(ConditionKeyType.IPv4, "10.10.0.1"),
-              filter,
-              List.of(mapper));
+      workflowStateService.syncMappersToLocalPartition(
+          template,
+          workflow,
+          buildOutput(ConditionKeyType.IPv4, "10.10.0.1"),
+          filter,
+          List.of(mapper));
 
       // Assert
-      assertTrue(result);
       verify(workflowStateRepository).save(localState);
       assertTrue(localState.getEntries().contains("10.10.0.1"));
     }
@@ -1019,16 +1008,14 @@ class WorkflowStateServiceTest {
       when(conditionService.isFilterConditionValid(any(), eq(filter))).thenReturn(true);
 
       // Act
-      boolean result =
-          workflowStateService.syncMappersToLocalPartition(
-              template,
-              workflow,
-              buildOutput(ConditionKeyType.IPv4, "10.10.0.1"),
-              filter,
-              List.of(mapper));
+      workflowStateService.syncMappersToLocalPartition(
+          template,
+          workflow,
+          buildOutput(ConditionKeyType.IPv4, "10.10.0.1"),
+          filter,
+          List.of(mapper));
 
       // Assert
-      assertFalse(result);
       verify(workflowStateRepository, never()).save(any());
     }
 
@@ -1050,17 +1037,14 @@ class WorkflowStateServiceTest {
       when(conditionService.isFilterConditionValid(any(), eq(filter))).thenReturn(true);
 
       // Act
-      boolean result =
-          workflowStateService.syncMappersToLocalPartition(
-              template,
-              workflow,
-              buildOutput(ConditionKeyType.IPv4, "172.16.0.5"),
-              filter,
-              List.of(mapper));
+      workflowStateService.syncMappersToLocalPartition(
+          template,
+          workflow,
+          buildOutput(ConditionKeyType.IPv4, "172.16.0.5"),
+          filter,
+          List.of(mapper));
 
       // Assert
-      // A new value was added → changed = true, save is called
-      assertTrue(result);
       verify(workflowStateRepository).save(any(WorkflowState.class));
     }
 
@@ -1090,17 +1074,15 @@ class WorkflowStateServiceTest {
       when(conditionService.isFilterConditionValid(any(), eq(filter))).thenReturn(true);
 
       // Act
-      boolean result =
-          workflowStateService.syncMappersToLocalPartition(
-              template,
-              workflow,
-              buildOutput(ConditionKeyType.IPv4, "10.0.0.99"),
-              filter,
-              List.of(globalMapper, localMapperCond));
+      workflowStateService.syncMappersToLocalPartition(
+          template,
+          workflow,
+          buildOutput(ConditionKeyType.IPv4, "10.0.0.99"),
+          filter,
+          List.of(globalMapper, localMapperCond));
 
       // Assert
       // GLOBAL was skipped; LOCAL was processed and added the value
-      assertTrue(result);
       verify(workflowStateRepository).save(localState);
     }
   }
