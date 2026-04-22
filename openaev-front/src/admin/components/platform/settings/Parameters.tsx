@@ -125,7 +125,7 @@ const Parameters = () => {
             <Typography variant="h4">{t('OpenAEV platform')}</Typography>
             <PlatformInfoPanel
               settings={settings}
-              footer={(
+              bottomContent={(
                 <>
                   <ListItem divider>
                     <TextField fullWidth label={t('Filigran support key')} variant="standard" disabled />

@@ -103,7 +103,7 @@ const TenantParameters = () => {
             <Typography variant="h4">{t('OpenAEV platform')}</Typography>
             <PlatformInfoPanel
               settings={settings}
-              header={(
+              topContent={(
                 <ListItem divider>
                   <ListItemText primary={t('Tenant identifier')} />
                   <pre style={{
