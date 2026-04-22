@@ -3,8 +3,8 @@ package io.openaev.service.chaining;
 import static io.openaev.api.chaining.ConditionMapper.resolveMappingType;
 
 import com.google.gson.Gson;
-import com.google.gson.JsonSyntaxException;
-import com.google.gson.reflect.TypeToken;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import io.openaev.api.chaining.ConditionMapper;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.EventInput;
@@ -838,23 +838,23 @@ public class ConditionService {
     }
 
     try {
-      // Convert JSON string to
-      List<Map<String, Object>> dataList =
-          gson.fromJson(currentOutput, new TypeToken<List<Map<String, Object>>>() {}.getType());
+      JsonObject dataMap = JsonParser.parseString(currentOutput).getAsJsonObject();
 
-      if (dataList == null) {
-        return Collections.emptySet();
-      }
-
-      // Stream through the list, grab the "key" value, and convert to ConditionKeyType
-      return dataList.stream()
-          .map(entry -> (String) entry.get("key")) // Get "IPv4", "Text", etc.
+      return dataMap.keySet().stream()
+          .map(
+              key -> {
+                try {
+                  return ConditionKeyType.valueOf(key);
+                } catch (IllegalArgumentException e) {
+                  log.warn("Unknown ConditionKeyType found in output: {}", key);
+                  return null;
+                }
+              })
           .filter(Objects::nonNull)
-          .map(ConditionKeyType::valueOf) // Convert String to your Type/Enum
           .collect(Collectors.toSet());
 
-    } catch (JsonSyntaxException e) {
-      log.error("Invalid JSON output: {}", currentOutput);
+    } catch (Exception e) {
+      log.error("Error parsing parsed_outputs: {}. JSON: {}", e.getMessage(), currentOutput);
       return Collections.emptySet();
     }
   }
