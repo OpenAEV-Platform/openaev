@@ -74,7 +74,7 @@ jobs:
 
   deploy:
       name: Restart testing-xtm-one instance
-      needs: wf-build-image
+      needs: build-image
       runs-on: ubuntu-latest
       steps:
         - name: Install AWX cli
