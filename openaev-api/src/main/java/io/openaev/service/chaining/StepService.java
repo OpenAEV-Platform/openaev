@@ -1004,7 +1004,7 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
    */
   // Do not help to have a consistence data;
   // need a re push event system and/or log system to retry new output
-  // @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public List<ExternalUpdateEvent> handleExternalUpdateEvent(List<ExternalUpdateEvent> events) {
     events.forEach(this::handleExternalUpdateEvent);
     return events;

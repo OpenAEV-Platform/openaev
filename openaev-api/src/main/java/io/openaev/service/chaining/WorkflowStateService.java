@@ -86,13 +86,13 @@ public class WorkflowStateService {
           .getTraces()
           .forEach(
               trace -> {
-                ObjectNode rawOutput = trace.getStructuredOutput();
-                if (rawOutput == null || rawOutput.isEmpty()) {
+                ObjectNode structuredOutput = trace.getStructuredOutput();
+                if (structuredOutput == null || structuredOutput.isEmpty()) {
                   return;
                 }
 
                 try {
-                  JsonElement element = JsonParser.parseString(rawOutput.toString());
+                  JsonElement element = JsonParser.parseString(structuredOutput.toString());
                   if (element.isJsonObject()) {
                     Map<String, List<String>> traceData =
                         saveToEntries(entries, element.getAsJsonObject(), fieldTypeMap);
