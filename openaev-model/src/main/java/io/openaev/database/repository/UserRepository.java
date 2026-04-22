@@ -152,11 +152,12 @@ public interface UserRepository
   @Query(
       "SELECT DISTINCT u "
           + "FROM User u "
+          + "JOIN u.tenants ut "
           + "LEFT JOIN u.groups g "
           + "LEFT JOIN g.roles r "
           + "LEFT JOIN r.capabilities c "
-          + "WHERE c IN :capabilities "
-          + "OR u.admin = true")
+          + "WHERE ut.id = :#{#tenantContext.currentTenant} "
+          + "AND (u.admin = true OR c IN :capabilities)")
   List<User> adminsOrUsersHavingCapabilities(@Param("capabilities") List<String> capabilities);
 
   // -- PAGINATION --
