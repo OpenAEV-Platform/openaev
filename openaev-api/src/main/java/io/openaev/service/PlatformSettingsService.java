@@ -626,31 +626,6 @@ public class PlatformSettingsService {
     }
   }
 
-  public PlatformSettings deleteXTMHubRegistration() {
-    Map<String, Setting> dbSettings = mapOfSettings(fromIterable(this.settingRepository.findAll()));
-
-    List<String> keys =
-        Arrays.asList(
-            XTM_HUB_TOKEN.key(),
-            XTM_HUB_REGISTRATION_DATE.key(),
-            XTM_HUB_REGISTRATION_STATUS.key(),
-            XTM_HUB_REGISTRATION_USER_ID.key(),
-            XTM_HUB_REGISTRATION_USER_NAME.key(),
-            XTM_HUB_LAST_CONNECTIVITY_CHECK.key(),
-            XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL.key());
-
-    List<String> toDelete = new ArrayList<>();
-    keys.forEach(
-        settingsKey -> {
-          if (dbSettings.containsKey(settingsKey)) {
-            toDelete.add(dbSettings.get(settingsKey).getId());
-          }
-        });
-
-    this.settingRepository.deleteByIdsNative(toDelete);
-    return findSettings();
-  }
-
   // -- PLATFORM MESSAGE --
 
   public void cleanMessage(@NotBlank final BannerMessage.BANNER_KEYS banner) {

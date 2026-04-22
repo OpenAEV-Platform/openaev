@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -86,12 +87,19 @@ public class XtmHubApi extends RestBehavior {
   @Operation(
       summary = "Refresh connectivity with XTM Hub",
       description = "Refresh status in settings and version in XTM Hub")
-  @ApiResponses({@ApiResponse(responseCode = "200", description = "Successful refresh")})
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "Successful refresh"),
+    @ApiResponse(
+        responseCode = "204",
+        description = "No registration found or platform not found on XTM Hub")
+  })
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.XTM_HUB_REGISTRATION)
   @Transactional(rollbackFor = Exception.class)
-  public XtmHubRegistrationOutput refreshConnectivity() {
-    return xtmHubRegistrationMapper.toXtmHubRegistrationOutput(
-        this.xtmHubService.refreshConnectivity());
+  public ResponseEntity<XtmHubRegistrationOutput> refreshConnectivity() {
+    return Optional.ofNullable(this.xtmHubService.refreshConnectivity())
+        .map(xtmHubRegistrationMapper::toXtmHubRegistrationOutput)
+        .map(ResponseEntity::ok)
+        .orElse(ResponseEntity.noContent().build());
   }
 
   @PutMapping(value = XTMHUB_URI + "/auto-register", consumes = MediaType.APPLICATION_JSON_VALUE)

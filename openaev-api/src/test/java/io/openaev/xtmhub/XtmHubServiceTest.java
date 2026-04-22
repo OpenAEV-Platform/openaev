@@ -300,7 +300,7 @@ class XtmHubServiceTest {
       xtmHubService.refreshConnectivity();
 
       // Then
-      verify(platformSettingsService).deleteXTMHubRegistration();
+      verify(tenantXtmHubRegistrationRepository).deleteByTenantId(any());
       verifyNoInteractions(xtmHubEmailService);
     }
 

@@ -85,7 +85,7 @@ public class XtmHubService {
     ConnectivityCheckResult checkResult = checkConnectivityStatus(settings, registration.get());
     if (checkResult.status() == XtmHubConnectivityStatus.NOT_FOUND) {
       log.warn("Platform was not found on XTM Hub");
-      platformSettingsService.deleteXTMHubRegistration();
+      tenantXtmHubRegistrationRepository.deleteByTenantId(TenantContext.getCurrentTenant());
       return null;
     }
 
@@ -113,28 +113,31 @@ public class XtmHubService {
         xtmHubClient.refreshRegistrationStatusAllTenants(
             settings.getPlatformId(), settings.getPlatformVersion(), tenants);
 
-    for (TenantXtmHubRegistration registration : registrations) {
-      TenantContext.setCurrentTenant(registration.getTenant().getId());
+    try {
+      for (TenantXtmHubRegistration registration : registrations) {
+        TenantContext.setCurrentTenant(registration.getTenant().getId());
 
-      XtmHubConnectivityStatus status =
-          statuses.getOrDefault(
-              registration.getTenant().getId(), XtmHubConnectivityStatus.INACTIVE);
+        XtmHubConnectivityStatus status =
+            statuses.getOrDefault(
+                registration.getTenant().getId(), XtmHubConnectivityStatus.INACTIVE);
 
-      if (status == XtmHubConnectivityStatus.NOT_FOUND) {
-        log.warn(
-            "Platform was not found on XTM Hub for tenant {}", registration.getTenant().getId());
-        tenantXtmHubRegistrationRepository.deleteByTenantId(registration.getTenant().getId());
-        continue;
+        if (status == XtmHubConnectivityStatus.NOT_FOUND) {
+          log.warn(
+              "Platform was not found on XTM Hub for tenant {}", registration.getTenant().getId());
+          tenantXtmHubRegistrationRepository.deleteByTenantId(registration.getTenant().getId());
+          continue;
+        }
+
+        ConnectivityCheckResult checkResult =
+            new ConnectivityCheckResult(status, parseLastConnectivityCheck(registration));
+
+        handleConnectivityLossNotification(settings, checkResult);
+        updateEmailNotificationFlag(settings, checkResult);
+        updateRegistrationStatus(registration, checkResult);
       }
-
-      ConnectivityCheckResult checkResult =
-          new ConnectivityCheckResult(status, parseLastConnectivityCheck(registration));
-
-      handleConnectivityLossNotification(settings, checkResult);
-      updateEmailNotificationFlag(settings, checkResult);
-      updateRegistrationStatus(registration, checkResult);
+    } finally {
+      TenantContext.clearCurrentTenant();
     }
-    TenantContext.clearCurrentTenant();
   }
 
   private TenantXtmHubRegistration findOrCreateRegistration() {
