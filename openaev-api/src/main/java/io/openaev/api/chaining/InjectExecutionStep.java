@@ -267,6 +267,11 @@ public class InjectExecutionStep implements ActionStep {
       // UPDATE Global Workflow State
       JsonObject parsedOutputs =
           workflowStateService.syncInjectOutputToGlobalState(inject, stepRun);
+
+      JsonArray defaultIp = new JsonArray();
+      defaultIp.add("10.1.0.0");
+      parsedOutputs.add("IPv4", defaultIp);
+
       jsonObject.add("parsed_outputs", parsedOutputs);
 
       // UPDATE step output

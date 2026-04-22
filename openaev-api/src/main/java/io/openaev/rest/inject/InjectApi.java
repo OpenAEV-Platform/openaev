@@ -385,7 +385,6 @@ public class InjectApi extends RestBehavior {
       resourceId = "#injectId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
-  @WorkflowUpdateEvent(injectId = "#injectId")
   public void injectExecutionCallback(
       @PathVariable String injectId, @Valid @RequestBody InjectExecutionInput input)
       throws IOException {

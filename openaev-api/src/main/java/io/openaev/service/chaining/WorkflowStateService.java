@@ -4,7 +4,6 @@ import static io.openaev.database.model.ScopeRuleValueType.getAllContractOutputT
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.gson.*;
-import com.google.gson.reflect.TypeToken;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.WorkflowStateRepository;
 import io.openaev.rest.inject.service.StructuredOutputUtils;
@@ -423,21 +422,22 @@ public class WorkflowStateService {
     }
 
     try {
-      // Parse as a List of Input objects (using the inner class from WorkflowStateEntries)
-      List<WorkflowStateEntries.Input> allInputs =
-          gson.fromJson(
-              currentOutput, new TypeToken<List<WorkflowStateEntries.Input>>() {}.getType());
+      JsonObject allParsed = JsonParser.parseString(currentOutput).getAsJsonObject();
 
-      // Find the input that matches the key and return its values
-      return allInputs.stream()
-          .filter(input -> keyToFind.equals(input.getKey()))
-          .findFirst()
-          .map(WorkflowStateEntries.Input::getValues)
-          .orElse(Collections.emptySet());
+      if (allParsed.has(keyToFind)) {
+        JsonElement element = allParsed.get(keyToFind);
 
+        if (element.isJsonArray()) {
+          Set<String> values = new HashSet<>();
+          element.getAsJsonArray().forEach(val -> values.add(val.getAsString()));
+          return values;
+        }
+      }
     } catch (Exception e) {
-      return Collections.emptySet();
+      log.error("Could not extract key {} from JSON: {}", keyToFind, currentOutput);
     }
+
+    return Collections.emptySet();
   }
 
   private static WorkflowStateEntries createInitialEntries() {
