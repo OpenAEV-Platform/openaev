@@ -228,7 +228,6 @@ public class WorkflowStateService {
       if (!validValues.isEmpty()) {
         WorkflowStateEntries.Input input = entries.getInputByKey(mapper.getKeyType().name());
         for (String v : validValues) {
-          // Set.add returns true only if the element was not already present
           if (input.getValues().add(v)) {
             changed = true;
           }
