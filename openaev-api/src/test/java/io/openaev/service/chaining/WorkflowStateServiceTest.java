@@ -131,7 +131,9 @@ class WorkflowStateServiceTest {
     void shouldReturnStateEntriesWhenFound() {
       // Prepare
       String stepTemplateId = UUID.randomUUID().toString();
+      Step stepTemplate = Step.builder().id(stepTemplateId).build();
       String workflowExecutionId = UUID.randomUUID().toString();
+      Workflow workflowExecution = Workflow.builder().id(workflowExecutionId).build();
 
       WorkflowStateEntries expectedEntries =
           new WorkflowStateEntries(
@@ -145,8 +147,7 @@ class WorkflowStateServiceTest {
           .thenReturn(workflowState);
 
       // Act
-      WorkflowStateEntries result =
-          workflowStateService.getState(stepTemplateId, workflowExecutionId);
+      WorkflowStateEntries result = workflowStateService.getState(stepTemplate, workflowExecution);
 
       // Assert
       verify(workflowStateRepository)
@@ -162,7 +163,9 @@ class WorkflowStateServiceTest {
     void shouldThrowExceptionWhenNotFound() {
       // Prepare
       String stepTemplateId = UUID.randomUUID().toString();
+      Step stepTemplate = Step.builder().id(stepTemplateId).build();
       String workflowExecutionId = UUID.randomUUID().toString();
+      Workflow workflowExecution = Workflow.builder().id(workflowExecutionId).build();
 
       when(workflowStateRepository.findByStepTemplate_IdAndWorkflowExecution_Id(
               stepTemplateId, workflowExecutionId))
@@ -171,7 +174,7 @@ class WorkflowStateServiceTest {
       // Act & Assert
       assertThrows(
           NullPointerException.class,
-          () -> workflowStateService.getState(stepTemplateId, workflowExecutionId));
+          () -> workflowStateService.getState(stepTemplate, workflowExecution));
     }
 
     @Test
@@ -179,7 +182,9 @@ class WorkflowStateServiceTest {
     void shouldReturnStateWithExecutionKeys() {
       // Prepare
       String stepTemplateId = UUID.randomUUID().toString();
+      Step stepTemplate = Step.builder().id(stepTemplateId).build();
       String workflowExecutionId = UUID.randomUUID().toString();
+      Workflow workflowExecution = Workflow.builder().id(workflowExecutionId).build();
 
       Set<String> executionKeys = Set.of("key1", "key2", "key3");
       WorkflowStateEntries expectedEntries =
@@ -194,8 +199,7 @@ class WorkflowStateServiceTest {
           .thenReturn(workflowState);
 
       // Act
-      WorkflowStateEntries result =
-          workflowStateService.getState(stepTemplateId, workflowExecutionId);
+      WorkflowStateEntries result = workflowStateService.getState(stepTemplate, workflowExecution);
 
       // Assert
       assertNotNull(result);
@@ -477,36 +481,41 @@ class WorkflowStateServiceTest {
     @DisplayName("should return local state when found")
     void shouldReturnLocalState_whenFound() {
       // Prepare
-      String stepId = UUID.randomUUID().toString();
+      String stepTemplateId = UUID.randomUUID().toString();
+      Step stepTemplate = Step.builder().id(stepTemplateId).build();
       String workflowExecutionId = UUID.randomUUID().toString();
+      Workflow workflowExecution = Workflow.builder().id(workflowExecutionId).build();
+
       WorkflowState expected = mock(WorkflowState.class);
       when(workflowStateRepository.findByStepTemplate_IdAndWorkflowExecution_Id(
-              stepId, workflowExecutionId))
+              stepTemplateId, workflowExecutionId))
           .thenReturn(expected);
 
       // Act
       WorkflowState result =
-          workflowStateService.getLocalStateByWorkflowIdAndStepId(stepId, workflowExecutionId);
+          workflowStateService.getLocalStateByWorkflowAndStep(stepTemplate, workflowExecution);
 
       // Assert
       assertSame(expected, result);
       verify(workflowStateRepository)
-          .findByStepTemplate_IdAndWorkflowExecution_Id(stepId, workflowExecutionId);
+          .findByStepTemplate_IdAndWorkflowExecution_Id(stepTemplateId, workflowExecutionId);
     }
 
     @Test
     @DisplayName("should return null when no local state exists")
     void shouldReturnNull_whenNotFound() {
       // Prepare
-      String stepId = UUID.randomUUID().toString();
+      String stepTemplateId = UUID.randomUUID().toString();
+      Step stepTemplate = Step.builder().id(stepTemplateId).build();
       String workflowExecutionId = UUID.randomUUID().toString();
+      Workflow workflowExecution = Workflow.builder().id(workflowExecutionId).build();
       when(workflowStateRepository.findByStepTemplate_IdAndWorkflowExecution_Id(
-              stepId, workflowExecutionId))
+              stepTemplateId, workflowExecutionId))
           .thenReturn(null);
 
       // Act
       WorkflowState result =
-          workflowStateService.getLocalStateByWorkflowIdAndStepId(stepId, workflowExecutionId);
+          workflowStateService.getLocalStateByWorkflowAndStep(stepTemplate, workflowExecution);
 
       // Assert
       assertNull(result);

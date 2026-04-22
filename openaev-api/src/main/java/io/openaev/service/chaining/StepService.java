@@ -1,7 +1,6 @@
 package io.openaev.service.chaining;
 
 import com.google.gson.*;
-import com.google.gson.reflect.TypeToken;
 import io.openaev.api.chaining.ActionStep;
 import io.openaev.api.chaining.ConditionMapper;
 import io.openaev.api.chaining.InjectExecutionStep;
@@ -1069,7 +1068,12 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
       String currentOutput = stepUpdated.getOutput();
       Workflow workflowExecution = stepUpdated.getWorkflow();
 
-      processDataChaining(currentOutput, workflowExecution);
+      // Extract output from stepRun and process data chaining for downstream steps
+      JsonObject fullOutput = JsonParser.parseString(currentOutput).getAsJsonObject();
+      JsonElement parsedOutputs = fullOutput.get("parsed_outputs");
+      if (parsedOutputs != null && !parsedOutputs.isJsonNull()) {
+        processDataChaining(parsedOutputs.toString(), workflowExecution);
+      }
     }
   }
 
@@ -1085,11 +1089,11 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
    *     checks
    */
   public void processDataChaining(String currentOutput, Workflow workflowExecution) {
-    // Extract KeyTypes present in the new output
+    // Extract KeyTypes present in the updated workflow state
     Set<ConditionKeyType> keyTypes = conditionService.extractKeyTypesFromOutput(currentOutput);
 
     // Fetch all Filter/Event Conditions for this specific KeyType
-    // These filter conditions has to be at Template level
+    // These filter conditions have to be at Template level
     Map<ConditionKeyType, List<Condition>> filtersByKey =
         conditionService.findAllFilterConditionsByKeyTypes(keyTypes).stream()
             .collect(Collectors.groupingBy(Condition::getKeyType));
@@ -1103,7 +1107,7 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
         Condition rootCondition = conditionService.fetchRootCondition(filter);
 
         // Find all Steps linked to this Filter Tree
-        // These Steps has to be at Template level
+        // These Steps have to be at Template level
         List<Step> targetSteps =
             rootCondition.getConditionSteps().stream().map(ConditionStep::getStep).toList();
 
@@ -1134,37 +1138,15 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
   }
 
   /**
-   * Initializes the global workflow state and triggers initial data-chaining evaluation.
-   *
-   * <p>After creating the global state from Scope configuration, this method extracts the {@code
-   * inputs} section from the persisted scope JSON and forwards it to {@link
-   * #processDataChaining(String, Workflow)} so mapper-dependent templates can be evaluated as soon
-   * as the workflow starts.
+   * Initializes the global workflow state from scope definition.
    *
    * @param workflowExecution running workflow that receives its initial global state
    */
   @Transactional
   public void prepareInitialWorkflowState(Workflow workflowExecution) {
-    WorkflowState savedScopeData = workflowStateService.createGlobalState(workflowExecution);
-    String scopeJson = savedScopeData.getEntries();
-    if (scopeJson == null || scopeJson.isBlank()) {
-      return;
-    }
-    try {
-      Map<String, Object> root =
-          gson.fromJson(scopeJson, new TypeToken<Map<String, Object>>() {}.getType());
-      Object inputsObj = root.get(SCOPE_INPUTS);
-      if (inputsObj != null) {
-        String inputsJsonString = gson.toJson(inputsObj);
-        processDataChaining(inputsJsonString, workflowExecution);
-      }
-    } catch (Exception e) {
-      log.error(
-          String.format(
-              "An error occurred while processing scope state data for workflow (workflow=%s). Error: %s",
-              workflowExecution.getId(), e.getMessage()),
-          e);
-    }
+    log.debug(
+        "Initializing Global State from Scope for Workflow Run: {}", workflowExecution.getId());
+    workflowStateService.createGlobalState(workflowExecution);
   }
 
   /**
@@ -1196,13 +1178,7 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     WorkflowState globalState =
         workflowStateService.getGlobalStateByWorkflowId(workflowRun.getId());
     WorkflowState localState =
-        workflowStateService.getLocalStateByWorkflowIdAndStepId(
-            stepTemplate.getId(), workflowRun.getId());
-
-    if (mappers.stream().anyMatch(m -> m.getMappingType() == MappingType.LOCAL)
-        && localState == null) {
-      return new ArrayList<>();
-    }
+        workflowStateService.getLocalStateByWorkflowAndStep(stepTemplate, workflowRun);
 
     WorkflowStateEntries localEntries =
         gson.fromJson(localState.getEntries(), WorkflowStateEntries.class);

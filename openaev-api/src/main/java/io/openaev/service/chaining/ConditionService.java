@@ -15,7 +15,6 @@ import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
@@ -36,7 +35,6 @@ public class ConditionService {
 
   private final ConditionRepository conditionRepository;
   private final StepRepository stepRepository;
-  private final QueueChainingService queueChainingService;
   private final StepDelayQueueService stepDelayQueueService;
 
   // -- CONDITION TREE CREATE --
@@ -447,9 +445,6 @@ public class ConditionService {
    * @return null (todo: implement)
    */
   public Condition isMapperConditionValid(Condition condition, String input, String data) {
-    // Build inputs validated
-    // Here I need check if mapper condition has all values to be executed (at least one value for
-    // every mapper) and we have to update local state to say what we have already executed
     return null;
   }
 
@@ -560,18 +555,13 @@ public class ConditionService {
     }
 
     List<Condition> conditionsExecution = new ArrayList<>();
-
-    // Time conditions
-    // TODO manage multi time condition (AND, OR: g C1 BEFORE OR C2 AFTER)
-    // Compute expected start time for the condition to be considered as valid
-
     List<Condition> timeConditions =
         conditionsTemplate.stream().filter(this::isTimeCondition).toList();
 
     // Time conditions
     // TODO manage multi time condition (AND, OR: g C1 BEFORE OR C2 AFTER)
     // Compute expected start time for the condition to be considered as valid
-    for (Condition condition : timeConditions) {
+    /*for (Condition condition : timeConditions) {
       Instant now = Instant.now();
       Instant start = workflowRun.getWorkflowCreatedAt();
       // TODO: can this happen ? Shouldn't it throw an exception instead?
@@ -593,6 +583,7 @@ public class ConditionService {
         return null;
       }
     }
+    */
 
     // Filter conditions
     /*
@@ -607,7 +598,8 @@ public class ConditionService {
       } else {
         conditionsExecution.add(filterConditionValid);
       }
-    }*/
+    }
+    */
 
     // Mapper conditions
     List<Condition> mapperConditions =
@@ -791,77 +783,6 @@ public class ConditionService {
     link.setStep(step);
     link.setRoot(isRoot);
     conditionSteps.add(link);
-  }
-
-  /**
-   * Saves child conditions in dependency order (parent before children).
-   *
-   * @param remaining child condition inputs to persist
-   * @param saved map of already-persisted conditions keyed by temporaryId
-   * @param workflowId workflow identifier to stamp on each child
-   */
-  private void persistConditionTreeNodes(
-      List<ConditionCreateInput> remaining, Map<String, Condition> saved, String workflowId) {
-    // Safety limit to prevent infinite loops
-    int maxIterations = remaining.size() + 1;
-    int iteration = 0;
-
-    // Continue until all conditions are processed or max iterations reached
-    while (!remaining.isEmpty() && iteration < maxIterations) {
-      iteration++;
-
-      // List of conditions that cannot yet be processed (parent not resolved)
-      List<ConditionCreateInput> retry = new ArrayList<>();
-      for (ConditionCreateInput ci : remaining) {
-
-        // Try to resolve parent using temporaryId mapping
-        Condition parent = saved.get(ci.getTemporaryIdConditionParent());
-        // If a parent is not yet created, retry in the next iteration
-        if (parent == null) {
-          retry.add(ci);
-          continue;
-        }
-        // Create child condition entity
-        Condition child = new Condition();
-        child.setWorkflowId(workflowId);
-        child.setKeyType(ci.getKeyType());
-        child.setKeySubtype(ci.getKeySubtype());
-        child.setType(ci.getType());
-        child.setValue(ci.getValue());
-        child.setMappingType(ConditionMapper.resolveMappingType(ci));
-        child.setStepFrom(resolveStepFrom(ci.getStepFrom()));
-        // Link a child to its parent
-        child.setConditionParent(parent);
-        Condition persistedChild = conditionRepository.save(child);
-
-        // Keep the in-memory graph complete for response mapping.
-        if (parent.getConditionChildren() == null) {
-          parent.setConditionChildren(new ArrayList<>());
-        }
-        parent.getConditionChildren().add(persistedChild);
-
-        saved.put(ci.getTemporaryId(), persistedChild);
-      }
-      // Retry unresolved conditions in next loop iteration
-      remaining = retry;
-    }
-    if (!remaining.isEmpty()) {
-      throw new IllegalArgumentException(
-          "Circular or unresolved parent references in condition tree");
-    }
-  }
-
-  private Step resolveStepFrom(String stepFromId) {
-    if (stepFromId == null || stepFromId.isBlank()) {
-      return null;
-    }
-    return stepRepository
-        .findById(stepFromId)
-        .orElseThrow(
-            () ->
-                new EntityNotFoundException(
-                    "Condition references a non-existing step (field: step_from). Step ID: "
-                        + stepFromId));
   }
 
   public void unlinkFromStep(Condition condition, String stepId) {

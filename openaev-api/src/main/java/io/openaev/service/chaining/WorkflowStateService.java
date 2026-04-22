@@ -38,28 +38,42 @@ public class WorkflowStateService {
    * @param stepRun the RUN step used to locate the workflow's global state
    */
   @Transactional
-  public void syncInjectOutputToGlobalState(Inject inject, Step stepRun) {
+  public JsonObject syncInjectOutputToGlobalState(Inject inject, Step stepRun) {
     Optional<InjectStatus> injectStatus = inject.getStatus();
+    JsonObject allStepParsed = new JsonObject();
 
     if (injectStatus.isPresent() && injectStatus.get().getTraces() != null) {
       Map<String, ContractOutputType> fieldTypeMap = new HashMap<>();
 
-      if (inject.getInjectorContract().isPresent()) {
-        injectorContractContentUtils
-            .getAllContractOutputs(inject.getInjectorContract().get())
-            .forEach(out -> fieldTypeMap.put(out.getField(), out.getType()));
-      } else {
-        Set<OutputParser> outputParsers = structuredOutputUtils.extractOutputParsers(inject);
-        injectorContractContentUtils
-            .getAllContractOutputs(outputParsers)
-            .forEach(out -> fieldTypeMap.put(out.getKey(), out.getType()));
-      }
+      inject
+          .getPayload()
+          .ifPresentOrElse(
+              payload -> {
+                Set<OutputParser> outputParsers =
+                    structuredOutputUtils.extractOutputParsers(inject);
+                injectorContractContentUtils
+                    .getAllContractOutputs(outputParsers)
+                    .forEach(out -> fieldTypeMap.put(out.getKey(), out.getType()));
+              },
+              () ->
+                  inject
+                      .getInjectorContract()
+                      .ifPresent(
+                          contract ->
+                              injectorContractContentUtils
+                                  .getAllContractOutputs(contract)
+                                  .forEach(
+                                      out -> fieldTypeMap.put(out.getField(), out.getType()))));
 
       // Load Global State
       WorkflowState globalState = getGlobalStateByWorkflowId(stepRun.getWorkflow().getId());
 
       if (globalState == null) {
-        return; // Guard against missing state
+        log.warn(
+            "No global state found for workflow {}. Skipping sync of inject {} output.",
+            stepRun.getWorkflow().getId(),
+            inject.getId());
+        return allStepParsed;
       }
 
       // Deserialize entries
@@ -80,7 +94,18 @@ public class WorkflowStateService {
                 try {
                   JsonElement element = JsonParser.parseString(rawOutput.toString());
                   if (element.isJsonObject()) {
-                    saveToEntries(entries, element.getAsJsonObject(), fieldTypeMap);
+                    Map<String, List<String>> traceData =
+                        saveToEntries(entries, element.getAsJsonObject(), fieldTypeMap);
+
+                    traceData.forEach(
+                        (key, values) -> {
+                          JsonArray arr = allStepParsed.getAsJsonArray(key);
+                          if (arr == null) {
+                            arr = new JsonArray();
+                            allStepParsed.add(key, arr);
+                          }
+                          values.forEach(arr::add);
+                        });
                   }
                 } catch (Exception e) {
                   log.error("Failed to sync trace {} to global state", trace.getId(), e);
@@ -91,12 +116,15 @@ public class WorkflowStateService {
       globalState.setEntries(gson.toJson(entries));
       save(globalState);
     }
+    return allStepParsed;
   }
 
-  private void saveToEntries(
+  private Map<String, List<String>> saveToEntries(
       WorkflowStateEntries entries,
       JsonObject structuredOutput,
       Map<String, ContractOutputType> fieldTypeMap) {
+
+    Map<String, List<String>> currentTraceParsed = new HashMap<>();
 
     structuredOutput
         .entrySet()
@@ -111,16 +139,23 @@ public class WorkflowStateService {
               }
 
               JsonArray array = jsonValue.getAsJsonArray();
+              List<String> values = new ArrayList<>();
+
               for (JsonElement element : array) {
                 if (element.isJsonPrimitive()) {
-                  // e.g. "ports": [22, 80]
-                  entries.getInputByKey(type.name()).getValues().add(element.getAsString());
+                  String val = element.getAsString();
+                  entries.getInputByKey(type.name()).getValues().add(val);
+                  values.add(val);
                 } else if (element.isJsonObject()) {
                   // e.g. "portscan": [{"port": 22, "host": "1.1.1.1"}]
                   saveCorrelatedObject(entries, element.getAsJsonObject());
                 }
               }
+              if (!values.isEmpty()) {
+                currentTraceParsed.put(type.name(), values);
+              }
             });
+    return currentTraceParsed;
   }
 
   private void saveCorrelatedObject(WorkflowStateEntries entries, JsonObject obj) {
@@ -147,9 +182,7 @@ public class WorkflowStateService {
   }
 
   /**
-   * Syncs LOCAL mapper values from a step output into the local workflow state partition. Filters
-   * candidate values through {@code filterCondition} and persists only when something new is added.
-   * Non-LOCAL mappers ({@code GLOBAL}, {@code DEFAULT}) are skipped.
+   * Syncs LOCAL mapper values from a step output into the local workflow state partition.
    *
    * @param targetTemplate step template whose local state receives the new values
    * @param workflowExecution running workflow used to locate the state partition
@@ -159,7 +192,7 @@ public class WorkflowStateService {
    * @return {@code true} if at least one new value was added, {@code false} otherwise
    */
   @Transactional
-  public boolean syncMappersToLocalPartition(
+  public void syncMappersToLocalPartition(
       Step targetTemplate,
       Workflow workflowExecution,
       String currentOutput,
@@ -167,14 +200,7 @@ public class WorkflowStateService {
       List<Condition> mappers) {
 
     // Fetch states and initialize LocalState if missing
-    WorkflowState localState =
-        getLocalStateByWorkflowIdAndStepId(targetTemplate.getId(), workflowExecution.getId());
-
-    if (localState == null) {
-      localState =
-          initializeLocalState(
-              targetTemplate, workflowExecution, gson.toJson(createInitialEntries()));
-    }
+    WorkflowState localState = getLocalStateByWorkflowAndStep(targetTemplate, workflowExecution);
 
     WorkflowStateEntries entries =
         gson.fromJson(localState.getEntries(), WorkflowStateEntries.class);
@@ -216,8 +242,6 @@ public class WorkflowStateService {
       localState.setEntries(gson.toJson(entries));
       save(localState);
     }
-
-    return changed;
   }
 
   /**
@@ -302,13 +326,13 @@ public class WorkflowStateService {
   /**
    * Retrieves the state entries for a step template within a workflow execution.
    *
-   * @param stepTemplateId the ID of the step template
-   * @param workflowExecutionId the ID of the workflow execution
+   * @param stepTemplate the ID of the step template
+   * @param workflowExecution the ID of the workflow execution
    * @return the step state entries
    */
-  public WorkflowStateEntries getState(String stepTemplateId, String workflowExecutionId) {
+  public WorkflowStateEntries getState(Step stepTemplate, Workflow workflowExecution) {
     WorkflowState persistedWorkflowState =
-        getLocalStateByWorkflowIdAndStepId(stepTemplateId, workflowExecutionId);
+        getLocalStateByWorkflowAndStep(stepTemplate, workflowExecution);
     return gson.fromJson(persistedWorkflowState.getEntries(), WorkflowStateEntries.class);
   }
 
@@ -443,13 +467,22 @@ public class WorkflowStateService {
   /**
    * Returns the local {@link WorkflowState} for a step template within a workflow execution.
    *
-   * @param targetId the step template ID
-   * @param workflowExecutionId the workflow execution ID
+   * @param targetTemplate the step template ID
+   * @param workflowExecution the workflow execution ID
    * @return the local state, or {@code null} if not yet initialized
    */
-  public WorkflowState getLocalStateByWorkflowIdAndStepId(
-      String targetId, String workflowExecutionId) {
-    return workflowStateRepository.findByStepTemplate_IdAndWorkflowExecution_Id(
-        targetId, workflowExecutionId);
+  public WorkflowState getLocalStateByWorkflowAndStep(
+      Step targetTemplate, Workflow workflowExecution) {
+    WorkflowState localState =
+        workflowStateRepository.findByStepTemplate_IdAndWorkflowExecution_Id(
+            targetTemplate.getId(), workflowExecution.getId());
+
+    if (localState == null) {
+      localState =
+          initializeLocalState(
+              targetTemplate, workflowExecution, gson.toJson(createInitialEntries()));
+    }
+
+    return localState;
   }
 }

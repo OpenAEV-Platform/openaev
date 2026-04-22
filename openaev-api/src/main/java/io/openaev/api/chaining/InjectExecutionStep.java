@@ -79,6 +79,7 @@ public class InjectExecutionStep implements ActionStep {
   private final TagRuleService tagRuleService;
   private final AssetGroupService assetGroupService;
   private final WorkflowStateService workflowStateService;
+  private final ConditionService conditionService;
 
   private final InjectorContractRepository injectorContractRepository;
 
@@ -86,7 +87,6 @@ public class InjectExecutionStep implements ActionStep {
 
   private final Executor executor;
   private final InjectUtils injectUtils;
-  private final ConditionService conditionService;
 
   @PersistenceContext private EntityManager em;
 
@@ -264,11 +264,13 @@ public class InjectExecutionStep implements ActionStep {
       JsonObject jsonObject = new JsonObject();
       jsonObject.add("outputs", elements);
 
+      // UPDATE Global Workflow State
+      JsonObject parsedOutputs =
+          workflowStateService.syncInjectOutputToGlobalState(inject, stepRun);
+      jsonObject.add("parsed_outputs", parsedOutputs);
+
       // UPDATE step output
       stepRun.setOutput(jsonObject.toString());
-
-      // UPDATE Global Workflow State
-      workflowStateService.syncInjectOutputToGlobalState(inject, stepRun);
 
       return Optional.of(stepRun);
     }
