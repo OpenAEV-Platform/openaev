@@ -105,6 +105,8 @@ public interface UserRepository
               + "from users us "
               + "left join users_tags usr_tg on us.user_id = usr_tg.user_id "
               + "left join tags tg on usr_tg.tag_id = tg.tag_id "
+              + "left join users_tenants ut on us.user_id = ut.user_id "
+              + "where ut.tenant_id = :#{#tenantContext.currentTenant} "
               + "group by us.user_id;",
       nativeQuery = true)
   List<RawPlayer> rawAllPlayers();
@@ -150,11 +152,12 @@ public interface UserRepository
   @Query(
       "SELECT DISTINCT u "
           + "FROM User u "
+          + "JOIN u.tenants ut "
           + "LEFT JOIN u.groups g "
           + "LEFT JOIN g.roles r "
           + "LEFT JOIN r.capabilities c "
-          + "WHERE c IN :capabilities "
-          + "OR u.admin = true")
+          + "WHERE ut.id = :#{#tenantContext.currentTenant} "
+          + "AND (u.admin = true OR c IN :capabilities)")
   List<User> adminsOrUsersHavingCapabilities(@Param("capabilities") List<String> capabilities);
 
   // -- PAGINATION --
