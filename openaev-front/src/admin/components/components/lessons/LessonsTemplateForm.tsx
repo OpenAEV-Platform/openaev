@@ -31,6 +31,7 @@ const LessonsTemplateForm: FunctionComponent<Props> = ({
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors, isDirty, isSubmitting },
   } = useForm<LessonsTemplateInput>({
     mode: 'onTouched',
@@ -54,6 +55,7 @@ const LessonsTemplateForm: FunctionComponent<Props> = ({
         helperText={errors.lessons_template_name?.message}
         inputProps={register('lessons_template_name')}
         InputLabelProps={{ required: true }}
+        control={control}
       />
       <TextField
         variant="standard"
@@ -63,6 +65,7 @@ const LessonsTemplateForm: FunctionComponent<Props> = ({
         error={!!errors.lessons_template_description}
         helperText={errors.lessons_template_description?.message}
         inputProps={register('lessons_template_description')}
+        control={control}
       />
       <div style={{
         float: 'right',

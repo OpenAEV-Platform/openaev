@@ -35,6 +35,7 @@ const LessonsTemplateQuestionForm: FunctionComponent<Props> = ({
     register,
     handleSubmit,
     formState: { errors, isDirty, isSubmitting },
+    control,
   } = useForm<LessonsTemplateQuestionInputForm>({
     mode: 'onTouched',
     resolver: zodResolver(
@@ -58,6 +59,7 @@ const LessonsTemplateQuestionForm: FunctionComponent<Props> = ({
         helperText={errors.lessons_template_question_content?.message}
         inputProps={register('lessons_template_question_content')}
         InputLabelProps={{ required: true }}
+        control={control}
       />
       <TextField
         variant="standard"
@@ -67,6 +69,7 @@ const LessonsTemplateQuestionForm: FunctionComponent<Props> = ({
         error={!!errors.lessons_template_question_explanation}
         helperText={errors.lessons_template_question_explanation?.message}
         inputProps={register('lessons_template_question_explanation')}
+        control={control}
       />
       <TextField
         variant="standard"
@@ -78,6 +81,7 @@ const LessonsTemplateQuestionForm: FunctionComponent<Props> = ({
         inputProps={register('lessons_template_question_order')}
         type="number"
         InputLabelProps={{ required: true }}
+        control={control}
       />
       <div style={{
         float: 'right',

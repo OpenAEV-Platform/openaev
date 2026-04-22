@@ -35,6 +35,7 @@ const LessonsTemplateCategoryForm: FunctionComponent<Props> = ({
     register,
     handleSubmit,
     formState: { errors, isDirty, isSubmitting },
+    control,
   } = useForm<LessonsTemplateCategoryInputForm>({
     mode: 'onTouched',
     resolver: zodResolver(
@@ -58,6 +59,7 @@ const LessonsTemplateCategoryForm: FunctionComponent<Props> = ({
         helperText={errors.lessons_template_category_name?.message}
         inputProps={register('lessons_template_category_name')}
         InputLabelProps={{ required: true }}
+        control={control}
       />
       <TextField
         variant="standard"
@@ -67,6 +69,7 @@ const LessonsTemplateCategoryForm: FunctionComponent<Props> = ({
         error={!!errors.lessons_template_category_description}
         helperText={errors.lessons_template_category_description?.message}
         inputProps={register('lessons_template_category_description')}
+        control={control}
       />
       <TextField
         variant="standard"
@@ -78,6 +81,7 @@ const LessonsTemplateCategoryForm: FunctionComponent<Props> = ({
         inputProps={register('lessons_template_category_order')}
         type="number"
         InputLabelProps={{ required: true }}
+        control={control}
       />
       <div style={{
         float: 'right',
