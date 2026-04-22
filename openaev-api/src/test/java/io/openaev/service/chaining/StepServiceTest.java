@@ -1358,9 +1358,6 @@ public class StepServiceTest {
       when(conditionService.findAllFilterConditionsByKeyTypes(Set.of(ConditionKeyType.Text)))
           .thenReturn(List.of(filter));
       when(conditionService.fetchRootCondition(filter)).thenReturn(rootCondition);
-      when(workflowStateService.syncMappersToLocalPartition(
-              targetTemplate, workflowExecution, currentOutput, rootCondition, List.of(mapper)))
-          .thenReturn(true);
 
       doReturn(Optional.of(mock(Step.class)))
           .when(stepService)
@@ -1437,8 +1434,6 @@ public class StepServiceTest {
       when(conditionService.findAllFilterConditionsByKeyTypes(Set.of(ConditionKeyType.Text)))
           .thenReturn(List.of(filter));
       when(conditionService.fetchRootCondition(filter)).thenReturn(rootCondition);
-      when(workflowStateService.syncMappersToLocalPartition(any(), any(), any(), any(), anyList()))
-          .thenReturn(true);
 
       doThrow(new ChainingException("not ready yet"))
           .when(stepService)
