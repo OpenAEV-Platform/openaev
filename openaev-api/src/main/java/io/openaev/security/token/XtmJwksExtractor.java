@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Jwks;
+import io.openaev.authorisation.HttpClientFactory;
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.User;
 import io.openaev.security.error.AuthenticationError;
 import io.openaev.service.UserService;
@@ -14,12 +16,17 @@ import java.security.Key;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
+import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.hc.client5.http.classic.methods.HttpGet;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestTemplate;
 
 /**
  * Validates incoming cross-platform JWTs using JWKS discovery.
@@ -46,8 +53,9 @@ public class XtmJwksExtractor implements ExtractorBase {
 
   private final XtmOneConfig xtmOneConfig;
   private final UserService userService;
-  private final RestTemplate restTemplate;
+  private final HttpClientFactory httpClientFactory;
   private final ObjectMapper objectMapper;
+  private final OpenAEVConfig openAEVConfig;
 
   private final ConcurrentHashMap<String, CachedJwks> jwksCache = new ConcurrentHashMap<>();
 
@@ -63,15 +71,16 @@ public class XtmJwksExtractor implements ExtractorBase {
     }
 
     String issuer = extractUnverifiedIssuer(value);
-    String trustedIssuer = normalizeUrl(xtmOneConfig.getUrl());
+    List<String> trustedIssuers = buildTrustedIssuers();
 
-    if (!issuer.equals(trustedIssuer)) {
+    if (!trustedIssuers.contains(issuer)) {
       throw new AuthenticationError("Untrusted JWKS issuer: " + issuer);
     }
 
     Claims claims =
         Jwts.parser()
             .keyLocator(header -> resolveKey(issuer, (String) header.get("kid")))
+            .requireAudience(openAEVConfig.getBaseUrl())
             .build()
             .parseSignedClaims(value)
             .getPayload();
@@ -85,6 +94,17 @@ public class XtmJwksExtractor implements ExtractorBase {
   }
 
   // -- PRIVATE --
+
+  /**
+   * Builds the list of trusted JWKS issuers from configuration. Currently, includes the XTM One URL;
+   * additional trusted URLs can be appended here as the platform evolves (e.g. peer instances).
+   */
+  private List<String> buildTrustedIssuers() {
+    return Stream.of(xtmOneConfig.getUrl())
+        .filter(Objects::nonNull)
+        .filter(url -> !url.isEmpty())
+        .toList();
+  }
 
   private Key resolveKey(String issuer, String kid) {
     // First attempt: look in cache
@@ -123,16 +143,23 @@ public class XtmJwksExtractor implements ExtractorBase {
     }
 
     return Jwks.setParser().build().parse(cached.jwksJson()).getKeys().stream()
-        .filter(k -> kid.equals(k.getId()))
+        .filter(k -> !StringUtils.isBlank(kid) && kid.equals(k.getId()))
         .findFirst()
         .map(jwk -> (Key) jwk.toKey())
         .orElse(null);
   }
 
   private void refreshJwks(String issuer) {
-    try {
-      String jwksUrl = issuer + "/xtm/auth/jwks";
-      String jwksJson = restTemplate.getForObject(jwksUrl, String.class);
+    String jwksUrl = issuer + "/xtm/auth/jwks";
+    try (CloseableHttpClient httpClient = httpClientFactory.httpClientCustom()) {
+      HttpGet httpGet = new HttpGet(jwksUrl);
+      String jwksJson = httpClient.execute(httpGet, response -> {
+        if (response.getCode() != 200) {
+          log.warn("JWKS fetch from {} returned HTTP {}", jwksUrl, response.getCode());
+          return null;
+        }
+        return EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
+      });
       if (jwksJson != null) {
         jwksCache.put(issuer, new CachedJwks(Instant.now(), jwksJson));
         log.debug("Refreshed JWKS cache for issuer {}", issuer);
@@ -161,12 +188,5 @@ public class XtmJwksExtractor implements ExtractorBase {
     } catch (Exception e) {
       throw new AuthenticationError("Failed to extract issuer from JWT: " + e.getMessage());
     }
-  }
-
-  private static String normalizeUrl(String url) {
-    if (url == null) {
-      return "";
-    }
-    return url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
   }
 }

@@ -1,11 +1,13 @@
 package io.openaev.security;
 
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.authorisation.HttpClientFactory;
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.utils.fixtures.JwtFixture;
 import io.openaev.utils.fixtures.TokenFixture;
 import io.openaev.utils.fixtures.UserFixture;
@@ -14,15 +16,19 @@ import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.mockConfig.WithMockXtmOneConfig;
 import io.openaev.xtmone.XtmOneConfig;
 import jakarta.transaction.Transactional;
+import java.io.IOException;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.core5.http.ClassicHttpRequest;
+import org.apache.hc.core5.http.io.HttpClientResponseHandler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.web.client.RestTemplate;
 
 @Transactional
 public class TokenAuthenticationFilterTest extends IntegrationTest {
@@ -31,9 +37,11 @@ public class TokenAuthenticationFilterTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private UserComposer userComposer;
   @Autowired private TokenComposer tokenComposer;
+  @Autowired private OpenAEVConfig openAEVConfig;
 
   @MockitoBean private XtmOneConfig xtmOneConfig;
-  @MockitoBean private RestTemplate restTemplate;
+  @MockitoBean private HttpClientFactory httpClientFactory;
+  @Mock private CloseableHttpClient mockHttpClient;
 
   @Nested
   @DisplayName("Passing an API token via header")
@@ -135,6 +143,13 @@ public class TokenAuthenticationFilterTest extends IntegrationTest {
           public void before() {
             when(xtmOneConfig.isConfigured()).thenReturn(true);
             when(xtmOneConfig.getUrl()).thenReturn(TRUSTED_ISSUER_URL);
+            when(httpClientFactory.httpClientCustom()).thenReturn(mockHttpClient);
+          }
+
+          private void stubJwksResponse(String jwksJson) throws IOException {
+            when(mockHttpClient.execute(
+                    (ClassicHttpRequest) any(), (HttpClientResponseHandler<String>) any()))
+                .thenReturn(jwksJson);
           }
 
           @Test
@@ -145,10 +160,11 @@ public class TokenAuthenticationFilterTest extends IntegrationTest {
                 userComposer.forUser(UserFixture.getUserWithDefaultEmail()).persist();
             JwtFixture.Bundle bundle =
                 JwtFixture.generateXtmJwksJwtBundle(
-                    TRUSTED_ISSUER_URL, userWrapper.get().getEmail(), false);
-            when(restTemplate.getForObject(
-                    eq(TRUSTED_ISSUER_URL + "/xtm/auth/jwks"), eq(String.class)))
-                .thenReturn(bundle.jwks());
+                    TRUSTED_ISSUER_URL,
+                    userWrapper.get().getEmail(),
+                    openAEVConfig.getBaseUrl(),
+                    false);
+            stubJwksResponse(bundle.jwks());
 
             mvc.perform(
                     get("/api/me/tokens")
@@ -164,7 +180,10 @@ public class TokenAuthenticationFilterTest extends IntegrationTest {
             userComposer.forUser(UserFixture.getUserWithDefaultEmail()).persist();
             JwtFixture.Bundle bundle =
                 JwtFixture.generateXtmJwksJwtBundle(
-                    "https://evil.attacker.com", UserFixture.EMAIL, false);
+                    "https://evil.attacker.com",
+                    UserFixture.EMAIL,
+                    openAEVConfig.getBaseUrl(),
+                    false);
 
             mvc.perform(
                     get("/api/me/tokens")
@@ -180,10 +199,11 @@ public class TokenAuthenticationFilterTest extends IntegrationTest {
                 userComposer.forUser(UserFixture.getUserWithDefaultEmail()).persist();
             JwtFixture.Bundle bundle =
                 JwtFixture.generateXtmJwksJwtBundle(
-                    TRUSTED_ISSUER_URL, userWrapper.get().getEmail(), true);
-            when(restTemplate.getForObject(
-                    eq(TRUSTED_ISSUER_URL + "/xtm/auth/jwks"), eq(String.class)))
-                .thenReturn(bundle.jwks());
+                    TRUSTED_ISSUER_URL,
+                    userWrapper.get().getEmail(),
+                    openAEVConfig.getBaseUrl(),
+                    true);
+            stubJwksResponse(bundle.jwks());
 
             mvc.perform(
                     get("/api/me/tokens")
@@ -196,10 +216,9 @@ public class TokenAuthenticationFilterTest extends IntegrationTest {
           @DisplayName("Given missing user and valid jwt, fail authentication")
           public void given_missingUserAndValidJwt_then_failAuthentication() throws Exception {
             JwtFixture.Bundle bundle =
-                JwtFixture.generateXtmJwksJwtBundle(TRUSTED_ISSUER_URL, "anon@ymo.us", false);
-            when(restTemplate.getForObject(
-                    eq(TRUSTED_ISSUER_URL + "/xtm/auth/jwks"), eq(String.class)))
-                .thenReturn(bundle.jwks());
+                JwtFixture.generateXtmJwksJwtBundle(
+                    TRUSTED_ISSUER_URL, "anon@ymo.us", openAEVConfig.getBaseUrl(), false);
+            stubJwksResponse(bundle.jwks());
 
             mvc.perform(
                     get("/api/me/tokens")

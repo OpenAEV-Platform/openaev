@@ -78,7 +78,7 @@ public class XtmAuthKeyService {
    * converts to standard JCA types via PKCS8/X509 encoding for jjwt compatibility.
    */
   private static KeyPair buildJcaKeyPair(byte[] seed) throws Exception {
-    Ed25519PrivateKeyParameters bcPriv = new Ed25519PrivateKeyParameters(seed, 0);
+    Ed25519PrivateKeyParameters bcPriv = new Ed25519PrivateKeyParameters(seed);
     Ed25519PublicKeyParameters bcPub = bcPriv.generatePublicKey();
 
     KeyFactory kf = KeyFactory.getInstance("Ed25519");

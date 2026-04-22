@@ -8,7 +8,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
-import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -35,7 +34,7 @@ public class XtmAuthApi extends RestBehavior {
               + "Standard JWKS format with OKP/Ed25519 keys.")
   @ApiResponse(responseCode = "200", description = "JWKS payload")
   @LogExecutionTime
-  public Map<String, Object> jwks() {
+  public JwksOutput jwks() {
     var jwk =
         Jwks.builder()
             .key(keyService.getKeyPair().getPublic())
@@ -44,6 +43,6 @@ public class XtmAuthApi extends RestBehavior {
             .add(Jwks.OP.VERIFY)
             .and()
             .build();
-    return Map.of("keys", List.of(jwk));
+    return new JwksOutput(List.of(JwkOutput.from(jwk)));
   }
 }
