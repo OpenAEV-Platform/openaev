@@ -5,6 +5,7 @@ import { Navigate, Route, Routes } from 'react-router';
 
 import { fetchMe, fetchPlatformParameters } from './actions/Application';
 import { type LoggedHelper } from './actions/helper';
+import fetchPublicPlatformParameters from './actions/settings/platform-settings-action';
 import EnterpriseEditionAgreementDialog from './admin/components/common/entreprise_edition/EnterpriseEditionAgreementDialog';
 import ConnectedIntlProvider from './components/AppIntlProvider';
 import ConnectedThemeProvider from './components/AppThemeProvider';
@@ -45,9 +46,18 @@ const Root = () => {
   });
   const dispatch = useAppDispatch();
   useEffect(() => {
+    dispatch(fetchPublicPlatformParameters());
     dispatch(fetchMe());
-    dispatch(fetchPlatformParameters());
   }, []);
+
+  // Fetch full settings once authenticated, re-fetch public settings on logout
+  useEffect(() => {
+    if (logged && me) {
+      dispatch(fetchPlatformParameters());
+    } else if (logged === null) {
+      dispatch(fetchPublicPlatformParameters());
+    }
+  }, [logged, me]);
 
   const { isReachable } = useNetworkCheck(settings?.xtm_hub_url && `${settings?.xtm_hub_url}/health`);
   if (logged && typeof logged === 'object' && Object.keys(logged).length === 0) {
