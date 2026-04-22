@@ -373,9 +373,7 @@ const Index = () => {
       </Alert>
     );
   }
-  if (!scenario) {
-    return <Loader />;
-  }
+
   return (
     <InjectContext.Provider value={scenarioInjectContext}>
       <IndexScenarioComponent scenario={scenario} />

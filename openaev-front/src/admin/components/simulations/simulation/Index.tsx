@@ -275,9 +275,7 @@ const Index = () => {
       </Alert>
     );
   }
-  if (!exercise) {
-    return <Loader />;
-  }
+
   return (
     <InjectContext.Provider value={exerciseInjectContext}>
       <IndexComponent exercise={exercise} />
