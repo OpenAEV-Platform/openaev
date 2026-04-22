@@ -39,7 +39,8 @@ public class V4_97__Clean_injector_contract_relationship_table extends BaseJavaM
                       FROM injectors_contracts ic
                       JOIN payloads p ON ic.injector_contract_payload = p.payload_id
                       JOIN payloads_tags pt ON p.payload_id = pt.payload_id
-                      WHERE ic.injector_contract_id IS NOT NULL;
+                      WHERE ic.injector_contract_id IS NOT NULL
+                      ON CONFLICT DO NOTHING;
                   """);
 
       //  Drop payloads_tags as it's no longer needed
@@ -54,7 +55,8 @@ public class V4_97__Clean_injector_contract_relationship_table extends BaseJavaM
                       FROM injectors_contracts ic
                       JOIN payloads p ON ic.injector_contract_payload = p.payload_id
                       JOIN payloads_domains pd ON p.payload_id = pd.payload_id
-                      WHERE ic.injector_contract_id IS NOT NULL;
+                      WHERE ic.injector_contract_id IS NOT NULL
+                      ON CONFLICT DO NOTHING;
                   """);
 
       // after that if there is at least one domain on the injector_contract i need to
@@ -62,7 +64,7 @@ public class V4_97__Clean_injector_contract_relationship_table extends BaseJavaM
       statement.execute(
           """
                       DELETE FROM injectors_contracts_domains
-                      WHERE domain_id = (SELECT domain_id FROM domains WHERE domain_name = 'To classify')
+                      WHERE domain_id IN (SELECT domain_id FROM domains WHERE domain_name = 'To classify')
                       AND injector_contract_id IN (
                           SELECT injector_contract_id
                           FROM injectors_contracts_domains

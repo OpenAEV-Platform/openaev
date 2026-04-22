@@ -1,7 +1,6 @@
+import { Button } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
-
-import Button from '../../../../../components/common/button/Button';
 
 interface FormActionsProps {
   onCancel: () => void;
@@ -28,7 +27,7 @@ const FormActions: FunctionComponent<FormActionsProps> = ({
     }}
     >
       <Button
-        variant="secondary"
+        variant="contained"
         onClick={onCancel}
         disabled={submitting}
       >
@@ -36,7 +35,8 @@ const FormActions: FunctionComponent<FormActionsProps> = ({
       </Button>
 
       <Button
-        variant="primary"
+        variant="contained"
+        color="secondary"
         type="submit"
         disabled={disabled || submitting}
       >

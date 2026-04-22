@@ -109,15 +109,27 @@ public class ConditionService {
       throw new BadRequestException("At least one condition is required");
     }
 
-    ConditionCreateInput rootInput = findRootConditionInput(conditionInputs);
-    Condition root = rootFactory.apply(rootInput);
+    List<ConditionCreateInput> rootInputs = findRootConditionInputs(conditionInputs);
 
-    if (root == null) {
-      throw new BadRequestException("Root condition must not be null");
+    // Multiple roots are only allowed when all roots are MAPPER conditions
+    if (rootInputs.size() > 1) {
+      boolean allMapper = rootInputs.stream().allMatch(r -> r.getType() == ConditionType.MAPPER);
+      if (!allMapper) {
+        throw new IllegalArgumentException(
+            "New step (TEMPLATE): Only 1 condition can be first parent");
+      }
     }
 
-    persistConditionTree(
-        conditionInputs, root, rootInput, childFactory, linkCondition, afterRootSaved);
+    for (ConditionCreateInput rootInput : rootInputs) {
+      Condition root = rootFactory.apply(rootInput);
+
+      if (root == null) {
+        throw new BadRequestException("Root condition must not be null");
+      }
+
+      persistConditionTree(
+          conditionInputs, root, rootInput, childFactory, linkCondition, afterRootSaved);
+    }
   }
 
   /**
@@ -625,22 +637,40 @@ public class ConditionService {
   /**
    * Identifies the root condition input — the one with no parent reference.
    *
+   * <p>For non-MAPPER conditions, exactly one root is expected. For MAPPER conditions, multiple
+   * roots are allowed (each mapper is independent).
+   *
    * @param inputs flat list of condition inputs
    * @return the root {@link ConditionCreateInput}
+   * @throws IllegalArgumentException if zero or more than one non-MAPPER root is found
    */
   public ConditionCreateInput findRootConditionInput(List<ConditionCreateInput> inputs) {
-    return inputs.stream()
-        .filter(
-            conditionCreateInput -> conditionCreateInput.getTemporaryIdConditionParent() == null)
-        .reduce(
-            (a, b) -> {
-              throw new IllegalArgumentException(
-                  "New step (TEMPLATE): Only 1 condition can be first parent");
-            })
-        .orElseThrow(
-            () ->
-                new IllegalArgumentException(
-                    "New step (TEMPLATE): Only 1 condition can be first parent"));
+    List<ConditionCreateInput> roots = findRootConditionInputs(inputs);
+    if (roots.size() != 1) {
+      throw new IllegalArgumentException(
+          "New step (TEMPLATE): Only 1 condition can be first parent");
+    }
+    return roots.get(0);
+  }
+
+  /**
+   * Identifies all root condition inputs — those with no parent reference.
+   *
+   * <p>For MAPPER conditions, multiple roots are allowed since each mapper is an independent
+   * mapping. For other condition types, the caller should validate that exactly one root exists.
+   *
+   * @param inputs flat list of condition inputs
+   * @return list of root {@link ConditionCreateInput}s
+   * @throws IllegalArgumentException if no root is found
+   */
+  public List<ConditionCreateInput> findRootConditionInputs(List<ConditionCreateInput> inputs) {
+    List<ConditionCreateInput> roots =
+        inputs.stream().filter(c -> c.getTemporaryIdConditionParent() == null).toList();
+    if (roots.isEmpty()) {
+      throw new IllegalArgumentException(
+          "New step (TEMPLATE): At least 1 condition must be a root (no parent)");
+    }
+    return roots;
   }
 
   public void linkToStep(Condition condition, Step step, boolean isRoot) {

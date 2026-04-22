@@ -19,7 +19,7 @@ import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import TagRuleCreate from './TagRuleCreate';
 import TagRulePopover from './TagRulePopover';
 
-const useStyles = makeStyles()(() => ({ itemHead: {} }));
+const useStyles = makeStyles()(() => ({ itemHead: { textTransform: 'uppercase' } }));
 
 const inlineStyles: Record<string, CSSProperties> = {
   tag_rule_tag: { width: '20%' },

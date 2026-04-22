@@ -1,6 +1,5 @@
-import { Typography } from '@mui/material';
+import { Button, Typography } from '@mui/material';
 
-import Button from '../../../../../components/common/button/Button';
 import Dialog from '../../../../../components/common/dialog/Dialog';
 import { useFormatter } from '../../../../../components/i18n';
 
@@ -22,8 +21,8 @@ const ConfirmChangeDefaultDashboardDialog = ({ open, onClose, onSubmit, existing
       handleClose={onClose}
       actions={(
         <>
-          <Button variant="secondary" onClick={onClose}>{t('Cancel')}</Button>
-          <Button variant="primary" onClick={onSubmit}>
+          <Button onClick={onClose}>{t('Cancel')}</Button>
+          <Button color="secondary" onClick={onSubmit}>
             {t('Continue')}
           </Button>
         </>

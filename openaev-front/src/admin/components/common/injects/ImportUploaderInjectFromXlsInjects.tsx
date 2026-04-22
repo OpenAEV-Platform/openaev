@@ -422,7 +422,7 @@ const ImportUploaderInjectFromXlsInjects: FunctionComponent<Props> = ({
           {t('Cancel')}
         </Button>
         <Button
-          color="primary"
+          color="secondary"
           type="submit"
           disabled={!isDirty || isSubmitting}
         >

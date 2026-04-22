@@ -26,7 +26,7 @@ import VulnerabilityDetail from './VulnerabilityDetail';
 import VulnerabilityPopover from './VulnerabilityPopover';
 
 const useStyles = makeStyles()({
-  itemHead: {},
+  itemHead: { textTransform: 'uppercase' },
   item: { height: 50 },
 });
 

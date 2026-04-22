@@ -1,5 +1,6 @@
 import {
   Box,
+  Button,
   Chip,
   Dialog,
   DialogActions,
@@ -19,7 +20,6 @@ import { type FullArticleStore } from '../../../../../../actions/channels/Articl
 import { type ArticlesHelper } from '../../../../../../actions/channels/article-helper';
 import { fetchChannels } from '../../../../../../actions/channels/channel-action';
 import { type ChannelsHelper } from '../../../../../../actions/channels/channel-helper';
-import Button from '../../../../../../components/common/button/Button';
 import Transition from '../../../../../../components/common/Transition';
 import { useFormatter } from '../../../../../../components/i18n';
 import SearchFilter from '../../../../../../components/SearchFilter';
@@ -215,9 +215,9 @@ const InjectAddArticlesDialog: FunctionComponent<Props> = ({
         </Grid>
       </DialogContent>
       <DialogActions>
-        <Button variant="secondary" onClick={handleClose}>{t('Cancel')}</Button>
+        <Button onClick={handleClose}>{t('Cancel')}</Button>
         <Button
-          variant="primary"
+          color="secondary"
           onClick={submitAddArticles}
         >
           {t('Add')}

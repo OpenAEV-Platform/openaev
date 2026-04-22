@@ -1,9 +1,9 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Button } from '@mui/material';
 import { type FunctionComponent, useState } from 'react';
 import { Controller, FormProvider, useForm, useFormContext } from 'react-hook-form';
 import { z } from 'zod';
 
-import Button from '../../../../../../components/common/button/Button';
 import Dialog from '../../../../../../components/common/dialog/Dialog';
 import StepperComponent from '../../../../../../components/common/StepperComponent';
 import { useFormatter } from '../../../../../../components/i18n';
@@ -30,8 +30,8 @@ const ActionsComponent: FunctionComponent<{
 
   return (
     <>
-      <Button variant="secondary" onClick={onCancel}>{t('Cancel')}</Button>
-      <Button variant="primary" onClick={onSubmit} disabled={disabled || Object.keys(errors).length > 0}>
+      <Button onClick={onCancel}>{t('Cancel')}</Button>
+      <Button color="secondary" onClick={onSubmit} disabled={disabled || Object.keys(errors).length > 0}>
         {editing ? t('Update') : t('Create')}
       </Button>
     </>

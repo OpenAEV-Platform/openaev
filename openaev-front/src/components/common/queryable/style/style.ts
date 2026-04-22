@@ -14,14 +14,12 @@ const useBodyItemsStyles: () => {
       maxWidth: '100%',
     },
     bodyItem: {
-      height: 24,
+      height: 20,
       fontSize: theme.typography.body2.fontSize,
       whiteSpace: 'nowrap',
       overflow: 'hidden',
       textOverflow: 'ellipsis',
       paddingRight: theme.spacing(1),
-      display: 'flex',
-      alignItems: 'center',
     },
   });
 };

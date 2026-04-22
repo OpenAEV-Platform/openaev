@@ -26,6 +26,7 @@ import SecurityPlatformPopover from './SecurityPlatformPopover';
 const useStyles = makeStyles()(() => ({
   itemHead: {
     paddingLeft: 10,
+    textTransform: 'uppercase',
     cursor: 'pointer',
   },
   item: {

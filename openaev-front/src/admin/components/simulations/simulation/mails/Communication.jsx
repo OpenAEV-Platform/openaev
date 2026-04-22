@@ -143,7 +143,7 @@ const Communication = (props) => {
                       fontSize: 10,
                     }}
                     startIcon={<AttachFileRounded style={{ fontSize: 14 }} />}
-                    color="primary"
+                    color="secondary"
                   >
                     {a.substring(a.lastIndexOf('/') + 1)}
                   </Button>

@@ -78,7 +78,7 @@ const InjectExpectationResultList = ({
     <TableContainer>
       <Table>
         <TableHead>
-          <TableRow>
+          <TableRow sx={{ textTransform: 'uppercase' }}>
             <TableCell>{t('Security platforms')}</TableCell>
             <TableCell>{t('Status')}</TableCell>
             <TableCell>{t('Detection time')}</TableCell>

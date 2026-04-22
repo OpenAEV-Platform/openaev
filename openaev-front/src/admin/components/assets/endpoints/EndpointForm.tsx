@@ -1,10 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Button } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type SyntheticEvent } from 'react';
 import { FormProvider, type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import Button from '../../../../components/common/button/Button';
 import AddressesFieldComponent from '../../../../components/fields/AddressesFieldComponent';
 import SelectFieldController from '../../../../components/fields/SelectFieldController';
 import SwitchFieldController from '../../../../components/fields/SwitchFieldController';
@@ -182,7 +182,7 @@ const EndpointForm: FunctionComponent<Props> = ({
         <SwitchFieldController name="endpoint_is_eol" label={t('End of Life')} />
         <div style={{ alignSelf: 'flex-end' }}>
           <Button
-            variant="secondary"
+            variant="contained"
             onClick={handleClose}
             style={{ marginRight: theme.spacing(2) }}
             disabled={isSubmitting}
@@ -190,7 +190,8 @@ const EndpointForm: FunctionComponent<Props> = ({
             {t('Cancel')}
           </Button>
           <Button
-            variant="primary"
+            variant="contained"
+            color="secondary"
             type="submit"
             disabled={!isDirty || isSubmitting}
           >
