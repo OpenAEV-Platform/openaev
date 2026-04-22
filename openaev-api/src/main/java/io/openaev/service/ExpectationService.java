@@ -2,12 +2,10 @@ package io.openaev.service;
 
 import static io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE.*;
 import static io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE.VULNERABILITY;
-import static io.openaev.database.model.InjectorContract.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.expectation.ExpectationBuilderService;
 import io.openaev.model.inject.form.Expectation;
-import io.openaev.rest.injector_contract.InjectorContractService;
 import jakarta.annotation.Resource;
 import java.util.ArrayList;
 import java.util.List;
@@ -21,7 +19,6 @@ import org.springframework.stereotype.Service;
 public class ExpectationService {
 
   private final ExpectationBuilderService expectationBuilderService;
-  private final InjectorContractService injectorContractService;
 
   @Resource protected ObjectMapper mapper;
 
@@ -40,6 +37,7 @@ public class ExpectationService {
           .noneMatch(expectation -> expectation.getType().equals(MANUAL))) {
         availableExpectations.add(expectationBuilderService.buildManualExpectation());
       }
+
       return availableExpectations;
     }
 

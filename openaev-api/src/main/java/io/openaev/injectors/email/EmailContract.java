@@ -16,6 +16,7 @@ import static io.openaev.injector_contract.fields.ContractTextArea.richTextareaF
 
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Variable.VariableType;
+import io.openaev.expectation.ExpectationBuilderService;
 import io.openaev.injector_contract.*;
 import io.openaev.injector_contract.fields.ContractElement;
 import io.openaev.injector_contract.fields.ContractExpectations;
@@ -24,10 +25,14 @@ import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class EmailContract extends Contractor {
+
+  private final ExpectationBuilderService expectationBuilderService;
 
   public static final String TYPE = "openaev_email";
   public static final String EMAIL_DEFAULT = "138ad8f8-32f8-4a22-8114-aaa12322bd09";
@@ -54,7 +59,12 @@ public class EmailContract extends Contractor {
             VariableType.String,
             One);
     // Contracts
-    ContractExpectations expectationsField = expectationsField();
+    ContractExpectations expectationsField =
+        expectationsField(
+            List.of(),
+            List.of(
+                this.expectationBuilderService.buildTextExpectation(),
+                this.expectationBuilderService.buildManualExpectation()));
     ContractConfig contractConfig = getConfig();
     // Standard contract
     List<ContractElement> standardInstance =

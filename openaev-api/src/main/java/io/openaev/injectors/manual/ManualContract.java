@@ -9,12 +9,14 @@ import static io.openaev.injector_contract.fields.ContractExpectations.expectati
 import static io.openaev.injector_contract.fields.ContractTeam.teamField;
 
 import io.openaev.database.model.Endpoint;
+import io.openaev.expectation.ExpectationBuilderService;
 import io.openaev.helper.SupportedLanguage;
 import io.openaev.injector_contract.Contract;
 import io.openaev.injector_contract.ContractConfig;
 import io.openaev.injector_contract.Contractor;
 import io.openaev.injector_contract.ContractorIcon;
 import io.openaev.injector_contract.fields.ContractElement;
+import io.openaev.injector_contract.fields.ContractExpectations;
 import io.openaev.rest.domain.enums.PresetDomain;
 import java.io.InputStream;
 import java.util.List;
@@ -32,10 +34,11 @@ public class ManualContract extends Contractor {
 
   private final ContractConfig config;
 
-  public ManualContract() {
+  public ManualContract(final ExpectationBuilderService expectationBuilderService) {
 
     ContractElement teams = teamField(Multiple);
-    ContractElement expectations = expectationsField();
+    ContractExpectations expectations =
+        expectationsField(List.of(), List.of(expectationBuilderService.buildManualExpectation()));
 
     Map<SupportedLanguage, String> label = Map.of(en, "Manual", fr, "Manuel");
     config = new ContractConfig(TYPE, label, "#009688", "#009688", "/img/manual.png");
