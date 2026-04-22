@@ -1,0 +1,264 @@
+name: API Tests
+description: >
+  Start service containers (PostgreSQL, Elasticsearch, RabbitMQ, MinIO),
+  download pre-compiled artifacts, and run API tests for a single shard.
+  Requires job-level env vars: EXPLICITLY_SHARDED_TESTS,
+  SPRING_DATASOURCE_URL, SPRING_DATASOURCE_USERNAME,
+  SPRING_DATASOURCE_PASSWORD, MINIO_ENDPOINT, MINIO_PORT, ENGINE_URL,
+  OPENBAS_RABBITMQ_HOSTNAME, GH_TOKEN.
+
+inputs:
+  includes:
+    description: 'Surefire test include patterns (multi-line) or "catchall"'
+    required: true
+  excludes:
+    description: 'Surefire test exclude patterns (multi-line, optional)'
+    required: false
+    default: ''
+  shard:
+    description: Shard number (used for artifact naming)
+    required: true
+  shard-name:
+    description: Shard display name
+    required: true
+
+runs:
+  using: composite
+  steps:
+
+    - name: Start all services (non-blocking)
+      shell: bash
+      run: |
+        docker run -d --name pgsql \
+          -p 5432:5432 \
+          -e POSTGRES_USER=openaev \
+          -e POSTGRES_PASSWORD=openaev \
+          -e POSTGRES_DB=openaev \
+          postgres:17-alpine \
+          -c max_connections=1000
+        docker run -d --name elasticsearch \
+          -p 9200:9200 \
+          -e discovery.type=single-node \
+          -e xpack.security.enabled=false \
+          -e "ES_JAVA_OPTS=-Xms2g -Xmx2g" \
+          docker.elastic.co/elasticsearch/elasticsearch:8.18.3
+        docker run -d --name rabbitmq \
+          -p 5672:5672 \
+          -p 15672:15672 \
+          -e RABBITMQ_DEFAULT_USER=guest \
+          -e RABBITMQ_DEFAULT_PASS=guest \
+          rabbitmq:4.1-management
+        docker run -d --name minio \
+          -p 9000:9000 \
+          -e MINIO_ROOT_USER=minioadmin \
+          -e MINIO_ROOT_PASSWORD=minioadmin \
+          minio/minio:RELEASE.2025-06-13T11-33-47Z server /data
+
+        echo "🔍 Verifying containers started..."
+        for name in pgsql elasticsearch rabbitmq minio; do
+          if ! docker inspect --format='{{.State.Running}}' "$name" 2>/dev/null | grep -q true; then
+            echo "❌ Container '$name' failed to start"
+            docker logs "$name" 2>/dev/null || true
+            exit 1
+          fi
+        done
+        echo "✅ All containers started"
+
+    - name: Set up Java 21
+      uses: actions/setup-java@v5
+      with:
+        java-version: "21"
+        distribution: temurin
+        cache: maven
+
+    - name: Wait for and download compiled artifacts
+      shell: bash
+      run: |
+        echo "⏳ Waiting for backend-compile artifacts (services booting in parallel)..."
+        for i in $(seq 1 120); do
+          HTTP_CODE=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" \
+            --include 2>&1 | head -1 | awk '{print $2}' || echo "000")
+          NAMES=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" \
+            --jq '[.artifacts[].name]' 2>/dev/null || echo "[]")
+          if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "000" ]; then
+            echo "⚠️ GitHub API returned HTTP $HTTP_CODE (attempt $i/120)"
+          fi
+          if echo "$NAMES" | grep -q '"api-build-output"'; then
+            echo "✅ Artifacts available (after ~$((i * 5))s)"
+            break
+          fi
+          if [ "$i" -eq 120 ]; then
+            echo "❌ Timed out waiting for artifacts (10 min)"
+            exit 1
+          fi
+          echo "  Attempt $i/120 — not ready, retrying in 5s..."
+          sleep 5
+        done
+
+        echo "📥 Downloading backend-compiled..."
+        if ! gh run download "${{ github.run_id }}" -n backend-compiled -D ~/.m2/repository/io/openaev/; then
+          echo "❌ Failed to download backend-compiled artifact"
+          exit 1
+        fi
+        echo "📥 Downloading api-build-output..."
+        if ! gh run download "${{ github.run_id }}" -n api-build-output -D openaev-api/target; then
+          echo "❌ Failed to download api-build-output artifact"
+          exit 1
+        fi
+
+        echo "🔍 Post-download: listing ~/.m2/repository/io/openaev/ (top 3 levels):"
+        find ~/.m2/repository/io/openaev/ -maxdepth 3 -type d 2>/dev/null | head -20 || echo "  directory does not exist"
+        echo "---"
+        echo "🔍 Post-download: listing openaev-api/target/ (top 3 levels):"
+        find openaev-api/target/ -maxdepth 3 -type d 2>/dev/null | head -20 || echo "  directory does not exist"
+        echo "---"
+
+    - name: Verify downloaded artifacts
+      shell: bash
+      run: |
+        echo "🔍 Listing openaev-api/target/ (top 5 levels):"
+        find openaev-api/target/ -maxdepth 5 -type d 2>/dev/null | head -40 || echo "  openaev-api/target/ does not exist"
+        echo "---"
+
+        # ── Fix double-nesting from gh run download ──
+        # upload-artifact@v7 may store paths with the full prefix inside
+        # the zip, so gh run download -D openaev-api/target can produce
+        # openaev-api/target/openaev-api/target/classes/ instead of
+        # openaev-api/target/classes/.  Detect and flatten.
+        if [ -d "openaev-api/target/openaev-api/target" ]; then
+          echo "⚠️ Detected double-nested artifact path — flattening..."
+          cp -rn openaev-api/target/openaev-api/target/* openaev-api/target/ 2>/dev/null || true
+          rm -rf openaev-api/target/openaev-api
+          echo "✅ Flattened double-nested paths"
+        fi
+
+        # Note: use "|| true" after "head" to prevent SIGPIPE from
+        # propagating under bash -eo pipefail (GitHub Actions default).
+        MVN_JARS=$(find ~/.m2/repository/io/openaev/ -name '*.jar' 2>/dev/null | head -5 || true)
+        if [ -z "$MVN_JARS" ]; then
+          echo "❌ No Maven JARs found in ~/.m2/repository/io/openaev/"
+          echo "🔍 Listing ~/.m2/repository/io/openaev/ (top 4 levels):"
+          find ~/.m2/repository/io/openaev/ -maxdepth 4 2>/dev/null | head -30 || true
+          exit 1
+        fi
+        MVN_JAR_COUNT=$(find ~/.m2/repository/io/openaev/ -name '*.jar' 2>/dev/null | wc -l || true)
+        echo "✅ Maven artifacts found ($MVN_JAR_COUNT JARs)"
+
+        if [ ! -d "openaev-api/target/classes" ]; then
+          echo "❌ openaev-api/target/classes/ directory does not exist"
+          echo "🔍 Actual contents of openaev-api/target/:"
+          ls -la openaev-api/target/ 2>/dev/null || echo "  target/ directory does not exist"
+          exit 1
+        fi
+        echo "✅ Compiled classes present"
+
+        TEST_CLASS_COUNT=$(find openaev-api/target/test-classes -name '*Test.class' 2>/dev/null | wc -l || true)
+        echo "  🔍 Found $TEST_CLASS_COUNT *Test.class file(s) in test-classes/"
+        if [ "$TEST_CLASS_COUNT" -eq 0 ]; then
+          echo "❌ No test classes found in openaev-api/target/test-classes/"
+          echo "🔍 Actual contents of openaev-api/target/test-classes/ (top 6 levels):"
+          find openaev-api/target/test-classes -maxdepth 6 2>/dev/null | head -40 || echo "  test-classes/ does not exist"
+          echo "🔍 Sample .class files (any name):"
+          find openaev-api/target/test-classes -name '*.class' 2>/dev/null | head -10 || echo "  none"
+          exit 1
+        fi
+        echo "✅ Test classes found ($TEST_CLASS_COUNT *Test.class files)"
+
+    - name: Wait for services
+      shell: bash
+      run: |
+        echo "⏳ Waiting for PostgreSQL..."
+        for i in $(seq 1 30); do
+          docker exec pgsql pg_isready -U openaev && break
+          sleep 1
+        done
+        docker exec pgsql pg_isready -U openaev || { echo "❌ PostgreSQL failed to start"; exit 1; }
+
+        echo "⏳ Waiting for Elasticsearch..."
+        for i in $(seq 1 30); do
+          curl -sf http://localhost:9200/_cluster/health && break
+          sleep 2
+        done
+        curl -sf http://localhost:9200/_cluster/health || { echo "❌ Elasticsearch failed to start"; exit 1; }
+
+        echo "⏳ Waiting for RabbitMQ..."
+        for i in $(seq 1 30); do
+          docker exec rabbitmq rabbitmq-diagnostics -q check_running 2>/dev/null && break
+          sleep 2
+        done
+        docker exec rabbitmq rabbitmq-diagnostics -q check_running || { echo "❌ RabbitMQ failed to start"; exit 1; }
+
+        echo "⏳ Waiting for MinIO..."
+        for i in $(seq 1 30); do
+          curl -sf http://localhost:9000/minio/health/live && break
+          sleep 1
+        done
+        curl -sf http://localhost:9000/minio/health/live || { echo "❌ MinIO failed to start"; exit 1; }
+
+        echo "✅ All services ready"
+
+    - name: Prepare test suite
+      id: suite
+      shell: bash
+      env:
+        SHARD_INCLUDES: ${{ inputs.includes }}
+        SHARD_EXCLUDES: ${{ inputs.excludes }}
+      run: |
+        if [ "$SHARD_INCLUDES" = "catchall" ]; then
+          echo "$EXPLICITLY_SHARDED_TESTS" > /tmp/surefire-excludes.txt
+          echo "surefire_arg=-Dsurefire.excludesFile=/tmp/surefire-excludes.txt" >> "$GITHUB_OUTPUT"
+          echo "🔄 Catch-all shard: running all tests NOT assigned to shards 1–3"
+          cat /tmp/surefire-excludes.txt
+        else
+          echo "$SHARD_INCLUDES" > /tmp/surefire-includes.txt
+          ARGS="-Dsurefire.includesFile=/tmp/surefire-includes.txt"
+          if [ -n "$SHARD_EXCLUDES" ]; then
+            echo "$SHARD_EXCLUDES" > /tmp/surefire-excludes.txt
+            ARGS="$ARGS -Dsurefire.excludesFile=/tmp/surefire-excludes.txt"
+            echo "📋 Include patterns:"
+            cat /tmp/surefire-includes.txt
+            echo "🚫 Exclude patterns:"
+            cat /tmp/surefire-excludes.txt
+          else
+            echo "📋 Include patterns:"
+            cat /tmp/surefire-includes.txt
+          fi
+          echo "surefire_arg=$ARGS" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Run API tests (shard ${{ inputs.shard }} — ${{ inputs.shard-name }})
+      id: run-tests
+      shell: bash
+      # Run the 'test' lifecycle phase so that JaCoCo's prepare-agent
+      # execution (bound to 'initialize' in pom.xml) fires through the
+      # normal lifecycle and properly sets the argLine property BEFORE
+      # Surefire reads it.  Compilation is skipped because the classes
+      # are already downloaded from the backend-compile job.
+      run: >-
+        mvn -B -ntp -pl openaev-api test
+        -Dmaven.compiler.skip=true
+        ${{ steps.suite.outputs.surefire_arg }}
+    - name: Verify JaCoCo exec data
+      if: ${{ !cancelled() }}
+      shell: bash
+      run: |
+        EXEC_FILE="openaev-api/target/jacoco.exec"
+        if [ -f "$EXEC_FILE" ]; then
+          SIZE=$(stat --format=%s "$EXEC_FILE" 2>/dev/null || stat -f%z "$EXEC_FILE" 2>/dev/null)
+          echo "✅ $EXEC_FILE exists ($SIZE bytes)"
+        else
+          echo "❌ $EXEC_FILE not found after test run"
+          echo "   Test step outcome: ${{ steps.run-tests.outcome }}"
+          echo "   Contents of openaev-api/target/:"
+          ls -la openaev-api/target/ 2>/dev/null || echo "   directory does not exist"
+          echo "   Surefire reports:"
+          ls -la openaev-api/target/surefire-reports/ 2>/dev/null || echo "   no surefire-reports/"
+          exit 1
+        fi
+    - name: Upload JaCoCo exec data
+      if: ${{ !cancelled() }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: jacoco-exec-shard-${{ inputs.shard }}
+        path: openaev-api/target/jacoco.exec
+        if-no-files-found: error

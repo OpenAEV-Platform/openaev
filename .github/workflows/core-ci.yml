@@ -1,0 +1,201 @@
+name: "[Core] CI"
+
+on:
+  push:
+    branches: [ master, release/current ]
+    tags:
+      - "[0-9]*.[0-9]*.[0-9]*"
+  pull_request:
+    branches: [ master, release/current ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+
+  spotless-check:
+    name: "🔍 Spotless Check"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/spotless-check
+
+  backend-compile:
+    name: "🔨 Backend Compile"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/backend-compile
+
+  frontend-build:
+    name: "🎨 Frontend Build"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/frontend-build
+
+  # ──────────────────────────────────────────────────────────────────
+  # Quality gates (frontend quality, API tests, E2E tests, coverage)
+  # Defined in _quality-gates.yml to avoid duplication with
+  # core-release-dry-run.yml.
+  # ──────────────────────────────────────────────────────────────────
+  quality-gates:
+    uses: ./.github/workflows/_quality-gates.yml
+    secrets: inherit
+
+  backend-package:
+    name: "📦 Backend Package (glibc)"
+    needs:
+      - frontend-build
+      - backend-compile
+      - prepare-release-assets
+    timeout-minutes: 15
+    # Run even when prepare-release-assets is skipped (PRs).
+    # Note: !cancelled() is required so the `if` is evaluated when a
+    # dependency is skipped (success() alone returns false for skipped
+    # dependencies, which would cascade-skip e2e-tests).  Unlike always(),
+    # !cancelled() still respects manual workflow cancellation.
+    if: >-
+      ${{
+        !cancelled() &&
+        needs.frontend-build.result == 'success' &&
+        needs.backend-compile.result == 'success' &&
+        (needs.prepare-release-assets.result == 'success' || needs.prepare-release-assets.result == 'skipped')
+      }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/backend-package
+        with:
+          download-release-assets: ${{ needs.prepare-release-assets.result == 'success' }}
+
+  # Download agent/implant binaries and patch catalog version (push only, skipped on PRs)
+  prepare-release-assets:
+    name: "📦 Prepare Release Assets"
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0 # full history needed for version tags
+
+      - name: Compute versions
+        id: versions
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+            echo "binary_version=${TAG}"   >> "$GITHUB_OUTPUT"
+            echo "catalog_version=${TAG}"  >> "$GITHUB_OUTPUT"
+          elif [[ "$GITHUB_REF" == refs/heads/release/current ]]; then
+            echo "binary_version=prerelease"  >> "$GITHUB_OUTPUT"
+            echo "catalog_version=prerelease" >> "$GITHUB_OUTPUT"
+          else
+            echo "binary_version=latest"   >> "$GITHUB_OUTPUT"
+            echo "catalog_version=rolling"  >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download agent & implant binaries
+        run: |
+          BINARY_VERSION="${{ steps.versions.outputs.binary_version }}"
+
+          # Use latest git tag as local filename for non-release builds
+          if [[ "${{ steps.versions.outputs.catalog_version }}" == "rolling" || "${{ steps.versions.outputs.catalog_version }}" == "prerelease" ]]; then
+            LOCAL_VERSION="$(git describe --tags --abbrev=0 2>/dev/null || echo "$BINARY_VERSION")"
+          else
+            LOCAL_VERSION="$BINARY_VERSION"
+          fi
+
+          chmod +x scripts/download-binaries.sh
+          if ! bash scripts/download-binaries.sh "$BINARY_VERSION" "$LOCAL_VERSION"; then
+            echo "❌ download-binaries.sh failed"
+            exit 1
+          fi
+
+          # Verify at least some binaries were downloaded
+          AGENT_COUNT=$(find openaev-api/src/main/resources/agents/ -type f 2>/dev/null | wc -l)
+          IMPLANT_COUNT=$(find openaev-api/src/main/resources/implants/ -type f 2>/dev/null | wc -l)
+          echo "📦 Downloaded $AGENT_COUNT agent(s) and $IMPLANT_COUNT implant(s)"
+          if [ "$AGENT_COUNT" -eq 0 ] && [ "$IMPLANT_COUNT" -eq 0 ]; then
+            echo "⚠️ Warning: No agent or implant binaries were downloaded"
+          fi
+
+      - name: Patch catalog version
+        run: |
+          CATALOG_FILE=openaev-api/src/main/resources/catalog/catalog-integrators.json
+          CATALOG_VERSION="${{ steps.versions.outputs.catalog_version }}"
+
+          if [ ! -f "$CATALOG_FILE" ]; then
+            echo "❌ Catalog file not found: $CATALOG_FILE"
+            ls -la openaev-api/src/main/resources/catalog/ 2>/dev/null || echo "  catalog/ directory does not exist"
+            exit 1
+          fi
+
+          if ! jq --arg ver "$CATALOG_VERSION" \
+            '.contracts[].container_version = $ver | .version = $ver' \
+            "$CATALOG_FILE" > catalog.tmp; then
+            echo "❌ jq failed to patch catalog file (invalid JSON?)"
+            exit 1
+          fi
+
+          if [ ! -s "catalog.tmp" ]; then
+            echo "❌ jq produced empty output"
+            exit 1
+          fi
+
+          # Validate the patched file is still valid JSON
+          if ! jq empty catalog.tmp 2>/dev/null; then
+            echo "❌ Patched catalog file is not valid JSON"
+            exit 1
+          fi
+
+          mv catalog.tmp "$CATALOG_FILE"
+          echo "✅ Catalog version patched to '$CATALOG_VERSION'"
+
+      - name: Upload release assets
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-assets
+          path: |
+            openaev-api/src/main/resources/agents/
+            openaev-api/src/main/resources/implants/
+            openaev-api/src/main/resources/catalog/
+
+  # Alpine/musl JAR build for Alpine-based Docker images (push only)
+  backend-package-musl:
+    name: "📦 Backend Package (musl)"
+    needs: [ frontend-build, backend-compile, prepare-release-assets ]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    container:
+      image: maven:3.9.14-eclipse-temurin-21-alpine
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/backend-package-musl
+
+  # Build all Docker images locally (push only — standard + UBI9)
+  docker-build:
+    name: "🐳 Docker Build (all images)"
+    needs:
+      - backend-package
+      - prepare-release-assets
+    timeout-minutes: 20
+    if: >-
+      ${{
+        github.event_name == 'push' &&
+        !cancelled() &&
+        needs.backend-package.result == 'success' &&
+        (needs.prepare-release-assets.result == 'success' || needs.prepare-release-assets.result == 'skipped')
+      }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/docker-build-push
+        with:
+          build-ubi9: "true"
+          tags: openaev:ci-${{ github.run_id }}
+          ubi9-tags: openaev-ubi9:ci-${{ github.run_id }}
