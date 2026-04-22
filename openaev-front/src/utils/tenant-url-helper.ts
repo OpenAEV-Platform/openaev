@@ -1,5 +1,4 @@
 import { APP_BASE_PATH } from './Environment';
-import TENANT_MIGRATION_TODO from './tenant-api-migration';
 
 /**
  * Base API path for tenant endpoints.
@@ -137,9 +136,6 @@ export const buildTenantApiPath = (uri: string): string => {
     return uri;
   }
   if (TENANT_EXEMPT_PREFIXES.some(prefix => uri.startsWith(prefix))) {
-    return uri;
-  }
-  if (TENANT_MIGRATION_TODO.some(prefix => uri.startsWith(prefix))) {
     return uri;
   }
 

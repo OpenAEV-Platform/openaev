@@ -1,5 +1,6 @@
 package io.openaev.rest.user;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.helper.DatabaseHelper.updateRelation;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
@@ -29,6 +30,10 @@ import org.springframework.web.bind.annotation.*;
 public class PlayerApi extends RestBehavior {
 
   public static final String PLAYER_URI = "/api/players";
+  private static final String TENANT_PLAYER_URI = TENANT_PREFIX + "/players";
+  private static final String PLAYER_COMMUNICATION_URI = "/api/player/{userId}/communications";
+  private static final String TENANT_PLAYER_COMMUNICATION_URI =
+      TENANT_PREFIX + "/player/{userId}/communications";
 
   @Resource private SessionManager sessionManager;
 
@@ -37,10 +42,9 @@ public class PlayerApi extends RestBehavior {
   private final UserRepository userRepository;
   private final TagRepository tagRepository;
   private final UserService userService;
-  private final TeamRepository teamRepository;
   private final PlayerService playerService;
 
-  @GetMapping(PLAYER_URI)
+  @GetMapping({PLAYER_URI, TENANT_PLAYER_URI})
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PLAYER)
   @Transactional(rollbackOn = Exception.class)
   public Iterable<RawPlayer> players() {
@@ -51,41 +55,34 @@ public class PlayerApi extends RestBehavior {
   }
 
   @LogExecutionTime
-  @PostMapping(PLAYER_URI + "/search")
+  @PostMapping({PLAYER_URI + "/search", TENANT_PLAYER_URI + "/search"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.PLAYER)
   public Page<PlayerOutput> players(
       @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     return this.playerService.playerPagination(searchPaginationInput);
   }
 
-  @GetMapping("/api/player/{userId}/communications")
+  @GetMapping({PLAYER_COMMUNICATION_URI, TENANT_PLAYER_COMMUNICATION_URI})
   @AccessControl(skipRBAC = true)
   public Iterable<Communication> playerCommunications(@PathVariable String userId) {
     return communicationRepository.findByUser(userId);
   }
 
-  @PostMapping(PLAYER_URI)
+  @PostMapping({PLAYER_URI, TENANT_PLAYER_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PLAYER)
   @Transactional(rollbackOn = Exception.class)
   public User createPlayer(@Valid @RequestBody PlayerInput input) {
-    User user = new User();
-    user.setUpdateAttributes(input);
-    user.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
-    user.setOrganization(
-        updateRelation(input.getOrganizationId(), user.getOrganization(), organizationRepository));
-    User savedUser = userRepository.save(user);
-    userService.createUserToken(savedUser);
-    return savedUser;
+    return playerService.createPlayer(input);
   }
 
-  @PostMapping(PLAYER_URI + "/upsert")
+  @PostMapping({PLAYER_URI + "/upsert", TENANT_PLAYER_URI + "/upsert"})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PLAYER)
   @Transactional(rollbackOn = Exception.class)
   public User upsertPlayer(@Valid @RequestBody PlayerInput input) {
     return playerService.upsertPlayer(input);
   }
 
-  @PutMapping(PLAYER_URI + "/{userId}")
+  @PutMapping({PLAYER_URI + "/{userId}", TENANT_PLAYER_URI + "/{userId}"})
   @AccessControl(
       resourceId = "#userId",
       actionPerformed = Action.WRITE,
@@ -99,7 +96,7 @@ public class PlayerApi extends RestBehavior {
     return userRepository.save(user);
   }
 
-  @DeleteMapping(PLAYER_URI + "/{userId}")
+  @DeleteMapping({PLAYER_URI + "/{userId}", TENANT_PLAYER_URI + "/{userId}"})
   @AccessControl(
       resourceId = "#userId",
       actionPerformed = Action.DELETE,
