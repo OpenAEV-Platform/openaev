@@ -1,4 +1,4 @@
-name: OpenAEV CI for testing-xtm-one
+name: Deploy testing-xtm-one
 
 on:
   workflow_dispatch:
@@ -14,17 +14,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  wf-build-image:
+  build-image:
     name: Build testing-xtm-one image
     runs-on: ubuntu-latest
-    outputs:
-      dockerBuildDigest: ${{ steps.buildpush.outputs.digest }}
-      imageVersion: ${{ steps.meta.outputs.version }}
     steps:
       - uses: actions/checkout@v6
         with:
           submodules: recursive
-
       - uses: jirutka/setup-alpine@v1
         with:
           branch: v3.23
@@ -32,11 +28,10 @@ jobs:
             https://dl-cdn.alpinelinux.org/alpine/edge/community/
           packages: >
             nodejs npm git tini gcc g++ make musl-dev cargo openjdk21-jdk maven postfix postfix-pcre
-
       - name: Setup Node.js
-        run: npm install -g corepack
+        run: |
+          npm install -g corepack
         shell: alpine.sh --root {0}
-
       - name: Build into Alpine
         run: |
           export JAVA_HOME=/usr/lib/jvm/default-jvm/
@@ -46,20 +41,15 @@ jobs:
           cd ../
           mvn install -DskipTests -Pdev
         shell: alpine.sh {0}
-
       - run: mkdir -p openaev-build/
       - run: cp openaev-api/target/openaev-api.jar openaev-build/
-
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@v6
         with:
           images: filigran/openaev-platform
           tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=testing-xtm-one
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -82,7 +72,7 @@ jobs:
           cache-from: type=registry,ref=filigran/openaev-platform:buildcache
           cache-to: type=registry,ref=filigran/openaev-platform:buildcache,mode=max
 
-  wf-redeploy-instance:
+  deploy:
       name: Restart testing-xtm-one instance
       needs: wf-build-image
       runs-on: ubuntu-latest
