@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 import { type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -27,11 +28,13 @@ const LessonsTemplateForm: FunctionComponent<Props> = ({
 }) => {
   // Standard hooks
   const { t } = useFormatter();
+  const theme = useTheme();
 
   const {
     register,
     handleSubmit,
     formState: { errors, isDirty, isSubmitting },
+    control,
   } = useForm<LessonsTemplateInput>({
     mode: 'onTouched',
     resolver: zodResolver(
@@ -49,30 +52,33 @@ const LessonsTemplateForm: FunctionComponent<Props> = ({
         variant="standard"
         fullWidth
         label={t('Name')}
-        style={{ marginTop: 10 }}
+        style={{ marginTop: theme.spacing(1) }}
         error={!!errors.lessons_template_name}
         helperText={errors.lessons_template_name?.message}
         inputProps={register('lessons_template_name')}
         InputLabelProps={{ required: true }}
+        control={control}
       />
       <TextField
         variant="standard"
         fullWidth
         label={t('Description')}
-        style={{ marginTop: 20 }}
+        style={{ marginTop: theme.spacing(2) }}
         error={!!errors.lessons_template_description}
         helperText={errors.lessons_template_description?.message}
         inputProps={register('lessons_template_description')}
+        control={control}
       />
       <div style={{
+        display: 'flex',
         float: 'right',
-        marginTop: 20,
+        margin: theme.spacing(2),
+        gap: theme.spacing(1),
       }}
       >
         <Button
           variant="contained"
           onClick={handleClose}
-          style={{ marginRight: 10 }}
           disabled={isSubmitting}
         >
           {t('Cancel')}

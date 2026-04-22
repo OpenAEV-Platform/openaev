@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 import { type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -30,11 +31,13 @@ const LessonsTemplateQuestionForm: FunctionComponent<Props> = ({
 }) => {
   // Standard hooks
   const { t } = useFormatter();
+  const theme = useTheme();
 
   const {
     register,
     handleSubmit,
     formState: { errors, isDirty, isSubmitting },
+    control,
   } = useForm<LessonsTemplateQuestionInputForm>({
     mode: 'onTouched',
     resolver: zodResolver(
@@ -53,41 +56,45 @@ const LessonsTemplateQuestionForm: FunctionComponent<Props> = ({
         variant="standard"
         fullWidth
         label={t('Content')}
-        style={{ marginTop: 10 }}
+        style={{ marginTop: theme.spacing(1) }}
         error={!!errors.lessons_template_question_content}
         helperText={errors.lessons_template_question_content?.message}
         inputProps={register('lessons_template_question_content')}
         InputLabelProps={{ required: true }}
+        control={control}
       />
       <TextField
         variant="standard"
         fullWidth
         label={t('Explanation')}
-        style={{ marginTop: 10 }}
+        style={{ marginTop: theme.spacing(1) }}
         error={!!errors.lessons_template_question_explanation}
         helperText={errors.lessons_template_question_explanation?.message}
         inputProps={register('lessons_template_question_explanation')}
+        control={control}
       />
       <TextField
         variant="standard"
         fullWidth
         label={t('Order')}
-        style={{ marginTop: 20 }}
+        style={{ marginTop: theme.spacing(2) }}
         error={!!errors.lessons_template_question_order}
         helperText={errors.lessons_template_question_order?.message}
         inputProps={register('lessons_template_question_order')}
         type="number"
         InputLabelProps={{ required: true }}
+        control={control}
       />
       <div style={{
+        display: 'flex',
         float: 'right',
-        marginTop: 20,
+        margin: theme.spacing(2),
+        gap: theme.spacing(1),
       }}
       >
         <Button
           variant="contained"
           onClick={handleClose}
-          style={{ marginRight: 10 }}
           disabled={isSubmitting}
         >
           {t('Cancel')}
