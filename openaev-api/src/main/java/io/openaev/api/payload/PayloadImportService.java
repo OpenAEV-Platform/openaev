@@ -72,6 +72,15 @@ public class PayloadImportService {
     return new PayloadImportResult(response, injectorContract);
   }
 
+  /**
+   * Result of a payload import operation.
+   *
+   * @param payloadOutput the ZIP import output containing the persisted payload and JSON:API docs
+   * @param injectorContract the synchronised injector contract (may be null if no injector matched)
+   */
+  public record PayloadImportResult(
+          ZipJsonService.ImportOutput<Payload> payloadOutput, InjectorContract injectorContract) {}
+
   private AttackPattern handleAttackPatternImport(ResourceObject object) {
     AttackPatternCreateInput input = new AttackPatternCreateInput();
     input.setName(object.attributes().get("attack_pattern_name").toString());
@@ -99,49 +108,58 @@ public class PayloadImportService {
   }
 
   private <T> List<T> extractRelationshipObjects(
-      String relName,
-      Function<ResourceObject, T> valueExtractor,
-      JsonApiDocument<ResourceObject> ressourceDocument) {
-    Map<String, Relationship> rels =
-        ressourceDocument.data().relationships() != null
-            ? ressourceDocument.data().relationships()
-            : Collections.emptyMap();
-
-    Relationship rel = rels.get("payload_" + relName);
-    if (rel == null) {
+          String relName,
+          Function<ResourceObject, T> valueExtractor,
+          JsonApiDocument<ResourceObject> resourceDocument) {
+    Relationship relationship = getPayloadRelationship(resourceDocument, relName);
+    if (relationship == null || relationship.asMany() == null || relationship.asMany().isEmpty()) {
       return Collections.emptyList();
     }
 
-    List<ResourceObject> importRessources =
-        Optional.ofNullable(ressourceDocument.included()).orElseGet(Collections::emptyList).stream()
-            .map(
-                o ->
-                    o instanceof ResourceObject ro
-                        ? ro
-                        : mapper.convertValue(o, ResourceObject.class))
-            .filter(resource -> relName.equals(resource.type()))
+    Map<String, ResourceObject> includedById = getIncludedResourcesByType(resourceDocument, relName);
+    if (includedById.isEmpty()) {
+      return Collections.emptyList();
+    }
+
+    return relationship.asMany().stream()
+            .map(ref -> includedById.get(ref.id()))
+            .filter(Objects::nonNull)
+            .map(valueExtractor)
+            .filter(Objects::nonNull)
             .toList();
+  }
 
-    if (importRessources.isEmpty()) {
-      return Collections.emptyList();
+  private Relationship getPayloadRelationship(
+          JsonApiDocument<ResourceObject> resourceDocument,
+          String relName) {
+    if (resourceDocument == null || resourceDocument.data() == null) {
+      return null;
     }
+    Map<String, Relationship> relationships =
+            Optional.ofNullable(resourceDocument.data().relationships()).orElse(Collections.emptyMap());
+    return relationships.get("payload_" + relName);
+  }
 
-    return rel.asMany().stream()
-        .map(
-            ressourceToimport -> {
-              ResourceObject importedData =
-                  importRessources.stream()
-                      .filter(ressource -> ressource.id().equals(ressourceToimport.id()))
-                      .findFirst()
-                      .orElse(null);
+  private Map<String, ResourceObject> getIncludedResourcesByType(
+          JsonApiDocument<ResourceObject> resourceDocument,
+          String type) {
+    return Optional.ofNullable(resourceDocument.included()).orElse(Collections.emptyList()).stream()
+            .map(this::toResourceObject)
+            .filter(Objects::nonNull)
+            .filter(resource -> type.equals(resource.type()))
+            .collect(
+                    java.util.stream.Collectors.toMap(
+                            ResourceObject::id,
+                            Function.identity(),
+                            (first, second) -> first,
+                            LinkedHashMap::new));
+  }
 
-              if (importedData == null) {
-                return null;
-              }
-              return valueExtractor.apply(importedData);
-            })
-        .filter(Objects::nonNull)
-        .toList();
+  private ResourceObject toResourceObject(Object raw) {
+    if (raw instanceof ResourceObject resourceObject) {
+      return resourceObject;
+    }
+    return mapper.convertValue(raw, ResourceObject.class);
   }
 
   private String[] asStringArray(Object value) {
@@ -150,13 +168,4 @@ public class PayloadImportService {
     }
     return mapper.convertValue(value, String[].class);
   }
-
-  /**
-   * Result of a payload import operation.
-   *
-   * @param payloadOutput the ZIP import output containing the persisted payload and JSON:API docs
-   * @param injectorContract the synchronised injector contract (may be null if no injector matched)
-   */
-  public record PayloadImportResult(
-      ZipJsonService.ImportOutput<Payload> payloadOutput, InjectorContract injectorContract) {}
 }
