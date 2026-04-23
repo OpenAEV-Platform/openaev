@@ -79,7 +79,7 @@ public class PayloadImportService {
    * @param injectorContract the synchronised injector contract (may be null if no injector matched)
    */
   public record PayloadImportResult(
-          ZipJsonService.ImportOutput<Payload> payloadOutput, InjectorContract injectorContract) {}
+      ZipJsonService.ImportOutput<Payload> payloadOutput, InjectorContract injectorContract) {}
 
   private AttackPattern handleAttackPatternImport(ResourceObject object) {
     AttackPatternCreateInput input = new AttackPatternCreateInput();
@@ -108,51 +108,50 @@ public class PayloadImportService {
   }
 
   private <T> List<T> extractRelationshipObjects(
-          String relName,
-          Function<ResourceObject, T> valueExtractor,
-          JsonApiDocument<ResourceObject> resourceDocument) {
+      String relName,
+      Function<ResourceObject, T> valueExtractor,
+      JsonApiDocument<ResourceObject> resourceDocument) {
     Relationship relationship = getPayloadRelationship(resourceDocument, relName);
     if (relationship == null || relationship.asMany() == null || relationship.asMany().isEmpty()) {
       return Collections.emptyList();
     }
 
-    Map<String, ResourceObject> includedById = getIncludedResourcesByType(resourceDocument, relName);
+    Map<String, ResourceObject> includedById =
+        getIncludedResourcesByType(resourceDocument, relName);
     if (includedById.isEmpty()) {
       return Collections.emptyList();
     }
 
     return relationship.asMany().stream()
-            .map(ref -> includedById.get(ref.id()))
-            .filter(Objects::nonNull)
-            .map(valueExtractor)
-            .filter(Objects::nonNull)
-            .toList();
+        .map(ref -> includedById.get(ref.id()))
+        .filter(Objects::nonNull)
+        .map(valueExtractor)
+        .filter(Objects::nonNull)
+        .toList();
   }
 
   private Relationship getPayloadRelationship(
-          JsonApiDocument<ResourceObject> resourceDocument,
-          String relName) {
+      JsonApiDocument<ResourceObject> resourceDocument, String relName) {
     if (resourceDocument == null || resourceDocument.data() == null) {
       return null;
     }
     Map<String, Relationship> relationships =
-            Optional.ofNullable(resourceDocument.data().relationships()).orElse(Collections.emptyMap());
+        Optional.ofNullable(resourceDocument.data().relationships()).orElse(Collections.emptyMap());
     return relationships.get("payload_" + relName);
   }
 
   private Map<String, ResourceObject> getIncludedResourcesByType(
-          JsonApiDocument<ResourceObject> resourceDocument,
-          String type) {
+      JsonApiDocument<ResourceObject> resourceDocument, String type) {
     return Optional.ofNullable(resourceDocument.included()).orElse(Collections.emptyList()).stream()
-            .map(this::toResourceObject)
-            .filter(Objects::nonNull)
-            .filter(resource -> type.equals(resource.type()))
-            .collect(
-                    java.util.stream.Collectors.toMap(
-                            ResourceObject::id,
-                            Function.identity(),
-                            (first, second) -> first,
-                            LinkedHashMap::new));
+        .map(this::toResourceObject)
+        .filter(Objects::nonNull)
+        .filter(resource -> type.equals(resource.type()))
+        .collect(
+            java.util.stream.Collectors.toMap(
+                ResourceObject::id,
+                Function.identity(),
+                (first, second) -> first,
+                LinkedHashMap::new));
   }
 
   private ResourceObject toResourceObject(Object raw) {
