@@ -74,7 +74,7 @@
     "normalizr": "3.6.2",
     "pdfmake": "0.3.7",
     "prop-types": "15.8.1",
-    "qs": "6.15.0",
+    "qs": "6.15.1",
     "ramda": "0.32.0",
     "react": "19.2.4",
     "react-apexcharts": "1.7.0",
