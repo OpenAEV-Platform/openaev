@@ -28,7 +28,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Service
 public class StepService implements StepEventHandler, ExternalUpdateEventHandler {
-
   private final InjectExecutionStep injectExecutionStep;
 
   private final WorkflowService workflowService;
@@ -184,14 +183,19 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
         findByIdAndStatus(nextStepTemplateToExecute.getId(), StepStatus.TEMPLATE);
 
     // CHECK CONDITIONS
-    List<ConditionService.ExecutionBatch> batches =
-        conditionService.checkCondition(nextStepTemplateToExecutePersisted, workflowRun);
+    List<ConditionService.ExecutionBatch> executionBatchs =
+        conditionService.checkCondition(nextStepTemplateToExecutePersisted, workflowRun, input);
 
-    // List<Condition> conditionExecution:
+    if (executionBatchs == null) {
+      return Optional.empty();
+    }
+
+    // List<ExecutionBatch> executionBatchs:
     // 1. null  : push in delay queue or exced limit execution or condition invalid  -> no execution
     // 2. empty  : no condition                                                  -> direct execution
-    // 3. not empty : all conditions are valid (will be saved as condition execution)   -> execution
-    for (ConditionService.ExecutionBatch batch : batches) {
+    // 3. not empty : all conditions mappings are valid (will be saved as condition execution)   ->
+    // execution
+    for (ConditionService.ExecutionBatch batch : executionBatchs) {
       Step stepReady =
           actionStep
               .ready(nextStepTemplateToExecutePersisted, batch.inputString(), workflowRun)

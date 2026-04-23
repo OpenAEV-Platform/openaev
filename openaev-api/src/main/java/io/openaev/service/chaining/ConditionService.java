@@ -42,7 +42,6 @@ public class ConditionService {
   private static final Gson gson = new Gson();
 
   // -- CONDITION TREE CREATE --
-
   /**
    * Creates a condition tree from an {@link EventInput} payload.
    *
@@ -226,7 +225,6 @@ public class ConditionService {
   }
 
   // -- CONDITION TREE UPDATE --
-
   /**
    * Replaces an existing condition tree: updates root metadata and rebuilds child conditions.
    *
@@ -281,7 +279,6 @@ public class ConditionService {
   }
 
   // -- CONDITION TREE GET --
-
   /**
    * Finds a condition tree root by its ID.
    *
@@ -323,7 +320,6 @@ public class ConditionService {
   }
 
   // -- CONDITION TREE DELETE --
-
   /**
    * Deletes a condition tree root and all its children (cascade).
    *
@@ -406,18 +402,19 @@ public class ConditionService {
    * Evaluates all conditions for a step template and returns valid ones for execution.
    *
    * @param nextStepTemplateToExecute the step to evaluate
+   * @param input input data for the step
    * @param workflowRun the running workflow
    * @return valid conditions, empty list if none required, or null if execution should be deferred
    */
   public List<ConditionService.ExecutionBatch> checkCondition(
-      Step nextStepTemplateToExecute, Workflow workflowRun) throws ChainingException {
+      Step nextStepTemplateToExecute, Workflow workflowRun, String input) throws ChainingException {
 
     List<Condition> conditionTemplate =
         findAllConditionsByStepId(nextStepTemplateToExecute.getId());
 
     // No condition means direct execution:
     if (conditionTemplate == null || conditionTemplate.isEmpty()) {
-      return new ArrayList<>();
+      return List.of(new ExecutionBatch(input, new ArrayList<>()));
     }
 
     //    // TIME CONDITIONS
