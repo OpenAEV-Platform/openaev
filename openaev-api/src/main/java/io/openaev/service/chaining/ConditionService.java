@@ -456,6 +456,8 @@ public class ConditionService {
     //        conditionsExecution.add(filterConditionValid);
     //      }
     //    }
+    //   ip != null (local) && port != null
+    //
 
     // MAPPER CONDITIONS
     List<Condition> mapperConditions =

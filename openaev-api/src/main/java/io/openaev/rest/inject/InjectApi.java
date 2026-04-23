@@ -9,7 +9,6 @@ import co.elastic.clients.util.VisibleForTesting;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.aop.WorkflowUpdateEvent;
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
 import io.openaev.config.OpenAEVConfig;
@@ -415,7 +414,6 @@ public class InjectApi extends RestBehavior {
             description =
                 "The inject to update was not in a valid state in regards to the requested action. Retry in a few seconds."),
       })
-  @WorkflowUpdateEvent(injectId = "#injectId")
   public void injectExecutionCallback(
       @PathVariable
           String agentId, // must allow null because http injector used also this method to work.
