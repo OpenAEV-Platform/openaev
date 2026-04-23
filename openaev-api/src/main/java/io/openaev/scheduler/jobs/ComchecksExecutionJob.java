@@ -20,6 +20,7 @@ import io.openaev.execution.ExecutionContext;
 import io.openaev.execution.ExecutionContextService;
 import io.openaev.injectors.email.EmailContract;
 import io.openaev.integration.ManagerFactory;
+import io.openaev.utils.VirtualThreads;
 import jakarta.annotation.Resource;
 import jakarta.transaction.Transactional;
 import java.time.Instant;
@@ -87,57 +88,55 @@ public class ComchecksExecutionJob implements Job {
       List<ComcheckStatus> allStatuses = comcheckStatusRepository.findAll(thatNeedExecution());
       Map<Comcheck, List<ComcheckStatus>> byComchecks =
           allStatuses.stream().collect(groupingBy(ComcheckStatus::getComcheck));
-      byComchecks.entrySet().stream()
-          .parallel()
-          .forEach(
-              entry -> {
-                Comcheck comCheck = entry.getKey();
-                // Send the email to users
-                Exercise exercise = comCheck.getExercise();
-                List<ComcheckStatus> comcheckStatuses = entry.getValue();
-                List<ExecutionContext> userInjectContexts =
-                    comcheckStatuses.stream()
-                        .map(
-                            comcheckStatus -> {
-                              ExecutionContext injectContext =
-                                  this.executionContextService.executionContext(
-                                      comcheckStatus.getUser(), exercise, "Comcheck");
-                              injectContext.put(
-                                  COMCHECK,
-                                  buildComcheckLink(
-                                      comcheckStatus)); // Add specific inject variable for comcheck
-                              // link
-                              return injectContext;
-                            })
-                        .toList();
-                Inject emailInject = buildComcheckEmail(comCheck);
-                ExecutableInject injection =
-                    new ExecutableInject(false, true, emailInject, userInjectContexts);
-                io.openaev.executors.Injector emailExecutor =
-                    this.managerFactory.getManager().requestEmailInjector();
-                Execution execution = emailExecutor.executeInjection(injection);
-                // Save the status sent date
-                List<String> usersSuccessfullyNotified =
-                    execution.getTraces().stream()
-                        .filter(
-                            executionTrace ->
-                                ExecutionTraceStatus.SUCCESS.equals(executionTrace.getStatus()))
-                        .flatMap(t -> t.getIdentifiers().stream())
-                        .toList();
-                List<ComcheckStatus> statusToUpdate =
-                    comcheckStatuses.stream()
-                        .filter(
-                            comcheckStatus ->
-                                usersSuccessfullyNotified.contains(
-                                    comcheckStatus.getUser().getId()))
-                        .toList();
-                if (!statusToUpdate.isEmpty()) {
-                  comcheckStatusRepository.saveAll(
-                      statusToUpdate.stream()
-                          .peek(comcheckStatus -> comcheckStatus.setLastSent(now))
-                          .toList());
-                }
-              });
+      VirtualThreads.parallelForEach(
+          byComchecks.entrySet(),
+          entry -> {
+            Comcheck comCheck = entry.getKey();
+            List<ComcheckStatus> comcheckStatuses = entry.getValue();
+            // Send the email to users
+            Exercise exercise = comCheck.getExercise();
+            List<ExecutionContext> userInjectContexts =
+                comcheckStatuses.stream()
+                    .map(
+                        comcheckStatus -> {
+                          ExecutionContext injectContext =
+                              this.executionContextService.executionContext(
+                                  comcheckStatus.getUser(), exercise, "Comcheck");
+                          injectContext.put(
+                              COMCHECK,
+                              buildComcheckLink(
+                                  comcheckStatus)); // Add specific inject variable for comcheck
+                          // link
+                          return injectContext;
+                        })
+                    .toList();
+            Inject emailInject = buildComcheckEmail(comCheck);
+            ExecutableInject injection =
+                new ExecutableInject(false, true, emailInject, userInjectContexts);
+            io.openaev.executors.Injector emailExecutor =
+                this.managerFactory.getManager().requestEmailInjector();
+            Execution execution = emailExecutor.executeInjection(injection);
+            // Save the status sent date
+            List<String> usersSuccessfullyNotified =
+                execution.getTraces().stream()
+                    .filter(
+                        executionTrace ->
+                            ExecutionTraceStatus.SUCCESS.equals(executionTrace.getStatus()))
+                    .flatMap(t -> t.getIdentifiers().stream())
+                    .toList();
+            List<ComcheckStatus> statusToUpdate =
+                comcheckStatuses.stream()
+                    .filter(
+                        comcheckStatus ->
+                            usersSuccessfullyNotified.contains(comcheckStatus.getUser().getId()))
+                    .toList();
+            if (!statusToUpdate.isEmpty()) {
+              comcheckStatusRepository.saveAll(
+                  statusToUpdate.stream()
+                      .peek(comcheckStatus -> comcheckStatus.setLastSent(now))
+                      .toList());
+            }
+          });
     } catch (Exception e) {
       log.error(e.getMessage(), e);
       throw new JobExecutionException(e);

@@ -27,7 +27,7 @@ public class EngineSyncExecutionJob implements Job {
   @Transactional(rollbackFor = Exception.class)
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
     List<EsModel<EsBase>> models = engineContext.getModels();
-    log.info("Executing bulk parallel processing for {} models", models.size());
-    engineService.bulkProcessing(models.stream().parallel());
+    log.info("Executing bulk processing for {} models", models.size());
+    engineService.bulkProcessing(models.stream());
   }
 }

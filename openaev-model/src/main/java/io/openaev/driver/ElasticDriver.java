@@ -23,6 +23,7 @@ import io.openaev.database.repository.IndexingStatusRepository;
 import io.openaev.engine.EngineContext;
 import io.openaev.engine.EsModel;
 import io.openaev.engine.model.EsBase;
+import io.openaev.utils.VirtualThreads;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
@@ -297,23 +298,22 @@ public class ElasticDriver {
     // Index + template must be removed and recreated
     // last_updated_at for the type must be reset to reindex the full data.
     List<EsModel<T>> models = this.searchEngine.getModels();
-    models.stream()
-        .parallel()
-        .forEach(
-            esModel -> {
-              Map<String, Property> mappings = mappingGeneratorForClass(esModel);
-              try {
-                // Cleanup old index
-                if (indexingStatusRepository.findByType(esModel.getName()).isEmpty()) {
-                  log.info("Cleanup old Index {}", esModel.getName());
-                  cleanUpIndex(esModel.getName(), elasticClient);
-                }
-                log.info("Creating Index " + esModel.getName());
-                setupIndex(elasticClient, esModel.getName(), ES_MODEL_VERSION, mappings);
-              } catch (IOException e) {
-                throw new RuntimeException(e);
-              }
-            });
+    VirtualThreads.parallelForEach(
+        models,
+        esModel -> {
+          Map<String, Property> mappings = mappingGeneratorForClass(esModel);
+          try {
+            // Cleanup old index
+            if (indexingStatusRepository.findByType(esModel.getName()).isEmpty()) {
+              log.info("Cleanup old Index {}", esModel.getName());
+              cleanUpIndex(esModel.getName(), elasticClient);
+            }
+            log.info("Creating Index " + esModel.getName());
+            setupIndex(elasticClient, esModel.getName(), ES_MODEL_VERSION, mappings);
+          } catch (IOException e) {
+            throw new RuntimeException(e);
+          }
+        });
     return elasticClient;
   }
 

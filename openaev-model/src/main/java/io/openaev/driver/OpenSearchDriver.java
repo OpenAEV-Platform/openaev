@@ -11,6 +11,7 @@ import io.openaev.engine.EsModel;
 import io.openaev.engine.model.EsBase;
 import io.openaev.exception.AnalyticsEngineException;
 import io.openaev.exception.StartupException;
+import io.openaev.utils.VirtualThreads;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
@@ -406,24 +407,23 @@ public class OpenSearchDriver {
     // Index + template must be removed and recreated
     // last_updated_at for the type must be reset to reindex the full data.
     List<EsModel<T>> models = this.searchEngine.getModels();
-    models.stream()
-        .parallel()
-        .forEach(
-            esModel -> {
-              Map<String, Property> mappings = mappingGeneratorForClass(esModel);
-              try {
-                // Cleanup old index
-                if (indexingStatusRepository.findByType(esModel.getName()).isEmpty()) {
-                  log.info("Cleanup old Index {}", esModel.getName());
-                  cleanUpIndex(esModel.getName(), openClient);
-                }
-                log.info("Creating Index {}", esModel.getName());
-                setupIndex(openClient, esModel.getName(), ES_MODEL_VERSION, mappings);
-              } catch (IOException e) {
-                throw new AnalyticsEngineException(
-                    "Error while cleanup of indexes with Opensearch - " + e);
-              }
-            });
+    VirtualThreads.parallelForEach(
+        models,
+        esModel -> {
+          Map<String, Property> mappings = mappingGeneratorForClass(esModel);
+          try {
+            // Cleanup old index
+            if (indexingStatusRepository.findByType(esModel.getName()).isEmpty()) {
+              log.info("Cleanup old Index {}", esModel.getName());
+              cleanUpIndex(esModel.getName(), openClient);
+            }
+            log.info("Creating Index {}", esModel.getName());
+            setupIndex(openClient, esModel.getName(), ES_MODEL_VERSION, mappings);
+          } catch (IOException e) {
+            throw new AnalyticsEngineException(
+                "Error while cleanup of indexes with Opensearch - " + e);
+          }
+        });
     return openClient;
   }
 

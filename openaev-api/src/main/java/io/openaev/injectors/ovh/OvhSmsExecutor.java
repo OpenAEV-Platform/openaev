@@ -18,6 +18,7 @@ import io.openaev.model.ExecutionProcess;
 import io.openaev.model.Expectation;
 import io.openaev.model.expectation.ManualExpectation;
 import io.openaev.service.InjectExpectationService;
+import io.openaev.utils.VirtualThreads;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -55,52 +56,50 @@ public class OvhSmsExecutor extends Injector {
     // We check that at least one user receive the sms before to create expectations
     AtomicBoolean isSmsSent = new AtomicBoolean(false);
 
-    users.stream()
-        .parallel()
-        .forEach(
-            context -> {
-              ProtectUser user = context.getUser();
-              String phone = user.getPhone();
-              String email = user.getEmail();
-              if (!StringUtils.hasLength(phone)) {
-                String message = "Sms fail for " + email + ": no phone number";
+    VirtualThreads.parallelForEach(
+        users,
+        context -> {
+          ProtectUser user = context.getUser();
+          String phone = user.getPhone();
+          String email = user.getEmail();
+          if (!StringUtils.hasLength(phone)) {
+            String message = "Sms fail for " + email + ": no phone number";
+            execution.addTrace(
+                getNewErrorTrace(message, ExecutionTraceAction.COMPLETE, List.of(user.getId())));
+          } else {
+            try {
+              String callResult = smsService.sendSms(context, phone, smsMessage);
+              isSmsSent.set(true);
+
+              // Extraction simplifiée avec regex pour le champ "invalidReceivers"
+              Pattern pattern = Pattern.compile("\"invalidReceivers\":\\[(.*?)\\]");
+              Matcher matcher = pattern.matcher(callResult);
+              if (matcher.find() && hasText(matcher.group(1))) {
+                String message =
+                    "Sms sent to "
+                        + email
+                        + " through "
+                        + phone
+                        + " contains error ("
+                        + callResult
+                        + ")";
                 execution.addTrace(
                     getNewErrorTrace(
                         message, ExecutionTraceAction.COMPLETE, List.of(user.getId())));
               } else {
-                try {
-                  String callResult = smsService.sendSms(context, phone, smsMessage);
-                  isSmsSent.set(true);
-
-                  // Extraction simplifiée avec regex pour le champ "invalidReceivers"
-                  Pattern pattern = Pattern.compile("\"invalidReceivers\":\\[(.*?)\\]");
-                  Matcher matcher = pattern.matcher(callResult);
-                  if (matcher.find() && hasText(matcher.group(1))) {
-                    String message =
-                        "Sms sent to "
-                            + email
-                            + " through "
-                            + phone
-                            + " contains error ("
-                            + callResult
-                            + ")";
-                    execution.addTrace(
-                        getNewErrorTrace(
-                            message, ExecutionTraceAction.COMPLETE, List.of(user.getId())));
-                  } else {
-                    String message =
-                        "Sms sent to " + email + " through " + phone + " (" + callResult + ")";
-                    execution.addTrace(
-                        getNewSuccessTrace(
-                            message, ExecutionTraceAction.COMPLETE, List.of(user.getId())));
-                  }
-                } catch (Exception e) {
-                  execution.addTrace(
-                      getNewErrorTrace(
-                          e.getMessage(), ExecutionTraceAction.COMPLETE, List.of(user.getId())));
-                }
+                String message =
+                    "Sms sent to " + email + " through " + phone + " (" + callResult + ")";
+                execution.addTrace(
+                    getNewSuccessTrace(
+                        message, ExecutionTraceAction.COMPLETE, List.of(user.getId())));
               }
-            });
+            } catch (Exception e) {
+              execution.addTrace(
+                  getNewErrorTrace(
+                      e.getMessage(), ExecutionTraceAction.COMPLETE, List.of(user.getId())));
+            }
+          }
+        });
     if (isSmsSent.get()) {
       List<Expectation> expectations =
           content.getExpectations().stream()

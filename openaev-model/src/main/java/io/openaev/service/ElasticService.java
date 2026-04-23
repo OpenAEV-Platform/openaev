@@ -34,6 +34,7 @@ import io.openaev.engine.model.EsSearch;
 import io.openaev.engine.query.*;
 import io.openaev.exception.AnalyticsEngineException;
 import io.openaev.schema.PropertySchema;
+import io.openaev.utils.VirtualThreads;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -777,10 +778,9 @@ public class ElasticService implements EngineService {
   public List<EsSeries> multiTermHistogram(RawUserAuth user, StructuralHistogramRuntime runtime) {
     Map<String, String> parameters = runtime.getParameters();
     Map<String, CustomDashboardParameters> definitionParameters = runtime.getDefinitionParameters();
-    return runtime.getWidget().getSeries().stream()
-        .parallel()
-        .map(c -> termHistogram(user, runtime.getWidget(), c, parameters, definitionParameters))
-        .toList();
+    return VirtualThreads.parallelMap(
+        runtime.getWidget().getSeries(),
+        c -> termHistogram(user, runtime.getWidget(), c, parameters, definitionParameters));
   }
 
   public EsSeries dateHistogram(
@@ -853,10 +853,9 @@ public class ElasticService implements EngineService {
   public List<EsSeries> multiDateHistogram(RawUserAuth user, DateHistogramRuntime runtime) {
     Map<String, String> parameters = runtime.getParameters();
     Map<String, CustomDashboardParameters> definitionParameters = runtime.getDefinitionParameters();
-    return runtime.getWidget().getSeries().stream()
-        .parallel()
-        .map(c -> dateHistogram(user, runtime.getWidget(), c, parameters, definitionParameters))
-        .toList();
+    return VirtualThreads.parallelMap(
+        runtime.getWidget().getSeries(),
+        c -> dateHistogram(user, runtime.getWidget(), c, parameters, definitionParameters));
   }
 
   public EsEntities entities(RawUserAuth user, ListRuntime runtime) {
