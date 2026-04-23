@@ -6,6 +6,8 @@ export type UserInputForm = Omit<UserInput, 'user_organization' | 'user_tags'> &
   user_tags?: Option[];
 };
 
+export type UserType = 'PLATFORM' | 'TENANT';
+
 export interface UserResult {
   entities: { users: Record<string, User> };
   result: string;
