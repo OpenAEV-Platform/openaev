@@ -86,7 +86,7 @@ jobs:
               --conf.username ${{ secrets.AWX_USER }} \
               --conf.password ${{ secrets.AWX_PASSWORD }} \
               job_templates launch 'Rollout restart an instance resources' \
-              --inventory eu-west-production \
-              --extra_vars '{"solution":"openaev", "customer":"filigran-test-oaev"}' \
+              --inventory eu-west-staging \
+              --extra_vars '{"solution":"openaev", "customer":"testing-xtm-one-oaev"}' \
               --wait \
               -f human
