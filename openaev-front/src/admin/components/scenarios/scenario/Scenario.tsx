@@ -99,8 +99,9 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
 
   const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
   const scenarioWorkflowId = (scenario as unknown as Record<string, unknown>).scenario_workflow_id as string | undefined;
-  const isScopeMissing = isChainingFeatureEnabled
-    && !!scenarioWorkflowId
+  const isScenarioChaining = isChainingFeatureEnabled && !!scenarioWorkflowId;
+
+  const isScopeMissing = isScenarioChaining
     && healthchecks.some((hc: HealthCheck) => hc.type === ('SCOPE_DEFINITION' as HealthCheck['type']) && hc.detail === 'EMPTY');
 
   const agentsActive = useMemo(() => {
@@ -164,6 +165,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
         gridTemplateColumns: '1fr 1fr',
       }}
       >
+
         <div style={{
           width: '100%',
           display: 'flex',
@@ -173,26 +175,29 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
         }}
         >
           <Typography variant="h4" marginBottom={0}>{t('Information')}</Typography>
-          <Button
-            component={Link}
-            to={scenario.scenario_external_url}
-            target="_blank"
-            size="small"
-            variant="outlined"
-            startIcon={(
-              <Avatar
-                style={{
-                  width: 20,
-                  height: 20,
-                }}
-                src={theme.palette.mode === 'dark' ? octiDark : octiLight}
-                alt="OCTI"
-              />
+          {!isScenarioChaining
+            && (
+              <Button
+                component={Link}
+                to={scenario.scenario_external_url}
+                target="_blank"
+                size="small"
+                variant="outlined"
+                startIcon={(
+                  <Avatar
+                    style={{
+                      width: 20,
+                      height: 20,
+                    }}
+                    src={theme.palette.mode === 'dark' ? octiDark : octiLight}
+                    alt="OCTI"
+                  />
+                )}
+                disabled={isEmptyField(scenario.scenario_external_url)}
+              >
+                {t('Threat intelligence')}
+              </Button>
             )}
-            disabled={isEmptyField(scenario.scenario_external_url)}
-          >
-            {t('Threat intelligence')}
-          </Button>
         </div>
         <Typography
           variant="h4"
@@ -362,7 +367,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
           <Tooltip title={isScopeMissing ? t('A Chaining Scenario requires a defined scope.') : ''}>
             <span style={{
               display: 'inline-flex',
-              marginTop: 20,
+              marginTop: theme.spacing(2),
             }}
             >
 

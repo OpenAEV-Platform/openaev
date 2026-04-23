@@ -31,6 +31,8 @@ import io.openaev.database.specification.LessonsCategorySpecification;
 import io.openaev.database.specification.LessonsQuestionSpecification;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.expectation.ExpectationType;
+import io.openaev.healthcheck.dto.HealthCheck;
+import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.rest.atomic_testing.form.TargetSimple;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ChainingException;
@@ -138,6 +140,8 @@ public class ExerciseService {
   private final FileService fileService;
 
   private final StepService stepService;
+
+  private final HealthCheckUtils healthCheckUtils;
 
   // region properties
   @Value("${openaev.mail.imap.enabled}")
@@ -1161,5 +1165,28 @@ public class ExerciseService {
         .stream()
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
         .toList();
+  }
+
+  /**
+   * Verify all healthcheck for a given exercise id
+   *
+   * @param exerciseId to verify
+   * @return founded healthcheck list
+   */
+  @Transactional(readOnly = true)
+  public List<HealthCheck> runChecks(String exerciseId) {
+    if (exerciseId == null) {
+      return null;
+    }
+
+    List<HealthCheck> healthChecks = new ArrayList<>();
+
+    // Scope definition check
+    workflowService
+        .findWorkflowTemplateBySimulationId(exerciseId)
+        .ifPresent(
+            workflow -> healthChecks.addAll(healthCheckUtils.runScopeDefinitionChecks(workflow)));
+
+    return healthChecks;
   }
 }

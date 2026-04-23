@@ -34,7 +34,7 @@ public class WorkflowConfigurationInput {
   @Schema(description = "Seconds to wait between attempts (1–3540).")
   @JsonProperty("workflow_configuration_max_temporal_rate_seconds")
   @Min(value = 1, message = "Temporal rate must be at least 1")
-  @Max(value = 3540, message = "Temporal rate must be at most 3540 seconds (= 59 minutes)")
+  @Max(value = 5940, message = "Temporal rate must be at most 5940 seconds (= 99 minutes)")
   private Long maxTemporalRateSeconds;
 
   // -- Timeout --

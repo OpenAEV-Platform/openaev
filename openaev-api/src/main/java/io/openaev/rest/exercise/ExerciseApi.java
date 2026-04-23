@@ -18,6 +18,7 @@ import io.openaev.database.raw.*;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.ComcheckSpecification;
 import io.openaev.database.specification.ExerciseLogSpecification;
+import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.rest.asset.endpoint.form.EndpointOutput;
 import io.openaev.rest.asset_group.form.AssetGroupOutput;
 import io.openaev.rest.custom_dashboard.CustomDashboardService;
@@ -108,6 +109,21 @@ public class ExerciseApi extends RestBehavior {
   private final PlatformSettingsService platformSettingsService;
   private final WorkflowService workflowService;
   private final PreviewFeatureService previewFeatureService;
+
+  // endregion
+
+  // region healthchecks
+  @GetMapping({
+    EXERCISE_URI + "/{exerciseId}/healthchecks",
+    TENANT_EXERCISE_URI + "/{exerciseId}/healthchecks"
+  })
+  @AccessControl(
+      resourceId = "#exerciseId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.SIMULATION)
+  public List<HealthCheck> streamHealthChecks(@PathVariable @NotBlank final String exerciseId) {
+    return exerciseService.runChecks(exerciseId);
+  }
 
   // endregion
 

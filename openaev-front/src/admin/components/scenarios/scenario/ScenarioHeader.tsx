@@ -108,8 +108,8 @@ const ScenarioHeader = ({
 
   const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
   const scenarioWorkflowId = (scenario as unknown as Record<string, unknown>).scenario_workflow_id as string | undefined;
-  const isScopeMissing = isChainingFeatureEnabled
-    && !!scenarioWorkflowId
+  const isScenarioChaining = isChainingFeatureEnabled && !!scenarioWorkflowId;
+  const isScopeMissing = isScenarioChaining
     && healthchecks.some((hc: HealthCheck) => hc.type === ('SCOPE_DEFINITION' as HealthCheck['type']) && hc.detail === 'EMPTY');
 
   // Local
@@ -200,7 +200,7 @@ const ScenarioHeader = ({
             )
           : (
               <>
-                {canManage
+                {canManage && !isScenarioChaining
                   && (
                     <Button
                       style={{
@@ -233,6 +233,8 @@ const ScenarioHeader = ({
                           color="primary"
                           size="small"
                           onClick={() => setOpenInstantiateSimulationAndStart(true)}
+                          disabled={isScopeMissing}
+
                         >
                           {t('Launch now')}
                         </Button>
@@ -243,7 +245,7 @@ const ScenarioHeader = ({
             )}
         <ScenarioPopover
           scenario={scenario}
-          actions={['Duplicate', 'Update', 'Delete', 'Export']}
+          actions={isScenarioChaining ? ['Update', 'Delete'] : ['Duplicate', 'Update', 'Delete', 'Export']}
           onDelete={() => navigate('/admin/scenarios')}
         />
       </div>
