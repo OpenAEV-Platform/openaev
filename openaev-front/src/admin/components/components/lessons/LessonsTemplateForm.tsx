@@ -48,27 +48,32 @@ const LessonsTemplateForm: FunctionComponent<Props> = ({
 
   return (
     <form id="lessonTemplateForm" onSubmit={handleSubmit(onSubmit)}>
-      <TextField
-        variant="standard"
-        fullWidth
-        label={t('Name')}
-        style={{ marginTop: theme.spacing(1) }}
-        error={!!errors.lessons_template_name}
-        helperText={errors.lessons_template_name?.message}
-        inputProps={register('lessons_template_name')}
-        InputLabelProps={{ required: true }}
-        control={control}
-      />
-      <TextField
-        variant="standard"
-        fullWidth
-        label={t('Description')}
-        style={{ marginTop: theme.spacing(2) }}
-        error={!!errors.lessons_template_description}
-        helperText={errors.lessons_template_description?.message}
-        inputProps={register('lessons_template_description')}
-        control={control}
-      />
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: theme.spacing(2),
+      }}
+      >
+        <TextField
+          variant="standard"
+          fullWidth
+          label={t('Name')}
+          error={!!errors.lessons_template_name}
+          helperText={errors.lessons_template_name?.message}
+          inputProps={register('lessons_template_name')}
+          InputLabelProps={{ required: true }}
+          control={control}
+        />
+        <TextField
+          variant="standard"
+          fullWidth
+          label={t('Description')}
+          error={!!errors.lessons_template_description}
+          helperText={errors.lessons_template_description?.message}
+          inputProps={register('lessons_template_description')}
+          control={control}
+        />
+      </div>
       <div style={{
         display: 'flex',
         float: 'right',

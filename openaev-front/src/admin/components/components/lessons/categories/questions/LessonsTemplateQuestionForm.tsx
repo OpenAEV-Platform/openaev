@@ -52,39 +52,44 @@ const LessonsTemplateQuestionForm: FunctionComponent<Props> = ({
 
   return (
     <form id="lessonsTemplateQuestionForm" onSubmit={handleSubmit(onSubmit)}>
-      <TextField
-        variant="standard"
-        fullWidth
-        label={t('Content')}
-        style={{ marginTop: theme.spacing(1) }}
-        error={!!errors.lessons_template_question_content}
-        helperText={errors.lessons_template_question_content?.message}
-        inputProps={register('lessons_template_question_content')}
-        InputLabelProps={{ required: true }}
-        control={control}
-      />
-      <TextField
-        variant="standard"
-        fullWidth
-        label={t('Explanation')}
-        style={{ marginTop: theme.spacing(1) }}
-        error={!!errors.lessons_template_question_explanation}
-        helperText={errors.lessons_template_question_explanation?.message}
-        inputProps={register('lessons_template_question_explanation')}
-        control={control}
-      />
-      <TextField
-        variant="standard"
-        fullWidth
-        label={t('Order')}
-        style={{ marginTop: theme.spacing(2) }}
-        error={!!errors.lessons_template_question_order}
-        helperText={errors.lessons_template_question_order?.message}
-        inputProps={register('lessons_template_question_order')}
-        type="number"
-        InputLabelProps={{ required: true }}
-        control={control}
-      />
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: theme.spacing(2),
+      }}
+      >
+        <TextField
+          variant="standard"
+          fullWidth
+          label={t('Content')}
+          error={!!errors.lessons_template_question_content}
+          helperText={errors.lessons_template_question_content?.message}
+          inputProps={register('lessons_template_question_content')}
+          InputLabelProps={{ required: true }}
+          control={control}
+        />
+        <TextField
+          variant="standard"
+          fullWidth
+          label={t('Explanation')}
+          error={!!errors.lessons_template_question_explanation}
+          helperText={errors.lessons_template_question_explanation?.message}
+          inputProps={register('lessons_template_question_explanation')}
+          control={control}
+        />
+        <TextField
+          variant="standard"
+          fullWidth
+          label={t('Order')}
+          error={!!errors.lessons_template_question_order}
+          helperText={errors.lessons_template_question_order?.message}
+          inputProps={register('lessons_template_question_order')}
+          type="number"
+          InputLabelProps={{ required: true }}
+          control={control}
+        />
+      </div>
+
       <div style={{
         display: 'flex',
         float: 'right',

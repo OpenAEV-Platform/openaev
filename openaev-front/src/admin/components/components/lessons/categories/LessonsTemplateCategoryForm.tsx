@@ -52,39 +52,43 @@ const LessonsTemplateCategoryForm: FunctionComponent<Props> = ({
 
   return (
     <form id="lessonTemplateCategoryForm" onSubmit={handleSubmit(onSubmit)}>
-      <TextField
-        variant="standard"
-        fullWidth
-        label={t('Name')}
-        style={{ marginTop: theme.spacing(1) }}
-        error={!!errors.lessons_template_category_name}
-        helperText={errors.lessons_template_category_name?.message}
-        inputProps={register('lessons_template_category_name')}
-        InputLabelProps={{ required: true }}
-        control={control}
-      />
-      <TextField
-        variant="standard"
-        fullWidth
-        label={t('Description')}
-        style={{ marginTop: theme.spacing(2) }}
-        error={!!errors.lessons_template_category_description}
-        helperText={errors.lessons_template_category_description?.message}
-        inputProps={register('lessons_template_category_description')}
-        control={control}
-      />
-      <TextField
-        variant="standard"
-        fullWidth
-        label={t('Order')}
-        style={{ marginTop: theme.spacing(2) }}
-        error={!!errors.lessons_template_category_order}
-        helperText={errors.lessons_template_category_order?.message}
-        inputProps={register('lessons_template_category_order')}
-        type="number"
-        InputLabelProps={{ required: true }}
-        control={control}
-      />
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: theme.spacing(2),
+      }}
+      >
+        <TextField
+          variant="standard"
+          fullWidth
+          label={t('Name')}
+          error={!!errors.lessons_template_category_name}
+          helperText={errors.lessons_template_category_name?.message}
+          inputProps={register('lessons_template_category_name')}
+          InputLabelProps={{ required: true }}
+          control={control}
+        />
+        <TextField
+          variant="standard"
+          fullWidth
+          label={t('Description')}
+          error={!!errors.lessons_template_category_description}
+          helperText={errors.lessons_template_category_description?.message}
+          inputProps={register('lessons_template_category_description')}
+          control={control}
+        />
+        <TextField
+          variant="standard"
+          fullWidth
+          label={t('Order')}
+          error={!!errors.lessons_template_category_order}
+          helperText={errors.lessons_template_category_order?.message}
+          inputProps={register('lessons_template_category_order')}
+          type="number"
+          InputLabelProps={{ required: true }}
+          control={control}
+        />
+      </div>
       <div style={{
         display: 'flex',
         float: 'right',
