@@ -1,10 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Button } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FC, type FormEvent } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import Button from '../../../../components/common/button/Button';
 import type { TabsEntry } from '../../../../components/common/tabs/Tabs';
 import Tabs from '../../../../components/common/tabs/Tabs';
 import useTabs from '../../../../components/common/tabs/useTabs';
@@ -131,14 +131,15 @@ const RoleForm: FC<RoleFormProps> = ({
         }}
         >
           <Button
-            variant="primary"
+            variant="contained"
+            color="secondary"
             type="submit"
             disabled={isSubmitting || !isDirty}
           >
             {editing ? t('Update') : t('Create')}
           </Button>
           <Button
-            variant="secondary"
+            variant="contained"
             onClick={handleClose}
             disabled={isSubmitting}
           >

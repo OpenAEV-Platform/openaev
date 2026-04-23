@@ -1,9 +1,8 @@
 import { MoreVert } from '@mui/icons-material';
-import { Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, IconButton, Menu, MenuItem } from '@mui/material';
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, IconButton, Menu, MenuItem } from '@mui/material';
 import * as R from 'ramda';
 import { useContext, useState } from 'react';
 
-import Button from '../../../../components/common/button/Button';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import { LessonContext } from '../../common/Context';
@@ -86,8 +85,8 @@ const LessonsCategoryPopover = ({ lessonsCategory }) => {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="secondary" onClick={handleCloseDelete}>{t('Cancel')}</Button>
-          <Button variant="primary" onClick={submitDelete}>
+          <Button onClick={handleCloseDelete}>{t('Cancel')}</Button>
+          <Button color="secondary" onClick={submitDelete}>
             {t('Delete')}
           </Button>
         </DialogActions>

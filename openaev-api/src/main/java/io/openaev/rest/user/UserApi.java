@@ -3,6 +3,7 @@ package io.openaev.rest.user;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.UserRoleDescription;
 import io.openaev.config.SessionManager;
+import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.User;
@@ -58,6 +59,7 @@ public class UserApi extends RestBehavior {
   private final MailingService mailingService;
   private final RandomUtils randomUtils;
   private final UserEventService userEventService;
+  private final TenantMembershipCacheManager tenantMembershipCacheManager;
 
   private final Map<String, String> resetTokenMap = new PassiveExpiringMap<>(tenMinutes);
 
@@ -77,6 +79,15 @@ public class UserApi extends RestBehavior {
     if (optionalUser.isPresent()) {
       User user = optionalUser.get();
       if (userService.isUserPasswordValid(user, input.getPassword())) {
+        // Verify tenant membership if a tenant ID was provided
+        if (input.getTenantId() != null && !input.getTenantId().isBlank()) {
+          if (!tenantMembershipCacheManager.existsByUserIdAndTenantId(
+              user.getId(), input.getTenantId())) {
+            userEventService.createLoginFailedEvent(
+                "local login", BadCredentialsException.class.getSimpleName());
+            throw new BadCredentialsException("User does not belong to the requested tenant.");
+          }
+        }
         userService.createUserSession(user);
         userEventService.createLoginSuccessEvent(user);
         return user;

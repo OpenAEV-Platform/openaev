@@ -1,8 +1,8 @@
+import { Button } from '@mui/material';
 import * as PropTypes from 'prop-types';
 import { Component } from 'react';
 import { Form } from 'react-final-form';
 
-import Button from '../../../components/common/button/Button';
 import OldRichTextField from '../../../components/fields/OldRichTextField';
 import OldTextField from '../../../components/fields/OldTextField';
 import inject18n from '../../../components/i18n';
@@ -58,14 +58,13 @@ class SendLessonsFormComponent extends Component {
             }}
             >
               <Button
-                variant="secondary"
                 onClick={handleClose.bind(this)}
                 style={{ marginRight: 10 }}
                 disabled={submitting || Object.keys(errors).length > 0}
               >
                 {t('Cancel')}
               </Button>
-              <Button variant="primary" type="submit" disabled={submitting}>
+              <Button color="secondary" type="submit" disabled={submitting}>
                 {t('Send')}
               </Button>
             </div>

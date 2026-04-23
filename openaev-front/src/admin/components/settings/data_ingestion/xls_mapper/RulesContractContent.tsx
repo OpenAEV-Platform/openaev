@@ -5,6 +5,7 @@ import {
   AccordionDetails,
   AccordionSummary,
   Badge,
+  Button,
   Dialog,
   DialogActions,
   DialogContent,
@@ -21,7 +22,6 @@ import { Controller, type FieldArrayWithId, useFieldArray, type UseFieldArrayRem
 import { makeStyles } from 'tss-react/mui';
 
 import { directFetchInjectorContract } from '../../../../../actions/InjectorContracts';
-import Button from '../../../../../components/common/button/Button';
 import { useFormatter } from '../../../../../components/i18n';
 import InjectContractComponent from '../../../../../components/InjectContractComponent';
 import RegexComponent from '../../../../../components/RegexComponent';
@@ -242,7 +242,7 @@ const RulesContractContent: FunctionComponent<Props> = ({
             if (ruleField.rule_attribute_name === 'trigger_time') {
               cogIcon = (
                 <Badge
-                  color="primary"
+                  color="secondary"
                   variant="dot"
                   invisible={(!methods.getValues(`import_mapper_inject_importers.${index}.inject_importer_rule_attributes.${rulesIndex}.rule_attribute_default_value`) || methods.getValues(`import_mapper_inject_importers.${index}.inject_importer_rule_attributes.${rulesIndex}.rule_attribute_default_value`)?.length === 0)
                     && (!methods.getValues(`import_mapper_inject_importers.${index}.inject_importer_rule_attributes.${rulesIndex}.rule_attribute_additional_config.timePattern`)
@@ -254,7 +254,7 @@ const RulesContractContent: FunctionComponent<Props> = ({
             } else if (ruleField.rule_attribute_name === 'teams') {
               cogIcon = (
                 <Badge
-                  color="primary"
+                  color="secondary"
                   variant="dot"
                   invisible={(!methods.getValues(`import_mapper_inject_importers.${index}.inject_importer_rule_attributes.${rulesIndex}.rule_attribute_default_value`) || methods.getValues(`import_mapper_inject_importers.${index}.inject_importer_rule_attributes.${rulesIndex}.rule_attribute_default_value`)?.length === 0)
                     && (!methods.getValues(`import_mapper_inject_importers.${index}.inject_importer_rule_attributes.${rulesIndex}.rule_attribute_additional_config.allTeamsValue`)
@@ -266,7 +266,7 @@ const RulesContractContent: FunctionComponent<Props> = ({
             } else {
               cogIcon = (
                 <Badge
-                  color="primary"
+                  color="secondary"
                   variant="dot"
                   invisible={!methods.getValues(`import_mapper_inject_importers.${index}.inject_importer_rule_attributes.${rulesIndex}.rule_attribute_default_value`)
                     || methods.getValues(`import_mapper_inject_importers.${index}.inject_importer_rule_attributes.${rulesIndex}.rule_attribute_default_value`)?.length === 0}
@@ -391,7 +391,7 @@ const RulesContractContent: FunctionComponent<Props> = ({
 
         </AccordionDetails>
         <AccordionActions sx={{ padding: '16px' }}>
-          <Button variant="primary" intent="destructive" onClick={handleClickOpenAlertDelete}>{t('Delete')}</Button>
+          <Button color="error" variant="contained" onClick={handleClickOpenAlertDelete}>{t('Delete')}</Button>
         </AccordionActions>
       </Accordion>
       <Dialog
@@ -404,9 +404,9 @@ const RulesContractContent: FunctionComponent<Props> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="secondary" onClick={handleCloseAlertDelete}>{t('Cancel')}</Button>
+          <Button onClick={handleCloseAlertDelete}>{t('Cancel')}</Button>
           <Button
-            variant="primary"
+            color="secondary"
             onClick={() => {
               remove(index);
               handleCloseAlertDelete();

@@ -2,6 +2,7 @@ import { Add, PersonOutlined } from '@mui/icons-material';
 import {
   Avatar,
   Box,
+  Button,
   Chip,
   Dialog,
   DialogActions,
@@ -20,7 +21,6 @@ import { makeStyles } from 'tss-react/mui';
 
 import { type OrganizationHelper, type UserHelper } from '../../../../actions/helper';
 import { fetchPlayers } from '../../../../actions/users/User';
-import Button from '../../../../components/common/button/Button';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
@@ -244,17 +244,15 @@ const TeamAddPlayers: FunctionComponent<Props> = ({ addedUsersIds, teamId }) => 
           </Grid>
         </DialogContent>
         <DialogActions>
-          <Button
-            variant="secondary"
-            onClick={() => {
-              setOpen(false);
-              setKeyword('');
-              setUsersIds([]);
-            }}
+          <Button onClick={() => {
+            setOpen(false);
+            setKeyword('');
+            setUsersIds([]);
+          }}
           >
             {t('Cancel')}
           </Button>
-          <Button variant="primary" onClick={submitAddUsers}>
+          <Button color="secondary" onClick={submitAddUsers}>
             {t('Add')}
           </Button>
         </DialogActions>

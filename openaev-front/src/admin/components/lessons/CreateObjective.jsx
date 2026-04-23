@@ -41,7 +41,7 @@ class CreateObjectiveComponent extends Component {
     return (
       <>
         <IconButton
-          color="primary"
+          color="secondary"
           aria-label="Add"
           onClick={this.handleOpen.bind(this)}
           size="small"

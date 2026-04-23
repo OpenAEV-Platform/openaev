@@ -1,12 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Box } from '@mui/material';
+import { Box, Button } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useMemo } from 'react';
 import { FormProvider, type SubmitErrorHandler, type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
 import type { LoggedHelper } from '../../../../actions/helper';
-import Button from '../../../../components/common/button/Button';
 import Tabs, { type TabsEntry } from '../../../../components/common/tabs/Tabs';
 import useTabs from '../../../../components/common/tabs/useTabs';
 import { useFormatter } from '../../../../components/i18n';
@@ -140,7 +139,7 @@ const CustomDashboardForm: FunctionComponent<Props> = ({
         }}
         >
           <Button
-            variant="secondary"
+            variant="contained"
             onClick={handleClose}
             sx={{ mr: 1 }}
             disabled={isSubmitting}
@@ -148,7 +147,8 @@ const CustomDashboardForm: FunctionComponent<Props> = ({
             {t('Cancel')}
           </Button>
           <Button
-            variant="primary"
+            variant="contained"
+            color="secondary"
             type="submit"
             disabled={!isDirty || isSubmitting}
           >

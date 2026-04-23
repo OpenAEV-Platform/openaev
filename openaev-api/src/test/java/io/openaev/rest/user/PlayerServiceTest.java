@@ -4,10 +4,7 @@ import static io.openaev.utils.fixtures.TagFixture.getTag;
 
 import io.openaev.database.model.Organization;
 import io.openaev.database.model.User;
-import io.openaev.database.repository.OrganizationRepository;
-import io.openaev.database.repository.TagRepository;
-import io.openaev.database.repository.TeamRepository;
-import io.openaev.database.repository.UserRepository;
+import io.openaev.database.repository.*;
 import io.openaev.rest.user.form.player.PlayerInput;
 import jakarta.persistence.EntityManager;
 import java.util.HashSet;
@@ -28,6 +25,7 @@ public class PlayerServiceTest {
   @Mock private OrganizationRepository organizationRepository;
   @Mock private EntityManager entityManager;
   @Mock private UserRepository userRepository;
+  @Mock private TenantRepository tenantRepository;
   @InjectMocks private PlayerService playerService;
 
   @Test

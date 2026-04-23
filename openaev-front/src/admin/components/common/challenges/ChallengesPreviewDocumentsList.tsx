@@ -19,6 +19,7 @@ import DocumentType from '../../components/documents/DocumentType';
 const useStyles = makeStyles()(theme => ({
   itemHead: {
     paddingLeft: theme.spacing(1),
+    textTransform: 'uppercase',
     cursor: 'pointer',
   },
   item: {

@@ -23,7 +23,7 @@ const useStyles = makeStyles()(theme => ({
     whiteSpace: 'nowrap',
     minWidth: 'fit-content',
   },
-  itemHead: {},
+  itemHead: { textTransform: 'uppercase' },
   bodyItemHeader: {
     fontSize: theme.typography.h4.fontSize,
     fontWeight: 700,

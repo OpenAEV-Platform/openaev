@@ -1,7 +1,6 @@
-import { Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import { type FunctionComponent } from 'react';
 
-import Button from './common/button/Button';
 import Transition from './common/Transition';
 import { useFormatter } from './i18n';
 
@@ -42,8 +41,8 @@ const ExternalLinkPopover: FunctionComponent<ExternalLinkPopoverProps> = ({
         </DialogContentText>
       </DialogContent>
       <DialogActions>
-        <Button variant="secondary" onClick={handleCloseExternalLink}>{t('Cancel')}</Button>
-        <Button variant="primary" onClick={handleBrowseExternalLink}>
+        <Button onClick={handleCloseExternalLink}>{t('Cancel')}</Button>
+        <Button color="secondary" onClick={handleBrowseExternalLink}>
           {t('Browse the link')}
         </Button>
       </DialogActions>

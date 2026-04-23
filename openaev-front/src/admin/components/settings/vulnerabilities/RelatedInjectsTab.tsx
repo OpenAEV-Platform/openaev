@@ -19,7 +19,7 @@ import type { AggregatedFindingOutput, FilterGroup, RelatedFindingOutput, Search
 import ContractOutputElementType from '../../findings/ContractOutputElementType';
 
 const useStyles = makeStyles()(() => ({
-  itemHead: {},
+  itemHead: { textTransform: 'uppercase' },
   item: { height: 50 },
 }));
 

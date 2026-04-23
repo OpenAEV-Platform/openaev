@@ -87,7 +87,7 @@ const Logs = () => {
         {permissions.canManage
           && (
             <IconButton
-              color="primary"
+              color="secondary"
               onClick={handleToggleWrite}
               size="large"
               style={{ margin: '-15px 0 0 5px' }}
