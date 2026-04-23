@@ -1,6 +1,7 @@
 import { Add } from '@mui/icons-material';
 import { Fab } from '@mui/material';
 import { type FunctionComponent, useState } from 'react';
+import { makeStyles } from 'tss-react/mui';
 
 import { addThreatArsenalAction } from '../../../actions/threat_arsenals/ThreatArsenal-actions';
 import Drawer from '../../../components/common/Drawer';
@@ -12,6 +13,14 @@ import {
 import { type ThreatArsenalActionCreateCustomInput } from '../../../utils/api-types-custom';
 import { type DetectionRemediationForm } from '../payloads/utils/payloadFormToPayloadInput';
 import ThreatArsenalActionForm from './ThreatArsenalActionForm';
+
+const useStyles = makeStyles()({
+  createButton: {
+    position: 'fixed',
+    bottom: 30,
+    right: 30,
+  },
+});
 
 interface Props { onCreate?: (action: ThreatArsenalAction) => void }
 
@@ -32,6 +41,7 @@ function handleCleanupExecutorValue(
 const CreateThreatArsenalAction: FunctionComponent<Props> = ({ onCreate }) => {
   const [open, setOpen] = useState(false);
   const { t } = useFormatter();
+  const { classes } = useStyles();
 
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
@@ -70,11 +80,7 @@ const CreateThreatArsenalAction: FunctionComponent<Props> = ({ onCreate }) => {
         onClick={handleOpen}
         color="primary"
         aria-label="Add"
-        sx={{
-          position: 'fixed',
-          bottom: 30,
-          right: 30,
-        }}
+        className={classes.createButton}
       >
         <Add />
       </Fab>

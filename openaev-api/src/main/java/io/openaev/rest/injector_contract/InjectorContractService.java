@@ -510,7 +510,7 @@ public class InjectorContractService implements DependenciesManager {
               (root, query, cb) ->
                   cb.not(
                       root.get(InjectorContract.COMPOSITE_ID_FIELD_NAME)
-                          .<String>get(InjectorContract.ID_FIELD_NAME)
+                          .get(InjectorContract.ID_FIELD_NAME)
                           .in(idsToIgnore)));
     }
     if (!CollectionUtils.isEmpty(idsToProcess)) {
@@ -602,7 +602,6 @@ public class InjectorContractService implements DependenciesManager {
         ctx.injectorContractDomainsIdsExpression().alias("injector_contract_domains"),
         injectorContractRoot.get("updatedAt").alias("injector_contract_updated_at"),
         ctx.payloadJoin().get("executionArch").alias("payload_execution_arch"),
-        ctx.payloadJoin().get("description").alias("payload_description"),
         ctx.injectorIdsExpression().alias("injector_contract_injector_ids"),
         ctx.injectorNamesExpression().alias("injector_contract_injector_names"));
 
@@ -671,7 +670,6 @@ public class InjectorContractService implements DependenciesManager {
         injectorContractRoot.get("externalId").alias("injector_contract_external_id"),
         injectorContractRoot.get("labels").alias("injector_contract_labels"),
         injectorContractRoot.get("platforms").alias("injector_contract_platforms"),
-        injectorContractRoot.get("content").alias("injector_contract_content"),
         ctx.payloadJoin().get("type").alias("payload_type"),
         ctx.payloadCollectorTypeJoin().get("name").alias("collector_type"),
         ctx.injectorJoin().get("type").alias("injector_contract_injector_type"),

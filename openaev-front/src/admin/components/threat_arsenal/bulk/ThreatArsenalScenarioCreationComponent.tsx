@@ -1,18 +1,18 @@
 import { Slide } from '@mui/material';
 import { useNavigate } from 'react-router';
 
-import type { LoggedHelper } from '../../../actions/helper';
-import { addScenarioWithInjectorContracts } from '../../../actions/scenarios/scenario-actions';
-import { useFormatter } from '../../../components/i18n';
-import { useHelper } from '../../../store';
+import type { LoggedHelper } from '../../../../actions/helper';
+import { addScenarioWithInjectorContracts } from '../../../../actions/scenarios/scenario-actions';
+import { useFormatter } from '../../../../components/i18n';
+import { useHelper } from '../../../../store';
 import {
   type InjectorContractSearchPaginationInput,
   type PlatformSettings,
   type ScenarioAndInjectorContractsInputs,
   type ScenarioInput,
   type ThreatArsenalAction,
-} from '../../../utils/api-types';
-import ScenarioForm from '../scenarios/ScenarioForm';
+} from '../../../../utils/api-types';
+import ScenarioForm from '../../scenarios/ScenarioForm';
 
 interface Props {
   isExclusionMode: boolean;

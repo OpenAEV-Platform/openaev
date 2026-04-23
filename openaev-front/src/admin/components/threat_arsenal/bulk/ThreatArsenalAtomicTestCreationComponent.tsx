@@ -3,24 +3,24 @@ import type { AxiosResponse } from 'axios';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 
-import { createAtomicTesting } from '../../../actions/atomic_testings/atomic-testing-actions';
-import { searchThreatArsenalActions } from '../../../actions/threat_arsenals/ThreatArsenal-actions';
-import { useFormatter } from '../../../components/i18n';
+import { createAtomicTesting } from '../../../../actions/atomic_testings/atomic-testing-actions';
+import { searchThreatArsenalActions } from '../../../../actions/threat_arsenals/ThreatArsenal-actions';
+import { useFormatter } from '../../../../components/i18n';
 import {
   type InjectInput,
   type InjectorContract,
   type InjectorContractSearchPaginationInput,
   type ThreatArsenalAction, type ThreatArsenalActionWithContentOutput,
-} from '../../../utils/api-types';
-import { type ContractElement, type ThreatArsenalContentConverted } from '../../../utils/api-types-custom';
-import { EndpointContext } from '../../../utils/context/endpoint/EndpointContext';
-import endpointContextForAtomicTesting from '../../../utils/context/endpoint/EndpointContextForAtomicTesting';
-import { isNotEmptyField } from '../../../utils/utils';
-import teamContextForAtomicTesting from '../atomic_testings/atomic_testing/context/TeamContextForAtomicTesting';
-import { TeamContext } from '../common/Context';
-import InjectForm from '../common/injects/form/InjectForm';
-import InjectCardComponent from '../common/injects/InjectCardComponent';
-import InjectIcon from '../common/injects/InjectIcon';
+} from '../../../../utils/api-types';
+import { type ContractElement, type ThreatArsenalContentConverted } from '../../../../utils/api-types-custom';
+import { EndpointContext } from '../../../../utils/context/endpoint/EndpointContext';
+import endpointContextForAtomicTesting from '../../../../utils/context/endpoint/EndpointContextForAtomicTesting';
+import { isNotEmptyField } from '../../../../utils/utils';
+import teamContextForAtomicTesting from '../../atomic_testings/atomic_testing/context/TeamContextForAtomicTesting';
+import { TeamContext } from '../../common/Context';
+import InjectForm from '../../common/injects/form/InjectForm';
+import InjectCardComponent from '../../common/injects/InjectCardComponent';
+import InjectIcon from '../../common/injects/InjectIcon';
 
 interface Props {
   isExclusionMode: boolean;

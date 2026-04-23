@@ -1,18 +1,19 @@
 import { Slide } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { type AxiosResponse } from 'axios';
 import { type SyntheticEvent, useState } from 'react';
 import { useNavigate } from 'react-router';
 
-import { updateScenariosWithInjectorContracts } from '../../../actions/scenarios/scenario-actions';
-import Button from '../../../components/common/button/Button';
-import ScenariosField, { type MultiSelectScenario } from '../../../components/fields/ScenariosField';
-import { useFormatter } from '../../../components/i18n';
+import { updateScenariosWithInjectorContracts } from '../../../../actions/scenarios/scenario-actions';
+import Button from '../../../../components/common/button/Button';
+import ScenariosField, { type MultiSelectScenario } from '../../../../components/fields/ScenariosField';
+import { useFormatter } from '../../../../components/i18n';
 import {
   type InjectorContractSearchPaginationInput,
   type Scenario,
   type ScenarioIdsAndInjectorContractsInputs,
   type ThreatArsenalAction,
-} from '../../../utils/api-types';
+} from '../../../../utils/api-types';
 
 interface Props {
   isExclusionMode: boolean;
@@ -25,6 +26,7 @@ interface Props {
 const ThreatArsenalScenarioUpdateComponent = ({ isExclusionMode, selectedElements, deSelectedElements, searchPaginationInput, handleClose }: Props) => {
   const { t, locale } = useFormatter();
   const navigate = useNavigate();
+  const theme = useTheme();
 
   const [scenarioValues, setScenarioValues] = useState<MultiSelectScenario[]>([]);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -66,13 +68,13 @@ const ThreatArsenalScenarioUpdateComponent = ({ isExclusionMode, selectedElement
           />
           <div style={{
             float: 'right',
-            marginTop: 20,
+            marginTop: theme.spacing(2),
           }}
           >
             <Button
               variant="secondary"
               onClick={handleClose}
-              style={{ marginRight: 10 }}
+              style={{ marginRight: theme.spacing(1) }}
               disabled={isSubmitting}
             >
               {t('Cancel')}
@@ -80,10 +82,9 @@ const ThreatArsenalScenarioUpdateComponent = ({ isExclusionMode, selectedElement
             <Button
               variant="primary"
               type="submit"
-              // onClick={handleSubmit}
               disabled={scenarioValues.length === 0 || isSubmitting}
             >
-              {t('Create')}
+              {t('Update')}
             </Button>
           </div>
         </form>

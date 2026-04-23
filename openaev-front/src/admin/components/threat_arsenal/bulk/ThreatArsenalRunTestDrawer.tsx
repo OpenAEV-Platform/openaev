@@ -3,11 +3,11 @@ import { Stack } from '@mui/material';
 import { Target } from 'mdi-material-ui';
 import { type FunctionComponent, useState } from 'react';
 
-import Drawer from '../../../components/common/Drawer';
-import { useFormatter } from '../../../components/i18n';
-import { type SearchPaginationInput, type ThreatArsenalAction } from '../../../utils/api-types';
+import Drawer from '../../../../components/common/Drawer';
+import { useFormatter } from '../../../../components/i18n';
+import { type SearchPaginationInput, type ThreatArsenalAction } from '../../../../utils/api-types';
+import ThreatArsenalExecutionModeCardComponent from '../ThreatArsenalExecutionModeCardComponent';
 import ThreatArsenalAtomicTestCreationComponent from './ThreatArsenalAtomicTestCreationComponent';
-import ThreatArsenalExecutionModeCardComponent from './ThreatArsenalExecutionModeCardComponent';
 import ThreatArsenalScenarioCreationComponent from './ThreatArsenalScenarioCreationComponent';
 import ThreatArsenalScenarioUpdateComponent from './ThreatArsenalScenarioUpdateComponent';
 

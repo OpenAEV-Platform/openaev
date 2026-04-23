@@ -163,25 +163,6 @@ public class ScenarioService {
     return savedScenario;
   }
 
-  public Scenario prepareScenarioFromScenarioInput(@NotNull final ScenarioInput input) {
-    Scenario scenario = new Scenario();
-    scenario.setUpdateAttributes(input);
-    scenario.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
-    if (hasText(input.getCustomDashboard())) {
-      scenario.setCustomDashboard(
-          this.customDashboardService.customDashboard(input.getCustomDashboard()));
-    } else {
-      scenario.setCustomDashboard(
-          this.platformSettingsService
-              .setting(SettingKeys.DEFAULT_SCENARIO_DASHBOARD.key())
-              .map(Setting::getValue)
-              .filter(v -> !v.isEmpty())
-              .map(this.customDashboardService::customDashboard)
-              .orElse(null));
-    }
-    return scenario;
-  }
-
   @Transactional
   public Scenario createScenarioWithInjectorContracts(
       @NotNull final ScenarioInput scenarioInput,
@@ -1137,5 +1118,24 @@ public class ScenarioService {
     computeEmails(scenario);
     this.actionMetricCollector.addScenarioCreatedCount();
     return this.scenarioRepository.save(scenario);
+  }
+
+  private Scenario prepareScenarioFromScenarioInput(@NotNull final ScenarioInput input) {
+    Scenario scenario = new Scenario();
+    scenario.setUpdateAttributes(input);
+    scenario.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
+    if (hasText(input.getCustomDashboard())) {
+      scenario.setCustomDashboard(
+          this.customDashboardService.customDashboard(input.getCustomDashboard()));
+    } else {
+      scenario.setCustomDashboard(
+          this.platformSettingsService
+              .setting(SettingKeys.DEFAULT_SCENARIO_DASHBOARD.key())
+              .map(Setting::getValue)
+              .filter(v -> !v.isEmpty())
+              .map(this.customDashboardService::customDashboard)
+              .orElse(null));
+    }
+    return scenario;
   }
 }

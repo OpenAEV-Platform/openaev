@@ -41,10 +41,10 @@ import InjectIcon from '../common/injects/InjectIcon';
 import ToolBar from '../common/ToolBar';
 import InjectorContractPopover from '../integrations/injectors/injector_contracts/InjectorContractPopover';
 import PayloadStatusComponent from '../payloads/PayloadStatusComponent';
+import ThreatArsenalRunTestDrawer from './bulk/ThreatArsenalRunTestDrawer';
 import CreateThreatArsenalAction from './CreateThreatArsenalAction';
 import ThreatArsenalActionPopover from './ThreatArsenalActionPopover';
 import ThreatArsenalInformationDrawer from './ThreatArsenalInformationDrawer';
-import ThreatArsenalRunTestDrawer from './ThreatArsenalRunTestDrawer';
 
 const useStyles = makeStyles()(theme => ({
   itemHead: { textTransform: 'uppercase' },
@@ -370,16 +370,14 @@ const ThreatArsenal = () => {
             teamsFromExerciseOrScenario={[]}
             customAction={(
               <Tooltip title={t('Run a test')}>
-                <span>
-                  <IconButton
-                    aria-label="run-a-test"
-                    onClick={() => setRunTestDrawerOpened(true)}
-                    color="primary"
-                    size="small"
-                  >
-                    <MovieFilterOutlined fontSize="small" />
-                  </IconButton>
-                </span>
+                <IconButton
+                  aria-label="run-a-test"
+                  onClick={() => setRunTestDrawerOpened(true)}
+                  color="primary"
+                  size="small"
+                >
+                  <MovieFilterOutlined fontSize="small" />
+                </IconButton>
               </Tooltip>
             )}
           />
