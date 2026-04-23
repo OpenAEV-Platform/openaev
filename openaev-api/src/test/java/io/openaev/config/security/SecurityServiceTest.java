@@ -7,9 +7,9 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.utils.fixtures.UserFixture;
+import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.fixtures.tenants.TenantComposer;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
-import io.openaev.utils.fixtures.composers.UserComposer;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import java.util.List;
@@ -88,8 +88,7 @@ class SecurityServiceTest extends IntegrationTest {
 
       // -- ACT --
       User result =
-          securityService.userManagement(
-              "", REGISTRATION_ID, List.of(), List.of(), "John", "Doe");
+          securityService.userManagement("", REGISTRATION_ID, List.of(), List.of(), "John", "Doe");
 
       // -- ASSERT --
       assertThat(result).isNull();

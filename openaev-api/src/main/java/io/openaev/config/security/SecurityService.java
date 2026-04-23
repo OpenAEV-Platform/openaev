@@ -101,9 +101,7 @@ public class SecurityService {
 
   // -- PRIVATE --
 
-  /**
-   * Attaches the user to the tenant configured for the given SSO provider registration.
-   */
+  /** Attaches the user to the tenant configured for the given SSO provider registration. */
   private void attachTenant(String registrationId, User user) {
     String tenantId =
         env.getProperty(
@@ -111,8 +109,7 @@ public class SecurityService {
     if (!hasText(tenantId)) {
       return;
     }
-    boolean alreadyAttached =
-        user.getTenants().stream().anyMatch(t -> t.getId().equals(tenantId));
+    boolean alreadyAttached = user.getTenants().stream().anyMatch(t -> t.getId().equals(tenantId));
     if (alreadyAttached) {
       return;
     }
