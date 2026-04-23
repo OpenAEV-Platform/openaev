@@ -266,10 +266,11 @@ public interface InjectExpectationRepository
     SELECT * FROM inject_expectation_data ied
     WHERE ied.inject_expectation_updated_at > :from AND ied.agent_id IS NULL
     ORDER BY ied.inject_expectation_updated_at ASC
-    LIMIT 500
+    LIMIT :limit
     """,
       nativeQuery = true)
-  List<RawInjectExpectationIndexing> findForIndexing(@Param("from") Instant from);
+  List<RawInjectExpectationIndexing> findForIndexing(
+      @Param("from") Instant from, @Param("limit") int limit);
 
   /**
    * Retrieves a set of distinct inject IDs associated with the specified inject expectation IDs.

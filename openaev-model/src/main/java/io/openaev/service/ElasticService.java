@@ -340,7 +340,8 @@ public class ElasticService implements EngineService {
                   String index = model.getIndex(engineConfig);
                   Instant fetchInstant =
                       indexingStatus.map(IndexingStatus::getLastIndexing).orElse(null);
-                  List<? extends EsBase> results = handler.fetch(fetchInstant);
+                  List<? extends EsBase> results =
+                      handler.fetch(fetchInstant, engineConfig.getIndexingBatchSize());
                   if (!results.isEmpty()) {
                     // Create bulk for the data
                     BulkRequest.Builder br = new BulkRequest.Builder();
