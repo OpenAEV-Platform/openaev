@@ -180,7 +180,6 @@ const DragAndDropImportDialog = ({ open, onClose, onImport, maxFiles }: Props) =
       open={open}
       handleClose={handleClose}
       title={t('Import data')}
-      size="large"
     >
       <Box className={classes.container}>
         <input
