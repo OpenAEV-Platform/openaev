@@ -96,8 +96,9 @@ public class XtmJwksExtractor implements ExtractorBase {
   // -- PRIVATE --
 
   /**
-   * Builds the list of trusted JWKS issuers from configuration. Currently, includes the XTM One URL;
-   * additional trusted URLs can be appended here as the platform evolves (e.g. peer instances).
+   * Builds the list of trusted JWKS issuers from configuration. Currently, includes the XTM One
+   * URL; additional trusted URLs can be appended here as the platform evolves (e.g. peer
+   * instances).
    */
   private List<String> buildTrustedIssuers() {
     return Stream.of(xtmOneConfig.getUrl())
@@ -153,13 +154,16 @@ public class XtmJwksExtractor implements ExtractorBase {
     String jwksUrl = issuer + "/xtm/auth/jwks";
     try (CloseableHttpClient httpClient = httpClientFactory.httpClientCustom()) {
       HttpGet httpGet = new HttpGet(jwksUrl);
-      String jwksJson = httpClient.execute(httpGet, response -> {
-        if (response.getCode() != 200) {
-          log.warn("JWKS fetch from {} returned HTTP {}", jwksUrl, response.getCode());
-          return null;
-        }
-        return EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
-      });
+      String jwksJson =
+          httpClient.execute(
+              httpGet,
+              response -> {
+                if (response.getCode() != 200) {
+                  log.warn("JWKS fetch from {} returned HTTP {}", jwksUrl, response.getCode());
+                  return null;
+                }
+                return EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
+              });
       if (jwksJson != null) {
         jwksCache.put(issuer, new CachedJwks(Instant.now(), jwksJson));
         log.debug("Refreshed JWKS cache for issuer {}", issuer);

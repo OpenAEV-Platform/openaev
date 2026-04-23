@@ -12,11 +12,12 @@ import java.util.Map;
  * provided by the record's single-parameter nature — here we simply store the raw JWK map produced
  * by JJWT.
  */
-public record JwkOutput(@JsonProperty("kty") String kty,
-                         @JsonProperty("crv") String crv,
-                         @JsonProperty("x") String x,
-                         @JsonProperty("kid") String kid,
-                         @JsonProperty("key_ops") List<String> keyOps) {
+public record JwkOutput(
+    @JsonProperty("kty") String kty,
+    @JsonProperty("crv") String crv,
+    @JsonProperty("x") String x,
+    @JsonProperty("kid") String kid,
+    @JsonProperty("key_ops") List<String> keyOps) {
 
   /** Converts a JJWT {@code Jwk} (which implements {@code Map<String, Object>}) to this DTO. */
   @SuppressWarnings("unchecked")
@@ -29,4 +30,3 @@ public record JwkOutput(@JsonProperty("kty") String kty,
         (List<String>) jwkMap.get("key_ops"));
   }
 }
-

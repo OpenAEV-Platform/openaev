@@ -112,17 +112,20 @@ public class XtmOneClient {
       HttpPost httpPost = new HttpPost(config.getUrl() + "/api/v1/platform/register");
       httpPost.addHeader("Authorization", "Bearer " + config.getToken());
       httpPost.setEntity(new StringEntity(json, ContentType.APPLICATION_JSON));
-      httpPost.setConfig(
-          RequestConfig.custom().setResponseTimeout(Timeout.ofSeconds(15)).build());
+      httpPost.setConfig(RequestConfig.custom().setResponseTimeout(Timeout.ofSeconds(15)).build());
 
-      return httpClient.execute(httpPost, response -> {
-        if (response.getCode() == 200) {
-          return objectMapper.readValue(
-              EntityUtils.toString(response.getEntity()), Map.class);
-        }
-        log.warn("[XTM One] Registration failed: HTTP {} — {}", response.getCode(), EntityUtils.toString(response.getEntity()));
-        return null;
-      });
+      return httpClient.execute(
+          httpPost,
+          response -> {
+            if (response.getCode() == 200) {
+              return objectMapper.readValue(EntityUtils.toString(response.getEntity()), Map.class);
+            }
+            log.warn(
+                "[XTM One] Registration failed: HTTP {} — {}",
+                response.getCode(),
+                EntityUtils.toString(response.getEntity()));
+            return null;
+          });
     } catch (Exception e) {
       log.warn("[XTM One] Registration error.", e);
     }
@@ -136,17 +139,17 @@ public class XtmOneClient {
     }
     try (CloseableHttpClient httpClient = httpClientFactory.httpClientCustom()) {
       HttpGet httpGet = chatGetBuilder("/api/v1/platform/chat/agents?tag=openaev", jwt);
-      httpGet.setConfig(
-          RequestConfig.custom().setResponseTimeout(Timeout.ofSeconds(10)).build());
+      httpGet.setConfig(RequestConfig.custom().setResponseTimeout(Timeout.ofSeconds(10)).build());
 
-      return httpClient.execute(httpGet, response -> {
-        if (response.getCode() == 200) {
-          return objectMapper.readValue(
-              EntityUtils.toString(response.getEntity()), List.class);
-        }
-        log.warn("[XTM One] List chat agents failed: HTTP {}", response.getCode());
-        return List.of();
-      });
+      return httpClient.execute(
+          httpGet,
+          response -> {
+            if (response.getCode() == 200) {
+              return objectMapper.readValue(EntityUtils.toString(response.getEntity()), List.class);
+            }
+            log.warn("[XTM One] List chat agents failed: HTTP {}", response.getCode());
+            return List.of();
+          });
     } catch (Exception e) {
       log.warn("[XTM One] List chat agents error.", e);
     }
@@ -166,17 +169,17 @@ public class XtmOneClient {
       String json = objectMapper.writeValueAsString(body);
 
       HttpPost httpPost = chatPostBuilder("/api/v1/platform/chat/sessions", jwt, json);
-      httpPost.setConfig(
-          RequestConfig.custom().setResponseTimeout(Timeout.ofSeconds(10)).build());
+      httpPost.setConfig(RequestConfig.custom().setResponseTimeout(Timeout.ofSeconds(10)).build());
 
-      return httpClient.execute(httpPost, response -> {
-        if (response.getCode() == 200) {
-          return objectMapper.readValue(
-              EntityUtils.toString(response.getEntity()), Map.class);
-        }
-        log.warn("[XTM One] Create session failed: HTTP {}", response.getCode());
-        return null;
-      });
+      return httpClient.execute(
+          httpPost,
+          response -> {
+            if (response.getCode() == 200) {
+              return objectMapper.readValue(EntityUtils.toString(response.getEntity()), Map.class);
+            }
+            log.warn("[XTM One] Create session failed: HTTP {}", response.getCode());
+            return null;
+          });
     } catch (Exception e) {
       log.warn("[XTM One] Create session error: ", e);
     }
@@ -214,8 +217,7 @@ public class XtmOneClient {
       String json = objectMapper.writeValueAsString(body);
 
       HttpPost httpPost = chatPostBuilder("/api/v1/platform/chat/messages", jwt, json);
-      httpPost.setConfig(
-          RequestConfig.custom().setResponseTimeout(Timeout.ofMinutes(15)).build());
+      httpPost.setConfig(RequestConfig.custom().setResponseTimeout(Timeout.ofMinutes(15)).build());
 
       httpClient.execute(
           httpPost,
@@ -225,15 +227,17 @@ public class XtmOneClient {
                 streamConsumer.accept(stream);
               }
             } else {
-                log.warn(
-                        "[XTM One] Chat message failed: HTTP {}, agent={}", response.getCode(), agentSlug);
+              log.warn(
+                  "[XTM One] Chat message failed: HTTP {}, agent={}",
+                  response.getCode(),
+                  agentSlug);
             }
             return null;
           });
     } catch (java.net.SocketTimeoutException e) {
-        log.warn("[XTM One] Chat message timed out, agent={}", agentSlug, e);
+      log.warn("[XTM One] Chat message timed out, agent={}", agentSlug, e);
     } catch (Exception e) {
-        log.warn("[XTM One] Chat message error, agent={}.", agentSlug, e);
+      log.warn("[XTM One] Chat message error, agent={}.", agentSlug, e);
     }
   }
 
