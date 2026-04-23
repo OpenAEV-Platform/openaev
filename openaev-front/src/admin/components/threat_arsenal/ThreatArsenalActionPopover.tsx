@@ -12,6 +12,11 @@ import {
 import { type MouseEvent, useContext, useState } from 'react';
 
 import { deletePayload } from '../../../actions/payloads/payload-actions';
+import {
+  duplicateThreatArsenalAction,
+  fetchThreatArsenalAction,
+  updateThreatArsenalAction,
+} from '../../../actions/threat_arsenals/threatArsenal-actions';
 import DialogDelete from '../../../components/common/DialogDelete';
 import Drawer from '../../../components/common/Drawer';
 import Transition from '../../../components/common/Transition';
@@ -28,11 +33,6 @@ import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { type DetectionRemediationForm } from '../payloads/utils/payloadFormToPayloadInput';
 import ThreatArsenalActionForm from './ThreatArsenalActionForm';
 import SnapshotRemediationProvider from './utils/SnapshotRemediationProvider';
-import {
-  duplicateThreatArsenalAction,
-  fetchThreatArsenalAction,
-  updateThreatArsenalAction
-} from "../../../actions/threat_arsenals/threatArsenal-actions";
 
 interface PayloadPopoverNewProps {
   actionId: string;
