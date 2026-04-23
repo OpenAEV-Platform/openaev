@@ -1,6 +1,5 @@
 package io.openaev.api.chaining;
 
-import static io.openaev.api.chaining.WorkflowApi.TENANT_WORKFLOW_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.WorkflowFixture.getDefaultWorkflowScopeRuleInputList;
 import static org.junit.jupiter.api.Assertions.*;
@@ -37,6 +36,8 @@ import org.springframework.transaction.annotation.Transactional;
 @WithMockUser(isAdmin = true)
 @DisplayName("Workflow API integration tests")
 class WorkflowApiTest extends IntegrationTest {
+
+  private static final String WORKFLOW_URI = "/api/workflows";
 
   @Autowired private MockMvc mockMvc;
   @Autowired private WorkflowComposer workflowComposer;
@@ -77,7 +78,7 @@ class WorkflowApiTest extends IntegrationTest {
     // -- EXECUTE --
     String response =
         mockMvc
-            .perform(get(TENANT_WORKFLOW_URI + "/" + workflow.getId() + "/workflow-configuration"))
+            .perform(get(WORKFLOW_URI + "/" + workflow.getId() + "/workflow-configuration"))
             .andExpect(status().isOk())
             .andReturn()
             .getResponse()
@@ -102,7 +103,7 @@ class WorkflowApiTest extends IntegrationTest {
     // -- EXECUTE --
     String response =
         mockMvc
-            .perform(get(TENANT_WORKFLOW_URI + "/" + workflowId + "/workflow-configuration"))
+            .perform(get(WORKFLOW_URI + "/" + workflowId + "/workflow-configuration"))
             .andExpect(status().isNotFound())
             .andReturn()
             .getResponse()
@@ -126,7 +127,7 @@ class WorkflowApiTest extends IntegrationTest {
     // -- EXECUTE & ASSERT --
     String response =
         mockMvc
-            .perform(get(TENANT_WORKFLOW_URI + "/" + workflow.getId() + "/workflow-configuration"))
+            .perform(get(WORKFLOW_URI + "/" + workflow.getId() + "/workflow-configuration"))
             .andExpect(status().isNotFound())
             .andReturn()
             .getResponse()
@@ -152,7 +153,7 @@ class WorkflowApiTest extends IntegrationTest {
     String response =
         mockMvc
             .perform(
-                put(TENANT_WORKFLOW_URI + "/" + workflow.getId() + "/workflow-configuration")
+                put(WORKFLOW_URI + "/" + workflow.getId() + "/workflow-configuration")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(asJsonString(input))
                     .accept(MediaType.APPLICATION_JSON))
@@ -186,7 +187,7 @@ class WorkflowApiTest extends IntegrationTest {
     String response =
         mockMvc
             .perform(
-                put(TENANT_WORKFLOW_URI + "/" + workflow.getId() + "/workflow-configuration")
+                put(WORKFLOW_URI + "/" + workflow.getId() + "/workflow-configuration")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(asJsonString(input))
                     .accept(MediaType.APPLICATION_JSON))
@@ -232,7 +233,7 @@ class WorkflowApiTest extends IntegrationTest {
     // -- EXECUTE & ASSERT --
     mockMvc
         .perform(
-            put(TENANT_WORKFLOW_URI + "/" + workflow.getId() + "/workflow-configuration")
+            put(WORKFLOW_URI + "/" + workflow.getId() + "/workflow-configuration")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(asJsonString(input))
                 .accept(MediaType.APPLICATION_JSON))
@@ -257,7 +258,7 @@ class WorkflowApiTest extends IntegrationTest {
     // -- EXECUTE & ASSERT --
     mockMvc
         .perform(
-            put(TENANT_WORKFLOW_URI + "/" + workflow.getId() + "/workflow-configuration")
+            put(WORKFLOW_URI + "/" + workflow.getId() + "/workflow-configuration")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(asJsonString(input))
                 .accept(MediaType.APPLICATION_JSON))
@@ -282,7 +283,7 @@ class WorkflowApiTest extends IntegrationTest {
     // -- EXECUTE & ASSERT --
     mockMvc
         .perform(
-            put(TENANT_WORKFLOW_URI + "/" + workflow.getId() + "/workflow-configuration")
+            put(WORKFLOW_URI + "/" + workflow.getId() + "/workflow-configuration")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(asJsonString(input))
                 .accept(MediaType.APPLICATION_JSON))
@@ -307,7 +308,7 @@ class WorkflowApiTest extends IntegrationTest {
     // -- EXECUTE & ASSERT --
     mockMvc
         .perform(
-            put(TENANT_WORKFLOW_URI + "/" + workflow.getId() + "/workflow-configuration")
+            put(WORKFLOW_URI + "/" + workflow.getId() + "/workflow-configuration")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(asJsonString(input))
                 .accept(MediaType.APPLICATION_JSON))
@@ -331,7 +332,7 @@ class WorkflowApiTest extends IntegrationTest {
     // -- EXECUTE & ASSERT --
     mockMvc
         .perform(
-            put(TENANT_WORKFLOW_URI + "/" + workflow.getId() + "/workflow-configuration")
+            put(WORKFLOW_URI + "/" + workflow.getId() + "/workflow-configuration")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(asJsonString(input))
                 .accept(MediaType.APPLICATION_JSON))
@@ -354,7 +355,7 @@ class WorkflowApiTest extends IntegrationTest {
     // -- EXECUTE & ASSERT --
     mockMvc
         .perform(
-            put(TENANT_WORKFLOW_URI + "/" + workflow.getId() + "/workflow-configuration")
+            put(WORKFLOW_URI + "/" + workflow.getId() + "/workflow-configuration")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(asJsonString(input))
                 .accept(MediaType.APPLICATION_JSON))
@@ -382,7 +383,7 @@ class WorkflowApiTest extends IntegrationTest {
     // -- EXECUTE --
     mockMvc
         .perform(
-            put(TENANT_WORKFLOW_URI + "/" + workflow.getId() + "/workflow-configuration")
+            put(WORKFLOW_URI + "/" + workflow.getId() + "/workflow-configuration")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(asJsonString(input))
                 .accept(MediaType.APPLICATION_JSON))
