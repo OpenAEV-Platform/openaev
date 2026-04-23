@@ -241,12 +241,11 @@ public class PlatformSettingsService {
     }
     settings.setPlatformBannerByLevel(platformBannerByLevel);
 
-    // Whitemark & License
+    // Whitemark
     settings.setPlatformWhitemark(
         ofNullable(dbSettings.get(PLATFORM_WHITEMARK.key()))
             .map(Setting::getValue)
             .orElse(PLATFORM_WHITEMARK.defaultValue()));
-    settings.setPlatformLicense(licenseCacheManager.getEnterpriseEditionInfo());
   }
 
   /** Return only non-sensitive settings suitable for unauthenticated (public) access. */
@@ -266,6 +265,7 @@ public class PlatformSettingsService {
     populatePublicSettings(platformSettings, dbSettings);
 
     // Authenticated-only fields
+    platformSettings.setPlatformLicense(licenseCacheManager.getEnterpriseEditionInfo());
     platformSettings.setPlatformHomeDashboard(
         ofNullable(dbSettings.get(DEFAULT_HOME_DASHBOARD.key()))
             .map(Setting::getValue)

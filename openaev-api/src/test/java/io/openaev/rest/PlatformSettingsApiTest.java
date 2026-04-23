@@ -30,11 +30,12 @@ class PlatformSettingsApiTest extends IntegrationTest {
           "platform_light_theme",
           "platform_dark_theme",
           "enabled_dev_features",
-          "platform_whitemark",
-          "platform_license");
+          "platform_whitemark");
 
   private static final List<String> PRIVATE_FIELDS =
       List.of(
+          // License
+          "platform_license",
           // Tokens and secrets
           "xtm_hub_token",
           "xtm_hub_url",

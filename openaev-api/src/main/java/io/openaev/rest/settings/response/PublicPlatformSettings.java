@@ -3,7 +3,6 @@ package io.openaev.rest.settings.response;
 import static lombok.AccessLevel.NONE;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.openaev.ee.License;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.settings.form.PolicyInput;
 import io.openaev.rest.settings.form.ThemeInput;
@@ -85,8 +84,4 @@ public class PublicPlatformSettings {
   @JsonProperty("platform_whitemark")
   @Schema(description = "'true' if the platform has the whitemark activated")
   private String platformWhitemark;
-
-  @JsonProperty("platform_license")
-  @Schema(description = "Platform licensing (public subset for login page rendering)")
-  private License platformLicense;
 }

@@ -1,6 +1,7 @@
 package io.openaev.rest.settings.response;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.ee.License;
 import io.swagger.v3.oas.annotations.ExternalDocumentation;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
@@ -208,4 +209,8 @@ public class PlatformSettings extends PublicPlatformSettings {
   @JsonProperty("imap_service_available")
   @Schema(description = "IMAP Service availability")
   private String imapServiceAvailable;
+
+  @JsonProperty("platform_license")
+  @Schema(description = "Platform licensing information")
+  private License platformLicense;
 }
