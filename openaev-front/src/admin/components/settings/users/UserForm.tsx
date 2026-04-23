@@ -4,7 +4,7 @@ import { type FunctionComponent, type SyntheticEvent } from 'react';
 import { FormProvider, type Resolver, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { type UserInputForm } from '../../../../actions/users/users-helper';
+import { type UserInputForm, type UserType } from '../../../../actions/users/users-helper';
 import ActionButtons from '../../../../components/common/ActionButtons';
 import OrganizationFieldController from '../../../../components/fields/OrganizationFieldController';
 import SwitchFieldController from '../../../../components/fields/SwitchFieldController';
@@ -18,6 +18,7 @@ interface UserFormProps {
   initialValues?: Partial<UserInputForm>;
   editing: boolean;
   handleClose: () => void;
+  type: UserType;
 }
 
 const UserForm: FunctionComponent<UserFormProps> = ({
@@ -36,6 +37,7 @@ const UserForm: FunctionComponent<UserFormProps> = ({
   },
   editing,
   handleClose,
+  type,
 }) => {
   const { t } = useFormatter();
   const theme = useTheme();
@@ -114,7 +116,7 @@ const UserForm: FunctionComponent<UserFormProps> = ({
         <TextFieldController name="user_phone" label={t('Phone number (mobile)')} />
         <TextFieldController name="user_phone2" label={t('Phone number (landline)')} />
         <TextFieldController name="user_pgp_key" label={t('PGP public key')} multiline rows={5} />
-        <SwitchFieldController name="user_admin" label={t('Administrator')} />
+        {type === 'PLATFORM' && <SwitchFieldController name="user_admin" label={t('Administrator')} />}
         <div style={{ alignSelf: 'flex-end' }}>
           <ActionButtons
             onCancel={handleClose}
