@@ -112,7 +112,7 @@ public class XtmHubApi extends RestBehavior {
     @ApiResponse(responseCode = "502", description = "Registration failed on XTM Hub call"),
     @ApiResponse(responseCode = "500", description = "Internal error")
   })
-  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.XTM_HUB_REGISTRATION)
   @Transactional(rollbackFor = Exception.class)
   public void autoRegister(@Valid @RequestBody XtmHubRegisterInput input) {
     this.xtmHubService.autoRegister(input.getToken());

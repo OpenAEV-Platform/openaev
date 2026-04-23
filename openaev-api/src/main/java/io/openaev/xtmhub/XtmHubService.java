@@ -62,12 +62,17 @@ public class XtmHubService {
         settings.getPlatformName(),
         settings.getPlatformBaseUrl(),
         settings.getPlatformVersion(),
+        TenantContext.getCurrentTenant(),
         usersCount)) {
       throw new ResponseStatusException(
           HttpStatus.BAD_GATEWAY, "Failed to register the platform on XtmHub");
     }
-    this.platformSettingsService.updateXTMHubRegistration(
-        token, LocalDateTime.now(), XtmHubRegistrationStatus.REGISTERED, null, null, false);
+    TenantXtmHubRegistration registration = findOrCreateRegistration();
+    registration.setToken(token);
+    registration.setRegistrationDate(LocalDateTime.now());
+    registration.setRegistrationStatus(XtmHubRegistrationStatus.REGISTERED);
+    registration.setLastConnectivityCheck(LocalDateTime.now());
+    tenantXtmHubRegistrationRepository.save(registration);
   }
 
   public void unregister() {
