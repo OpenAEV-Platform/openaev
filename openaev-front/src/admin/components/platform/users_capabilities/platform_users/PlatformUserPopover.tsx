@@ -60,7 +60,7 @@ const PlatformUserPopover: FunctionComponent<Props> = ({
       onSubmitUpdate={handleUpdate}
       onSubmitDelete={handleDelete}
       deleteMessage={t('Do you want to delete this platform user?')}
-      updateTitle={t('Update platform user')}
+      type="PLATFORM"
       permissions={{
         manage: [ACTIONS.MANAGE, SUBJECTS.PLATFORM_GROUPS_AND_ROLES],
         delete: [ACTIONS.DELETE, SUBJECTS.PLATFORM_GROUPS_AND_ROLES],
