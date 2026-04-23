@@ -1,5 +1,5 @@
 import { GroupsOutlined } from '@mui/icons-material';
-import { FormHelperText, List, ListItem, ListItemIcon, ListItemText, Tooltip } from '@mui/material';
+import { FormHelperText, List, ListItem, ListItemIcon, ListItemText, Tooltip, Typography } from '@mui/material';
 import { type FunctionComponent, useContext, useEffect, useState } from 'react';
 import { useFormContext, useWatch } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
@@ -63,6 +63,8 @@ const InjectTeamsList: FunctionComponent<Props> = ({ readOnly = false, hideEnabl
     setValue('inject_teams', updatedTeamIds, { shouldValidate: true });
   };
 
+  const textColor = readOnly ? 'text.disabled' : 'text.primary';
+
   const teamListItem = (team: TeamOutput, userEnabled: number) => (
     <ListItem
       key={team.team_id}
@@ -76,20 +78,20 @@ const InjectTeamsList: FunctionComponent<Props> = ({ readOnly = false, hideEnabl
       )}
     >
       <ListItemIcon>
-        <GroupsOutlined />
+        <GroupsOutlined color={readOnly ? 'disabled' : 'inherit'} />
       </ListItemIcon>
       <ListItemText
         primary={(
           <div className={classes.column}>
-            <div className={classes.bodyItem}>
+            <Typography color={textColor} className={classes.bodyItem}>
               {team.team_name}
-            </div>
-            <Tooltip title={t('Number of users')} className={classes.bodyItem}>
-              <span>{team.team_users_number}</span>
+            </Typography>
+            <Tooltip color={textColor} title={t('Number of users')} className={classes.bodyItem}>
+              <Typography>{team.team_users_number}</Typography>
             </Tooltip>
             {!hideEnabledUsersNumber && (
-              <Tooltip title={t('Number of enable user')} className={classes.bodyItem}>
-                <span>{userEnabled}</span>
+              <Tooltip color={textColor} title={t('Number of enable user')} className={classes.bodyItem}>
+                <Typography>{userEnabled}</Typography>
               </Tooltip>
             )}
             <div className={classes.bodyItem}>
