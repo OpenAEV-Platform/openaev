@@ -2,21 +2,27 @@ package io.openaev.config.security;
 
 import static java.util.Optional.ofNullable;
 import static org.springframework.util.StringUtils.hasLength;
+import static org.springframework.util.StringUtils.hasText;
 
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.service.UserMappingService;
 import io.openaev.service.UserService;
+import io.openaev.service.tenants.TenantService;
 import io.openaev.service.user_events.UserEventService;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.constraints.NotBlank;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class SecurityService {
@@ -26,6 +32,7 @@ public class SecurityService {
   public static final String GROUPS_MANAGEMENT_SUFFIX = ".groups_management";
   public static final String ALL_ADMIN_PATH_SUFFIX = ".all_admin";
   public static final String AUDIENCE_PATH = ".audience";
+  public static final String TENANT_ID_SUFFIX = ".tenant_id";
   public static final String REGISTRATION_ID = "registration_id";
 
   private final UserRepository userRepository;
@@ -33,6 +40,7 @@ public class SecurityService {
   private final UserMappingService userMappingService;
   private final Environment env;
   private final UserEventService userEventService;
+  private final TenantService tenantService;
 
   public User userManagement(
       String emailAttribute,
@@ -60,6 +68,7 @@ public class SecurityService {
                 String.class,
                 "");
         userMappingService.mapCurrentUserWithGroup(groupsManagementObject, user, groups);
+        attachTenant(registrationId, user);
         return this.userService.saveUser(user);
       } else {
         // If user exists, update it
@@ -76,6 +85,7 @@ public class SecurityService {
                 String.class,
                 "");
         userMappingService.mapCurrentUserWithGroup(groupsManagementObject, currentUser, groups);
+        attachTenant(registrationId, currentUser);
         return this.userService.saveUser(currentUser);
       }
     }
@@ -90,6 +100,29 @@ public class SecurityService {
   }
 
   // -- PRIVATE --
+
+  /**
+   * Attaches the user to the tenant configured for the given SSO provider registration.
+   */
+  private void attachTenant(String registrationId, User user) {
+    String tenantId =
+        env.getProperty(
+            OPENAEV_PROVIDER_PATH_PREFIX + registrationId + TENANT_ID_SUFFIX, String.class, "");
+    if (!hasText(tenantId)) {
+      return;
+    }
+    boolean alreadyAttached =
+        user.getTenants().stream().anyMatch(t -> t.getId().equals(tenantId));
+    if (alreadyAttached) {
+      return;
+    }
+    try {
+      Tenant tenant = tenantService.findById(tenantId);
+      user.getTenants().add(tenant);
+    } catch (EntityNotFoundException e) {
+      log.warn("SSO tenant ID '{}' configured but not found in database", tenantId);
+    }
+  }
 
   private List<String> getAdminRoles(@NotBlank final String registrationId) {
     String rolesAdminConfig =
