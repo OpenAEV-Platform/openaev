@@ -3,19 +3,20 @@ package io.openaev.api.payload;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 
-import io.openaev.database.model.InjectorContract;
-import io.openaev.database.model.Payload;
-import io.openaev.database.repository.AttackPatternRepository;
-import io.openaev.database.repository.DomainRepository;
-import io.openaev.database.repository.TagRepository;
-import io.openaev.jsonapi.Relationship;
-import io.openaev.jsonapi.ResourceIdentifier;
-import io.openaev.jsonapi.ZipJsonApi;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.database.model.*;
+import io.openaev.jsonapi.*;
+import io.openaev.rest.attack_pattern.form.AttackPatternCreateInput;
+import io.openaev.rest.attack_pattern.service.AttackPatternService;
+import io.openaev.rest.domain.DomainService;
+import io.openaev.rest.domain.form.DomainBaseInput;
 import io.openaev.rest.payload.service.PayloadService;
+import io.openaev.rest.tag.TagService;
+import io.openaev.rest.tag.form.TagCreateInput;
 import io.openaev.service.ZipJsonService;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import jakarta.annotation.Resource;
+import java.util.*;
+import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,16 +33,18 @@ public class PayloadImportService {
 
   private final ZipJsonApi<Payload> zipJsonApi;
   private final PayloadService payloadService;
-  private final AttackPatternRepository attackPatternRepository;
-  private final DomainRepository domainRepository;
-  private final TagRepository tagRepository;
+  private final AttackPatternService attackPatternService;
+  private final DomainService domainService;
+  private final TagService tagService;
+
+  @Resource protected ObjectMapper mapper;
 
   /**
    * Imports a payload from a JSON:API ZIP and synchronises the associated injector contract.
    *
-   * <p>Legacy payload exports may contain {@code payload_attack_patterns}, {@code
-   * payload_domains}, and {@code payload_tags} as relationships. Since these fields now live on
-   * {@code InjectorContract}, they are extracted from the source document and passed to the
+   * <p>Legacy payload exports may contain {@code payload_attack_patterns}, {@code payload_domains},
+   * and {@code payload_tags} as relationships. Since these fields now live on {@code
+   * InjectorContract}, they are extracted from the source document and passed to the
    * synchronisation method.
    *
    * @param file the ZIP file containing the JSON:API payload document
@@ -49,35 +52,103 @@ public class PayloadImportService {
    *     contract
    */
   public PayloadImportResult importPayload(MultipartFile file) throws Exception {
-    ZipJsonService.ImportOutput<Payload> response =
-        zipJsonApi.handleImport(file, "payload_name");
+    ZipJsonService.ImportOutput<Payload> response = zipJsonApi.handleImport(file, "payload_name");
 
-    Map<String, Relationship> rels =
-        response.sourceDocument().data().relationships() != null
-            ? response.sourceDocument().data().relationships()
-            : Collections.emptyMap();
-
-    List<String> attackPatternIds = extractRelationshipIds(rels, "payload_attack_patterns");
-    List<String> domainIds = extractRelationshipIds(rels, "payload_domains");
-    List<String> tagIds = extractRelationshipIds(rels, "payload_tags");
+    List<AttackPattern> attackPatterns =
+        extractRelationshipObjects(
+            "attack_patterns", this::handleAttackPatternImport, response.sourceDocument());
+    List<Domain> domains =
+        extractRelationshipObjects("domains", this::handleDomainImport, response.sourceDocument());
+    List<Tag> tags =
+        extractRelationshipObjects("tags", this::handleTagImport, response.sourceDocument());
 
     InjectorContract injectorContract =
         payloadService.synchroniseInjectorContractBasedOnPayload(
             response.persistedData(),
-            fromIterable(attackPatternRepository.findAllById(attackPatternIds)),
-            iterableToSet(domainRepository.findAllById(domainIds)),
-            iterableToSet(tagRepository.findAllById(tagIds)));
+            fromIterable(attackPatterns),
+            iterableToSet(domains),
+            iterableToSet(tags));
 
     return new PayloadImportResult(response, injectorContract);
   }
 
-  private static List<String> extractRelationshipIds(
-      Map<String, Relationship> rels, String relName) {
-    Relationship rel = rels.get(relName);
+  private AttackPattern handleAttackPatternImport(ResourceObject object) {
+    AttackPatternCreateInput input = new AttackPatternCreateInput();
+    input.setName(object.attributes().get("attack_pattern_name").toString());
+    input.setDescription(object.attributes().get("attack_pattern_description").toString());
+    input.setStixId(object.attributes().get("attack_pattern_stix_id").toString());
+    input.setExternalId(object.attributes().get("attack_pattern_external_id").toString());
+    input.setPlatforms(asStringArray(object.attributes().get("attack_pattern_platforms")));
+    input.setPermissionsRequired(
+        asStringArray(object.attributes().get("attack_pattern_permissions_required")));
+    return attackPatternService.upsert(input);
+  }
+
+  private Domain handleDomainImport(ResourceObject object) {
+    DomainBaseInput input = new DomainBaseInput();
+    input.setName(object.attributes().get("domain_name").toString());
+    input.setColor(object.attributes().get("domain_color").toString());
+    return domainService.upsert(input);
+  }
+
+  private Tag handleTagImport(ResourceObject object) {
+    TagCreateInput input = new TagCreateInput();
+    input.setName(object.attributes().get("tag_name").toString());
+    input.setColor(object.attributes().get("tag_color").toString());
+    return tagService.upsertTag(input);
+  }
+
+  private <T> List<T> extractRelationshipObjects(
+      String relName,
+      Function<ResourceObject, T> valueExtractor,
+      JsonApiDocument<ResourceObject> ressourceDocument) {
+    Map<String, Relationship> rels =
+        ressourceDocument.data().relationships() != null
+            ? ressourceDocument.data().relationships()
+            : Collections.emptyMap();
+
+    Relationship rel = rels.get("payload_" + relName);
     if (rel == null) {
       return Collections.emptyList();
     }
-    return rel.asMany().stream().map(ResourceIdentifier::id).toList();
+
+    List<ResourceObject> importRessources =
+        Optional.ofNullable(ressourceDocument.included()).orElseGet(Collections::emptyList).stream()
+            .map(
+                o ->
+                    o instanceof ResourceObject ro
+                        ? ro
+                        : mapper.convertValue(o, ResourceObject.class))
+            .filter(resource -> relName.equals(resource.type()))
+            .toList();
+
+    if (importRessources.isEmpty()) {
+      return Collections.emptyList();
+    }
+
+    return rel.asMany().stream()
+        .map(
+            ressourceToimport -> {
+              ResourceObject importedData =
+                  importRessources.stream()
+                      .filter(ressource -> ressource.id().equals(ressourceToimport.id()))
+                      .findFirst()
+                      .orElse(null);
+
+              if (importedData == null) {
+                return null;
+              }
+              return valueExtractor.apply(importedData);
+            })
+        .filter(Objects::nonNull)
+        .toList();
+  }
+
+  private String[] asStringArray(Object value) {
+    if (value == null) {
+      return new String[0];
+    }
+    return mapper.convertValue(value, String[].class);
   }
 
   /**
@@ -89,4 +160,3 @@ public class PayloadImportService {
   public record PayloadImportResult(
       ZipJsonService.ImportOutput<Payload> payloadOutput, InjectorContract injectorContract) {}
 }
-

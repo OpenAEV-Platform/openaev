@@ -47,9 +47,9 @@ public class ThreatArsenalApiImporter {
    * Imports a threat arsenal action from a JSON:API document. Accepts both injector contract
    * exports and legacy payload exports.
    *
-   * <p>If the document type is {@code injectors_contracts}, the document is imported directly as
-   * an injector contract. Any other type (e.g. payloads, commands, file_drops) is treated as a
-   * legacy payload export and an injector contract is synchronised from it.
+   * <p>If the document type is {@code injectors_contracts}, the document is imported directly as an
+   * injector contract. Any other type (e.g. payloads, commands, file_drops) is treated as a legacy
+   * payload export and an injector contract is synchronised from it.
    *
    * @param file the ZIP file containing the JSON:API document
    * @return the imported threat arsenal action
@@ -99,9 +99,9 @@ public class ThreatArsenalApiImporter {
   }
 
   /**
-   * Peeks into the ZIP to detect if the JSON:API document represents an injector contract export
-   * by checking the {@code data.type} field. Any other type (e.g. payloads, commands, file_drops)
-   * is treated as a legacy payload export.
+   * Peeks into the ZIP to detect if the JSON:API document represents an injector contract export by
+   * checking the {@code data.type} field. Any other type (e.g. payloads, commands, file_drops) is
+   * treated as a legacy payload export.
    */
   private boolean isInjectorContractExport(MultipartFile file) throws Exception {
     try (ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(file.getBytes()))) {

@@ -8,9 +8,11 @@ import io.openaev.context.TenantContext;
 import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.SecurityCoverage;
 import io.openaev.database.model.StixRefToExternalRef;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.attack_pattern.form.AnalysisResultFromTTPExtractionAIWebserviceOutput;
+import io.openaev.rest.attack_pattern.form.AttackPatternCreateInput;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.utils.SecurityCoverageUtils;
 import jakarta.annotation.Resource;
@@ -254,5 +256,30 @@ public class AttackPatternService {
 
   public List<AttackPattern> getAttackPattern(List<String> idsAttackPattern) {
     return attackPatternRepository.findAllByIdIn(idsAttackPattern);
+  }
+
+  /**
+   * Upsert an attack pattern
+   *
+   * @param input to handle upsert values
+   * @return found or created attack pattern
+   */
+  public AttackPattern upsert(AttackPatternCreateInput input) {
+    String tenant = TenantContext.getCurrentTenant();
+    Optional<AttackPattern> attackPattern =
+        attackPatternRepository.findByExternalIdIgnoreCaseAndTenantId(
+            input.getExternalId(), tenant);
+    return attackPattern.orElseGet(
+        () -> {
+          AttackPattern newAttackPattern = new AttackPattern();
+          newAttackPattern.setName(input.getName());
+          newAttackPattern.setDescription(input.getDescription());
+          newAttackPattern.setStixId(input.getStixId());
+          newAttackPattern.setExternalId(input.getExternalId());
+          newAttackPattern.setPlatforms(input.getPlatforms());
+          newAttackPattern.setPermissionsRequired(input.getPermissionsRequired());
+          newAttackPattern.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+          return attackPatternRepository.save(newAttackPattern);
+        });
   }
 }

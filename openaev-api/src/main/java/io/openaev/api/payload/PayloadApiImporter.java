@@ -63,8 +63,7 @@ public class PayloadApiImporter extends RestBehavior {
   public ResponseEntity<JsonApiDocument<ResourceObject>> importJson(
       @RequestPart("file") @NotNull MultipartFile file) throws Exception {
     try {
-      PayloadImportService.PayloadImportResult result =
-          payloadImportService.importPayload(file);
+      PayloadImportService.PayloadImportResult result = payloadImportService.importPayload(file);
       return ResponseEntity.ok(result.payloadOutput().jsonApiDocument());
     } catch (Exception ex) {
       log.warn("Fallback to old import due to {}", ex.getMessage(), ex);
