@@ -2,6 +2,7 @@ package io.openaev.service.chaining;
 
 import static io.openaev.api.chaining.ConditionMapper.resolveMappingType;
 
+import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import io.openaev.api.chaining.ConditionMapper;
@@ -29,8 +30,13 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @Transactional(rollbackFor = Exception.class)
 public class ConditionService {
+
+  private final WorkflowStateService workflowStateService;
+
   private final ConditionRepository conditionRepository;
   private final StepRepository stepRepository;
+
+  private static final Gson gson = new Gson();
 
   // -- CONDITION TREE CREATE --
   /**
@@ -529,115 +535,101 @@ public class ConditionService {
    * Evaluates all conditions for a step template and returns valid ones for execution.
    *
    * @param nextStepTemplateToExecute the step to evaluate
-   * @param input input data for the step
    * @param workflowRun the running workflow
-   * @param stepService service to interact with steps
    * @return valid conditions, empty list if none required, or null if execution should be deferred
    */
-  public List<Condition> checkCondition(
-      Step nextStepTemplateToExecute, String input, Workflow workflowRun, StepService stepService)
-      throws ChainingException {
+  public List<ConditionService.ExecutionBatch> checkCondition(
+      Step nextStepTemplateToExecute, Workflow workflowRun) throws ChainingException {
+
     List<Condition> conditionTemplate =
         findAllConditionsByStepId(nextStepTemplateToExecute.getId());
 
     // No condition means direct execution:
     if (conditionTemplate == null || conditionTemplate.isEmpty()) return new ArrayList<>();
 
-    List<Condition> conditionsExecution = new ArrayList<>();
-    List<Condition> timeConditions =
-        conditionTemplate.stream().filter(this::isTimeCondition).toList();
+    //    // TIME CONDITIONS
+    //    // TODO manage multi time condition (AND, OR: g C1 BEFORE OR C2 AFTER)
+    //    // Compute expected start time for the condition to be considered as valid
+    //     List<Condition> timeConditions =
+    //        conditionTemplate.stream().filter(this::isTimeCondition).toList();
+    //     for (Condition condition : timeConditions) {
+    //      Instant now = Instant.now();
+    //      Instant start = workflowRun.getWorkflowCreatedAt();
+    //      // TODO: can this happen ? Shouldn't it throw an exception instead?
+    //      if (start == null) start = now;
+    //      long value = Long.parseLong(condition.getValue());
+    //      Instant goal = start.plus(value, ChronoUnit.MILLIS);
+    //
+    //      if (isTimeConditionValid(condition, now, goal)) {
+    //        conditionsExecution.add(ConditionFactory.executionOf(condition, goal));
+    //        continue;
+    //      }
+    //      if (condition.getType().equals(ConditionType.AFTER)) {
+    //        long delay = ChronoUnit.MILLIS.between(now, goal);
+    //
+    //        stepDelayQueueService.pushStepTemplateIntoStepDelayQueue(
+    //            nextStepTemplateToExecute, now, input, delay, workflowRun, goal);
+    //        return null;
+    //      }
+    //    }
 
-    // Time conditions
-    // TODO manage multi time condition (AND, OR: g C1 BEFORE OR C2 AFTER)
-    // Compute expected start time for the condition to be considered as valid
-    /*for (Condition condition : timeConditions) {
-      Instant now = Instant.now();
-      Instant start = workflowRun.getWorkflowCreatedAt();
-      // TODO: can this happen ? Shouldn't it throw an exception instead?
-      if (start == null) start = now;
-      long value = Long.parseLong(condition.getValue());
-      Instant goal = start.plus(value, ChronoUnit.MILLIS);
+    //    // Filter conditions
+    //    List<Condition> filterConditions =
+    //        conditionTemplate.stream().filter(this::isFilterCondition).toList();
+    //
+    //    for (Condition condition : filterConditions) {
+    //      Condition filterConditionValid =
+    //          isFilterConditionValid(input, condition);
+    //      if (filterConditionValid == null) {
+    //        // todo condition not valid break analyse
+    //      } else {
+    //        conditionsExecution.add(filterConditionValid);
+    //      }
+    //    }
 
-      if (isTimeConditionValid(condition, now, goal)) {
-        conditionsExecution.add(ConditionFactory.executionOf(condition, goal));
-        continue;
-      }
-      if (condition.getType().equals(ConditionType.AFTER)) {
-        long delay = ChronoUnit.MILLIS.between(now, goal);
-
-        stepDelayQueueService.pushStepTemplateIntoStepDelayQueue(
-            nextStepTemplateToExecute, now, input, delay, workflowRun, goal);
-        return null;
-      }
-    }
-    */
-
-    // Filter conditions
-    /*
-    List<Condition> filterConditions =
-        conditionTemplate.stream().filter(this::isFilterCondition).toList();
-
-    for (Condition condition : filterConditions) {
-      Condition filterConditionValid =
-          isFilterConditionValid(condition, input, nextStepTemplateToExecute.getData());
-      if (filterConditionValid == null) {
-        // todo condition not valid break analyse
-      } else {
-        conditionsExecution.add(filterConditionValid);
-      }
-    }
-    */
-
-    // Mapper conditions
+    // MAPPER CONDITIONS
     List<Condition> mapperConditions =
         conditionTemplate.stream().filter(this::isMapperCondition).toList();
 
-    for (Condition condition : mapperConditions) {
-      Condition mapperConditionValid =
-          isMapperConditionValid(condition, input, nextStepTemplateToExecute.getData());
-      if (mapperConditionValid == null) {
-        // todo condition not valid break analyse
-      } else {
-        conditionsExecution.add(mapperConditionValid);
-      }
-    }
+    return extractInputsForStepExecution(nextStepTemplateToExecute, workflowRun, mapperConditions);
 
-    // StepFrom (DEPEND_ON) conditions
-    List<Condition> stepFrom =
-        conditionTemplate.stream().filter(condition -> condition.getStepFrom() != null).toList();
-    for (Condition condition : stepFrom) {
-      String idStepFromTemplate = condition.getStepFrom().getId();
-      List<Step> dependOnStepsRunByTemplateIdAndWorkflowRunId =
-          stepService
-              .findAllStepExecutedByStepTemplateIdAndWorkflowRunId(
-                  idStepFromTemplate, workflowRun.getId())
-              .stream()
-              .filter(step -> step.getOutput() != null)
-              .toList();
-
-      // Count of current step template already run into this workflow run
-      int stepExecutedCount =
-          stepService.countExecutedStep(workflowRun.getId(), nextStepTemplateToExecute.getId());
-
-      boolean hasDependencyOutput = !dependOnStepsRunByTemplateIdAndWorkflowRunId.isEmpty();
-      boolean underExecutionLimit =
-          stepExecutedCount < nextStepTemplateToExecute.getLimitExecution();
-
-      // todo : change : !dependOnStepsRunByTemplateIdAndWorkflowRunId.isEmpty()
-      // ( means at least 1 stepFrom is/has been running),
-      // to implement: check if input/output as already be used into the next stepToExecute
-      // This condition means:
-      // - the previews one has been executed and contain output
-      // - and the next one not reach his limit of execution
-      if (hasDependencyOutput && underExecutionLimit) {
-        conditionsExecution.add(isDependOn(idStepFromTemplate));
-      } else {
-        // Todo : condition not valid break analyse
-        return null;
-      }
-    }
+    //    // StepFrom (DEPEND_ON) conditions
+    //    List<Condition> stepFrom =
+    //        conditionTemplate.stream().filter(condition -> condition.getStepFrom() !=
+    // null).toList();
+    //    for (Condition condition : stepFrom) {
+    //      String idStepFromTemplate = condition.getStepFrom().getId();
+    //      List<Step> dependOnStepsRunByTemplateIdAndWorkflowRunId =
+    //          stepService
+    //              .findAllStepExecutedByStepTemplateIdAndWorkflowRunId(
+    //                  idStepFromTemplate, workflowRun.getId())
+    //              .stream()
+    //              .filter(step -> step.getOutput() != null)
+    //              .toList();
+    //
+    //      // Count of current step template already run into this workflow run
+    //      int stepExecutedCount =
+    //          stepService.countExecutedStep(workflowRun.getId(),
+    // nextStepTemplateToExecute.getId());
+    //
+    //      boolean hasDependencyOutput = !dependOnStepsRunByTemplateIdAndWorkflowRunId.isEmpty();
+    //      boolean underExecutionLimit =
+    //          stepExecutedCount < nextStepTemplateToExecute.getLimitExecution();
+    //
+    //      // todo : change : !dependOnStepsRunByTemplateIdAndWorkflowRunId.isEmpty()
+    //      // ( means at least 1 stepFrom is/has been running),
+    //      // to implement: check if input/output as already be used into the next stepToExecute
+    //      // This condition means:
+    //      // - the previews one has been executed and contain output
+    //      // - and the next one not reach his limit of execution
+    //      if (hasDependencyOutput && underExecutionLimit) {
+    //        conditionsExecution.add(isDependOn(idStepFromTemplate));
+    //      } else {
+    //        // Todo : condition not valid break analyse
+    //        return null;
+    //      }
+    //    }
     // todo Mapped input-data step
-    return conditionsExecution;
   }
 
   /**
@@ -801,6 +793,133 @@ public class ConditionService {
       return condition;
     }
     return fetchRootCondition(condition.getConditionParent());
+  }
+
+  /**
+   * Builds execution batches for a template step from workflow global/local mapper states.
+   *
+   * <p>For each mapper on the template, this method collects candidate values from the relevant
+   * partition (GLOBAL or LOCAL), computes the Cartesian product of all dynamic values, merges
+   * DEFAULT mapper values, and keeps only combinations that satisfy required execution keys. Unique
+   * combinations are tracked via hash to avoid duplicate executions, persisted into LOCAL state,
+   * and returned as ready-to-run input batches with resolved mapper conditions.
+   *
+   * @param stepTemplate step template for which input combinations are generated
+   * @param workflowRun active workflow run used to resolve global/local workflow states
+   * @return list of execution batches; empty when no mapper-driven execution is currently possible
+   */
+  public List<ConditionService.ExecutionBatch> extractInputsForStepExecution(
+      Step stepTemplate, Workflow workflowRun, List<Condition> mappers) throws ChainingException {
+
+    if (mappers.isEmpty()) {
+      return List.of(new ConditionService.ExecutionBatch(null, List.of()));
+    }
+
+    // Fetch States
+    WorkflowState globalState =
+        workflowStateService.getGlobalStateByWorkflowId(workflowRun.getId());
+    WorkflowState localState =
+        workflowStateService.getLocalStateByWorkflowAndStep(stepTemplate, workflowRun);
+
+    WorkflowStateEntries localEntries =
+        gson.fromJson(localState.getEntries(), WorkflowStateEntries.class);
+    WorkflowStateEntries globalEntries =
+        gson.fromJson(globalState.getEntries(), WorkflowStateEntries.class);
+
+    // Define the "Requirement" for a unique execution
+    Set<String> requiredKeys =
+        mappers.stream()
+            .filter(m -> m.getMappingType() != MappingType.DEFAULT)
+            .map(m -> m.getKeyType().name())
+            .collect(Collectors.toSet());
+
+    // Build the lists for the Cartesian Product
+    List<List<WorkflowStateEntries.Pair>> allPairsList = new ArrayList<>();
+    Map<String, String> staticValues = new HashMap<>();
+
+    for (Condition m : mappers) {
+      String key = m.getKeyType().name();
+
+      if (m.getMappingType() == MappingType.DEFAULT) {
+        staticValues.put(key, m.getValue());
+      } else {
+        Set<String> vals =
+            (m.getMappingType() == MappingType.GLOBAL)
+                ? globalEntries.getInputByKey(key).getValues()
+                : localEntries.getInputByKey(key).getValues();
+
+        if (vals == null || vals.isEmpty()) {
+          return new ArrayList<>();
+        }
+
+        // Convert these values into Pairs for the combination engine
+        List<WorkflowStateEntries.Pair> pairs =
+            vals.stream().map(v -> new WorkflowStateEntries.Pair(key, v)).toList();
+        allPairsList.add(pairs);
+      }
+    }
+
+    // Generate every possible combination (Local values X Global values)
+    List<List<WorkflowStateEntries.Pair>> product = localEntries.cartesianProduct(allPairsList);
+    List<ConditionService.ExecutionBatch> batches = new ArrayList<>();
+
+    for (List<WorkflowStateEntries.Pair> comboPairs : product) {
+      // Create a sorted map of this specific combination for consistent hashing
+      Map<String, String> comboMap = new TreeMap<>();
+      comboPairs.forEach(p -> comboMap.put(p.key(), p.value()));
+
+      // Ensure this combo has everything the mappers required
+      if (localEntries.comboContainAllExecutionKeys(requiredKeys, comboMap)) {
+
+        // HASHING: This hash represents the UNIQUE combination of Local + Global data
+        long hash = localEntries.hashCombo(comboMap);
+
+        // Check if THIS specific step has already executed this combo
+        if (!localEntries.getHashExecution().contains(hash)) {
+
+          // Prepare the full input including static DEFAULT values
+          Map<String, String> fullInput = new HashMap<>(comboMap);
+          fullInput.putAll(staticValues);
+
+          List<Condition> resolvedMappers =
+              mappers.stream()
+                  .map(
+                      template -> {
+                        Condition resolved = new Condition();
+
+                        // Copy metadata from template
+                        resolved.setType(ConditionType.MAPPER);
+                        resolved.setKey(template.getKey());
+                        resolved.setKeyType(template.getKeyType());
+                        resolved.setMappingType(template.getMappingType());
+                        resolved.setDescription(template.getDescription());
+                        resolved.setKeySubtype(template.getKeySubtype());
+                        resolved.setName(template.getName());
+                        resolved.setWorkflowId(template.getWorkflowId());
+                        resolved.setCreationDate(Instant.now());
+                        resolved.setUpdateDate(Instant.now());
+
+                        // Fetch the specific value used in this execution batch
+                        String actualValue = fullInput.get(template.getKeyType().name());
+                        resolved.setValue(actualValue);
+
+                        return resolved;
+                      })
+                  .collect(Collectors.toList());
+
+          batches.add(new ConditionService.ExecutionBatch(gson.toJson(fullInput), resolvedMappers));
+
+          // Persist the hash locally
+          localEntries.getHashExecution().add(hash);
+        }
+      }
+    }
+
+    // Save the updated hash list to the LOCAL state
+    localState.setEntries(gson.toJson(localEntries));
+    workflowStateService.save(localState);
+
+    return batches;
   }
 
   /**

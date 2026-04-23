@@ -9,12 +9,12 @@ import io.openaev.api.chaining.dto.StepInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.StepDelayQueueRepository;
+import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
-import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -27,15 +27,16 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Service
 public class StepService implements StepEventHandler, ExternalUpdateEventHandler {
+
   private final InjectExecutionStep injectExecutionStep;
 
   private final WorkflowService workflowService;
   private final WorkflowStateService workflowStateService;
   public final ConditionService conditionService;
   private final QueueChainingService queueChainingService;
-  private final StepDelayQueueRepository stepDelayQueueRepository;
 
-  private static final Gson gson = new Gson();
+  private final StepDelayQueueRepository stepDelayQueueRepository;
+  private final StepRepository stepRepository;
 
   /**
    * Create a single step template.
@@ -180,17 +181,13 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
         findByIdAndStatus(nextStepTemplateToExecute.getId(), StepStatus.TEMPLATE);
 
     // CHECK CONDITIONS
-    List<Condition> conditionExecution =
-        conditionService.checkCondition(
-            nextStepTemplateToExecutePersisted, input, workflowRun, this);
-
-    // Validate rate limit condition before create step ready
-    // conditionService.validateRateLimitCondition(nextStepTemplateToExecutePersisted, workflowRun);
-
-    // Now receiving a list of batches (Input string + the Mappers that provided the data)
     List<ConditionService.ExecutionBatch> batches =
-        extractInputsForStepExecution(nextStepTemplateToExecutePersisted, workflowRun);
+        conditionService.checkCondition(nextStepTemplateToExecutePersisted, workflowRun);
 
+    // List<Condition> conditionExecution:
+    // 1. null  : push in delay queue or exced limit execution or condition invalid  -> no execution
+    // 2. empty  : no condition                                                  -> direct execution
+    // 3. not empty : all conditions are valid (will be saved as condition execution)   -> execution
     for (ConditionService.ExecutionBatch batch : batches) {
       Step stepReady =
           actionStep
@@ -343,8 +340,9 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     List<Step> stepsCopied = new ArrayList<>();
     for (Step step : stepsFrom) {
       String data = step.getData();
-      if (workflowTo.getSimulation() != null)
+      if (workflowTo.getSimulation() != null) {
         data = StepService.setField(data, "inject_exercise", workflowTo.getSimulation().getId());
+      }
 
       Step copy =
           Step.builder()
@@ -792,7 +790,9 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
       StringBuilder copyPath = new StringBuilder(path.toString());
       copyPath.append(indexArray).append(".");
       if (tabIndex == null || tabIndex == indexArray) {
-        if (tabIndex != null) index++;
+        if (tabIndex != null) {
+          index++;
+        }
         if (index == treeToUpdate.size() - 1 && tabIndex != null) {
           actionJson(
               fieldsAndValue,
@@ -1132,138 +1132,6 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
         }
       }
     }
-  }
-
-  /**
-   * Builds execution batches for a template step from workflow global/local mapper states.
-   *
-   * <p>For each mapper on the template, this method collects candidate values from the relevant
-   * partition (GLOBAL or LOCAL), computes the Cartesian product of all dynamic values, merges
-   * DEFAULT mapper values, and keeps only combinations that satisfy required execution keys. Unique
-   * combinations are tracked via hash to avoid duplicate executions, persisted into LOCAL state,
-   * and returned as ready-to-run input batches with resolved mapper conditions.
-   *
-   * @param stepTemplate step template for which input combinations are generated
-   * @param workflowRun active workflow run used to resolve global/local workflow states
-   * @return list of execution batches; empty when no mapper-driven execution is currently possible
-   */
-  public List<ConditionService.ExecutionBatch> extractInputsForStepExecution(
-      Step stepTemplate, Workflow workflowRun) {
-    // Identify Mappers
-    List<Condition> mappers =
-        conditionService.findAllConditionsByStepId(stepTemplate.getId()).stream()
-            .filter(c -> c.getType() == ConditionType.MAPPER)
-            .toList();
-
-    if (mappers.isEmpty()) {
-      return List.of(new ConditionService.ExecutionBatch(null, List.of()));
-    }
-
-    // Fetch States
-    WorkflowState globalState =
-        workflowStateService.getGlobalStateByWorkflowId(workflowRun.getId());
-    WorkflowState localState =
-        workflowStateService.getLocalStateByWorkflowAndStep(stepTemplate, workflowRun);
-
-    WorkflowStateEntries localEntries =
-        gson.fromJson(localState.getEntries(), WorkflowStateEntries.class);
-    WorkflowStateEntries globalEntries =
-        gson.fromJson(globalState.getEntries(), WorkflowStateEntries.class);
-
-    // Define the "Requirement" for a unique execution
-    Set<String> requiredKeys =
-        mappers.stream()
-            .filter(m -> m.getMappingType() != MappingType.DEFAULT)
-            .map(m -> m.getKeyType().name())
-            .collect(Collectors.toSet());
-
-    // Build the lists for the Cartesian Product
-    List<List<WorkflowStateEntries.Pair>> allPairsList = new ArrayList<>();
-    Map<String, String> staticValues = new HashMap<>();
-
-    for (Condition m : mappers) {
-      String key = m.getKeyType().name();
-
-      if (m.getMappingType() == MappingType.DEFAULT) {
-        staticValues.put(key, m.getValue());
-      } else {
-        Set<String> vals =
-            (m.getMappingType() == MappingType.GLOBAL)
-                ? globalEntries.getInputByKey(key).getValues()
-                : localEntries.getInputByKey(key).getValues();
-
-        if (vals == null || vals.isEmpty()) {
-          return new ArrayList<>();
-        }
-
-        // Convert these values into Pairs for the combination engine
-        List<WorkflowStateEntries.Pair> pairs =
-            vals.stream().map(v -> new WorkflowStateEntries.Pair(key, v)).toList();
-        allPairsList.add(pairs);
-      }
-    }
-
-    // Generate every possible combination (Local values X Global values)
-    List<List<WorkflowStateEntries.Pair>> product = localEntries.cartesianProduct(allPairsList);
-    List<ConditionService.ExecutionBatch> batches = new ArrayList<>();
-
-    for (List<WorkflowStateEntries.Pair> comboPairs : product) {
-      // Create a sorted map of this specific combination for consistent hashing
-      Map<String, String> comboMap = new TreeMap<>();
-      comboPairs.forEach(p -> comboMap.put(p.key(), p.value()));
-
-      // Ensure this combo has everything the mappers required
-      if (localEntries.comboContainAllExecutionKeys(requiredKeys, comboMap)) {
-
-        // HASHING: This hash represents the UNIQUE combination of Local + Global data
-        long hash = localEntries.hashCombo(comboMap);
-
-        // Check if THIS specific step has already executed this combo
-        if (!localEntries.getHashExecution().contains(hash)) {
-
-          // Prepare the full input including static DEFAULT values
-          Map<String, String> fullInput = new HashMap<>(comboMap);
-          fullInput.putAll(staticValues);
-
-          List<Condition> resolvedMappers =
-              mappers.stream()
-                  .map(
-                      template -> {
-                        Condition resolved = new Condition();
-
-                        // Copy metadata from template
-                        resolved.setType(ConditionType.MAPPER);
-                        resolved.setKey(template.getKey());
-                        resolved.setKeyType(template.getKeyType());
-                        resolved.setMappingType(template.getMappingType());
-                        resolved.setDescription(template.getDescription());
-                        resolved.setKeySubtype(template.getKeySubtype());
-                        resolved.setName(template.getName());
-                        resolved.setWorkflowId(template.getWorkflowId());
-                        resolved.setCreationDate(Instant.now());
-                        resolved.setUpdateDate(Instant.now());
-
-                        // Fetch the specific value used in this execution batch
-                        String actualValue = fullInput.get(template.getKeyType().name());
-                        resolved.setValue(actualValue);
-
-                        return resolved;
-                      })
-                  .collect(Collectors.toList());
-
-          batches.add(new ConditionService.ExecutionBatch(gson.toJson(fullInput), resolvedMappers));
-
-          // Persist the hash locally
-          localEntries.getHashExecution().add(hash);
-        }
-      }
-    }
-
-    // Save the updated hash list to the LOCAL state
-    localState.setEntries(gson.toJson(localEntries));
-    workflowStateService.save(localState);
-
-    return batches;
   }
 
   public enum ACTION_JSON {
