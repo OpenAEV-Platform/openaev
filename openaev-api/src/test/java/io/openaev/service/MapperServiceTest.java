@@ -3,8 +3,11 @@ package io.openaev.service;
 import static io.openaev.utils.StringUtils.duplicateString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -14,10 +17,17 @@ import io.openaev.database.model.InjectImporter;
 import io.openaev.database.repository.EndpointRepository;
 import io.openaev.database.repository.ImportMapperRepository;
 import io.openaev.database.repository.InjectorContractRepository;
+import io.openaev.rest.exception.BadRequestException;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.mapper.form.*;
 import io.openaev.rest.tag.TagService;
+import io.openaev.utils.TargetType;
+import io.openaev.utils.constants.Constants;
 import io.openaev.utils.mockMapper.MockMapperUtils;
 import io.openaev.utilstest.RabbitMQTestListener;
+import jakarta.servlet.http.HttpServletResponse;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -27,6 +37,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.TestExecutionListeners;
 
 @SpringBootTest
@@ -306,5 +317,66 @@ public class MapperServiceTest extends IntegrationTest {
     // -- ASSERT --
     assertNotNull(response);
     assertEquals(response.getId(), importMapper.getId());
+  }
+
+  @DisplayName("given_blankMapperId_should_throwElementNotFoundException")
+  @Test
+  void given_blankMapperId_should_throwElementNotFoundException() {
+    // Arrange
+    String blankMapperId = "";
+
+    // Act / Assert
+    assertThrows(
+        ElementNotFoundException.class,
+        () -> mapperService.getDuplicateImportMapper(blankMapperId));
+  }
+
+  @DisplayName("given_unsupportedTargetType_should_throwBadRequestException_whenExportMappersCsv")
+  @Test
+  void given_unsupportedTargetType_should_throwBadRequestException_whenExportMappersCsv() {
+    // Arrange
+    HttpServletResponse response = org.mockito.Mockito.mock(HttpServletResponse.class);
+
+    // Act / Assert
+    assertThrows(
+        BadRequestException.class,
+        () ->
+            mapperService.exportMappersCsv(
+                TargetType.AGENT,
+                new io.openaev.utils.pagination.SearchPaginationInput(),
+                response));
+    verifyNoInteractions(endpointRepository, injectorContractRepository);
+  }
+
+  @DisplayName("given_unsupportedTargetType_should_throwBadRequestException_whenImportMappersCsv")
+  @Test
+  void given_unsupportedTargetType_should_throwBadRequestException_whenImportMappersCsv() {
+    // Arrange
+    MockMultipartFile csvFile =
+        new MockMultipartFile(
+            "file", "mappers.csv", "text/csv", "header\nvalue".getBytes(StandardCharsets.UTF_8));
+
+    // Act / Assert
+    assertThrows(
+        BadRequestException.class, () -> mapperService.importMappersCsv(csvFile, TargetType.AGENT));
+  }
+
+  @DisplayName("given_mappersInput_should_appendImportedSuffix_whenImportMappers")
+  @Test
+  void given_mappersInput_should_appendImportedSuffix_whenImportMappers() {
+    // Arrange
+    ImportMapperAddInput input = new ImportMapperAddInput();
+    input.setName("My mapper");
+    input.setInjectTypeColumn("type");
+    input.setImporters(List.of());
+
+    // Act
+    mapperService.importMappers(List.of(input));
+
+    // Assert
+    ArgumentCaptor<List<ImportMapper>> captor = ArgumentCaptor.forClass(List.class);
+    verify(importMapperRepository).saveAll(captor.capture());
+    assertEquals(1, captor.getValue().size());
+    assertTrue(captor.getValue().get(0).getName().endsWith(Constants.IMPORTED_OBJECT_NAME_SUFFIX));
   }
 }
