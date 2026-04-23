@@ -105,8 +105,7 @@ public class XtmHubApi extends RestBehavior {
   @PutMapping(value = XTMHUB_URI + "/auto-register", consumes = MediaType.APPLICATION_JSON_VALUE)
   @Operation(
       summary = "Autoregister OpenAEV into XTM Hub",
-      description =
-          "Register platform on xtmhub and Save registration data into settings from XTM Hub registration")
+      description = "Register platform on xtmhub and Save registration data")
   @ApiResponses({
     @ApiResponse(responseCode = "204", description = "Successful registration"),
     @ApiResponse(responseCode = "502", description = "Registration failed on XTM Hub call"),
