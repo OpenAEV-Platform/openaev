@@ -16,6 +16,7 @@ import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.scheduler.jobs.QueueChainingJob;
+import io.openaev.utils.ConditionUtils;
 import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -40,6 +41,7 @@ public class StepServiceTest {
   @Mock private WorkflowService workflowService;
   @Mock private WorkflowStateService workflowStateService;
   @Mock private ConditionService conditionService;
+  @Mock private ConditionUtils conditionUtils;
   @Mock private QueueChainingService queueChainingService;
   @Mock private StepDelayQueueService stepDelayQueueService;
   @Mock private StepDelayQueueRepository stepDelayQueueRepository;
@@ -387,8 +389,6 @@ public class StepServiceTest {
           .when(stepService)
           .ready(any(Step.class), eq(workflowRun), isNull());
 
-      doNothing().when(stepService).prepareInitialWorkflowState(workflowRun);
-
       // -------- Act --------
       stepService.startWorkflowBySimulationId(simulationId);
 
@@ -412,6 +412,8 @@ public class StepServiceTest {
       for (Workflow wfArg : workflowCaptor.getAllValues()) {
         assertSame(workflowRun, wfArg);
       }
+
+      verify(workflowStateService).prepareInitialWorkflowState(workflowRun);
 
       verifyNoMoreInteractions(workflowService);
     }
@@ -459,8 +461,6 @@ public class StepServiceTest {
           .when(stepService)
           .ready(stepTemplate, workflowRun, null);
 
-      doNothing().when(stepService).prepareInitialWorkflowState(workflowRun);
-
       if (!hasValidStep) {
         when(stepDelayQueueRepository.findAllByWorkflowRun(workflowRun))
             .thenReturn(hasDelayedTemplate ? List.of(mock(StepDelayQueue.class)) : List.of());
@@ -481,6 +481,7 @@ public class StepServiceTest {
       } else {
         verify(stepDelayQueueRepository).findAllByWorkflowRun(workflowRun);
       }
+      verify(workflowStateService).prepareInitialWorkflowState(workflowRun);
     }
 
     private static Stream<Arguments> workflowStatusMatrixInputs() {
@@ -523,7 +524,7 @@ public class StepServiceTest {
 
         verify(stepRepository, never()).findById(anyString());
         verify(stepRepository, never()).save(any());
-        verify(conditionService, never()).checkCondition(any(), any(), any(), any());
+        verify(conditionService, never()).checkCondition(any(), any(), any());
         verify(conditionService, never()).saveAllConditions(anyList());
         verify(queueChainingService, never()).readyStep(any(), any());
       }
@@ -547,27 +548,29 @@ public class StepServiceTest {
         String input = "{\"hello\":\"world\"}";
         String stepId = UUID.randomUUID().toString();
 
-        when(nextStepTemplateToExecute.getStepAction()).thenReturn(null);
-        doReturn(actionStep).when(stepService).factoryAction(null, stepId);
+        when(nextStepTemplateToExecute.getStepAction())
+            .thenReturn(StepActionClass.INJECT_EXECUTION);
+        doReturn(actionStep)
+            .when(stepService)
+            .factoryAction(StepActionClass.INJECT_EXECUTION, stepId);
 
         when(nextStepTemplateToExecute.getId()).thenReturn(stepId);
         when(stepRepository.findByIdAndStatus(stepId, StepStatus.TEMPLATE))
             .thenReturn(Optional.of(persistedTemplate));
 
-        // No batches → loop body never executes; ready() still returns the persisted template
-        doReturn(Collections.emptyList())
-            .when(stepService)
-            .extractInputsForStepExecution(persistedTemplate, workflowRun);
+        when(conditionService.checkCondition(persistedTemplate, workflowRun, input))
+            .thenReturn(null);
 
         // -------- Act --------
         Optional<Step> resultOpt = stepService.ready(nextStepTemplateToExecute, workflowRun, input);
 
         // -------- Assert --------
-        assertTrue(resultOpt.isPresent());
-        assertSame(persistedTemplate, resultOpt.get());
+        assertTrue(resultOpt.isEmpty());
 
         verify(stepRepository).findByIdAndStatus(stepIdCaptor.capture(), any());
         assertEquals(stepId, stepIdCaptor.getValue());
+
+        verify(conditionService).checkCondition(persistedTemplate, workflowRun, input);
 
         verify(actionStep, never()).ready(any(), any(), any());
         verify(stepRepository, never()).save(any());
@@ -606,9 +609,8 @@ public class StepServiceTest {
         List<Condition> usedMappers = new ArrayList<>(List.of(c1, c2));
 
         // Provide one batch carrying the resolved input and the two mapper conditions
-        doReturn(List.of(new ConditionService.ExecutionBatch(input, usedMappers)))
-            .when(stepService)
-            .extractInputsForStepExecution(persistedTemplate, workflowRun);
+        when(conditionService.checkCondition(persistedTemplate, workflowRun, input))
+            .thenReturn(List.of(new ConditionService.ExecutionBatch(input, usedMappers)));
 
         Step stepReady = mock(Step.class);
 
@@ -683,9 +685,8 @@ public class StepServiceTest {
         List<Condition> usedMappers = new ArrayList<>(List.of(c1));
 
         // Supply one batch so the loop body executes and readyStep is reached
-        doReturn(List.of(new ConditionService.ExecutionBatch(input, usedMappers)))
-            .when(stepService)
-            .extractInputsForStepExecution(persistedTemplate, workflowRun);
+        when(conditionService.checkCondition(persistedTemplate, workflowRun, input))
+            .thenReturn(List.of(new ConditionService.ExecutionBatch(input, usedMappers)));
 
         Step stepReady = mock(Step.class);
 
@@ -1351,7 +1352,7 @@ public class StepServiceTest {
       Condition mapper = mock(Condition.class);
       when(mapper.getKeyType()).thenReturn(ConditionKeyType.Text);
       when(targetTemplate.getConditions()).thenReturn(List.of(mapper));
-      when(conditionService.isMapperCondition(mapper)).thenReturn(true);
+      when(conditionUtils.isMapperCondition(mapper)).thenReturn(true);
 
       when(conditionService.extractKeyTypesFromOutput(currentOutput))
           .thenReturn(Set.of(ConditionKeyType.Text));
@@ -1388,7 +1389,7 @@ public class StepServiceTest {
       Condition nonMatchingMapper = mock(Condition.class);
       when(nonMatchingMapper.getKeyType()).thenReturn(ConditionKeyType.Number);
       when(targetTemplate.getConditions()).thenReturn(List.of(nonMatchingMapper));
-      when(conditionService.isMapperCondition(nonMatchingMapper)).thenReturn(true);
+      when(conditionUtils.isMapperCondition(nonMatchingMapper)).thenReturn(true);
 
       when(conditionService.extractKeyTypesFromOutput(currentOutput))
           .thenReturn(Set.of(ConditionKeyType.Text));
@@ -1426,8 +1427,8 @@ public class StepServiceTest {
       when(mapper2.getKeyType()).thenReturn(ConditionKeyType.Text);
       when(target1.getConditions()).thenReturn(List.of(mapper1));
       when(target2.getConditions()).thenReturn(List.of(mapper2));
-      when(conditionService.isMapperCondition(mapper1)).thenReturn(true);
-      when(conditionService.isMapperCondition(mapper2)).thenReturn(true);
+      when(conditionUtils.isMapperCondition(mapper1)).thenReturn(true);
+      when(conditionUtils.isMapperCondition(mapper2)).thenReturn(true);
 
       when(conditionService.extractKeyTypesFromOutput(currentOutput))
           .thenReturn(Set.of(ConditionKeyType.Text));
@@ -1446,53 +1447,6 @@ public class StepServiceTest {
 
       verify(stepService).ready(target1, workflowExecution, null);
       verify(stepService).ready(target2, workflowExecution, null);
-    }
-  }
-
-  @Nested
-  class PrepareInitialWorkflowState {
-
-    @Test
-    void shouldExtractInputsAndTriggerDataChaining() {
-      Workflow workflowExecution = mock(Workflow.class);
-      WorkflowState savedScopeData = mock(WorkflowState.class);
-
-      when(savedScopeData.getEntries())
-          .thenReturn("{\"inputs\":{\"campaign\":\"c1\"},\"metadata\":{\"v\":1}}");
-      when(workflowStateService.createGlobalState(workflowExecution)).thenReturn(savedScopeData);
-
-      doNothing().when(stepService).processDataChaining(anyString(), eq(workflowExecution));
-
-      stepService.prepareInitialWorkflowState(workflowExecution);
-
-      verify(stepService).processDataChaining("{\"campaign\":\"c1\"}", workflowExecution);
-    }
-
-    @Test
-    void shouldSkipDataChainingWhenScopeIsBlank() {
-      Workflow workflowExecution = mock(Workflow.class);
-      WorkflowState savedScopeData = mock(WorkflowState.class);
-
-      when(savedScopeData.getEntries()).thenReturn("   ");
-      when(workflowStateService.createGlobalState(workflowExecution)).thenReturn(savedScopeData);
-
-      stepService.prepareInitialWorkflowState(workflowExecution);
-
-      verify(stepService, never()).processDataChaining(anyString(), any());
-    }
-
-    @Test
-    void shouldNotThrowAndSkipDataChainingWhenScopeJsonIsMalformed() {
-      Workflow workflowExecution = mock(Workflow.class);
-      WorkflowState savedScopeData = mock(WorkflowState.class);
-      when(workflowExecution.getId()).thenReturn(UUID.randomUUID().toString());
-
-      when(savedScopeData.getEntries()).thenReturn("{malformed-json");
-      when(workflowStateService.createGlobalState(workflowExecution)).thenReturn(savedScopeData);
-
-      assertDoesNotThrow(() -> stepService.prepareInitialWorkflowState(workflowExecution));
-
-      verify(stepService, never()).processDataChaining(anyString(), any());
     }
   }
 

@@ -51,80 +51,80 @@ public class WorkflowStateService {
    */
   @Transactional
   public JsonObject syncInjectOutputToGlobalState(Inject inject, Step stepRun) {
-    Optional<InjectStatus> injectStatus = inject.getStatus();
-    JsonObject allStepParsed = new JsonObject();
+    return inject
+        .getStatus()
+        .filter(status -> status.getTraces() != null)
+        .map(status -> processSync(inject, stepRun, status))
+        .orElseGet(JsonObject::new);
+  }
 
-    if (injectStatus.isPresent() && injectStatus.get().getTraces() != null) {
-      Map<String, ContractOutputType> fieldTypeMap = new HashMap<>();
+  private JsonObject processSync(Inject inject, Step stepRun, InjectStatus status) {
+    JsonObject extractedOutputs = new JsonObject();
+    Map<String, ContractOutputType> fieldTypeMap = buildFieldTypeMap(inject);
 
-      // For Payloads
-      if (inject.getPayload().isPresent()) {
-        Set<OutputParser> outputParsers = structuredOutputUtils.extractOutputParsers(inject);
-        injectorContractContentUtils
-            .getAllContractOutputs(outputParsers)
-            .forEach(out -> fieldTypeMap.put(out.getKey(), out.getType()));
-      }
-      // For injects with inject contracts from injector externals like nmap, nuclei...
-      else {
-        if (inject.getInjectorContract().isPresent()) {
-          injectorContractContentUtils
-              .getAllContractOutputs(inject.getInjectorContract().get())
-              .forEach(out -> fieldTypeMap.put(out.getField(), out.getType()));
-        }
-      }
-
-      // Load Global State
-      WorkflowState globalState = getGlobalStateByWorkflowId(stepRun.getWorkflow().getId());
-
-      if (globalState == null) {
-        log.warn(
-            "No global state found for workflow {}. Skipping sync of inject {} output.",
-            stepRun.getWorkflow().getId(),
-            inject.getId());
-        return allStepParsed;
-      }
-
-      // Deserialize entries
-      WorkflowStateEntries entries =
-          gson.fromJson(globalState.getEntries(), WorkflowStateEntries.class);
-
-      // Process traces
-      injectStatus
-          .get()
-          .getTraces()
-          .forEach(
-              trace -> {
-                ObjectNode structuredOutput = trace.getStructuredOutput();
-                if (structuredOutput == null || structuredOutput.isEmpty()) {
-                  return;
-                }
-
-                try {
-                  JsonElement element = JsonParser.parseString(structuredOutput.toString());
-                  if (element.isJsonObject()) {
-                    Map<String, List<String>> traceData =
-                        saveToEntries(entries, element.getAsJsonObject(), fieldTypeMap);
-
-                    traceData.forEach(
-                        (key, values) -> {
-                          JsonArray arr = allStepParsed.getAsJsonArray(key);
-                          if (arr == null) {
-                            arr = new JsonArray();
-                            allStepParsed.add(key, arr);
-                          }
-                          values.forEach(arr::add);
-                        });
-                  }
-                } catch (Exception e) {
-                  log.error("Failed to sync trace {} to global state", trace.getId(), e);
-                }
-              });
-
-      // Save JSON back to DB
-      globalState.setEntries(gson.toJson(entries));
-      save(globalState);
+    WorkflowState globalState = getGlobalStateByWorkflowId(stepRun.getWorkflow().getId());
+    if (globalState == null) {
+      log.warn(
+          "No global state found for workflow {}. Skipping sync.", stepRun.getWorkflow().getId());
+      return extractedOutputs;
     }
-    return allStepParsed;
+
+    WorkflowStateEntries entries =
+        gson.fromJson(globalState.getEntries(), WorkflowStateEntries.class);
+
+    // Process traces
+    status
+        .getTraces()
+        .forEach(
+            trace -> {
+              ObjectNode structuredOutput = trace.getStructuredOutput();
+              if (structuredOutput == null || structuredOutput.isEmpty()) {
+                return;
+              }
+
+              try {
+                JsonElement element = JsonParser.parseString(structuredOutput.toString());
+                if (element.isJsonObject()) {
+                  Map<String, List<String>> traceData =
+                      saveToEntries(entries, element.getAsJsonObject(), fieldTypeMap);
+
+                  traceData.forEach(
+                      (key, values) -> {
+                        JsonArray arr = extractedOutputs.getAsJsonArray(key);
+                        if (arr == null) {
+                          arr = new JsonArray();
+                          extractedOutputs.add(key, arr);
+                        }
+                        values.forEach(arr::add);
+                      });
+                }
+              } catch (Exception e) {
+                log.error("Failed to sync trace {} to global state", trace.getId(), e);
+              }
+            });
+
+    // Save JSON back to DB
+    globalState.setEntries(gson.toJson(entries));
+    save(globalState);
+
+    return extractedOutputs;
+  }
+
+  private Map<String, ContractOutputType> buildFieldTypeMap(Inject inject) {
+    Map<String, ContractOutputType> fieldTypeMap = new HashMap<>();
+    if (inject.getPayload().isPresent()) {
+      Set<OutputParser> outputParsers = structuredOutputUtils.extractOutputParsers(inject);
+      injectorContractContentUtils
+          .getAllContractOutputs(outputParsers)
+          .forEach(out -> fieldTypeMap.put(out.getKey(), out.getType()));
+    } else {
+      if (inject.getInjectorContract().isPresent()) {
+        injectorContractContentUtils
+            .getAllContractOutputs(inject.getInjectorContract().get())
+            .forEach(out -> fieldTypeMap.put(out.getField(), out.getType()));
+      }
+    }
+    return fieldTypeMap;
   }
 
   private Map<String, List<String>> saveToEntries(

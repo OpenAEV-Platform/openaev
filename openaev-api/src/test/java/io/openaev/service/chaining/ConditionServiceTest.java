@@ -9,6 +9,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.ConditionRepository;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.ChainingException;
+import io.openaev.utils.ConditionUtils;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.Instant;
 import java.util.*;
@@ -30,6 +31,8 @@ public class ConditionServiceTest {
   @Captor private ArgumentCaptor<List<Condition>> conditionsCaptor;
   @Mock private ConditionRepository conditionRepository;
   @Mock private StepRepository stepRepository;
+  @Mock private WorkflowStateService workflowStateService;
+  @Mock private ConditionUtils conditionUtils;
   @Mock private QueueChainingService queueChainingService;
   @Mock private StepDelayQueueService stepDelayQueueService;
 
@@ -53,7 +56,7 @@ public class ConditionServiceTest {
 
       boolean expected = (type == ConditionType.AFTER || type == ConditionType.BEFORE);
       // -------- Act --------
-      boolean result = conditionService.isTimeCondition(condition);
+      boolean result = conditionUtils.isTimeCondition(condition);
 
       // -------- Assert --------
       assertEquals(result, expected);
@@ -81,7 +84,7 @@ public class ConditionServiceTest {
       boolean expected = type == ConditionType.MAPPER;
 
       // -------- Act --------
-      boolean actual = conditionService.isMapperCondition(condition);
+      boolean actual = conditionUtils.isMapperCondition(condition);
 
       // -------- Assert --------
       assertEquals(expected, actual);
@@ -111,7 +114,7 @@ public class ConditionServiceTest {
               || type == ConditionType.BEFORE
               || type == ConditionType.MAPPER);
       // -------- Act --------
-      boolean result = conditionService.isFilterCondition(condition);
+      boolean result = conditionUtils.isFilterCondition(condition);
 
       // -------- Assert --------
       assertEquals(expected, result);
@@ -141,7 +144,7 @@ public class ConditionServiceTest {
           };
 
       // -------- Act --------
-      boolean result = conditionService.isTimeConditionValid(template, now, goal);
+      boolean result = conditionUtils.isTimeConditionValid(template, now, goal);
 
       // -------- Assert --------
       if (shouldCreate) {
@@ -271,12 +274,11 @@ public class ConditionServiceTest {
 
     @ParameterizedTest(name = "{index} => templates={0}")
     @MethodSource("noConditionTemplates")
-    void shouldReturnEmptyList_whenNoConditionTemplates(List<Condition> templates)
+    void shouldReturnSingleBatchWithInput_whenNoConditionTemplates(List<Condition> templates)
         throws ChainingException {
       // -------- Prepare --------
       Step stepTemplate = mock(Step.class);
       Workflow workflowRun = mock(Workflow.class);
-      StepService stepService = mock(StepService.class);
 
       String stepId = UUID.randomUUID().toString();
       when(stepTemplate.getId()).thenReturn(stepId);
@@ -284,12 +286,14 @@ public class ConditionServiceTest {
       when(conditionRepository.findAllLinkedToStepId(stepId)).thenReturn(templates);
 
       // -------- Act --------
-      List<Condition> result =
-          conditionService.checkCondition(stepTemplate, "{\"in\":1}", workflowRun, stepService);
+      List<ConditionService.ExecutionBatch> result =
+          conditionService.checkCondition(stepTemplate, workflowRun, "{\"in\":1}");
 
       // -------- Assert --------
       assertNotNull(result);
-      assertTrue(result.isEmpty());
+      assertEquals(1, result.size());
+      assertEquals("{\"in\":1}", result.getFirst().inputString());
+      assertTrue(result.getFirst().usedMappers().isEmpty());
 
       verify(conditionRepository).findAllLinkedToStepId(stepId);
     }
@@ -299,192 +303,36 @@ public class ConditionServiceTest {
     }
 
     @Test
-    void shouldAddValidTimeCondition_whenAfterAndGoalAlreadyReached() throws ChainingException {
-      // -------- Prepare --------
-      Step stepTemplate = mock(Step.class);
-      Workflow workflowRun = mock(Workflow.class);
-      StepService stepService = mock(StepService.class);
-
-      String stepId = UUID.randomUUID().toString();
-      when(stepTemplate.getId()).thenReturn(stepId);
-
-      // time condition template: AFTER with "0ms" from workflowCreatedAt
-      Condition timeTemplate = mock(Condition.class);
-      when(timeTemplate.getType()).thenReturn(ConditionType.AFTER);
-      when(timeTemplate.getValue()).thenReturn("0");
-      when(workflowRun.getWorkflowCreatedAt()).thenReturn(Instant.now().minusSeconds(60));
-
-      when(conditionRepository.findAllLinkedToStepId(stepId)).thenReturn(List.of(timeTemplate));
-
-      // -------- Act --------
-      List<Condition> result =
-          conditionService.checkCondition(stepTemplate, "{\"in\":1}", workflowRun, stepService);
-
-      // -------- Assert --------
-      assertNotNull(result);
-      assertEquals(1, result.size());
-
-      verify(conditionRepository).findAllLinkedToStepId(stepId);
-      verify(conditionService)
-          .isTimeConditionValid(eq(timeTemplate), any(Instant.class), any(Instant.class));
-      verifyNoInteractions(queueChainingService);
-      verifyNoInteractions(stepService);
-    }
-
-    @Test
-    void shouldDelayAndReturnNull_whenTimeConditionNotYetValid() throws Exception {
-      // -------- Prepare --------
-      Step stepTemplate = mock(Step.class);
-      Workflow workflowRun = mock(Workflow.class);
-      StepService stepService = mock(StepService.class);
-
-      String stepId = UUID.randomUUID().toString();
-      when(stepTemplate.getId()).thenReturn(stepId);
-
-      Condition timeTemplate = mock(Condition.class);
-      when(timeTemplate.getType()).thenReturn(ConditionType.AFTER);
-      when(timeTemplate.getValue()).thenReturn("60000"); // +60s from start
-      // workflowCreatedAt = now → goal = now + 60s = future → not yet valid
-      when(workflowRun.getWorkflowCreatedAt()).thenReturn(Instant.now());
-
-      when(conditionRepository.findAllLinkedToStepId(stepId)).thenReturn(List.of(timeTemplate));
-
-      // -------- Act --------
-      List<Condition> result =
-          conditionService.checkCondition(stepTemplate, "{\"in\":1}", workflowRun, stepService);
-
-      // -------- Assert --------
-      assertNull(result);
-      verify(conditionService)
-          .isTimeConditionValid(eq(timeTemplate), any(Instant.class), any(Instant.class));
-      verify(stepDelayQueueService)
-          .pushStepTemplateIntoStepDelayQueue(
-              any(Step.class),
-              any(Instant.class),
-              any(),
-              anyLong(),
-              any(Workflow.class),
-              any(Instant.class));
-    }
-
-    @Test
-    void shouldReturnEmptyList_whenAtLeastOneConditionsInvalid() throws ChainingException {
+    void shouldDelegateToExtractInputsForStepExecution_withMapperConditionsOnly()
+        throws ChainingException {
       // -------- Arrange --------
       Step stepTemplate = mock(Step.class);
       Workflow workflowRun = mock(Workflow.class);
-      StepService stepService = mock(StepService.class);
 
       String stepId = UUID.randomUUID().toString();
       when(stepTemplate.getId()).thenReturn(stepId);
-      when(stepTemplate.getData()).thenReturn("{\"data\" : \"data\"}");
-
-      // One filter condition (non time, non mapper) + one mapper condition
       Condition filterTemplate = mock(Condition.class);
-      when(filterTemplate.getType()).thenReturn(ConditionType.EQ);
       Condition mapperTemplate = mock(Condition.class);
-      when(mapperTemplate.getType()).thenReturn(ConditionType.MAPPER);
-      List<Condition> conditions = new ArrayList<>();
-      conditions.add(filterTemplate);
-      conditions.add(mapperTemplate);
+      List<Condition> conditions = List.of(filterTemplate, mapperTemplate);
 
-      // Use doReturn to avoid calling the real method on the spy during stub setup
       doReturn(conditions).when(conditionService).findAllConditionsByStepId(stepId);
+      when(conditionUtils.isMapperCondition(filterTemplate)).thenReturn(false);
+      when(conditionUtils.isMapperCondition(mapperTemplate)).thenReturn(true);
 
-      // isMapperConditionValid always returns null in the real impl; stub explicitly for clarity
-      doReturn(null)
+      List<ConditionService.ExecutionBatch> expected =
+          List.of(new ConditionService.ExecutionBatch("{\"IPv4\":\"10.10.10.10\"}", List.of()));
+      doReturn(expected)
           .when(conditionService)
-          .isMapperConditionValid(eq(mapperTemplate), anyString(), anyString());
+          .extractInputsForStepExecution(stepTemplate, workflowRun, List.of(mapperTemplate));
 
       // -------- Act --------
-      List<Condition> result =
-          conditionService.checkCondition(stepTemplate, "{\"in\":1}", workflowRun, stepService);
+      List<ConditionService.ExecutionBatch> result =
+          conditionService.checkCondition(stepTemplate, workflowRun, "{\"in\":1}");
 
       // -------- Assert --------
-      // Filter block is commented-out in checkCondition; only mapper conditions are evaluated.
-      // isMapperConditionValid returns null → nothing is added → result is empty.
-      assertNotNull(result);
-      assertTrue(result.isEmpty());
-
-      // Verify the mapper validity check was called with all 3 expected arguments
+      assertEquals(expected, result);
       verify(conditionService)
-          .isMapperConditionValid(mapperTemplate, "{\"in\":1}", "{\"data\" : \"data\"}");
-      verifyNoInteractions(queueChainingService);
-      verifyNoInteractions(stepService);
-    }
-
-    @Nested
-    class StepDependency {
-
-      @ParameterizedTest(name = "{index} => hasOutput={0}, underLimit={1}, expectedNull={2}")
-      @MethodSource("dependencyScenarios")
-      void shouldHandleStepFromDependency(
-          boolean hasOutput, boolean underLimit, boolean expectedNull) throws ChainingException {
-        // -------- Prepare --------
-        Step nextStepTemplateToExecute = mock(Step.class);
-        Workflow workflowRun = mock(Workflow.class);
-        StepService stepService = mock(StepService.class);
-
-        String nextId = UUID.randomUUID().toString();
-        String workflowRunId = UUID.randomUUID().toString();
-        String stepFromTemplateId = UUID.randomUUID().toString();
-
-        when(nextStepTemplateToExecute.getId()).thenReturn(nextId);
-        when(workflowRun.getId()).thenReturn(workflowRunId);
-
-        // Evaluated only when at least one dependent step has output.
-        if (hasOutput) {
-          when(nextStepTemplateToExecute.getLimitExecution()).thenReturn(3);
-          when(stepService.countExecutedStep(workflowRunId, nextId)).thenReturn(underLimit ? 2 : 3);
-        }
-
-        Condition depTemplate = mockCondition(ConditionType.DEPEND_ON);
-
-        Step stepFrom = mock(Step.class);
-        when(stepFrom.getId()).thenReturn(stepFromTemplateId);
-        when(depTemplate.getStepFrom()).thenReturn(stepFrom);
-
-        when(conditionRepository.findAllLinkedToStepId(nextId)).thenReturn(List.of(depTemplate));
-
-        Step executed = mock(Step.class);
-        when(executed.getOutput()).thenReturn(hasOutput ? "out" : null);
-
-        when(stepService.findAllStepExecutedByStepTemplateIdAndWorkflowRunId(
-                stepFromTemplateId, workflowRunId))
-            .thenReturn(List.of(executed));
-
-        Condition depExec = mock(Condition.class);
-        if (!expectedNull) doReturn(depExec).when(conditionService).isDependOn(stepFromTemplateId);
-
-        // -------- Act --------
-        List<Condition> result =
-            conditionService.checkCondition(
-                nextStepTemplateToExecute, "{\"in\":1}", workflowRun, stepService);
-
-        // -------- Assert --------
-        if (expectedNull) {
-          assertNull(result);
-          verify(conditionService, never()).isDependOn(anyString());
-        } else {
-          assertNotNull(result);
-          assertEquals(1, result.size());
-          assertSame(depExec, result.getFirst());
-          verify(conditionService).isDependOn(stepFromTemplateId);
-        }
-      }
-
-      static Stream<Arguments> dependencyScenarios() {
-        return Stream.of(
-            Arguments.of(true, true, false),
-            Arguments.of(false, true, true),
-            Arguments.of(true, false, true),
-            Arguments.of(false, false, true));
-      }
-
-      private Condition mockCondition(ConditionType type) {
-        Condition c = mock(Condition.class);
-        when(c.getType()).thenReturn(type);
-        return c;
-      }
+          .extractInputsForStepExecution(stepTemplate, workflowRun, List.of(mapperTemplate));
     }
   }
 
@@ -956,7 +804,7 @@ public class ConditionServiceTest {
     @Test
     void shouldReturnTrue_whenRootFilterIsNull() {
       // -------- Act / Assert --------
-      assertTrue(conditionService.isFilterConditionValid("anything", null));
+      assertTrue(conditionUtils.isFilterConditionValid("anything", null));
     }
 
     // -- AND logical operator --
@@ -969,7 +817,7 @@ public class ConditionServiceTest {
       and.setType(ConditionType.AND);
 
       // -------- Act / Assert --------
-      assertTrue(conditionService.isFilterConditionValid("x", and));
+      assertTrue(conditionUtils.isFilterConditionValid("x", and));
     }
 
     @Test
@@ -981,7 +829,7 @@ public class ConditionServiceTest {
       and.getConditionChildren().add(leaf(ConditionType.EQ, "admin"));
 
       // -------- Act / Assert --------
-      assertTrue(conditionService.isFilterConditionValid("admin", and));
+      assertTrue(conditionUtils.isFilterConditionValid("admin", and));
     }
 
     @Test
@@ -993,7 +841,7 @@ public class ConditionServiceTest {
       and.getConditionChildren().add(leaf(ConditionType.EQ, "admin")); // fails for "other"
 
       // -------- Act / Assert --------
-      assertFalse(conditionService.isFilterConditionValid("other", and));
+      assertFalse(conditionUtils.isFilterConditionValid("other", and));
     }
 
     // -- OR logical operator --
@@ -1006,7 +854,7 @@ public class ConditionServiceTest {
       or.setType(ConditionType.OR);
 
       // -------- Act / Assert --------
-      assertFalse(conditionService.isFilterConditionValid("x", or));
+      assertFalse(conditionUtils.isFilterConditionValid("x", or));
     }
 
     @Test
@@ -1018,7 +866,7 @@ public class ConditionServiceTest {
       or.getConditionChildren().add(leaf(ConditionType.IS_NOT_NULL, null)); // passes for "other"
 
       // -------- Act / Assert --------
-      assertTrue(conditionService.isFilterConditionValid("other", or));
+      assertTrue(conditionUtils.isFilterConditionValid("other", or));
     }
 
     @Test
@@ -1030,7 +878,7 @@ public class ConditionServiceTest {
       or.getConditionChildren().add(leaf(ConditionType.EQ, "root"));
 
       // -------- Act / Assert --------
-      assertFalse(conditionService.isFilterConditionValid("other", or));
+      assertFalse(conditionUtils.isFilterConditionValid("other", or));
     }
 
     /* ----------------------------------------------------------
@@ -1044,14 +892,13 @@ public class ConditionServiceTest {
 
       @Test
       void isNull_shouldReturnTrue_whenValueIsNull() {
-        assertTrue(
-            conditionService.isFilterConditionValid(null, leaf(ConditionType.IS_NULL, null)));
+        assertTrue(conditionUtils.isFilterConditionValid(null, leaf(ConditionType.IS_NULL, null)));
       }
 
       @Test
       void isNull_shouldReturnFalse_whenValueIsNotNull() {
         assertFalse(
-            conditionService.isFilterConditionValid("val", leaf(ConditionType.IS_NULL, null)));
+            conditionUtils.isFilterConditionValid("val", leaf(ConditionType.IS_NULL, null)));
       }
 
       // -- IS_NOT_NULL --
@@ -1059,32 +906,30 @@ public class ConditionServiceTest {
       @Test
       void isNotNull_shouldReturnTrue_whenValueIsNotNull() {
         assertTrue(
-            conditionService.isFilterConditionValid("val", leaf(ConditionType.IS_NOT_NULL, null)));
+            conditionUtils.isFilterConditionValid("val", leaf(ConditionType.IS_NOT_NULL, null)));
       }
 
       @Test
       void isNotNull_shouldReturnFalse_whenValueIsNull() {
         assertFalse(
-            conditionService.isFilterConditionValid(null, leaf(ConditionType.IS_NOT_NULL, null)));
+            conditionUtils.isFilterConditionValid(null, leaf(ConditionType.IS_NOT_NULL, null)));
       }
 
       // -- EQ --
 
       @Test
       void eq_shouldReturnTrue_whenValuesMatch_caseInsensitive() {
-        assertTrue(
-            conditionService.isFilterConditionValid("Admin", leaf(ConditionType.EQ, "admin")));
+        assertTrue(conditionUtils.isFilterConditionValid("Admin", leaf(ConditionType.EQ, "admin")));
       }
 
       @Test
       void eq_shouldReturnFalse_whenValuesDontMatch() {
-        assertFalse(
-            conditionService.isFilterConditionValid("root", leaf(ConditionType.EQ, "admin")));
+        assertFalse(conditionUtils.isFilterConditionValid("root", leaf(ConditionType.EQ, "admin")));
       }
 
       @Test
       void eq_shouldReturnFalse_whenActualValueIsNull() {
-        assertFalse(conditionService.isFilterConditionValid(null, leaf(ConditionType.EQ, "admin")));
+        assertFalse(conditionUtils.isFilterConditionValid(null, leaf(ConditionType.EQ, "admin")));
       }
 
       // -- NEQ --
@@ -1092,19 +937,17 @@ public class ConditionServiceTest {
       @Test
       void neq_shouldReturnFalse_whenValuesMatch() {
         assertFalse(
-            conditionService.isFilterConditionValid("admin", leaf(ConditionType.NEQ, "admin")));
+            conditionUtils.isFilterConditionValid("admin", leaf(ConditionType.NEQ, "admin")));
       }
 
       @Test
       void neq_shouldReturnTrue_whenValuesDontMatch() {
-        assertTrue(
-            conditionService.isFilterConditionValid("root", leaf(ConditionType.NEQ, "admin")));
+        assertTrue(conditionUtils.isFilterConditionValid("root", leaf(ConditionType.NEQ, "admin")));
       }
 
       @Test
       void neq_shouldReturnFalse_whenActualValueIsNull() {
-        assertFalse(
-            conditionService.isFilterConditionValid(null, leaf(ConditionType.NEQ, "admin")));
+        assertFalse(conditionUtils.isFilterConditionValid(null, leaf(ConditionType.NEQ, "admin")));
       }
 
       // -- IN --
@@ -1112,32 +955,31 @@ public class ConditionServiceTest {
       @Test
       void in_shouldReturnTrue_whenValueIsInTargetList() {
         assertTrue(
-            conditionService.isFilterConditionValid(
+            conditionUtils.isFilterConditionValid(
                 "admin", leaf(ConditionType.IN, "admin, root, guest")));
       }
 
       @Test
       void in_shouldReturnFalse_whenValueIsNotInTargetList() {
         assertFalse(
-            conditionService.isFilterConditionValid(
+            conditionUtils.isFilterConditionValid(
                 "unknown", leaf(ConditionType.IN, "admin, root")));
       }
 
       @Test
       void in_shouldBeCaseInsensitive() {
         assertTrue(
-            conditionService.isFilterConditionValid(
-                "ADMIN", leaf(ConditionType.IN, "admin, root")));
+            conditionUtils.isFilterConditionValid("ADMIN", leaf(ConditionType.IN, "admin, root")));
       }
 
       @Test
       void in_shouldReturnFalse_whenActualValueIsNull() {
-        assertFalse(conditionService.isFilterConditionValid(null, leaf(ConditionType.IN, "admin")));
+        assertFalse(conditionUtils.isFilterConditionValid(null, leaf(ConditionType.IN, "admin")));
       }
 
       @Test
       void in_shouldReturnFalse_whenTargetIsNull() {
-        assertFalse(conditionService.isFilterConditionValid("admin", leaf(ConditionType.IN, null)));
+        assertFalse(conditionUtils.isFilterConditionValid("admin", leaf(ConditionType.IN, null)));
       }
 
       // -- NIN --
@@ -1145,121 +987,118 @@ public class ConditionServiceTest {
       @Test
       void nin_shouldReturnFalse_whenValueIsInTargetList() {
         assertFalse(
-            conditionService.isFilterConditionValid(
-                "admin", leaf(ConditionType.NIN, "admin, root")));
+            conditionUtils.isFilterConditionValid("admin", leaf(ConditionType.NIN, "admin, root")));
       }
 
       @Test
       void nin_shouldReturnTrue_whenValueIsNotInTargetList() {
         assertTrue(
-            conditionService.isFilterConditionValid(
+            conditionUtils.isFilterConditionValid(
                 "unknown", leaf(ConditionType.NIN, "admin, root")));
       }
 
       @Test
       void nin_shouldReturnFalse_whenActualValueIsNull() {
-        assertFalse(
-            conditionService.isFilterConditionValid(null, leaf(ConditionType.NIN, "admin")));
+        assertFalse(conditionUtils.isFilterConditionValid(null, leaf(ConditionType.NIN, "admin")));
       }
 
       // -- GT --
 
       @Test
       void gt_shouldReturnTrue_whenActualIsGreaterThanTarget() {
-        assertTrue(conditionService.isFilterConditionValid("10", leaf(ConditionType.GT, "5")));
+        assertTrue(conditionUtils.isFilterConditionValid("10", leaf(ConditionType.GT, "5")));
       }
 
       @Test
       void gt_shouldReturnFalse_whenActualIsEqualToTarget() {
-        assertFalse(conditionService.isFilterConditionValid("5", leaf(ConditionType.GT, "5")));
+        assertFalse(conditionUtils.isFilterConditionValid("5", leaf(ConditionType.GT, "5")));
       }
 
       @Test
       void gt_shouldReturnFalse_whenActualIsLessThanTarget() {
-        assertFalse(conditionService.isFilterConditionValid("3", leaf(ConditionType.GT, "5")));
+        assertFalse(conditionUtils.isFilterConditionValid("3", leaf(ConditionType.GT, "5")));
       }
 
       @Test
       void gt_shouldReturnFalse_whenActualValueIsNull() {
-        assertFalse(conditionService.isFilterConditionValid(null, leaf(ConditionType.GT, "5")));
+        assertFalse(conditionUtils.isFilterConditionValid(null, leaf(ConditionType.GT, "5")));
       }
 
       @Test
       void gt_shouldReturnFalse_whenActualValueIsNotNumeric() {
-        assertFalse(conditionService.isFilterConditionValid("abc", leaf(ConditionType.GT, "5")));
+        assertFalse(conditionUtils.isFilterConditionValid("abc", leaf(ConditionType.GT, "5")));
       }
 
       // -- GTE --
 
       @Test
       void gte_shouldReturnTrue_whenActualIsGreaterThanTarget() {
-        assertTrue(conditionService.isFilterConditionValid("10", leaf(ConditionType.GTE, "5")));
+        assertTrue(conditionUtils.isFilterConditionValid("10", leaf(ConditionType.GTE, "5")));
       }
 
       @Test
       void gte_shouldReturnTrue_whenActualIsEqualToTarget() {
-        assertTrue(conditionService.isFilterConditionValid("5", leaf(ConditionType.GTE, "5")));
+        assertTrue(conditionUtils.isFilterConditionValid("5", leaf(ConditionType.GTE, "5")));
       }
 
       @Test
       void gte_shouldReturnFalse_whenActualIsLessThanTarget() {
-        assertFalse(conditionService.isFilterConditionValid("3", leaf(ConditionType.GTE, "5")));
+        assertFalse(conditionUtils.isFilterConditionValid("3", leaf(ConditionType.GTE, "5")));
       }
 
       @Test
       void gte_shouldReturnFalse_whenActualValueIsNull() {
-        assertFalse(conditionService.isFilterConditionValid(null, leaf(ConditionType.GTE, "5")));
+        assertFalse(conditionUtils.isFilterConditionValid(null, leaf(ConditionType.GTE, "5")));
       }
 
       // -- LT --
 
       @Test
       void lt_shouldReturnTrue_whenActualIsLessThanTarget() {
-        assertTrue(conditionService.isFilterConditionValid("3", leaf(ConditionType.LT, "5")));
+        assertTrue(conditionUtils.isFilterConditionValid("3", leaf(ConditionType.LT, "5")));
       }
 
       @Test
       void lt_shouldReturnFalse_whenActualIsEqualToTarget() {
-        assertFalse(conditionService.isFilterConditionValid("5", leaf(ConditionType.LT, "5")));
+        assertFalse(conditionUtils.isFilterConditionValid("5", leaf(ConditionType.LT, "5")));
       }
 
       @Test
       void lt_shouldReturnFalse_whenActualIsGreaterThanTarget() {
-        assertFalse(conditionService.isFilterConditionValid("10", leaf(ConditionType.LT, "5")));
+        assertFalse(conditionUtils.isFilterConditionValid("10", leaf(ConditionType.LT, "5")));
       }
 
       @Test
       void lt_shouldReturnFalse_whenActualValueIsNull() {
-        assertFalse(conditionService.isFilterConditionValid(null, leaf(ConditionType.LT, "5")));
+        assertFalse(conditionUtils.isFilterConditionValid(null, leaf(ConditionType.LT, "5")));
       }
 
       // -- LTE --
 
       @Test
       void lte_shouldReturnTrue_whenActualIsLessThanTarget() {
-        assertTrue(conditionService.isFilterConditionValid("3", leaf(ConditionType.LTE, "5")));
+        assertTrue(conditionUtils.isFilterConditionValid("3", leaf(ConditionType.LTE, "5")));
       }
 
       @Test
       void lte_shouldReturnTrue_whenActualIsEqualToTarget() {
-        assertTrue(conditionService.isFilterConditionValid("5", leaf(ConditionType.LTE, "5")));
+        assertTrue(conditionUtils.isFilterConditionValid("5", leaf(ConditionType.LTE, "5")));
       }
 
       @Test
       void lte_shouldReturnFalse_whenActualIsGreaterThanTarget() {
-        assertFalse(conditionService.isFilterConditionValid("10", leaf(ConditionType.LTE, "5")));
+        assertFalse(conditionUtils.isFilterConditionValid("10", leaf(ConditionType.LTE, "5")));
       }
 
       @Test
       void lte_shouldReturnFalse_whenActualValueIsNull() {
-        assertFalse(conditionService.isFilterConditionValid(null, leaf(ConditionType.LTE, "5")));
+        assertFalse(conditionUtils.isFilterConditionValid(null, leaf(ConditionType.LTE, "5")));
       }
 
       @Test
       void default_shouldReturnTrue_forUnrecognizedLeafType() {
         assertTrue(
-            conditionService.isFilterConditionValid(
-                "any", leaf(ConditionType.DEPEND_ON, "some-id")));
+            conditionUtils.isFilterConditionValid("any", leaf(ConditionType.DEPEND_ON, "some-id")));
       }
     }
   }

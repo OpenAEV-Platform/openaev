@@ -26,6 +26,7 @@ import io.openaev.service.TeamService;
 import io.openaev.service.UserService;
 import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.StepService;
+import io.openaev.utils.ConditionUtils;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.helpers.InjectTestHelper;
 import java.util.*;
@@ -34,7 +35,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,16 +43,17 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class InjectExecutionStepTest extends IntegrationTest {
 
-  @MockBean private InjectorContractService injectorContractService;
-  @MockBean private UserService userService;
-  @MockBean private TeamService teamService;
-  @MockBean private AssetService assetService;
-  @MockBean private TagService tagService;
-  @MockBean private DocumentService documentService;
-  @MockBean private InjectService injectService;
-  @MockBean private ConditionService conditionService;
-  @MockBean private io.openaev.executors.Executor executor;
-  @MockBean private InjectStatusService injectStatusService;
+  @MockitoBean private InjectorContractService injectorContractService;
+  @MockitoBean private UserService userService;
+  @MockitoBean private TeamService teamService;
+  @MockitoBean private AssetService assetService;
+  @MockitoBean private TagService tagService;
+  @MockitoBean private DocumentService documentService;
+  @MockitoBean private InjectService injectService;
+  @MockitoBean private ConditionService conditionService;
+  @MockitoBean private ConditionUtils conditionUtils;
+  @MockitoBean private io.openaev.executors.Executor executor;
+  @MockitoBean private InjectStatusService injectStatusService;
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private InjectorRepository injectorRepository;
   @Autowired private InjectRepository injectRepository;
@@ -156,7 +158,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
             """
             .formatted(
                 injectorContractSaved.getId(),
-                injectorContractSaved.getFirstInjector().getId(),
+                injectorContractSaved.getInjectors().stream().findFirst().orElseThrow().getId(),
                 asset.getId());
   }
 
@@ -175,7 +177,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
     mapperCondition.setKey("target_ip");
 
     doReturn(List.of(mapperCondition)).when(conditionService).findAllConditionsByStepId("step-1");
-    doReturn(true).when(conditionService).isMapperCondition(mapperCondition);
+    doReturn(true).when(conditionUtils).isMapperCondition(mapperCondition);
 
     // Act
     com.fasterxml.jackson.databind.node.ObjectNode updated =
@@ -268,7 +270,8 @@ public class InjectExecutionStepTest extends IntegrationTest {
    *
    * <ul>
    *   <li>An {@link InjectInput} JSON payload is correctly deserialized
-   *   <li>An Inject step is generated using {@link InjectExecutionStep#toStepInput(InjectInput)}
+   *   <li>An Inject step is generated using {@link
+   *       InjectExecutionStep#getInjectAsStepsCreateInput(InjectInput)}
    *   <li>A MAPPER condition is correctly transformed into step input mapping
    *   <li>The step template is created with the expected action and status
    *   <li>The step data contains a valid serialized inject with its injector contract

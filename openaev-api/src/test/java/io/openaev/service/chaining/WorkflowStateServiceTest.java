@@ -14,6 +14,7 @@ import io.openaev.database.repository.WorkflowStateRepository;
 import io.openaev.injector_contract.outputs.InjectorContractContentOutputElement;
 import io.openaev.rest.inject.service.StructuredOutputUtils;
 import io.openaev.rest.injector_contract.InjectorContractContentUtils;
+import io.openaev.utils.ConditionUtils;
 import java.util.*;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -30,7 +31,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class WorkflowStateServiceTest {
 
   @Mock private WorkflowStateRepository workflowStateRepository;
-  @Mock private ConditionService conditionService;
+  @Mock private ConditionUtils conditionUtils;
   @Mock private InjectorContractContentUtils injectorContractContentUtils;
   @Mock private StructuredOutputUtils structuredOutputUtils;
 
@@ -932,7 +933,7 @@ class WorkflowStateServiceTest {
 
       when(workflowStateRepository.findByStepTemplate_IdAndWorkflowExecution_Id(stepId, wfId))
           .thenReturn(localState);
-      when(conditionService.isFilterConditionValid(any(), eq(filter))).thenReturn(false);
+      when(conditionUtils.isFilterConditionValid(any(), eq(filter))).thenReturn(false);
 
       // Act
       workflowStateService.syncMappersToLocalPartition(
@@ -965,7 +966,7 @@ class WorkflowStateServiceTest {
 
       when(workflowStateRepository.findByStepTemplate_IdAndWorkflowExecution_Id(stepId, wfId))
           .thenReturn(localState);
-      when(conditionService.isFilterConditionValid(any(), eq(filter))).thenReturn(true);
+      when(conditionUtils.isFilterConditionValid(any(), eq(filter))).thenReturn(true);
 
       // Act
       workflowStateService.syncMappersToLocalPartition(
@@ -1005,7 +1006,7 @@ class WorkflowStateServiceTest {
 
       when(workflowStateRepository.findByStepTemplate_IdAndWorkflowExecution_Id(stepId, wfId))
           .thenReturn(localState);
-      when(conditionService.isFilterConditionValid(any(), eq(filter))).thenReturn(true);
+      when(conditionUtils.isFilterConditionValid(any(), eq(filter))).thenReturn(true);
 
       // Act
       workflowStateService.syncMappersToLocalPartition(
@@ -1034,7 +1035,7 @@ class WorkflowStateServiceTest {
       // Local state does not exist yet
       when(workflowStateRepository.findByStepTemplate_IdAndWorkflowExecution_Id(stepId, wfId))
           .thenReturn(null);
-      when(conditionService.isFilterConditionValid(any(), eq(filter))).thenReturn(true);
+      when(conditionUtils.isFilterConditionValid(any(), eq(filter))).thenReturn(true);
 
       // Act
       workflowStateService.syncMappersToLocalPartition(
@@ -1071,7 +1072,7 @@ class WorkflowStateServiceTest {
 
       when(workflowStateRepository.findByStepTemplate_IdAndWorkflowExecution_Id(stepId, wfId))
           .thenReturn(localState);
-      when(conditionService.isFilterConditionValid(any(), eq(filter))).thenReturn(true);
+      when(conditionUtils.isFilterConditionValid(any(), eq(filter))).thenReturn(true);
 
       // Act
       workflowStateService.syncMappersToLocalPartition(
