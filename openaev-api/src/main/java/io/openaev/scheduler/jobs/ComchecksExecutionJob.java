@@ -20,7 +20,6 @@ import io.openaev.execution.ExecutionContext;
 import io.openaev.execution.ExecutionContextService;
 import io.openaev.injectors.email.EmailContract;
 import io.openaev.integration.ManagerFactory;
-import io.openaev.utils.VirtualThreads;
 import jakarta.annotation.Resource;
 import jakarta.transaction.Transactional;
 import java.time.Instant;
@@ -88,11 +87,8 @@ public class ComchecksExecutionJob implements Job {
       List<ComcheckStatus> allStatuses = comcheckStatusRepository.findAll(thatNeedExecution());
       Map<Comcheck, List<ComcheckStatus>> byComchecks =
           allStatuses.stream().collect(groupingBy(ComcheckStatus::getComcheck));
-      VirtualThreads.parallelForEach(
-          byComchecks.entrySet(),
-          entry -> {
-            Comcheck comCheck = entry.getKey();
-            List<ComcheckStatus> comcheckStatuses = entry.getValue();
+      byComchecks.forEach(
+          (comCheck, comcheckStatuses) -> {
             // Send the email to users
             Exercise exercise = comCheck.getExercise();
             List<ExecutionContext> userInjectContexts =
