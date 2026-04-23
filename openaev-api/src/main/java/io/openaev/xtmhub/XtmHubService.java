@@ -1,6 +1,7 @@
 package io.openaev.xtmhub;
 
 import io.openaev.context.TenantContext;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantXtmHubRegistration;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.TenantXtmHubRegistrationRepository;
@@ -172,9 +173,14 @@ public class XtmHubService {
   }
 
   public Boolean contactUs(String message) {
-    PlatformSettings settings = platformSettingsService.findSettings();
-    String token = settings.getXtmHubToken();
-    String platformId = settings.getPlatformId();
+    Optional<TenantXtmHubRegistration> registration =
+        tenantXtmHubRegistrationRepository.findByTenantId(Tenant.DEFAULT_TENANT_UUID);
+    if (registration.isEmpty()) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Default tenant is not registered on XtmHub");
+    }
+    String token = registration.get().getToken();
+    String platformId = platformSettingsService.findSettings().getPlatformId();
     return xtmHubClient.contactUs(message, token, platformId);
   }
 
