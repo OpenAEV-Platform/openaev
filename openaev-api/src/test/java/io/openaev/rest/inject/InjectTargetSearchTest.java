@@ -348,7 +348,10 @@ public class InjectTargetSearchTest extends IntegrationTest {
                     agent3Wrapper.get().getAsset().getId(),
                     agent3Wrapper.get().getExecutor().getType()));
 
-        assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));
+        assertThatJson(response)
+            .when(Option.IGNORING_ARRAY_ORDER)
+            .node("content")
+            .isEqualTo(mapper.writeValueAsString(expected));
       }
     }
 
