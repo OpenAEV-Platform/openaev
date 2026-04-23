@@ -8,6 +8,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.WorkflowStateRepository;
 import io.openaev.rest.inject.service.StructuredOutputUtils;
 import io.openaev.rest.injector_contract.InjectorContractContentUtils;
+import io.openaev.utils.ConditionUtils;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class WorkflowStateService {
 
-  private final ConditionService conditionService;
+  private final ConditionUtils conditionUtils;
 
   private final WorkflowStateRepository workflowStateRepository;
 
@@ -211,6 +212,7 @@ public class WorkflowStateService {
 
     WorkflowStateEntries entries =
         gson.fromJson(localState.getEntries(), WorkflowStateEntries.class);
+
     boolean changed = false;
 
     // Process Mappers
@@ -229,7 +231,7 @@ public class WorkflowStateService {
 
       List<String> validValues =
           values.stream()
-              .filter(v -> conditionService.isFilterConditionValid(v, filterCondition))
+              .filter(v -> conditionUtils.isFilterConditionValid(v, filterCondition))
               .toList();
 
       // Use WorkflowStateEntries internal logic to save

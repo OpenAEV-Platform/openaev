@@ -32,6 +32,7 @@ import io.openaev.service.*;
 import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowStateService;
+import io.openaev.utils.ConditionUtils;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.TargetType;
 import jakarta.annotation.Resource;
@@ -67,7 +68,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class InjectExecutionStep implements ActionStep {
 
   private static final Gson gson = new Gson();
-  @Resource protected ObjectMapper mapper;
 
   private final InjectorContractService injectorContractService;
   private final UserService userService;
@@ -84,8 +84,12 @@ public class InjectExecutionStep implements ActionStep {
   private final InjectorContractRepository injectorContractRepository;
 
   private final InjectorContractContentUtils injectorContractContentUtils;
-  private final Executor executor;
+  private final ConditionUtils conditionUtils;
   private final InjectUtils injectUtils;
+
+  private final Executor executor;
+
+  @Resource protected ObjectMapper mapper;
   @PersistenceContext private EntityManager em;
 
   /**
@@ -624,7 +628,7 @@ public class InjectExecutionStep implements ActionStep {
 
       List<Condition> mappings =
           conditionService.findAllConditionsByStepId(step.getId()).stream()
-              .filter(conditionService::isMapperCondition)
+              .filter(conditionUtils::isMapperCondition)
               .toList();
 
       for (Condition mapping : mappings) {

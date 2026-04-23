@@ -13,6 +13,7 @@ import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.utils.ConditionUtils;
 import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
 import java.util.*;
@@ -34,6 +35,8 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
   private final WorkflowStateService workflowStateService;
   public final ConditionService conditionService;
   private final QueueChainingService queueChainingService;
+
+  private final ConditionUtils conditionUtils;
 
   private final StepDelayQueueRepository stepDelayQueueRepository;
   private final StepRepository stepRepository;
@@ -1112,7 +1115,7 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
           // Find Mappers on this step that match the current KeyType
           List<Condition> mappers =
               targetTemplate.getConditions().stream()
-                  .filter(conditionService::isMapperCondition)
+                  .filter(conditionUtils::isMapperCondition)
                   .filter(c -> c.getKeyType() == keyType)
                   .toList();
 
