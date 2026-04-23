@@ -43,9 +43,9 @@ public class WorkflowConfigurationInput {
   @JsonProperty("workflow_configuration_timeout_enabled")
   private boolean timeoutEnabled;
 
-  @Schema(description = "Total timeout in seconds for the attack workflow scenario (0–86400).")
+  @Schema(description = "Total timeout in seconds for the attack workflow scenario (60–86400).")
   @JsonProperty("workflow_configuration_timeout_seconds")
-  @Min(value = 0, message = "Timeout seconds must be zero or greater")
+  @Min(value = 60, message = "Timeout seconds must be at least 60 (1 min)")
   @Max(value = 86400, message = "Timeout seconds must be at most 86400 (24 h)")
   private Long timeoutSeconds;
 

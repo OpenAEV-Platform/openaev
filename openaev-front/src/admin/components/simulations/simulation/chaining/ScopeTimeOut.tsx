@@ -35,15 +35,19 @@ const ScopeTimeOut = ({ workflowConfiguration, onUpdate }: Props) => {
 
   const handleHoursChange = (event: SelectChangeEvent<number>) => {
     const newHours = Number(event.target.value);
-    const newSeconds = (newHours * 3600) + (minutes * 60);
+    const currentMinutes = newHours === 0 && minutes === 0 ? 1 : minutes;
+    const newSeconds = (newHours * 3600) + (currentMinutes * 60);
     onUpdate({ workflow_configuration_timeout_seconds: newSeconds });
   };
 
   const handleMinutesChange = (event: SelectChangeEvent<number>) => {
     const newMinutes = Number(event.target.value);
+    if (hours === 0 && newMinutes === 0) return;
     const newSeconds = (hours * 3600) + (newMinutes * 60);
     onUpdate({ workflow_configuration_timeout_seconds: newSeconds });
   };
+
+  const minMinutes = hours === 0 ? 1 : 0;
 
   return (
     <Box sx={{
@@ -99,7 +103,7 @@ const ScopeTimeOut = ({ workflowConfiguration, onUpdate }: Props) => {
               label={t('Minutes')}
               onChange={handleMinutesChange}
             >
-              {Array.from({ length: 60 }, (_, i) => (
+              {Array.from({ length: 60 - minMinutes }, (_, i) => i + minMinutes).map(i => (
                 <MenuItem key={i} value={i}>
                   {String(i).padStart(2, '0')}
                 </MenuItem>

@@ -348,7 +348,7 @@ class WorkflowApiTest extends IntegrationTest {
     WorkflowConfigurationInput input =
         WorkflowConfigurationInput.builder()
             .timeoutEnabled(true)
-            .timeoutSeconds(-1L) // below @Min(0)
+            .timeoutSeconds(-1L) // below @Min(60)
             .safeModeEnabled(true)
             .build();
 

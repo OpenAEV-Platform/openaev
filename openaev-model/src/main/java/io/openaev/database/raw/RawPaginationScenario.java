@@ -19,6 +19,7 @@ public class RawPaginationScenario {
   private Instant scenario_updated_at;
   private Set<String> scenario_tags;
   private Set<String> scenario_platforms;
+  private String scenario_workflow_id;
 
   public RawPaginationScenario(
       String id,
@@ -29,7 +30,8 @@ public class RawPaginationScenario {
       String recurrence,
       Instant updatedAt,
       String[] tags,
-      String[] platforms) {
+      String[] platforms,
+      String workflowId) {
     this.scenario_id = id;
     this.scenario_name = name;
     this.scenario_description = description;
@@ -40,5 +42,6 @@ public class RawPaginationScenario {
     this.scenario_tags = tags != null ? new HashSet<>(Arrays.asList(tags)) : new HashSet<>();
     this.scenario_platforms =
         platforms != null ? new HashSet<>(Arrays.asList(platforms)) : new HashSet<>();
+    this.scenario_workflow_id = workflowId;
   }
 }
