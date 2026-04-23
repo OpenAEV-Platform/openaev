@@ -495,6 +495,30 @@ class ScenarioServiceTest extends IntegrationTest {
 
   @Test
   @Transactional
+  public void given_disabledInject_should_notReturnMissingContent() {
+    // Arrange
+    Inject inject = new Inject();
+    inject.setEnabled(false);
+    Scenario scenario = new Scenario();
+    scenario.setInjects(new HashSet<>(List.of(inject)));
+    this.scenarioRepository.save(scenario);
+
+    // Act
+    when(this.injectService.runChecks(any())).thenReturn(List.of());
+    List<HealthCheck> healthchecks = scenarioService.runChecks(scenario.getId());
+
+    // Assert
+    boolean hasMissingContent =
+        healthchecks.stream()
+            .anyMatch(
+                hc ->
+                    HealthCheck.Type.INJECT.equals(hc.getType())
+                        && HealthCheck.Detail.NOT_READY.equals(hc.getDetail()));
+    assertFalse(hasMissingContent, "Disabled inject should not trigger MISSING_CONTENT check");
+  }
+
+  @Test
+  @Transactional
   public void testRunChecksForTeamsIssue() {
     // PREPARE
     Scenario scenario = new Scenario();

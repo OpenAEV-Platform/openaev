@@ -196,11 +196,13 @@ const Injects: FunctionComponent<Props> = ({
       label: 'Status',
       isSortable: false,
       value: (inject: InjectOutputType, _: InjectorContractConverted['convertedContent']) => {
-        let injectStatus = inject.inject_enabled
-          ? t('Enabled')
-          : t('Disabled');
-        if (!inject.inject_ready) {
+        let injectStatus;
+        if (!inject.inject_enabled) {
+          injectStatus = t('Disabled');
+        } else if (!inject.inject_ready) {
           injectStatus = t('Missing content');
+        } else {
+          injectStatus = t('Enabled');
         }
         return (
           <ItemBoolean
@@ -608,6 +610,7 @@ const Injects: FunctionComponent<Props> = ({
                         canBeTested
                         setSelectedInjectId={setSelectedInjectId}
                         isDisabled={!injectContract}
+                        isUpdateDisabled={!inject.inject_enabled}
                         onCreate={onCreate}
                         onUpdate={onUpdate}
                         onDelete={onDelete}
