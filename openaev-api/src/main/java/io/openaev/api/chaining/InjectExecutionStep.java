@@ -84,10 +84,8 @@ public class InjectExecutionStep implements ActionStep {
   private final InjectorContractRepository injectorContractRepository;
 
   private final InjectorContractContentUtils injectorContractContentUtils;
-
   private final Executor executor;
   private final InjectUtils injectUtils;
-
   @PersistenceContext private EntityManager em;
 
   /**
@@ -271,7 +269,6 @@ public class InjectExecutionStep implements ActionStep {
 
       // UPDATE step output
       stepRun.setOutput(jsonObject.toString());
-
       return Optional.of(stepRun);
     }
 
@@ -445,9 +442,8 @@ public class InjectExecutionStep implements ActionStep {
         input.put("key", condition.getKey());
         input.put("keyType", condition.getKeyType() != null ? condition.getKeyType().name() : null);
         input.put("path", condition.getValue());
-        input.put("id_step_from", condition.getStepFrom());
-        // Related to mapping type default, local or global
         input.put("mappingType", condition.getMappingType());
+        input.put("id_step_from", condition.getStepFrom());
         input.put("value", condition.getValue());
 
         inputs.add(input);
@@ -521,7 +517,7 @@ public class InjectExecutionStep implements ActionStep {
    *
    * @param step the {@link Step} containing the JSON data for the inject
    * @return the deserialized {@link Inject} object with its injector set if found; {@code null} if
-   *     the injector or contract is missing or if an exception occurs during deserialization
+   *     the injector or r or contract is missing or if an exception occurs during deserialization
    */
   private Inject getInjectFromDataStep(Step step) throws ChainingException {
     ObjectMapper om =
@@ -545,7 +541,7 @@ public class InjectExecutionStep implements ActionStep {
             "Injector contract not found for step (READY) ID: " + step.getId());
       }
 
-      InjectorContract managedContract =
+      InjectorContract injectorContract =
           injectorContractRepository
               .findById(inject.getInjectorContract().get().getId())
               .orElseThrow(
@@ -553,9 +549,9 @@ public class InjectExecutionStep implements ActionStep {
                       new ChainingException(
                           "Injector contract not found for step (READY) ID: " + step.getId()));
 
-      managedContract.setCompositeId(
-          new InjectorContractId(managedContract.getId(), TenantContext.getCurrentTenant()));
-      inject.setInjectorContract(managedContract);
+      injectorContract.setCompositeId(
+          new InjectorContractId(injectorContract.getId(), TenantContext.getCurrentTenant()));
+      inject.setInjectorContract(injectorContract);
 
       // GET INJECTOR
       JsonNode injectorNode = root.path("inject_injector");
@@ -565,12 +561,13 @@ public class InjectExecutionStep implements ActionStep {
 
         throw new ChainingException(
             "Injector not found for injectorContractId "
-                + managedContract.getId()
+                + injectorContract.getId()
                 + " and step (READY) ID "
                 + step.getId());
-      }
 
-      if (managedContract.getInjectors().isEmpty()) {
+        // GET INJECTOR FROM DB
+      } else {
+
         String injectorId = injectorNode.asText();
         Injector injector = inject.getInjector();
 
@@ -583,16 +580,14 @@ public class InjectExecutionStep implements ActionStep {
                   + " and step (READY) ID "
                   + step.getId());
         }
-        injector.setTenant(managedContract.getTenant());
+        injector.setTenant(injectorContract.getTenant());
         inject.setInjector(injector);
-        managedContract.getInjectors().add(injector);
       }
 
       // Modify payload arguments with inputs from step
-      ObjectNode updatedContent = updateContentWithInputs(step, managedContract.getContent());
+      ObjectNode updatedContent = updateContentWithInputs(step, injectorContract.getContent());
       inject.setContent(updatedContent);
 
-      inject.setInjectorContract(managedContract);
       return inject;
 
     } catch (JsonProcessingException e) {

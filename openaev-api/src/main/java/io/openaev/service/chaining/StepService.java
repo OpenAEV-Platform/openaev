@@ -9,7 +9,6 @@ import io.openaev.api.chaining.dto.StepInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.StepDelayQueueRepository;
-import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -28,10 +27,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Service
 public class StepService implements StepEventHandler, ExternalUpdateEventHandler {
-
-  private static final Gson gson = new Gson();
-  private static final String SCOPE_INPUTS = "inputs";
-
   private final InjectExecutionStep injectExecutionStep;
 
   private final WorkflowService workflowService;
@@ -40,21 +35,7 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
   private final QueueChainingService queueChainingService;
   private final StepDelayQueueRepository stepDelayQueueRepository;
 
-  private final StepRepository stepRepository;
-
-  /**
-   * Create step templates.
-   *
-   * @param workflowId id of the workflow linked to the step templates
-   * @param steps list of input to create step templates
-   */
-  @Transactional(rollbackFor = Exception.class)
-  public void createStepTemplates(String workflowId, List<StepsCreateInput.StepInput> steps)
-      throws ChainingException {
-    for (StepsCreateInput.StepInput stepInput : steps) {
-      createStepTemplate(workflowId, stepInput);
-    }
-  }
+  private static final Gson gson = new Gson();
 
   /**
    * Create a single step template.
@@ -79,6 +60,20 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     stepConditionTemplate(stepInput.getConditions(), workflowId, step);
     conditionService.linkExistingConditionsToStep(step, stepInput.getConditionIds());
     return step;
+  }
+
+  /**
+   * Create step templates.
+   *
+   * @param workflowId id of the workflow linked to the step templates
+   * @param steps list of input to create step templates
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void createStepTemplates(String workflowId, List<StepsCreateInput.StepInput> steps)
+      throws ChainingException {
+    for (StepsCreateInput.StepInput stepInput : steps) {
+      createStepTemplate(workflowId, stepInput);
+    }
   }
 
   /**
@@ -149,7 +144,7 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     }
 
     // Save data from Scope in WorkflowState
-    prepareInitialWorkflowState(workflowRun);
+    workflowStateService.prepareInitialWorkflowState(workflowRun);
 
     // Step template with valid conditions
     List<Step> stepWithValidCondition = new ArrayList<>();
@@ -183,6 +178,11 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
 
     Step nextStepTemplateToExecutePersisted =
         findByIdAndStatus(nextStepTemplateToExecute.getId(), StepStatus.TEMPLATE);
+
+    // CHECK CONDITIONS
+    List<Condition> conditionExecution =
+        conditionService.checkCondition(
+            nextStepTemplateToExecutePersisted, input, workflowRun, this);
 
     // Validate rate limit condition before create step ready
     // conditionService.validateRateLimitCondition(nextStepTemplateToExecutePersisted, workflowRun);
@@ -343,9 +343,8 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     List<Step> stepsCopied = new ArrayList<>();
     for (Step step : stepsFrom) {
       String data = step.getData();
-      if (workflowTo.getSimulation() != null) {
+      if (workflowTo.getSimulation() != null)
         data = StepService.setField(data, "inject_exercise", workflowTo.getSimulation().getId());
-      }
 
       Step copy =
           Step.builder()
@@ -793,9 +792,7 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
       StringBuilder copyPath = new StringBuilder(path.toString());
       copyPath.append(indexArray).append(".");
       if (tabIndex == null || tabIndex == indexArray) {
-        if (tabIndex != null) {
-          index++;
-        }
+        if (tabIndex != null) index++;
         if (index == treeToUpdate.size() - 1 && tabIndex != null) {
           actionJson(
               fieldsAndValue,
@@ -1135,18 +1132,6 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
         }
       }
     }
-  }
-
-  /**
-   * Initializes the global workflow state from scope definition.
-   *
-   * @param workflowExecution running workflow that receives its initial global state
-   */
-  @Transactional
-  public void prepareInitialWorkflowState(Workflow workflowExecution) {
-    log.debug(
-        "Initializing Global State from Scope for Workflow Run: {}", workflowExecution.getId());
-    workflowStateService.createGlobalState(workflowExecution);
   }
 
   /**

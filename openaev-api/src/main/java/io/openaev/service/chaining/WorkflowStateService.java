@@ -30,6 +30,18 @@ public class WorkflowStateService {
   private final Gson gson = new Gson();
 
   /**
+   * Initializes the global workflow state from scope definition.
+   *
+   * @param workflowExecution running workflow that receives its initial global state
+   */
+  @Transactional
+  public void prepareInitialWorkflowState(Workflow workflowExecution) {
+    log.debug(
+        "Initializing Global State from Scope for Workflow Run: {}", workflowExecution.getId());
+    createGlobalState(workflowExecution);
+  }
+
+  /**
    * Syncs a completed inject's structured output traces into the workflow's global state entries.
    * Exits early if the inject has no status, no traces, or no matching global state.
    *
@@ -44,25 +56,21 @@ public class WorkflowStateService {
     if (injectStatus.isPresent() && injectStatus.get().getTraces() != null) {
       Map<String, ContractOutputType> fieldTypeMap = new HashMap<>();
 
-      inject
-          .getPayload()
-          .ifPresentOrElse(
-              payload -> {
-                Set<OutputParser> outputParsers =
-                    structuredOutputUtils.extractOutputParsers(inject);
-                injectorContractContentUtils
-                    .getAllContractOutputs(outputParsers)
-                    .forEach(out -> fieldTypeMap.put(out.getKey(), out.getType()));
-              },
-              () ->
-                  inject
-                      .getInjectorContract()
-                      .ifPresent(
-                          contract ->
-                              injectorContractContentUtils
-                                  .getAllContractOutputs(contract)
-                                  .forEach(
-                                      out -> fieldTypeMap.put(out.getField(), out.getType()))));
+      // For Payloads
+      if (inject.getPayload().isPresent()) {
+        Set<OutputParser> outputParsers = structuredOutputUtils.extractOutputParsers(inject);
+        injectorContractContentUtils
+            .getAllContractOutputs(outputParsers)
+            .forEach(out -> fieldTypeMap.put(out.getKey(), out.getType()));
+      }
+      // For injects with inject contracts from injector externals like nmap, nuclei...
+      else {
+        if (inject.getInjectorContract().isPresent()) {
+          injectorContractContentUtils
+              .getAllContractOutputs(inject.getInjectorContract().get())
+              .forEach(out -> fieldTypeMap.put(out.getField(), out.getType()));
+        }
+      }
 
       // Load Global State
       WorkflowState globalState = getGlobalStateByWorkflowId(stepRun.getWorkflow().getId());
@@ -260,8 +268,8 @@ public class WorkflowStateService {
     return globalState;
   }
 
-  public void save(WorkflowState state) {
-    workflowStateRepository.save(state);
+  public WorkflowState save(WorkflowState state) {
+    return workflowStateRepository.save(state);
   }
 
   private static WorkflowStateEntries createInitialScopeEntries(Workflow workflowRun) {

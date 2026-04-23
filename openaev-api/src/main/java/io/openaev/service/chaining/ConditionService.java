@@ -2,7 +2,6 @@ package io.openaev.service.chaining;
 
 import static io.openaev.api.chaining.ConditionMapper.resolveMappingType;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import io.openaev.api.chaining.ConditionMapper;
@@ -30,15 +29,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @Transactional(rollbackFor = Exception.class)
 public class ConditionService {
-
-  private static final Gson gson = new Gson();
-
   private final ConditionRepository conditionRepository;
   private final StepRepository stepRepository;
-  private final StepDelayQueueService stepDelayQueueService;
 
   // -- CONDITION TREE CREATE --
-
   /**
    * Creates a condition tree from an {@link EventInput} payload.
    *
@@ -222,7 +216,6 @@ public class ConditionService {
   }
 
   // -- CONDITION TREE UPDATE --
-
   /**
    * Replaces an existing condition tree: updates root metadata and rebuilds child conditions.
    *
@@ -277,7 +270,6 @@ public class ConditionService {
   }
 
   // -- CONDITION TREE GET --
-
   /**
    * Finds a condition tree root by its ID.
    *
@@ -319,7 +311,6 @@ public class ConditionService {
   }
 
   // -- CONDITION TREE DELETE --
-
   /**
    * Deletes a condition tree root and all its children (cascade).
    *
@@ -546,17 +537,15 @@ public class ConditionService {
   public List<Condition> checkCondition(
       Step nextStepTemplateToExecute, String input, Workflow workflowRun, StepService stepService)
       throws ChainingException {
-    List<Condition> conditionsTemplate =
+    List<Condition> conditionTemplate =
         findAllConditionsByStepId(nextStepTemplateToExecute.getId());
 
     // No condition means direct execution:
-    if (conditionsTemplate == null || conditionsTemplate.isEmpty()) {
-      return new ArrayList<>();
-    }
+    if (conditionTemplate == null || conditionTemplate.isEmpty()) return new ArrayList<>();
 
     List<Condition> conditionsExecution = new ArrayList<>();
     List<Condition> timeConditions =
-        conditionsTemplate.stream().filter(this::isTimeCondition).toList();
+        conditionTemplate.stream().filter(this::isTimeCondition).toList();
 
     // Time conditions
     // TODO manage multi time condition (AND, OR: g C1 BEFORE OR C2 AFTER)
@@ -565,9 +554,7 @@ public class ConditionService {
       Instant now = Instant.now();
       Instant start = workflowRun.getWorkflowCreatedAt();
       // TODO: can this happen ? Shouldn't it throw an exception instead?
-      if (start == null) {
-        start = now;
-      }
+      if (start == null) start = now;
       long value = Long.parseLong(condition.getValue());
       Instant goal = start.plus(value, ChronoUnit.MILLIS);
 
@@ -588,7 +575,7 @@ public class ConditionService {
     // Filter conditions
     /*
     List<Condition> filterConditions =
-        conditionsTemplate.stream().filter(this::isFilterCondition).toList();
+        conditionTemplate.stream().filter(this::isFilterCondition).toList();
 
     for (Condition condition : filterConditions) {
       Condition filterConditionValid =
@@ -603,7 +590,7 @@ public class ConditionService {
 
     // Mapper conditions
     List<Condition> mapperConditions =
-        conditionsTemplate.stream().filter(this::isMapperCondition).toList();
+        conditionTemplate.stream().filter(this::isMapperCondition).toList();
 
     for (Condition condition : mapperConditions) {
       Condition mapperConditionValid =
@@ -617,7 +604,7 @@ public class ConditionService {
 
     // StepFrom (DEPEND_ON) conditions
     List<Condition> stepFrom =
-        conditionsTemplate.stream().filter(condition -> condition.getStepFrom() != null).toList();
+        conditionTemplate.stream().filter(condition -> condition.getStepFrom() != null).toList();
     for (Condition condition : stepFrom) {
       String idStepFromTemplate = condition.getStepFrom().getId();
       List<Step> dependOnStepsRunByTemplateIdAndWorkflowRunId =
@@ -786,9 +773,7 @@ public class ConditionService {
   }
 
   public void unlinkFromStep(Condition condition, String stepId) {
-    Objects.requireNonNull(condition, "condition must not be null");
-
-    if (stepId == null || stepId.isBlank()) {
+    if (condition == null || stepId == null || stepId.isBlank()) {
       return;
     }
 

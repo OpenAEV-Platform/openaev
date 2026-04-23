@@ -29,11 +29,6 @@ public class ConditionCreateInput {
   @JsonProperty("condition_temporary_id_condition_parent")
   private String temporaryIdConditionParent;
 
-  /** Condition key: Property to be mapped */
-  @Schema(description = "Property to be mapped")
-  @JsonProperty("condition_key")
-  private String key;
-
   /** Condition key Type: Path to the value in the output of the step from */
   @Schema(description = "Path to the value in the output of the step from")
   @JsonProperty("condition_key_type")
@@ -48,6 +43,11 @@ public class ConditionCreateInput {
   @Schema(description = "Value to be compared")
   @JsonProperty("condition_value")
   private String value;
+
+  /** Condition key: Property to be mapped */
+  @Schema(description = "Property to be mapped")
+  @JsonProperty("condition_key")
+  private String key;
 
   /**
    * "Condition type: AND, OR, EQ, NEQ, IS_NULL, IS_NOT_NULL, GT, GTE, LT, LTE, IN, NIN, AFTER,
