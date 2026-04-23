@@ -343,7 +343,9 @@ public class PlatformSettingsService {
     platformSettings.setXtmHubLastConnectivityCheck(
         getValueFromMapOfSettings(dbSettings, XTM_HUB_LAST_CONNECTIVITY_CHECK.key()));
     platformSettings.setXtmHubShouldSendConnectivityEmail(
-        getValueFromMapOfSettings(dbSettings, XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL.key()));
+        ofNullable(dbSettings.get(XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL.key()))
+            .map(Setting::getValue)
+            .orElse(XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL.defaultValue()));
     return platformSettings;
   }
 
