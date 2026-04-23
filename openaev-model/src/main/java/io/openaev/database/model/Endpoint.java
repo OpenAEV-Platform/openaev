@@ -86,11 +86,12 @@ public class Endpoint extends Asset {
      */
     public static PLATFORM_TYPE fromString(String value) {
       if (value == null) return Unknown;
-      try {
-        return PLATFORM_TYPE.valueOf(value);
-      } catch (IllegalArgumentException e) {
-        return Unknown;
+      for (PLATFORM_TYPE type : PLATFORM_TYPE.values()) {
+        if (value.equalsIgnoreCase(type.name())) {
+          return type;
+        }
       }
+      return Unknown;
     }
 
     /**

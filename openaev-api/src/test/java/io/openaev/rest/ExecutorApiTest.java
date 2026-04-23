@@ -446,6 +446,38 @@ public class ExecutorApiTest extends IntegrationTest {
                           filename)));
     }
 
+    private static Stream<Arguments> installationModeFailure() {
+      return Stream.of(
+          Arguments.of(
+              Endpoint.PLATFORM_TYPE.Windows.name(),
+              Endpoint.PLATFORM_ARCH.arm64.name(),
+              "not a supported installation mode"),
+          Arguments.of(
+              Endpoint.PLATFORM_TYPE.Windows.name(),
+              Endpoint.PLATFORM_ARCH.x86_64.name(),
+              "not a supported installation mode"),
+          Arguments.of(
+              Endpoint.PLATFORM_TYPE.Windows.name(),
+              "Aarch64",
+              "not a supported installation mode"));
+    }
+
+    @ParameterizedTest(
+        name = "GET package for platform \"{0}\" arch \"{1}\" install type \"{2}\" should fail")
+    @MethodSource("installationModeFailure")
+    public void given_platformAndArchAndBadInstallMode_then_downloadOutcomeFailure(
+        String platform, String arch, String installType) throws Exception {
+
+      assertThatThrownBy(
+              () ->
+                  mvc.perform(
+                      get("/api/agent/package/openaev/%s/%s/%s"
+                              .formatted(platform, arch, installType))
+                          .contentType(MediaType.APPLICATION_OCTET_STREAM_VALUE)
+                          .accept(MediaType.APPLICATION_OCTET_STREAM_VALUE)))
+          .hasCauseInstanceOf(IllegalArgumentException.class);
+    }
+
     private static Stream<Arguments> platformArchCombinationsExecutableSuccess() {
       return Stream.of(
           Arguments.of(Endpoint.PLATFORM_TYPE.MacOS.name(), Endpoint.PLATFORM_ARCH.arm64.name()),

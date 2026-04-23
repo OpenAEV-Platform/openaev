@@ -330,7 +330,6 @@ public class InjectStatusService {
       input.setAction(InjectExecutionAction.complete);
       this.updateInjectStatus(inject, agent, input, null);
     }
-    throw new IllegalArgumentException(message);
   }
 
   /**

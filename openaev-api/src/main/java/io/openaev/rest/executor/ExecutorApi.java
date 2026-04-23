@@ -1,8 +1,6 @@
 package io.openaev.rest.executor;
 
 import static io.openaev.service.EndpointService.SERVICE;
-import static io.openaev.utils.AgentUtils.AVAILABLE_ARCHITECTURES;
-import static io.openaev.utils.AgentUtils.AVAILABLE_PLATFORMS;
 import static io.openaev.utils.SecurityUtils.validateJFrogUri;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -208,29 +206,23 @@ public class ExecutorApi extends RestBehavior {
           @PathVariable
           String architecture)
       throws IOException {
-    platform = Optional.ofNullable(platform).map(String::toLowerCase).orElse("");
-    architecture =
-        Optional.ofNullable(AgentUtils.getCanonicalArchitectureString(architecture))
-            .map(String::toLowerCase)
-            .orElse("");
-
-    if (!AVAILABLE_PLATFORMS.contains(platform)) {
-      throw new IllegalArgumentException("Platform invalid : " + platform);
-    }
-    if (!AVAILABLE_ARCHITECTURES.contains(architecture)) {
-      throw new IllegalArgumentException("Architecture invalid : " + architecture);
-    }
+    String resolvedPlatform =
+        AgentUtils.normaliseSupportedAgentPlatform(platform).name().toLowerCase();
+    String resolvedArch = AgentUtils.normaliseSupportedAgentArch(architecture).name().toLowerCase();
 
     InputStream in = null;
-    String resourcePath = "/openaev-agent/" + platform + "/" + architecture + "/";
+    String resourcePath = "/openaev-agent/" + resolvedPlatform + "/" + resolvedArch + "/";
     String filename = "";
 
     if (agentBinaryOrigin.equals("local")) { // if we want the local binaries
-      filename = "openaev-agent-" + version + (platform.equals("windows") ? ".exe" : "");
+      filename = "openaev-agent-" + version + (resolvedPlatform.equals("windows") ? ".exe" : "");
       in = getClass().getResourceAsStream("/agents" + resourcePath + filename);
     } else if (agentBinaryOrigin.equals(
         "repository")) { // if we want a specific version from artifactory
-      filename = "openaev-agent-" + agentBinaryVersion + (platform.equals("windows") ? ".exe" : "");
+      filename =
+          "openaev-agent-"
+              + agentBinaryVersion
+              + (resolvedPlatform.equals("windows") ? ".exe" : "");
       in = new BufferedInputStream(validateJFrogUri(resourcePath, filename).toURL().openStream());
     }
     if (in != null) {
@@ -241,7 +233,8 @@ public class ExecutorApi extends RestBehavior {
           .contentType(MediaType.APPLICATION_OCTET_STREAM)
           .body(IOUtils.toByteArray(in));
     }
-    throw new UnsupportedOperationException("Agent " + platform + " executable not supported");
+    throw new UnsupportedOperationException(
+        "Agent " + resolvedPlatform + " executable not supported");
   }
 
   // Public API
@@ -281,28 +274,20 @@ public class ExecutorApi extends RestBehavior {
           @PathVariable
           String installationMode)
       throws IOException {
-    platform = Optional.ofNullable(platform).map(String::toLowerCase).orElse("");
-    architecture =
-        AgentUtils.getCanonicalArchitectureString(
-            Optional.ofNullable(architecture).map(String::toLowerCase).orElse(""));
-    installationMode = installationMode.toLowerCase();
-
-    if (!AVAILABLE_PLATFORMS.contains(platform)) {
-      throw new IllegalArgumentException("Platform invalid : " + platform);
-    }
-    if (!AVAILABLE_ARCHITECTURES.contains(architecture)) {
-      throw new IllegalArgumentException("Architecture invalid : " + architecture);
-    }
+    String resolvedInstallationMode = AgentUtils.getSupportedInstallationMode(installationMode);
+    String resolvedPlatform =
+        AgentUtils.normaliseSupportedAgentPlatform(platform).name().toLowerCase();
+    String resolvedArch = AgentUtils.normaliseSupportedAgentArch(architecture).name().toLowerCase();
 
     byte[] file = null;
     String filename = null;
 
-    if (platform.equals("windows")) {
+    if (resolvedPlatform.equals("windows")) {
       InputStream in = null;
-      String resourcePath = "/openaev-agent/windows/" + architecture + "/";
+      String resourcePath = "/openaev-agent/windows/" + resolvedArch + "/";
 
       filename = "openaev-agent-installer-";
-      if (installationMode != null && !installationMode.equals(SERVICE)) {
+      if (!resolvedInstallationMode.equals(SERVICE)) {
         filename = filename.concat(installationMode).concat("-");
       }
 
@@ -329,7 +314,7 @@ public class ExecutorApi extends RestBehavior {
           .contentType(MediaType.APPLICATION_OCTET_STREAM)
           .body(file);
     }
-    throw new UnsupportedOperationException("Agent " + platform + " package not supported");
+    throw new UnsupportedOperationException("Agent " + resolvedPlatform + " package not supported");
   }
 
   // Public API
@@ -368,18 +353,20 @@ public class ExecutorApi extends RestBehavior {
           String installationDir,
       @Parameter(description = "Service name") @RequestParam(required = false) String serviceName)
       throws IOException {
-    platform = Optional.ofNullable(platform).map(String::toLowerCase).orElse("");
-
-    if (!AVAILABLE_PLATFORMS.contains(platform)) {
-      throw new IllegalArgumentException("Platform invalid : " + platform);
-    }
-    Optional<Token> resolvedToken = tokenRepository.findByValue(token);
-    if (resolvedToken.isEmpty()) {
-      throw new UnsupportedOperationException("Invalid token");
-    }
+    String resolvedPlatform =
+        AgentUtils.normaliseSupportedAgentPlatform(platform).name().toLowerCase();
+    String resolvedInstallationMode = AgentUtils.getSupportedInstallationMode(installationMode);
+    Token resolvedToken =
+        tokenRepository
+            .findByValue(token)
+            .orElseThrow(() -> new UnsupportedOperationException("Invalid token"));
     String installCommand =
         this.endpointService.generateInstallCommand(
-            platform, token, installationMode, installationDir, serviceName);
+            resolvedPlatform,
+            resolvedToken.getValue(),
+            resolvedInstallationMode,
+            installationDir,
+            serviceName);
     return ResponseEntity.ok().contentType(MediaType.TEXT_PLAIN).body(installCommand);
   }
 }
