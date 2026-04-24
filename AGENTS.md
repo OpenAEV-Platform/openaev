@@ -38,51 +38,91 @@ Do NOT look for conventions here — they live in dedicated instruction files, a
 | **Database** (migrations, schema, indexes) | [database.instructions.md](.github/instructions/database.instructions.md) | `**/db/migration/**`, `**/model/**` |
 | **Security** (auth, RBAC, tenant isolation) | [security.instructions.md](.github/instructions/security.instructions.md) | All Java & TypeScript files |
 | **Performance** (queries, caching, patterns) | [performance.instructions.md](.github/instructions/performance.instructions.md) | All Java files |
-| **Multi-Tenancy** (isolation, filters, context) | [multi-tenancy.instructions.md](.github/instructions/multi-tenancy.instructions.md) | Entities, repositories, migrations |
 | **Testing** (unit, integration, coverage) | [testing.instructions.md](.github/instructions/testing.instructions.md) | `**/*Test.java`, `**/*.test.tsx` |
 | **Code Review** (review checklist) | [code-review.instructions.md](.github/instructions/code-review.instructions.md) | All files |
 
 
+## Spec-Driven Development (SDD)
+
+OpenAEV uses a spec-driven workflow for feature development. Every feature goes through a multi-agent pipeline before code is written.
+
+### Workflow
+
+```
+/spec create "description"  →  Interview → Product → Staff → Security → Spec Ready
+/spec plan                  →  Decompose spec into implementation plan + tasks
+/spec implement             →  Autonomous development from plan
+/spec review                →  Product → Staff → Security review of implementation
+/spec test                  →  Tests + security scans + CI validation
+```
+
+### Constitution
+
+Project principles are defined in [constitution.md](.github/specs/constitution.md). All agents validate against it.
+
+### Spec Storage
+
+Specs are stored in `.github/specs/SPEC-NNN-feature-name/` with sequential numbering.
+
+### Templates
+
+| Template | Purpose |
+|---|---|
+| [spec-template.md](.github/templates/spec-template.md) | Feature specification format |
+| [plan-template.md](.github/templates/plan-template.md) | Implementation plan format |
+| [tasks-template.md](.github/templates/tasks-template.md) | Task breakdown format |
+
+### Security Scanning & CVSS
+
+During `/spec test`, automated security scans run (gitleaks, semgrep, OpenAEV-specific checks). Findings are scored with CVSS v3.1:
+- **CVSS < 7.0**: auto-fixed
+- **CVSS ≥ 7.0**: consult user before fixing
+
 ## Skills (step-by-step procedures)
+
+### SDD Skills
+
+| Skill | Use when... |
+|---|---|
+| [spec-create](.github/skills/spec-create/SKILL.md) | Creating a new feature spec (interview + multi-agent pipeline) |
+| [spec-plan](.github/skills/spec-plan/SKILL.md) | Generating implementation plan from a validated spec |
+| [spec-implement](.github/skills/spec-implement/SKILL.md) | Implementing a feature from its plan |
+| [spec-review](.github/skills/spec-review/SKILL.md) | Post-implementation review (product + staff + security) |
+| [spec-test](.github/skills/spec-test/SKILL.md) | Test + security scan + CI validation pipeline |
+| [review-product](.github/skills/review-product/SKILL.md) | Product review: user stories, acceptance criteria, Gherkin |
+| [review-staff](.github/skills/review-staff/SKILL.md) | Staff review: architecture, anti-patterns, conventions |
+
+### Implementation Skills
 
 | Skill | Use when... |
 |---|---|
 | [add-migration](.github/skills/add-migration/SKILL.md) | Adding a Flyway migration with validation |
 | [add-test](.github/skills/add-test/SKILL.md) | Writing tests with coverage verification |
 | [create-feature-module](.github/skills/create-feature-module/SKILL.md) | Full feature: entity → API → frontend |
-| [review-code](.github/skills/review-code/SKILL.md) | General code review of a PR or module |
-| [review-frontend](.github/skills/review-frontend/SKILL.md) | Auditing frontend patterns of a PR or module |
-| [review-multi-tenancy](.github/skills/review-multi-tenancy/SKILL.md) | Auditing tenant isolation of a PR or module |
 | [review-performance](.github/skills/review-performance/SKILL.md) | Auditing performance of a PR or module |
 | [review-security](.github/skills/review-security/SKILL.md) | Auditing security of a PR or module |
 
 ## Specialized Agents
 
+### SDD Definers (spec creation phase)
+
 | Agent | Role | Reads | Follows |
 |---|---|---|---|
-| [Code Reviewer](.github/agents/code-reviewer.agent.md) | General-purpose review: architecture, conventions, readability, delegation | `AGENTS.md` → `copilot-instructions.md` → `code-review.instructions.md` | `review-code` skill |
-| [Frontend Reviewer](.github/agents/frontend-reviewer.agent.md) | Audit component patterns, forms, MUI, i18n, permissions | `AGENTS.md` → `copilot-instructions.md` → `frontend.instructions.md` | `review-frontend` skill |
-| [Multi-Tenancy Reviewer](.github/agents/multi-tenancy-reviewer.agent.md) | Audit tenant isolation, cross-tenant leaks, filter bypasses, migration safety | `AGENTS.md` → `copilot-instructions.md` → `multi-tenancy.instructions.md` | `review-multi-tenancy` skill |
-| [Performance Reviewer](.github/agents/performance-reviewer.agent.md) | Audit N+1, lazy loading, query efficiency, pagination | `AGENTS.md` → `copilot-instructions.md` → `performance.instructions.md` | `review-performance` skill |
-| [Security Reviewer](.github/agents/security-reviewer.agent.md) | Audit auth, RBAC, data exposure, secrets | `AGENTS.md` → `copilot-instructions.md` → `security.instructions.md` | `review-security` skill |
+| [Product Definer](.github/agents/product-definer.agent.md) | Write Gherkin user stories, acceptance criteria, priorities | `constitution.md` → `copilot-instructions.md` | `review-product` skill |
+| [Staff Definer](.github/agents/staff-definer.agent.md) | Map to modules, design schema/API, detect anti-patterns | `constitution.md` → `copilot-instructions.md` → all instruction files | `review-staff` skill |
+| [Security Definer](.github/agents/security-definer.agent.md) | Threat model, access control, tenant isolation requirements | `constitution.md` → `security.instructions.md` | `spec-create` skill (§4) |
+
+### SDD Reviewers (post-implementation phase)
+
+| Agent | Role | Reads | Follows |
+|---|---|---|---|
+| [Product Reviewer](.github/agents/product-reviewer.agent.md) | Verify acceptance criteria coverage, test completeness | spec → changed files | `spec-review` skill (Step 2) |
+| [Staff Reviewer](.github/agents/staff-reviewer.agent.md) | Verify code quality, layering, anti-patterns, conventions | spec → changed files → instruction files | `spec-review` skill (Step 3) |
+| [Security Reviewer](.github/agents/security-reviewer.agent.md) | Audit RBAC, tenant isolation, CVSS scanning | spec → changed files → `security.instructions.md` | `spec-review` skill (Step 4) + `spec-test` |
+
+### Implementation Agents
+
+| Agent | Role | Reads | Follows |
+|---|---|---|---|
+| [Performance Reviewer](.github/agents/performance-reviewer.agent.md) | Audit N+1, lazy loading, query efficiency | `AGENTS.md` → `copilot-instructions.md` → `performance.instructions.md` | `review-performance` skill |
 | [Test Specialist](.github/agents/test-specialist.agent.md) | Write/improve tests, check coverage | `AGENTS.md` → `copilot-instructions.md` → `testing.instructions.md` | `add-test` skill |
-
-## When to Use Which Agent
-
-| Situation | Agent |
-|---|---|
-| Every PR (first pass) | **Code Reviewer** (delegates to specialists as needed) |
-| PR touches `@AccessControl`, `@Filter`, `Capability`, `Permission`, native `@Query` | **Security Reviewer** |
-| PR touches entity collections, `@Fetch`, `@Transactional`, new endpoints, `findAll` | **Performance Reviewer** |
-| PR touches tenant-scoped entities, migrations with `tenant_id`, `TenantContext` | **Multi-Tenancy Reviewer** |
-| PR touches frontend (`.tsx`, `.ts`, forms, components) | **Frontend Reviewer** |
-| PR adds a new feature without tests, or coverage is below threshold | **Test Specialist** |
-| Critical PR (new entities, migrations, auth changes) | **Code Reviewer** + all relevant specialists |
-
-### Composition Rules
-
-- **Code Reviewer** is the entry point — it runs first and delegates to specialists
-- Specialists are **independent** — each focuses on its domain only
-- For critical PRs: Code Reviewer explicitly lists which specialists should run
-- The Test Specialist does NOT review existing code — it only creates/improves tests
-- Human reviewers handle architecture decisions, naming, and business logic

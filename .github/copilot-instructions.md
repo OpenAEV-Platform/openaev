@@ -234,3 +234,44 @@ Examples:
 7. **Node.js version**: Check `openaev-front/package.json` engines field for the minimum required version.
 8. **API types**: After API changes, run `yarn generate-types-from-api` in frontend to update TypeScript types.
 9. **Coverage enforcement**: Backend tests must maintain 50% line coverage, 30% branch coverage.
+
+## Spec-Driven Development (SDD)
+
+OpenAEV uses a **Spec-Driven Development** workflow for feature development. Features go through a structured
+multi-agent pipeline before code is written.
+
+### How to Use
+
+| Command | What it does |
+|---------|-------------|
+| `/spec create "description"` | Interview → Product → Staff → Security agents → validated spec |
+| `/spec plan` | Generate implementation plan + task breakdown from spec |
+| `/spec implement` | Autonomous development following the plan |
+| `/spec review` | Post-implementation review (Product → Staff → Security) |
+| `/spec test` | Run tests + security scans + CI validation |
+
+### Key Files
+
+- **Constitution**: `.github/specs/constitution.md` — project principles all agents validate against
+- **Spec template**: `.github/templates/spec-template.md` — format for feature specs
+- **Specs storage**: `.github/specs/SPEC-NNN-feature-name/` — per-feature spec + plan + tasks
+
+### Pipeline Rules
+
+- **Blockers halt the pipeline** — any agent (Product, Staff, Security) can raise a blocker requiring human input
+- **No blocker → proceed automatically** — agents summarize findings and continue
+- **CVSS < 7.0 → auto-fix** — security vulnerabilities below High severity are fixed automatically
+- **CVSS ≥ 7.0 → consult user** — High/Critical vulnerabilities require user approval before fixing
+
+### SDD Agents
+
+| Agent | Phase | Scope |
+|-------|-------|-------|
+| **Product Definer** | Spec creation | User stories, Gherkin, acceptance criteria |
+| **Staff Definer** | Spec creation | Module mapping, schema, API design, anti-patterns |
+| **Security Definer** | Spec creation | Threat model, access control, tenant isolation |
+| **Product Reviewer** | Post-implementation | Acceptance criteria coverage, test completeness |
+| **Staff Reviewer** | Post-implementation | Code quality, layering, conventions |
+| **Security Reviewer** | Post-implementation | RBAC audit, CVSS scanning, vulnerability fix |
+
+> For the full SDD reference, see [AGENTS.md](AGENTS.md#spec-driven-development-sdd).
