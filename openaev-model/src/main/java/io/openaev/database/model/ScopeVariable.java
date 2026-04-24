@@ -16,18 +16,14 @@ import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
 /**
- * Entity representing a custom variable for exercises and scenarios.
+ * Entity representing a custom variable for workflows.
  *
  * <p>Variables provide a templating mechanism that allows dynamic content substitution in inject
- * content, email templates, and other text fields. They support:
+ * content. They support:
  *
  * <ul>
- *   <li>Workflow-scoped variables (specific to one exercise)
- *   <li>String and Object value types
+ *   <li>Workflow-scoped variables
  * </ul>
- *
- * <p>Variable keys follow a snake_case naming convention (e.g., {@code company_name}, {@code
- * target_ip}) and are referenced in templates using a specific syntax.
  *
  * @see Workflow
  */
@@ -83,6 +79,24 @@ public class ScopeVariable implements Base {
   @JsonProperty("scope_variable_updated_at")
   @UpdateTimestamp
   private Instant updatedAt;
+
+  /**
+   * Creates a detached copy of this variable bound to a different workflow. Used when cloning a
+   * workflow template (e.g. scenario → simulation, template → run).
+   *
+   * @param source the variable to copy
+   * @param targetWorkflow the new owner workflow
+   * @return a new, unsaved {@link ScopeVariable} with the same field values
+   */
+  public static ScopeVariable copyOf(ScopeVariable source, Workflow targetWorkflow) {
+    ScopeVariable copy = new ScopeVariable();
+    copy.setKey(source.getKey());
+    copy.setType(source.getType());
+    copy.setValue(source.getValue());
+    copy.setDescription(source.getDescription());
+    copy.setWorkflow(targetWorkflow);
+    return copy;
+  }
 
   @Override
   public boolean equals(Object o) {

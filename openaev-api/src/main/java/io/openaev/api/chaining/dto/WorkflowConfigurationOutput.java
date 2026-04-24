@@ -52,4 +52,10 @@ public class WorkflowConfigurationOutput {
   @Schema(description = "List scope rules")
   @JsonProperty("workflow_scope_rules")
   private List<WorkflowScopeRuleOutput> workflowScopeRules;
+
+  // -- Scope variables --
+
+  @Schema(description = "Custom variables available for template substitution in this workflow.")
+  @JsonProperty("workflow_scope_variables")
+  private List<ScopeVariableOutput> workflowScopeVariables;
 }

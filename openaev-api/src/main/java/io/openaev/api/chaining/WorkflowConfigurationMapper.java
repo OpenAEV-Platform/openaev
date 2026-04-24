@@ -1,7 +1,9 @@
 package io.openaev.api.chaining;
 
+import io.openaev.api.chaining.dto.ScopeVariableOutput;
 import io.openaev.api.chaining.dto.WorkflowConfigurationOutput;
 import io.openaev.api.chaining.dto.WorkflowScopeRuleOutput;
+import io.openaev.database.model.ScopeVariable;
 import io.openaev.database.model.Workflow;
 import io.openaev.database.model.WorkflowScopeRule;
 import java.util.List;
@@ -25,6 +27,7 @@ public class WorkflowConfigurationMapper {
         .timeoutSeconds(workflow.getTimeoutSeconds())
         .safeModeEnabled(workflow.isSafeModeEnabled())
         .workflowScopeRules(toScopeRuleOutputList(workflow.getWorkflowScopeRules()))
+        .workflowScopeVariables(toScopeVariableOutputList(workflow.getWorkflowScopeVariables()))
         .build();
   }
 
@@ -43,5 +46,22 @@ public class WorkflowConfigurationMapper {
         .ruleSource(rule.getRuleSource())
         .ruleValue(rule.getRuleValue())
         .build();
+  }
+
+  private static List<ScopeVariableOutput> toScopeVariableOutputList(
+      List<ScopeVariable> variables) {
+    if (variables == null || variables.isEmpty()) {
+      return List.of();
+    }
+    return variables.stream().map(WorkflowConfigurationMapper::toScopeVariableOutput).toList();
+  }
+
+  private static ScopeVariableOutput toScopeVariableOutput(ScopeVariable variable) {
+    return new ScopeVariableOutput(
+        variable.getId(),
+        variable.getKey(),
+        variable.getType(),
+        variable.getValue(),
+        variable.getDescription());
   }
 }

@@ -162,4 +162,14 @@ public class Workflow implements Base {
   @JsonIgnore
   @Schema(description = "Scenario associated with this workflow")
   private Scenario scenario;
+
+  // Variables
+  @OneToMany(
+      mappedBy = "workflow",
+      fetch = FetchType.LAZY,
+      orphanRemoval = true,
+      cascade = CascadeType.ALL)
+  @Builder.Default
+  @JsonProperty("workflow_scope_variables")
+  private List<ScopeVariable> workflowScopeVariables = new ArrayList<>();
 }

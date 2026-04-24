@@ -15,19 +15,20 @@ public class V4_99__Add_scope_variables extends BaseJavaMigration {
       stmt.execute(
           """
           CREATE TABLE IF NOT EXISTS scope_variables (
-              scope_variable_id           varchar(255) NOT NULL CONSTRAINT scope_variables_pkey PRIMARY KEY,
-              scope_variable_key          varchar(255) NOT NULL,
-              scope_variable_type     varchar(255) NOT NULL,
-              scope_variable_value        varchar(255) NOT NULL,
-              scope_variable_description  varchar(255),
-              scope_variable_workflow     varchar(255) NOT NULL
+              scope_variable_id          varchar(255) NOT NULL CONSTRAINT scope_variables_pkey PRIMARY KEY,
+              scope_variable_key         varchar(255) NOT NULL,
+              scope_variable_type        varchar(255) NOT NULL,
+              scope_variable_value       varchar(255) NOT NULL,
+              scope_variable_description varchar(255),
+              scope_variable_workflow    varchar(255) NOT NULL
                   CONSTRAINT fk_scope_variable_workflow_id
                   REFERENCES workflows(workflow_id) ON DELETE CASCADE,
-              scope_variable_created_at   TIMESTAMP WITH TIME ZONE,
-              scope_variable_updated_at   TIMESTAMP WITH TIME ZONE
+              scope_variable_created_at  TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+              scope_variable_updated_at  TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
           );
           """);
 
+      // Index on the workflow FK for faster lookups
       stmt.execute(
           "CREATE INDEX IF NOT EXISTS idx_scope_variable_workflow ON scope_variables (scope_variable_workflow);");
     }
