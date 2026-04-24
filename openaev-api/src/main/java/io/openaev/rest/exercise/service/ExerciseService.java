@@ -804,7 +804,10 @@ public class ExerciseService {
 
   // -- SELECT --
   private List<Selection<?>> getCriteriaBuilderSelections(
-      CriteriaBuilder cb, CriteriaQuery<Tuple> cq, Root<Exercise> exerciseRoot, Map<String, Join<Base, Base>> joinMap) {
+      CriteriaBuilder cb,
+      CriteriaQuery<Tuple> cq,
+      Root<Exercise> exerciseRoot,
+      Map<String, Join<Base, Base>> joinMap) {
     List<Selection<?>> selections = new ArrayList<>();
 
     // Array aggregations
