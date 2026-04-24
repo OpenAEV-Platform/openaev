@@ -84,6 +84,7 @@ class ExerciseServiceTest extends IntegrationTest {
   @Mock private WorkflowService workflowService;
   @Mock private GrantService grantService;
   @Mock private ExerciseTeamUserService exerciseTeamUserService;
+  @Mock private io.openaev.healthcheck.utils.HealthCheckUtils healthCheckUtils;
 
   @Mock private InjectExpectationMapper injectExpectationMapper;
 
@@ -131,7 +132,8 @@ class ExerciseServiceTest extends IntegrationTest {
             previewFeatureService,
             pauseExerciseService,
             fileService,
-            stepService);
+            stepService,
+            healthCheckUtils);
 
     scenarioComposer.reset();
     exerciseComposer.reset();

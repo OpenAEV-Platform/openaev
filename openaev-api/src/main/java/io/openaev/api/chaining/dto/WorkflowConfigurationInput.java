@@ -31,10 +31,10 @@ public class WorkflowConfigurationInput {
   @Max(value = 99, message = "Max attempts must be at most 99")
   private Integer maxAttempts;
 
-  @Schema(description = "Seconds to wait between attempts (1–59).")
+  @Schema(description = "Seconds to wait between attempts (1–3540).")
   @JsonProperty("workflow_configuration_max_temporal_rate_seconds")
   @Min(value = 1, message = "Temporal rate must be at least 1")
-  @Max(value = 59, message = "Temporal rate must be at most 59")
+  @Max(value = 5940, message = "Temporal rate must be at most 5940 seconds (= 99 minutes)")
   private Long maxTemporalRateSeconds;
 
   // -- Timeout --
@@ -43,9 +43,9 @@ public class WorkflowConfigurationInput {
   @JsonProperty("workflow_configuration_timeout_enabled")
   private boolean timeoutEnabled;
 
-  @Schema(description = "Total timeout in seconds for the attack workflow scenario (0–86400).")
+  @Schema(description = "Total timeout in seconds for the attack workflow scenario (60–86400).")
   @JsonProperty("workflow_configuration_timeout_seconds")
-  @Min(value = 0, message = "Timeout seconds must be zero or greater")
+  @Min(value = 60, message = "Timeout seconds must be at least 60 (1 min)")
   @Max(value = 86400, message = "Timeout seconds must be at most 86400 (24 h)")
   private Long timeoutSeconds;
 

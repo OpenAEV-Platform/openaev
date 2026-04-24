@@ -24,9 +24,10 @@ public class ScenarioHandler implements Handler<EsScenario> {
   }
 
   @Override
-  public List<EsScenario> fetch(Instant from) {
+  public List<EsScenario> fetch(Instant from, int limit) {
     Instant queryFrom = from != null ? from : Instant.ofEpochMilli(0);
-    List<RawScenarioSimpleIndexing> forIndexing = scenarioRepository.findForIndexing(queryFrom);
+    List<RawScenarioSimpleIndexing> forIndexing =
+        scenarioRepository.findForIndexing(queryFrom, limit);
     return forIndexing.stream()
         .map(
             scenario -> {

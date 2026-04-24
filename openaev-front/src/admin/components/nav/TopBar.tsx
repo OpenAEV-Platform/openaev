@@ -173,7 +173,7 @@ const TopBar: FunctionComponent = () => {
   });
   const handleLogout = async () => {
     await dispatch(logout());
-    navigate('/');
+    window.location.href = '/';
     handleCloseMenu();
   };
 

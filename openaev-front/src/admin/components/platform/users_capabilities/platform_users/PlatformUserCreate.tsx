@@ -3,7 +3,6 @@ import { type FunctionComponent, useCallback } from 'react';
 import { addPlatformUser } from '../../../../../actions/platform/users/platform-user-action';
 import { PLATFORM_USER_SCHEMA_KEY } from '../../../../../actions/platform/users/platform-user-schema';
 import { type UserInputForm } from '../../../../../actions/users/users-helper';
-import { useFormatter } from '../../../../../components/i18n';
 import type { UserOutput } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import { type Option } from '../../../../../utils/Option';
@@ -12,7 +11,6 @@ import UserCreate from '../../../settings/users/UserCreate';
 interface Props { onCreate: (result: UserOutput) => void }
 
 const PlatformUserCreate: FunctionComponent<Props> = ({ onCreate }) => {
-  const { t } = useFormatter();
   const dispatch = useAppDispatch();
 
   const handleSubmit = useCallback(
@@ -39,7 +37,7 @@ const PlatformUserCreate: FunctionComponent<Props> = ({ onCreate }) => {
   return (
     <UserCreate
       onSubmit={handleSubmit}
-      title={t('Create a platform user')}
+      type="PLATFORM"
       buttonVariant="rightMenu"
     />
   );

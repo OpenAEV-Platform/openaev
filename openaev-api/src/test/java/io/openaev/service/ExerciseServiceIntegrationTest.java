@@ -86,6 +86,7 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
   @Autowired private PauseExerciseService pauseExerciseService;
 
   @Autowired private WorkflowService workflowService;
+  @Autowired private io.openaev.healthcheck.utils.HealthCheckUtils healthCheckUtils;
 
   private static String USER_ID;
   private static String TEAM_ID;
@@ -134,7 +135,8 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
             previewFeatureService,
             pauseExerciseService,
             fileService,
-            stepService);
+            stepService,
+            healthCheckUtils);
   }
 
   @AfterAll
