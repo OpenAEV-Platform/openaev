@@ -33,7 +33,7 @@
     "node": ">= 22.11.0"
   },
   "dependencies": {
-    "@casl/ability": "6.8.0",
+    "@casl/ability": "6.8.1",
     "@casl/react": "5.0.1",
     "@ckeditor/ckeditor5-react": "11.1.2",
     "@emotion/react": "11.14.0",
