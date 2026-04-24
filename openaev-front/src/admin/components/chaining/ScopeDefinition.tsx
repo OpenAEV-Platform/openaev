@@ -80,7 +80,7 @@ const ScopeDefinition = ({ workflowId }: ScopeDefinitionProps) => {
       }}
       >
         <ScopeRules workflowConfiguration={workflowConfiguration} onUpdate={handleUpdate} />
-        <ScopeVariables />
+        <ScopeVariables workflowConfiguration={workflowConfiguration} />
       </div>
       <div style={{
         display: 'grid',
