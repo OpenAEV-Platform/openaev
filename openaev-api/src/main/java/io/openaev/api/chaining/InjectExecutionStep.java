@@ -267,9 +267,7 @@ public class InjectExecutionStep implements ActionStep {
       jsonObject.add("outputs", elements);
 
       // UPDATE Global Workflow State
-      JsonObject parsedOutputs =
-          workflowStateService.syncInjectOutputToGlobalState(inject, stepRun);
-      jsonObject.add("parsed_outputs", parsedOutputs);
+      workflowStateService.syncInjectOutputToGlobalState(inject, stepRun);
 
       // UPDATE step output
       stepRun.setOutput(jsonObject.toString());

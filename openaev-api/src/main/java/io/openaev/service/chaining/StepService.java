@@ -94,7 +94,7 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
                     new ElementNotFoundException(
                         "Workflow (TEMPLATE) not found. Simulation ID: " + simulationId));
     Workflow workflowRun = workflowService.launchWorkflowSimulation(workflowTemplate);
-    startWorkflow(workflowRun, workflowTemplate);
+    startWorkflow(workflowRun);
   }
 
   /**
@@ -118,7 +118,7 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     Workflow workflowTemplateSimulation = workflowRun.getWorkflowTemplate();
     copyStepTemplate(workflowTemplateScenario, workflowTemplateSimulation);
 
-    startWorkflow(workflowRun, workflowTemplateSimulation);
+    startWorkflow(workflowRun);
   }
 
   @Transactional(rollbackFor = Exception.class)
@@ -131,23 +131,27 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     saveSteps(stepsTemplateCopy);
   }
 
-  private void startWorkflow(Workflow workflowRun, Workflow workflowTemplate)
-      throws ChainingException {
+  private void startWorkflow(Workflow workflowRun) throws ChainingException {
+    // Save data from Scope in WorkflowState
+    workflowStateService.prepareInitialWorkflowState(workflowRun);
+    evaluate(workflowRun);
+  }
+
+  public void evaluate(Workflow workflowRun) throws ChainingException {
+    String workflowTemplateId = workflowRun.getWorkflowTemplate().getId();
+
     // Get all step template
-    List<Step> stepsTemplate = findAllStepTemplateByWorkflow(workflowTemplate.getId());
+    List<Step> stepsTemplate = findAllStepTemplateByWorkflow(workflowTemplateId);
 
     if (stepsTemplate.isEmpty()) {
       log.info(
           "No step template for workflow template {}. End running {}",
-          workflowTemplate.getId(),
+          workflowTemplateId,
           workflowRun.getId());
       workflowRun.setStatus(WorkflowStatus.END);
       workflowService.saveWorkflowRun(workflowRun);
       return;
     }
-
-    // Save data from Scope in WorkflowState
-    workflowStateService.prepareInitialWorkflowState(workflowRun);
 
     // Step template with valid conditions
     List<Step> stepWithValidCondition = new ArrayList<>();
@@ -1069,15 +1073,15 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     if (stepUpdatedOpt.isPresent()) {
       Step stepUpdated = stepUpdatedOpt.get();
       this.saveStep(stepUpdated);
-      String currentOutput = stepUpdated.getOutput();
-      Workflow workflowExecution = stepUpdated.getWorkflow();
-
-      // Extract output from stepRun and process data chaining for downstream steps
-      JsonObject fullOutput = JsonParser.parseString(currentOutput).getAsJsonObject();
-      JsonElement parsedOutputs = fullOutput.get("parsed_outputs");
-      if (parsedOutputs != null && !parsedOutputs.isJsonNull()) {
-        processDataChaining(parsedOutputs.toString(), workflowExecution);
-      }
+      //      String currentOutput = stepUpdated.getOutput();
+      //      Workflow workflowExecution = stepUpdated.getWorkflow();
+      //
+      //      // Extract output from stepRun and process data chaining for downstream steps
+      //      JsonObject fullOutput = JsonParser.parseString(currentOutput).getAsJsonObject();
+      //      JsonElement parsedOutputs = fullOutput.get("parsed_outputs");
+      //      if (parsedOutputs != null && !parsedOutputs.isJsonNull()) {
+      //        processDataChaining(parsedOutputs.toString(), workflowExecution);
+      //      }
     }
   }
 
@@ -1092,54 +1096,54 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
    * @param workflowExecution running workflow context used for state synchronization and readiness
    *     checks
    */
-  public void processDataChaining(String currentOutput, Workflow workflowExecution) {
-    // Extract KeyTypes present in the updated workflow state
-    Set<ConditionKeyType> keyTypes = conditionService.extractKeyTypesFromOutput(currentOutput);
-
-    // Fetch all Filter/Event Conditions for this specific KeyType
-    // These filter conditions have to be at Template level
-    Map<ConditionKeyType, List<Condition>> filtersByKey =
-        conditionService.findAllFilterConditionsByKeyTypes(keyTypes).stream()
-            .collect(Collectors.groupingBy(Condition::getKeyType));
-
-    // Evaluate every Output Type
-    for (ConditionKeyType keyType : filtersByKey.keySet()) {
-      List<Condition> filters = filtersByKey.getOrDefault(keyType, Collections.emptyList());
-
-      for (Condition filter : filters) {
-        // Traverse to the Root Parent
-        Condition rootCondition = conditionService.fetchRootCondition(filter);
-
-        // Find all Steps linked to this Filter Tree
-        // These Steps have to be at Template level
-        List<Step> targetSteps =
-            rootCondition.getConditionSteps().stream().map(ConditionStep::getStep).toList();
-
-        for (Step targetTemplate : targetSteps) {
-          // Find Mappers on this step that match the current KeyType
-          List<Condition> mappers =
-              targetTemplate.getConditions().stream()
-                  .filter(conditionUtils::isMapperCondition)
-                  .filter(c -> c.getKeyType() == keyType)
-                  .toList();
-
-          if (mappers.isEmpty()) {
-            continue;
-          }
-
-          // Sync & Validate: Only if mappers are MappingType.LOCAL
-          workflowStateService.syncMappersToLocalPartition(
-              targetTemplate, workflowExecution, currentOutput, rootCondition, mappers);
-
-          try {
-            ready(targetTemplate, workflowExecution, null);
-          } catch (ChainingException e) {
-            log.debug("Step {} not ready yet", targetTemplate.getId());
-          }
-        }
-      }
-    }
-  }
+  //  public void processDataChaining(String currentOutput, Workflow workflowExecution) {
+  //    // Extract KeyTypes present in the updated workflow state
+  //    Set<ConditionKeyType> keyTypes = conditionService.extractKeyTypesFromOutput(currentOutput);
+  //
+  //    // Fetch all Filter/Event Conditions for this specific KeyType
+  //    // These filter conditions have to be at Template level
+  //    Map<ConditionKeyType, List<Condition>> filtersByKey =
+  //        conditionService.findAllFilterConditionsByKeyTypes(keyTypes).stream()
+  //            .collect(Collectors.groupingBy(Condition::getKeyType));
+  //
+  //    // Evaluate every Output Type
+  //    for (ConditionKeyType keyType : filtersByKey.keySet()) {
+  //      List<Condition> filters = filtersByKey.getOrDefault(keyType, Collections.emptyList());
+  //
+  //      for (Condition filter : filters) {
+  //        // Traverse to the Root Parent
+  //        Condition rootCondition = conditionService.fetchRootCondition(filter);
+  //
+  //        // Find all Steps linked to this Filter Tree
+  //        // These Steps have to be at Template level
+  //        List<Step> targetSteps =
+  //            rootCondition.getConditionSteps().stream().map(ConditionStep::getStep).toList();
+  //
+  //        for (Step targetTemplate : targetSteps) {
+  //          // Find Mappers on this step that match the current KeyType
+  //          List<Condition> mappers =
+  //              targetTemplate.getConditions().stream()
+  //                  .filter(conditionUtils::isMapperCondition)
+  //                  .filter(c -> c.getKeyType() == keyType)
+  //                  .toList();
+  //
+  //          if (mappers.isEmpty()) {
+  //            continue;
+  //          }
+  //
+  //          // Sync & Validate: Only if mappers are MappingType.LOCAL
+  //          workflowStateService.syncMappersToLocalPartition(
+  //              targetTemplate, workflowExecution, currentOutput, rootCondition, mappers);
+  //
+  //          try {
+  //            ready(targetTemplate, workflowExecution, null);
+  //          } catch (ChainingException e) {
+  //            log.debug("Step {} not ready yet", targetTemplate.getId());
+  //          }
+  //        }
+  //      }
+  //    }
+  //  }
 
   public enum ACTION_JSON {
     REPLACE,

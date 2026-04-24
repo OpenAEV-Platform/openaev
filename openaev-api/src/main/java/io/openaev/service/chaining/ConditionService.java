@@ -443,7 +443,11 @@ public class ConditionService {
     //      }
     //    }
 
-    //    // Filter conditions
+    // Task ConditionExecution
+    // Check event was already validated
+    // Check event filters
+    // Create pool local if needed
+    //
     //    List<Condition> filterConditions =
     //        conditionTemplate.stream().filter(this::isFilterCondition).toList();
     //
@@ -456,7 +460,6 @@ public class ConditionService {
     //        conditionsExecution.add(filterConditionValid);
     //      }
     //    }
-    //   ip != null (local) && port != null
     //
 
     // MAPPER CONDITIONS
@@ -687,7 +690,6 @@ public class ConditionService {
       return List.of(new ConditionService.ExecutionBatch(null, List.of()));
     }
 
-    // Fetch States
     WorkflowState globalState =
         workflowStateService.getGlobalStateByWorkflowId(workflowRun.getId());
     WorkflowState localState =
@@ -698,100 +700,120 @@ public class ConditionService {
     WorkflowStateEntries globalEntries =
         gson.fromJson(globalState.getEntries(), WorkflowStateEntries.class);
 
-    // Define the "Requirement" for a unique execution
-    Set<String> requiredKeys =
-        mappers.stream()
-            .filter(m -> m.getMappingType() != MappingType.DEFAULT)
-            .map(m -> m.getKeyType().name())
-            .collect(Collectors.toSet());
+    Set<String> requiredKeys = extractRequiredExecutionKeys(mappers);
 
-    // Build the lists for the Cartesian Product
-    List<List<WorkflowStateEntries.Pair>> allPairsList = new ArrayList<>();
-    Map<String, String> staticValues = new HashMap<>();
+    MapperInputPreparation mapperInputPreparation =
+        prepareMapperInputs(mappers, localEntries, globalEntries);
 
-    for (Condition m : mappers) {
-      String key = m.getKeyType().name();
-
-      if (m.getMappingType() == MappingType.DEFAULT) {
-        staticValues.put(key, m.getValue());
-      } else {
-        Set<String> vals =
-            (m.getMappingType() == MappingType.GLOBAL)
-                ? globalEntries.getInputByKey(key).getValues()
-                : localEntries.getInputByKey(key).getValues();
-
-        if (vals == null || vals.isEmpty()) {
-          return new ArrayList<>();
-        }
-
-        // Convert these values into Pairs for the combination engine
-        List<WorkflowStateEntries.Pair> pairs =
-            vals.stream().map(v -> new WorkflowStateEntries.Pair(key, v)).toList();
-        allPairsList.add(pairs);
-      }
+    if (mapperInputPreparation.hasMissingDynamicValues()) {
+      return new ArrayList<>();
     }
 
-    // Generate every possible combination (Local values X Global values)
-    List<List<WorkflowStateEntries.Pair>> product = localEntries.cartesianProduct(allPairsList);
-    List<ConditionService.ExecutionBatch> batches = new ArrayList<>();
-
-    for (List<WorkflowStateEntries.Pair> comboPairs : product) {
-      // Create a sorted map of this specific combination for consistent hashing
-      Map<String, String> comboMap = new TreeMap<>();
-      comboPairs.forEach(p -> comboMap.put(p.key(), p.value()));
-
-      // Ensure this combo has everything the mappers required
-      if (localEntries.comboContainAllExecutionKeys(requiredKeys, comboMap)) {
-
-        // HASHING: This hash represents the UNIQUE combination of Local + Global data
-        long hash = localEntries.hashCombo(comboMap);
-
-        // Check if THIS specific step has already executed this combo
-        if (!localEntries.getHashExecution().contains(hash)) {
-
-          // Prepare the full input including static DEFAULT values
-          Map<String, String> fullInput = new HashMap<>(comboMap);
-          fullInput.putAll(staticValues);
-
-          List<Condition> resolvedMappers =
-              mappers.stream()
-                  .map(
-                      template -> {
-                        Condition resolved = new Condition();
-
-                        // Copy metadata from template
-                        resolved.setType(ConditionType.MAPPER);
-                        resolved.setKey(template.getKey());
-                        resolved.setKeyType(template.getKeyType());
-                        resolved.setMappingType(template.getMappingType());
-                        resolved.setDescription(template.getDescription());
-                        resolved.setKeySubtype(template.getKeySubtype());
-                        resolved.setName(template.getName());
-                        resolved.setWorkflowId(template.getWorkflowId());
-                        resolved.setCreationDate(Instant.now());
-                        resolved.setUpdateDate(Instant.now());
-
-                        // Fetch the specific value used in this execution batch
-                        String actualValue = fullInput.get(template.getKeyType().name());
-                        resolved.setValue(actualValue);
-
-                        return resolved;
-                      })
-                  .collect(Collectors.toList());
-
-          batches.add(new ConditionService.ExecutionBatch(gson.toJson(fullInput), resolvedMappers));
-
-          // Persist the hash locally
-          localEntries.getHashExecution().add(hash);
-        }
-      }
-    }
+    List<ConditionService.ExecutionBatch> batches =
+        buildExecutionBatches(
+            mappers,
+            localEntries,
+            mapperInputPreparation.dynamicPairs(),
+            mapperInputPreparation.staticValues(),
+            requiredKeys);
 
     // Save the updated hash list to the LOCAL state
     localState.setEntries(gson.toJson(localEntries));
     workflowStateService.save(localState);
 
     return batches;
+  }
+
+  private Set<String> extractRequiredExecutionKeys(List<Condition> mappers) {
+    return mappers.stream()
+        .filter(mapper -> mapper.getMappingType() != MappingType.DEFAULT)
+        .map(mapper -> mapper.getKeyType().name())
+        .collect(Collectors.toSet());
+  }
+
+  private MapperInputPreparation prepareMapperInputs(
+      List<Condition> mappers,
+      WorkflowStateEntries localEntries,
+      WorkflowStateEntries globalEntries) {
+    List<List<WorkflowStateEntries.Pair>> allPairsList = new ArrayList<>();
+    Map<String, String> staticValues = new HashMap<>();
+
+    for (Condition mapper : mappers) {
+      String key = mapper.getKeyType().name();
+
+      if (mapper.getMappingType() == MappingType.DEFAULT) {
+        staticValues.put(key, mapper.getValue());
+        continue;
+      }
+
+      Set<String> values =
+          (mapper.getMappingType() == MappingType.GLOBAL)
+              ? globalEntries.getInputByKey(key).getValues()
+              : localEntries.getInputByKey(key).getValues();
+
+      if (values == null || values.isEmpty()) {
+        return new MapperInputPreparation(List.of(), Map.of(), true);
+      }
+
+      allPairsList.add(
+          values.stream().map(value -> new WorkflowStateEntries.Pair(key, value)).toList());
+    }
+
+    return new MapperInputPreparation(allPairsList, staticValues, false);
+  }
+
+  private List<ConditionService.ExecutionBatch> buildExecutionBatches(
+      List<Condition> mappers,
+      WorkflowStateEntries localEntries,
+      List<List<WorkflowStateEntries.Pair>> allPairsList,
+      Map<String, String> staticValues,
+      Set<String> requiredKeys) {
+
+    List<List<WorkflowStateEntries.Pair>> product = localEntries.cartesianProduct(allPairsList);
+    List<ConditionService.ExecutionBatch> batches = new ArrayList<>();
+
+    for (List<WorkflowStateEntries.Pair> comboPairs : product) {
+      Map<String, String> comboMap = new TreeMap<>();
+      comboPairs.forEach(pair -> comboMap.put(pair.key(), pair.value()));
+
+      if (!localEntries.comboContainAllExecutionKeys(requiredKeys, comboMap)) {
+        continue;
+      }
+
+      long hash = localEntries.hashCombo(comboMap);
+      if (localEntries.getHashExecution().contains(hash)) {
+        continue;
+      }
+
+      Map<String, String> fullInput = new HashMap<>(comboMap);
+      fullInput.putAll(staticValues);
+
+      List<Condition> resolvedMappers =
+          mappers.stream()
+              .map(mapperTemplate -> toResolvedMapper(mapperTemplate, fullInput))
+              .collect(Collectors.toList());
+
+      batches.add(new ConditionService.ExecutionBatch(gson.toJson(fullInput), resolvedMappers));
+      localEntries.getHashExecution().add(hash);
+    }
+
+    return batches;
+  }
+
+  private Condition toResolvedMapper(Condition template, Map<String, String> fullInput) {
+    Condition resolved = new Condition();
+    resolved.setType(ConditionType.MAPPER);
+    resolved.setKey(template.getKey());
+    resolved.setKeyType(template.getKeyType());
+    resolved.setMappingType(template.getMappingType());
+    resolved.setDescription(template.getDescription());
+    resolved.setKeySubtype(template.getKeySubtype());
+    resolved.setName(template.getName());
+    resolved.setWorkflowId(template.getWorkflowId());
+    resolved.setCreationDate(Instant.now());
+    resolved.setUpdateDate(Instant.now());
+    resolved.setValue(fullInput.get(template.getKeyType().name()));
+    return resolved;
   }
 
   /**
@@ -801,6 +823,11 @@ public class ConditionService {
    * @param usedMappers mapper conditions used to build this input
    */
   public record ExecutionBatch(String inputString, List<Condition> usedMappers) {}
+
+  private record MapperInputPreparation(
+      List<List<WorkflowStateEntries.Pair>> dynamicPairs,
+      Map<String, String> staticValues,
+      boolean hasMissingDynamicValues) {}
 
   /**
    * Extracts distinct {@link ConditionKeyType} values from a step output JSON.

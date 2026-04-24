@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.gson.*;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.WorkflowStateRepository;
+import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.inject.service.StructuredOutputUtils;
 import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import io.openaev.utils.ConditionUtils;
@@ -29,6 +30,7 @@ public class WorkflowStateService {
   private final StructuredOutputUtils structuredOutputUtils;
 
   private final Gson gson = new Gson();
+  private final StepService stepService;
 
   /**
    * Initializes the global workflow state from scope definition.
@@ -50,23 +52,29 @@ public class WorkflowStateService {
    * @param stepRun the RUN step used to locate the workflow's global state
    */
   @Transactional
-  public JsonObject syncInjectOutputToGlobalState(Inject inject, Step stepRun) {
-    return inject
+  public void syncInjectOutputToGlobalState(Inject inject, Step stepRun) {
+    inject
         .getStatus()
         .filter(status -> status.getTraces() != null)
-        .map(status -> processSync(inject, stepRun, status))
-        .orElseGet(JsonObject::new);
+        .ifPresent(
+            status -> {
+              processSync(inject, stepRun, status);
+              try {
+                stepService.evaluate(stepRun.getWorkflow());
+              } catch (ChainingException e) {
+                throw new RuntimeException(e);
+              }
+            });
   }
 
-  private JsonObject processSync(Inject inject, Step stepRun, InjectStatus status) {
-    JsonObject extractedOutputs = new JsonObject();
+  private void processSync(Inject inject, Step stepRun, InjectStatus status) {
     Map<String, ContractOutputType> fieldTypeMap = buildFieldTypeMap(inject);
 
     WorkflowState globalState = getGlobalStateByWorkflowId(stepRun.getWorkflow().getId());
     if (globalState == null) {
       log.warn(
           "No global state found for workflow {}. Skipping sync.", stepRun.getWorkflow().getId());
-      return extractedOutputs;
+      return;
     }
 
     WorkflowStateEntries entries =
@@ -85,18 +93,7 @@ public class WorkflowStateService {
               try {
                 JsonElement element = JsonParser.parseString(structuredOutput.toString());
                 if (element.isJsonObject()) {
-                  Map<String, List<String>> traceData =
-                      saveToEntries(entries, element.getAsJsonObject(), fieldTypeMap);
-
-                  traceData.forEach(
-                      (key, values) -> {
-                        JsonArray arr = extractedOutputs.getAsJsonArray(key);
-                        if (arr == null) {
-                          arr = new JsonArray();
-                          extractedOutputs.add(key, arr);
-                        }
-                        values.forEach(arr::add);
-                      });
+                  saveToEntries(entries, element.getAsJsonObject(), fieldTypeMap);
                 }
               } catch (Exception e) {
                 log.error("Failed to sync trace {} to global state", trace.getId(), e);
@@ -106,8 +103,6 @@ public class WorkflowStateService {
     // Save JSON back to DB
     globalState.setEntries(gson.toJson(entries));
     save(globalState);
-
-    return extractedOutputs;
   }
 
   private Map<String, ContractOutputType> buildFieldTypeMap(Inject inject) {
