@@ -1,15 +1,21 @@
 import type { Dispatch } from 'redux';
 
-import { postReferential, putReferential, simpleDelCall, simplePostCall } from '../../../utils/Action';
+import { getReferential, postReferential, putReferential, simpleDelCall, simplePostCall } from '../../../utils/Action';
 import { type SearchPaginationInput, type TenantInput, type TenantOutput } from '../../../utils/api-types';
 import { MESSAGING$ } from '../../../utils/Environment';
 import { TENANT_URI } from '../../../utils/url-helper';
-import { tenant } from './tenant-schema';
+import { arrayOfTenants, tenant } from './tenant-schema';
 
 // -- CREATE --
 
 export const addTenant = (data: TenantInput) => (dispatch: Dispatch) => {
   return postReferential(tenant, TENANT_URI, data)(dispatch);
+};
+
+// -- READ --
+
+export const fetchTenants = () => (dispatch: Dispatch) => {
+  return getReferential(arrayOfTenants, TENANT_URI)(dispatch);
 };
 
 // -- SEARCH --

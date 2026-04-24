@@ -12,6 +12,8 @@ import TagFieldController from '../../../../components/fields/TagFieldController
 import TextFieldController from '../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../components/i18n';
 import { PHONE_REGEX, zodImplement } from '../../../../utils/Zod';
+import TenantField from '../../../../components/fields/TenantField';
+import TenantFieldController from '../../../../components/fields/TenantFieldController';
 
 interface UserFormProps {
   onSubmit: (data: UserInputForm) => void;
@@ -33,6 +35,7 @@ const UserForm: FunctionComponent<UserFormProps> = ({
     user_phone: '',
     user_phone2: '',
     user_pgp_key: '',
+    user_tenants:[],
     user_admin: false,
   },
   editing,
@@ -58,6 +61,7 @@ const UserForm: FunctionComponent<UserFormProps> = ({
     user_lastname: z.string().optional(),
     user_organization: z.any().optional(),
     user_tags: z.any().optional(),
+    user_tenants: z.any().optional(),
     user_phone: phoneValidation as unknown as z.ZodOptional<z.ZodType<string | undefined>>,
     user_phone2: phoneValidation as unknown as z.ZodOptional<z.ZodType<string | undefined>>,
     user_pgp_key: z.string().optional(),
@@ -113,6 +117,7 @@ const UserForm: FunctionComponent<UserFormProps> = ({
         <TextFieldController name="user_lastname" label={t('Lastname')} />
         <OrganizationFieldController name="user_organization" label={t('Organization')} />
         <TagFieldController name="user_tags" label={t('Tags')} />
+        <TenantFieldController name="user_tenants" label={t('Tenants')}/>
         <TextFieldController name="user_phone" label={t('Phone number (mobile)')} />
         <TextFieldController name="user_phone2" label={t('Phone number (landline)')} />
         <TextFieldController name="user_pgp_key" label={t('PGP public key')} multiline rows={5} />

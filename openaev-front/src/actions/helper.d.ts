@@ -7,6 +7,7 @@ import {
   type Scenario,
   type ScenarioChallengesReader,
   type SimulationChallengesReader,
+  type TenantOutput as Tenant,
   type TenantXtmHubRegistration,
   type Token,
   type User,
@@ -23,6 +24,12 @@ export interface OrganizationHelper {
   getOrganizations: () => Organization[];
   getOrganizationsMap: () => Record<string, Organization>;
 }
+
+export interface TenantHelper {
+  getTenants: () => Tenant[];
+  getTenantsMap: () => Record<string, Tenant>;
+}
+
 
 export interface LoggedHelper {
   // TODO type logged object

@@ -4,6 +4,7 @@ import static io.openaev.utils.pagination.CriteriaBuilderPagination.paginate;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 
 import io.openaev.api.tenants.TenantInput;
+import io.openaev.api.tenants.TenantMapper;
 import io.openaev.api.tenants.TenantOutput;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.TenantRepository;
@@ -106,6 +107,10 @@ public class TenantService {
                 TenantQueryHelper::execution),
         searchPaginationInput,
         Tenant.class);
+  }
+
+  public Iterable<TenantOutput> tenants() {
+    return tenantRepository.findAll().stream().map(TenantMapper::toOutput).toList();
   }
 
   /** Returns all tenants accessible by a given user. */

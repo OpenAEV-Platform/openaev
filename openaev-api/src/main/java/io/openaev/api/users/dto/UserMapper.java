@@ -2,7 +2,10 @@ package io.openaev.api.users.dto;
 
 import io.openaev.database.model.Organization;
 import io.openaev.database.model.Tag;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
+
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -16,6 +19,10 @@ public class UserMapper {
         user.getTags() != null
             ? user.getTags().stream().map(Tag::getId).collect(Collectors.toSet())
             : Set.of();
+    List<String> tenantIds =
+        user.getTenants() != null
+            ? user.getTenants().stream().map(Tenant::getId).toList()
+            : List.of();
     return new UserOutput(
         user.getId(),
         user.getEmail(),
@@ -27,6 +34,7 @@ public class UserMapper {
         org != null ? org.getId() : null,
         org != null ? org.getName() : null,
         tagIds,
+        tenantIds,
         user.isAdmin());
   }
 }

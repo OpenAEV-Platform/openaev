@@ -7723,6 +7723,28 @@ export interface TeamUpdateInput {
   team_tags?: string[];
 }
 
+export interface Tenant {
+  listened?: boolean;
+  /** @format date-time */
+  tenant_created_at: string;
+  /** @format date-time */
+  tenant_deleted_at?: string;
+  /** Tenant description */
+  tenant_description?: string;
+  /**
+   * Tenant ID
+   * @minLength 1
+   */
+  tenant_id: string;
+  /**
+   * Tenant name
+   * @minLength 1
+   */
+  tenant_name: string;
+  /** @format date-time */
+  tenant_updated_at: string;
+}
+
 export interface TenantInput {
   tenant_description?: string;
   /** @minLength 1 */
@@ -8276,6 +8298,7 @@ export interface User {
   /** @uniqueItems true */
   user_tags?: string[];
   user_teams?: string[];
+  user_tenants?: Tenant[];
   /** Theme of the user */
   user_theme?: string;
   /**
@@ -8302,6 +8325,7 @@ export interface UserInput {
   user_phone?: string;
   user_plain_password?: string;
   user_tags?: string[];
+  user_tenants?: string[];
 }
 
 export interface UserOutput {
@@ -8322,6 +8346,7 @@ export interface UserOutput {
   user_phone?: string;
   /** @uniqueItems true */
   user_tags?: string[];
+  user_tenants?: string[];
 }
 
 export interface ValidationContent {

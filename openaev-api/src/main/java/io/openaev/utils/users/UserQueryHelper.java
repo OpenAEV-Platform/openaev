@@ -24,6 +24,7 @@ public class UserQueryHelper {
   public static void select(CriteriaBuilder cb, CriteriaQuery<Tuple> cq, Root<User> userRoot) {
     // Joins
     Expression<String[]> tagIdsExpression = createJoinArrayAggOnId(cb, userRoot, "tags");
+    Expression<String[]> tenantIdsExpression = createJoinArrayAggOnId(cb, userRoot, "tenants");
     Join<User, Organization> organizationJoin = createLeftJoin(userRoot, "organization");
 
     cq.multiselect(
@@ -38,6 +39,7 @@ public class UserQueryHelper {
         organizationJoin.get("id").alias(ALIAS_ORGANIZATION_ID),
         organizationJoin.get("name").alias(ALIAS_ORGANIZATION_NAME),
         tagIdsExpression.alias(ALIAS_TAGS),
+        tenantIdsExpression.alias(ALIAS_TENANTS),
         userRoot.get("admin").alias(ALIAS_ADMIN));
 
     cq.groupBy(userRoot.get("id"), organizationJoin.get("id"));
@@ -52,6 +54,8 @@ public class UserQueryHelper {
               String pgpKey = tuple.get(ALIAS_PGP_KEY, String.class);
               Set<String> tagIds =
                   Arrays.stream(tuple.get(ALIAS_TAGS, String[].class)).collect(Collectors.toSet());
+              List<String> tenantIds =
+                  Arrays.stream(tuple.get(ALIAS_TENANTS, String[].class)).toList();
               return new UserOutput(
                   tuple.get(ALIAS_ID, String.class),
                   tuple.get(ALIAS_EMAIL, String.class),
@@ -63,6 +67,7 @@ public class UserQueryHelper {
                   tuple.get(ALIAS_ORGANIZATION_ID, String.class),
                   tuple.get(ALIAS_ORGANIZATION_NAME, String.class),
                   tagIds,
+                  tenantIds,
                   tuple.get(ALIAS_ADMIN, Boolean.class));
             })
         .toList();

@@ -387,6 +387,9 @@ export const storeHelper = state => ({
   getPlatformSettings: () => {
     return state.referential.getIn(['entities', 'platformParameters', 'parameters']) || Map({});
   },
+  //tenants
+  getTenants: () => entities('tenants', state),
+  getTenantsMap: () => maps('tenants', state),
   getTenantSettings: () => {
     return state.referential.getIn(['entities', 'tenantSettings', 'settings']) || Map({});
   },

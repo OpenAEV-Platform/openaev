@@ -59,6 +59,7 @@ export const entitiesInitializer = Map({
     catalog_connectors: Map({}),
     connector_instances: Map({}),
     platform_capabilities: Map({}),
+    tenants: Map({}),
     tenant_capabilities: Map({}),
     tenantXtmHubRegistrations: Map({}),
   }),

@@ -53,6 +53,16 @@ public class TenantApi {
     return toOutput(tenantService.findById(tenantId));
   }
 
+  @Operation(
+      summary = "List tenants",
+      description = "Lists all tenants the user has access to (Enterprise edition only)")
+  @AccessControl(
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.TENANT,
+      isEnterpriseEdition = true)
+  @GetMapping
+  public Iterable<TenantOutput> tenants(){return tenantService.tenants();}
+
   // -- SEARCH --
 
   @Operation(
