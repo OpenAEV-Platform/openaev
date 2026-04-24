@@ -201,7 +201,7 @@ runs:
       with:
         name: openaev-image
         path: openaev-image.tar.gz
-        retention-days: 5
+        retention-days: 1
 
     # ── UBI9 image (multi-arch) ───────────────────────────────────
     - name: Build UBI9 image (multi-arch OCI archive)
@@ -280,4 +280,4 @@ runs:
       with:
         name: openaev-ubi9-image
         path: openaev-ubi9-image.tar.gz
-        retention-days: 5
+        retention-days: 1

@@ -243,33 +243,33 @@ jobs:
           echo "has_frontend=$(has coverage/frontend/lcov.info)"             >> "$GITHUB_OUTPUT"
           echo "has_e2e=$(has coverage/e2e/lcov.info)"                       >> "$GITHUB_OUTPUT"
 
-      # ── Upload to Codecov (master only) ─────────────────────────────
+      # ── Upload to Codecov ──────────────────────────────────────────
       - name: Upload backend coverage to Codecov
-        if: ${{ inputs.upload-codecov && github.ref == 'refs/heads/master' &&
-          steps.check.outputs.has_backend == 'true' }}
+        if: ${{ inputs.upload-codecov && steps.check.outputs.has_backend == 'true' }}
         uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: openaev-api/target/site/jacoco/jacoco.xml
           flags: backend
+          disable_search: true
           fail_ci_if_error: false
 
       - name: Upload frontend coverage to Codecov
-        if: ${{ inputs.upload-codecov && github.ref == 'refs/heads/master' &&
-          steps.check.outputs.has_frontend == 'true' }}
+        if: ${{ inputs.upload-codecov && steps.check.outputs.has_frontend == 'true' }}
         uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage/frontend/lcov.info
           flags: frontend
+          disable_search: true
           fail_ci_if_error: false
 
       - name: Upload E2E coverage to Codecov
-        if: ${{ inputs.upload-codecov && github.ref == 'refs/heads/master' &&
-          steps.check.outputs.has_e2e == 'true' }}
+        if: ${{ inputs.upload-codecov && steps.check.outputs.has_e2e == 'true' }}
         uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage/e2e/lcov.info
           flags: e2e
+          disable_search: true
           fail_ci_if_error: false

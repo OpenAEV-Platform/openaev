@@ -14,12 +14,6 @@ name: "[Core] Release Dry Run"
 # tested here too.
 
 on:
-  # TODO: Remove push trigger before merging — only needed because
-  # workflow_dispatch requires the file to exist on the default branch.
-  push:
-    branches: [ core-ci ]
-    paths:
-      - ".github/workflows/core-release-dry-run.yml"
   workflow_dispatch:
     inputs:
       simulated_version:
@@ -272,13 +266,7 @@ jobs:
   # ──────────────────────────────────────────────────────────────────
   summary:
     name: "📋 Release Dry Run Summary"
-    needs:
-      [
-        backend-package,
-        backend-package-musl,
-        docker-build,
-        quality-gates,
-      ]
+    needs: [ backend-package, backend-package-musl, docker-build, quality-gates ]
     if: always()
     runs-on: ubuntu-latest
     steps:
