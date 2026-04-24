@@ -96,6 +96,7 @@ public class InjectorContractService implements DependenciesManager {
   private final AttackPatternRepository attackPatternRepository;
   private final TagRepository tagRepository;
   private final InjectorService injectorService;
+  private final io.openaev.database.repository.TenantRepository tenantRepository;
 
   private final List<String> listDefaultInjectorContract =
       List.of(
@@ -766,12 +767,23 @@ public class InjectorContractService implements DependenciesManager {
   @Override
   public void createDependencyForTenant(Tenant tenant) throws DependenciesManagerException {
     try {
+      Optional<Tenant> referenceTenant =
+          tenantRepository.findFirstByDeletedAtIsNullAndIdNot(tenant.getId());
+      if (referenceTenant.isEmpty()) {
+        log.info(
+            "No reference tenant found — skipping injector contract copy for tenant {}."
+                + " Contracts will be created when integrations start.",
+            tenant.getId());
+        return;
+      }
+      String referenceTenantId = referenceTenant.get().getId();
+
       for (String injectorContractId : listDefaultInjectorContract) {
         InjectorContractId compositeId =
-            new InjectorContractId(injectorContractId, TenantContext.getCurrentTenant());
+            new InjectorContractId(injectorContractId, referenceTenantId);
         InjectorContract source = entityManager.find(InjectorContract.class, compositeId);
         if (source == null) {
-          continue; // contract does not exist for the current tenant — skip
+          continue; // contract does not exist for the reference tenant — skip
         }
         entityManager.detach(source);
         source.setTenant(tenant);

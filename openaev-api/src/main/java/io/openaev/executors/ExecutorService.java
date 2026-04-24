@@ -10,6 +10,7 @@ import io.openaev.database.model.Executor;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.database.repository.ExecutionTraceRepository;
 import io.openaev.database.repository.ExecutorRepository;
+import io.openaev.database.repository.TenantRepository;
 import io.openaev.multitenancy.DependenciesManager;
 import io.openaev.multitenancy.DependenciesManagerException;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
@@ -46,6 +47,8 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
 
   private final ExecutorMapper executorMapper;
 
+  private final TenantRepository tenantRepository;
+
   @Autowired
   public ExecutorService(
       ExecutorRepository executorRepository,
@@ -55,7 +58,8 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
       CatalogConnectorService catalogConnectorService,
       ConnectorInstanceService connectorInstanceService,
       ExecutorMapper executorMapper,
-      CatalogConnectorMapper catalogConnectorMapper) {
+      CatalogConnectorMapper catalogConnectorMapper,
+      TenantRepository tenantRepository) {
     super(
         ConnectorType.EXECUTOR,
         connectorInstanceConfigurationRepository,
@@ -66,6 +70,7 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
     this.executorRepository = executorRepository;
     this.executionTraceRepository = executionTraceRepository;
     this.executorMapper = executorMapper;
+    this.tenantRepository = tenantRepository;
   }
 
   @Override
@@ -242,18 +247,27 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
   @Override
   public void createDependencyForTenant(Tenant tenant) throws DependenciesManagerException {
     try {
-      String currentTenantId = TenantContext.getCurrentTenant();
+      Optional<Tenant> referenceTenant =
+          tenantRepository.findFirstByDeletedAtIsNullAndIdNot(tenant.getId());
+      if (referenceTenant.isEmpty()) {
+        log.info(
+            "No reference tenant found — skipping executor copy for tenant {}."
+                + " Executors will be created when integrations start.",
+            tenant.getId());
+        return;
+      }
+      String referenceTenantId = referenceTenant.get().getId();
 
       // Copy executor images and catalog connector logos for the new tenant
-      fileService.copyExecutorImagesForTenant(currentTenantId, tenant.getId());
-      fileService.copyCatalogConnectorLogosForTenant(currentTenantId, tenant.getId());
+      fileService.copyExecutorImagesForTenant(referenceTenantId, tenant.getId());
+      fileService.copyCatalogConnectorLogosForTenant(referenceTenantId, tenant.getId());
 
-      // Filter by current tenant to avoid L1 cache pollution from prior creates
-      List<Executor> currentTenantExecutors =
+      // Filter by reference tenant to avoid L1 cache pollution from prior creates
+      List<Executor> referenceTenantExecutors =
           fromIterable(executorRepository.findAll()).stream()
-              .filter(e -> currentTenantId.equals(e.getTenant().getId()))
+              .filter(e -> referenceTenantId.equals(e.getTenant().getId()))
               .toList();
-      for (Executor source : currentTenantExecutors) {
+      for (Executor source : referenceTenantExecutors) {
         Executor copy = new Executor();
         copy.setId(UUID.randomUUID().toString());
         copy.setName(source.getName());

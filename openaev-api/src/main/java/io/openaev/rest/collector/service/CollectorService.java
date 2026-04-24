@@ -6,12 +6,12 @@ import static io.openaev.service.FileService.COLLECTORS_IMAGES_BASE_PATH;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.CollectorTypeRepository;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.database.repository.SecurityPlatformRepository;
+import io.openaev.database.repository.TenantRepository;
 import io.openaev.multitenancy.DependenciesManager;
 import io.openaev.multitenancy.DependenciesManagerException;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
@@ -50,6 +50,8 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
 
   private final CollectorMapper collectorMapper;
 
+  private final TenantRepository tenantRepository;
+
   @Autowired
   public CollectorService(
       CollectorRepository collectorRepository,
@@ -60,7 +62,8 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
       ConnectorInstanceService connectorInstanceService,
       CatalogConnectorService catalogConnectorService,
       CollectorMapper collectorMapper,
-      CatalogConnectorMapper catalogConnectorMapper) {
+      CatalogConnectorMapper catalogConnectorMapper,
+      TenantRepository tenantRepository) {
     super(
         ConnectorType.COLLECTOR,
         connectorInstanceConfigurationRepository,
@@ -72,6 +75,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
     this.fileService = fileService;
     this.collectorMapper = collectorMapper;
     this.securityPlatformRepository = securityPlatformRepository;
+    this.tenantRepository = tenantRepository;
   }
 
   @Override
@@ -253,15 +257,24 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
   @Override
   public void createDependencyForTenant(Tenant tenant) throws DependenciesManagerException {
     try {
-      String currentTenantId = TenantContext.getCurrentTenant();
+      Optional<Tenant> referenceTenant =
+          tenantRepository.findFirstByDeletedAtIsNullAndIdNot(tenant.getId());
+      if (referenceTenant.isEmpty()) {
+        log.info(
+            "No reference tenant found — skipping collector copy for tenant {}."
+                + " Collectors will be created when integrations start.",
+            tenant.getId());
+        return;
+      }
+      String referenceTenantId = referenceTenant.get().getId();
 
-      // Copy collector images from the current tenant's MinIO path to the new tenant
-      fileService.copyCollectorImagesForTenant(currentTenantId, tenant.getId());
+      // Copy collector images from the reference tenant's MinIO path to the new tenant
+      fileService.copyCollectorImagesForTenant(referenceTenantId, tenant.getId());
 
-      // 1. Copy collector types — filter by current tenant to avoid L1 cache pollution
+      // 1. Copy collector types — filter by reference tenant to avoid L1 cache pollution
       Map<String, CollectorType> typeMapping = new HashMap<>();
       for (CollectorType source : collectorTypeRepository.findAll()) {
-        if (!currentTenantId.equals(source.getTenant().getId())) {
+        if (!referenceTenantId.equals(source.getTenant().getId())) {
           continue;
         }
         CollectorType copy = new CollectorType(source.getName());
@@ -272,7 +285,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
 
       // 2. Copy built-in collectors
       for (Collector source : fromIterable(collectorRepository.findAll())) {
-        if (source.isExternal() || !currentTenantId.equals(source.getTenant().getId())) {
+        if (source.isExternal() || !referenceTenantId.equals(source.getTenant().getId())) {
           continue;
         }
         Collector copy = new Collector();

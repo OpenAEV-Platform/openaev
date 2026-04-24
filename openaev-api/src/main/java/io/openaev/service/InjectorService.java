@@ -9,6 +9,7 @@ import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
+import io.openaev.database.repository.TenantRepository;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.injector_contract.Contract;
 import io.openaev.injector_contract.Contractor;
@@ -63,6 +64,8 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
 
   private final RabbitmqService rabbitmqService;
 
+  private final TenantRepository tenantRepository;
+
   @Autowired
   public InjectorService(
       InjectorRepository injectorRepository,
@@ -76,7 +79,8 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
       DomainService domainService,
       InjectorMapper injectorMapper,
       CatalogConnectorMapper catalogConnectorMapper,
-      RabbitmqService rabbitmqService) {
+      RabbitmqService rabbitmqService,
+      TenantRepository tenantRepository) {
     super(
         ConnectorType.INJECTOR,
         connectorInstanceConfigurationRepository,
@@ -91,6 +95,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     this.domainService = domainService;
     this.injectorMapper = injectorMapper;
     this.rabbitmqService = rabbitmqService;
+    this.tenantRepository = tenantRepository;
   }
 
   @Override
@@ -620,18 +625,27 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
   @Override
   public void createDependencyForTenant(Tenant tenant) throws DependenciesManagerException {
     try {
-      String currentTenantId = TenantContext.getCurrentTenant();
+      Optional<Tenant> referenceTenant =
+          tenantRepository.findFirstByDeletedAtIsNullAndIdNot(tenant.getId());
+      if (referenceTenant.isEmpty()) {
+        log.info(
+            "No reference tenant found — skipping injector copy for tenant {}."
+                + " Injectors will be created when integrations start.",
+            tenant.getId());
+        return;
+      }
+      String referenceTenantId = referenceTenant.get().getId();
 
-      // Copy injector images from the current tenant's MinIO path to the new tenant
-      fileService.copyInjectorImagesForTenant(currentTenantId, tenant.getId());
+      // Copy injector images from the reference tenant's MinIO path to the new tenant
+      fileService.copyInjectorImagesForTenant(referenceTenantId, tenant.getId());
 
-      // Filter by current tenant to avoid L1 cache pollution from prior creates
-      List<Injector> currentTenantInjectors =
+      // Filter by reference tenant to avoid L1 cache pollution from prior creates
+      List<Injector> referenceTenantInjectors =
           fromIterable(injectorRepository.findAll()).stream()
-              .filter(i -> !i.isExternal() && currentTenantId.equals(i.getTenant().getId()))
+              .filter(i -> !i.isExternal() && referenceTenantId.equals(i.getTenant().getId()))
               .toList();
 
-      for (Injector source : currentTenantInjectors) {
+      for (Injector source : referenceTenantInjectors) {
         Injector copy = new Injector();
         copy.setId(UUID.randomUUID().toString());
         copy.setName(source.getName());

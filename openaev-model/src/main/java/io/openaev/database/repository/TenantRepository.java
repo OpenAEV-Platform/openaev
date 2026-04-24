@@ -3,6 +3,7 @@ package io.openaev.database.repository;
 import io.openaev.database.model.Tenant;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -26,6 +27,13 @@ public interface TenantRepository
       nativeQuery = true)
   boolean existsByUserIdAndTenantId(
       @Param("userId") String userId, @Param("tenantId") String tenantId);
+
+  /**
+   * Returns any active (non-soft-deleted) tenant other than the given one. Used during tenant
+   * provisioning to find a reference tenant from which built-in connectors can be copied. Returns
+   * empty when provisioning the very first tenant.
+   */
+  Optional<Tenant> findFirstByDeletedAtIsNullAndIdNot(String excludedTenantId);
 
   /** Returns all tenants a given user has access to via the users_tenants join table. */
   @Query(
