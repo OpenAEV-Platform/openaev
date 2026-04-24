@@ -10,7 +10,7 @@ import { isDemoInstance, MESSAGING$, XTM_HUB_DEFAULT_URL } from '../../../../../
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useAuth from '../../../../../utils/hooks/useAuth';
 import useExternalTab from '../../../../../utils/hooks/useExternalTab';
-import { buildTenantUrl, DEFAULT_TENANT_UUID } from '../../../../../utils/tenant-url-helper';
+import { DEFAULT_TENANT_UUID } from '../../../../../utils/tenant-url-helper';
 import GradientButton from '../../../common/GradientButton';
 import XtmHubConfirmationDialog from './XtmHubConfirmationDialog';
 import XtmHubProcessDialog from './XtmHubProcessDialog';
@@ -53,7 +53,8 @@ const XtmHubTab: React.FC = () => {
   };
   const platformInformation = {
     ...platformIdentifiers,
-    platform_url: `${window.location.origin}${buildTenantUrl(platformIdentifiers.tenant_id, '/')}`,
+    // platform_url should not end with / to avoid issues with one click deploy
+    platform_url: `${window.location.origin}/${platformIdentifiers.tenant_id}`,
     platform_title: settings?.platform_name ?? 'OpenAEV Platform',
     platform_contract: isEnterpriseEdition ? 'EE' : 'CE',
     platform_version: settings?.platform_version ?? '',

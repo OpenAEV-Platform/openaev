@@ -1,7 +1,7 @@
 import { Paper, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import type React from 'react';
-import { useEffect, useRef } from 'react';
+import { useContext, useEffect, useRef } from 'react';
 
 import type { LoggedHelper } from '../../../../../actions/helper';
 import { fetchXtmHubRegistration, refreshConnectivity } from '../../../../../actions/xtmhub/xtmhub-actions';
@@ -10,7 +10,7 @@ import { useHelper } from '../../../../../store';
 import { type PlatformSettings, type XtmHubRegistrationOutput } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useAuth from '../../../../../utils/hooks/useAuth';
-import { Can } from '../../../../../utils/permissions/permissionsContext';
+import { AbilityContext, Can } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import XtmHubRegisteredSection from './XtmHubRegisteredSection';
 import XtmHubTab from './XtmHubTab';
@@ -23,6 +23,7 @@ const XtmHubSettings: React.FC = () => {
   const registration: XtmHubRegistrationOutput | null = useHelper((helper: LoggedHelper) => helper.getXtmHubRegistration());
   const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
   const dispatch = useAppDispatch();
+  const ability = useContext(AbilityContext);
   const hasFetchedRegistration = useRef(false);
   const hasRefreshedConnectivity = useRef(false);
 
@@ -33,7 +34,7 @@ const XtmHubSettings: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (!registration?.tenant_xtmhub_registration_token || hasRefreshedConnectivity.current) {
+    if (!registration?.tenant_xtmhub_registration_token || hasRefreshedConnectivity.current || ability.cannot(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS)) {
       return;
     }
 

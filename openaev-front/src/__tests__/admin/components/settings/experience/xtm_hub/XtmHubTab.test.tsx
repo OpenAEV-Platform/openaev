@@ -170,7 +170,7 @@ const buildRegistrationParams = (overrides: Record<string, string> = {}) =>
   new URLSearchParams({
     tenant_id: TENANT.tenant_id,
     platform_id: DEFAULT_SETTINGS.platform_id!,
-    platform_url: `${window.location.origin}/${TENANT.tenant_id}/`,
+    platform_url: `${window.location.origin}/${TENANT.tenant_id}`,
     platform_title: DEFAULT_SETTINGS.platform_name!,
     platform_contract: 'EE',
     platform_version: DEFAULT_SETTINGS.platform_version!,
@@ -380,7 +380,7 @@ describe('XtmHubTab', () => {
       it('platform_url is the full origin + tenant path when a tenant is set', () => {
         renderXtmHubTab({ registrationStatus: null });
         const platformUrl = new URL(getExternalTabArgs().url).searchParams.get('platform_url');
-        expect(platformUrl).toBe(`${window.location.origin}/${TENANT.tenant_id}/`);
+        expect(platformUrl).toBe(`${window.location.origin}/${TENANT.tenant_id}`);
       });
 
       it('platform_url uses the default tenant uuid when no tenant is set', () => {
@@ -389,7 +389,7 @@ describe('XtmHubTab', () => {
           currentUserTenant: null,
         });
         const platformUrl = new URL(getExternalTabArgs().url).searchParams.get('platform_url');
-        expect(platformUrl).toBe(`${window.location.origin}/${DEFAULT_TENANT_UUID}/`);
+        expect(platformUrl).toBe(`${window.location.origin}/${DEFAULT_TENANT_UUID}`);
       });
 
       it('uses CE contract when license is not validated', () => {
