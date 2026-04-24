@@ -7,6 +7,7 @@ import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.settings.form.PolicyInput;
 import io.openaev.rest.settings.form.ThemeInput;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotBlank;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -20,10 +21,12 @@ import lombok.Setter;
 @NoArgsConstructor
 public class PublicPlatformSettings {
 
+  @NotBlank
   @JsonProperty("platform_theme")
   @Schema(description = "Theme of the platform")
   private String platformTheme;
 
+  @NotBlank
   @JsonProperty("platform_lang")
   @Schema(description = "Language of the platform")
   private String platformLang;

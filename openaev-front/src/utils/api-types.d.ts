@@ -5383,7 +5383,7 @@ export interface PlatformSettings {
   /** id of the platform */
   platform_id?: string;
   /** Language of the platform */
-  platform_lang?: string;
+  platform_lang: string;
   /** Platform licensing information */
   platform_license?: License;
   /** Definition of the dark theme */
@@ -5399,7 +5399,7 @@ export interface PlatformSettings {
   /** Default simulation dashboard of the platform */
   platform_simulation_dashboard?: string;
   /** Theme of the platform */
-  platform_theme?: string;
+  platform_theme: string;
   /** Current version of the platform */
   platform_version?: string;
   /** 'true' if the platform has the whitemark activated */
@@ -5590,7 +5590,7 @@ export interface PublicPlatformSettings {
   /** Definition of the dark theme */
   platform_dark_theme?: ThemeInput;
   /** Language of the platform */
-  platform_lang?: string;
+  platform_lang: string;
   /** Definition of the dark theme */
   platform_light_theme?: ThemeInput;
   /** List of OpenID providers */
@@ -5598,7 +5598,7 @@ export interface PublicPlatformSettings {
   /** Policies of the platform */
   platform_policies?: PolicyInput;
   /** Theme of the platform */
-  platform_theme?: string;
+  platform_theme: string;
   /** 'true' if the platform has the whitemark activated */
   platform_whitemark?: string;
 }
