@@ -1,6 +1,7 @@
 package io.openaev.xtmone;
 
 import io.openaev.utils.StringUtils;
+import jakarta.annotation.PostConstruct;
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -21,6 +22,14 @@ public class XtmOneConfig {
   private volatile String discoveredWebToken;
   private volatile String platformUrl;
   private volatile String platformVersion;
+
+  /** Strips trailing slash from the URL so callers can safely append paths. */
+  @PostConstruct
+  void normalizeUrl() {
+    while (url != null && url.endsWith("/")) {
+      url = url.substring(0, url.length() - 1);
+    }
+  }
 
   public String getEffectiveWebToken() {
     if (!StringUtils.isBlank(getWebToken())) {

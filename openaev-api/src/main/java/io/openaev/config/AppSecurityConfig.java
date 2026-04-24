@@ -97,6 +97,8 @@ public class AppSecurityConfig {
                     .permitAll()
                     .requestMatchers("/api/reset/**")
                     .permitAll()
+                    .requestMatchers("/xtm/auth/jwks")
+                    .permitAll()
                     .requestMatchers("/api/**")
                     .authenticated()
                     .requestMatchers("/actuator/**")
