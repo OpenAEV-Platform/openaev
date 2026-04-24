@@ -50,7 +50,7 @@ class ScenarioExecutionJobTest extends IntegrationTest {
 
   @Nested
   @DisplayName("When using cron-based recurrence")
-  public class WhenUSingCronBasedRecurrence {
+  class WhenUSingCronBasedRecurrence {
     @DisplayName("Not create simulation based on recurring scenario in one hour")
     @Test
     void given_cron_in_one_hour_should_not_create_simulation() throws JobExecutionException {
@@ -194,8 +194,7 @@ class ScenarioExecutionJobTest extends IntegrationTest {
 
     @Test
     @DisplayName("When next occurrence is set in the future, do not create simulation")
-    public void whenNextOccurrenceIsSetInTheFuture_doNotCreateSimulation()
-        throws JobExecutionException {
+    void whenNextOccurrenceIsSetInTheFuture_doNotCreateSimulation() throws JobExecutionException {
       try (MockedStatic<Instant> mockedInstant = mockStatic(Instant.class, CALLS_REAL_METHODS)) {
         Scenario scenario = getScenario();
 
@@ -221,7 +220,7 @@ class ScenarioExecutionJobTest extends IntegrationTest {
 
     @Test
     @DisplayName("When next occurrence is due now, do create simulation")
-    public void whenNextOccurrenceIsDueNow_doCreateSimulation() throws JobExecutionException {
+    void whenNextOccurrenceIsDueNow_doCreateSimulation() throws JobExecutionException {
       try (MockedStatic<Instant> mockedInstant = mockStatic(Instant.class, CALLS_REAL_METHODS)) {
         Scenario scenario = getScenario();
 
@@ -251,8 +250,7 @@ class ScenarioExecutionJobTest extends IntegrationTest {
 
     @Test
     @DisplayName("When due simulation is already created, do not create it twice")
-    public void whenDueSimulationIsAlreadyCreated_doNotCreateItTwice()
-        throws JobExecutionException {
+    void whenDueSimulationIsAlreadyCreated_doNotCreateItTwice() throws JobExecutionException {
       try (MockedStatic<Instant> mockedInstant = mockStatic(Instant.class, CALLS_REAL_METHODS)) {
         Scenario scenario = getScenario();
 
@@ -284,7 +282,7 @@ class ScenarioExecutionJobTest extends IntegrationTest {
 
     @Test
     @DisplayName("When recurrence end date is past, do not create simulation")
-    public void whenRecurrenceEndDateIsPast_doNotCreateSimulation() throws JobExecutionException {
+    void whenRecurrenceEndDateIsPast_doNotCreateSimulation() throws JobExecutionException {
       try (MockedStatic<Instant> mockedInstant = mockStatic(Instant.class, CALLS_REAL_METHODS)) {
         Scenario scenario = getScenario();
         scenario.setRecurrenceEnd(scenarioStartTime.plus(10, ChronoUnit.DAYS));
@@ -314,7 +312,7 @@ class ScenarioExecutionJobTest extends IntegrationTest {
 
   @Test
   @DisplayName("When recurrence expression cannot be handled, do not create simulation")
-  public void whenRecurrenceExpressionCannotBeHandled_doNotCreateSimulation()
+  void whenRecurrenceExpressionCannotBeHandled_doNotCreateSimulation()
       throws JobExecutionException {
     Scenario scenario = ScenarioFixture.getScenario();
     scenario.setRecurrence("can not handle this expression!");

@@ -255,9 +255,9 @@ public class PayloadService {
       }
     }
 
-    // Payload contracts are technical injects: merge base expectations with technical defaults.
-    List<Expectation> available =
-        expectationService.buildAvailableExpectationsForInject(predefined, true);
+    // Payload contracts are technical injects: available expectations are always the 3 standard
+    // technical types.
+    List<Expectation> available = expectationService.buildAvailableExpectationsForTechnicalInject();
 
     return expectationsField(predefined, available);
   }

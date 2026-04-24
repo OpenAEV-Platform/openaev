@@ -1,13 +1,7 @@
 package io.openaev.service;
 
-import static io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE.*;
-import static io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE.VULNERABILITY;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.expectation.ExpectationBuilderService;
 import io.openaev.model.inject.form.Expectation;
-import jakarta.annotation.Resource;
-import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,39 +14,19 @@ public class ExpectationService {
 
   private final ExpectationBuilderService expectationBuilderService;
 
-  @Resource protected ObjectMapper mapper;
-
   /**
-   * Build available expectations from predefined expectations and inject type.
+   * Build the full set of available expectations for a technical inject.
    *
-   * @param predefinedExpectations predefined expectations already present in the contract
-   * @param isHumanInject true when inject is human-oriented, false for technical injects
-   * @return merged available expectations without duplicate default types
+   * <p>Technical injects always expose the three standard technical expectation types (DETECTION,
+   * PREVENTION, VULNERABILITY) as available choices, regardless of which subset is predefined on
+   * the payload.
+   *
+   * @return the fixed list of technical available expectations
    */
-  public List<Expectation> buildAvailableExpectationsForInject(
-      List<Expectation> predefinedExpectations, boolean isHumanInject) {
-    List<Expectation> availableExpectations = new ArrayList<>(predefinedExpectations);
-    if (isHumanInject) {
-      if (availableExpectations.stream()
-          .noneMatch(expectation -> expectation.getType().equals(MANUAL))) {
-        availableExpectations.add(expectationBuilderService.buildManualExpectation());
-      }
-
-      return availableExpectations;
-    }
-
-    if (availableExpectations.stream()
-        .noneMatch(expectation -> expectation.getType().equals(DETECTION))) {
-      availableExpectations.add(expectationBuilderService.buildDetectionExpectation());
-    }
-    if (availableExpectations.stream()
-        .noneMatch(expectation -> expectation.getType().equals(PREVENTION))) {
-      availableExpectations.add(expectationBuilderService.buildPreventionExpectation());
-    }
-    if (availableExpectations.stream()
-        .noneMatch(expectation -> expectation.getType().equals(VULNERABILITY))) {
-      availableExpectations.add(expectationBuilderService.buildVulnerabilityExpectation());
-    }
-    return availableExpectations;
+  public List<Expectation> buildAvailableExpectationsForTechnicalInject() {
+    return List.of(
+        expectationBuilderService.buildDetectionExpectation(),
+        expectationBuilderService.buildPreventionExpectation(),
+        expectationBuilderService.buildVulnerabilityExpectation());
   }
 }

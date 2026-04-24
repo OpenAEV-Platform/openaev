@@ -45,4 +45,14 @@ public class Expectation {
   /** Time in seconds after which this expectation automatically expires. */
   @JsonProperty("expectation_expiration_time")
   private Long expirationTime;
+
+  /**
+   * Whether this expectation type is limited to one selection per inject.
+   *
+   * <p>Only relevant for available expectations exposed in the injector contract. MANUAL
+   * expectations are not limited (can be added multiple times); all other types are limited to a
+   * single selection. Null when this field is not used as an available-expectation option.
+   */
+  @JsonProperty("expectation_is_limited")
+  private Boolean isLimited;
 }

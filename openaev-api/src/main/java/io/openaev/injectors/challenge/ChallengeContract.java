@@ -72,8 +72,10 @@ public class ChallengeContract extends Contractor {
         expectationsField(
             List.of(this.expectationBuilderService.buildChallengeExpectation()),
             List.of(
-                this.expectationBuilderService.buildChallengeExpectation(),
-                this.expectationBuilderService.buildManualExpectation()));
+                this.expectationBuilderService.buildAvailableExpectation(
+                    this.expectationBuilderService.buildChallengeExpectation()),
+                this.expectationBuilderService.buildAvailableExpectation(
+                    this.expectationBuilderService.buildManualExpectation())));
     List<ContractElement> publishInstance =
         contractBuilder()
             .mandatory(challengeField(Multiple))
