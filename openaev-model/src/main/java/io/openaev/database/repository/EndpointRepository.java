@@ -3,7 +3,6 @@ package io.openaev.database.repository;
 import io.openaev.database.model.AssetType;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.raw.RawEndpoint;
-import io.openaev.utils.Constants;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -140,11 +139,9 @@ public interface EndpointRepository
               + ") "
               + "SELECT * FROM endpoint_data ed "
               + "WHERE ed.endpoint_updated_at > :from "
-              + "ORDER BY ed.endpoint_updated_at ASC LIMIT "
-              + Constants.INDEXING_RECORD_SET_SIZE
-              + ";",
+              + "ORDER BY ed.endpoint_updated_at ASC LIMIT :limit;",
       nativeQuery = true)
-  List<RawEndpoint> findForIndexing(@Param("from") Instant from);
+  List<RawEndpoint> findForIndexing(@Param("from") Instant from, @Param("limit") int limit);
 
   // For testing purposes only
 

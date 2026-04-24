@@ -21,9 +21,9 @@ public class SecurityDomainHandler implements Handler<EsSecurityDomain> {
   }
 
   @Override
-  public List<EsSecurityDomain> fetch(Instant from) {
+  public List<EsSecurityDomain> fetch(Instant from, int limit) {
     Instant queryFrom = from != null ? from : Instant.ofEpochMilli(0);
-    List<RawDomainIndexing> forIndexing = domainRepository.findForIndexing(queryFrom);
+    List<RawDomainIndexing> forIndexing = domainRepository.findForIndexing(queryFrom, limit);
     return forIndexing.stream()
         .map(
             domain -> {

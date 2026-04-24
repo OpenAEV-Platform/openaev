@@ -31,6 +31,8 @@ import io.openaev.database.specification.LessonsCategorySpecification;
 import io.openaev.database.specification.LessonsQuestionSpecification;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.expectation.ExpectationType;
+import io.openaev.healthcheck.dto.HealthCheck;
+import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.rest.atomic_testing.form.TargetSimple;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ChainingException;
@@ -138,6 +140,8 @@ public class ExerciseService {
   private final FileService fileService;
 
   private final StepService stepService;
+
+  private final HealthCheckUtils healthCheckUtils;
 
   // region properties
   @Value("${openaev.mail.imap.enabled}")
@@ -744,7 +748,7 @@ public class ExerciseService {
     cq.orderBy(sortSpecification.orders());
 
     // -- Select
-    List<Selection<?>> selections = getCriteriaBuilderSelections(cb, exerciseRoot, joinMap);
+    List<Selection<?>> selections = getCriteriaBuilderSelections(cb, cq, exerciseRoot, joinMap);
     cq.groupBy(Collections.singletonList(exerciseRoot.get("id")));
     selections.addAll(sortSpecification.selections());
     cq.multiselect(selections).distinct(true);
@@ -800,7 +804,10 @@ public class ExerciseService {
 
   // -- SELECT --
   private List<Selection<?>> getCriteriaBuilderSelections(
-      CriteriaBuilder cb, Root<Exercise> exerciseRoot, Map<String, Join<Base, Base>> joinMap) {
+      CriteriaBuilder cb,
+      CriteriaQuery<Tuple> cq,
+      Root<Exercise> exerciseRoot,
+      Map<String, Join<Base, Base>> joinMap) {
     List<Selection<?>> selections = new ArrayList<>();
 
     // Array aggregations
@@ -826,6 +833,16 @@ public class ExerciseService {
     selections.add(tagIdsExpression.alias("exercise_tags"));
     selections.add(injectIdsExpression.alias("exercise_injects"));
 
+    // Subquery for workflow_id
+    Subquery<String> workflowSubquery = cq.subquery(String.class);
+    Root<Workflow> workflowRoot = workflowSubquery.from(Workflow.class);
+    workflowSubquery
+        .select(workflowRoot.get("id"))
+        .where(
+            cb.equal(workflowRoot.get("simulation").get("id"), exerciseRoot.get("id")),
+            cb.equal(workflowRoot.get("status"), WorkflowStatus.TEMPLATE));
+    selections.add(workflowSubquery.alias("exercise_workflow_id"));
+
     // GROUP BY
     return selections;
   }
@@ -846,6 +863,7 @@ public class ExerciseService {
               exerciseSimple.setTagIds(
                   new HashSet<>(Arrays.asList(tuple.get("exercise_tags", String[].class))));
               exerciseSimple.setInjectIds(tuple.get("exercise_injects", String[].class));
+              exerciseSimple.setWorkflowId(tuple.get("exercise_workflow_id", String.class));
               return exerciseSimple;
             })
         .toList();
@@ -1161,5 +1179,28 @@ public class ExerciseService {
         .stream()
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
         .toList();
+  }
+
+  /**
+   * Verify all healthcheck for a given exercise id
+   *
+   * @param exerciseId to verify
+   * @return founded healthcheck list
+   */
+  @Transactional(readOnly = true)
+  public List<HealthCheck> runChecks(String exerciseId) {
+    if (exerciseId == null) {
+      return null;
+    }
+
+    List<HealthCheck> healthChecks = new ArrayList<>();
+
+    // Scope definition check
+    workflowService
+        .findWorkflowTemplateBySimulationId(exerciseId)
+        .ifPresent(
+            workflow -> healthChecks.addAll(healthCheckUtils.runScopeDefinitionChecks(workflow)));
+
+    return healthChecks;
   }
 }

@@ -3,7 +3,7 @@ import type { Dispatch } from 'redux';
 
 import * as Constants from '../../constants/ActionTypes';
 import { store } from '../../store';
-import { postReferential, putReferential, simpleCall, simplePutCall } from '../../utils/Action';
+import { putReferential, simpleCall, simplePostCall, simplePutCall } from '../../utils/Action';
 import * as schema from '../Schema';
 
 const XTM_HUB_URI = '/api/xtmhub';
@@ -23,26 +23,33 @@ const clearStaleRegistrations = (dispatch: Dispatch) => {
   }
 };
 
+const handleRegistrationResponse = (dispatch: Dispatch) => (response: {
+  status: number;
+  data: unknown;
+}) => {
+  if (response.status === 204 || !response.data) {
+    clearStaleRegistrations(dispatch);
+  } else {
+    dispatch({
+      type: Constants.DATA_FETCH_SUCCESS,
+      payload: normalize(response.data, schema.tenantXtmHubRegistration),
+    });
+  }
+};
+
+const handleRegistrationError = (dispatch: Dispatch) => (error: unknown) => {
+  dispatch({
+    type: Constants.DATA_FETCH_ERROR,
+    payload: error,
+  });
+};
+
 export const fetchXtmHubRegistration = () => (dispatch: Dispatch) => {
   const uri = `${XTM_HUB_URI}/registration`;
   dispatch({ type: Constants.DATA_FETCH_SUBMITTED });
   return simpleCall(uri, undefined, false)
-    .then((response) => {
-      if (response.status === 204 || !response.data) {
-        clearStaleRegistrations(dispatch);
-      } else {
-        dispatch({
-          type: Constants.DATA_FETCH_SUCCESS,
-          payload: normalize(response.data, schema.tenantXtmHubRegistration),
-        });
-      }
-    })
-    .catch((error) => {
-      dispatch({
-        type: Constants.DATA_FETCH_ERROR,
-        payload: error,
-      });
-    });
+    .then(handleRegistrationResponse(dispatch))
+    .catch(handleRegistrationError(dispatch));
 };
 
 export const registerPlatform = (token: string) => (dispatch: Dispatch) => {
@@ -70,11 +77,8 @@ export const unregisterPlatform = (registrationId: string) => (dispatch: Dispatc
 
 export const refreshConnectivity = () => (dispatch: Dispatch) => {
   const uri = `${XTM_HUB_URI}/refresh-connectivity`;
-  return postReferential(
-    schema.platformParameters,
-    uri,
-    {},
-    undefined,
-    false,
-  )(dispatch);
+  dispatch({ type: Constants.DATA_FETCH_SUBMITTED });
+  return simplePostCall(uri, {}, undefined, true, false)
+    .then(handleRegistrationResponse(dispatch))
+    .catch(handleRegistrationError(dispatch));
 };

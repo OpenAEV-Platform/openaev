@@ -1,6 +1,5 @@
 package io.openaev.api.chaining;
 
-import static io.openaev.api.chaining.WorkflowApi.WORKFLOW_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.WorkflowFixture.getDefaultWorkflowScopeRuleInputList;
 import static org.junit.jupiter.api.Assertions.*;
@@ -37,6 +36,8 @@ import org.springframework.transaction.annotation.Transactional;
 @WithMockUser(isAdmin = true)
 @DisplayName("Workflow API integration tests")
 class WorkflowApiTest extends IntegrationTest {
+
+  private static final String WORKFLOW_URI = "/api/workflows";
 
   @Autowired private MockMvc mockMvc;
   @Autowired private WorkflowComposer workflowComposer;
@@ -300,7 +301,7 @@ class WorkflowApiTest extends IntegrationTest {
         WorkflowConfigurationInput.builder()
             .rateLimitEnabled(true)
             .maxAttempts(3)
-            .maxTemporalRateSeconds(60L) // above @Max(59)
+            .maxTemporalRateSeconds(6000L) // above @Max(5940)
             .safeModeEnabled(true)
             .build();
 
@@ -347,7 +348,7 @@ class WorkflowApiTest extends IntegrationTest {
     WorkflowConfigurationInput input =
         WorkflowConfigurationInput.builder()
             .timeoutEnabled(true)
-            .timeoutSeconds(-1L) // below @Min(0)
+            .timeoutSeconds(-1L) // below @Min(60)
             .safeModeEnabled(true)
             .build();
 

@@ -40,6 +40,7 @@ public class HealthCheck {
     BODY("body"),
     OPTIONAL_ARGS("optional_args"),
     MESSAGE("message"),
+    SCOPE_DEFINITION("scope_definition"),
     UNKNOWN("unknown");
 
     private final String value;
