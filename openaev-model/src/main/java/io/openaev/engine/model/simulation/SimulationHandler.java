@@ -20,9 +20,10 @@ public class SimulationHandler implements Handler<EsSimulation> {
   private final ExerciseRepository simulationRepository;
 
   @Override
-  public List<EsSimulation> fetch(Instant from) {
+  public List<EsSimulation> fetch(Instant from, int limit) {
     Instant queryFrom = from != null ? from : Instant.ofEpochMilli(0);
-    List<RawSimulationIndexing> forIndexing = simulationRepository.findForIndexing(queryFrom);
+    List<RawSimulationIndexing> forIndexing =
+        simulationRepository.findForIndexing(queryFrom, limit);
     return forIndexing.stream()
         .map(
             simulation -> {

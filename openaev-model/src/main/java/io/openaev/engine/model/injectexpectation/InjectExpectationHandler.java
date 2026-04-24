@@ -23,10 +23,10 @@ public class InjectExpectationHandler implements Handler<EsInjectExpectation> {
   private final InjectExpectationRepository injectExpectationRepository;
 
   @Override
-  public List<EsInjectExpectation> fetch(Instant from) {
+  public List<EsInjectExpectation> fetch(Instant from, int limit) {
     Instant queryFrom = from != null ? from : Instant.ofEpochMilli(0);
     List<RawInjectExpectationIndexing> forIndexing =
-        this.injectExpectationRepository.findForIndexing(queryFrom);
+        this.injectExpectationRepository.findForIndexing(queryFrom, limit);
     return forIndexing.stream()
         .map(
             injectExpectation -> {

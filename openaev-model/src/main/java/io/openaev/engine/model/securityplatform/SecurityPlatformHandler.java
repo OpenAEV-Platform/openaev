@@ -17,9 +17,10 @@ public class SecurityPlatformHandler implements Handler<EsSecurityPlatform> {
   private final SecurityPlatformRepository securityPlatformRepository;
 
   @Override
-  public List<EsSecurityPlatform> fetch(Instant from) {
+  public List<EsSecurityPlatform> fetch(Instant from, int limit) {
     Instant queryFrom = from != null ? from : Instant.ofEpochMilli(0);
-    List<RawAssetIndexing> forIndexing = securityPlatformRepository.findForIndexing(queryFrom);
+    List<RawAssetIndexing> forIndexing =
+        securityPlatformRepository.findForIndexing(queryFrom, limit);
     return forIndexing.stream()
         .map(
             securityPlatform -> {
