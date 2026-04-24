@@ -169,7 +169,7 @@ public class XtmJwksExtractor implements ExtractorBase {
         log.debug("Refreshed JWKS cache for issuer {}", issuer);
       }
     } catch (Exception e) {
-      log.warn("Failed to fetch JWKS from {}: {}", issuer, e.getMessage());
+      log.warn("Failed to fetch JWKS from {}", issuer, e);
     }
   }
 
@@ -190,7 +190,7 @@ public class XtmJwksExtractor implements ExtractorBase {
     } catch (AuthenticationError e) {
       throw e;
     } catch (Exception e) {
-      throw new AuthenticationError("Failed to extract issuer from JWT: " + e.getMessage());
+      throw new AuthenticationError("Failed to extract issuer from JWT", e);
     }
   }
 }
