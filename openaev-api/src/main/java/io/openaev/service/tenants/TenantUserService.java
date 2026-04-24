@@ -8,6 +8,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteri
 import io.openaev.api.users.dto.UserInput;
 import io.openaev.api.users.dto.UserMapper;
 import io.openaev.api.users.dto.UserOutput;
+import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.User;
 import io.openaev.database.raw.RawUser;
@@ -37,6 +38,7 @@ public class TenantUserService {
   private final UserService userService;
   private final UserRepository userRepository;
   private final TenantRepository tenantRepository;
+  private final TenantMembershipCacheManager tenantMembershipCacheManager;
   @PersistenceContext private EntityManager entityManager;
 
   // -- CREATE --
@@ -50,11 +52,13 @@ public class TenantUserService {
     if (existingUser.isPresent()) {
       UserOutput output = UserMapper.toOutput(existingUser.get());
       tenantRepository.addUserToTenant(existingUser.get().getId(), tenantId);
+      tenantMembershipCacheManager.evict(existingUser.get().getId(), tenantId);
       return output;
     }
     User user = userService.createUser(input);
     UserOutput output = UserMapper.toOutput(user);
     tenantRepository.addUserToTenant(user.getId(), tenantId);
+    tenantMembershipCacheManager.evict(user.getId(), tenantId);
     return output;
   }
 
@@ -112,6 +116,7 @@ public class TenantUserService {
   /** Detaches a user from the current tenant without deleting the user. */
   public void detach(String userId) {
     tenantRepository.removeUserFromTenant(userId, tenantId());
+    tenantMembershipCacheManager.evict(userId, tenantId());
   }
 
   // -- INTERNAL --

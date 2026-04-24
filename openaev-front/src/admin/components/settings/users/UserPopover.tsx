@@ -1,6 +1,6 @@
 import { type FunctionComponent, useCallback, useContext, useMemo, useState } from 'react';
 
-import { type UserInputForm } from '../../../../actions/users/users-helper';
+import { type UserInputForm, type UserType } from '../../../../actions/users/users-helper';
 import ButtonPopover from '../../../../components/common/ButtonPopover';
 import DialogDelete from '../../../../components/common/DialogDelete';
 import Drawer from '../../../../components/common/Drawer';
@@ -20,7 +20,7 @@ interface UserPopoverProps {
   onSubmitDelete: () => void;
   onSubmitPassword?: (data: ChangePasswordInput) => void;
   deleteMessage?: string;
-  updateTitle?: string;
+  type?: UserType;
   permissions: {
     manage: [Actions, Subjects];
     delete: [Actions, Subjects];
@@ -35,7 +35,7 @@ const UserPopover: FunctionComponent<UserPopoverProps> = ({
   onSubmitDelete,
   onSubmitPassword,
   deleteMessage,
-  updateTitle,
+  type = 'TENANT',
   permissions,
   inList = false,
 }) => {
@@ -114,7 +114,7 @@ const UserPopover: FunctionComponent<UserPopoverProps> = ({
           open={isEditOpen}
           onClose={handleCloseEdit}
           onSubmit={handleUpdate}
-          title={updateTitle}
+          type={type}
         />
       )}
       {actions.includes('Delete') && (

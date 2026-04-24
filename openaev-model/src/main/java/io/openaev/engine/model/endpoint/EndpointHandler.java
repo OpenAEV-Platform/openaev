@@ -22,9 +22,9 @@ public class EndpointHandler implements Handler<EsEndpoint> {
   }
 
   @Override
-  public List<EsEndpoint> fetch(Instant from) {
+  public List<EsEndpoint> fetch(Instant from, int limit) {
     Instant queryFrom = from != null ? from : Instant.ofEpochMilli(0);
-    List<RawEndpoint> forIndexing = endpointRepository.findForIndexing(queryFrom);
+    List<RawEndpoint> forIndexing = endpointRepository.findForIndexing(queryFrom, limit);
     return forIndexing.stream()
         .map(
             endpoint -> {

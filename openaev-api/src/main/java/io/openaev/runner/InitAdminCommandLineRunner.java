@@ -7,6 +7,7 @@ import static io.openaev.database.model.User.ADMIN_LASTNAME;
 import static io.openaev.database.model.User.ADMIN_UUID;
 import static org.springframework.util.StringUtils.hasText;
 
+import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.database.model.Token;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.TenantRepository;
@@ -40,14 +41,17 @@ public class InitAdminCommandLineRunner implements CommandLineRunner {
   private final UserRepository userRepository;
   private final TenantRepository tenantRepository;
   private final TokenRepository tokenRepository;
+  private final TenantMembershipCacheManager tenantMembershipCacheManager;
 
   public InitAdminCommandLineRunner(
       @NotNull final UserRepository userRepository,
       @NotNull final TokenRepository tokenRepository,
-      @NotNull final TenantRepository tenantRepository) {
+      @NotNull final TenantRepository tenantRepository,
+      TenantMembershipCacheManager tenantMembershipCacheManager) {
     this.userRepository = userRepository;
     this.tokenRepository = tokenRepository;
     this.tenantRepository = tenantRepository;
+    this.tenantMembershipCacheManager = tenantMembershipCacheManager;
   }
 
   @Override
@@ -85,6 +89,7 @@ public class InitAdminCommandLineRunner implements CommandLineRunner {
     this.userRepository.createAdmin(
         ADMIN_UUID, ADMIN_FIRSTNAME, ADMIN_LASTNAME, this.adminEmail, encodedPassword());
     tenantRepository.addUserToTenant(ADMIN_UUID, DEFAULT_TENANT_UUID);
+    tenantMembershipCacheManager.evict(ADMIN_UUID, DEFAULT_TENANT_UUID);
     return this.userRepository.findById(ADMIN_UUID).orElseThrow();
   }
 

@@ -1,4 +1,4 @@
-import { Paper, Typography } from '@mui/material';
+import { ListItem, ListItemText, Paper, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useContext } from 'react';
 
@@ -10,9 +10,11 @@ import {
 } from '../../../actions/settings/tenant-settings-action';
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import { useFormatter } from '../../../components/i18n';
+import ItemCopy from '../../../components/ItemCopy';
 import { useHelper } from '../../../store';
 import type { PlatformSettings, TenantSettingsOutput, TenantSettingsUpdateInput } from '../../../utils/api-types';
 import { useAppDispatch } from '../../../utils/hooks';
+import useAuth from '../../../utils/hooks/useAuth';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
 import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
@@ -26,6 +28,7 @@ const TenantParameters = () => {
   const { t } = useFormatter();
   const ability = useContext(AbilityContext);
   const cannotManage = ability.cannot(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS);
+  const { currentUserTenant } = useAuth();
 
   const { tenantSettings, settings }: {
     tenantSettings: TenantSettingsOutput;
@@ -98,7 +101,21 @@ const TenantParameters = () => {
           }}
           >
             <Typography variant="h4">{t('OpenAEV platform')}</Typography>
-            <PlatformInfoPanel settings={settings} />
+            <PlatformInfoPanel
+              settings={settings}
+              topContent={(
+                <ListItem divider>
+                  <ListItemText primary={t('Tenant identifier')} />
+                  <pre style={{
+                    padding: 0,
+                    margin: 0,
+                  }}
+                  >
+                    <ItemCopy content={currentUserTenant?.tenant_id ?? ''} variant="inLine" />
+                  </pre>
+                </ListItem>
+              )}
+            />
           </div>
         </div>
         <div style={{

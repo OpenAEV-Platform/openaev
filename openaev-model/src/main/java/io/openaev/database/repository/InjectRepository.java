@@ -6,7 +6,6 @@ import static io.openaev.database.model.FileDrop.FILE_DROP_TYPE;
 import io.openaev.database.model.Inject;
 import io.openaev.database.raw.RawInject;
 import io.openaev.database.raw.RawInjectIndexing;
-import io.openaev.utils.Constants;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -99,11 +98,9 @@ public interface InjectRepository
               + "    WHERE sub_ic.injector_contract_id = inject_children.inject_injector_contract "
               + "      AND sub_ic.injector_contract_updated_at > :from "
               + ")"
-              + "GROUP BY f.inject_id, f.inject_updated_at, ic.injector_contract_updated_at, ins.tracking_sent_date ORDER BY GREATEST(f.inject_updated_at, ic.injector_contract_updated_at) ASC LIMIT "
-              + Constants.INDEXING_RECORD_SET_SIZE
-              + ";",
+              + "GROUP BY f.inject_id, f.inject_updated_at, ic.injector_contract_updated_at, ins.tracking_sent_date ORDER BY GREATEST(f.inject_updated_at, ic.injector_contract_updated_at) ASC LIMIT :limit;",
       nativeQuery = true)
-  List<RawInjectIndexing> findForIndexing(@Param("from") Instant from);
+  List<RawInjectIndexing> findForIndexing(@Param("from") Instant from, @Param("limit") int limit);
 
   @Query(
       value =

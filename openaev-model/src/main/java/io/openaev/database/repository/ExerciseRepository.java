@@ -2,7 +2,6 @@ package io.openaev.database.repository;
 
 import io.openaev.database.model.Exercise;
 import io.openaev.database.raw.*;
-import io.openaev.utils.Constants;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.List;
@@ -328,9 +327,8 @@ public interface ExerciseRepository
               + ") "
               + "SELECT * FROM exercise_data ed "
               + "WHERE ed.exercise_injects_updated_at > :from "
-              + "ORDER BY ed.exercise_injects_updated_at ASC LIMIT "
-              + Constants.INDEXING_RECORD_SET_SIZE
-              + ";",
+              + "ORDER BY ed.exercise_injects_updated_at ASC LIMIT :limit;",
       nativeQuery = true)
-  List<RawSimulationIndexing> findForIndexing(@Param("from") Instant from);
+  List<RawSimulationIndexing> findForIndexing(
+      @Param("from") Instant from, @Param("limit") int limit);
 }

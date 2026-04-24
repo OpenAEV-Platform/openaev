@@ -266,6 +266,16 @@ public class ScenarioService {
     joinMap.put("injects.injectorContract", injectorsContractsJoin);
     Expression<String[]> platformExpression =
         cb.function("array_union_agg", String[].class, injectorsContractsJoin.get("platforms"));
+
+    // Subquery for workflow_id
+    Subquery<String> workflowSubquery = cq.subquery(String.class);
+    Root<Workflow> workflowRoot = workflowSubquery.from(Workflow.class);
+    workflowSubquery
+        .select(workflowRoot.get("id"))
+        .where(
+            cb.equal(workflowRoot.get("scenario").get("id"), scenarioRoot.get("id")),
+            cb.equal(workflowRoot.get("status"), WorkflowStatus.TEMPLATE));
+
     // SELECT
     cq.multiselect(
             scenarioRoot.get("id").alias("scenario_id"),
@@ -276,7 +286,8 @@ public class ScenarioService {
             scenarioRoot.get("recurrence").alias("scenario_recurrence"),
             scenarioRoot.get("updatedAt").alias("scenario_updated_at"),
             tagIdsExpression.alias("scenario_tags"),
-            platformExpression.alias("scenario_platforms"))
+            platformExpression.alias("scenario_platforms"),
+            workflowSubquery.alias("scenario_workflow_id"))
         .distinct(true);
     // Group By
     cq.groupBy(scenarioRoot.get("id"));
@@ -314,7 +325,8 @@ public class ScenarioService {
                         tuple.get("scenario_recurrence", String.class),
                         tuple.get("scenario_updated_at", Instant.class),
                         tuple.get("scenario_tags", String[].class),
-                        tuple.get("scenario_platforms", String[].class)))
+                        tuple.get("scenario_platforms", String[].class),
+                        tuple.get("scenario_workflow_id", String.class)))
             .toList();
 
     // -- Count Query --
@@ -1058,6 +1070,16 @@ public class ScenarioService {
             injectsHealthChecks));
     healthChecks.addAll(healthCheckUtils.runMissingContentChecks(scenario));
     healthChecks.addAll(healthCheckUtils.runTeamsChecks(scenario));
+
+    // Scope definition check
+    try {
+      workflowService
+          .findWorkflowTemplateByScenarioId(scenarioId)
+          .ifPresent(
+              workflow -> healthChecks.addAll(healthCheckUtils.runScopeDefinitionChecks(workflow)));
+    } catch (ChainingException e) {
+      log.debug("Skipping scope definition check: {}", e.getMessage());
+    }
 
     return healthChecks;
   }

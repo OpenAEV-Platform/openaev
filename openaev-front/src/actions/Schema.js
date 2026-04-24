@@ -505,4 +505,6 @@ export const storeHelper = state => ({
   getPlatformCapabilitiesMap: () => maps('platform_capabilities', state),
   getTenantCapabilities: () => entities('tenant_capabilities', state),
   getTenantCapabilitiesMap: () => maps('tenant_capabilities', state),
+  // workflow configurations
+  getWorkflowConfiguration: id => entity(id, 'workflowconfigurations', state),
 });

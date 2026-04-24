@@ -2,7 +2,6 @@ import { type FunctionComponent, useCallback } from 'react';
 
 import { addUser } from '../../../../actions/users/User';
 import { type UserInputForm, type UserResult } from '../../../../actions/users/users-helper';
-import { useFormatter } from '../../../../components/i18n';
 import { type User } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import { type Option } from '../../../../utils/Option';
@@ -11,7 +10,6 @@ import UserCreate from './UserCreate';
 interface CreateUserProps { onCreate?: (user: User) => void }
 
 const CreateUser: FunctionComponent<CreateUserProps> = ({ onCreate }) => {
-  const { t } = useFormatter();
   const dispatch = useAppDispatch();
 
   const handleSubmit = useCallback(
@@ -34,7 +32,7 @@ const CreateUser: FunctionComponent<CreateUserProps> = ({ onCreate }) => {
   return (
     <UserCreate
       onSubmit={handleSubmit}
-      title={t('Create a new user')}
+      type="TENANT"
       buttonStyle={{ right: 230 }}
     />
   );

@@ -84,7 +84,8 @@ const useTenant = (me: User | undefined, logged: unknown) => {
       if (urlTenantId && navigateToTenant(urlTenantId, tenants)) {
         return;
       }
-      setTenant(tenants[0]);
+      // URL tenant not found in user's tenant list — redirect to first valid tenant
+      navigateToTenant(tenants[0].tenant_id, tenants);
     } else {
       setUserTenants([]);
       setTenant(null);
