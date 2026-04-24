@@ -5,28 +5,7 @@ import { fetchUserTenants } from '../../actions/user/user-tenant-actions';
 import { TENANT_SWITCH_SUCCESS } from '../../constants/ActionTypes';
 import { type TenantOutput, type User } from '../api-types';
 import { useAppDispatch } from '../hooks';
-import { buildTenantUrl, extractTenantFromUrl } from '../tenant-url-helper';
-
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-/**
- * Strips entity-specific detail segments from a path so that a tenant switch
- * lands on the parent list page rather than a detail page for a resource
- * that may not exist in the target tenant.
- *
- * e.g. "/admin/scenarios/123e4567-e89b-12d3-a456-426614174000"
- *        → "/admin/scenarios"
- *      "/admin/scenarios/123e4567-e89b-12d3-a456-426614174000/injects"
- *        → "/admin/scenarios"
- *      "/admin/scenarios" → "/admin/scenarios" (unchanged)
- */
-const stripDetailSegments = (pathname: string): string => {
-  const segments = pathname.split('/').filter(Boolean);
-  // Find the first UUID segment — everything from that point is detail-level
-  const uuidIndex = segments.findIndex(s => UUID_REGEX.test(s));
-  if (uuidIndex === -1) return pathname;
-  return '/' + segments.slice(0, uuidIndex).join('/');
-};
+import {buildTenantUrl, extractTenantFromUrl, stripDetailSegments} from '../tenant-url-helper';
 
 /**
  * Internal hook that encapsulates the current-tenant state and
