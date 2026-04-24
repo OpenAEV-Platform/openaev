@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.opencti.client.OpenCTIClient;
 import io.openaev.opencti.client.mutations.Ping;
 import io.openaev.opencti.client.mutations.QueryTypeFields;
@@ -234,7 +235,9 @@ public class OpenCTIConnectorServiceTest extends IntegrationTest {
         connector.setRegistered(false);
 
         assertThatThrownBy(
-                () -> openCTIConnectorService.pushSecurityCoverageStixBundle(createBundle()))
+                () ->
+                    openCTIConnectorService.pushSecurityCoverageStixBundle(
+                        createBundle(), TenantContext.getCurrentTenant()))
             .isInstanceOf(ConnectorError.class)
             .hasMessage(
                 "Cannot push STIX bundle via connector %s to OpenCTI at %s: connector hasn't registered yet. Try again later."
@@ -251,7 +254,9 @@ public class OpenCTIConnectorServiceTest extends IntegrationTest {
             .thenReturn(ResponseFixture.getErrorResponse());
 
         assertThatThrownBy(
-                () -> openCTIConnectorService.pushSecurityCoverageStixBundle(createBundle()))
+                () ->
+                    openCTIConnectorService.pushSecurityCoverageStixBundle(
+                        createBundle(), TenantContext.getCurrentTenant()))
             .isInstanceOf(ConnectorError.class)
             .hasMessageContaining(
                 "Failed to push STIX bundle via connector %s to OpenCTI at %s"
@@ -269,7 +274,9 @@ public class OpenCTIConnectorServiceTest extends IntegrationTest {
 
         assertThatNoException()
             .isThrownBy(
-                () -> openCTIConnectorService.pushSecurityCoverageStixBundle(createBundle()));
+                () ->
+                    openCTIConnectorService.pushSecurityCoverageStixBundle(
+                        createBundle(), TenantContext.getCurrentTenant()));
       }
     }
   }

@@ -1,8 +1,9 @@
 package io.openaev.opencti.connectors.impl;
 
-import io.openaev.api.stix_process.StixApi;
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+
 import io.openaev.config.OpenAEVConfig;
-import io.openaev.opencti.config.OpenCTIConfig;
+import io.openaev.opencti.config.OpenCTIParamConfig;
 import io.openaev.opencti.connectors.ConnectorBase;
 import io.openaev.opencti.connectors.ConnectorType;
 import io.openaev.utils.StringUtils;
@@ -18,15 +19,16 @@ import org.springframework.stereotype.Component;
 @Getter
 @ConfigurationProperties(prefix = "openaev.xtm.opencti.connector.security-coverage")
 public class SecurityCoverageConnector extends ConnectorBase {
-  private final String id = "68949a7b-c1c2-4649-b3de-7db804ba02bb";
+  // TODO migrate connector and user to match with the new one
+  private static final String BASE_ID = "68949a7b-c1c2-4649-b3de-7db804ba02bb";
 
   // need to access the base URL for overriding the callback URI
-  private OpenCTIConfig openctiConfig;
+  private OpenCTIParamConfig openCTIParamConfig;
   private OpenAEVConfig mainConfig;
 
   @Autowired
-  public void setOpenctiConfig(OpenCTIConfig openCTIConfig) {
-    this.openctiConfig = openCTIConfig;
+  public void setOpenCTIParamConfig(OpenCTIParamConfig openCTIParamConfig) {
+    this.openCTIParamConfig = openCTIParamConfig;
   }
 
   @Autowired
@@ -35,6 +37,7 @@ public class SecurityCoverageConnector extends ConnectorBase {
   }
 
   private final ConnectorType type = ConnectorType.INTERNAL_ENRICHMENT;
+  // TODO update with tenant name at the end
   private final String name = "OpenAEV Coverage";
   @Setter private volatile String jwks;
 
@@ -45,23 +48,28 @@ public class SecurityCoverageConnector extends ConnectorBase {
   }
 
   @Override
+  public String getId() {
+    return BASE_ID + ":" + this.getTenantId();
+  }
+
+  @Override
   public String getUrl() {
-    return openctiConfig.getUrl();
+    return openCTIParamConfig.getUrl();
   }
 
   @Override
   public String getApiUrl() {
-    return openctiConfig.getApiUrl();
+    return openCTIParamConfig.getApiUrl();
   }
 
   @Override
   public String getToken() {
-    return openctiConfig.getToken();
+    return openCTIParamConfig.getToken();
   }
 
   @Override
   public boolean shouldRegister() {
-    return openctiConfig.getEnable()
+    return Boolean.TRUE.equals(openCTIParamConfig.getEnable())
         && !StringUtils.isBlank(this.getListenCallbackURI())
         && !StringUtils.isBlank(this.getName())
         && !StringUtils.isBlank(this.getToken())
@@ -69,7 +77,8 @@ public class SecurityCoverageConnector extends ConnectorBase {
         && this.getType() != null;
   }
 
+  @Override
   public String getListenCallbackURI() {
-    return mainConfig.getBaseUrl() + StixApi.STIX_URI + "/process-bundle";
+    return mainConfig.getBaseUrl() + TENANT_PREFIX + this.getTenantId() + "/stix/process-bundle";
   }
 }

@@ -3,6 +3,7 @@ package io.openaev.security.token;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Jwks;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.User;
 import io.openaev.opencti.connectors.ConnectorBase;
 import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
@@ -22,7 +23,8 @@ public class ConnectorJwtExtractor implements ExtractorBase {
 
   @Override
   public Optional<User> authUser(String value) throws ConnectorError, JwtException {
-    Optional<ConnectorBase> openCTIConnector = openCTIConnectorService.getConnectorBase();
+    Optional<ConnectorBase> openCTIConnector =
+        openCTIConnectorService.getConnectorBase(TenantContext.getCurrentTenant());
     if (openCTIConnector.isEmpty()) {
       throw new ConnectorError("Connector not found");
     }
@@ -46,6 +48,7 @@ public class ConnectorJwtExtractor implements ExtractorBase {
         .build()
         .parseSignedClaims(value);
 
-    return userService.findByToken(openCTIConnector.get().getToken());
+    return userService.findByTokenAndTenantId(
+        openCTIConnector.get().getToken(), TenantContext.getCurrentTenant());
   }
 }

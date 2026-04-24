@@ -1,6 +1,7 @@
 package io.openaev.opencti.connectors;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import io.openaev.database.model.Tenant;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Data;
@@ -14,6 +15,7 @@ public abstract class ConnectorBase {
   private boolean playbookCompatible = false;
   private String listenCallbackURI;
   private volatile String jwks;
+  private String tenantId = Tenant.DEFAULT_TENANT_UUID;
 
   public abstract String getName();
 

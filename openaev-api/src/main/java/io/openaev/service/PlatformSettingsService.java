@@ -297,17 +297,18 @@ public class PlatformSettingsService {
     platformSettings.setPlatformBaseUrl(openAEVConfig.getBaseUrl());
     platformSettings.setPlatformAgentUrl(openAEVConfig.getBaseUrlForAgent());
     platformSettings.setPlatformVersion(openAEVConfig.getVersion());
-    platformSettings.setXtmOpenctiEnable(openCTIConfig.getEnable());
-    platformSettings.setXtmOpenctiUrl(openCTIConfig.getUrl());
-    platformSettings.setXtmOneConfigured(xtmOneConfig.isConfigured());
-    platformSettings.setXtmOneUrl(xtmOneConfig.getUrl());
-    platformSettings.setXtmOneWebToken(xtmOneConfig.getEffectiveWebToken());
-    platformSettings.setAiEnabled(aiConfig.isEnabled());
-    platformSettings.setAiHasToken(StringUtils.hasText(aiConfig.getToken()));
-    platformSettings.setAiType(aiConfig.getType());
-    platformSettings.setAiModel(aiConfig.getModel());
-    platformSettings.setExecutorTaniumEnable(false);
-    platformSettings.setTelemetryManagerEnable(true);
+    // TODO tenant settings
+      // platformSettings.setXtmOpenctiEnable(openCTIConfig.getEnable());
+      // platformSettings.setXtmOpenctiUrl(openCTIConfig.getUrl());
+      platformSettings.setXtmOneConfigured(xtmOneConfig.isConfigured());
+      platformSettings.setXtmOneUrl(xtmOneConfig.getUrl());
+      platformSettings.setXtmOneWebToken(xtmOneConfig.getEffectiveWebToken());
+      platformSettings.setAiEnabled(aiConfig.isEnabled());
+      platformSettings.setAiHasToken(StringUtils.hasText(aiConfig.getToken()));
+      platformSettings.setAiType(aiConfig.getType());
+      platformSettings.setAiModel(aiConfig.getModel());
+      platformSettings.setExecutorTaniumEnable(false);
+      platformSettings.setTelemetryManagerEnable(true);
 
     // Admin-only settings
     OpenAEVPrincipal user = currentUser();

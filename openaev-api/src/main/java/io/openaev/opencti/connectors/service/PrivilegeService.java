@@ -6,6 +6,7 @@ import io.openaev.api.groups.dto.TenantGroupCreateInput;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
 import io.openaev.database.model.User;
+import io.openaev.database.repository.TenantRepository;
 import io.openaev.opencti.connectors.ConnectorBase;
 import io.openaev.service.RoleService;
 import io.openaev.service.TenantGroupService;
@@ -29,19 +30,23 @@ public class PrivilegeService {
   private final RoleService roleService;
   private final TenantGroupService tenantGroupService;
   private final UserService userService;
+  private final TenantRepository tenantRepository;
 
+  // TODO migration old user/role/group/... + add tenant context everywhere
   @Transactional
   public void ensurePrivilegedUserExistsForConnector(ConnectorBase connector) {
     Group group = createWellKnownGroupWithRole(createWellKnownRole());
     String email = CONNECTOR_EMAIL_PATTERN.formatted(connector.getId());
 
-    Optional<User> connectorUser = userService.findByToken(connector.getToken());
+    Optional<User> connectorUser =
+        userService.findByTokenAndTenantId(connector.getToken(), connector.getTenantId());
     Optional<User> existingEmailUser = userService.findByEmailIgnoreCase(email);
 
     if (connectorUser.isPresent()) {
       // Token-matched user already exists — update its attributes
       applyConnectorAttributes(connectorUser.get(), connector, email, group);
       userService.saveUser(connectorUser.get());
+      tenantRepository.addUserToTenant(connectorUser.get().getId(), connector.getTenantId());
     } else if (existingEmailUser.isPresent()) {
       // Email-matched user exists but has no token — reuse and attach token
       log.warn(
@@ -55,13 +60,15 @@ public class PrivilegeService {
                       userService.createUserToken(existingEmailUser.get(), connector.getToken()))));
       applyConnectorAttributes(existingEmailUser.get(), connector, email, group);
       userService.saveUser(existingEmailUser.get());
+      tenantRepository.addUserToTenant(existingEmailUser.get().getId(), connector.getTenantId());
     } else {
       // No user exists — create one
       User user =
           userService.createInternalUser(
               email, connector.getName(), CONNECTOR_LASTNAME, false, connector.getToken());
       user.setGroups(new ArrayList<>(List.of(group)));
-      userService.saveUser(user);
+      User savedUser = userService.saveUser(user);
+      tenantRepository.addUserToTenant(savedUser.getId(), connector.getTenantId());
     }
   }
 

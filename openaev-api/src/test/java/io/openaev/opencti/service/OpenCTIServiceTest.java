@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
 import io.openaev.database.model.User;
@@ -469,7 +470,9 @@ public class OpenCTIServiceTest extends IntegrationTest {
         entityManager.flush();
         entityManager.clear();
 
-        Optional<User> user = userService.findByToken(testConnector.getToken());
+        Optional<User> user =
+            userService.findByTokenAndTenantId(
+                testConnector.getToken(), TenantContext.getCurrentTenant());
 
         assertThat(user).isNotEmpty();
         assertThat(user.get().getEmail())
@@ -509,7 +512,9 @@ public class OpenCTIServiceTest extends IntegrationTest {
         entityManager.flush();
         entityManager.clear();
 
-        Optional<User> user = userService.findByToken(testConnector.getToken());
+        Optional<User> user =
+            userService.findByTokenAndTenantId(
+                testConnector.getToken(), TenantContext.getCurrentTenant());
 
         assertThat(user).isNotEmpty();
         assertThat(user.get().getEmail())
@@ -662,7 +667,9 @@ public class OpenCTIServiceTest extends IntegrationTest {
         entityManager.flush();
         entityManager.clear();
 
-        Optional<User> user = userService.findByToken(testConnector.getToken());
+        Optional<User> user =
+            userService.findByTokenAndTenantId(
+                testConnector.getToken(), TenantContext.getCurrentTenant());
 
         assertThat(user).isNotEmpty();
         assertThat(user.get().getEmail())
@@ -702,7 +709,9 @@ public class OpenCTIServiceTest extends IntegrationTest {
         entityManager.flush();
         entityManager.clear();
 
-        Optional<User> user = userService.findByToken(testConnector.getToken());
+        Optional<User> user =
+            userService.findByTokenAndTenantId(
+                testConnector.getToken(), TenantContext.getCurrentTenant());
 
         assertThat(user).isNotEmpty();
         assertThat(user.get().getEmail())

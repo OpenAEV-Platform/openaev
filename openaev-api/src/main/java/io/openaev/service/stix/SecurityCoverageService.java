@@ -145,6 +145,7 @@ public class SecurityCoverageService {
     securityCoverage.setName(name);
 
     String coveredRef = stixCoverageObj.getRequiredProperty(STIX_COVERED_REF);
+    // TODO get the right connector
     securityCoverage.setExternalUrl(connector.getUrl() + "/dashboard/id/" + coveredRef);
 
     // Optional fields
@@ -332,7 +333,9 @@ public class SecurityCoverageService {
    */
   public void pushSecurityCoverageBundleWithExternalURI(Scenario scenario)
       throws ParsingException, ConnectorError, IOException {
-    if (openCTIConnectorService.getConnectorBase().isEmpty()) {
+    String tenantId =
+        scenario.getTenant() != null ? scenario.getTenant().getId() : Tenant.DEFAULT_TENANT_UUID;
+    if (openCTIConnectorService.getConnectorBase(tenantId).isEmpty()) {
       return;
     }
 
@@ -345,7 +348,7 @@ public class SecurityCoverageService {
     Bundle bundle =
         new Bundle(new Identifier("bundle", UUID.randomUUID().toString()), List.of(sdo));
 
-    openCTIConnectorService.pushSecurityCoverageStixBundle(bundle);
+    openCTIConnectorService.pushSecurityCoverageStixBundle(bundle, tenantId);
   }
 
   /**

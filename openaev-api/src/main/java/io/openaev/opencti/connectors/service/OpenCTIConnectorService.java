@@ -1,13 +1,19 @@
 package io.openaev.opencti.connectors.service;
 
+import io.openaev.config.OpenAEVConfig;
+import io.openaev.opencti.config.OpenCTIConfig;
 import io.openaev.opencti.connectors.ConnectorBase;
 import io.openaev.opencti.connectors.impl.SecurityCoverageConnector;
 import io.openaev.opencti.errors.ConnectorError;
 import io.openaev.opencti.service.OpenCTIService;
 import io.openaev.stix.objects.Bundle;
+import jakarta.annotation.PostConstruct;
 import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -18,16 +24,40 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 @Slf4j
 public class OpenCTIConnectorService {
-  @Getter private final List<ConnectorBase> connectors;
+  @Getter private List<ConnectorBase> connectors = Collections.emptyList();
+  private final OpenCTIConfig openCTIConfig;
+  private final OpenAEVConfig openAEVConfig;
   private final OpenCTIService openCTIService;
 
+  @PostConstruct
+  public void initializeConnectors() {
+    if (openCTIConfig.getOpencti() == null || openCTIConfig.getOpencti().isEmpty()) {
+      this.connectors = Collections.emptyList();
+      return;
+    }
+
+    List<ConnectorBase> configuredConnectors = new ArrayList<>();
+    openCTIConfig
+        .getOpencti()
+        .forEach(
+            (tenantId, ignored) -> {
+              SecurityCoverageConnector connector = new SecurityCoverageConnector();
+              connector.setTenantId(tenantId);
+              connector.setOpenCTIParamConfig(openCTIConfig.getOpencti().get(tenantId));
+              connector.setMainConfig(openAEVConfig);
+              configuredConnectors.add(connector);
+            });
+    this.connectors = List.copyOf(configuredConnectors);
+  }
+
   @NotNull
-  public Optional<ConnectorBase> getConnectorBase() {
-    // don't examine the bundle
-    // pick the first occurrence of the correct connector type
-    // it's not supported yet to have more than one active connector of each type
+  public Optional<ConnectorBase> getConnectorBase(String tenantId) {
     return connectors.stream()
-        .filter(c -> c instanceof SecurityCoverageConnector && c.shouldRegister())
+        .filter(
+            c ->
+                c instanceof SecurityCoverageConnector
+                    && c.shouldRegister()
+                    && Objects.equals(c.getTenantId(), tenantId))
         .findFirst();
   }
 
@@ -55,8 +85,9 @@ public class OpenCTIConnectorService {
     }
   }
 
-  public void pushSecurityCoverageStixBundle(Bundle bundle) throws ConnectorError, IOException {
-    Optional<ConnectorBase> connector = getConnectorBase();
+  public void pushSecurityCoverageStixBundle(Bundle bundle, String tenantId)
+      throws ConnectorError, IOException {
+    Optional<ConnectorBase> connector = getConnectorBase(tenantId);
 
     if (connector.isEmpty()) {
       throw new ConnectorError(
@@ -66,8 +97,8 @@ public class OpenCTIConnectorService {
     openCTIService.pushStixBundle(bundle, connector.get());
   }
 
-  public void acknowledgeReceivedOfCoverage(String workId, String message) {
-    Optional<ConnectorBase> connector = getConnectorBase();
+  public void acknowledgeReceivedOfCoverage(String workId, String message, String tenantId) {
+    Optional<ConnectorBase> connector = getConnectorBase(tenantId);
 
     if (connector.isPresent()) {
       try {
@@ -78,8 +109,9 @@ public class OpenCTIConnectorService {
     }
   }
 
-  public void acknowledgeProcessedOfCoverage(String workId, String message, Boolean inError) {
-    Optional<ConnectorBase> connector = getConnectorBase();
+  public void acknowledgeProcessedOfCoverage(
+      String workId, String message, Boolean inError, String tenantId) {
+    Optional<ConnectorBase> connector = getConnectorBase(tenantId);
 
     if (connector.isPresent()) {
       try {
