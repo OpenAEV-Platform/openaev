@@ -1,5 +1,4 @@
 import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
-import * as R from 'ramda';
 import { type FunctionComponent, useContext, useEffect, useMemo, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -55,15 +54,23 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
     : predefinedExpectations;
 
   // Filter contract available expectations already included into current inject expectations.
-  // Manual expectations can be added as many times as we want
-  const addableAvailableExpectations = useMemo(() => expectationsAvailableInContract
-    .filter(pe => !sortedExpectations.map(e => e.expectation_type).includes(pe.expectation_type) || pe.expectation_type === 'MANUAL'), [sortedExpectations, expectationsAvailableInContract]);
+  // expectation_is_limited=false means the type can be selected multiple times.
+  const addableAvailableExpectations = useMemo(() => {
+    const selectedTypes = new Set(sortedExpectations.map(e => e.expectation_type));
+    return expectationsAvailableInContract.filter((expectation) => {
+      const isLimited = expectation.expectation_is_limited ?? true;
+      return !isLimited || !selectedTypes.has(expectation.expectation_type);
+    });
+  }, [sortedExpectations, expectationsAvailableInContract]);
 
-  const sortExpectations = R.sortWith(
-    sortAsc
-      ? [R.ascend(R.prop(sortBy))]
-      : [R.descend(R.prop(sortBy))],
-  );
+  const sortExpectations = (expectations: ExpectationInput[]): ExpectationInput[] =>
+    [...expectations].sort((a, b) => {
+      const valA = a[sortBy] ?? '';
+      const valB = b[sortBy] ?? '';
+      return sortAsc
+        ? String(valA).localeCompare(String(valB))
+        : String(valB).localeCompare(String(valA));
+    });
 
   useEffect(() => {
     if (expectationDatas) {

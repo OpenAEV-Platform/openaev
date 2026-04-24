@@ -15,9 +15,10 @@ export interface ExpectationInput {
   expectation_score: number;
   expectation_expectation_group: boolean;
   expectation_expiration_time: number;
+  expectation_is_limited?: boolean;
 }
 
-export interface ExpectationInputForm extends Omit<ExpectationInput, 'expectation_expiration_time'> {
+export interface ExpectationInputForm extends Omit<ExpectationInput, 'expectation_expiration_time' | 'expectation_is_limited'> {
   expiration_time_days: number;
   expiration_time_hours: number;
   expiration_time_minutes: number;

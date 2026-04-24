@@ -54,7 +54,10 @@ const InjectComponent: FunctionComponent = () => {
   const dispatch = useAppDispatch();
   const [reply, setReply] = useState<string | null>(null);
   const { t, fndt, fldt } = useFormatter();
-  const { injectId, exerciseId } = useParams() as { injectId: string; exerciseId: string };
+  const { injectId, exerciseId } = useParams() as {
+    injectId: string;
+    exerciseId: string;
+  };
   const { permissions } = useContext(PermissionsContext);
 
   // Fetching data
@@ -89,8 +92,8 @@ const InjectComponent: FunctionComponent = () => {
 <div id=3D"divRplyFwdMsg" dir=3D"ltr">
 <font face=3D"Calibri, sans-serif" style=3D"font-size:11pt">
 <b>From:</b> ${lastCommunication.communication_from
-      .replaceAll('<', '&lt;')
-      .replaceAll('>', '&gt;')}<br>
+  .replaceAll('<', '&lt;')
+  .replaceAll('>', '&gt;')}<br>
 <b>Sent:</b> ${fldt(lastCommunication.communication_sent_at)}<br>
 <b>Subject:</b> ${lastCommunication.communication_subject}
 </font>
@@ -99,8 +102,8 @@ const InjectComponent: FunctionComponent = () => {
 <div dir=3D"ltr">
 <div class=3D"x_elementToProof" style=3D"font-family:Calibri,Arial,Helvetica,sans-serif; font-size:12pt;">
  ${lastCommunication.communication_content && lastCommunication.communication_content.length > 10
-      ? lastCommunication.communication_content.replaceAll('\n', '<br />')
-      : lastCommunication.communication_content_html}
+    ? lastCommunication.communication_content.replaceAll('\n', '<br />')
+    : lastCommunication.communication_content_html}
 </div>
 </div>
 </blockquote>`;
@@ -154,16 +157,19 @@ const InjectComponent: FunctionComponent = () => {
               && rootComm.communication_mails.some(mail =>
                 comm.communication_to.toLowerCase().includes(mail),
               ))
-            || rootComm.communication_mails.some(mail =>
-              comm.communication_from.toLowerCase().includes(mail),
-            )
+              || rootComm.communication_mails.some(mail =>
+                comm.communication_from.toLowerCase().includes(mail),
+              )
           ),
         )
         .sort((a, b) =>
           new Date(b.communication_received_at).getTime() - new Date(a.communication_received_at).getTime(),
         );
 
-      return { ...rootComm, communication_communications: replies };
+      return {
+        ...rootComm,
+        communication_communications: replies,
+      };
     });
 
   const currentTopic: Topic | undefined = reply
@@ -253,7 +259,11 @@ const InjectComponent: FunctionComponent = () => {
                 );
               })}
               {permissions.canManage && (
-                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                }}
+                >
                   <Button
                     variant="outlined"
                     style={{ marginBottom: 20 }}
@@ -296,4 +306,3 @@ const InjectComponent: FunctionComponent = () => {
 };
 
 export default InjectComponent;
-
