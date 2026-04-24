@@ -26,10 +26,10 @@ public class VulnerableEndpointHandler implements Handler<EsVulnerableEndpoint> 
   private final FindingRepository findingRepository;
 
   @Override
-  public List<EsVulnerableEndpoint> fetch(Instant from) {
+  public List<EsVulnerableEndpoint> fetch(Instant from, int limit) {
     Instant queryFrom = from != null ? from : Instant.ofEpochMilli(0);
     List<RawVulnerableEndpointIndexing> forIndexing =
-        this.vulnerableEndpointRepository.findForIndexing(queryFrom);
+        this.vulnerableEndpointRepository.findForIndexing(queryFrom, limit);
     return forIndexing.stream()
         .map(
             endpoint -> {

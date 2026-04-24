@@ -17,9 +17,9 @@ public class TeamHandler implements Handler<EsTeam> {
   private final TeamRepository teamRepository;
 
   @Override
-  public List<EsTeam> fetch(Instant from) {
+  public List<EsTeam> fetch(Instant from, int limit) {
     Instant queryFrom = from != null ? from : Instant.ofEpochMilli(0);
-    List<RawTeamIndexing> forIndexing = teamRepository.findForIndexing(queryFrom);
+    List<RawTeamIndexing> forIndexing = teamRepository.findForIndexing(queryFrom, limit);
     return forIndexing.stream()
         .map(
             team -> {

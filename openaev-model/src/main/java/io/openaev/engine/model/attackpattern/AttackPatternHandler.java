@@ -19,9 +19,10 @@ public class AttackPatternHandler implements Handler<EsAttackPattern> {
   private final AttackPatternRepository attackPatternRepository;
 
   @Override
-  public List<EsAttackPattern> fetch(Instant from) {
+  public List<EsAttackPattern> fetch(Instant from, int limit) {
     Instant queryFrom = from != null ? from : Instant.ofEpochMilli(0);
-    List<RawAttackPatternIndexing> forIndexing = attackPatternRepository.findForIndexing(queryFrom);
+    List<RawAttackPatternIndexing> forIndexing =
+        attackPatternRepository.findForIndexing(queryFrom, limit);
     return forIndexing.stream()
         .map(
             attackPattern -> {

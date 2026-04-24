@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
+import { searchExerciseHealthchecks } from '../../../../../actions/Exercise';
 import { fetchExerciseExpectationResult, fetchExerciseInjectExpectationResults, searchExerciseInjects } from '../../../../../actions/exercises/exercise-action';
 import { type ExercisesHelper } from '../../../../../actions/exercises/exercise-helper';
 import { initSorting } from '../../../../../components/common/queryable/Page';
@@ -13,8 +14,10 @@ import { useQueryableWithLocalStorage } from '../../../../../components/common/q
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
 import { useHelper } from '../../../../../store';
-import { type Exercise, type ExpectationResultsByType, type InjectExpectationResultsByAttackPattern } from '../../../../../utils/api-types';
+import { type Exercise, type ExpectationResultsByType, type HealthCheck, type InjectExpectationResultsByAttackPattern } from '../../../../../utils/api-types';
+import { isFeatureEnabled } from '../../../../../utils/utils';
 import InjectResultList from '../../../atomic_testings/InjectResultList';
+import Healthchecks from '../../../common/healthchecks/Healthchecks';
 import ResponsePie from '../../../common/injects/ResponsePie';
 import MitreMatrix from '../../../common/matrix/MitreMatrix';
 import SimulationMainInformation from '../SimulationMainInformation';
@@ -46,10 +49,18 @@ const SimulationComponent = () => {
   const { exercise } = useHelper((helper: ExercisesHelper) => ({ exercise: helper.getExercise(exerciseId) }));
   const [results, setResults] = useState<ExpectationResultsByType[] | null>(null);
   const [injectResults, setInjectResults] = useState<InjectExpectationResultsByAttackPattern[] | null>(null);
+  const [healthchecks, setHealthchecks] = useState<HealthCheck[]>([]);
+
+  const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
+  const exerciseWorkflowId = exercise.exercise_workflow_id as string | undefined;
+  const isSimulationChaining = isChainingFeatureEnabled && !!exerciseWorkflowId;
 
   useEffect(() => {
     fetchExerciseExpectationResult(exerciseId).then((result: { data: ExpectationResultsByType[] }) => setResults(result.data));
     fetchExerciseInjectExpectationResults(exerciseId).then((result: { data: InjectExpectationResultsByAttackPattern[] }) => setInjectResults(result.data));
+    if (isSimulationChaining) {
+      searchExerciseHealthchecks(exerciseId).then((result: { data: HealthCheck[] }) => setHealthchecks(result.data));
+    }
   }, [exerciseId]);
 
   const goToLink = `/admin/simulations/${exerciseId}/injects`;
@@ -87,6 +98,12 @@ const SimulationComponent = () => {
 
   return (
     <div style={{ paddingBottom: theme.spacing(5) }}>
+      {isSimulationChaining && !!healthchecks?.length && (
+        <Healthchecks
+          healthchecks={healthchecks}
+          exerciseId={exerciseId}
+        />
+      )}
       <div style={{
         display: 'grid',
         gap: `0px ${theme.spacing(3)}`,

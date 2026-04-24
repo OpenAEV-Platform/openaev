@@ -24,6 +24,7 @@ import { type Scenario, type SearchPaginationInput } from '../../../utils/api-ty
 import useAuth from '../../../utils/hooks/useAuth';
 import { Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+import { isFeatureEnabled } from '../../../utils/utils';
 import ImportFromHubButton from '../common/ImportFromHubButton';
 import ImportUploaderScenario from './ImportUploaderScenario';
 import ScenarioPopover from './scenario/ScenarioPopover';
@@ -54,6 +55,7 @@ const Scenarios = () => {
   const { isXTMHubAccessible } = useAuth();
 
   const [loading, setLoading] = useState<boolean>(true);
+  const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
 
   // Headers
   const headers = useMemo(() => [
@@ -105,7 +107,15 @@ const Scenarios = () => {
         return (
           <>
             {platforms.map(
-              (platform: string) => <PlatformIcon key={platform} platform={platform} tooltip width={20} marginRight={theme.spacing(2)} />,
+              (platform: string) => (
+                <PlatformIcon
+                  key={platform}
+                  platform={platform}
+                  tooltip
+                  width={20}
+                  marginRight={theme.spacing(2)}
+                />
+              ),
             )}
           </>
         );
@@ -139,7 +149,11 @@ const Scenarios = () => {
     'scenario_updated_at',
   ];
 
-  const { queryableHelpers, searchPaginationInput, setSearchPaginationInput } = useQueryableWithLocalStorage('scenarios', buildSearchPagination({ sorts: initSorting('scenario_updated_at', 'DESC') }));
+  const {
+    queryableHelpers,
+    searchPaginationInput,
+    setSearchPaginationInput,
+  } = useQueryableWithLocalStorage('scenarios', buildSearchPagination({ sorts: initSorting('scenario_updated_at', 'DESC') }));
 
   // Export
   const exportProps = {
@@ -188,7 +202,10 @@ const Scenarios = () => {
               )
             }
             <ToggleButtonGroup value="fake" exclusive>
-              <ExportButton totalElements={queryableHelpers.paginationHelpers.getTotalElements()} exportProps={exportProps} />
+              <ExportButton
+                totalElements={queryableHelpers.paginationHelpers.getTotalElements()}
+                exportProps={exportProps}
+              />
               <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
                 <ImportUploaderScenario />
               </Can>
@@ -224,7 +241,7 @@ const Scenarios = () => {
                     secondaryAction={(
                       <ScenarioPopover
                         scenario={scenario}
-                        actions={['Duplicate', 'Export', 'Delete']}
+                        actions={isChainingFeatureEnabled && !!(scenario as unknown as Record<string, unknown>).scenario_workflow_id ? ['Delete'] : ['Duplicate', 'Export', 'Delete']}
                         onDelete={(result) => {
                           setScenarios(scenarios.filter(e => (e.scenario_id !== result)));
                           setSearchPaginationInput(prev => ({

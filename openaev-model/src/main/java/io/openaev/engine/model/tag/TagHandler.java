@@ -21,9 +21,9 @@ public class TagHandler implements Handler<EsTag> {
   }
 
   @Override
-  public List<EsTag> fetch(Instant from) {
+  public List<EsTag> fetch(Instant from, int limit) {
     Instant queryFrom = from != null ? from : Instant.ofEpochMilli(0);
-    List<RawTagIndexing> forIndexing = tagRepository.findForIndexing(queryFrom);
+    List<RawTagIndexing> forIndexing = tagRepository.findForIndexing(queryFrom, limit);
     return forIndexing.stream()
         .map(
             tag -> {

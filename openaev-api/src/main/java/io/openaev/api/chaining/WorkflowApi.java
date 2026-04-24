@@ -1,6 +1,7 @@
 package io.openaev.api.chaining;
 
 import static io.openaev.api.chaining.WorkflowConfigurationMapper.toOutput;
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
@@ -24,11 +25,11 @@ import org.springframework.web.bind.annotation.*;
 @Slf4j
 @RestController
 @RequiredArgsConstructor
-@RequestMapping(WorkflowApi.WORKFLOW_URI)
 @Tag(name = "Workflow API", description = "Operations related to Workflow")
 public class WorkflowApi extends RestBehavior {
 
   public static final String WORKFLOW_URI = "/api/workflows";
+  public static final String TENANT_WORKFLOW_URI = TENANT_PREFIX + "/workflows";
 
   private final WorkflowService workflowService;
   private final PreviewFeatureService previewFeatureService;
@@ -45,7 +46,10 @@ public class WorkflowApi extends RestBehavior {
       description =
           "Workflow configuration not found for the specified workflow, or the INJECT_CHAINING feature is disabled")
   @ApiResponse(responseCode = "500", description = "Unexpected server error")
-  @GetMapping("/{workflowId}/workflow-configuration")
+  @GetMapping({
+    WORKFLOW_URI + "/{workflowId}/workflow-configuration",
+    TENANT_WORKFLOW_URI + "/{workflowId}/workflow-configuration"
+  })
   @AccessControl(
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION_OR_SCENARIO) // fixme Add RBAC
@@ -65,7 +69,10 @@ public class WorkflowApi extends RestBehavior {
       description =
           "Workflow or workflow configuration not found, or the INJECT_CHAINING feature is disabled")
   @ApiResponse(responseCode = "500", description = "Unexpected server error")
-  @PutMapping("/{workflowId}/workflow-configuration")
+  @PutMapping({
+    WORKFLOW_URI + "/{workflowId}/workflow-configuration",
+    TENANT_WORKFLOW_URI + "/{workflowId}/workflow-configuration"
+  })
   @AccessControl(
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION_OR_SCENARIO) // fixme Add RBAC

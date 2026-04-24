@@ -2,7 +2,6 @@ package io.openaev.database.repository;
 
 import io.openaev.database.model.Domain;
 import io.openaev.database.raw.RawDomainIndexing;
-import io.openaev.utils.Constants;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
@@ -32,9 +31,7 @@ public interface DomainRepository
           "SELECT d.domain_id, d.domain_name, d.domain_color, "
               + "d.domain_created_at, d.domain_updated_at, d.tenant_id "
               + "FROM domains d "
-              + "WHERE d.domain_updated_at > :from ORDER BY d.domain_updated_at LIMIT "
-              + Constants.INDEXING_RECORD_SET_SIZE
-              + ";",
+              + "WHERE d.domain_updated_at > :from ORDER BY d.domain_updated_at LIMIT :limit;",
       nativeQuery = true)
-  List<RawDomainIndexing> findForIndexing(@Param("from") Instant from);
+  List<RawDomainIndexing> findForIndexing(@Param("from") Instant from, @Param("limit") int limit);
 }

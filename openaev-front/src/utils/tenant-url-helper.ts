@@ -116,7 +116,6 @@ const TENANT_EXEMPT_PREFIXES = [
   '/api/platform-roles',
   '/api/platform-users',
   '/api/capabilities',
-  '/api/xtmhub/refresh-connectivity',
   '/api/xtmhub/contact-us',
   '/api/xtmhub/auto-register',
   '/api/xtm-composer',
