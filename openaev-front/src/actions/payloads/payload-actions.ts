@@ -65,7 +65,7 @@ export const fetchCollectorsForPayload = (payloadId: string) => (dispatch: Dispa
 
 // -- EXPORT --
 export const exportPayload = (id: string) => {
-  return simplePostCall(`${PAYLOAD_URI}/${id}/export`, {
+  return simpleCall(`${PAYLOAD_URI}/${id}/export`, {
     params: { include: true },
     headers: { Accept: 'application/zip' },
     responseType: 'blob',
