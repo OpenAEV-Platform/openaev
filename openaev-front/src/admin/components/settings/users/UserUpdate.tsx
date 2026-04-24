@@ -2,7 +2,7 @@ import { type FunctionComponent, useMemo } from 'react';
 
 import { type OrganizationHelper } from '../../../../actions/helper';
 import { type TagHelper } from '../../../../actions/tags/tag-helper';
-import { type UserInputForm } from '../../../../actions/users/users-helper';
+import { type UserInputForm, type UserType } from '../../../../actions/users/users-helper';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
@@ -15,7 +15,7 @@ interface UserUpdateProps {
   open: boolean;
   onClose: () => void;
   onSubmit: (data: UserInputForm) => void;
-  title?: string;
+  type?: UserType;
 }
 
 const UserUpdate: FunctionComponent<UserUpdateProps> = ({
@@ -23,9 +23,11 @@ const UserUpdate: FunctionComponent<UserUpdateProps> = ({
   open,
   onClose,
   onSubmit,
-  title,
+  type = 'TENANT',
 }) => {
   const { t } = useFormatter();
+
+  const updateTitle = type === 'PLATFORM' ? t('Update platform user') : t('Update the user');
 
   const { organizationsMap, tagsMap } = useHelper(
     (helper: OrganizationHelper & TagHelper) => ({
@@ -50,13 +52,14 @@ const UserUpdate: FunctionComponent<UserUpdateProps> = ({
     <Drawer
       open={open}
       handleClose={onClose}
-      title={title ?? t('Update the user')}
+      title={updateTitle}
     >
       <UserForm
         initialValues={initialValues}
         editing
         onSubmit={onSubmit}
         handleClose={onClose}
+        type={type}
       />
     </Drawer>
   );

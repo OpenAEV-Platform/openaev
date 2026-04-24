@@ -23,9 +23,9 @@ public class FindingHandler implements Handler<EsFinding> {
   }
 
   @Override
-  public List<EsFinding> fetch(Instant from) {
+  public List<EsFinding> fetch(Instant from, int limit) {
     Instant queryFrom = from != null ? from : Instant.ofEpochMilli(0);
-    List<RawFindingIndexing> forIndexing = findingRepository.findForIndexing(queryFrom);
+    List<RawFindingIndexing> forIndexing = findingRepository.findForIndexing(queryFrom, limit);
     return forIndexing.stream()
         .map(
             finding -> {

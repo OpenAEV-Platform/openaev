@@ -72,4 +72,8 @@ public class ExerciseSimple {
 
   @JsonProperty("exercise_targets")
   private List<TargetSimple> targets = new ArrayList<>();
+
+  @Schema(description = "Workflow ID associated with the simulation")
+  @JsonProperty("exercise_workflow_id")
+  private String workflowId;
 }

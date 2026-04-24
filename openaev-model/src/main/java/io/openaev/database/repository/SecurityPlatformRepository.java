@@ -4,7 +4,6 @@ import io.openaev.database.model.AssetType;
 import io.openaev.database.model.Document;
 import io.openaev.database.model.SecurityPlatform;
 import io.openaev.database.raw.RawAssetIndexing;
-import io.openaev.utils.Constants;
 import jakarta.validation.constraints.NotEmpty;
 import java.time.Instant;
 import java.util.List;
@@ -53,11 +52,9 @@ public interface SecurityPlatformRepository
               + AssetType.Values.SECURITY_PLATFORM_TYPE
               + "' "
               + "GROUP BY a.asset_id, a.asset_updated_at "
-              + "ORDER BY a.asset_updated_at LIMIT "
-              + Constants.INDEXING_RECORD_SET_SIZE
-              + ";",
+              + "ORDER BY a.asset_updated_at LIMIT :limit;",
       nativeQuery = true)
-  List<RawAssetIndexing> findForIndexing(@Param("from") Instant from);
+  List<RawAssetIndexing> findForIndexing(@Param("from") Instant from, @Param("limit") int limit);
 
   @Query(
       "SELECT DISTINCT a FROM Asset a "

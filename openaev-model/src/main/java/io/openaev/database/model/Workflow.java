@@ -114,7 +114,7 @@ public class Workflow implements Base {
   @Column(name = "workflow_max_temporal_rate_seconds")
   @JsonProperty("workflow_max_temporal_rate_seconds")
   @Min(1)
-  @Max(59)
+  @Max(5940) // 99 min
   private Long maxTemporalRateSeconds;
 
   // Timeout

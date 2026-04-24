@@ -3,7 +3,6 @@ package io.openaev.database.repository;
 import io.openaev.database.model.ContractOutputType;
 import io.openaev.database.model.Finding;
 import io.openaev.database.raw.RawFindingIndexing;
-import io.openaev.utils.Constants;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -42,11 +41,9 @@ public interface FindingRepository
               + "LEFT JOIN injects i ON i.inject_id = f.finding_inject_id "
               + "LEFT JOIN scenarios_exercises se ON i.inject_exercise = se.exercise_id "
               + "LEFT JOIN findings_assets fa ON f.finding_id = fa.finding_id "
-              + "WHERE f.finding_updated_at > :from ORDER BY f.finding_updated_at LIMIT "
-              + Constants.INDEXING_RECORD_SET_SIZE
-              + ";",
+              + "WHERE f.finding_updated_at > :from ORDER BY f.finding_updated_at LIMIT :limit;",
       nativeQuery = true)
-  List<RawFindingIndexing> findForIndexing(@Param("from") Instant from);
+  List<RawFindingIndexing> findForIndexing(@Param("from") Instant from, @Param("limit") int limit);
 
   @Query(
       value =
