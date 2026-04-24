@@ -3,6 +3,7 @@ package io.openaev.rest.tag_rule;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -60,7 +61,10 @@ public class TagRuleApiTest extends IntegrationTest {
     TagRule expected = createTagRule(tagId, List.of(assetGroupName));
 
     String response =
-        mvc.perform(get(TAG_RULE_URI + "/" + expected.getId()).accept(MediaType.APPLICATION_JSON))
+        mvc.perform(
+                get(TAG_RULE_URI + "/" + expected.getId())
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -79,7 +83,10 @@ public class TagRuleApiTest extends IntegrationTest {
     String assetGroupName = "assetGroupName";
     String tagId = "tagName";
     TagRule expected = createTagRule(tagId, List.of(assetGroupName));
-    mvc.perform(delete(TAG_RULE_URI + "/" + expected.getId()).accept(MediaType.APPLICATION_JSON))
+    mvc.perform(
+            delete(TAG_RULE_URI + "/" + expected.getId())
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
         .andExpect(status().is2xxSuccessful())
         .andReturn()
         .getResponse()
@@ -91,7 +98,8 @@ public class TagRuleApiTest extends IntegrationTest {
   @Test
   @WithMockUser(isAdmin = true)
   void deleteTagRule_WITH_unexisting_id() throws Exception {
-    mvc.perform(delete(TAG_RULE_URI + "/" + "randomid").accept(MediaType.APPLICATION_JSON))
+    mvc.perform(
+            delete(TAG_RULE_URI + "/" + "randomid").accept(MediaType.APPLICATION_JSON).with(csrf()))
         .andExpect(status().isNotFound())
         .andReturn()
         .getResponse()
@@ -110,7 +118,8 @@ public class TagRuleApiTest extends IntegrationTest {
             post(TAG_RULE_URI)
                 .content(asJsonString(input))
                 .contentType(MediaType.APPLICATION_JSON)
-                .accept(MediaType.APPLICATION_JSON))
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
         .andExpect(status().isNotFound());
   }
 
@@ -132,7 +141,8 @@ public class TagRuleApiTest extends IntegrationTest {
                 post(TAG_RULE_URI)
                     .content(asJsonString(input))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -165,7 +175,8 @@ public class TagRuleApiTest extends IntegrationTest {
                 put(TAG_RULE_URI + "/" + toUpdate.getId())
                     .content(asJsonString(input))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -197,7 +208,8 @@ public class TagRuleApiTest extends IntegrationTest {
             put(TAG_RULE_URI + "/" + toUpdate.getId())
                 .content(asJsonString(input))
                 .contentType(MediaType.APPLICATION_JSON)
-                .accept(MediaType.APPLICATION_JSON))
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
         .andExpect(status().isNotFound());
   }
 
@@ -221,7 +233,8 @@ public class TagRuleApiTest extends IntegrationTest {
             put(TAG_RULE_URI + "/" + "randomid")
                 .content(asJsonString(input))
                 .contentType(MediaType.APPLICATION_JSON)
-                .accept(MediaType.APPLICATION_JSON))
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
         .andExpect(status().isNotFound());
   }
 
@@ -240,7 +253,8 @@ public class TagRuleApiTest extends IntegrationTest {
             put(TAG_RULE_URI + "/" + toUpdate.getId())
                 .content(asJsonString(input))
                 .contentType(MediaType.APPLICATION_JSON)
-                .accept(MediaType.APPLICATION_JSON))
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
         .andExpect(status().isNotFound());
   }
 
@@ -253,7 +267,8 @@ public class TagRuleApiTest extends IntegrationTest {
         mvc.perform(
                 get(TAG_RULE_URI)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -282,7 +297,8 @@ public class TagRuleApiTest extends IntegrationTest {
                 post(TAG_RULE_URI + "/search")
                     .content(asJsonString(input))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()

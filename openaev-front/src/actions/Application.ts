@@ -2,7 +2,7 @@ import { FORM_ERROR } from 'final-form';
 import { type Dispatch } from 'redux';
 
 import * as Constants from '../constants/ActionTypes';
-import { getReferential, postReferential, putReferential, simpleCall } from '../utils/Action';
+import { getReferential, postReferential, putReferential, simpleCall, simplePostCall } from '../utils/Action';
 import type { PolicyInput, SettingsEnterpriseEditionUpdateInput, SettingsPlatformWhitemarkUpdateInput, SettingsUpdateInput, ThemeInput, User } from '../utils/api-types';
 import * as schema from './Schema';
 
@@ -140,6 +140,6 @@ export const fetchMe = () => (dispatch: AppDispatch) => {
 };
 
 export const logout = () => (dispatch: AppDispatch) => {
-  const ref = simpleCall('/logout');
+  const ref = simplePostCall('/logout');
   return ref.then(() => dispatch({ type: Constants.IDENTITY_LOGOUT_SUCCESS }));
 };

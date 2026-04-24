@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -96,7 +97,8 @@ public class MapperApiTest extends IntegrationTest {
             .perform(
                 MockMvcRequestBuilders.post("/api/mappers/search")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(PaginationFixture.getDefault().textSearch("").build())))
+                    .content(asJsonString(PaginationFixture.getDefault().textSearch("").build()))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -119,7 +121,8 @@ public class MapperApiTest extends IntegrationTest {
         this.mvc
             .perform(
                 MockMvcRequestBuilders.get("/api/mappers/" + importMapper.getId())
-                    .contentType(MediaType.APPLICATION_JSON))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -145,7 +148,8 @@ public class MapperApiTest extends IntegrationTest {
             .perform(
                 MockMvcRequestBuilders.post("/api/mappers/")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(importMapperInput)))
+                    .content(asJsonString(importMapperInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -170,7 +174,8 @@ public class MapperApiTest extends IntegrationTest {
             .perform(
                 MockMvcRequestBuilders.post("/api/mappers/" + importMapper.getId())
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(importMapper)))
+                    .content(asJsonString(importMapper))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -191,7 +196,8 @@ public class MapperApiTest extends IntegrationTest {
         .perform(
             MockMvcRequestBuilders.delete("/api/mappers/" + importMapper.getId())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(PaginationFixture.getDefault().textSearch("").build())))
+                .content(asJsonString(PaginationFixture.getDefault().textSearch("").build()))
+                .with(csrf()))
         .andExpect(status().is2xxSuccessful());
 
     verify(importMapperRepository, times(1)).deleteById(any());
@@ -212,7 +218,8 @@ public class MapperApiTest extends IntegrationTest {
             .perform(
                 MockMvcRequestBuilders.put("/api/mappers/" + importMapper.getId())
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(importMapperInput)))
+                    .content(asJsonString(importMapperInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -237,7 +244,8 @@ public class MapperApiTest extends IntegrationTest {
     // -- EXECUTE --
     String response =
         this.mvc
-            .perform(MockMvcRequestBuilders.multipart("/api/mappers/store").file(xlsFile))
+            .perform(
+                MockMvcRequestBuilders.multipart("/api/mappers/store").file(xlsFile).with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -271,7 +279,8 @@ public class MapperApiTest extends IntegrationTest {
                 MockMvcRequestBuilders.post(
                         "/api/mappers/store/{importId}", UUID.randomUUID().toString())
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(injectsImportInput)))
+                    .content(asJsonString(injectsImportInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()

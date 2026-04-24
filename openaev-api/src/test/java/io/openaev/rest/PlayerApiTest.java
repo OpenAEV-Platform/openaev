@@ -7,6 +7,7 @@ import static io.openaev.utils.fixtures.PlayerFixture.PLAYER_FIXTURE_FIRSTNAME;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -59,7 +60,8 @@ class PlayerApiTest extends IntegrationTest {
                 post(PLAYER_URI)
                     .content(asJsonString(playerInput))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -85,7 +87,8 @@ class PlayerApiTest extends IntegrationTest {
                 post(PLAYER_URI)
                     .content(asJsonString(playerInput))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is4xxClientError())
             .andReturn()
             .getResponse()
@@ -107,7 +110,8 @@ class PlayerApiTest extends IntegrationTest {
             post(PLAYER_URI)
                 .content(asJsonString(playerInput))
                 .contentType(MediaType.APPLICATION_JSON)
-                .accept(MediaType.APPLICATION_JSON))
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
         .andExpect(status().isForbidden());
   }
 
@@ -129,7 +133,8 @@ class PlayerApiTest extends IntegrationTest {
                 post(PLAYER_URI + "/upsert")
                     .content(asJsonString(playerInput))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -152,7 +157,8 @@ class PlayerApiTest extends IntegrationTest {
                 post(PLAYER_URI + "/upsert")
                     .content(asJsonString(playerInput))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -180,7 +186,8 @@ class PlayerApiTest extends IntegrationTest {
                 put(PLAYER_URI + "/" + user.getId())
                     .content(asJsonString(playerInput))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -203,7 +210,8 @@ class PlayerApiTest extends IntegrationTest {
             put(PLAYER_URI + "/" + user.getId())
                 .content(asJsonString(playerInput))
                 .contentType(MediaType.APPLICATION_JSON)
-                .accept(MediaType.APPLICATION_JSON))
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
         .andExpect(status().isForbidden());
   }
 
@@ -221,7 +229,8 @@ class PlayerApiTest extends IntegrationTest {
     mvc.perform(
             delete(PLAYER_URI + "/" + user.getId())
                 .contentType(MediaType.APPLICATION_JSON)
-                .accept(MediaType.APPLICATION_JSON))
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
         .andExpect(status().is2xxSuccessful())
         .andReturn()
         .getResponse()
@@ -242,7 +251,8 @@ class PlayerApiTest extends IntegrationTest {
     mvc.perform(
             delete(PLAYER_URI + "/" + nonExistingPlayerId)
                 .contentType(MediaType.APPLICATION_JSON)
-                .accept(MediaType.APPLICATION_JSON))
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
         .andExpect(status().isOk());
   }
 

@@ -3,7 +3,6 @@ import { type FunctionComponent } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { computeStatusStyle } from '../utils/statusUtils';
-import { useFormatter } from './i18n';
 
 const useStyles = makeStyles()(() => ({
   chip: {
@@ -35,21 +34,14 @@ const ItemStatus: FunctionComponent<ItemStatusProps> = ({
   label,
   status,
   variant,
-  isInject = false,
 }) => {
-  const { t } = useFormatter();
   const { classes } = useStyles();
   const style = variant === 'inList' ? classes.chipInList : classes.chip;
   const classStyle = computeStatusStyle(status);
-  let finalLabel = label;
-  if (isInject) {
-    if (status === 'SUCCESS') {
-      finalLabel = t('INJECT EXECUTED');
-    }
-  }
+
   return (
-    <Tooltip title={finalLabel}>
-      <Chip classes={{ root: style }} style={classStyle} label={finalLabel} />
+    <Tooltip title={label}>
+      <Chip classes={{ root: style }} style={classStyle} label={label} />
     </Tooltip>
   );
 };

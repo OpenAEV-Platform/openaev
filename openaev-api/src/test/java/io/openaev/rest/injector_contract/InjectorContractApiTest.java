@@ -8,6 +8,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -106,7 +107,10 @@ public class InjectorContractApiTest extends IntegrationTest {
     @Test
     @DisplayName("When internal ID is empty, fetching by internal ID fails with NOT FOUND")
     void whenExternalIdIsNull_FetchingByExternalIdFailsWithBadRequest() throws Exception {
-      mvc.perform(get(INJECTOR_CONTRACT_URL + "//").contentType(MediaType.APPLICATION_JSON))
+      mvc.perform(
+              get(INJECTOR_CONTRACT_URL + "//")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().isNotFound());
     }
 
@@ -149,7 +153,8 @@ public class InjectorContractApiTest extends IntegrationTest {
                         + injectorContractComposer.generatedItems.getFirst().getId()
                         + "/mapping")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(mapper.writeValueAsString(input)))
+                    .content(mapper.writeValueAsString(input))
+                    .with(csrf()))
             .andExpect(status().isOk());
       }
 
@@ -167,7 +172,8 @@ public class InjectorContractApiTest extends IntegrationTest {
                         + injectorContractComposer.generatedItems.getFirst().getId()
                         + "/mapping")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(mapper.writeValueAsString(input)))
+                    .content(mapper.writeValueAsString(input))
+                    .with(csrf()))
             .andExpect(status().isNotFound());
       }
 
@@ -194,7 +200,8 @@ public class InjectorContractApiTest extends IntegrationTest {
                         + injectorContractComposer.generatedItems.getFirst().getId()
                         + "/mapping")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(mapper.writeValueAsString(input)))
+                    .content(mapper.writeValueAsString(input))
+                    .with(csrf()))
             .andExpect(status().isOk());
       }
 
@@ -212,7 +219,8 @@ public class InjectorContractApiTest extends IntegrationTest {
                         + injectorContractComposer.generatedItems.getFirst().getId()
                         + "/mapping")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(mapper.writeValueAsString(input)))
+                    .content(mapper.writeValueAsString(input))
+                    .with(csrf()))
             .andExpect(status().isNotFound());
       }
 
@@ -225,7 +233,8 @@ public class InjectorContractApiTest extends IntegrationTest {
                     get(INJECTOR_CONTRACT_URL
                             + "/"
                             + injectorContractComposer.generatedItems.getFirst().getId())
-                        .contentType(MediaType.APPLICATION_JSON))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -253,7 +262,8 @@ public class InjectorContractApiTest extends IntegrationTest {
                                               .generatedItems
                                               .getFirst()
                                               .getId())
-                                  .contentType(MediaType.APPLICATION_JSON))
+                                  .contentType(MediaType.APPLICATION_JSON)
+                                  .with(csrf()))
                           .andReturn())
               .hasCauseInstanceOf(IllegalArgumentException.class)
               .hasMessageEndingWith(
@@ -281,7 +291,8 @@ public class InjectorContractApiTest extends IntegrationTest {
 
           mvc.perform(
                   delete(INJECTOR_CONTRACT_URL + "/" + customContract.getExternalId())
-                      .contentType(MediaType.APPLICATION_JSON))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
               .andExpect(status().isOk());
         }
       }
@@ -318,7 +329,8 @@ public class InjectorContractApiTest extends IntegrationTest {
                             + "/"
                             + injectorContractComposer.generatedItems.getFirst().getId())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(input)))
+                        .content(mapper.writeValueAsString(input))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -372,7 +384,8 @@ public class InjectorContractApiTest extends IntegrationTest {
                             + "/"
                             + injectorContractComposer.generatedItems.getFirst().getId())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(input)))
+                        .content(mapper.writeValueAsString(input))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -412,7 +425,8 @@ public class InjectorContractApiTest extends IntegrationTest {
             mvc.perform(
                     post(INJECTOR_CONTRACT_URL)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(input)))
+                        .content(mapper.writeValueAsString(input))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -460,7 +474,8 @@ public class InjectorContractApiTest extends IntegrationTest {
         mvc.perform(
                 post(INJECTOR_CONTRACT_URL)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(mapper.writeValueAsString(input)))
+                    .content(mapper.writeValueAsString(input))
+                    .with(csrf()))
             .andExpect(status().isNotFound());
       }
 
@@ -482,7 +497,8 @@ public class InjectorContractApiTest extends IntegrationTest {
         mvc.perform(
                 post(INJECTOR_CONTRACT_URL)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(mapper.writeValueAsString(input)))
+                    .content(mapper.writeValueAsString(input))
+                    .with(csrf()))
             .andExpect(status().isNotFound());
       }
 
@@ -514,7 +530,8 @@ public class InjectorContractApiTest extends IntegrationTest {
             mvc.perform(
                     post(INJECTOR_CONTRACT_URL)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(input)))
+                        .content(mapper.writeValueAsString(input))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -579,7 +596,8 @@ public class InjectorContractApiTest extends IntegrationTest {
             mvc.perform(
                     post(INJECTOR_CONTRACT_URL)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(input)))
+                        .content(mapper.writeValueAsString(input))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -644,7 +662,8 @@ public class InjectorContractApiTest extends IntegrationTest {
             mvc.perform(
                     post(INJECTOR_CONTRACT_URL)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(input)))
+                        .content(mapper.writeValueAsString(input))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -713,7 +732,8 @@ public class InjectorContractApiTest extends IntegrationTest {
             mvc.perform(
                     post(INJECTOR_CONTRACT_URL)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(input)))
+                        .content(mapper.writeValueAsString(input))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -754,7 +774,8 @@ public class InjectorContractApiTest extends IntegrationTest {
       void fetchByInternalIdFailsWithNotFound() throws Exception {
         mvc.perform(
                 get(INJECTOR_CONTRACT_URL + "/" + injectorContractInternalId)
-                    .contentType(MediaType.APPLICATION_JSON))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().isNotFound());
       }
 
@@ -776,7 +797,8 @@ public class InjectorContractApiTest extends IntegrationTest {
         mvc.perform(
                 put(INJECTOR_CONTRACT_URL + "/" + injectorContractInternalId + "/mapping")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(mapper.writeValueAsString(input)))
+                    .content(mapper.writeValueAsString(input))
+                    .with(csrf()))
             .andExpect(status().isNotFound());
       }
 
@@ -785,7 +807,8 @@ public class InjectorContractApiTest extends IntegrationTest {
       void deleteContractFailsWithNotFound() throws Exception {
         mvc.perform(
                 delete(INJECTOR_CONTRACT_URL + "/" + injectorContractInternalId)
-                    .contentType(MediaType.APPLICATION_JSON))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().isNotFound());
       }
 
@@ -804,7 +827,8 @@ public class InjectorContractApiTest extends IntegrationTest {
         mvc.perform(
                 put(INJECTOR_CONTRACT_URL + "/" + injectorContractInternalId)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(mapper.writeValueAsString(input)))
+                    .content(mapper.writeValueAsString(input))
+                    .with(csrf()))
             .andExpect(status().isNotFound());
       }
     }
@@ -819,7 +843,10 @@ public class InjectorContractApiTest extends IntegrationTest {
     @Test
     @DisplayName("When external ID is empty, fetching by External ID fails with NOT FOUND")
     void whenExternalIdIsNull_FetchingByExternalIdFailsWithBadRequest() throws Exception {
-      mvc.perform(get(INJECTOR_CONTRACT_URL + "//").contentType(MediaType.APPLICATION_JSON))
+      mvc.perform(
+              get(INJECTOR_CONTRACT_URL + "//")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().isNotFound());
     }
 
@@ -871,7 +898,8 @@ public class InjectorContractApiTest extends IntegrationTest {
         mvc.perform(
                 put(INJECTOR_CONTRACT_URL + "/" + externalId + "/mapping")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(mapper.writeValueAsString(input)))
+                    .content(mapper.writeValueAsString(input))
+                    .with(csrf()))
             .andExpect(status().isOk());
       }
 
@@ -886,7 +914,8 @@ public class InjectorContractApiTest extends IntegrationTest {
         mvc.perform(
                 put(INJECTOR_CONTRACT_URL + "/" + externalId + "/mapping")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(mapper.writeValueAsString(input)))
+                    .content(mapper.writeValueAsString(input))
+                    .with(csrf()))
             .andExpect(status().isNotFound());
       }
 
@@ -910,7 +939,8 @@ public class InjectorContractApiTest extends IntegrationTest {
         mvc.perform(
                 put(INJECTOR_CONTRACT_URL + "/" + externalId + "/mapping")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(mapper.writeValueAsString(input)))
+                    .content(mapper.writeValueAsString(input))
+                    .with(csrf()))
             .andExpect(status().isOk());
       }
 
@@ -925,7 +955,8 @@ public class InjectorContractApiTest extends IntegrationTest {
         mvc.perform(
                 put(INJECTOR_CONTRACT_URL + "/" + externalId + "/mapping")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(mapper.writeValueAsString(input)))
+                    .content(mapper.writeValueAsString(input))
+                    .with(csrf()))
             .andExpect(status().isNotFound());
       }
 
@@ -936,7 +967,8 @@ public class InjectorContractApiTest extends IntegrationTest {
         String body =
             mvc.perform(
                     get(INJECTOR_CONTRACT_URL + "/" + externalId)
-                        .contentType(MediaType.APPLICATION_JSON))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -958,7 +990,8 @@ public class InjectorContractApiTest extends IntegrationTest {
                   () ->
                       mvc.perform(
                               delete(INJECTOR_CONTRACT_URL + "/" + externalId)
-                                  .contentType(MediaType.APPLICATION_JSON))
+                                  .contentType(MediaType.APPLICATION_JSON)
+                                  .with(csrf()))
                           .andReturn())
               .hasCauseInstanceOf(IllegalArgumentException.class)
               .hasMessageEndingWith(
@@ -986,7 +1019,8 @@ public class InjectorContractApiTest extends IntegrationTest {
 
           mvc.perform(
                   delete(INJECTOR_CONTRACT_URL + "/" + customContract.getExternalId())
-                      .contentType(MediaType.APPLICATION_JSON))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
               .andExpect(status().isOk());
         }
       }
@@ -1021,7 +1055,8 @@ public class InjectorContractApiTest extends IntegrationTest {
             mvc.perform(
                     put(INJECTOR_CONTRACT_URL + "/" + externalId)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(input)))
+                        .content(mapper.writeValueAsString(input))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -1060,7 +1095,8 @@ public class InjectorContractApiTest extends IntegrationTest {
             mvc.perform(
                     post(INJECTOR_CONTRACT_URL)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(input)))
+                        .content(mapper.writeValueAsString(input))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -1109,7 +1145,8 @@ public class InjectorContractApiTest extends IntegrationTest {
             mvc.perform(
                     post(INJECTOR_CONTRACT_URL)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(input)))
+                        .content(mapper.writeValueAsString(input))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -1149,7 +1186,8 @@ public class InjectorContractApiTest extends IntegrationTest {
       void fetchByExternalIdFailsWithNotFound() throws Exception {
         mvc.perform(
                 get(INJECTOR_CONTRACT_URL + "/" + externalId)
-                    .contentType(MediaType.APPLICATION_JSON))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().isNotFound());
       }
 
@@ -1171,7 +1209,8 @@ public class InjectorContractApiTest extends IntegrationTest {
         mvc.perform(
                 put(INJECTOR_CONTRACT_URL + "/" + externalId + "/mapping")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(mapper.writeValueAsString(input)))
+                    .content(mapper.writeValueAsString(input))
+                    .with(csrf()))
             .andExpect(status().isNotFound());
       }
 
@@ -1180,7 +1219,8 @@ public class InjectorContractApiTest extends IntegrationTest {
       void deleteContractFailsWithNotFound() throws Exception {
         mvc.perform(
                 delete(INJECTOR_CONTRACT_URL + "/" + externalId)
-                    .contentType(MediaType.APPLICATION_JSON))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().isNotFound());
       }
 
@@ -1199,7 +1239,8 @@ public class InjectorContractApiTest extends IntegrationTest {
         mvc.perform(
                 put(INJECTOR_CONTRACT_URL + "/" + externalId)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(mapper.writeValueAsString(input)))
+                    .content(mapper.writeValueAsString(input))
+                    .with(csrf()))
             .andExpect(status().isNotFound());
       }
     }
@@ -1238,7 +1279,8 @@ public class InjectorContractApiTest extends IntegrationTest {
           mvc.perform(
                   post(INJECTOR_CONTRACT_URL + "/search")
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(mapper.writeValueAsString(input)))
+                      .content(mapper.writeValueAsString(input))
+                      .with(csrf()))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -1270,7 +1312,8 @@ public class InjectorContractApiTest extends IntegrationTest {
           mvc.perform(
                   post(INJECTOR_CONTRACT_URL + "/search")
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(mapper.writeValueAsString(input)))
+                      .content(mapper.writeValueAsString(input))
+                      .with(csrf()))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -1440,7 +1483,8 @@ public class InjectorContractApiTest extends IntegrationTest {
           mvc.perform(
                   get(INJECTOR_CONTRACT_URL)
                       .with(authentication(auth))
-                      .contentType(MediaType.APPLICATION_JSON))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
               .andDo(print())
               .andExpect(status().is(HttpStatus.SC_OK));
 
@@ -1484,7 +1528,8 @@ public class InjectorContractApiTest extends IntegrationTest {
                   post(INJECTOR_CONTRACT_URL + "/search")
                       .with(authentication(auth))
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(searchPaginationInput)))
+                      .content(asJsonString(searchPaginationInput))
+                      .with(csrf()))
               .andExpect(status().is(HttpStatus.SC_OK));
 
       // Verify pagination response
@@ -1525,7 +1570,8 @@ public class InjectorContractApiTest extends IntegrationTest {
                   post(INJECTOR_CONTRACT_URL + "/search")
                       .with(authentication(auth))
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(searchPaginationInput)))
+                      .content(asJsonString(searchPaginationInput))
+                      .with(csrf()))
               .andExpect(status().is(HttpStatus.SC_OK));
 
       // Verify pagination response with full details
@@ -1590,7 +1636,8 @@ public class InjectorContractApiTest extends IntegrationTest {
           mvc.perform(
                   post(INJECTOR_CONTRACT_URL + "/domain-counts")
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(input)))
+                      .content(asJsonString(input))
+                      .with(csrf()))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()

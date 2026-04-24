@@ -7,6 +7,7 @@ import static io.openaev.utils.fixtures.InjectFixture.getDefaultInject;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -68,7 +69,8 @@ class AssetGroupApiTest extends IntegrationTest {
                 post(ASSET_GROUP_URI)
                     .content(asJsonString(assetGroupInput))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -88,7 +90,8 @@ class AssetGroupApiTest extends IntegrationTest {
         mvc.perform(
                 get(ASSET_GROUP_URI + "/" + JsonPath.read(response, "$.asset_group_id"))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -128,7 +131,8 @@ class AssetGroupApiTest extends IntegrationTest {
                 post(ASSET_GROUP_URI)
                     .content(asJsonString(assetGroupInput))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -147,7 +151,8 @@ class AssetGroupApiTest extends IntegrationTest {
         mvc.perform(
                 get(ASSET_GROUP_URI + "/" + JsonPath.read(response, "$.asset_group_id"))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -177,7 +182,8 @@ class AssetGroupApiTest extends IntegrationTest {
                 post(ASSET_GROUP_URI)
                     .content(asJsonString(assetGroupInput))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -216,7 +222,8 @@ class AssetGroupApiTest extends IntegrationTest {
                 put(ASSET_GROUP_URI + "/" + assetGroup.getId())
                     .content(asJsonString(input))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -245,7 +252,8 @@ class AssetGroupApiTest extends IntegrationTest {
                 put(ASSET_GROUP_URI + "/" + nonexistentAssetGroupId)
                     .content(asJsonString(input))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON)));
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf())));
   }
 
   @DisplayName("Given existing assetGroup, should delete assetGroup successfully")
@@ -259,7 +267,8 @@ class AssetGroupApiTest extends IntegrationTest {
     mvc.perform(
             delete(ASSET_GROUP_URI + "/" + assetGroup.getId())
                 .contentType(MediaType.APPLICATION_JSON)
-                .accept(MediaType.APPLICATION_JSON))
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
         .andExpect(status().is2xxSuccessful());
 
     // --ASSERT--
@@ -277,7 +286,8 @@ class AssetGroupApiTest extends IntegrationTest {
     mvc.perform(
             delete(ASSET_GROUP_URI + "/" + nonexistentAssetGroupId)
                 .contentType(MediaType.APPLICATION_JSON)
-                .accept(MediaType.APPLICATION_JSON))
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
         .andExpect(status().is4xxClientError());
   }
 
@@ -352,7 +362,8 @@ class AssetGroupApiTest extends IntegrationTest {
                 get(ASSET_GROUP_URI + "/options")
                     .queryParam("searchText", searchText)
                     .queryParam("sourceId", simulationOrScenarioId ? exercise.getId() : null)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andReturn()
             .getResponse()
             .getContentAsString();
@@ -392,7 +403,8 @@ class AssetGroupApiTest extends IntegrationTest {
                 post(ASSET_GROUP_URI + "/options")
                     .content(asJsonString(idsToSearch))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andReturn()
             .getResponse()
             .getContentAsString();

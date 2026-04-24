@@ -5,6 +5,7 @@ import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -62,7 +63,8 @@ class SecurityPlatformApiTest extends IntegrationTest {
             post(SECURITY_PLATFORM_URI)
                 .content(asJsonString(input))
                 .contentType(MediaType.APPLICATION_JSON)
-                .accept(MediaType.APPLICATION_JSON))
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.asset_name").value("PlatformA"));
   }
@@ -88,7 +90,8 @@ class SecurityPlatformApiTest extends IntegrationTest {
         post(SECURITY_PLATFORM_URI)
             .content(asJsonString(input))
             .contentType(MediaType.APPLICATION_JSON)
-            .accept(MediaType.APPLICATION_JSON));
+            .accept(MediaType.APPLICATION_JSON)
+            .with(csrf()));
 
     assertThatThrownBy(() -> entityManager.flush())
         .hasMessageContaining("unique_security_platform_name_type_ci_idx");
@@ -126,7 +129,8 @@ class SecurityPlatformApiTest extends IntegrationTest {
                         put(SECURITY_PLATFORM_URI + "/" + saved.getId())
                             .content(asJsonString(input))
                             .contentType(MediaType.APPLICATION_JSON)
-                            .accept(MediaType.APPLICATION_JSON))
+                            .accept(MediaType.APPLICATION_JSON)
+                            .with(csrf()))
                     .andDo(result -> entityManager.flush())
                     .andReturn())
         .hasMessageContaining("unique_security_platform_name_type_ci_idx");
@@ -145,7 +149,8 @@ class SecurityPlatformApiTest extends IntegrationTest {
                 post(SECURITY_PLATFORM_URI)
                     .content(asJsonString(input))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andReturn()
             .getResponse()
             .getContentAsString();
@@ -160,7 +165,8 @@ class SecurityPlatformApiTest extends IntegrationTest {
             put(SECURITY_PLATFORM_URI + "/" + spId)
                 .content(asJsonString(input))
                 .contentType(MediaType.APPLICATION_JSON)
-                .accept(MediaType.APPLICATION_JSON))
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.asset_name").value("PlatformE-Updated"));
   }
@@ -180,7 +186,8 @@ class SecurityPlatformApiTest extends IntegrationTest {
         mvc.perform(
                 get(SECURITY_PLATFORM_URI + "/options")
                     .queryParam("searchText", searchText)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andReturn()
             .getResponse()
             .getContentAsString();
@@ -211,7 +218,8 @@ class SecurityPlatformApiTest extends IntegrationTest {
                 post(SECURITY_PLATFORM_URI + "/options")
                     .content(asJsonString(securityPlatformIdsToSearch))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andReturn()
             .getResponse()
             .getContentAsString();

@@ -7,6 +7,7 @@ import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static java.lang.String.valueOf;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -76,7 +77,8 @@ public class ScenarioApiSearchTest extends IntegrationTest {
         mvc.perform(
                 post(SCENARIO_URI + "/search")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(searchPaginationInput)))
+                    .content(asJsonString(searchPaginationInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.numberOfElements").value(1));
       }
@@ -90,7 +92,8 @@ public class ScenarioApiSearchTest extends IntegrationTest {
         mvc.perform(
                 post(SCENARIO_URI + "/search")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(searchPaginationInput)))
+                    .content(asJsonString(searchPaginationInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.numberOfElements").value(0));
       }
@@ -112,7 +115,8 @@ public class ScenarioApiSearchTest extends IntegrationTest {
         mvc.perform(
                 post(SCENARIO_URI + "/search")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(searchPaginationInput)))
+                    .content(asJsonString(searchPaginationInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.content.[0].scenario_name").value("Crisis scenario"))
             .andExpect(jsonPath("$.content.[1].scenario_name").value("Incident response scenario"));
@@ -135,7 +139,8 @@ public class ScenarioApiSearchTest extends IntegrationTest {
         mvc.perform(
                 post(SCENARIO_URI + "/search")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(searchPaginationInput)))
+                    .content(asJsonString(searchPaginationInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.content.[0].scenario_name").value("Incident response scenario"))
             .andExpect(jsonPath("$.content.[1].scenario_name").value("Crisis scenario"));
@@ -156,7 +161,8 @@ public class ScenarioApiSearchTest extends IntegrationTest {
         mvc.perform(
                 post(SCENARIO_URI + "/search")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(searchPaginationInput)))
+                    .content(asJsonString(searchPaginationInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.numberOfElements").value(1));
       }
@@ -172,7 +178,8 @@ public class ScenarioApiSearchTest extends IntegrationTest {
         mvc.perform(
                 post(SCENARIO_URI + "/search")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(searchPaginationInput)))
+                    .content(asJsonString(searchPaginationInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.numberOfElements").value(1));
       }
@@ -188,7 +195,8 @@ public class ScenarioApiSearchTest extends IntegrationTest {
         mvc.perform(
                 post(SCENARIO_URI + "/search")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(searchPaginationInput)))
+                    .content(asJsonString(searchPaginationInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.numberOfElements").value(1));
       }
@@ -202,7 +210,8 @@ public class ScenarioApiSearchTest extends IntegrationTest {
         mvc.perform(
                 post(SCENARIO_URI + "/search-by-id")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(getScenariosInput)))
+                    .content(asJsonString(getScenariosInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$").isArray())
             .andExpect(jsonPath("$.length()").value(2));
@@ -218,7 +227,8 @@ public class ScenarioApiSearchTest extends IntegrationTest {
         mvc.perform(
                 post(SCENARIO_URI + "/search-by-id")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(getScenariosInput)))
+                    .content(asJsonString(getScenariosInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$").isArray())
             .andExpect(jsonPath("$.length()").value(2));
@@ -234,7 +244,8 @@ public class ScenarioApiSearchTest extends IntegrationTest {
         mvc.perform(
                 post(SCENARIO_URI + "/search-by-id")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(getScenariosInput)))
+                    .content(asJsonString(getScenariosInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$").isArray())
             .andExpect(jsonPath("$.length()").value(0));
@@ -277,7 +288,8 @@ public class ScenarioApiSearchTest extends IntegrationTest {
         mvc.perform(
                 post(SCENARIO_URI + "/search-by-id")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(getScenariosInput)))
+                    .content(asJsonString(getScenariosInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$").isArray())
             .andExpect(jsonPath("$.length()").value(1));

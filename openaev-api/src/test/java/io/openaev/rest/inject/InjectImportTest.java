@@ -9,6 +9,7 @@ import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -309,7 +310,8 @@ class InjectImportTest extends IntegrationTest {
         mvc.perform(
             multipart(uri)
                 .file(new MockMultipartFile("file", importZipData))
-                .contentType(MediaType.MULTIPART_FORM_DATA));
+                .contentType(MediaType.MULTIPART_FORM_DATA)
+                .with(csrf()));
     clearEntityManager();
     return ra;
   }

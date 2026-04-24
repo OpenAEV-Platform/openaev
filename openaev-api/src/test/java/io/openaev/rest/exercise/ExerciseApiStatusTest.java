@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.mockStatic;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -193,7 +194,8 @@ public class ExerciseApiStatusTest extends IntegrationTest {
                     put(EXERCISE_URI + "/" + SCHEDULED_EXERCISE.getId() + "/status")
                         .content(asJsonString(input))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .accept(MediaType.APPLICATION_JSON))
+                        .accept(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
                 .andExpect(status().is2xxSuccessful())
                 .andReturn()
                 .getResponse()
@@ -235,7 +237,8 @@ public class ExerciseApiStatusTest extends IntegrationTest {
                 put(EXERCISE_URI + "/" + CANCELED_EXERCISE.getId() + "/status")
                     .content(asJsonString(input))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -263,7 +266,8 @@ public class ExerciseApiStatusTest extends IntegrationTest {
                 put(EXERCISE_URI + "/" + FINISHED_EXERCISE.getId() + "/status")
                     .content(asJsonString(input))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -302,7 +306,8 @@ public class ExerciseApiStatusTest extends IntegrationTest {
                     put(EXERCISE_URI + "/" + PAUSED_EXERCISE.getId() + "/status")
                         .content(asJsonString(input))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .accept(MediaType.APPLICATION_JSON))
+                        .accept(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
                 .andExpect(status().is2xxSuccessful())
                 .andReturn()
                 .getResponse()
@@ -357,7 +362,8 @@ public class ExerciseApiStatusTest extends IntegrationTest {
                     put(EXERCISE_URI + "/" + RUNNING_EXERCISE.getId() + "/status")
                         .content(asJsonString(input))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .accept(MediaType.APPLICATION_JSON))
+                        .accept(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
                 .andExpect(status().is2xxSuccessful())
                 .andReturn()
                 .getResponse()
@@ -409,7 +415,8 @@ public class ExerciseApiStatusTest extends IntegrationTest {
                     put(EXERCISE_URI + "/" + exercise.getId() + "/status")
                         .content(asJsonString(input))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .accept(MediaType.APPLICATION_JSON))
+                        .accept(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
                 .andExpect(status().is2xxSuccessful())
                 .andReturn()
                 .getResponse()
@@ -451,7 +458,8 @@ public class ExerciseApiStatusTest extends IntegrationTest {
                     put(EXERCISE_URI + "/" + FINISHED_EXERCISE.getId() + "/status")
                         .content(asJsonString(input))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .accept(MediaType.APPLICATION_JSON)));
+                        .accept(MediaType.APPLICATION_JSON)
+                        .with(csrf())));
 
     String expectedMessage = "Exercise can't support moving to status CANCELED";
     String actualMessage = exception.getMessage();
@@ -473,7 +481,8 @@ public class ExerciseApiStatusTest extends IntegrationTest {
                 put(EXERCISE_URI + "/" + FINISHED_EXERCISE.getId() + "/status")
                     .content(asJsonString(input))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()

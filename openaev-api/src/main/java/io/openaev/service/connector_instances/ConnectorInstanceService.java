@@ -10,7 +10,6 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.database.repository.ConnectorInstanceRepository;
 import io.openaev.database.repository.TokenRepository;
-import io.openaev.integration.ComponentRequest;
 import io.openaev.integration.Manager;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.connector_instance.dto.ConnectorInstanceHealthInput;
@@ -106,26 +105,34 @@ public class ConnectorInstanceService {
     return instancesInMemory;
   }
 
+  /**
+   * Checks whether a started connector instance exists for the given injector.
+   *
+   * <p>Only applies to connectors persisted in the database. If no record is found, meaning the
+   * injector was either deployed manually with no attached instance, or it is an injector that
+   * starts automatically and cannot be stopped. {@code true} is returned to avoid blocking
+   * executions. The same applies if any exception occurs.
+   *
+   * @param injectorId the injector ID to look up
+   * @return {@code false} only if a connector instance is explicitly found with a non-started
+   *     status; {@code true} otherwise
+   */
   @Transactional(readOnly = true)
   public boolean hasStartedConnectorInstanceForInjector(final String injectorId) {
-    ConnectorInstanceConfigurationRepository.ConnectorIdsFomDatabase persistedId =
-        this.connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValue(
-            ConnectorType.INJECTOR.getIdKeyName(), injectorId);
-    if (persistedId != null) {
-      ConnectorInstance ci =
-          this.connectorInstanceRepository
-              .findById(persistedId.getConnectorInstanceId())
-              .orElseThrow(); // clear error
-      return ci.getCurrentStatus().equals(ConnectorInstance.CURRENT_STATUS_TYPE.started);
-    } else {
-      try {
-        managerFactory
-            .getManager()
-            .request(new ComponentRequest(injectorId), io.openaev.executors.Injector.class);
-        return true;
-      } catch (Exception e) {
-        return true; // Fallback to catalog-unsupported handling
-      }
+    try {
+      return this.connectorInstanceConfigurationRepository
+          .findStatusByKeyValue(ConnectorType.INJECTOR.getIdKeyName(), injectorId)
+          // If we found a status, check if it's 'started'
+          // If no record exists, return true
+          .map(
+              status ->
+                  ConnectorInstance.CURRENT_STATUS_TYPE.started.name().equalsIgnoreCase(status))
+          .orElse(true);
+    } catch (Exception e) {
+      log.error(
+          "Failed to check started connector instance for injector with id {}", injectorId, e);
+      // In case of any exception, return true to avoid blocking executions
+      return true;
     }
   }
 

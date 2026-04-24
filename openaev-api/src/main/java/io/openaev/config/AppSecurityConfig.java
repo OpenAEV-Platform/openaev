@@ -14,6 +14,7 @@ import io.openaev.security.TokenAuthenticationFilter;
 import io.openaev.service.UserMappingService;
 import io.openaev.service.user_events.UserEventService;
 import jakarta.annotation.Resource;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -42,7 +44,10 @@ import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.savedrequest.HttpSessionRequestCache;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 
 @Configuration
 @EnableWebSecurity
@@ -63,7 +68,12 @@ public class AppSecurityConfig {
     http.addFilterBefore(tokenAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
         .requestCache(Customizer.withDefaults())
         .requestCache(cache -> cache.requestCache(new HttpSessionRequestCache()))
-        .csrf(AbstractHttpConfigurer::disable)
+        .csrf(
+            csrf ->
+                csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                    .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
+                    .ignoringRequestMatchers("/api/health", "/api/login", "/actuator/**")
+                    .ignoringRequestMatchers(bearerWithoutCookiesMatcher()))
         .formLogin(AbstractHttpConfigurer::disable)
         .securityContext(securityContext -> securityContext.requireExplicitSave(false))
         .authorizeHttpRequests(
@@ -225,6 +235,16 @@ public class AppSecurityConfig {
             .additionalParameters(params -> params.put("audience", audience))
             .build();
       }
+    };
+  }
+
+  private RequestMatcher bearerWithoutCookiesMatcher() {
+    return request -> {
+      String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
+      Cookie[] cookies = request.getCookies();
+      boolean hasBearer = authorization != null && authorization.startsWith("Bearer ");
+      boolean hasCookies = cookies != null && cookies.length > 0;
+      return hasBearer && !hasCookies;
     };
   }
 }

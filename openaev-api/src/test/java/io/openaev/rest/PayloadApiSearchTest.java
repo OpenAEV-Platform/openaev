@@ -9,6 +9,7 @@ import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.PayloadFixture.*;
 import static java.lang.String.valueOf;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -89,7 +90,8 @@ public class PayloadApiSearchTest extends IntegrationTest {
         mvc.perform(
                 post(PAYLOAD_URI + "/search")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(searchPaginationInput)))
+                    .content(asJsonString(searchPaginationInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.numberOfElements").value(1));
       }
@@ -103,7 +105,8 @@ public class PayloadApiSearchTest extends IntegrationTest {
         mvc.perform(
                 post(PAYLOAD_URI + "/search")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(searchPaginationInput)))
+                    .content(asJsonString(searchPaginationInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.numberOfElements").value(0));
       }
@@ -125,7 +128,8 @@ public class PayloadApiSearchTest extends IntegrationTest {
         mvc.perform(
                 post(PAYLOAD_URI + "/search")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(searchPaginationInput)))
+                    .content(asJsonString(searchPaginationInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.content.[0].payload_name").value("command payload"))
             .andExpect(jsonPath("$.content.[1].payload_name").value("dns resolution payload"));
@@ -148,7 +152,8 @@ public class PayloadApiSearchTest extends IntegrationTest {
         mvc.perform(
                 post(PAYLOAD_URI + "/search")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(searchPaginationInput)))
+                    .content(asJsonString(searchPaginationInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.content.[0].payload_name").value("executable payload"))
             .andExpect(jsonPath("$.content.[1].payload_name").value("dns resolution payload"))
@@ -170,7 +175,8 @@ public class PayloadApiSearchTest extends IntegrationTest {
         mvc.perform(
                 post(PAYLOAD_URI + "/search")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(searchPaginationInput)))
+                    .content(asJsonString(searchPaginationInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.numberOfElements").value(1));
       }
@@ -186,7 +192,8 @@ public class PayloadApiSearchTest extends IntegrationTest {
         mvc.perform(
                 post(PAYLOAD_URI + "/search")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(searchPaginationInput)))
+                    .content(asJsonString(searchPaginationInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.numberOfElements").value(1));
       }
@@ -202,7 +209,8 @@ public class PayloadApiSearchTest extends IntegrationTest {
         mvc.perform(
                 post(PAYLOAD_URI + "/search")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(searchPaginationInput)))
+                    .content(asJsonString(searchPaginationInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.numberOfElements").value(3));
       }
@@ -219,7 +227,8 @@ public class PayloadApiSearchTest extends IntegrationTest {
         mvc.perform(
                 post(PAYLOAD_URI + "/search")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(searchPaginationInput)))
+                    .content(asJsonString(searchPaginationInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.numberOfElements").value(3));
       }

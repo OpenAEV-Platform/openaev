@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -105,7 +106,8 @@ class UserApiTest extends IntegrationTest {
         mvc.perform(
                 post("/api/login")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(loginUserInput)))
+                    .content(asJsonString(loginUserInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("user_email").value(EMAIL));
       }
@@ -120,7 +122,8 @@ class UserApiTest extends IntegrationTest {
         mvc.perform(
                 post("/api/login")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(loginUserInput)))
+                    .content(asJsonString(loginUserInput))
+                    .with(csrf()))
             .andExpect(status().is4xxClientError());
       }
 
@@ -134,7 +137,8 @@ class UserApiTest extends IntegrationTest {
         mvc.perform(
                 post("/api/login")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(loginUserInput)))
+                    .content(asJsonString(loginUserInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("user_email").value(EMAIL));
       }
@@ -149,7 +153,8 @@ class UserApiTest extends IntegrationTest {
         mvc.perform(
                 post("/api/login")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(loginUserInput)))
+                    .content(asJsonString(loginUserInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("user_email").value(EMAIL));
       }
@@ -169,7 +174,8 @@ class UserApiTest extends IntegrationTest {
       mvc.perform(
               post("/api/users")
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(input)))
+                  .content(asJsonString(input))
+                  .with(csrf()))
           .andExpect(status().isConflict());
     }
 
@@ -183,7 +189,8 @@ class UserApiTest extends IntegrationTest {
       mvc.perform(
               post("/api/users")
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(input)))
+                  .content(asJsonString(input))
+                  .with(csrf()))
           .andExpect(status().isConflict());
     }
   }
@@ -224,7 +231,8 @@ class UserApiTest extends IntegrationTest {
           mvc.perform(
                   MockMvcRequestBuilders.put("/api/users/" + userWrapper.get().getId())
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(updateUserInput)))
+                      .content(asJsonString(updateUserInput))
+                      .with(csrf()))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()
@@ -292,7 +300,8 @@ class UserApiTest extends IntegrationTest {
       mvc.perform(
               post("/api/reset")
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(input)))
+                  .content(asJsonString(input))
+                  .with(csrf()))
           .andExpect(status().isOk());
 
       // -- ASSERT --
@@ -316,20 +325,23 @@ class UserApiTest extends IntegrationTest {
       mvc.perform(
               post("/api/reset")
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(input)))
+                  .content(asJsonString(input))
+                  .with(csrf()))
           .andExpect(status().isOk());
 
       mvc.perform(
               post("/api/reset")
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(input)))
+                  .content(asJsonString(input))
+                  .with(csrf()))
           .andExpect(status().isOk());
 
       // -- ASSERT --
       mvc.perform(
               post("/api/reset/" + firstToken)
                   .content(asJsonString(changePasswordInput))
-                  .contentType(MediaType.APPLICATION_JSON))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           // should be 401 Access Denied
           // but some black magic is changing the actual status code
           // see RestBehavior.java
@@ -351,13 +363,15 @@ class UserApiTest extends IntegrationTest {
       mvc.perform(
               post("/api/reset")
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(input)))
+                  .content(asJsonString(input))
+                  .with(csrf()))
           .andExpect(status().isOk());
 
       mvc.perform(
               post("/api/reset/" + firstToken)
                   .content(asJsonString(changePasswordInput))
-                  .contentType(MediaType.APPLICATION_JSON))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           // should be 401 Access Denied
           // but some black magic is changing the actual status code
           // see RestBehavior.java
@@ -370,7 +384,8 @@ class UserApiTest extends IntegrationTest {
       mvc.perform(
               post("/api/reset/" + firstToken)
                   .content(asJsonString(changePasswordInput))
-                  .contentType(MediaType.APPLICATION_JSON))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           // should be 401 Access Denied
           // but some black magic is changing the actual status code
           // see RestBehavior.java
@@ -389,7 +404,8 @@ class UserApiTest extends IntegrationTest {
       mvc.perform(
               post("/api/reset")
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(input)))
+                  .content(asJsonString(input))
+                  .with(csrf()))
           .andExpect(status().isOk());
 
       // -- ASSERT --
@@ -434,7 +450,8 @@ class UserApiTest extends IntegrationTest {
         mvc.perform(
                 MockMvcRequestBuilders.put("/api/users/" + user.getId())
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(updateUserInput)))
+                    .content(asJsonString(updateUserInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()

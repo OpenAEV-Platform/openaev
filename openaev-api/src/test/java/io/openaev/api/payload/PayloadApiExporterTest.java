@@ -8,6 +8,7 @@ import static io.openaev.utilstest.ZipUtils.convertToJson;
 import static io.openaev.utilstest.ZipUtils.extractAllFilesFromZip;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -56,7 +57,7 @@ class PayloadApiExporterTest extends IntegrationTest {
     // -- EXECUTE --
     byte[] response =
         mockMvc
-            .perform(get(PAYLOAD_URI + "/" + wrapper.get().getId() + "/export"))
+            .perform(get(PAYLOAD_URI + "/" + wrapper.get().getId() + "/export").with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()

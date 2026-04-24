@@ -240,7 +240,7 @@ class InjectsExecutionJobTest extends IntegrationTest {
   class HandlePendingInjectTest {
 
     @Test
-    @DisplayName("given pending inject without traces should mark status as maybe prevented")
+    @DisplayName("given pending inject without traces should mark status as error with timeout")
     void given_pendingInjectWithoutTraces_should_markStatusAsMaybePrevented() {
       // Arrange
       InjectStatus statusToSave = InjectStatusFixture.createPendingInjectStatus();
@@ -261,20 +261,12 @@ class InjectsExecutionJobTest extends IntegrationTest {
       // Assert
       Inject savedInject = injectRepository.findById(inject.getId()).orElseThrow();
       InjectStatus savedStatus = savedInject.getStatus().orElseThrow();
-      assertEquals(ExecutionStatus.MAYBE_PREVENTED, savedStatus.getName());
-      assertTrue(
-          savedStatus.getTraces().stream()
-              .anyMatch(
-                  trace ->
-                      ExecutionTraceStatus.WARNING.equals(trace.getStatus())
-                          && trace
-                              .getMessage()
-                              .contains("Execution delay detected: Inject exceeded the")));
+      assertEquals(ExecutionStatus.ERROR, savedStatus.getName());
     }
 
     @Test
     @DisplayName(
-        "given pending inject without complete traces should mark status as maybe prevented")
+        "given pending inject without complete traces should mark status as error with timeout")
     void given_pendingInjectWithoutCompleteTraces_should_markStatusAsMaybePrevented() {
       // Arrange
       AgentComposer.Composer agentComposerRef =
@@ -309,15 +301,13 @@ class InjectsExecutionJobTest extends IntegrationTest {
       // Assert
       Inject savedInject = injectRepository.findById(inject.getId()).orElseThrow();
       InjectStatus savedStatus = savedInject.getStatus().orElseThrow();
-      assertEquals(ExecutionStatus.MAYBE_PREVENTED, savedStatus.getName());
+      assertEquals(ExecutionStatus.ERROR, savedStatus.getName());
       assertTrue(
           savedStatus.getTraces().stream()
               .anyMatch(
                   trace ->
-                      ExecutionTraceStatus.WARNING.equals(trace.getStatus())
-                          && trace
-                              .getMessage()
-                              .contains("Execution delay detected: Inject exceeded the")));
+                      ExecutionTraceStatus.TIMEOUT.equals(trace.getStatus())
+                          && trace.getMessage().contains("did not respond within the")));
     }
 
     @Test

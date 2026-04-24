@@ -7,6 +7,7 @@ import static io.openaev.utils.fixtures.CustomDashboardFixture.NAME;
 import static io.openaev.utils.fixtures.CustomDashboardFixture.createDefaultCustomDashboard;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -56,7 +57,8 @@ class CustomDashboardApiTest extends IntegrationTest {
         .perform(
             post(CUSTOM_DASHBOARDS_URI)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(input)))
+                .content(asJsonString(input))
+                .with(csrf()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.custom_dashboard_name").value(name));
 
@@ -71,7 +73,7 @@ class CustomDashboardApiTest extends IntegrationTest {
 
     // -- EXECUTE & ASSERT --
     mockMvc
-        .perform(get(CUSTOM_DASHBOARDS_URI))
+        .perform(get(CUSTOM_DASHBOARDS_URI).with(csrf()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.length()").value(1))
         .andExpect(jsonPath("$[0].custom_dashboard_name").value(NAME));
@@ -85,7 +87,7 @@ class CustomDashboardApiTest extends IntegrationTest {
 
     // -- EXECUTE & ASSERT --
     mockMvc
-        .perform(get(CUSTOM_DASHBOARDS_URI + "/" + wrapper.get().getId()))
+        .perform(get(CUSTOM_DASHBOARDS_URI + "/" + wrapper.get().getId()).with(csrf()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.custom_dashboard_name").value(NAME));
   }
@@ -105,7 +107,8 @@ class CustomDashboardApiTest extends IntegrationTest {
         .perform(
             put(CUSTOM_DASHBOARDS_URI + "/" + customDashboard.getId())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(customDashboard)))
+                .content(asJsonString(customDashboard))
+                .with(csrf()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.custom_dashboard_name").value(NAME))
         .andExpect(jsonPath("$.custom_dashboard_description").value(customDashboardDescription));
@@ -126,7 +129,7 @@ class CustomDashboardApiTest extends IntegrationTest {
 
       // -- EXECUTE & ASSERT --
       mockMvc
-          .perform(delete(CUSTOM_DASHBOARDS_URI + "/" + wrapper.get().getId()))
+          .perform(delete(CUSTOM_DASHBOARDS_URI + "/" + wrapper.get().getId()).with(csrf()))
           .andExpect(status().isNoContent());
 
       assertThat(repository.existsById(wrapper.get().getId())).isFalse();
@@ -149,7 +152,7 @@ class CustomDashboardApiTest extends IntegrationTest {
       settingRepository.save(defaultDashboardSetting);
 
       mockMvc
-          .perform(delete(CUSTOM_DASHBOARDS_URI + "/" + wrapper.get().getId()))
+          .perform(delete(CUSTOM_DASHBOARDS_URI + "/" + wrapper.get().getId()).with(csrf()))
           .andExpect(status().isBadRequest())
           .andExpect(
               result -> {
@@ -176,7 +179,7 @@ class CustomDashboardApiTest extends IntegrationTest {
 
       defaultDashboardSetting.setValue(wrapper.get().getId());
       settingRepository.save(defaultDashboardSetting);
-      mockMvc.perform(delete(CUSTOM_DASHBOARDS_URI + "/" + wrapper.get().getId()));
+      mockMvc.perform(delete(CUSTOM_DASHBOARDS_URI + "/" + wrapper.get().getId()).with(csrf()));
 
       assertThat(repository.existsById(wrapper.get().getId())).isFalse();
       Setting defaultScenarioDashboardSetting =
@@ -201,7 +204,7 @@ class CustomDashboardApiTest extends IntegrationTest {
 
       defaultDashboardSetting.setValue(wrapper.get().getId());
       settingRepository.save(defaultDashboardSetting);
-      mockMvc.perform(delete(CUSTOM_DASHBOARDS_URI + "/" + wrapper.get().getId()));
+      mockMvc.perform(delete(CUSTOM_DASHBOARDS_URI + "/" + wrapper.get().getId()).with(csrf()));
 
       assertThat(repository.existsById(wrapper.get().getId())).isFalse();
       Setting defaultScenarioDashboardSetting =

@@ -5,6 +5,7 @@ import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -83,7 +84,8 @@ public class ScenarioApiTest extends IntegrationTest {
             post(SCENARIO_URI)
                 .content(asJsonString(scenarioInput))
                 .contentType(MediaType.APPLICATION_JSON)
-                .accept(MediaType.APPLICATION_JSON))
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
         .andExpect(status().is4xxClientError());
 
     // -- PREPARE --
@@ -99,7 +101,8 @@ public class ScenarioApiTest extends IntegrationTest {
                 post(SCENARIO_URI)
                     .content(asJsonString(scenarioInput))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.scenario_name").value(name))
             .andReturn()
@@ -145,7 +148,8 @@ public class ScenarioApiTest extends IntegrationTest {
                 post(SCENARIO_URI)
                     .content(asJsonString(scenarioInput))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.scenario_name").value(name))
             .andReturn()
@@ -168,7 +172,7 @@ public class ScenarioApiTest extends IntegrationTest {
     // -- EXECUTE --
     String response =
         this.mvc
-            .perform(get(SCENARIO_URI).accept(MediaType.APPLICATION_JSON))
+            .perform(get(SCENARIO_URI).accept(MediaType.APPLICATION_JSON).with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -191,7 +195,9 @@ public class ScenarioApiTest extends IntegrationTest {
     String response =
         this.mvc
             .perform(
-                get(SCENARIO_URI + "/" + testScenario.getId()).accept(MediaType.APPLICATION_JSON))
+                get(SCENARIO_URI + "/" + testScenario.getId())
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -207,7 +213,8 @@ public class ScenarioApiTest extends IntegrationTest {
   void failsafeNonExistScenarioId() throws Exception {
     // -- EXECUTE --
     this.mvc
-        .perform(get(SCENARIO_URI + "/DOESNOTEXIST").accept(MediaType.APPLICATION_JSON))
+        .perform(
+            get(SCENARIO_URI + "/DOESNOTEXIST").accept(MediaType.APPLICATION_JSON).with(csrf()))
         .andExpect(status().isNotFound());
   }
 
@@ -232,7 +239,8 @@ public class ScenarioApiTest extends IntegrationTest {
                 put(SCENARIO_URI + "/" + testScenario.getId())
                     .content(asJsonString(scenarioInput))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -253,7 +261,7 @@ public class ScenarioApiTest extends IntegrationTest {
 
     // -- EXECUTE 1 ASSERT --
     this.mvc
-        .perform(delete(SCENARIO_URI + "/" + testScenario.getId()))
+        .perform(delete(SCENARIO_URI + "/" + testScenario.getId()).with(csrf()))
         .andExpect(status().is2xxSuccessful());
   }
 
@@ -284,7 +292,8 @@ public class ScenarioApiTest extends IntegrationTest {
                 post(SCENARIO_URI + "/" + scenario.getId() + "/check-rules")
                     .content(asJsonString(input))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -314,7 +323,8 @@ public class ScenarioApiTest extends IntegrationTest {
                 post(SCENARIO_URI + "/" + scenario.getId() + "/check-rules")
                     .content(asJsonString(input))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -356,7 +366,7 @@ public class ScenarioApiTest extends IntegrationTest {
     void given_crowdstrikeAsset_should_not_startScenario() throws Exception {
       Scenario scenario = getScenario(null, executorFixture.getCrowdstrikeExecutor());
 
-      mvc.perform(post(SCENARIO_URI + "/" + scenario.getId() + "/exercise/running"))
+      mvc.perform(post(SCENARIO_URI + "/" + scenario.getId() + "/exercise/running").with(csrf()))
           .andExpect(status().isForbidden())
           .andExpect(jsonPath("$.message").value("LICENSE_RESTRICTION"));
     }
@@ -372,7 +382,8 @@ public class ScenarioApiTest extends IntegrationTest {
               put(SCENARIO_URI + "/" + scenario.getId() + "/recurrence")
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().isForbidden())
           .andExpect(jsonPath("$.message").value("LICENSE_RESTRICTION"));
     }
@@ -388,7 +399,8 @@ public class ScenarioApiTest extends IntegrationTest {
               put(SCENARIO_URI + "/" + scenario.getId() + "/recurrence")
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().isForbidden())
           .andExpect(jsonPath("$.message").value("LICENSE_RESTRICTION"));
     }
@@ -436,7 +448,8 @@ public class ScenarioApiTest extends IntegrationTest {
                       + scenario.getInjects().getFirst().getId())
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().isForbidden())
           .andExpect(jsonPath("$.message").value("LICENSE_RESTRICTION"));
     }
@@ -471,7 +484,8 @@ public class ScenarioApiTest extends IntegrationTest {
             put(SCENARIO_URI + "/" + scenarioSaved.getId() + "/teams/replace")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(input))
-                .accept(MediaType.APPLICATION_JSON))
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
         .andExpect(status().isOk());
 
     // -- ASSERT --

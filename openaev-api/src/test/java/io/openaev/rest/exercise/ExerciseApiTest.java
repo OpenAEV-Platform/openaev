@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -116,7 +117,8 @@ public class ExerciseApiTest extends IntegrationTest {
                 post(EXERCISE_URI)
                     .content(asJsonString(exerciseInput))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.exercise_name").value(name))
             .andReturn()
@@ -161,7 +163,8 @@ public class ExerciseApiTest extends IntegrationTest {
 
       mvc.perform(
               get(EXERCISE_URI + "/" + exerciseSaved.getId() + "/players")
-                  .accept(MediaType.APPLICATION_JSON))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().is2xxSuccessful())
           .andExpect(jsonPath("$.length()").value(2))
           .andExpect(
@@ -189,7 +192,8 @@ public class ExerciseApiTest extends IntegrationTest {
           mvc.perform(
                   post(EXERCISE_URI + "/global-scores")
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(input)))
+                      .content(asJsonString(input))
+                      .with(csrf()))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()
@@ -221,7 +225,8 @@ public class ExerciseApiTest extends IntegrationTest {
     String response =
         mvc.perform(
                 get(EXERCISE_URI + "/" + exerciseSaved.getId() + "/scenario")
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -257,7 +262,8 @@ public class ExerciseApiTest extends IntegrationTest {
                 post(EXERCISE_URI + "/" + exercise.getId() + "/check-rules")
                     .content(asJsonString(input))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -287,7 +293,8 @@ public class ExerciseApiTest extends IntegrationTest {
                 post(EXERCISE_URI + "/" + exercise.getId() + "/check-rules")
                     .content(asJsonString(input))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -336,7 +343,8 @@ public class ExerciseApiTest extends IntegrationTest {
               put(EXERCISE_URI + "/" + exercise.getId() + "/status")
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().isForbidden())
           .andExpect(jsonPath("$.message").value("LICENSE_RESTRICTION"));
     }
@@ -351,7 +359,8 @@ public class ExerciseApiTest extends IntegrationTest {
               put(EXERCISE_URI + "/" + exercise.getId() + "/start-date")
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().isForbidden())
           .andExpect(jsonPath("$.message").value("LICENSE_RESTRICTION"));
     }
@@ -366,7 +375,8 @@ public class ExerciseApiTest extends IntegrationTest {
               put(EXERCISE_URI + "/" + exercise.getId() + "/start-date")
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().isForbidden())
           .andExpect(jsonPath("$.message").value("LICENSE_RESTRICTION"));
     }
@@ -398,7 +408,8 @@ public class ExerciseApiTest extends IntegrationTest {
                       + exercise.getInjects().getFirst().getId())
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().isForbidden())
           .andExpect(jsonPath("$.message").value("LICENSE_RESTRICTION"));
     }
@@ -437,7 +448,8 @@ public class ExerciseApiTest extends IntegrationTest {
             put(EXERCISE_URI + "/" + exerciseSaved.getId() + "/teams/replace")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(input))
-                .accept(MediaType.APPLICATION_JSON))
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
         .andExpect(status().isOk());
 
     // -- ASSERT --
@@ -501,7 +513,8 @@ public class ExerciseApiTest extends IntegrationTest {
               put(EXERCISE_URI + "/" + exerciseASaved.getId() + "/teams/replace")
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(objectMapper.writeValueAsString(input))
-                  .accept(MediaType.APPLICATION_JSON))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().isOk());
 
       // -- ASSERT --
@@ -557,7 +570,8 @@ public class ExerciseApiTest extends IntegrationTest {
               put(EXERCISE_URI + "/" + exerciseSaved.getId() + "/teams/replace")
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(objectMapper.writeValueAsString(input))
-                  .accept(MediaType.APPLICATION_JSON))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().isOk());
 
       // -- ASSERT --
