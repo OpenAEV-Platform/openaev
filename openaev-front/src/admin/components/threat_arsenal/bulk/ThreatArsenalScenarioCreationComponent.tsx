@@ -1,4 +1,5 @@
 import { Slide } from '@mui/material';
+import { useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import type { LoggedHelper } from '../../../../actions/helper';
@@ -27,7 +28,10 @@ const ThreatArsenalScenarioCreationComponent = ({ isExclusionMode, selectedEleme
   const navigate = useNavigate();
   const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
 
+  const [isLoading, setLoading] = useState<boolean>(false);
+
   const onSubmit = async (data: ScenarioInput) => {
+    setLoading(true);
     const inputs: ScenarioAndInjectorContractsInputs = {
       locale: locale,
       scenario_input: data,
@@ -65,6 +69,7 @@ const ThreatArsenalScenarioCreationComponent = ({ isExclusionMode, selectedEleme
       }}
       >
         <ScenarioForm
+          disabled={isLoading}
           onSubmit={onSubmit}
           initialValues={initialValues}
           handleClose={handleClose}

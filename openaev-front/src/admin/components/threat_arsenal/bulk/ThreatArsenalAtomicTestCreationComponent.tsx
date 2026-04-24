@@ -35,8 +35,10 @@ const ThreatArsenalAtomicTestCreationComponent = ({ isExclusionMode, selectedEle
   const navigate = useNavigate();
 
   const [selectedAction, setSelectedAction] = useState<ThreatArsenalContentConverted | null>(null);
+  const [isLoading, setLoading] = useState<boolean>(false);
 
   const onSubmitInject = async (data: InjectInput) => {
+    setLoading(true);
     const result = await createAtomicTesting(data);
     return navigate(`/admin/atomic_testings/${result.data.inject_id}`);
   };
@@ -83,7 +85,7 @@ const ThreatArsenalAtomicTestCreationComponent = ({ isExclusionMode, selectedEle
               <EndpointContext.Provider value={endpointContextForAtomicTesting()}>
                 <InjectForm
                   handleClose={handleClose}
-                  disabled={!selectedAction}
+                  disabled={!selectedAction || isLoading}
                   isAtomic={true}
                   isCreation={true}
                   defaultInject={{

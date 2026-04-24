@@ -19,7 +19,7 @@ const ThreatArsenalExecutionModeCardComponent = ({ executionMode }: Props) => {
   return (
     <Tooltip title={executionMode.tooltip}>
       <Card
-        style={{ borderBottomColor: theme.palette.border?.main }}
+        style={{ borderBottomColor: theme.palette.border?.pagination }}
         sx={{
           borderRadius: 0,
           boxShadow: 'none',

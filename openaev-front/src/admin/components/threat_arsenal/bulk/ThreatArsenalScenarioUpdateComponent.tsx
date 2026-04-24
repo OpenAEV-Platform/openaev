@@ -1,11 +1,10 @@
-import { Slide } from '@mui/material';
+import { Button, Slide } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type AxiosResponse } from 'axios';
 import { type SyntheticEvent, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import { updateScenariosWithInjectorContracts } from '../../../../actions/scenarios/scenario-actions';
-import Button from '../../../../components/common/button/Button';
 import ScenariosField, { type MultiSelectScenario } from '../../../../components/fields/ScenariosField';
 import { useFormatter } from '../../../../components/i18n';
 import {
@@ -29,10 +28,10 @@ const ThreatArsenalScenarioUpdateComponent = ({ isExclusionMode, selectedElement
   const theme = useTheme();
 
   const [scenarioValues, setScenarioValues] = useState<MultiSelectScenario[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [isSubmitting, setSubmitting] = useState<boolean>(false);
 
   const handleSubmit = () => {
-    setIsSubmitting(true);
+    setSubmitting(true);
     const inputs: ScenarioIdsAndInjectorContractsInputs = {
       locale: locale,
       scenario_ids: scenarioValues.map(scenario => scenario.id),
@@ -44,7 +43,7 @@ const ThreatArsenalScenarioUpdateComponent = ({ isExclusionMode, selectedElement
     };
     updateScenariosWithInjectorContracts(inputs).then((result: AxiosResponse<Scenario[]>) => {
       navigate(`/admin/scenarios/${result.data[0].scenario_id}/injects`);
-    }).finally(() => setIsSubmitting(false));
+    }).finally(() => setSubmitting(false));
   };
 
   const handleSubmitWithoutPropagation = (e: SyntheticEvent) => {
@@ -72,7 +71,7 @@ const ThreatArsenalScenarioUpdateComponent = ({ isExclusionMode, selectedElement
           }}
           >
             <Button
-              variant="secondary"
+              variant="contained"
               onClick={handleClose}
               style={{ marginRight: theme.spacing(1) }}
               disabled={isSubmitting}
@@ -80,8 +79,9 @@ const ThreatArsenalScenarioUpdateComponent = ({ isExclusionMode, selectedElement
               {t('Cancel')}
             </Button>
             <Button
-              variant="primary"
+              variant="contained"
               type="submit"
+              color="secondary"
               disabled={scenarioValues.length === 0 || isSubmitting}
             >
               {t('Update')}
