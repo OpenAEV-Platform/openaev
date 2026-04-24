@@ -18,13 +18,13 @@ import Transition from '../../../../../components/common/Transition';
 import SelectFieldController from '../../../../../components/fields/SelectFieldController';
 import TextFieldController from '../../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../../components/i18n';
-import useArgumentTypes from '../../../threat_arsenal/form/useArgumentTypes';
 import type {
   ScopeVariableInput,
   ScopeVariableOutput,
   WorkflowConfigurationInput,
   WorkflowConfigurationOutput,
 } from '../../../../../utils/api-types';
+import useArgumentTypes from '../../../threat_arsenal/form/useArgumentTypes';
 
 interface ScopeVariablesProps {
   workflowConfiguration: WorkflowConfigurationOutput | undefined;
@@ -63,7 +63,10 @@ const ScopeVariables = ({ workflowConfiguration, onUpdate }: ScopeVariablesProps
 
   const { handleSubmit, reset, formState: { isDirty, isSubmitting } } = methods;
 
-  const handleOpen = () => { reset(); setOpen(true); };
+  const handleOpen = () => {
+    reset();
+    setOpen(true);
+  };
   const handleClose = () => setOpen(false);
 
   const toInput = (v: ScopeVariableOutput): ScopeVariableInput => ({
@@ -84,9 +87,19 @@ const ScopeVariables = ({ workflowConfiguration, onUpdate }: ScopeVariablesProps
   };
 
   return (
-    <div style={{ display: 'grid', gridTemplateRows: 'min-content 1fr', gap: theme.spacing(1) }}>
+    <div style={{
+      display: 'grid',
+      gridTemplateRows: 'min-content 1fr',
+      gap: theme.spacing(1),
+    }}
+    >
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+      }}
+      >
         <Typography variant="h4">{t('Variables')}</Typography>
         <IconButton color="primary" size="small" onClick={handleOpen} aria-label={t('Add variable')}>
           <Add fontSize="small" />
@@ -96,11 +109,27 @@ const ScopeVariables = ({ workflowConfiguration, onUpdate }: ScopeVariablesProps
       {/* List */}
       <Paper variant="outlined" sx={{ p: theme.spacing(2) }}>
         {variables.length > 0 ? (
-          <div style={{ display: 'grid', gap: theme.spacing(1) }}>
+          <div style={{
+            display: 'grid',
+            gap: theme.spacing(1),
+          }}
+          >
             {/* Column headers */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: theme.spacing(1) }}>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr 1fr auto',
+              gap: theme.spacing(1),
+            }}
+            >
               {[t('Key'), t('Type'), t('Value')].map(label => (
-                <Typography key={label} variant="caption" sx={{ color: 'text.disabled', fontWeight: 600 }}>
+                <Typography
+                  key={label}
+                  variant="caption"
+                  sx={{
+                    color: 'text.disabled',
+                    fontWeight: 600,
+                  }}
+                >
                   {label}
                 </Typography>
               ))}
@@ -111,18 +140,38 @@ const ScopeVariables = ({ workflowConfiguration, onUpdate }: ScopeVariablesProps
             {variables.map(variable => (
               <div
                 key={variable.scope_variable_id}
-                style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: theme.spacing(1), alignItems: 'center' }}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr 1fr auto',
+                  gap: theme.spacing(1),
+                  alignItems: 'center',
+                }}
               >
-                <Typography variant="body2" sx={{ fontWeight: 600, wordBreak: 'break-all' }}>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    fontWeight: 600,
+                    wordBreak: 'break-all',
+                  }}
+                >
                   {variable.scope_variable_key}
                 </Typography>
                 <Chip
                   label={variable.scope_variable_type ?? '—'}
                   size="small"
                   variant="outlined"
-                  sx={{ justifySelf: 'start', fontSize: '0.7rem' }}
+                  sx={{
+                    justifySelf: 'start',
+                    fontSize: '0.7rem',
+                  }}
                 />
-                <Typography variant="body2" sx={{ color: 'text.secondary', wordBreak: 'break-all' }}>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: 'text.secondary',
+                    wordBreak: 'break-all',
+                  }}
+                >
                   {variable.scope_variable_value ?? '—'}
                 </Typography>
                 <IconButton
@@ -155,7 +204,11 @@ const ScopeVariables = ({ workflowConfiguration, onUpdate }: ScopeVariablesProps
         <DialogTitle>{t('Create a new variable')}</DialogTitle>
         <FormProvider {...methods}>
           <form id="scopeVariableForm" onSubmit={handleSubmit(onSubmit)}>
-            <DialogContent style={{ display: 'grid', gap: theme.spacing(2) }}>
+            <DialogContent style={{
+              display: 'grid',
+              gap: theme.spacing(2),
+            }}
+            >
               <TextFieldController
                 name="scope_variable_key"
                 label={t('Key')}

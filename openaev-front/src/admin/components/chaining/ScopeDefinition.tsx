@@ -9,7 +9,7 @@ import {
 } from '../../../actions/chaining/workflow-actions';
 import type { WorkflowConfigurationHelper } from '../../../actions/chaining/workflow-helper';
 import { useHelper } from '../../../store';
-import type { WorkflowConfigurationInput, WorkflowScopeRuleInput } from '../../../utils/api-types';
+import type { ScopeVariableInput, WorkflowConfigurationInput, WorkflowScopeRuleInput } from '../../../utils/api-types';
 import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
 import ScopeRateLimit from './ScopeRateLimit';
