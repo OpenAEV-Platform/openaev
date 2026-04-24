@@ -21,6 +21,15 @@ public class JwtFixture {
     return generatePlatformJwtBundleWithSigAlgo(subject, Jwts.SIG.EdDSA, expired);
   }
 
+  /**
+   * Generates a JWT bundle with a URL-based issuer, suitable for testing the JWKS-based validation
+   * flow where the issuer is a trusted platform URL (e.g. {@code https://xtmone.filigran.io}).
+   */
+  public static Bundle generateXtmJwksJwtBundle(
+      String issuerUrl, String email, String audience, boolean expired) throws Exception {
+    return generateBundle(issuerUrl, email, audience, Jwts.SIG.EdDSA, expired);
+  }
+
   public static Bundle generatePlatformJwtBundleWithSigAlgo(
       String subject, SignatureAlgorithm signatureAlgorithm, boolean expired) throws Exception {
     return generateBundle("filigran-copilot", subject, signatureAlgorithm, expired);
@@ -33,11 +42,21 @@ public class JwtFixture {
   private static Bundle generateBundle(
       String issuer, String subject, SignatureAlgorithm signatureAlgorithm, boolean expired)
       throws Exception {
+    return generateBundle(issuer, subject, null, signatureAlgorithm, expired);
+  }
+
+  private static Bundle generateBundle(
+      String issuer,
+      String subject,
+      String audience,
+      SignatureAlgorithm signatureAlgorithm,
+      boolean expired)
+      throws Exception {
     KeyPair pair = getKeyPairForSigAlgo(signatureAlgorithm);
 
     long offset = expired ? -60 * 1000L : 60 * 1000L;
 
-    String jwt =
+    var builder =
         Jwts.builder()
             .issuer(issuer)
             .subject(subject)
@@ -45,9 +64,13 @@ public class JwtFixture {
             .header()
             .keyId("test-123")
             .and()
-            .expiration(new Date(new Date().getTime() + offset))
-            .signWith(pair.getPrivate(), signatureAlgorithm)
-            .compact();
+            .expiration(new Date(new Date().getTime() + offset));
+
+    if (audience != null) {
+      builder.audience().add(audience);
+    }
+
+    String jwt = builder.signWith(pair.getPrivate(), signatureAlgorithm).compact();
 
     JWK jwk =
         JWK.parse(
