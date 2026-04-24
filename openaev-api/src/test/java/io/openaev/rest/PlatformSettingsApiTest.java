@@ -35,25 +35,25 @@ class PlatformSettingsApiTest extends IntegrationTest {
 
   private static final List<String> PRIVATE_FIELDS =
       List.of(
-          // License
-          "platform_license",
-          // Tokens and secrets
-          "xtm_hub_token",
-          "xtm_hub_url",
-          "xtm_opencti_url",
-          "xtm_opencti_enable",
-          // AI config
-          "platform_ai_type",
-          "platform_ai_model",
-          "platform_ai_enabled",
-          "platform_ai_has_token",
-          // Email config
-          "default_mailer",
-          "default_reply_to",
           // Platform identity
           "platform_id",
           "platform_name",
-          "platform_base_url");
+          "platform_base_url",
+          // OpenCTI
+          "xtm_opencti_enable",
+          "xtm_opencti_url",
+          // XTM Hub (config-driven, always present)
+          "xtm_hub_enable",
+          "xtm_hub_url",
+          "xtm_hub_reachable",
+          // AI config
+          "platform_ai_enabled",
+          "platform_ai_has_token",
+          "platform_ai_type",
+          "platform_ai_model",
+          // Email config
+          "default_mailer",
+          "default_reply_to");
 
   private static void assertFieldsExist(ResultActions result, List<String> fields)
       throws Exception {
@@ -128,9 +128,7 @@ class PlatformSettingsApiTest extends IntegrationTest {
 
       // -- ASSERT --
       result.andExpect(status().isOk());
-      // Public fields (inherited) should be present
       assertFieldsExist(result, PUBLIC_FIELDS);
-      // Private fields should also be present
       assertFieldsExist(result, PRIVATE_FIELDS);
     }
   }
