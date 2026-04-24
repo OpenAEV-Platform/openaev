@@ -28,7 +28,6 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "Workflow API", description = "Operations related to Workflow")
 public class WorkflowApi extends RestBehavior {
 
-  public static final String WORKFLOW_URI = "/api/workflows";
   public static final String TENANT_WORKFLOW_URI = TENANT_PREFIX + "/workflows";
 
   private final WorkflowService workflowService;
@@ -46,13 +45,10 @@ public class WorkflowApi extends RestBehavior {
       description =
           "Workflow configuration not found for the specified workflow, or the INJECT_CHAINING feature is disabled")
   @ApiResponse(responseCode = "500", description = "Unexpected server error")
-  @GetMapping({
-    WORKFLOW_URI + "/{workflowId}/workflow-configuration",
-    TENANT_WORKFLOW_URI + "/{workflowId}/workflow-configuration"
-  })
+  @GetMapping({TENANT_WORKFLOW_URI + "/{workflowId}/workflow-configuration"})
   @AccessControl(
       actionPerformed = Action.READ,
-      resourceType = ResourceType.SIMULATION_OR_SCENARIO) // fixme Add RBAC
+      resourceType = ResourceType.WORKFLOW) // fixme Add RBAC
   public WorkflowConfigurationOutput getWorkflowConfiguration(
       @PathVariable @NotBlank final String workflowId) {
     checkWorkflowFeatureEnabled();
@@ -69,13 +65,10 @@ public class WorkflowApi extends RestBehavior {
       description =
           "Workflow or workflow configuration not found, or the INJECT_CHAINING feature is disabled")
   @ApiResponse(responseCode = "500", description = "Unexpected server error")
-  @PutMapping({
-    WORKFLOW_URI + "/{workflowId}/workflow-configuration",
-    TENANT_WORKFLOW_URI + "/{workflowId}/workflow-configuration"
-  })
+  @PutMapping({TENANT_WORKFLOW_URI + "/{workflowId}/workflow-configuration"})
   @AccessControl(
       actionPerformed = Action.WRITE,
-      resourceType = ResourceType.SIMULATION_OR_SCENARIO) // fixme Add RBAC
+      resourceType = ResourceType.WORKFLOW) // fixme Add RBAC
   public WorkflowConfigurationOutput updateWorkflowConfiguration(
       @PathVariable @NotBlank final String workflowId,
       @Valid @RequestBody final WorkflowConfigurationInput input) {
