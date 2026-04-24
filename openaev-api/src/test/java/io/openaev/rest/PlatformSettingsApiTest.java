@@ -15,6 +15,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
 @TestInstance(PER_CLASS)
+@DisplayName("Platform Settings API")
 class PlatformSettingsApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
@@ -69,9 +70,11 @@ class PlatformSettingsApiTest extends IntegrationTest {
   }
 
   @Nested
+  @DisplayName("Public settings endpoint")
   class PublicSettingsEndpoint {
 
     @Test
+    @DisplayName("Given unauthenticated user should return public settings")
     void given_unauthenticated_user_should_return_public_settings() throws Exception {
       // -- ARRANGE --
 
@@ -85,6 +88,7 @@ class PlatformSettingsApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("Given unauthenticated user should not return sensitive fields")
     void given_unauthenticated_user_should_not_return_sensitive_fields() throws Exception {
       // -- ARRANGE --
 
@@ -99,9 +103,11 @@ class PlatformSettingsApiTest extends IntegrationTest {
   }
 
   @Nested
+  @DisplayName("Private settings endpoint")
   class PrivateSettingsEndpoint {
 
     @Test
+    @DisplayName("Given unauthenticated user should return 401")
     void given_unauthenticated_user_should_return_401() throws Exception {
       // -- ARRANGE --
 
@@ -113,6 +119,7 @@ class PlatformSettingsApiTest extends IntegrationTest {
 
     @Test
     @WithMockUser
+    @DisplayName("Given authenticated admin should return full settings")
     void given_authenticated_admin_should_return_full_settings() throws Exception {
       // -- ARRANGE --
 
