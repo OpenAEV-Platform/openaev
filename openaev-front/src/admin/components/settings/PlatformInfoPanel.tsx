@@ -8,10 +8,11 @@ import type { PlatformSettings } from '../../../utils/api-types';
 
 interface PlatformInfoPanelProps {
   settings: PlatformSettings;
-  children?: ReactNode;
+  topContent?: ReactNode;
+  bottomContent?: ReactNode;
 }
 
-const PlatformInfoPanel = ({ settings, children }: PlatformInfoPanelProps) => {
+const PlatformInfoPanel = ({ settings, topContent, bottomContent }: PlatformInfoPanelProps) => {
   const { t } = useFormatter();
   const isEnterpriseEditionValid = settings.platform_license?.license_is_validated;
 
@@ -41,6 +42,7 @@ const PlatformInfoPanel = ({ settings, children }: PlatformInfoPanelProps) => {
       }}
     >
       <List sx={{ padding: 0 }}>
+        {topContent}
         <ListItem divider>
           <ListItemText primary={t('Platform identifier')} />
           <pre
@@ -61,7 +63,7 @@ const PlatformInfoPanel = ({ settings, children }: PlatformInfoPanelProps) => {
           <ListItemText primary={t('Edition')} />
           <ItemBoolean variant="large" neutralLabel={editionLabel} status={null} />
         </ListItem>
-        <ListItem divider={!!children}>
+        <ListItem divider={!!bottomContent}>
           <ListItemText primary={t('AI Powered')} />
           <ItemBoolean
             variant="large"
@@ -70,7 +72,7 @@ const PlatformInfoPanel = ({ settings, children }: PlatformInfoPanelProps) => {
             tooltip={aiTooltip}
           />
         </ListItem>
-        {children}
+        {bottomContent}
       </List>
     </Paper>
   );

@@ -3,7 +3,6 @@ package io.openaev.database.repository;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.raw.RawAssetGroupDynamicFilter;
 import io.openaev.database.raw.RawAssetGroupIndexing;
-import io.openaev.utils.Constants;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.List;
@@ -147,9 +146,8 @@ public interface AssetGroupRepository
       value =
           "SELECT ag.asset_group_id, ag.asset_group_name, ag.asset_group_updated_at, ag.asset_group_created_at, ag.tenant_id "
               + "FROM asset_groups ag "
-              + "WHERE ag.asset_group_updated_at > :from ORDER BY ag.asset_group_updated_at LIMIT "
-              + Constants.INDEXING_RECORD_SET_SIZE
-              + ";",
+              + "WHERE ag.asset_group_updated_at > :from ORDER BY ag.asset_group_updated_at LIMIT :limit;",
       nativeQuery = true)
-  List<RawAssetGroupIndexing> findForIndexing(@Param("from") Instant from);
+  List<RawAssetGroupIndexing> findForIndexing(
+      @Param("from") Instant from, @Param("limit") int limit);
 }

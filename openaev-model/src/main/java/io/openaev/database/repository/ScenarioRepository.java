@@ -4,7 +4,6 @@ import io.openaev.database.model.Scenario;
 import io.openaev.database.raw.RawExerciseSimple;
 import io.openaev.database.raw.RawScenario;
 import io.openaev.database.raw.RawScenarioSimpleIndexing;
-import io.openaev.utils.Constants;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.List;
@@ -65,11 +64,10 @@ public interface ScenarioRepository
               + ") "
               + "SELECT * FROM scenario_data sd "
               + "WHERE sd.scenario_injects_updated_at > :from "
-              + "ORDER BY sd.scenario_injects_updated_at ASC LIMIT "
-              + Constants.INDEXING_RECORD_SET_SIZE
-              + ";",
+              + "ORDER BY sd.scenario_injects_updated_at ASC LIMIT :limit;",
       nativeQuery = true)
-  List<RawScenarioSimpleIndexing> findForIndexing(@Param("from") Instant from);
+  List<RawScenarioSimpleIndexing> findForIndexing(
+      @Param("from") Instant from, @Param("limit") int limit);
 
   @Query(
       value =

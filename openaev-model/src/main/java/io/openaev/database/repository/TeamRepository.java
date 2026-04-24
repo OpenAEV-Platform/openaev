@@ -2,7 +2,6 @@ package io.openaev.database.repository;
 
 import io.openaev.database.model.Team;
 import io.openaev.database.raw.RawTeamIndexing;
-import io.openaev.utils.Constants;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.List;
@@ -104,9 +103,7 @@ public interface TeamRepository
       value =
           "SELECT t.team_id, t.team_name, t.team_updated_at, t.team_created_at, t.tenant_id "
               + "FROM teams t "
-              + "WHERE t.team_updated_at > :from ORDER BY t.team_updated_at LIMIT "
-              + Constants.INDEXING_RECORD_SET_SIZE
-              + ";",
+              + "WHERE t.team_updated_at > :from ORDER BY t.team_updated_at LIMIT :limit;",
       nativeQuery = true)
-  List<RawTeamIndexing> findForIndexing(@Param("from") Instant from);
+  List<RawTeamIndexing> findForIndexing(@Param("from") Instant from, @Param("limit") int limit);
 }

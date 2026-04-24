@@ -1,6 +1,6 @@
 import { type FunctionComponent, useCallback } from 'react';
 
-import { type UserInputForm } from '../../../../actions/users/users-helper';
+import { type UserInputForm, type UserType } from '../../../../actions/users/users-helper';
 import ButtonCreate from '../../../../components/common/ButtonCreate';
 import useDialog from '../../../../components/common/dialog/useDialog';
 import Drawer from '../../../../components/common/Drawer';
@@ -9,14 +9,14 @@ import UserForm from './UserForm';
 
 interface UserCreateProps {
   onSubmit: (data: UserInputForm) => Promise<void> | void;
-  title?: string;
+  type: UserType;
   buttonVariant?: 'rightMenu' | undefined;
   buttonStyle?: React.CSSProperties;
 }
 
 const UserCreate: FunctionComponent<UserCreateProps> = ({
   onSubmit,
-  title,
+  type,
   buttonVariant,
   buttonStyle,
 }) => {
@@ -39,13 +39,14 @@ const UserCreate: FunctionComponent<UserCreateProps> = ({
       <Drawer
         open={open}
         handleClose={handleClose}
-        title={title ?? t('Create a new user')}
+        title={type === 'TENANT' ? t('Create a new user') : t('Create a platform user')}
       >
         <UserForm
           editing={false}
           onSubmit={handleSubmit}
           handleClose={handleClose}
           initialValues={{ user_tags: [] }}
+          type={type}
         />
       </Drawer>
     </>

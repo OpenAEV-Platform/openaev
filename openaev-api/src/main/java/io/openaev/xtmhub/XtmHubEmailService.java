@@ -75,7 +75,10 @@ public class XtmHubEmailService {
 
   private List<User> findUsersAbleToManageSettings() {
     List<String> capabilities =
-        List.of(Capability.MANAGE_PLATFORM_SETTINGS.toString(), Capability.BYPASS.toString());
+        List.of(
+            Capability.MANAGE_TENANT_SETTINGS.toString(),
+            Capability.MANAGE_PLATFORM_SETTINGS.toString(),
+            Capability.BYPASS.toString());
     return userRepository.adminsOrUsersHavingCapabilities(capabilities);
   }
 

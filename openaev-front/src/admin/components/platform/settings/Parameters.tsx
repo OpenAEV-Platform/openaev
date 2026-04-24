@@ -123,19 +123,24 @@ const Parameters = () => {
           }}
           >
             <Typography variant="h4">{t('OpenAEV platform')}</Typography>
-            <PlatformInfoPanel settings={settings}>
-              <ListItem divider>
-                <TextField fullWidth label={t('Filigran support key')} variant="standard" disabled />
-              </ListItem>
-              <ListItem>
-                <ListItemText primary={t('Remove Filigran logos')} />
-                <Switch
-                  disabled={settings.platform_license?.license_is_validated === false || ability.cannot(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS)}
-                  checked={settings.platform_whitemark === 'true'}
-                  onChange={(_event, checked) => updatePlatformWhitemark({ platform_whitemark: checked.toString() })}
-                />
-              </ListItem>
-            </PlatformInfoPanel>
+            <PlatformInfoPanel
+              settings={settings}
+              bottomContent={(
+                <>
+                  <ListItem divider>
+                    <TextField fullWidth label={t('Filigran support key')} variant="standard" disabled />
+                  </ListItem>
+                  <ListItem>
+                    <ListItemText primary={t('Remove Filigran logos')} />
+                    <Switch
+                      disabled={settings.platform_license?.license_is_validated === false || ability.cannot(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS)}
+                      checked={settings.platform_whitemark === 'true'}
+                      onChange={(_event, checked) => updatePlatformWhitemark({ platform_whitemark: checked.toString() })}
+                    />
+                  </ListItem>
+                </>
+              )}
+            />
           </div>
         </div>
         <div style={{

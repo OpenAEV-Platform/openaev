@@ -343,7 +343,9 @@ public class PlatformSettingsService {
     platformSettings.setXtmHubLastConnectivityCheck(
         getValueFromMapOfSettings(dbSettings, XTM_HUB_LAST_CONNECTIVITY_CHECK.key()));
     platformSettings.setXtmHubShouldSendConnectivityEmail(
-        getValueFromMapOfSettings(dbSettings, XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL.key()));
+        ofNullable(dbSettings.get(XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL.key()))
+            .map(Setting::getValue)
+            .orElse(XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL.defaultValue()));
     return platformSettings;
   }
 
@@ -612,29 +614,18 @@ public class PlatformSettingsService {
     return findSettings();
   }
 
-  public PlatformSettings deleteXTMHubRegistration() {
-    Map<String, Setting> dbSettings = mapOfSettings(fromIterable(this.settingRepository.findAll()));
-
-    List<String> keys =
-        Arrays.asList(
-            XTM_HUB_TOKEN.key(),
-            XTM_HUB_REGISTRATION_DATE.key(),
-            XTM_HUB_REGISTRATION_STATUS.key(),
-            XTM_HUB_REGISTRATION_USER_ID.key(),
-            XTM_HUB_REGISTRATION_USER_NAME.key(),
-            XTM_HUB_LAST_CONNECTIVITY_CHECK.key(),
-            XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL.key());
-
-    List<String> toDelete = new ArrayList<>();
-    keys.forEach(
-        settingsKey -> {
-          if (dbSettings.containsKey(settingsKey)) {
-            toDelete.add(dbSettings.get(settingsKey).getId());
-          }
-        });
-
-    this.settingRepository.deleteByIdsNative(toDelete);
-    return findSettings();
+  public void updateXTMHubEmailNotification(boolean shouldSendConnectivityEmail) {
+    Optional<Setting> current =
+        this.settingRepository.findByKey(XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL.key());
+    boolean currentValue = current.map(s -> Boolean.parseBoolean(s.getValue())).orElse(true);
+    if (currentValue != shouldSendConnectivityEmail) {
+      Setting setting =
+          resolve(
+              current,
+              XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL.key(),
+              String.valueOf(shouldSendConnectivityEmail));
+      settingRepository.save(setting);
+    }
   }
 
   // -- PLATFORM MESSAGE --
