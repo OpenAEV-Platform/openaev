@@ -936,7 +936,7 @@
   "healthcheck.description.NMAP.SERVICE_UNAVAILABLE": "injecteur Nmap manquant, veuillez vérifier votre configuration",
   "healthcheck.description.NUCLEI.SERVICE_UNAVAILABLE": "injecteur Nuclei manquant, veuillez vérifier votre configuration",
   "healthcheck.description.OPTIONAL_ARGS.MANDATORY_CONTENT": "Args optionnels",
-  "healthcheck.description.SCOPE_DEFINITION.EMPTY": "Ajoutez au moins un élément dans la liste d'autorisation ou de refus pour définir le champ d'application de votre injection",
+  "healthcheck.description.SCOPE_DEFINITION.EMPTY": "Ajoutez au moins un élément dans la liste d'autorisation ou de refus pour définir le champ d'application de votre injection.",
   "healthcheck.description.SECURITY_SYSTEM_COLLECTOR.EMPTY": "Pour récupérer les alertes générées via OpenAEV, veuillez configurer un collecteur",
   "healthcheck.description.SMTP.SERVICE_UNAVAILABLE": "services SMTP manquants, veuillez vérifier votre configuration ou vos informations d'identification",
   "healthcheck.description.SUBJECT.MANDATORY_CONTENT": "Sujet",
