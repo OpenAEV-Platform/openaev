@@ -7,27 +7,6 @@ import { type TenantOutput, type User } from '../api-types';
 import { useAppDispatch } from '../hooks';
 import { buildTenantUrl, extractTenantFromUrl } from '../tenant-url-helper';
 
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-/**
- * Strips entity-specific detail segments from a path so that a tenant switch
- * lands on the parent list page rather than a detail page for a resource
- * that may not exist in the target tenant.
- *
- * e.g. "/admin/scenarios/123e4567-e89b-12d3-a456-426614174000"
- *        → "/admin/scenarios"
- *      "/admin/scenarios/123e4567-e89b-12d3-a456-426614174000/injects"
- *        → "/admin/scenarios"
- *      "/admin/scenarios" → "/admin/scenarios" (unchanged)
- */
-const stripDetailSegments = (pathname: string): string => {
-  const segments = pathname.split('/').filter(Boolean);
-  // Find the first UUID segment — everything from that point is detail-level
-  const uuidIndex = segments.findIndex(s => UUID_REGEX.test(s));
-  if (uuidIndex === -1) return pathname;
-  return '/' + segments.slice(0, uuidIndex).join('/');
-};
-
 /**
  * Internal hook that encapsulates the current-tenant state and
  * dispatches TENANT_SWITCH_SUCCESS when the tenant actually changes.
@@ -78,12 +57,9 @@ const useTenant = (me: User | undefined, logged: unknown) => {
     const target = tenants.find(t => t.tenant_id === tenantId);
     if (!target) return false;
     if (extractTenantFromUrl() !== target.tenant_id) {
-      // Switching to a different tenant — strip detail segments so we land on
-      // the list page instead of a detail page for a resource that may not exist.
-      const safePath = stripDetailSegments(location.pathname);
       // Full page navigation — the reload will re-initialise tenant state,
       // so we intentionally skip setTenant to avoid a broken intermediate render.
-      window.location.href = buildTenantUrl(target.tenant_id, safePath);
+      window.location.href = buildTenantUrl(target.tenant_id, location.pathname, location.search, location.hash);
     } else {
       setTenant(target);
     }
