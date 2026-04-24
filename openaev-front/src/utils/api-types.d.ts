@@ -4178,7 +4178,7 @@ export interface LessonsTemplateQuestionInput {
   lessons_template_question_order: number;
 }
 
-/** Platform licensing */
+/** Platform licensing information */
 export interface License {
   license_creator?: string;
   license_customer?: string;
@@ -5383,8 +5383,8 @@ export interface PlatformSettings {
   /** id of the platform */
   platform_id?: string;
   /** Language of the platform */
-  platform_lang: string;
-  /** Platform licensing */
+  platform_lang?: string;
+  /** Platform licensing information */
   platform_license?: License;
   /** Definition of the dark theme */
   platform_light_theme?: ThemeInput;
@@ -5399,7 +5399,7 @@ export interface PlatformSettings {
   /** Default simulation dashboard of the platform */
   platform_simulation_dashboard?: string;
   /** Theme of the platform */
-  platform_theme: string;
+  platform_theme?: string;
   /** Current version of the platform */
   platform_version?: string;
   /** 'true' if the platform has the whitemark activated */
@@ -5568,6 +5568,39 @@ export interface PublicExercise {
   description?: string;
   id?: string;
   name?: string;
+}
+
+export interface PublicPlatformSettings {
+  /** True if Saml2 is enabled */
+  auth_saml2_enable?: boolean;
+  /** List of Saml2 providers */
+  platform_saml2_providers?: OAuthProvider[];
+  /** True if local authentication is enabled */
+  auth_local_enable?: boolean;
+  /** True if OpenID is enabled */
+  auth_openid_enable?: boolean;
+  /** List of enabled dev features */
+  enabled_dev_features?: (
+    | "_RESERVED"
+    | "STIX_SECURITY_COVERAGE_FOR_VULNERABILITIES"
+    | "LEGACY_INGESTION_EXECUTION_TRACE"
+  )[];
+  /** Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL) */
+  platform_banner_by_level?: Record<string, string[]>;
+  /** Definition of the dark theme */
+  platform_dark_theme?: ThemeInput;
+  /** Language of the platform */
+  platform_lang?: string;
+  /** Definition of the dark theme */
+  platform_light_theme?: ThemeInput;
+  /** List of OpenID providers */
+  platform_openid_providers?: OAuthProvider[];
+  /** Policies of the platform */
+  platform_policies?: PolicyInput;
+  /** Theme of the platform */
+  platform_theme?: string;
+  /** 'true' if the platform has the whitemark activated */
+  platform_whitemark?: string;
 }
 
 export interface PublicScenario {
