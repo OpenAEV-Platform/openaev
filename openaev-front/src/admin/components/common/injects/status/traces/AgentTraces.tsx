@@ -6,7 +6,7 @@ import ExpandableSection from '../../../../../../components/common/ExpandableSec
 import { useFormatter } from '../../../../../../components/i18n';
 import ItemStatus from '../../../../../../components/ItemStatus';
 import { type ExecutionTraceOutput } from '../../../../../../utils/api-types';
-import { buildTenantApiPath } from '../../../../../../utils/tenant-url-helper';
+import { buildTenantApiPath } from '../../../../../../utils/url-helper';
 import ExecutionTime from './ExecutionTime';
 import TraceMessage from './TraceMessage';
 

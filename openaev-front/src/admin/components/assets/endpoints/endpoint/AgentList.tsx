@@ -13,7 +13,7 @@ import { useHelper } from '../../../../../store';
 import { type AgentOutput } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
-import { buildTenantApiPath } from '../../../../../utils/tenant-url-helper';
+import { buildTenantApiPath } from '../../../../../utils/url-helper';
 import EEChip from '../../../common/entreprise_edition/EEChip';
 import AssetStatus from '../../AssetStatus';
 import AgentDeploymentMode from '../AgentDeploymentMode';

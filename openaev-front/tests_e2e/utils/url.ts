@@ -1,6 +1,6 @@
 /**
  * Default tenant UUID — must match Tenant.DEFAULT_TENANT_UUID on the backend
- * and DEFAULT_TENANT_UUID in src/utils/tenant-url-helper.ts.
+ * and DEFAULT_TENANT_UUID in src/utils/url-helper
  */
 export const DEFAULT_TENANT_UUID = '2cffad3a-0001-4078-b0e2-ef74274022c3';
 

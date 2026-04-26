@@ -7,6 +7,7 @@ import Breadcrumbs from '../../../../components/Breadcrumbs';
 import { useFormatter } from '../../../../components/i18n';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
+import { TENANT_SETTINGS_LABEL } from '../../nav/config/settings.config';
 import EnterpriseEditionSettings from './EnterpriseEditionSettings';
 import XtmHubSettings from './xtm_hub/XtmHubSettings';
 
@@ -25,7 +26,7 @@ const Experience: React.FC = () => {
       <Breadcrumbs
         style={{ marginBottom: theme.spacing(2.4) }}
         variant="list"
-        elements={[{ label: t('Settings') }, {
+        elements={[{ label: t(TENANT_SETTINGS_LABEL) }, {
           label: t('Filigran Experience'),
           current: true,
         }]}
