@@ -638,12 +638,18 @@ class WorkflowServiceTest {
     }
 
     private Workflow buildTemplate() {
+      return buildTemplate(true);
+    }
+
+    private Workflow buildTemplate(boolean stubSave) {
       String workflowId = UUID.randomUUID().toString();
       Workflow workflow =
           Workflow.builder().id(workflowId).status(WorkflowStatus.TEMPLATE).version(0).build();
       when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
           .thenReturn(Optional.of(workflow));
-      when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
+      if (stubSave) {
+        when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
+      }
       return workflow;
     }
 
@@ -651,7 +657,7 @@ class WorkflowServiceTest {
     @DisplayName("should create new scope variable when id is null")
     void given_newScopeVariableInput_should_createVariable() {
       // Arrange
-      Workflow workflow = buildTemplate();
+      Workflow workflow = buildTemplate(false);
       ScopeVariableInput input =
           new ScopeVariableInput(null, "company_name", ArgumentType.Text, "Acme", "Company name");
       WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
@@ -675,7 +681,7 @@ class WorkflowServiceTest {
     @DisplayName("should update existing scope variable when id matches")
     void given_existingScopeVariableId_should_updateVariable() {
       // Arrange
-      Workflow workflow = buildTemplate();
+      Workflow workflow = buildTemplate(false);
       ScopeVariable existing = new ScopeVariable();
       existing.setKey("old_key");
       existing.setType(ArgumentType.Text);
