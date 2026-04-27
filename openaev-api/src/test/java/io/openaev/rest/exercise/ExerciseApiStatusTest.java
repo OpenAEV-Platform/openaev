@@ -24,7 +24,6 @@ import io.openaev.helper.InjectHelper;
 import io.openaev.injectors.email.model.EmailContent;
 import io.openaev.rest.exercise.form.ExerciseUpdateStatusInput;
 import io.openaev.rest.exercise.service.ExerciseService;
-import io.openaev.rest.inject.service.InjectService;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.InjectComposer;
