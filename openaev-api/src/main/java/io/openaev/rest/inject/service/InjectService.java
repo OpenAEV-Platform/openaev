@@ -75,6 +75,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Triple;
 import org.hibernate.Hibernate;
 import org.jetbrains.annotations.NotNull;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.AccessDeniedException;
@@ -113,6 +115,13 @@ public class InjectService {
   private final ImapService imapService;
   private final HealthCheckUtils healthCheckUtils;
   private final InjectorContractContentUtils injectorContractContentUtils;
+
+  private InjectStatusService injectStatusService;
+
+  @Autowired
+  public void setInjectStatusService(@Lazy InjectStatusService injectStatusService) {
+    this.injectStatusService = injectStatusService;
+  }
 
   private final LicenseCacheManager licenseCacheManager;
   @Resource protected ObjectMapper mapper;
@@ -835,6 +844,7 @@ public class InjectService {
     List<Inject> injects = injectRepository.findAllInjectBySimulationId(simulationId);
     if (injects.isEmpty()) return;
     injects.forEach(Inject::clean);
+    injectStatusService.deleteAllInjectStatusByInjects(injects);
     injectRepository.saveAll(injects);
   }
 
