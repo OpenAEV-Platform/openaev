@@ -1,6 +1,7 @@
 package io.openaev.service.chaining;
 
-import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
+import static io.openaev.api.chaining.ChainingApi.TENANT_CHAINING_URI;
+import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
@@ -268,7 +269,7 @@ class ChainingIntegrationTest extends IntegrationTest {
       long simulationCountBefore = exerciseRepository.count();
 
       String simulationResult =
-          mvc.perform(post(SCENARIO_URI + "/" + scenarioId + "/exercise/running").with(csrf()))
+          mvc.perform(post(TENANT_SCENARIO_URI + "/" + scenarioId + "/exercise/running").with(csrf()))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()
@@ -352,7 +353,7 @@ class ChainingIntegrationTest extends IntegrationTest {
       stepService.createStepTemplates(workflowTemplate.getId(), List.of(step));
 
       String simulationResult =
-          mvc.perform(post(SCENARIO_URI + "/" + scenarioId + "/exercise/running").with(csrf()))
+          mvc.perform(post(TENANT_SCENARIO_URI + "/" + scenarioId + "/exercise/running").with(csrf()))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()
@@ -440,7 +441,7 @@ class ChainingIntegrationTest extends IntegrationTest {
       stepService.createStepTemplates(workflowTemplate.getId(), List.of(step));
       String simulation =
           mvc.perform(
-                  post(SCENARIO_URI + "/" + createdScenario.getId() + "/exercise/running")
+                  post(TENANT_SCENARIO_URI + "/" + createdScenario.getId() + "/exercise/running")
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON))
               .andExpect(status().is2xxSuccessful())
