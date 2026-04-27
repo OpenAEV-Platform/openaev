@@ -15,6 +15,7 @@ import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.config.OpenAEVConfig;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.rest.settings.PreviewFeature;
@@ -79,7 +80,7 @@ class WorkflowApiTest extends IntegrationTest {
     String response =
         mockMvc
             .perform(
-                get(TENANT_WORKFLOW_URI + "/" + workflow.getId() + "/configuration").with(csrf()))
+                get(workflowConfigurationUri(workflow.getId())).with(csrf()))
             .andExpect(status().isOk())
             .andReturn()
             .getResponse()
@@ -104,7 +105,7 @@ class WorkflowApiTest extends IntegrationTest {
     // -- EXECUTE --
     String response =
         mockMvc
-            .perform(get(TENANT_WORKFLOW_URI + "/" + workflowId + "/configuration").with(csrf()))
+            .perform(get(workflowConfigurationUri(workflowId)).with(csrf()))
             .andExpect(status().isNotFound())
             .andReturn()
             .getResponse()
@@ -129,7 +130,7 @@ class WorkflowApiTest extends IntegrationTest {
     String response =
         mockMvc
             .perform(
-                get(TENANT_WORKFLOW_URI + "/" + workflow.getId() + "/configuration").with(csrf()))
+                get(workflowConfigurationUri(workflow.getId())).with(csrf()))
             .andExpect(status().isNotFound())
             .andReturn()
             .getResponse()
@@ -155,7 +156,7 @@ class WorkflowApiTest extends IntegrationTest {
     String response =
         mockMvc
             .perform(
-                put(TENANT_WORKFLOW_URI + "/" + workflow.getId() + "/configuration")
+                put(workflowConfigurationUri(workflow.getId()))
                     .with(csrf())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(asJsonString(input))
@@ -190,7 +191,7 @@ class WorkflowApiTest extends IntegrationTest {
     String response =
         mockMvc
             .perform(
-                put(TENANT_WORKFLOW_URI + "/" + workflow.getId() + "/configuration")
+                put(workflowConfigurationUri(workflow.getId()))
                     .with(csrf())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(asJsonString(input))
@@ -237,7 +238,7 @@ class WorkflowApiTest extends IntegrationTest {
     // -- EXECUTE & ASSERT --
     mockMvc
         .perform(
-            put(TENANT_WORKFLOW_URI + "/" + workflow.getId() + "/configuration")
+            put(workflowConfigurationUri(workflow.getId()))
                 .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(asJsonString(input))
@@ -263,7 +264,7 @@ class WorkflowApiTest extends IntegrationTest {
     // -- EXECUTE & ASSERT --
     mockMvc
         .perform(
-            put(TENANT_WORKFLOW_URI + "/" + workflow.getId() + "/configuration")
+            put(workflowConfigurationUri(workflow.getId()))
                 .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(asJsonString(input))
@@ -289,7 +290,7 @@ class WorkflowApiTest extends IntegrationTest {
     // -- EXECUTE & ASSERT --
     mockMvc
         .perform(
-            put(TENANT_WORKFLOW_URI + "/" + workflow.getId() + "/configuration")
+            put(workflowConfigurationUri(workflow.getId()))
                 .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(asJsonString(input))
@@ -315,7 +316,7 @@ class WorkflowApiTest extends IntegrationTest {
     // -- EXECUTE & ASSERT --
     mockMvc
         .perform(
-            put(TENANT_WORKFLOW_URI + "/" + workflow.getId() + "/configuration")
+            put(workflowConfigurationUri(workflow.getId()))
                 .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(asJsonString(input))
@@ -340,7 +341,7 @@ class WorkflowApiTest extends IntegrationTest {
     // -- EXECUTE & ASSERT --
     mockMvc
         .perform(
-            put(TENANT_WORKFLOW_URI + "/" + workflow.getId() + "/configuration")
+            put(workflowConfigurationUri(workflow.getId()))
                 .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(asJsonString(input))
@@ -364,7 +365,7 @@ class WorkflowApiTest extends IntegrationTest {
     // -- EXECUTE & ASSERT --
     mockMvc
         .perform(
-            put(TENANT_WORKFLOW_URI + "/" + workflow.getId() + "/configuration")
+            put(workflowConfigurationUri(workflow.getId()))
                 .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(asJsonString(input))
@@ -393,7 +394,7 @@ class WorkflowApiTest extends IntegrationTest {
     // -- EXECUTE --
     mockMvc
         .perform(
-            put(TENANT_WORKFLOW_URI + "/" + workflow.getId() + "/configuration")
+            put(workflowConfigurationUri(workflow.getId()))
                 .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(asJsonString(input))
@@ -448,6 +449,14 @@ class WorkflowApiTest extends IntegrationTest {
   }
 
   // -- Helpers --
+
+  private String workflowConfigurationUri(String workflowId) {
+    return tenantUri(TENANT_WORKFLOW_URI + "/" + workflowId + "/configuration");
+  }
+
+  private String tenantUri(String uriTemplate) {
+    return uriTemplate.replace("{tenantId}", TenantContext.getCurrentTenant());
+  }
 
   private Workflow createTemplateWorkflow() {
     Workflow workflow = WorkflowFixture.getDefaultWorkflowTemplate();
