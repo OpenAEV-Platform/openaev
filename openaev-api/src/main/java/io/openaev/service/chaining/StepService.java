@@ -130,7 +130,7 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
 
   private void startWorkflow(Workflow workflowRun) throws ChainingException {
     // Save data from Scope in WorkflowState
-    workflowStateService.prepareInitialWorkflowState(workflowRun);
+    workflowStateService.initializeStateFromScope(workflowRun);
     evaluate(workflowRun);
   }
 

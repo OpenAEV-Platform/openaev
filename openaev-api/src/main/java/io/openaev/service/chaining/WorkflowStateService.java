@@ -27,15 +27,20 @@ public class WorkflowStateService {
   private final StepService stepService;
 
   /**
-   * Initializes the global workflow state from scope definition.
+   * Creates and persists the global {@link WorkflowState} for a new workflow run. Initializes a
+   * scope bucket (from the workflow's whitelist rules) and an empty discovery bucket.
    *
-   * @param workflowExecution running workflow that receives its initial global state
+   * @param workflowRun the running workflow
+   * @return the persisted global {@link WorkflowState}
    */
   @Transactional
-  public void prepareInitialWorkflowState(Workflow workflowExecution) {
-    log.debug(
-        "Initializing Global State from Scope for Workflow Run: {}", workflowExecution.getId());
-    createGlobalState(workflowExecution);
+  public void initializeStateFromScope(Workflow workflowRun) {
+    log.debug("Initializing Global State from Scope for Workflow Run: {}", workflowRun.getId());
+    Map<String, ContractOutputType> fieldTypeMap =
+        getAllContractOutputTypes().stream()
+            .collect(Collectors.toMap(ContractOutputType::name, type -> type));
+    WorkflowStateEntries scopeEntries = createInitialScopeEntries(workflowRun);
+    syncState(scopeEntries, fieldTypeMap, workflowRun);
   }
 
   /**
@@ -55,15 +60,15 @@ public class WorkflowStateService {
       log.warn("Received empty output for sync. Skipping.");
       return;
     }
-    processSync(output, fieldTypeMap, workflowRun);
+    syncState(output, fieldTypeMap, workflowRun);
     stepService.evaluate(workflowRun);
   }
 
-  private void processSync(
+  public void syncState(
       List<Map<String, JsonElement>> output,
       Map<String, ContractOutputType> fieldTypeMap,
       Workflow workflowRun) {
-    WorkflowState globalState = getGlobalStateByWorkflowId(workflowRun.getId());
+    WorkflowState globalState = getOrCreateGlobalState(workflowRun);
     if (globalState == null) {
       log.warn("No global state found for workflow {}. Skipping sync.", workflowRun.getId());
       return;
@@ -144,26 +149,25 @@ public class WorkflowStateService {
     }
   }
 
-  /**
-   * Creates and persists the global {@link WorkflowState} for a new workflow run. Initializes a
-   * scope bucket (from the workflow's whitelist rules) and an empty discovery bucket.
-   *
-   * @param workflowRun the running workflow
-   * @return the persisted global {@link WorkflowState}
-   */
-  public WorkflowState createGlobalState(Workflow workflowRun) {
-    WorkflowStateEntries scopeEntries = createInitialScopeEntries(workflowRun);
-
-    WorkflowState globalState = initializeGlobalState(workflowRun, scopeEntries);
-
-    save(globalState);
-    log.debug("Initialized Global WorkflowState for workflow execution {}", workflowRun.getId());
-
-    return globalState;
-  }
-
   public WorkflowState save(WorkflowState state) {
     return workflowStateRepository.save(state);
+  }
+
+  private WorkflowState getOrCreateGlobalState(Workflow workflow) {
+    WorkflowState state = getGlobalStateByWorkflowId(workflow.getId());
+    if (state == null) {
+      state =
+          WorkflowState.builder()
+              .workflowExecution(workflow)
+              .entries(gson.toJson(createInitialEntries()))
+              .build();
+    }
+    return state;
+  }
+
+  private static WorkflowStateEntries createInitialEntries() {
+    return new WorkflowStateEntries(
+        new ArrayList<>(), new ArrayList<>(), new HashSet<>(), new HashSet<>());
   }
 
   private static WorkflowStateEntries createInitialScopeEntries(Workflow workflowRun) {
@@ -192,48 +196,45 @@ public class WorkflowStateService {
     return scopeEntries;
   }
 
-  private WorkflowState initializeGlobalState(
-      Workflow workflowRun, WorkflowStateEntries scopeEntries) {
-    return WorkflowState.builder()
-        .workflowExecution(workflowRun)
-        .stepTemplate(null) // NULL indicates the Global State bucket
-        .entries(gson.toJson(scopeEntries))
-        .build();
+  /**
+   * Returns the global {@link WorkflowState} for a workflow execution (null step-template).
+   *
+   * @param workflowId the workflow execution ID
+   * @return the global state, or {@code null} if not yet created
+   */
+  public WorkflowState getGlobalStateByWorkflowId(String workflowId) {
+    return workflowStateRepository.findByStepTemplateIsNullAndWorkflowExecutionId(workflowId);
   }
 
   /**
-   * Creates a new step state for a workflow execution.
+   * Returns the local {@link WorkflowState} for a step template within a workflow execution.
    *
-   * @param executionKeys the set of execution keys for the state
-   * @param stepTemplate the step template this state is associated with
-   * @param workflowExecution the workflow execution this state belongs to
+   * @param targetTemplate the step template ID
+   * @param workflowExecution the workflow execution ID
+   * @return the local state, or {@code null} if not yet initialized
    */
-  public void createLocalState(
-      Set<String> executionKeys, Step stepTemplate, Workflow workflowExecution) {
-    if (executionKeys == null || executionKeys.isEmpty()) {
-      throw new IllegalArgumentException("executionKeys is null");
+  public WorkflowState getLocalStateByWorkflowAndStep(
+      Step targetTemplate, Workflow workflowExecution) {
+    WorkflowState localState =
+        workflowStateRepository.findByStepTemplate_IdAndWorkflowExecution_Id(
+            targetTemplate.getId(), workflowExecution.getId());
+
+    if (localState == null) {
+      localState =
+          initializeLocalState(
+              targetTemplate, workflowExecution, gson.toJson(createInitialEntries()));
     }
-    WorkflowStateEntries workflowStateEntries =
-        new WorkflowStateEntries(
-            new ArrayList<>(), new ArrayList<>(), new HashSet<>(), executionKeys);
-    String workflowStateEntriesAsJson =
-        gson.toJson(workflowStateEntries, WorkflowStateEntries.class);
-    WorkflowState workflowState =
-        initializeLocalState(stepTemplate, workflowExecution, workflowStateEntriesAsJson);
-    save(workflowState);
+
+    return localState;
   }
 
-  /**
-   * Retrieves the state entries for a step template within a workflow execution.
-   *
-   * @param stepTemplate the ID of the step template
-   * @param workflowExecution the ID of the workflow execution
-   * @return the step state entries
-   */
-  public WorkflowStateEntries getState(Step stepTemplate, Workflow workflowExecution) {
-    WorkflowState persistedWorkflowState =
-        getLocalStateByWorkflowAndStep(stepTemplate, workflowExecution);
-    return gson.fromJson(persistedWorkflowState.getEntries(), WorkflowStateEntries.class);
+  private WorkflowState initializeLocalState(
+      Step target, Workflow workflowExecution, String entriesJson) {
+    return WorkflowState.builder()
+        .stepTemplate(target)
+        .workflowExecution(workflowExecution)
+        .entries(entriesJson)
+        .build();
   }
 
   /**
@@ -315,75 +316,5 @@ public class WorkflowStateService {
               }
             })
         .collect(Collectors.toSet());
-  }
-
-  private Set<String> getInputValues(String currentOutput, String keyToFind) {
-    if (currentOutput == null || currentOutput.isBlank()) {
-      return Collections.emptySet();
-    }
-
-    try {
-      JsonObject allParsed = JsonParser.parseString(currentOutput).getAsJsonObject();
-
-      if (allParsed.has(keyToFind)) {
-        JsonElement element = allParsed.get(keyToFind);
-
-        if (element.isJsonArray()) {
-          Set<String> values = new HashSet<>();
-          element.getAsJsonArray().forEach(val -> values.add(val.getAsString()));
-          return values;
-        }
-      }
-    } catch (Exception e) {
-      log.error("Could not extract key {} from JSON: {}", keyToFind, currentOutput);
-    }
-
-    return Collections.emptySet();
-  }
-
-  private static WorkflowStateEntries createInitialEntries() {
-    return new WorkflowStateEntries(
-        new ArrayList<>(), new ArrayList<>(), new HashSet<>(), new HashSet<>());
-  }
-
-  private WorkflowState initializeLocalState(
-      Step target, Workflow workflowExecution, String entriesJson) {
-    return WorkflowState.builder()
-        .stepTemplate(target)
-        .workflowExecution(workflowExecution)
-        .entries(entriesJson)
-        .build();
-  }
-
-  /**
-   * Returns the global {@link WorkflowState} for a workflow execution (null step-template).
-   *
-   * @param workflowId the workflow execution ID
-   * @return the global state, or {@code null} if not yet created
-   */
-  public WorkflowState getGlobalStateByWorkflowId(String workflowId) {
-    return workflowStateRepository.findByStepTemplateIsNullAndWorkflowExecutionId(workflowId);
-  }
-
-  /**
-   * Returns the local {@link WorkflowState} for a step template within a workflow execution.
-   *
-   * @param targetTemplate the step template ID
-   * @param workflowExecution the workflow execution ID
-   * @return the local state, or {@code null} if not yet initialized
-   */
-  public WorkflowState getLocalStateByWorkflowAndStep(
-      Step targetTemplate, Workflow workflowExecution) {
-    WorkflowState localState =
-        workflowStateRepository.findByStepTemplate_IdAndWorkflowExecution_Id(
-            targetTemplate.getId(), workflowExecution.getId());
-
-    if (localState == null) {
-      localState =
-          initializeLocalState(
-              targetTemplate, workflowExecution, gson.toJson(createInitialEntries()));
-    }
-
-    return localState;
   }
 }

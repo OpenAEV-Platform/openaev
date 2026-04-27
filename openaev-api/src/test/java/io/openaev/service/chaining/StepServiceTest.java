@@ -413,7 +413,7 @@ public class StepServiceTest {
         assertSame(workflowRun, wfArg);
       }
 
-      verify(workflowStateService).prepareInitialWorkflowState(workflowRun);
+      verify(workflowStateService).initializeStateFromScope(workflowRun);
 
       verifyNoMoreInteractions(workflowService);
     }
@@ -481,7 +481,7 @@ public class StepServiceTest {
       } else {
         verify(stepDelayQueueRepository).findAllByWorkflowRun(workflowRun);
       }
-      verify(workflowStateService).prepareInitialWorkflowState(workflowRun);
+      verify(workflowStateService).initializeStateFromScope(workflowRun);
     }
 
     private static Stream<Arguments> workflowStatusMatrixInputs() {

@@ -270,11 +270,11 @@ public class InjectExecutionStep implements ActionStep {
       JsonObject jsonObject = new JsonObject();
       jsonObject.add("outputs", elements);
 
-      // UPDATE Global Workflow State
-      workflowStateService.processExecutionOutput(output, fieldTypeMap, stepRun.getWorkflow());
-
       // UPDATE step output
       stepRun.setOutput(jsonObject.toString());
+      // UPDATE Workflow State with new output
+      workflowStateService.processExecutionOutput(output, fieldTypeMap, stepRun.getWorkflow());
+
       return Optional.of(stepRun);
     }
 
