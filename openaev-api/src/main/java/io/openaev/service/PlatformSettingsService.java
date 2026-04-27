@@ -11,7 +11,10 @@ import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.config.RabbitmqConfig;
 import io.openaev.config.cache.LicenseCacheManager;
-import io.openaev.database.model.*;
+import io.openaev.database.model.BannerMessage;
+import io.openaev.database.model.Setting;
+import io.openaev.database.model.SettingKeys;
+import io.openaev.database.model.Theme;
 import io.openaev.database.repository.SettingRepository;
 import io.openaev.ee.Ee;
 import io.openaev.ee.License;
@@ -24,6 +27,7 @@ import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.settings.form.*;
 import io.openaev.rest.settings.response.OAuthProvider;
 import io.openaev.rest.settings.response.PlatformSettings;
+import io.openaev.rest.settings.response.PublicPlatformSettings;
 import io.openaev.rest.stream.ai.AiConfig;
 import io.openaev.xtmhub.XtmHubConnectivityService;
 import io.openaev.xtmhub.XtmHubRegistererRecord;
@@ -170,23 +174,98 @@ public class PlatformSettingsService {
   }
 
   // -- FIND SETTINGS --
-  public PlatformSettings findSettings() {
-    Map<String, Setting> dbSettings = mapOfSettings(fromIterable(this.settingRepository.findAll()));
-    PlatformSettings platformSettings = new PlatformSettings();
-    // Build anonymous settings
-    platformSettings.setPlatformOpenIdProviders(buildOpenIdProviders());
-    platformSettings.setPlatformSaml2Providers(buildSaml2Providers());
-    platformSettings.setAuthOpenidEnable(openAEVConfig.isAuthOpenidEnable());
-    platformSettings.setAuthSaml2Enable(openAEVConfig.isAuthSaml2Enable());
-    platformSettings.setAuthLocalEnable(openAEVConfig.isAuthLocalEnable());
-    platformSettings.setPlatformTheme(
+
+  /** Populate the public (non-sensitive) fields on any {@link PublicPlatformSettings} instance. */
+  private void populatePublicSettings(
+      PublicPlatformSettings settings, Map<String, Setting> dbSettings) {
+    // Auth providers
+    settings.setPlatformOpenIdProviders(buildOpenIdProviders());
+    settings.setPlatformSaml2Providers(buildSaml2Providers());
+    settings.setAuthOpenidEnable(openAEVConfig.isAuthOpenidEnable());
+    settings.setAuthSaml2Enable(openAEVConfig.isAuthSaml2Enable());
+    settings.setAuthLocalEnable(openAEVConfig.isAuthLocalEnable());
+
+    // Theme & language
+    settings.setPlatformTheme(
         ofNullable(dbSettings.get(DEFAULT_THEME.key()))
             .map(Setting::getValue)
             .orElse(DEFAULT_THEME.defaultValue()));
-    platformSettings.setPlatformLang(
+    settings.setPlatformLang(
         ofNullable(dbSettings.get(DEFAULT_LANG.key()))
             .map(Setting::getValue)
             .orElse(DEFAULT_LANG.defaultValue()));
+    settings.setThemeLight(createThemeInput(dbSettings, THEME_TYPE_LIGHT));
+    settings.setThemeDark(createThemeInput(dbSettings, THEME_TYPE_DARK));
+
+    // Policies
+    PolicyInput policies = new PolicyInput();
+    policies.setLoginMessage(getValueFromMapOfSettings(dbSettings, PLATFORM_LOGIN_MESSAGE.key()));
+    policies.setConsentMessage(
+        getValueFromMapOfSettings(dbSettings, PLATFORM_CONSENT_MESSAGE.key()));
+    policies.setConsentConfirmText(
+        getValueFromMapOfSettings(dbSettings, PLATFORM_CONSENT_CONFIRM_TEXT.key()));
+    settings.setPolicies(policies);
+
+    // Feature flags
+    if (!StringUtils.hasText(openAEVConfig.getEnabledDevFeatures())) {
+      settings.setEnabledDevFeatures(new ArrayList<>());
+    } else {
+      settings.setEnabledDevFeatures(
+          Arrays.stream(openAEVConfig.getEnabledDevFeatures().split(","))
+              .map(
+                  featureStr -> {
+                    try {
+                      return PreviewFeature.fromStringIgnoreCase(featureStr.strip());
+                    } catch (IllegalArgumentException e) {
+                      log.warn(String.format("Unrecognised feature flag: %s", e.getMessage()), e);
+                      return null;
+                    }
+                  })
+              .filter(Objects::nonNull)
+              .distinct()
+              .toList());
+    }
+
+    // Platform banners
+    Map<String, List<String>> platformBannerByLevel = new HashMap<>();
+    for (BannerMessage.BANNER_KEYS bannerKey : BannerMessage.BANNER_KEYS.values()) {
+      String value = getValueFromMapOfSettings(dbSettings, PLATFORM_BANNER + "." + bannerKey.key());
+      if (value != null) {
+        if (platformBannerByLevel.get(bannerKey.level().name()) == null) {
+          platformBannerByLevel.put(
+              bannerKey.level().name(), new ArrayList<>(Arrays.asList(bannerKey.message())));
+        } else {
+          platformBannerByLevel.get(bannerKey.level().name()).add(bannerKey.message());
+        }
+      }
+    }
+    settings.setPlatformBannerByLevel(platformBannerByLevel);
+
+    // Whitemark
+    settings.setPlatformWhitemark(
+        ofNullable(dbSettings.get(PLATFORM_WHITEMARK.key()))
+            .map(Setting::getValue)
+            .orElse(PLATFORM_WHITEMARK.defaultValue()));
+  }
+
+  /** Return only non-sensitive settings suitable for unauthenticated (public) access. */
+  public PublicPlatformSettings findPublicSettings() {
+    Map<String, Setting> dbSettings = mapOfSettings(fromIterable(this.settingRepository.findAll()));
+    PublicPlatformSettings settings = new PublicPlatformSettings();
+    populatePublicSettings(settings, dbSettings);
+    return settings;
+  }
+
+  /** Return the full platform settings. Must only be called from authenticated endpoints. */
+  public PlatformSettings findSettings() {
+    Map<String, Setting> dbSettings = mapOfSettings(fromIterable(this.settingRepository.findAll()));
+    PlatformSettings platformSettings = new PlatformSettings();
+
+    // Populate public fields (shared with findPublicSettings)
+    populatePublicSettings(platformSettings, dbSettings);
+
+    // Authenticated-only fields
+    platformSettings.setPlatformLicense(licenseCacheManager.getEnterpriseEditionInfo());
     platformSettings.setPlatformHomeDashboard(
         ofNullable(dbSettings.get(DEFAULT_HOME_DASHBOARD.key()))
             .map(Setting::getValue)
@@ -215,95 +294,38 @@ public class PlatformSettingsService {
             .map(Setting::getValue)
             .orElse(IMAP_SERVICE_AVAILABLE.defaultValue()));
 
-    // Build authenticated user settings
+    // Authenticated user settings
+    platformSettings.setMapTileServerLight(openAEVConfig.getMapTileServerLight());
+    platformSettings.setMapTileServerDark(openAEVConfig.getMapTileServerDark());
+    platformSettings.setPlatformId(
+        ofNullable(dbSettings.get(PLATFORM_INSTANCE.key()))
+            .map(Setting::getValue)
+            .orElse(PLATFORM_INSTANCE.defaultValue()));
+    platformSettings.setPlatformName(
+        ofNullable(dbSettings.get(PLATFORM_NAME.key()))
+            .map(Setting::getValue)
+            .orElse(PLATFORM_NAME.defaultValue()));
+    platformSettings.setPlatformBaseUrl(openAEVConfig.getBaseUrl());
+    platformSettings.setPlatformAgentUrl(openAEVConfig.getBaseUrlForAgent());
+    platformSettings.setXtmOpenctiEnable(openCTIConfig.getEnable());
+    platformSettings.setXtmOpenctiUrl(openCTIConfig.getUrl());
+    platformSettings.setAiEnabled(aiConfig.isEnabled());
+    platformSettings.setAiHasToken(StringUtils.hasText(aiConfig.getToken()));
+    platformSettings.setAiType(aiConfig.getType());
+    platformSettings.setAiModel(aiConfig.getModel());
+    platformSettings.setExecutorTaniumEnable(false);
+    platformSettings.setTelemetryManagerEnable(true);
+
+    // Admin-only settings
     OpenAEVPrincipal user = currentUser();
-    if (user != null) {
-      platformSettings.setPlatformWhitemark(
-          ofNullable(dbSettings.get(PLATFORM_WHITEMARK.key()))
-              .map(Setting::getValue)
-              .orElse(PLATFORM_WHITEMARK.defaultValue()));
-      platformSettings.setMapTileServerLight(openAEVConfig.getMapTileServerLight());
-      platformSettings.setMapTileServerDark(openAEVConfig.getMapTileServerDark());
-      platformSettings.setPlatformId(
-          ofNullable(dbSettings.get(PLATFORM_INSTANCE.key()))
-              .map(Setting::getValue)
-              .orElse(PLATFORM_INSTANCE.defaultValue()));
-      platformSettings.setPlatformName(
-          ofNullable(dbSettings.get(PLATFORM_NAME.key()))
-              .map(Setting::getValue)
-              .orElse(PLATFORM_NAME.defaultValue()));
-      platformSettings.setPlatformBaseUrl(openAEVConfig.getBaseUrl());
-      platformSettings.setPlatformAgentUrl(openAEVConfig.getBaseUrlForAgent());
-      platformSettings.setXtmOpenctiEnable(openCTIConfig.getEnable());
-      platformSettings.setXtmOpenctiUrl(openCTIConfig.getUrl());
-      platformSettings.setAiEnabled(aiConfig.isEnabled());
-      platformSettings.setAiHasToken(StringUtils.hasText(aiConfig.getToken()));
-      platformSettings.setAiType(aiConfig.getType());
-      platformSettings.setAiModel(aiConfig.getModel());
-      platformSettings.setExecutorTaniumEnable(false);
-      platformSettings.setTelemetryManagerEnable(true);
-
-      // Build admin settings
-      if (user.isAdmin()) {
-        platformSettings.setPlatformVersion(openAEVConfig.getVersion());
-        platformSettings.setPostgreVersion(settingRepository.getServerVersion());
-        platformSettings.setJavaVersion(Runtime.version().toString());
-        platformSettings.setRabbitMQVersion(RabbitMQHelper.getRabbitMQVersion(rabbitmqConfig));
-        platformSettings.setAnalyticsEngineType(engineConfig.getEngineSelector());
-        platformSettings.setAnalyticsEngineVersion(engineService.getEngineVersion());
-      }
+    if (user != null && user.isAdmin()) {
+      platformSettings.setPlatformVersion(openAEVConfig.getVersion());
+      platformSettings.setPostgreVersion(settingRepository.getServerVersion());
+      platformSettings.setJavaVersion(Runtime.version().toString());
+      platformSettings.setRabbitMQVersion(RabbitMQHelper.getRabbitMQVersion(rabbitmqConfig));
+      platformSettings.setAnalyticsEngineType(engineConfig.getEngineSelector());
+      platformSettings.setAnalyticsEngineVersion(engineService.getEngineVersion());
     }
-
-    // THEME
-    ThemeInput themeLight = createThemeInput(dbSettings, THEME_TYPE_LIGHT);
-    platformSettings.setThemeLight(themeLight);
-
-    ThemeInput themeDark = createThemeInput(dbSettings, THEME_TYPE_DARK);
-    platformSettings.setThemeDark(themeDark);
-
-    // POLICIES
-    PolicyInput policies = new PolicyInput();
-    policies.setLoginMessage(getValueFromMapOfSettings(dbSettings, PLATFORM_LOGIN_MESSAGE.key()));
-    policies.setConsentMessage(
-        getValueFromMapOfSettings(dbSettings, PLATFORM_CONSENT_MESSAGE.key()));
-    policies.setConsentConfirmText(
-        getValueFromMapOfSettings(dbSettings, PLATFORM_CONSENT_CONFIRM_TEXT.key()));
-    platformSettings.setPolicies(policies);
-
-    // FEATURE FLAG
-    if (!StringUtils.hasText(openAEVConfig.getEnabledDevFeatures())) {
-      platformSettings.setEnabledDevFeatures(new ArrayList<>());
-    } else {
-      platformSettings.setEnabledDevFeatures(
-          Arrays.stream(openAEVConfig.getEnabledDevFeatures().split(","))
-              .map(
-                  featureStr -> {
-                    try {
-                      return PreviewFeature.fromStringIgnoreCase(featureStr.strip());
-                    } catch (IllegalArgumentException e) {
-                      log.warn(String.format("Unrecognised feature flag: %s", e.getMessage()), e);
-                      return null;
-                    }
-                  })
-              .filter(Objects::nonNull)
-              .distinct()
-              .toList());
-    }
-
-    // PLATFORM MESSAGE
-    Map<String, List<String>> platformBannerByLevel = new HashMap<>();
-    for (BannerMessage.BANNER_KEYS bannerKey : BannerMessage.BANNER_KEYS.values()) {
-      String value = getValueFromMapOfSettings(dbSettings, PLATFORM_BANNER + "." + bannerKey.key());
-      if (value != null) {
-        if (platformBannerByLevel.get(bannerKey.level().name()) == null) {
-          platformBannerByLevel.put(
-              bannerKey.level().name(), new ArrayList<>(Arrays.asList(bannerKey.message())));
-        } else {
-          platformBannerByLevel.get(bannerKey.level().name()).add(bannerKey.message());
-        }
-      }
-    }
-    platformSettings.setPlatformBannerByLevel(platformBannerByLevel);
 
     // EXPECTATION
     platformSettings.setDetectionExpirationTime(
@@ -319,9 +341,6 @@ public class PlatformSettingsService {
     platformSettings.setManualExpirationTime(expectationPropertiesConfig.getManualExpirationTime());
     platformSettings.setExpectationDefaultScoreValue(
         expectationPropertiesConfig.getDefaultExpectationScoreValue());
-
-    // License
-    platformSettings.setPlatformLicense(licenseCacheManager.getEnterpriseEditionInfo());
 
     // XTM Hub
     platformSettings.setXtmHubEnable(xtmHubConfig.getEnable());

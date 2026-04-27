@@ -283,7 +283,9 @@ export const storeHelper = state => ({
     t => t.get('token_user') === me(state)?.get('user_id'),
   ),
   getUserLang: () => {
-    const rawPlatformLang = state.referential.getIn(['entities', 'platformParameters', 'parameters', 'platform_lang']) ?? 'auto';
+    const publicParams = state.referential.getIn(['entities', 'publicPlatformParameters', 'parameters']);
+    const privateParams = state.referential.getIn(['entities', 'platformParameters', 'parameters']);
+    const rawPlatformLang = (privateParams ?? publicParams)?.get('platform_lang') ?? 'auto';
     const rawUserLang = me(state)?.get('user_lang') ?? 'auto';
     const platformLang = rawPlatformLang !== 'auto' ? rawPlatformLang : locale;
     const userLang = rawUserLang !== 'auto' ? rawUserLang : platformLang;
@@ -383,10 +385,13 @@ export const storeHelper = state => ({
   getTeams: () => entities('teams', state),
   getTeamsMap: () => maps('teams', state),
   getPlatformSettings: () => {
-    return state.referential.getIn(['entities', 'platformParameters', 'parameters']) || Map({});
+    const publicParams = state.referential.getIn(['entities', 'publicPlatformParameters', 'parameters']) || Map({});
+    const privateParams = state.referential.getIn(['entities', 'platformParameters', 'parameters']) || Map({});
+    return publicParams.merge(privateParams);
   },
   getPlatformName: () => {
-    return state.referential.getIn(['entities', 'platformParameters', 'parameters', 'platform_name']) || 'OpenAEV - Open Adversarial Exposure Validation Platform';
+    const privateParams = state.referential.getIn(['entities', 'platformParameters', 'parameters']);
+    return privateParams?.get('platform_name') || 'OpenAEV - Open Adversarial Exposure Validation Platform';
   },
   // kill chain phases
   getKillChainPhase: id => entity(id, 'killchainphases', state),

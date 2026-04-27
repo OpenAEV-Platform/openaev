@@ -37,8 +37,10 @@ import io.openaev.utils.fixtures.composers.UserComposer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import net.javacrumbs.jsonunit.core.Option;
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.*;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -306,7 +308,18 @@ class UserApiTest extends IntegrationTest {
 
       // -- ASSERT --
       ArgumentCaptor<List<User>> userCaptor = ArgumentCaptor.forClass(List.class);
-      verify(mailingService).sendEmail(anyString(), anyString(), userCaptor.capture());
+      // not ideal, but the actual reset happens in a background thread!
+      Awaitility.await()
+          .atMost(1, TimeUnit.SECONDS)
+          .until(
+              () -> {
+                try {
+                  verify(mailingService).sendEmail(anyString(), anyString(), userCaptor.capture());
+                  return true;
+                } catch (Exception e) {
+                  return false;
+                }
+              });
       assertEquals(EMAIL, userCaptor.getValue().get(0).getEmail());
     }
 
@@ -329,12 +342,42 @@ class UserApiTest extends IntegrationTest {
                   .with(csrf()))
           .andExpect(status().isOk());
 
+      // not ideal, but the actual reset happens in a background thread!
+      Awaitility.await()
+          .atMost(1, TimeUnit.SECONDS)
+          .until(
+              () -> {
+                try {
+                  ArgumentCaptor<List<User>> userCaptor = ArgumentCaptor.forClass(List.class);
+                  verify(mailingService, times(1))
+                      .sendEmail(anyString(), anyString(), userCaptor.capture());
+                  return true;
+                } catch (Exception e) {
+                  return false;
+                }
+              });
+
       mvc.perform(
               post("/api/reset")
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(asJsonString(input))
                   .with(csrf()))
           .andExpect(status().isOk());
+
+      // not ideal, but the actual reset happens in a background thread!
+      Awaitility.await()
+          .atMost(1, TimeUnit.SECONDS)
+          .until(
+              () -> {
+                try {
+                  ArgumentCaptor<List<User>> userCaptor = ArgumentCaptor.forClass(List.class);
+                  verify(mailingService, times(2))
+                      .sendEmail(anyString(), anyString(), userCaptor.capture());
+                  return true;
+                } catch (Exception e) {
+                  return false;
+                }
+              });
 
       // -- ASSERT --
       mvc.perform(
@@ -366,6 +409,19 @@ class UserApiTest extends IntegrationTest {
                   .content(asJsonString(input))
                   .with(csrf()))
           .andExpect(status().isOk());
+
+      Awaitility.await()
+          .atMost(1, TimeUnit.SECONDS)
+          .until(
+              () -> {
+                try {
+                  ArgumentCaptor<List<User>> userCaptor = ArgumentCaptor.forClass(List.class);
+                  verify(mailingService).sendEmail(anyString(), anyString(), userCaptor.capture());
+                  return true;
+                } catch (Exception e) {
+                  return false;
+                }
+              });
 
       mvc.perform(
               post("/api/reset/" + firstToken)
