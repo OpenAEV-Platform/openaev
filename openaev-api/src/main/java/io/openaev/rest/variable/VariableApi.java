@@ -122,6 +122,7 @@ public class VariableApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
   public Iterable<Variable> variablesFromScenario(@PathVariable @NotBlank final String scenarioId) {
+    this.scenarioService.scenario(scenarioId); // Tenant-scoped validation
     return this.variableService.variablesFromScenario(scenarioId);
   }
 
@@ -137,8 +138,8 @@ public class VariableApi extends RestBehavior {
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String variableId,
       @Valid @RequestBody final VariableInput input) {
+    this.scenarioService.scenario(scenarioId); // Tenant-scoped validation
     Variable variable = this.variableService.variable(variableId);
-    assert scenarioId.equals(variable.getScenario().getId());
     variable.setUpdateAttributes(input);
     return this.variableService.updateVariable(variable);
   }
@@ -154,8 +155,7 @@ public class VariableApi extends RestBehavior {
   public void deleteVariableForScenario(
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String variableId) {
-    Variable variable = this.variableService.variable(variableId);
-    assert scenarioId.equals(variable.getScenario().getId());
+    this.scenarioService.scenario(scenarioId); // Tenant-scoped validation
     this.variableService.deleteVariable(variableId);
   }
 }
