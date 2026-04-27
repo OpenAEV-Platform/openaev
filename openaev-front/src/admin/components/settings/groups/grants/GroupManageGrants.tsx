@@ -23,12 +23,15 @@ const GroupManageGrants: FunctionComponent<GroupManageGrantsProps> = ({
   fetchAndUpdateGroup,
 }) => {
   const { t } = useFormatter();
+  const title = group.group_name
+    ? `${t('Manage grants for group')}: ${group.group_name}`
+    : t('Manage the grants of this group');
 
   return (
     <Drawer
       open={openGrants}
       handleClose={handleCloseGrants}
-      title={t('Manage grants')}
+      title={title}
     >
       <TabbedView
         tabs={[

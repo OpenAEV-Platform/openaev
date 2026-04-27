@@ -16,6 +16,7 @@ import { ENTITY_PLATFORM_ROLE_PREFIX, PLATFORM_ROLE_FILTERS } from '../platform_
 
 interface Props {
   platformGroupId: string;
+  platformGroupName: string;
   open: boolean;
   onClose: () => void;
   onSubmit: (roleIds: string[]) => void;
@@ -23,6 +24,7 @@ interface Props {
 
 const PlatformGroupManageRoles: FC<Props> = ({
   platformGroupId,
+  platformGroupName,
   open,
   onClose,
   onSubmit,
@@ -93,12 +95,15 @@ const PlatformGroupManageRoles: FC<Props> = ({
     onSubmit(selectedRoleValues.map(r => r.platform_role_id));
     handleClose();
   };
+  const title = platformGroupName
+    ? `${t('Manage the platform roles of this group')}: ${platformGroupName}`
+    : t('Manage the platform roles of this group');
 
   return (
     <Drawer
       open={open}
       handleClose={handleClose}
-      title={t('Manage the platform roles of this group')}
+      title={title}
       variant="full"
     >
       <Box sx={{

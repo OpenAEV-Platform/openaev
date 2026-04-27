@@ -134,6 +134,7 @@ const PlatformGroupPopover: FunctionComponent<Props> = ({
         && (
           <PlatformGroupManageUsers
             platformGroupId={platformGroup.platform_group_id}
+            platformGroupName={platformGroup.platform_group_name}
             open={isUsersOpen}
             onClose={handleCloseUsers}
             onSubmit={submitUpdateUsers}
@@ -143,6 +144,7 @@ const PlatformGroupPopover: FunctionComponent<Props> = ({
         && (
           <PlatformGroupManageRoles
             platformGroupId={platformGroup.platform_group_id}
+            platformGroupName={platformGroup.platform_group_name}
             open={isRolesOpen}
             onClose={handleCloseRoles}
             onSubmit={submitUpdateRoles}

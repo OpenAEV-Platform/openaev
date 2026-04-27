@@ -11,6 +11,7 @@ import { useAppDispatch } from '../../../../utils/hooks';
 
 interface GroupManageRolesProps {
   initialState: string[];
+  groupName?: string;
   open: boolean;
   onClose: () => void;
   onSubmit: (roleIds: string[]) => void;
@@ -19,6 +20,7 @@ interface GroupManageRolesProps {
 const GroupManageRoles: FC<GroupManageRolesProps> = (
   {
     initialState,
+    groupName,
     open,
     onClose,
     onSubmit,
@@ -62,12 +64,15 @@ const GroupManageRoles: FC<GroupManageRolesProps> = (
     onSubmit(selectedRoleIds);
     handleClose();
   };
+  const title = groupName
+    ? `${t('Manage roles for group')}: ${groupName}`
+    : t('Manage the roles of this group');
 
   return (
     <Drawer
       open={open}
       handleClose={onClose}
-      title={t('Manage the roles of this group')}
+      title={title}
     >
       <Box>
         {roles.map(role => (
