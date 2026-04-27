@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
@@ -23,6 +24,8 @@ import io.openaev.rest.scenario.form.ScenarioUpdateTeamsInput;
 import io.openaev.service.AssetGroupService;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
+import io.openaev.utils.fixtures.tenants.TenantComposer;
+import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.annotation.Nullable;
 import jakarta.transaction.Transactional;
@@ -45,6 +48,7 @@ public class ScenarioApiTest extends IntegrationTest {
   @Autowired private InjectComposer injectComposer;
   @Autowired private InjectStatusComposer injectStatusComposer;
   @Autowired private ScenarioComposer scenarioComposer;
+  @Autowired private TenantComposer tenantComposer;
   @Autowired private ExecutorFixture executorFixture;
 
   @Autowired private MockMvc mvc;
@@ -68,6 +72,8 @@ public class ScenarioApiTest extends IntegrationTest {
     injectComposer.reset();
     injectStatusComposer.reset();
     scenarioComposer.reset();
+    tenantComposer.reset();
+    TenantContext.clearCurrentTenant();
   }
 
   private Scenario getScenario(@Nullable Scenario scenario, @Nullable Executor executor) {
@@ -489,5 +495,63 @@ public class ScenarioApiTest extends IntegrationTest {
     assertEquals(scenarioSaved.getId(), link.getScenario().getId());
     assertEquals(teamB.getId(), link.getTeam().getId());
     assertEquals(userBen.getId(), link.getUser().getId());
+  }
+
+  @Nested
+  @DisplayName("Tenant isolation")
+  class TenantIsolation {
+
+    @Test
+    @DisplayName(
+        "given scenario in Tenant XXX, when getScenarioById from Tenant YYY, should return 404")
+    @WithMockUser(isAdmin = true)
+    void given_scenarioInTenantXXX_when_getByIdFromTenantYYY_should_return404() throws Exception {
+      // Arrange — create two tenants and a scenario in Tenant XXX
+      Tenant tenantXXX =
+          tenantComposer.forTenant(TenantFixture.getTenant("Tenant XXX")).persist().get();
+      Tenant tenantYYY =
+          tenantComposer.forTenant(TenantFixture.getTenant("Tenant YYY")).persist().get();
+      entityManager.flush();
+
+      TenantContext.setCurrentTenant(tenantXXX.getId());
+      Scenario scenario =
+          scenarioComposer
+              .forScenario(ScenarioFixture.createDefaultCrisisScenario())
+              .persist()
+              .get();
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act — switch to Tenant YYY and try to read the scenario
+      TenantContext.setCurrentTenant(tenantYYY.getId());
+
+      // Assert — should NOT find the scenario (404)
+      mvc.perform(get(SCENARIO_URI + "/" + scenario.getId()).accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName(
+        "given scenario in Tenant XXX, when getScenarioById from same tenant, should return 200")
+    @WithMockUser(isAdmin = true)
+    void given_scenarioInTenantXXX_when_getByIdFromSameTenant_should_return200() throws Exception {
+      // Arrange
+      Tenant tenantXXX =
+          tenantComposer.forTenant(TenantFixture.getTenant("Tenant XXX")).persist().get();
+      entityManager.flush();
+
+      TenantContext.setCurrentTenant(tenantXXX.getId());
+      Scenario scenario =
+          scenarioComposer
+              .forScenario(ScenarioFixture.createDefaultCrisisScenario())
+              .persist()
+              .get();
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act & Assert — reading from the same tenant should succeed
+      mvc.perform(get(SCENARIO_URI + "/" + scenario.getId()).accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().is2xxSuccessful());
+    }
   }
 }
