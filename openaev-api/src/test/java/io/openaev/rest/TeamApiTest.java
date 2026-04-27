@@ -11,15 +11,20 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
+import io.openaev.database.model.Capability;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.Team;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.team.form.TeamCreateInput;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
+import io.openaev.utils.fixtures.tenants.TenantComposer;
+import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.servlet.ServletException;
 import java.util.ArrayList;
@@ -27,6 +32,7 @@ import java.util.List;
 import java.util.stream.Stream;
 import org.json.JSONArray;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -49,6 +55,7 @@ class TeamApiTest extends IntegrationTest {
   @Autowired private InjectRepository injectRepository;
   @Autowired private TeamRepository teamRepository;
   @Autowired private InjectorContractFixture injectorContractFixture;
+  @Autowired private TenantComposer tenantComposer;
 
   @DisplayName("Given valid team input, should create a team successfully")
   @Test
@@ -399,5 +406,133 @@ class TeamApiTest extends IntegrationTest {
 
     // --ASSERT--
     assertEquals(expectedNumberOfResults, jsonArray.length());
+  }
+
+  @Nested
+  @DisplayName("Tenant isolation")
+  class TenantIsolation {
+
+    @Test
+    @DisplayName("given team in Tenant XXX, when getTeam from Tenant YYY, should return 404")
+    @WithMockUser(withCapabilities = {Capability.ACCESS_TEAMS_AND_PLAYERS})
+    void given_teamInTenantXXX_when_getFromTenantYYY_should_return404() throws Exception {
+      // Arrange
+      Tenant tenantXXX =
+          tenantComposer.forTenant(TenantFixture.getTenant("Tenant XXX")).persist().get();
+      Tenant tenantYYY =
+          tenantComposer.forTenant(TenantFixture.getTenant("Tenant YYY")).persist().get();
+      entityManager.flush();
+
+      TenantContext.setCurrentTenant(tenantXXX.getId());
+      Team team = new Team();
+      team.setName("XXX-Only-Team");
+      team = teamRepository.save(team);
+      entityManager.flush();
+      entityManager.clear();
+      String teamId = team.getId();
+
+      // Act — switch to Tenant YYY and try to read the team
+      TenantContext.setCurrentTenant(tenantYYY.getId());
+
+      // Assert — should NOT find the team (404)
+      mvc.perform(get(TEAM_URI + "/" + teamId).accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isNotFound());
+
+      // Cleanup
+      tenantComposer.reset();
+      TenantContext.clearCurrentTenant();
+    }
+
+    @Test
+    @DisplayName("given team in Tenant XXX, when getTeam from same tenant, should return 200")
+    @WithMockUser(withCapabilities = {Capability.ACCESS_TEAMS_AND_PLAYERS})
+    void given_teamInTenantXXX_when_getFromSameTenant_should_return200() throws Exception {
+      // Arrange
+      Tenant tenantXXX =
+          tenantComposer.forTenant(TenantFixture.getTenant("Tenant XXX")).persist().get();
+      entityManager.flush();
+
+      TenantContext.setCurrentTenant(tenantXXX.getId());
+      Team team = new Team();
+      team.setName("XXX-Visible-Team");
+      team = teamRepository.save(team);
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act & Assert — reading from same tenant should succeed
+      mvc.perform(get(TEAM_URI + "/" + team.getId()).accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().is2xxSuccessful());
+
+      // Cleanup
+      tenantComposer.reset();
+      TenantContext.clearCurrentTenant();
+    }
+
+    @Test
+    @DisplayName("given team in Tenant XXX, when delete from Tenant YYY, should return 404")
+    @WithMockUser(withCapabilities = {Capability.DELETE_TEAMS_AND_PLAYERS})
+    void given_teamInTenantXXX_when_deleteFromTenantYYY_should_return404() throws Exception {
+      // Arrange
+      Tenant tenantXXX =
+          tenantComposer.forTenant(TenantFixture.getTenant("Tenant XXX")).persist().get();
+      Tenant tenantYYY =
+          tenantComposer.forTenant(TenantFixture.getTenant("Tenant YYY")).persist().get();
+      entityManager.flush();
+
+      TenantContext.setCurrentTenant(tenantXXX.getId());
+      Team team = new Team();
+      team.setName("XXX-Delete-Team");
+      team = teamRepository.save(team);
+      entityManager.flush();
+      entityManager.clear();
+      String teamId = team.getId();
+
+      // Act — switch to Tenant YYY and try to delete the team
+      TenantContext.setCurrentTenant(tenantYYY.getId());
+
+      // Assert — should NOT find the team (404)
+      mvc.perform(delete(TEAM_URI + "/" + teamId)).andExpect(status().isNotFound());
+
+      // Cleanup
+      tenantComposer.reset();
+      TenantContext.clearCurrentTenant();
+    }
+
+    @Test
+    @DisplayName("given team in Tenant XXX, when update from Tenant YYY, should return 404")
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TEAMS_AND_PLAYERS})
+    void given_teamInTenantXXX_when_updateFromTenantYYY_should_return404() throws Exception {
+      // Arrange
+      Tenant tenantXXX =
+          tenantComposer.forTenant(TenantFixture.getTenant("Tenant XXX")).persist().get();
+      Tenant tenantYYY =
+          tenantComposer.forTenant(TenantFixture.getTenant("Tenant YYY")).persist().get();
+      entityManager.flush();
+
+      TenantContext.setCurrentTenant(tenantXXX.getId());
+      Team team = new Team();
+      team.setName("XXX-Update-Team");
+      team = teamRepository.save(team);
+      entityManager.flush();
+      entityManager.clear();
+      String teamId = team.getId();
+
+      // Act — switch to Tenant YYY and try to update the team
+      TenantContext.setCurrentTenant(tenantYYY.getId());
+      TeamCreateInput input = new TeamCreateInput();
+      input.setName("Hacked name");
+
+      // Assert — should NOT find the team (404)
+      mvc.perform(
+              put(TEAM_URI + "/" + teamId)
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isNotFound());
+
+      // Cleanup
+      tenantComposer.reset();
+      TenantContext.clearCurrentTenant();
+    }
   }
 }
