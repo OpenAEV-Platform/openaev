@@ -556,23 +556,12 @@ public class WorkflowService {
     Workflow workflowTemplateSimulation = workflowRun.getWorkflowTemplate();
     stepService.copyStepTemplate(workflowTemplateScenario, workflowTemplateSimulation);
 
-    initializeStateFromScopeDefinition(workflowRun);
-    syncAndEvaluate(workflowRun, scopeData, fieldTypeMap);
-  }
-
-  /**
-   * Creates and persists the global {@link WorkflowState} for a new workflow run. Initializes a
-   * scope bucket (from the workflow's whitelist rules) and an empty discovery bucket.
-   *
-   * @param workflowRun the running workflow
-   * @return the persisted global {@link WorkflowState}
-   */
-  private void initializeStateFromScopeDefinition(Workflow workflowRun) {
-    log.debug("Initializing Global State from Scope for Workflow Run: {}", workflowRun.getId());
     Map<String, ContractOutputType> fieldTypeMap =
         getAllContractOutputTypes().stream()
             .collect(Collectors.toMap(ContractOutputType::name, type -> type));
     Map<String, List<String>> scopeData = extractScopeData(workflowRun);
+
+    syncAndEvaluate(scopeData, fieldTypeMap, workflowRun);
   }
 
   /**
