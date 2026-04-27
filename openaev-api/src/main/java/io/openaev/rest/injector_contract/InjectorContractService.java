@@ -204,19 +204,6 @@ public class InjectorContractService implements DependenciesManager {
   }
 
   /**
-   * Retrieves a single injector contract by ID or external ID.
-   *
-   * @param injectorContractId the contract ID or external ID
-   * @return the injector contract
-   * @throws ElementNotFoundException if not found
-   */
-  public InjectorContract getSingleInjectorContract(String injectorContractId) {
-    return injectorContractRepository
-        .findByIdOrExternalId(injectorContractId, injectorContractId)
-        .orElseThrow(ElementNotFoundException::new);
-  }
-
-  /**
    * Creates a new custom injector contract.
    *
    * <p>Custom contracts are user-defined and can be modified or deleted. Sets up attack pattern

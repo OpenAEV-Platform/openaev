@@ -267,8 +267,10 @@ public class AttackPatternService {
   public AttackPattern upsert(AttackPatternCreateInput input) {
     String tenant = TenantContext.getCurrentTenant();
     Optional<AttackPattern> attackPattern =
-        attackPatternRepository.findByExternalIdIgnoreCaseAndTenantId(
-            input.getExternalId(), tenant);
+        attackPatternRepository
+            .findAllByExternalIdInIgnoreCaseAndTenantId(List.of(input.getExternalId()), tenant)
+            .stream()
+            .findFirst();
     return attackPattern.orElseGet(
         () -> {
           AttackPattern newAttackPattern = new AttackPattern();

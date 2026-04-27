@@ -4,10 +4,10 @@ import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.ResourceType;
-import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.jsonapi.IncludeOptions;
 import io.openaev.jsonapi.ZipJsonApi;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.injector_contract.InjectorContractService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.constraints.NotBlank;
 import java.io.IOException;
@@ -27,7 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class ThreatArsenalApiExporter {
 
   private final ZipJsonApi<InjectorContract> zipJsonApi;
-  private final InjectorContractRepository injectorContractRepository;
+  private final InjectorContractService injectorContractService;
 
   @Operation(
       description =
@@ -40,8 +40,7 @@ public class ThreatArsenalApiExporter {
     Map<String, Boolean> opts = new HashMap<>();
     opts.put("exclude from action export", false);
     IncludeOptions includeOptions = IncludeOptions.of(opts);
-    InjectorContract injectorContract =
-        injectorContractRepository.findById(actionId).orElseThrow(ElementNotFoundException::new);
+    InjectorContract injectorContract = injectorContractService.injectorContract(actionId);
     if (injectorContract.getPayload() == null) {
       throw new ElementNotFoundException(
           "Only injector contract based on payload can be exported ");

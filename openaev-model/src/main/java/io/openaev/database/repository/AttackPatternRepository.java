@@ -26,8 +26,6 @@ public interface AttackPatternRepository
   List<AttackPattern> findAllByExternalIdInIgnoreCaseAndTenantId(
       List<String> externalIds, String tenantId);
 
-  Optional<AttackPattern> findByExternalIdIgnoreCaseAndTenantId(String externalId, String tenantId);
-
   Optional<AttackPattern> findByStixId(@NotNull String stixId);
 
   @Query(

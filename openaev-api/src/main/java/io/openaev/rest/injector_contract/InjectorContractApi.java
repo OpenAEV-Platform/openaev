@@ -109,7 +109,7 @@ public class InjectorContractApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECTOR_CONTRACT)
   public InjectorContract injectorContract(@PathVariable String injectorContractId) {
-    return injectorContractService.getSingleInjectorContract(injectorContractId);
+    return injectorContractService.injectorContract(injectorContractId);
   }
 
   /**
