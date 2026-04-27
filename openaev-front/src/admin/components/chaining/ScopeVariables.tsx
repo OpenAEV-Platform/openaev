@@ -8,6 +8,7 @@ import {
   DialogTitle,
   IconButton,
   Paper,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
@@ -77,8 +78,8 @@ const ScopeVariables = ({ workflowConfiguration, onUpdate }: ScopeVariablesProps
   const toInput = (v: ScopeVariableOutput): ScopeVariableInput => ({
     scope_variable_id: v.scope_variable_id,
     scope_variable_key: v.scope_variable_key ?? '',
-    scope_variable_type: (v.scope_variable_type ?? 'text') as ScopeVariableInput['scope_variable_type'],
-    scope_variable_value: v.scope_variable_value,
+    scope_variable_type: v.scope_variable_type ?? 'text',
+    scope_variable_value: v.scope_variable_value ?? '',
     scope_variable_description: v.scope_variable_description,
   });
 
@@ -157,11 +158,11 @@ const ScopeVariables = ({ workflowConfiguration, onUpdate }: ScopeVariablesProps
             {/* Column headers */}
             <div style={{
               display: 'grid',
-              gridTemplateColumns: '1fr 1fr 1fr auto',
+              gridTemplateColumns: '1fr 1fr 1fr 1fr auto',
               gap: theme.spacing(1),
             }}
             >
-              {[t('Key'), t('Type'), t('Value')].map(label => (
+              {[t('Key'), t('Type'), t('Value'), t('Description')].map(label => (
                 <Typography
                   key={label}
                   variant="caption"
@@ -182,7 +183,7 @@ const ScopeVariables = ({ workflowConfiguration, onUpdate }: ScopeVariablesProps
                 key={variable.scope_variable_id}
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: '1fr 1fr 1fr auto',
+                  gridTemplateColumns: '1fr 1fr 1fr 1fr auto',
                   gap: theme.spacing(1),
                   alignItems: 'center',
                 }}
@@ -214,14 +215,26 @@ const ScopeVariables = ({ workflowConfiguration, onUpdate }: ScopeVariablesProps
                 >
                   {variable.scope_variable_value ?? '—'}
                 </Typography>
-                <IconButton
-                  size="small"
-                  color="error"
-                  onClick={() => handleDelete(variable.scope_variable_id)}
-                  aria-label={t('Delete variable')}
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: 'text.secondary',
+                    fontStyle: variable.scope_variable_description ? 'normal' : 'italic',
+                    wordBreak: 'break-all',
+                  }}
                 >
-                  <DeleteOutlined fontSize="small" />
-                </IconButton>
+                  {variable.scope_variable_description ?? '—'}
+                </Typography>
+                <Tooltip title={t('Delete variable')}>
+                  <IconButton
+                    size="small"
+                    color="error"
+                    onClick={() => handleDelete(variable.scope_variable_id)}
+                    aria-label={t('Delete variable')}
+                  >
+                    <DeleteOutlined fontSize="small" />
+                  </IconButton>
+                </Tooltip>
               </div>
             ))}
           </div>
