@@ -474,7 +474,7 @@ public class HealthCheckUtils {
 
   /**
    * Run scope definition check for a workflow template. Returns a warning when the workflow has no
-   * scope rules defined (neither whitelist nor blacklist).
+   * scope rules defined (neither allowlist nor denylist).
    *
    * @param workflow the workflow template to check
    * @return found healthchecks

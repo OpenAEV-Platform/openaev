@@ -406,42 +406,42 @@ class WorkflowApiTest extends IntegrationTest {
     List<WorkflowScopeRule> rules = saved.getWorkflowScopeRules();
 
     assertEquals(5, rules.size());
-    assertEquals(3, saved.getWhitelist().size());
-    assertEquals(2, saved.getBlacklist().size());
+    assertEquals(3, saved.getAllowlist().size());
+    assertEquals(2, saved.getDenylist().size());
 
     WorkflowScopeRule ipRule =
-        saved.getWhitelist().stream()
+        saved.getAllowlist().stream()
             .filter(r -> "10.10.10.10".equals(r.getRuleValue()))
             .findFirst()
             .orElseThrow();
     assertEquals(ScopeRuleValueType.IP, ipRule.getValueType());
-    assertEquals(ScopeRuleSelectedMode.WHITELIST, ipRule.getSelectedMode());
+    assertEquals(ScopeRuleSelectedMode.ALLOWLIST, ipRule.getSelectedMode());
     assertSame(saved, ipRule.getWorkflow());
 
     WorkflowScopeRule domainRule =
-        saved.getWhitelist().stream()
+        saved.getAllowlist().stream()
             .filter(r -> "example.org".equals(r.getRuleValue()))
             .findFirst()
             .orElseThrow();
     assertEquals(ScopeRuleValueType.DOMAIN, domainRule.getValueType());
 
     WorkflowScopeRule assetRule =
-        saved.getWhitelist().stream()
+        saved.getAllowlist().stream()
             .filter(r -> "asset-123".equals(r.getRuleValue()))
             .findFirst()
             .orElseThrow();
     assertEquals(ScopeRuleValueType.ASSET_ID, assetRule.getValueType());
 
     WorkflowScopeRule subnetRule =
-        saved.getBlacklist().stream()
+        saved.getDenylist().stream()
             .filter(r -> "10.10.10.0/24".equals(r.getRuleValue()))
             .findFirst()
             .orElseThrow();
     assertEquals(ScopeRuleValueType.IP_SUBNET, subnetRule.getValueType());
-    assertEquals(ScopeRuleSelectedMode.BLACKLIST, subnetRule.getSelectedMode());
+    assertEquals(ScopeRuleSelectedMode.DENYLIST, subnetRule.getSelectedMode());
 
     WorkflowScopeRule assetGroupRule =
-        saved.getBlacklist().stream()
+        saved.getDenylist().stream()
             .filter(r -> "asset-group-1".equals(r.getRuleValue()))
             .findFirst()
             .orElseThrow();

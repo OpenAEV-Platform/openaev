@@ -8791,7 +8791,7 @@ export interface WorkflowScopeRuleInput {
   /** ID of an existing scope rule. Null means a new rule will be created. */
   workflow_scope_rule_id?: string;
   /** Selected list mode where the rule should be applied */
-  workflow_scope_rule_selected_mode: "WHITELIST" | "BLACKLIST";
+  workflow_scope_rule_selected_mode: "ALLOWLIST" | "DENYLIST";
   /** Source of the selected rule */
   workflow_scope_rule_source: "ASSET" | "ASSET_GROUP" | "MANUAL" | "CSV";
   /**
@@ -8806,7 +8806,7 @@ export interface WorkflowScopeRuleOutput {
   /** ID of the scope rule. */
   workflow_scope_rule_id?: string;
   /** Selected list mode where the rule is applied. */
-  workflow_scope_rule_selected_mode?: "WHITELIST" | "BLACKLIST";
+  workflow_scope_rule_selected_mode?: "ALLOWLIST" | "DENYLIST";
   /** Source of the selected item */
   workflow_scope_rule_source?: "ASSET" | "ASSET_GROUP" | "MANUAL" | "CSV";
   /** Selected item value */
