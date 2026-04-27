@@ -48,10 +48,10 @@ import org.springframework.web.server.ResponseStatusException;
         "Operations related to Chaining feature, including conditions, steps, simulations and scenarios chaining.")
 public class ChainingApi extends RestBehavior {
 
-  public static final String TENANT_CHAINING_URI = TENANT_PREFIX + "/chaining";
   public static final String CHAINING_URI = "/chaining";
   public static final String SIMULATION_URI = "/simulations";
   public static final String SCENARIO_URI = "/scenarios";
+  public static final String TENANT_CHAINING_URI = TENANT_PREFIX + CHAINING_URI;
 
   private final ExerciseService exerciseService;
   private final CustomDashboardService customDashboardService;
