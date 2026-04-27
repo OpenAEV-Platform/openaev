@@ -6,6 +6,7 @@ import static org.mockito.Mockito.*;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.ScopeVariableRepository;
 import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.database.repository.WorkflowScopeRuleRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -32,6 +33,7 @@ class WorkflowServiceTest {
 
   @Mock private WorkflowRepository workflowRepository;
   @Mock private WorkflowScopeRuleRepository workflowScopeRuleRepository;
+  @Mock private ScopeVariableRepository scopeVariableRepository;
   @Mock private PreviewFeatureService previewFeatureService;
 
   @InjectMocks private WorkflowService workflowService;
@@ -497,7 +499,10 @@ class WorkflowServiceTest {
       // Service now owns the apply logic — no manual mapper call needed
       WorkflowService service =
           new WorkflowService(
-              workflowRepository, workflowScopeRuleRepository, previewFeatureService);
+              workflowRepository,
+              workflowScopeRuleRepository,
+              scopeVariableRepository,
+              previewFeatureService);
 
       when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
           .thenReturn(Optional.of(workflow));
@@ -591,7 +596,10 @@ class WorkflowServiceTest {
 
       WorkflowService service =
           new WorkflowService(
-              workflowRepository, workflowScopeRuleRepository, previewFeatureService);
+              workflowRepository,
+              workflowScopeRuleRepository,
+              scopeVariableRepository,
+              previewFeatureService);
       when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
           .thenReturn(Optional.of(workflow));
       when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
