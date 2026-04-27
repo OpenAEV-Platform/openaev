@@ -567,7 +567,7 @@ public class WorkflowService {
    * @param workflowRun the running workflow
    * @return the persisted global {@link WorkflowState}
    */
-  private void initializeStateFromScopeDefinition(Workflow workflowRun) throws ChainingException {
+  private void initializeStateFromScopeDefinition(Workflow workflowRun) {
     log.debug("Initializing Global State from Scope for Workflow Run: {}", workflowRun.getId());
     Map<String, ContractOutputType> fieldTypeMap =
         getAllContractOutputTypes().stream()
