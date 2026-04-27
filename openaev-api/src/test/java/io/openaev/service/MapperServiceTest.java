@@ -21,7 +21,7 @@ import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.mapper.form.*;
 import io.openaev.rest.tag.TagService;
-import io.openaev.utils.TargetType;
+import io.openaev.utils.CsvType;
 import io.openaev.utils.constants.Constants;
 import io.openaev.utils.mockMapper.MockMapperUtils;
 import io.openaev.utilstest.RabbitMQTestListener;
@@ -342,9 +342,7 @@ public class MapperServiceTest extends IntegrationTest {
         BadRequestException.class,
         () ->
             mapperService.exportMappersCsv(
-                TargetType.AGENT,
-                new io.openaev.utils.pagination.SearchPaginationInput(),
-                response));
+                CsvType.AGENT, new io.openaev.utils.pagination.SearchPaginationInput(), response));
     verifyNoInteractions(endpointRepository, injectorContractRepository);
   }
 
@@ -358,7 +356,7 @@ public class MapperServiceTest extends IntegrationTest {
 
     // Act / Assert
     assertThrows(
-        BadRequestException.class, () -> mapperService.importMappersCsv(csvFile, TargetType.AGENT));
+        BadRequestException.class, () -> mapperService.importMappersCsv(csvFile, CsvType.AGENT));
   }
 
   @DisplayName("given_mappersInput_should_appendImportedSuffix_whenImportMappers")

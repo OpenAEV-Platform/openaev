@@ -31,7 +31,4 @@ public enum TargetType {
 
   /** Endpoint devices in the infrastructure. */
   ENDPOINTS,
-
-  /** Injector contracts that define the rules and parameters for inject execution. */
-  INJECTOR_CONTRACTS
 }

@@ -39,7 +39,7 @@ import io.openaev.rest.tag.form.TagCreateInput;
 import io.openaev.rest.tag.form.TagExportImport;
 import io.openaev.service.utils.CustomColumnPositionStrategy;
 import io.openaev.utils.CopyObjectListUtils;
-import io.openaev.utils.TargetType;
+import io.openaev.utils.CsvType;
 import io.openaev.utils.ThreatArsenalFilterUtils;
 import io.openaev.utils.constants.Constants;
 import io.openaev.utils.mapper.EndpointMapper;
@@ -334,44 +334,55 @@ public class MapperService {
   /**
    * Export CSV with options and return the file
    *
-   * @param targetType used to know which entity list we want to export
+   * @param CsvType used to know which entity list we want to export
    * @param input used to know which filter we want to apply to get the entity list to export
    * @param response used to return the file
    */
   public void exportMappersCsv(
-      TargetType targetType, SearchPaginationInput input, HttpServletResponse response) {
-    switch (targetType) {
-      case ENDPOINTS:
-        try {
-          List<EndpointExportImport> endpointsToExport = getEndpointsToExport(input);
-          String dateNow = DateTimeFormatter.ofPattern("yyyyMMddHHmm").format(LocalDateTime.now());
-          exportCsv(
-              response,
-              "Endpoints" + dateNow + ".csv",
-              endpointsToExport,
-              EndpointExportImport.class);
-        } catch (Exception e) {
-          throw new RuntimeException("Error during export CSV", e);
-        }
-        break;
-      case INJECTOR_CONTRACTS:
-        try {
-          List<InjectorContractExport> injectorContractsToExport =
-              getInjectorContractsToExport(input);
-          String dateNow = DateTimeFormatter.ofPattern("yyyyMMddHHmm").format(LocalDateTime.now());
-          exportCsv(
-              response,
-              "InjectorContracts" + dateNow + ".csv",
-              injectorContractsToExport,
-              InjectorContractExport.class);
-        } catch (Exception e) {
-          throw new RuntimeException("Error during export CSV", e);
-        }
-        break;
-      default:
-        throw new BadRequestException(
-            "Target type " + targetType + " for CSV export is not supported");
+      CsvType csvType, SearchPaginationInput input, HttpServletResponse response) {
+    CsvExportConfig<?> exportConfig = resolveCsvExportConfig(csvType);
+    exportMappersCsv(exportConfig, input, response);
+  }
+
+  private CsvExportConfig<?> resolveCsvExportConfig(CsvType csvType) {
+    return switch (csvType) {
+      case ENDPOINTS ->
+          new CsvExportConfig<>(
+              "Endpoints", EndpointExportImport.class, this::getEndpointsToExport);
+      case INJECTOR_CONTRACTS ->
+          new CsvExportConfig<>(
+              "InjectorContracts",
+              InjectorContractExport.class,
+              this::getInjectorContractsToExport);
+      default ->
+          throw new BadRequestException("CSV type " + csvType + " for CSV export is not supported");
+    };
+  }
+
+  private <T> void exportMappersCsv(
+      CsvExportConfig<T> exportConfig, SearchPaginationInput input, HttpServletResponse response) {
+    try {
+      exportCsv(
+          response,
+          buildExportCsvFilename(exportConfig.filenamePrefix()),
+          exportConfig.exporter().export(input),
+          exportConfig.exportClass());
+    } catch (Exception e) {
+      throw new RuntimeException("Error during export CSV", e);
     }
+  }
+
+  private String buildExportCsvFilename(String filenamePrefix) {
+    String dateNow = DateTimeFormatter.ofPattern("yyyyMMddHHmm").format(LocalDateTime.now());
+    return filenamePrefix + dateNow + ".csv";
+  }
+
+  private record CsvExportConfig<T>(
+      String filenamePrefix, Class<T> exportClass, CsvExporter<T> exporter) {}
+
+  @FunctionalInterface
+  private interface CsvExporter<T> {
+    List<T> export(SearchPaginationInput input) throws Exception;
   }
 
   private static <T> void exportCsv(
@@ -529,7 +540,7 @@ public class MapperService {
    * @param targetType entity to know which columns format we use for the import
    * @throws Exception exception if problem during the import
    */
-  public void importMappersCsv(MultipartFile file, TargetType targetType) throws Exception {
+  public void importMappersCsv(MultipartFile file, CsvType csvType) throws Exception {
     File tempFile = createTempFile("openaev-import-" + now().getEpochSecond(), ".csv");
     FileUtils.copyInputStreamToFile(file.getInputStream(), tempFile);
 
@@ -546,7 +557,7 @@ public class MapperService {
               .withCSVParser(csvParser)
               .build();
 
-      switch (targetType) {
+      switch (csvType) {
         case ENDPOINTS:
           try {
             importEndpointsCsv(setEndpointsColumnMapping(), csvReader);
@@ -556,7 +567,7 @@ public class MapperService {
           break;
         default:
           throw new BadRequestException(
-              "Target type " + targetType + " for CSV export is not supported");
+              "CsvType type " + csvType + " for CSV export is not supported");
       }
     } finally {
       tempFile.delete();
