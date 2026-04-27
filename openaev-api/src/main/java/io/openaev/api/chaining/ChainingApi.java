@@ -138,8 +138,7 @@ public class ChainingApi extends RestBehavior {
               .orElseThrow(
                   () ->
                       new ChainingException(
-                          "Simulation is configured for chaining but no workflow TEMPLATE found. Simulation ID: "
-                              + simulationId));
+                          "Simulation is configured for chaining but no workflow template was found"));
 
       stepService.createStepTemplates(workflow.getId(), List.of(step));
 
@@ -161,7 +160,7 @@ public class ChainingApi extends RestBehavior {
     Optional<Workflow> workflowOpt =
         workflowService.findWorkflowTemplateBySimulationId(simulationId);
     if (workflowOpt.isEmpty())
-      throw new ChainingException("No workflow TEMPLATE found. Simulation ID: " + simulationId);
+      throw new ChainingException("No workflow template found for this simulation");
 
     Workflow workflowFrom = workflowOpt.get();
     Workflow workflowTo = workflowService.duplicateSimulation(simulationId, simulation);
@@ -223,8 +222,7 @@ public class ChainingApi extends RestBehavior {
               .orElseThrow(
                   () ->
                       new ChainingException(
-                          "Scenario is configured for chaining but no workflow TEMPLATE found. Scenario ID: "
-                              + scenarioId));
+                          "Scenario is configured for chaining but no workflow template was found"));
 
       stepService.createStepTemplates(workflow.getId(), List.of(step));
       // Todo return Action, Event and Link
@@ -244,7 +242,7 @@ public class ChainingApi extends RestBehavior {
     Scenario scenario = scenarioService.getDuplicateScenario(scenarioId);
     Optional<Workflow> workflowOpt = workflowService.findWorkflowTemplateByScenarioId(scenarioId);
     if (workflowOpt.isEmpty())
-      throw new ChainingException("No workflow TEMPLATE found. Scenario ID: " + scenarioId);
+      throw new ChainingException("No workflow template found for this scenario");
 
     Workflow workflowFrom = workflowOpt.get();
     Workflow workflowTo = workflowService.duplicateScenario(scenarioId, scenario);

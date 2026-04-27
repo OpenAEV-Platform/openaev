@@ -9,7 +9,10 @@ import io.openaev.api.chaining.dto.EventInput;
 import io.openaev.api.chaining.dto.EventOutput;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.rest.settings.PreviewFeature;
+import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.chaining.ConditionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -33,6 +36,7 @@ public class ConditionApi extends RestBehavior {
   public static final String TENANT_CONDITION_URI = TENANT_PREFIX + CHAINING_URI + "/conditions";
 
   private final ConditionService conditionService;
+  private final PreviewFeatureService previewFeatureService;
 
   // -- CREATE --
 
@@ -50,6 +54,7 @@ public class ConditionApi extends RestBehavior {
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   public EventOutput create(@Valid @RequestBody EventInput input) {
+    checkChainingSwimlanesEnabled();
     return toOutput(conditionService.createConditionTree(input));
   }
 
@@ -64,6 +69,7 @@ public class ConditionApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION_OR_SCENARIO)
   @GetMapping("/{conditionId}")
   public EventOutput findById(@PathVariable String conditionId) {
+    checkChainingSwimlanesEnabled();
     return toOutput(conditionService.findConditionRootById(conditionId));
   }
 
@@ -74,6 +80,7 @@ public class ConditionApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION_OR_SCENARIO)
   @GetMapping(params = "workflow_id")
   public List<EventOutput> findAllByWorkflow(@RequestParam("workflow_id") String workflowId) {
+    checkChainingSwimlanesEnabled();
     return conditionService.findConditionRootsByWorkflowId(workflowId).stream()
         .map(ConditionMapper::toOutput)
         .toList();
@@ -93,6 +100,7 @@ public class ConditionApi extends RestBehavior {
   @PutMapping("/{conditionId}")
   public EventOutput update(
       @PathVariable String conditionId, @Valid @RequestBody EventInput input) {
+    checkChainingSwimlanesEnabled();
     return toOutput(conditionService.updateConditionTree(conditionId, input));
   }
 
@@ -111,6 +119,16 @@ public class ConditionApi extends RestBehavior {
   @DeleteMapping("/{conditionId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void delete(@PathVariable String conditionId) {
+    checkChainingSwimlanesEnabled();
     conditionService.deleteConditionTree(conditionId);
+  }
+
+  // -- Helpers --
+
+  private void checkChainingSwimlanesEnabled() {
+    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
+        || !previewFeatureService.isFeatureEnabled(PreviewFeature.CHAINING_SWIMLANES)) {
+      throw new ElementNotFoundException("Chaining swimlanes feature is not enabled");
+    }
   }
 }

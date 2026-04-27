@@ -11,6 +11,9 @@ import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.exception.ChainingException;
+import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.settings.PreviewFeature;
+import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.chaining.StepService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -33,6 +36,7 @@ public class StepApi {
   public static final String TENANT_STEP_URI = TENANT_PREFIX + CHAINING_URI + "/steps";
 
   private final StepService stepService;
+  private final PreviewFeatureService previewFeatureService;
 
   // -- CREATE --
   @Operation(summary = "Create a step template")
@@ -46,6 +50,7 @@ public class StepApi {
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   public StepOutput createStep(@Valid @RequestBody StepInput input) throws ChainingException {
+    checkChainingSwimlanesEnabled();
     StepsCreateInput.StepInput createInput =
         StepsCreateInput.StepInput.builder()
             .stepAction(input.getStepAction())
@@ -66,6 +71,7 @@ public class StepApi {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION_OR_SCENARIO)
   @GetMapping("/{stepId}")
   public StepOutput findById(@PathVariable String stepId) {
+    checkChainingSwimlanesEnabled();
     return toOutput(stepService.findStepTemplateById(stepId));
   }
 
@@ -74,6 +80,7 @@ public class StepApi {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION_OR_SCENARIO)
   @GetMapping(params = "workflow_id")
   public List<StepOutput> findByWorkflowId(@RequestParam("workflow_id") String workflowId) {
+    checkChainingSwimlanesEnabled();
     return stepService.findAllStepTemplateByWorkflow(workflowId).stream()
         .map(StepMapper::toOutput)
         .toList();
@@ -91,6 +98,7 @@ public class StepApi {
   @PutMapping("/{stepId}")
   public StepOutput updateStep(@PathVariable String stepId, @Valid @RequestBody StepInput input)
       throws ChainingException {
+    checkChainingSwimlanesEnabled();
     return toOutput(stepService.updateStepTemplate(stepId, input));
   }
 
@@ -107,6 +115,16 @@ public class StepApi {
   @DeleteMapping("/{stepId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void deleteStep(@PathVariable String stepId) {
+    checkChainingSwimlanesEnabled();
     stepService.deleteStepTemplate(stepId);
+  }
+
+  // -- Helpers --
+
+  private void checkChainingSwimlanesEnabled() {
+    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
+        || !previewFeatureService.isFeatureEnabled(PreviewFeature.CHAINING_SWIMLANES)) {
+      throw new ElementNotFoundException("Chaining swimlanes feature is not enabled");
+    }
   }
 }

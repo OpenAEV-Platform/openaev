@@ -166,3 +166,82 @@ export type WidgetInput = Omit<ApiTypes.WidgetInput, 'widget_config'> & {
 };
 
 export type WidgetInputWithoutLayout = Omit<WidgetInput, 'widget_layout'>;
+
+// -- Chaining / Workflow view models --
+
+export type WorkflowStatus = 'TEMPLATE' | 'STOP' | 'RUN' | 'END';
+export type StepStatus = 'TEMPLATE' | 'READY' | 'RUN' | 'END';
+export type StepActionClass = 'INJECT_EXECUTION' | 'EVENT';
+export type ConditionType =
+  | 'AND' | 'OR'
+  | 'EQ' | 'NEQ'
+  | 'IS_NULL' | 'IS_NOT_NULL'
+  | 'GT' | 'GTE' | 'LT' | 'LTE'
+  | 'IN' | 'NIN'
+  | 'AFTER' | 'BEFORE'
+  | 'MAPPER' | 'DEPEND_ON';
+
+export interface WorkflowCondition {
+  condition_id: string;
+  condition_key?: string;
+  condition_field?: string;
+  condition_value?: string;
+  condition_type: ConditionType;
+  step_from_id?: string;
+  condition_parent_id?: string;
+  condition_created_at?: string;
+  condition_updated_at?: string;
+}
+
+export interface WorkflowStep {
+  step_id: string;
+  step_action_class: StepActionClass;
+  step_data?: string;
+  step_output_parser?: string;
+  step_limit_execution: number;
+  step_field_scope?: string;
+  step_status: StepStatus;
+  step_created_at?: string;
+  step_updated_at?: string;
+  step_conditions: WorkflowCondition[];
+}
+
+export interface ScopeList {
+  endpoint_ids: string[];
+  manual_entries: string[];
+}
+
+export interface WorkflowScope {
+  whitelist: ScopeList;
+  blacklist: ScopeList;
+}
+
+export interface Workflow {
+  workflow_id: string;
+  workflow_status: WorkflowStatus;
+  workflow_version: number;
+  workflow_is_edited: boolean;
+  workflow_scope?: string;
+  workflow_timeout?: number;
+  workflow_created_at?: string;
+  workflow_updated_at?: string;
+  workflow_steps: WorkflowStep[];
+}
+
+export interface InputSource {
+  step_id: string;
+  field_key: string;
+  field_label: string;
+}
+
+export interface OutputFieldDescriptor {
+  key: string;
+  label: string;
+  type: string;
+}
+
+export interface OutputTypeDescriptor {
+  type: string;
+  label: string;
+  fields: OutputFieldDescriptor[];
+}
