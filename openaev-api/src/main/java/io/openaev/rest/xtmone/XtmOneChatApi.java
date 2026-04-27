@@ -8,7 +8,6 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.xtmone.XtmOneClient;
 import io.openaev.xtmone.XtmOneConfig;
-import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -81,26 +80,28 @@ public class XtmOneChatApi extends RestBehavior {
 
     StreamingResponseBody responseBody =
         outputStream -> {
-          InputStream sseStream = client.streamChatMessage(jwt, content, conversationId, agentSlug);
-          if (sseStream == null) {
-            log.warn("[XTM One Chat] streamChatMessage returned null, agent={}", agentSlug);
+          try {
+            client.streamChatMessage(
+                jwt,
+                content,
+                conversationId,
+                agentSlug,
+                sseStream -> {
+                  byte[] buf = new byte[4096];
+                  int n;
+                  while ((n = sseStream.read(buf)) != -1) {
+                    outputStream.write(buf, 0, n);
+                    outputStream.flush();
+                  }
+                });
+          } catch (Exception e) {
+            log.warn("[XTM One Chat] Stream error, agent={}.", agentSlug, e);
             outputStream.write(
                 ("data: "
                         + "{\"type\":\"error\",\"content\":\"Unable to connect to the AI assistant. Please try again.\"}"
                         + "\n\n")
                     .getBytes(java.nio.charset.StandardCharsets.UTF_8));
             outputStream.flush();
-            return;
-          }
-          try (sseStream) {
-            byte[] buf = new byte[4096];
-            int n;
-            while ((n = sseStream.read(buf)) != -1) {
-              outputStream.write(buf, 0, n);
-              outputStream.flush();
-            }
-          } catch (Exception e) {
-            log.warn("[XTM One Chat] Stream interrupted, agent={}.", agentSlug, e);
           }
         };
 
