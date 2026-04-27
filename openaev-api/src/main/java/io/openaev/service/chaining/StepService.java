@@ -13,7 +13,6 @@ import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.utils.ConditionUtils;
 import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
 import java.util.*;
@@ -34,8 +33,6 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
   private final WorkflowStateService workflowStateService;
   public final ConditionService conditionService;
   private final QueueChainingService queueChainingService;
-
-  private final ConditionUtils conditionUtils;
 
   private final StepDelayQueueRepository stepDelayQueueRepository;
   private final StepRepository stepRepository;
@@ -1073,77 +1070,8 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     if (stepUpdatedOpt.isPresent()) {
       Step stepUpdated = stepUpdatedOpt.get();
       this.saveStep(stepUpdated);
-      //      String currentOutput = stepUpdated.getOutput();
-      //      Workflow workflowExecution = stepUpdated.getWorkflow();
-      //
-      //      // Extract output from stepRun and process data chaining for downstream steps
-      //      JsonObject fullOutput = JsonParser.parseString(currentOutput).getAsJsonObject();
-      //      JsonElement parsedOutputs = fullOutput.get("parsed_outputs");
-      //      if (parsedOutputs != null && !parsedOutputs.isJsonNull()) {
-      //        processDataChaining(parsedOutputs.toString(), workflowExecution);
-      //      }
     }
   }
-
-  /**
-   * Processes newly produced step output and attempts to ready downstream step templates.
-   *
-   * <p>This method resolves key types present in {@code currentOutput}, loads matching filter
-   * conditions, finds related target step templates, synchronizes mapper values into workflow local
-   * state, then evaluates readiness for execution when inputs changed.
-   *
-   * @param currentOutput JSON payload produced by a RUN step
-   * @param workflowExecution running workflow context used for state synchronization and readiness
-   *     checks
-   */
-  //  public void processDataChaining(String currentOutput, Workflow workflowExecution) {
-  //    // Extract KeyTypes present in the updated workflow state
-  //    Set<ConditionKeyType> keyTypes = conditionService.extractKeyTypesFromOutput(currentOutput);
-  //
-  //    // Fetch all Filter/Event Conditions for this specific KeyType
-  //    // These filter conditions have to be at Template level
-  //    Map<ConditionKeyType, List<Condition>> filtersByKey =
-  //        conditionService.findAllFilterConditionsByKeyTypes(keyTypes).stream()
-  //            .collect(Collectors.groupingBy(Condition::getKeyType));
-  //
-  //    // Evaluate every Output Type
-  //    for (ConditionKeyType keyType : filtersByKey.keySet()) {
-  //      List<Condition> filters = filtersByKey.getOrDefault(keyType, Collections.emptyList());
-  //
-  //      for (Condition filter : filters) {
-  //        // Traverse to the Root Parent
-  //        Condition rootCondition = conditionService.fetchRootCondition(filter);
-  //
-  //        // Find all Steps linked to this Filter Tree
-  //        // These Steps have to be at Template level
-  //        List<Step> targetSteps =
-  //            rootCondition.getConditionSteps().stream().map(ConditionStep::getStep).toList();
-  //
-  //        for (Step targetTemplate : targetSteps) {
-  //          // Find Mappers on this step that match the current KeyType
-  //          List<Condition> mappers =
-  //              targetTemplate.getConditions().stream()
-  //                  .filter(conditionUtils::isMapperCondition)
-  //                  .filter(c -> c.getKeyType() == keyType)
-  //                  .toList();
-  //
-  //          if (mappers.isEmpty()) {
-  //            continue;
-  //          }
-  //
-  //          // Sync & Validate: Only if mappers are MappingType.LOCAL
-  //          workflowStateService.syncMappersToLocalPartition(
-  //              targetTemplate, workflowExecution, currentOutput, rootCondition, mappers);
-  //
-  //          try {
-  //            ready(targetTemplate, workflowExecution, null);
-  //          } catch (ChainingException e) {
-  //            log.debug("Step {} not ready yet", targetTemplate.getId());
-  //          }
-  //        }
-  //      }
-  //    }
-  //  }
 
   public enum ACTION_JSON {
     REPLACE,

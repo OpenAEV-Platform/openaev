@@ -2,13 +2,10 @@ package io.openaev.service.chaining;
 
 import static io.openaev.database.model.ScopeRuleValueType.getAllContractOutputTypes;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.gson.*;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.WorkflowStateRepository;
 import io.openaev.rest.exception.ChainingException;
-import io.openaev.rest.inject.service.StructuredOutputUtils;
-import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import io.openaev.utils.ConditionUtils;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -25,9 +22,6 @@ public class WorkflowStateService {
   private final ConditionUtils conditionUtils;
 
   private final WorkflowStateRepository workflowStateRepository;
-
-  private final InjectorContractContentUtils injectorContractContentUtils;
-  private final StructuredOutputUtils structuredOutputUtils;
 
   private final Gson gson = new Gson();
   private final StepService stepService;
@@ -48,32 +42,30 @@ public class WorkflowStateService {
    * Syncs a completed inject's structured output traces into the workflow's global state entries.
    * Exits early if the inject has no status, no traces, or no matching global state.
    *
-   * @param inject the completed inject whose output traces are synchronized
-   * @param stepRun the RUN step used to locate the workflow's global state
+   * @param workflowRun the RUN workflow
    */
   @Transactional
-  public void syncInjectOutputToGlobalState(Inject inject, Step stepRun) {
-    inject
-        .getStatus()
-        .filter(status -> status.getTraces() != null)
-        .ifPresent(
-            status -> {
-              processSync(inject, stepRun, status);
-              try {
-                stepService.evaluate(stepRun.getWorkflow());
-              } catch (ChainingException e) {
-                throw new RuntimeException(e);
-              }
-            });
+  public void processExecutionOutput(
+      List<Map<String, JsonElement>> output,
+      Map<String, ContractOutputType> fieldTypeMap,
+      Workflow workflowRun)
+      throws ChainingException {
+
+    if (output.isEmpty()) {
+      log.warn("Received empty output for sync. Skipping.");
+      return;
+    }
+    processSync(output, fieldTypeMap, workflowRun);
+    stepService.evaluate(workflowRun);
   }
 
-  private void processSync(Inject inject, Step stepRun, InjectStatus status) {
-    Map<String, ContractOutputType> fieldTypeMap = buildFieldTypeMap(inject);
-
-    WorkflowState globalState = getGlobalStateByWorkflowId(stepRun.getWorkflow().getId());
+  private void processSync(
+      List<Map<String, JsonElement>> output,
+      Map<String, ContractOutputType> fieldTypeMap,
+      Workflow workflowRun) {
+    WorkflowState globalState = getGlobalStateByWorkflowId(workflowRun.getId());
     if (globalState == null) {
-      log.warn(
-          "No global state found for workflow {}. Skipping sync.", stepRun.getWorkflow().getId());
+      log.warn("No global state found for workflow {}. Skipping sync.", workflowRun.getId());
       return;
     }
 
@@ -81,45 +73,13 @@ public class WorkflowStateService {
         gson.fromJson(globalState.getEntries(), WorkflowStateEntries.class);
 
     // Process traces
-    status
-        .getTraces()
-        .forEach(
-            trace -> {
-              ObjectNode structuredOutput = trace.getStructuredOutput();
-              if (structuredOutput == null || structuredOutput.isEmpty()) {
-                return;
-              }
-
-              try {
-                JsonElement element = JsonParser.parseString(structuredOutput.toString());
-                if (element.isJsonObject()) {
-                  saveToEntries(entries, element.getAsJsonObject(), fieldTypeMap);
-                }
-              } catch (Exception e) {
-                log.error("Failed to sync trace {} to global state", trace.getId(), e);
-              }
-            });
+    if (output.isJsonObject()) {
+      saveToEntries(entries, output.getAsJsonObject(), fieldTypeMap);
+    }
 
     // Save JSON back to DB
     globalState.setEntries(gson.toJson(entries));
     save(globalState);
-  }
-
-  private Map<String, ContractOutputType> buildFieldTypeMap(Inject inject) {
-    Map<String, ContractOutputType> fieldTypeMap = new HashMap<>();
-    if (inject.getPayload().isPresent()) {
-      Set<OutputParser> outputParsers = structuredOutputUtils.extractOutputParsers(inject);
-      injectorContractContentUtils
-          .getAllContractOutputs(outputParsers)
-          .forEach(out -> fieldTypeMap.put(out.getKey(), out.getType()));
-    } else {
-      if (inject.getInjectorContract().isPresent()) {
-        injectorContractContentUtils
-            .getAllContractOutputs(inject.getInjectorContract().get())
-            .forEach(out -> fieldTypeMap.put(out.getField(), out.getType()));
-      }
-    }
-    return fieldTypeMap;
   }
 
   private Map<String, List<String>> saveToEntries(
@@ -181,69 +141,6 @@ public class WorkflowStateService {
 
     if (pairSet.size() > 1) {
       entries.getCorrelated().add(new WorkflowStateEntries.Correlated(pairSet));
-    }
-  }
-
-  /**
-   * Syncs LOCAL mapper values from a step output into the local workflow state partition.
-   *
-   * @param targetTemplate step template whose local state receives the new values
-   * @param workflowExecution running workflow used to locate the state partition
-   * @param currentOutput JSON payload produced by the RUN step
-   * @param filterCondition root filter applied to candidate values before storing
-   * @param mappers mapper conditions defined on the target step template
-   * @return {@code true} if at least one new value was added, {@code false} otherwise
-   */
-  @Transactional
-  public void syncMappersToLocalPartition(
-      Step targetTemplate,
-      Workflow workflowExecution,
-      String currentOutput,
-      Condition filterCondition,
-      List<Condition> mappers) {
-
-    // Fetch states and initialize LocalState if missing
-    WorkflowState localState = getLocalStateByWorkflowAndStep(targetTemplate, workflowExecution);
-
-    WorkflowStateEntries entries =
-        gson.fromJson(localState.getEntries(), WorkflowStateEntries.class);
-
-    boolean changed = false;
-
-    // Process Mappers
-    for (Condition mapper : mappers) {
-      // We only save to Local Partition if Mapping is LOCAL
-      if (mapper.getMappingType() != MappingType.LOCAL) {
-        continue;
-      }
-
-      if (currentOutput == null || currentOutput.isBlank()) {
-        continue;
-      }
-
-      // Extract values for this specific KeyType from the output
-      Set<String> values = getInputValues(currentOutput, mapper.getKeyType().name());
-
-      List<String> validValues =
-          values.stream()
-              .filter(v -> conditionUtils.isFilterConditionValid(v, filterCondition))
-              .toList();
-
-      // Use WorkflowStateEntries internal logic to save
-      if (!validValues.isEmpty()) {
-        WorkflowStateEntries.Input input = entries.getInputByKey(mapper.getKeyType().name());
-        for (String v : validValues) {
-          if (input.getValues().add(v)) {
-            changed = true;
-          }
-        }
-      }
-    }
-
-    // Persist if data was added
-    if (changed) {
-      localState.setEntries(gson.toJson(entries));
-      save(localState);
     }
   }
 

@@ -1315,138 +1315,13 @@ public class StepServiceTest {
         when(updated.getOutput()).thenReturn(currentOutput);
         when(updated.getWorkflow()).thenReturn(workflowRun);
 
-        // Stub processDataChaining so we can verify it is called without running its internals
-        doNothing().when(stepService).processDataChaining(currentOutput, workflowRun);
-
         // -------- Act --------
         stepService.handleExternalUpdateEvent(event);
 
         // -------- Assert --------
         // updated step is saved
         verify(stepRepository).save(updated);
-
-        // data-chaining handoff is triggered with the step's output and workflow
-        verify(stepService).processDataChaining(currentOutput, workflowRun);
       }
-    }
-  }
-
-  @Nested
-  class ProcessDataChaining {
-
-    @Test
-    void shouldSyncLocalStateAndReadyTemplate_whenMatchingMapperAndStateChanged()
-        throws ChainingException {
-      String currentOutput = "{\"text\":\"abc\"}";
-      Workflow workflowExecution = mock(Workflow.class);
-
-      Condition filter = mock(Condition.class);
-      when(filter.getKeyType()).thenReturn(ConditionKeyType.Text);
-
-      Condition rootCondition = mock(Condition.class);
-      ConditionStep conditionStep = mock(ConditionStep.class);
-      Step targetTemplate = mock(Step.class);
-      when(conditionStep.getStep()).thenReturn(targetTemplate);
-      when(rootCondition.getConditionSteps()).thenReturn(List.of(conditionStep));
-
-      Condition mapper = mock(Condition.class);
-      when(mapper.getKeyType()).thenReturn(ConditionKeyType.Text);
-      when(targetTemplate.getConditions()).thenReturn(List.of(mapper));
-      when(conditionUtils.isMapperCondition(mapper)).thenReturn(true);
-
-      when(conditionService.extractKeyTypesFromOutput(currentOutput))
-          .thenReturn(Set.of(ConditionKeyType.Text));
-      when(conditionService.findAllFilterConditionsByKeyTypes(Set.of(ConditionKeyType.Text)))
-          .thenReturn(List.of(filter));
-      when(conditionService.fetchRootCondition(filter)).thenReturn(rootCondition);
-
-      doReturn(Optional.of(mock(Step.class)))
-          .when(stepService)
-          .ready(targetTemplate, workflowExecution, null);
-
-      stepService.processDataChaining(currentOutput, workflowExecution);
-
-      verify(workflowStateService)
-          .syncMappersToLocalPartition(
-              targetTemplate, workflowExecution, currentOutput, rootCondition, List.of(mapper));
-      verify(stepService).ready(targetTemplate, workflowExecution, null);
-    }
-
-    @Test
-    void shouldNotSyncOrReady_whenNoMapperMatchesCurrentKeyType() throws ChainingException {
-      String currentOutput = "{\"text\":\"abc\"}";
-      Workflow workflowExecution = mock(Workflow.class);
-
-      Condition filter = mock(Condition.class);
-      when(filter.getKeyType()).thenReturn(ConditionKeyType.Text);
-
-      Condition rootCondition = mock(Condition.class);
-      ConditionStep conditionStep = mock(ConditionStep.class);
-      Step targetTemplate = mock(Step.class);
-      when(conditionStep.getStep()).thenReturn(targetTemplate);
-      when(rootCondition.getConditionSteps()).thenReturn(List.of(conditionStep));
-
-      Condition nonMatchingMapper = mock(Condition.class);
-      when(nonMatchingMapper.getKeyType()).thenReturn(ConditionKeyType.Number);
-      when(targetTemplate.getConditions()).thenReturn(List.of(nonMatchingMapper));
-      when(conditionUtils.isMapperCondition(nonMatchingMapper)).thenReturn(true);
-
-      when(conditionService.extractKeyTypesFromOutput(currentOutput))
-          .thenReturn(Set.of(ConditionKeyType.Text));
-      when(conditionService.findAllFilterConditionsByKeyTypes(Set.of(ConditionKeyType.Text)))
-          .thenReturn(List.of(filter));
-      when(conditionService.fetchRootCondition(filter)).thenReturn(rootCondition);
-
-      stepService.processDataChaining(currentOutput, workflowExecution);
-
-      verify(workflowStateService, never())
-          .syncMappersToLocalPartition(any(), any(), any(), any(), anyList());
-      verify(stepService, never()).ready(any(), any(), any());
-    }
-
-    @Test
-    void shouldContinueToNextTemplate_whenReadyThrowsChainingException() throws ChainingException {
-      String currentOutput = "{\"text\":\"abc\"}";
-      Workflow workflowExecution = mock(Workflow.class);
-
-      Condition filter = mock(Condition.class);
-      when(filter.getKeyType()).thenReturn(ConditionKeyType.Text);
-
-      Condition rootCondition = mock(Condition.class);
-      ConditionStep cs1 = mock(ConditionStep.class);
-      ConditionStep cs2 = mock(ConditionStep.class);
-      Step target1 = mock(Step.class);
-      Step target2 = mock(Step.class);
-      when(cs1.getStep()).thenReturn(target1);
-      when(cs2.getStep()).thenReturn(target2);
-      when(rootCondition.getConditionSteps()).thenReturn(List.of(cs1, cs2));
-
-      Condition mapper1 = mock(Condition.class);
-      Condition mapper2 = mock(Condition.class);
-      when(mapper1.getKeyType()).thenReturn(ConditionKeyType.Text);
-      when(mapper2.getKeyType()).thenReturn(ConditionKeyType.Text);
-      when(target1.getConditions()).thenReturn(List.of(mapper1));
-      when(target2.getConditions()).thenReturn(List.of(mapper2));
-      when(conditionUtils.isMapperCondition(mapper1)).thenReturn(true);
-      when(conditionUtils.isMapperCondition(mapper2)).thenReturn(true);
-
-      when(conditionService.extractKeyTypesFromOutput(currentOutput))
-          .thenReturn(Set.of(ConditionKeyType.Text));
-      when(conditionService.findAllFilterConditionsByKeyTypes(Set.of(ConditionKeyType.Text)))
-          .thenReturn(List.of(filter));
-      when(conditionService.fetchRootCondition(filter)).thenReturn(rootCondition);
-
-      doThrow(new ChainingException("not ready yet"))
-          .when(stepService)
-          .ready(target1, workflowExecution, null);
-      doReturn(Optional.of(mock(Step.class)))
-          .when(stepService)
-          .ready(target2, workflowExecution, null);
-
-      assertDoesNotThrow(() -> stepService.processDataChaining(currentOutput, workflowExecution));
-
-      verify(stepService).ready(target1, workflowExecution, null);
-      verify(stepService).ready(target2, workflowExecution, null);
     }
   }
 

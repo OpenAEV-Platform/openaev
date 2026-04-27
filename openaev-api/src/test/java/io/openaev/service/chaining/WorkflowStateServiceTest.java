@@ -613,7 +613,7 @@ class WorkflowStateServiceTest {
       when(inject.getStatus()).thenReturn(Optional.empty());
 
       // Act
-      workflowStateService.syncInjectOutputToGlobalState(inject, stepRun);
+      workflowStateService.processExecutionOutput(inject, stepRun);
 
       // Assert
       verifyNoInteractions(workflowStateRepository);
@@ -630,7 +630,7 @@ class WorkflowStateServiceTest {
       when(inject.getStatus()).thenReturn(Optional.of(status));
 
       // Act
-      workflowStateService.syncInjectOutputToGlobalState(inject, stepRun);
+      workflowStateService.processExecutionOutput(inject, stepRun);
 
       // Assert
       verifyNoInteractions(workflowStateRepository);
@@ -659,7 +659,7 @@ class WorkflowStateServiceTest {
           .thenReturn(null);
 
       // Act
-      workflowStateService.syncInjectOutputToGlobalState(inject, stepRun);
+      workflowStateService.processExecutionOutput(inject, stepRun);
 
       // Assert
       verify(workflowStateRepository, never()).save(any());
@@ -697,7 +697,7 @@ class WorkflowStateServiceTest {
           .thenReturn(globalState);
 
       // Act
-      workflowStateService.syncInjectOutputToGlobalState(inject, stepRun);
+      workflowStateService.processExecutionOutput(inject, stepRun);
 
       // Assert
       verify(workflowStateRepository).save(globalState);
@@ -745,7 +745,7 @@ class WorkflowStateServiceTest {
           .thenReturn(globalState);
 
       // Act
-      workflowStateService.syncInjectOutputToGlobalState(inject, stepRun);
+      workflowStateService.processExecutionOutput(inject, stepRun);
 
       // Assert
       verify(workflowStateRepository).save(globalState);
@@ -787,7 +787,7 @@ class WorkflowStateServiceTest {
           .thenReturn(globalState);
 
       // Act
-      workflowStateService.syncInjectOutputToGlobalState(inject, stepRun);
+      workflowStateService.processExecutionOutput(inject, stepRun);
 
       // Assert
       // extractOutputParsers was used (no InjectorContract branch)

@@ -25,6 +25,7 @@ import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.inject.service.StructuredOutputUtils;
 import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.tag.TagService;
@@ -83,6 +84,7 @@ public class InjectExecutionStep implements ActionStep {
 
   private final InjectorContractRepository injectorContractRepository;
 
+  private final StructuredOutputUtils structuredOutputUtils;
   private final InjectorContractContentUtils injectorContractContentUtils;
   private final ConditionUtils conditionUtils;
   private final InjectUtils injectUtils;
@@ -236,6 +238,8 @@ public class InjectExecutionStep implements ActionStep {
     String data = stepRun.getData();
     String injectId = StepService.getField(data, "inject_id");
     Inject inject = injectService.findInjectOrNull(injectId);
+    Map<String, ContractOutputType> fieldTypeMap = buildFieldTypeMap(inject);
+
     if (inject == null) {
       throw new ChainingException(
           "Inject not found. ID: " + injectId,
@@ -267,7 +271,7 @@ public class InjectExecutionStep implements ActionStep {
       jsonObject.add("outputs", elements);
 
       // UPDATE Global Workflow State
-      workflowStateService.syncInjectOutputToGlobalState(inject, stepRun);
+      workflowStateService.processExecutionOutput(output, fieldTypeMap, stepRun.getWorkflow());
 
       // UPDATE step output
       stepRun.setOutput(jsonObject.toString());
@@ -690,4 +694,21 @@ public class InjectExecutionStep implements ActionStep {
   private static void formatExpirationManagerToOutput(List<Map<String, JsonElement>> output) {}
 
   private static void formatManualUpdateToOutput(List<Map<String, JsonElement>> output) {}
+
+  private Map<String, ContractOutputType> buildFieldTypeMap(Inject inject) {
+    Map<String, ContractOutputType> fieldTypeMap = new HashMap<>();
+    if (inject.getPayload().isPresent()) {
+      Set<OutputParser> outputParsers = structuredOutputUtils.extractOutputParsers(inject);
+      injectorContractContentUtils
+          .getAllContractOutputs(outputParsers)
+          .forEach(out -> fieldTypeMap.put(out.getKey(), out.getType()));
+    } else {
+      if (inject.getInjectorContract().isPresent()) {
+        injectorContractContentUtils
+            .getAllContractOutputs(inject.getInjectorContract().get())
+            .forEach(out -> fieldTypeMap.put(out.getField(), out.getType()));
+      }
+    }
+    return fieldTypeMap;
+  }
 }
