@@ -1,7 +1,9 @@
 package io.openaev;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Grant;
 import io.openaev.database.model.Group;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.utils.fixtures.GrantFixture;
 import io.openaev.utils.fixtures.composers.GrantComposer;
@@ -45,5 +47,16 @@ public abstract class IntegrationTest {
 
     // Refresh SecurityContext to reflect new authority
     testUserHolder.refreshSecurityContext();
+  }
+
+  protected String tenantUri(String uriTemplate) {
+    String tenantId =
+        testUserHolder.get().getGroups().stream()
+            .map(Group::getTenant)
+            .filter(java.util.Objects::nonNull)
+            .map(Tenant::getId)
+            .findFirst()
+            .orElse(TenantContext.getCurrentTenant());
+    return uriTemplate.replace("{tenantId}", tenantId);
   }
 }

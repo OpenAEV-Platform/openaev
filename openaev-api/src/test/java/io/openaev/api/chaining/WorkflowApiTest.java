@@ -15,7 +15,6 @@ import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.config.OpenAEVConfig;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.rest.settings.PreviewFeature;
@@ -452,17 +451,6 @@ class WorkflowApiTest extends IntegrationTest {
 
   private String workflowConfigurationUri(String workflowId) {
     return tenantUri(TENANT_WORKFLOW_URI + "/" + workflowId + "/configuration");
-  }
-
-  private String tenantUri(String uriTemplate) {
-    String tenantId =
-        testUserHolder.get().getGroups().stream()
-            .map(Group::getTenant)
-            .filter(java.util.Objects::nonNull)
-            .map(Tenant::getId)
-            .findFirst()
-            .orElse(TenantContext.getCurrentTenant());
-    return uriTemplate.replace("{tenantId}", tenantId);
   }
 
   private Workflow createTemplateWorkflow() {

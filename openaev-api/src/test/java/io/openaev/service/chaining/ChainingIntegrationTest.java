@@ -16,7 +16,6 @@ import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.rest.document.DocumentService;
@@ -722,10 +721,6 @@ class ChainingIntegrationTest extends IntegrationTest {
         .filter(w -> w.getSimulation() != null && simulationId.equals(w.getSimulation().getId()))
         .findFirst()
         .orElseThrow(() -> new AssertionError("Workflow TEMPLATE not found for simulation"));
-  }
-
-  private String tenantUri(String uriTemplate) {
-    return uriTemplate.replace("{tenantId}", TenantContext.getCurrentTenant());
   }
 
   private CreateExerciseInput buildSimulationInput() {
