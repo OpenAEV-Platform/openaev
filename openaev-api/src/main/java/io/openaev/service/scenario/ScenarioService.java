@@ -360,7 +360,7 @@ public class ScenarioService {
 
   public Scenario scenario(@NotBlank final String scenarioId) {
     return this.scenarioRepository
-        .findById(scenarioId)
+        .findByIdAndTenant(scenarioId)
         .orElseThrow(() -> new ElementNotFoundException("Scenario not found"));
   }
 
@@ -454,7 +454,8 @@ public class ScenarioService {
   }
 
   public void deleteScenario(@NotBlank final String scenarioId) {
-    this.scenarioRepository.deleteById(scenarioId);
+    Scenario scenario = scenario(scenarioId);
+    this.scenarioRepository.delete(scenario);
   }
 
   // -- EXPORT --

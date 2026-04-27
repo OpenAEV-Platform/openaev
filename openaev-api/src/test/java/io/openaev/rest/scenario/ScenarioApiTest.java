@@ -504,7 +504,7 @@ public class ScenarioApiTest extends IntegrationTest {
     @Test
     @DisplayName(
         "given scenario in Tenant XXX, when getScenarioById from Tenant YYY, should return 404")
-    @WithMockUser(isAdmin = true)
+    @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
     void given_scenarioInTenantXXX_when_getByIdFromTenantYYY_should_return404() throws Exception {
       // Arrange — create two tenants and a scenario in Tenant XXX
       Tenant tenantXXX =
@@ -533,7 +533,7 @@ public class ScenarioApiTest extends IntegrationTest {
     @Test
     @DisplayName(
         "given scenario in Tenant XXX, when getScenarioById from same tenant, should return 200")
-    @WithMockUser(isAdmin = true)
+    @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
     void given_scenarioInTenantXXX_when_getByIdFromSameTenant_should_return200() throws Exception {
       // Arrange
       Tenant tenantXXX =
@@ -552,6 +552,67 @@ public class ScenarioApiTest extends IntegrationTest {
       // Act & Assert — reading from the same tenant should succeed
       mvc.perform(get(SCENARIO_URI + "/" + scenario.getId()).accept(MediaType.APPLICATION_JSON))
           .andExpect(status().is2xxSuccessful());
+    }
+
+    @Test
+    @DisplayName("given scenario in Tenant XXX, when update from Tenant YYY, should return 404")
+    @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
+    void given_scenarioInTenantXXX_when_updateFromTenantYYY_should_return404() throws Exception {
+      // Arrange
+      Tenant tenantXXX =
+          tenantComposer.forTenant(TenantFixture.getTenant("Tenant XXX")).persist().get();
+      Tenant tenantYYY =
+          tenantComposer.forTenant(TenantFixture.getTenant("Tenant YYY")).persist().get();
+      entityManager.flush();
+
+      TenantContext.setCurrentTenant(tenantXXX.getId());
+      Scenario scenario =
+          scenarioComposer
+              .forScenario(ScenarioFixture.createDefaultCrisisScenario())
+              .persist()
+              .get();
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act — switch to Tenant YYY and try to update the scenario
+      TenantContext.setCurrentTenant(tenantYYY.getId());
+      ScenarioInput input = new ScenarioInput();
+      input.setName("Updated name");
+
+      // Assert — should NOT find the scenario (404)
+      mvc.perform(
+              put(SCENARIO_URI + "/" + scenario.getId())
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("given scenario in Tenant XXX, when delete from Tenant YYY, should return 404")
+    @WithMockUser(withCapabilities = {Capability.DELETE_ASSESSMENT})
+    void given_scenarioInTenantXXX_when_deleteFromTenantYYY_should_return404() throws Exception {
+      // Arrange
+      Tenant tenantXXX =
+          tenantComposer.forTenant(TenantFixture.getTenant("Tenant XXX")).persist().get();
+      Tenant tenantYYY =
+          tenantComposer.forTenant(TenantFixture.getTenant("Tenant YYY")).persist().get();
+      entityManager.flush();
+
+      TenantContext.setCurrentTenant(tenantXXX.getId());
+      Scenario scenario =
+          scenarioComposer
+              .forScenario(ScenarioFixture.createDefaultCrisisScenario())
+              .persist()
+              .get();
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act — switch to Tenant YYY and try to delete the scenario
+      TenantContext.setCurrentTenant(tenantYYY.getId());
+
+      // Assert — should NOT find the scenario (404)
+      mvc.perform(delete(SCENARIO_URI + "/" + scenario.getId())).andExpect(status().isNotFound());
     }
   }
 }

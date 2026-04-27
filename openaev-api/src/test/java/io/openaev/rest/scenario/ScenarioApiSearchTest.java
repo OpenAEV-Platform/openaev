@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.GrantRepository;
 import io.openaev.database.repository.GroupRepository;
@@ -20,9 +21,13 @@ import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.scenario.form.GetScenariosInput;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
+import io.openaev.utils.fixtures.composers.ScenarioComposer;
+import io.openaev.utils.fixtures.tenants.TenantComposer;
+import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.pagination.SortField;
+import jakarta.transaction.Transactional;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.*;
@@ -39,6 +44,8 @@ public class ScenarioApiSearchTest extends IntegrationTest {
   @Autowired private GroupRepository groupRepository;
   @Autowired private GrantRepository grantRepository;
   @Autowired private UserRepository userRepository;
+  @Autowired private ScenarioComposer scenarioComposer;
+  @Autowired private TenantComposer tenantComposer;
 
   private static final List<String> SCENARIO_IDS = new ArrayList<>();
 
@@ -285,6 +292,61 @@ public class ScenarioApiSearchTest extends IntegrationTest {
 
         scenarioRepository.delete(scenarioGranted);
       }
+    }
+  }
+
+  @Nested
+  @DisplayName("Tenant isolation on search/pagination")
+  @Transactional
+  class TenantIsolation {
+
+    @Test
+    @DisplayName(
+        "given scenarios in two tenants, search from Tenant YYY should not return Tenant XXX scenarios")
+    @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
+    void given_scenariosInTwoTenants_when_searchFromTenantYYY_should_notReturnTenantXXX()
+        throws Exception {
+      // Arrange — create two tenants
+      Tenant tenantXXX =
+          tenantComposer.forTenant(TenantFixture.getTenant("Tenant XXX")).persist().get();
+      Tenant tenantYYY =
+          tenantComposer.forTenant(TenantFixture.getTenant("Tenant YYY")).persist().get();
+      entityManager.flush();
+
+      // Create a scenario in Tenant XXX
+      TenantContext.setCurrentTenant(tenantXXX.getId());
+      Scenario scenarioXXX = ScenarioFixture.createDefaultCrisisScenario();
+      scenarioXXX.setName("XXX Only Scenario");
+      scenarioComposer.forScenario(scenarioXXX).persist();
+
+      // Create a scenario in Tenant YYY
+      TenantContext.setCurrentTenant(tenantYYY.getId());
+      Scenario scenarioYYY = ScenarioFixture.createDefaultIncidentResponseScenario();
+      scenarioYYY.setName("YYY Only Scenario");
+      scenarioComposer.forScenario(scenarioYYY).persist();
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act — search from Tenant YYY
+      TenantContext.setCurrentTenant(tenantYYY.getId());
+      SearchPaginationInput searchPaginationInput =
+          PaginationFixture.getDefault().textSearch("Only Scenario").build();
+
+      // Assert — should only find the YYY scenario
+      mvc.perform(
+              post(SCENARIO_URI + "/search")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(searchPaginationInput)))
+          .andExpect(status().is2xxSuccessful())
+          .andExpect(jsonPath("$.numberOfElements").value(1))
+          .andExpect(jsonPath("$.content.[0].scenario_name").value("YYY Only Scenario"));
+
+      // Cleanup
+      TenantContext.setCurrentTenant(tenantXXX.getId());
+      scenarioComposer.reset();
+      TenantContext.setCurrentTenant(tenantYYY.getId());
+      tenantComposer.reset();
+      TenantContext.clearCurrentTenant();
     }
   }
 }

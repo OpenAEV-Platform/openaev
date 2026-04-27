@@ -254,4 +254,8 @@ public interface ScenarioRepository
       @Param("scenarioId") final String scenarioId, @Param("teamIds") final List<String> teamIds);
 
   Optional<Scenario> findByExercises_Id(String exerciseId);
+
+  @Query(
+      "SELECT s FROM Scenario s WHERE s.id = :scenarioId AND s.tenant.id = :#{#tenantContext.currentTenant}")
+  Optional<Scenario> findByIdAndTenant(@Param("scenarioId") String scenarioId);
 }
