@@ -15,7 +15,7 @@ public class InjectorContractSearchPaginationInput extends SearchPaginationInput
   @JsonProperty("include_full_details")
   private boolean includeFullDetails = true;
 
-  @Schema(description = "Include the content on the partial object if set to true")
+  @Schema(description = "Include the injector contract content on the returned object if set to true")
   @JsonProperty("include_content_details")
   private boolean includeContentDetails = false;
 

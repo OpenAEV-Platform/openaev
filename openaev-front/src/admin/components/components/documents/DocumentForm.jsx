@@ -5,7 +5,7 @@ import ExerciseField from '../../../../components/ExerciseField';
 import OldTextField from '../../../../components/fields/OldTextField';
 import FileField from '../../../../components/FileField';
 import { useFormatter } from '../../../../components/i18n';
-import ScenarioField from '../../../../components/ScenarioField';
+import ScenarioField from '../../../../components/ScenarioField.tsx';
 import TagField from '../../../../components/TagField';
 
 const DocumentForm = (props) => {

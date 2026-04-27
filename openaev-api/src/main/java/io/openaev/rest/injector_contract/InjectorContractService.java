@@ -518,7 +518,7 @@ public class InjectorContractService implements DependenciesManager {
           specification.and(
               (root, query, cb) ->
                   root.get(InjectorContract.COMPOSITE_ID_FIELD_NAME)
-                      .<String>get(InjectorContract.ID_FIELD_NAME)
+                      .get(InjectorContract.ID_FIELD_NAME)
                       .in(idsToProcess));
     }
 

@@ -5,8 +5,8 @@ import { type SyntheticEvent, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import { updateScenariosWithInjectorContracts } from '../../../../actions/scenarios/scenario-actions';
-import ScenariosField, { type MultiSelectScenario } from '../../../../components/fields/ScenariosField';
 import { useFormatter } from '../../../../components/i18n';
+import ScenarioField, { type ScenarioOption } from '../../../../components/ScenarioField';
 import {
   type InjectorContractSearchPaginationInput,
   type Scenario,
@@ -27,14 +27,14 @@ const ThreatArsenalScenarioUpdateComponent = ({ isExclusionMode, selectedElement
   const navigate = useNavigate();
   const theme = useTheme();
 
-  const [scenarioValues, setScenarioValues] = useState<MultiSelectScenario[]>([]);
+  const [scenarioValues, setScenarioValues] = useState<ScenarioOption[] | null>([]);
   const [isSubmitting, setSubmitting] = useState<boolean>(false);
 
   const handleSubmit = () => {
     setSubmitting(true);
     const inputs: ScenarioIdsAndInjectorContractsInputs = {
       locale: locale,
-      scenario_ids: scenarioValues.map(scenario => scenario.id),
+      scenario_ids: scenarioValues?.map(scenario => scenario.id) ?? [],
       injector_contract_search_pagination_input: {
         ...searchPaginationInput,
         injector_contract_ids_to_process: isExclusionMode ? [] : Object.keys(selectedElements),
@@ -60,10 +60,11 @@ const ThreatArsenalScenarioUpdateComponent = ({ isExclusionMode, selectedElement
       }}
       >
         <form id="threatArsenalScenarioUpdateForm" onSubmit={handleSubmitWithoutPropagation}>
-          <ScenariosField
+          <ScenarioField
+            multiple={true}
             label={t('Scenario')}
-            value={scenarioValues}
-            onChange={newValue => setScenarioValues(newValue)}
+            value={scenarioValues ?? undefined}
+            onChange={(newValue: ScenarioOption[] | null) => setScenarioValues(newValue)}
           />
           <div style={{
             float: 'right',
@@ -82,7 +83,7 @@ const ThreatArsenalScenarioUpdateComponent = ({ isExclusionMode, selectedElement
               variant="contained"
               type="submit"
               color="secondary"
-              disabled={scenarioValues.length === 0 || isSubmitting}
+              disabled={scenarioValues?.length === 0 || isSubmitting}
             >
               {t('Update')}
             </Button>
