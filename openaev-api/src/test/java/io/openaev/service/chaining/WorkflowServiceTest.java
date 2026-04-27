@@ -15,6 +15,7 @@ import io.openaev.service.PreviewFeatureService;
 import io.openaev.utils.fixtures.WorkflowFixture;
 import java.util.*;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -627,7 +628,7 @@ class WorkflowServiceTest {
 
     private WorkflowService service;
 
-    @org.junit.jupiter.api.BeforeEach
+    @BeforeEach
     void setUp() {
       service =
           new WorkflowService(
@@ -741,7 +742,7 @@ class WorkflowServiceTest {
     @DisplayName("should not save when variables are unchanged")
     void given_unchangedScopeVariables_should_notSave() {
       // Arrange
-      Workflow workflow = buildTemplate();
+      Workflow workflow = buildTemplate(false);
       ScopeVariable existing = new ScopeVariable();
       String varId = UUID.randomUUID().toString();
       existing.setKey("my_key");
@@ -770,7 +771,7 @@ class WorkflowServiceTest {
     @DisplayName("should not save when both existing and input variables are empty")
     void given_emptyVariablesOnBothSides_should_notSave() {
       // Arrange
-      Workflow workflow = buildTemplate();
+      Workflow workflow = buildTemplate(false);
       WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
       configInput.setWorkflowScopeVariables(List.of());
 

@@ -455,7 +455,14 @@ class WorkflowApiTest extends IntegrationTest {
   }
 
   private String tenantUri(String uriTemplate) {
-    return uriTemplate.replace("{tenantId}", TenantContext.getCurrentTenant());
+    String tenantId =
+        testUserHolder.get().getGroups().stream()
+            .map(Group::getTenant)
+            .filter(java.util.Objects::nonNull)
+            .map(Tenant::getId)
+            .findFirst()
+            .orElse(TenantContext.getCurrentTenant());
+    return uriTemplate.replace("{tenantId}", tenantId);
   }
 
   private Workflow createTemplateWorkflow() {
