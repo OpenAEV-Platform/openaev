@@ -5,14 +5,15 @@ import { type SyntheticEvent, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import { updateScenariosWithInjectorContracts } from '../../../../actions/scenarios/scenario-actions';
+import ScenarioField from '../../../../components/fields/ScenarioField';
 import { useFormatter } from '../../../../components/i18n';
-import ScenarioField, { type ScenarioOption } from '../../../../components/ScenarioField';
 import {
   type InjectorContractSearchPaginationInput,
   type Scenario,
   type ScenarioIdsAndInjectorContractsInputs,
   type ThreatArsenalAction,
 } from '../../../../utils/api-types';
+import type { Option } from '../../../../utils/Option';
 
 interface Props {
   isExclusionMode: boolean;
@@ -27,7 +28,7 @@ const ThreatArsenalScenarioUpdateComponent = ({ isExclusionMode, selectedElement
   const navigate = useNavigate();
   const theme = useTheme();
 
-  const [scenarioValues, setScenarioValues] = useState<ScenarioOption[] | null>([]);
+  const [scenarioValues, setScenarioValues] = useState<Option[] | null>([]);
   const [isSubmitting, setSubmitting] = useState<boolean>(false);
 
   const handleSubmit = () => {
@@ -63,8 +64,8 @@ const ThreatArsenalScenarioUpdateComponent = ({ isExclusionMode, selectedElement
           <ScenarioField
             multiple={true}
             label={t('Scenario')}
-            value={scenarioValues ?? undefined}
-            onChange={(newValue: ScenarioOption[] | null) => setScenarioValues(newValue)}
+            values={scenarioValues ?? []}
+            onValuesChange={(newValue: Option[] | null) => setScenarioValues(newValue)}
           />
           <div style={{
             float: 'right',
