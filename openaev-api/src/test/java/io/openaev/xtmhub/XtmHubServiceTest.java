@@ -16,6 +16,7 @@ import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantXtmHubRegistration;
+import io.openaev.database.repository.TenantRepository;
 import io.openaev.database.repository.TenantXtmHubRegistrationRepository;
 import io.openaev.ee.License;
 import io.openaev.ee.LicenseTypeEnum;
@@ -54,6 +55,7 @@ class XtmHubServiceTest {
   @Mock private XtmHubEmailService xtmHubEmailService;
   @Mock private HttpClientFactory httpClientFactory;
   @Mock private TenantXtmHubRegistrationRepository tenantXtmHubRegistrationRepository;
+  @Mock private TenantRepository tenantRepository;
 
   private XtmHubConfig xtmHubConfig;
   private XtmHubService xtmHubService;
@@ -88,6 +90,8 @@ class XtmHubServiceTest {
     lenient()
         .when(tenantXtmHubRegistrationRepository.findByTenantId(any()))
         .thenReturn(Optional.empty());
+    // Default: tenant found with default name
+    lenient().when(tenantRepository.findById(any())).thenReturn(Optional.of(new Tenant()));
 
     XtmHubClient xtmHubClient =
         new XtmHubClient(xtmHubConfig, httpClientFactory, platformSettingsService);
@@ -100,7 +104,8 @@ class XtmHubServiceTest {
             xtmHubConfig,
             xtmHubClient,
             xtmHubEmailService,
-            tenantXtmHubRegistrationRepository);
+            tenantXtmHubRegistrationRepository,
+            tenantRepository);
   }
 
   @AfterEach
@@ -190,6 +195,7 @@ class XtmHubServiceTest {
     assertThat(input.get("platformIdentifier").getAsString()).isEqualTo("openaev");
     assertThat(input.get("url").getAsString())
         .isEqualTo(platformBaseUrl + "/" + Tenant.DEFAULT_TENANT_UUID);
+    assertThat(input.get("tenantName").getAsString()).isEqualTo("Default Tenant");
   }
 
   /** Asserts that no HTTP request was made to the hub at all. */
@@ -205,7 +211,9 @@ class XtmHubServiceTest {
     registration.setRegistrationUserId("user-123");
     registration.setRegistrationUserName("John Doe");
     registration.setLastConnectivityCheck(lastCheck);
-    registration.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    Tenant tenant = new Tenant(TenantContext.getCurrentTenant());
+    tenant.setName("Default Tenant");
+    registration.setTenant(tenant);
     return registration;
   }
 
@@ -936,6 +944,9 @@ class XtmHubServiceTest {
       mockSettings.setPlatformVersion("1.0.0");
       when(platformSettingsService.findSettings()).thenReturn(mockSettings);
       when(userService.globalCount()).thenReturn(1L);
+      Tenant tenant = new Tenant();
+      tenant.setName("My Tenant");
+      when(tenantRepository.findById(Tenant.DEFAULT_TENANT_UUID)).thenReturn(Optional.of(tenant));
       whenHubAutoRegisters(true);
 
       // When
@@ -950,6 +961,7 @@ class XtmHubServiceTest {
       assertThat(platform.get("url").getAsString()).isEqualTo("http://localhost");
       assertThat(platform.get("version").getAsString()).isEqualTo("1.0.0");
       assertThat(platform.get("tenantId").getAsString()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
+      assertThat(platform.get("tenantName").getAsString()).isEqualTo("My Tenant");
       assertThat(input.get("existing_users_count").getAsLong()).isEqualTo(1L);
     }
 

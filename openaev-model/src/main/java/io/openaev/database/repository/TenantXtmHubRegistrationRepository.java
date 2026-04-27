@@ -16,7 +16,7 @@ public interface TenantXtmHubRegistrationRepository
 
   Optional<TenantXtmHubRegistration> findByTenantId(String tenantId);
 
-  @Query("SELECT r FROM TenantXtmHubRegistration r WHERE r.tenant.deletedAt IS NULL")
+  @Query("SELECT r FROM TenantXtmHubRegistration r JOIN FETCH r.tenant t WHERE t.deletedAt IS NULL")
   List<TenantXtmHubRegistration> findAllByTenantNotDeleted();
 
   @Transactional
