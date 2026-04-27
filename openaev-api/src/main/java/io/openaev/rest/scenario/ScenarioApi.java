@@ -248,6 +248,7 @@ public class ScenarioApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
   public List<TeamOutput> scenarioTeams(@PathVariable @NotBlank final String scenarioId) {
+    this.scenarioService.scenario(scenarioId); // Tenant-scoped validation
     return this.teamService.find(fromScenario(scenarioId));
   }
 

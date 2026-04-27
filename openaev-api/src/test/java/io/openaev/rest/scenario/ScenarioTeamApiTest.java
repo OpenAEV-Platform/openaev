@@ -17,9 +17,12 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
+import io.openaev.database.model.Capability;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.ScenarioTeamUser;
 import io.openaev.database.model.Team;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.ScenarioTeamUserRepository;
@@ -29,9 +32,14 @@ import io.openaev.rest.exercise.form.ExerciseTeamPlayersEnableInput;
 import io.openaev.rest.exercise.form.ScenarioTeamPlayersEnableInput;
 import io.openaev.rest.scenario.form.ScenarioUpdateTeamsInput;
 import io.openaev.utils.fixtures.PaginationFixture;
+import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.fixtures.UserFixture;
+import io.openaev.utils.fixtures.composers.ScenarioComposer;
+import io.openaev.utils.fixtures.tenants.TenantComposer;
+import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -55,6 +63,8 @@ class ScenarioTeamApiTest extends IntegrationTest {
   @Autowired private ScenarioTeamUserRepository scenarioTeamUserRepository;
   @Autowired private TeamRepository teamRepository;
   @Autowired private UserRepository userRepository;
+  @Autowired private ScenarioComposer scenarioComposer;
+  @Autowired private TenantComposer tenantComposer;
 
   @DisplayName("Given a valid scenario and team input, should add team to scenario successfully")
   @Test
@@ -516,6 +526,135 @@ class ScenarioTeamApiTest extends IntegrationTest {
       assertFalse(
           teamIds.contains(teamToRemove.getId()),
           "teamToRemove should have been removed from the scenario");
+    }
+  }
+
+  @Nested
+  @DisplayName("Tenant isolation on scenario teams")
+  class TenantIsolation {
+
+    @Test
+    @DisplayName(
+        "given scenario with team in Tenant XXX, when listing teams from Tenant YYY, should return 404")
+    @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
+    void given_scenarioInTenantXXX_when_listTeamsFromTenantYYY_should_return404() throws Exception {
+      // Arrange
+      Tenant tenantXXX =
+          tenantComposer.forTenant(TenantFixture.getTenant("Tenant XXX")).persist().get();
+      Tenant tenantYYY =
+          tenantComposer.forTenant(TenantFixture.getTenant("Tenant YYY")).persist().get();
+      entityManager.flush();
+
+      TenantContext.setCurrentTenant(tenantXXX.getId());
+      Team team = new Team();
+      team.setName("XXX-Team");
+      teamRepository.save(team);
+
+      Scenario scenario = ScenarioFixture.createDefaultCrisisScenario();
+      scenario.setTeams(new ArrayList<>(List.of(team)));
+      scenarioComposer.forScenario(scenario).persist();
+      entityManager.flush();
+      entityManager.clear();
+      String scenarioId = scenario.getId();
+
+      // Act — switch to Tenant YYY and try to list teams of the scenario
+      TenantContext.setCurrentTenant(tenantYYY.getId());
+
+      // Assert — scenario lookup should fail with 404 (tenant-scoped)
+      mvc.perform(
+              get(SCENARIO_URI + "/" + scenarioId + "/teams").accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isNotFound());
+
+      // Cleanup
+      TenantContext.setCurrentTenant(tenantXXX.getId());
+      scenarioComposer.reset();
+      tenantComposer.reset();
+      TenantContext.clearCurrentTenant();
+    }
+
+    @Test
+    @DisplayName(
+        "given scenario with team in Tenant XXX, when replacing teams from Tenant YYY, should return 404")
+    @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
+    void given_scenarioInTenantXXX_when_replaceTeamsFromTenantYYY_should_return404()
+        throws Exception {
+      // Arrange
+      Tenant tenantXXX =
+          tenantComposer.forTenant(TenantFixture.getTenant("Tenant XXX")).persist().get();
+      Tenant tenantYYY =
+          tenantComposer.forTenant(TenantFixture.getTenant("Tenant YYY")).persist().get();
+      entityManager.flush();
+
+      TenantContext.setCurrentTenant(tenantXXX.getId());
+      Scenario scenario = ScenarioFixture.createDefaultCrisisScenario();
+      scenarioComposer.forScenario(scenario).persist();
+      entityManager.flush();
+      entityManager.clear();
+      String scenarioId = scenario.getId();
+
+      // Act — switch to Tenant YYY and try to replace teams
+      TenantContext.setCurrentTenant(tenantYYY.getId());
+      ScenarioUpdateTeamsInput input = new ScenarioUpdateTeamsInput();
+      input.setTeamIds(List.of());
+
+      // Assert — should return 404
+      mvc.perform(
+              put(SCENARIO_URI + "/" + scenarioId + "/teams/replace")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isNotFound());
+
+      // Cleanup
+      TenantContext.setCurrentTenant(tenantXXX.getId());
+      scenarioComposer.reset();
+      tenantComposer.reset();
+      TenantContext.clearCurrentTenant();
+    }
+
+    @Test
+    @DisplayName(
+        "given scenario with team in Tenant XXX, when removing teams from Tenant YYY, should return 404")
+    @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
+    void given_scenarioInTenantXXX_when_removeTeamsFromTenantYYY_should_return404()
+        throws Exception {
+      // Arrange
+      Tenant tenantXXX =
+          tenantComposer.forTenant(TenantFixture.getTenant("Tenant XXX")).persist().get();
+      Tenant tenantYYY =
+          tenantComposer.forTenant(TenantFixture.getTenant("Tenant YYY")).persist().get();
+      entityManager.flush();
+
+      TenantContext.setCurrentTenant(tenantXXX.getId());
+      Team team = new Team();
+      team.setName("XXX-Team-Remove");
+      teamRepository.save(team);
+
+      Scenario scenario = ScenarioFixture.createDefaultCrisisScenario();
+      scenario.setTeams(new ArrayList<>(List.of(team)));
+      scenarioComposer.forScenario(scenario).persist();
+      entityManager.flush();
+      entityManager.clear();
+      String scenarioId = scenario.getId();
+
+      // Act — switch to Tenant YYY and try to remove teams
+      TenantContext.setCurrentTenant(tenantYYY.getId());
+      ScenarioUpdateTeamsInput input = new ScenarioUpdateTeamsInput();
+      input.setTeamIds(List.of(team.getId()));
+
+      // Assert — should return 404
+      mvc.perform(
+              put(SCENARIO_URI + "/" + scenarioId + "/teams/remove")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isNotFound());
+
+      // Cleanup
+      TenantContext.setCurrentTenant(tenantXXX.getId());
+      scenarioComposer.reset();
+      tenantComposer.reset();
+      TenantContext.clearCurrentTenant();
     }
   }
 }

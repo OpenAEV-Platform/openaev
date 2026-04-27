@@ -674,6 +674,7 @@ public class ScenarioService {
   @Transactional(rollbackFor = Exception.class)
   public Iterable<TeamOutput> removeTeams(
       @NotBlank final String scenarioId, @NotNull final List<String> teamIds) {
+    scenario(scenarioId); // Tenant-scoped validation
     // Remove teams from scenario
     this.scenarioRepository.removeTeams(scenarioId, teamIds);
     // Remove only associations for this scenario
