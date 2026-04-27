@@ -61,7 +61,12 @@ const ScopeVariables = ({ workflowConfiguration, onUpdate }: ScopeVariablesProps
     },
   });
 
-  const { handleSubmit, reset, formState: { isDirty, isSubmitting } } = methods;
+  const {
+    handleSubmit,
+    reset,
+    setError,
+    formState: { isDirty, isSubmitting },
+  } = methods;
 
   const handleOpen = () => {
     reset();
@@ -78,7 +83,42 @@ const ScopeVariables = ({ workflowConfiguration, onUpdate }: ScopeVariablesProps
   });
 
   const onSubmit = (data: VariableFormValues) => {
-    onUpdate({ workflow_scope_variables: [...variables.map(toInput), { ...data }] });
+    const key = data.scope_variable_key?.trim() ?? '';
+    const value = data.scope_variable_value?.trim() ?? '';
+    const type = data.scope_variable_type;
+
+    if (!key) {
+      setError('scope_variable_key', {
+        type: 'required',
+        message: t('Key is required'),
+      });
+      return;
+    }
+    if (!type) {
+      setError('scope_variable_type', {
+        type: 'required',
+        message: t('Type is required'),
+      });
+      return;
+    }
+    if (!value) {
+      setError('scope_variable_value', {
+        type: 'required',
+        message: t('Value is required'),
+      });
+      return;
+    }
+
+    onUpdate({
+      workflow_scope_variables: [
+        ...variables.map(toInput),
+        {
+          ...data,
+          scope_variable_key: key,
+          scope_variable_value: value,
+        },
+      ],
+    });
     handleClose();
   };
 
@@ -223,6 +263,7 @@ const ScopeVariables = ({ workflowConfiguration, onUpdate }: ScopeVariablesProps
               <TextFieldController
                 name="scope_variable_value"
                 label={t('Value')}
+                required
               />
               <TextFieldController
                 name="scope_variable_description"

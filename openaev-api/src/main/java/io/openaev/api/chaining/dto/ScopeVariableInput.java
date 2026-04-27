@@ -29,7 +29,7 @@ public record ScopeVariableInput(
         @Schema(description = "Argument type driving how the variable value is interpreted.")
         @JsonProperty("scope_variable_type")
         ArgumentType type,
-    @Schema(description = "Value of the variable.") @JsonProperty("scope_variable_value")
+    @NotBlank @Schema(description = "Value of the variable.") @JsonProperty("scope_variable_value")
         String value,
     @Schema(description = "Optional description of the variable's purpose.")
         @JsonProperty("scope_variable_description")

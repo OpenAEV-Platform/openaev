@@ -7189,6 +7189,84 @@ export interface ScenarioUpdateTeamsInput {
   scenario_teams?: string[];
 }
 
+/** Input for a scope variable attached to a workflow. */
+export interface ScopeVariableInput {
+  /** Optional description of the variable's purpose. */
+  scope_variable_description?: string;
+  /** ID of an existing scope variable. Null means a new variable will be created. */
+  scope_variable_id?: string;
+  /**
+   * Unique snake_case key used to reference the variable in templates (e.g. company_name).
+   * @minLength 1
+   */
+  scope_variable_key: string;
+  /** Argument type driving how the variable value is interpreted. */
+  scope_variable_type:
+    | "text"
+    | "number"
+    | "port"
+    | "portscan"
+    | "ipv4"
+    | "ipv6"
+    | "credentials"
+    | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account"
+    | "document"
+    | "targeted-asset";
+  /**
+   * Value of the variable.
+   * @minLength 1
+   */
+  scope_variable_value: string;
+}
+
+/** Output for a scope variable attached to a workflow. */
+export interface ScopeVariableOutput {
+  /** Optional description of the variable's purpose. */
+  scope_variable_description?: string;
+  /** Unique ID of the scope variable. */
+  scope_variable_id?: string;
+  /** Key used to reference the variable in templates. */
+  scope_variable_key?: string;
+  /** Argument type driving how the variable value is interpreted. */
+  scope_variable_type?:
+    | "text"
+    | "number"
+    | "port"
+    | "portscan"
+    | "ipv4"
+    | "ipv6"
+    | "credentials"
+    | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account"
+    | "document"
+    | "targeted-asset";
+  /** Value of the variable. */
+  scope_variable_value?: string;
+}
+
 export interface SearchPaginationInput {
   /** Filter object to search within filterable attributes */
   filterGroup?: FilterGroup;
@@ -8807,38 +8885,6 @@ export interface WorkflowScopeRuleOutput {
   workflow_scope_rule_source?: "ASSET" | "ASSET_GROUP" | "MANUAL" | "CSV";
   /** Selected item value */
   workflow_scope_rule_value?: string;
-}
-
-/** Input for a scope variable attached to a workflow. */
-export interface ScopeVariableInput {
-  /** ID of an existing scope variable. Null means a new variable will be created. */
-  scope_variable_id?: string;
-  /**
-   * Unique snake_case key used to reference the variable in templates.
-   * @minLength 1
-   * @pattern ^[a-z_]+$
-   */
-  scope_variable_key: string;
-  /** Argument type driving how the variable value is interpreted. */
-  scope_variable_type: "text" | "number" | "port" | "portscan" | "ipv4" | "ipv6" | "credentials" | "cve" | "username" | "share" | "admin_username" | "group" | "computer" | "password_policy" | "delegation" | "sid" | "vulnerability" | "account_with_password_not_required" | "asreproastable_account" | "kerberoastable_account" | "document" | "targeted-asset";
-  /** Value of the variable. */
-  scope_variable_value?: string;
-  /** Optional description of the variable's purpose. */
-  scope_variable_description?: string;
-}
-
-/** Output for a scope variable attached to a workflow. */
-export interface ScopeVariableOutput {
-  /** Unique ID of the scope variable. */
-  scope_variable_id?: string;
-  /** Snake_case key used to reference the variable in templates. */
-  scope_variable_key?: string;
-  /** Argument type driving how the variable value is interpreted. */
-  scope_variable_type?: "text" | "number" | "port" | "portscan" | "ipv4" | "ipv6" | "credentials" | "cve" | "username" | "share" | "admin_username" | "group" | "computer" | "password_policy" | "delegation" | "sid" | "vulnerability" | "account_with_password_not_required" | "asreproastable_account" | "kerberoastable_account" | "document" | "targeted-asset";
-  /** Value of the variable. */
-  scope_variable_value?: string;
-  /** Optional description of the variable's purpose. */
-  scope_variable_description?: string;
 }
 
 export interface XtmComposerInstanceOutput {
