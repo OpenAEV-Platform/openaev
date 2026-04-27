@@ -1,5 +1,6 @@
 package io.openaev.opencti.service;
 
+import static io.openaev.opencti.connectors.service.PrivilegeService.CONNECTOR_EMAIL_PATTERN;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
@@ -12,6 +13,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.opencti.client.OpenCTIClient;
 import io.openaev.opencti.client.mutations.Ping;
@@ -476,7 +478,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
 
         assertThat(user).isNotEmpty();
         assertThat(user.get().getEmail())
-            .isEqualTo("connector-%s@openaev.invalid".formatted(testConnector.getId()));
+            .isEqualTo(CONNECTOR_EMAIL_PATTERN.formatted(testConnector.getId()));
         assertThat(user.get().getFirstname()).isEqualTo(testConnector.getName());
         assertThat(user.get().getGroups().stream().map(Group::getId).toList())
             .isEqualTo(List.of(Constants.PROCESS_STIX_GROUP_ID));
@@ -498,6 +500,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
             .withToken(
                 tokenComposer.forToken(TokenFixture.getTokenWithValue(testConnector.getToken())))
             .persist();
+        tenantRepository.addUserToTenant(specificUser.getId(), Tenant.DEFAULT_TENANT_UUID);
         entityManager.flush();
         entityManager.clear();
 
@@ -518,7 +521,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
 
         assertThat(user).isNotEmpty();
         assertThat(user.get().getEmail())
-            .isEqualTo("connector-%s@openaev.invalid".formatted(testConnector.getId()));
+            .isEqualTo(CONNECTOR_EMAIL_PATTERN.formatted(testConnector.getId()));
         assertThat(user.get().getFirstname()).isEqualTo(testConnector.getName());
         assertThat(user.get().getGroups().stream().map(Group::getId).toList())
             .isEqualTo(List.of(Constants.PROCESS_STIX_GROUP_ID));
@@ -673,7 +676,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
 
         assertThat(user).isNotEmpty();
         assertThat(user.get().getEmail())
-            .isEqualTo("connector-%s@openaev.invalid".formatted(testConnector.getId()));
+            .isEqualTo(CONNECTOR_EMAIL_PATTERN.formatted(testConnector.getId()));
         assertThat(user.get().getFirstname()).isEqualTo(testConnector.getName());
         assertThat(user.get().getGroups().stream().map(Group::getId).toList())
             .isEqualTo(List.of(Constants.PROCESS_STIX_GROUP_ID));
@@ -696,6 +699,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
             .withToken(
                 tokenComposer.forToken(TokenFixture.getTokenWithValue(testConnector.getToken())))
             .persist();
+        tenantRepository.addUserToTenant(specificUser.getId(), Tenant.DEFAULT_TENANT_UUID);
         entityManager.flush();
         entityManager.clear();
 
@@ -715,7 +719,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
 
         assertThat(user).isNotEmpty();
         assertThat(user.get().getEmail())
-            .isEqualTo("connector-%s@openaev.invalid".formatted(testConnector.getId()));
+            .isEqualTo(CONNECTOR_EMAIL_PATTERN.formatted(testConnector.getId()));
         assertThat(user.get().getFirstname()).isEqualTo(testConnector.getName());
         assertThat(user.get().getGroups().stream().map(Group::getId).toList())
             .isEqualTo(List.of(Constants.PROCESS_STIX_GROUP_ID));

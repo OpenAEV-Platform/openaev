@@ -6,11 +6,11 @@ import io.openaev.api.groups.dto.TenantGroupCreateInput;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
 import io.openaev.database.model.User;
-import io.openaev.database.repository.TenantRepository;
 import io.openaev.opencti.connectors.ConnectorBase;
 import io.openaev.service.RoleService;
 import io.openaev.service.TenantGroupService;
 import io.openaev.service.UserService;
+import io.openaev.service.tenants.TenantUserService;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -21,22 +21,29 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(rollbackFor = Exception.class)
 @Slf4j
 public class PrivilegeService {
 
-  private static final String CONNECTOR_EMAIL_PATTERN = "connector-%s@openaev.invalid";
+  public static final String CONNECTOR_EMAIL_PATTERN = "connector-opencti-%s@openaev.invalid";
   private static final String CONNECTOR_LASTNAME = "OpenCTI Connector";
 
   private final RoleService roleService;
   private final TenantGroupService tenantGroupService;
   private final UserService userService;
-  private final TenantRepository tenantRepository;
+  private final TenantUserService tenantUserService;
+  private final LegacyOpenCTIConnectorMigration legacyOpenCTIConnectorMigration;
 
-  // TODO migration old user/role/group/... + add tenant context everywhere
-  @Transactional
+  /**
+   * Ensures a privileged technical user exists for the given OpenCTI connector. Creates or updates
+   * the user, its group, role, and tenant attachment as needed.
+   */
   public void ensurePrivilegedUserExistsForConnector(ConnectorBase connector) {
     Group group = createWellKnownGroupWithRole(createWellKnownRole());
     String email = CONNECTOR_EMAIL_PATTERN.formatted(connector.getId());
+
+    // TODO: remove once all deployments have been migrated to multi-tenant
+    legacyOpenCTIConnectorMigration.deleteLegacyConnectorUserIfExists(email);
 
     Optional<User> connectorUser =
         userService.findByTokenAndTenantId(connector.getToken(), connector.getTenantId());
@@ -46,7 +53,7 @@ public class PrivilegeService {
       // Token-matched user already exists — update its attributes
       applyConnectorAttributes(connectorUser.get(), connector, email, group);
       userService.saveUser(connectorUser.get());
-      tenantRepository.addUserToTenant(connectorUser.get().getId(), connector.getTenantId());
+      tenantUserService.attachToTenant(connectorUser.get().getId(), connector.getTenantId());
     } else if (existingEmailUser.isPresent()) {
       // Email-matched user exists but has no token — reuse and attach token
       log.warn(
@@ -60,7 +67,7 @@ public class PrivilegeService {
                       userService.createUserToken(existingEmailUser.get(), connector.getToken()))));
       applyConnectorAttributes(existingEmailUser.get(), connector, email, group);
       userService.saveUser(existingEmailUser.get());
-      tenantRepository.addUserToTenant(existingEmailUser.get().getId(), connector.getTenantId());
+      tenantUserService.attachToTenant(existingEmailUser.get().getId(), connector.getTenantId());
     } else {
       // No user exists — create one
       User user =
@@ -68,9 +75,11 @@ public class PrivilegeService {
               email, connector.getName(), CONNECTOR_LASTNAME, false, connector.getToken());
       user.setGroups(new ArrayList<>(List.of(group)));
       User savedUser = userService.saveUser(user);
-      tenantRepository.addUserToTenant(savedUser.getId(), connector.getTenantId());
+      tenantUserService.attachToTenant(savedUser.getId(), connector.getTenantId());
     }
   }
+
+  // -- PRIVATE --
 
   private void applyConnectorAttributes(
       User user, ConnectorBase connector, String email, Group group) {
@@ -84,23 +93,18 @@ public class PrivilegeService {
   private Role createWellKnownRole() {
     Optional<Role> processStixRole = roleService.findById(PROCESS_STIX_ROLE_ID);
     if (processStixRole.isEmpty()) {
-      processStixRole =
-          Optional.of(
-              roleService.createRole(
-                  PROCESS_STIX_ROLE_ID,
-                  PROCESS_STIX_ROLE_NAME,
-                  PROCESS_STIX_ROLE_DESCRIPTION,
-                  PROCESS_STIX_ROLE_CAPABILITIES));
+      return roleService.createRole(
+          PROCESS_STIX_ROLE_ID,
+          PROCESS_STIX_ROLE_NAME,
+          PROCESS_STIX_ROLE_DESCRIPTION,
+          PROCESS_STIX_ROLE_CAPABILITIES);
     } else {
-      processStixRole =
-          Optional.of(
-              roleService.updateRole(
-                  PROCESS_STIX_ROLE_ID,
-                  PROCESS_STIX_ROLE_NAME,
-                  PROCESS_STIX_ROLE_DESCRIPTION,
-                  PROCESS_STIX_ROLE_CAPABILITIES));
+      return roleService.updateRole(
+          PROCESS_STIX_ROLE_ID,
+          PROCESS_STIX_ROLE_NAME,
+          PROCESS_STIX_ROLE_DESCRIPTION,
+          PROCESS_STIX_ROLE_CAPABILITIES);
     }
-    return processStixRole.get();
   }
 
   private Group createWellKnownGroupWithRole(Role role) {
@@ -111,17 +115,11 @@ public class PrivilegeService {
     input.setDescription(PROCESS_STIX_GROUP_DESCRIPTION);
     input.setDefaultUserAssignation(false);
 
-    processStixGroup =
-        processStixGroup
-            .map(
-                group ->
-                    tenantGroupService.updateGroupInfoWithRoles(
-                        group, input, new ArrayList<>(List.of(role))))
-            .or(
-                () ->
-                    Optional.of(
-                        tenantGroupService.createGroupWithRole(
-                            PROCESS_STIX_GROUP_ID, input, new ArrayList<>(List.of(role)))));
-    return processStixGroup.get();
+    List<Role> roles = new ArrayList<>(List.of(role));
+    if (processStixGroup.isPresent()) {
+      return tenantGroupService.updateGroupInfoWithRoles(processStixGroup.get(), input, roles);
+    } else {
+      return tenantGroupService.createGroupWithRole(PROCESS_STIX_GROUP_ID, input, roles);
+    }
   }
 }

@@ -9,9 +9,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
+import io.openaev.database.model.Tenant;
+import io.openaev.database.model.User;
 import io.openaev.integration.Manager;
 import io.openaev.integration.impl.injectors.manual.ManualInjectorIntegrationFactory;
-import io.openaev.opencti.config.OpenCTIParamConfig;
+import io.openaev.opencti.config.XtmConfig;
 import io.openaev.opencti.connectors.impl.SecurityCoverageConnector;
 import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
 import io.openaev.utils.fixtures.JwtFixture;
@@ -50,7 +52,7 @@ public class OpenCTIJwtAuthenticationTest extends IntegrationTest {
   @Autowired private ManualInjectorIntegrationFactory manualInjectorIntegrationFactory;
   @Autowired private UserComposer userComposer;
   @Autowired private TokenComposer tokenComposer;
-  @Autowired private OpenCTIParamConfig openCTIConfig;
+  @Autowired private XtmConfig openCTIConfig;
 
   @BeforeEach
   void setUp() throws Exception {
@@ -85,16 +87,19 @@ public class OpenCTIJwtAuthenticationTest extends IntegrationTest {
     if (jwks != null) {
       SecurityCoverageConnector c = new SecurityCoverageConnector();
       c.setJwks(jwks);
-      c.setOpenCTIParamConfig(openCTIConfig);
+      c.setOpenCTIConfig(openCTIConfig.getOpencti().get(TenantContext.getCurrentTenant()));
       Mockito.doReturn(Optional.of(c))
           .when(openCTIConnectorService)
           .getConnectorBase(TenantContext.getCurrentTenant());
     }
 
-    userComposer
-        .forUser(UserFixture.getUserWithDefaultEmail())
-        .withToken(tokenComposer.forToken(TokenFixture.getTokenWithValue("auth token")))
-        .persist();
+    User user =
+        userComposer
+            .forUser(UserFixture.getUserWithDefaultEmail())
+            .withToken(tokenComposer.forToken(TokenFixture.getTokenWithValue("auth token")))
+            .persist()
+            .get();
+    tenantRepository.addUserToTenant(user.getId(), Tenant.DEFAULT_TENANT_UUID);
     entityManager.flush();
 
     var request =

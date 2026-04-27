@@ -51,8 +51,8 @@ public class OpenCTIConnectorServiceConfigDisabledTest extends IntegrationTest {
                     openCTIConnectorService.pushSecurityCoverageStixBundle(
                         createBundle(), TenantContext.getCurrentTenant()))
             .isInstanceOf(ConnectorError.class)
-            .hasMessage(
-                "No instance of Security Coverage connector is currently active to send security coverage bundles.");
+            .hasMessageContaining(
+                "No instance of Security Coverage connector is currently active to send security coverage bundles");
       }
     }
   }

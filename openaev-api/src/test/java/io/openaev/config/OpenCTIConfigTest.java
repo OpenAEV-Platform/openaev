@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
-import io.openaev.opencti.config.OpenCTIConfig;
+import io.openaev.opencti.config.XtmConfig;
 import io.openaev.utils.mockConfig.WithMockOpenCTIConfig;
 import io.openaev.utilstest.RabbitMQTestListener;
 import org.junit.jupiter.api.DisplayName;
@@ -24,15 +24,15 @@ public class OpenCTIConfigTest extends IntegrationTest {
   @Nested
   @WithMockOpenCTIConfig(url = "public_url")
   @DisplayName("When setting only the public URL")
-  public class withOnlyUrlNotApiUrl {
-    @Autowired private OpenCTIConfig openCTIConfig;
+  class withOnlyUrlNotApiUrl {
+    @Autowired private XtmConfig xtmConfig;
 
     @Test
     @DisplayName("returns a variant of the public URL for the API URL")
-    public void shouldReturnVariantOfPublicUrlForApiUrl() {
-      assertThat(openCTIConfig.getOpencti().get(TenantContext.getCurrentTenant()).getApiUrl())
+    void shouldReturnVariantOfPublicUrlForApiUrl() {
+      assertThat(xtmConfig.getOpencti().get(TenantContext.getCurrentTenant()).getApiUrl())
           .isEqualTo("public_url/graphql");
-      assertThat(openCTIConfig.getOpencti().get(TenantContext.getCurrentTenant()).getUrl())
+      assertThat(xtmConfig.getOpencti().get(TenantContext.getCurrentTenant()).getUrl())
           .isEqualTo("public_url");
     }
   }
@@ -40,12 +40,12 @@ public class OpenCTIConfigTest extends IntegrationTest {
   @Nested
   @WithMockOpenCTIConfig(apiUrl = "api_url", url = "public_url")
   @DisplayName("When setting both URL and API URL")
-  public class withSetApiUrlAndUrl {
-    @Autowired private OpenCTIConfig openCTIConfig;
+  class withSetApiUrlAndUrl {
+    @Autowired private XtmConfig openCTIConfig;
 
     @Test
     @DisplayName("returns different URLs for API URL and URL")
-    public void shouldReturnDifferentValuesForPublicAndApiUrl() {
+    void shouldReturnDifferentValuesForPublicAndApiUrl() {
       assertThat(openCTIConfig.getOpencti().get(TenantContext.getCurrentTenant()).getApiUrl())
           .isEqualTo("api_url");
       assertThat(openCTIConfig.getOpencti().get(TenantContext.getCurrentTenant()).getUrl())

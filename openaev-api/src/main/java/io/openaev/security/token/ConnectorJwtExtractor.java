@@ -23,10 +23,15 @@ public class ConnectorJwtExtractor implements ExtractorBase {
 
   @Override
   public Optional<User> authUser(String value) throws ConnectorError, JwtException {
-    Optional<ConnectorBase> openCTIConnector =
-        openCTIConnectorService.getConnectorBase(TenantContext.getCurrentTenant());
+    String tenantId = TenantContext.getCurrentTenant();
+    if (tenantId == null || tenantId.isBlank()) {
+      throw new ConnectorError(
+          "Tenant context not established — cannot authenticate connector JWT");
+    }
+
+    Optional<ConnectorBase> openCTIConnector = openCTIConnectorService.getConnectorBase(tenantId);
     if (openCTIConnector.isEmpty()) {
-      throw new ConnectorError("Connector not found");
+      throw new ConnectorError("Connector not found for tenant");
     }
 
     Jwts.parser()
@@ -48,7 +53,6 @@ public class ConnectorJwtExtractor implements ExtractorBase {
         .build()
         .parseSignedClaims(value);
 
-    return userService.findByTokenAndTenantId(
-        openCTIConnector.get().getToken(), TenantContext.getCurrentTenant());
+    return userService.findByTokenAndTenantId(openCTIConnector.get().getToken(), tenantId);
   }
 }

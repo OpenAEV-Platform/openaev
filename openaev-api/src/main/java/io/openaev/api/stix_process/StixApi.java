@@ -2,8 +2,6 @@ package io.openaev.api.stix_process;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.AccessControl;
 import io.openaev.context.TenantContext;
@@ -64,18 +62,18 @@ public class StixApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.PROCESS, resourceType = ResourceType.STIX_BUNDLE)
   public ResponseEntity<?> processBundle(@RequestBody @Validated CTIEvent ctiEvent)
       throws ParsingException, ConnectorError, IOException {
-    String workId = null;
-    // TODO check the methods to see if the tenant context is used automatically or if we need to
-    // add it
     String tenantId = TenantContext.getCurrentTenant();
     try {
       openCTIService.acknowledgeReceivedOfCoverage(
           ctiEvent.getInternal().getWorkId(), "OpenAEV ready to process the operation", tenantId);
 
-      Scenario scenario = stixService.processBundle(ctiEvent.getEvent().getStixObjects());
+      Scenario scenario = stixService.processBundle(ctiEvent.getEvent().getStixObjects(), tenantId);
 
       openCTIService.acknowledgeProcessedOfCoverage(
-          ctiEvent.getInternal().getWorkId(), "Coverage successfully created or updated", false, tenantId);
+          ctiEvent.getInternal().getWorkId(),
+          "Coverage successfully created or updated",
+          false,
+          tenantId);
       return ResponseEntity.ok(
           new BundleImportReport(
               scenario.getId(), stixService.generateBundleImportReport(scenario)));
@@ -100,15 +98,6 @@ public class StixApi extends RestBehavior {
       // here we explicitly return a status of HTTP 200 OK
       // it's a silent error
       return ResponseEntity.status(HttpStatus.OK).build();
-    } catch (JsonParseException e) {
-      log.error(
-          String.format(
-              "Input STIX bundle is malformed (workId=%s). ctiEvent=%s. Error: %s",
-              workId, ctiEvent, e.getMessage()),
-          e);
-      openCTIService.acknowledgeProcessedOfCoverage(
-          workId, "Input STIX bundle is malformed: %s".formatted(e.getMessage()), true, tenantId);
-      return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
     } catch (Exception e) {
       log.error(
           "An error occurred while processing STIX bundle (workId={}). ctiEvent={}",
