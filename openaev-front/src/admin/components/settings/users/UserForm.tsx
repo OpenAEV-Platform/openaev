@@ -12,7 +12,6 @@ import TagFieldController from '../../../../components/fields/TagFieldController
 import TextFieldController from '../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../components/i18n';
 import { PHONE_REGEX, zodImplement } from '../../../../utils/Zod';
-import TenantField from '../../../../components/fields/TenantField';
 import TenantFieldController from '../../../../components/fields/TenantFieldController';
 
 interface UserFormProps {

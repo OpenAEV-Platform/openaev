@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, useMemo } from 'react';
+import { type FunctionComponent, SyntheticEvent, useMemo } from 'react';
 import { FormProvider, type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
@@ -50,11 +50,16 @@ const TenantForm: FunctionComponent<Props> = ({
     handleSubmit,
   } = methods;
 
+  const handleSubmitWithoutPropagation = (e: SyntheticEvent) => {
+    e.stopPropagation();
+    handleSubmit(onSubmit)(e);
+  }
+
   return (
     <FormProvider {...methods}>
       <form
         id="tenantFormId"
-        onSubmit={handleSubmit(onSubmit)}
+        onSubmit={handleSubmitWithoutPropagation}
         style={{
           display: 'flex',
           flexDirection: 'column',

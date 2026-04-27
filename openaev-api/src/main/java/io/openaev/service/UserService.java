@@ -13,10 +13,7 @@ import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.config.SessionHelper;
 import io.openaev.config.SessionManager;
 import io.openaev.database.model.*;
-import io.openaev.database.repository.GroupRepository;
-import io.openaev.database.repository.TagRepository;
-import io.openaev.database.repository.TokenRepository;
-import io.openaev.database.repository.UserRepository;
+import io.openaev.database.repository.*;
 import io.openaev.database.specification.GroupSpecification;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.utils.ReferenceResolver;
@@ -73,6 +70,7 @@ public class UserService {
 
   private final UserRepository userRepository;
   private final TagRepository tagRepository;
+  private final TenantRepository tenantRepository;
   private final GroupRepository groupRepository;
   private final TokenRepository tokenRepository;
   private final ReferenceResolver referenceResolver;
@@ -102,6 +100,10 @@ public class UserService {
     user.setUpdateAttributes(input);
     user.setTags(referenceResolver.resolve(input.tagIds(), Tag.class, tagRepository::countByIdIn));
     user.setOrganization(referenceResolver.resolve(input.organizationId(), Organization.class));
+    user.setTenants(
+        new ArrayList<>(
+            referenceResolver.resolve(
+                input.tenantIds(), Tenant.class, tenantRepository::countByIdIn)));
     return createUser(user, input.plainPassword(), UUID.randomUUID().toString());
   }
 

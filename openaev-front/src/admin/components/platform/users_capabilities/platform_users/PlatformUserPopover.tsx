@@ -33,6 +33,7 @@ const PlatformUserPopover: FunctionComponent<Props> = ({
       ...data,
       user_organization: data.user_organization?.id,
       user_tags: data.user_tags?.map((tag: Option) => tag.id),
+      user_tenants: data.user_tenants?.map((tenant: Option) => tenant.id),
     };
     dispatch(updatePlatformUser(platformUser.user_id, inputValues)).then(
       (result: {

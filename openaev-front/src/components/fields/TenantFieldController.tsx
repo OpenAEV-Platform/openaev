@@ -21,7 +21,7 @@ const TenantFieldController = ({ name, label, style = {}, required = false, disa
       render={({ field: { onChange, value }, fieldState: { error } }) => (
         <TenantField
           label={label}
-          fieldValue={value ?? null}
+          fieldValue={value ?? []}
           fieldOnChange={onChange}
           error={error}
           style={style}

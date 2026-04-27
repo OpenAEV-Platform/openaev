@@ -4,7 +4,6 @@ import io.openaev.database.model.Organization;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
-
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;

@@ -257,6 +257,7 @@ public class User implements Base {
       name = "users_tenants",
       joinColumns = @JoinColumn(name = "user_id"),
       inverseJoinColumns = @JoinColumn(name = "tenant_id"))
+  @Setter
   @JsonProperty("user_tenants")
   private List<Tenant> tenants = new ArrayList<>();
 

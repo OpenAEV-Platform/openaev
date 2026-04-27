@@ -4,7 +4,7 @@ import { createElement, type CSSProperties } from 'react';
 import { initSorting } from '../../../../../components/common/queryable/Page';
 import type { Header } from '../../../../../components/common/SortHeadersList';
 import ItemTags from '../../../../../components/ItemTags';
-import type { SortField, UserOutput } from '../../../../../utils/api-types';
+import type { SortField, TenantOutput, UserOutput } from '../../../../../utils/api-types';
 
 // Local Storage
 export const LOCAL_STORAGE_KEY_PLATFORM_USER = 'platform_users';
@@ -19,6 +19,7 @@ const FIELD_LASTNAME = 'user_lastname';
 const FIELD_ADMIN = 'user_admin';
 const FIELD_ORGANIZATION = 'user_organization_name';
 const FIELD_TAGS = 'user_tags';
+const FIELD_TENANTS = 'user_tenants';
 
 // Inline Styles
 export const PLATFORM_USER_INLINE_STYLES: Record<string, CSSProperties> = {
@@ -26,12 +27,13 @@ export const PLATFORM_USER_INLINE_STYLES: Record<string, CSSProperties> = {
   [FIELD_FIRSTNAME]: { width: '12%' },
   [FIELD_LASTNAME]: { width: '12%' },
   [FIELD_ADMIN]: { width: '10%' },
-  [FIELD_ORGANIZATION]: { width: '18%' },
+  [FIELD_ORGANIZATION]: { width: '10%' },
   [FIELD_TAGS]: { width: '20%' },
+  [FIELD_TENANTS]: { width: '10%' },
 };
 
 // Headers
-export const getPlatformUserHeaders: (t: (text: string) => string) => Header[] = (t: (text: string) => string) => [
+export const getPlatformUserHeaders: (t: (text: string) => string, tenantsMap: Record<string, TenantOutput>) => Header[] = (t: (text: string) => string,tenantsMap) => [
   {
     field: FIELD_EMAIL,
     label: t('Email address'),
@@ -72,6 +74,14 @@ export const getPlatformUserHeaders: (t: (text: string) => string) => Header[] =
       variant: 'list',
       tags: user.user_tags,
     }),
+  },
+  {
+    field: FIELD_TENANTS,
+    label: t('Tenants'),
+    isSortable: false,
+    value: (user: UserOutput) => user.user_tenants?.length
+      ? user.user_tenants.map(tenantId => tenantsMap[tenantId]?.tenant_name ?? tenantId).join(', ')
+      : '-'
   },
 ];
 

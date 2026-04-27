@@ -228,7 +228,14 @@ const Users = () => {
         </List>
         <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
           <CreateUser
-            onCreate={(result: User) => setUsers([result, ...users])}
+            onCreate={(result: User) => {
+              const userOutput: UserOutput = {
+                ...result,
+                user_tenants: result.user_tenants?.map((t) => typeof t === 'string' ? t : t.tenant_id) ?? [],
+
+              };
+              setUsers([userOutput, ...users]);
+            }}
           />
         </Can>
       </div>

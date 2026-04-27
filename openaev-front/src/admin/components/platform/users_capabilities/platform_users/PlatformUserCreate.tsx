@@ -15,10 +15,16 @@ const PlatformUserCreate: FunctionComponent<Props> = ({ onCreate }) => {
 
   const handleSubmit = useCallback(
     async (data: UserInputForm) => {
+      //console.log('Creating platform user with data:', data);
       const inputValues = {
         ...data,
-        user_organization: data.user_organization?.id,
-        user_tags: data.user_tags?.map((tag: Option) => tag.id),
+        user_organization: typeof data.user_organization === 'object'
+          ? data.user_organization?.id
+          : data.user_organization,
+        user_tags:  data.user_tags?.map((tag: Option | string) =>
+          typeof tag === 'object' ? tag.id : tag),
+        user_tenants: data.user_tenants?.map((tenant: Option | string) =>
+          typeof tenant === 'object' ? tenant.id : tenant),
       };
       const result = await dispatch(addPlatformUser(inputValues));
 

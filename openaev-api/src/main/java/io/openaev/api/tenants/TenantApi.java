@@ -61,7 +61,9 @@ public class TenantApi {
       resourceType = ResourceType.TENANT,
       isEnterpriseEdition = true)
   @GetMapping
-  public Iterable<TenantOutput> tenants(){return tenantService.tenants();}
+  public Iterable<TenantOutput> tenants() {
+    return tenantService.tenants();
+  }
 
   // -- SEARCH --
 

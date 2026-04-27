@@ -11,7 +11,7 @@ import SortHeadersComponentV2 from '../../../../../components/common/queryable/s
 import { useQueryableWithLocalStorage } from '../../../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useFormatter } from '../../../../../components/i18n';
 import PaginatedListLoader from '../../../../../components/PaginatedListLoader';
-import { type UserOutput } from '../../../../../utils/api-types';
+import { TenantOutput, type UserOutput } from '../../../../../utils/api-types';
 import { Can } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import UsersCapabilitiesMenu from '../UsersCapabilitiesMenu';
@@ -26,6 +26,11 @@ import {
   PLATFORM_USER_INLINE_STYLES,
   PLATFORM_USER_SORTS,
 } from './platformUsers.queryable';
+import { useHelper } from '../../../../../store';
+import { TenantHelper, UserHelper } from '../../../../../actions/helper';
+import useDataLoader from '../../../../../utils/hooks/useDataLoader';
+import { fetchTenants } from '../../../../../actions/platform/tenants/tenant-action';
+import { useAppDispatch } from '../../../../../utils/hooks';
 
 const useStyles = makeStyles()(() => ({
   container: { display: 'flex' },
@@ -35,6 +40,7 @@ const useStyles = makeStyles()(() => ({
 const PlatformUsers = () => {
   const { classes } = useStyles();
   const { t } = useFormatter();
+  const dispatch = useAppDispatch();
   const {
     platformUsers,
     setPlatformUserList,
@@ -49,7 +55,15 @@ const PlatformUsers = () => {
     queryableHelpers,
     searchPaginationInput,
   } = useQueryableWithLocalStorage(LOCAL_STORAGE_KEY_PLATFORM_USER, buildSearchPagination({ sorts: PLATFORM_USER_SORTS }));
-  const headers = useMemo(() => getPlatformUserHeaders(t), [t]);
+
+  // Fetching data
+  const { tenantsMap } = useHelper((helper: UserHelper & TenantHelper) => ({ tenantsMap: helper.getTenantsMap() }));
+  useDataLoader(() => {
+    dispatch(fetchTenants());
+  });
+
+  const headers = useMemo(() => getPlatformUserHeaders(t,tenantsMap), [t]);
+
 
   return (
     <div className={classes.container}>
