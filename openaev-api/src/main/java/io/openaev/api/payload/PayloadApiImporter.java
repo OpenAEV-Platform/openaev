@@ -4,6 +4,8 @@ import io.openaev.aop.RBAC;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.ResourceType;
+import io.openaev.jsonapi.IncludeOptions;
+import io.openaev.jsonapi.IncludeOptions.IncludeMode;
 import io.openaev.jsonapi.JsonApiDocument;
 import io.openaev.jsonapi.ResourceObject;
 import io.openaev.jsonapi.ZipJsonApi;
@@ -14,6 +16,7 @@ import io.openaev.service.ImportService;
 import io.openaev.service.ZipJsonService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.constraints.NotNull;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -30,6 +33,15 @@ import org.springframework.web.multipart.MultipartFile;
 @RequestMapping(PayloadApi.PAYLOAD_URI)
 @RequiredArgsConstructor
 public class PayloadApiImporter extends RestBehavior {
+
+  /**
+   * Import options that configure the collector relationship on detection remediations to only
+   * include collectors that already exist in the target database. If a collector is not found by
+   * its business key, the entire detection remediation is skipped.
+   */
+  private static final IncludeOptions IMPORT_OPTIONS =
+      IncludeOptions.of(
+          Map.of("detection_remediation_collector_type", IncludeMode.IF_EXISTS_IN_DB));
 
   private final ZipJsonApi<Payload> zipJsonApi;
   private final ImportService importService;
@@ -48,33 +60,13 @@ public class PayloadApiImporter extends RestBehavior {
       @RequestPart("file") @NotNull MultipartFile file) throws Exception {
     try {
       ZipJsonService.ImportOutput<Payload> response =
-          zipJsonApi.handleImport(file, "payload_name", null, this::sanitize);
+          zipJsonApi.handleImport(file, "payload_name", IMPORT_OPTIONS, null);
       payloadService.updateInjectorContractsForPayload(response.persistedData());
       return ResponseEntity.ok(response.jsonApiDocument());
     } catch (Exception ex) {
       log.warn("Fallback to old import due to {}", ex.getMessage(), ex);
-      // Fall back to the legacy importer
       importService.handleFileImport(file, null, null);
       return ResponseEntity.ok().build();
     }
-  }
-
-  /**
-   * Removes detection remediations whose collector does not exist in the target database. During
-   * import, the collector is resolved by its business key (type). If not found, the collector field
-   * is null and the remediation must be dropped to avoid constraint violations.
-   */
-  private Payload sanitize(Payload payload) {
-    payload
-        .getDetectionRemediations()
-        .removeIf(
-            dr -> {
-              if (dr.getCollector() == null) {
-                log.warn("Skipping detection remediation — collector not found in target database");
-                return true;
-              }
-              return false;
-            });
-    return payload;
   }
 }

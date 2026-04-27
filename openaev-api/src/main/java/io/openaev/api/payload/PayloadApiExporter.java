@@ -38,8 +38,8 @@ public class PayloadApiExporter extends RestBehavior {
   @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.PAYLOAD)
   public ResponseEntity<byte[]> export(@PathVariable @NotBlank final String payloadId)
       throws IOException {
-    Map<String, Boolean> opts = new HashMap<>();
-    opts.put("exclude from payload export", false);
+    Map<String, IncludeOptions.IncludeMode> opts = new HashMap<>();
+    opts.put("exclude from payload export", IncludeOptions.IncludeMode.FALSE);
     IncludeOptions includeOptions = IncludeOptions.of(opts);
 
     Payload payload =
