@@ -152,43 +152,32 @@ const ScopeVariables = ({ workflowConfiguration, onUpdate }: ScopeVariablesProps
         {variables.length > 0 ? (
           <div style={{
             display: 'grid',
+            gridTemplateColumns: '1fr 1fr 1fr 1fr auto',
             gap: theme.spacing(1),
+            alignItems: 'center',
           }}
           >
             {/* Column headers */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr 1fr 1fr auto',
-              gap: theme.spacing(1),
-            }}
-            >
-              {[t('Key'), t('Type'), t('Value'), t('Description')].map(label => (
-                <Typography
-                  key={label}
-                  variant="caption"
-                  sx={{
-                    color: 'text.disabled',
-                    fontWeight: 600,
-                  }}
-                >
-                  {label}
-                </Typography>
-              ))}
-              <span />
-            </div>
+            {[t('Key'), t('Type'), t('Value'), t('Description')].map(label => (
+              <Typography
+                key={label}
+                variant="caption"
+                sx={{
+                  color: 'text.disabled',
+                  fontWeight: 600,
+                  textAlign: 'left',
+                }}
+              >
+                {label}
+              </Typography>
+            ))}
+            <span />
 
             {/* Rows */}
             {variables.map(variable => (
-              <div
-                key={variable.scope_variable_id}
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr 1fr 1fr auto',
-                  gap: theme.spacing(1),
-                  alignItems: 'center',
-                }}
-              >
+              <>
                 <Typography
+                  key={`key-${variable.scope_variable_id}`}
                   variant="body2"
                   sx={{
                     fontWeight: 600,
@@ -198,6 +187,7 @@ const ScopeVariables = ({ workflowConfiguration, onUpdate }: ScopeVariablesProps
                   {variable.scope_variable_key}
                 </Typography>
                 <Chip
+                  key={`type-${variable.scope_variable_id}`}
                   label={variable.scope_variable_type ?? '—'}
                   size="small"
                   variant="outlined"
@@ -207,6 +197,7 @@ const ScopeVariables = ({ workflowConfiguration, onUpdate }: ScopeVariablesProps
                   }}
                 />
                 <Typography
+                  key={`value-${variable.scope_variable_id}`}
                   variant="body2"
                   sx={{
                     color: 'text.secondary',
@@ -216,6 +207,7 @@ const ScopeVariables = ({ workflowConfiguration, onUpdate }: ScopeVariablesProps
                   {variable.scope_variable_value ?? '—'}
                 </Typography>
                 <Typography
+                  key={`desc-${variable.scope_variable_id}`}
                   variant="body2"
                   sx={{
                     color: 'text.secondary',
@@ -225,7 +217,7 @@ const ScopeVariables = ({ workflowConfiguration, onUpdate }: ScopeVariablesProps
                 >
                   {variable.scope_variable_description ?? '—'}
                 </Typography>
-                <Tooltip title={t('Delete variable')}>
+                <Tooltip key={`del-${variable.scope_variable_id}`} title={t('Delete variable')}>
                   <IconButton
                     size="small"
                     color="error"
@@ -235,7 +227,7 @@ const ScopeVariables = ({ workflowConfiguration, onUpdate }: ScopeVariablesProps
                     <DeleteOutlined fontSize="small" />
                   </IconButton>
                 </Tooltip>
-              </div>
+              </>
             ))}
           </div>
         ) : (
