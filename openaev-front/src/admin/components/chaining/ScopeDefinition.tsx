@@ -53,7 +53,7 @@ const ScopeDefinition = ({ workflowId }: ScopeDefinitionProps) => {
     scope_variable_id: v.scope_variable_id ?? (v.get?.('scope_variable_id') as string | undefined),
     scope_variable_key: v.scope_variable_key ?? (v.get?.('scope_variable_key') as string) ?? '',
     scope_variable_type: (v.scope_variable_type ?? v.get?.('scope_variable_type') ?? 'text') as ScopeVariableInput['scope_variable_type'],
-    scope_variable_value: v.scope_variable_value ?? (v.get?.('scope_variable_value') as string | undefined),
+    scope_variable_value: v.scope_variable_value ?? (v.get?.('scope_variable_value') as string | undefined) ?? '',
     scope_variable_description: v.scope_variable_description ?? (v.get?.('scope_variable_description') as string | undefined),
   });
 
