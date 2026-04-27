@@ -2,7 +2,10 @@ package io.openaev.utils.mockUser;
 
 import static io.openaev.service.UserService.buildAuthenticationToken;
 
+import io.openaev.config.cache.TenantMembershipCacheManager;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.User;
+import io.openaev.database.repository.TenantRepository;
 import io.openaev.utils.fixtures.GroupFixture;
 import io.openaev.utils.fixtures.RoleFixture;
 import io.openaev.utils.fixtures.UserFixture;
@@ -34,6 +37,9 @@ public class WithMockUserTestExecutionListener extends AbstractTestExecutionList
     UserComposer userComposer = ctx.getBean(UserComposer.class);
     GroupComposer groupComposer = ctx.getBean(GroupComposer.class);
     RoleComposer roleComposer = ctx.getBean(RoleComposer.class);
+    TenantRepository tenantRepository = ctx.getBean(TenantRepository.class);
+    TenantMembershipCacheManager tenantMembershipCacheManager =
+        ctx.getBean(TenantMembershipCacheManager.class);
     TestUserHolder testUserHolder = ctx.getBean(TestUserHolder.class);
 
     // Build user from annotation
@@ -62,6 +68,16 @@ public class WithMockUserTestExecutionListener extends AbstractTestExecutionList
             .persist()
             .get();
     userComposer.reset(); // reset to avoid side effects in following tests
+
+    String tenantId =
+        testUser.getGroups().stream()
+            .map(io.openaev.database.model.Group::getTenant)
+            .filter(java.util.Objects::nonNull)
+            .map(io.openaev.database.model.Tenant::getId)
+            .findFirst()
+            .orElse(TenantContext.getCurrentTenant());
+    tenantRepository.addUserToTenant(testUser.getId(), tenantId);
+    tenantMembershipCacheManager.evict(testUser.getId(), tenantId);
 
     if (TransactionSynchronizationManager.isActualTransactionActive()) {
       entityManager.flush();
