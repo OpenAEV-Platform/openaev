@@ -332,7 +332,7 @@ public class StepServiceTest {
           .thenReturn(Collections.emptyList());
 
       // -------- Act --------
-      stepService.startWorkflowBySimulationId(simulationId);
+      workflowService.startWorkflowBySimulationId(simulationId);
 
       // -------- Assert --------
       verify(workflowService).findWorkflowTemplateBySimulationId(simulationIdCaptor.capture());
@@ -390,7 +390,7 @@ public class StepServiceTest {
           .ready(any(Step.class), eq(workflowRun), isNull());
 
       // -------- Act --------
-      stepService.startWorkflowBySimulationId(simulationId);
+      workflowService.startWorkflowBySimulationId(simulationId);
 
       // -------- Assert --------
       verify(workflowService).findWorkflowTemplateBySimulationId(simulationIdCaptor.capture());
@@ -467,7 +467,7 @@ public class StepServiceTest {
       }
 
       // -------- Act --------
-      stepService.startWorkflowBySimulationId(simulationId);
+      workflowService.startWorkflowBySimulationId(simulationId);
 
       // -------- Assert --------
       if (shouldEndWorkflow) {

@@ -27,14 +27,14 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Service
 public class StepService implements StepEventHandler, ExternalUpdateEventHandler {
+
   private final InjectExecutionStep injectExecutionStep;
 
   private final WorkflowService workflowService;
-  private final WorkflowStateService workflowStateService;
   public final ConditionService conditionService;
   private final QueueChainingService queueChainingService;
-
   private final StepDelayQueueRepository stepDelayQueueRepository;
+
   private final StepRepository stepRepository;
 
   /**
@@ -76,48 +76,6 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     }
   }
 
-  /**
-   * Start workflow for given simulation
-   *
-   * @param simulationId id of the simulation to start
-   */
-  @Transactional(rollbackFor = Exception.class)
-  public void startWorkflowBySimulationId(String simulationId) throws ChainingException {
-    Workflow workflowTemplate =
-        workflowService
-            .findWorkflowTemplateBySimulationId(simulationId)
-            .orElseThrow(
-                () ->
-                    new ElementNotFoundException(
-                        "Workflow (TEMPLATE) not found. Simulation ID: " + simulationId));
-    Workflow workflowRun = workflowService.launchWorkflowSimulation(workflowTemplate);
-    startWorkflow(workflowRun);
-  }
-
-  /**
-   * Start workflow for given scenario
-   *
-   * @param scenarioId id of the scenario to start
-   */
-  @Transactional(rollbackFor = Exception.class)
-  public void startWorkflowByScenarioIdAndSimulation(String scenarioId, Exercise simulation)
-      throws ChainingException {
-    Workflow workflowTemplateScenario =
-        workflowService
-            .findWorkflowTemplateByScenarioId(scenarioId)
-            .orElseThrow(
-                () ->
-                    new ElementNotFoundException(
-                        "Workflow (TEMPLATE) not found. Scenario ID: " + scenarioId));
-    Workflow workflowRun =
-        workflowService.launchWorkflowScenario(workflowTemplateScenario, simulation);
-
-    Workflow workflowTemplateSimulation = workflowRun.getWorkflowTemplate();
-    copyStepTemplate(workflowTemplateScenario, workflowTemplateSimulation);
-
-    startWorkflow(workflowRun);
-  }
-
   @Transactional(rollbackFor = Exception.class)
   public void copyStepTemplate(Workflow workflowTemplateFrom, Workflow workflowTemplateTo) {
     List<Step> stepsTemplate = findAllStepTemplateByWorkflow(workflowTemplateFrom.getId());
@@ -126,12 +84,6 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     // Todo add condition not linked to a step
     List<Step> stepsTemplateCopy = copyStepsTemplate(stepsTemplate, workflowTemplateTo);
     saveSteps(stepsTemplateCopy);
-  }
-
-  private void startWorkflow(Workflow workflowRun) throws ChainingException {
-    // Save data from Scope in WorkflowState
-    workflowStateService.initializeStateFromScope(workflowRun);
-    evaluate(workflowRun);
   }
 
   public void evaluate(Workflow workflowRun) throws ChainingException {

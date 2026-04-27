@@ -32,6 +32,7 @@ import io.openaev.rest.tag.TagService;
 import io.openaev.service.*;
 import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.StepService;
+import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.chaining.WorkflowStateService;
 import io.openaev.utils.ConditionUtils;
 import io.openaev.utils.InjectUtils;
@@ -44,6 +45,7 @@ import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -93,6 +95,7 @@ public class InjectExecutionStep implements ActionStep {
 
   @Resource protected ObjectMapper mapper;
   @PersistenceContext private EntityManager em;
+  @Autowired private WorkflowService workflowService;
 
   /**
    * Creates a new step template for an inject execution.
@@ -272,8 +275,11 @@ public class InjectExecutionStep implements ActionStep {
 
       // UPDATE step output
       stepRun.setOutput(jsonObject.toString());
-      // UPDATE Workflow State with new output
-      workflowStateService.processExecutionOutput(output, fieldTypeMap, stepRun.getWorkflow());
+      // Propagate state changes into engine if parsed output is present
+      workflowService.syncAndEvaluate(
+          output.stream().filter(o -> !o.get("parsed").isJsonNull()).toList(),
+          fieldTypeMap,
+          stepRun.getWorkflow());
 
       return Optional.of(stepRun);
     }
@@ -523,7 +529,7 @@ public class InjectExecutionStep implements ActionStep {
    *
    * @param step the {@link Step} containing the JSON data for the inject
    * @return the deserialized {@link Inject} object with its injector set if found; {@code null} if
-   *     the injector or contract is missing or if an exception occurs during deserialization
+   *     the injector or r or contract is missing or if an exception occurs during deserialization
    */
   private Inject getInjectFromDataStep(Step step) throws ChainingException {
     ObjectMapper om =

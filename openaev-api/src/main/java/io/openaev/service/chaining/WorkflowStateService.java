@@ -1,18 +1,14 @@
 package io.openaev.service.chaining;
 
-import static io.openaev.database.model.ScopeRuleValueType.getAllContractOutputTypes;
-
 import com.google.gson.*;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.WorkflowStateRepository;
-import io.openaev.rest.exception.ChainingException;
 import io.openaev.utils.ConditionUtils;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -24,50 +20,9 @@ public class WorkflowStateService {
   private final WorkflowStateRepository workflowStateRepository;
 
   private final Gson gson = new Gson();
-  private final StepService stepService;
-
-  /**
-   * Creates and persists the global {@link WorkflowState} for a new workflow run. Initializes a
-   * scope bucket (from the workflow's whitelist rules) and an empty discovery bucket.
-   *
-   * @param workflowRun the running workflow
-   * @return the persisted global {@link WorkflowState}
-   */
-  @Transactional
-  public void initializeStateFromScope(Workflow workflowRun) {
-    log.debug("Initializing Global State from Scope for Workflow Run: {}", workflowRun.getId());
-    Map<String, ContractOutputType> fieldTypeMap =
-        getAllContractOutputTypes().stream()
-            .collect(Collectors.toMap(ContractOutputType::name, type -> type));
-    WorkflowStateEntries scopeEntries = createInitialScopeEntries(workflowRun);
-    syncState(scopeEntries, fieldTypeMap, workflowRun);
-  }
-
-  /**
-   * Syncs a completed inject's structured output traces into the workflow's global state entries.
-   * Exits early if the inject has no status, no traces, or no matching global state.
-   *
-   * @param workflowRun the RUN workflow
-   */
-  @Transactional
-  public void processExecutionOutput(
-      List<Map<String, JsonElement>> output,
-      Map<String, ContractOutputType> fieldTypeMap,
-      Workflow workflowRun)
-      throws ChainingException {
-
-    if (output.isEmpty()) {
-      log.warn("Received empty output for sync. Skipping.");
-      return;
-    }
-    syncState(output, fieldTypeMap, workflowRun);
-    stepService.evaluate(workflowRun);
-  }
 
   public void syncState(
-      List<Map<String, JsonElement>> output,
-      Map<String, ContractOutputType> fieldTypeMap,
-      Workflow workflowRun) {
+      JsonElement dataToSync, Map<String, ContractOutputType> fieldTypeMap, Workflow workflowRun) {
     WorkflowState globalState = getOrCreateGlobalState(workflowRun);
     if (globalState == null) {
       log.warn("No global state found for workflow {}. Skipping sync.", workflowRun.getId());
@@ -78,8 +33,8 @@ public class WorkflowStateService {
         gson.fromJson(globalState.getEntries(), WorkflowStateEntries.class);
 
     // Process traces
-    if (output.isJsonObject()) {
-      saveToEntries(entries, output.getAsJsonObject(), fieldTypeMap);
+    if (dataToSync.isJsonObject()) {
+      saveToEntries(entries, dataToSync.getAsJsonObject(), fieldTypeMap);
     }
 
     // Save JSON back to DB
@@ -168,32 +123,6 @@ public class WorkflowStateService {
   private static WorkflowStateEntries createInitialEntries() {
     return new WorkflowStateEntries(
         new ArrayList<>(), new ArrayList<>(), new HashSet<>(), new HashSet<>());
-  }
-
-  private static WorkflowStateEntries createInitialScopeEntries(Workflow workflowRun) {
-    // 1. Collect all possible keys from the Enum to initialize the buckets
-    Set<String> scopeKeys = getAllContractOutputTypes();
-
-    // Initialize the WorkflowStateEntries for the Scope column
-    WorkflowStateEntries scopeEntries =
-        new WorkflowStateEntries(
-            new ArrayList<>(), // inputs
-            new ArrayList<>(), // correlated
-            new HashSet<>(), // hashExecution
-            scopeKeys // keys (IP, DOMAIN, etc.)
-            );
-
-    // Process the whitelist rules
-    if (workflowRun.getWhitelist() != null) {
-      for (WorkflowScopeRule rule : workflowRun.getWhitelist()) {
-        // Use the Enum name directly as the key (e.g., "IP", "ASSET_ID")
-        String key = rule.getValueType().getContractOutputType();
-
-        // getInputByKey ensures the Input object exists and adds the value
-        scopeEntries.getInputByKey(key).getValues().add(rule.getRuleValue());
-      }
-    }
-    return scopeEntries;
   }
 
   /**

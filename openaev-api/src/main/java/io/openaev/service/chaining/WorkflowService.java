@@ -1,5 +1,8 @@
 package io.openaev.service.chaining;
 
+import static io.openaev.database.model.ScopeRuleValueType.getAllContractOutputTypes;
+
+import com.google.gson.JsonElement;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
 import io.openaev.database.model.*;
@@ -24,6 +27,10 @@ import org.springframework.util.CollectionUtils;
 @RequiredArgsConstructor
 @Service
 public class WorkflowService {
+
+  private final StepService stepService;
+  private final WorkflowStateService workflowStateService;
+
   private final WorkflowRepository workflowRepository;
   private final WorkflowScopeRuleRepository workflowScopeRuleRepository;
   private final PreviewFeatureService previewFeatureService;
@@ -511,5 +518,91 @@ public class WorkflowService {
   public void isPreviewFeatureChainingEnable() throws ChainingException {
     if (!previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING))
       throw new ChainingException("Feature chaining is not enabled");
+  }
+
+  /**
+   * Start workflow for given simulation
+   *
+   * @param simulationId id of the simulation to start
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void startWorkflowBySimulationId(String simulationId) throws ChainingException {
+    Workflow workflowTemplate =
+        findWorkflowTemplateBySimulationId(simulationId)
+            .orElseThrow(
+                () ->
+                    new ElementNotFoundException(
+                        "Workflow (TEMPLATE) not found. Simulation ID: " + simulationId));
+    Workflow workflowRun = launchWorkflowSimulation(workflowTemplate);
+    initializeStateFromScopeDefinition(workflowRun);
+  }
+
+  /**
+   * Start workflow for given scenario
+   *
+   * @param scenarioId id of the scenario to start
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void startWorkflowByScenarioIdAndSimulation(String scenarioId, Exercise simulation)
+      throws ChainingException {
+    Workflow workflowTemplateScenario =
+        findWorkflowTemplateByScenarioId(scenarioId)
+            .orElseThrow(
+                () ->
+                    new ElementNotFoundException(
+                        "Workflow (TEMPLATE) not found. Scenario ID: " + scenarioId));
+    Workflow workflowRun = launchWorkflowScenario(workflowTemplateScenario, simulation);
+
+    Workflow workflowTemplateSimulation = workflowRun.getWorkflowTemplate();
+    stepService.copyStepTemplate(workflowTemplateScenario, workflowTemplateSimulation);
+
+    initializeStateFromScopeDefinition(workflowRun);
+    syncAndEvaluate(workflowRun, scopeData, fieldTypeMap);
+  }
+
+  /**
+   * Creates and persists the global {@link WorkflowState} for a new workflow run. Initializes a
+   * scope bucket (from the workflow's whitelist rules) and an empty discovery bucket.
+   *
+   * @param workflowRun the running workflow
+   * @return the persisted global {@link WorkflowState}
+   */
+  private void initializeStateFromScopeDefinition(Workflow workflowRun) throws ChainingException {
+    log.debug("Initializing Global State from Scope for Workflow Run: {}", workflowRun.getId());
+    Map<String, ContractOutputType> fieldTypeMap =
+        getAllContractOutputTypes().stream()
+            .collect(Collectors.toMap(ContractOutputType::name, type -> type));
+    Map<String, List<String>> scopeData = extractScopeData(workflowRun);
+  }
+
+  /**
+   * Syncs a completed inject's structured output traces into the workflow's global state entries.
+   * Exits early if the inject has no status, no traces, or no matching global state.
+   *
+   * @param workflowRun the RUN workflow
+   */
+  @Transactional
+  public void syncAndEvaluate(
+      JsonElement dataToSync, Map<String, ContractOutputType> fieldTypeMap, Workflow workflowRun)
+      throws ChainingException {
+
+    if (dataToSync.isJsonNull()) {
+      log.warn("Received empty output for sync. Skipping.");
+      return;
+    }
+    workflowStateService.syncState(dataToSync, fieldTypeMap, workflowRun);
+    stepService.evaluate(workflowRun);
+  }
+
+  private Map<String, List<String>> extractScopeData(Workflow workflowRun) {
+    if (workflowRun.getWhitelist() == null) {
+      return Collections.emptyMap();
+    }
+
+    return workflowRun.getWhitelist().stream()
+        .collect(
+            Collectors.groupingBy(
+                rule -> rule.getValueType().getContractOutputType(),
+                Collectors.mapping(WorkflowScopeRule::getRuleValue, Collectors.toList())));
   }
 }
