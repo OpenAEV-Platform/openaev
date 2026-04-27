@@ -12,9 +12,11 @@ import io.openaev.database.model.Inject;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.repository.ArticleRepository;
 import io.openaev.database.repository.InjectRepository;
+import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.specification.ArticleSpecification;
 import io.openaev.database.specification.InjectSpecification;
 import io.openaev.rest.channel.output.ArticleOutput;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
 import jakarta.validation.constraints.NotBlank;
 import java.util.List;
@@ -30,6 +32,7 @@ public class ScenarioArticleApi extends RestBehavior {
 
   private final InjectRepository injectRepository;
   private final ArticleRepository articleRepository;
+  private final ScenarioRepository scenarioRepository;
 
   @GetMapping({
     SCENARIO_URI + "/{scenarioId}/articles",
@@ -41,6 +44,9 @@ public class ScenarioArticleApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   @Transactional(readOnly = true)
   public Iterable<ArticleOutput> scenarioArticles(@PathVariable @NotBlank final String scenarioId) {
+    this.scenarioRepository
+        .findByIdAndTenant(scenarioId)
+        .orElseThrow(ElementNotFoundException::new); // Tenant-scoped validation
     List<Inject> injects =
         this.injectRepository.findAll(
             InjectSpecification.fromScenario(scenarioId)

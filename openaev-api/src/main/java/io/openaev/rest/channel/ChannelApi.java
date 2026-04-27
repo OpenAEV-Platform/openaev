@@ -386,6 +386,7 @@ public class ChannelApi extends RestBehavior {
   public void deleteArticleForScenario(
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String articleId) {
+    this.scenarioService.scenario(scenarioId); // Tenant-scoped validation
     articleRepository.deleteById(articleId);
   }
 
