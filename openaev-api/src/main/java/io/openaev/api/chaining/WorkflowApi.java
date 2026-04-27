@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.*;
 @Slf4j
 @RestController
 @RequiredArgsConstructor
+@RequestMapping(WorkflowApi.TENANT_WORKFLOW_URI)
 @Tag(name = "Workflow API", description = "Operations related to Workflow")
 public class WorkflowApi extends RestBehavior {
 
@@ -45,10 +46,8 @@ public class WorkflowApi extends RestBehavior {
       description =
           "Workflow configuration not found for the specified workflow, or the INJECT_CHAINING feature is disabled")
   @ApiResponse(responseCode = "500", description = "Unexpected server error")
-  @GetMapping({TENANT_WORKFLOW_URI + "/{workflowId}/workflow-configuration"})
-  @AccessControl(
-      actionPerformed = Action.READ,
-      resourceType = ResourceType.WORKFLOW) // fixme Add RBAC
+  @GetMapping({TENANT_WORKFLOW_URI + "/{workflowId}/configuration"})
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.WORKFLOW)
   public WorkflowConfigurationOutput getWorkflowConfiguration(
       @PathVariable @NotBlank final String workflowId) {
     checkWorkflowFeatureEnabled();
@@ -65,10 +64,8 @@ public class WorkflowApi extends RestBehavior {
       description =
           "Workflow or workflow configuration not found, or the INJECT_CHAINING feature is disabled")
   @ApiResponse(responseCode = "500", description = "Unexpected server error")
-  @PutMapping({TENANT_WORKFLOW_URI + "/{workflowId}/workflow-configuration"})
-  @AccessControl(
-      actionPerformed = Action.WRITE,
-      resourceType = ResourceType.WORKFLOW) // fixme Add RBAC
+  @PutMapping({TENANT_WORKFLOW_URI + "/{workflowId}/configuration"})
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.WORKFLOW)
   public WorkflowConfigurationOutput updateWorkflowConfiguration(
       @PathVariable @NotBlank final String workflowId,
       @Valid @RequestBody final WorkflowConfigurationInput input) {

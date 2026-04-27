@@ -1,6 +1,5 @@
 package io.openaev.api.chaining;
 
-import static io.openaev.api.chaining.ChainingApi.CHAINING_URI;
 import static io.openaev.api.chaining.ChainingApi.TENANT_CHAINING_URI;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.helper.StreamHelper.iterableToSet;
@@ -42,7 +41,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping({CHAINING_URI, TENANT_CHAINING_URI})
+@RequestMapping(TENANT_CHAINING_URI)
 @Tag(
     name = "Chaining API",
     description =
@@ -50,7 +49,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class ChainingApi extends RestBehavior {
 
   public static final String TENANT_CHAINING_URI = TENANT_PREFIX + "/chaining";
-  public static final String CHAINING_URI = "/api/chaining";
+  public static final String CHAINING_URI = "/chaining";
   public static final String SIMULATION_URI = "/simulations";
   public static final String SCENARIO_URI = "/scenarios";
 

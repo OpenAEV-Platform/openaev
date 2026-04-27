@@ -3,6 +3,7 @@ package io.openaev.service.chaining;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import io.openaev.api.chaining.dto.ScopeVariableInput;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
 import io.openaev.database.model.*;
@@ -614,6 +615,204 @@ class WorkflowServiceTest {
       assertEquals(ScopeRuleSelectedMode.ALLOWLIST, mappedRule.getSelectedMode());
       assertEquals(expectedType, mappedRule.getValueType());
       assertSame(workflow, mappedRule.getWorkflow());
+    }
+  }
+
+  // ========================================================================
+  // Scope Variables Tests
+  // ========================================================================
+  @Nested
+  @DisplayName("updateWorkflowConfiguration – scope variables")
+  class ScopeVariablesTests {
+
+    private WorkflowService service;
+
+    @org.junit.jupiter.api.BeforeEach
+    void setUp() {
+      service =
+          new WorkflowService(
+              workflowRepository,
+              workflowScopeRuleRepository,
+              scopeVariableRepository,
+              previewFeatureService);
+    }
+
+    private Workflow buildTemplate() {
+      String workflowId = UUID.randomUUID().toString();
+      Workflow workflow =
+          Workflow.builder().id(workflowId).status(WorkflowStatus.TEMPLATE).version(0).build();
+      when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
+          .thenReturn(Optional.of(workflow));
+      when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
+      return workflow;
+    }
+
+    @Test
+    @DisplayName("should create new scope variable when id is null")
+    void given_newScopeVariableInput_should_createVariable() {
+      // Arrange
+      Workflow workflow = buildTemplate();
+      ScopeVariableInput input =
+          new ScopeVariableInput(null, "company_name", ArgumentType.Text, "Acme", "Company name");
+      WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
+      configInput.setWorkflowScopeVariables(List.of(input));
+
+      // Act
+      Workflow result = service.updateWorkflowConfiguration(workflow.getId(), configInput);
+
+      // Assert
+      assertEquals(1, result.getWorkflowScopeVariables().size());
+      ScopeVariable created = result.getWorkflowScopeVariables().getFirst();
+      assertEquals("company_name", created.getKey());
+      assertEquals(ArgumentType.Text, created.getType());
+      assertEquals("Acme", created.getValue());
+      assertEquals("Company name", created.getDescription());
+      assertSame(workflow, created.getWorkflow());
+      verify(workflowRepository).save(workflow);
+    }
+
+    @Test
+    @DisplayName("should update existing scope variable when id matches")
+    void given_existingScopeVariableId_should_updateVariable() {
+      // Arrange
+      Workflow workflow = buildTemplate();
+      ScopeVariable existing = new ScopeVariable();
+      existing.setKey("old_key");
+      existing.setType(ArgumentType.Text);
+      existing.setValue("old_value");
+      existing.setDescription("old desc");
+      existing.setWorkflow(workflow);
+      // Simulate UUID assigned by JPA
+      String varId = UUID.randomUUID().toString();
+      org.springframework.test.util.ReflectionTestUtils.setField(existing, "id", varId);
+      workflow.getWorkflowScopeVariables().add(existing);
+
+      ScopeVariableInput input =
+          new ScopeVariableInput(varId, "new_key", ArgumentType.IPv4, "10.0.0.1", "new desc");
+      WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
+      configInput.setWorkflowScopeVariables(List.of(input));
+
+      // Act
+      Workflow result = service.updateWorkflowConfiguration(workflow.getId(), configInput);
+
+      // Assert — same instance mutated in-place
+      assertEquals(1, result.getWorkflowScopeVariables().size());
+      ScopeVariable updated = result.getWorkflowScopeVariables().getFirst();
+      assertSame(existing, updated);
+      assertEquals("new_key", updated.getKey());
+      assertEquals(ArgumentType.IPv4, updated.getType());
+      assertEquals("10.0.0.1", updated.getValue());
+      assertEquals("new desc", updated.getDescription());
+      verify(workflowRepository).save(workflow);
+    }
+
+    @Test
+    @DisplayName("should remove scope variable when not present in input")
+    void given_removedScopeVariableId_should_deleteVariable() {
+      // Arrange
+      Workflow workflow = buildTemplate();
+      ScopeVariable existing = new ScopeVariable();
+      existing.setKey("to_remove");
+      existing.setType(ArgumentType.Text);
+      existing.setWorkflow(workflow);
+      String varId = UUID.randomUUID().toString();
+      org.springframework.test.util.ReflectionTestUtils.setField(existing, "id", varId);
+      workflow.getWorkflowScopeVariables().add(existing);
+
+      // Input omits the existing variable → it should be removed
+      WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
+      configInput.setWorkflowScopeVariables(List.of());
+
+      // Act
+      Workflow result = service.updateWorkflowConfiguration(workflow.getId(), configInput);
+
+      // Assert
+      assertTrue(result.getWorkflowScopeVariables().isEmpty());
+      verify(workflowRepository).save(workflow);
+    }
+
+    @Test
+    @DisplayName("should not save when variables are unchanged")
+    void given_unchangedScopeVariables_should_notSave() {
+      // Arrange
+      Workflow workflow = buildTemplate();
+      ScopeVariable existing = new ScopeVariable();
+      String varId = UUID.randomUUID().toString();
+      existing.setKey("my_key");
+      existing.setType(ArgumentType.Text);
+      existing.setValue("val");
+      existing.setDescription("desc");
+      existing.setWorkflow(workflow);
+      org.springframework.test.util.ReflectionTestUtils.setField(existing, "id", varId);
+      workflow.getWorkflowScopeVariables().add(existing);
+
+      // Input is identical to existing variable
+      ScopeVariableInput input =
+          new ScopeVariableInput(varId, "my_key", ArgumentType.Text, "val", "desc");
+      WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
+      configInput.setWorkflowScopeVariables(List.of(input));
+
+      // Act
+      Workflow result = service.updateWorkflowConfiguration(workflow.getId(), configInput);
+
+      // Assert — no change detected, save must not be called
+      assertSame(workflow, result);
+      verify(workflowRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("should not save when both existing and input variables are empty")
+    void given_emptyVariablesOnBothSides_should_notSave() {
+      // Arrange
+      Workflow workflow = buildTemplate();
+      WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
+      configInput.setWorkflowScopeVariables(List.of());
+
+      // Act
+      Workflow result = service.updateWorkflowConfiguration(workflow.getId(), configInput);
+
+      // Assert
+      assertSame(workflow, result);
+      verify(workflowRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("should copy scope variables when launching a workflow simulation")
+    void given_templateWithScopeVariables_should_copyThemToRun() {
+      // Arrange
+      String templateId = UUID.randomUUID().toString();
+      Exercise simulation = mock(Exercise.class);
+      Workflow template =
+          Workflow.builder()
+              .id(templateId)
+              .status(WorkflowStatus.TEMPLATE)
+              .version(1)
+              .simulation(simulation)
+              .isEdited(false)
+              .build();
+
+      ScopeVariable sourceVar = new ScopeVariable();
+      sourceVar.setKey("env");
+      sourceVar.setType(ArgumentType.Text);
+      sourceVar.setValue("production");
+      sourceVar.setDescription("Environment name");
+      sourceVar.setWorkflow(template);
+
+      when(workflowScopeRuleRepository.findAllByWorkflowId(templateId)).thenReturn(List.of());
+      when(scopeVariableRepository.findAllByWorkflowId(templateId)).thenReturn(List.of(sourceVar));
+      when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
+
+      // Act
+      Workflow run = service.launchWorkflowSimulation(template);
+
+      // Assert
+      assertEquals(1, run.getWorkflowScopeVariables().size());
+      ScopeVariable copiedVar = run.getWorkflowScopeVariables().getFirst();
+      assertNotSame(sourceVar, copiedVar);
+      assertEquals("env", copiedVar.getKey());
+      assertEquals(ArgumentType.Text, copiedVar.getType());
+      assertEquals("production", copiedVar.getValue());
+      assertSame(run, copiedVar.getWorkflow());
     }
   }
 }
