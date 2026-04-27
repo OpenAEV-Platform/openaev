@@ -61,7 +61,7 @@ const Simulations = () => {
       <ExercisePopover
         // @ts-expect-error: should pass Exercise model IF we have update as action
         exercise={exercise}
-        actions={isChaining ? ['Delete'] : ['Duplicate', 'Export', 'Delete']}
+        actions={isChaining ? ['Duplicate', 'Delete'] : ['Duplicate', 'Export', 'Delete']}
         onDelete={result => setExercises(exercises.filter(e => (e.exercise_id !== result)))}
         inList
       />
