@@ -219,7 +219,7 @@ class ChainingIntegrationTest extends IntegrationTest {
 
       long stepCountBefore = stepRepository.count();
 
-      stepService.createStepTemplates(workflowTemplate.getId(), List.of(step1, step2));
+      stepService.createStepTemplates(workflowTemplate, List.of(step1, step2));
 
       assertEquals(stepCountBefore + 2, stepRepository.count());
 
@@ -345,7 +345,7 @@ class ChainingIntegrationTest extends IntegrationTest {
       InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
       StepsCreateInput.StepInput step = buildValidStepInput();
       step.setDataStep(injectInput);
-      stepService.createStepTemplates(workflowTemplate.getId(), List.of(step));
+      stepService.createStepTemplates(workflowTemplate, List.of(step));
 
       String simulationResult =
           mvc.perform(post(SCENARIO_URI + "/" + scenarioId + "/exercise/running"))
@@ -431,7 +431,7 @@ class ChainingIntegrationTest extends IntegrationTest {
       InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
       StepsCreateInput.StepInput step = buildValidStepInput();
       step.setDataStep(injectInput);
-      stepService.createStepTemplates(workflowTemplate.getId(), List.of(step));
+      stepService.createStepTemplates(workflowTemplate, List.of(step));
       String simulation =
           mvc.perform(
                   post(SCENARIO_URI + "/" + createdScenario.getId() + "/exercise/running")
@@ -512,7 +512,7 @@ class ChainingIntegrationTest extends IntegrationTest {
       InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
       StepsCreateInput.StepInput step = buildValidStepInput();
       step.setDataStep(injectInput);
-      stepService.createStepTemplates(workflowTemplate.getId(), List.of(step));
+      stepService.createStepTemplates(workflowTemplate, List.of(step));
 
       String result =
           mvc.perform(

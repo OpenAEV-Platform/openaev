@@ -30,7 +30,6 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
 
   private final InjectExecutionStep injectExecutionStep;
 
-  private final WorkflowService workflowService;
   public final ConditionService conditionService;
   private final QueueChainingService queueChainingService;
   private final StepDelayQueueRepository stepDelayQueueRepository;
@@ -40,16 +39,13 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
   /**
    * Create a single step template.
    *
-   * @param workflowId id of the workflow linked to the step template
+   * @param workflow workflow linked to the step template
    * @param stepInput input to create the step template
    * @return created step template
    */
   @Transactional(rollbackFor = Exception.class)
-  public Step createStepTemplate(String workflowId, StepsCreateInput.StepInput stepInput)
+  public Step createStepTemplate(Workflow workflow, StepsCreateInput.StepInput stepInput)
       throws ChainingException {
-    Workflow workflow =
-        workflowService.getWorkflowByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
-
     ActionStep actionStep = factoryAction(stepInput.getStepAction(), null);
     Step step =
         actionStep
@@ -57,7 +53,7 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
             .orElseThrow(() -> new ChainingException("Failed to create step (TEMPLATE)"));
 
     step = saveStep(step);
-    stepConditionTemplate(stepInput.getConditions(), workflowId, step);
+    stepConditionTemplate(stepInput.getConditions(), workflow.getId(), step);
     conditionService.linkExistingConditionsToStep(step, stepInput.getConditionIds());
     return step;
   }
@@ -65,14 +61,14 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
   /**
    * Create step templates.
    *
-   * @param workflowId id of the workflow linked to the step templates
+   * @param workflow workflow linked to the step templates
    * @param steps list of input to create step templates
    */
   @Transactional(rollbackFor = Exception.class)
-  public void createStepTemplates(String workflowId, List<StepsCreateInput.StepInput> steps)
+  public void createStepTemplates(Workflow workflow, List<StepsCreateInput.StepInput> steps)
       throws ChainingException {
     for (StepsCreateInput.StepInput stepInput : steps) {
-      createStepTemplate(workflowId, stepInput);
+      createStepTemplate(workflow, stepInput);
     }
   }
 
@@ -86,7 +82,7 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     saveSteps(stepsTemplateCopy);
   }
 
-  public void evaluate(Workflow workflowRun) throws ChainingException {
+  public Workflow evaluate(Workflow workflowRun) throws ChainingException {
     String workflowTemplateId = workflowRun.getWorkflowTemplate().getId();
 
     // Get all step template
@@ -98,8 +94,7 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
           workflowTemplateId,
           workflowRun.getId());
       workflowRun.setStatus(WorkflowStatus.END);
-      workflowService.saveWorkflowRun(workflowRun);
-      return;
+      return workflowRun;
     }
 
     // Step template with valid conditions
@@ -116,6 +111,8 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
         && stepDelayQueueRepository.findAllByWorkflowRun(workflowRun).isEmpty()) {
       workflowRun.setStatus(WorkflowStatus.END);
     }
+
+    return workflowRun;
   }
 
   /**

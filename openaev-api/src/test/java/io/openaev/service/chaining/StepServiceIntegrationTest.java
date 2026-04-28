@@ -169,8 +169,6 @@ class StepServiceIntegrationTest extends IntegrationTest {
             .withSimulation(simulationComposer.forExercise(ExerciseFixture.createDefaultExercise()))
             .persist()
             .get();
-    String workflowId = workflow.getId();
-
     StepsCreateInput.StepInput input = buildInvalidInputCondition();
     input.setDataStep(injectInput);
 
@@ -179,7 +177,7 @@ class StepServiceIntegrationTest extends IntegrationTest {
     IllegalArgumentException exception =
         assertThrows(
             IllegalArgumentException.class,
-            () -> stepService.createStepTemplates(workflowId, List.of(input)));
+            () -> stepService.createStepTemplates(workflow, List.of(input)));
 
     // vérification du message
     assertEquals(
@@ -199,8 +197,6 @@ class StepServiceIntegrationTest extends IntegrationTest {
             .withSimulation(simulationComposer.forExercise(ExerciseFixture.createDefaultExercise()))
             .persist()
             .get();
-    String workflowId = workflow.getId();
-
     StepsCreateInput.StepInput input1 = buildInvalidInput();
     input1.setDataStep(injectInput);
 
@@ -209,7 +205,7 @@ class StepServiceIntegrationTest extends IntegrationTest {
 
     long countBefore = stepRepository.count();
 
-    stepService.createStepTemplates(workflowId, List.of(input1, input2));
+    stepService.createStepTemplates(workflow, List.of(input1, input2));
 
     // vérification du message
 
@@ -228,7 +224,6 @@ class StepServiceIntegrationTest extends IntegrationTest {
             .withSimulation(simulationComposer.forExercise(ExerciseFixture.createDefaultExercise()))
             .persist()
             .get();
-    String workflowId = workflow.getId();
 
     StepsCreateInput.StepInput input1 = buildInvalidInput();
     input1.setDataStep(injectInput);
@@ -239,7 +234,7 @@ class StepServiceIntegrationTest extends IntegrationTest {
     IllegalArgumentException exception =
         assertThrows(
             IllegalArgumentException.class,
-            () -> stepService.createStepTemplates(workflowId, List.of(input1, input2)));
+            () -> stepService.createStepTemplates(workflow, List.of(input1, input2)));
 
     // vérification du message
     assertEquals(

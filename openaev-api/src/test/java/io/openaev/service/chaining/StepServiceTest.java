@@ -78,7 +78,7 @@ public class StepServiceTest {
 
       assertThrows(
           ChainingException.class,
-          () -> stepService.createStepTemplates(workflowId, List.of(stepInput)));
+          () -> stepService.createStepTemplates(workflow, List.of(stepInput)));
 
       verify(conditionService, never()).saveCondition(any());
     }
@@ -97,7 +97,7 @@ public class StepServiceTest {
 
       setupCreateStepTemplates(stepInput, false);
 
-      stepService.createStepTemplates(workflowId, List.of(stepInput));
+      stepService.createStepTemplates(workflow, List.of(stepInput));
 
       verify(conditionService, never()).saveCondition(any());
     }
@@ -179,7 +179,7 @@ public class StepServiceTest {
           .when(conditionService)
           .createConditionTree(any(), any(), any(), any(), isNull());
 
-      stepService.createStepTemplates(workflowId, List.of(stepInput));
+      stepService.createStepTemplates(workflow, List.of(stepInput));
 
       // Verify createConditionTree was called once with the right inputs
       verify(conditionService).createConditionTree(eq(inputs), any(), any(), any(), isNull());
@@ -265,7 +265,7 @@ public class StepServiceTest {
       // Act + Assert
       assertThrows(
           IllegalArgumentException.class,
-          () -> stepService.createStepTemplates(workflowId, List.of(stepInput)));
+          () -> stepService.createStepTemplates(workflow, List.of(stepInput)));
     }
 
     @Test
@@ -303,7 +303,7 @@ public class StepServiceTest {
       // Act + Assert
       assertThrows(
           IllegalArgumentException.class,
-          () -> stepService.createStepTemplates(workflowId, List.of(stepInput)));
+          () -> stepService.createStepTemplates(workflow, List.of(stepInput)));
     }
   }
 
@@ -1350,7 +1350,7 @@ public class StepServiceTest {
 
     assertThrows(
         IllegalArgumentException.class,
-        () -> stepService.createStepTemplates(workflowId, List.of(input)));
+        () -> stepService.createStepTemplates(workflow, List.of(input)));
   }
 
   @Test

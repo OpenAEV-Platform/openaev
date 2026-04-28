@@ -1,7 +1,5 @@
 package io.openaev.service.chaining;
 
-import static io.openaev.database.model.ScopeRuleValueType.getAllContractOutputTypes;
-
 import com.google.gson.JsonElement;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
@@ -30,10 +28,10 @@ public class WorkflowService {
 
   private final StepService stepService;
   private final WorkflowStateService workflowStateService;
+  private final PreviewFeatureService previewFeatureService;
 
   private final WorkflowRepository workflowRepository;
   private final WorkflowScopeRuleRepository workflowScopeRuleRepository;
-  private final PreviewFeatureService previewFeatureService;
 
   // -- READ --
 
@@ -534,7 +532,7 @@ public class WorkflowService {
                     new ElementNotFoundException(
                         "Workflow (TEMPLATE) not found. Simulation ID: " + simulationId));
     Workflow workflowRun = launchWorkflowSimulation(workflowTemplate);
-    initializeStateFromScopeDefinition(workflowRun);
+    startWorkflow(workflowRun);
   }
 
   /**
@@ -551,17 +549,21 @@ public class WorkflowService {
                 () ->
                     new ElementNotFoundException(
                         "Workflow (TEMPLATE) not found. Scenario ID: " + scenarioId));
-    Workflow workflowRun = launchWorkflowScenario(workflowTemplateScenario, simulation);
 
+    Workflow workflowRun = launchWorkflowScenario(workflowTemplateScenario, simulation);
     Workflow workflowTemplateSimulation = workflowRun.getWorkflowTemplate();
     stepService.copyStepTemplate(workflowTemplateScenario, workflowTemplateSimulation);
 
-    Map<String, ContractOutputType> fieldTypeMap =
-        getAllContractOutputTypes().stream()
-            .collect(Collectors.toMap(ContractOutputType::name, type -> type));
-    Map<String, List<String>> scopeData = extractScopeData(workflowRun);
+    startWorkflow(workflowRun);
+  }
 
-    syncAndEvaluate(scopeData, fieldTypeMap, workflowRun);
+  private void startWorkflow(Workflow workflowRun) throws ChainingException {
+    //    Map<String, ContractOutputType> fieldTypeMap =
+    //        getAllContractOutputTypes().stream()
+    //            .collect(Collectors.toMap(ContractOutputType::name, type -> type));
+    //    Map<String, List<String>> scopeData = extractScopeData(workflowRun);
+    //
+    //    syncAndEvaluate(scopeData, fieldTypeMap, workflowRun);
   }
 
   /**
@@ -576,18 +578,19 @@ public class WorkflowService {
       throws ChainingException {
 
     if (dataToSync.isJsonNull()) {
-      log.warn("Received empty output for sync. Skipping.");
+      log.warn("Received empty data for sync. Skipping.");
       return;
     }
+
     workflowStateService.syncState(dataToSync, fieldTypeMap, workflowRun);
     stepService.evaluate(workflowRun);
+    saveWorkflowRun(workflowRun);
   }
 
   private Map<String, List<String>> extractScopeData(Workflow workflowRun) {
     if (workflowRun.getWhitelist() == null) {
       return Collections.emptyMap();
     }
-
     return workflowRun.getWhitelist().stream()
         .collect(
             Collectors.groupingBy(

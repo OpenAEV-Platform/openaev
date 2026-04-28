@@ -8,8 +8,11 @@ import io.openaev.api.chaining.dto.StepOutput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
+import io.openaev.database.model.Workflow;
+import io.openaev.database.model.WorkflowStatus;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.service.chaining.StepService;
+import io.openaev.service.chaining.WorkflowService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -31,6 +34,7 @@ public class StepApi {
   public static final String STEP_API = "/api/chaining/steps";
 
   private final StepService stepService;
+  private final WorkflowService workflowService;
 
   // -- CREATE --
   @Operation(summary = "Create a step template")
@@ -51,7 +55,10 @@ public class StepApi {
             .conditionIds(input.getConditionIds())
             .dataStep(input.getDataStep())
             .build();
-    return toOutput(stepService.createStepTemplate(input.getWorkflowId(), createInput));
+    Workflow workflow =
+        workflowService.getWorkflowByIdAndStatus(input.getWorkflowId(), WorkflowStatus.TEMPLATE);
+
+    return toOutput(stepService.createStepTemplate(workflow, createInput));
   }
 
   // -- READ --
