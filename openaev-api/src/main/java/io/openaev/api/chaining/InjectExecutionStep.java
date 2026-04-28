@@ -32,8 +32,7 @@ import io.openaev.rest.tag.TagService;
 import io.openaev.service.*;
 import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.StepService;
-import io.openaev.service.chaining.WorkflowService;
-import io.openaev.service.chaining.WorkflowStateService;
+import io.openaev.service.chaining.WorkflowExecutionOrchestrator;
 import io.openaev.utils.ConditionUtils;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.TargetType;
@@ -45,7 +44,6 @@ import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -81,7 +79,6 @@ public class InjectExecutionStep implements ActionStep {
   private final InjectService injectService;
   private final TagRuleService tagRuleService;
   private final AssetGroupService assetGroupService;
-  private final WorkflowStateService workflowStateService;
   private final ConditionService conditionService;
 
   private final InjectorContractRepository injectorContractRepository;
@@ -92,10 +89,10 @@ public class InjectExecutionStep implements ActionStep {
   private final InjectUtils injectUtils;
 
   private final Executor executor;
+  private final WorkflowExecutionOrchestrator workflowExecutionOrchestrator;
 
   @Resource protected ObjectMapper mapper;
   @PersistenceContext private EntityManager em;
-  @Autowired private WorkflowService workflowService;
 
   /**
    * Creates a new step template for an inject execution.
@@ -276,8 +273,8 @@ public class InjectExecutionStep implements ActionStep {
       // UPDATE step output
       stepRun.setOutput(jsonObject.toString());
       // Propagate state changes into engine if parsed output is present
-      workflowService.syncAndEvaluate(
-          output.stream().filter(o -> !o.get("parsed").isJsonNull()).toList(),
+      workflowExecutionOrchestrator.syncAndEvaluate(
+          gson.toJsonTree(output.stream().filter(o -> !o.get("parsed").isJsonNull()).toList()),
           fieldTypeMap,
           stepRun.getWorkflow());
 

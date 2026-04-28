@@ -26,6 +26,7 @@ import io.openaev.service.TeamService;
 import io.openaev.service.UserService;
 import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.StepService;
+import io.openaev.service.chaining.WorkflowExecutionOrchestrator;
 import io.openaev.utils.ConditionUtils;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.helpers.InjectTestHelper;
@@ -51,6 +52,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
   @MockitoBean private DocumentService documentService;
   @MockitoBean private InjectService injectService;
   @MockitoBean private ConditionService conditionService;
+  @MockitoBean private WorkflowExecutionOrchestrator workflowExecutionOrchestrator;
   @MockitoBean private ConditionUtils conditionUtils;
   @MockitoBean private io.openaev.executors.Executor executor;
   @MockitoBean private InjectStatusService injectStatusService;

@@ -1,6 +1,5 @@
 package io.openaev.service.chaining;
 
-import com.google.gson.JsonElement;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
 import io.openaev.database.model.*;
@@ -27,7 +26,7 @@ import org.springframework.util.CollectionUtils;
 public class WorkflowService {
 
   private final StepService stepService;
-  private final WorkflowStateService workflowStateService;
+  private final WorkflowExecutionOrchestrator workflowExecutionOrchestrator;
   private final PreviewFeatureService previewFeatureService;
 
   private final WorkflowRepository workflowRepository;
@@ -532,7 +531,7 @@ public class WorkflowService {
                     new ElementNotFoundException(
                         "Workflow (TEMPLATE) not found. Simulation ID: " + simulationId));
     Workflow workflowRun = launchWorkflowSimulation(workflowTemplate);
-    startWorkflow(workflowRun);
+    workflowExecutionOrchestrator.startWorkflow(workflowRun);
   }
 
   /**
@@ -554,47 +553,6 @@ public class WorkflowService {
     Workflow workflowTemplateSimulation = workflowRun.getWorkflowTemplate();
     stepService.copyStepTemplate(workflowTemplateScenario, workflowTemplateSimulation);
 
-    startWorkflow(workflowRun);
-  }
-
-  private void startWorkflow(Workflow workflowRun) throws ChainingException {
-    //    Map<String, ContractOutputType> fieldTypeMap =
-    //        getAllContractOutputTypes().stream()
-    //            .collect(Collectors.toMap(ContractOutputType::name, type -> type));
-    //    Map<String, List<String>> scopeData = extractScopeData(workflowRun);
-    //
-    //    syncAndEvaluate(scopeData, fieldTypeMap, workflowRun);
-  }
-
-  /**
-   * Syncs a completed inject's structured output traces into the workflow's global state entries.
-   * Exits early if the inject has no status, no traces, or no matching global state.
-   *
-   * @param workflowRun the RUN workflow
-   */
-  @Transactional
-  public void syncAndEvaluate(
-      JsonElement dataToSync, Map<String, ContractOutputType> fieldTypeMap, Workflow workflowRun)
-      throws ChainingException {
-
-    if (dataToSync.isJsonNull()) {
-      log.warn("Received empty data for sync. Skipping.");
-      return;
-    }
-
-    workflowStateService.syncState(dataToSync, fieldTypeMap, workflowRun);
-    stepService.evaluate(workflowRun);
-    saveWorkflowRun(workflowRun);
-  }
-
-  private Map<String, List<String>> extractScopeData(Workflow workflowRun) {
-    if (workflowRun.getWhitelist() == null) {
-      return Collections.emptyMap();
-    }
-    return workflowRun.getWhitelist().stream()
-        .collect(
-            Collectors.groupingBy(
-                rule -> rule.getValueType().getContractOutputType(),
-                Collectors.mapping(WorkflowScopeRule::getRuleValue, Collectors.toList())));
+    workflowExecutionOrchestrator.startWorkflow(workflowRun);
   }
 }
