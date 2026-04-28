@@ -1,5 +1,6 @@
 package io.openaev.service.tenants;
 
+import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.database.specification.UserSpecification.fromIds;
 import static io.openaev.database.specification.UserSpecification.inTenant;
 import static io.openaev.utils.pagination.CriteriaBuilderPagination.paginate;
@@ -10,11 +11,13 @@ import io.openaev.api.users.dto.UserMapper;
 import io.openaev.api.users.dto.UserOutput;
 import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.TenantContext;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.raw.RawUser;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.database.specification.UserSpecification;
+import io.openaev.multitenancy.DependenciesManager;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.UserService;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -33,7 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 @Transactional(rollbackFor = Exception.class)
-public class TenantUserService {
+public class TenantUserService implements DependenciesManager {
 
   private final UserService userService;
   private final UserRepository userRepository;
@@ -51,15 +54,19 @@ public class TenantUserService {
     var existingUser = userRepository.findByEmailIgnoreCase(input.email());
     if (existingUser.isPresent()) {
       UserOutput output = UserMapper.toOutput(existingUser.get());
-      tenantRepository.addUserToTenant(existingUser.get().getId(), tenantId);
-      tenantMembershipCacheManager.evict(existingUser.get().getId(), tenantId);
+      attachToTenant(existingUser.get().getId(), tenantId);
       return output;
     }
     User user = userService.createUser(input);
     UserOutput output = UserMapper.toOutput(user);
-    tenantRepository.addUserToTenant(user.getId(), tenantId);
-    tenantMembershipCacheManager.evict(user.getId(), tenantId);
+    attachToTenant(user.getId(), tenantId);
     return output;
+  }
+
+  /** Attaches a user to the specified tenant. Does nothing if already attached. */
+  public void attachToTenant(@NotBlank String userId, @NotBlank String tenantId) {
+    tenantRepository.addUserToTenant(userId, tenantId);
+    tenantMembershipCacheManager.evict(userId, tenantId);
   }
 
   // -- READ --
@@ -117,6 +124,18 @@ public class TenantUserService {
   public void detach(String userId) {
     tenantRepository.removeUserFromTenant(userId, tenantId());
     tenantMembershipCacheManager.evict(userId, tenantId());
+  }
+
+  // -- DEPENDENCIES MANAGER --
+
+  @Override
+  public void createDependencyForTenant(Tenant tenant) {
+    attachToTenant(currentUser().getId(), tenant.getId());
+  }
+
+  @Override
+  public void deleteDependencyForTenant(String tenantId) {
+    // users_tenants rows are cascade-deleted via FK on tenants table
   }
 
   // -- INTERNAL --
