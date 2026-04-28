@@ -35,6 +35,7 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
   handleExpectations,
   injectId,
   injectorContractId,
+  readOnly,
 }) => {
   // Standard hooks
   const { classes } = useStyles();
@@ -147,6 +148,7 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
       { userCanAddExpectations && predefinedExpectations?.length !== 0
         && (
           <InjectAddExpectation
+            disabled={readOnly}
             handleAddExpectation={handleAddExpectation}
             predefinedExpectations={predefinedExpectations}
           />

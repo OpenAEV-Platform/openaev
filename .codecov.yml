@@ -1,10 +1,49 @@
+codecov:
+  notify:
+    after_n_builds: 3
+
 coverage:
   status:
     project:
-      default:
+      backend:
         target: 80%
         informational: true
+        flags:
+          - backend
+      frontend:
+        target: 80%
+        informational: true
+        flags:
+          - frontend
+      e2e:
+        target: auto
+        informational: true
+        flags:
+          - e2e
     patch:
-      default:
+      backend:
         target: 80%
         informational: true
+        flags:
+          - backend
+      frontend:
+        target: 80%
+        informational: true
+        flags:
+          - frontend
+      e2e:
+        target: auto
+        informational: true
+        flags:
+          - e2e
+
+flags:
+  backend:
+    paths:
+      - openaev-api/src/main/java/
+  frontend:
+    paths:
+      - openaev-front/src/
+  e2e:
+    paths:
+      - openaev-front/src/

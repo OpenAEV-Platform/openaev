@@ -1,0 +1,339 @@
+name: "[Core] CI"
+
+on:
+  push:
+    branches: [ master, release/current ]
+    tags:
+      - "[0-9]*.[0-9]*.[0-9]*"
+  pull_request:
+    branches: [ master, release/current ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+
+  spotless-check:
+    name: "🔍 Spotless Check"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/spotless-check
+
+  backend-compile:
+    name: "🔨 Backend Compile"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/backend-compile
+
+  frontend-build:
+    name: "🎨 Frontend Build"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/frontend-build
+
+  # ──────────────────────────────────────────────────────────────────
+  # Quality gates (frontend quality, API tests, E2E tests, coverage)
+  # Defined in _quality-gates.yml to avoid duplication with
+  # core-release-dry-run.yml.
+  # ──────────────────────────────────────────────────────────────────
+  quality-gates:
+    uses: ./.github/workflows/_quality-gates.yml
+    secrets: inherit
+
+  backend-package:
+    name: "📦 Backend Package (glibc)"
+    needs:
+      - frontend-build
+      - backend-compile
+      - prepare-release-assets
+    timeout-minutes: 15
+    # Run even when prepare-release-assets is skipped (PRs).
+    # Note: !cancelled() is required so the `if` is evaluated when a
+    # dependency is skipped (success() alone returns false for skipped
+    # dependencies, which would cascade-skip e2e-tests).  Unlike always(),
+    # !cancelled() still respects manual workflow cancellation.
+    if: >-
+      ${{
+        !cancelled() &&
+        needs.frontend-build.result == 'success' &&
+        needs.backend-compile.result == 'success' &&
+        (needs.prepare-release-assets.result == 'success' || needs.prepare-release-assets.result == 'skipped')
+      }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/backend-package
+        with:
+          download-release-assets: ${{ needs.prepare-release-assets.result == 'success' }}
+
+  # Download agent/implant binaries and patch catalog version
+  prepare-release-assets:
+    name: "📦 Prepare Release Assets"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0 # full history needed for version tags
+
+      - name: Compute versions
+        id: versions
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+            echo "binary_version=${TAG}"   >> "$GITHUB_OUTPUT"
+            echo "catalog_version=${TAG}"  >> "$GITHUB_OUTPUT"
+          elif [[ "$GITHUB_REF" == refs/heads/release/current ]]; then
+            echo "binary_version=prerelease"  >> "$GITHUB_OUTPUT"
+            echo "catalog_version=prerelease" >> "$GITHUB_OUTPUT"
+          else
+            echo "binary_version=latest"   >> "$GITHUB_OUTPUT"
+            echo "catalog_version=rolling"  >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download agent & implant binaries
+        run: |
+          BINARY_VERSION="${{ steps.versions.outputs.binary_version }}"
+
+          # Use latest git tag as local filename for non-release builds
+          if [[ "${{ steps.versions.outputs.catalog_version }}" == "rolling" || "${{ steps.versions.outputs.catalog_version }}" == "prerelease" ]]; then
+            LOCAL_VERSION="$(git describe --tags --abbrev=0 2>/dev/null || echo "$BINARY_VERSION")"
+          else
+            LOCAL_VERSION="$BINARY_VERSION"
+          fi
+
+          chmod +x scripts/download-binaries.sh
+          if ! bash scripts/download-binaries.sh "$BINARY_VERSION" "$LOCAL_VERSION"; then
+            echo "❌ download-binaries.sh failed"
+            exit 1
+          fi
+
+          # Verify at least some binaries were downloaded
+          AGENT_COUNT=$(find openaev-api/src/main/resources/agents/ -type f 2>/dev/null | wc -l)
+          IMPLANT_COUNT=$(find openaev-api/src/main/resources/implants/ -type f 2>/dev/null | wc -l)
+          echo "📦 Downloaded $AGENT_COUNT agent(s) and $IMPLANT_COUNT implant(s)"
+          if [ "$AGENT_COUNT" -eq 0 ] && [ "$IMPLANT_COUNT" -eq 0 ]; then
+            echo "⚠️ Warning: No agent or implant binaries were downloaded"
+          fi
+
+      - name: Patch catalog version
+        run: |
+          CATALOG_FILE=openaev-api/src/main/resources/catalog/catalog-integrators.json
+          CATALOG_VERSION="${{ steps.versions.outputs.catalog_version }}"
+
+          if [ ! -f "$CATALOG_FILE" ]; then
+            echo "❌ Catalog file not found: $CATALOG_FILE"
+            ls -la openaev-api/src/main/resources/catalog/ 2>/dev/null || echo "  catalog/ directory does not exist"
+            exit 1
+          fi
+
+          if ! jq --arg ver "$CATALOG_VERSION" \
+            '.contracts[].container_version = $ver | .version = $ver' \
+            "$CATALOG_FILE" > catalog.tmp; then
+            echo "❌ jq failed to patch catalog file (invalid JSON?)"
+            exit 1
+          fi
+
+          if [ ! -s "catalog.tmp" ]; then
+            echo "❌ jq produced empty output"
+            exit 1
+          fi
+
+          # Validate the patched file is still valid JSON
+          if ! jq empty catalog.tmp 2>/dev/null; then
+            echo "❌ Patched catalog file is not valid JSON"
+            exit 1
+          fi
+
+          mv catalog.tmp "$CATALOG_FILE"
+          echo "✅ Catalog version patched to '$CATALOG_VERSION'"
+
+      - name: Upload release assets
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-assets
+          path: |
+            openaev-api/src/main/resources/agents/
+            openaev-api/src/main/resources/implants/
+            openaev-api/src/main/resources/catalog/
+
+  # Alpine/musl JAR build for Alpine-based Docker images
+  backend-package-musl:
+    name: "📦 Backend Package (musl)"
+    needs: [ frontend-build, backend-compile, prepare-release-assets ]
+    runs-on: ubuntu-latest
+    container:
+      image: maven:3.9.14-eclipse-temurin-21-alpine
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/backend-package-musl
+
+  # Build all Docker images locally (standard + UBI9)
+  docker-build:
+    name: "🐳 Docker Build (all images)"
+    needs:
+      - backend-package
+      - prepare-release-assets
+    timeout-minutes: 20
+    if: >-
+      ${{
+       !cancelled() &&
+        needs.backend-package.result == 'success' &&
+        (needs.prepare-release-assets.result == 'success' || needs.prepare-release-assets.result == 'skipped')
+      }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/docker-build-push
+        with:
+          build-ubi9: "true"
+          tags: openaev:ci-${{ github.run_id }}
+          ubi9-tags: openaev-ubi9:ci-${{ github.run_id }}
+
+  # ──────────────────────────────────────────────────────────────────
+  # Final sanity check — download every artifact and Docker image,
+  # verify presence and reasonable sizes.
+  # ──────────────────────────────────────────────────────────────────
+  sanity-check:
+    name: "🩺 Artifact & Image Sanity Check"
+    needs:
+      - frontend-build
+      - backend-compile
+      - backend-package
+      - backend-package-musl
+      - docker-build
+      - prepare-release-assets
+    if: >-
+      ${{
+        !cancelled() &&
+        needs.frontend-build.result == 'success' &&
+        needs.backend-compile.result == 'success' &&
+        needs.backend-package.result == 'success' &&
+        needs.backend-package-musl.result == 'success' &&
+        needs.docker-build.result == 'success'
+      }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: /tmp/artifacts
+
+      - name: Sanity check — artifacts & images
+        run: |
+          set -euo pipefail
+
+          PASS=0
+          FAIL=0
+          WARN=0
+
+          # ── Helper: check a single file ────────────────────────────
+          # Usage: check_file <path> <min_bytes> <label>
+          check_file() {
+            local path="$1" min_bytes="$2" label="$3"
+            if [ ! -f "$path" ]; then
+              echo "❌ MISSING: $label ($path)"
+              FAIL=$((FAIL + 1))
+              return
+            fi
+            local size
+            size=$(stat --format=%s "$path" 2>/dev/null || stat -f%z "$path" 2>/dev/null)
+            local size_human
+            if [ "$size" -ge 1073741824 ]; then
+              size_human="$(awk "BEGIN {printf \"%.2f GB\", $size / 1073741824}")"
+            elif [ "$size" -ge 1048576 ]; then
+              size_human="$(awk "BEGIN {printf \"%.1f MB\", $size / 1048576}")"
+            else
+              size_human="$(awk "BEGIN {printf \"%.1f KB\", $size / 1024}")"
+            fi
+            if [ "$size" -lt "$min_bytes" ]; then
+              echo "⚠️  TOO SMALL: $label — $size_human (expected ≥ $(numfmt --to=iec "$min_bytes"))"
+              WARN=$((WARN + 1))
+            else
+              echo "✅ $label — $size_human"
+              PASS=$((PASS + 1))
+            fi
+          }
+
+          # ── Helper: check a directory has files ────────────────────
+          # Usage: check_dir <path> <min_files> <label>
+          check_dir() {
+            local path="$1" min_files="$2" label="$3"
+            if [ ! -d "$path" ]; then
+              echo "❌ MISSING: $label ($path)"
+              FAIL=$((FAIL + 1))
+              return
+            fi
+            local count
+            count=$(find "$path" -type f | wc -l)
+            if [ "$count" -lt "$min_files" ]; then
+              echo "⚠️  TOO FEW FILES: $label — $count file(s) (expected ≥ $min_files)"
+              WARN=$((WARN + 1))
+            else
+              echo "✅ $label — $count file(s)"
+              PASS=$((PASS + 1))
+            fi
+          }
+
+          echo "══════════════════════════════════════════════════════════"
+          echo "  🩺  Artifact & Image Sanity Check"
+          echo "══════════════════════════════════════════════════════════"
+          echo ""
+
+          # ── 1. Frontend build ──────────────────────────────────────
+          echo "── Frontend ──"
+          check_dir "/tmp/artifacts/frontend-build" 5 "Frontend build bundle"
+          echo ""
+
+          # ── 2. Backend JARs ────────────────────────────────────────
+          echo "── Backend JARs ──"
+          # glibc JAR — expect at least 50 MB for a Spring Boot fat JAR
+          check_file "/tmp/artifacts/openaev-api-jar/openaev-api.jar" 52428800 "Backend JAR (glibc)"
+          # musl JAR
+          check_file "/tmp/artifacts/openaev-api-jar-musl/openaev-api.jar" 52428800 "Backend JAR (musl)"
+          echo ""
+
+          # ── 3. Release assets ──────────────────────────────────────
+          echo "── Release Assets ──"
+          check_dir "/tmp/artifacts/release-assets" 1 "Release assets (agents/implants/catalog)"
+          # Catalog JSON specifically
+          CATALOG=$(find /tmp/artifacts/release-assets -name 'catalog-integrators.json' 2>/dev/null | head -1)
+          if [ -n "$CATALOG" ]; then
+            check_file "$CATALOG" 1024 "Catalog JSON (catalog-integrators.json)"
+          else
+            echo "⚠️  Catalog JSON not found in release-assets"
+            WARN=$((WARN + 1))
+          fi
+          echo ""
+
+          # ── 4. Docker images (OCI archives) ────────────────────────
+          echo "── Docker Images ──"
+          # Standard image — multi-arch OCI archive, expect at least 150 MB compressed
+          check_file "/tmp/artifacts/openaev-image/openaev-image.tar.gz" 157286400 "Standard Docker image (OCI archive)"
+          # UBI9 image
+          check_file "/tmp/artifacts/openaev-ubi9-image/openaev-ubi9-image.tar.gz" 157286400 "UBI9 Docker image (OCI archive)"
+          echo ""
+
+          # ── Summary ────────────────────────────────────────────────
+          echo "══════════════════════════════════════════════════════════"
+          echo "  Summary: ✅ $PASS passed  ⚠️ $WARN warnings  ❌ $FAIL failures"
+          echo "══════════════════════════════════════════════════════════"
+
+          if [ "$FAIL" -gt 0 ]; then
+            echo ""
+            echo "❌ Sanity check FAILED — $FAIL critical artifact(s) missing"
+            exit 1
+          fi
+
+          if [ "$WARN" -gt 0 ]; then
+            echo ""
+            echo "⚠️ Sanity check passed with $WARN warning(s) — some artifacts are smaller than expected"
+          fi

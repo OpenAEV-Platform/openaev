@@ -5868,14 +5868,6 @@ export type PayloadCreateInput = BasePayloadCreateInput &
     | BasePayloadCreateInputPayloadTypeMapping<"NetworkTraffic", NetworkTraffic>
   );
 
-export interface PayloadExportRequestInput {
-  payloads?: PayloadExportTarget[];
-}
-
-export interface PayloadExportTarget {
-  payload_id?: string;
-}
-
 export interface PayloadInput {
   command_content?: string | null;
   command_executor?: string | null;

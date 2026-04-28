@@ -1,0 +1,14 @@
+FROM registry.access.redhat.com/ubi9/openjdk-21-runtime AS app
+
+USER root
+
+RUN set -eux; \
+    curl -L -o /usr/bin/tini https://github.com/krallin/tini/releases/download/v0.19.0/tini; \
+    echo "93dcc18adc78c65a028a84799ecf8ad40c936fdfc5f2a57b1acda5a8117fa82c /usr/bin/tini" | sha256sum -c -; \
+    chmod +x /usr/bin/tini;
+
+WORKDIR /opt/openaev
+COPY openaev-build/openaev-api.jar ./
+
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["java", "-jar", "openaev-api.jar"]
