@@ -1118,7 +1118,7 @@
   "Manage users": "사용자 관리",
   "Manage users for group: {groupName}": "그룹 {groupName}의 사용자 관리",
   "Manage roles for group: {groupName}": "그룹 {groupName}의 역할 관리",
-  "Manage grants for group: {groupName}": "그룹 {groupName}에 대한 권한 관리",
+  "Manage grants for group: {groupName}": "그룹 {groupName}에 대한 보조금 관리",
   "Manage your enterprise edition license": "엔터프라이즈 에디션 라이선스 관리",
   "Manage+Delete": "관리+삭제",
   "managed assets": "관리되는 자산",

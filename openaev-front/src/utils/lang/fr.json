@@ -1117,7 +1117,7 @@
   "Manage users": "Gérer les utilisateurs",
   "Manage users for group: {groupName}": "Gérer les utilisateurs du groupe: {groupName}",
   "Manage roles for group: {groupName}": "Gérer les rôles du groupe: {groupName}",
-  "Manage grants for group: {groupName}": "Gérer les subventions du groupe: {groupName}",
+  "Manage grants for group: {groupName}": "Gérer les permissions du groupe: {groupName}",
   "Manage your enterprise edition license": "Gérer votre licence d'édition entreprise",
   "Manage+Delete": "Gérer+Supprimer",
   "managed assets": "actifs gérés",

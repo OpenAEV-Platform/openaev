@@ -26,7 +26,7 @@ const GroupManageGrants: FunctionComponent<GroupManageGrantsProps> = ({
 
   const title = t('Manage grants for group: {groupName}', { groupName: group.group_name });
 
-    return (
+  return (
     <Drawer
       open={openGrants}
       handleClose={handleCloseGrants}
