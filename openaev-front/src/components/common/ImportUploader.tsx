@@ -1,6 +1,6 @@
 import { CloudUploadOutlined } from '@mui/icons-material';
 import { Button, CircularProgress, type CircularProgressProps, IconButton, ToggleButton, Tooltip } from '@mui/material';
-import { type ChangeEvent, type FunctionComponent, type ReactNode, useRef, useState } from 'react';
+import { type ChangeEvent, type FunctionComponent, useRef, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../i18n';
@@ -15,9 +15,6 @@ interface Props {
   fileAccepted?: string;
   allowReUpload?: boolean;
   disabled?: boolean;
-  buttonLabel?: string;
-  buttonStartIcon?: ReactNode;
-  buttonVariant?: 'text' | 'outlined' | 'contained';
 }
 
 const ImportUploader: FunctionComponent<Props> = ({
@@ -28,9 +25,6 @@ const ImportUploader: FunctionComponent<Props> = ({
   fileAccepted = '',
   allowReUpload = true,
   disabled = false,
-  buttonLabel,
-  buttonStartIcon,
-  buttonVariant = 'outlined',
 }) => {
   // Standard hooks
   const { classes } = useStyles();
@@ -109,12 +103,11 @@ const ImportUploader: FunctionComponent<Props> = ({
             onClick={handleOpenUpload}
             disabled={disabled}
             size="small"
-            variant={buttonVariant}
+            variant="outlined"
             color="inherit"
             className={classes.buttonImport}
-            startIcon={buttonStartIcon}
           >
-            {buttonLabel ? t(buttonLabel) : t('Import')}
+            {t('Import')}
           </Button>
         </Tooltip>
       )}
