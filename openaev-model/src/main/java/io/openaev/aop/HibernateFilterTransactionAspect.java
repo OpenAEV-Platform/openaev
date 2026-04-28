@@ -42,9 +42,12 @@ public class HibernateFilterTransactionAspect {
     // an explicit @Transactional block. The value is overwritten on each request
     // by the same aspect before any query runs.
     session.doWork(
-        connection ->
-            connection
-                .createStatement()
-                .execute("SET app.current_tenant = '" + tenantId.replace("'", "''") + "'"));
+        connection -> {
+          try (var statement =
+              connection.prepareStatement("select set_config('app.current_tenant', ?, false)")) {
+            statement.setString(1, tenantId);
+            statement.execute();
+          }
+        });
   }
 }

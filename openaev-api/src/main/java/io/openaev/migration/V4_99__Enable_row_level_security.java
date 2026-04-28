@@ -1,7 +1,11 @@
 package io.openaev.migration;
 
+import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
+
 import java.sql.ResultSet;
 import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
 import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
@@ -24,50 +28,6 @@ public class V4_99__Enable_row_level_security extends BaseJavaMigration {
   /** Non-superuser role the application adopts at runtime so that RLS policies are enforced. */
   static final String APP_ROLE = "openaev_app";
 
-  /**
-   * All tables that have a {@code tenant_id} column (entities implementing {@code TenantBase}).
-   * Keep this list in sync when adding new tenant-scoped entities.
-   */
-  private static final String[] TENANT_SCOPED_TABLES = {
-    "agents",
-    "asset_agent_jobs",
-    "asset_groups",
-    "assets",
-    "attack_patterns",
-    "challenges",
-    "channels",
-    "collector_types",
-    "collectors",
-    "connector_instances",
-    "custom_dashboards",
-    "cwes",
-    "datapacks",
-    "documents",
-    "domains",
-    "executors",
-    "exercises",
-    "findings",
-    "groups",
-    "import_mappers",
-    "injectors",
-    "injectors_contracts",
-    "injects",
-    "kill_chain_phases",
-    "lessons_templates",
-    "mitigations",
-    "notification_rules",
-    "organizations",
-    "payloads",
-    "roles",
-    "scenarios",
-    "tag_rules",
-    "tags",
-    "teams",
-    "tenant_settings",
-    "tenant_xtmhub_registrations",
-    "vulnerabilities",
-  };
-
   @Override
   public void migrate(Context context) throws Exception {
     try (Statement statement = context.getConnection().createStatement()) {
@@ -80,7 +40,9 @@ public class V4_99__Enable_row_level_security extends BaseJavaMigration {
       statement.execute(
           "ALTER DATABASE \""
               + dbName
-              + "\" SET app.current_tenant = '00000000-0000-0000-0000-000000000000'");
+              + "\" SET app.current_tenant = '"
+              + DEFAULT_TENANT_UUID
+              + "'");
 
       // -- 2. Create a non-superuser role that the app will adopt via SET ROLE.
       //       Superusers bypass RLS, so the app must not run queries as a superuser.
@@ -104,18 +66,33 @@ public class V4_99__Enable_row_level_security extends BaseJavaMigration {
       statement.execute(
           "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO " + APP_ROLE);
 
-      // -- 3. Enable RLS on all tenant-scoped tables
-      for (String table : TENANT_SCOPED_TABLES) {
+      // -- 3. Discover all tenant-scoped tables dynamically (those with a tenant_id column,
+      //       excluding the tenants table itself), then enable RLS on each one.
+      //       Results are fully materialized into the list before the ResultSet closes.
+      List<String> tenantScopedTables = new ArrayList<>();
+      try (Statement tableStmt = context.getConnection().createStatement();
+          ResultSet tableRs =
+              tableStmt.executeQuery(
+                  "SELECT table_name FROM information_schema.columns"
+                      + " WHERE table_schema = 'public' AND column_name = 'tenant_id'"
+                      + " AND table_name != 'tenants' ORDER BY table_name")) {
+        while (tableRs.next()) {
+          tenantScopedTables.add(tableRs.getString("table_name"));
+        }
+      }
+
+      for (String table : tenantScopedTables) {
+        String quotedTable = "\"" + table + "\"";
         String policyName = "tenant_isolation_" + table;
 
-        statement.addBatch("ALTER TABLE " + table + " ENABLE ROW LEVEL SECURITY");
-        statement.addBatch("ALTER TABLE " + table + " FORCE ROW LEVEL SECURITY");
-        statement.addBatch("DROP POLICY IF EXISTS " + policyName + " ON " + table);
+        statement.addBatch("ALTER TABLE " + quotedTable + " ENABLE ROW LEVEL SECURITY");
+        statement.addBatch("ALTER TABLE " + quotedTable + " FORCE ROW LEVEL SECURITY");
+        statement.addBatch("DROP POLICY IF EXISTS " + policyName + " ON " + quotedTable);
         statement.addBatch(
             "CREATE POLICY "
                 + policyName
                 + " ON "
-                + table
+                + quotedTable
                 + " USING (tenant_id = current_setting('app.current_tenant'))");
       }
 
