@@ -92,9 +92,7 @@ const GroupManageUsers: FunctionComponent<Props> = ({
     onSubmit(selectedUserValues.map(u => u.user_id));
     handleClose();
   };
-  const title = groupName
-    ? `${t('Manage users for group')}: ${groupName}`
-    : t('Manage the users of this group');
+  const title = t('Manage users for group: {groupName}', { groupName });
 
   return (
     <Drawer

@@ -95,9 +95,7 @@ const PlatformGroupManageRoles: FC<Props> = ({
     onSubmit(selectedRoleValues.map(r => r.platform_role_id));
     handleClose();
   };
-  const title = platformGroupName
-    ? `${t('Manage the platform roles of this group')}: ${platformGroupName}`
-    : t('Manage the platform roles of this group');
+  const title = t('Manage platform roles for group: {groupName}', { platformGroupName });
 
   return (
     <Drawer

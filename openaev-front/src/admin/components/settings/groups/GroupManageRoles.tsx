@@ -64,9 +64,7 @@ const GroupManageRoles: FC<GroupManageRolesProps> = (
     onSubmit(selectedRoleIds);
     handleClose();
   };
-  const title = groupName
-    ? `${t('Manage roles for group')}: ${groupName}`
-    : t('Manage the roles of this group');
+  const title = t('Manage roles for group: {groupName}', { groupName: groupName ?? '' });
 
   return (
     <Drawer

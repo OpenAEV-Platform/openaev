@@ -23,9 +23,7 @@ const GroupManageGrants: FunctionComponent<GroupManageGrantsProps> = ({
   fetchAndUpdateGroup,
 }) => {
   const { t } = useFormatter();
-  const title = group.group_name
-    ? `${t('Manage grants for group')}: ${group.group_name}`
-    : t('Manage the grants of this group');
+  const title = t('Manage grants for group: {groupName}', { groupName: group.group_name });
 
   return (
     <Drawer
