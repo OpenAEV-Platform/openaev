@@ -22,7 +22,7 @@ import type {
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useSearchAndFilter from '../../../../utils/SortingFiltering';
-import { buildTenantApiPath } from '../../../../utils/tenant-url-helper';
+import { buildTenantApiPath } from '../../../../utils/url-helper';
 import ConnectorCard from '../common/ConnectorCard';
 import CreateConnectorInstanceDrawer from '../connector_instance/CreateConnectorInstanceDrawer';
 import { ConnectorContext, type ConnectorOutput } from './ConnectorContext';

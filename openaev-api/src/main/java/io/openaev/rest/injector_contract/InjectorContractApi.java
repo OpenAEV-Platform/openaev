@@ -76,7 +76,9 @@ public class InjectorContractApi extends RestBehavior {
                 pageable,
                 input.isIncludeFullDetails()
                     ? InjectorContractService.OutputMode.FULL
-                    : InjectorContractService.OutputMode.BASE),
+                    : InjectorContractService.OutputMode.BASE,
+                input.getInjectorContractIdsToIgnore(),
+                input.getInjectorContractIdsToProcess()),
         handleArchitectureFilter(input),
         InjectorContract.class);
   }

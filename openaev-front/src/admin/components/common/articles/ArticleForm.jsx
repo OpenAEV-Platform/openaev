@@ -18,7 +18,7 @@ import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
 import RestrictionAccess from '../../../../utils/permissions/RestrictionAccess';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import { buildTenantApiPath } from '../../../../utils/tenant-url-helper.ts';
+import { buildTenantApiPath } from '../../../../utils/url-helper';
 import ChannelIcon from '../../components/channels/ChannelIcon';
 import DocumentPopover from '../../components/documents/DocumentPopover';
 import DocumentType from '../../components/documents/DocumentType';

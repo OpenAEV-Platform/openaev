@@ -14,7 +14,7 @@ import useDataLoader from '../../utils/hooks/useDataLoader';
 import { AbilityContext } from '../../utils/permissions/permissionsContext';
 import RestrictionAccess from '../../utils/permissions/RestrictionAccess';
 import { ACTIONS, SUBJECTS } from '../../utils/permissions/types';
-import { buildTenantApiPath } from '../../utils/tenant-url-helper';
+import { buildTenantApiPath } from '../../utils/url-helper';
 import ButtonPopover, { type PopoverEntry } from '../common/ButtonPopover';
 import { useFormatter } from '../i18n';
 import ItemTags from '../ItemTags';

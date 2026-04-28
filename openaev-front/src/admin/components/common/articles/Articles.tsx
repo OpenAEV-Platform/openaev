@@ -18,7 +18,7 @@ import { type Article } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useSearchAndFilter from '../../../../utils/SortingFiltering';
-import { buildTenantApiPath } from '../../../../utils/tenant-url-helper';
+import { buildTenantApiPath } from '../../../../utils/url-helper';
 import ChannelIcon from '../../components/channels/ChannelIcon';
 import { type ChannelOption } from '../../components/channels/ChannelOption';
 import ChannelsFilter from '../../components/channels/ChannelsFilter';

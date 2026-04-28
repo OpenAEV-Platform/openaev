@@ -3,7 +3,7 @@ import { useTheme } from '@mui/material/styles';
 import { Fragment } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import { buildTenantApiPath } from '../../../../utils/tenant-url-helper.ts';
+import { buildTenantApiPath } from '../../../../utils/url-helper';
 
 const useStyles = makeStyles()(() => ({
   root: {

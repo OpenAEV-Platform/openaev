@@ -10,7 +10,7 @@ import useTabs from '../../../components/common/tabs/useTabs';
 import { useFormatter } from '../../../components/i18n';
 import { type BasePayload, type CalderaSettings, type ExecutorOutput, type Token } from '../../../utils/api-types';
 import useAuth from '../../../utils/hooks/useAuth';
-import { DEFAULT_TENANT_UUID } from '../../../utils/tenant-url-helper';
+import { DEFAULT_TENANT_UUID } from '../../../utils/url-helper';
 import { copyToClipboard, download } from '../../../utils/utils';
 
 const USER = 'user';

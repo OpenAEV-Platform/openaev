@@ -21,7 +21,7 @@ import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { exerciseOptions, scenarioOptions, tagOptions } from '../../../../utils/Option';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import { buildTenantApiPath } from '../../../../utils/tenant-url-helper.ts';
+import { buildTenantApiPath } from '../../../../utils/url-helper';
 import DocumentForm from './DocumentForm';
 
 const entityPaths = {

@@ -16,6 +16,7 @@ import ItemTargets from '../../../../components/ItemTargets';
 import { type TagRuleOutput } from '../../../../utils/api-types';
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { TENANT_SETTINGS_LABEL } from '../../nav/config/settings.config';
 import TagRuleCreate from './TagRuleCreate';
 import TagRulePopover from './TagRulePopover';
 
@@ -68,7 +69,7 @@ const TagRules = () => {
     <>
       <Breadcrumbs
         variant="list"
-        elements={[{ label: t('Settings') }, { label: t('Customization') }, {
+        elements={[{ label: t(TENANT_SETTINGS_LABEL) }, { label: t('Customization') }, {
           label: t('Default asset rules'),
           current: true,
         }]}

@@ -52,14 +52,6 @@ public class PayloadComposer extends ComposerBase<Payload> {
       return this;
     }
 
-    public Composer withOutputParser(OutputParserComposer.Composer outputParserComposer) {
-      outputParserComposers.add(outputParserComposer);
-      Set<OutputParser> outputParsers = payload.getOutputParsers();
-      outputParsers.add(outputParserComposer.get());
-      this.payload.setOutputParsers(outputParsers);
-      return this;
-    }
-
     @Override
     public Composer persist() {
       documentComposer.ifPresent(DocumentComposer.Composer::persist);

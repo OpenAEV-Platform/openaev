@@ -4366,7 +4366,14 @@ export interface InjectorContractInput {
 export interface InjectorContractSearchPaginationInput {
   /** Filter object to search within filterable attributes */
   filterGroup?: FilterGroup;
+  /** Include the content on the partial object if set to true */
+  include_content_details?: boolean;
+  /** Allow the return of a full object if true, partial object if false */
   include_full_details?: boolean;
+  /** List of all the ids to ignore on the search */
+  injector_contract_ids_to_ignore?: string[];
+  /** List of all the ids to include on the search */
+  injector_contract_ids_to_process?: string[];
   /**
    * Page number to get
    * @format int32
@@ -5324,25 +5331,6 @@ export interface PageInjectTarget {
 
 export interface PageInjectTestStatusOutput {
   content?: InjectTestStatusOutput[];
-  empty?: boolean;
-  first?: boolean;
-  last?: boolean;
-  /** @format int32 */
-  number?: number;
-  /** @format int32 */
-  numberOfElements?: number;
-  pageable?: PageableObject;
-  /** @format int32 */
-  size?: number;
-  sort?: SortObject[];
-  /** @format int64 */
-  totalElements?: number;
-  /** @format int32 */
-  totalPages?: number;
-}
-
-export interface PageInjectorContractBaseOutput {
-  content?: InjectorContractBaseOutput[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
@@ -6968,10 +6956,25 @@ export interface Scenario {
   scenario_users_number?: number;
 }
 
+export interface ScenarioAndInjectorContractsInputs {
+  injector_contract_search_pagination_input: InjectorContractSearchPaginationInput;
+  /** @minLength 1 */
+  locale: string;
+  scenario_input: ScenarioInput;
+}
+
 export interface ScenarioChallengesReader {
   scenario_challenges?: ChallengeInformation[];
   scenario_id?: string;
   scenario_information?: PublicScenario;
+}
+
+export interface ScenarioIdsAndInjectorContractsInputs {
+  injector_contract_search_pagination_input: InjectorContractSearchPaginationInput;
+  /** @minLength 1 */
+  locale: string;
+  /** @minItems 1 */
+  scenario_ids: string[];
 }
 
 export interface ScenarioInput {
@@ -8003,6 +8006,48 @@ export interface ThreatArsenalActionUpdateInput {
   dns_resolution_hostname?: string;
   executable_file?: string;
   file_drop_file?: string;
+}
+
+export interface ThreatArsenalActionWithContentOutput {
+  /** CPU architecture targeted for action execution */
+  action_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
+  /** Action content */
+  action_content?: string;
+  /**
+   * Action injectors names
+   * @minLength 1
+   */
+  action_injector_name: string;
+  /** Action implementation injector type */
+  action_injector_type?: string;
+  /** Action display labels */
+  action_labels: Record<string, string>;
+  /** Action implementation payload type */
+  action_payload_type?: string;
+  /** Supported endpoint platforms for this action */
+  action_platforms?: (
+    | "Linux"
+    | "Windows"
+    | "MacOS"
+    | "Container"
+    | "Service"
+    | "Generic"
+    | "Internal"
+    | "Unknown"
+  )[];
+  /** Injector contract external Id */
+  injector_contract_external_id?: string;
+  injector_contract_has_full_details?: boolean;
+  /**
+   * Injector contract Id
+   * @minLength 1
+   */
+  injector_contract_id: string;
+  /**
+   * Timestamp when the injector contract was last updated
+   * @format date-time
+   */
+  injector_contract_updated_at: string;
 }
 
 export interface Token {
