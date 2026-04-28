@@ -1,6 +1,5 @@
 package io.openaev.api.chaining;
 
-import static io.openaev.api.chaining.ChainingApi.CHAINING_URI;
 import static io.openaev.api.chaining.StepMapper.toOutput;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
@@ -28,12 +27,13 @@ import org.springframework.web.bind.annotation.*;
 
 @Slf4j
 @RestController
-@RequestMapping(StepApi.TENANT_STEP_URI)
+@RequestMapping({StepApi.STEP_API, StepApi.TENANT_STEP_API})
 @RequiredArgsConstructor
 @Tag(name = "Step API", description = "CRUD operations for workflow step templates")
 public class StepApi {
 
-  public static final String TENANT_STEP_URI = TENANT_PREFIX + CHAINING_URI + "/steps";
+  public static final String STEP_API = "/api/chaining/steps";
+  public static final String TENANT_STEP_API = TENANT_PREFIX + "/chaining/steps";
 
   private final StepService stepService;
   private final PreviewFeatureService previewFeatureService;
