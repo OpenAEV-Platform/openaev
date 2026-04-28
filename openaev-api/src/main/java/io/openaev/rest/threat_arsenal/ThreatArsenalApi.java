@@ -1,23 +1,21 @@
 package io.openaev.rest.threat_arsenal;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
-import static io.openaev.utils.ArchitectureFilterUtils.handleArchitectureFilter;
-import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
-import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.injector_contract.InjectorContractService;
+import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
 import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractDomainCountOutput;
-import io.openaev.rest.threat_arsenal.dto.ThreatArsenalAction;
-import io.openaev.rest.threat_arsenal.dto.ThreatArsenalActionCreateInput;
-import io.openaev.rest.threat_arsenal.dto.ThreatArsenalActionFullOutput;
-import io.openaev.rest.threat_arsenal.dto.ThreatArsenalActionUpdateInput;
+import io.openaev.rest.threat_arsenal.dto.*;
 import io.openaev.schema.model.PropertySchemaDTO;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -66,16 +64,25 @@ public class ThreatArsenalApi {
   }
 
   @Operation(summary = "Search threat arsenal")
+  @ApiResponse(
+      responseCode = "200",
+      content =
+          @Content(
+              schema =
+                  @Schema(
+                      oneOf = {
+                        ThreatArsenalAction.class,
+                        ThreatArsenalActionWithContentOutput.class,
+                      })))
   @PostMapping({THREAT_ARSENAL_URL + "/search", TENANT_THREAT_ARSENAL_URL + "/search"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
   public Page<? extends InjectorContractBaseOutput> injectorContracts(
-      @RequestBody @Valid final SearchPaginationInput input) {
-    return buildPaginationCriteriaBuilder(
-        (spec, specCount, pageable) ->
-            this.injectorContractService.getSinglePage(
-                spec, specCount, pageable, InjectorContractService.OutputMode.THREAT_ARSENAL),
-        handleArchitectureFilter(threatArsenalService.translateSearchInput(input)),
-        InjectorContract.class);
+      @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
+    InjectorContractService.OutputMode outputMode =
+        input.isIncludeContentDetails()
+            ? InjectorContractService.OutputMode.THREAT_ARSENAL_CONTENT
+            : InjectorContractService.OutputMode.THREAT_ARSENAL;
+    return this.threatArsenalService.searchInjectorContracts(outputMode, input);
   }
 
   @PostMapping({THREAT_ARSENAL_URL, TENANT_THREAT_ARSENAL_URL})

@@ -1,5 +1,6 @@
-import { HelpOutlineOutlined } from '@mui/icons-material';
+import { HelpOutlineOutlined, MovieFilterOutlined } from '@mui/icons-material';
 import {
+  Checkbox, IconButton,
   List,
   ListItem,
   ListItemButton,
@@ -31,13 +32,16 @@ import {
   type SearchPaginationInput,
   type ThreatArsenalAction,
 } from '../../../utils/api-types';
+import useEntityToggle from '../../../utils/hooks/useEntityToggle';
 import { Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import IconBar from '../common/domains/IconBar';
 import useDomainIconFilter from '../common/domains/useDomainIconFilter';
 import InjectIcon from '../common/injects/InjectIcon';
+import ToolBar from '../common/ToolBar';
 import InjectorContractPopover from '../integrations/injectors/injector_contracts/InjectorContractPopover';
 import PayloadStatusComponent from '../payloads/PayloadStatusComponent';
+import ThreatArsenalRunTestDrawer from './bulk/ThreatArsenalRunTestDrawer';
 import CreateThreatArsenalAction from './CreateThreatArsenalAction';
 import ThreatArsenalActionPopover from './ThreatArsenalActionPopover';
 import ThreatArsenalInformationDrawer from './ThreatArsenalInformationDrawer';
@@ -68,8 +72,9 @@ const ThreatArsenal = () => {
   const { classes } = useStyles();
 
   const [selectedThreatArsenalAction, setSelectedThreatArsenalAction] = useState<ThreatArsenalAction | null>(null);
-
+  const [isRunTestDrawerOpened, setRunTestDrawerOpened] = useState<boolean>(false);
   const [threatArsenalActions, setThreatArsenalActions] = useState<ThreatArsenalAction[]>([]);
+
   const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage(
     'threat-arsenal',
     buildSearchPagination({}),
@@ -81,6 +86,17 @@ const ThreatArsenal = () => {
     setLoading(true);
     return searchThreatArsenalActions({ ...input }).finally(() => setLoading(false));
   };
+
+  // Toolbar
+  const {
+    selectedElements,
+    deSelectedElements,
+    selectAll,
+    handleClearSelectedElements,
+    handleToggleSelectAll,
+    onToggleEntity,
+    numberOfSelectedElements,
+  } = useEntityToggle<ThreatArsenalAction>('injector_contract', threatArsenalActions, queryableHelpers.paginationHelpers.getTotalElements());
 
   const headers: Header[] = useMemo(() => [
     {
@@ -199,6 +215,15 @@ const ThreatArsenal = () => {
           style={{ paddingTop: 0 }}
           secondaryAction={<>&nbsp;</>}
         >
+          <ListItemIcon style={{ minWidth: 40 }}>
+            <Checkbox
+              edge="start"
+              checked={selectAll}
+              disableRipple
+              onChange={handleToggleSelectAll}
+              disabled={typeof handleToggleSelectAll !== 'function'}
+            />
+          </ListItemIcon>
 
           <ListItemIcon />
           <ListItemText
@@ -261,6 +286,21 @@ const ThreatArsenal = () => {
                       onClick={() => setSelectedThreatArsenalAction(action)}
                       selected={selectedThreatArsenalAction?.injector_contract_id === action.injector_contract_id}
                     >
+                      <ListItemIcon
+                        style={{ minWidth: 40 }}
+                        onClick={event => onToggleEntity(action, event)}
+                      >
+                        <Checkbox
+                          edge="start"
+                          checked={
+                            (selectAll && !(action.injector_contract_id
+                              in (deSelectedElements || {})))
+                              || action.injector_contract_id in (selectedElements || {})
+                          }
+                          disableRipple
+                        />
+                      </ListItemIcon>
+
                       <ListItemIcon style={{ minWidth: 56 }}>
                         <InjectIcon
                           variant="list"
@@ -307,6 +347,42 @@ const ThreatArsenal = () => {
           threatArsenalAction={selectedThreatArsenalAction}
         />
       )}
+      {isRunTestDrawerOpened && (
+        <ThreatArsenalRunTestDrawer
+          isExclusionMode={selectAll}
+          isOnlyOneItemSelected={selectAll ? Object.keys(deSelectedElements).length === queryableHelpers.paginationHelpers.getTotalElements() - 1 : numberOfSelectedElements === 1}
+          selectedElements={selectedElements}
+          deSelectedElements={deSelectedElements}
+          searchPaginationInput={searchPaginationInput}
+          open={isRunTestDrawerOpened}
+          onClose={() => setRunTestDrawerOpened(false)}
+        />
+      )}
+      {
+        numberOfSelectedElements > 0 && (
+          <ToolBar
+            numberOfSelectedElements={numberOfSelectedElements}
+            totalNumberOfElements={queryableHelpers.paginationHelpers.getTotalElements()}
+            selectedElements={selectedElements}
+            deSelectedElements={deSelectedElements}
+            selectAll={selectAll}
+            handleClearSelectedElements={handleClearSelectedElements}
+            teamsFromExerciseOrScenario={[]}
+            customAction={(
+              <Tooltip title={t('Run a test')}>
+                <IconButton
+                  aria-label="run-a-test"
+                  onClick={() => setRunTestDrawerOpened(true)}
+                  color="primary"
+                  size="small"
+                >
+                  <MovieFilterOutlined fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+          />
+        )
+      }
     </Stack>
   );
 };

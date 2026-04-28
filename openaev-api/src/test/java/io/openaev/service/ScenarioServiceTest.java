@@ -19,9 +19,11 @@ import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
+import io.openaev.rest.custom_dashboard.CustomDashboardService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
@@ -59,6 +61,7 @@ class ScenarioServiceTest extends IntegrationTest {
   @Autowired private ArticleRepository articleRepository;
   @Autowired InjectRepository injectRepository;
   @Autowired private LessonsCategoryRepository lessonsCategoryRepository;
+  @Autowired private TagRepository tagRepository;
   @Autowired private HealthCheckUtils healthCheckUtils;
 
   @Autowired private ScenarioComposer scenarioComposer;
@@ -75,6 +78,9 @@ class ScenarioServiceTest extends IntegrationTest {
   @Mock private InjectService injectService;
   @Mock private TagRuleService tagRuleService;
   @Mock private UserService userService;
+  @Mock private PlatformSettingsService platformSettingsService;
+  @Mock private CustomDashboardService customDashboardService;
+  @Mock private InjectorContractService injectorContractService;
   @InjectMocks private ScenarioService scenarioService;
   @Autowired private ScenarioMapper scenarioMapper;
 
@@ -112,8 +118,12 @@ class ScenarioServiceTest extends IntegrationTest {
             tagRuleService,
             injectService,
             userService,
+            platformSettingsService,
+            customDashboardService,
+            injectorContractService,
             injectRepository,
             lessonsCategoryRepository,
+            tagRepository,
             healthCheckUtils,
             scenarioMapper,
             workflowService);

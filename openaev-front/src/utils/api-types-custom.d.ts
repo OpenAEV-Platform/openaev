@@ -134,6 +134,22 @@ export type InjectorContractConverted = Omit<InjectorContract, 'convertedContent
   };
 };
 
+export type ThreatArsenalContentConverted = ThreatArsenalActionWithContentOutput & {
+  convertedContent: {
+    fields: ContractElement[];
+    contract_id: string;
+    config: {
+      type: string;
+      color_dark: string;
+      color_light: string;
+      expose: boolean;
+      label: Record<string, string>;
+    };
+    label: Record<string, string>;
+    variables?: ContractVariable[];
+  };
+};
+
 export type WidgetInput = Omit<ApiTypes.WidgetInput, 'widget_config'> & {
   widget_config:
     | ApiTypes.DateHistogramWidget & {
