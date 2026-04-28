@@ -219,12 +219,14 @@ class GroupPopoverComponent extends Component {
         </Drawer>
         <GroupManageUsers
           initialState={this.state.usersIds}
+          groupName={group.group_name}
           open={this.state.openUsers}
           onClose={this.handleCloseUsers.bind(this)}
           onSubmit={this.submitUpdateUsers.bind(this)}
         />
         <GroupManageRoles
           initialState={this.state.rolesIds}
+          groupName={group.group_name}
           open={this.state.openRoles}
           onClose={this.handleCloseRoles.bind(this)}
           onSubmit={this.submitUpdateRoles.bind(this)}
