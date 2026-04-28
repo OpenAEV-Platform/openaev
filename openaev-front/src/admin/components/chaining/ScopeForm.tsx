@@ -1,5 +1,5 @@
-import { DevicesOtherOutlined } from '@mui/icons-material';
-import { Box, Button, Chip, Tab, Tabs, Tooltip, Typography } from '@mui/material';
+import { Close, DevicesOtherOutlined } from '@mui/icons-material';
+import { Box, Button, Chip, IconButton, Tab, Tabs, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { SelectGroup } from 'mdi-material-ui';
 import {
@@ -274,6 +274,7 @@ const ScopeForm: FunctionComponent<ScopeFormProps> = ({
 
         <Box
           sx={{
+            position: 'relative',
             minHeight: 100,
             border: `1px solid ${theme.palette.divider}`,
             borderRadius: 1,
@@ -285,6 +286,25 @@ const ScopeForm: FunctionComponent<ScopeFormProps> = ({
             gap: theme.spacing(1),
           }}
         >
+          {totalSelected > 0 && (
+            <Tooltip title={t('Clear all')}>
+              <IconButton
+                size="small"
+                color="primary"
+                onClick={() => {
+                  onEndpointIdsChange([]);
+                  onAssetGroupIdsChange([]);
+                }}
+                sx={{
+                  position: 'absolute',
+                  top: 4,
+                  right: 4,
+                }}
+              >
+                <Close fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
           {totalSelected === 0 && (
             <Typography
               variant="body2"
