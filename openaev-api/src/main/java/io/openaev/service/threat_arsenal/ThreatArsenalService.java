@@ -1,9 +1,9 @@
-package io.openaev.api.threat_arsenal;
+package io.openaev.service.threat_arsenal;
 
 import static io.openaev.utils.ArchitectureFilterUtils.handleArchitectureFilter;
-import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 import static io.openaev.utils.ThreatArsenalFilterUtils.ACTION_TO_ENTITY_FIELDS;
 import static io.openaev.utils.ThreatArsenalFilterUtils.ENTITY_TO_ACTION_FIELDS;
+import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 
 import io.openaev.api.threat_arsenal.dto.*;
 import io.openaev.database.model.InjectorContract;
@@ -243,7 +243,7 @@ public class ThreatArsenalService {
                 mode,
                 input.getInjectorContractIdsToIgnore(),
                 input.getInjectorContractIdsToProcess()),
-        handleArchitectureFilter(translateSearchInput(input)),
+        handleArchitectureFilter(ThreatArsenalFilterUtils.translateSearchInput(input)),
         InjectorContract.class);
   }
 }

@@ -22,7 +22,6 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.utils.SecurityCoverageUtils;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -177,11 +176,11 @@ class AttackPatternServiceTest {
     input.setPlatforms(new String[] {"Windows"});
     input.setPermissionsRequired(new String[] {"Administrator"});
 
-    when(attackPatternRepository.findByExternalIdIgnoreCaseAndTenantId(anyString(), anyString()))
-        .thenReturn(Optional.of(existing));
+    when(attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(anyList(), anyString()))
+        .thenReturn(new ArrayList<>());
 
     // Act
-    AttackPattern result = attackPatternService.upsert(input);
+    AttackPattern result = attackPatternService.findOrCreate(input);
 
     // Assert
     assertSame(existing, result);
@@ -200,15 +199,15 @@ class AttackPatternServiceTest {
     input.setPlatforms(new String[] {"Linux", "Windows"});
     input.setPermissionsRequired(new String[] {"User"});
 
-    when(attackPatternRepository.findByExternalIdIgnoreCaseAndTenantId(anyString(), anyString()))
-        .thenReturn(Optional.empty());
+    when(attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(anyList(), anyString()))
+        .thenReturn(new ArrayList<>());
 
     AttackPattern saved = new AttackPattern();
     saved.setId("saved-id");
     when(attackPatternRepository.save(any(AttackPattern.class))).thenReturn(saved);
 
     // Act
-    AttackPattern result = attackPatternService.upsert(input);
+    AttackPattern result = attackPatternService.findOrCreate(input);
 
     // Assert
     ArgumentCaptor<AttackPattern> captor = ArgumentCaptor.forClass(AttackPattern.class);

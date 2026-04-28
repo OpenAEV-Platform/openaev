@@ -3,18 +3,15 @@ package io.openaev.api.threat_arsenal;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
-import io.openaev.api.threat_arsenal.dto.ThreatArsenalAction;
-import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionCreateInput;
-import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionFullOutput;
-import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionUpdateInput;
+import io.openaev.api.threat_arsenal.dto.*;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
 import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractDomainCountOutput;
-import io.openaev.rest.threat_arsenal.dto.*;
 import io.openaev.schema.model.PropertySchemaDTO;
+import io.openaev.service.threat_arsenal.ThreatArsenalService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -33,9 +30,8 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 public class ThreatArsenalApi {
   public static final String THREAT_ARSENAL_URL = "/api/threat_arsenals";
-  private static final String TENANT_THREAT_ARSENAL_URL = TENANT_PREFIX + "/threat_arsenals";
+  public static final String TENANT_THREAT_ARSENAL_URL = TENANT_PREFIX + "/threat_arsenals";
 
-  private final InjectorContractService injectorContractService;
   private final ThreatArsenalService threatArsenalService;
 
   @GetMapping({THREAT_ARSENAL_URL + "/{actionId}", TENANT_THREAT_ARSENAL_URL + "/{actionId}"})

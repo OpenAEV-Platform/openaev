@@ -1,4 +1,4 @@
-package io.openaev.rest.threat_arsenal;
+package io.openaev.api.threat_arsenal;
 
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.StringUtils.DUPLICATE_SUFFIX;

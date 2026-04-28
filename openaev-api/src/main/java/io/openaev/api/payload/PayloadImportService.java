@@ -40,12 +40,12 @@ public class PayloadImportService {
   @Resource protected ObjectMapper mapper;
 
   /**
-   * Imports a payload from a JSON:API ZIP and synchronises the associated injector contract.
+   * Imports a payload from a JSON:API ZIP and synchronizes the associated injector contract.
    *
    * <p>Legacy payload exports may contain {@code payload_attack_patterns}, {@code payload_domains},
    * and {@code payload_tags} as relationships. Since these fields now live on {@code
    * InjectorContract}, they are extracted from the source document and passed to the
-   * synchronisation method.
+   * synchronization method.
    *
    * @param file the ZIP file containing the JSON:API payload document
    * @return the import result containing the persisted payload and the synchronised injector
@@ -90,7 +90,7 @@ public class PayloadImportService {
     input.setPlatforms(asStringArray(object.attributes().get("attack_pattern_platforms")));
     input.setPermissionsRequired(
         asStringArray(object.attributes().get("attack_pattern_permissions_required")));
-    return attackPatternService.upsert(input);
+    return attackPatternService.findOrCreate(input);
   }
 
   private Domain handleDomainImport(ResourceObject object) {

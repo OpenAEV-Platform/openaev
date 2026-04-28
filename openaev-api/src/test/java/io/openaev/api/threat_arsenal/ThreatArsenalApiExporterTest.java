@@ -1,4 +1,4 @@
-package io.openaev.rest.threat_arsenal;
+package io.openaev.api.threat_arsenal;
 
 import static io.openaev.api.threat_arsenal.ThreatArsenalApi.THREAT_ARSENAL_URL;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
