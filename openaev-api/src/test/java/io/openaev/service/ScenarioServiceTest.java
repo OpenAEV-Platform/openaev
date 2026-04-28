@@ -288,12 +288,19 @@ class ScenarioServiceTest extends IntegrationTest {
     assertNull(healthchecks);
   }
 
+  private Scenario createValidScenario() {
+    Scenario scenario = new Scenario();
+    scenario.setName("Test Scenario");
+    scenario.setFrom("test@openaev.io");
+    return scenario;
+  }
+
   @Test
   @Transactional
   public void testRunChecksForSmtpIssue() {
     // PREPARE
     Inject inject = new Inject();
-    Scenario scenario = new Scenario();
+    Scenario scenario = createValidScenario();
     scenario.setInjects(new HashSet<>(List.of(inject)));
     this.scenarioRepository.save(scenario);
 
@@ -328,7 +335,7 @@ class ScenarioServiceTest extends IntegrationTest {
   public void testRunChecksForImapIssue() {
     // PREPARE
     Inject inject = new Inject();
-    Scenario scenario = new Scenario();
+    Scenario scenario = createValidScenario();
     scenario.setInjects(new HashSet<>(List.of(inject)));
     this.scenarioRepository.save(scenario);
 
@@ -363,7 +370,7 @@ class ScenarioServiceTest extends IntegrationTest {
   public void testRunChecksForExecutorIssue() {
     // PREPARE
     Inject inject = new Inject();
-    Scenario scenario = new Scenario();
+    Scenario scenario = createValidScenario();
     scenario.setInjects(new HashSet<>(List.of(inject)));
     this.scenarioRepository.save(scenario);
 
@@ -397,7 +404,7 @@ class ScenarioServiceTest extends IntegrationTest {
   public void testRunChecksForCollectorIssue() {
     // PREPARE
     Inject inject = new Inject();
-    Scenario scenario = new Scenario();
+    Scenario scenario = createValidScenario();
     scenario.setInjects(new HashSet<>(List.of(inject)));
     this.scenarioRepository.save(scenario);
 
@@ -431,7 +438,7 @@ class ScenarioServiceTest extends IntegrationTest {
   public void testRunChecksForMissingContentIssue() {
     // PREPARE
     Inject inject = new Inject();
-    Scenario scenario = new Scenario();
+    Scenario scenario = createValidScenario();
     scenario.setInjects(new HashSet<>(List.of(inject)));
     this.scenarioRepository.save(scenario);
 
@@ -464,7 +471,7 @@ class ScenarioServiceTest extends IntegrationTest {
   @Transactional
   public void testRunChecksForTeamsIssue() {
     // PREPARE
-    Scenario scenario = new Scenario();
+    Scenario scenario = createValidScenario();
 
     Injector injector = new Injector();
     injector.setDependencies(
