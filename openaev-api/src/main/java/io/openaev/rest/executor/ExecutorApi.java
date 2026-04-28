@@ -141,7 +141,9 @@ public class ExecutorApi extends RestBehavior {
   public Executor updateExecutor(
       @PathVariable String executorId, @Valid @RequestBody ExecutorUpdateInput input) {
     Executor executor =
-        executorRepository.findById(executorId).orElseThrow(ElementNotFoundException::new);
+        executorRepository
+            .findByIdAndTenantId(executorId, TenantContext.getCurrentTenant())
+            .orElseThrow(ElementNotFoundException::new);
     return updateExecutor(
         executor, executor.getType(), executor.getName(), executor.getPlatforms());
   }
@@ -169,7 +171,10 @@ public class ExecutorApi extends RestBehavior {
             banner.get());
       }
       // We need to support upsert for registration
-      Executor executor = executorRepository.findById(input.getId()).orElse(null);
+      Executor executor =
+          executorRepository
+              .findByIdAndTenantId(input.getId(), TenantContext.getCurrentTenant())
+              .orElse(null);
       if (executor == null) {
         Executor executorChecking =
             executorRepository

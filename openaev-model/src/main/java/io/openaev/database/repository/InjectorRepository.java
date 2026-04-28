@@ -12,8 +12,7 @@ import org.springframework.stereotype.Repository;
 public interface InjectorRepository
     extends JpaRepository<Injector, String>, JpaSpecificationExecutor<Injector> {
 
-  @NotNull
-  Optional<Injector> findById(@NotNull String id);
+  Optional<Injector> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
   @NotNull
   Optional<Injector> findByTypeAndTenantId(@NotNull String type, @NotNull String tenantId);

@@ -20,6 +20,7 @@ import io.openaev.service.connectors.AbstractConnectorService;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import io.openaev.utils.mapper.ExecutorMapper;
 import jakarta.annotation.Resource;
+import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import java.io.InputStream;
 import java.util.List;
@@ -40,6 +41,8 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
 
   private final ExecutorMapper executorMapper;
 
+  private final EntityManager entityManager;
+
   @Autowired
   public ExecutorService(
       ExecutorRepository executorRepository,
@@ -49,7 +52,8 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
       CatalogConnectorService catalogConnectorService,
       ConnectorInstanceService connectorInstanceService,
       ExecutorMapper executorMapper,
-      CatalogConnectorMapper catalogConnectorMapper) {
+      CatalogConnectorMapper catalogConnectorMapper,
+      EntityManager entityManager) {
     super(
         ConnectorType.EXECUTOR,
         connectorInstanceConfigurationRepository,
@@ -60,6 +64,7 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
     this.executorRepository = executorRepository;
     this.executionTraceRepository = executionTraceRepository;
     this.executorMapper = executorMapper;
+    this.entityManager = entityManager;
   }
 
   @Override
@@ -69,7 +74,9 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
 
   @Override
   protected Executor getConnectorById(String executorId) {
-    return executorRepository.findById(executorId).orElse(null);
+    return executorRepository
+        .findByIdAndTenantId(executorId, TenantContext.getCurrentTenant())
+        .orElse(null);
   }
 
   @Override
@@ -105,7 +112,7 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
    */
   public Executor executor(String id) throws ElementNotFoundException {
     return executorRepository
-        .findById(id)
+        .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
         .orElseThrow(() -> new ElementNotFoundException("Executor not found with id: " + id));
   }
 
@@ -162,10 +169,13 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
       fileService.uploadStream(EXECUTORS_IMAGES_BANNERS_BASE_PATH, type + EXT_PNG, bannerData);
     }
 
-    Executor executor = executorRepository.findById(id).orElse(null);
-    if (executor == null) {
+    Executor executor =
+        executorRepository.findByIdAndTenantId(id, TenantContext.getCurrentTenant()).orElse(null);
+    boolean isNew = (executor == null);
+    if (isNew) {
       executor = new Executor();
       executor.setId(id);
+      executor.setTenant(new Tenant(TenantContext.getCurrentTenant()));
     }
 
     executor.setName(name);
@@ -174,12 +184,20 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
     executor.setBackgroundColor(backgroundColor);
     executor.setPlatforms(platforms);
 
+    // For new entities, use persist() to force INSERT — merge() would find the existing
+    // Executor from another tenant (same static ID, JPA @Id is only executor_id).
+    if (isNew) {
+      entityManager.persist(executor);
+      return executor;
+    }
     return executorRepository.save(executor);
   }
 
   @Transactional
   public void remove(String id) {
-    executorRepository.findById(id).ifPresent(executor -> executorRepository.deleteById(id));
+    executorRepository
+        .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
+        .ifPresent(executor -> executorRepository.delete(executor));
   }
 
   /**

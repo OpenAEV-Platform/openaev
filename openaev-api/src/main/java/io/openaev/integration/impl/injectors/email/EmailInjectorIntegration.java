@@ -15,7 +15,7 @@ import io.openaev.service.connector_instances.ConnectorInstanceService;
 import java.util.List;
 
 public class EmailInjectorIntegration extends IntegrationInMemory {
-  private static final String EMAIL_INJECTOR_NAME = "Email";
+  static final String EMAIL_INJECTOR_NAME = "Email";
   public static final String EMAIL_INJECTOR_ID = "41b4dd55-5bd1-4614-98cd-9e3770753306";
 
   private final EmailContract emailContract;

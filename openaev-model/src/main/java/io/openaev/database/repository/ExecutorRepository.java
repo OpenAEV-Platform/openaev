@@ -9,8 +9,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface ExecutorRepository extends CrudRepository<Executor, String> {
 
-  @NotNull
-  Optional<Executor> findById(@NotNull String id);
+  Optional<Executor> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
   @NotNull
   Optional<Executor> findByTypeAndTenantId(@NotNull String type, @NotNull String tenantId);

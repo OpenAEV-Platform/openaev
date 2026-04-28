@@ -6,6 +6,7 @@ import static io.openaev.service.FileService.COLLECTORS_IMAGES_BASE_PATH;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.CollectorTypeRepository;
@@ -21,6 +22,7 @@ import io.openaev.service.connectors.AbstractConnectorService;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import io.openaev.utils.mapper.CollectorMapper;
 import jakarta.annotation.Resource;
+import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotNull;
 import java.io.InputStream;
@@ -46,6 +48,8 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
 
   private final CollectorMapper collectorMapper;
 
+  private final EntityManager entityManager;
+
   @Autowired
   public CollectorService(
       CollectorRepository collectorRepository,
@@ -56,7 +60,8 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
       ConnectorInstanceService connectorInstanceService,
       CatalogConnectorService catalogConnectorService,
       CollectorMapper collectorMapper,
-      CatalogConnectorMapper catalogConnectorMapper) {
+      CatalogConnectorMapper catalogConnectorMapper,
+      EntityManager entityManager) {
     super(
         ConnectorType.COLLECTOR,
         connectorInstanceConfigurationRepository,
@@ -68,6 +73,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
     this.fileService = fileService;
     this.collectorMapper = collectorMapper;
     this.securityPlatformRepository = securityPlatformRepository;
+    this.entityManager = entityManager;
   }
 
   @Override
@@ -77,7 +83,9 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
 
   @Override
   protected Collector getConnectorById(String collectorId) {
-    return collectorRepository.findById(collectorId).orElse(null);
+    return collectorRepository
+        .findByIdAndTenantId(collectorId, TenantContext.getCurrentTenant())
+        .orElse(null);
   }
 
   @Override
@@ -99,7 +107,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
 
   public Collector collector(String id) {
     return collectorRepository
-        .findById(id)
+        .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
         .orElseThrow(() -> new ElementNotFoundException("Collector not found with id: " + id));
   }
 
@@ -159,6 +167,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
         .orElseGet(
             () -> {
               CollectorType ct = new CollectorType(type);
+              // Tenant is auto-assigned by TenantBaseListener @PrePersist
               return collectorTypeRepository.save(ct);
             });
   }
@@ -193,16 +202,15 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
       fileService.uploadStream(COLLECTORS_IMAGES_BASE_PATH, type + ".png", iconStream);
     }
 
-    ensureCollectorTypeExists(type);
+    CollectorType collectorType = ensureCollectorTypeExists(type);
 
-    Collector collector = collectorRepository.findById(id).orElse(null);
+    Collector collector =
+        collectorRepository.findByIdAndTenantId(id, TenantContext.getCurrentTenant()).orElse(null);
 
     SecurityPlatform securityPlatform =
         securityPlatformId != null
             ? securityPlatformRepository.findById(securityPlatformId).orElseThrow()
             : null;
-
-    CollectorType collectorType = collectorTypeRepository.findByName(type).orElseThrow();
 
     if (collector != null) {
       collector.setName(name);
@@ -228,7 +236,11 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
     if (securityPlatform != null) {
       newCollector.setSecurityPlatform(securityPlatform);
     }
-    return collectorRepository.save(newCollector);
+    // For new entities, use persist() to force INSERT — merge() would find the existing
+    // Collector from another tenant (same static ID, JPA @Id is only collector_id).
+    newCollector.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    entityManager.persist(newCollector);
+    return newCollector;
   }
 
   public List<Collector> collectorsForPayload(String payloadId) {

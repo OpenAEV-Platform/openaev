@@ -16,7 +16,7 @@ import io.openaev.service.connector_instances.ConnectorInstanceService;
 import java.util.List;
 
 public class ChallengeInjectorIntegration extends IntegrationInMemory {
-  private static final String CHALLENGE_INJECTOR_NAME = "Challenges";
+  static final String CHALLENGE_INJECTOR_NAME = "Challenges";
   public static final String CHALLENGE_INJECTOR_ID = "49229430-b5b5-431f-ba5b-f36f599b0233";
 
   private final ChallengeContract challengeContract;

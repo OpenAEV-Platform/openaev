@@ -14,8 +14,7 @@ import org.springframework.stereotype.Repository;
 public interface CollectorRepository
     extends CrudRepository<Collector, String>, JpaSpecificationExecutor<Collector> {
 
-  @NotNull
-  Optional<Collector> findById(@NotNull String id);
+  Optional<Collector> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
   @Query(
       """

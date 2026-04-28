@@ -16,7 +16,7 @@ import io.openaev.service.connector_instances.ConnectorInstanceService;
 import java.util.List;
 
 public class ChannelInjectorIntegration extends IntegrationInMemory {
-  private static final String CHANNEL_INJECTOR_NAME = "Media pressure";
+  static final String CHANNEL_INJECTOR_NAME = "Media pressure";
   public static final String CHANNEL_INJECTOR_ID = "8d932e36-353c-48fa-ba6f-86cb7b02ed19";
 
   private final ChannelContract channelContract;

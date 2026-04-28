@@ -13,7 +13,7 @@ import io.openaev.service.connector_instances.ConnectorInstanceService;
 import java.util.List;
 
 public class ManualInjectorIntegration extends IntegrationInMemory {
-  private static final String MANUAL_INJECTOR_NAME = "Manual";
+  static final String MANUAL_INJECTOR_NAME = "Manual";
   public static final String MANUAL_INJECTOR_ID = "6981a39d-e219-4016-a235-cf7747994abc";
 
   private final ManualContract manualContract;
