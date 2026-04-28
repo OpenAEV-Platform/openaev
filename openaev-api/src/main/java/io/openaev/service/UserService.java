@@ -182,6 +182,10 @@ public class UserService {
     existing.setTags(
         referenceResolver.resolve(input.tagIds(), Tag.class, tagRepository::countByIdIn));
     existing.setOrganization(referenceResolver.resolve(input.organizationId(), Organization.class));
+    existing.setTenants(
+        new ArrayList<>(
+            referenceResolver.resolve(
+                input.tenantIds(), Tenant.class, tenantRepository::countByIdIn)));
     if (StringUtils.hasLength(input.plainPassword())) {
       existing.setPassword(this.encodeUserPassword(input.plainPassword()));
     }

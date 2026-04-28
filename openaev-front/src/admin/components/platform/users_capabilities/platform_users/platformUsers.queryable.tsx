@@ -4,6 +4,7 @@ import { createElement, type CSSProperties } from 'react';
 import { initSorting } from '../../../../../components/common/queryable/Page';
 import type { Header } from '../../../../../components/common/SortHeadersList';
 import ItemTags from '../../../../../components/ItemTags';
+import ItemTenants from '../../../../../components/ItemTenants';
 import type { SortField, TenantOutput, UserOutput } from '../../../../../utils/api-types';
 
 // Local Storage
@@ -23,13 +24,13 @@ const FIELD_TENANTS = 'user_tenants';
 
 // Inline Styles
 export const PLATFORM_USER_INLINE_STYLES: Record<string, CSSProperties> = {
-  [FIELD_EMAIL]: { width: '20%' },
+  [FIELD_EMAIL]: { width: '15%' },
   [FIELD_FIRSTNAME]: { width: '12%' },
   [FIELD_LASTNAME]: { width: '12%' },
-  [FIELD_ADMIN]: { width: '10%' },
+  [FIELD_ADMIN]: { width: '7%' },
   [FIELD_ORGANIZATION]: { width: '10%' },
   [FIELD_TAGS]: { width: '20%' },
-  [FIELD_TENANTS]: { width: '10%' },
+  [FIELD_TENANTS]: { width: '20%' },
 };
 
 // Headers
@@ -79,9 +80,11 @@ export const getPlatformUserHeaders: (t: (text: string) => string, tenantsMap: R
     field: FIELD_TENANTS,
     label: t('Tenants'),
     isSortable: false,
-    value: (user: UserOutput) => user.user_tenants?.length
-      ? user.user_tenants.map(tenantId => tenantsMap[tenantId]?.tenant_name ?? tenantId).join(', ')
-      : '-',
+    value: (user: UserOutput) => {
+      return user.user_tenants?.length
+        ? (<ItemTenants tenants={user.user_tenants} tenantsMap={tenantsMap} />)
+        : <>-</>;
+    },
   },
 ];
 

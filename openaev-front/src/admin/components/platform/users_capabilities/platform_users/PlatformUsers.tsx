@@ -23,14 +23,7 @@ import UsersCapabilitiesMenu from '../UsersCapabilitiesMenu';
 import usePlatformUsers from './hooks/usePlatformUsers';
 import PlatformUserCreate from './PlatformUserCreate';
 import PlatformUserPopover from './PlatformUserPopover';
-import {
-  ENTITY_PLATFORM_USER_PREFIX,
-  getPlatformUserHeaders,
-  LOCAL_STORAGE_KEY_PLATFORM_USER,
-  PLATFORM_USER_FILTERS,
-  PLATFORM_USER_INLINE_STYLES,
-  PLATFORM_USER_SORTS,
-} from './platformUsers.queryable';
+import { ENTITY_PLATFORM_USER_PREFIX, getPlatformUserHeaders, LOCAL_STORAGE_KEY_PLATFORM_USER, PLATFORM_USER_FILTERS, PLATFORM_USER_INLINE_STYLES, PLATFORM_USER_SORTS } from './platformUsers.queryable';
 
 const useStyles = makeStyles()(() => ({
   container: { display: 'flex' },

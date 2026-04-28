@@ -1,6 +1,6 @@
 import { type FunctionComponent, useCallback } from 'react';
 
-import {type UserType } from '../../../../actions/users/users-helper';
+import { type UserType } from '../../../../actions/users/users-helper';
 import ButtonCreate from '../../../../components/common/ButtonCreate';
 import useDialog from '../../../../components/common/dialog/useDialog';
 import Drawer from '../../../../components/common/Drawer';
