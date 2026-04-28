@@ -8785,7 +8785,7 @@ export interface WorkflowScopeRuleInput {
   /** Selected list mode where the rule should be applied */
   workflow_scope_rule_selected_mode: "ALLOWLIST" | "DENYLIST";
   /** Source of the selected rule */
-  workflow_scope_rule_source: "ASSET" | "ASSET_GROUP" | "MANUAL";
+  workflow_scope_rule_source: "ASSET" | "ASSET_GROUP" | "MANUAL" | "CSV";
   /**
    * Selected rule value
    * @minLength 1
@@ -8800,7 +8800,7 @@ export interface WorkflowScopeRuleOutput {
   /** Selected list mode where the rule is applied. */
   workflow_scope_rule_selected_mode?: "ALLOWLIST" | "DENYLIST";
   /** Source of the selected item */
-  workflow_scope_rule_source?: "ASSET" | "ASSET_GROUP" | "MANUAL";
+  workflow_scope_rule_source?: "ASSET" | "ASSET_GROUP" | "MANUAL" | "CSV";
   /** Selected item value */
   workflow_scope_rule_value?: string;
 }

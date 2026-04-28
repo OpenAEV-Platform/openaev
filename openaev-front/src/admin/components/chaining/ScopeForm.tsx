@@ -32,7 +32,7 @@ import {
 import ScopeInventoryBox from './ScopeInventoryBox';
 
 export interface ScopeCustomRule {
-  source: 'MANUAL';
+  source: 'MANUAL' | 'CSV';
   value: string;
 }
 
@@ -295,14 +295,14 @@ const ScopeForm: FunctionComponent<ScopeFormProps> = ({
 
       if (result.valid.length > 0) {
         const existingKeys = new Set(
-          selectedCustomRules.map(rule => rule.value.toLowerCase()),
+          selectedCustomRules.map(rule => `${rule.source}:${rule.value.toLowerCase()}`),
         );
         const importedRules: ScopeCustomRule[] = result.valid
           .map(rule => ({
-            source: 'MANUAL' as const,
+            source: 'CSV' as const,
             value: rule.value.trim(),
           }))
-          .filter(rule => !existingKeys.has(rule.value.toLowerCase()));
+          .filter(rule => !existingKeys.has(`${rule.source}:${rule.value.toLowerCase()}`));
 
         if (importedRules.length > 0) {
           onCustomRulesChange([...selectedCustomRules, ...importedRules]);

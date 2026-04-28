@@ -43,7 +43,7 @@ const ScopeDefinition = ({ workflowId }: ScopeDefinitionProps) => {
             ?? (r.get?.('workflow_scope_rule_selected_mode') as 'ALLOWLIST' | 'DENYLIST'),
     workflow_scope_rule_source:
             r.workflow_scope_rule_source
-            ?? (r.get?.('workflow_scope_rule_source') as 'ASSET' | 'ASSET_GROUP' | 'MANUAL'),
+            ?? (r.get?.('workflow_scope_rule_source') as 'ASSET' | 'ASSET_GROUP' | 'MANUAL' | 'CSV'),
     workflow_scope_rule_value:
             r.workflow_scope_rule_value ?? (r.get?.('workflow_scope_rule_value') as string),
   });

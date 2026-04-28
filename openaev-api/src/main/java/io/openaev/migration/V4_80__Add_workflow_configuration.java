@@ -41,7 +41,7 @@ public class V4_80__Add_workflow_configuration extends BaseJavaMigration {
           DO $$
           BEGIN
             IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'scope_rule_source') THEN
-              CREATE TYPE scope_rule_source AS ENUM ('ASSET', 'ASSET_GROUP', 'MANUAL');
+              CREATE TYPE scope_rule_source AS ENUM ('ASSET', 'ASSET_GROUP', 'MANUAL', 'CSV');
             END IF;
           END
           $$;

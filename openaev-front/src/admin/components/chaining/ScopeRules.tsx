@@ -107,9 +107,9 @@ const ScopeRules = ({ workflowConfiguration, onUpdate }: ScopeRulesProps) => {
       .map(r => r.workflow_scope_rule_value ?? '')
       .filter(Boolean);
     const customRules = rulesForMode
-      .filter(r => r.workflow_scope_rule_source === 'MANUAL')
+      .filter(r => r.workflow_scope_rule_source === 'MANUAL' || r.workflow_scope_rule_source === 'CSV')
       .map(r => ({
-        source: 'MANUAL' as const,
+        source: (r.workflow_scope_rule_source as 'MANUAL' | 'CSV') ?? 'CSV',
         value: r.workflow_scope_rule_value ?? '',
       }))
       .filter(r => !!r.value);
