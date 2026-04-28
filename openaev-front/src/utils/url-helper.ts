@@ -8,7 +8,7 @@ import { APP_BASE_PATH } from './Environment';
  * Browser path prefix for platform-level pages.
  * These pages are tenant-agnostic: the URL must NOT contain a tenant UUID.
  */
-export const PLATFORM_BROWSER_PREFIX = '/admin/platform';
+export const PLATFORM_URI_PREFIX = '/admin/platform';
 
 // ---------------------------------------------------------------------------
 // Tenant URI
@@ -175,7 +175,7 @@ export const buildTenantApiPath = (uri: string): string => {
  * Returns true when the given path starts with the platform prefix.
  */
 export const isPlatformRoute = (path: string): boolean => {
-  return path.startsWith(PLATFORM_BROWSER_PREFIX);
+  return path.startsWith(PLATFORM_URI_PREFIX);
 };
 
 /**
