@@ -5,13 +5,11 @@ import static io.openaev.config.TenantUriUtils.TENANT_ID_PATH_VARIABLE;
 
 import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.TenantContext;
-import jakarta.persistence.EntityManager;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.java.Log;
-import org.hibernate.Session;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -24,9 +22,10 @@ import org.springframework.web.servlet.HandlerMapping;
  * matching {@code /api/tenants/{tenantId}/**}, validates the authenticated user belongs to that
  * tenant, and sets it in the {@link TenantContext}.
  *
- * <p>Also sets the PostgreSQL session variable {@code app.current_tenant} so that Row-Level
- * Security policies are enforced for <em>all</em> queries in the request, including those outside
- * an explicit {@code @Transactional} block.
+ * <p>The PostgreSQL session variable {@code app.current_tenant} is set by {@link
+ * TenantAwareDataSourceConfig} on each connection checkout, ensuring Row-Level Security policies
+ * are enforced on the actual connection used for queries (not a potentially different pooled
+ * connection).
  */
 @Component
 @RequiredArgsConstructor
@@ -34,7 +33,6 @@ import org.springframework.web.servlet.HandlerMapping;
 public class TenantInterceptor implements HandlerInterceptor {
 
   private final TenantMembershipCacheManager tenantMembershipCacheManager;
-  private final EntityManager entityManager;
 
   @Override
   @SuppressWarnings("unchecked")
@@ -57,18 +55,6 @@ public class TenantInterceptor implements HandlerInterceptor {
       }
 
       TenantContext.setCurrentTenant(tenantId);
-
-      // Set the PostgreSQL session variable for RLS enforcement on all query types
-      try {
-        Session session = entityManager.unwrap(Session.class);
-        session.doWork(
-            connection ->
-                connection
-                    .createStatement()
-                    .execute("SET app.current_tenant = '" + tenantId.replace("'", "''") + "'"));
-      } catch (Exception e) {
-        log.warning("Could not set app.current_tenant on connection: " + e.getMessage());
-      }
     }
     return true;
   }

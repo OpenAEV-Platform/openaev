@@ -58,6 +58,28 @@ public class TenantSettingsService {
     return (value == null || value.isBlank()) ? Optional.empty() : Optional.of(value);
   }
 
+  /**
+   * Resolves the default scenario dashboard ID for the current tenant. Returns empty when no
+   * dashboard is configured.
+   */
+  @Transactional(readOnly = true)
+  public Optional<String> findScenarioDashboardId() {
+    Map<String, TenantSetting> tenantSettings = loadTenantSettings();
+    String value = resolveValue(tenantSettings, TENANT_SCENARIO_DASHBOARD);
+    return (value == null || value.isBlank()) ? Optional.empty() : Optional.of(value);
+  }
+
+  /**
+   * Resolves the default simulation dashboard ID for the current tenant. Returns empty when no
+   * dashboard is configured.
+   */
+  @Transactional(readOnly = true)
+  public Optional<String> findSimulationDashboardId() {
+    Map<String, TenantSetting> tenantSettings = loadTenantSettings();
+    String value = resolveValue(tenantSettings, TENANT_SIMULATION_DASHBOARD);
+    return (value == null || value.isBlank()) ? Optional.empty() : Optional.of(value);
+  }
+
   // -- private helpers --
 
   private Map<String, TenantSetting> loadTenantSettings() {

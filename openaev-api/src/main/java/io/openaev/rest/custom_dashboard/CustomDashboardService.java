@@ -128,6 +128,11 @@ public class CustomDashboardService {
             () -> new EntityNotFoundException("Custom dashboard not found with id: " + id));
   }
 
+  @Transactional(readOnly = true)
+  public Optional<CustomDashboard> findCustomDashboard(@NotNull final String id) {
+    return this.customDashboardRepository.findById(id);
+  }
+
   /**
    * Updates an existing {@link CustomDashboard} entity. The update date is set to the current
    * timestamp.

@@ -33,6 +33,7 @@ import io.openaev.service.*;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
+import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
@@ -75,7 +76,7 @@ public class ScenarioApi extends RestBehavior {
   private final EndpointService endpointService;
   private final ChannelService channelService;
   private final DocumentService documentService;
-  private final PlatformSettingsService platformSettingsService;
+  private final TenantSettingsService tenantSettingsService;
   private final WorkflowService workflowService;
   private final StepService stepService;
   private final PreviewFeatureService previewFeatureService;
@@ -94,11 +95,9 @@ public class ScenarioApi extends RestBehavior {
           this.customDashboardService.customDashboard(input.getCustomDashboard()));
     } else {
       scenario.setCustomDashboard(
-          this.platformSettingsService
-              .setting(SettingKeys.DEFAULT_SCENARIO_DASHBOARD.key())
-              .map(Setting::getValue)
-              .filter(v -> !v.isEmpty())
-              .map(this.customDashboardService::customDashboard)
+          this.tenantSettingsService
+              .findScenarioDashboardId()
+              .flatMap(this.customDashboardService::findCustomDashboard)
               .orElse(null));
     }
     Scenario savedScenario = this.scenarioService.createScenario(scenario);

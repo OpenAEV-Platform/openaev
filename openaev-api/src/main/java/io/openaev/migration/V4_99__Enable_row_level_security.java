@@ -1,5 +1,7 @@
 package io.openaev.migration;
 
+import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
+
 import java.sql.ResultSet;
 import java.sql.Statement;
 import org.flywaydb.core.api.migration.BaseJavaMigration;
@@ -11,7 +13,12 @@ import org.springframework.stereotype.Component;
  *
  * <p>RLS acts as a database-level safety net: even if a native SQL query forgets to include {@code
  * WHERE tenant_id = ...}, the database will filter rows automatically based on the session variable
- * {@code app.current_tenant} set by {@link io.openaev.aop.HibernateFilterTransactionAspect}.
+ * {@code app.current_tenant} set by {@link io.openaev.config.TenantAwareDataSourceConfig} on each
+ * connection checkout.
+ *
+ * <p>The policy is strict: {@code tenant_id = current_setting('app.current_tenant')}. There is no
+ * bypass — platform-level requests default to the default tenant UUID, and tenant creation
+ * explicitly switches the connection's tenant via {@code SET app.current_tenant}.
  *
  * <p>Because superusers bypass RLS, this migration also creates a non-superuser role {@code
  * openaev_app} that the application adopts at runtime via {@code SET ROLE openaev_app} (configured
@@ -24,50 +31,6 @@ public class V4_99__Enable_row_level_security extends BaseJavaMigration {
   /** Non-superuser role the application adopts at runtime so that RLS policies are enforced. */
   static final String APP_ROLE = "openaev_app";
 
-  /**
-   * All tables that have a {@code tenant_id} column (entities implementing {@code TenantBase}).
-   * Keep this list in sync when adding new tenant-scoped entities.
-   */
-  private static final String[] TENANT_SCOPED_TABLES = {
-    "agents",
-    "asset_agent_jobs",
-    "asset_groups",
-    "assets",
-    "attack_patterns",
-    "challenges",
-    "channels",
-    "collector_types",
-    "collectors",
-    "connector_instances",
-    "custom_dashboards",
-    "cwes",
-    "datapacks",
-    "documents",
-    "domains",
-    "executors",
-    "exercises",
-    "findings",
-    "groups",
-    "import_mappers",
-    "injectors",
-    "injectors_contracts",
-    "injects",
-    "kill_chain_phases",
-    "lessons_templates",
-    "mitigations",
-    "notification_rules",
-    "organizations",
-    "payloads",
-    "roles",
-    "scenarios",
-    "tag_rules",
-    "tags",
-    "teams",
-    "tenant_settings",
-    "tenant_xtmhub_registrations",
-    "vulnerabilities",
-  };
-
   @Override
   public void migrate(Context context) throws Exception {
     try (Statement statement = context.getConnection().createStatement()) {
@@ -76,11 +39,15 @@ public class V4_99__Enable_row_level_security extends BaseJavaMigration {
 
       // -- 1. Set a database-level default for app.current_tenant so
       //       current_setting() never fails, even outside a transaction.
+      //       Defaults to the default tenant — platform-level requests see only default tenant
+      // data.
       String dbName = context.getConnection().getCatalog();
       statement.execute(
           "ALTER DATABASE \""
               + dbName
-              + "\" SET app.current_tenant = '00000000-0000-0000-0000-000000000000'");
+              + "\" SET app.current_tenant = '"
+              + DEFAULT_TENANT_UUID
+              + "'");
 
       // -- 2. Create a non-superuser role that the app will adopt via SET ROLE.
       //       Superusers bypass RLS, so the app must not run queries as a superuser.
@@ -104,8 +71,9 @@ public class V4_99__Enable_row_level_security extends BaseJavaMigration {
       statement.execute(
           "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO " + APP_ROLE);
 
-      // -- 3. Enable RLS on all tenant-scoped tables
-      for (String table : TENANT_SCOPED_TABLES) {
+      // -- 3. Enable RLS on all tenant-scoped tables with strict tenant isolation.
+      //       No bypass — every query must match the current tenant.
+      for (String table : TenantScopedTables.TABLES) {
         String policyName = "tenant_isolation_" + table;
 
         statement.addBatch("ALTER TABLE " + table + " ENABLE ROW LEVEL SECURITY");

@@ -1,9 +1,9 @@
 package io.openaev.database.model;
 
 public enum TenantSettingKeys {
-  TENANT_HOME_DASHBOARD("platform_home_dashboard", "", false),
-  TENANT_SCENARIO_DASHBOARD("platform_scenario_dashboard", "", false),
-  TENANT_SIMULATION_DASHBOARD("platform_simulation_dashboard", "", false);
+  TENANT_HOME_DASHBOARD("home_dashboard", "", false),
+  TENANT_SCENARIO_DASHBOARD("scenario_dashboard", "", false),
+  TENANT_SIMULATION_DASHBOARD("simulation_dashboard", "", false);
 
   private final String key;
   private final String defaultValue;

@@ -5,6 +5,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteri
 
 import io.openaev.api.tenants.TenantInput;
 import io.openaev.api.tenants.TenantOutput;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.multitenancy.DependenciesManager;
@@ -44,6 +45,24 @@ public class TenantService {
     Objects.requireNonNull(tenant.getName(), "tenant name must not be null");
 
     Tenant createdTenant = tenantRepository.save(tenant);
+
+    // Switch both the Hibernate filter and the RLS session variable to the new tenant
+    // so that tenant-scoped dependencies (domains, roles, etc.) can be inserted.
+    // We must SET directly on the current connection because the DataSource wrapper
+    // only fires on connection checkout (which already happened for this transaction).
+    String newTenantId = createdTenant.getId();
+    TenantContext.setCurrentTenant(newTenantId);
+    org.hibernate.Session session = entityManager.unwrap(org.hibernate.Session.class);
+    session.enableFilter("tenantFilter").setParameter("tenantId", newTenantId);
+    session.doWork(
+        connection -> {
+          try (var stmt =
+              connection.prepareStatement("SELECT set_config('app.current_tenant', ?, false)")) {
+            stmt.setString(1, newTenantId);
+            stmt.execute();
+          }
+        });
+
     for (DependenciesManager dependency : sortByPrerequisites(dependencies)) {
       dependency.createDependencyForTenant(createdTenant);
     }

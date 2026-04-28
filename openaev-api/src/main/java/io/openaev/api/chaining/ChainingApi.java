@@ -21,11 +21,11 @@ import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.scenario.form.ScenarioInput;
-import io.openaev.service.PlatformSettingsService;
 import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
+import io.openaev.service.settings.TenantSettingsService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -56,7 +56,7 @@ public class ChainingApi extends RestBehavior {
 
   private final ExerciseService exerciseService;
   private final CustomDashboardService customDashboardService;
-  private final PlatformSettingsService platformSettingsService;
+  private final TenantSettingsService tenantSettingsService;
   private final ScenarioService scenarioService;
   private final WorkflowService workflowService;
   private final StepService stepService;
@@ -102,11 +102,9 @@ public class ChainingApi extends RestBehavior {
           this.customDashboardService.customDashboard(input.getCustomDashboard()));
     } else {
       simulation.setCustomDashboard(
-          this.platformSettingsService
-              .setting(SettingKeys.DEFAULT_SIMULATION_DASHBOARD.key())
-              .map(Setting::getValue)
-              .filter(v -> !v.isEmpty())
-              .map(this.customDashboardService::customDashboard)
+          this.tenantSettingsService
+              .findSimulationDashboardId()
+              .flatMap(this.customDashboardService::findCustomDashboard)
               .orElse(null));
     }
     return this.exerciseService.createSimulationChaining(simulation);
@@ -186,11 +184,9 @@ public class ChainingApi extends RestBehavior {
           this.customDashboardService.customDashboard(input.getCustomDashboard()));
     } else {
       scenario.setCustomDashboard(
-          this.platformSettingsService
-              .setting(SettingKeys.DEFAULT_SCENARIO_DASHBOARD.key())
-              .map(Setting::getValue)
-              .filter(v -> !v.isEmpty())
-              .map(this.customDashboardService::customDashboard)
+          this.tenantSettingsService
+              .findScenarioDashboardId()
+              .flatMap(this.customDashboardService::findCustomDashboard)
               .orElse(null));
     }
     return this.scenarioService.createScenarioChaining(scenario);

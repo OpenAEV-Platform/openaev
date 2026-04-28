@@ -9,15 +9,12 @@ import org.hibernate.Session;
 import org.springframework.stereotype.Component;
 
 /**
- * Enables both:
+ * Enables the Hibernate {@code tenantFilter} before each {@code @Transactional} method, scoping
+ * JPQL / Criteria queries by tenant.
  *
- * <ul>
- *   <li>The Hibernate {@code tenantFilter} — scopes JPQL / Criteria queries by tenant
- *   <li>The PostgreSQL session variable {@code app.current_tenant} — used by Row-Level Security
- *       policies to scope native SQL queries by tenant
- * </ul>
- *
- * <p>Together these two mechanisms ensure tenant isolation for <em>all</em> query types.
+ * <p>Native SQL tenant isolation is handled separately by {@link
+ * io.openaev.config.TenantAwareDataSourceConfig}, which sets the PostgreSQL session variable {@code
+ * app.current_tenant} on every connection checkout for Row-Level Security enforcement.
  */
 @Aspect
 @Component
@@ -35,16 +32,5 @@ public class HibernateFilterTransactionAspect {
 
     // Hibernate filter — scopes JPQL / Criteria / derived queries
     session.enableFilter("tenantFilter").setParameter("tenantId", tenantId);
-
-    // PostgreSQL session variable — scopes native SQL via Row-Level Security.
-    // Uses SET (session-scoped) rather than SET LOCAL (transaction-scoped) so that
-    // the variable persists for all queries on this connection, not just those inside
-    // an explicit @Transactional block. The value is overwritten on each request
-    // by the same aspect before any query runs.
-    session.doWork(
-        connection ->
-            connection
-                .createStatement()
-                .execute("SET app.current_tenant = '" + tenantId.replace("'", "''") + "'"));
   }
 }

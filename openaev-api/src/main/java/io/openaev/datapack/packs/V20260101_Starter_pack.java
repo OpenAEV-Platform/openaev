@@ -2,6 +2,7 @@ package io.openaev.datapack.packs;
 
 import io.openaev.database.model.*;
 import io.openaev.database.repository.SettingRepository;
+import io.openaev.database.repository.TenantSettingRepository;
 import io.openaev.datapack.DataPack;
 import io.openaev.jsonapi.JsonApiDocument;
 import io.openaev.jsonapi.ResourceObject;
@@ -22,6 +23,7 @@ public class V20260101_Starter_pack extends DataPack {
   public V20260101_Starter_pack(
       DataPackService dataPackService,
       SettingRepository settingRepository,
+      TenantSettingRepository tenantSettingRepository,
       TagService tagService,
       EndpointService endpointService,
       AssetGroupService assetGroupService,
@@ -31,6 +33,7 @@ public class V20260101_Starter_pack extends DataPack {
       ResourcePatternResolver resolver) {
     super(dataPackService);
     this.settingRepository = settingRepository;
+    this.tenantSettingRepository = tenantSettingRepository;
     this.tagService = tagService;
     this.endpointService = endpointService;
     this.assetGroupService = assetGroupService;
@@ -51,9 +54,10 @@ public class V20260101_Starter_pack extends DataPack {
 
   private static final Map<String, String> DASHBOARD_PREFIX_TO_SETTING_KEY =
       Map.of(
-          Config.DEFAULT_FILE_DASHBOARD_HOME, SettingKeys.DEFAULT_HOME_DASHBOARD.key(),
-          Config.DEFAULT_FILE_DASHBOARD_SCENARIO, SettingKeys.DEFAULT_SCENARIO_DASHBOARD.key(),
-          Config.DEFAULT_FILE_DASHBOARD_SIMULATION, SettingKeys.DEFAULT_SIMULATION_DASHBOARD.key());
+          Config.DEFAULT_FILE_DASHBOARD_HOME, TenantSettingKeys.TENANT_HOME_DASHBOARD.key(),
+          Config.DEFAULT_FILE_DASHBOARD_SCENARIO, TenantSettingKeys.TENANT_SCENARIO_DASHBOARD.key(),
+          Config.DEFAULT_FILE_DASHBOARD_SIMULATION,
+              TenantSettingKeys.TENANT_SIMULATION_DASHBOARD.key());
 
   private static final class HoneyScanMeEndpoint {
 
@@ -75,6 +79,7 @@ public class V20260101_Starter_pack extends DataPack {
   private boolean isStarterPackEnabled;
 
   private final SettingRepository settingRepository;
+  private final TenantSettingRepository tenantSettingRepository;
   private final TagService tagService;
   private final EndpointService endpointService;
   private final AssetGroupService assetGroupService;
@@ -233,10 +238,10 @@ public class V20260101_Starter_pack extends DataPack {
             .orElse(null);
 
     if (settingKey != null) {
-      Setting defaultDashboardSetting =
-          settingRepository.findByKey(settingKey).orElse(new Setting(settingKey, null));
-      defaultDashboardSetting.setValue(dashboardId);
-      settingRepository.save(defaultDashboardSetting);
+      TenantSetting tenantSetting =
+          tenantSettingRepository.findByKey(settingKey).orElse(new TenantSetting(settingKey, null));
+      tenantSetting.setValue(dashboardId);
+      tenantSettingRepository.save(tenantSetting);
     }
   }
 }
