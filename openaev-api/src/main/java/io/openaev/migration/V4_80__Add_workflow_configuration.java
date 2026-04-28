@@ -30,7 +30,7 @@ public class V4_80__Add_workflow_configuration extends BaseJavaMigration {
           DO $$
           BEGIN
             IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'scope_rule_selected_mode') THEN
-              CREATE TYPE scope_rule_selected_mode AS ENUM ('WHITELIST', 'BLACKLIST');
+              CREATE TYPE scope_rule_selected_mode AS ENUM ('ALLOWLIST', 'DENYLIST');
             END IF;
           END
           $$;

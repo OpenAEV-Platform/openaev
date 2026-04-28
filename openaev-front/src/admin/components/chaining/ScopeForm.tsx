@@ -175,8 +175,8 @@ const ScopeForm: FunctionComponent<ScopeFormProps> = ({
                             style={{
                               width: 20,
                               height: 20,
-                              borderRadius: 4,
-                              marginRight: 10,
+                              borderRadius: theme.borderRadius,
+                              marginRight: theme.spacing(2),
                             }}
                           />
                         </div>
