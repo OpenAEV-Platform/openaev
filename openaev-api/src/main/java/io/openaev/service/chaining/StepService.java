@@ -8,7 +8,6 @@ import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.database.model.*;
-import io.openaev.database.repository.StepDelayQueueRepository;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
@@ -32,7 +31,6 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
 
   public final ConditionService conditionService;
   private final QueueChainingService queueChainingService;
-  private final StepDelayQueueRepository stepDelayQueueRepository;
 
   private final StepRepository stepRepository;
 
@@ -80,39 +78,6 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     // Todo add condition not linked to a step
     List<Step> stepsTemplateCopy = copyStepsTemplate(stepsTemplate, workflowTemplateTo);
     saveSteps(stepsTemplateCopy);
-  }
-
-  public Workflow evaluate(Workflow workflowRun) throws ChainingException {
-    String workflowTemplateId = workflowRun.getWorkflowTemplate().getId();
-
-    // Get all step template
-    List<Step> stepsTemplate = findAllStepTemplateByWorkflow(workflowTemplateId);
-
-    if (stepsTemplate.isEmpty()) {
-      log.info(
-          "No step template for workflow template {}. End running {}",
-          workflowTemplateId,
-          workflowRun.getId());
-      workflowRun.setStatus(WorkflowStatus.END);
-      return workflowRun;
-    }
-
-    // Step template with valid conditions
-    List<Step> stepWithValidCondition = new ArrayList<>();
-
-    for (Step step : stepsTemplate) {
-      Optional<Step> stepReadyOpt = ready(step, workflowRun, null);
-      stepReadyOpt.ifPresent(stepWithValidCondition::add);
-    }
-
-    // If none step TEMPLATE with valid conditions && no step template delayed update workflow with
-    // status END
-    if (stepWithValidCondition.isEmpty()
-        && stepDelayQueueRepository.findAllByWorkflowRun(workflowRun).isEmpty()) {
-      workflowRun.setStatus(WorkflowStatus.END);
-    }
-
-    return workflowRun;
   }
 
   /**
@@ -958,7 +923,7 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
    */
   // Do not help to have a consistence data;
   // need a re push event system and/or log system to retry new output
-  // @Transactional(rollbackFor = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public List<ExternalUpdateEvent> handleExternalUpdateEvent(List<ExternalUpdateEvent> events) {
     events.forEach(this::handleExternalUpdateEvent);
     return events;

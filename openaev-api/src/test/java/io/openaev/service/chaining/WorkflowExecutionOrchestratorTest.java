@@ -42,7 +42,7 @@ class WorkflowExecutionOrchestratorTest {
     void shouldSkipWhenPayloadIsNull() throws Exception {
       Workflow workflowRun = mock(Workflow.class);
 
-      orchestrator.syncAndEvaluate(null, Map.of(), workflowRun);
+      orchestrator.syncStateAndEvaluateWorkflowProgress(null, Map.of(), workflowRun);
 
       verifyNoInteractions(workflowStateService, stepServiceProvider, workflowRepository);
     }
@@ -56,7 +56,7 @@ class WorkflowExecutionOrchestratorTest {
           Map.of(ContractOutputType.IPv4.name(), ContractOutputType.IPv4);
       when(stepServiceProvider.getObject()).thenReturn(stepService);
 
-      orchestrator.syncAndEvaluate(payload, fieldTypeMap, workflowRun);
+      orchestrator.syncStateAndEvaluateWorkflowProgress(payload, fieldTypeMap, workflowRun);
 
       verify(workflowStateService).syncState(payload, fieldTypeMap, workflowRun);
       verify(stepService).evaluate(workflowRun);

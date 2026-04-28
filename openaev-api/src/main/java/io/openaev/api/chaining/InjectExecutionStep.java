@@ -25,6 +25,7 @@ import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.inject.service.StructuredOutputUtils;
 import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.tag.TagService;
@@ -69,6 +70,7 @@ public class InjectExecutionStep implements ActionStep {
 
   private static final Gson gson = new Gson();
 
+  private final WorkflowExecutionOrchestrator workflowExecutionOrchestrator;
   private final InjectorContractService injectorContractService;
   private final UserService userService;
   private final AssetService assetService;
@@ -83,11 +85,11 @@ public class InjectExecutionStep implements ActionStep {
   private final InjectorContractRepository injectorContractRepository;
 
   private final InjectorContractContentUtils injectorContractContentUtils;
+  private final StructuredOutputUtils structuredOutputUtils;
   private final ConditionUtils conditionUtils;
   private final InjectUtils injectUtils;
 
   private final Executor executor;
-  private final WorkflowExecutionOrchestrator workflowExecutionOrchestrator;
 
   @Resource protected ObjectMapper mapper;
   @PersistenceContext private EntityManager em;
@@ -236,8 +238,7 @@ public class InjectExecutionStep implements ActionStep {
     String data = stepRun.getData();
     String injectId = StepService.getField(data, "inject_id");
     Inject inject = injectService.findInjectOrNull(injectId);
-    Map<String, ContractOutputType> fieldTypeMap =
-        injectorContractContentUtils.buildFieldTypeMap(inject);
+    Map<String, ContractOutputType> fieldTypeMap = buildFieldTypeMap(inject);
 
     if (inject == null) {
       throw new ChainingException(
@@ -272,7 +273,7 @@ public class InjectExecutionStep implements ActionStep {
       // UPDATE step output
       stepRun.setOutput(jsonObject.toString());
       // Propagate state changes into engine if parsed output is present
-      workflowExecutionOrchestrator.syncAndEvaluate(
+      workflowExecutionOrchestrator.syncStateAndEvaluateWorkflowProgress(
           gson.toJsonTree(output.stream().filter(o -> !o.get("parsed").isJsonNull()).toList()),
           fieldTypeMap,
           stepRun.getWorkflow());
@@ -696,4 +697,21 @@ public class InjectExecutionStep implements ActionStep {
   private static void formatExpirationManagerToOutput(List<Map<String, JsonElement>> output) {}
 
   private static void formatManualUpdateToOutput(List<Map<String, JsonElement>> output) {}
+
+  private Map<String, ContractOutputType> buildFieldTypeMap(Inject inject) {
+    Map<String, ContractOutputType> fieldTypeMap = new HashMap<>();
+    if (inject.getPayload().isPresent()) {
+      Set<OutputParser> outputParsers = structuredOutputUtils.extractOutputParsers(inject);
+      injectorContractContentUtils
+          .getAllContractOutputs(outputParsers)
+          .forEach(out -> fieldTypeMap.put(out.getKey(), out.getType()));
+    } else {
+      if (inject.getInjectorContract().isPresent()) {
+        injectorContractContentUtils
+            .getAllContractOutputs(inject.getInjectorContract().get())
+            .forEach(out -> fieldTypeMap.put(out.getField(), out.getType()));
+      }
+    }
+    return fieldTypeMap;
+  }
 }

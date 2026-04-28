@@ -14,7 +14,6 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
 import io.openaev.injector_contract.outputs.InjectorContractContentOutputElement;
-import io.openaev.rest.inject.service.StructuredOutputUtils;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
@@ -27,8 +26,6 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 @Slf4j
 public class InjectorContractContentUtils {
-
-  private final StructuredOutputUtils structuredOutputUtils;
 
   @Resource protected ObjectMapper mapper;
 
@@ -61,21 +58,6 @@ public class InjectorContractContentUtils {
             ContractOutputElement
                 ::isFinding) // This is related to flag in the UI to compute findings
         .toList();
-  }
-
-  public Map<String, ContractOutputType> buildFieldTypeMap(Inject inject) {
-    Map<String, ContractOutputType> fieldTypeMap = new HashMap<>();
-    if (inject.getPayload().isPresent()) {
-      Set<OutputParser> outputParsers = structuredOutputUtils.extractOutputParsers(inject);
-      getAllContractOutputs(outputParsers)
-          .forEach(out -> fieldTypeMap.put(out.getKey(), out.getType()));
-    } else {
-      if (inject.getInjectorContract().isPresent()) {
-        getAllContractOutputs(inject.getInjectorContract().get())
-            .forEach(out -> fieldTypeMap.put(out.getField(), out.getType()));
-      }
-    }
-    return fieldTypeMap;
   }
 
   /**
