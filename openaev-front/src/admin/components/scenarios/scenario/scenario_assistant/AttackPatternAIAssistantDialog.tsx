@@ -15,8 +15,6 @@ import { searchAttackPatternsWithAIWebservice } from '../../../../../actions/Att
 import Dialog from '../../../../../components/common/dialog/Dialog';
 import ImportUploader from '../../../../../components/common/ImportUploader';
 import { useFormatter } from '../../../../../components/i18n';
-import { callAgentWithFiles, fetchAgentsForIntent } from '../../../../../utils/ai/agentApi';
-import useAI from '../../../../../utils/hooks/useAI';
 
 const useStyles = makeStyles()(theme => ({
   modalContainer: {
@@ -61,7 +59,6 @@ interface Props {
 const AttackPatternAIAssistantDialog = ({ open, onClose, onAttackPatternIdsFind }: Props) => {
   const { t } = useFormatter();
   const { classes } = useStyles();
-  const { xtmOneConfigured } = useAI();
   const maxFilesNumber = 5;
   // State hooks
   const [isLoading, setIsLoading] = useState(false);
@@ -77,35 +74,9 @@ const AttackPatternAIAssistantDialog = ({ open, onClose, onAttackPatternIdsFind 
   const onSubmit = async () => {
     setIsLoading(true);
     try {
-      if (xtmOneConfigured) {
-        // XTM One path: call the TTP extraction endpoint that resolves
-        // technique IDs to internal attack pattern UUIDs server-side.
-        const agents = await fetchAgentsForIntent('ttp.extractor');
-        const agent = agents[0];
-        if (agent) {
-          const fileInputs: { filename: string; content_type: string; data: string }[] = [];
-          for (const file of (files ?? [])) {
-            const buffer = await file.arrayBuffer();
-            const base64 = btoa(
-              new Uint8Array(buffer).reduce((d, byte) => d + String.fromCharCode(byte), ''),
-            );
-            fileInputs.push({ filename: file.name, content_type: file.type || 'application/octet-stream', data: base64 });
-          }
-          const response = await fetch('/api/chatbot/ttp-extract', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ agent_slug: agent.slug, content: text || 'Extract TTPs from attached files', files: fileInputs }),
-          });
-          if (response.ok) {
-            const ids: string[] = await response.json();
-            onAttackPatternIdsFind(ids);
-          }
-        }
-      } else {
-        // Legacy path: direct call to OpenAEV webservice
-        const response = await searchAttackPatternsWithAIWebservice(files ?? [], text);
-        onAttackPatternIdsFind(response.data);
-      }
+      // Backend handles routing to XTM One or legacy AI webservice.
+      const response = await searchAttackPatternsWithAIWebservice(files ?? [], text);
+      onAttackPatternIdsFind(response.data);
     } finally {
       setIsLoading(false);
       onResetAndClose();

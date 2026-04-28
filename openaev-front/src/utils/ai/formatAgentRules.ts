@@ -1,6 +1,11 @@
 // Formats the structured JSON response from the XTM One remediation agent
 // into the HTML format expected by the CKEditor, matching the legacy
 // Java formatters (DetectionRemediationCrowdstrikeResponse, etc.).
+//
+// NOTE: The backend has equivalent formatters for the legacy direct-call path
+// (DetectionRemediationAIService → DetectionRemediationCrowdstrikeResponse).
+// This frontend formatter is needed for the XTM One agent path where the
+// response arrives as JSON from the copilot agent and is formatted client-side.
 
 interface FieldConfiguration {
   grandparent_image_filename?: string;

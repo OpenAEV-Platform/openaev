@@ -1,38 +1,15 @@
 package io.openaev.xtmone;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.jsonwebtoken.Jwts;
-import io.openaev.authorisation.HttpClientFactory;
-import io.openaev.config.SessionHelper;
-import io.openaev.database.model.User;
-import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.helper.RestBehavior;
-import io.openaev.xtmone.XtmOneClient.IntentCatalogAgent;
-import io.openaev.xtmone.XtmOneClient.IntentCatalogEntry;
-import jakarta.annotation.Resource;
-import java.io.InputStream;
+import io.openaev.xtmone.dto.ChatbotAgentOutput;
+import io.openaev.xtmone.dto.ChatbotAgentResponse;
+import io.openaev.xtmone.dto.ChatbotConfigOutput;
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.hc.client5.http.classic.methods.HttpPost;
-import org.apache.hc.client5.http.config.RequestConfig;
-import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
-import org.apache.hc.core5.http.ClassicHttpResponse;
-import org.apache.hc.core5.http.ContentType;
-import org.apache.hc.core5.http.io.entity.EntityUtils;
-import org.apache.hc.core5.http.io.entity.StringEntity;
-import org.apache.hc.core5.util.Timeout;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -44,109 +21,63 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
  * Proxy endpoints between OpenAEV frontend and XTM One (filigran-copilot).
  *
  * <p>Equivalent to OpenCTI's httpChatbotProxy.ts. The frontend never calls XTM One directly —
- * everything goes through these proxy endpoints.
+ * everything goes through these proxy endpoints. All business logic is delegated to {@link
+ * XtmOneProxyService}.
  */
 @Slf4j
 @RestController
 @RequiredArgsConstructor
 public class XtmOneProxyApi extends RestBehavior {
 
-  private final XtmOneConfig xtmOneConfig;
-  private final XtmOneRegistrationManager registrationManager;
-  private final HttpClientFactory httpClientFactory;
-  private final UserRepository userRepository;
-  private final io.openaev.rest.attack_pattern.service.AttackPatternService attackPatternService;
-  @Resource private ObjectMapper mapper;
+  public static final String CHATBOT_URI = "/api/chatbot";
 
-  /**
-   * Issue an HMAC-SHA256 signed JWT for the current user, trusted by copilot via the "openaev"
-   * issuer in TRUSTED_PLATFORM_ISSUERS.
-   */
-  private String issuePlatformJwt() {
-    var principal = SessionHelper.currentUser();
-    User user = userRepository.findById(principal.getId()).orElse(null);
-    String email = user != null ? user.getEmail() : "admin@openaev.io";
-    String name = user != null ? user.getNameOrEmail() : "OpenAEV User";
-    Instant now = Instant.now();
-    // Derive an HMAC-SHA256 key from the XTM One token for JWT signing
-    byte[] keyBytes =
-        xtmOneConfig.getToken().getBytes(StandardCharsets.UTF_8).length >= 32
-            ? xtmOneConfig.getToken().getBytes(StandardCharsets.UTF_8)
-            : java.util.Arrays.copyOf(xtmOneConfig.getToken().getBytes(StandardCharsets.UTF_8), 32);
-    SecretKey signingKey = new SecretKeySpec(keyBytes, "HmacSHA256");
-    return Jwts.builder()
-        .issuer("openaev")
-        .claim("email", email)
-        .claim("name", name)
-        .issuedAt(Date.from(now))
-        .expiration(Date.from(now.plusSeconds(300)))
-        .signWith(signingKey)
-        .compact();
-  }
+  private final XtmOneProxyService proxyService;
 
   // ── GET /api/chatbot/config ────────────────────────────────────────────
 
-  @GetMapping("/api/chatbot/config")
-  public ResponseEntity<Map<String, Object>> getChatbotConfig() {
-    return ResponseEntity.ok(
-        Map.of(
-            "xtm_one_url",
-            xtmOneConfig.getUrl() != null ? xtmOneConfig.getUrl() : "",
-            "xtm_one_configured",
-            xtmOneConfig.isConfigured()));
+  /** Returns the XTM One configuration status for the frontend. */
+  @GetMapping(CHATBOT_URI + "/config")
+  public ResponseEntity<ChatbotConfigOutput> getChatbotConfig() {
+    return ResponseEntity.ok(proxyService.getChatbotConfig());
+  }
+
+  // ── GET /api/chatbot/health ────────────────────────────────────────────
+
+  /** Returns the health status of the XTM One integration. */
+  @GetMapping(CHATBOT_URI + "/health")
+  public ResponseEntity<Map<String, String>> getChatbotHealth() {
+    Map<String, String> health = proxyService.healthCheck();
+    HttpStatus status = "up".equals(health.get("status")) ? HttpStatus.OK : HttpStatus.SERVICE_UNAVAILABLE;
+    return ResponseEntity.status(status).body(health);
   }
 
   // ── GET /api/chatbot/agents ────────────────────────────────────────────
 
-  @GetMapping("/api/chatbot/agents")
-  public ResponseEntity<List<Map<String, String>>> getChatbotAgents(
+  /** Returns the list of enabled agents for the given intent. */
+  @GetMapping(CHATBOT_URI + "/agents")
+  public ResponseEntity<List<ChatbotAgentOutput>> getChatbotAgents(
       @RequestParam(value = "intent", defaultValue = "global.assistant") String intent) {
-
-    List<IntentCatalogEntry> catalog = registrationManager.getIntentCatalog();
-    IntentCatalogEntry entry =
-        catalog.stream().filter(e -> intent.equals(e.getIntent())).findFirst().orElse(null);
-
-    if (entry == null || entry.getAgents() == null) {
-      return ResponseEntity.ok(Collections.emptyList());
-    }
-
-    List<Map<String, String>> agents =
-        entry.getAgents().stream()
-            .filter(IntentCatalogAgent::isEnabled)
-            .map(
-                a ->
-                    Map.of(
-                        "id",
-                        a.getAgentId(),
-                        "name",
-                        a.getAgentName(),
-                        "slug",
-                        a.getAgentSlug() != null ? a.getAgentSlug() : "",
-                        "description",
-                        a.getAgentDescription() != null ? a.getAgentDescription() : ""))
-            .toList();
-
-    return ResponseEntity.ok(agents);
+    return ResponseEntity.ok(proxyService.getAgentsForIntent(intent));
   }
 
   // ── POST /api/chatbot/sessions ─────────────────────────────────────────
 
-  @PostMapping("/api/chatbot/sessions")
+  /** Proxies a session creation request to XTM One. */
+  @PostMapping(CHATBOT_URI + "/sessions")
   public ResponseEntity<String> postChatbotSession(@RequestBody String body) {
-    if (!xtmOneConfig.isConfigured()) {
+    if (!proxyService.isConfigured()) {
       return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
           .body("{\"error\": \"XTM One is not configured\"}");
     }
-
-    String url = xtmOneConfig.getUrl().replaceAll("/+$", "") + "/api/v1/platform/chat/sessions";
-    return proxyPost(url, body, 15);
+    return proxyService.createSession(body);
   }
 
   // ── POST /api/chatbot/messages (streaming SSE) ─────────────────────────
 
-  @PostMapping("/api/chatbot/messages")
+  /** Streams a chat message response from XTM One as SSE events. */
+  @PostMapping(CHATBOT_URI + "/messages")
   public ResponseEntity<StreamingResponseBody> postChatbotMessage(@RequestBody String body) {
-    if (!xtmOneConfig.isConfigured()) {
+    if (!proxyService.isConfigured()) {
       StreamingResponseBody errorBody =
           out ->
               out.write(
@@ -156,61 +87,16 @@ public class XtmOneProxyApi extends RestBehavior {
           .body(errorBody);
     }
 
-    String url = xtmOneConfig.getUrl().replaceAll("/+$", "") + "/api/v1/platform/chat/messages";
-
-    StreamingResponseBody responseBody =
-        outputStream -> {
-          try (CloseableHttpClient httpClient = httpClientFactory.httpClientCustom()) {
-            HttpPost httpPost = new HttpPost(url);
-            httpPost.addHeader("Authorization", "Bearer " + issuePlatformJwt());
-            httpPost.addHeader("Content-Type", "application/json");
-            httpPost.addHeader("X-Platform-Product", "openaev");
-            httpPost.setConfig(RequestConfig.custom().setResponseTimeout(Timeout.DISABLED).build());
-            httpPost.setEntity(new StringEntity(body, ContentType.APPLICATION_JSON));
-
-            httpClient.execute(
-                httpPost,
-                (ClassicHttpResponse response) -> {
-                  try (InputStream is = response.getEntity().getContent()) {
-                    byte[] buffer = new byte[4096];
-                    int bytesRead;
-                    while ((bytesRead = is.read(buffer)) != -1) {
-                      outputStream.write(buffer, 0, bytesRead);
-                      outputStream.flush();
-                    }
-                  }
-                  return null;
-                });
-          } catch (Exception e) {
-            log.error("[XTM One] Streaming proxy error", e);
-            try {
-              String safeError =
-                  mapper.writeValueAsString(Map.of("type", "error", "content", "Proxy error"));
-              outputStream.write(("data: " + safeError + "\n\n").getBytes(StandardCharsets.UTF_8));
-            } catch (Exception ignored) {
-              outputStream.write(
-                  "data: {\"type\":\"error\",\"content\":\"Proxy error\"}\n\n"
-                      .getBytes(StandardCharsets.UTF_8));
-            }
-            outputStream.flush();
-          }
-        };
-
-    HttpHeaders headers = new HttpHeaders();
-    headers.setContentType(MediaType.TEXT_EVENT_STREAM);
-    headers.setCacheControl("no-cache, no-transform");
-    headers.set("Connection", "keep-alive");
-    headers.set("X-Accel-Buffering", "no");
-    headers.set("Transfer-Encoding", "chunked");
-
-    return new ResponseEntity<>(responseBody, headers, HttpStatus.OK);
+    StreamingResponseBody responseBody = outputStream -> proxyService.streamMessage(body, outputStream);
+    return new ResponseEntity<>(responseBody, sseHeaders(), HttpStatus.OK);
   }
 
   // ── POST /api/chatbot/agent/stream (streaming SSE) ─────────────────────
 
-  @PostMapping(value = "/api/chatbot/agent/stream", produces = "text/event-stream")
+  /** Streams an agent response from XTM One as SSE events. */
+  @PostMapping(value = CHATBOT_URI + "/agent/stream", produces = "text/event-stream")
   public ResponseEntity<StreamingResponseBody> postAgentStream(@RequestBody JsonNode body) {
-    if (!xtmOneConfig.isConfigured()) {
+    if (!proxyService.isConfigured()) {
       StreamingResponseBody errorBody =
           out ->
               out.write(
@@ -233,70 +119,25 @@ public class XtmOneProxyApi extends RestBehavior {
       return ResponseEntity.badRequest().contentType(MediaType.TEXT_EVENT_STREAM).body(errorBody);
     }
 
-    String url = xtmOneConfig.getUrl().replaceAll("/+$", "") + "/api/v1/platform/chat/messages";
-
     StreamingResponseBody responseBody =
-        outputStream -> {
-          try (CloseableHttpClient httpClient = httpClientFactory.httpClientCustom()) {
-            HttpPost httpPost = new HttpPost(url);
-            httpPost.addHeader("Authorization", "Bearer " + issuePlatformJwt());
-            httpPost.addHeader("Content-Type", "application/json");
-            httpPost.addHeader("X-Platform-Product", "openaev");
-            httpPost.setConfig(RequestConfig.custom().setResponseTimeout(Timeout.DISABLED).build());
-
-            ObjectNode requestBody = mapper.createObjectNode();
-            requestBody.put("agent_slug", agentSlug);
-            requestBody.put("content", content);
-            requestBody.put("stream", true);
-            httpPost.setEntity(
-                new StringEntity(
-                    mapper.writeValueAsString(requestBody), ContentType.APPLICATION_JSON));
-
-            httpClient.execute(
-                httpPost,
-                (ClassicHttpResponse response) -> {
-                  try (InputStream is = response.getEntity().getContent()) {
-                    byte[] buffer = new byte[4096];
-                    int bytesRead;
-                    while ((bytesRead = is.read(buffer)) != -1) {
-                      outputStream.write(buffer, 0, bytesRead);
-                      outputStream.flush();
-                    }
-                  }
-                  return null;
-                });
-          } catch (Exception e) {
-            log.error("[XTM One] Agent stream proxy error", e);
-            try {
-              String safeError =
-                  mapper.writeValueAsString(Map.of("type", "error", "content", "Proxy error"));
-              outputStream.write(("data: " + safeError + "\n\n").getBytes(StandardCharsets.UTF_8));
-            } catch (Exception ignored) {
-              outputStream.write(
-                  "data: {\"type\":\"error\",\"content\":\"Proxy error\"}\n\n"
-                      .getBytes(StandardCharsets.UTF_8));
-            }
-            outputStream.flush();
-          }
-        };
-
-    HttpHeaders headers = new HttpHeaders();
-    headers.setContentType(MediaType.TEXT_EVENT_STREAM);
-    headers.setCacheControl("no-cache, no-transform");
-    headers.set("Connection", "keep-alive");
-    headers.set("X-Accel-Buffering", "no");
-    headers.set("Transfer-Encoding", "chunked");
-
-    return new ResponseEntity<>(responseBody, headers, HttpStatus.OK);
+        outputStream -> proxyService.streamAgent(agentSlug, content, outputStream);
+    return new ResponseEntity<>(responseBody, sseHeaders(), HttpStatus.OK);
   }
 
   // ── POST /api/chatbot/agent (non-streaming) ────────────────────────────
 
-  @PostMapping("/api/chatbot/agent")
-  public ResponseEntity<String> postAgentMessage(@RequestBody JsonNode body) {
-    if (!xtmOneConfig.isConfigured()) {
+  /** Calls an agent in non-streaming mode, returning the response synchronously. */
+  @PostMapping(CHATBOT_URI + "/agent")
+  public ResponseEntity<ChatbotAgentResponse> postAgentMessage(@RequestBody JsonNode body) {
+    if (!proxyService.isConfigured()) {
       return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-          .body("{\"error\": \"XTM One is not configured\"}");
+          .body(
+              ChatbotAgentResponse.builder()
+                  .content("")
+                  .status("error")
+                  .error("XTM One is not configured")
+                  .code(503)
+                  .build());
     }
 
     String agentSlug = body.has("agent_slug") ? body.get("agent_slug").asText() : null;
@@ -304,201 +145,28 @@ public class XtmOneProxyApi extends RestBehavior {
 
     if (agentSlug == null || content == null) {
       return ResponseEntity.badRequest()
-          .body("{\"error\": \"agent_slug and content are required\"}");
+          .body(
+              ChatbotAgentResponse.builder()
+                  .content("")
+                  .status("error")
+                  .error("agent_slug and content are required")
+                  .code(400)
+                  .build());
     }
 
-    String url = xtmOneConfig.getUrl().replaceAll("/+$", "") + "/api/v1/platform/chat/messages";
-
-    try (CloseableHttpClient httpClient = httpClientFactory.httpClientCustom()) {
-      HttpPost httpPost = new HttpPost(url);
-      httpPost.addHeader("Authorization", "Bearer " + issuePlatformJwt());
-      httpPost.addHeader("Content-Type", "application/json");
-      httpPost.addHeader("X-Platform-Product", "openaev");
-      httpPost.setConfig(RequestConfig.custom().setResponseTimeout(Timeout.ofSeconds(120)).build());
-
-      ObjectNode requestBody = mapper.createObjectNode();
-      requestBody.put("agent_slug", agentSlug);
-      requestBody.put("content", content);
-      requestBody.put("stream", false);
-
-      // Forward file attachments if present
-      if (body.has("files")) {
-        requestBody.set("files", body.get("files"));
-      }
-
-      httpPost.setEntity(
-          new StringEntity(mapper.writeValueAsString(requestBody), ContentType.APPLICATION_JSON));
-
-      return httpClient.execute(
-          httpPost,
-          (ClassicHttpResponse response) -> {
-            String responseBody = EntityUtils.toString(response.getEntity());
-            int status = response.getCode();
-            if (status >= 200 && status < 300) {
-              try {
-                JsonNode data = mapper.readTree(responseBody);
-                String responseContent = data.has("content") ? data.get("content").asText() : "";
-                return ResponseEntity.ok(
-                    mapper.writeValueAsString(
-                        Map.of("content", responseContent, "status", "success")));
-              } catch (Exception e) {
-                return ResponseEntity.ok(
-                    mapper.writeValueAsString(
-                        Map.of("content", responseBody, "status", "success")));
-              }
-            } else {
-              String detail = responseBody;
-              try {
-                JsonNode errorData = mapper.readTree(responseBody);
-                if (errorData.has("detail")) {
-                  detail = errorData.get("detail").asText();
-                }
-              } catch (Exception ignored) {
-              }
-              return ResponseEntity.ok(
-                  mapper.writeValueAsString(
-                      Map.of("content", "", "status", "error", "error", detail, "code", status)));
-            }
-          });
-    } catch (Exception e) {
-      log.error("[XTM One] Agent proxy error: {}", e.getMessage(), e);
-      try {
-        return ResponseEntity.ok(
-            mapper.writeValueAsString(
-                Map.of("content", "", "status", "error", "error", e.getMessage(), "code", 503)));
-      } catch (Exception jsonErr) {
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-            .body("{\"error\": \"Internal error\"}");
-      }
-    }
+    JsonNode files = body.has("files") ? body.get("files") : null;
+    return ResponseEntity.ok(proxyService.callAgent(agentSlug, content, files));
   }
 
-  // ── POST /api/chatbot/ttp-extract ──────────────────────────────────────
-  // Calls the TTP extractor agent and resolves technique IDs to OpenAEV
-  // internal attack pattern UUIDs.
+  // ── Private helpers ────────────────────────────────────────────────────
 
-  @PostMapping("/api/chatbot/ttp-extract")
-  public ResponseEntity<List<String>> extractTTPs(@RequestBody JsonNode body) {
-    if (!xtmOneConfig.isConfigured()) {
-      return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Collections.emptyList());
-    }
-
-    String agentSlug = body.has("agent_slug") ? body.get("agent_slug").asText() : null;
-    String content = body.has("content") ? body.get("content").asText() : "Extract TTPs";
-
-    if (agentSlug == null) {
-      return ResponseEntity.badRequest().body(Collections.emptyList());
-    }
-
-    // Build the request to copilot
-    String url = xtmOneConfig.getUrl().replaceAll("/+$", "") + "/api/v1/platform/chat/messages";
-    try {
-      ObjectNode requestBody = mapper.createObjectNode();
-      requestBody.put("agent_slug", agentSlug);
-      requestBody.put("content", content);
-      requestBody.put("stream", false);
-      if (body.has("files") && body.get("files").size() > 0) {
-        requestBody.set("files", body.get("files"));
-      }
-
-      ResponseEntity<String> proxyResp =
-          proxyPost(url, mapper.writeValueAsString(requestBody), 120);
-
-      if (!proxyResp.getStatusCode().is2xxSuccessful() || proxyResp.getBody() == null) {
-        return ResponseEntity.ok(Collections.emptyList());
-      }
-
-      // Parse copilot response → extract technique IDs from predictions
-      JsonNode respJson = mapper.readTree(proxyResp.getBody());
-      String agentContent = respJson.has("content") ? respJson.get("content").asText() : "";
-
-      // The agent content is a JSON string with extraction results
-      Set<String> techniqueIds = new HashSet<>();
-      try {
-        JsonNode parsed = mapper.readTree(agentContent);
-        JsonNode filesNode = parsed.has("files") ? parsed.get("files") : null;
-        if (filesNode != null && filesNode.isArray()) {
-          for (JsonNode fileEntry : filesNode) {
-            JsonNode extraction = fileEntry.get("extraction");
-            if (extraction != null) {
-              extraction
-                  .fields()
-                  .forEachRemaining(
-                      field -> {
-                        for (JsonNode chunk : field.getValue()) {
-                          JsonNode predictions = chunk.get("predictions");
-                          if (predictions != null) {
-                            predictions.fieldNames().forEachRemaining(techniqueIds::add);
-                          }
-                        }
-                      });
-            }
-          }
-        }
-        // Also extract from top-level predictions (text-only extraction)
-        if (parsed.isArray()) {
-          for (JsonNode item : parsed) {
-            for (JsonNode chunk : item) {
-              JsonNode predictions = chunk.get("predictions");
-              if (predictions != null) {
-                predictions.fieldNames().forEachRemaining(techniqueIds::add);
-              }
-            }
-          }
-        }
-      } catch (Exception e) {
-        log.warn("[XTM One] Failed to parse TTP extraction response: {}", e.getMessage());
-        return ResponseEntity.ok(Collections.emptyList());
-      }
-
-      if (techniqueIds.isEmpty()) {
-        return ResponseEntity.ok(Collections.emptyList());
-      }
-
-      // Resolve external technique IDs to internal OpenAEV attack pattern UUIDs
-      List<String> internalIds =
-          attackPatternService.getAttackPatternsByExternalIds(techniqueIds).stream()
-              .map(ap -> ap.getId())
-              .toList();
-
-      return ResponseEntity.ok(internalIds);
-    } catch (Exception e) {
-      log.error("[XTM One] TTP extraction error: {}", e.getMessage(), e);
-      return ResponseEntity.ok(Collections.emptyList());
-    }
-  }
-
-  // ── Private helper ─────────────────────────────────────────────────────
-
-  private ResponseEntity<String> proxyPost(String url, String body, int timeoutSeconds) {
-    try (CloseableHttpClient httpClient = httpClientFactory.httpClientCustom()) {
-      HttpPost httpPost = new HttpPost(url);
-      httpPost.addHeader("Authorization", "Bearer " + issuePlatformJwt());
-      httpPost.addHeader("Content-Type", "application/json");
-      httpPost.setConfig(
-          RequestConfig.custom().setResponseTimeout(Timeout.ofSeconds(timeoutSeconds)).build());
-      httpPost.setEntity(new StringEntity(body, ContentType.APPLICATION_JSON));
-
-      return httpClient.execute(
-          httpPost,
-          (ClassicHttpResponse response) -> {
-            String responseBody = EntityUtils.toString(response.getEntity());
-            int status = response.getCode();
-            if (status >= 200 && status < 300) {
-              return ResponseEntity.ok(responseBody);
-            } else {
-              return ResponseEntity.status(status).body(responseBody);
-            }
-          });
-    } catch (Exception e) {
-      log.error("[XTM One] Proxy error", e);
-      try {
-        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-            .body(mapper.writeValueAsString(Map.of("error", "Upstream service unavailable")));
-      } catch (Exception jsonErr) {
-        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-            .body("{\"error\": \"Upstream service unavailable\"}");
-      }
-    }
+  private static HttpHeaders sseHeaders() {
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.TEXT_EVENT_STREAM);
+    headers.setCacheControl("no-cache, no-transform");
+    headers.set("Connection", "keep-alive");
+    headers.set("X-Accel-Buffering", "no");
+    headers.set("Transfer-Encoding", "chunked");
+    return headers;
   }
 }

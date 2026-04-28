@@ -36,8 +36,8 @@ const DetectionRemediationUseAriane = ({
     openDialog: openEnterpriseEditionDialog,
     setEEFeatureDetectedInfo,
   } = useEnterpriseEdition();
-  const { enabled, configured } = useAI();
-  const isAvailable = isEnterpriseEdition && enabled && configured;
+  const { enabled, configured, xtmOneConfigured } = useAI();
+  const isAvailable = isEnterpriseEdition && enabled && (configured || xtmOneConfigured);
 
   const [loading, setLoading] = useState(false);
   const isEligibleArianeCollector = useIsEligibleArianeCollector(collectorType);

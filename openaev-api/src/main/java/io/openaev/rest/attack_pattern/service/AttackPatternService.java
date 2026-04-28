@@ -13,6 +13,8 @@ import io.openaev.rest.attack_pattern.form.AnalysisResultFromTTPExtractionAIWebs
 import io.openaev.rest.attack_pattern.form.AttackPatternCreateInput;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.utils.SecurityCoverageUtils;
+import io.openaev.xtmone.XtmOneClient;
+import io.openaev.xtmone.XtmOneConfig;
 import jakarta.annotation.Resource;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -47,6 +49,8 @@ public class AttackPatternService {
   private final EnterpriseEditionService enterpriseEditionService;
   private final RestTemplate restTemplate;
   private final SecurityCoverageUtils securityCoverageUtils;
+  private final XtmOneConfig xtmOneConfig;
+  private final XtmOneClient xtmOneClient;
 
   /**
    * Call the TTP Extraction AI Webservice to analyze files and text input.
@@ -228,7 +232,12 @@ public class AttackPatternService {
       List<MultipartFile> files, String text) {
     validateInputs(files, text);
     try {
-      String responseBody = callTTPExtractionAIWebservice(files, text);
+      String responseBody;
+      if (xtmOneConfig.isConfigured()) {
+        responseBody = callTTPExtractionViaXtmOne(files, text);
+      } else {
+        responseBody = callTTPExtractionAIWebservice(files, text);
+      }
       Set<String> attackPatternExternalIds =
           extractExternalAttackPatternIdsFromResponse(responseBody);
       return getAttackPatternInternalIdsFromExternalIds(attackPatternExternalIds);
@@ -236,6 +245,36 @@ public class AttackPatternService {
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  /**
+   * Call the TTP extraction agent via XTM One. Converts MultipartFile attachments to base64 inline
+   * format expected by the copilot agent, sends the request through {@link XtmOneClient}, and
+   * returns the agent's content (same JSON format as the legacy webservice).
+   */
+  private String callTTPExtractionViaXtmOne(List<MultipartFile> files, String text)
+      throws IOException {
+    // Convert files to base64 JSON nodes
+    com.fasterxml.jackson.databind.node.ArrayNode filesNode = null;
+    if (!files.isEmpty()) {
+      filesNode = mapper.createArrayNode();
+      for (MultipartFile file : files) {
+        var fileNode = mapper.createObjectNode();
+        fileNode.put("filename", file.getOriginalFilename());
+        fileNode.put(
+            "content_type",
+            file.getContentType() != null ? file.getContentType() : "application/octet-stream");
+        fileNode.put("data", Base64.getEncoder().encodeToString(file.getBytes()));
+        filesNode.add(fileNode);
+      }
+    }
+
+    String content = (text != null && !text.isBlank()) ? text : "Extract TTPs from attached files";
+    String result = xtmOneClient.callAgentSync("ttp.extractor", content, filesNode);
+    if (result == null) {
+      throw new RuntimeException("XTM One TTP extraction returned no result");
+    }
+    return result;
   }
 
   // -- STIX --

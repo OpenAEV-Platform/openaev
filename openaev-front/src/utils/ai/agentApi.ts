@@ -44,31 +44,81 @@ export const callAgent = async (agentSlug: string, content: string): Promise<Age
   };
 };
 
-/** Call an agent with file attachments (for TTP extraction). */
-export const callAgentWithFiles = async (agentSlug: string, files: File[], text: string): Promise<AgentResponse> => {
-  // Convert files to inline base64 objects matching copilot's PlatformFileInput schema.
-  const fileInputs: { filename: string; content_type: string; data: string }[] = [];
-  for (const file of files) {
-    const buffer = await file.arrayBuffer();
-    const base64 = btoa(
-      new Uint8Array(buffer).reduce((data, byte) => data + String.fromCharCode(byte), ''),
-    );
-    fileInputs.push({ filename: file.name, content_type: file.type || 'application/octet-stream', data: base64 });
-  }
-
-  const response = await fetch('/api/chatbot/agent', {
+/**
+ * Stream an agent call via SSE. Calls `onChunk` with accumulated content
+ * as each text chunk arrives. Returns the final AgentResponse.
+ *
+ * @param signal - optional AbortSignal to cancel the stream
+ */
+export const callAgentStream = async (
+  agentSlug: string,
+  content: string,
+  onChunk: (partialContent: string) => void,
+  signal?: AbortSignal,
+): Promise<AgentResponse> => {
+  const response = await fetch('/api/chatbot/agent/stream', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ agent_slug: agentSlug, content: text, files: fileInputs }),
+    body: JSON.stringify({ agent_slug: agentSlug, content }),
+    signal,
   });
+
   if (!response.ok) {
     return { content: '', status: 'error', error: `Agent call failed: ${response.statusText}`, code: response.status };
   }
-  const data = await response.json();
-  return {
-    content: data.content ?? '',
-    status: data.status ?? 'success',
-    error: data.error,
-    code: data.code,
-  };
+
+  const reader = response.body?.getReader();
+  if (!reader) {
+    return { content: '', status: 'error', error: 'No response stream' };
+  }
+
+  const decoder = new TextDecoder();
+  let accumulated = '';
+  let buffer = '';
+  let lastError: string | undefined;
+
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+
+      // Parse SSE lines: "data: {...}\n\n"
+      const lines = buffer.split('\n');
+      // Keep the last potentially incomplete line in the buffer
+      buffer = lines.pop() ?? '';
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || !trimmed.startsWith('data: ')) continue;
+
+        try {
+          const event = JSON.parse(trimmed.slice(6));
+          if (event.type === 'stream' && typeof event.content === 'string') {
+            accumulated += event.content;
+            onChunk(accumulated);
+          } else if (event.type === 'done' && typeof event.content === 'string') {
+            // Final message — use authoritative full content
+            accumulated = event.content;
+            onChunk(accumulated);
+          } else if (event.type === 'error') {
+            lastError = event.content ?? 'Unknown error';
+          }
+          // Ignore status events (thinking, tool_start, etc.)
+        } catch {
+          // Skip malformed lines
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  if (lastError) {
+    return { content: lastError, status: 'error', error: lastError };
+  }
+  return { content: accumulated, status: 'success' };
 };
+
+
