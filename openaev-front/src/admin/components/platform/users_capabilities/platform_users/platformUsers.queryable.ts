@@ -33,7 +33,7 @@ export const PLATFORM_USER_INLINE_STYLES: Record<string, CSSProperties> = {
 };
 
 // Headers
-export const getPlatformUserHeaders: (t: (text: string) => string, tenantsMap: Record<string, TenantOutput>) => Header[] = (t: (text: string) => string,tenantsMap) => [
+export const getPlatformUserHeaders: (t: (text: string) => string, tenantsMap: Record<string, TenantOutput>) => Header[] = (t: (text: string) => string, tenantsMap) => [
   {
     field: FIELD_EMAIL,
     label: t('Email address'),
@@ -81,7 +81,7 @@ export const getPlatformUserHeaders: (t: (text: string) => string, tenantsMap: R
     isSortable: false,
     value: (user: UserOutput) => user.user_tenants?.length
       ? user.user_tenants.map(tenantId => tenantsMap[tenantId]?.tenant_name ?? tenantId).join(', ')
-      : '-'
+      : '-',
   },
 ];
 

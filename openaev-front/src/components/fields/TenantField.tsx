@@ -1,21 +1,21 @@
-import { CSSProperties, FunctionComponent, useState } from 'react';
+import { AddOutlined, DeviceHubOutlined } from '@mui/icons-material';
+import { Autocomplete, Box, IconButton, TextField } from '@mui/material';
+import { type CSSProperties, type FunctionComponent, useState } from 'react';
 import type { GlobalError } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
-import { Autocomplete, Box, IconButton, TextField } from '@mui/material';
-import { useFormatter } from '../i18n';
-import { type TenantOutput, type TenantInput } from '../../utils/api-types';
-import { useHelper } from '../../store';
-import { TenantHelper } from '../../actions/helper';
-import { useAppDispatch } from '../../utils/hooks';
-import { Option } from '../../utils/Option';
+
+import { type TenantHelper } from '../../actions/helper';
 import { addTenant, fetchTenants } from '../../actions/platform/tenants/tenant-action';
-import { AddOutlined, DeviceHubOutlined } from '@mui/icons-material';
-import Dialog from '../common/dialog/Dialog';
 import TenantForm from '../../admin/components/platform/tenants/tenant/TenantForm';
+import { useHelper } from '../../store';
+import { type TenantInput, type TenantOutput } from '../../utils/api-types';
+import { useAppDispatch } from '../../utils/hooks';
 import useDataLoader from '../../utils/hooks/useDataLoader';
+import { type Option } from '../../utils/Option';
 import { Can } from '../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../utils/permissions/types';
-
+import Dialog from '../common/dialog/Dialog';
+import { useFormatter } from '../i18n';
 
 const useStyles = makeStyles()(() => ({
   icon: {
@@ -49,7 +49,6 @@ const TenantField: FunctionComponent<Props> = ({
   disabled = false,
   required = false,
 }) => {
-
   // Standard hooks
   const { t } = useFormatter();
   const { classes } = useStyles();
@@ -61,29 +60,32 @@ const TenantField: FunctionComponent<Props> = ({
     dispatch(fetchTenants());
   });
 
-  //Handle tenant creation
+  // Handle tenant creation
   const [tenantCreation, setTenantCreation] = useState(false);
   const handleOpenTenantCreation = () => setTenantCreation(true);
   const handleCloseTenantCreation = () => setTenantCreation(false);
 
-  //Form
-  const tenantOptions: Option[] = tenants.map(tenant => ({ id: tenant.tenant_id, label: tenant.tenant_name }));
+  // Form
+  const tenantOptions: Option[] = tenants.map(tenant => ({
+    id: tenant.tenant_id,
+    label: tenant.tenant_name,
+  }));
   const values = () => {
-    return tenantOptions.filter(option =>  (fieldValue ?? []).includes(option.id));
-  }
+    return tenantOptions.filter(option => (fieldValue ?? []).includes(option.id));
+  };
 
   const handleSubmit = (data: TenantInput) => {
     dispatch(addTenant(data))
       .then((result: {
-      result: string;
-      entities: { tenants: Record<string, TenantOutput> };
-    }) => {
-      if (result.result) {
-        fieldOnChange([...fieldValue, result.result]);
-        handleCloseTenantCreation();
-      }
-      return result;
-    });
+        result: string;
+        entities: { tenants: Record<string, TenantOutput> };
+      }) => {
+        if (result.result) {
+          fieldOnChange([...fieldValue, result.result]);
+          handleCloseTenantCreation();
+        }
+        return result;
+      });
   };
 
   return (
@@ -137,28 +139,28 @@ const TenantField: FunctionComponent<Props> = ({
                         }}
                         onClick={handleOpenTenantCreation}
                       >
-                        <AddOutlined/>
+                        <AddOutlined />
                       </IconButton>
                     </Can>
-                  {params.InputProps.endAdornment}
+                    {params.InputProps.endAdornment}
                   </>
                 ),
               },
             }}
-          />)}
+          />
+        )}
       />
 
       <Dialog
-      open={tenantCreation}
-      handleClose={handleCloseTenantCreation}
-      title={t('Create a tenant')}
+        open={tenantCreation}
+        handleClose={handleCloseTenantCreation}
+        title={t('Create a tenant')}
       >
         <TenantForm onSubmit={handleSubmit} onCancel={handleCloseTenantCreation} />
       </Dialog>
 
     </div>
-      )
+  );
+};
 
-      };
-
-      export default TenantField;
+export default TenantField;

@@ -4,19 +4,20 @@ import { type FunctionComponent, type SyntheticEvent } from 'react';
 import { FormProvider, type Resolver, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { type UserInputForm, type UserType } from '../../../../actions/users/users-helper';
+import { type UserType } from '../../../../actions/users/users-helper';
 import ActionButtons from '../../../../components/common/ActionButtons';
 import OrganizationFieldController from '../../../../components/fields/OrganizationFieldController';
 import SwitchFieldController from '../../../../components/fields/SwitchFieldController';
 import TagFieldController from '../../../../components/fields/TagFieldController';
+import TenantFieldController from '../../../../components/fields/TenantFieldController';
 import TextFieldController from '../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../components/i18n';
+import { type UserInput } from '../../../../utils/api-types';
 import { PHONE_REGEX, zodImplement } from '../../../../utils/Zod';
-import TenantFieldController from '../../../../components/fields/TenantFieldController';
 
 interface UserFormProps {
-  onSubmit: (data: UserInputForm) => void;
-  initialValues?: Partial<UserInputForm>;
+  onSubmit: (data: UserInput) => void;
+  initialValues?: Partial<UserInput>;
   platform?: boolean;
   editing: boolean;
   handleClose: () => void;
@@ -35,7 +36,7 @@ const UserForm: FunctionComponent<UserFormProps> = ({
     user_phone: '',
     user_phone2: '',
     user_pgp_key: '',
-    user_tenants:[],
+    user_tenants: [],
     user_admin: false,
   },
   editing,
@@ -55,7 +56,7 @@ const UserForm: FunctionComponent<UserFormProps> = ({
     );
 
   const passwordRequiredMessage = t('This field is required.');
-  const schema = zodImplement<UserInputForm>().with({
+  const schema = zodImplement<UserInput>().with({
     user_email: z.email(t('Should be a valid email address')),
     user_plain_password: z.string().optional(),
     user_firstname: z.string().optional(),
@@ -75,9 +76,9 @@ const UserForm: FunctionComponent<UserFormProps> = ({
     },
   );
 
-  const methods = useForm<UserInputForm>({
+  const methods = useForm<UserInput>({
     mode: 'onTouched',
-    resolver: zodResolver(schema) as Resolver<UserInputForm>,
+    resolver: zodResolver(schema) as Resolver<UserInput>,
     defaultValues: initialValues,
   });
 
@@ -118,9 +119,8 @@ const UserForm: FunctionComponent<UserFormProps> = ({
         <TextFieldController name="user_lastname" label={t('Lastname')} />
         <OrganizationFieldController name="user_organization" label={t('Organization')} />
         <TagFieldController name="user_tags" label={t('Tags')} />
-        {platform &&
-          <TenantFieldController name="user_tenants" label={t('Tenants')}/>
-        }
+        {platform
+          && <TenantFieldController name="user_tenants" label={t('Tenants')} />}
         <TextFieldController name="user_phone" label={t('Phone number (mobile)')} />
         <TextFieldController name="user_phone2" label={t('Phone number (landline)')} />
         <TextFieldController name="user_pgp_key" label={t('PGP public key')} multiline rows={5} />

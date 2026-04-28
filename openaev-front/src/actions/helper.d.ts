@@ -30,7 +30,6 @@ export interface TenantHelper {
   getTenantsMap: () => Record<string, Tenant>;
 }
 
-
 export interface LoggedHelper {
   // TODO type logged object
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

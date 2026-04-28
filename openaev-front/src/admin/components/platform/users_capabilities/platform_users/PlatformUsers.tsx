@@ -3,6 +3,8 @@ import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import { useMemo } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
+import { type TenantHelper, type UserHelper } from '../../../../../actions/helper';
+import { fetchTenants } from '../../../../../actions/platform/tenants/tenant-action';
 import Breadcrumbs from '../../../../../components/Breadcrumbs';
 import PaginatedList from '../../../../../components/common/list/PaginatedList';
 import PaginationComponentV2 from '../../../../../components/common/queryable/pagination/PaginationComponentV2';
@@ -11,7 +13,10 @@ import SortHeadersComponentV2 from '../../../../../components/common/queryable/s
 import { useQueryableWithLocalStorage } from '../../../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useFormatter } from '../../../../../components/i18n';
 import PaginatedListLoader from '../../../../../components/PaginatedListLoader';
-import { TenantOutput, type UserOutput } from '../../../../../utils/api-types';
+import { useHelper } from '../../../../../store';
+import { type UserOutput } from '../../../../../utils/api-types';
+import { useAppDispatch } from '../../../../../utils/hooks';
+import useDataLoader from '../../../../../utils/hooks/useDataLoader';
 import { Can } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import UsersCapabilitiesMenu from '../UsersCapabilitiesMenu';
@@ -26,11 +31,6 @@ import {
   PLATFORM_USER_INLINE_STYLES,
   PLATFORM_USER_SORTS,
 } from './platformUsers.queryable';
-import { useHelper } from '../../../../../store';
-import { TenantHelper, UserHelper } from '../../../../../actions/helper';
-import useDataLoader from '../../../../../utils/hooks/useDataLoader';
-import { fetchTenants } from '../../../../../actions/platform/tenants/tenant-action';
-import { useAppDispatch } from '../../../../../utils/hooks';
 
 const useStyles = makeStyles()(() => ({
   container: { display: 'flex' },
@@ -62,8 +62,7 @@ const PlatformUsers = () => {
     dispatch(fetchTenants());
   });
 
-  const headers = useMemo(() => getPlatformUserHeaders(t,tenantsMap), [t]);
-
+  const headers = useMemo(() => getPlatformUserHeaders(t, tenantsMap), [t]);
 
   return (
     <div className={classes.container}>

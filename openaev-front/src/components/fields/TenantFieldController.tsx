@@ -33,4 +33,4 @@ const TenantFieldController = ({ name, label, style = {}, required = false, disa
   );
 };
 
-export default TenantFieldController
+export default TenantFieldController;

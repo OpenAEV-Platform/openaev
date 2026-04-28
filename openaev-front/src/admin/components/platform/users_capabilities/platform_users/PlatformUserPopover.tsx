@@ -2,9 +2,8 @@ import { type FunctionComponent, useCallback } from 'react';
 
 import { deletePlatformUser, updatePlatformUser } from '../../../../../actions/platform/users/platform-user-action';
 import { PLATFORM_USER_SCHEMA_KEY } from '../../../../../actions/platform/users/platform-user-schema';
-import { type UserInputForm } from '../../../../../actions/users/users-helper';
 import { useFormatter } from '../../../../../components/i18n';
-import type { UserOutput } from '../../../../../utils/api-types';
+import type { UserInput, UserOutput } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import { type Option } from '../../../../../utils/Option';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
@@ -28,12 +27,14 @@ const PlatformUserPopover: FunctionComponent<Props> = ({
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
 
-  const handleUpdate = useCallback((data: UserInputForm) => {
+  const handleUpdate = useCallback((data: UserInput) => {
     const inputValues = {
       ...data,
-      user_organization: data.user_organization?.id,
-      user_tags: data.user_tags?.map((tag: Option) => tag.id),
-      user_tenants: data.user_tenants?.map((tenant: Option) => tenant.id),
+      user_organization: data.user_organization,
+      user_tags: data.user_tags?.map((tag: Option | string) =>
+        typeof tag === 'object' ? tag.id : tag),
+      user_tenants: data.user_tenants?.map((tenant: Option | string) =>
+        typeof tenant === 'object' ? tenant.id : tenant),
     };
     dispatch(updatePlatformUser(platformUser.user_id, inputValues)).then(
       (result: {

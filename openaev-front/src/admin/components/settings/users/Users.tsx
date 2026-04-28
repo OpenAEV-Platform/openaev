@@ -231,7 +231,7 @@ const Users = () => {
             onCreate={(result: User) => {
               const userOutput: UserOutput = {
                 ...result,
-                user_tenants: result.user_tenants?.map((t) => typeof t === 'string' ? t : t.tenant_id) ?? [],
+                user_tenants: result.user_tenants?.map(t => typeof t === 'string' ? t : t.tenant_id) ?? [],
 
               };
               setUsers([userOutput, ...users]);
