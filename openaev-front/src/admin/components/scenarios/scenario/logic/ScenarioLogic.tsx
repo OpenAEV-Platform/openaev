@@ -77,7 +77,11 @@ const ScenarioLogic: FunctionComponent = () => {
   const handleCreateAction = async (data: InjectInput | AtomicTestingInput) => {
     if (!workflowId) return;
     const injectData = data as InjectInput;
-    const contractId = injectData.inject_injector_contract;
+    // inject_injector_contract may be a string ID or an object with injector_contract_id
+    const rawContract = injectData.inject_injector_contract as unknown;
+    const contractId = typeof rawContract === 'object' && rawContract !== null
+      ? (rawContract as { injector_contract_id: string }).injector_contract_id
+      : rawContract as string | undefined;
 
     // Build the step_data_step from InjectInput
     const stepDataStep: InjectInput = {
