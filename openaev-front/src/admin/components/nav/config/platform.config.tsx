@@ -5,7 +5,6 @@ import { useFormatter } from '../../../../components/i18n';
 import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
 import { type AppAbility } from '../../../../utils/permissions/ability';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import { isFeatureEnabled } from '../../../../utils/utils';
 import EEChip from '../../common/entreprise_edition/EEChip';
 import { SETTINGS_PATH } from '../../platform/settings/routes/SettingsRoutes';
 import { TENANTS_PATH } from '../../platform/tenants/routes/TenantsRoutes';
@@ -19,7 +18,6 @@ const platformEntries = (ability: AppAbility): LeftMenuItem[] => {
   // Standard hooks
   const { t } = useFormatter();
   const { isValidated: isValidatedEnterpriseEdition } = useEnterpriseEdition();
-  const isMultiTenancyEnabled = isFeatureEnabled('MULTI_TENANCY');
 
   return [
     {
@@ -28,7 +26,7 @@ const platformEntries = (ability: AppAbility): LeftMenuItem[] => {
       label: 'Platform',
       href: 'platform',
       userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS)
-        || (isMultiTenancyEnabled && ability.can(ACTIONS.ACCESS, SUBJECTS.TENANTS))
+        || ability.can(ACTIONS.ACCESS, SUBJECTS.TENANTS)
         || ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_GROUPS_AND_ROLES),
       subItems: [
         {
@@ -47,7 +45,7 @@ const platformEntries = (ability: AppAbility): LeftMenuItem[] => {
                 />
               )
             : undefined,
-          userRight: isMultiTenancyEnabled && ability.can(ACTIONS.ACCESS, SUBJECTS.TENANTS),
+          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TENANTS),
         },
         {
           link: PLATFORM_USERS_CAPABILITIES_ROUTE,

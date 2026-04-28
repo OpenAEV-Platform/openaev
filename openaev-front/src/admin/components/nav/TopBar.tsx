@@ -24,7 +24,6 @@ import { useAppDispatch } from '../../../utils/hooks';
 import useAuth from '../../../utils/hooks/useAuth';
 import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
-import { isFeatureEnabled } from '../../../utils/utils';
 import AskArianeButton from '../ariane/AskArianeButton';
 import TenantSwitcher from './TenantSwitcher';
 
@@ -237,7 +236,7 @@ const TopBar: FunctionComponent<{
         <div className={classes.barRight}>
           <div className={classes.barRightContainer}>
             { settings.platform_license?.license_type === 'nfr' && <ItemBoolean variant="large" label="EE DEV LICENSE" status={false} /> }
-            {isFeatureEnabled('MULTI_TENANCY') && showTenantSwitcher && <TenantSwitcher />}
+            {showTenantSwitcher && <TenantSwitcher />}
             <AskArianeButton isOpen={isArianeChatOpen} />
             <Tooltip title={t('Install simulation agents')}>
               <IconButton
