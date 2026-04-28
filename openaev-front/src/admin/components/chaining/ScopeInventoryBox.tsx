@@ -1,7 +1,7 @@
 import { Add, FileDownloadOutlined, InfoOutlined } from '@mui/icons-material';
 import { Box, Button, Chip, Paper, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type ChangeEvent, type KeyboardEvent, useRef, useState } from 'react';
+import { type ChangeEvent, type KeyboardEvent, useMemo, useRef, useState } from 'react';
 
 import { useFormatter } from '../../../components/i18n';
 import { MESSAGING$ } from '../../../utils/Environment';
@@ -32,12 +32,13 @@ const ScopeInventoryBox = ({
   const { t } = useFormatter();
   const theme = useTheme();
   const uploadRef = useRef<HTMLInputElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const [inputValue, setInputValue] = useState('');
 
-  const parsedValues = inputValue
-    .split(',')
-    .map(v => v.trim())
-    .filter(v => v.length > 0);
+  const parsedValues = useMemo(
+    () => inputValue.split(',').map(v => v.trim()).filter(v => v.length > 0),
+    [inputValue],
+  );
 
   const handleOpenUpload = () => uploadRef.current?.click();
 
@@ -113,10 +114,7 @@ const ScopeInventoryBox = ({
           gap: theme.spacing(1),
           cursor: 'text',
         }}
-        onClick={() => {
-          const input = document.getElementById('scope-inventory-input');
-          input?.focus();
-        }}
+        onClick={() => inputRef.current?.focus()}
       >
         {chips.length === 0 && inputValue.length === 0 && (
           <Typography variant="body2" sx={{ color: 'text.disabled' }}>
@@ -127,11 +125,11 @@ const ScopeInventoryBox = ({
           <Chip key={chip.key} label={chip.label} size="small" onDelete={chip.onDelete} />
         ))}
         <input
-          id="scope-inventory-input"
+          ref={inputRef}
           value={inputValue}
           onChange={e => setInputValue(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={chips.length === 0 ? '' : t('Type to add...')}
+          placeholder={t('Type IPs, CIDRs or hostnames...')}
           style={{
             border: 'none',
             outline: 'none',
@@ -154,10 +152,8 @@ const ScopeInventoryBox = ({
             flexWrap: 'wrap',
             alignItems: 'center',
             gap: theme.spacing(1),
-            cursor: 'pointer',
             borderColor: theme.palette.primary.main,
           }}
-          onClick={commitValues}
         >
           <Typography
             variant="body2"
@@ -165,7 +161,10 @@ const ScopeInventoryBox = ({
               color: 'text.secondary',
               mr: 1,
               whiteSpace: 'nowrap',
+              cursor: 'pointer',
+              textDecoration: 'underline',
             }}
+            onClick={commitValues}
           >
             {t('Tap enter or click here to add:')}
           </Typography>
