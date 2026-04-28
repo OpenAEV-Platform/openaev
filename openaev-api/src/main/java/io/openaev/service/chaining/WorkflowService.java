@@ -12,6 +12,7 @@ import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
+import io.openaev.telemetry.metric_collectors.ScopeMetricCollector;
 import io.openaev.utils.IpAddressUtils;
 import jakarta.validation.constraints.NotBlank;
 import java.util.*;
@@ -37,6 +38,7 @@ public class WorkflowService {
   private final WorkflowScopeRuleRepository workflowScopeRuleRepository;
   private final ScopeVariableRepository scopeVariableRepository;
   private final WorkflowStateService workflowStateService;
+  private final ScopeMetricCollector scopeMetricCollector;
 
   // -- READ --
 
@@ -511,7 +513,9 @@ public class WorkflowService {
     for (WorkflowScopeRuleInput ruleInput : deduplicated) {
       String ruleId = ruleInput.getId();
       if (ruleId == null) {
-        existing.add(buildScopeRule(ruleInput, workflow));
+        WorkflowScopeRule newRule = buildScopeRule(ruleInput, workflow);
+        existing.add(newRule);
+        scopeMetricCollector.trackScopeEntryAdded(newRule.getValueType(), newRule.getRuleSource());
         changed = true;
       } else {
         if (!processedIds.contains(ruleId)) {
@@ -524,7 +528,23 @@ public class WorkflowService {
         }
       }
     }
+
+    if (changed) {
+      emitScopeCreatedMetrics(deduplicated);
+    }
+
     return changed;
+  }
+
+  private void emitScopeCreatedMetrics(List<WorkflowScopeRuleInput> deduplicatedRules) {
+    Map<ScopeRuleSelectedMode, Long> countsByMode =
+        deduplicatedRules.stream()
+            .filter(rule -> rule.getSelectedMode() != null)
+            .collect(
+                Collectors.groupingBy(
+                    WorkflowScopeRuleInput::getSelectedMode, Collectors.counting()));
+
+    countsByMode.forEach(scopeMetricCollector::trackScopeCreated);
   }
 
   /**

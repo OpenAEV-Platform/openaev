@@ -12,6 +12,7 @@ import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.database.repository.WorkflowScopeRuleRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.PreviewFeatureService;
+import io.openaev.telemetry.metric_collectors.ScopeMetricCollector;
 import io.openaev.utils.fixtures.WorkflowFixture;
 import java.util.*;
 import java.util.stream.Stream;
@@ -39,6 +40,7 @@ class WorkflowServiceTest {
   @Mock private PreviewFeatureService previewFeatureService;
   @Mock private StepService stepService;
   @Mock private WorkflowStateService workflowStateService;
+  @Mock private ScopeMetricCollector scopeMetricCollector;
 
   @InjectMocks private WorkflowService workflowService;
 
@@ -613,6 +615,10 @@ class WorkflowServiceTest {
               .findFirst()
               .orElseThrow();
       assertEquals(ScopeRuleValueType.ASSET_GROUP_ID, mappedAssetGroupRule.getValueType());
+
+      verify(scopeMetricCollector).trackScopeCreated(ScopeRuleSelectedMode.WHITELIST, 3L);
+      verify(scopeMetricCollector).trackScopeCreated(ScopeRuleSelectedMode.BLACKLIST, 2L);
+      verify(scopeMetricCollector, times(5)).trackScopeEntryAdded(any(), any());
     }
   }
 
