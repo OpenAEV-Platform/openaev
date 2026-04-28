@@ -10,16 +10,17 @@ import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.fixtures.tenants.TenantComposer;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
-import jakarta.persistence.EntityManager;
-import jakarta.transaction.Transactional;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class SecurityServiceTest extends IntegrationTest {
 
   private static final String REGISTRATION_ID = "oidc";
@@ -30,7 +31,6 @@ class SecurityServiceTest extends IntegrationTest {
   @Autowired private UserRepository userRepository;
   @Autowired private UserComposer userComposer;
   @Autowired private TenantComposer tenantComposer;
-  @Autowired protected EntityManager entityManager;
 
   @BeforeEach
   void setup() {
