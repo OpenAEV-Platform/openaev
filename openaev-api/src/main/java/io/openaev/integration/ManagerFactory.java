@@ -3,20 +3,20 @@ package io.openaev.integration;
 import static io.openaev.aop.lock.LockResourceType.MANAGER_FACTORY;
 
 import io.openaev.aop.lock.Lock;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
+import io.openaev.multitenancy.DependenciesManager;
+import io.openaev.multitenancy.DependenciesManagerException;
+import io.openaev.rest.injector_contract.InjectorContractService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.event.TransactionPhase;
-import org.springframework.transaction.event.TransactionalEventListener;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class ManagerFactory {
+public class ManagerFactory implements DependenciesManager {
   private final List<IntegrationFactory> factories;
   private final List<BuiltinTenantRegistrable> builtinRegistrables;
 
@@ -38,36 +38,31 @@ public class ManagerFactory {
 
   // -- TENANT DEPENDENCIES --
 
-  /**
-   * Registers all built-in components (injectors, executors, collectors) for a newly created
-   * tenant. Runs <b>after</b> the tenant-creation transaction has committed, so:
-   *
-   * <ul>
-   *   <li>The tenant row is visible (FK constraints satisfied)
-   *   <li>The Hibernate session is fresh (no dirty entities from other managers)
-   * </ul>
-   */
-  @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-  @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
-  public void onTenantCreated(TenantCreatedEvent event) {
-    Tenant tenant = event.getTenant();
-    String previousTenant = TenantContext.getCurrentTenant();
-    try {
-      TenantContext.setCurrentTenant(tenant.getId());
-
-      for (BuiltinTenantRegistrable registrable : builtinRegistrables) {
+  @Override
+  public void createDependencyForTenant(Tenant tenant) throws DependenciesManagerException {
+    for (BuiltinTenantRegistrable registrable : builtinRegistrables) {
+      try {
         registrable.registerForTenant();
+      } catch (Exception e) {
+        throw new DependenciesManagerException(
+            "Failed to register built-in connector %s for tenant %s"
+                .formatted(registrable.getClass().getSimpleName(), tenant.getName()),
+            e);
       }
-
-      log.info("Successfully registered built-in integrations for tenant '{}'", tenant.getName());
-    } catch (Exception e) {
-      log.error(
-          "Failed to register built-in integrations for tenant '{}': {}",
-          tenant.getName(),
-          e.getMessage(),
-          e);
-    } finally {
-      TenantContext.setCurrentTenant(previousTenant);
     }
+    log.info(
+        "Successfully registered {} built-in connector(s) for tenant '{}'",
+        builtinRegistrables.size(),
+        tenant.getName());
+  }
+
+  @Override
+  public void deleteDependencyForTenant(String tenantId) {
+    // Built-in connectors are tenant-scoped and deleted by CASCADE.
+  }
+
+  @Override
+  public List<Class<? extends DependenciesManager>> getPrerequisite() {
+    return List.of(InjectorContractService.class);
   }
 }

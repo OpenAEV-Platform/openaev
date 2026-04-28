@@ -8,7 +8,6 @@ import io.openaev.api.tenants.TenantOutput;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.TenantRepository;
-import io.openaev.integration.TenantCreatedEvent;
 import io.openaev.multitenancy.DependenciesManager;
 import io.openaev.multitenancy.DependenciesManagerException;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -36,7 +35,6 @@ public class TenantService {
 
   private final TenantRepository tenantRepository;
   private final List<DependenciesManager> dependencies;
-  private final org.springframework.context.ApplicationEventPublisher eventPublisher;
   @PersistenceContext private EntityManager entityManager;
 
   // -- CREATE --
@@ -79,9 +77,6 @@ public class TenantService {
     for (DependenciesManager dependency : sortByPrerequisites(dependencies)) {
       dependency.createDependencyForTenant(createdTenant);
     }
-    // Publish event so that listeners running after commit (e.g. ManagerFactory)
-    // can register additional components in a clean transaction.
-    eventPublisher.publishEvent(new TenantCreatedEvent(this, createdTenant));
     return createdTenant;
   }
 

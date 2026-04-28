@@ -247,8 +247,8 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
             input.getContracts().stream()
                 .map(in -> injectorContractService.convertInjectorFromInput(in, savedInjector))
                 .toList();
-        injectorContractRepository.saveAll(injectorContracts);
-        // Link contracts on the owning side now that they are persisted
+        injectorContracts = fromIterable(injectorContractRepository.saveAll(injectorContracts));
+        // Link managed instances returned by saveAll() — originals are detached after merge()
         savedInjector.getContracts().addAll(injectorContracts);
         // Persist the owning side to save join table entries
         injectorRepository.save(savedInjector);
@@ -330,8 +330,8 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     injectorContractRepository.deleteAllById(toDeletes);
     // Remove deleted contracts from the owning-side collection to keep it in sync
     injector.getContracts().removeIf(c -> toDeletes.contains(c.getId()));
-    injectorContractRepository.saveAll(toCreates);
-    // Link new contracts on the owning side now that they are persisted
+    toCreates = fromIterable(injectorContractRepository.saveAll(toCreates));
+    // Link managed instances returned by saveAll() — originals are detached after merge()
     injector.getContracts().addAll(toCreates);
     return injectorRepository.save(injector);
   }
@@ -546,9 +546,9 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     injectorContractRepository.deleteAllById(toDelete);
     // Remove deleted contracts from the owning-side collection to keep it in sync
     injector.getContracts().removeIf(c -> toDelete.contains(c.getId()));
-    injectorContractRepository.saveAll(toCreate);
+    toCreate = fromIterable(injectorContractRepository.saveAll(toCreate));
     injectorContractRepository.saveAll(toUpdate);
-    // Link new contracts on the owning side now that they are persisted
+    // Link managed instances returned by saveAll() — originals are detached after merge()
     injector.getContracts().addAll(toCreate);
     injectorRepository.save(injector);
   }
@@ -596,11 +596,14 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
                     this.injectorContractService.createBuiltinInjectorContract(
                         contract, newInjector, isPayloads))
             .toList();
-    injectorContractRepository.saveAll(injectorContracts);
-    // Now that contracts are persisted, link them on the owning side (Injector.contracts)
+    injectorContracts = fromIterable(injectorContractRepository.saveAll(injectorContracts));
+    // Link managed contracts on the owning side so Hibernate populates the join table.
+    // We MUST use the instances returned by saveAll() — the originals are detached after merge().
     newInjector.getContracts().addAll(injectorContracts);
-    // No need to save again — newInjector is already managed (persist), Hibernate will
-    // flush the join table entries automatically.
+    // Flush now so that all inserts are visible before any subsequent query triggers auto-flush
+    // (e.g. deleteDummyInjectorIfItExists), which would otherwise fail with
+    // TransientObjectException.
+    entityManager.flush();
     return newInjector;
   }
 

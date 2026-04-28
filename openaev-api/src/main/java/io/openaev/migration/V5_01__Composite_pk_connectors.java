@@ -24,7 +24,7 @@ import org.springframework.stereotype.Component;
  * </ul>
  */
 @Component
-public class V4_99__Composite_pk_connectors extends BaseJavaMigration {
+public class V5_01__Composite_pk_connectors extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
