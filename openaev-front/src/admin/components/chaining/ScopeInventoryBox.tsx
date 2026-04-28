@@ -1,7 +1,7 @@
 import { Add, FileDownloadOutlined, InfoOutlined } from '@mui/icons-material';
-import { Box, Button, Chip, Typography } from '@mui/material';
+import { Box, Button, Chip, Paper, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type ChangeEvent, useRef } from 'react';
+import { type ChangeEvent, type KeyboardEvent, useRef, useState } from 'react';
 
 import { useFormatter } from '../../../components/i18n';
 import { MESSAGING$ } from '../../../utils/Environment';
@@ -18,6 +18,7 @@ interface ScopeInventoryBoxProps {
   chips: InventoryChip[];
   onDownloadTemplate: () => void;
   onUploadCsv: (formData: FormData, file: File) => Promise<void> | void;
+  onAddManual: (values: string[]) => void;
 }
 
 const ScopeInventoryBox = ({
@@ -26,20 +27,24 @@ const ScopeInventoryBox = ({
   chips,
   onDownloadTemplate,
   onUploadCsv,
+  onAddManual,
 }: ScopeInventoryBoxProps) => {
   const { t } = useFormatter();
   const theme = useTheme();
   const uploadRef = useRef<HTMLInputElement | null>(null);
+  const [inputValue, setInputValue] = useState('');
+
+  const parsedValues = inputValue
+    .split(',')
+    .map(v => v.trim())
+    .filter(v => v.length > 0);
 
   const handleOpenUpload = () => uploadRef.current?.click();
 
   const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const target = event.target;
     const file = target.files?.[0];
-    if (!file) {
-      return;
-    }
-
+    if (!file) return;
     const formData = new FormData();
     formData.append('file', file);
     try {
@@ -48,6 +53,19 @@ const ScopeInventoryBox = ({
       MESSAGING$.notifyError(t('Failed to import CSV file'));
     }
     event.target.value = '';
+  };
+
+  const commitValues = () => {
+    if (parsedValues.length === 0) return;
+    onAddManual(parsedValues);
+    setInputValue('');
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      commitValues();
+    }
   };
 
   return (
@@ -73,19 +91,10 @@ const ScopeInventoryBox = ({
             accept=".csv,text/csv"
             onChange={handleFileChange}
           />
-          <Button
-            size="small"
-            onClick={onDownloadTemplate}
-            startIcon={<FileDownloadOutlined />}
-          >
+          <Button size="small" onClick={onDownloadTemplate} startIcon={<FileDownloadOutlined />}>
             {t('CSV template')}
           </Button>
-          <Button
-            size="small"
-            variant="text"
-            onClick={handleOpenUpload}
-            startIcon={<Add />}
-          >
+          <Button size="small" variant="text" onClick={handleOpenUpload} startIcon={<Add />}>
             {t('Add Bulk CSV')}
           </Button>
         </div>
@@ -102,25 +111,81 @@ const ScopeInventoryBox = ({
           alignItems: 'flex-start',
           alignContent: 'flex-start',
           gap: theme.spacing(1),
+          cursor: 'text',
+        }}
+        onClick={() => {
+          const input = document.getElementById('scope-inventory-input');
+          input?.focus();
         }}
       >
-        {chips.length === 0 && (
-          <Typography
-            variant="body2"
-            sx={{ color: 'text.disabled' }}
-          >
+        {chips.length === 0 && inputValue.length === 0 && (
+          <Typography variant="body2" sx={{ color: 'text.disabled' }}>
             {t('No asset selected. Add asset manually or select some in the asset list.')}
           </Typography>
         )}
         {chips.map(chip => (
-          <Chip
-            key={chip.key}
-            label={chip.label}
-            size="small"
-            onDelete={chip.onDelete}
-          />
+          <Chip key={chip.key} label={chip.label} size="small" onDelete={chip.onDelete} />
         ))}
+        <input
+          id="scope-inventory-input"
+          value={inputValue}
+          onChange={e => setInputValue(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={chips.length === 0 ? '' : t('Type to add...')}
+          style={{
+            border: 'none',
+            outline: 'none',
+            background: 'transparent',
+            color: 'inherit',
+            font: 'inherit',
+            minWidth: 180,
+            flexGrow: 1,
+          }}
+        />
       </Box>
+
+      {parsedValues.length > 0 && (
+        <Paper
+          variant="outlined"
+          sx={{
+            mt: 0.5,
+            padding: theme.spacing(1.5),
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            gap: theme.spacing(1),
+            cursor: 'pointer',
+            borderColor: theme.palette.primary.main,
+          }}
+          onClick={commitValues}
+        >
+          <Typography
+            variant="body2"
+            sx={{
+              color: 'text.secondary',
+              mr: 1,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {t('Tap enter or click here to add:')}
+          </Typography>
+          {parsedValues.map((val, idx) => (
+            // eslint-disable-next-line react/no-array-index-key
+            <Chip
+              key={`${val}-${idx}`}
+              label={val}
+              size="small"
+              color="primary"
+              variant="outlined"
+              onDelete={(e) => {
+                e.stopPropagation();
+                const updated = parsedValues.filter((_, i) => i !== idx);
+                setInputValue(updated.join(', '));
+              }}
+            />
+          ))}
+        </Paper>
+      )}
 
       <Typography
         variant="body2"

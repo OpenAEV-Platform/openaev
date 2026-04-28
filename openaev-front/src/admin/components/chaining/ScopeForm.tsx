@@ -319,6 +319,21 @@ const ScopeForm: FunctionComponent<ScopeFormProps> = ({
     [onCustomRulesChange, selectedCustomRules, t],
   );
 
+  const handleAddManual = useCallback((values: string[]) => {
+    const existingKeys = new Set(
+      selectedCustomRules.map(rule => `${rule.source}:${rule.value.toLowerCase()}`),
+    );
+    const newRules: ScopeCustomRule[] = values
+      .map(v => ({
+        source: 'MANUAL' as const,
+        value: v.trim(),
+      }))
+      .filter(rule => rule.value.length > 0 && !existingKeys.has(`${rule.source}:${rule.value.toLowerCase()}`));
+    if (newRules.length > 0) {
+      onCustomRulesChange([...selectedCustomRules, ...newRules]);
+    }
+  }, [onCustomRulesChange, selectedCustomRules]);
+
   const removeCustomRule = useCallback((ruleToRemove: ScopeCustomRule) => {
     onCustomRulesChange(
       selectedCustomRules.filter(
@@ -368,6 +383,7 @@ const ScopeForm: FunctionComponent<ScopeFormProps> = ({
         chips={inventoryChips}
         onDownloadTemplate={handleDownloadTemplate}
         onUploadCsv={handleUploadCsv}
+        onAddManual={handleAddManual}
       />
 
       {/* Add section */}
