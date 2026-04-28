@@ -69,11 +69,11 @@ const LogicConditionRuleRow: FunctionComponent<Props> = ({ rule, index, onChange
 
   // Build type items from catalog
   const typeItems = useMemo(() =>
-    outputTypes.map(ot => ot.outputType),
+    outputTypes.map(ot => ot.type),
   [outputTypes]);
 
   // Sub-field items for the selected type
-  const selectedOutputType = outputTypes.find(ot => ot.outputType === rule.key);
+  const selectedOutputType = outputTypes.find(ot => ot.type === rule.key);
   const subFieldItems = useMemo(() =>
     selectedOutputType?.fields.map(f => f.key) ?? [],
   [selectedOutputType]);

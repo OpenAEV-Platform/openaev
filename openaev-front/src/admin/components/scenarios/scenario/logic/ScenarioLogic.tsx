@@ -37,9 +37,6 @@ const ScenarioLogic: FunctionComponent = () => {
   const { scenarioId } = useParams() as { scenarioId: Scenario['scenario_id'] };
 
   const chainingSwimlanesEnabled = isFeatureEnabled('CHAINING_SWIMLANES');
-  if (!chainingSwimlanesEnabled) {
-    return null;
-  }
 
   const { scenario, attackPatternsMap } = useHelper((helper: ScenariosHelper & AttackPatternHelper) => ({
     scenario: helper.getScenario(scenarioId),
@@ -70,6 +67,10 @@ const ScenarioLogic: FunctionComponent = () => {
   }, [workflowId]);
 
   useEffect(() => { loadWorkflow(); }, [loadWorkflow]);
+
+  if (!chainingSwimlanesEnabled) {
+    return null;
+  }
 
   // -- Action handlers --
 

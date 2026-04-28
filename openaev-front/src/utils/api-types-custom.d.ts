@@ -234,6 +234,11 @@ export interface InputSource {
   field_label: string;
 }
 
+export interface BindingSource {
+  input_type: string;
+  input_field?: string | null;
+}
+
 export interface OutputFieldDescriptor {
   key: string;
   label: string;

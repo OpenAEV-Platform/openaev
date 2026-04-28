@@ -50,4 +50,13 @@ public class OutputProcessorFactory {
     }
     return Optional.of(processor);
   }
+
+  /**
+   * Returns all registered output processors.
+   *
+   * @return an unmodifiable collection of all output processors
+   */
+  public java.util.Collection<OutputProcessor> getAllProcessors() {
+    return java.util.Collections.unmodifiableCollection(outputProcessorHandlerMap.values());
+  }
 }

@@ -1,5 +1,5 @@
 import type { AttackPattern, InjectorContract, KillChainPhase } from '../../../../../utils/api-types';
-import type { InputSource, Workflow, WorkflowStep } from '../../../../../utils/api-types-custom';
+import type { BindingSource, Workflow, WorkflowStep } from '../../../../../utils/api-types-custom';
 
 /**
  * Extract output types from a step's output_parser JSON.
@@ -400,7 +400,7 @@ const extractRawBindings = (step: WorkflowStep): RawBinding[] => {
     const data = JSON.parse(step.step_data);
     const bindings: RawBinding[] = [];
 
-    const extractFromList = (items: Array<{ key?: string; input_sources?: InputSource[]; input_source?: InputSource }>) => {
+    const extractFromList = (items: Array<{ key?: string; input_sources?: BindingSource[]; input_source?: BindingSource }>) => {
       for (const item of items) {
         // Support both input_sources (array) and input_source (legacy single)
         const sources = item.input_sources

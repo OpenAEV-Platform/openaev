@@ -175,7 +175,7 @@ const LogicActionEditDrawer: FunctionComponent<Props> = ({
 
   // Build linkable options: type.field pairs from upstream output types
   const linkableOptions = upstreamOutputTypes.flatMap(outputType => {
-    const descriptor = outputTypeCatalog.find(d => d.outputType === outputType);
+    const descriptor = outputTypeCatalog.find(d => d.type === outputType);
     if (!descriptor || descriptor.fields.length === 0) {
       return [{ label: outputType, inputType: outputType, inputField: null as string | null }];
     }
