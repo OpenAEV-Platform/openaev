@@ -32,7 +32,7 @@ const MenuItemSub: FunctionComponent<Props> = ({
   const { navOpen, selectedMenu, anchors } = state;
   const { handleSelectedMenuOpen, handleSelectedMenuClose } = helpers;
 
-  const renderMenuItem = ({ label, link, exact, icon }: LeftMenuSubItem) => {
+  const renderMenuItem = ({ label, link, exact, icon, chip }: LeftMenuSubItem) => {
     const isCurrentTab = location.pathname === link;
     const menuLinkProps = resolveMenuLink(link);
     const handleClick = 'onClick' in menuLinkProps
@@ -69,6 +69,7 @@ const MenuItemSub: FunctionComponent<Props> = ({
             },
           }}
         />
+        {chip}
       </MenuItem>
     );
   };

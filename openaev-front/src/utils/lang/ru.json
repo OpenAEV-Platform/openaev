@@ -1975,6 +1975,7 @@
   "This field is required.": "Это поле обязательно для заполнения.",
   "This file is not in the specified format": "Этот файл не в указанном формате",
   "This file is too large": "Этот файл слишком большой",
+  "This feature requires an Enterprise Edition license.": "Для этой функции требуется лицензия Enterprise Edition.",
   "This file type is not accepted here.": "Этот тип файлов здесь не принимается.",
   "This group will have observer permission on new atomic testings.": "Эта группа будет иметь право наблюдателя на новые атомные испытания.",
   "This group will have observer permission on new payloads.": "Эта группа будет иметь права наблюдателя на новые полезные нагрузки.",

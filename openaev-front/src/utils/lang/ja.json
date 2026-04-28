@@ -1975,6 +1975,7 @@
   "This field is required.": "このフィールドは必須です。",
   "This file is not in the specified format": "このファイルは指定された形式ではありません",
   "This file is too large": "このファイルは大きすぎます",
+  "This feature requires an Enterprise Edition license.": "この機能にはEnterprise Editionライセンスが必要です。",
   "This file type is not accepted here.": "このファイルタイプはここでは受け付けられません。",
   "This group will have observer permission on new atomic testings.": "このグループは、新しいアトミックテストのオブザーバー権限を持つ。",
   "This group will have observer permission on new payloads.": "このグループは新しいペイロードのオブザーバー権限を持つ。",
