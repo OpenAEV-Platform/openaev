@@ -13,7 +13,7 @@ import { useQueryableWithLocalStorage } from '../../../../components/common/quer
 import ItemTags from '../../../../components/ItemTags';
 import { useHelper } from '../../../../store';
 import type { Challenge, Document } from '../../../../utils/api-types';
-import { buildTenantApiPath } from '../../../../utils/tenant-url-helper';
+import { buildTenantApiPath } from '../../../../utils/url-helper';
 import DocumentType from '../../components/documents/DocumentType';
 
 const useStyles = makeStyles()(theme => ({

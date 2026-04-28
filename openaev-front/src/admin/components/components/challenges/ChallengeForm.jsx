@@ -21,7 +21,7 @@ import { useHelper } from '../../../../store';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import { buildTenantApiPath } from '../../../../utils/tenant-url-helper.ts';
+import { buildTenantApiPath } from '../../../../utils/url-helper';
 import DocumentPopover from '../documents/DocumentPopover';
 import DocumentType from '../documents/DocumentType';
 

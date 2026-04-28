@@ -25,7 +25,7 @@ import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import RestrictionAccess from '../../../../utils/permissions/RestrictionAccess';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import { buildTenantApiPath } from '../../../../utils/tenant-url-helper';
+import { buildTenantApiPath } from '../../../../utils/url-helper';
 import { isNotEmptyField } from '../../../../utils/utils';
 import DetectionRemediationInfo from '../../threat_arsenal/form/DetectionRemediationInfo';
 import DetectionRemediationUseAriane from '../../threat_arsenal/form/DetectionRemediationUseAriane';

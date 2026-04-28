@@ -4,7 +4,7 @@ import { useTheme } from '@mui/material/styles';
 import ExpandableSection from '../../../../../../components/common/ExpandableSection';
 import { useFormatter } from '../../../../../../components/i18n';
 import { type ExecutionTraceOutput } from '../../../../../../utils/api-types';
-import { buildTenantApiPath } from '../../../../../../utils/tenant-url-helper';
+import { buildTenantApiPath } from '../../../../../../utils/url-helper';
 import ExecutionTime from './ExecutionTime';
 import TraceMessage from './TraceMessage';
 import TraceStatusChip from './TraceStatusChip';

@@ -18,6 +18,7 @@ import { type User, type UserOutput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { TENANT_SETTINGS_LABEL } from '../../nav/config/settings.config';
 import SecurityMenu from '../SecurityMenu';
 import CreateUser from './CreateUser';
 import UserPopover from './UserPopover';
@@ -128,7 +129,7 @@ const Users = () => {
       <div style={{ flexGrow: 1 }}>
         <Breadcrumbs
           variant="list"
-          elements={[{ label: t('Settings') }, { label: t('Security') }, {
+          elements={[{ label: t(TENANT_SETTINGS_LABEL) }, { label: t('Security') }, {
             label: t('Users'),
             current: true,
           }]}

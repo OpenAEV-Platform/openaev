@@ -5,7 +5,7 @@ import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import { buildTenantApiPath } from '../../../../utils/tenant-url-helper';
+import { buildTenantApiPath } from '../../../../utils/url-helper';
 import { type CatalogContextType } from '../catalog_connectors/CatalogLayout';
 import CreateConnectorInstanceDrawer from '../connector_instance/CreateConnectorInstanceDrawer';
 import ConnectorCatalogInfo from './ConnectorCatalogInfo';

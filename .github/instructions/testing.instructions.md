@@ -36,7 +36,7 @@ description: "Testing conventions: integration tests, unit tests, fixtures, comp
 ## Frontend Tests (Vitest)
 
 - **File location**: `openaev-front/src/__tests__/`, mirroring the source tree structure (e.g. source `src/utils/foo.ts` → test `src/__tests__/utils/foo.test.ts`)
-- **File naming**: test file name must match the casing and format of the source file it tests (e.g. `tenant-url-helper.ts` → `tenant-url-helper.test.ts`, `Cron.ts` → `Cron.test.tsx`)
+- **File naming**: test file name must match the casing and format of the source file it tests (e.g. `url-helper.ts` → `url-helper.test.ts`, `Cron.ts` → `Cron.test.tsx`)
 - Use `describe`, `expect`, `it` from `vitest`; use `vi` for mocks/spies
 - Group related tests with nested `describe` blocks
 - Use `describe.each` for parameterised tests over similar inputs

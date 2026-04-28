@@ -30,7 +30,7 @@ const setPathname = (pathname: string) => {
 
 // -- TESTS --
 
-describe('tenant-url-helper', () => {
+describe('url-helper', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockAppBasePath = '';
@@ -38,7 +38,7 @@ describe('tenant-url-helper', () => {
   });
 
   // Lazy import so mocks are applied
-  const importHelper = async () => import('../../utils/tenant-url-helper');
+  const importHelper = async () => import('../../utils/url-helper');
 
   // -- CONSTANTS --
 

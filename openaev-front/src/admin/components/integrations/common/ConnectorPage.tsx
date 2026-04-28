@@ -8,7 +8,7 @@ import { useFormatter } from '../../../../components/i18n';
 import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import { buildTenantApiPath } from '../../../../utils/tenant-url-helper';
+import { buildTenantApiPath } from '../../../../utils/url-helper';
 import CreateConnectorInstanceDrawer from '../connector_instance/CreateConnectorInstanceDrawer';
 import ConnectorAlerts from './ConnectorAlerts';
 import ConnectorCatalogInfo from './ConnectorCatalogInfo';

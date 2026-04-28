@@ -24,7 +24,8 @@ import { UserContext } from './utils/hooks/useAuth';
 import useNetworkCheck from './utils/hooks/useCheckNetwork';
 import useTenant from './utils/hooks/useTenant';
 import PermissionsProvider from './utils/permissions/PermissionsProvider';
-import { buildTenantUrl, DEFAULT_TENANT_UUID, extractTenantFromUrl } from './utils/tenant-url-helper';
+import { useIsCurrentPlatformRoute } from './utils/platformContext';
+import { buildTenantUrl, DEFAULT_TENANT_UUID, extractTenantFromUrl } from './utils/url-helper';
 
 const RootPublic = lazy(() => import('./public/Root'));
 const IndexPrivate = lazy(() => import('./private/Index'));
@@ -47,8 +48,9 @@ const Root = () => {
     };
   });
   const dispatch = useAppDispatch();
+  const isPlatform = useIsCurrentPlatformRoute();
 
-  const { userTenants, currentUserTenant, switchUserTenant, reloadUserTenants } = useTenant(me, logged);
+  const { userTenants, currentUserTenant, switchUserTenant, reloadUserTenants } = useTenant(me, logged, isPlatform);
 
   useEffect(() => {
     dispatch(fetchPublicPlatformParameters());
@@ -77,10 +79,11 @@ const Root = () => {
     );
   }
 
+  // Platform routes are tenant-agnostic — no redirect needed.
   // When the user is authenticated but the URL has no tenant prefix
   // (e.g. first visit at "/", or right after login), hard-redirect to
   // the tenant-prefixed URL so BrowserRouter picks up the correct basename.
-  if (!extractTenantFromUrl()) {
+  if (!extractTenantFromUrl() && !isPlatform) {
     const tenantId = currentUserTenant?.tenant_id ?? DEFAULT_TENANT_UUID;
     window.location.href = buildTenantUrl(tenantId);
     return <Loader />;

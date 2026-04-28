@@ -18,7 +18,7 @@ import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { type SearchPaginationInput, type SecurityPlatform } from '../../../../utils/api-types';
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import { buildTenantApiPath } from '../../../../utils/tenant-url-helper';
+import { buildTenantApiPath } from '../../../../utils/url-helper';
 import { isNotEmptyField } from '../../../../utils/utils';
 import SecurityPlatformCreation from './SecurityPlatformCreation';
 import SecurityPlatformPopover from './SecurityPlatformPopover';
