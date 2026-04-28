@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -16,6 +17,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
+import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.integration.Manager;
@@ -25,6 +27,7 @@ import io.openaev.jsonapi.Relationship;
 import io.openaev.jsonapi.ResourceIdentifier;
 import io.openaev.jsonapi.ResourceObject;
 import io.openaev.service.ZipJsonService;
+import io.openaev.utils.fixtures.DetectionRemediationFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.*;
 import org.junit.jupiter.api.DisplayName;
@@ -45,6 +48,7 @@ class PayloadApiImporterTest extends IntegrationTest {
   @Autowired private PayloadRepository payloadRepository;
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private OpenaevInjectorIntegrationFactory openaevInjectorIntegrationFactory;
+  @Autowired private CollectorRepository collectorRepository;
 
   // -- HELPERS --
 
@@ -71,11 +75,17 @@ class PayloadApiImporterTest extends IntegrationTest {
 
   private String performImport(MockMultipartFile zipFile) throws Exception {
     return mockMvc
-        .perform(multipart(PAYLOAD_URI + "/import").file(zipFile))
+        .perform(multipart(PAYLOAD_URI + "/import").file(zipFile).with(csrf()))
         .andExpect(status().is2xxSuccessful())
         .andReturn()
         .getResponse()
         .getContentAsString();
+  }
+
+  private ResourceObject buildCollectorResource(String collectorResourceId, String collectorType) {
+    Map<String, Object> attributes = new HashMap<>();
+    attributes.put("collector_type", collectorType);
+    return new ResourceObject(collectorResourceId, "collectors", attributes, emptyMap());
   }
 
   // -- TESTS --
@@ -501,5 +511,161 @@ class PayloadApiImporterTest extends IntegrationTest {
     assertEquals(0, json.at("/data/attributes/payload_platforms").size());
     assertEquals(0, json.at("/data/attributes/payload_arguments").size());
     assertEquals(0, json.at("/data/attributes/payload_prerequisites").size());
+  }
+
+  @Test
+  @DisplayName("Given unknown collector should skip detection remediations during import")
+  void given_unknownCollector_should_skipDetectionRemediations() throws Exception {
+    // -- PREPARE --
+    String unknownCollectorResourceId = UUID.randomUUID().toString();
+    String remediationId = UUID.randomUUID().toString();
+
+    ResourceObject unknownCollectorResource =
+        buildCollectorResource(unknownCollectorResourceId, "non_existing_collector_type");
+
+    ResourceObject remediation =
+        DetectionRemediationFixture.buildDetectionRemediationResource(
+            remediationId, "{\"rule\":\"test\"}", "collectors", unknownCollectorResourceId);
+
+    JsonApiDocument<ResourceObject> document =
+        new JsonApiDocument<>(
+            new ResourceObject(
+                null,
+                "command",
+                buildDefaultPayloadAttributes(),
+                Map.of(
+                    "payload_detection_remediations",
+                    new Relationship(
+                        List.of(new ResourceIdentifier(remediationId, "detection_remediations"))))),
+            List.of(remediation, unknownCollectorResource));
+
+    MockMultipartFile zipFile = buildZipFile(document);
+
+    // -- EXECUTE --
+    String response = performImport(zipFile);
+
+    // -- ASSERT --
+    JsonNode json = objectMapper.readTree(response);
+    String payloadId = json.at("/data/attributes/payload_id").asText();
+    assertNotNull(payloadId);
+
+    Payload payloadPersisted = payloadRepository.findById(payloadId).orElseThrow();
+    assertTrue(
+        payloadPersisted.getDetectionRemediations().isEmpty(),
+        "Detection remediations with unknown collector should be skipped");
+  }
+
+  @Test
+  @DisplayName(
+      "Given mixed known and unknown collectors should keep only known detection remediations")
+  void given_mixedCollectors_should_keepOnlyKnownDetectionRemediations() throws Exception {
+    // -- PREPARE --
+    var existingCollector = collectorRepository.findAll().iterator().next();
+
+    String knownCollectorResourceId = UUID.randomUUID().toString();
+    String unknownCollectorResourceId = UUID.randomUUID().toString();
+    String knownRemediationId = UUID.randomUUID().toString();
+    String unknownRemediationId = UUID.randomUUID().toString();
+
+    ResourceObject knownCollectorResource =
+        buildCollectorResource(knownCollectorResourceId, existingCollector.getType());
+    ResourceObject unknownCollectorResource =
+        buildCollectorResource(unknownCollectorResourceId, "non_existing_collector_type");
+
+    ResourceObject knownRemediation =
+        DetectionRemediationFixture.buildDetectionRemediationResource(
+            knownRemediationId, "{\"rule\":\"valid\"}", "collectors", knownCollectorResourceId);
+    ResourceObject unknownRemediation =
+        DetectionRemediationFixture.buildDetectionRemediationResource(
+            unknownRemediationId,
+            "{\"rule\":\"invalid\"}",
+            "collectors",
+            unknownCollectorResourceId);
+
+    JsonApiDocument<ResourceObject> document =
+        new JsonApiDocument<>(
+            new ResourceObject(
+                null,
+                "command",
+                buildDefaultPayloadAttributes(),
+                Map.of(
+                    "payload_detection_remediations",
+                    new Relationship(
+                        List.of(
+                            new ResourceIdentifier(knownRemediationId, "detection_remediations"),
+                            new ResourceIdentifier(
+                                unknownRemediationId, "detection_remediations"))))),
+            List.of(
+                knownRemediation,
+                unknownRemediation,
+                knownCollectorResource,
+                unknownCollectorResource));
+
+    MockMultipartFile zipFile = buildZipFile(document);
+
+    // -- EXECUTE --
+    String response = performImport(zipFile);
+
+    // -- ASSERT --
+    JsonNode json = objectMapper.readTree(response);
+    String payloadId = json.at("/data/attributes/payload_id").asText();
+    assertNotNull(payloadId);
+
+    Payload payloadPersisted = payloadRepository.findById(payloadId).orElseThrow();
+    assertEquals(
+        1,
+        payloadPersisted.getDetectionRemediations().size(),
+        "Only detection remediations with known collector should be kept");
+    assertEquals(
+        existingCollector.getType(),
+        payloadPersisted.getDetectionRemediations().getFirst().getCollector().getType());
+  }
+
+  @Test
+  @DisplayName("Given known collector references should keep all detection remediations")
+  void given_knownCollectorReferences_should_keepAllDetectionRemediations() throws Exception {
+    // Arrange
+    var existingCollector = collectorRepository.findAll().iterator().next();
+    String collectorResourceId = UUID.randomUUID().toString();
+    String firstRemediationId = UUID.randomUUID().toString();
+    String secondRemediationId = UUID.randomUUID().toString();
+
+    ResourceObject collectorResource =
+        buildCollectorResource(collectorResourceId, existingCollector.getType());
+
+    ResourceObject firstRemediation =
+        DetectionRemediationFixture.buildDetectionRemediationResource(
+            firstRemediationId, "{\"rule\":\"first\"}", "collectors", collectorResourceId);
+    ResourceObject secondRemediation =
+        DetectionRemediationFixture.buildDetectionRemediationResource(
+            secondRemediationId, "{\"rule\":\"second\"}", "collectors", collectorResourceId);
+
+    JsonApiDocument<ResourceObject> document =
+        new JsonApiDocument<>(
+            new ResourceObject(
+                null,
+                "command",
+                buildDefaultPayloadAttributes(),
+                Map.of(
+                    "payload_detection_remediations",
+                    new Relationship(
+                        List.of(
+                            new ResourceIdentifier(firstRemediationId, "detection_remediations"),
+                            new ResourceIdentifier(
+                                secondRemediationId, "detection_remediations"))))),
+            List.of(firstRemediation, secondRemediation, collectorResource));
+
+    MockMultipartFile zipFile = buildZipFile(document);
+
+    // Act
+    String response = performImport(zipFile);
+
+    // Assert
+    JsonNode json = objectMapper.readTree(response);
+    String payloadId = json.at("/data/attributes/payload_id").asText();
+    assertNotNull(payloadId);
+
+    Payload payloadPersisted = payloadRepository.findById(payloadId).orElseThrow();
+    assertEquals(2, payloadPersisted.getDetectionRemediations().size());
   }
 }

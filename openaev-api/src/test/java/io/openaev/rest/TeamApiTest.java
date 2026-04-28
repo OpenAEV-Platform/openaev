@@ -6,6 +6,7 @@ import static io.openaev.utils.fixtures.InjectFixture.getInjectForEmailContract;
 import static io.openaev.utils.fixtures.TeamFixture.*;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -63,7 +64,8 @@ class TeamApiTest extends IntegrationTest {
                 post(TEAM_URI)
                     .content(asJsonString(teamInput))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -91,7 +93,8 @@ class TeamApiTest extends IntegrationTest {
                 post(TEAM_URI)
                     .content(asJsonString(teamInput))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is4xxClientError())
             .andReturn()
             .getResponse()
@@ -119,7 +122,8 @@ class TeamApiTest extends IntegrationTest {
                 post(TEAM_URI)
                     .content(asJsonString(teamInput))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -150,7 +154,8 @@ class TeamApiTest extends IntegrationTest {
                 post(TEAM_URI)
                     .content(asJsonString(teamInput))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is4xxClientError())
             .andReturn()
             .getResponse()
@@ -181,7 +186,8 @@ class TeamApiTest extends IntegrationTest {
                 put(TEAM_URI + "/" + team.getId())
                     .content(asJsonString(teamInput))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -210,7 +216,8 @@ class TeamApiTest extends IntegrationTest {
                 post(TEAM_URI + "/upsert")
                     .content(asJsonString(teamInput))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -235,7 +242,8 @@ class TeamApiTest extends IntegrationTest {
                 post(TEAM_URI + "/upsert")
                     .content(asJsonString(teamInput))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -269,7 +277,8 @@ class TeamApiTest extends IntegrationTest {
                     post(TEAM_URI + "/upsert")
                         .content(asJsonString(teamInput))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .accept(MediaType.APPLICATION_JSON)));
+                        .accept(MediaType.APPLICATION_JSON)
+                        .with(csrf())));
 
     String expectedMessage = "Contextual team can only be associated to one exercise";
     String actualMessage = exception.getMessage();
@@ -350,7 +359,8 @@ class TeamApiTest extends IntegrationTest {
                 get(TEAM_URI + "/options")
                     .queryParam("searchText", searchText)
                     .queryParam("sourceId", simulationOrScenarioId ? exercise.getId() : null)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andReturn()
             .getResponse()
             .getContentAsString();
@@ -390,7 +400,8 @@ class TeamApiTest extends IntegrationTest {
                 post(TEAM_URI + "/options")
                     .content(asJsonString(teamIdsToSearch))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andReturn()
             .getResponse()
             .getContentAsString();

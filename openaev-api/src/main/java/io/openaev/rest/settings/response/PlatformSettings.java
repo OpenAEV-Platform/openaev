@@ -5,17 +5,10 @@ import static lombok.AccessLevel.NONE;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.ee.License;
-import io.openaev.rest.settings.PreviewFeature;
-import io.openaev.rest.settings.form.PolicyInput;
-import io.openaev.rest.settings.form.ThemeInput;
 import io.swagger.v3.oas.annotations.ExternalDocumentation;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -25,7 +18,7 @@ import lombok.Setter;
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
-public class PlatformSettings {
+public class PlatformSettings extends PublicPlatformSettings {
 
   @JsonProperty("platform_id")
   @Schema(description = "id of the platform")
@@ -44,16 +37,6 @@ public class PlatformSettings {
   @Schema(description = "Agent URL of the platform")
   private String platformAgentUrl;
 
-  @NotBlank
-  @JsonProperty("platform_theme")
-  @Schema(description = "Theme of the platform")
-  private String platformTheme;
-
-  @NotBlank
-  @JsonProperty("platform_lang")
-  @Schema(description = "Language of the platform")
-  private String platformLang;
-
   @JsonProperty("platform_home_dashboard")
   @Schema(description = "Default home dashboard of the platform")
   private String platformHomeDashboard;
@@ -65,30 +48,6 @@ public class PlatformSettings {
   @JsonProperty("platform_simulation_dashboard")
   @Schema(description = "Default simulation dashboard of the platform")
   private String platformSimulationDashboard;
-
-  @JsonProperty("platform_whitemark")
-  @Schema(description = "'true' if the platform has the whitemark activated")
-  private String platformWhitemark;
-
-  @JsonProperty("platform_openid_providers")
-  @Schema(description = "List of OpenID providers")
-  private List<OAuthProvider> platformOpenIdProviders;
-
-  @JsonProperty("platform_saml2_providers")
-  @Schema(description = "List of Saml2 providers")
-  private List<OAuthProvider> platformSaml2Providers;
-
-  @JsonProperty("auth_openid_enable")
-  @Schema(description = "True if OpenID is enabled")
-  private Boolean authOpenidEnable;
-
-  @JsonProperty("auth_saml2_enable")
-  @Schema(description = "True if Saml2 is enabled")
-  private Boolean authSaml2Enable;
-
-  @JsonProperty("auth_local_enable")
-  @Schema(description = "True if local authentication is enabled")
-  private Boolean authLocalEnable;
 
   @JsonProperty("map_tile_server_light")
   @Schema(description = "URL of the server containing the map tile with light theme")
@@ -172,45 +131,6 @@ public class PlatformSettings {
   @Schema(description = "True if the Tanium Executor is enabled")
   private Boolean executorTaniumEnable;
 
-  // THEME
-
-  @JsonProperty("platform_light_theme")
-  @Schema(description = "Definition of the light theme")
-  private ThemeInput themeLight;
-
-  @JsonProperty("platform_dark_theme")
-  @Schema(description = "Definition of the dark theme")
-  private ThemeInput themeDark;
-
-  // POLICIES
-
-  @JsonProperty("platform_policies")
-  @Schema(description = "Policies of the platform")
-  private PolicyInput policies;
-
-  // FEATURE FLAG
-  @JsonProperty("enabled_dev_features")
-  @Schema(description = "List of enabled dev features")
-  private List<PreviewFeature> enabledDevFeatures = new ArrayList<>();
-
-  // PLATFORM MESSAGE
-  @JsonProperty("platform_banner_by_level")
-  @Getter(NONE)
-  @Schema(
-      description =
-          "Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL)")
-  private Map<String, List<String>> platformBannerByLevel;
-
-  public Map<String, List<String>> getPlatformBannerByLevel() {
-    Map<String, List<String>> platformBannerByLevelLowerCase = new HashMap<>();
-    if (this.platformBannerByLevel != null) {
-      this.platformBannerByLevel.forEach(
-          (key, value) -> platformBannerByLevelLowerCase.put(key.toLowerCase(), value));
-      return platformBannerByLevelLowerCase;
-    }
-    return null;
-  }
-
   // EXPECTATION
   @NotNull
   @JsonProperty("expectation_detection_expiration_time")
@@ -265,11 +185,6 @@ public class PlatformSettings {
   @Schema(description = "Reply to mail to use by default for injects")
   private String defaultReplyTo;
 
-  // LICENSE
-  @JsonProperty("platform_license")
-  @Schema(description = "Platform licensing")
-  private License platformLicense;
-
   // XTM Hub
   @JsonProperty("xtm_hub_enable")
   @Schema(description = "True if connection with XTM Hub is enabled")
@@ -318,4 +233,8 @@ public class PlatformSettings {
   @JsonProperty("imap_service_available")
   @Schema(description = "IMAP Service availability")
   private String imapServiceAvailable;
+
+  @JsonProperty("platform_license")
+  @Schema(description = "Platform licensing information")
+  private License platformLicense;
 }

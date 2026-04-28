@@ -2,6 +2,7 @@ package io.openaev.database.repository;
 
 import io.openaev.database.model.ConnectorInstanceConfiguration;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
@@ -15,7 +16,8 @@ public interface ConnectorInstanceConfigurationRepository
 
   List<ConnectorInstanceConfiguration> findByConnectorInstanceId(String connectorInstanceId);
 
-  interface ConnectorIdsFomDatabase {
+  interface ConnectorIdsFromDatabase {
+
     String getConnectorInstanceId();
 
     String getCatalogConnectorId();
@@ -30,6 +32,18 @@ public interface ConnectorInstanceConfigurationRepository
               + "WHERE conf.connector_instance_configuration_key = :key "
               + "AND jsonb_exists(conf.connector_instance_configuration_value, :value)",
       nativeQuery = true)
-  ConnectorIdsFomDatabase findInstanceAndCatalogIdsByKeyValue(
+  ConnectorIdsFromDatabase findInstanceAndCatalogIdsByKeyValue(
       @Param("key") String key, @Param("value") String value);
+
+  @Query(
+      value =
+          """
+              SELECT instance.connector_instance_current_status
+              FROM connector_instance_configurations conf
+              JOIN connector_instances instance ON conf.connector_instance_id = instance.connector_instance_id
+              WHERE conf.connector_instance_configuration_key = :key
+              AND jsonb_exists(conf.connector_instance_configuration_value, :value)
+              """,
+      nativeQuery = true)
+  Optional<String> findStatusByKeyValue(@Param("key") String key, @Param("value") String value);
 }

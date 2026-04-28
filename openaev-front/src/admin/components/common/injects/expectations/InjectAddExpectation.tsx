@@ -19,11 +19,13 @@ const useStyles = makeStyles()(theme => ({
 interface InjectAddExpectationProps {
   predefinedExpectations: ExpectationInput[];
   handleAddExpectation: (data: ExpectationInput) => void;
+  disabled?: boolean;
 }
 
 const InjectAddExpectation: FunctionComponent<InjectAddExpectationProps> = ({
   predefinedExpectations,
   handleAddExpectation,
+  disabled,
 }) => {
   // Standard hooks
   const { classes } = useStyles();
@@ -52,6 +54,7 @@ const InjectAddExpectation: FunctionComponent<InjectAddExpectationProps> = ({
         divider={true}
         onClick={handleOpen}
         color="primary"
+        disabled={disabled}
       >
         <ListItemIcon color="primary">
           <ControlPointOutlined color="primary" />

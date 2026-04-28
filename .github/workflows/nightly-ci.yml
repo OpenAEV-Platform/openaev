@@ -1,0 +1,684 @@
+name: "[Core] Nightly CI"
+
+on:
+  schedule:
+    - cron: "0 3 * * *" # Every day at 3:00 AM UTC
+  workflow_dispatch: {} # Manual trigger for on-demand runs
+
+concurrency:
+  group: nightly-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+
+  # ────────────────────────────────────────────────────────────────────
+  # Build stages (Linux only — artifacts are OS-independent)
+  # ────────────────────────────────────────────────────────────────────
+
+  backend-compile:
+    name: Backend Compile
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/backend-compile
+
+  frontend-build:
+    name: Frontend Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/frontend-build
+
+  # ────────────────────────────────────────────────────────────────────
+  # Backend API tests — full suite (no sharding)
+  # Two parallel variants: Elasticsearch vs OpenSearch
+  # Services use classic GitHub Actions service containers.
+  # MinIO requires a custom command (server /data) and is started manually.
+  # ────────────────────────────────────────────────────────────────────
+
+  api-tests-elasticsearch:
+    name: API Tests (Elasticsearch)
+    runs-on: ubuntu-latest
+    services:
+      pgsql:
+        image: postgres:17-alpine
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_USER: openaev
+          POSTGRES_PASSWORD: openaev
+          POSTGRES_DB: openaev
+          POSTGRES_INITDB_ARGS: "-c max_connections=1000"
+        options: >-
+          --health-cmd "pg_isready -U openaev" --health-interval 10s
+          --health-timeout 5s --health-retries 5
+      elasticsearch:
+        image: docker.elastic.co/elasticsearch/elasticsearch:8.18.3
+        ports:
+          - 9200:9200
+        env:
+          discovery.type: single-node
+          xpack.security.enabled: "false"
+          ES_JAVA_OPTS: "-Xms2g -Xmx2g"
+        options: >-
+          --health-cmd "curl -sf http://localhost:9200/_cluster/health || exit
+          1" --health-interval 15s --health-timeout 10s --health-retries 20
+          --health-start-period 30s
+      rabbitmq:
+        image: rabbitmq:4.1-management
+        ports:
+          - 5672:5672
+        env:
+          RABBITMQ_DEFAULT_USER: guest
+          RABBITMQ_DEFAULT_PASS: guest
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q check_running" --health-interval
+          15s --health-timeout 10s --health-retries 15 --health-start-period 20s
+    env:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/openaev
+      SPRING_DATASOURCE_USERNAME: openaev
+      SPRING_DATASOURCE_PASSWORD: openaev
+      MINIO_ENDPOINT: localhost
+      MINIO_PORT: 9000
+      ENGINE_URL: http://localhost:9200
+      OPENBAS_RABBITMQ_HOSTNAME: localhost
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v5
+        with:
+          java-version: "21"
+          distribution: temurin
+          cache: maven
+
+      - name: Start MinIO
+        run: |
+          docker run -d --name minio \
+            -p 9000:9000 \
+            -e MINIO_ROOT_USER=minioadmin \
+            -e MINIO_ROOT_PASSWORD=minioadmin \
+            minio/minio:RELEASE.2025-06-13T11-33-47Z server /data
+
+          echo "⏳ Waiting for MinIO..."
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:9000/minio/health/live && break
+            sleep 1
+          done
+          curl -sf http://localhost:9000/minio/health/live || { echo "❌ MinIO failed to start"; exit 1; }
+          echo "✅ MinIO ready"
+
+      - name: Build all modules (skip tests)
+        run: mvn -B -ntp clean install -DskipTests
+
+      - name: Run API tests (Elasticsearch)
+        run: mvn -B -ntp -pl openaev-api verify
+
+      - name: Upload JaCoCo exec data
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: jacoco-exec-elasticsearch
+          path: openaev-api/target/jacoco.exec
+          if-no-files-found: warn
+
+  api-tests-opensearch:
+    name: API Tests (OpenSearch)
+    runs-on: ubuntu-latest
+    services:
+      pgsql:
+        image: postgres:17-alpine
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_USER: openaev
+          POSTGRES_PASSWORD: openaev
+          POSTGRES_DB: openaev
+          POSTGRES_INITDB_ARGS: "-c max_connections=1000"
+        options: >-
+          --health-cmd "pg_isready -U openaev" --health-interval 10s
+          --health-timeout 5s --health-retries 5
+      opensearch:
+        image: opensearchproject/opensearch:3.3.2
+        ports:
+          - 9200:9200
+        env:
+          discovery.type: single-node
+          DISABLE_SECURITY_PLUGIN: "true"
+          OPENSEARCH_JAVA_OPTS: "-Xms2g -Xmx2g"
+        options: >-
+          --health-cmd "curl -sf http://localhost:9200/_cluster/health || exit
+          1" --health-interval 15s --health-timeout 10s --health-retries 20
+          --health-start-period 30s
+      rabbitmq:
+        image: rabbitmq:4.1-management
+        ports:
+          - 5672:5672
+        env:
+          RABBITMQ_DEFAULT_USER: guest
+          RABBITMQ_DEFAULT_PASS: guest
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q check_running" --health-interval
+          15s --health-timeout 10s --health-retries 15 --health-start-period 20s
+    env:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/openaev
+      SPRING_DATASOURCE_USERNAME: openaev
+      SPRING_DATASOURCE_PASSWORD: openaev
+      MINIO_ENDPOINT: localhost
+      MINIO_PORT: 9000
+      ENGINE_URL: http://localhost:9200
+      ENGINE_ENGINESELECTOR: opensearch
+      OPENBAS_RABBITMQ_HOSTNAME: localhost
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v5
+        with:
+          java-version: "21"
+          distribution: temurin
+          cache: maven
+
+      - name: Start MinIO
+        run: |
+          docker run -d --name minio \
+            -p 9000:9000 \
+            -e MINIO_ROOT_USER=minioadmin \
+            -e MINIO_ROOT_PASSWORD=minioadmin \
+            minio/minio:RELEASE.2025-06-13T11-33-47Z server /data
+
+          echo "⏳ Waiting for MinIO..."
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:9000/minio/health/live && break
+            sleep 1
+          done
+          curl -sf http://localhost:9000/minio/health/live || { echo "❌ MinIO failed to start"; exit 1; }
+          echo "✅ MinIO ready"
+
+      - name: Build all modules (skip tests)
+        run: mvn -B -ntp clean install -DskipTests
+
+      - name: Run API tests (OpenSearch)
+        run: mvn -B -ntp -pl openaev-api verify
+
+      - name: Upload JaCoCo exec data
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: jacoco-exec-opensearch
+          path: openaev-api/target/jacoco.exec
+          if-no-files-found: warn
+
+  # ────────────────────────────────────────────────────────────────────
+  # Backend package (needed for E2E tests)
+  # ────────────────────────────────────────────────────────────────────
+
+  backend-package:
+    name: Backend Package
+    needs: [ frontend-build, backend-compile ]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/backend-package
+
+  # ────────────────────────────────────────────────────────────────────
+  # E2E tests — browser × engine matrix (Linux x64, services managed by GitHub)
+  # Search engine and MinIO use docker run (services: doesn't support
+  # custom commands or conditional images).
+  # ────────────────────────────────────────────────────────────────────
+
+  e2e-tests:
+    name: "E2E (${{ matrix.engine.name }} / ${{ matrix.browser }})"
+    needs: [ backend-package ]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [ chromium, firefox, webkit, edge ]
+        engine:
+          - name: elasticsearch
+            image: docker.elastic.co/elasticsearch/elasticsearch:8.18.3
+          - name: opensearch
+            image: opensearchproject/opensearch:3.3.2
+    services:
+      pgsql:
+        image: postgres:17-alpine
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_USER: openaev
+          POSTGRES_PASSWORD: openaev
+          POSTGRES_DB: openaev
+          POSTGRES_INITDB_ARGS: "-c max_connections=1000"
+        options: >-
+          --health-cmd "pg_isready -U openaev" --health-interval 10s
+          --health-timeout 5s --health-retries 5
+      rabbitmq:
+        image: rabbitmq:4.1-management
+        ports:
+          - 5672:5672
+        env:
+          RABBITMQ_DEFAULT_USER: guest
+          RABBITMQ_DEFAULT_PASS: guest
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q check_running" --health-interval
+          15s --health-timeout 10s --health-retries 15 --health-start-period 20s
+    env:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/openaev
+      SPRING_DATASOURCE_USERNAME: openaev
+      SPRING_DATASOURCE_PASSWORD: openaev
+      MINIO_ENDPOINT: localhost
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_ACCESS_SECRET: minioadmin
+      ENGINE_URL: http://localhost:9200
+      ENGINE_ENGINESELECTOR: ${{ matrix.engine.name == 'opensearch' && 'opensearch' || 'elk' }}
+      OPENBAS_RABBITMQ_HOSTNAME: localhost
+      OPENAEV_ADMIN_EMAIL: admin@openaev.io
+      OPENAEV_ADMIN_PASSWORD: admin
+      OPENAEV_ADMIN_TOKEN: 0d17ce9a-f3a8-4c6d-9721-c98dc3dc023f
+      OPENAEV_ADMIN_ENCRYPTION_KEY: ThisIsMyUltraSecureEncryptionKey
+      OPENAEV_ADMIN_ENCRYPTION_SALT: ilikesaltyfoodnomnom
+      SPRING_PROFILES_ACTIVE: ci
+    steps:
+      - uses: actions/checkout@v6
+
+      # Search engine — conditional per matrix (services: can't vary by matrix)
+      - name: Start ${{ matrix.engine.name }}
+        run: |
+          if [ "${{ matrix.engine.name }}" = "elasticsearch" ]; then
+            docker run -d --name search -p 9200:9200 \
+              -e discovery.type=single-node \
+              -e xpack.security.enabled=false \
+              -e "ES_JAVA_OPTS=-Xms2g -Xmx2g" \
+              ${{ matrix.engine.image }}
+          else
+            docker run -d --name search -p 9200:9200 \
+              -e discovery.type=single-node \
+              -e DISABLE_SECURITY_PLUGIN=true \
+              -e "OPENSEARCH_JAVA_OPTS=-Xms2g -Xmx2g" \
+              ${{ matrix.engine.image }}
+          fi
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:9200/_cluster/health && break
+            sleep 2
+          done
+          curl -sf http://localhost:9200/_cluster/health || { echo "❌ ${{ matrix.engine.name }} failed"; exit 1; }
+
+      # MinIO needs "server /data" — not supported by services: block
+      - name: Start MinIO
+        run: |
+          docker run -d --name minio \
+            -p 9000:9000 \
+            -e MINIO_ROOT_USER=minioadmin \
+            -e MINIO_ROOT_PASSWORD=minioadmin \
+            minio/minio:RELEASE.2025-06-13T11-33-47Z server /data
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:9000/minio/health/live && break
+            sleep 1
+          done
+          curl -sf http://localhost:9000/minio/health/live || { echo "❌ MinIO failed"; exit 1; }
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v5
+        with:
+          java-version: "21"
+          distribution: temurin
+
+      - name: Set up Node.js 22.11
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22.11.0"
+
+      - name: Install corepack
+        run: npm install -g corepack
+
+      - name: Get Yarn cache directory
+        id: yarn-cache-dir
+        run: echo "dir=$(yarn config get cacheFolder)" >> "$GITHUB_OUTPUT"
+        working-directory: openaev-front
+
+      - name: Cache Yarn dependencies
+        uses: actions/cache@v5
+        with:
+          path: ${{ steps.yarn-cache-dir.outputs.dir }}
+          key: ${{ runner.os }}-yarn-${{ hashFiles('openaev-front/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
+
+      - name: Install frontend dependencies & Playwright
+        working-directory: openaev-front
+        run: |
+          yarn install --immutable
+          # playwright install uses 'msedge' while test --project uses 'edge'
+          INSTALL_BROWSER=${{ matrix.browser }}
+          if [ "$INSTALL_BROWSER" = "edge" ]; then INSTALL_BROWSER="msedge"; fi
+          yarn playwright install --with-deps "$INSTALL_BROWSER"
+          # Setup project always uses chromium
+          if [ "${{ matrix.browser }}" != "chromium" ]; then
+            yarn playwright install --with-deps chromium
+          fi
+
+      - name: Download backend JAR
+        uses: actions/download-artifact@v8
+        with:
+          name: openaev-api-jar
+          path: openaev-api/target
+
+      - name: Start application
+        run: |
+          nohup java -jar openaev-api/target/openaev-api.jar \
+            > "${{ runner.temp }}/app.log" 2>&1 &
+          echo $! > "${{ runner.temp }}/app.pid"
+          echo "🚀 Application started (PID $(cat "${{ runner.temp }}/app.pid"))"
+
+      - name: Wait for application
+        run: |
+          PID=$(cat "${{ runner.temp }}/app.pid" 2>/dev/null || echo "unknown")
+          echo "⏳ Waiting for application (PID $PID) on port 8080..."
+          for i in $(seq 1 90); do
+            # Fail fast if the process has exited
+            if [ "$PID" != "unknown" ] && ! kill -0 "$PID" 2>/dev/null; then
+              echo "❌ Application process (PID $PID) exited prematurely"
+              break
+            fi
+            if curl -sf http://localhost:8080 > /dev/null 2>&1; then
+              echo "✅ Application is up after $((i * 2))s"
+              exit 0
+            fi
+            sleep 2
+          done
+
+          echo ""
+          echo "╔══════════════════════════════════════════════════╗"
+          echo "║         APPLICATION FAILED TO START              ║"
+          echo "╚══════════════════════════════════════════════════╝"
+
+          echo ""
+          echo "── Process status ──"
+          if [ "$PID" != "unknown" ]; then
+            ps -p "$PID" -o pid,stat,etime,rss,args 2>/dev/null || echo "  Process $PID is NOT running"
+          fi
+
+          echo ""
+          echo "── Port 8080 check ──"
+          ss -tlnp | grep ':8080' || echo "  Nothing listening on port 8080"
+
+          echo ""
+          echo "── Service connectivity ──"
+          echo -n "  PostgreSQL (5432): "; curl -sf http://localhost:5432 2>&1 | head -1 || pg_isready -h localhost -p 5432 2>&1 || echo "unreachable"
+          echo -n "  Elasticsearch/OpenSearch (9200): "; curl -sf http://localhost:9200 | head -1 || echo "unreachable"
+          echo -n "  MinIO (9000): "; curl -sf http://localhost:9000/minio/health/live && echo "ok" || echo "unreachable"
+          echo -n "  RabbitMQ (5672): "; nc -z localhost 5672 2>&1 && echo "ok" || echo "unreachable"
+
+          echo ""
+          echo "── Disk space ──"
+          df -h / | head -5
+
+          echo ""
+          echo "── Application log (last 200 lines) ──"
+          tail -200 "${{ runner.temp }}/app.log" 2>/dev/null || echo "  (no log file found)"
+
+          exit 1
+
+      - name: Upload application log
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: app-log-${{ matrix.engine.name }}-${{ matrix.browser }}
+          path: ${{ runner.temp }}/app.log
+          if-no-files-found: warn
+
+      - name: Run E2E tests (${{ matrix.engine.name }} / ${{ matrix.browser }})
+        working-directory: openaev-front
+        run: >-
+          yarn playwright test --config playwright.nightly.config.ts
+          --project=setup --project=${{ matrix.browser }} --workers=1
+          --retries=2
+        env:
+          APP_URL: http://localhost:8080
+          E2E_COVERAGE: "true"
+
+      - name: Verify API types are up to date
+        if: matrix.browser == 'chromium' && matrix.engine.name == 'elasticsearch'
+        working-directory: openaev-front
+        run: |
+          API_URL=http://localhost:8080 yarn generate-types-from-api
+          if git diff --name-only | grep -q './src/utils/api-types.d.ts'; then
+            git diff ./src/utils/api-types.d.ts
+            echo "⚠️ Forgot to generate types! Run 'yarn generate-types-from-api' before committing."; exit 1
+          fi
+
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report-${{ matrix.engine.name }}-${{ matrix.browser }}
+          path: openaev-front/test-results/
+
+  # ────────────────────────────────────────────────────────────────────
+  # E2E tests — Linux ARM, browser × engine matrix
+  # Playwright supports chromium and firefox on arm64 Linux.
+  # ────────────────────────────────────────────────────────────────────
+
+  e2e-tests-arm:
+    name: "E2E (arm / ${{ matrix.engine.name }} / ${{ matrix.browser }})"
+    needs: [ backend-package ]
+    runs-on: ubuntu-24.04-arm
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [ chromium, firefox ]
+        engine:
+          - name: elasticsearch
+            image: docker.elastic.co/elasticsearch/elasticsearch:8.18.3
+          - name: opensearch
+            image: opensearchproject/opensearch:3.3.2
+    services:
+      pgsql:
+        image: postgres:17-alpine
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_USER: openaev
+          POSTGRES_PASSWORD: openaev
+          POSTGRES_DB: openaev
+          POSTGRES_INITDB_ARGS: "-c max_connections=1000"
+        options: >-
+          --health-cmd "pg_isready -U openaev" --health-interval 10s
+          --health-timeout 5s --health-retries 5
+      rabbitmq:
+        image: rabbitmq:4.1-management
+        ports:
+          - 5672:5672
+        env:
+          RABBITMQ_DEFAULT_USER: guest
+          RABBITMQ_DEFAULT_PASS: guest
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q check_running" --health-interval
+          15s --health-timeout 10s --health-retries 15 --health-start-period 20s
+    env:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/openaev
+      SPRING_DATASOURCE_USERNAME: openaev
+      SPRING_DATASOURCE_PASSWORD: openaev
+      MINIO_ENDPOINT: localhost
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_ACCESS_SECRET: minioadmin
+      ENGINE_URL: http://localhost:9200
+      ENGINE_ENGINESELECTOR: ${{ matrix.engine.name == 'opensearch' && 'opensearch' || 'elk' }}
+      OPENBAS_RABBITMQ_HOSTNAME: localhost
+      OPENAEV_ADMIN_EMAIL: admin@openaev.io
+      OPENAEV_ADMIN_PASSWORD: admin
+      OPENAEV_ADMIN_TOKEN: 0d17ce9a-f3a8-4c6d-9721-c98dc3dc023f
+      OPENAEV_ADMIN_ENCRYPTION_KEY: ThisIsMyUltraSecureEncryptionKey
+      OPENAEV_ADMIN_ENCRYPTION_SALT: ilikesaltyfoodnomnom
+      SPRING_PROFILES_ACTIVE: ci
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Start ${{ matrix.engine.name }}
+        run: |
+          if [ "${{ matrix.engine.name }}" = "elasticsearch" ]; then
+            docker run -d --name search -p 9200:9200 \
+              -e discovery.type=single-node \
+              -e xpack.security.enabled=false \
+              -e "ES_JAVA_OPTS=-Xms2g -Xmx2g" \
+              ${{ matrix.engine.image }}
+          else
+            docker run -d --name search -p 9200:9200 \
+              -e discovery.type=single-node \
+              -e DISABLE_SECURITY_PLUGIN=true \
+              -e "OPENSEARCH_JAVA_OPTS=-Xms2g -Xmx2g" \
+              ${{ matrix.engine.image }}
+          fi
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:9200/_cluster/health && break
+            sleep 2
+          done
+          curl -sf http://localhost:9200/_cluster/health || { echo "❌ ${{ matrix.engine.name }} failed"; exit 1; }
+
+      - name: Start MinIO
+        run: |
+          docker run -d --name minio \
+            -p 9000:9000 \
+            -e MINIO_ROOT_USER=minioadmin \
+            -e MINIO_ROOT_PASSWORD=minioadmin \
+            minio/minio:RELEASE.2025-06-13T11-33-47Z server /data
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:9000/minio/health/live && break
+            sleep 1
+          done
+          curl -sf http://localhost:9000/minio/health/live || { echo "❌ MinIO failed"; exit 1; }
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v5
+        with:
+          java-version: "21"
+          distribution: temurin
+
+      - name: Set up Node.js 22.11
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22.11.0"
+
+      - name: Install corepack
+        run: npm install -g corepack
+
+      - name: Get Yarn cache directory
+        id: yarn-cache-dir
+        run: echo "dir=$(yarn config get cacheFolder)" >> "$GITHUB_OUTPUT"
+        working-directory: openaev-front
+
+      - name: Cache Yarn dependencies
+        uses: actions/cache@v5
+        with:
+          path: ${{ steps.yarn-cache-dir.outputs.dir }}
+          key: ${{ runner.os }}-yarn-${{ hashFiles('openaev-front/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
+
+      - name: Install frontend dependencies & Playwright
+        working-directory: openaev-front
+        run: |
+          yarn install --immutable
+          # playwright install uses 'msedge' while test --project uses 'edge'
+          INSTALL_BROWSER=${{ matrix.browser }}
+          if [ "$INSTALL_BROWSER" = "edge" ]; then INSTALL_BROWSER="msedge"; fi
+          yarn playwright install --with-deps "$INSTALL_BROWSER"
+          if [ "${{ matrix.browser }}" != "chromium" ]; then
+            yarn playwright install --with-deps chromium
+          fi
+
+      - name: Download backend JAR
+        uses: actions/download-artifact@v8
+        with:
+          name: openaev-api-jar
+          path: openaev-api/target
+
+      - name: Start application
+        run: |
+          nohup java -jar openaev-api/target/openaev-api.jar \
+            > "${{ runner.temp }}/app.log" 2>&1 &
+          echo $! > "${{ runner.temp }}/app.pid"
+          echo "🚀 Application started (PID $(cat "${{ runner.temp }}/app.pid"))"
+
+      - name: Wait for application
+        run: |
+          PID=$(cat "${{ runner.temp }}/app.pid" 2>/dev/null || echo "unknown")
+          echo "⏳ Waiting for application (PID $PID) on port 8080..."
+          for i in $(seq 1 90); do
+            # Fail fast if the process has exited
+            if [ "$PID" != "unknown" ] && ! kill -0 "$PID" 2>/dev/null; then
+              echo "❌ Application process (PID $PID) exited prematurely"
+              break
+            fi
+            if curl -sf http://localhost:8080 > /dev/null 2>&1; then
+              echo "✅ Application is up after $((i * 2))s"
+              exit 0
+            fi
+            sleep 2
+          done
+
+          echo ""
+          echo "╔══════════════════════════════════════════════════╗"
+          echo "║         APPLICATION FAILED TO START              ║"
+          echo "╚══════════════════════════════════════════════════╝"
+
+          echo ""
+          echo "── Process status ──"
+          if [ "$PID" != "unknown" ]; then
+            ps -p "$PID" -o pid,stat,etime,rss,args 2>/dev/null || echo "  Process $PID is NOT running"
+          fi
+
+          echo ""
+          echo "── Port 8080 check ──"
+          ss -tlnp | grep ':8080' || echo "  Nothing listening on port 8080"
+
+          echo ""
+          echo "── Service connectivity ──"
+          echo -n "  PostgreSQL (5432): "; curl -sf http://localhost:5432 2>&1 | head -1 || pg_isready -h localhost -p 5432 2>&1 || echo "unreachable"
+          echo -n "  Elasticsearch/OpenSearch (9200): "; curl -sf http://localhost:9200 | head -1 || echo "unreachable"
+          echo -n "  MinIO (9000): "; curl -sf http://localhost:9000/minio/health/live && echo "ok" || echo "unreachable"
+          echo -n "  RabbitMQ (5672): "; nc -z localhost 5672 2>&1 && echo "ok" || echo "unreachable"
+
+          echo ""
+          echo "── Disk space ──"
+          df -h / | head -5
+
+          echo ""
+          echo "── Application log (last 200 lines) ──"
+          tail -200 "${{ runner.temp }}/app.log" 2>/dev/null || echo "  (no log file found)"
+
+          exit 1
+
+      - name: Upload application log
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: app-log-arm-${{ matrix.engine.name }}-${{ matrix.browser }}
+          path: ${{ runner.temp }}/app.log
+          if-no-files-found: warn
+
+      - name: Run E2E tests (${{ matrix.engine.name }} / ${{ matrix.browser }})
+        working-directory: openaev-front
+        run: >-
+          yarn playwright test --config playwright.nightly.config.ts
+          --project=setup --project=${{ matrix.browser }} --workers=1
+          --retries=2
+        env:
+          APP_URL: http://localhost:8080
+          E2E_COVERAGE: "true"
+
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report-arm-${{ matrix.engine.name }}-${{ matrix.browser }}
+          path: openaev-front/test-results/
+
+

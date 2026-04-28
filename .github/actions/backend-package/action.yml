@@ -1,0 +1,84 @@
+name: Backend Package
+description: >
+  Download pre-compiled artifacts, package the backend fat JAR (glibc),
+  verify it, and upload the artifact.
+
+inputs:
+  download-release-assets:
+    description: Whether to download the release-assets artifact
+    required: false
+    default: 'false'
+
+outputs:
+  jar-size:
+    description: Size of the packaged JAR in bytes
+    value: ${{ steps.verify-jar.outputs.jar_size }}
+
+runs:
+  using: composite
+  steps:
+    - name: Download frontend build artifact
+      uses: actions/download-artifact@v8
+      with:
+        name: frontend-build
+        path: openaev-front/builder/prod/build
+    - name: Download compiled Maven artifacts
+      uses: actions/download-artifact@v8
+      with:
+        name: backend-compiled
+        path: ~/.m2/repository/io/openaev/
+    - name: Download release assets (agents, implants, catalog)
+      if: ${{ inputs.download-release-assets == 'true' }}
+      uses: actions/download-artifact@v8
+      with:
+        name: release-assets
+        path: openaev-api/src/main/resources
+    - name: Set up Java 21
+      uses: actions/setup-java@v5
+      with:
+        java-version: "21"
+        distribution: temurin
+        cache: maven
+    - name: Verify downloaded artifacts
+      run: |
+        # Verify frontend build
+        if [ ! -d "openaev-front/builder/prod/build" ] || [ -z "$(ls -A openaev-front/builder/prod/build 2>/dev/null)" ]; then
+          echo "❌ Frontend build artifacts missing or empty"
+          ls -la openaev-front/builder/prod/ 2>/dev/null || echo "  directory does not exist"
+          exit 1
+        fi
+        echo "✅ Frontend build present ($(find openaev-front/builder/prod/build -type f | wc -l) files)"
+
+        # Verify Maven artifacts
+        MVN_JARS=$(find ~/.m2/repository/io/openaev/ -name '*.jar' 2>/dev/null | head -5)
+        if [ -z "$MVN_JARS" ]; then
+          echo "❌ No Maven JARs found in ~/.m2/repository/io/openaev/"
+          exit 1
+        fi
+        echo "✅ Maven artifacts found"
+      shell: bash
+    - name: Package backend JAR
+      run: mvn -B -ntp -q -pl openaev-api package -DskipTests
+      shell: bash
+    - name: Verify packaged JAR
+      id: verify-jar
+      run: |
+        if [ ! -f "openaev-api/target/openaev-api.jar" ]; then
+          echo "❌ openaev-api.jar was not produced"
+          ls -la openaev-api/target/ 2>/dev/null || echo "  target/ directory does not exist"
+          exit 1
+        fi
+        JAR_SIZE=$(stat --format=%s openaev-api/target/openaev-api.jar 2>/dev/null || stat -f%z openaev-api/target/openaev-api.jar 2>/dev/null)
+        if [ "$JAR_SIZE" -lt 1000 ] 2>/dev/null; then
+          echo "❌ openaev-api.jar is suspiciously small ($JAR_SIZE bytes)"
+          exit 1
+        fi
+        echo "✅ openaev-api.jar produced ($JAR_SIZE bytes)"
+        echo "jar_size=$JAR_SIZE" >> "$GITHUB_OUTPUT"
+      shell: bash
+    - name: Upload backend JAR artifact
+      uses: actions/upload-artifact@v7
+      with:
+        name: openaev-api-jar
+        path: openaev-api/target/openaev-api.jar
+

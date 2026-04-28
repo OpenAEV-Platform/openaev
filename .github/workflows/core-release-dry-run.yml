@@ -1,0 +1,404 @@
+name: "[Core] Release Dry Run"
+
+# Manual-only workflow that simulates a full release pipeline without
+# pushing to Docker Hub or JFrog. Artifacts are pushed to GHCR (GitHub
+# Container Registry) so you can inspect them, and every build artifact
+# is validated for size, count, and correctness.
+#
+# This workflow runs the SAME quality gates as core-ci.yml (frontend
+# quality checks, API tests, E2E tests, coverage) so it truly validates
+# that a release would succeed end-to-end.
+#
+# Shared build and test steps live in .github/actions/ and are reused by
+# core-ci.yml, so any change to the build/test pipeline is automatically
+# tested here too.
+
+on:
+  workflow_dispatch:
+    inputs:
+      simulated_version:
+        description: >
+          Semver tag to simulate (e.g. "2.4.0"). Used for Docker tags, catalog
+          patching, and binary downloads.
+        required: true
+        type: string
+        default: "0.0.0-dryrun"
+      skip_binary_download:
+        description: >
+          Skip downloading agent/implant binaries from JFrog (useful when JFrog
+          is unreachable or you only want to test the build + Docker pipeline).
+        required: false
+        type: boolean
+        default: true
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read # poll for artifacts in api-tests/e2e-tests
+
+env:
+  SIMULATED_VERSION: ${{ inputs.simulated_version || '0.0.0-dryrun' }}
+
+jobs:
+
+  # ──────────────────────────────────────────────────────────────────
+  # 1. Quick sanity: spotless + compile + frontend
+  #    All three use the SAME composite actions as core-ci.yml
+  # ──────────────────────────────────────────────────────────────────
+  spotless-check:
+    name: "🔍 Spotless Check"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/spotless-check
+
+  backend-compile:
+    name: "🔨 Backend Compile"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/backend-compile
+
+  frontend-build:
+    name: "🎨 Frontend Build"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/frontend-build
+
+  # ──────────────────────────────────────────────────────────────────
+  # 2. Quality gates (shared with core-ci.yml via _quality-gates.yml)
+  # ──────────────────────────────────────────────────────────────────
+  quality-gates:
+    uses: ./.github/workflows/_quality-gates.yml
+    secrets: inherit
+    with:
+      upload-codecov: false
+
+  # ──────────────────────────────────────────────────────────────────
+  # 3. Prepare release assets (optional binary download + catalog patch)
+  # ──────────────────────────────────────────────────────────────────
+  prepare-release-assets:
+    name: "📦 Prepare Release Assets"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Download agent & implant binaries
+        if: ${{ inputs.skip_binary_download == false }}
+        run: |
+          chmod +x scripts/download-binaries.sh
+          if ! bash scripts/download-binaries.sh "$SIMULATED_VERSION" "$SIMULATED_VERSION"; then
+            echo "⚠️ download-binaries.sh failed — continuing (dry run)"
+          fi
+
+      - name: Create placeholder binaries (when download skipped)
+        if: ${{ inputs.skip_binary_download != false }}
+        run: |
+          echo "ℹ️ Binary download skipped — creating placeholder files"
+          RESOURCES="openaev-api/src/main/resources"
+          mkdir -p "${RESOURCES}/agents/openaev-agent/linux/arm64"
+          mkdir -p "${RESOURCES}/agents/openaev-agent/linux/x86_64"
+          mkdir -p "${RESOURCES}/implants/openaev-implant/linux/arm64"
+          mkdir -p "${RESOURCES}/implants/openaev-implant/linux/x86_64"
+          # Create small placeholder files so downstream validation can count them
+          for dir in \
+            "${RESOURCES}/agents/openaev-agent/linux/arm64" \
+            "${RESOURCES}/agents/openaev-agent/linux/x86_64" \
+            "${RESOURCES}/implants/openaev-implant/linux/arm64" \
+            "${RESOURCES}/implants/openaev-implant/linux/x86_64"; do
+            echo "placeholder-${SIMULATED_VERSION}" > "${dir}/placeholder-${SIMULATED_VERSION}"
+          done
+
+      - name: Patch catalog version
+        run: |
+          CATALOG_FILE=openaev-api/src/main/resources/catalog/catalog-integrators.json
+          if [ ! -f "$CATALOG_FILE" ]; then
+            echo "⚠️ Catalog file not found — skipping patch"
+            exit 0
+          fi
+          jq --arg ver "$SIMULATED_VERSION" \
+            '.contracts[].container_version = $ver | .version = $ver' \
+            "$CATALOG_FILE" > catalog.tmp
+          jq empty catalog.tmp
+          mv catalog.tmp "$CATALOG_FILE"
+          echo "✅ Catalog version patched to '$SIMULATED_VERSION'"
+
+      - name: Upload release assets
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-assets
+          path: |
+            openaev-api/src/main/resources/agents/
+            openaev-api/src/main/resources/implants/
+            openaev-api/src/main/resources/catalog/
+
+  # ──────────────────────────────────────────────────────────────────
+  # 3. Package backend JAR (glibc)
+  #    Uses the SAME composite action as core-ci.yml, then adds
+  #    extended dry-run validation on top.
+  # ──────────────────────────────────────────────────────────────────
+  backend-package:
+    name: "📦 Backend Package (glibc)"
+    needs: [ frontend-build, backend-compile, prepare-release-assets ]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/backend-package
+        with:
+          download-release-assets: "true"
+
+      # ── Extended validation (dry-run only) ──
+      - name: Extended JAR validation (dry run)
+        id: jar-validate
+        run: |
+          JAR="openaev-api/target/openaev-api.jar"
+          JAR_SIZE=$(stat --format=%s "$JAR")
+          JAR_SIZE_MB=$(awk "BEGIN {printf \"%.1f\", $JAR_SIZE / 1048576}")
+          echo "jar_size=$JAR_SIZE"       >> "$GITHUB_OUTPUT"
+          echo "jar_size_mb=$JAR_SIZE_MB" >> "$GITHUB_OUTPUT"
+
+          # Sanity: JAR should be at least 50 MB for a Spring Boot fat JAR
+          if [ "$JAR_SIZE" -lt 52428800 ]; then
+            echo "⚠️ JAR is only ${JAR_SIZE_MB} MB — suspiciously small for a fat JAR"
+            echo "jar_warning=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "✅ JAR size looks healthy: ${JAR_SIZE_MB} MB"
+            echo "jar_warning=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          # List what's inside the JAR
+          echo ""
+          echo "── JAR contents summary ──"
+          JAR_ENTRIES=$(unzip -l "$JAR" | tail -1 | awk '{print $2}')
+          echo "  Total entries: $JAR_ENTRIES"
+          echo "jar_entries=$JAR_ENTRIES" >> "$GITHUB_OUTPUT"
+
+          # Check that frontend assets are bundled
+          FRONTEND_FILES=$(unzip -l "$JAR" | grep -c 'BOOT-INF/classes/static/' || true)
+          echo "  Frontend static files: $FRONTEND_FILES"
+          echo "frontend_files=$FRONTEND_FILES" >> "$GITHUB_OUTPUT"
+          if [ "$FRONTEND_FILES" -eq 0 ]; then
+            echo "⚠️ No frontend static files found in JAR!"
+            echo "frontend_warning=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "✅ Frontend assets present"
+            echo "frontend_warning=false" >> "$GITHUB_OUTPUT"
+          fi
+    outputs:
+      jar_size: ${{ steps.jar-validate.outputs.jar_size }}
+      jar_size_mb: ${{ steps.jar-validate.outputs.jar_size_mb }}
+      jar_entries: ${{ steps.jar-validate.outputs.jar_entries }}
+      jar_warning: ${{ steps.jar-validate.outputs.jar_warning }}
+      frontend_files: ${{ steps.jar-validate.outputs.frontend_files }}
+      frontend_warning: ${{ steps.jar-validate.outputs.frontend_warning }}
+
+  # ──────────────────────────────────────────────────────────────────
+  # 4. Package backend JAR (musl/Alpine)
+  #    Uses the SAME composite action as core-ci.yml, then adds
+  #    extended dry-run validation on top.
+  # ──────────────────────────────────────────────────────────────────
+  backend-package-musl:
+    name: "📦 Backend Package (musl)"
+    needs: [ frontend-build, backend-compile, prepare-release-assets ]
+    runs-on: ubuntu-latest
+    container:
+      image: maven:3.9.14-eclipse-temurin-21-alpine
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/backend-package-musl
+
+      # ── Extended validation (dry-run only) ──
+      - name: Extended JAR validation (dry run)
+        id: jar-validate-musl
+        run: |
+          JAR="openaev-api/target/openaev-api.jar"
+          JAR_SIZE=$(stat -c%s "$JAR" 2>/dev/null || wc -c < "$JAR")
+          JAR_SIZE_MB=$(awk "BEGIN {printf \"%.1f\", $JAR_SIZE / 1048576}")
+          echo "jar_size_musl=$JAR_SIZE"       >> "$GITHUB_OUTPUT"
+          echo "jar_size_musl_mb=$JAR_SIZE_MB" >> "$GITHUB_OUTPUT"
+
+          if [ "$JAR_SIZE" -lt 52428800 ]; then
+            echo "⚠️ musl JAR is only ${JAR_SIZE_MB} MB — suspiciously small"
+            echo "jar_musl_warning=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "✅ musl JAR size looks healthy: ${JAR_SIZE_MB} MB"
+            echo "jar_musl_warning=false" >> "$GITHUB_OUTPUT"
+          fi
+    outputs:
+      jar_size_musl: ${{ steps.jar-validate-musl.outputs.jar_size_musl }}
+      jar_size_musl_mb: ${{ steps.jar-validate-musl.outputs.jar_size_musl_mb }}
+      jar_musl_warning: ${{ steps.jar-validate-musl.outputs.jar_musl_warning }}
+
+  # ──────────────────────────────────────────────────────────────────
+  # 5. Docker build (all images) — mirrors core-ci.yml exactly
+  #    Builds standard + UBI9 images locally, validates them, and
+  #    saves as tar artifacts for the release repo to consume.
+  # ──────────────────────────────────────────────────────────────────
+  docker-build:
+    name: "🐳 Docker Build (all images)"
+    needs:
+      - backend-package
+      - prepare-release-assets
+    timeout-minutes: 20
+    if: >-
+      ${{
+        !cancelled() &&
+        needs.backend-package.result == 'success' &&
+        (needs.prepare-release-assets.result == 'success' || needs.prepare-release-assets.result == 'skipped')
+      }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/docker-build-push
+        with:
+          build-ubi9: "true"
+          tags: openaev:ci-${{ github.run_id }}
+          ubi9-tags: openaev-ubi9:ci-${{ github.run_id }}
+
+  # ──────────────────────────────────────────────────────────────────
+  # 6. Validation summary
+  # ──────────────────────────────────────────────────────────────────
+  summary:
+    name: "📋 Release Dry Run Summary"
+    needs: [ backend-package, backend-package-musl, docker-build, quality-gates ]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate summary report
+        env:
+          # glibc JAR
+          JAR_SIZE_MB: ${{ needs.backend-package.outputs.jar_size_mb }}
+          JAR_ENTRIES: ${{ needs.backend-package.outputs.jar_entries }}
+          JAR_WARNING: ${{ needs.backend-package.outputs.jar_warning }}
+          FRONTEND_FILES: ${{ needs.backend-package.outputs.frontend_files }}
+          FRONTEND_WARNING: ${{ needs.backend-package.outputs.frontend_warning }}
+          # musl JAR
+          JAR_SIZE_MUSL_MB: ${{ needs.backend-package-musl.outputs.jar_size_musl_mb }}
+          JAR_MUSL_WARNING: ${{ needs.backend-package-musl.outputs.jar_musl_warning }}
+        run: |
+          set -euo pipefail
+          WARNINGS=0
+          ERRORS=0
+
+          status_icon() {
+            if [ "$1" = "true" ]; then
+              WARNINGS=$((WARNINGS + 1))
+              echo "⚠️"
+            else
+              echo "✅"
+            fi
+          }
+
+          # Build summary markdown
+          {
+            echo "# 🚀 Release Dry Run Summary"
+            echo ""
+            echo "**Simulated version:** \`${SIMULATED_VERSION}\`"
+            echo "**Branch:** \`${GITHUB_REF_NAME}\`"
+            echo "**Commit:** \`${GITHUB_SHA:0:7}\`"
+            echo "**Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+            echo ""
+
+            echo "## 📦 Backend JAR (glibc)"
+            echo ""
+            echo "| Metric | Value | Status |"
+            echo "|--------|-------|--------|"
+            echo "| JAR size | ${JAR_SIZE_MB:-N/A} MB | $(status_icon "${JAR_WARNING:-true}") |"
+            echo "| JAR entries | ${JAR_ENTRIES:-N/A} | — |"
+            echo "| Frontend files in JAR | ${FRONTEND_FILES:-N/A} | $(status_icon "${FRONTEND_WARNING:-true}") |"
+            echo ""
+
+            echo "## 📦 Backend JAR (musl/Alpine)"
+            echo ""
+            echo "| Metric | Value | Status |"
+            echo "|--------|-------|--------|"
+            echo "| JAR size | ${JAR_SIZE_MUSL_MB:-N/A} MB | $(status_icon "${JAR_MUSL_WARNING:-true}") |"
+            echo ""
+
+            # Compare glibc vs musl JAR sizes (should be roughly equal)
+            if [ -n "$JAR_SIZE_MB" ] && [ -n "$JAR_SIZE_MUSL_MB" ]; then
+              DIFF=$(awk "BEGIN {d = $JAR_SIZE_MB - $JAR_SIZE_MUSL_MB; print (d<0 ? -d : d)}")
+              PCT=$(awk "BEGIN {printf \"%.1f\", ($DIFF / $JAR_SIZE_MB) * 100}")
+              echo "> **JAR size delta (glibc vs musl):** ${DIFF} MB (${PCT}%)"
+              if awk "BEGIN {exit !($DIFF > 10)}" 2>/dev/null; then
+                echo "> ⚠️ Large size difference between glibc and musl JARs!"
+                WARNINGS=$((WARNINGS + 1))
+              else
+                echo "> ✅ Size difference is within acceptable range"
+              fi
+              echo ""
+            fi
+
+            echo "## 🐳 Docker Build"
+            echo ""
+            echo "| Image | Result |"
+            echo "|-------|--------|"
+            echo "| Standard (glibc) | $([ "${{ needs.docker-build.result }}" = "success" ] && echo "✅ Built" || echo "❌ ${{ needs.docker-build.result }}") |"
+            echo "| UBI9 | $([ "${{ needs.docker-build.result }}" = "success" ] && echo "✅ Built" || echo "❌ ${{ needs.docker-build.result }}") |"
+            echo ""
+            echo "> Docker images are saved as tar artifacts for the release repo to consume."
+            echo ""
+
+            echo "## 🧪 Quality Gates"
+            echo ""
+            echo "| Gate | Result |"
+            echo "|------|--------|"
+            echo "| Frontend Quality (check-ts, lint, i18n, unit tests) | $([ "${{ needs.frontend-quality.result }}" = "success" ] && echo "✅ Passed" || echo "❌ ${{ needs.frontend-quality.result }}") |"
+            echo "| API Tests (4 shards) | $([ "${{ needs.api-tests.result }}" = "success" ] && echo "✅ Passed" || echo "❌ ${{ needs.api-tests.result }}") |"
+            echo "| E2E Tests & API Types | $([ "${{ needs.e2e-tests.result }}" = "success" ] && echo "✅ Passed" || echo "❌ ${{ needs.e2e-tests.result }}") |"
+            echo "| Coverage Merge & Check | $([ "${{ needs.codecov.result }}" = "success" ] && echo "✅ Passed" || echo "⚠️ ${{ needs.codecov.result }}") |"
+            echo ""
+
+            echo "---"
+            echo ""
+
+            echo "## 🏁 Overall Result"
+            echo ""
+            if [ "$ERRORS" -gt 0 ]; then
+              echo "### ❌ FAILED — $ERRORS error(s), $WARNINGS warning(s)"
+              echo ""
+              echo "This release would likely **fail** in production. Review the errors above."
+            elif [ "$WARNINGS" -gt 0 ]; then
+              echo "### ⚠️ PASSED WITH WARNINGS — $WARNINGS warning(s)"
+              echo ""
+              echo "The release would probably succeed but some artifacts look unusual. Review the warnings above."
+            else
+              echo "### ✅ PASSED — No issues detected"
+              echo ""
+              echo "All artifacts look healthy. The release pipeline should work correctly for version \`${SIMULATED_VERSION}\`."
+            fi
+            echo ""
+            echo "---"
+            echo "*This is a dry run. Nothing was pushed to any external registry.*"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail if critical errors detected
+        run: |
+          ERRORS=0
+
+          # Check that upstream jobs succeeded
+          for job_result in \
+            "${{ needs.backend-package.result }}" \
+            "${{ needs.backend-package-musl.result }}" \
+            "${{ needs.docker-build.result }}" \
+            "${{ needs.quality-gates.result }}"; do
+            if [ "$job_result" = "failure" ]; then
+              echo "❌ CRITICAL: One or more upstream jobs failed"
+              ERRORS=$((ERRORS + 1))
+              break
+            fi
+          done
+
+          if [ "$ERRORS" -gt 0 ]; then
+            echo ""
+            echo "❌ Dry run FAILED with $ERRORS critical error(s)"
+            exit 1
+          fi
+
+          echo "✅ Dry run completed successfully"

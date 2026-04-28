@@ -1,0 +1,275 @@
+name: "Quality Gates"
+
+# Reusable workflow containing the shared quality gate jobs:
+#   - Frontend quality & unit tests
+#   - API tests (4-shard matrix)
+#   - E2E tests & API types
+#   - Coverage merge, threshold check & optional Codecov upload
+#
+# Used by core-ci.yml and core-release-dry-run.yml to avoid duplication.
+# When adding a new test shard or changing env vars, you only need to
+# update this file.
+
+on:
+  workflow_call:
+    inputs:
+      upload-codecov:
+        description: "Upload coverage reports to Codecov and save artifacts"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+
+  frontend-quality:
+    name: "🧪 Frontend Quality & Unit Tests"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/frontend-quality
+
+  api-tests:
+    name: "🧪 API Tests (${{ matrix.shard_name }})"
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # ── Four workers: main, rest-1, rest-2, everything else ──
+          - shard: 1
+            shard_name: main
+            includes: |-
+              io/openaev/api/**/*Test.java
+              io/openaev/integration/**/*Test.java
+              io/openaev/injects/**/*Test.java
+              io/openaev/opencti/**/*Test.java
+              io/openaev/service/**/*Test.java
+          - shard: 2
+            shard_name: rest-1
+            # Packages a–h: root-level rest tests + sub-packages
+            # starting with letters a through h.
+            # NOTE: Surefire uses Ant-style patterns — [a-h] bracket
+            # expressions are NOT supported; list packages explicitly.
+            includes: |-
+              io/openaev/rest/*Test.java
+              io/openaev/rest/asset_group/**/*Test.java
+              io/openaev/rest/attack_pattern/**/*Test.java
+              io/openaev/rest/custom_dashboard/**/*Test.java
+              io/openaev/rest/dashboard/**/*Test.java
+              io/openaev/rest/exercise/**/*Test.java
+          - shard: 3
+            shard_name: rest-2
+            # Everything under rest/ NOT assigned to shard 2.
+            # New rest sub-packages are automatically picked up here.
+            includes: |-
+              io/openaev/rest/**/*Test.java
+            excludes: |-
+              io/openaev/rest/*Test.java
+              io/openaev/rest/asset_group/**/*Test.java
+              io/openaev/rest/attack_pattern/**/*Test.java
+              io/openaev/rest/custom_dashboard/**/*Test.java
+              io/openaev/rest/dashboard/**/*Test.java
+              io/openaev/rest/exercise/**/*Test.java
+          - shard: 4
+            shard_name: remaining
+            # Catch-all: runs every test NOT assigned to shards 1–3.
+            # Any new test package is executed here automatically.
+            includes: catchall
+    env:
+      # ── Union of all explicitly-assigned shard patterns (shards 1–3) ──
+      # The catch-all shard uses this as an *excludes* list, so any test
+      # added in a brand-new package is automatically executed without
+      # having to touch this workflow file.
+      # When you add a pattern to a shard above, mirror it here.
+      EXPLICITLY_SHARDED_TESTS: |-
+        io/openaev/api/**/*Test.java
+        io/openaev/integration/**/*Test.java
+        io/openaev/injects/**/*Test.java
+        io/openaev/opencti/**/*Test.java
+        io/openaev/service/**/*Test.java
+        io/openaev/rest/**/*Test.java
+      SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/openaev
+      SPRING_DATASOURCE_USERNAME: openaev
+      SPRING_DATASOURCE_PASSWORD: openaev
+      MINIO_ENDPOINT: localhost
+      MINIO_PORT: 9000
+      ENGINE_URL: http://localhost:9200
+      OPENBAS_RABBITMQ_HOSTNAME: localhost
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/api-tests
+        with:
+          includes: ${{ matrix.includes }}
+          excludes: ${{ matrix.excludes }}
+          shard: ${{ matrix.shard }}
+          shard-name: ${{ matrix.shard_name }}
+
+  e2e-tests:
+    name: "🧪 E2E & API Types"
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/openaev
+      SPRING_DATASOURCE_USERNAME: openaev
+      SPRING_DATASOURCE_PASSWORD: openaev
+      MINIO_ENDPOINT: localhost
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_ACCESS_SECRET: minioadmin
+      ENGINE_URL: http://localhost:9200
+      OPENBAS_RABBITMQ_HOSTNAME: localhost
+      OPENAEV_ADMIN_EMAIL: admin@openaev.io
+      OPENAEV_ADMIN_PASSWORD: admin
+      OPENAEV_ADMIN_TOKEN: 0d17ce9a-f3a8-4c6d-9721-c98dc3dc023f
+      OPENAEV_ADMIN_ENCRYPTION_KEY: ThisIsMyUltraSecureEncryptionKey
+      OPENAEV_ADMIN_ENCRYPTION_SALT: ilikesaltyfoodnomnom
+      SPRING_PROFILES_ACTIVE: ci
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/e2e-tests
+
+  codecov:
+    name: "📊 Coverage Merge & Upload"
+    needs: [ api-tests, frontend-quality, e2e-tests ]
+    # Always run so partial coverage (e.g. backend+frontend) is still
+    # uploaded even when one upstream job fails or is cancelled.
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v5
+        with:
+          java-version: "21"
+          distribution: temurin
+          cache: maven
+
+      # ── Backend coverage: merge JaCoCo shards, report & check ──────
+      - name: Download compiled Maven artifacts
+        if: needs.api-tests.result == 'success' || needs.api-tests.result == 'failure'
+        uses: actions/download-artifact@v8
+        with:
+          name: backend-compiled
+          path: ~/.m2/repository/io/openaev/
+        continue-on-error: true
+
+      - name: Download API build output
+        if: needs.api-tests.result == 'success' || needs.api-tests.result == 'failure'
+        uses: actions/download-artifact@v8
+        with:
+          name: api-build-output
+          path: openaev-api/target
+        continue-on-error: true
+
+      - name: Download all JaCoCo exec shards
+        if: needs.api-tests.result == 'success' || needs.api-tests.result == 'failure'
+        uses: actions/download-artifact@v8
+        with:
+          pattern: jacoco-exec-shard-*
+          path: jacoco-exec
+        continue-on-error: true
+
+      - name: Merge JaCoCo exec files
+        id: jacoco-merge
+        if: needs.api-tests.result == 'success' || needs.api-tests.result == 'failure'
+        run: |
+          echo "📦 Merging JaCoCo exec files from all shards..."
+          EXEC_FILES=$(find jacoco-exec -name 'jacoco.exec' 2>/dev/null)
+          if [ -z "$EXEC_FILES" ]; then
+            echo "⚠️ No JaCoCo exec files found — all test shards may have failed"
+            echo "  Contents of jacoco-exec/:"
+            ls -laR jacoco-exec/ 2>/dev/null || echo "  directory does not exist"
+            exit 1
+          fi
+          SHARD_COUNT=$(echo "$EXEC_FILES" | wc -l)
+          echo "  Found $SHARD_COUNT shard exec file(s)"
+          cat jacoco-exec/jacoco-exec-shard-*/jacoco.exec > openaev-api/target/jacoco.exec
+          if [ ! -s "openaev-api/target/jacoco.exec" ]; then
+            echo "❌ Merged jacoco.exec is empty"
+            exit 1
+          fi
+          echo "✅ Merged $SHARD_COUNT shard(s) → $(wc -c < openaev-api/target/jacoco.exec) bytes"
+
+      - name: Coverage report & threshold check
+        if: steps.jacoco-merge.outcome == 'success'
+        run: mvn -B -ntp -pl openaev-api jacoco:report jacoco:check || echo "⚠️ Coverage
+          threshold check ⚠️"
+
+      - name: Upload API coverage report
+        if: ${{ !cancelled() && steps.jacoco-merge.outcome == 'success' &&
+          inputs.upload-codecov }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: jacoco-api
+          path: openaev-api/target/site/jacoco/jacoco.xml
+          if-no-files-found: warn
+
+      # ── Download frontend / E2E coverage artifacts ─────────────────
+      - name: Download vitest coverage report
+        if: ${{ inputs.upload-codecov && needs.frontend-quality.result == 'success' }}
+        uses: actions/download-artifact@v8
+        with:
+          name: vitest-coverage
+          path: coverage/frontend
+        continue-on-error: true
+
+      - name: Download playwright coverage report
+        if: ${{ inputs.upload-codecov && needs.e2e-tests.result == 'success' }}
+        uses: actions/download-artifact@v8
+        with:
+          name: playwright-coverage
+          path: coverage/e2e
+        continue-on-error: true
+
+      # ── Detect which reports are available ─────────────────────────
+      - name: Check available coverage files
+        if: ${{ inputs.upload-codecov }}
+        id: check
+        run: |
+          echo "📊 Coverage files found:"
+          find coverage/ -type f 2>/dev/null || echo "  (none)"
+          find openaev-api/target/site/jacoco/ -type f 2>/dev/null || echo "  (no backend coverage)"
+
+          has() { [ -f "$1" ] && echo "true" || echo "false"; }
+
+          echo "has_backend=$(has openaev-api/target/site/jacoco/jacoco.xml)" >> "$GITHUB_OUTPUT"
+          echo "has_frontend=$(has coverage/frontend/lcov.info)"             >> "$GITHUB_OUTPUT"
+          echo "has_e2e=$(has coverage/e2e/lcov.info)"                       >> "$GITHUB_OUTPUT"
+
+      # ── Upload to Codecov ──────────────────────────────────────────
+      - name: Upload backend coverage to Codecov
+        if: ${{ inputs.upload-codecov && steps.check.outputs.has_backend == 'true' }}
+        uses: codecov/codecov-action@v6
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: openaev-api/target/site/jacoco/jacoco.xml
+          flags: backend
+          disable_search: true
+          fail_ci_if_error: false
+
+      - name: Upload frontend coverage to Codecov
+        if: ${{ inputs.upload-codecov && steps.check.outputs.has_frontend == 'true' }}
+        uses: codecov/codecov-action@v6
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage/frontend/lcov.info
+          flags: frontend
+          disable_search: true
+          fail_ci_if_error: false
+
+      - name: Upload E2E coverage to Codecov
+        if: ${{ inputs.upload-codecov && steps.check.outputs.has_e2e == 'true' }}
+        uses: codecov/codecov-action@v6
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage/e2e/lcov.info
+          flags: e2e
+          disable_search: true
+          fail_ci_if_error: false

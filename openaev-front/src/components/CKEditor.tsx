@@ -85,7 +85,7 @@ const LazyCKEditorComponent = lazy(async () => {
   ]);
 
   const CKEDITOR_DEFAULT_CONFIG: EditorConfig = {
-    licenseKey: 'GPL',
+    licenseKey: 'eyJhbGciOiJFUzI1NiJ9.eyJleHAiOjE4MDgxNzkxOTksImp0aSI6IjBmZDRkMWNlLWRkNjUtNGU5YS1iZTk0LWZiMzQyNTkwODRiOCIsImRpc3RyaWJ1dGlvbkNoYW5uZWwiOlsic2giLCJkcnVwYWwiXSwid2hpdGVMYWJlbCI6dHJ1ZSwiZmVhdHVyZXMiOlsiRFJVUCIsIkRPIiwiRlAiLCJTQyIsIlRPQyIsIlRQTCIsIlBPRSIsIkNDIiwiTUYiLCJTRUUiLCJFQ0giLCJFSVMiLCJMSCIsIkZPTyIsIkxUUyJdLCJ2YyI6ImYyMTBlMDIyIn0.bER1-19K1_ZPsLDHafMZSa8Qz8yQOy_Qfa69UYO3f9beKgLg6MypHIjUvlAwFsZHy9eyr8g4XbrHDpIYRVWb1A',
     translations: [en, fr, zh],
     plugins: [
       Alignment,

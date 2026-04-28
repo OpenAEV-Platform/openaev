@@ -4,6 +4,7 @@ import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -93,7 +94,8 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
           mvc.perform(
                   post(EXERCISE_URI + "/{simulationId}/injects/test/search", simulation.getId())
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(searchPaginationInput)))
+                      .content(asJsonString(searchPaginationInput))
+                      .with(csrf()))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -111,7 +113,8 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
     void should_return_test_status_by_testId() throws Exception {
       addGrantToCurrentUser(
           Grant.GRANT_RESOURCE_TYPE.SIMULATION, Grant.GRANT_TYPE.PLANNER, simulation.getId());
-      mvc.perform(get(EXERCISE_URI + "/injects/test/{testId}", injectTestStatus1.getId()))
+      mvc.perform(
+              get(EXERCISE_URI + "/injects/test/{testId}", injectTestStatus1.getId()).with(csrf()))
           .andExpect(status().isOk());
     }
 
@@ -121,9 +124,10 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
     void should_return_test_status_when_testing_specific_inject() throws Exception {
       mvc.perform(
               get(
-                  EXERCISE_URI + "/{simulationId}/injects/{injectId}/test",
-                  simulation.getId(),
-                  inject1.getId()))
+                      EXERCISE_URI + "/{simulationId}/injects/{injectId}/test",
+                      simulation.getId(),
+                      inject1.getId())
+                  .with(csrf()))
           .andExpect(status().isOk())
           .andExpect(jsonPath("$.inject_id").value(inject1.getId()));
     }
@@ -142,7 +146,8 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
       mvc.perform(
               post(EXERCISE_URI + "/{simulationId}/injects/test", simulation.getId())
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(input)))
+                  .content(asJsonString(input))
+                  .with(csrf()))
           .andExpect(status().isOk())
           .andExpect(jsonPath("$").isArray());
     }
@@ -153,9 +158,10 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
     void should_return_200_when_fetching_deleting_an_inject_test_status() throws Exception {
       mvc.perform(
               delete(
-                  EXERCISE_URI + "/{simulationId}/injects/test/{testId}",
-                  simulation.getId(),
-                  injectTestStatus2.getId()))
+                      EXERCISE_URI + "/{simulationId}/injects/test/{testId}",
+                      simulation.getId(),
+                      injectTestStatus2.getId())
+                  .with(csrf()))
           .andExpect(status().isOk());
     }
   }
@@ -174,7 +180,8 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
       mvc.perform(
               post(EXERCISE_URI + "/{simulationId}/injects/test/search", simulation.getId())
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(searchPaginationInput)))
+                  .content(asJsonString(searchPaginationInput))
+                  .with(csrf()))
           .andExpect(status().isOk());
     }
 
@@ -184,7 +191,8 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
     void should_return_200_when_search_by_testId() throws Exception {
       addGrantToCurrentUser(
           Grant.GRANT_RESOURCE_TYPE.SIMULATION, Grant.GRANT_TYPE.OBSERVER, simulation.getId());
-      mvc.perform(get(EXERCISE_URI + "/injects/test/{testId}", injectTestStatus1.getId()))
+      mvc.perform(
+              get(EXERCISE_URI + "/injects/test/{testId}", injectTestStatus1.getId()).with(csrf()))
           .andExpect(status().isOk());
     }
 
@@ -194,9 +202,10 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
     void should_return_403_when_testing_specific_inject() throws Exception {
       mvc.perform(
               get(
-                  EXERCISE_URI + "/{simulationId}/injects/{injectId}/test",
-                  simulation.getId(),
-                  inject1.getId()))
+                      EXERCISE_URI + "/{simulationId}/injects/{injectId}/test",
+                      simulation.getId(),
+                      inject1.getId())
+                  .with(csrf()))
           .andExpect(status().isForbidden());
     }
 
@@ -214,7 +223,8 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
       mvc.perform(
               post(EXERCISE_URI + "/{simulationId}/injects/test", simulation.getId())
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(input)))
+                  .content(asJsonString(input))
+                  .with(csrf()))
           .andExpect(status().isForbidden());
     }
 
@@ -226,9 +236,10 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
           Grant.GRANT_RESOURCE_TYPE.SIMULATION, Grant.GRANT_TYPE.OBSERVER, simulation.getId());
       mvc.perform(
               delete(
-                  EXERCISE_URI + "/{simulationId}/injects/test/{testId}",
-                  simulation.getId(),
-                  injectTestStatus1.getId()))
+                      EXERCISE_URI + "/{simulationId}/injects/test/{testId}",
+                      simulation.getId(),
+                      injectTestStatus1.getId())
+                  .with(csrf()))
           .andExpect(status().isForbidden());
     }
   }

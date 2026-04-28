@@ -1,6 +1,5 @@
 package io.openaev.service;
 
-import static io.openaev.rest.payload.service.PayloadExportService.ZIP_PASSWORD;
 import static java.io.File.createTempFile;
 import static java.time.Instant.now;
 
@@ -33,15 +32,12 @@ import org.springframework.web.reactive.function.UnsupportedMediaTypeException;
 
 @Service
 public class ImportService {
+  public static final String ZIP_PASSWORD = "infected";
 
   public static final String EXPORT_ENTRY_EXERCISE = "Exercise";
   public static final String EXPORT_ENTRY_SCENARIO = "Scenario";
   public static final String EXPORT_ENTRY_ATTACHMENT = "Attachment";
-  public static final String EXPORT_ENTRY_ENCRYPTED_ATTACHMENT = "EncryptedAttachment";
-  public static final String EXPORT_ENTRY_ENCRYPTED_ARGUMENT_ATTACHMENT =
-      "EncryptedArgumentAttachment";
   public static final String EXPORT_ENTRY_PAYLOAD_ARCHIVE = "PayloadArchive";
-  public static final String EXPORT_ENTRY_PAYLOAD = "Payload";
 
   private final Map<Integer, Importer> dataImporters = new HashMap<>();
 
