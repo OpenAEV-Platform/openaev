@@ -17,7 +17,7 @@
     "deprecated-start": "node builder/dev/dev.js",
     "build": "vite build",
     "deprecated-build": "node builder/prod/prod.js",
-    "lint": "cross-env DEBUG=eslint:eslint TIMING=1 eslint --fix --max-warnings 0 --cache --rule \"{'import/namespace': 'error', 'import/no-cycle': ['error', {'ignoreExternal': true, 'disableScc': true}]}\" .",
+    "lint": "cross-env DEBUG=eslint:eslint TIMING=1 eslint --max-warnings 0 --cache --rule \"{'import/namespace': 'error', 'import/no-cycle': ['error', {'ignoreExternal': true, 'disableScc': true}]}\" .",
     "control": "yarn audit --groups dependencies --summary",
     "check-ts": "tsc",
     "generate-types-from-api": "swagger-typescript-api generate --no-client --path=${API_URL:-http://localhost:8080}/api-docs --output=src/utils --name=api-types.d.ts --sort-types",
