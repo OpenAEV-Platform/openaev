@@ -7,7 +7,7 @@ import { makeStyles } from 'tss-react/mui';
 import { type SecurityPlatformHelper } from '../../actions/assets/asset-helper';
 import { useHelper } from '../../store';
 import { type SecurityPlatform } from '../../utils/api-types';
-import { buildTenantApiPath } from '../../utils/tenant-url-helper';
+import { buildTenantApiPath } from '../../utils/url-helper';
 
 const useStyles = makeStyles()(() => ({
   icon: {

@@ -3,7 +3,7 @@ import { useTheme } from '@mui/material/styles';
 
 import { useFormatter } from '../../../components/i18n';
 import useAuth from '../../../utils/hooks/useAuth';
-import { getCurrentTenantId } from '../../../utils/tenant-url-helper';
+import { getCurrentTenantId } from '../../../utils/url-helper';
 import { getUrl, isNotEmptyField } from '../../../utils/utils';
 import GradientButton from './GradientButton';
 

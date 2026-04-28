@@ -23,25 +23,57 @@ public class AgentUtils {
   private AgentUtils() {}
 
   /**
-   * List of supported platform types in lowercase format.
+   * List of supported platform types.
    *
-   * <p>Contains: linux, windows, macos
+   * <p>Contains: Linux, Windows, macOS
    */
-  public static final List<String> AVAILABLE_PLATFORMS =
+  private static final List<Endpoint.PLATFORM_TYPE> SUPPORTED_AGENT_PLATFORMS =
       List.of(
-          Endpoint.PLATFORM_TYPE.Linux.name().toLowerCase(),
-          Endpoint.PLATFORM_TYPE.Windows.name().toLowerCase(),
-          Endpoint.PLATFORM_TYPE.MacOS.name().toLowerCase());
+          Endpoint.PLATFORM_TYPE.Linux,
+          Endpoint.PLATFORM_TYPE.Windows,
+          Endpoint.PLATFORM_TYPE.MacOS);
 
   /**
-   * List of supported CPU architectures in lowercase format.
+   * resolves a platform enum option from a string, and validates against a subset of supported
+   * values
+   *
+   * @param platformString the input string representing a platform type
+   * @return the resolved platform type
+   * @throws IllegalArgumentException when the platform is not one that is allowed
+   */
+  public static Endpoint.PLATFORM_TYPE normaliseSupportedAgentPlatform(String platformString)
+      throws IllegalArgumentException {
+    Endpoint.PLATFORM_TYPE resolved = Endpoint.PLATFORM_TYPE.fromString(platformString);
+    if (!SUPPORTED_AGENT_PLATFORMS.contains(resolved)) {
+      throw new IllegalArgumentException("Unsupported platform: " + platformString);
+    }
+    return resolved;
+  }
+
+  /**
+   * List of supported CPU architectures.
    *
    * <p>Contains: x86_64, arm64
    */
-  public static final List<String> AVAILABLE_ARCHITECTURES =
-      List.of(
-          Endpoint.PLATFORM_ARCH.x86_64.name().toLowerCase(),
-          Endpoint.PLATFORM_ARCH.arm64.name().toLowerCase());
+  private static final List<Endpoint.PLATFORM_ARCH> SUPPORTED_AGENT_ARCHITECTURES =
+      List.of(Endpoint.PLATFORM_ARCH.x86_64, Endpoint.PLATFORM_ARCH.arm64);
+
+  /**
+   * resolves an arch enum option from a string, and validates against a subset of supported values
+   *
+   * @param archString the input string representing an arch type
+   * @return the resolved arch type
+   * @throws IllegalArgumentException when the arch is not one that is allowed
+   */
+  public static Endpoint.PLATFORM_ARCH normaliseSupportedAgentArch(String archString)
+      throws IllegalArgumentException {
+    Endpoint.PLATFORM_ARCH resolved =
+        Endpoint.PLATFORM_ARCH.fromString(getCanonicalArchitectureString(archString));
+    if (!SUPPORTED_AGENT_ARCHITECTURES.contains(resolved)) {
+      throw new IllegalArgumentException("Unsupported architecture: " + archString);
+    }
+    return resolved;
+  }
 
   /** All keys must be lowercase */
   private static final Map<String, String> ARCHITECTURE_ALIAS =
@@ -55,6 +87,41 @@ public class AgentUtils {
    */
   public static String getCanonicalArchitectureString(String architecture) {
     return ARCHITECTURE_ALIAS.getOrDefault(architecture.toLowerCase(), architecture.toLowerCase());
+  }
+
+  private enum INSTALLATION_MODE {
+    SERVICE("service"),
+    SERVICE_USER("service-user"),
+    SESSION_USER("session-user");
+
+    private final String value;
+
+    INSTALLATION_MODE(String value) {
+      this.value = value;
+    }
+
+    public String getValue() {
+      return this.value;
+    }
+
+    public static INSTALLATION_MODE fromString(String candidate) {
+      for (INSTALLATION_MODE mode : INSTALLATION_MODE.values()) {
+        if (mode.value.equalsIgnoreCase(candidate)) {
+          return mode;
+        }
+      }
+      throw new IllegalArgumentException("Unsupported installation mode");
+    }
+  }
+
+  /**
+   * resolves a normalised installation mode string based on a list of supported installation modes
+   *
+   * @param installationModeString the desired installation mode
+   * @return the normalised installation mode string
+   */
+  public static String getSupportedInstallationMode(String installationModeString) {
+    return INSTALLATION_MODE.fromString(installationModeString).getValue();
   }
 
   /**

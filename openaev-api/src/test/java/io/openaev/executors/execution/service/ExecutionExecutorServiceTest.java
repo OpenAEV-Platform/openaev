@@ -266,8 +266,8 @@ public class ExecutionExecutorServiceTest {
     }
 
     private void stubFindByExecutorId(String executorId, ConnectorInstancePersisted instance) {
-      ConnectorInstanceConfigurationRepository.ConnectorIdsFomDatabase ids =
-          mock(ConnectorInstanceConfigurationRepository.ConnectorIdsFomDatabase.class);
+      ConnectorInstanceConfigurationRepository.ConnectorIdsFromDatabase ids =
+          mock(ConnectorInstanceConfigurationRepository.ConnectorIdsFromDatabase.class);
       when(ids.getConnectorInstanceId()).thenReturn(instance.getId());
       when(connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValue(
               "EXECUTOR_ID", executorId))

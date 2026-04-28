@@ -5,11 +5,11 @@ import static io.openaev.config.TenantUriUtils.TENANT_ID_PATH_VARIABLE;
 
 import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.TenantContext;
+import io.openaev.rest.exception.TenantAccessDeniedException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -43,7 +43,7 @@ public class TenantInterceptor implements HandlerInterceptor {
           && !ANONYMOUS_USER.equals(authentication.getPrincipal())) {
         OpenAEVPrincipal principal = (OpenAEVPrincipal) authentication.getPrincipal();
         if (!tenantMembershipCacheManager.existsByUserIdAndTenantId(principal.getId(), tenantId)) {
-          throw new AccessDeniedException("User does not have access to the requested tenant.");
+          throw new TenantAccessDeniedException(tenantId);
         }
       }
 

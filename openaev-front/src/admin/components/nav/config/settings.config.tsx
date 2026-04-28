@@ -4,12 +4,14 @@ import { type LeftMenuItem } from '../../../../components/common/menu/leftmenu/l
 import { type AppAbility } from '../../../../utils/permissions/ability';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 
+export const TENANT_SETTINGS_LABEL = 'Tenant Settings';
+
 const settingsEntries = (ability: AppAbility): LeftMenuItem[] =>
   (
     [{
       path: `/admin/settings`,
       icon: () => (<SettingsOutlined />),
-      label: 'Settings',
+      label: TENANT_SETTINGS_LABEL,
       href: 'settings',
       userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS),
       subItems: [

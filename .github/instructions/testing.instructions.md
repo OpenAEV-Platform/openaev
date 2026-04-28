@@ -16,8 +16,20 @@ description: "Testing conventions: integration tests, unit tests, fixtures, comp
 - JSON: `assertThatJson(response).node("field").isEqualTo(...)` (json-unit library)
 - URI constant at class level: `public static final String FEATURE_URI = "/api/..."`
 
+## Integration Tests (Service)
+
+- Extend `IntegrationTest` (same base as API tests)
+- `@TestInstance(PER_CLASS) @Transactional` on the class
+- `@WithMockUser` → `io.openaev.utils.mockUser.WithMockUser` (NOT `org.springframework`)
+- `@Autowired` for the service under test and repositories
+- Use **Fixtures** (`ExerciseFixture`, `InjectFixture`, `ScenarioFixture`, …) and **repositories** to set up real data
+- Group with `@Nested` + `@DisplayName`
+- Same `given_X_should_Y` naming and AAA pattern
+- Prefer integration tests over unit tests for services that interact with the database
+
 ## Unit Tests (Service)
 
+- Use only when the service has **no database interaction** (pure logic)
 - `@ExtendWith(MockitoExtension.class)`
 - `@Mock` for dependencies, `@InjectMocks` for the service under test
 - Same `given_X_should_Y` naming and AAA pattern
@@ -36,7 +48,7 @@ description: "Testing conventions: integration tests, unit tests, fixtures, comp
 ## Frontend Tests (Vitest)
 
 - **File location**: `openaev-front/src/__tests__/`, mirroring the source tree structure (e.g. source `src/utils/foo.ts` → test `src/__tests__/utils/foo.test.ts`)
-- **File naming**: test file name must match the casing and format of the source file it tests (e.g. `tenant-url-helper.ts` → `tenant-url-helper.test.ts`, `Cron.ts` → `Cron.test.tsx`)
+- **File naming**: test file name must match the casing and format of the source file it tests (e.g. `url-helper.ts` → `url-helper.test.ts`, `Cron.ts` → `Cron.test.tsx`)
 - Use `describe`, `expect`, `it` from `vitest`; use `vi` for mocks/spies
 - Group related tests with nested `describe` blocks
 - Use `describe.each` for parameterised tests over similar inputs

@@ -165,6 +165,20 @@ public class RestBehavior {
     return bag;
   }
 
+  @ResponseStatus(HttpStatus.FORBIDDEN)
+  @ExceptionHandler(TenantAccessDeniedException.class)
+  @ApiResponses(
+      value = {
+        @ApiResponse(
+            responseCode = "403",
+            description = "User is not a member of the requested tenant",
+            content = @Content(schema = @Schema(implementation = ResponseEntity.class))),
+      })
+  public ResponseEntity<ErrorMessage> handleTenantAccessDeniedException(
+      TenantAccessDeniedException ex) {
+    return new ResponseEntity<>(new ErrorMessage("TENANT_ACCESS_DENIED"), HttpStatus.FORBIDDEN);
+  }
+
   @ResponseStatus(HttpStatus.NOT_FOUND)
   @ExceptionHandler(AccessDeniedException.class)
   @ApiResponses(

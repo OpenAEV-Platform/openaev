@@ -81,10 +81,10 @@ const Login = () => {
   useEffect(() => {
     window.addEventListener('resize', updateWindowDimensions);
     return () => window.removeEventListener('resize', updateWindowDimensions);
-  });
+  }, []);
   useEffect(() => {
     dispatch(checkKerberos());
-  });
+  }, []);
   const onSubmit = (data: {
     username: string;
     password: string;

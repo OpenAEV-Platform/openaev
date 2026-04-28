@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 import { type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -30,11 +31,13 @@ const LessonsTemplateCategoryForm: FunctionComponent<Props> = ({
 }) => {
   // Standard hooks
   const { t } = useFormatter();
+  const theme = useTheme();
 
   const {
     register,
     handleSubmit,
     formState: { errors, isDirty, isSubmitting },
+    control,
   } = useForm<LessonsTemplateCategoryInputForm>({
     mode: 'onTouched',
     resolver: zodResolver(
@@ -49,45 +52,53 @@ const LessonsTemplateCategoryForm: FunctionComponent<Props> = ({
 
   return (
     <form id="lessonTemplateCategoryForm" onSubmit={handleSubmit(onSubmit)}>
-      <TextField
-        variant="standard"
-        fullWidth
-        label={t('Name')}
-        style={{ marginTop: 10 }}
-        error={!!errors.lessons_template_category_name}
-        helperText={errors.lessons_template_category_name?.message}
-        inputProps={register('lessons_template_category_name')}
-        InputLabelProps={{ required: true }}
-      />
-      <TextField
-        variant="standard"
-        fullWidth
-        label={t('Description')}
-        style={{ marginTop: 20 }}
-        error={!!errors.lessons_template_category_description}
-        helperText={errors.lessons_template_category_description?.message}
-        inputProps={register('lessons_template_category_description')}
-      />
-      <TextField
-        variant="standard"
-        fullWidth
-        label={t('Order')}
-        style={{ marginTop: 20 }}
-        error={!!errors.lessons_template_category_order}
-        helperText={errors.lessons_template_category_order?.message}
-        inputProps={register('lessons_template_category_order')}
-        type="number"
-        InputLabelProps={{ required: true }}
-      />
       <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: theme.spacing(2),
+      }}
+      >
+        <TextField
+          variant="standard"
+          fullWidth
+          label={t('Name')}
+          error={!!errors.lessons_template_category_name}
+          helperText={errors.lessons_template_category_name?.message}
+          inputProps={register('lessons_template_category_name')}
+          InputLabelProps={{ required: true }}
+          control={control}
+        />
+        <TextField
+          variant="standard"
+          fullWidth
+          label={t('Description')}
+          error={!!errors.lessons_template_category_description}
+          helperText={errors.lessons_template_category_description?.message}
+          inputProps={register('lessons_template_category_description')}
+          control={control}
+        />
+        <TextField
+          variant="standard"
+          fullWidth
+          label={t('Order')}
+          error={!!errors.lessons_template_category_order}
+          helperText={errors.lessons_template_category_order?.message}
+          inputProps={register('lessons_template_category_order')}
+          type="number"
+          InputLabelProps={{ required: true }}
+          control={control}
+        />
+      </div>
+      <div style={{
+        display: 'flex',
         float: 'right',
-        marginTop: 20,
+        margin: theme.spacing(2),
+        gap: theme.spacing(2),
       }}
       >
         <Button
           variant="contained"
           onClick={handleClose}
-          style={{ marginRight: 10 }}
           disabled={isSubmitting}
         >
           {t('Cancel')}

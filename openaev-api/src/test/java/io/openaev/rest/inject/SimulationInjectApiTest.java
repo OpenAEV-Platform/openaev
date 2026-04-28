@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.verify;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -130,6 +131,7 @@ public class SimulationInjectApiTest extends IntegrationTest {
                 MockMvcRequestBuilders.multipart(EXERCISE_URI + "/" + exercise.getId() + "/inject")
                     .file(inputPart)
                     .file(filePart)
+                    .with(csrf())
                     .contentType(MediaType.MULTIPART_FORM_DATA))
             .andExpect(status().is2xxSuccessful())
             .andReturn()

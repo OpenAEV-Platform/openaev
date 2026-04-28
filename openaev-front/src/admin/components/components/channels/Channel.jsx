@@ -11,7 +11,7 @@ import { useHelper } from '../../../../store';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import { buildTenantApiPath } from '../../../../utils/tenant-url-helper.ts';
+import { buildTenantApiPath } from '../../../../utils/url-helper';
 import ChannelAddLogo from './ChannelAddLogo';
 import ChannelOverviewMicroblogging from './ChannelOverviewMicroblogging';
 import ChannelOverviewNewspaper from './ChannelOverviewNewspaper';

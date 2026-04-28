@@ -17,6 +17,7 @@ const UsersCapabilitiesRoutes = (
           action: ACTIONS.ACCESS,
           subject: SUBJECTS.PLATFORM_GROUPS_AND_ROLES,
         }]}
+        requireEE
         Component={errorWrapper(UsersCapabilitiesIndex)()}
       />
     )}

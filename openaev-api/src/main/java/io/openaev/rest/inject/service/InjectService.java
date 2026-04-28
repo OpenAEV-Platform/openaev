@@ -16,6 +16,7 @@ import static io.openaev.utils.mapper.InjectStatusMapper.toExecutionTracesOutput
 import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 import static java.time.Instant.now;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -46,9 +47,13 @@ import io.openaev.rest.inject.form.*;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import io.openaev.rest.injector_contract.InjectorContractService;
+import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
+import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
+import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;
 import io.openaev.rest.security.SecurityExpression;
 import io.openaev.rest.security.SecurityExpressionHandler;
 import io.openaev.rest.tag.TagService;
+import io.openaev.rest.threat_arsenal.ThreatArsenalService;
 import io.openaev.service.*;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.InjectUtils;
@@ -76,6 +81,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Triple;
 import org.hibernate.Hibernate;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.AccessDeniedException;
@@ -115,9 +121,12 @@ public class InjectService {
   private final HealthCheckUtils healthCheckUtils;
   private final InjectorContractContentUtils injectorContractContentUtils;
   private final InjectUtils injectUtils;
+  private final ThreatArsenalService threatArsenalService;
 
   private final LicenseCacheManager licenseCacheManager;
   @Resource protected ObjectMapper mapper;
+
+  private static final int INJECTOR_CONTRACT_PAGE_SIZE = 100;
 
   private SecurityExpression getAmbientSecurityExpression() {
     return ((SecurityExpressionHandler) methodSecurityExpressionHandler).getSecurityExpression();
@@ -152,6 +161,11 @@ public class InjectService {
 
     InjectorContract injectorContract =
         this.injectorContractService.injectorContract(input.getInjectorContract());
+
+    if (injectorContract.getConvertedContent() == null) {
+      injectorContract.setConvertedContent(convertContent(injectorContract.getContent()));
+    }
+
     // Get common attributes
     Injector injector = injectUtils.resolveInjector(input.getInjectorId(), injectorContract);
     Inject inject = input.toInject(injectorContract, injector);
@@ -1391,5 +1405,83 @@ public class InjectService {
    */
   public List<RawInject> findRawByIds(List<String> ids) {
     return injectRepository.findRawByIds(ids);
+  }
+
+  /**
+   * Create all injects from a contract research
+   *
+   * @param exercise to link injects on
+   * @param scenarios to link injects on
+   * @param input to retrieve all Injector Contracts
+   * @param locale to set default inject label
+   */
+  public void createInjectsFromInjectorContractInput(
+      Exercise exercise,
+      List<Scenario> scenarios,
+      InjectorContractSearchPaginationInput input,
+      String locale) {
+
+    if (scenarios.isEmpty()) {
+      return;
+    }
+
+    input.setSize(INJECTOR_CONTRACT_PAGE_SIZE);
+    int pageNumber = 0;
+    Page<? extends InjectorContractBaseOutput> page;
+
+    do {
+      page = fetchInjectorContractsPage(input, pageNumber);
+      List<InjectInput> injectInputs = toInjectInputs(page.getContent(), locale);
+      if (!injectInputs.isEmpty()) {
+        scenarios.forEach(scenario -> createAndSaveInjectList(exercise, scenario, injectInputs));
+      }
+      pageNumber++;
+    } while (page.hasNext());
+  }
+
+  private Page<? extends InjectorContractBaseOutput> fetchInjectorContractsPage(
+      InjectorContractSearchPaginationInput input, int pageNumber) {
+    input.setPage(pageNumber);
+    return threatArsenalService.searchInjectorContracts(
+        InjectorContractService.OutputMode.FULL, input);
+  }
+
+  private List<InjectInput> toInjectInputs(
+      List<? extends InjectorContractBaseOutput> contractOutputs, String locale) {
+
+    return contractOutputs.stream()
+        .map(this::asFullOutput)
+        .map(fullOutput -> createDefaultInjectInput(fullOutput, locale))
+        .toList();
+  }
+
+  private InjectorContractFullOutput asFullOutput(InjectorContractBaseOutput output) {
+    if (output instanceof InjectorContractFullOutput fullOutput) {
+      return fullOutput;
+    }
+    throw new IllegalStateException(
+        "Expected InjectorContractFullOutput but got " + output.getClass().getSimpleName());
+  }
+
+  private InjectInput createDefaultInjectInput(
+      InjectorContractFullOutput injectorContractFullOutput, String locale) {
+    InjectInput injectInput = new InjectInput();
+    injectInput.setTitle(
+        injectorContractFullOutput.getLabels().containsKey(locale)
+            ? injectorContractFullOutput.getLabels().get(locale)
+            : injectorContractFullOutput.getLabels().get("en"));
+    injectInput.setDependsDuration(0L);
+    injectInput.setInjectorContract(injectorContractFullOutput.getId());
+    injectInput.setContent(convertContent(injectorContractFullOutput.getContent()));
+    return injectInput;
+  }
+
+  private ObjectNode convertContent(String content) {
+    try {
+      return (ObjectNode) mapper.readTree(content);
+    } catch (JsonProcessingException e) {
+      log.warn("Invalid JSON in inject content", e);
+    }
+    return null;
   }
 }

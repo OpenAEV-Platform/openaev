@@ -12,6 +12,7 @@ import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -287,7 +288,8 @@ public class InjectorApiTest extends IntegrationTest {
                   multipart(INJECT0R_URI)
                       .file(buildInputPart(input))
                       .file(buildEmptyIconPart())
-                      .accept(MediaType.APPLICATION_JSON))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()
@@ -332,7 +334,8 @@ public class InjectorApiTest extends IntegrationTest {
               multipart(INJECT0R_URI)
                   .file(buildInputPart(initialInput))
                   .file(buildEmptyIconPart())
-                  .accept(MediaType.APPLICATION_JSON))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().is2xxSuccessful());
 
       InjectorCreateInput updateInput = new InjectorCreateInput();
@@ -347,6 +350,7 @@ public class InjectorApiTest extends IntegrationTest {
               multipart(INJECT0R_URI)
                   .file(buildInputPart(updateInput))
                   .file(buildEmptyIconPart())
+                  .with(csrf())
                   .accept(MediaType.APPLICATION_JSON))
           .andExpect(status().is2xxSuccessful());
 
@@ -377,7 +381,8 @@ public class InjectorApiTest extends IntegrationTest {
               multipart(INJECT0R_URI)
                   .file(buildInputPart(input))
                   .file(buildEmptyIconPart())
-                  .accept(MediaType.APPLICATION_JSON))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().is2xxSuccessful());
 
       // -- ASSERT --
@@ -425,7 +430,8 @@ public class InjectorApiTest extends IntegrationTest {
               multipart(INJECT0R_URI)
                   .file(buildInputPart(input))
                   .file(buildEmptyIconPart())
-                  .accept(MediaType.APPLICATION_JSON))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().is2xxSuccessful());
 
       // -- ASSERT --
@@ -469,7 +475,8 @@ public class InjectorApiTest extends IntegrationTest {
                   multipart(INJECT0R_URI)
                       .file(buildInputPart(firstInput))
                       .file(buildEmptyIconPart())
-                      .accept(MediaType.APPLICATION_JSON))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()
@@ -480,7 +487,8 @@ public class InjectorApiTest extends IntegrationTest {
                   multipart(INJECT0R_URI)
                       .file(buildInputPart(secondInput))
                       .file(buildEmptyIconPart())
-                      .accept(MediaType.APPLICATION_JSON))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()

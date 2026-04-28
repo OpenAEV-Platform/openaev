@@ -5,7 +5,7 @@ import { fetchUserTenants } from '../../actions/user/user-tenant-actions';
 import { TENANT_SWITCH_SUCCESS } from '../../constants/ActionTypes';
 import { type TenantOutput, type User } from '../api-types';
 import { useAppDispatch } from '../hooks';
-import { buildTenantUrl, extractTenantFromUrl } from '../tenant-url-helper';
+import { buildTenantUrl, extractTenantFromUrl } from '../url-helper';
 
 /**
  * Internal hook that encapsulates the current-tenant state and
@@ -42,7 +42,7 @@ const useTenantState = () => {
  * After login (when the URL has no tenant segment yet), the hook
  * falls back to the first tenant in the user's tenant list.
  */
-const useTenant = (me: User | undefined, logged: unknown) => {
+const useTenant = (me: User | undefined, logged: unknown, isPlatformRoute: boolean) => {
   const [userTenants, setUserTenants] = useState<TenantOutput[]>([]);
   const { currentUserTenant, setTenant } = useTenantState();
   const location = useLocation();
@@ -74,6 +74,12 @@ const useTenant = (me: User | undefined, logged: unknown) => {
 
     if (tenants && tenants.length > 0) {
       setUserTenants(tenants);
+
+      // Platform routes are tenant-agnostic
+      if (isPlatformRoute) {
+        return;
+      }
+
       // If a preferred tenant is requested, switch to it
       if (newCurrentTenantId && navigateToTenant(newCurrentTenantId, tenants)) {
         return;

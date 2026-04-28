@@ -1,5 +1,6 @@
 package io.openaev.scheduler.jobs;
 
+import io.openaev.aop.LogExecutionTime;
 import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +18,7 @@ public class OpenCTIConnectorRegisterPingJob implements Job {
   private final OpenCTIConnectorService openCTIConnectorService;
 
   @Override
+  @LogExecutionTime
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
     openCTIConnectorService.registerOrPingAllConnectors();
   }

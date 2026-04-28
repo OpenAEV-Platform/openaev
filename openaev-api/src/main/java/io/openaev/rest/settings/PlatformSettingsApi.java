@@ -8,6 +8,7 @@ import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.settings.form.*;
 import io.openaev.rest.settings.response.CalderaSettings;
 import io.openaev.rest.settings.response.PlatformSettings;
+import io.openaev.rest.settings.response.PublicPlatformSettings;
 import io.openaev.service.CalderaSettingsService;
 import io.openaev.service.PlatformSettingsService;
 import io.swagger.v3.oas.annotations.ExternalDocumentation;
@@ -36,10 +37,30 @@ public class PlatformSettingsApi extends RestBehavior {
   private final PlatformSettingsService platformSettingsService;
   private final CalderaSettingsService calderaSettingsService;
 
-  @GetMapping()
+  // -- READ --
+
+  @GetMapping("/public")
   @AccessControl(skipRBAC = true)
+  @ApiResponses(
+      value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Non-sensitive settings for login page and initial rendering")
+      })
+  @Operation(
+      summary = "List public settings",
+      description =
+          "Return only non-sensitive settings (auth providers, theme, language, policies)")
+  public PublicPlatformSettings publicSettings() {
+    return platformSettingsService.findPublicSettings();
+  }
+
+  @GetMapping()
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The list of settings")})
-  @Operation(summary = "List settings", description = "Return the settings")
+  @Operation(
+      summary = "List settings",
+      description = "Return the full settings (authenticated users only)")
   public PlatformSettings settings() {
     return platformSettingsService.findSettings();
   }

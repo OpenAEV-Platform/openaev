@@ -3,6 +3,7 @@ package io.openaev.rest.notification_rule;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -73,7 +74,8 @@ public class NotificationRuleApiTest extends IntegrationTest {
                 post(NOTIFICATION_RULE_URI)
                     .content(asJsonString(input))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -103,7 +105,8 @@ public class NotificationRuleApiTest extends IntegrationTest {
             post(NOTIFICATION_RULE_URI)
                 .content(asJsonString(input))
                 .contentType(MediaType.APPLICATION_JSON)
-                .accept(MediaType.APPLICATION_JSON))
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
         .andExpect(status().is4xxClientError());
   }
 
@@ -122,7 +125,8 @@ public class NotificationRuleApiTest extends IntegrationTest {
                 put(NOTIFICATION_RULE_URI + "/" + notificationRule.getId())
                     .content(asJsonString(updatedInput))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -142,7 +146,8 @@ public class NotificationRuleApiTest extends IntegrationTest {
             put(NOTIFICATION_RULE_URI + "/randomid")
                 .content(asJsonString(updatedInput))
                 .contentType(MediaType.APPLICATION_JSON)
-                .accept(MediaType.APPLICATION_JSON))
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
         .andExpect(status().isNotFound())
         .andReturn()
         .getResponse()
@@ -158,7 +163,8 @@ public class NotificationRuleApiTest extends IntegrationTest {
     mvc.perform(
             delete(NOTIFICATION_RULE_URI + "/" + uuid)
                 .contentType(MediaType.APPLICATION_JSON)
-                .accept(MediaType.APPLICATION_JSON))
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
         .andExpect(status().is2xxSuccessful())
         .andReturn()
         .getResponse()
@@ -173,7 +179,8 @@ public class NotificationRuleApiTest extends IntegrationTest {
     mvc.perform(
             delete(NOTIFICATION_RULE_URI + "/radomid")
                 .contentType(MediaType.APPLICATION_JSON)
-                .accept(MediaType.APPLICATION_JSON))
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
         .andExpect(status().isNotFound())
         .andReturn()
         .getResponse()
@@ -190,7 +197,8 @@ public class NotificationRuleApiTest extends IntegrationTest {
     String response =
         mvc.perform(
                 get(NOTIFICATION_RULE_URI + "/" + notificationRule.getId())
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -221,7 +229,8 @@ public class NotificationRuleApiTest extends IntegrationTest {
     String response =
         mvc.perform(
                 get(NOTIFICATION_RULE_URI + "/resource/" + notificationRule.getResourceId())
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -260,7 +269,8 @@ public class NotificationRuleApiTest extends IntegrationTest {
                 post(NOTIFICATION_RULE_URI + "/search")
                     .content(asJsonString(input))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()

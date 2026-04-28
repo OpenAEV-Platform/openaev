@@ -6,6 +6,7 @@ import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.InjectFixture.getInjectForEmailContract;
 import static io.openaev.utils.fixtures.ScenarioFixture.createDefaultCrisisScenario;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -89,7 +90,8 @@ public class ScenarioInjectApiSearchTest extends IntegrationTest {
         mvc.perform(
                 post(SCENARIO_URI + "/" + SCENARIO_ID + "/injects/simple")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(searchPaginationInput)))
+                    .content(asJsonString(searchPaginationInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.numberOfElements").value(1));
       }
@@ -103,7 +105,8 @@ public class ScenarioInjectApiSearchTest extends IntegrationTest {
         mvc.perform(
                 post(SCENARIO_URI + "/" + SCENARIO_ID + "/injects/simple")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(searchPaginationInput)))
+                    .content(asJsonString(searchPaginationInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.numberOfElements").value(0));
       }
@@ -125,7 +128,8 @@ public class ScenarioInjectApiSearchTest extends IntegrationTest {
         mvc.perform(
                 post(SCENARIO_URI + "/" + SCENARIO_ID + "/injects/simple")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(searchPaginationInput)))
+                    .content(asJsonString(searchPaginationInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.content.[0].inject_title").value("Inject default email"))
             .andExpect(jsonPath("$.content.[1].inject_title").value("Inject global email"));
@@ -148,7 +152,8 @@ public class ScenarioInjectApiSearchTest extends IntegrationTest {
         mvc.perform(
                 post(SCENARIO_URI + "/" + SCENARIO_ID + "/injects/simple")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(searchPaginationInput)))
+                    .content(asJsonString(searchPaginationInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.content.[0].inject_title").value("Inject global email"))
             .andExpect(jsonPath("$.content.[1].inject_title").value("Inject default email"));
@@ -169,7 +174,8 @@ public class ScenarioInjectApiSearchTest extends IntegrationTest {
         mvc.perform(
                 post(SCENARIO_URI + "/" + SCENARIO_ID + "/injects/simple")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(searchPaginationInput)))
+                    .content(asJsonString(searchPaginationInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.numberOfElements").value(2));
       }
@@ -186,7 +192,8 @@ public class ScenarioInjectApiSearchTest extends IntegrationTest {
         mvc.perform(
                 post(SCENARIO_URI + "/" + SCENARIO_ID + "/injects/simple")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(searchPaginationInput)))
+                    .content(asJsonString(searchPaginationInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.numberOfElements").value(2));
       }

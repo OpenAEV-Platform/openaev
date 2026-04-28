@@ -5,6 +5,7 @@ import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -70,7 +71,8 @@ public class VariableApiTest extends IntegrationTest {
             post(SCENARIO_URI + "/" + SCENARIO_ID + "/variables")
                 .content(asJsonString(variable))
                 .contentType(MediaType.APPLICATION_JSON)
-                .accept(MediaType.APPLICATION_JSON))
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
         .andExpect(status().is4xxClientError());
 
     // -- PREPARE --
@@ -85,7 +87,8 @@ public class VariableApiTest extends IntegrationTest {
                 post(SCENARIO_URI + "/" + SCENARIO_ID + "/variables")
                     .content(asJsonString(variable))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.variable_key").value(variableKey))
             .andReturn()
@@ -107,7 +110,8 @@ public class VariableApiTest extends IntegrationTest {
         this.mvc
             .perform(
                 get(SCENARIO_URI + "/" + SCENARIO_ID + "/variables")
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -127,7 +131,8 @@ public class VariableApiTest extends IntegrationTest {
         this.mvc
             .perform(
                 get(SCENARIO_URI + "/" + SCENARIO_ID + "/variables")
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -145,7 +150,8 @@ public class VariableApiTest extends IntegrationTest {
                 put(SCENARIO_URI + "/" + SCENARIO_ID + "/variables/" + VARIABLE_ID)
                     .content(asJsonString(variable))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -163,7 +169,8 @@ public class VariableApiTest extends IntegrationTest {
   void deleteVariableForScenarioTest() throws Exception {
     // -- EXECUTE 1 ASSERT --
     this.mvc
-        .perform(delete(SCENARIO_URI + "/" + SCENARIO_ID + "/variables/" + VARIABLE_ID))
+        .perform(
+            delete(SCENARIO_URI + "/" + SCENARIO_ID + "/variables/" + VARIABLE_ID).with(csrf()))
         .andExpect(status().is2xxSuccessful());
   }
 }

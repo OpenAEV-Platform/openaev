@@ -134,7 +134,7 @@ const InjectResultList: FunctionComponent<Props> = ({
       label: 'Execution status',
       isSortable: false,
       value: (injectResultOutput: InjectResultOutput) => {
-        return (<ItemStatus isInject status={injectResultOutput.inject_status?.status_name} label={t(injectResultOutput.inject_status?.status_name || '-')} variant="inList" />);
+        return (<ItemStatus status={injectResultOutput.inject_status?.status_name} label={t(injectResultOutput.inject_status?.status_name || '-')} variant="inList" />);
       },
     },
     {

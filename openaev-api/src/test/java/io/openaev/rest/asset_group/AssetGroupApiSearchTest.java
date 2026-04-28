@@ -6,6 +6,7 @@ import static io.openaev.rest.asset_group.AssetGroupApi.ASSET_GROUP_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static java.lang.String.valueOf;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -69,7 +70,8 @@ public class AssetGroupApiSearchTest extends IntegrationTest {
         mvc.perform(
                 post(ASSET_GROUP_URI + "/search")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(searchPaginationInput)))
+                    .content(asJsonString(searchPaginationInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.numberOfElements").value(2));
       }
@@ -83,7 +85,8 @@ public class AssetGroupApiSearchTest extends IntegrationTest {
         mvc.perform(
                 post(ASSET_GROUP_URI + "/search")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(searchPaginationInput)))
+                    .content(asJsonString(searchPaginationInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.numberOfElements").value(0));
       }
@@ -105,7 +108,8 @@ public class AssetGroupApiSearchTest extends IntegrationTest {
         mvc.perform(
                 post(ASSET_GROUP_URI + "/search")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(searchPaginationInput)))
+                    .content(asJsonString(searchPaginationInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.content.[0].asset_group_name").value("Asset Group 1"))
             .andExpect(jsonPath("$.content.[1].asset_group_name").value("Asset Group 2"));
@@ -125,7 +129,8 @@ public class AssetGroupApiSearchTest extends IntegrationTest {
         mvc.perform(
                 post(ASSET_GROUP_URI + "/search")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(searchPaginationInput)))
+                    .content(asJsonString(searchPaginationInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.content.[0].asset_group_name").value("Asset Group 2"))
             .andExpect(jsonPath("$.content.[1].asset_group_name").value("Asset Group 1"));
@@ -146,7 +151,8 @@ public class AssetGroupApiSearchTest extends IntegrationTest {
         mvc.perform(
                 post(ASSET_GROUP_URI + "/search")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(searchPaginationInput)))
+                    .content(asJsonString(searchPaginationInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.numberOfElements").value(2));
       }
@@ -162,7 +168,8 @@ public class AssetGroupApiSearchTest extends IntegrationTest {
         mvc.perform(
                 post(ASSET_GROUP_URI + "/search")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(searchPaginationInput)))
+                    .content(asJsonString(searchPaginationInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.numberOfElements").value(2));
       }
