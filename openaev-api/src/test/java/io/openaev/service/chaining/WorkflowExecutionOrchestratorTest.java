@@ -86,8 +86,9 @@ class WorkflowExecutionOrchestratorTest {
       verify(workflowRepository).save(workflowRun);
 
       JsonElement payload = payloadCaptor.getValue();
-      assertEquals("10.10.10.10", payload.getAsJsonObject().get("IPv4").getAsJsonArray().get(0).getAsString());
+      assertEquals(
+          "10.10.10.10",
+          payload.getAsJsonObject().get("IPv4").getAsJsonArray().get(0).getAsString());
     }
   }
 }
-

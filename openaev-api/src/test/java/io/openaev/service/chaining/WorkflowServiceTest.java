@@ -442,11 +442,17 @@ class WorkflowServiceTest {
     void shouldDelegateSimulationStartToOrchestrator() throws Exception {
       String simulationId = UUID.randomUUID().toString();
       Workflow template = Workflow.builder().id("template").status(WorkflowStatus.TEMPLATE).build();
-      Workflow run = Workflow.builder().id("run").status(WorkflowStatus.RUN).workflowTemplate(template).build();
+      Workflow run =
+          Workflow.builder()
+              .id("run")
+              .status(WorkflowStatus.RUN)
+              .workflowTemplate(template)
+              .build();
 
       when(workflowRepository.findBySimulation_IdAndStatus(simulationId, WorkflowStatus.TEMPLATE))
           .thenReturn(template);
-      when(workflowScopeRuleRepository.findAllByWorkflowId("template")).thenReturn(Collections.emptyList());
+      when(workflowScopeRuleRepository.findAllByWorkflowId("template"))
+          .thenReturn(Collections.emptyList());
       when(workflowRepository.save(any(Workflow.class))).thenReturn(run);
 
       workflowService.startWorkflowBySimulationId(simulationId);
@@ -469,7 +475,11 @@ class WorkflowServiceTest {
               .workflowTemplate(scenarioTemplate)
               .build();
       Workflow run =
-          Workflow.builder().id("run").status(WorkflowStatus.RUN).workflowTemplate(simulationTemplate).build();
+          Workflow.builder()
+              .id("run")
+              .status(WorkflowStatus.RUN)
+              .workflowTemplate(simulationTemplate)
+              .build();
 
       when(workflowRepository.findByScenario_IdAndStatus(scenarioId, WorkflowStatus.TEMPLATE))
           .thenReturn(List.of(scenarioTemplate));

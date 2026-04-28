@@ -68,4 +68,3 @@ public class WorkflowExecutionOrchestrator {
                 Collectors.mapping(WorkflowScopeRule::getRuleValue, Collectors.toList())));
   }
 }
-
