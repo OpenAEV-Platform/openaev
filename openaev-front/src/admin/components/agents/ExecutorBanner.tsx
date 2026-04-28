@@ -1,7 +1,7 @@
 import { type FunctionComponent } from 'react';
 
 import { type ExecutorOutput } from '../../../utils/api-types';
-import { buildTenantApiPath } from '../../../utils/tenant-url-helper';
+import { buildTenantApiPath } from '../../../utils/url-helper';
 
 interface ExecutorBannerProps {
   executor: ExecutorOutput;

@@ -18,6 +18,7 @@ const TenantRoutes = (
           action: ACTIONS.ACCESS,
           subject: SUBJECTS.TENANTS,
         }]}
+        requireEE
         Component={errorWrapper(TenantsIndex)()}
       />
     )}

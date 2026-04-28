@@ -3,9 +3,9 @@ import { Form } from 'react-final-form';
 
 import ExerciseField from '../../../../components/ExerciseField';
 import OldTextField from '../../../../components/fields/OldTextField';
+import ScenarioField from '../../../../components/fields/ScenarioField.tsx';
 import FileField from '../../../../components/FileField';
 import { useFormatter } from '../../../../components/i18n';
-import ScenarioField from '../../../../components/ScenarioField';
 import TagField from '../../../../components/TagField';
 
 const DocumentForm = (props) => {
@@ -67,6 +67,8 @@ const DocumentForm = (props) => {
             style={{ marginTop: 20 }}
           />
           <ScenarioField
+            multiple={true}
+            useForm={true}
             name="document_scenarios"
             values={values}
             label={t('Scenarios')}

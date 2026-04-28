@@ -6,6 +6,7 @@ import static io.openaev.database.specification.ScenarioSpecification.findGrante
 import static io.openaev.database.specification.TeamSpecification.fromIds;
 import static io.openaev.helper.MailHelper.resolveFromName;
 import static io.openaev.helper.StreamHelper.fromIterable;
+import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.rest.scenario.utils.ScenarioUtils.handleCustomFilter;
 import static io.openaev.service.ImportService.EXPORT_ENTRY_ATTACHMENT;
 import static io.openaev.service.ImportService.EXPORT_ENTRY_SCENARIO;
@@ -36,6 +37,7 @@ import io.openaev.export.Mixins;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.helper.ObjectMapperHelper;
+import io.openaev.rest.custom_dashboard.CustomDashboardService;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.exports.ExerciseFileExport;
@@ -44,8 +46,11 @@ import io.openaev.rest.exercise.exports.VariableWithValueMixin;
 import io.openaev.rest.exercise.form.ExerciseSimple;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.injector_contract.InjectorContractService;
+import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
 import io.openaev.rest.kill_chain_phase.response.KillChainPhaseOutput;
 import io.openaev.rest.scenario.export.ScenarioFileExport;
+import io.openaev.rest.scenario.form.ScenarioInput;
 import io.openaev.rest.scenario.form.ScenarioSimple;
 import io.openaev.rest.scenario.response.ScenarioOutput;
 import io.openaev.rest.scenario.response.ScenarioTeamUserOutput;
@@ -127,9 +132,13 @@ public class ScenarioService {
   private final TagRuleService tagRuleService;
   private final InjectService injectService;
   private final UserService userService;
+  private final PlatformSettingsService platformSettingsService;
+  private final CustomDashboardService customDashboardService;
+  private final InjectorContractService injectorContractService;
 
   private final InjectRepository injectRepository;
   private final LessonsCategoryRepository lessonsCategoryRepository;
+  private final TagRepository tagRepository;
 
   private final HealthCheckUtils healthCheckUtils;
 
@@ -138,9 +147,7 @@ public class ScenarioService {
 
   @Transactional
   public Scenario createScenario(@NotNull final Scenario scenario) {
-    computeEmails(scenario);
-    this.actionMetricCollector.addScenarioCreatedCount();
-    return this.scenarioRepository.save(scenario);
+    return computeAndCreateScenario(scenario);
   }
 
   @Transactional
@@ -154,6 +161,29 @@ public class ScenarioService {
     workflowService.creationWorkflow(savedScenario);
 
     return savedScenario;
+  }
+
+  @Transactional
+  public Scenario createScenarioWithInjectorContracts(
+      @NotNull final ScenarioInput scenarioInput,
+      @NotNull final InjectorContractSearchPaginationInput injectorContractSearchPaginationInput,
+      @NotBlank final String locale) {
+    Scenario preparedScenario = prepareScenarioFromScenarioInput(scenarioInput);
+    Scenario scenario = computeAndCreateScenario(preparedScenario);
+    this.injectService.createInjectsFromInjectorContractInput(
+        null, new ArrayList<>(List.of(scenario)), injectorContractSearchPaginationInput, locale);
+    return scenario;
+  }
+
+  @Transactional
+  public List<Scenario> updateScenariosWithInjectorContracts(
+      @NotNull final List<String> scenarioIds,
+      @NotNull final InjectorContractSearchPaginationInput injectorContractSearchPaginationInput,
+      @NotBlank final String locale) {
+    List<Scenario> scenarios = this.scenarioRepository.findAllById(scenarioIds);
+    this.injectService.createInjectsFromInjectorContractInput(
+        null, scenarios, injectorContractSearchPaginationInput, locale);
+    return scenarios;
   }
 
   public void computeEmails(@NotNull Scenario scenario) {
@@ -1082,5 +1112,30 @@ public class ScenarioService {
     }
 
     return healthChecks;
+  }
+
+  private Scenario computeAndCreateScenario(Scenario scenario) {
+    computeEmails(scenario);
+    this.actionMetricCollector.addScenarioCreatedCount();
+    return this.scenarioRepository.save(scenario);
+  }
+
+  private Scenario prepareScenarioFromScenarioInput(@NotNull final ScenarioInput input) {
+    Scenario scenario = new Scenario();
+    scenario.setUpdateAttributes(input);
+    scenario.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
+    if (hasText(input.getCustomDashboard())) {
+      scenario.setCustomDashboard(
+          this.customDashboardService.customDashboard(input.getCustomDashboard()));
+    } else {
+      scenario.setCustomDashboard(
+          this.platformSettingsService
+              .setting(SettingKeys.DEFAULT_SCENARIO_DASHBOARD.key())
+              .map(Setting::getValue)
+              .filter(v -> !v.isEmpty())
+              .map(this.customDashboardService::customDashboard)
+              .orElse(null));
+    }
+    return scenario;
   }
 }

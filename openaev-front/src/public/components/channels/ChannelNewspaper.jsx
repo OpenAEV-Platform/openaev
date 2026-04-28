@@ -11,7 +11,7 @@ import ExpandableMarkdown from '../../../components/ExpandableMarkdown';
 import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';
 import { useQueryParameter } from '../../../utils/Environment';
-import { buildTenantApiPath } from '../../../utils/tenant-url-helper.ts';
+import { buildTenantApiPath } from '../../../utils/url-helper';
 
 const useStyles = makeStyles()(() => ({
   container: {

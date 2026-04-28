@@ -28,19 +28,17 @@ const EnterpriseEditionButton = ({ style = {}, classes }: Props) => {
   const { t } = useFormatter();
   const { openDialog } = useEnterpriseEdition();
   return (
-    <>
-      <Button
-        size="small"
-        variant="outlined"
-        color="ee"
-        onClick={() => openDialog()}
-        startIcon={<RocketLaunchOutlined />}
-        style={style}
-        classes={classes}
-      >
-        {t('Manage your enterprise edition license')}
-      </Button>
-    </>
+    <Button
+      size="small"
+      variant="outlined"
+      color="ee"
+      onClick={() => openDialog()}
+      startIcon={<RocketLaunchOutlined />}
+      style={style}
+      classes={classes}
+    >
+      {t('Manage your enterprise edition license')}
+    </Button>
   );
 };
 

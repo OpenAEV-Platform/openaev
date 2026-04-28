@@ -52,7 +52,7 @@ public class TenantInterceptor implements HandlerInterceptor {
           && !ANONYMOUS_USER.equals(authentication.getPrincipal())) {
         OpenAEVPrincipal principal = (OpenAEVPrincipal) authentication.getPrincipal();
         if (!tenantMembershipCacheManager.existsByUserIdAndTenantId(principal.getId(), tenantId)) {
-          throw new AccessDeniedException("User does not have access to the requested tenant.");
+          throw new TenantAccessDeniedException(tenantId);
         }
       }
 
