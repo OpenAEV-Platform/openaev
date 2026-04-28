@@ -2117,6 +2117,7 @@
   "tv": "TV channel",
   "Type": "Type",
   "Type Affinity": "Type Affinity",
+  "Type IPs, CIDRs or hostnames...": "Type IPs, CIDRs or hostnames...",
   "Type of targets": "Type of targets",
   "Type to add...": "Type to add...",
   "TYPE_ARTICLE": "Article",
