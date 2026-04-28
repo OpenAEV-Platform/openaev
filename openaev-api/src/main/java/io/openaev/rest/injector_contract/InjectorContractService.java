@@ -39,6 +39,7 @@ import io.openaev.rest.injector_contract.output.InjectorContractDomainCountOutpu
 import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;
 import io.openaev.rest.payload.output.PayloadSimple;
 import io.openaev.rest.threat_arsenal.dto.ThreatArsenalAction;
+import io.openaev.rest.threat_arsenal.dto.ThreatArsenalActionWithContentOutput;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.UserService;
@@ -68,6 +69,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 
 /**
  * Service for managing injector contracts.
@@ -464,6 +466,7 @@ public class InjectorContractService implements DependenciesManager {
   public enum OutputMode {
     FULL,
     THREAT_ARSENAL,
+    THREAT_ARSENAL_CONTENT,
     BASE
   }
 
@@ -475,7 +478,10 @@ public class InjectorContractService implements DependenciesManager {
           new OutputModeConfig(this::selectForInjectorContractBase, this::mapBase),
           OutputMode.THREAT_ARSENAL,
           new OutputModeConfig(
-              this::selectForInjectorContractThreatArsenal, this::mapThreatArsenal));
+              this::selectForInjectorContractThreatArsenal, this::mapThreatArsenal),
+          OutputMode.THREAT_ARSENAL_CONTENT,
+          new OutputModeConfig(
+              this::selectForInjectorContractThreatArsenalContent, this::mapThreatArsenalContent));
 
   /**
    * Returns a page of injector contracts using the requested output mode.
@@ -484,15 +490,37 @@ public class InjectorContractService implements DependenciesManager {
    * @param specificationCount specification used to compute total count
    * @param pageable pagination and sorting information
    * @param mode output mode (defaults to FULL when null)
+   * @param idsToIgnore ids to exclude from research
+   * @param idsToProcess ids to include on research
    * @return page of contracts mapped to the selected output format
    */
   public PageImpl<? extends InjectorContractBaseOutput> getSinglePage(
       Specification<InjectorContract> specification,
       Specification<InjectorContract> specificationCount,
       Pageable pageable,
-      OutputMode mode) {
+      OutputMode mode,
+      List<String> idsToIgnore,
+      List<String> idsToProcess) {
     OutputMode safeMode = (mode == null) ? OutputMode.FULL : mode;
     OutputModeConfig config = CONFIGS.get(safeMode);
+
+    if (!CollectionUtils.isEmpty(idsToIgnore)) {
+      specification =
+          specification.and(
+              (root, query, cb) ->
+                  cb.not(
+                      root.get(InjectorContract.COMPOSITE_ID_FIELD_NAME)
+                          .get(InjectorContract.ID_FIELD_NAME)
+                          .in(idsToIgnore)));
+    }
+    if (!CollectionUtils.isEmpty(idsToProcess)) {
+      specification =
+          specification.and(
+              (root, query, cb) ->
+                  root.get(InjectorContract.COMPOSITE_ID_FIELD_NAME)
+                      .get(InjectorContract.ID_FIELD_NAME)
+                      .in(idsToProcess));
+    }
 
     QuerySetup qs = setupQuery(specification, specificationCount, pageable, config.selector());
 
@@ -655,6 +683,27 @@ public class InjectorContractService implements DependenciesManager {
     cq.groupBy(getCommonGroupBy(injectorContractRoot, ctx));
   }
 
+  private void selectForInjectorContractThreatArsenalContent(
+      @NotNull final CriteriaBuilder cb,
+      @NotNull final CriteriaQuery<Tuple> cq,
+      @NotNull final Root<InjectorContract> injectorContractRoot) {
+    InjectorContractQueryContext ctx = buildCommonInjectorContractContext(cb, injectorContractRoot);
+
+    cq.multiselect(
+        injectorContractRoot.get("compositeId").get("id").alias("injector_contract_id"),
+        ctx.payloadJoin().get("id").alias("payload_id"),
+        ctx.payloadJoin().get("type").alias("payload_type"),
+        ctx.payloadJoin().get("status").alias("payload_status"),
+        ctx.injectorJoin().get("type").alias("injector_type"),
+        ctx.injectorJoin().get("name").alias("injector_name"),
+        injectorContractRoot.get("labels").alias("injector_contract_labels"),
+        ctx.payloadJoin().get("executionArch").alias("payload_execution_arch"),
+        injectorContractRoot.get("platforms").alias("injector_contract_platforms"),
+        injectorContractRoot.get("content").alias("injector_contract_content"));
+
+    cq.groupBy(getCommonGroupBy(injectorContractRoot, ctx));
+  }
+
   private ThreatArsenalAction mapThreatArsenal(Tuple tuple) {
     String payloadId = tuple.get("payload_id", String.class);
     PayloadSimple payload =
@@ -677,6 +726,18 @@ public class InjectorContractService implements DependenciesManager {
         tuple.get("injector_contract_tags", String[].class),
         payload,
         tuple.get("injector_contract_attack_patterns", String[].class));
+  }
+
+  private ThreatArsenalActionWithContentOutput mapThreatArsenalContent(Tuple tuple) {
+    return new ThreatArsenalActionWithContentOutput(
+        tuple.get("injector_contract_id", String.class),
+        tuple.get("payload_type", String.class),
+        tuple.get("injector_type", String.class),
+        tuple.get("injector_name", String.class),
+        tuple.get("injector_contract_labels", Map.class),
+        tuple.get("payload_execution_arch", Payload.PAYLOAD_EXECUTION_ARCH.class),
+        tuple.get("injector_contract_platforms", Endpoint.PLATFORM_TYPE[].class),
+        tuple.get("injector_contract_content", String.class));
   }
 
   private void selectForInjectorContractBase(

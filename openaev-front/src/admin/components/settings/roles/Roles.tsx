@@ -12,6 +12,7 @@ import { useFormatter } from '../../../../components/i18n';
 import type { RoleOutput, SearchPaginationInput } from '../../../../utils/api-types';
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { TENANT_SETTINGS_LABEL } from '../../nav/config/settings.config';
 import SecurityMenu from '../SecurityMenu';
 import CreateRole from './CreateRole';
 import RolePopover from './RolePopover';
@@ -59,7 +60,7 @@ const Roles = () => {
       <div className={classes.bodyItems}>
         <Breadcrumbs
           variant="list"
-          elements={[{ label: t('Settings') }, { label: t('Security') }, {
+          elements={[{ label: t(TENANT_SETTINGS_LABEL) }, { label: t('Security') }, {
             label: t('Roles'),
             current: true,
           }]}

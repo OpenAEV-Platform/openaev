@@ -101,7 +101,7 @@ vi.mock('../../../../../../admin/components/settings/experience/xtm_hub/XtmHubCo
 import { registerPlatform, unregisterPlatform } from '../../../../../../actions/xtmhub/xtmhub-actions';
 import { useHelper } from '../../../../../../store';
 import useExternalTab from '../../../../../../utils/hooks/useExternalTab';
-import { DEFAULT_TENANT_UUID } from '../../../../../../utils/tenant-url-helper';
+import { DEFAULT_TENANT_UUID } from '../../../../../../utils/url-helper';
 
 const theme = createTheme();
 

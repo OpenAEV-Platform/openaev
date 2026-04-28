@@ -1,9 +1,10 @@
 import { Collapse, ListItemIcon, ListItemText, MenuItem, MenuList, Popover, useTheme } from '@mui/material';
 import { type FunctionComponent } from 'react';
-import { Link, useLocation } from 'react-router';
+import { useLocation } from 'react-router';
 
 import { useFormatter } from '../../../i18n';
 import { type LeftMenuSubItem } from './leftmenu-model';
+import useResolveMenuLink from './menu-link-helper';
 import StyledTooltip from './StyledTooltip';
 import { type LeftMenuHelpers, type LeftMenuState } from './useLeftMenu';
 import useLeftMenuStyle from './useLeftMenuStyle';
@@ -26,22 +27,29 @@ const MenuItemSub: FunctionComponent<Props> = ({
   const location = useLocation();
   const theme = useTheme();
   const leftMenuStyle = useLeftMenuStyle();
+  const resolveMenuLink = useResolveMenuLink();
 
   const { navOpen, selectedMenu, anchors } = state;
   const { handleSelectedMenuOpen, handleSelectedMenuClose } = helpers;
 
-  const renderMenuItem = ({ label, link, exact, icon }: LeftMenuSubItem) => {
+  const renderMenuItem = ({ label, link, exact, icon, chip }: LeftMenuSubItem) => {
     const isCurrentTab = location.pathname === link;
+    const menuLinkProps = resolveMenuLink(link);
+    const handleClick = 'onClick' in menuLinkProps
+      ? menuLinkProps.onClick
+      : undefined;
     return (
       <MenuItem
         key={label}
         aria-label={t(label)}
-        component={Link}
-        to={link}
+        {...menuLinkProps}
         selected={exact ? isCurrentTab : location.pathname.includes(link)}
         dense
         sx={{ paddingLeft: navOpen ? '20px' : undefined }}
-        onClick={!navOpen ? handleSelectedMenuClose : undefined}
+        onClick={(_: React.MouseEvent) => {
+          handleClick?.();
+          if (!navOpen) handleSelectedMenuClose();
+        }}
       >
         {icon && (
           <ListItemIcon style={{ ...leftMenuStyle.listItemIcon }}>
@@ -61,6 +69,7 @@ const MenuItemSub: FunctionComponent<Props> = ({
             },
           }}
         />
+        {chip}
       </MenuItem>
     );
   };

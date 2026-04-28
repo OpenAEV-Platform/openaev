@@ -2,7 +2,7 @@ import { Card, CardHeader, GridLegacy, Skeleton, Typography } from '@mui/materia
 import { useTheme } from '@mui/material/styles';
 import { makeStyles } from 'tss-react/mui';
 
-import { buildTenantApiPath } from '../../../../utils/tenant-url-helper.ts';
+import { buildTenantApiPath } from '../../../../utils/url-helper';
 
 const useStyles = makeStyles()(() => ({
   root: {

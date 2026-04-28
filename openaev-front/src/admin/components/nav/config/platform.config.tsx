@@ -52,6 +52,14 @@ const platformEntries = (ability: AppAbility): LeftMenuItem[] => {
         {
           link: PLATFORM_USERS_CAPABILITIES_ROUTE,
           label: 'Users & capabilities',
+          chip: !isValidatedEnterpriseEdition
+            ? (
+                <EEChip
+                  clickable
+                  featureDetectedInfo={t('Users & capabilities')}
+                />
+              )
+            : undefined,
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_GROUPS_AND_ROLES),
         },
       ],

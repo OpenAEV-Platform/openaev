@@ -18,7 +18,7 @@ import {
   type InjectExpectationResult,
   type PayloadSimple,
 } from '../../../../../utils/api-types';
-import { buildTenantApiPath } from '../../../../../utils/tenant-url-helper';
+import { buildTenantApiPath } from '../../../../../utils/url-helper';
 import { isNotEmptyField } from '../../../../../utils/utils';
 import { type InjectExpectationsStore } from '../../../common/injects/expectations/Expectation';
 import InjectIcon from '../../../common/injects/InjectIcon';

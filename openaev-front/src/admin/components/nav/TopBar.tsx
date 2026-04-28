@@ -95,7 +95,10 @@ const useStyles = makeStyles()(theme => ({
   },
 }));
 
-const TopBar: FunctionComponent = () => {
+const TopBar: FunctionComponent<{
+  showSearchBar?: boolean;
+  showTenantSwitcher?: boolean;
+}> = ({ showSearchBar = true, showTenantSwitcher = true }) => {
   // Standard hooks
   const theme = useTheme();
   const location = useLocation();
@@ -221,18 +224,20 @@ const TopBar: FunctionComponent = () => {
           </Link>
         </div>
         <div className={classes.menuContainer} style={{ marginLeft: navOpen ? 20 : 30 }}>
-          <SearchInput
-            variant="topBar"
-            placeholder={`${t('Search the platform')}...`}
-            fullWidth={true}
-            onSubmit={onFullTextSearch}
-            keyword={search}
-          />
+          {showSearchBar && (
+            <SearchInput
+              variant="topBar"
+              placeholder={`${t('Search the platform')}...`}
+              fullWidth={true}
+              onSubmit={onFullTextSearch}
+              keyword={search}
+            />
+          )}
         </div>
         <div className={classes.barRight}>
           <div className={classes.barRightContainer}>
             { settings.platform_license?.license_type === 'nfr' && <ItemBoolean variant="large" label="EE DEV LICENSE" status={false} /> }
-            {isFeatureEnabled('MULTI_TENANCY') && <TenantSwitcher />}
+            {isFeatureEnabled('MULTI_TENANCY') && showTenantSwitcher && <TenantSwitcher />}
             <AskArianeButton isOpen={isArianeChatOpen} />
             <Tooltip title={t('Install simulation agents')}>
               <IconButton

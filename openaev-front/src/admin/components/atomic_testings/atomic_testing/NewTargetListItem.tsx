@@ -5,7 +5,7 @@ import { SelectGroup } from 'mdi-material-ui';
 
 import PlatformIcon from '../../../../components/PlatformIcon';
 import type { InjectTarget } from '../../../../utils/api-types';
-import { buildTenantApiPath } from '../../../../utils/tenant-url-helper';
+import { buildTenantApiPath } from '../../../../utils/url-helper';
 import NewAtomicTestingResult from './NewAtomicTestingResult';
 
 interface Props {
