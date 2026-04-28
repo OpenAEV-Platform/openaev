@@ -8,7 +8,7 @@ import { type EndpointOutput } from '../../../../../utils/api-types';
 import { getExecutorsCount } from '../../../../../utils/endpoints/utils';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
-import { buildTenantApiPath } from '../../../../../utils/tenant-url-helper';
+import { buildTenantApiPath } from '../../../../../utils/url-helper';
 
 type Props = { endpoint: EndpointOutput };
 

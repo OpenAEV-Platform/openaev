@@ -6,6 +6,7 @@ import { useLocation } from 'react-router';
 import useDimensions from '../../../../utils/hooks/useDimensions';
 import { useFormatter } from '../../../i18n';
 import { type LeftMenuItemWithHref } from './leftmenu-model';
+import useResolveMenuLink from './menu-link-helper';
 import SubMenu from './MenuItemSub';
 import { type LeftMenuHelpers, type LeftMenuState } from './useLeftMenu';
 import useLeftMenuStyle from './useLeftMenuStyle';
@@ -23,11 +24,14 @@ const MenuItemGroup: FunctionComponent<Props> = ({ item, state, helpers }) => {
   const leftMenuStyle = useLeftMenuStyle();
   const { dimension } = useDimensions();
   const isMobile = dimension.width < 768;
+  const resolveMenuLink = useResolveMenuLink();
 
   const { navOpen, selectedMenu, anchors } = state;
-  const { handleSelectedMenuOpen, handleSelectedMenuClose, handleSelectedMenuToggle, handleGoToPage } = helpers;
+  const { handleSelectedMenuOpen, handleSelectedMenuClose, handleSelectedMenuToggle } = helpers;
 
   const isCurrentTab = navOpen ? location.pathname === item.path : location.pathname.startsWith(item.path);
+
+  const isCollapsed = !isMobile && !navOpen;
 
   return (
     <>
@@ -42,10 +46,10 @@ const MenuItemGroup: FunctionComponent<Props> = ({ item, state, helpers }) => {
           paddingRight: '2px',
           height: 35,
         }}
-        onClick={() =>
-          isMobile || navOpen
-            ? handleSelectedMenuToggle(item.href)
-            : handleGoToPage(item.path)}
+        {...(isCollapsed
+          ? resolveMenuLink(item.path)
+          : { onClick: () => handleSelectedMenuToggle(item.href) }
+        )}
         onMouseEnter={() => !navOpen && handleSelectedMenuOpen(item.href)}
         onMouseLeave={() => !navOpen && handleSelectedMenuClose()}
       >

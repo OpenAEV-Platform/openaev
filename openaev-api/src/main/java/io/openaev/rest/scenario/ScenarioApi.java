@@ -113,6 +113,32 @@ public class ScenarioApi extends RestBehavior {
     return savedScenario;
   }
 
+  @PostMapping({
+    SCENARIO_URI + "/with-injector-contracts",
+    TENANT_SCENARIO_URI + "/with-injector-contracts"
+  })
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SCENARIO)
+  public Scenario createScenarioWithInjectorContracts(
+      @Valid @RequestBody final ScenarioAndInjectorContractsInputs inputs) {
+    return this.scenarioService.createScenarioWithInjectorContracts(
+        inputs.getScenarioInput(),
+        inputs.getInjectorContractSearchPaginationInput(),
+        inputs.getLocale());
+  }
+
+  @PutMapping({
+    SCENARIO_URI + "/with-injector-contracts",
+    TENANT_SCENARIO_URI + "/with-injector-contracts"
+  })
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SCENARIO)
+  public List<Scenario> updateScenariosWithInjectorContracts(
+      @Valid @RequestBody final ScenarioIdsAndInjectorContractsInputs inputs) {
+    return this.scenarioService.updateScenariosWithInjectorContracts(
+        inputs.getScenarioIds(),
+        inputs.getInjectorContractSearchPaginationInput(),
+        inputs.getLocale());
+  }
+
   @PostMapping({SCENARIO_URI + "/{scenarioId}", TENANT_SCENARIO_URI + "/{scenarioId}"})
   @AccessControl(
       resourceId = "#scenarioId",

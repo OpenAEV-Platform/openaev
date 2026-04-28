@@ -1,9 +1,23 @@
 import { APP_BASE_PATH } from './Environment';
 
+// ---------------------------------------------------------------------------
+// Platform URI
+// ---------------------------------------------------------------------------
+
+/**
+ * Browser path prefix for platform-level pages.
+ * These pages are tenant-agnostic: the URL must NOT contain a tenant UUID.
+ */
+export const PLATFORM_URI_PREFIX = '/admin/platform';
+
+// ---------------------------------------------------------------------------
+// Tenant URI
+// ---------------------------------------------------------------------------
+
 /**
  * Base API path for tenant endpoints.
  * Defined here (not in tenant-action.ts) to avoid a dependency cycle:
- * tenant-url-helper → tenant-action → Action → tenant-url-helper.
+ * url-helper → tenant-action → Action → url-helper.
  */
 export const TENANT_URI = '/api/tenants';
 
@@ -16,6 +30,19 @@ export const DEFAULT_TENANT_UUID = '2cffad3a-0001-4078-b0e2-ef74274022c3';
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // ---------------------------------------------------------------------------
+// URL helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns the current pathname stripped of APP_BASE_PATH.
+ */
+const getAppRelativePath = (): string => {
+  const base = APP_BASE_PATH || '';
+  const raw = window.location.pathname;
+  return raw.startsWith(base) ? raw.slice(base.length) : raw;
+};
+
+// ---------------------------------------------------------------------------
 // URL helpers — reading tenant from the browser URL
 // ---------------------------------------------------------------------------
 
@@ -25,11 +52,7 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
  * (e.g. public routes like /login, /comcheck/…, /reset).
  */
 export const extractTenantFromUrl = (): string | null => {
-  const base = APP_BASE_PATH || '';
-  const pathname = window.location.pathname.startsWith(base)
-    ? window.location.pathname.slice(base.length)
-    : window.location.pathname;
-  const segments = pathname.split('/').filter(Boolean);
+  const segments = getAppRelativePath().split('/').filter(Boolean);
   if (segments.length >= 1 && UUID_REGEX.test(segments[0])) {
     return segments[0];
   }
@@ -37,8 +60,9 @@ export const extractTenantFromUrl = (): string | null => {
 };
 
 /**
- * Builds the BrowserRouter basename including the tenant prefix
- * when the current URL contains a tenant UUID segment.
+ * Builds the BrowserRouter basename for tenant mode.
+ * Appends the tenant UUID from the URL to the base path.
+ * Falls back to the base path alone when no tenant UUID is present.
  */
 export const computeTenantBasename = (): string => {
   const base = APP_BASE_PATH || '';
@@ -141,4 +165,28 @@ export const buildTenantApiPath = (uri: string): string => {
   const tenantId = getCurrentTenantId();
   const pathAfterApi = uri.slice('/api'.length);
   return `/api/tenants/${tenantId}${pathAfterApi}`;
+};
+
+// ---------------------------------------------------------------------------
+// URL helpers - platform URL
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns true when the given path starts with the platform prefix.
+ */
+export const isPlatformRoute = (path: string): boolean => {
+  return path.startsWith(PLATFORM_URI_PREFIX);
+};
+
+/**
+ * Returns true when the current browser URL points to a platform-level page.
+ * Handles both tenant-prefixed and non-prefixed URLs.
+ */
+export const isCurrentPlatformRoute = (): boolean => {
+  let pathname = getAppRelativePath();
+  const tenantId = extractTenantFromUrl();
+  if (tenantId) {
+    pathname = pathname.slice(`/${tenantId}`.length);
+  }
+  return isPlatformRoute(pathname);
 };

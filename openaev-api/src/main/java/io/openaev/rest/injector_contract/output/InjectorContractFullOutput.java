@@ -123,14 +123,4 @@ public class InjectorContractFullOutput extends InjectorContractBaseOutput {
         sourceContract.getPayload() == null ? null : sourceContract.getPayload().getExecutionArch(),
         injectorNamesMap);
   }
-
-  private static List<String> resolveEffectiveDomains(
-      String[] injectorDomains, String[] payloadDomains) {
-    String[] effectiveDomains =
-        (payloadDomains != null && payloadDomains.length > 0) ? payloadDomains : injectorDomains;
-    if (effectiveDomains == null) {
-      return List.of();
-    }
-    return Arrays.stream(effectiveDomains).filter(Objects::nonNull).distinct().toList();
-  }
 }

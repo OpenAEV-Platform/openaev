@@ -13,7 +13,7 @@ import type {
   ExecutorOutput,
   InjectorOutput,
 } from '../../../../utils/api-types';
-import { buildTenantApiPath } from '../../../../utils/tenant-url-helper';
+import { buildTenantApiPath } from '../../../../utils/url-helper';
 
 export interface ConnectorOutput {
   id: string;

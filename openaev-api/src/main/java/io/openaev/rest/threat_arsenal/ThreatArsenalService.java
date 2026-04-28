@@ -1,12 +1,15 @@
 package io.openaev.rest.threat_arsenal;
 
 import static io.openaev.utils.ArchitectureFilterUtils.handleArchitectureFilter;
+import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 
 import io.openaev.database.model.Filters;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.injector_contract.InjectorContractService;
+import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
+import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractDomainCountOutput;
 import io.openaev.rest.payload.form.PayloadCreateInput;
 import io.openaev.rest.payload.form.PayloadUpdateInput;
@@ -25,6 +28,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 
 @RequiredArgsConstructor
@@ -286,5 +290,27 @@ public class ThreatArsenalService {
     PayloadCreationService.PayloadInjectorContractCreationResult result =
         this.payloadService.duplicate(payload.getId());
     return threatArsenalMapper.toThreatArsenalAction(result.injectorContract());
+  }
+
+  /**
+   * Search for Injector Contracts, depending on pagination input and filter
+   *
+   * @param mode output mode
+   * @param input to filter
+   * @return the injector contracts search results
+   */
+  public Page<? extends InjectorContractBaseOutput> searchInjectorContracts(
+      InjectorContractService.OutputMode mode, InjectorContractSearchPaginationInput input) {
+    return buildPaginationCriteriaBuilder(
+        (spec, specCount, pageable) ->
+            this.injectorContractService.getSinglePage(
+                spec,
+                specCount,
+                pageable,
+                mode,
+                input.getInjectorContractIdsToIgnore(),
+                input.getInjectorContractIdsToProcess()),
+        handleArchitectureFilter(translateSearchInput(input)),
+        InjectorContract.class);
   }
 }
