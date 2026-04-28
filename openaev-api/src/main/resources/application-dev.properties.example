@@ -21,9 +21,10 @@ openaev.application-license=
 ########################
 
 ### POSTGRESQL Configuration
+# Values should match POSTGRES_USER / POSTGRES_PASSWORD from openaev-dev/.env
 spring.datasource.url=jdbc:postgresql://localhost:5432/openaev
-spring.datasource.username=openaev
-spring.datasource.password=openaev
+spring.datasource.username=${POSTGRES_USER:openaev}
+spring.datasource.password=${POSTGRES_PASSWORD:openaev}
 
 ### ENGINE Configuration
 # selector can be "elk" (Elasticsearch, port 9200) or "opensearch" (OpenSearch, port 9202)
