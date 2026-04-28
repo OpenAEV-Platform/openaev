@@ -1772,6 +1772,7 @@
   "Separator": "Separator",
   "Service": "Service",
   "Service Unavailable": "Service Unavailable",
+  "You are not a member of this tenant. Please contact your administrator to request access.": "You are not a member of this tenant. Please contact your administrator to request access.",
   "Session": "Session",
   "Set daily recurrence": "Set daily recurrence",
   "Set monthly recurrence": "Set monthly recurrence",

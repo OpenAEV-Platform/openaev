@@ -1772,6 +1772,7 @@
   "Separator": "Trennzeichen",
   "Service": "Dienst",
   "Service Unavailable": "Dienst nicht verfügbar",
+  "You are not a member of this tenant. Please contact your administrator to request access.": "Sie sind kein Mitglied dieses Mandanten. Bitte kontaktieren Sie Ihren Administrator, um Zugang zu beantragen.",
   "Session": "Sitzung",
   "Set daily recurrence": "Tägliche Wiederholung einstellen",
   "Set monthly recurrence": "Monatliche Wiederholung einstellen",
