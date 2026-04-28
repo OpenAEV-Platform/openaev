@@ -1,6 +1,6 @@
 import type { Dispatch } from 'redux';
 
-import { getReferential, postReferential, putReferential, simpleDelCall, simplePostCall } from '../../../utils/Action';
+import { getReferential, postReferential, putReferential, simpleCall, simpleDelCall, simplePostCall } from '../../../utils/Action';
 import { type SearchPaginationInput, type TenantInput, type TenantOutput } from '../../../utils/api-types';
 import { MESSAGING$ } from '../../../utils/Environment';
 import { TENANT_URI } from '../../../utils/url-helper';
@@ -54,4 +54,15 @@ export const reactivateTenant = (tenantId: TenantOutput['tenant_id']) => {
       MESSAGING$.notifySuccess('The tenant has been successfully reactivated.');
       return response;
     });
+};
+
+// -- OPTIONS --
+
+export const searchTenantAsOption = (searchText: string = '') => {
+  const params = { searchText };
+  return simpleCall(`${TENANT_URI}/options`, { params });
+};
+
+export const searchTenantByIdAsOption = (ids: string[]) => {
+  return simplePostCall(`${TENANT_URI}/options`, ids);
 };

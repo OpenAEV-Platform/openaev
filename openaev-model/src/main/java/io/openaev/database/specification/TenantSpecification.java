@@ -1,7 +1,9 @@
 package io.openaev.database.specification;
 
 import io.openaev.database.model.Base;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantBase;
+import jakarta.annotation.Nullable;
 import org.springframework.data.jpa.domain.Specification;
 
 public class TenantSpecification {
@@ -19,5 +21,9 @@ public class TenantSpecification {
       }
       return cb.conjunction();
     };
+  }
+
+  public static Specification<Tenant> byName(@Nullable final String searchText) {
+    return UtilsSpecification.byName(searchText, "name");
   }
 }

@@ -21,6 +21,7 @@ import ContractOutputElementType, { CONTRACT_OUTPUT_ELEMENT_TYPE_KEYS } from '..
 import { type GroupOption, type Option } from '../../../../utils/Option';
 import { useFormatter } from '../../../i18n';
 import { CUSTOM_DASHBOARD, SCENARIO_SIMULATIONS, SCENARIOS, SIMULATIONS } from './constants';
+import { searchTenantAsOption } from '../../../../actions/platform/tenants/tenant-action';
 
 export interface SearchOptionsConfig {
   filterKey: string;
@@ -114,6 +115,11 @@ const useSearchOptions = () => {
           setOptions(response.data);
         });
         break;
+        case 'user_tenants':
+          searchTenantAsOption(search).then((response) => {
+            setOptions(response.data);
+          });
+          break;
       case 'finding_asset_groups':
         searchAssetGroupLinkedToFindingsAsOption(search, contextId).then((response) => {
           setOptions(response.data);

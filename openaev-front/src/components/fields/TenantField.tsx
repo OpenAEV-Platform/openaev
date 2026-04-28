@@ -17,15 +17,15 @@ import { ACTIONS, SUBJECTS } from '../../utils/permissions/types';
 import Dialog from '../common/dialog/Dialog';
 import { useFormatter } from '../i18n';
 
-const useStyles = makeStyles()(() => ({
+const useStyles = makeStyles()((theme) => ({
   icon: {
-    paddingTop: 4,
+    paddingTop: theme.spacing(0.5),
     display: 'inline-block',
   },
   text: {
     display: 'inline-block',
     flexGrow: 1,
-    marginLeft: 10,
+    marginLeft: theme.spacing(1),
   },
   autoCompleteIndicator: { display: 'none' },
 }));

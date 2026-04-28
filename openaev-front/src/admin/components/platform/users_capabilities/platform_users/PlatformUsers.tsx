@@ -51,9 +51,7 @@ const PlatformUsers = () => {
 
   // Fetching data
   const { tenantsMap } = useHelper((helper: UserHelper & TenantHelper) => ({ tenantsMap: helper.getTenantsMap() }));
-  useDataLoader(() => {
-    dispatch(fetchTenants());
-  });
+
 
   const headers = useMemo(() => getPlatformUserHeaders(t, tenantsMap), [t]);
 

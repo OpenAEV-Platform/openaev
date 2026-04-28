@@ -1,5 +1,7 @@
 package io.openaev.service.tenants;
 
+import static io.openaev.database.specification.TenantSpecification.byName;
+import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.pagination.CriteriaBuilderPagination.paginate;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 
@@ -10,6 +12,7 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.multitenancy.DependenciesManager;
 import io.openaev.multitenancy.DependenciesManagerException;
+import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
@@ -21,6 +24,7 @@ import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.ClassUtils;
@@ -203,5 +207,21 @@ public class TenantService {
       tenantRepository.deleteAllByIdsNative(purgedIds);
     }
     return purgedIds.size();
+  }
+
+  // -- OPTIONS --
+
+  public List<FilterUtilsJpa.Option> optionsByName(String searchText) {
+    return fromIterable(
+            tenantRepository.findAll(byName(searchText), Sort.by(Sort.Direction.ASC, "name")))
+        .stream()
+        .map(t -> new FilterUtilsJpa.Option(t.getId(), t.getName()))
+        .toList();
+  }
+
+  public List<FilterUtilsJpa.Option> optionsById(List<String> ids) {
+    return fromIterable(tenantRepository.findAllById(ids)).stream()
+        .map(t -> new FilterUtilsJpa.Option(t.getId(), t.getName()))
+        .toList();
   }
 }

@@ -7,12 +7,16 @@ import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.multitenancy.DependenciesManagerException;
 import io.openaev.service.tenants.TenantService;
+import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -61,6 +65,7 @@ public class TenantApi {
       resourceType = ResourceType.TENANT,
       isEnterpriseEdition = true)
   @GetMapping
+  @Transactional(readOnly = true)
   public Iterable<TenantOutput> tenants() {
     return tenantService.tenants();
   }
@@ -125,5 +130,31 @@ public class TenantApi {
   @DeleteMapping("/{tenantId}")
   public TenantOutput softDelete(@PathVariable String tenantId) {
     return toOutput(tenantService.softDelete(tenantId));
+  }
+
+  // -- OPTIONS --
+
+  @Operation(summary = "Tenant options", description = "Get tenant options for dropdowns")
+  @GetMapping("/options")
+  @AccessControl(
+      actionPerformed = Action.SEARCH,
+      resourceType = ResourceType.TENANT,
+      isEnterpriseEdition = true)
+  public List<FilterUtilsJpa.Option> optionsByName(
+      @RequestParam(required = false) @Schema(description = "Search text")
+          final String searchText) {
+    return tenantService.optionsByName(searchText);
+  }
+
+  @Operation(
+      summary = "Tenant options by IDs",
+      description = "Get tenant options for a list of IDs")
+  @PostMapping("/options")
+  @AccessControl(
+      actionPerformed = Action.SEARCH,
+      resourceType = ResourceType.TENANT,
+      isEnterpriseEdition = true)
+  public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
+    return tenantService.optionsById(ids);
   }
 }

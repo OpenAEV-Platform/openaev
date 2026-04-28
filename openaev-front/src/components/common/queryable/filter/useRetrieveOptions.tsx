@@ -21,6 +21,7 @@ import { type GroupOption, type Option } from '../../../../utils/Option';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { CUSTOM_DASHBOARD, SCENARIOS, SIMULATIONS } from './constants';
+import { searchTenantByIdAsOption } from '../../../../actions/platform/tenants/tenant-action';
 
 interface RetrieveOptionsConfig {
   defaultValues?: GroupOption[] | undefined;
@@ -120,6 +121,11 @@ const useRetrieveOptions = () => {
       case 'user_tags':
       case 'base_tags_side':
         searchTagByIdAsOption(ids).then((response) => {
+          setOptions(response.data);
+        });
+        break;
+      case 'user_tenants':
+        searchTenantByIdAsOption(ids).then((response) => {
           setOptions(response.data);
         });
         break;

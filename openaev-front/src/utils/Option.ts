@@ -133,16 +133,3 @@ export const countryOption = (iso3: string | undefined) => {
     label: country.name,
   } as Option;
 };
-
-export const tenantOptions = (
-  tenant_ids: string[] | undefined,
-  tenantsMap: Record<string, TenantOutput>,
-) => (tenant_ids ?? [])
-  .map(tenantId => tenantsMap[tenantId])
-  .filter(tenantItem => tenantItem !== undefined)
-  .map(
-    tenantItem => ({
-      id: tenantItem.tenant_id,
-      label: tenantItem.tenant_name,
-    }) as Option,
-  );
