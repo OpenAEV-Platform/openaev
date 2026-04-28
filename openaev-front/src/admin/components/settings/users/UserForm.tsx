@@ -17,6 +17,7 @@ import TenantFieldController from '../../../../components/fields/TenantFieldCont
 interface UserFormProps {
   onSubmit: (data: UserInputForm) => void;
   initialValues?: Partial<UserInputForm>;
+  platform?: boolean;
   editing: boolean;
   handleClose: () => void;
   type: UserType;
@@ -38,6 +39,7 @@ const UserForm: FunctionComponent<UserFormProps> = ({
     user_admin: false,
   },
   editing,
+  platform,
   handleClose,
   type,
 }) => {
@@ -116,7 +118,9 @@ const UserForm: FunctionComponent<UserFormProps> = ({
         <TextFieldController name="user_lastname" label={t('Lastname')} />
         <OrganizationFieldController name="user_organization" label={t('Organization')} />
         <TagFieldController name="user_tags" label={t('Tags')} />
-        <TenantFieldController name="user_tenants" label={t('Tenants')}/>
+        {platform &&
+          <TenantFieldController name="user_tenants" label={t('Tenants')}/>
+        }
         <TextFieldController name="user_phone" label={t('Phone number (mobile)')} />
         <TextFieldController name="user_phone2" label={t('Phone number (landline)')} />
         <TextFieldController name="user_pgp_key" label={t('PGP public key')} multiline rows={5} />

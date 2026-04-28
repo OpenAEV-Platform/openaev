@@ -13,6 +13,8 @@ import { AddOutlined, DeviceHubOutlined } from '@mui/icons-material';
 import Dialog from '../common/dialog/Dialog';
 import TenantForm from '../../admin/components/platform/tenants/tenant/TenantForm';
 import useDataLoader from '../../utils/hooks/useDataLoader';
+import { Can } from '../../utils/permissions/permissionsContext';
+import { ACTIONS, SUBJECTS } from '../../utils/permissions/types';
 
 
 const useStyles = makeStyles()(() => ({
@@ -85,7 +87,6 @@ const TenantField: FunctionComponent<Props> = ({
   };
 
   return (
-    // TODO: add CAN i for tenant creation (ACTIONS.MANAGE -submit button) and read (ACTIONS.SEARCH - liste déroulante)
     <div style={{
       position: 'relative',
       ...style,
@@ -105,12 +106,14 @@ const TenantField: FunctionComponent<Props> = ({
         isOptionEqualToValue={(option, value) => option.id === value.id}
         renderOption={(props, option) => (
           <Box component="li" {...props} key={option.id}>
-            <div className={classes.icon}>
-              <DeviceHubOutlined/>
-            </div>
-            <div className={classes.text}>
-              {option.label}
-            </div>
+            <Can I={ACTIONS.SEARCH} a={SUBJECTS.TENANT_SETTINGS}>
+              <div className={classes.icon}>
+                <DeviceHubOutlined />
+              </div>
+              <div className={classes.text}>
+                {option.label}
+              </div>
+            </Can>
           </Box>
         )}
         renderInput={params => (
@@ -126,15 +129,17 @@ const TenantField: FunctionComponent<Props> = ({
                 ...params.InputProps,
                 endAdornment: (
                   <>
-                  <IconButton
-                    style={{
-                      position: 'absolute',
-                      right: '35px',
-                    }}
-                    onClick={handleOpenTenantCreation}
-                  >
-                    <AddOutlined/>
-                  </IconButton>
+                    <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
+                      <IconButton
+                        style={{
+                          position: 'absolute',
+                          right: '35px',
+                        }}
+                        onClick={handleOpenTenantCreation}
+                      >
+                        <AddOutlined/>
+                      </IconButton>
+                    </Can>
                   {params.InputProps.endAdornment}
                   </>
                 ),

@@ -15,7 +15,6 @@ const PlatformUserCreate: FunctionComponent<Props> = ({ onCreate }) => {
 
   const handleSubmit = useCallback(
     async (data: UserInputForm) => {
-      //console.log('Creating platform user with data:', data);
       const inputValues = {
         ...data,
         user_organization: typeof data.user_organization === 'object'
@@ -43,6 +42,7 @@ const PlatformUserCreate: FunctionComponent<Props> = ({ onCreate }) => {
   return (
     <UserCreate
       onSubmit={handleSubmit}
+      platform={true}
       type="PLATFORM"
       buttonVariant="rightMenu"
     />

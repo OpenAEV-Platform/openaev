@@ -10,6 +10,7 @@ import UserForm from './UserForm';
 interface UserCreateProps {
   onSubmit: (data: UserInputForm) => Promise<void> | void;
   type: UserType;
+  platform?: boolean;
   buttonVariant?: 'rightMenu' | undefined;
   buttonStyle?: React.CSSProperties;
 }
@@ -17,6 +18,7 @@ interface UserCreateProps {
 const UserCreate: FunctionComponent<UserCreateProps> = ({
   onSubmit,
   type,
+  platform,
   buttonVariant,
   buttonStyle,
 }) => {
@@ -43,6 +45,7 @@ const UserCreate: FunctionComponent<UserCreateProps> = ({
       >
         <UserForm
           editing={false}
+          platform={platform}
           onSubmit={handleSubmit}
           handleClose={handleClose}
           initialValues={{ user_tags: [] }}
