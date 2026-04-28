@@ -73,7 +73,7 @@ public class UserFixture {
 
   public static UserInput getUserInput(String email, String firstName, String lastName) {
     return new UserInput(
-        email, firstName, lastName, RAW_PASSWORD, null, null, null, null, null, false);
+        email, firstName, lastName, RAW_PASSWORD, null, null, null, null, null, null, false);
   }
 
   public static UserInput getUserInput(String email) {

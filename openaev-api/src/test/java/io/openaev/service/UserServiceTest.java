@@ -36,6 +36,7 @@ class UserServiceTest extends IntegrationTest {
             null,
             null,
             null,
+            null,
             false);
     User created = userService.createUser(input);
 
@@ -81,6 +82,7 @@ class UserServiceTest extends IntegrationTest {
             "Lastname",
             null,
             "pgp-key-123",
+            null,
             null,
             null,
             null,
