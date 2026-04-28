@@ -33,6 +33,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
@@ -57,21 +58,27 @@ class UserApiTest extends IntegrationTest {
   @Autowired private OrganizationComposer organisationComposer;
   @Autowired private TagRepository tagRepository;
 
-  @BeforeEach
-  public void setup() {
-    // Create user using composer if not already present
-    if (this.userRepository.findByEmailIgnoreCase(EMAIL).isEmpty()) {
-      User user = UserFixture.getUser("Test", "User", EMAIL);
-      user.setPassword(UserFixture.ENCODED_PASSWORD);
-      userComposer.forUser(user).persist();
-    }
-    entityManager.flush();
-    entityManager.clear();
-  }
-
   @Nested
   @DisplayName("Logging in")
+  @Transactional
   class LoggingIn {
+
+    @BeforeEach
+    public void setup() {
+      // Create user using composer if not already present, or restore password
+      var existingUser = userRepository.findByEmailIgnoreCase(EMAIL);
+      if (existingUser.isEmpty()) {
+        User user = UserFixture.getUser("Test", "User", EMAIL);
+        user.setPassword(UserFixture.ENCODED_PASSWORD);
+        userComposer.forUser(user).persist();
+      } else {
+        // Restore password in case a previous test changed it
+        User user = existingUser.get();
+        user.setPassword(UserFixture.ENCODED_PASSWORD);
+        userRepository.saveAndFlush(user);
+      }
+    }
+
     @Nested
     @DisplayName("Logging in by email")
     class LoggingInByEmail {
@@ -140,13 +147,33 @@ class UserApiTest extends IntegrationTest {
   }
 
   @Nested
+  // Disable transactionality;
+  // the following tests go through async code that can't share transaction scopes
+  @Transactional(propagation = Propagation.NEVER)
   @DisplayName("Reset Password from I forget my pwd option")
   class ResetPassword {
+    private static final String EMAIL = "reset_user@openaev.invalid";
+
+    @BeforeEach
+    public void before() {
+      reset(randomUtils, mailingService);
+      // reset tokens leak from test to test
+      // this is not a big deal, but we must guarantee that the mock
+      // sets an actual value and not "null" in the reset token map
+      when(randomUtils.getRandomAlphanumeric(anyInt())).thenReturn("reset_token");
+      userRepository.save(UserFixture.getUser("Reset", "Me", EMAIL));
+    }
+
+    @AfterEach
+    public void after() {
+      userRepository.deleteAll();
+    }
+
     @DisplayName("With a known email")
     @Test
     void resetPassword() throws Exception {
       // -- PREPARE --
-      ResetUserInput input = UserFixture.getResetUserInput();
+      ResetUserInput input = UserFixture.getResetUserInput(EMAIL);
 
       // -- EXECUTE --
       mvc.perform(
@@ -181,7 +208,7 @@ class UserApiTest extends IntegrationTest {
       String secondToken = "alouette";
       when(randomUtils.getRandomAlphanumeric(anyInt())).thenReturn(firstToken, secondToken);
 
-      ResetUserInput input = UserFixture.getResetUserInput();
+      ResetUserInput input = UserFixture.getResetUserInput(EMAIL);
       ChangePasswordInput changePasswordInput = UserFixture.getChangePasswordInput("le password");
 
       // -- EXECUTE --
@@ -249,7 +276,7 @@ class UserApiTest extends IntegrationTest {
       String firstToken = "et la tête";
       when(randomUtils.getRandomAlphanumeric(anyInt())).thenReturn(firstToken);
 
-      ResetUserInput input = UserFixture.getResetUserInput();
+      ResetUserInput input = UserFixture.getResetUserInput(EMAIL);
       ChangePasswordInput changePasswordInput = UserFixture.getChangePasswordInput("le password");
 
       // -- EXECUTE --
@@ -303,7 +330,7 @@ class UserApiTest extends IntegrationTest {
     @Test
     void resetPasswordWithUnknownEmail() throws Exception {
       // -- PREPARE --
-      ResetUserInput input = UserFixture.getResetUserInput();
+      ResetUserInput input = UserFixture.getResetUserInput(EMAIL);
       input.setLogin("unknown@filigran.io");
 
       // -- EXECUTE --
