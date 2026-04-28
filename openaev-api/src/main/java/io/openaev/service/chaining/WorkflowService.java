@@ -317,7 +317,7 @@ public class WorkflowService {
       throw new ChainingException(
           "Error Model DB - Many Workflow TEMPLATE for the same scenario ID : " + scenarioId);
     if (workflows.isEmpty()) return Optional.empty();
-    return Optional.ofNullable(workflows.get(0));
+    return Optional.ofNullable(workflows.getFirst());
   }
 
   /**
@@ -511,5 +511,37 @@ public class WorkflowService {
   public void isPreviewFeatureChainingEnable() throws ChainingException {
     if (!previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING))
       throw new ChainingException("Feature chaining is not enabled");
+  }
+
+  // -- Timeout --
+
+  /**
+   * Checks if a workflow has ended by reading the current status from the database.
+   *
+   * @param workflowId the workflow ID to check
+   * @return true if the workflow status is END, false otherwise or if not found
+   */
+  @Transactional(readOnly = true)
+  public boolean isWorkflowEnded(String workflowId) {
+    return workflowRepository.existsByIdAndStatus(workflowId, WorkflowStatus.END);
+  }
+
+  /**
+   * Finds all RUN workflows whose timeout has expired.
+   *
+   * @return list of expired workflows
+   */
+  public List<Workflow> findAllExpiredRunWorkflows() {
+    return workflowRepository.findAllExpiredRunWorkflows();
+  }
+
+  /**
+   * Sets the workflow status to END and persists it.
+   *
+   * @param workflowRun the running workflow to end
+   */
+  public void endWorkflow(Workflow workflowRun) {
+    workflowRun.setStatus(WorkflowStatus.END);
+    workflowRepository.save(workflowRun);
   }
 }

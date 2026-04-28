@@ -169,6 +169,18 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
   public Optional<Step> ready(Step nextStepTemplateToExecute, Workflow workflowRun, String input)
       throws ChainingException {
 
+    // Guard: ignore if workflow run has already ended (e.g. timeout).
+    // Unlike run() and handleExternalUpdateEvent(), we check the in-memory status here
+    // because ready() is always called within the same transaction that manages the workflow
+    // (startWorkflow, handleExternalUpdateEvent), so the in-memory state is guaranteed to be fresh.
+    if (workflowRun.getStatus() == WorkflowStatus.END) {
+      log.info(
+          "Ignoring ready request for step {} because workflow run {} has ended.",
+          nextStepTemplateToExecute.getId(),
+          workflowRun.getId());
+      return Optional.empty();
+    }
+
     ActionStep actionStep =
         factoryAction(nextStepTemplateToExecute.getStepAction(), nextStepTemplateToExecute.getId());
 
@@ -224,6 +236,17 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
    * @param stepReady step ready to run
    */
   public void run(Step stepReady) {
+    // Guard: ignore if workflow run has already ended (e.g. timeout).
+    // Reads fresh status from DB to catch concurrent timeout completion.
+    Workflow workflowRun = stepReady.getWorkflow();
+    if (workflowRun != null && workflowService.isWorkflowEnded(workflowRun.getId())) {
+      log.info(
+          "Ignoring run request for step {} because workflow run {} has ended.",
+          stepReady.getId(),
+          workflowRun.getId());
+      return;
+    }
+
     Step stepRun;
     try {
       ActionStep actionStep = factoryAction(stepReady.getStepAction(), stepReady.getId());
@@ -632,6 +655,23 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
         id, List.of(StepStatus.RUN, StepStatus.READY));
   }
 
+  /**
+   * Ends all active steps (READY or RUN) for the given workflow run.
+   *
+   * @param workflowId the workflow run ID
+   * @return number of steps terminated
+   */
+  public int endActiveStepsByWorkflowId(String workflowId) {
+    List<Step> activeSteps =
+        stepRepository.findAllStepByWorkflow_IdAndStatusIn(
+            workflowId, List.of(StepStatus.READY, StepStatus.RUN));
+    for (Step step : activeSteps) {
+      step.setStatus(StepStatus.END);
+    }
+    stepRepository.saveAll(activeSteps);
+    return activeSteps.size();
+  }
+
   private Step findStepFromCondition(String stepFromId) {
     if (stepFromId != null) {
       return stepRepository
@@ -1034,6 +1074,18 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
           e);
       return;
     }
+
+    // Guard: ignore if workflow run has already ended (e.g. timeout).
+    // Reads fresh status from DB to catch concurrent timeout completion.
+    Workflow workflowRun = stepRun.getWorkflow();
+    if (workflowRun != null && workflowService.isWorkflowEnded(workflowRun.getId())) {
+      log.info(
+          "Ignoring external update event for step {} because workflow run {} has ended.",
+          stepRun.getId(),
+          workflowRun.getId());
+      return;
+    }
+
     Optional<Step> stepUpdatedOpt;
 
     try {
