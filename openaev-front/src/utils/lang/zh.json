@@ -1772,6 +1772,7 @@
   "Separator": "分隔符",
   "Service": "服務",
   "Service Unavailable": "服务不可用",
+  "You are not a member of this tenant. Please contact your administrator to request access.": "您不是此租户的成员。请联系管理员申请访问权限。",
   "Session": "會期",
   "Set daily recurrence": "设置每日重复",
   "Set monthly recurrence": "设置每月重复",

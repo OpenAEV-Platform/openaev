@@ -1772,6 +1772,7 @@
   "Separator": "Разделитель",
   "Service": "Сервис",
   "Service Unavailable": "Служба недоступна",
+  "You are not a member of this tenant. Please contact your administrator to request access.": "Вы не являетесь участником этого тенанта. Обратитесь к администратору для получения доступа.",
   "Session": "Сессия",
   "Set daily recurrence": "Установить ежедневное повторение",
   "Set monthly recurrence": "Установить ежемесячное повторение",

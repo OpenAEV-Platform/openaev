@@ -1772,6 +1772,7 @@
   "Separator": "セパレーター",
   "Service": "サービス",
   "Service Unavailable": "サービス利用不可",
+  "You are not a member of this tenant. Please contact your administrator to request access.": "このテナントのメンバーではありません。アクセスをリクエストするには管理者に連絡してください。",
   "Session": "セッション",
   "Set daily recurrence": "日毎の繰り返し設定",
   "Set monthly recurrence": "毎月の定期を設定する",

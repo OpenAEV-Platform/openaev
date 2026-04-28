@@ -1772,6 +1772,7 @@
   "Separator": "구분 기호",
   "Service": "서비스",
   "Service Unavailable": "서비스를 사용할 수 없음",
+  "You are not a member of this tenant. Please contact your administrator to request access.": "이 테넌트의 구성원이 아닙니다. 액세스를 요청하려면 관리자에게 문의하세요.",
   "Session": "세션",
   "Set daily recurrence": "일일 반복 설정",
   "Set monthly recurrence": "월별 반복 설정",
