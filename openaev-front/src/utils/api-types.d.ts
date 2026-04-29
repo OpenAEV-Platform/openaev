@@ -6361,22 +6361,10 @@ export interface PlatformSettings {
   telemetry_manager_enable?: boolean;
   /** True if connection with XTM Hub is enabled */
   xtm_hub_enable?: boolean;
-  /** XTM Hub last connectivity check */
-  xtm_hub_last_connectivity_check?: string;
   /** True if xtmhub backend is reachable */
   xtm_hub_reachable?: boolean;
-  /** XTM Hub registration date */
-  xtm_hub_registration_date?: string;
-  /** XTM Hub registration status */
-  xtm_hub_registration_status?: string;
-  /** XTM Hub registration user id */
-  xtm_hub_registration_user_id?: string;
-  /** XTM Hub registration user name */
-  xtm_hub_registration_user_name?: string;
   /** XTM Hub should send connectivity email */
   xtm_hub_should_send_connectivity_email?: string;
-  /** XTM Hub token */
-  xtm_hub_token?: string;
   /** Url of XTM Hub */
   xtm_hub_url?: string;
   /** True if connection with OpenCTI is enabled */
@@ -8795,7 +8783,7 @@ export interface WorkflowScopeRuleInput {
   /** ID of an existing scope rule. Null means a new rule will be created. */
   workflow_scope_rule_id?: string;
   /** Selected list mode where the rule should be applied */
-  workflow_scope_rule_selected_mode: "WHITELIST" | "BLACKLIST";
+  workflow_scope_rule_selected_mode: "ALLOWLIST" | "DENYLIST";
   /** Source of the selected rule */
   workflow_scope_rule_source: "ASSET" | "ASSET_GROUP" | "MANUAL" | "CSV";
   /**
@@ -8810,7 +8798,7 @@ export interface WorkflowScopeRuleOutput {
   /** ID of the scope rule. */
   workflow_scope_rule_id?: string;
   /** Selected list mode where the rule is applied. */
-  workflow_scope_rule_selected_mode?: "WHITELIST" | "BLACKLIST";
+  workflow_scope_rule_selected_mode?: "ALLOWLIST" | "DENYLIST";
   /** Source of the selected item */
   workflow_scope_rule_source?: "ASSET" | "ASSET_GROUP" | "MANUAL" | "CSV";
   /** Selected item value */

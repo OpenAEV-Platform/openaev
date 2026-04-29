@@ -145,7 +145,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
     <ExercisePopover
       // @ts-expect-error: should pass Exercise model IF we have update as action
       exercise={exercise}
-      actions={['Duplicate', 'Export', 'Delete']}
+      actions={isScenarioChaining ? ['Delete'] : ['Duplicate', 'Export', 'Delete']}
       onDelete={result => setExercises(exercises.filter(e => (e.exercise_id !== result)))}
       inList
     />

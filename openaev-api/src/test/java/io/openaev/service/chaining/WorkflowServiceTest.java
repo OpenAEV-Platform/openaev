@@ -276,7 +276,7 @@ class WorkflowServiceTest {
               .build();
 
       WorkflowScopeRule existingRule = new WorkflowScopeRule();
-      existingRule.setSelectedMode(ScopeRuleSelectedMode.WHITELIST);
+      existingRule.setSelectedMode(ScopeRuleSelectedMode.ALLOWLIST);
       existingRule.setRuleSource(ScopeRuleSource.MANUAL);
       existingRule.setRuleValue("10.0.0.1");
       existingRule.setValueType(ScopeRuleValueType.IP);
@@ -507,11 +507,11 @@ class WorkflowServiceTest {
 
       assertSame(workflow, result);
       assertEquals(5, result.getWorkflowScopeRules().size());
-      assertEquals(3, result.getWhitelist().size());
-      assertEquals(2, result.getBlacklist().size());
+      assertEquals(3, result.getAllowlist().size());
+      assertEquals(2, result.getDenylist().size());
 
       WorkflowScopeRule mappedIpRule =
-          result.getWhitelist().stream()
+          result.getAllowlist().stream()
               .filter(r -> "10.10.10.10".equals(r.getRuleValue()))
               .findFirst()
               .orElseThrow();
@@ -519,28 +519,28 @@ class WorkflowServiceTest {
       assertSame(workflow, mappedIpRule.getWorkflow());
 
       WorkflowScopeRule mappedDomainRule =
-          result.getWhitelist().stream()
+          result.getAllowlist().stream()
               .filter(r -> "example.org".equals(r.getRuleValue()))
               .findFirst()
               .orElseThrow();
       assertEquals(ScopeRuleValueType.DOMAIN, mappedDomainRule.getValueType());
 
       WorkflowScopeRule mappedAssetRule =
-          result.getWhitelist().stream()
+          result.getAllowlist().stream()
               .filter(r -> "asset-123".equals(r.getRuleValue()))
               .findFirst()
               .orElseThrow();
       assertEquals(ScopeRuleValueType.ASSET_ID, mappedAssetRule.getValueType());
 
       WorkflowScopeRule mappedSubnetRule =
-          result.getBlacklist().stream()
+          result.getDenylist().stream()
               .filter(r -> "10.10.10.0/24".equals(r.getRuleValue()))
               .findFirst()
               .orElseThrow();
       assertEquals(ScopeRuleValueType.IP_SUBNET, mappedSubnetRule.getValueType());
 
       WorkflowScopeRule mappedAssetGroupRule =
-          result.getBlacklist().stream()
+          result.getDenylist().stream()
               .filter(r -> "asset-group-1".equals(r.getRuleValue()))
               .findFirst()
               .orElseThrow();
@@ -582,7 +582,7 @@ class WorkflowServiceTest {
 
       WorkflowScopeRuleInput ruleInput =
           WorkflowScopeRuleInput.builder()
-              .selectedMode(ScopeRuleSelectedMode.WHITELIST)
+              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
               .ruleSource(source)
               .ruleValue(ruleValue)
               .build();
@@ -601,9 +601,9 @@ class WorkflowServiceTest {
 
       // Assert
       assertNotNull(caseName);
-      assertEquals(1, result.getWhitelist().size());
-      WorkflowScopeRule mappedRule = result.getWhitelist().getFirst();
-      assertEquals(ScopeRuleSelectedMode.WHITELIST, mappedRule.getSelectedMode());
+      assertEquals(1, result.getAllowlist().size());
+      WorkflowScopeRule mappedRule = result.getAllowlist().getFirst();
+      assertEquals(ScopeRuleSelectedMode.ALLOWLIST, mappedRule.getSelectedMode());
       assertEquals(expectedType, mappedRule.getValueType());
       assertSame(workflow, mappedRule.getWorkflow());
     }

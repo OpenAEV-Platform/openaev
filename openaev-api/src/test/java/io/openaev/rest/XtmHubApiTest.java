@@ -209,6 +209,14 @@ public class XtmHubApiTest extends IntegrationTest {
     XtmHubContactUsInput input = new XtmHubContactUsInput();
     input.setMessage(message);
 
+    Tenant defaultTenant = entityManager.find(Tenant.class, Tenant.DEFAULT_TENANT_UUID);
+    TenantXtmHubRegistration registration = new TenantXtmHubRegistration();
+    registration.setToken("contact-us-token");
+    registration.setRegistrationStatus(XtmHubRegistrationStatus.REGISTERED);
+    registration.setTenant(defaultTenant);
+    tenantXtmHubRegistrationRepository.save(registration);
+    entityManager.flush();
+
     when(xtmHubClient.contactUs(any(), any(), any())).thenReturn(true);
 
     String response =

@@ -28,14 +28,11 @@ import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.rest.settings.response.PublicPlatformSettings;
 import io.openaev.rest.stream.ai.AiConfig;
 import io.openaev.xtmhub.XtmHubConnectivityService;
-import io.openaev.xtmhub.XtmHubRegistererRecord;
-import io.openaev.xtmhub.XtmHubRegistrationStatus;
 import io.openaev.xtmhub.config.XtmHubConfig;
 import io.openaev.xtmone.XtmOneConfig;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import java.time.LocalDateTime;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -350,17 +347,6 @@ public class PlatformSettingsService {
     platformSettings.setXtmHubEnable(xtmHubConfig.getEnable());
     platformSettings.setXtmHubUrl(xtmHubConfig.getUrl());
     platformSettings.setXtmHubReachable(xtmHubConnectivityService.isReachable());
-    platformSettings.setXtmHubToken(getValueFromMapOfSettings(dbSettings, XTM_HUB_TOKEN.key()));
-    platformSettings.setXtmHubRegistrationStatus(
-        getValueFromMapOfSettings(dbSettings, XTM_HUB_REGISTRATION_STATUS.key()));
-    platformSettings.setXtmHubRegistrationDate(
-        getValueFromMapOfSettings(dbSettings, XTM_HUB_REGISTRATION_DATE.key()));
-    platformSettings.setXtmHubRegistrationUserId(
-        getValueFromMapOfSettings(dbSettings, XTM_HUB_REGISTRATION_USER_ID.key()));
-    platformSettings.setXtmHubRegistrationUserName(
-        getValueFromMapOfSettings(dbSettings, XTM_HUB_REGISTRATION_USER_NAME.key()));
-    platformSettings.setXtmHubLastConnectivityCheck(
-        getValueFromMapOfSettings(dbSettings, XTM_HUB_LAST_CONNECTIVITY_CHECK.key()));
     platformSettings.setXtmHubShouldSendConnectivityEmail(
         ofNullable(dbSettings.get(XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL.key()))
             .map(Setting::getValue)
@@ -592,45 +578,6 @@ public class PlatformSettingsService {
     Setting setting = settingRepository.findByKey(key).orElse(new Setting(key, value));
     setting.setValue(value);
     return settingRepository.save(setting);
-  }
-
-  public PlatformSettings updateXTMHubRegistration(
-      String token,
-      LocalDateTime registrationDate,
-      XtmHubRegistrationStatus registrationStatus,
-      XtmHubRegistererRecord registerer,
-      LocalDateTime lastConnectivityCheck,
-      Boolean shouldSendConnectivityEmail) {
-    Map<String, Setting> dbSettings = mapOfSettings(fromIterable(this.settingRepository.findAll()));
-
-    Map<SettingKeys, String> xtmhubSettingsMap = new HashMap<>();
-    xtmhubSettingsMap.put(XTM_HUB_TOKEN, token);
-    xtmhubSettingsMap.put(
-        XTM_HUB_REGISTRATION_DATE, registrationDate != null ? registrationDate.toString() : null);
-    xtmhubSettingsMap.put(XTM_HUB_REGISTRATION_STATUS, registrationStatus.label);
-    xtmhubSettingsMap.put(
-        XTM_HUB_REGISTRATION_USER_ID, registerer != null ? registerer.id() : null);
-    xtmhubSettingsMap.put(
-        XTM_HUB_REGISTRATION_USER_NAME, registerer != null ? registerer.name() : null);
-    xtmhubSettingsMap.put(
-        XTM_HUB_LAST_CONNECTIVITY_CHECK,
-        lastConnectivityCheck != null ? lastConnectivityCheck.toString() : null);
-    xtmhubSettingsMap.put(
-        XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL,
-        shouldSendConnectivityEmail != null ? shouldSendConnectivityEmail.toString() : null);
-
-    List<Setting> settingsToSave = new ArrayList<>();
-
-    xtmhubSettingsMap.forEach(
-        (settingKey, value) -> {
-          if (value != null) {
-            settingsToSave.add(resolveFromMap(dbSettings, settingKey.key(), value));
-          }
-        });
-
-    settingRepository.saveAll(settingsToSave);
-
-    return findSettings();
   }
 
   public void updateXTMHubEmailNotification(boolean shouldSendConnectivityEmail) {
