@@ -828,37 +828,4 @@ public class ConditionService {
       List<List<WorkflowStateEntries.Pair>> dynamicPairs,
       Map<String, String> staticValues,
       boolean hasMissingDynamicValues) {}
-
-  /**
-   * Extracts distinct {@link ConditionKeyType} values from a step output JSON.
-   *
-   * @param currentOutput JSON array where each item may contain a {@code key}
-   * @return matching key types, or an empty set when input is blank/invalid
-   */
-  public Set<ConditionKeyType> extractKeyTypesFromOutput(String currentOutput) {
-    if (currentOutput == null || currentOutput.isBlank()) {
-      return Collections.emptySet();
-    }
-
-    try {
-      JsonObject dataMap = JsonParser.parseString(currentOutput).getAsJsonObject();
-
-      return dataMap.keySet().stream()
-          .map(
-              key -> {
-                try {
-                  return ConditionKeyType.valueOf(key);
-                } catch (IllegalArgumentException e) {
-                  log.warn("Unknown ConditionKeyType found in output: {}", key);
-                  return null;
-                }
-              })
-          .filter(Objects::nonNull)
-          .collect(Collectors.toSet());
-
-    } catch (Exception e) {
-      log.error("Error parsing parsed_outputs: {}. JSON: {}", e.getMessage(), currentOutput);
-      return Collections.emptySet();
-    }
-  }
 }

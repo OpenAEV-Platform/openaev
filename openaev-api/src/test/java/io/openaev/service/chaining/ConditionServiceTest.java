@@ -1,8 +1,5 @@
 package io.openaev.service.chaining;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
-
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.EventInput;
 import io.openaev.database.model.*;
@@ -11,9 +8,6 @@ import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.utils.ConditionUtils;
 import jakarta.persistence.EntityNotFoundException;
-import java.time.Instant;
-import java.util.*;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,24 +17,45 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Instant;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.stream.Stream;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
 @ExtendWith(MockitoExtension.class)
 public class ConditionServiceTest {
 
-  @Spy @InjectMocks private ConditionService conditionService;
-  @Captor private ArgumentCaptor<Condition> conditionCaptor;
-  @Captor private ArgumentCaptor<List<Condition>> conditionsCaptor;
-  @Mock private ConditionRepository conditionRepository;
-  @Mock private StepRepository stepRepository;
-  @Mock private WorkflowStateService workflowStateService;
-  @Mock private ConditionUtils conditionUtils;
-  @Mock private QueueChainingService queueChainingService;
-  @Mock private StepDelayQueueService stepDelayQueueService;
+  @Spy
+  @InjectMocks
+  private ConditionService conditionService;
+  @Captor
+  private ArgumentCaptor<Condition> conditionCaptor;
+  @Captor
+  private ArgumentCaptor<List<Condition>> conditionsCaptor;
+  @Mock
+  private ConditionRepository conditionRepository;
+  @Mock
+  private StepRepository stepRepository;
+  @Mock
+  private WorkflowStateService workflowStateService;
+  @Mock
+  private ConditionUtils conditionUtils;
+  @Mock
+  private QueueChainingService queueChainingService;
+  @Mock
+  private StepDelayQueueService stepDelayQueueService;
 
   /* ============================================================
    * isTimeCondition
    * ============================================================ */
   @Nested
   class IsTimeCondition {
+
     static Stream<ConditionType> allConditionTypes() {
       return Stream.of(ConditionType.values());
     }
@@ -68,6 +83,7 @@ public class ConditionServiceTest {
    * ============================================================ */
   @Nested
   class IsMapperCondition {
+
     static Stream<ConditionType> allConditionTypes() {
       return Stream.of(ConditionType.values());
     }
@@ -96,6 +112,7 @@ public class ConditionServiceTest {
    * ============================================================ */
   @Nested
   class IsFilterCondition {
+
     static Stream<ConditionType> allConditionTypes() {
       return Stream.of(ConditionType.values());
     }
@@ -586,7 +603,9 @@ public class ConditionServiceTest {
   @Nested
   class MappingTypeResolution {
 
-    /** MAPPER condition with explicit LOCAL → stays LOCAL. */
+    /**
+     * MAPPER condition with explicit LOCAL → stays LOCAL.
+     */
     @Test
     void shouldPreserveMappingType_whenMapperConditionHasExplicitValue() {
       // -------- Prepare --------
@@ -611,7 +630,9 @@ public class ConditionServiceTest {
       assertEquals(MappingType.LOCAL, root.getMappingType());
     }
 
-    /** MAPPER condition with no mappingType → defaults to DEFAULT. */
+    /**
+     * MAPPER condition with no mappingType → defaults to DEFAULT.
+     */
     @Test
     void shouldDefaultMappingTypeToDefault_whenMapperConditionHasNullMappingType() {
       // -------- Prepare --------
@@ -639,7 +660,9 @@ public class ConditionServiceTest {
           "mappingType should be auto-defaulted to DEFAULT for MAPPER conditions");
     }
 
-    /** Non-MAPPER condition never carries a mappingType. */
+    /**
+     * Non-MAPPER condition never carries a mappingType.
+     */
     @Test
     void shouldLeaveMappingTypeNull_whenNonMapperCondition() {
       // -------- Prepare --------
@@ -662,127 +685,6 @@ public class ConditionServiceTest {
 
       // -------- Assert --------
       assertNull(root.getMappingType(), "mappingType must be null for non-MAPPER conditions");
-    }
-  }
-
-  /* ============================================================
-   * extractKeyTypesFromOutput
-   * ============================================================ */
-  @Nested
-  class ExtractKeyTypesFromOutput {
-
-    @Test
-    void shouldReturnEmptySet_whenInputIsNull() {
-      // Arrange / Act
-      Set<ConditionKeyType> result = conditionService.extractKeyTypesFromOutput(null);
-
-      // Assert
-      assertNotNull(result);
-      assertTrue(result.isEmpty());
-    }
-
-    @Test
-    void shouldReturnEmptySet_whenInputIsBlank() {
-      // Arrange / Act
-      Set<ConditionKeyType> result = conditionService.extractKeyTypesFromOutput("   ");
-
-      // Assert
-      assertNotNull(result);
-      assertTrue(result.isEmpty());
-    }
-
-    @Test
-    void shouldReturnEmptySet_whenJsonIsNullLiteral() {
-      // Gson parses "null" as a null List → guarded by the null check
-      Set<ConditionKeyType> result = conditionService.extractKeyTypesFromOutput("null");
-
-      assertNotNull(result);
-      assertTrue(result.isEmpty());
-    }
-
-    @Test
-    void shouldReturnEmptySet_whenJsonArrayIsEmpty() {
-      Set<ConditionKeyType> result = conditionService.extractKeyTypesFromOutput("[]");
-
-      assertNotNull(result);
-      assertTrue(result.isEmpty());
-    }
-
-    @Test
-    void shouldReturnSingleKeyType_whenOneValidEntry() {
-      // Arrange
-      String output = "[{\"key\":\"IPv4\",\"value\":\"10.0.0.1\"}]";
-
-      // Act
-      Set<ConditionKeyType> result = conditionService.extractKeyTypesFromOutput(output);
-
-      // Assert
-      assertEquals(Set.of(ConditionKeyType.IPv4), result);
-    }
-
-    @Test
-    void shouldReturnMultipleKeyTypes_whenSeveralDistinctValidEntries() {
-      // Arrange
-      String output =
-          "[{\"key\":\"IPv4\",\"value\":\"10.0.0.1\"}"
-              + ",{\"key\":\"Text\",\"value\":\"admin\"}"
-              + ",{\"key\":\"Port\",\"value\":\"443\"}]";
-
-      // Act
-      Set<ConditionKeyType> result = conditionService.extractKeyTypesFromOutput(output);
-
-      // Assert
-      assertEquals(
-          Set.of(ConditionKeyType.IPv4, ConditionKeyType.Text, ConditionKeyType.Port), result);
-    }
-
-    @Test
-    void shouldDeduplicateKeyTypes_whenSameKeyAppearsMultipleTimes() {
-      // Arrange
-      String output =
-          "[{\"key\":\"Text\",\"value\":\"admin\"}" + ",{\"key\":\"Text\",\"value\":\"root\"}]";
-
-      // Act
-      Set<ConditionKeyType> result = conditionService.extractKeyTypesFromOutput(output);
-
-      // Assert
-      assertEquals(1, result.size());
-      assertTrue(result.contains(ConditionKeyType.Text));
-    }
-
-    @Test
-    void shouldIgnoreEntriesWithNullKey_andReturnRemainingKeyTypes() {
-      // Arrange – one entry has no "key" field, the other has a valid one
-      String output = "[{\"value\":\"10.0.0.1\"}" + ",{\"key\":\"Number\",\"value\":\"42\"}]";
-
-      // Act
-      Set<ConditionKeyType> result = conditionService.extractKeyTypesFromOutput(output);
-
-      // Assert
-      assertEquals(Set.of(ConditionKeyType.Number), result);
-    }
-
-    @Test
-    void shouldReturnEmptySet_whenAllKeysAreNull() {
-      // Arrange
-      String output = "[{\"value\":\"10.0.0.1\"},{\"value\":\"admin\"}]";
-
-      // Act
-      Set<ConditionKeyType> result = conditionService.extractKeyTypesFromOutput(output);
-
-      // Assert
-      assertNotNull(result);
-      assertTrue(result.isEmpty());
-    }
-
-    @Test
-    void shouldReturnEmptySet_whenJsonIsMalformed() {
-      // Arrange – malformed JSON triggers JsonSyntaxException → caught → empty set
-      Set<ConditionKeyType> result = conditionService.extractKeyTypesFromOutput("{malformed-json");
-
-      // Assert
-      assertNotNull(result);
-      assertTrue(result.isEmpty());
     }
   }
 
