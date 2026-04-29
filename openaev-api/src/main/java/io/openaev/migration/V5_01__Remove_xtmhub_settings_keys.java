@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V4_100__Remove_xtmhub_settings_keys extends BaseJavaMigration {
+public class V5_01__Remove_xtmhub_settings_keys extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
