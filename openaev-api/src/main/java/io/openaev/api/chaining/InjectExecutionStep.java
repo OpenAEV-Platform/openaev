@@ -31,6 +31,7 @@ import io.openaev.rest.tag.TagService;
 import io.openaev.service.*;
 import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.StepService;
+import io.openaev.service.chaining.WorkflowStateService;
 import io.openaev.utils.ConditionUtils;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.TargetType;
@@ -78,6 +79,7 @@ public class InjectExecutionStep implements ActionStep {
   private final TagRuleService tagRuleService;
   private final AssetGroupService assetGroupService;
   private final ConditionService conditionService;
+  private final WorkflowStateService workflowStateService;
 
   private final InjectorContractRepository injectorContractRepository;
 
@@ -264,8 +266,9 @@ public class InjectExecutionStep implements ActionStep {
       stepRun.setOutput(jsonObject.toString());
 
       // Propagate state changes into engine if parsed output is present
-      // Map<String, ContractOutputType> fieldTypeMap = buildFieldTypeMapFromInject(inject);
-      // workflowStateService.syncState(gson.toJsonTree(stepUpdatedOpt.get().getOutput().stream().filter(o -> !o.get("parsed").isJsonNull()).toList()), fieldTypeMap, workflowRun);
+      Map<String, ContractOutputType> fieldTypeMap = buildFieldTypeMapFromInject(inject);
+      // workflowStateService.syncState(gson.toJsonTree(jsonObject.stream().filter(o ->
+      // !o.get("parsed").isJsonNull()).toList()), fieldTypeMap, workflowRun);
 
       return Optional.of(stepRun);
     }

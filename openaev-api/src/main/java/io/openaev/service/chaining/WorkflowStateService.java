@@ -15,11 +15,11 @@ import org.springframework.stereotype.Service;
 @Service
 public class WorkflowStateService {
 
+  private final Gson gson = new Gson();
+
   private final ConditionUtils conditionUtils;
 
   private final WorkflowStateRepository workflowStateRepository;
-
-  private final Gson gson = new Gson();
 
   public void syncState(
       JsonElement dataToSync, Map<String, ContractOutputType> fieldTypeMap, Workflow workflowRun) {
