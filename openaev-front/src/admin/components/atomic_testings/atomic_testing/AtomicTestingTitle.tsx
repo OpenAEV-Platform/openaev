@@ -6,6 +6,7 @@ import { useFormatter } from '../../../../components/i18n';
 import ItemStatus from '../../../../components/ItemStatus';
 import Loader from '../../../../components/Loader';
 import type { InjectResultOverviewOutput } from '../../../../utils/api-types';
+import { getInjectStatusLabel } from '../../../../utils/statusLabels';
 import { truncate } from '../../../../utils/String';
 import AtomicTestingInformation from './AtomicTestingInformation';
 
@@ -39,7 +40,7 @@ const AtomicTestingTitle = ({ injectResultOverview }: Props) => {
       </Tooltip>
       <ItemStatus
         status={injectResultOverview.inject_status?.status_name}
-        label={t(injectResultOverview.inject_status?.status_name ?? 'Unknown')}
+        label={t(getInjectStatusLabel(injectResultOverview.inject_status?.status_name ?? 'Unknown'))}
       />
       <Tooltip
         slotProps={{

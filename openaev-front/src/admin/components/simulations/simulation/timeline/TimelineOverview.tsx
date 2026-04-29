@@ -27,6 +27,7 @@ import endpointContextForExercise from '../../../../../utils/context/endpoint/En
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
 import useSearchAndFilter from '../../../../../utils/SortingFiltering';
+import { getInjectStatusLabel } from '../../../../../utils/statusLabels';
 import { isNotEmptyField } from '../../../../../utils/utils';
 import { ArticleContext, ChallengeContext, TeamContext } from '../../../common/Context';
 import TagsFilter from '../../../common/filters/TagsFilter';
@@ -253,7 +254,7 @@ const TimelineOverview = () => {
                             <ItemStatus
                               key={inject.inject_id}
                               variant="inList"
-                              label={inject.inject_status?.status_name ? t(inject.inject_status.status_name) : 'No Status'}
+                              label={t(getInjectStatusLabel(inject.inject_status?.status_name || 'Unknown'))}
                               status={inject.inject_status?.status_name}
                             />
                           </div>

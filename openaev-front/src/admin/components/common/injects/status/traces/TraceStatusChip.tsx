@@ -61,6 +61,7 @@ const TraceStatusChip: FunctionComponent<TraceStatusChipProps> = ({ status }) =>
   const theme = useTheme();
   const statusColor = getStatusColor(theme, status);
   const label = t(getStatusLabel(status));
+
   const tooltip = getStatusTooltip(status);
 
   const chip = (

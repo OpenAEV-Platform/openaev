@@ -20,6 +20,7 @@ import PaginatedListLoader from '../../../components/PaginatedListLoader';
 import { type InjectResultOutput, type SearchPaginationInput } from '../../../utils/api-types';
 import { Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+import { getInjectStatusLabel } from '../../../utils/statusLabels';
 import { isNotEmptyField } from '../../../utils/utils';
 import InjectIcon from '../common/injects/InjectIcon';
 import InjectImportJsonDialog from '../common/injects/InjectImportJsonDialog';
@@ -134,7 +135,7 @@ const InjectResultList: FunctionComponent<Props> = ({
       label: 'Execution status',
       isSortable: false,
       value: (injectResultOutput: InjectResultOutput) => {
-        return (<ItemStatus status={injectResultOutput.inject_status?.status_name} label={t(injectResultOutput.inject_status?.status_name || '-')} variant="inList" />);
+        return (<ItemStatus status={injectResultOutput.inject_status?.status_name} label={t(getInjectStatusLabel(injectResultOutput.inject_status?.status_name || '-'))} variant="inList" />);
       },
     },
     {
