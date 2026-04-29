@@ -388,7 +388,7 @@ public class Inject implements GrantableBase, Injection, TenantBase {
 
   @JsonIgnore
   public void clean() {
-    this.status = null;
+    this.setStatus(null); // note this does not delete the status record in the db
     this.communications.clear();
     this.expectations.clear();
     this.findings.clear();

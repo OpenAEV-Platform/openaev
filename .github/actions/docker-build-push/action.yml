@@ -1,0 +1,283 @@
+name: Docker Build & Validate (Multi-arch)
+description: >
+  Build multi-arch Docker images (linux/amd64 + linux/arm64) for standard and
+  optionally UBI9 variants.  Uses buildx + QEMU to produce OCI archives
+  containing both platforms, validates the amd64 variant locally, and uploads
+  the archives as artifacts.  This action NEVER pushes to any external
+  registry.  The calling job MUST run actions/checkout before this action.
+
+inputs:
+  tags:
+    description: >
+      Docker image tags (newline or comma-separated). Passed directly to
+      docker/build-push-action.
+    required: true
+  labels:
+    description: Docker image labels (from docker/metadata-action)
+    required: false
+    default: ""
+  build-ubi9:
+    description: >
+      When 'true', also build a UBI9-based Docker image from Dockerfile_ubi9_ga.
+    required: false
+    default: "false"
+  ubi9-tags:
+    description: >
+      Docker image tags for the UBI9 variant (newline or comma-separated).
+      Required when build-ubi9 is 'true'.
+    required: false
+    default: ""
+  ubi9-labels:
+    description: Docker image labels for the UBI9 variant
+    required: false
+    default: ""
+
+outputs:
+  digest:
+    description: Docker image digest (standard image)
+    value: ${{ steps.docker-build.outputs.digest }}
+  ubi9-digest:
+    description: Docker image digest (UBI9 image)
+    value: ${{ steps.docker-build-ubi9.outputs.digest }}
+  image_size_mb:
+    description: Docker image size in MB
+    value: ${{ steps.docker-validate.outputs.image_size_mb }}
+  image_warning:
+    description: Whether image size is suspiciously small
+    value: ${{ steps.docker-validate.outputs.image_warning }}
+  jar_in_image:
+    description: Whether openaev-api.jar was found inside the image
+    value: ${{ steps.docker-validate.outputs.jar_in_image }}
+  java_version:
+    description: Java version inside the image
+    value: ${{ steps.docker-validate.outputs.java_version }}
+  layer_count:
+    description: Number of image layers
+    value: ${{ steps.docker-validate.outputs.layer_count }}
+  ubi9_image_size_mb:
+    description: UBI9 Docker image size in MB
+    value: ${{ steps.docker-validate-ubi9.outputs.image_size_mb }}
+  ubi9_jar_in_image:
+    description: Whether openaev-api.jar was found inside UBI9 image
+    value: ${{ steps.docker-validate-ubi9.outputs.jar_in_image }}
+  ubi9_java_version:
+    description: Java version inside UBI9 image
+    value: ${{ steps.docker-validate-ubi9.outputs.java_version }}
+
+runs:
+  using: composite
+  steps:
+    - name: Validate inputs
+      run: |
+        if [ "${{ inputs.build-ubi9 }}" = "true" ] && [ -z "${{ inputs.ubi9-tags }}" ]; then
+          echo "❌ ubi9-tags is required when build-ubi9 is 'true'"
+          exit 1
+        fi
+      shell: bash
+
+    - name: Download backend JAR artifact
+      uses: actions/download-artifact@v8
+      with:
+        name: openaev-api-jar
+        path: openaev-build
+
+    - name: Verify backend JAR
+      run: |
+        if [ ! -f "openaev-build/openaev-api.jar" ]; then
+          echo "❌ openaev-api.jar not found in openaev-build/"
+          ls -la openaev-build/ 2>/dev/null || echo "  directory does not exist"
+          exit 1
+        fi
+        JAR_SIZE=$(stat --format=%s openaev-build/openaev-api.jar 2>/dev/null || stat -f%z openaev-build/openaev-api.jar 2>/dev/null)
+        if [ "$JAR_SIZE" -lt 1000 ] 2>/dev/null; then
+          echo "❌ openaev-api.jar is suspiciously small ($JAR_SIZE bytes)"
+          exit 1
+        fi
+        echo "✅ openaev-api.jar present for Docker build ($JAR_SIZE bytes)"
+      shell: bash
+
+    - name: Set up QEMU (for arm64 emulation)
+      uses: docker/setup-qemu-action@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v4
+
+    # ── Standard image (multi-arch) ────────────────────────────────
+    - name: Build standard image (multi-arch OCI archive)
+      id: docker-build
+      uses: docker/build-push-action@v7
+      with:
+        context: .
+        file: ./Dockerfile_ga
+        platforms: linux/amd64,linux/arm64
+        push: false
+        outputs: type=oci,dest=openaev-image.tar
+        tags: ${{ inputs.tags }}
+        labels: ${{ inputs.labels }}
+
+    - name: Compress standard OCI archive
+      run: |
+        gzip openaev-image.tar
+        TAR_SIZE=$(stat --format=%s openaev-image.tar.gz 2>/dev/null || stat -f%z openaev-image.tar.gz 2>/dev/null)
+        TAR_SIZE_MB=$(awk "BEGIN {printf \"%.1f\", $TAR_SIZE / 1048576}")
+        echo "✅ Standard multi-arch OCI archive (${TAR_SIZE_MB} MB compressed)"
+      shell: bash
+
+    - name: Validate standard Docker image (amd64)
+      id: docker-validate
+      run: |
+        # Load only the amd64 variant into the local daemon for validation
+        gunzip -k openaev-image.tar.gz
+        skopeo copy --override-os linux --override-arch amd64 \
+          oci-archive:openaev-image.tar \
+          docker-daemon:openaev-validate:amd64
+        rm -f openaev-image.tar
+        IMAGE="openaev-validate:amd64"
+
+        # Verify multi-arch manifest contains both platforms
+        echo "── Multi-arch manifest ──"
+        skopeo inspect --raw oci-archive:openaev-image.tar.gz \
+          | python3 -c "
+        import json, sys
+        idx = json.load(sys.stdin)
+        manifests = idx.get('manifests', [])
+        for m in manifests:
+            p = m.get('platform', {})
+            print(f\"  {p.get('os','?')}/{p.get('architecture','?')}\")
+        " || echo "  (could not inspect manifest)"
+
+        # Check image size
+        IMAGE_SIZE=$(docker image inspect "$IMAGE" --format='{{.Size}}')
+        IMAGE_SIZE_MB=$(awk "BEGIN {printf \"%.1f\", $IMAGE_SIZE / 1048576}")
+        echo "image_size=$IMAGE_SIZE"       >> "$GITHUB_OUTPUT"
+        echo "image_size_mb=$IMAGE_SIZE_MB" >> "$GITHUB_OUTPUT"
+        echo "  Image size: ${IMAGE_SIZE_MB} MB"
+
+        if [ "$IMAGE_SIZE" -lt 209715200 ]; then
+          echo "⚠️ Docker image is only ${IMAGE_SIZE_MB} MB — suspiciously small"
+          echo "image_warning=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "✅ Docker image size looks healthy"
+          echo "image_warning=false" >> "$GITHUB_OUTPUT"
+        fi
+
+        # Verify JAR is inside the image
+        JAR_CHECK_ERR=$(mktemp)
+        JAR_IN_IMAGE=$(docker run --rm --entrypoint ls "$IMAGE" -la /opt/openaev-api.jar 2>"$JAR_CHECK_ERR") || true
+        if [ -z "$JAR_IN_IMAGE" ]; then
+          echo "❌ openaev-api.jar NOT found inside Docker image at /opt/openaev-api.jar"
+          if [ -s "$JAR_CHECK_ERR" ]; then
+            echo "  Error: $(cat "$JAR_CHECK_ERR")"
+          fi
+          echo "  Listing /opt/ contents for diagnostics:"
+          docker run --rm --entrypoint ls "$IMAGE" -la /opt/ 2>/dev/null \
+            | sed 's/^/    /' || echo "    (could not list /opt/)"
+          echo "jar_in_image=false" >> "$GITHUB_OUTPUT"
+        else
+          echo "✅ openaev-api.jar found inside Docker image"
+          echo "  $JAR_IN_IMAGE"
+          echo "jar_in_image=true" >> "$GITHUB_OUTPUT"
+        fi
+        rm -f "$JAR_CHECK_ERR"
+
+        # Verify Java is available
+        JAVA_VERSION=$(docker run --rm --entrypoint java "$IMAGE" -version 2>&1 | head -1) || true
+        if [ -z "$JAVA_VERSION" ]; then
+          echo "❌ Java runtime not found inside Docker image"
+          echo "java_version=NOT_FOUND" >> "$GITHUB_OUTPUT"
+        else
+          echo "  Java: $JAVA_VERSION"
+          echo "java_version=$JAVA_VERSION" >> "$GITHUB_OUTPUT"
+        fi
+
+        # Count layers
+        LAYER_COUNT=$(docker image inspect "$IMAGE" --format='{{len .RootFS.Layers}}')
+        echo "  Layers: $LAYER_COUNT"
+        echo "layer_count=$LAYER_COUNT" >> "$GITHUB_OUTPUT"
+      shell: bash
+
+    - name: Upload standard Docker image artifact
+      uses: actions/upload-artifact@v7
+      with:
+        name: openaev-image
+        path: openaev-image.tar.gz
+        retention-days: 1
+
+    # ── UBI9 image (multi-arch) ───────────────────────────────────
+    - name: Build UBI9 image (multi-arch OCI archive)
+      id: docker-build-ubi9
+      if: ${{ inputs.build-ubi9 == 'true' }}
+      uses: docker/build-push-action@v7
+      with:
+        context: .
+        file: ./Dockerfile_ubi9_ga
+        platforms: linux/amd64,linux/arm64
+        push: false
+        outputs: type=oci,dest=openaev-ubi9-image.tar
+        tags: ${{ inputs.ubi9-tags }}
+        labels: ${{ inputs.ubi9-labels }}
+
+    - name: Compress UBI9 OCI archive
+      if: ${{ inputs.build-ubi9 == 'true' }}
+      run: |
+        gzip openaev-ubi9-image.tar
+        TAR_SIZE=$(stat --format=%s openaev-ubi9-image.tar.gz 2>/dev/null || stat -f%z openaev-ubi9-image.tar.gz 2>/dev/null)
+        TAR_SIZE_MB=$(awk "BEGIN {printf \"%.1f\", $TAR_SIZE / 1048576}")
+        echo "✅ UBI9 multi-arch OCI archive (${TAR_SIZE_MB} MB compressed)"
+      shell: bash
+
+    - name: Validate UBI9 Docker image (amd64)
+      id: docker-validate-ubi9
+      if: ${{ inputs.build-ubi9 == 'true' }}
+      run: |
+        # Load only the amd64 variant into the local daemon for validation
+        gunzip -k openaev-ubi9-image.tar.gz
+        skopeo copy --override-os linux --override-arch amd64 \
+          oci-archive:openaev-ubi9-image.tar \
+          docker-daemon:openaev-ubi9-validate:amd64
+        rm -f openaev-ubi9-image.tar
+        IMAGE="openaev-ubi9-validate:amd64"
+
+        # Check image size
+        IMAGE_SIZE=$(docker image inspect "$IMAGE" --format='{{.Size}}')
+        IMAGE_SIZE_MB=$(awk "BEGIN {printf \"%.1f\", $IMAGE_SIZE / 1048576}")
+        echo "image_size_mb=$IMAGE_SIZE_MB" >> "$GITHUB_OUTPUT"
+        echo "  UBI9 Image size: ${IMAGE_SIZE_MB} MB"
+
+        if [ "$IMAGE_SIZE" -lt 209715200 ]; then
+          echo "⚠️ UBI9 Docker image is only ${IMAGE_SIZE_MB} MB — suspiciously small"
+        else
+          echo "✅ UBI9 Docker image size looks healthy"
+        fi
+
+        # Verify JAR is inside the image
+        JAR_IN_IMAGE=$(docker run --rm --entrypoint ls "$IMAGE" -la /opt/openaev/openaev-api.jar 2>/dev/null) || true
+        if [ -z "$JAR_IN_IMAGE" ]; then
+          echo "❌ openaev-api.jar NOT found inside UBI9 Docker image"
+          echo "  Listing /opt/openaev/ contents:"
+          docker run --rm --entrypoint ls "$IMAGE" -la /opt/openaev/ 2>/dev/null \
+            | sed 's/^/    /' || echo "    (could not list /opt/openaev/)"
+          echo "jar_in_image=false" >> "$GITHUB_OUTPUT"
+          exit 1
+        fi
+        echo "✅ openaev-api.jar found inside UBI9 Docker image"
+        echo "jar_in_image=true" >> "$GITHUB_OUTPUT"
+
+        # Verify Java is available
+        JAVA_VERSION=$(docker run --rm --entrypoint java "$IMAGE" -version 2>&1 | head -1) || true
+        if [ -n "$JAVA_VERSION" ]; then
+          echo "  Java: $JAVA_VERSION"
+          echo "java_version=$JAVA_VERSION" >> "$GITHUB_OUTPUT"
+        else
+          echo "⚠️ Could not determine Java version"
+          echo "java_version=NOT_FOUND" >> "$GITHUB_OUTPUT"
+        fi
+      shell: bash
+
+    - name: Upload UBI9 Docker image artifact
+      if: ${{ inputs.build-ubi9 == 'true' }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: openaev-ubi9-image
+        path: openaev-ubi9-image.tar.gz
+        retention-days: 1

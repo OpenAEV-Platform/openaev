@@ -62,7 +62,13 @@ public class GenericJsonApiImporter<T extends Base> {
 
     T entity =
         buildEntity(
-            doc.data(), includedMap, entityCache, entitiesNeedingRemapping, includeOptions, true);
+            doc.data(),
+            includedMap,
+            entityCache,
+            entitiesNeedingRemapping,
+            includeOptions,
+            true,
+            false);
     T toPersist = Optional.ofNullable(sanityCheck).map(check -> check.apply(entity)).orElse(entity);
 
     // Persist included entities that not inner relationship
@@ -142,13 +148,33 @@ public class GenericJsonApiImporter<T extends Base> {
     entitiesNeedingRemapping.add((CanRemapWeakRelationships) obj);
   }
 
+  /**
+   * Builds an entity from a JSON:API resource object, resolving its attributes and relationships.
+   *
+   * @param resource the JSON:API resource to convert into a JPA entity
+   * @param includedMap lookup of included resources by ID
+   * @param entityCache cache of already-built entities to avoid duplicates
+   * @param entitiesNeedingRemapping entities that need weak relationship ID remapping after persist
+   * @param includeOptions controls which relationships are included, excluded, or conditional
+   * @param rootEntity {@code true} if this is the top-level entity being imported (not a related
+   *     entity)
+   * @param ifExistsOnly when {@code true}, the entity is only resolved if it already exists in the
+   *     database (found by {@code @BusinessId}). If the entity is not found, an {@link
+   *     IllegalArgumentException} is thrown instead of creating a new instance. This is propagated
+   *     from {@link IncludeOptions.IncludeMode#IF_EXISTS_IN_DB} and allows skipping entire
+   *     relationship subtrees when a required dependency does not exist in the target database
+   *     (e.g. skip a DetectionRemediation if its Collector is not installed).
+   * @return the resolved or newly created entity, or {@code null} if the resource is null
+   * @throws IllegalArgumentException if {@code ifExistsOnly} is true and the entity is not found
+   */
   private T buildEntity(
       ResourceObject resource,
       Map<String, ResourceObject> includedMap,
       Map<String, Pair<T, Boolean>> entityCache,
       List<CanRemapWeakRelationships> entitiesNeedingRemapping,
       IncludeOptions includeOptions,
-      boolean rootEntity) {
+      boolean rootEntity,
+      boolean ifExistsOnly) {
     // Sanity check
     if (resource == null) {
       return null;
@@ -201,6 +227,15 @@ public class GenericJsonApiImporter<T extends Base> {
         }
       }
     }
+
+    // In IF_EXISTS_IN_DB mode, reject non-root entities not found in the database
+    if (ifExistsOnly) {
+      throw new IllegalArgumentException(
+          "Entity of type '"
+              + clazz.getSimpleName()
+              + "' not found in database — skipped (IF_EXISTS_IN_DB mode)");
+    }
+
     // Create new instance if not found.
     if (entity == null) {
       entity = instantiate(clazz);
@@ -267,6 +302,8 @@ public class GenericJsonApiImporter<T extends Base> {
       }
 
       Relationship rel = e.getValue();
+      boolean ifExistsOnly = includeOptions.ifExistsInDb(e.getKey());
+
       if (isCollection(f)) {
         List<ResourceIdentifier> ids = rel.asMany();
 
@@ -275,7 +312,12 @@ public class GenericJsonApiImporter<T extends Base> {
           try {
             Object child =
                 resolveOrBuildEntity(
-                    ri, includedMap, entityCache, entitiesNeedingRemapping, includeOptions);
+                    ri,
+                    includedMap,
+                    entityCache,
+                    entitiesNeedingRemapping,
+                    includeOptions,
+                    ifExistsOnly);
             if (child != null) {
               target.add(child);
               setInverseRelation(child, entity);
@@ -299,7 +341,12 @@ public class GenericJsonApiImporter<T extends Base> {
         Object child =
             (ri != null)
                 ? resolveOrBuildEntity(
-                    ri, includedMap, entityCache, entitiesNeedingRemapping, includeOptions)
+                    ri,
+                    includedMap,
+                    entityCache,
+                    entitiesNeedingRemapping,
+                    includeOptions,
+                    ifExistsOnly)
                 : null;
         setField(entity, f, child);
         if (child != null) {
@@ -314,7 +361,8 @@ public class GenericJsonApiImporter<T extends Base> {
       Map<String, ResourceObject> includedMap,
       Map<String, Pair<T, Boolean>> entityCache,
       List<CanRemapWeakRelationships> entitiesNeedingRemapping,
-      IncludeOptions includeOptions) {
+      IncludeOptions includeOptions,
+      boolean ifExistsOnly) {
     if (resourceIdentifier == null) {
       return null;
     }
@@ -326,7 +374,13 @@ public class GenericJsonApiImporter<T extends Base> {
     ResourceObject included = includedMap.get(id);
     if (included != null) {
       return buildEntity(
-          included, includedMap, entityCache, entitiesNeedingRemapping, includeOptions, false);
+          included,
+          includedMap,
+          entityCache,
+          entitiesNeedingRemapping,
+          includeOptions,
+          false,
+          ifExistsOnly);
     }
 
     // Not present in the bundle

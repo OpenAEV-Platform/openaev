@@ -6,6 +6,8 @@ import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.ResourceType;
+import io.openaev.jsonapi.IncludeOptions;
+import io.openaev.jsonapi.IncludeOptions.IncludeMode;
 import io.openaev.jsonapi.JsonApiDocument;
 import io.openaev.jsonapi.ResourceObject;
 import io.openaev.jsonapi.ZipJsonApi;
@@ -16,6 +18,7 @@ import io.openaev.service.ImportService;
 import io.openaev.service.ZipJsonService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.constraints.NotNull;
+import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,6 +37,15 @@ import org.springframework.web.multipart.MultipartFile;
 @RequiredArgsConstructor
 public class PayloadApiImporter extends RestBehavior {
 
+  /**
+   * Import options that configure the collector relationship on detection remediations to only
+   * include collectors that already exist in the target database. If a collector is not found by
+   * its business key, the entire detection remediation is skipped.
+   */
+  private static final IncludeOptions IMPORT_OPTIONS =
+      IncludeOptions.of(
+          Map.of("detection_remediation_collector_type", IncludeMode.IF_EXISTS_IN_DB));
+
   private final ZipJsonApi<Payload> zipJsonApi;
   private final ImportService importService;
   private final PayloadService payloadService;
@@ -51,14 +63,12 @@ public class PayloadApiImporter extends RestBehavior {
       @RequestPart("file") @NotNull MultipartFile file) throws Exception {
     try {
       ZipJsonService.ImportOutput<Payload> response =
-          zipJsonApi.handleImport(file, "payload_name", null, this::sanitize);
-      // TODO next chunk 4558 - complete arg
+          zipJsonApi.handleImport(file, "payload_name", IMPORT_OPTIONS, this::sanitize);
       payloadService.synchroniseInjectorContractBasedOnPayload(
           response.persistedData(), emptyList(), Set.of(), Set.of());
       return ResponseEntity.ok(response.jsonApiDocument());
     } catch (Exception ex) {
       log.warn("Fallback to old import due to {}", ex.getMessage(), ex);
-      // Fall back to the legacy importer
       importService.handleFileImport(file, null, null);
       return ResponseEntity.ok().build();
     }

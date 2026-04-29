@@ -24,11 +24,13 @@ const GroupManageGrants: FunctionComponent<GroupManageGrantsProps> = ({
 }) => {
   const { t } = useFormatter();
 
+  const title = t('Manage grants for group: {groupName}', { groupName: group.group_name });
+
   return (
     <Drawer
       open={openGrants}
       handleClose={handleCloseGrants}
-      title={t('Manage grants')}
+      title={title}
     >
       <TabbedView
         tabs={[

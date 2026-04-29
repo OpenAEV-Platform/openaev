@@ -1,0 +1,81 @@
+name: Backend Package (musl)
+description: >
+  Download pre-compiled artifacts, package the backend fat JAR inside an
+  Alpine/musl container, verify it, and upload the artifact.
+  The calling job MUST set container: maven:3.9.14-eclipse-temurin-21-alpine.
+
+outputs:
+  jar-size:
+    description: Size of the packaged JAR in bytes
+    value: ${{ steps.verify-jar.outputs.jar_size }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install Alpine dependencies
+      run: apk add --no-cache git
+      shell: sh
+    - name: Download frontend build artifact
+      uses: actions/download-artifact@v8
+      with:
+        name: frontend-build
+        path: openaev-front/builder/prod/build
+    - name: Download compiled Maven artifacts
+      uses: actions/download-artifact@v8
+      with:
+        name: backend-compiled
+        path: /root/.m2/repository/io/openaev/
+    - name: Download release assets
+      uses: actions/download-artifact@v8
+      with:
+        name: release-assets
+        path: openaev-api/src/main/resources
+    - name: Verify downloaded artifacts
+      run: |
+        # Verify frontend build
+        if [ ! -d "openaev-front/builder/prod/build" ] || [ -z "$(ls -A openaev-front/builder/prod/build 2>/dev/null)" ]; then
+          echo "❌ Frontend build artifacts missing or empty"
+          exit 1
+        fi
+        echo "✅ Frontend build present"
+
+        # Verify Maven artifacts
+        MVN_JARS=$(find /root/.m2/repository/io/openaev/ -name '*.jar' 2>/dev/null | head -5)
+        if [ -z "$MVN_JARS" ]; then
+          echo "❌ No Maven JARs found in /root/.m2/repository/io/openaev/"
+          exit 1
+        fi
+        echo "✅ Maven artifacts found"
+
+        # Verify release assets
+        if [ ! -d "openaev-api/src/main/resources/catalog" ]; then
+          echo "❌ Release assets (catalog) missing"
+          exit 1
+        fi
+        echo "✅ Release assets present"
+      shell: sh
+    - name: Package backend JAR (musl)
+      run: mvn -B -ntp -q -pl openaev-api package -DskipTests
+      shell: sh
+    - name: Verify packaged JAR (musl)
+      id: verify-jar
+      run: |
+        if [ ! -f "openaev-api/target/openaev-api.jar" ]; then
+          echo "❌ openaev-api.jar (musl) was not produced"
+          ls -la openaev-api/target/ 2>/dev/null || echo "  target/ directory does not exist"
+          exit 1
+        fi
+        JAR_SIZE=$(stat -c%s openaev-api/target/openaev-api.jar 2>/dev/null || wc -c < openaev-api/target/openaev-api.jar)
+        if [ "$JAR_SIZE" -lt 1000 ] 2>/dev/null; then
+          echo "❌ openaev-api.jar (musl) is suspiciously small ($JAR_SIZE bytes)"
+          exit 1
+        fi
+        echo "✅ openaev-api.jar (musl) produced ($JAR_SIZE bytes)"
+        echo "jar_size=$JAR_SIZE" >> "$GITHUB_OUTPUT"
+      shell: sh
+    - name: Upload musl JAR artifact
+      uses: actions/upload-artifact@v7
+      with:
+        name: openaev-api-jar-musl
+        path: openaev-api/target/openaev-api.jar
+

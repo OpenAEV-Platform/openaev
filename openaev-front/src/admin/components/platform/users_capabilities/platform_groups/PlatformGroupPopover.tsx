@@ -134,6 +134,7 @@ const PlatformGroupPopover: FunctionComponent<Props> = ({
         && (
           <PlatformGroupManageUsers
             platformGroupId={platformGroup.platform_group_id}
+            groupName={platformGroup.platform_group_name}
             open={isUsersOpen}
             onClose={handleCloseUsers}
             onSubmit={submitUpdateUsers}

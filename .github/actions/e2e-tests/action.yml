@@ -1,0 +1,226 @@
+name: E2E & API Types
+description: >
+  Start service containers (PostgreSQL, Elasticsearch, RabbitMQ, MinIO),
+  download and run the backend JAR, run Playwright E2E tests, and verify
+  API types are up to date.
+  Requires job-level env vars: SPRING_DATASOURCE_URL,
+  SPRING_DATASOURCE_USERNAME, SPRING_DATASOURCE_PASSWORD,
+  MINIO_ENDPOINT, MINIO_PORT, MINIO_ACCESS_KEY, MINIO_ACCESS_SECRET,
+  ENGINE_URL, OPENBAS_RABBITMQ_HOSTNAME, OPENAEV_ADMIN_EMAIL,
+  OPENAEV_ADMIN_PASSWORD, OPENAEV_ADMIN_TOKEN,
+  OPENAEV_ADMIN_ENCRYPTION_KEY, OPENAEV_ADMIN_ENCRYPTION_SALT,
+  SPRING_PROFILES_ACTIVE, GH_TOKEN.
+
+runs:
+  using: composite
+  steps:
+
+    - name: Start all services (non-blocking)
+      shell: bash
+      run: |
+        docker run -d --name pgsql \
+          -p 5432:5432 \
+          -e POSTGRES_USER=openaev \
+          -e POSTGRES_PASSWORD=openaev \
+          -e POSTGRES_DB=openaev \
+          postgres:17-alpine \
+          -c max_connections=1000
+        docker run -d --name elasticsearch \
+          -p 9200:9200 \
+          -e discovery.type=single-node \
+          -e xpack.security.enabled=false \
+          -e "ES_JAVA_OPTS=-Xms2g -Xmx2g" \
+          docker.elastic.co/elasticsearch/elasticsearch:8.18.3
+        docker run -d --name rabbitmq \
+          -p 5672:5672 \
+          -p 15672:15672 \
+          -e RABBITMQ_DEFAULT_USER=guest \
+          -e RABBITMQ_DEFAULT_PASS=guest \
+          rabbitmq:4.1-management
+        docker run -d --name minio \
+          -p 9000:9000 \
+          -e MINIO_ROOT_USER=minioadmin \
+          -e MINIO_ROOT_PASSWORD=minioadmin \
+          minio/minio:RELEASE.2025-06-13T11-33-47Z server /data
+
+        echo "🔍 Verifying containers started..."
+        for name in pgsql elasticsearch rabbitmq minio; do
+          if ! docker inspect --format='{{.State.Running}}' "$name" 2>/dev/null | grep -q true; then
+            echo "❌ Container '$name' failed to start"
+            docker logs "$name" 2>/dev/null || true
+            exit 1
+          fi
+        done
+        echo "✅ All containers started"
+
+    - name: Set up Java 21
+      uses: actions/setup-java@v5
+      with:
+        java-version: "21"
+        distribution: temurin
+    - name: Set up Node.js 22.11
+      uses: actions/setup-node@v6
+      with:
+        node-version: "22.11.0"
+    - name: Install corepack
+      run: npm install -g corepack
+      shell: bash
+    - name: Get Yarn cache directory
+      id: yarn-cache-dir
+      run: echo "dir=$(yarn config get cacheFolder)" >> "$GITHUB_OUTPUT"
+      shell: bash
+      working-directory: openaev-front
+    - name: Cache Yarn dependencies
+      uses: actions/cache@v5
+      with:
+        path: ${{ steps.yarn-cache-dir.outputs.dir }}
+        key: ${{ runner.os }}-yarn-${{ hashFiles('openaev-front/yarn.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-yarn-
+    - name: Install frontend dependencies
+      run: yarn install --immutable
+      shell: bash
+      working-directory: openaev-front
+    - name: Cache Playwright browsers
+      id: playwright-cache
+      uses: actions/cache@v5
+      with:
+        path: ~/.cache/ms-playwright
+        key: playwright-${{ runner.os }}-${{ hashFiles('openaev-front/yarn.lock') }}
+    - name: Install Playwright browsers (overlaps with artifact wait)
+      if: steps.playwright-cache.outputs.cache-hit != 'true'
+      run: yarn playwright install --with-deps chromium
+      shell: bash
+      working-directory: openaev-front
+    - name: Install Playwright system dependencies (cache hit)
+      if: steps.playwright-cache.outputs.cache-hit == 'true'
+      run: yarn playwright install-deps chromium
+      shell: bash
+      working-directory: openaev-front
+
+    - name: Wait for and download backend JAR artifact
+      shell: bash
+      run: |
+        echo "⏳ Waiting for backend-package artifact (services booting in parallel)..."
+        for i in $(seq 1 180); do
+          HTTP_CODE=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" \
+            --include 2>&1 | head -1 | awk '{print $2}' || echo "000")
+          NAMES=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" \
+            --jq '[.artifacts[].name]' 2>/dev/null || echo "[]")
+          if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "000" ]; then
+            echo "⚠️ GitHub API returned HTTP $HTTP_CODE (attempt $i/180)"
+          fi
+          if echo "$NAMES" | grep -q '"openaev-api-jar"'; then
+            echo "✅ Artifact available (after ~$((i * 5))s)"
+            break
+          fi
+          if [ "$i" -eq 180 ]; then
+            echo "❌ Timed out waiting for artifact (15 min)"
+            exit 1
+          fi
+          echo "  Attempt $i/180 — not ready, retrying in 5s..."
+          sleep 5
+        done
+
+        echo "📥 Downloading openaev-api-jar..."
+        if ! gh run download "${{ github.run_id }}" -n openaev-api-jar -D openaev-api/target; then
+          echo "❌ Failed to download openaev-api-jar artifact"
+          exit 1
+        fi
+
+    - name: Verify backend JAR
+      shell: bash
+      run: |
+        if [ ! -f "openaev-api/target/openaev-api.jar" ]; then
+          echo "❌ openaev-api.jar not found after download"
+          ls -la openaev-api/target/ 2>/dev/null || echo "  target/ directory does not exist"
+          exit 1
+        fi
+        JAR_SIZE=$(stat --format=%s openaev-api/target/openaev-api.jar 2>/dev/null || stat -f%z openaev-api/target/openaev-api.jar 2>/dev/null)
+        if [ "$JAR_SIZE" -lt 1000 ] 2>/dev/null; then
+          echo "❌ openaev-api.jar is suspiciously small ($JAR_SIZE bytes)"
+          exit 1
+        fi
+        echo "✅ openaev-api.jar present ($JAR_SIZE bytes)"
+
+    - name: Wait for services
+      shell: bash
+      run: |
+        echo "⏳ Waiting for PostgreSQL..."
+        for i in $(seq 1 30); do
+          docker exec pgsql pg_isready -U openaev && break
+          sleep 1
+        done
+        docker exec pgsql pg_isready -U openaev || { echo "❌ PostgreSQL failed to start"; exit 1; }
+
+        echo "⏳ Waiting for Elasticsearch..."
+        for i in $(seq 1 30); do
+          curl -sf http://localhost:9200/_cluster/health && break
+          sleep 2
+        done
+        curl -sf http://localhost:9200/_cluster/health || { echo "❌ Elasticsearch failed to start"; exit 1; }
+
+        echo "⏳ Waiting for RabbitMQ..."
+        for i in $(seq 1 30); do
+          docker exec rabbitmq rabbitmq-diagnostics -q check_running 2>/dev/null && break
+          sleep 2
+        done
+        docker exec rabbitmq rabbitmq-diagnostics -q check_running || { echo "❌ RabbitMQ failed to start"; exit 1; }
+
+        echo "⏳ Waiting for MinIO..."
+        for i in $(seq 1 30); do
+          curl -sf http://localhost:9000/minio/health/live && break
+          sleep 1
+        done
+        curl -sf http://localhost:9000/minio/health/live || { echo "❌ MinIO failed to start"; exit 1; }
+
+        echo "✅ All services ready"
+
+    - name: Start application
+      run: java -jar openaev-api/target/openaev-api.jar &
+      shell: bash
+    - name: Wait for application to be ready
+      shell: bash
+      run: |
+        echo "Waiting for application on port 8080..."
+        timeout 180 bash -c '
+          until curl -sf -o /dev/null -w "%{http_code}" http://localhost:8080 | grep -q "200"; do
+            sleep 2
+          done
+        ' || {
+          echo "❌ Application failed to become ready within 180s"
+          echo "  Last HTTP response:"
+          curl -s -o /dev/null -w "  HTTP %{http_code}\n" http://localhost:8080 2>/dev/null || echo "  (no response)"
+          exit 1
+        }
+        echo "✅ Application is ready (HTTP 200)"
+    - name: Run E2E tests
+      run: yarn test:e2e
+      shell: bash
+      working-directory: openaev-front
+      env:
+        APP_URL: http://localhost:8080
+        E2E_COVERAGE: "true"
+    - name: Verify API types are up to date
+      shell: bash
+      working-directory: openaev-front
+      run: |
+        API_URL=http://localhost:8080 yarn generate-types-from-api
+        if git diff --name-only | grep -q 'src/utils/api-types.d.ts'; then
+          echo "Detected changes in src/utils/api-types.d.ts:";
+          git diff -- src/utils/api-types.d.ts || git diff -- openaev-front/src/utils/api-types.d.ts;
+          echo "⚠️ Forgot to generate types! Please run 'yarn run generate-types-from-api' before committing."; exit 1;
+        fi
+    - name: Upload Playwright report
+      if: ${{ !cancelled() }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: playwright-report
+        path: openaev-front/test-results/
+    - name: Upload E2E coverage report
+      if: ${{ !cancelled() }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: playwright-coverage
+        path: openaev-front/test-results/coverage/
+

@@ -202,7 +202,9 @@ public class HealthCheckUtils {
   public List<HealthCheck> runMissingContentChecks(@NotNull final Scenario scenario) {
     List<HealthCheck> result = new ArrayList<>();
     boolean atLeastOneInjectIsNotReady =
-        scenario.getInjects().stream().anyMatch(inject -> !runContentChecks(inject).isEmpty());
+        scenario.getInjects().stream()
+            .filter(Inject::isEnabled)
+            .anyMatch(inject -> !runContentChecks(inject).isEmpty());
 
     if (atLeastOneInjectIsNotReady) {
       result.add(
