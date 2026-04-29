@@ -278,15 +278,15 @@ public class InjectExecutionStep implements ActionStep {
     boolean hasParsedData = output.stream().anyMatch(map -> map.containsKey("parsed"));
 
     if (hasParsedData) {
-      Map<String, List<String>> scopeData = extractDataFromParsed(output);
+      Map<String, List<String>> outputData = extractDataFromParsed(output);
 
-      if (!scopeData.isEmpty()) {
+      if (!outputData.isEmpty()) {
         Workflow workflowRun = stepRun.getWorkflow();
 
         Map<String, ContractOutputType> fieldTypeMap = buildFieldTypeMapFromInject(inject);
         // Sync global state with the execution output, which may trigger chained steps to become
         // READY
-        workflowStateService.syncState(gson.toJsonTree(scopeData), fieldTypeMap, workflowRun);
+        workflowStateService.syncState(gson.toJsonTree(outputData), fieldTypeMap, workflowRun);
       }
     }
   }
@@ -306,7 +306,7 @@ public class InjectExecutionStep implements ActionStep {
               for (JsonElement item : valuesArray) {
                 String val = item.getAsJsonObject().get("_value").getAsString();
                 // SyncState keys are usually Uppercase (e.g., "IP")
-                result.computeIfAbsent(key.toUpperCase(), k -> new ArrayList<>()).add(val);
+                result.computeIfAbsent(key, k -> new ArrayList<>()).add(val);
               }
             }
           }
