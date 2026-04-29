@@ -6,13 +6,13 @@ import {
   DialogTitle,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { Transition } from 'mdi-material-ui';
 import { useMemo } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 
 import SelectFieldController from '../../../components/fields/SelectFieldController';
 import TextFieldController from '../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../components/i18n';
+import Transition from '../../../components/common/Transition';
 import type { ScopeVariableInput } from '../../../utils/api-types';
 import useArgumentTypes from '../threat_arsenal/form/useArgumentTypes';
 
@@ -154,4 +154,3 @@ const ScopeVariableCreateDialog = ({ open, onClose, onSubmit }: ScopeVariableCre
 };
 
 export default ScopeVariableCreateDialog;
-
