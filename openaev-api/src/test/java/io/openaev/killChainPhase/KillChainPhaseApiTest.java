@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -91,7 +92,8 @@ public class KillChainPhaseApiTest extends IntegrationTest {
       mvc.perform(
               post("/api/kill_chain_phases/search")
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(PaginationFixture.getDefault().size(3).build())))
+                  .content(asJsonString(PaginationFixture.getDefault().size(3).build()))
+                  .with(csrf()))
           .andExpect(status().is2xxSuccessful())
           .andExpect(jsonPath("$.numberOfElements").value(3));
     }
@@ -105,7 +107,8 @@ public class KillChainPhaseApiTest extends IntegrationTest {
       mvc.perform(
               post("/api/kill_chain_phases/search")
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(searchPaginationInput)))
+                  .content(asJsonString(searchPaginationInput))
+                  .with(csrf()))
           .andExpect(status().isBadRequest());
     }
   }
@@ -125,7 +128,8 @@ public class KillChainPhaseApiTest extends IntegrationTest {
       mvc.perform(
               post("/api/kill_chain_phases/search")
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(searchPaginationInput)))
+                  .content(asJsonString(searchPaginationInput))
+                  .with(csrf()))
           .andExpect(status().is2xxSuccessful())
           .andExpect(jsonPath("$.numberOfElements").value(1));
     }
@@ -141,7 +145,8 @@ public class KillChainPhaseApiTest extends IntegrationTest {
       mvc.perform(
               post("/api/kill_chain_phases/search")
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(searchPaginationInput)))
+                  .content(asJsonString(searchPaginationInput))
+                  .with(csrf()))
           .andExpect(status().is2xxSuccessful())
           .andExpect(jsonPath("$.numberOfElements").value(1));
     }
@@ -156,7 +161,8 @@ public class KillChainPhaseApiTest extends IntegrationTest {
       mvc.perform(
               post("/api/kill_chain_phases/search")
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(searchPaginationInput)))
+                  .content(asJsonString(searchPaginationInput))
+                  .with(csrf()))
           .andExpect(status().is2xxSuccessful())
           .andExpect(jsonPath("$.numberOfElements").value(0));
     }
@@ -178,7 +184,8 @@ public class KillChainPhaseApiTest extends IntegrationTest {
       mvc.perform(
               post("/api/kill_chain_phases/search")
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(searchPaginationInput)))
+                  .content(asJsonString(searchPaginationInput))
+                  .with(csrf()))
           .andExpect(status().is2xxSuccessful())
           .andExpect(jsonPath("$.numberOfElements").value(1));
     }
@@ -194,7 +201,8 @@ public class KillChainPhaseApiTest extends IntegrationTest {
       mvc.perform(
               post("/api/kill_chain_phases/search")
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(searchPaginationInput)))
+                  .content(asJsonString(searchPaginationInput))
+                  .with(csrf()))
           .andExpect(status().is2xxSuccessful())
           .andExpect(jsonPath("$.numberOfElements").value(1));
     }
@@ -216,7 +224,8 @@ public class KillChainPhaseApiTest extends IntegrationTest {
       mvc.perform(
               post("/api/kill_chain_phases/search")
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(searchPaginationInput)))
+                  .content(asJsonString(searchPaginationInput))
+                  .with(csrf()))
           .andExpect(status().is2xxSuccessful())
           .andExpect(jsonPath("$.content.[0].phase_name").value("name1"))
           .andExpect(jsonPath("$.content.[1].phase_name").value("name2"))
@@ -236,7 +245,8 @@ public class KillChainPhaseApiTest extends IntegrationTest {
       mvc.perform(
               post("/api/kill_chain_phases/search")
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(searchPaginationInput)))
+                  .content(asJsonString(searchPaginationInput))
+                  .with(csrf()))
           .andExpect(status().is2xxSuccessful())
           .andExpect(jsonPath("$.content.[0].phase_name").value("name3"))
           .andExpect(jsonPath("$.content.[1].phase_name").value("name2"))

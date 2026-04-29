@@ -36,7 +36,10 @@ const Simulations = () => {
     'exercise_updated_at',
   ];
 
-  const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage('simulations', buildSearchPagination({ sorts: initSorting('exercise_updated_at', 'DESC') }));
+  const {
+    queryableHelpers,
+    searchPaginationInput,
+  } = useQueryableWithLocalStorage('simulations', buildSearchPagination({ sorts: initSorting('exercise_updated_at', 'DESC') }));
 
   // Export
   const exportProps = {
@@ -90,7 +93,10 @@ const Simulations = () => {
         queryableHelpers={queryableHelpers}
         topBarButtons={(
           <ToggleButtonGroup value="fake" exclusive>
-            <ExportButton totalElements={queryableHelpers.paginationHelpers.getTotalElements()} exportProps={exportProps} />
+            <ExportButton
+              totalElements={queryableHelpers.paginationHelpers.getTotalElements()}
+              exportProps={exportProps}
+            />
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
               <ImportUploaderExercise />
             </Can>

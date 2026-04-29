@@ -21,7 +21,6 @@ import jakarta.annotation.Resource;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -30,7 +29,6 @@ public class MailingService {
 
   @Resource protected ObjectMapper mapper;
 
-  private final ApplicationContext context;
   private final UserRepository userRepository;
   private final InjectorContractRepository injectorContractRepository;
   private final ExecutionContextService executionContextService;

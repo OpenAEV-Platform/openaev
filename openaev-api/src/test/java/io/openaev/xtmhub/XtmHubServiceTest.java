@@ -911,14 +911,14 @@ class XtmHubServiceTest {
       xtmHubService.autoRegister(token);
 
       // Then
-      verify(platformSettingsService)
-          .updateXTMHubRegistration(
-              eq(token),
-              any(LocalDateTime.class),
-              eq(XtmHubRegistrationStatus.REGISTERED),
-              isNull(),
-              isNull(),
-              eq(false));
+      ArgumentCaptor<TenantXtmHubRegistration> captor =
+          ArgumentCaptor.forClass(TenantXtmHubRegistration.class);
+      verify(tenantXtmHubRegistrationRepository).save(captor.capture());
+      TenantXtmHubRegistration saved = captor.getValue();
+      assertThat(saved.getToken()).isEqualTo(token);
+      assertThat(saved.getRegistrationStatus()).isEqualTo(XtmHubRegistrationStatus.REGISTERED);
+      assertThat(saved.getRegistrationDate()).isNotNull();
+      assertThat(saved.getLastConnectivityCheck()).isNotNull();
     }
 
     @Test
@@ -949,6 +949,7 @@ class XtmHubServiceTest {
       assertThat(platform.get("title").getAsString()).isEqualTo("Test Platform");
       assertThat(platform.get("url").getAsString()).isEqualTo("http://localhost");
       assertThat(platform.get("version").getAsString()).isEqualTo("1.0.0");
+      assertThat(platform.get("tenantId").getAsString()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
       assertThat(input.get("existing_users_count").getAsLong()).isEqualTo(1L);
     }
 

@@ -1,5 +1,6 @@
 package io.openaev.helper;
 
+import freemarker.core.TemplateClassResolver;
 import freemarker.template.Configuration;
 import freemarker.template.Template;
 import freemarker.template.TemplateException;
@@ -27,6 +28,7 @@ public final class TemplateHelper {
 
   static {
     FREEMARKER_CONFIG = new Configuration(Configuration.VERSION_2_3_31);
+    FREEMARKER_CONFIG.setNewBuiltinClassResolver(TemplateClassResolver.SAFER_RESOLVER);
     FREEMARKER_CONFIG.setTemplateExceptionHandler(new TemplateExceptionManager());
     FREEMARKER_CONFIG.setLogTemplateExceptions(false);
   }

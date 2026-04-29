@@ -35,31 +35,31 @@ public class WorkflowFixture {
   public static List<WorkflowScopeRuleInput> getDefaultWorkflowScopeRuleInputList() {
     WorkflowScopeRuleInput ipRule =
         WorkflowScopeRuleInput.builder()
-            .selectedMode(ScopeRuleSelectedMode.WHITELIST)
+            .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
             .ruleSource(ScopeRuleSource.MANUAL)
             .ruleValue("10.10.10.10")
             .build();
     WorkflowScopeRuleInput domainRule =
         WorkflowScopeRuleInput.builder()
-            .selectedMode(ScopeRuleSelectedMode.WHITELIST)
+            .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
             .ruleSource(ScopeRuleSource.MANUAL)
             .ruleValue("example.org")
             .build();
     WorkflowScopeRuleInput assetRule =
         WorkflowScopeRuleInput.builder()
-            .selectedMode(ScopeRuleSelectedMode.WHITELIST)
+            .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
             .ruleSource(ScopeRuleSource.ASSET)
             .ruleValue("asset-123")
             .build();
     WorkflowScopeRuleInput subnetRule =
         WorkflowScopeRuleInput.builder()
-            .selectedMode(ScopeRuleSelectedMode.BLACKLIST)
+            .selectedMode(ScopeRuleSelectedMode.DENYLIST)
             .ruleSource(ScopeRuleSource.MANUAL)
             .ruleValue("10.10.10.0/24")
             .build();
     WorkflowScopeRuleInput assetGroupRule =
         WorkflowScopeRuleInput.builder()
-            .selectedMode(ScopeRuleSelectedMode.BLACKLIST)
+            .selectedMode(ScopeRuleSelectedMode.DENYLIST)
             .ruleSource(ScopeRuleSource.ASSET_GROUP)
             .ruleValue("asset-group-1")
             .build();

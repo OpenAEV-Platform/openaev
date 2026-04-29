@@ -31,6 +31,7 @@ export const entitiesInitializer = Map({
     tags: Map({}),
     documents: Map({}),
     platformParameters: Map({}),
+    publicPlatformParameters: Map({}),
     channels: Map({}),
     payloads: Map({}),
     challenges: Map({}),
@@ -126,7 +127,7 @@ const referential = (state: any = Map({}), action: any = {}) => {
     case Constants.DATA_FETCH_ERROR: {
       if (action.payload.status === 401) {
         // If unauthorized, reset all entities except platform parameters.
-        return entitiesInitializer.setIn(['entities', 'platformParameters'], state.getIn(['entities', 'platformParameters']));
+        return entitiesInitializer.setIn(['entities', 'publicPlatformParameters'], state.getIn(['entities', 'publicPlatformParameters']));
       }
       return state;
     }
@@ -142,7 +143,7 @@ const referential = (state: any = Map({}), action: any = {}) => {
 
     case Constants.IDENTITY_LOGOUT_SUCCESS: {
       // Upon logout, reset all entities except for platform parameters.
-      return entitiesInitializer.setIn(['entities', 'platformParameters'], state.getIn(['entities', 'platformParameters']));
+      return entitiesInitializer.setIn(['entities', 'publicPlatformParameters'], state.getIn(['entities', 'publicPlatformParameters']));
     }
     default: {
       return state;

@@ -1,6 +1,7 @@
 package io.openaev.xtmhub;
 
 import io.openaev.context.TenantContext;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantXtmHubRegistration;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.TenantXtmHubRegistrationRepository;
@@ -62,12 +63,17 @@ public class XtmHubService {
         settings.getPlatformName(),
         settings.getPlatformBaseUrl(),
         settings.getPlatformVersion(),
+        TenantContext.getCurrentTenant(),
         usersCount)) {
       throw new ResponseStatusException(
           HttpStatus.BAD_GATEWAY, "Failed to register the platform on XtmHub");
     }
-    this.platformSettingsService.updateXTMHubRegistration(
-        token, LocalDateTime.now(), XtmHubRegistrationStatus.REGISTERED, null, null, false);
+    TenantXtmHubRegistration registration = findOrCreateRegistration();
+    registration.setToken(token);
+    registration.setRegistrationDate(LocalDateTime.now());
+    registration.setRegistrationStatus(XtmHubRegistrationStatus.REGISTERED);
+    registration.setLastConnectivityCheck(LocalDateTime.now());
+    tenantXtmHubRegistrationRepository.save(registration);
   }
 
   public void unregister() {
@@ -167,9 +173,14 @@ public class XtmHubService {
   }
 
   public Boolean contactUs(String message) {
-    PlatformSettings settings = platformSettingsService.findSettings();
-    String token = settings.getXtmHubToken();
-    String platformId = settings.getPlatformId();
+    Optional<TenantXtmHubRegistration> registration =
+        tenantXtmHubRegistrationRepository.findByTenantId(Tenant.DEFAULT_TENANT_UUID);
+    if (registration.isEmpty()) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Default tenant is not registered on XtmHub");
+    }
+    String token = registration.get().getToken();
+    String platformId = platformSettingsService.findSettings().getPlatformId();
     return xtmHubClient.contactUs(message, token, platformId);
   }
 

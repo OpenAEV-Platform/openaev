@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -103,7 +104,8 @@ class PayloadApiTest extends IntegrationTest {
       mvc.perform(
               post(PAYLOAD_URI)
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(input)))
+                  .content(asJsonString(input))
+                  .with(csrf()))
           .andExpect(status().is2xxSuccessful())
           .andExpect(jsonPath("$.payload_name").value("My Executable Payload"))
           .andExpect(jsonPath("$.payload_description").value("Executable description"))
@@ -127,7 +129,8 @@ class PayloadApiTest extends IntegrationTest {
       mvc.perform(
               post(PAYLOAD_URI)
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(input)))
+                  .content(asJsonString(input))
+                  .with(csrf()))
           .andExpect(status().isBadRequest());
     }
 
@@ -145,7 +148,8 @@ class PayloadApiTest extends IntegrationTest {
       mvc.perform(
               post(PAYLOAD_URI)
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(input)))
+                  .content(asJsonString(input))
+                  .with(csrf()))
           .andExpect(status().isBadRequest())
           .andExpect(
               result -> {
@@ -168,7 +172,8 @@ class PayloadApiTest extends IntegrationTest {
       mvc.perform(
               post(PAYLOAD_URI)
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(input)))
+                  .content(asJsonString(input))
+                  .with(csrf()))
           .andExpect(status().is2xxSuccessful())
           .andExpect(jsonPath("$.payload_name").value("Command line payload"))
           .andExpect(
@@ -202,7 +207,8 @@ class PayloadApiTest extends IntegrationTest {
       mvc.perform(
               post(PAYLOAD_URI)
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(input)))
+                  .content(asJsonString(input))
+                  .with(csrf()))
           .andExpect(status().is2xxSuccessful())
           .andExpect(jsonPath("$.payload_name").value("Command line payload"))
           .andExpect(jsonPath("$.payload_detection_remediations.length()").value(3));
@@ -224,7 +230,8 @@ class PayloadApiTest extends IntegrationTest {
           mvc.perform(
                   post(PAYLOAD_URI)
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(input)))
+                      .content(asJsonString(input))
+                      .with(csrf()))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()
@@ -243,7 +250,8 @@ class PayloadApiTest extends IntegrationTest {
       mvc.perform(
               put(PAYLOAD_URI + "/" + payloadId)
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(updateInput)))
+                  .content(asJsonString(updateInput))
+                  .with(csrf()))
           .andExpect(status().is2xxSuccessful())
           .andExpect(jsonPath("$.payload_detection_remediations.length()").value(3))
           .andExpect(
@@ -270,7 +278,8 @@ class PayloadApiTest extends IntegrationTest {
           mvc.perform(
                   post(PAYLOAD_URI)
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(input)))
+                      .content(asJsonString(input))
+                      .with(csrf()))
               .andExpect(status().is2xxSuccessful())
               .andExpect(jsonPath("$.payload_name").value("Command line payload"))
               //              .andExpect(jsonPath("$.payload_arguments]").value("targeted-asset"))
@@ -354,6 +363,7 @@ class PayloadApiTest extends IntegrationTest {
       String response =
           mvc.perform(
                   post(PAYLOAD_URI)
+                      .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(asJsonString(input)))
               .andExpect(status().is2xxSuccessful())
@@ -441,6 +451,7 @@ class PayloadApiTest extends IntegrationTest {
       String response =
           mvc.perform(
                   post(PAYLOAD_URI)
+                      .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(asJsonString(input)))
               .andExpect(status().is2xxSuccessful())
@@ -486,6 +497,7 @@ class PayloadApiTest extends IntegrationTest {
       String response =
           mvc.perform(
                   post(PAYLOAD_URI)
+                      .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(asJsonString(input)))
               .andExpect(status().is2xxSuccessful())
@@ -530,7 +542,8 @@ class PayloadApiTest extends IntegrationTest {
         mvc.perform(
                 post(PAYLOAD_URI)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(createInput)))
+                    .content(asJsonString(createInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.payload_name").value("My Executable Payload"))
             .andExpect(jsonPath("$.payload_platforms.[0]").value("Linux"))
@@ -550,7 +563,8 @@ class PayloadApiTest extends IntegrationTest {
     mvc.perform(
             put(PAYLOAD_URI + "/" + payloadId)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(updateInput)))
+                .content(asJsonString(updateInput))
+                .with(csrf()))
         .andExpect(status().is2xxSuccessful())
         .andExpect(jsonPath("$.payload_name").value("My Updated Executable Payload"))
         .andExpect(jsonPath("$.payload_platforms.[0]").value("MacOS"))
@@ -572,7 +586,8 @@ class PayloadApiTest extends IntegrationTest {
         mvc.perform(
                 post(PAYLOAD_URI)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(createInput)))
+                    .content(asJsonString(createInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -588,7 +603,8 @@ class PayloadApiTest extends IntegrationTest {
     mvc.perform(
             put(PAYLOAD_URI + "/" + payloadId)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(updateInput)))
+                .content(asJsonString(updateInput))
+                .with(csrf()))
         .andExpect(status().isBadRequest())
         .andExpect(
             result -> {
@@ -610,7 +626,8 @@ class PayloadApiTest extends IntegrationTest {
         mvc.perform(
                 post(PAYLOAD_URI)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(createInput)))
+                    .content(asJsonString(createInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -625,7 +642,8 @@ class PayloadApiTest extends IntegrationTest {
     mvc.perform(
             put(PAYLOAD_URI + "/" + payloadId)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(updateInput)))
+                .content(asJsonString(updateInput))
+                .with(csrf()))
         .andExpect(status().is2xxSuccessful())
         .andExpect(jsonPath("$.payload_name").value("Updated Command line payload"))
         .andExpect(jsonPath("$.payload_platforms.[0]").value("MacOS"))
@@ -649,7 +667,8 @@ class PayloadApiTest extends IntegrationTest {
         mvc.perform(
                 post(PAYLOAD_URI)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(createInput)))
+                    .content(asJsonString(createInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -664,7 +683,8 @@ class PayloadApiTest extends IntegrationTest {
     mvc.perform(
             put(PAYLOAD_URI + "/" + payloadId)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(updateInput)))
+                .content(asJsonString(updateInput))
+                .with(csrf()))
         .andExpect(status().is2xxSuccessful())
         .andExpect(jsonPath("$.payload_name").value("Updated Command line payload"))
         .andExpect(
@@ -699,7 +719,8 @@ class PayloadApiTest extends IntegrationTest {
         mvc.perform(
                 post(PAYLOAD_URI)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(createInput)))
+                    .content(asJsonString(createInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.payload_detection_remediations.length()").value(0))
             .andReturn()
@@ -715,7 +736,8 @@ class PayloadApiTest extends IntegrationTest {
     mvc.perform(
             put(PAYLOAD_URI + "/" + payloadId)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(updateInput)))
+                .content(asJsonString(updateInput))
+                .with(csrf()))
         .andExpect(status().is2xxSuccessful())
         .andExpect(jsonPath("$.payload_detection_remediations.length()").value(3));
     ;
@@ -736,7 +758,8 @@ class PayloadApiTest extends IntegrationTest {
     mvc.perform(
             post(PAYLOAD_URI + "/upsert")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(upsertInput)))
+                .content(asJsonString(upsertInput))
+                .with(csrf()))
         .andExpect(status().isOk())
         .andExpect(
             jsonPath("$.payload_execution_arch")
@@ -747,7 +770,8 @@ class PayloadApiTest extends IntegrationTest {
     mvc.perform(
             post(PAYLOAD_URI + "/upsert")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(upsertInput)))
+                .content(asJsonString(upsertInput))
+                .with(csrf()))
         .andExpect(status().isBadRequest())
         .andExpect(
             result -> {
@@ -769,7 +793,10 @@ class PayloadApiTest extends IntegrationTest {
             List.of(domain.getId()));
 
     mvc.perform(
-            post(PAYLOAD_URI).contentType(MediaType.APPLICATION_JSON).content(asJsonString(input)))
+            post(PAYLOAD_URI)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(input))
+                .with(csrf()))
         .andExpect(status().is2xxSuccessful());
 
     PayloadUpsertInput upsertInput =
@@ -779,7 +806,8 @@ class PayloadApiTest extends IntegrationTest {
     mvc.perform(
             post(PAYLOAD_URI + "/upsert")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(upsertInput)))
+                .content(asJsonString(upsertInput))
+                .with(csrf()))
         .andExpect(status().isOk())
         .andExpect(
             jsonPath("$.payload_output_parsers[0].output_parser_mode")
@@ -818,7 +846,10 @@ class PayloadApiTest extends IntegrationTest {
         PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(List.of(domain.getId()));
 
     mvc.perform(
-            post(PAYLOAD_URI).contentType(MediaType.APPLICATION_JSON).content(asJsonString(input)))
+            post(PAYLOAD_URI)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(input))
+                .with(csrf()))
         .andExpect(status().is2xxSuccessful())
         .andExpect(jsonPath("$.payload_detection_remediations.length()").value(0));
 
@@ -830,7 +861,8 @@ class PayloadApiTest extends IntegrationTest {
     mvc.perform(
             post(PAYLOAD_URI + "/upsert")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(upsertInput)))
+                .content(asJsonString(upsertInput))
+                .with(csrf()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.payload_detection_remediations.length()").value(3));
   }
@@ -852,7 +884,8 @@ class PayloadApiTest extends IntegrationTest {
     mvc.perform(
             post(PAYLOAD_URI)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(createInput)))
+                .content(asJsonString(createInput))
+                .with(csrf()))
         .andExpect(status().isOk());
   }
 
@@ -872,7 +905,8 @@ class PayloadApiTest extends IntegrationTest {
     mvc.perform(
             post(PAYLOAD_URI)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(createInput)))
+                .content(asJsonString(createInput))
+                .with(csrf()))
         .andExpect(status().isOk());
   }
 
@@ -892,7 +926,8 @@ class PayloadApiTest extends IntegrationTest {
     mvc.perform(
             post(PAYLOAD_URI)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(createInput)))
+                .content(asJsonString(createInput))
+                .with(csrf()))
         .andExpect(status().isOk());
   }
 
@@ -912,7 +947,8 @@ class PayloadApiTest extends IntegrationTest {
     mvc.perform(
             post(PAYLOAD_URI)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(createInput)))
+                .content(asJsonString(createInput))
+                .with(csrf()))
         .andExpect(status().isConflict());
   }
 
@@ -932,7 +968,8 @@ class PayloadApiTest extends IntegrationTest {
     mvc.perform(
             post(PAYLOAD_URI)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(createInput)))
+                .content(asJsonString(createInput))
+                .with(csrf()))
         .andExpect(status().isConflict());
   }
 
@@ -953,7 +990,8 @@ class PayloadApiTest extends IntegrationTest {
         mvc.perform(
                 post(PAYLOAD_URI)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(createInput)))
+                    .content(asJsonString(createInput))
+                    .with(csrf()))
             .andExpect(status().isOk())
             .andReturn()
             .getResponse()
@@ -973,7 +1011,8 @@ class PayloadApiTest extends IntegrationTest {
     mvc.perform(
             put(PAYLOAD_URI + "/" + payloadId)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(updateInput)))
+                .content(asJsonString(updateInput))
+                .with(csrf()))
         .andExpect(status().isConflict());
   }
 
@@ -994,7 +1033,8 @@ class PayloadApiTest extends IntegrationTest {
         mvc.perform(
                 post(PAYLOAD_URI)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(createInput)))
+                    .content(asJsonString(createInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.payload_name").value("My Executable Payload"))
             .andExpect(jsonPath("$.payload_platforms.[0]").value("Linux"))
@@ -1009,7 +1049,7 @@ class PayloadApiTest extends IntegrationTest {
 
     var payloadId = JsonPath.read(createdPayload, "$.payload_id");
 
-    mvc.perform(post(PAYLOAD_URI + "/" + payloadId + "/duplicate"))
+    mvc.perform(post(PAYLOAD_URI + "/" + payloadId + "/duplicate").with(csrf()))
         .andExpect(status().is2xxSuccessful())
         .andExpect(jsonPath("$.payload_name").value("My Executable Payload (duplicate)"))
         .andExpect(jsonPath("$.payload_platforms.[0]").value("Linux"))
@@ -1037,7 +1077,7 @@ class PayloadApiTest extends IntegrationTest {
             "application/json",
             objectMapper.writeValueAsString(collectorCreateInput).getBytes());
 
-    mvc.perform(multipart("/api/collectors").file(inputMultipart))
+    mvc.perform(multipart("/api/collectors").file(inputMultipart).with(csrf()))
         .andExpect(status().is2xxSuccessful());
 
     Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
@@ -1057,7 +1097,8 @@ class PayloadApiTest extends IntegrationTest {
         mvc.perform(
                 post(PAYLOAD_URI + "/upsert")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(payloadUpsertInput1)))
+                    .content(asJsonString(payloadUpsertInput1))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -1068,7 +1109,8 @@ class PayloadApiTest extends IntegrationTest {
         mvc.perform(
                 post(PAYLOAD_URI + "/upsert")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(payloadUpsertInput2)))
+                    .content(asJsonString(payloadUpsertInput2))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -1081,16 +1123,17 @@ class PayloadApiTest extends IntegrationTest {
     mvc.perform(
             post(PAYLOAD_URI + "/deprecate")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(payloadsDeprecateInput)))
+                .content(asJsonString(payloadsDeprecateInput))
+                .with(csrf()))
         .andExpect(status().is2xxSuccessful());
 
-    mvc.perform(get(PAYLOAD_URI + "/" + payloadId1))
+    mvc.perform(get(PAYLOAD_URI + "/" + payloadId1).with(csrf()))
         .andExpect(status().is2xxSuccessful())
         .andExpect(jsonPath("$.payload_name").value("My Command Payload"))
         .andExpect(jsonPath("$.payload_collector_type").value(collectorCreateInput.getType()))
         .andExpect(jsonPath("$.payload_status").value("DEPRECATED"));
 
-    mvc.perform(get(PAYLOAD_URI + "/" + payloadId2))
+    mvc.perform(get(PAYLOAD_URI + "/" + payloadId2).with(csrf()))
         .andExpect(status().is2xxSuccessful())
         .andExpect(jsonPath("$.payload_name").value("Command Payload 2"))
         .andExpect(jsonPath("$.payload_collector_type").value(collectorCreateInput.getType()))

@@ -2839,16 +2839,22 @@ export interface ExecutionTrace {
   execution_message: string;
   execution_status?:
     | "SUCCESS"
+    | "SUCCESS_WITH_CLEANUP_FAIL"
+    | "WARNING"
+    | "ACCESS_DENIED"
     | "ERROR"
-    | "MAYBE_PREVENTED"
     | "COMMAND_NOT_FOUND"
     | "COMMAND_CANNOT_BE_EXECUTED"
-    | "WARNING"
-    | "PARTIAL"
-    | "MAYBE_PARTIAL_PREVENTED"
+    | "PREREQUISITE_FAILED"
+    | "INVALID_USAGE"
+    | "TIMEOUT"
+    | "INTERRUPTED"
     | "ASSET_AGENTLESS"
     | "AGENT_INACTIVE"
-    | "INFO";
+    | "INFO"
+    | "PARTIAL"
+    | "MAYBE_PREVENTED"
+    | "MAYBE_PARTIAL_PREVENTED";
   /** @format date-time */
   execution_time?: string;
   execution_trace_id: string;
@@ -2881,16 +2887,22 @@ export interface ExecutionTraceOutput {
    */
   execution_status:
     | "SUCCESS"
+    | "SUCCESS_WITH_CLEANUP_FAIL"
+    | "WARNING"
+    | "ACCESS_DENIED"
     | "ERROR"
-    | "MAYBE_PREVENTED"
     | "COMMAND_NOT_FOUND"
     | "COMMAND_CANNOT_BE_EXECUTED"
-    | "WARNING"
-    | "PARTIAL"
-    | "MAYBE_PARTIAL_PREVENTED"
+    | "PREREQUISITE_FAILED"
+    | "INVALID_USAGE"
+    | "TIMEOUT"
+    | "INTERRUPTED"
     | "ASSET_AGENTLESS"
     | "AGENT_INACTIVE"
-    | "INFO";
+    | "INFO"
+    | "PARTIAL"
+    | "MAYBE_PREVENTED"
+    | "MAYBE_PARTIAL_PREVENTED";
   /** @format date-time */
   execution_time: string;
 }
@@ -3076,6 +3088,8 @@ export interface ExerciseSimple {
    * @format date-time
    */
   exercise_updated_at?: string;
+  /** Workflow ID associated with the simulation */
+  exercise_workflow_id?: string;
 }
 
 export interface ExerciseTeamPlayersEnableInput {
@@ -3456,6 +3470,7 @@ export interface HealthCheck {
     | "BODY"
     | "OPTIONAL_ARGS"
     | "MESSAGE"
+    | "SCOPE_DEFINITION"
     | "UNKNOWN";
 }
 
@@ -4095,9 +4110,9 @@ export interface InjectStatus {
   status_id?: string;
   status_name:
     | "SUCCESS"
+    | "PARTIAL"
     | "ERROR"
     | "MAYBE_PREVENTED"
-    | "PARTIAL"
     | "MAYBE_PARTIAL_PREVENTED"
     | "DRAFT"
     | "QUEUING"
@@ -4367,7 +4382,7 @@ export interface InjectorContractInput {
 export interface InjectorContractSearchPaginationInput {
   /** Filter object to search within filterable attributes */
   filterGroup?: FilterGroup;
-  /** Include the content on the partial object if set to true */
+  /** Include the injector contract content on the returned object if set to true */
   include_content_details?: boolean;
   /** Allow the return of a full object if true, partial object if false */
   include_full_details?: boolean;
@@ -4514,6 +4529,18 @@ export interface JsonApiDocumentResourceObject {
 }
 
 export type JsonNode = any;
+
+export interface JwkOutput {
+  crv?: string;
+  key_ops?: string[];
+  kid?: string;
+  kty?: string;
+  x?: string;
+}
+
+export interface JwksOutput {
+  keys?: JwkOutput[];
+}
 
 export interface KillChainPhase {
   listened?: boolean;
@@ -4871,6 +4898,8 @@ export interface LoginUserInput {
    * @minLength 1
    */
   password: string;
+  /** The tenant ID the user is logging into (optional) */
+  tenantId?: string;
 }
 
 export interface Mitigation {
@@ -6299,7 +6328,7 @@ export interface PlatformSettings {
    * @minLength 1
    */
   platform_lang: string;
-  /** Platform licensing */
+  /** Platform licensing information */
   platform_license?: License;
   /** Definition of the light theme */
   platform_light_theme?: ThemeInput;
@@ -6341,22 +6370,10 @@ export interface PlatformSettings {
   telemetry_manager_enable?: boolean;
   /** True if connection with XTM Hub is enabled */
   xtm_hub_enable?: boolean;
-  /** XTM Hub last connectivity check */
-  xtm_hub_last_connectivity_check?: string;
   /** True if xtmhub backend is reachable */
   xtm_hub_reachable?: boolean;
-  /** XTM Hub registration date */
-  xtm_hub_registration_date?: string;
-  /** XTM Hub registration status */
-  xtm_hub_registration_status?: string;
-  /** XTM Hub registration user id */
-  xtm_hub_registration_user_id?: string;
-  /** XTM Hub registration user name */
-  xtm_hub_registration_user_name?: string;
   /** XTM Hub should send connectivity email */
   xtm_hub_should_send_connectivity_email?: string;
-  /** XTM Hub token */
-  xtm_hub_token?: string;
   /** Url of XTM Hub */
   xtm_hub_url?: string;
   /** True if connection with OpenCTI is enabled */
@@ -6504,6 +6521,51 @@ export interface PublicExercise {
   name?: string;
 }
 
+export interface PublicPlatformSettings {
+  /** True if Saml2 is enabled */
+  auth_saml2_enable?: boolean;
+  /** List of Saml2 providers */
+  platform_saml2_providers?: OAuthProvider[];
+  /** True if local authentication is enabled */
+  auth_local_enable?: boolean;
+  /** True if OpenID is enabled */
+  auth_openid_enable?: boolean;
+  /** List of enabled dev features */
+  enabled_dev_features?: (
+    | "_RESERVED"
+    | "FEATURE_FLAG_ALL"
+    | "STIX_SECURITY_COVERAGE_FOR_VULNERABILITIES"
+    | "LEGACY_INGESTION_EXECUTION_TRACE"
+    | "MULTI_TENANCY"
+    | "SENTINEL_ONE_EXECUTOR"
+    | "PALO_ALTO_CORTEX_EXECUTOR"
+    | "OPENAEV_TRIALS_XTMHUB"
+    | "INJECT_CHAINING"
+  )[];
+  /** Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL) */
+  platform_banner_by_level?: Record<string, string[]>;
+  /** Definition of the dark theme */
+  platform_dark_theme?: ThemeInput;
+  /**
+   * Language of the platform
+   * @minLength 1
+   */
+  platform_lang: string;
+  /** Definition of the light theme */
+  platform_light_theme?: ThemeInput;
+  /** List of OpenID providers */
+  platform_openid_providers?: OAuthProvider[];
+  /** Policies of the platform */
+  platform_policies?: PolicyInput;
+  /**
+   * Theme of the platform
+   * @minLength 1
+   */
+  platform_theme: string;
+  /** 'true' if the platform has the whitemark activated */
+  platform_whitemark?: string;
+}
+
 export interface PublicScenario {
   description?: string;
   id?: string;
@@ -6573,6 +6635,7 @@ export interface RawPaginationScenario {
   scenario_tags?: string[];
   /** @format date-time */
   scenario_updated_at?: string;
+  scenario_workflow_id?: string;
 }
 
 export interface RawUser {
@@ -8671,10 +8734,10 @@ export interface WorkflowConfigurationInput {
    */
   workflow_configuration_max_attempts?: number;
   /**
-   * Seconds to wait between attempts (1–59).
+   * Seconds to wait between attempts (1–3540).
    * @format int64
    * @min 1
-   * @max 59
+   * @max 5940
    */
   workflow_configuration_max_temporal_rate_seconds?: number;
   /** Whether rate limiting is enabled. */
@@ -8687,9 +8750,9 @@ export interface WorkflowConfigurationInput {
   /** Whether the timeout feature is enabled. */
   workflow_configuration_timeout_enabled?: boolean;
   /**
-   * Total timeout in seconds for the attack workflow scenario (0–86400).
+   * Total timeout in seconds for the attack workflow scenario (60–86400).
    * @format int64
-   * @min 0
+   * @min 60
    * @max 86400
    */
   workflow_configuration_timeout_seconds?: number;
@@ -8729,7 +8792,7 @@ export interface WorkflowScopeRuleInput {
   /** ID of an existing scope rule. Null means a new rule will be created. */
   workflow_scope_rule_id?: string;
   /** Selected list mode where the rule should be applied */
-  workflow_scope_rule_selected_mode: "WHITELIST" | "BLACKLIST";
+  workflow_scope_rule_selected_mode: "ALLOWLIST" | "DENYLIST";
   /** Source of the selected rule */
   workflow_scope_rule_source: "ASSET" | "ASSET_GROUP" | "MANUAL" | "CSV";
   /**
@@ -8744,7 +8807,7 @@ export interface WorkflowScopeRuleOutput {
   /** ID of the scope rule. */
   workflow_scope_rule_id?: string;
   /** Selected list mode where the rule is applied. */
-  workflow_scope_rule_selected_mode?: "WHITELIST" | "BLACKLIST";
+  workflow_scope_rule_selected_mode?: "ALLOWLIST" | "DENYLIST";
   /** Source of the selected item */
   workflow_scope_rule_source?: "ASSET" | "ASSET_GROUP" | "MANUAL" | "CSV";
   /** Selected item value */

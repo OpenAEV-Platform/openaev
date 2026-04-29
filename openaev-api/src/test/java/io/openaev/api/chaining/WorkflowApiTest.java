@@ -3,6 +3,7 @@ package io.openaev.api.chaining;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.WorkflowFixture.getDefaultWorkflowScopeRuleInputList;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -78,7 +79,8 @@ class WorkflowApiTest extends IntegrationTest {
     // -- EXECUTE --
     String response =
         mockMvc
-            .perform(get(WORKFLOW_URI + "/" + workflow.getId() + "/workflow-configuration"))
+            .perform(
+                get(WORKFLOW_URI + "/" + workflow.getId() + "/workflow-configuration").with(csrf()))
             .andExpect(status().isOk())
             .andReturn()
             .getResponse()
@@ -103,7 +105,7 @@ class WorkflowApiTest extends IntegrationTest {
     // -- EXECUTE --
     String response =
         mockMvc
-            .perform(get(WORKFLOW_URI + "/" + workflowId + "/workflow-configuration"))
+            .perform(get(WORKFLOW_URI + "/" + workflowId + "/workflow-configuration").with(csrf()))
             .andExpect(status().isNotFound())
             .andReturn()
             .getResponse()
@@ -127,7 +129,8 @@ class WorkflowApiTest extends IntegrationTest {
     // -- EXECUTE & ASSERT --
     String response =
         mockMvc
-            .perform(get(WORKFLOW_URI + "/" + workflow.getId() + "/workflow-configuration"))
+            .perform(
+                get(WORKFLOW_URI + "/" + workflow.getId() + "/workflow-configuration").with(csrf()))
             .andExpect(status().isNotFound())
             .andReturn()
             .getResponse()
@@ -154,6 +157,7 @@ class WorkflowApiTest extends IntegrationTest {
         mockMvc
             .perform(
                 put(WORKFLOW_URI + "/" + workflow.getId() + "/workflow-configuration")
+                    .with(csrf())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(asJsonString(input))
                     .accept(MediaType.APPLICATION_JSON))
@@ -188,6 +192,7 @@ class WorkflowApiTest extends IntegrationTest {
         mockMvc
             .perform(
                 put(WORKFLOW_URI + "/" + workflow.getId() + "/workflow-configuration")
+                    .with(csrf())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(asJsonString(input))
                     .accept(MediaType.APPLICATION_JSON))
@@ -234,6 +239,7 @@ class WorkflowApiTest extends IntegrationTest {
     mockMvc
         .perform(
             put(WORKFLOW_URI + "/" + workflow.getId() + "/workflow-configuration")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(asJsonString(input))
                 .accept(MediaType.APPLICATION_JSON))
@@ -259,6 +265,7 @@ class WorkflowApiTest extends IntegrationTest {
     mockMvc
         .perform(
             put(WORKFLOW_URI + "/" + workflow.getId() + "/workflow-configuration")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(asJsonString(input))
                 .accept(MediaType.APPLICATION_JSON))
@@ -284,6 +291,7 @@ class WorkflowApiTest extends IntegrationTest {
     mockMvc
         .perform(
             put(WORKFLOW_URI + "/" + workflow.getId() + "/workflow-configuration")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(asJsonString(input))
                 .accept(MediaType.APPLICATION_JSON))
@@ -309,6 +317,7 @@ class WorkflowApiTest extends IntegrationTest {
     mockMvc
         .perform(
             put(WORKFLOW_URI + "/" + workflow.getId() + "/workflow-configuration")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(asJsonString(input))
                 .accept(MediaType.APPLICATION_JSON))
@@ -333,6 +342,7 @@ class WorkflowApiTest extends IntegrationTest {
     mockMvc
         .perform(
             put(WORKFLOW_URI + "/" + workflow.getId() + "/workflow-configuration")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(asJsonString(input))
                 .accept(MediaType.APPLICATION_JSON))
@@ -356,6 +366,7 @@ class WorkflowApiTest extends IntegrationTest {
     mockMvc
         .perform(
             put(WORKFLOW_URI + "/" + workflow.getId() + "/workflow-configuration")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(asJsonString(input))
                 .accept(MediaType.APPLICATION_JSON))
@@ -384,6 +395,7 @@ class WorkflowApiTest extends IntegrationTest {
     mockMvc
         .perform(
             put(WORKFLOW_URI + "/" + workflow.getId() + "/workflow-configuration")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(asJsonString(input))
                 .accept(MediaType.APPLICATION_JSON))
@@ -394,42 +406,42 @@ class WorkflowApiTest extends IntegrationTest {
     List<WorkflowScopeRule> rules = saved.getWorkflowScopeRules();
 
     assertEquals(5, rules.size());
-    assertEquals(3, saved.getWhitelist().size());
-    assertEquals(2, saved.getBlacklist().size());
+    assertEquals(3, saved.getAllowlist().size());
+    assertEquals(2, saved.getDenylist().size());
 
     WorkflowScopeRule ipRule =
-        saved.getWhitelist().stream()
+        saved.getAllowlist().stream()
             .filter(r -> "10.10.10.10".equals(r.getRuleValue()))
             .findFirst()
             .orElseThrow();
     assertEquals(ScopeRuleValueType.IP, ipRule.getValueType());
-    assertEquals(ScopeRuleSelectedMode.WHITELIST, ipRule.getSelectedMode());
+    assertEquals(ScopeRuleSelectedMode.ALLOWLIST, ipRule.getSelectedMode());
     assertSame(saved, ipRule.getWorkflow());
 
     WorkflowScopeRule domainRule =
-        saved.getWhitelist().stream()
+        saved.getAllowlist().stream()
             .filter(r -> "example.org".equals(r.getRuleValue()))
             .findFirst()
             .orElseThrow();
     assertEquals(ScopeRuleValueType.DOMAIN, domainRule.getValueType());
 
     WorkflowScopeRule assetRule =
-        saved.getWhitelist().stream()
+        saved.getAllowlist().stream()
             .filter(r -> "asset-123".equals(r.getRuleValue()))
             .findFirst()
             .orElseThrow();
     assertEquals(ScopeRuleValueType.ASSET_ID, assetRule.getValueType());
 
     WorkflowScopeRule subnetRule =
-        saved.getBlacklist().stream()
+        saved.getDenylist().stream()
             .filter(r -> "10.10.10.0/24".equals(r.getRuleValue()))
             .findFirst()
             .orElseThrow();
     assertEquals(ScopeRuleValueType.IP_SUBNET, subnetRule.getValueType());
-    assertEquals(ScopeRuleSelectedMode.BLACKLIST, subnetRule.getSelectedMode());
+    assertEquals(ScopeRuleSelectedMode.DENYLIST, subnetRule.getSelectedMode());
 
     WorkflowScopeRule assetGroupRule =
-        saved.getBlacklist().stream()
+        saved.getDenylist().stream()
             .filter(r -> "asset-group-1".equals(r.getRuleValue()))
             .findFirst()
             .orElseThrow();

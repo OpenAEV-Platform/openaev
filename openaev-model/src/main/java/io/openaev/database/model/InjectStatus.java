@@ -63,13 +63,6 @@ public class InjectStatus extends BaseInjectStatus {
     this.getTraces().add(newTrace);
   }
 
-  public void addMayBePreventedTrace(String message, ExecutionTraceAction action, Agent agent) {
-    ExecutionTrace newTrace =
-        new ExecutionTrace(
-            this, ExecutionTraceStatus.MAYBE_PREVENTED, List.of(), message, action, agent, null);
-    this.getTraces().add(newTrace);
-  }
-
   public void addErrorTrace(String message, ExecutionTraceAction action) {
     ExecutionTrace newTrace =
         new ExecutionTrace(

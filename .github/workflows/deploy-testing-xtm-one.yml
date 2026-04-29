@@ -1,0 +1,92 @@
+name: Deploy testing-xtm-one
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - testing-xtm-one
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-image:
+    name: Build testing-xtm-one image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - uses: jirutka/setup-alpine@v1
+        with:
+          branch: v3.23
+          extra-repositories: |
+            https://dl-cdn.alpinelinux.org/alpine/edge/community/
+          packages: >
+            nodejs npm git tini gcc g++ make musl-dev cargo openjdk21-jdk maven postfix postfix-pcre
+      - name: Setup Node.js
+        run: |
+          npm install -g corepack
+        shell: alpine.sh --root {0}
+      - name: Build into Alpine
+        run: |
+          export JAVA_HOME=/usr/lib/jvm/default-jvm/
+          cd openaev-front
+          yarn install
+          yarn build
+          cd ../
+          mvn install -DskipTests -Pdev
+        shell: alpine.sh {0}
+      - run: mkdir -p openaev-build/
+      - run: cp openaev-api/target/openaev-api.jar openaev-build/
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: filigran/openaev-platform
+          tags: |
+            type=raw,value=testing-xtm-one
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push
+        id: buildpush
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./Dockerfile_ga
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=filigran/openaev-platform:buildcache
+          cache-to: type=registry,ref=filigran/openaev-platform:buildcache,mode=max
+
+  deploy:
+      name: Restart testing-xtm-one instance
+      needs: build-image
+      runs-on: ubuntu-latest
+      steps:
+        - name: Install AWX cli
+          run: pip install awxkit
+
+        - name: Restart instance via AWX
+          run: |
+            awx --conf.host ${{ secrets.AWX_URL }} \
+              --conf.username ${{ secrets.AWX_USER }} \
+              --conf.password ${{ secrets.AWX_PASSWORD }} \
+              job_templates launch 'Rollout restart an instance resources' \
+              --inventory eu-west-staging \
+              --extra_vars '{"solution":"openaev", "customer":"testing-xtm-one-oaev"}' \
+              --wait \
+              -f human
