@@ -10,7 +10,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.java.Log;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -21,15 +20,9 @@ import org.springframework.web.servlet.HandlerMapping;
  * Interceptor that automatically extracts the {@code tenantId} path variable from any request
  * matching {@code /api/tenants/{tenantId}/**}, validates the authenticated user belongs to that
  * tenant, and sets it in the {@link TenantContext}.
- *
- * <p>The PostgreSQL session variable {@code app.current_tenant} is set by {@link
- * TenantAwareDataSourceConfig} on each connection checkout, ensuring Row-Level Security policies
- * are enforced on the actual connection used for queries (not a potentially different pooled
- * connection).
  */
 @Component
 @RequiredArgsConstructor
-@Log
 public class TenantInterceptor implements HandlerInterceptor {
 
   private final TenantMembershipCacheManager tenantMembershipCacheManager;
