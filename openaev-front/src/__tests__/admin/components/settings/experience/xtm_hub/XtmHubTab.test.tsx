@@ -9,7 +9,7 @@ import { type PlatformSettings, type TenantOutput, type User } from '../../../..
 import type * as EnvironmentModule from '../../../../../../utils/Environment';
 import { isDemoInstance, XTM_HUB_DEFAULT_URL } from '../../../../../../utils/Environment';
 import { UserContext, type UserContextType } from '../../../../../../utils/hooks/useAuth';
-import type * as TenantUrlHelperModule from '../../../../../../utils/tenant-url-helper';
+import type * as UrlHelperModule from '../../../../../../utils/url-helper';
 
 // -- MODULE MOCKS --
 
@@ -51,8 +51,8 @@ vi.mock('../../../../../../utils/Environment', async (importOriginal) => {
   };
 });
 
-vi.mock('../../../../../../utils/tenant-url-helper', async (importOriginal) => {
-  const original = await importOriginal<typeof TenantUrlHelperModule>();
+vi.mock('../../../../../../utils/url-helper', async (importOriginal) => {
+  const original = await importOriginal<typeof UrlHelperModule>();
   return {
     ...original,
     getCurrentTenantId: mockGetCurrentTenantId,
@@ -208,6 +208,8 @@ describe('XtmHubTab', () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+    // Restore default mock implementations after each test
+    mockGetCurrentTenantId.mockImplementation(() => 'tenant-abc');
     // Ensure the demo mode mock is reset between tests
     vi.mocked(isDemoInstance).mockReturnValue(false);
   });

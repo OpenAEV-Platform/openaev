@@ -10,7 +10,7 @@ import { isDemoInstance, MESSAGING$, XTM_HUB_DEFAULT_URL } from '../../../../../
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useAuth from '../../../../../utils/hooks/useAuth';
 import useExternalTab from '../../../../../utils/hooks/useExternalTab';
-import { getCurrentTenantId } from '../../../../../utils/tenant-url-helper';
+import { getCurrentTenantId } from '../../../../../utils/url-helper';
 import GradientButton from '../../../common/GradientButton';
 import XtmHubConfirmationDialog from './XtmHubConfirmationDialog';
 import XtmHubProcessDialog from './XtmHubProcessDialog';
