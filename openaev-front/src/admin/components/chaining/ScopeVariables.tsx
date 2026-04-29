@@ -14,18 +14,12 @@ import {
 import { useTheme } from '@mui/material/styles';
 import { useMemo, useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
-
-import Transition from '../../../../../components/common/Transition';
-import SelectFieldController from '../../../../../components/fields/SelectFieldController';
-import TextFieldController from '../../../../../components/fields/TextFieldController';
-import { useFormatter } from '../../../../../components/i18n';
-import type {
-  ScopeVariableInput,
-  ScopeVariableOutput,
-  WorkflowConfigurationInput,
-  WorkflowConfigurationOutput,
-} from '../../../../../utils/api-types';
-import useArgumentTypes from '../../../threat_arsenal/form/useArgumentTypes';
+import { ScopeVariableInput, ScopeVariableOutput, WorkflowConfigurationInput, WorkflowConfigurationOutput } from '../../../utils/api-types';
+import { useFormatter } from '../../../components/i18n';
+import useArgumentTypes from '../threat_arsenal/form/useArgumentTypes';
+import { Transition } from 'mdi-material-ui';
+import TextFieldController from '../../../components/fields/TextFieldController';
+import SelectFieldController from '../../../components/fields/SelectFieldController';
 
 interface ScopeVariablesProps {
   workflowConfiguration: WorkflowConfigurationOutput | undefined;

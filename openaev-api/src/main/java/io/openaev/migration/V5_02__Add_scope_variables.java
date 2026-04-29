@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V4_99__Add_scope_variables extends BaseJavaMigration {
+public class V5_02__Add_scope_variables extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
@@ -31,6 +31,11 @@ public class V4_99__Add_scope_variables extends BaseJavaMigration {
       // Index on the workflow FK for faster lookups
       stmt.execute(
           "CREATE INDEX IF NOT EXISTS idx_scope_variable_workflow ON scope_variables (scope_variable_workflow);");
+
+      // Unique constraint: a variable key + type combination must be unique per workflow
+      stmt.execute(
+          "ALTER TABLE scope_variables ADD CONSTRAINT uk_scope_variable_key_type_workflow"
+              + " UNIQUE (scope_variable_key, scope_variable_type, scope_variable_workflow);");
     }
   }
 }
