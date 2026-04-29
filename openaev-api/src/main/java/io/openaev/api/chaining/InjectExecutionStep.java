@@ -263,17 +263,59 @@ public class InjectExecutionStep implements ActionStep {
 
       // UPDATE step output
       stepRun.setOutput(jsonObject.toString());
-
-      // Propagate state changes into engine if parsed output is present
-      Map<String, ContractOutputType> fieldTypeMap = buildFieldTypeMapFromInject(inject);
-      // workflowStateService.syncState(gson.toJsonTree(jsonObject.stream().filter(o ->
-      // !o.get("parsed").isJsonNull()).toList()), fieldTypeMap, workflowRun);
+      // PROPAGATE state changes into engine if parsed output is present
+      processOutputAndStateSync(stepRun, output, inject);
 
       return Optional.of(stepRun);
     }
 
     log.info("Inject output not found. ID:  {}", injectId);
     return Optional.empty();
+  }
+
+  private void processOutputAndStateSync(
+      Step stepRun, List<Map<String, JsonElement>> output, Inject inject) {
+    boolean hasParsedData = output.stream().anyMatch(map -> map.containsKey("parsed"));
+
+    if (hasParsedData) {
+      Map<String, List<String>> scopeData = extractDataFromParsed(output);
+
+      if (!scopeData.isEmpty()) {
+        Workflow workflowRun = stepRun.getWorkflow();
+
+        Map<String, ContractOutputType> fieldTypeMap = buildFieldTypeMapFromInject(inject);
+        // Sync global state with the execution output, which may trigger chained steps to become
+        // READY
+        workflowStateService.syncState(gson.toJsonTree(scopeData), fieldTypeMap, workflowRun);
+      }
+    }
+  }
+
+  private Map<String, List<String>> extractDataFromParsed(List<Map<String, JsonElement>> output) {
+    Map<String, List<String>> result = new HashMap<>();
+
+    for (Map<String, JsonElement> entry : output) {
+      if (entry.containsKey("parsed")) {
+        try {
+          JsonObject parsed = entry.get("parsed").getAsJsonObject();
+          if (parsed.has("_children")) {
+            JsonObject children = parsed.getAsJsonObject("_children");
+
+            for (String key : children.keySet()) {
+              JsonArray valuesArray = children.getAsJsonObject(key).getAsJsonArray("_children");
+              for (JsonElement item : valuesArray) {
+                String val = item.getAsJsonObject().get("_value").getAsString();
+                // SyncState keys are usually Uppercase (e.g., "IP")
+                result.computeIfAbsent(key.toUpperCase(), k -> new ArrayList<>()).add(val);
+              }
+            }
+          }
+        } catch (Exception e) {
+          log.error("Failed to parse structured output for syncState", e);
+        }
+      }
+    }
+    return result;
   }
 
   /**
