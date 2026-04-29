@@ -9,10 +9,10 @@ import { useTheme } from '@mui/material/styles';
 import { useMemo } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 
+import Transition from '../../../components/common/Transition';
 import SelectFieldController from '../../../components/fields/SelectFieldController';
 import TextFieldController from '../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../components/i18n';
-import Transition from '../../../components/common/Transition';
 import type { ScopeVariableInput } from '../../../utils/api-types';
 import useArgumentTypes from '../threat_arsenal/form/useArgumentTypes';
 

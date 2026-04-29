@@ -270,9 +270,8 @@ class ChainingIntegrationTest extends IntegrationTest {
 
       String simulationResult =
           mvc.perform(
-                  post(
-                      tenantUri(TENANT_SCENARIO_URI + "/" + scenarioId + "/exercise/running")
-                          .with(csrf())))
+                  post(tenantUri(TENANT_SCENARIO_URI + "/" + scenarioId + "/exercise/running"))
+                      .with(csrf()))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()
@@ -357,9 +356,8 @@ class ChainingIntegrationTest extends IntegrationTest {
 
       String simulationResult =
           mvc.perform(
-                  post(
-                      tenantUri(TENANT_SCENARIO_URI + "/" + scenarioId + "/exercise/running")
-                          .with(csrf())))
+                  post(tenantUri(TENANT_SCENARIO_URI + "/" + scenarioId + "/exercise/running"))
+                      .with(csrf()))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()
