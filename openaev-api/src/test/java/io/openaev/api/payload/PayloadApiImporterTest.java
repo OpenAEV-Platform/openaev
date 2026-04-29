@@ -618,7 +618,7 @@ class PayloadApiImporterTest extends IntegrationTest {
         "Only detection remediations with known collector should be kept");
     assertEquals(
         existingCollector.getType(),
-        payloadPersisted.getDetectionRemediations().getFirst().getCollector().getType());
+        payloadPersisted.getDetectionRemediations().getFirst().getCollectorType().getName());
   }
 
   @Test

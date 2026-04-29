@@ -204,7 +204,7 @@ public class HealthCheckUtils {
     boolean atLeastOneInjectIsNotReady =
         scenario.getInjects().stream()
             .filter(Inject::isEnabled)
-            .anyMatch(inject -> !inject.isReady());
+            .anyMatch(inject -> !runContentChecks(inject).isEmpty());
 
     if (atLeastOneInjectIsNotReady) {
       result.add(

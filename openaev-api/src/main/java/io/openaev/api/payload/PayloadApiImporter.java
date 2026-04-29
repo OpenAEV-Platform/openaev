@@ -1,5 +1,7 @@
 package io.openaev.api.payload;
 
+import static java.util.Collections.emptyList;
+
 import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Payload;
@@ -17,6 +19,7 @@ import io.openaev.service.ZipJsonService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.constraints.NotNull;
 import java.util.Map;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -61,7 +64,8 @@ public class PayloadApiImporter extends RestBehavior {
     try {
       ZipJsonService.ImportOutput<Payload> response =
           zipJsonApi.handleImport(file, "payload_name", IMPORT_OPTIONS, null);
-      payloadService.updateInjectorContractsForPayload(response.persistedData());
+      payloadService.synchroniseInjectorContractBasedOnPayload(
+          response.persistedData(), emptyList(), Set.of(), Set.of());
       return ResponseEntity.ok(response.jsonApiDocument());
     } catch (Exception ex) {
       log.warn("Fallback to old import due to {}", ex.getMessage(), ex);
