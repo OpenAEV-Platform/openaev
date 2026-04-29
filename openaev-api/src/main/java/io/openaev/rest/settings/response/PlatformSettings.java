@@ -115,10 +115,6 @@ public class PlatformSettings extends PublicPlatformSettings {
   @Schema(description = "Chosen model of AI")
   private String aiModel;
 
-  @JsonProperty("platform_xtm_one_configured")
-  @Schema(description = "True if XTM One (filigran-copilot) is configured with URL and token")
-  private Boolean xtmOneConfigured;
-
   @JsonProperty("executor_tanium_enable")
   @Schema(description = "True if the Tanium Executor is enabled")
   private Boolean executorTaniumEnable;

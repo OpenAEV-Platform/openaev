@@ -3,6 +3,7 @@ package io.openaev.xtmone;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.service.PlatformSettingsService;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -30,7 +31,26 @@ public class XtmOneService {
           Map.of("name", "summarize", "description", "Summarize content or findings"),
           Map.of("name", "make.it.shorter", "description", "Shorten or condense content"),
           Map.of("name", "fix.spelling", "description", "Fix spelling and grammar"),
-          Map.of("name", "change.tone", "description", "Change tone of content"));
+          Map.of("name", "change.tone", "description", "Change tone of content"),
+          Map.of(
+              "name",
+              "ttp.extractor",
+              "description",
+              "Extract MITRE ATT&CK TTPs from documents and text"),
+          Map.of(
+              "name",
+              "detection.generate",
+              "description",
+              "Generate detection and remediation rules for security collectors"));
+
+  /** Intent catalog received from the last successful registration. */
+  @SuppressWarnings("unchecked")
+  private volatile List<Map<String, Object>> discoveredIntentCatalog = Collections.emptyList();
+
+  /** Returns the intent catalog discovered from the last XTM One registration. */
+  public List<Map<String, Object>> getIntentCatalog() {
+    return discoveredIntentCatalog;
+  }
 
   /**
    * Register this platform with XTM One. Called on every connectivity tick (the /register endpoint
@@ -87,6 +107,20 @@ public class XtmOneService {
         if (chatToken instanceof String s && !s.isBlank()) {
           config.setDiscoveredWebToken(s);
           log.info("[XTM One] Chat web token discovered from registration");
+        }
+        Object catalog = result.get("intent_catalog");
+        if (catalog instanceof List<?> catalogList) {
+          discoveredIntentCatalog = catalogList.stream()
+              .filter(Map.class::isInstance)
+              .map(e -> (Map<String, Object>) e)
+              .toList();
+          int agentCount = discoveredIntentCatalog.stream()
+              .mapToInt(e -> e.get("agents") instanceof List<?> a ? a.size() : 0)
+              .sum();
+          log.info(
+              "[XTM One] Intent catalog updated (intents={}, agents={})",
+              discoveredIntentCatalog.size(),
+              agentCount);
         }
         log.info(
             "[XTM One] Registration successful (ee_enabled={})",

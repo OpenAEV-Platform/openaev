@@ -1,6 +1,8 @@
 package io.openaev.xtmone;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import io.jsonwebtoken.Jwts;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.OpenAEVConfig;
@@ -245,5 +247,82 @@ public class XtmOneClient {
   @FunctionalInterface
   public interface StreamConsumer {
     void accept(InputStream stream) throws IOException;
+  }
+
+  /**
+   * Synchronous (non-streaming) agent call via the chat messages endpoint. Collects the full SSE
+   * stream, extracts the final "done" or accumulated "stream" content, and returns it.
+   *
+   * @param agentSlug the agent slug to route the request to
+   * @param content the user prompt / content
+   * @param filesNode optional base64-encoded file attachments (may be {@code null})
+   * @return the agent's final text content, or {@code null} on failure
+   */
+  public String callAgentSync(String agentSlug, String content, ArrayNode filesNode) {
+    if (!config.isConfigured()) {
+      log.warn("[XTM One] callAgentSync skipped: not configured");
+      return null;
+    }
+    try (CloseableHttpClient httpClient = httpClientFactory.httpClientCustom()) {
+      Map<String, Object> body = new HashMap<>();
+      body.put("content", content);
+      body.put("agent_slug", agentSlug);
+      if (filesNode != null) {
+        body.put("files", objectMapper.treeToValue(filesNode, Object.class));
+      }
+
+      // Use a service-level JWT (no real user context)
+      String jwt =
+          issueAuthenticationJwt("system", "OpenAEV Platform", "system@openaev.internal");
+
+      HttpPost httpPost =
+          chatPostBuilder("/api/v1/platform/chat/messages", jwt, objectMapper.writeValueAsString(body));
+      httpPost.setConfig(
+          RequestConfig.custom().setResponseTimeout(Timeout.ofMinutes(5)).build());
+
+      return httpClient.execute(
+          httpPost,
+          response -> {
+            if (response.getCode() != 200) {
+              log.warn(
+                  "[XTM One] callAgentSync failed: HTTP {}, agent={}",
+                  response.getCode(),
+                  agentSlug);
+              return null;
+            }
+            // Read the SSE stream and collect content
+            String raw = EntityUtils.toString(response.getEntity());
+            return extractContentFromSse(raw);
+          });
+    } catch (Exception e) {
+      log.warn("[XTM One] callAgentSync error, agent={}.", agentSlug, e);
+    }
+    return null;
+  }
+
+  /**
+   * Parses an SSE response body and extracts the agent content. Returns the "done" event content if
+   * present, otherwise the accumulated "stream" chunks.
+   */
+  private String extractContentFromSse(String sseBody) {
+    StringBuilder accumulated = new StringBuilder();
+    String doneContent = null;
+    for (String line : sseBody.split("\n")) {
+      String trimmed = line.trim();
+      if (!trimmed.startsWith("data: ")) continue;
+      try {
+        JsonNode event = objectMapper.readTree(trimmed.substring(6));
+        String type = event.has("type") ? event.get("type").asText() : "";
+        String c = event.has("content") ? event.get("content").asText() : "";
+        if ("stream".equals(type)) {
+          accumulated.append(c);
+        } else if ("done".equals(type)) {
+          doneContent = c;
+        }
+      } catch (Exception ignored) {
+        // skip malformed SSE lines
+      }
+    }
+    return doneContent != null ? doneContent : accumulated.toString();
   }
 }
