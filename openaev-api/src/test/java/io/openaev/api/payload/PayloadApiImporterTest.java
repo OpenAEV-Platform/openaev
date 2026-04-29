@@ -7,6 +7,7 @@ import static java.util.Collections.emptyMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -15,6 +16,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
+import io.openaev.database.model.Collector;
+import io.openaev.database.model.DetectionRemediation;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
 import io.openaev.database.repository.CollectorRepository;
@@ -34,6 +37,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -68,24 +72,24 @@ class PayloadApiImporterTest extends IntegrationTest {
   }
 
   private MockMultipartFile buildZipFile(JsonApiDocument<ResourceObject> document)
-      throws Exception {
+          throws Exception {
     byte[] zip = zipJsonService.writeZip(document, emptyMap());
     return new MockMultipartFile("file", "payload.zip", "application/zip", zip);
   }
 
   private String performImport(MockMultipartFile zipFile) throws Exception {
     return mockMvc
-        .perform(multipart(PAYLOAD_URI + "/import").file(zipFile).with(csrf()))
-        .andExpect(status().is2xxSuccessful())
-        .andReturn()
-        .getResponse()
-        .getContentAsString();
+            .perform(multipart(PAYLOAD_URI + "/import").file(zipFile).with(csrf()))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
   }
 
   private ResourceObject buildCollectorResource(String collectorResourceId, String collectorType) {
     Map<String, Object> attributes = new HashMap<>();
-    attributes.put("collector_type_name", collectorType);
-    return new ResourceObject(collectorResourceId, "collector_types", attributes, emptyMap());
+    attributes.put("collector_type", collectorType);
+    return new ResourceObject(collectorResourceId, "collectors", attributes, emptyMap());
   }
 
   // -- TESTS --
@@ -104,18 +108,18 @@ class PayloadApiImporterTest extends IntegrationTest {
     domainAttributes.put("domain_created_at", "2026-02-02T14:55:27.442379Z");
     domainAttributes.put("domain_updated_at", "2026-02-02T14:55:27.442379Z");
     ResourceObject domainElement =
-        new ResourceObject(domainId, "domains", domainAttributes, emptyMap());
+            new ResourceObject(domainId, "domains", domainAttributes, emptyMap());
 
     JsonApiDocument<ResourceObject> document =
-        new JsonApiDocument<>(
-            new ResourceObject(
-                null,
-                "command",
-                buildDefaultPayloadAttributes(),
-                Map.of(
-                    "payload_domains",
-                    new Relationship(List.of(new ResourceIdentifier(domainId, "domains"))))),
-            List.of(domainElement));
+            new JsonApiDocument<>(
+                    new ResourceObject(
+                            null,
+                            "command",
+                            buildDefaultPayloadAttributes(),
+                            Map.of(
+                                    "payload_domains",
+                                    new Relationship(List.of(new ResourceIdentifier(domainId, "domains"))))),
+                    List.of(domainElement));
 
     MockMultipartFile zipFile = buildZipFile(document);
 
@@ -133,7 +137,7 @@ class PayloadApiImporterTest extends IntegrationTest {
     assertFalse(payloadPersisted.isEmpty(), "Payload should have been persisted in the database");
 
     Optional<InjectorContract> injectorContract =
-        injectorContractRepository.findInjectorContractByPayload(payloadPersisted.get());
+            injectorContractRepository.findInjectorContractByPayload(payloadPersisted.get());
     assertTrue(injectorContract.isPresent());
     assertEquals(payloadId, injectorContract.get().getPayload().getId());
   }
@@ -143,9 +147,9 @@ class PayloadApiImporterTest extends IntegrationTest {
   void importPayloadReturnsPayloadWithRelationship() throws Exception {
     // -- PREPARE --
     JsonApiDocument<ResourceObject> document =
-        new JsonApiDocument<>(
-            new ResourceObject(null, "command", buildDefaultPayloadAttributes(), emptyMap()),
-            emptyList());
+            new JsonApiDocument<>(
+                    new ResourceObject(null, "command", buildDefaultPayloadAttributes(), emptyMap()),
+                    emptyList());
 
     MockMultipartFile zipFile = buildZipFile(document);
 
@@ -160,7 +164,7 @@ class PayloadApiImporterTest extends IntegrationTest {
     // Payload
     assertEquals("command", json.at("/data/type").asText());
     assertEquals(
-        "Echo" + IMPORTED_OBJECT_NAME_SUFFIX, json.at("/data/attributes/payload_name").asText());
+            "Echo" + IMPORTED_OBJECT_NAME_SUFFIX, json.at("/data/attributes/payload_name").asText());
     assertEquals("psh", json.at("/data/attributes/command_executor").asText());
     assertEquals("echo \"toto\"", json.at("/data/attributes/command_content").asText());
   }
@@ -172,18 +176,18 @@ class PayloadApiImporterTest extends IntegrationTest {
     // payload_arguments and payload_prerequisites must be arrays of objects,
     // matching the PayloadArgument / PayloadPrerequisite model schema.
     Map<String, Object> argument1 =
-        Map.of("type", "text", "key", "target_host", "default_value", "localhost");
+            Map.of("type", "text", "key", "target_host", "default_value", "localhost");
     Map<String, Object> argument2 = Map.of("type", "text", "key", "port", "default_value", "8080");
     Map<String, Object> prerequisite1 =
-        Map.of("executor", "sh", "get_command", "which curl", "check_command", "curl --version");
+            Map.of("executor", "sh", "get_command", "which curl", "check_command", "curl --version");
 
     Map<String, Object> attributes = buildDefaultPayloadAttributes();
     attributes.put("payload_arguments", List.of(argument1, argument2));
     attributes.put("payload_prerequisites", List.of(prerequisite1));
 
     JsonApiDocument<ResourceObject> document =
-        new JsonApiDocument<>(
-            new ResourceObject(null, "command", attributes, emptyMap()), emptyList());
+            new JsonApiDocument<>(
+                    new ResourceObject(null, "command", attributes, emptyMap()), emptyList());
 
     MockMultipartFile zipFile = buildZipFile(document);
 
@@ -195,7 +199,7 @@ class PayloadApiImporterTest extends IntegrationTest {
     JsonNode json = objectMapper.readTree(response);
     assertEquals("command", json.at("/data/type").asText());
     assertEquals(
-        "Echo" + IMPORTED_OBJECT_NAME_SUFFIX, json.at("/data/attributes/payload_name").asText());
+            "Echo" + IMPORTED_OBJECT_NAME_SUFFIX, json.at("/data/attributes/payload_name").asText());
     assertEquals("psh", json.at("/data/attributes/command_executor").asText());
     assertEquals("echo \"toto\"", json.at("/data/attributes/command_content").asText());
     assertEquals(1, json.at("/data/attributes/payload_platforms").size());
@@ -227,8 +231,8 @@ class PayloadApiImporterTest extends IntegrationTest {
     attributes.put("payload_prerequisites", new String[] {}); // empty array
 
     JsonApiDocument<ResourceObject> document =
-        new JsonApiDocument<>(
-            new ResourceObject(null, "command", attributes, emptyMap()), emptyList());
+            new JsonApiDocument<>(
+                    new ResourceObject(null, "command", attributes, emptyMap()), emptyList());
 
     MockMultipartFile zipFile = buildZipFile(document);
 
@@ -252,11 +256,11 @@ class PayloadApiImporterTest extends IntegrationTest {
     String regexId = UUID.randomUUID().toString();
 
     ResourceObject regexGroupResource =
-        new ResourceObject(
-            regexId,
-            "regex_groups",
-            Map.of("regex_group_field", "Any text", "regex_group_index_values", "$1"),
-            null);
+            new ResourceObject(
+                    regexId,
+                    "regex_groups",
+                    Map.of("regex_group_field", "Any text", "regex_group_index_values", "$1"),
+                    null);
 
     // ContractOutputElement + RegexGroup
     Map<String, Object> elementAttrs = new HashMap<>();
@@ -266,24 +270,24 @@ class PayloadApiImporterTest extends IntegrationTest {
     elementAttrs.put("contract_output_element_type", "ipv6");
     elementAttrs.put("contract_output_element_is_finding", false);
     ResourceObject contractOutputElementResource =
-        new ResourceObject(
-            elementId,
-            "contract_output_elements",
-            elementAttrs,
-            Map.of(
-                "contract_output_element_regex_groups",
-                new Relationship(List.of(new ResourceIdentifier(regexId, "regex_groups")))));
+            new ResourceObject(
+                    elementId,
+                    "contract_output_elements",
+                    elementAttrs,
+                    Map.of(
+                            "contract_output_element_regex_groups",
+                            new Relationship(List.of(new ResourceIdentifier(regexId, "regex_groups")))));
 
     // OutputParser + ContractOutputElement
     ResourceObject outputParserResource =
-        new ResourceObject(
-            parserId,
-            "output_parsers",
-            Map.of("output_parser_mode", "STDOUT", "output_parser_type", "REGEX"),
-            Map.of(
-                "output_parser_contract_output_elements",
-                new Relationship(
-                    List.of(new ResourceIdentifier(elementId, "contract_output_elements")))));
+            new ResourceObject(
+                    parserId,
+                    "output_parsers",
+                    Map.of("output_parser_mode", "STDOUT", "output_parser_type", "REGEX"),
+                    Map.of(
+                            "output_parser_contract_output_elements",
+                            new Relationship(
+                                    List.of(new ResourceIdentifier(elementId, "contract_output_elements")))));
 
     // Payload + OutputParser
     Map<String, Object> payloadAttrs = buildDefaultPayloadAttributes();
@@ -291,15 +295,15 @@ class PayloadApiImporterTest extends IntegrationTest {
     payloadAttrs.put("command_content", "ipconfig");
 
     JsonApiDocument<ResourceObject> document =
-        new JsonApiDocument<>(
-            new ResourceObject(
-                null,
-                "command",
-                payloadAttrs,
-                Map.of(
-                    "payload_output_parsers",
-                    new Relationship(List.of(new ResourceIdentifier(parserId, "output_parsers"))))),
-            List.of(outputParserResource, contractOutputElementResource, regexGroupResource));
+            new JsonApiDocument<>(
+                    new ResourceObject(
+                            null,
+                            "command",
+                            payloadAttrs,
+                            Map.of(
+                                    "payload_output_parsers",
+                                    new Relationship(List.of(new ResourceIdentifier(parserId, "output_parsers"))))),
+                    List.of(outputParserResource, contractOutputElementResource, regexGroupResource));
 
     MockMultipartFile zipFile = buildZipFile(document);
 
@@ -312,8 +316,8 @@ class PayloadApiImporterTest extends IntegrationTest {
 
     assertEquals("command", json.at("/data/type").asText());
     assertEquals(
-        "Payload With Output Parser" + IMPORTED_OBJECT_NAME_SUFFIX,
-        json.at("/data/attributes/payload_name").asText());
+            "Payload With Output Parser" + IMPORTED_OBJECT_NAME_SUFFIX,
+            json.at("/data/attributes/payload_name").asText());
 
     // Output parser must be referenced in the payload's relationships
     JsonNode outputParserRel = json.at("/data/relationships/payload_output_parsers/data");
@@ -366,24 +370,24 @@ class PayloadApiImporterTest extends IntegrationTest {
 
     // RegexGroups for element 1 (2 groups: host + port)
     ResourceObject regexGroup1 =
-        new ResourceObject(
-            regex1Id,
-            "regex_groups",
-            Map.of("regex_group_field", "host", "regex_group_index_values", "$1"),
-            null);
+            new ResourceObject(
+                    regex1Id,
+                    "regex_groups",
+                    Map.of("regex_group_field", "host", "regex_group_index_values", "$1"),
+                    null);
     ResourceObject regexGroup2 =
-        new ResourceObject(
-            regex2Id,
-            "regex_groups",
-            Map.of("regex_group_field", "port", "regex_group_index_values", "$2"),
-            null);
+            new ResourceObject(
+                    regex2Id,
+                    "regex_groups",
+                    Map.of("regex_group_field", "port", "regex_group_index_values", "$2"),
+                    null);
     // RegexGroup for element 2 (1 group: username)
     ResourceObject regexGroup3 =
-        new ResourceObject(
-            regex3Id,
-            "regex_groups",
-            Map.of("regex_group_field", "username", "regex_group_index_values", "$1"),
-            null);
+            new ResourceObject(
+                    regex3Id,
+                    "regex_groups",
+                    Map.of("regex_group_field", "username", "regex_group_index_values", "$1"),
+                    null);
 
     // ContractOutputElement 1: PortsScan with 2 regex groups
     Map<String, Object> element1Attrs = new HashMap<>();
@@ -393,16 +397,16 @@ class PayloadApiImporterTest extends IntegrationTest {
     element1Attrs.put("contract_output_element_type", "portscan");
     element1Attrs.put("contract_output_element_is_finding", true);
     ResourceObject contractOutputElement1 =
-        new ResourceObject(
-            element1Id,
-            "contract_output_elements",
-            element1Attrs,
-            Map.of(
-                "contract_output_element_regex_groups",
-                new Relationship(
-                    List.of(
-                        new ResourceIdentifier(regex1Id, "regex_groups"),
-                        new ResourceIdentifier(regex2Id, "regex_groups")))));
+            new ResourceObject(
+                    element1Id,
+                    "contract_output_elements",
+                    element1Attrs,
+                    Map.of(
+                            "contract_output_element_regex_groups",
+                            new Relationship(
+                                    List.of(
+                                            new ResourceIdentifier(regex1Id, "regex_groups"),
+                                            new ResourceIdentifier(regex2Id, "regex_groups")))));
 
     // ContractOutputElement 2: Username with 1 regex group
     Map<String, Object> element2Attrs = new HashMap<>();
@@ -412,26 +416,26 @@ class PayloadApiImporterTest extends IntegrationTest {
     element2Attrs.put("contract_output_element_type", "text");
     element2Attrs.put("contract_output_element_is_finding", true);
     ResourceObject contractOutputElement2 =
-        new ResourceObject(
-            element2Id,
-            "contract_output_elements",
-            element2Attrs,
-            Map.of(
-                "contract_output_element_regex_groups",
-                new Relationship(List.of(new ResourceIdentifier(regex3Id, "regex_groups")))));
+            new ResourceObject(
+                    element2Id,
+                    "contract_output_elements",
+                    element2Attrs,
+                    Map.of(
+                            "contract_output_element_regex_groups",
+                            new Relationship(List.of(new ResourceIdentifier(regex3Id, "regex_groups")))));
 
     // OutputParser with 2 contract output elements
     ResourceObject outputParserResource =
-        new ResourceObject(
-            parserId,
-            "output_parsers",
-            Map.of("output_parser_mode", "STDOUT", "output_parser_type", "REGEX"),
-            Map.of(
-                "output_parser_contract_output_elements",
-                new Relationship(
-                    List.of(
-                        new ResourceIdentifier(element1Id, "contract_output_elements"),
-                        new ResourceIdentifier(element2Id, "contract_output_elements")))));
+            new ResourceObject(
+                    parserId,
+                    "output_parsers",
+                    Map.of("output_parser_mode", "STDOUT", "output_parser_type", "REGEX"),
+                    Map.of(
+                            "output_parser_contract_output_elements",
+                            new Relationship(
+                                    List.of(
+                                            new ResourceIdentifier(element1Id, "contract_output_elements"),
+                                            new ResourceIdentifier(element2Id, "contract_output_elements")))));
 
     // Payload + OutputParser
     Map<String, Object> payloadAttrs = buildDefaultPayloadAttributes();
@@ -441,21 +445,21 @@ class PayloadApiImporterTest extends IntegrationTest {
     payloadAttrs.put("payload_platforms", new String[] {"Linux"});
 
     JsonApiDocument<ResourceObject> document =
-        new JsonApiDocument<>(
-            new ResourceObject(
-                null,
-                "command",
-                payloadAttrs,
-                Map.of(
-                    "payload_output_parsers",
-                    new Relationship(List.of(new ResourceIdentifier(parserId, "output_parsers"))))),
-            List.of(
-                outputParserResource,
-                contractOutputElement1,
-                contractOutputElement2,
-                regexGroup1,
-                regexGroup2,
-                regexGroup3));
+            new JsonApiDocument<>(
+                    new ResourceObject(
+                            null,
+                            "command",
+                            payloadAttrs,
+                            Map.of(
+                                    "payload_output_parsers",
+                                    new Relationship(List.of(new ResourceIdentifier(parserId, "output_parsers"))))),
+                    List.of(
+                            outputParserResource,
+                            contractOutputElement1,
+                            contractOutputElement2,
+                            regexGroup1,
+                            regexGroup2,
+                            regexGroup3));
 
     MockMultipartFile zipFile = buildZipFile(document);
 
@@ -467,8 +471,8 @@ class PayloadApiImporterTest extends IntegrationTest {
     JsonNode json = objectMapper.readTree(response);
     assertEquals("command", json.at("/data/type").asText());
     assertEquals(
-        "Payload With Multiple Elements" + IMPORTED_OBJECT_NAME_SUFFIX,
-        json.at("/data/attributes/payload_name").asText());
+            "Payload With Multiple Elements" + IMPORTED_OBJECT_NAME_SUFFIX,
+            json.at("/data/attributes/payload_name").asText());
 
     // All 2 contract output elements and 3 regex groups must be present in included
     JsonNode included = json.at("/included");
@@ -497,8 +501,8 @@ class PayloadApiImporterTest extends IntegrationTest {
     attributes.remove("payload_platforms");
 
     JsonApiDocument<ResourceObject> document =
-        new JsonApiDocument<>(
-            new ResourceObject(null, "command", attributes, emptyMap()), emptyList());
+            new JsonApiDocument<>(
+                    new ResourceObject(null, "command", attributes, emptyMap()), emptyList());
 
     MockMultipartFile zipFile = buildZipFile(document);
 
@@ -514,114 +518,32 @@ class PayloadApiImporterTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("Given unknown collector should skip detection remediations during import")
-  void given_unknownCollector_should_skipDetectionRemediations() throws Exception {
-    // -- PREPARE --
-    String unknownCollectorResourceId = UUID.randomUUID().toString();
-    String remediationId = UUID.randomUUID().toString();
-
-    ResourceObject unknownCollectorResource =
-        buildCollectorResource(unknownCollectorResourceId, "non_existing_collector_type");
-
-    ResourceObject remediation =
-        DetectionRemediationFixture.buildDetectionRemediationResource(
-            remediationId, "{\"rule\":\"test\"}", "collector_types", unknownCollectorResourceId);
-
-    JsonApiDocument<ResourceObject> document =
-        new JsonApiDocument<>(
-            new ResourceObject(
-                null,
-                "command",
-                buildDefaultPayloadAttributes(),
-                Map.of(
-                    "payload_detection_remediations",
-                    new Relationship(
-                        List.of(new ResourceIdentifier(remediationId, "detection_remediations"))))),
-            List.of(remediation, unknownCollectorResource));
-
-    MockMultipartFile zipFile = buildZipFile(document);
-
-    // -- EXECUTE --
-    String response = performImport(zipFile);
-
-    // -- ASSERT --
-    JsonNode json = objectMapper.readTree(response);
-    String payloadId = json.at("/data/attributes/payload_id").asText();
-    assertNotNull(payloadId);
-
-    Payload payloadPersisted = payloadRepository.findById(payloadId).orElseThrow();
-    assertTrue(
-        payloadPersisted.getDetectionRemediations().isEmpty(),
-        "Detection remediations with unknown collector should be skipped");
-  }
-
-  @Test
-  @DisplayName(
-      "Given mixed known and unknown collectors should keep only known detection remediations")
-  void given_mixedCollectors_should_keepOnlyKnownDetectionRemediations() throws Exception {
-    // -- PREPARE --
+  @DisplayName("Given mixed collector references should sanitize unknown detection remediations")
+  void given_mixedCollectorReferences_should_sanitizeUnknownDetectionRemediations() {
+    // Arrange
     var existingCollector = collectorRepository.findAll().iterator().next();
 
-    String knownCollectorResourceId = UUID.randomUUID().toString();
-    String unknownCollectorResourceId = UUID.randomUUID().toString();
-    String knownRemediationId = UUID.randomUUID().toString();
-    String unknownRemediationId = UUID.randomUUID().toString();
+    DetectionRemediation validRemediation = new DetectionRemediation();
+    Collector collector = new Collector();
+    collector.setId(existingCollector.getId());
+    collector.setType(existingCollector.getType());
+    collector.setName(existingCollector.getName());
+    validRemediation.setCollectorType(collector.getCollectorType());
 
-    ResourceObject knownCollectorResource =
-        buildCollectorResource(knownCollectorResourceId, existingCollector.getType());
-    ResourceObject unknownCollectorResource =
-        buildCollectorResource(unknownCollectorResourceId, "non_existing_collector_type");
+    DetectionRemediation unknownCollectorRemediation = new DetectionRemediation();
+    unknownCollectorRemediation.setCollectorType(null);
 
-    ResourceObject knownRemediation =
-        DetectionRemediationFixture.buildDetectionRemediationResource(
-            knownRemediationId,
-            "{\"rule\":\"valid\"}",
-            "collector_types",
-            knownCollectorResourceId);
-    ResourceObject unknownRemediation =
-        DetectionRemediationFixture.buildDetectionRemediationResource(
-            unknownRemediationId,
-            "{\"rule\":\"invalid\"}",
-            "collector_types",
-            unknownCollectorResourceId);
+    Payload payload = new Payload();
+    payload.setDetectionRemediations(List.of(validRemediation, unknownCollectorRemediation));
 
-    JsonApiDocument<ResourceObject> document =
-        new JsonApiDocument<>(
-            new ResourceObject(
-                null,
-                "command",
-                buildDefaultPayloadAttributes(),
-                Map.of(
-                    "payload_detection_remediations",
-                    new Relationship(
-                        List.of(
-                            new ResourceIdentifier(knownRemediationId, "detection_remediations"),
-                            new ResourceIdentifier(
-                                unknownRemediationId, "detection_remediations"))))),
-            List.of(
-                knownRemediation,
-                unknownRemediation,
-                knownCollectorResource,
-                unknownCollectorResource));
+    PayloadApiImporter importer = new PayloadApiImporter(null, null, null);
 
-    MockMultipartFile zipFile = buildZipFile(document);
+    // Act
+    Payload sanitizedPayload = ReflectionTestUtils.invokeMethod(importer, "sanitize", payload);
 
-    // -- EXECUTE --
-    String response = performImport(zipFile);
-
-    // -- ASSERT --
-    JsonNode json = objectMapper.readTree(response);
-    String payloadId = json.at("/data/attributes/payload_id").asText();
-    assertNotNull(payloadId);
-
-    Payload payloadPersisted = payloadRepository.findById(payloadId).orElseThrow();
-    assertEquals(
-        1,
-        payloadPersisted.getDetectionRemediations().size(),
-        "Only detection remediations with known collector should be kept");
-    assertEquals(
-        existingCollector.getType(),
-        payloadPersisted.getDetectionRemediations().getFirst().getCollectorType().getName());
+    // Assert
+    assertSame(payload, sanitizedPayload);
+    assertEquals(0, sanitizedPayload.getDetectionRemediations().size());
   }
 
   @Test
@@ -634,29 +556,29 @@ class PayloadApiImporterTest extends IntegrationTest {
     String secondRemediationId = UUID.randomUUID().toString();
 
     ResourceObject collectorResource =
-        buildCollectorResource(collectorResourceId, existingCollector.getType());
+            buildCollectorResource(collectorResourceId, existingCollector.getType());
 
     ResourceObject firstRemediation =
-        DetectionRemediationFixture.buildDetectionRemediationResource(
-            firstRemediationId, "{\"rule\":\"first\"}", "collector_types", collectorResourceId);
+            DetectionRemediationFixture.buildDetectionRemediationResource(
+                    firstRemediationId, "{\"rule\":\"first\"}", "collectors", collectorResourceId);
     ResourceObject secondRemediation =
-        DetectionRemediationFixture.buildDetectionRemediationResource(
-            secondRemediationId, "{\"rule\":\"second\"}", "collector_types", collectorResourceId);
+            DetectionRemediationFixture.buildDetectionRemediationResource(
+                    secondRemediationId, "{\"rule\":\"second\"}", "collectors", collectorResourceId);
 
     JsonApiDocument<ResourceObject> document =
-        new JsonApiDocument<>(
-            new ResourceObject(
-                null,
-                "command",
-                buildDefaultPayloadAttributes(),
-                Map.of(
-                    "payload_detection_remediations",
-                    new Relationship(
-                        List.of(
-                            new ResourceIdentifier(firstRemediationId, "detection_remediations"),
-                            new ResourceIdentifier(
-                                secondRemediationId, "detection_remediations"))))),
-            List.of(firstRemediation, secondRemediation, collectorResource));
+            new JsonApiDocument<>(
+                    new ResourceObject(
+                            null,
+                            "command",
+                            buildDefaultPayloadAttributes(),
+                            Map.of(
+                                    "payload_detection_remediations",
+                                    new Relationship(
+                                            List.of(
+                                                    new ResourceIdentifier(firstRemediationId, "detection_remediations"),
+                                                    new ResourceIdentifier(
+                                                            secondRemediationId, "detection_remediations"))))),
+                    List.of(firstRemediation, secondRemediation, collectorResource));
 
     MockMultipartFile zipFile = buildZipFile(document);
 
