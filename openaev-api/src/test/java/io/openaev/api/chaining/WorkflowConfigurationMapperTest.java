@@ -70,7 +70,7 @@ class WorkflowConfigurationMapperTest {
       // Arrange
       WorkflowScopeRule rule =
           WorkflowScopeRule.builder()
-              .selectedMode(ScopeRuleSelectedMode.WHITELIST)
+              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
               .ruleSource(ScopeRuleSource.MANUAL)
               .ruleValue("10.0.0.1")
               .build();
@@ -84,7 +84,7 @@ class WorkflowConfigurationMapperTest {
       // Assert
       assertEquals(1, output.getWorkflowScopeRules().size());
       WorkflowScopeRuleOutput ruleOutput = output.getWorkflowScopeRules().getFirst();
-      assertEquals(ScopeRuleSelectedMode.WHITELIST, ruleOutput.getSelectedMode());
+      assertEquals(ScopeRuleSelectedMode.ALLOWLIST, ruleOutput.getSelectedMode());
       assertEquals(ScopeRuleSource.MANUAL, ruleOutput.getRuleSource());
       assertEquals("10.0.0.1", ruleOutput.getRuleValue());
     }
@@ -93,22 +93,22 @@ class WorkflowConfigurationMapperTest {
     @DisplayName("should map multiple scope rules preserving order")
     void shouldMapMultipleScopeRules() {
       // Arrange
-      WorkflowScopeRule whitelist =
+      WorkflowScopeRule allowlist =
           WorkflowScopeRule.builder()
-              .selectedMode(ScopeRuleSelectedMode.WHITELIST)
+              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
               .ruleSource(ScopeRuleSource.MANUAL)
               .ruleValue("10.0.0.1")
               .build();
-      WorkflowScopeRule blacklist =
+      WorkflowScopeRule denylist =
           WorkflowScopeRule.builder()
-              .selectedMode(ScopeRuleSelectedMode.BLACKLIST)
+              .selectedMode(ScopeRuleSelectedMode.DENYLIST)
               .ruleSource(ScopeRuleSource.MANUAL)
               .ruleValue("192.168.0.0/16")
               .build();
 
       Workflow workflow =
           Workflow.builder()
-              .workflowScopeRules(new ArrayList<>(List.of(whitelist, blacklist)))
+              .workflowScopeRules(new ArrayList<>(List.of(allowlist, denylist)))
               .build();
 
       // Act
@@ -117,9 +117,9 @@ class WorkflowConfigurationMapperTest {
       // Assert
       assertEquals(2, output.getWorkflowScopeRules().size());
       assertEquals(
-          ScopeRuleSelectedMode.WHITELIST, output.getWorkflowScopeRules().get(0).getSelectedMode());
+          ScopeRuleSelectedMode.ALLOWLIST, output.getWorkflowScopeRules().get(0).getSelectedMode());
       assertEquals(
-          ScopeRuleSelectedMode.BLACKLIST, output.getWorkflowScopeRules().get(1).getSelectedMode());
+          ScopeRuleSelectedMode.DENYLIST, output.getWorkflowScopeRules().get(1).getSelectedMode());
     }
   }
 }

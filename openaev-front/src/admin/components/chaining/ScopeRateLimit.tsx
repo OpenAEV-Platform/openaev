@@ -11,8 +11,8 @@ import {
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 
-import { useFormatter } from '../../../../../components/i18n';
-import type { WorkflowConfigurationInput, WorkflowConfigurationOutput } from '../../../../../utils/api-types';
+import { useFormatter } from '../../../components/i18n';
+import type { WorkflowConfigurationInput, WorkflowConfigurationOutput } from '../../../utils/api-types';
 
 interface ScopeRateLimitProps {
   workflowConfiguration: WorkflowConfigurationOutput | undefined;
