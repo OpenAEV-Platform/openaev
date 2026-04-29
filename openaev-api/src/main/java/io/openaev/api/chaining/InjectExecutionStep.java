@@ -5,6 +5,7 @@ import static io.openaev.database.model.DnsResolution.DNS_RESOLUTION_TYPE;
 import static io.openaev.database.model.Executable.EXECUTABLE_TYPE;
 import static io.openaev.database.model.FileDrop.FILE_DROP_TYPE;
 import static io.openaev.service.chaining.StepService.setField;
+import static io.openaev.utils.JsonUtils.gson;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.InjectableValues;
@@ -66,8 +67,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Component
 @Slf4j
 public class InjectExecutionStep implements ActionStep {
-
-  private static final Gson gson = new Gson();
 
   private final InjectorContractService injectorContractService;
   private final UserService userService;

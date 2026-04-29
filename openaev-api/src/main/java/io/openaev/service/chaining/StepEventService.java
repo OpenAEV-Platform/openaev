@@ -1,6 +1,5 @@
 package io.openaev.service.chaining;
 
-import com.google.gson.Gson;
 import io.openaev.api.chaining.ActionStep;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.StepStatus;
@@ -22,8 +21,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Service
 public class StepEventService implements StepEventHandler, ExternalUpdateEventHandler {
-
-  private static final Gson gson = new Gson();
 
   private final StepService stepService;
   private final WorkflowService workflowService;

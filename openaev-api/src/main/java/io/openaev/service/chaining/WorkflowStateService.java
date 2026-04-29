@@ -1,5 +1,7 @@
 package io.openaev.service.chaining;
 
+import static io.openaev.utils.JsonUtils.gson;
+
 import com.google.gson.*;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.WorkflowStateRepository;
@@ -14,8 +16,6 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 @Service
 public class WorkflowStateService {
-
-  private final Gson gson = new Gson();
 
   private final ConditionUtils conditionUtils;
 

@@ -1,8 +1,8 @@
 package io.openaev.service.chaining;
 
 import static io.openaev.api.chaining.ConditionMapper.resolveMappingType;
+import static io.openaev.utils.JsonUtils.gson;
 
-import com.google.gson.Gson;
 import io.openaev.api.chaining.ConditionMapper;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.EventInput;
@@ -29,8 +29,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @Transactional(rollbackFor = Exception.class)
 public class ConditionService {
-
-  private static final Gson gson = new Gson();
 
   private final WorkflowStateService workflowStateService;
 
