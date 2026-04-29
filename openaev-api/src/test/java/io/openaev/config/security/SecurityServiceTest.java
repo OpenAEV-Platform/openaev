@@ -1,7 +1,5 @@
 package io.openaev.config.security;
 
-import static io.openaev.config.security.SecurityService.OPENAEV_PROVIDER_PATH_PREFIX;
-import static io.openaev.config.security.SecurityService.TENANT_ID_SUFFIX;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
@@ -19,7 +17,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.env.Environment;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
@@ -28,22 +25,17 @@ class SecurityServiceTest extends IntegrationTest {
 
   private static final String REGISTRATION_ID = "oidc";
   private static final String SSO_EMAIL = "sso-user@integration.test";
+  private static final String SSO_TENANT_ID = "sso-test-tenant-id";
 
   @Autowired private SecurityService securityService;
   @Autowired private UserRepository userRepository;
   @Autowired private UserComposer userComposer;
   @Autowired private TenantComposer tenantComposer;
-  @Autowired private Environment env;
-
-  private String ssoTenantId;
 
   @BeforeEach
   void setup() {
     userComposer.reset();
     tenantComposer.reset();
-    ssoTenantId =
-        env.getProperty(
-            OPENAEV_PROVIDER_PATH_PREFIX + REGISTRATION_ID + TENANT_ID_SUFFIX, String.class, "");
   }
 
   @Nested
@@ -108,7 +100,7 @@ class SecurityServiceTest extends IntegrationTest {
     void given_newUserWithTenantConfigured_should_attachTenant() {
       // -- ARRANGE --
       Tenant tenant = TenantFixture.getTenant();
-      tenant.setId(ssoTenantId);
+      tenant.setId(SSO_TENANT_ID);
       tenantComposer.forTenant(tenant).persist();
 
       // -- ACT --
@@ -118,14 +110,14 @@ class SecurityServiceTest extends IntegrationTest {
 
       // -- ASSERT --
       assertThat(result.getTenants()).hasSize(1);
-      assertThat(result.getTenants().getFirst().getId()).isEqualTo(ssoTenantId);
+      assertThat(result.getTenants().getFirst().getId()).isEqualTo(SSO_TENANT_ID);
     }
 
     @Test
     void given_existingUserWithTenantAlreadyAttached_should_notDuplicate() {
       // -- ARRANGE --
       Tenant tenant = TenantFixture.getTenant();
-      tenant.setId(ssoTenantId);
+      tenant.setId(SSO_TENANT_ID);
       tenantComposer.forTenant(tenant).persist();
       User user = UserFixture.getUser("John", "Doe", SSO_EMAIL);
       user.getTenants().add(tenant);
