@@ -14,7 +14,7 @@ import { store } from '../store';
 import { APP_BASE_PATH, MESSAGING$ } from './Environment';
 import { notifyErrorHandler } from './error/errorHandlerUtil';
 import { oaevLocaleMap } from './locales';
-import { buildTenantApiPath } from './tenant-url-helper';
+import { buildTenantApiPath } from './url-helper';
 
 const cache = createIntlCache();
 

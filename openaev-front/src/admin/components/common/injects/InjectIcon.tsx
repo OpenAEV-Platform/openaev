@@ -5,7 +5,7 @@ import { type FunctionComponent } from 'react';
 
 import CustomTooltip from '../../../../components/CustomTooltip';
 import { useFormatter } from '../../../../components/i18n';
-import { buildTenantApiPath } from '../../../../utils/tenant-url-helper';
+import { buildTenantApiPath } from '../../../../utils/url-helper';
 
 interface Props {
   type: string | undefined;

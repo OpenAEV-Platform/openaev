@@ -12,15 +12,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.Command;
-import io.openaev.database.model.Domain;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
-import io.openaev.utils.fixtures.DomainFixture;
 import io.openaev.utils.fixtures.composers.DomainComposer;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,9 +32,6 @@ public class HealthCheckUtilsTest {
   @Autowired private DomainComposer domainComposer;
 
   private InjectorContract prepareInjectorContract() throws JsonProcessingException {
-
-    Set<Domain> domains =
-        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
     Injector injector = createDefaultPayloadInjector();
     Command payloadCommand = createCommand("cmd", "whoami", List.of(), "whoami");
     return createPayloadInjectorContractWithDefaultDomain(injector, payloadCommand);

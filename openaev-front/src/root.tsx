@@ -5,6 +5,7 @@ import { Navigate, Route, Routes } from 'react-router';
 
 import { fetchMe, fetchPlatformParameters } from './actions/Application';
 import { type LoggedHelper } from './actions/helper';
+import fetchPublicPlatformParameters from './actions/settings/platform-settings-action';
 import EnterpriseEditionAgreementDialog from './admin/components/common/entreprise_edition/EnterpriseEditionAgreementDialog';
 import ConnectedIntlProvider from './components/AppIntlProvider';
 import ConnectedThemeProvider from './components/AppThemeProvider';
@@ -23,7 +24,8 @@ import { UserContext } from './utils/hooks/useAuth';
 import useNetworkCheck from './utils/hooks/useCheckNetwork';
 import useTenant from './utils/hooks/useTenant';
 import PermissionsProvider from './utils/permissions/PermissionsProvider';
-import { buildTenantUrl, DEFAULT_TENANT_UUID, extractTenantFromUrl } from './utils/tenant-url-helper';
+import { useIsCurrentPlatformRoute } from './utils/platformContext';
+import { buildTenantUrl, DEFAULT_TENANT_UUID, extractTenantFromUrl } from './utils/url-helper';
 
 const RootPublic = lazy(() => import('./public/Root'));
 const IndexPrivate = lazy(() => import('./private/Index'));
@@ -46,13 +48,23 @@ const Root = () => {
     };
   });
   const dispatch = useAppDispatch();
+  const isPlatform = useIsCurrentPlatformRoute();
 
-  const { userTenants, currentUserTenant, switchUserTenant, reloadUserTenants } = useTenant(me, logged);
+  const { userTenants, currentUserTenant, switchUserTenant, reloadUserTenants } = useTenant(me, logged, isPlatform);
 
   useEffect(() => {
+    dispatch(fetchPublicPlatformParameters());
     dispatch(fetchMe());
-    dispatch(fetchPlatformParameters());
   }, []);
+
+  // Fetch full settings once authenticated, re-fetch public settings on logout
+  useEffect(() => {
+    if (logged && me) {
+      dispatch(fetchPlatformParameters());
+    } else if (logged === null) {
+      dispatch(fetchPublicPlatformParameters());
+    }
+  }, [logged, me]);
 
   const { isReachable } = useNetworkCheck(settings?.xtm_hub_url && `${settings?.xtm_hub_url}/health`);
   if (logged && typeof logged === 'object' && Object.keys(logged).length === 0) {
@@ -67,10 +79,11 @@ const Root = () => {
     );
   }
 
+  // Platform routes are tenant-agnostic — no redirect needed.
   // When the user is authenticated but the URL has no tenant prefix
   // (e.g. first visit at "/", or right after login), hard-redirect to
   // the tenant-prefixed URL so BrowserRouter picks up the correct basename.
-  if (!extractTenantFromUrl()) {
+  if (!extractTenantFromUrl() && !isPlatform) {
     const tenantId = currentUserTenant?.tenant_id ?? DEFAULT_TENANT_UUID;
     window.location.href = buildTenantUrl(tenantId);
     return <Loader />;

@@ -41,7 +41,7 @@ import Loader from '../../../components/Loader';
 import { useHelper } from '../../../store';
 import { useQueryParameter } from '../../../utils/Environment';
 import useSimulationPermissions from '../../../utils/permissions/useSimulationPermissions';
-import { buildTenantApiPath } from '../../../utils/tenant-url-helper.ts';
+import { buildTenantApiPath } from '../../../utils/url-helper';
 
 const useStyles = makeStyles()(() => ({
   root: {

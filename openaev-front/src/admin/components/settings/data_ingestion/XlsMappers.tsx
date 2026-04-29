@@ -14,6 +14,7 @@ import { useFormatter } from '../../../../components/i18n';
 import { type RawPaginationImportMapper, type SearchPaginationInput } from '../../../../utils/api-types';
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { TENANT_SETTINGS_LABEL } from '../../nav/config/settings.config';
 import DataIngestionMenu from '../DataIngestionMenu';
 import ImportUploaderMapper from './ImportUploaderMapper';
 import XlsMapperCreation from './xls_mapper/XlsMapperCreation';
@@ -73,7 +74,7 @@ const XlsMappers = () => {
       <div style={{ flexGrow: 1 }}>
         <Breadcrumbs
           variant="list"
-          elements={[{ label: t('Settings') }, { label: t('Data ingestion') }, {
+          elements={[{ label: t(TENANT_SETTINGS_LABEL) }, { label: t('Data ingestion') }, {
             label: t('XLS mappers'),
             current: true,
           }]}

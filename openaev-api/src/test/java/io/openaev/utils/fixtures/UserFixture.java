@@ -87,8 +87,12 @@ public class UserFixture {
   }
 
   public static ResetUserInput getResetUserInput() {
+    return getResetUserInput(EMAIL);
+  }
+
+  public static ResetUserInput getResetUserInput(String email) {
     ResetUserInput resetUserInput = new ResetUserInput();
-    resetUserInput.setLogin(EMAIL);
+    resetUserInput.setLogin(email);
 
     return resetUserInput;
   }

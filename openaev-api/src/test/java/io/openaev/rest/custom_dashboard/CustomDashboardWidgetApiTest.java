@@ -8,6 +8,7 @@ import static io.openaev.utils.fixtures.CustomDashboardFixture.createDefaultCust
 import static io.openaev.utils.fixtures.WidgetFixture.NAME;
 import static io.openaev.utils.fixtures.WidgetFixture.createDefaultWidget;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -74,7 +75,8 @@ class CustomDashboardWidgetApiTest extends IntegrationTest {
         .perform(
             post(CUSTOM_DASHBOARDS_URI + "/" + customDashboard.getId() + "/widgets")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(input)))
+                .content(asJsonString(input))
+                .with(csrf()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.widget_config.title").value(name));
   }
@@ -107,7 +109,8 @@ class CustomDashboardWidgetApiTest extends IntegrationTest {
         .perform(
             post(CUSTOM_DASHBOARDS_URI + "/" + customDashboard.getId() + "/widgets")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(input)))
+                .content(asJsonString(input))
+                .with(csrf()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.widget_config.title").value(name));
   }
@@ -121,7 +124,8 @@ class CustomDashboardWidgetApiTest extends IntegrationTest {
 
     // -- EXECUTE & ASSERT --
     mockMvc
-        .perform(get(CUSTOM_DASHBOARDS_URI + "/" + customDashboard.getId() + "/widgets"))
+        .perform(
+            get(CUSTOM_DASHBOARDS_URI + "/" + customDashboard.getId() + "/widgets").with(csrf()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.length()").value(1))
         .andExpect(jsonPath("$[0].widget_config.title").value(NAME));
@@ -137,12 +141,12 @@ class CustomDashboardWidgetApiTest extends IntegrationTest {
     // -- EXECUTE & ASSERT --
     mockMvc
         .perform(
-            get(
-                CUSTOM_DASHBOARDS_URI
+            get(CUSTOM_DASHBOARDS_URI
                     + "/"
                     + customDashboard.getId()
                     + "/widgets/"
-                    + composer.get().getId()))
+                    + composer.get().getId())
+                .with(csrf()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.widget_config.title").value(NAME));
   }
@@ -169,7 +173,8 @@ class CustomDashboardWidgetApiTest extends IntegrationTest {
                     + "/widgets/"
                     + widget.getId())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(widget)))
+                .content(asJsonString(widget))
+                .with(csrf()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.widget_config.title").value(NAME))
         .andExpect(jsonPath("$.widget_layout.widget_layout_x").value(10));
@@ -187,11 +192,12 @@ class CustomDashboardWidgetApiTest extends IntegrationTest {
     mockMvc
         .perform(
             delete(
-                CUSTOM_DASHBOARDS_URI
-                    + "/"
-                    + customDashboard.getId()
-                    + "/widgets/"
-                    + widget.getId()))
+                    CUSTOM_DASHBOARDS_URI
+                        + "/"
+                        + customDashboard.getId()
+                        + "/widgets/"
+                        + widget.getId())
+                .with(csrf()))
         .andExpect(status().isNoContent());
 
     assertThat(repository.existsById(widget.getId())).isFalse();

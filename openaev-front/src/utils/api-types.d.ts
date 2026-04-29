@@ -2838,16 +2838,22 @@ export interface ExecutionTrace {
   execution_message: string;
   execution_status?:
     | "SUCCESS"
+    | "SUCCESS_WITH_CLEANUP_FAIL"
+    | "WARNING"
+    | "ACCESS_DENIED"
     | "ERROR"
-    | "MAYBE_PREVENTED"
     | "COMMAND_NOT_FOUND"
     | "COMMAND_CANNOT_BE_EXECUTED"
-    | "WARNING"
-    | "PARTIAL"
-    | "MAYBE_PARTIAL_PREVENTED"
+    | "PREREQUISITE_FAILED"
+    | "INVALID_USAGE"
+    | "TIMEOUT"
+    | "INTERRUPTED"
     | "ASSET_AGENTLESS"
     | "AGENT_INACTIVE"
-    | "INFO";
+    | "INFO"
+    | "PARTIAL"
+    | "MAYBE_PREVENTED"
+    | "MAYBE_PARTIAL_PREVENTED";
   /** @format date-time */
   execution_time?: string;
   execution_trace_id: string;
@@ -2880,16 +2886,22 @@ export interface ExecutionTraceOutput {
    */
   execution_status:
     | "SUCCESS"
+    | "SUCCESS_WITH_CLEANUP_FAIL"
+    | "WARNING"
+    | "ACCESS_DENIED"
     | "ERROR"
-    | "MAYBE_PREVENTED"
     | "COMMAND_NOT_FOUND"
     | "COMMAND_CANNOT_BE_EXECUTED"
-    | "WARNING"
-    | "PARTIAL"
-    | "MAYBE_PARTIAL_PREVENTED"
+    | "PREREQUISITE_FAILED"
+    | "INVALID_USAGE"
+    | "TIMEOUT"
+    | "INTERRUPTED"
     | "ASSET_AGENTLESS"
     | "AGENT_INACTIVE"
-    | "INFO";
+    | "INFO"
+    | "PARTIAL"
+    | "MAYBE_PREVENTED"
+    | "MAYBE_PARTIAL_PREVENTED";
   /** @format date-time */
   execution_time: string;
 }
@@ -3075,6 +3087,8 @@ export interface ExerciseSimple {
    * @format date-time
    */
   exercise_updated_at?: string;
+  /** Workflow ID associated with the simulation */
+  exercise_workflow_id?: string;
 }
 
 export interface ExerciseTeamPlayersEnableInput {
@@ -3455,6 +3469,7 @@ export interface HealthCheck {
     | "BODY"
     | "OPTIONAL_ARGS"
     | "MESSAGE"
+    | "SCOPE_DEFINITION"
     | "UNKNOWN";
 }
 
@@ -4094,9 +4109,9 @@ export interface InjectStatus {
   status_id?: string;
   status_name:
     | "SUCCESS"
+    | "PARTIAL"
     | "ERROR"
     | "MAYBE_PREVENTED"
-    | "PARTIAL"
     | "MAYBE_PARTIAL_PREVENTED"
     | "DRAFT"
     | "QUEUING"
@@ -4366,7 +4381,14 @@ export interface InjectorContractInput {
 export interface InjectorContractSearchPaginationInput {
   /** Filter object to search within filterable attributes */
   filterGroup?: FilterGroup;
+  /** Include the injector contract content on the returned object if set to true */
+  include_content_details?: boolean;
+  /** Allow the return of a full object if true, partial object if false */
   include_full_details?: boolean;
+  /** List of all the ids to ignore on the search */
+  injector_contract_ids_to_ignore?: string[];
+  /** List of all the ids to include on the search */
+  injector_contract_ids_to_process?: string[];
   /**
    * Page number to get
    * @format int32
@@ -4506,6 +4528,18 @@ export interface JsonApiDocumentResourceObject {
 }
 
 export type JsonNode = any;
+
+export interface JwkOutput {
+  crv?: string;
+  key_ops?: string[];
+  kid?: string;
+  kty?: string;
+  x?: string;
+}
+
+export interface JwksOutput {
+  keys?: JwkOutput[];
+}
 
 export interface KillChainPhase {
   listened?: boolean;
@@ -4863,6 +4897,8 @@ export interface LoginUserInput {
    * @minLength 1
    */
   password: string;
+  /** The tenant ID the user is logging into (optional) */
+  tenantId?: string;
 }
 
 export interface Mitigation {
@@ -5324,25 +5360,6 @@ export interface PageInjectTarget {
 
 export interface PageInjectTestStatusOutput {
   content?: InjectTestStatusOutput[];
-  empty?: boolean;
-  first?: boolean;
-  last?: boolean;
-  /** @format int32 */
-  number?: number;
-  /** @format int32 */
-  numberOfElements?: number;
-  pageable?: PageableObject;
-  /** @format int32 */
-  size?: number;
-  sort?: SortObject[];
-  /** @format int64 */
-  totalElements?: number;
-  /** @format int32 */
-  totalPages?: number;
-}
-
-export interface PageInjectorContractBaseOutput {
-  content?: InjectorContractBaseOutput[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
@@ -6310,7 +6327,7 @@ export interface PlatformSettings {
    * @minLength 1
    */
   platform_lang: string;
-  /** Platform licensing */
+  /** Platform licensing information */
   platform_license?: License;
   /** Definition of the light theme */
   platform_light_theme?: ThemeInput;
@@ -6503,6 +6520,51 @@ export interface PublicExercise {
   name?: string;
 }
 
+export interface PublicPlatformSettings {
+  /** True if Saml2 is enabled */
+  auth_saml2_enable?: boolean;
+  /** List of Saml2 providers */
+  platform_saml2_providers?: OAuthProvider[];
+  /** True if local authentication is enabled */
+  auth_local_enable?: boolean;
+  /** True if OpenID is enabled */
+  auth_openid_enable?: boolean;
+  /** List of enabled dev features */
+  enabled_dev_features?: (
+    | "_RESERVED"
+    | "FEATURE_FLAG_ALL"
+    | "STIX_SECURITY_COVERAGE_FOR_VULNERABILITIES"
+    | "LEGACY_INGESTION_EXECUTION_TRACE"
+    | "MULTI_TENANCY"
+    | "SENTINEL_ONE_EXECUTOR"
+    | "PALO_ALTO_CORTEX_EXECUTOR"
+    | "OPENAEV_TRIALS_XTMHUB"
+    | "INJECT_CHAINING"
+  )[];
+  /** Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL) */
+  platform_banner_by_level?: Record<string, string[]>;
+  /** Definition of the dark theme */
+  platform_dark_theme?: ThemeInput;
+  /**
+   * Language of the platform
+   * @minLength 1
+   */
+  platform_lang: string;
+  /** Definition of the light theme */
+  platform_light_theme?: ThemeInput;
+  /** List of OpenID providers */
+  platform_openid_providers?: OAuthProvider[];
+  /** Policies of the platform */
+  platform_policies?: PolicyInput;
+  /**
+   * Theme of the platform
+   * @minLength 1
+   */
+  platform_theme: string;
+  /** 'true' if the platform has the whitemark activated */
+  platform_whitemark?: string;
+}
+
 export interface PublicScenario {
   description?: string;
   id?: string;
@@ -6572,6 +6634,7 @@ export interface RawPaginationScenario {
   scenario_tags?: string[];
   /** @format date-time */
   scenario_updated_at?: string;
+  scenario_workflow_id?: string;
 }
 
 export interface RawUser {
@@ -6956,10 +7019,25 @@ export interface Scenario {
   scenario_users_number?: number;
 }
 
+export interface ScenarioAndInjectorContractsInputs {
+  injector_contract_search_pagination_input: InjectorContractSearchPaginationInput;
+  /** @minLength 1 */
+  locale: string;
+  scenario_input: ScenarioInput;
+}
+
 export interface ScenarioChallengesReader {
   scenario_challenges?: ChallengeInformation[];
   scenario_id?: string;
   scenario_information?: PublicScenario;
+}
+
+export interface ScenarioIdsAndInjectorContractsInputs {
+  injector_contract_search_pagination_input: InjectorContractSearchPaginationInput;
+  /** @minLength 1 */
+  locale: string;
+  /** @minItems 1 */
+  scenario_ids: string[];
 }
 
 export interface ScenarioInput {
@@ -7993,6 +8071,48 @@ export interface ThreatArsenalActionUpdateInput {
   file_drop_file?: string;
 }
 
+export interface ThreatArsenalActionWithContentOutput {
+  /** CPU architecture targeted for action execution */
+  action_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
+  /** Action content */
+  action_content?: string;
+  /**
+   * Action injectors names
+   * @minLength 1
+   */
+  action_injector_name: string;
+  /** Action implementation injector type */
+  action_injector_type?: string;
+  /** Action display labels */
+  action_labels: Record<string, string>;
+  /** Action implementation payload type */
+  action_payload_type?: string;
+  /** Supported endpoint platforms for this action */
+  action_platforms?: (
+    | "Linux"
+    | "Windows"
+    | "MacOS"
+    | "Container"
+    | "Service"
+    | "Generic"
+    | "Internal"
+    | "Unknown"
+  )[];
+  /** Injector contract external Id */
+  injector_contract_external_id?: string;
+  injector_contract_has_full_details?: boolean;
+  /**
+   * Injector contract Id
+   * @minLength 1
+   */
+  injector_contract_id: string;
+  /**
+   * Timestamp when the injector contract was last updated
+   * @format date-time
+   */
+  injector_contract_updated_at: string;
+}
+
 export interface Token {
   listened?: boolean;
   /** @format date-time */
@@ -8613,10 +8733,10 @@ export interface WorkflowConfigurationInput {
    */
   workflow_configuration_max_attempts?: number;
   /**
-   * Seconds to wait between attempts (1–59).
+   * Seconds to wait between attempts (1–3540).
    * @format int64
    * @min 1
-   * @max 59
+   * @max 5940
    */
   workflow_configuration_max_temporal_rate_seconds?: number;
   /** Whether rate limiting is enabled. */
@@ -8629,9 +8749,9 @@ export interface WorkflowConfigurationInput {
   /** Whether the timeout feature is enabled. */
   workflow_configuration_timeout_enabled?: boolean;
   /**
-   * Total timeout in seconds for the attack workflow scenario (0–86400).
+   * Total timeout in seconds for the attack workflow scenario (60–86400).
    * @format int64
-   * @min 0
+   * @min 60
    * @max 86400
    */
   workflow_configuration_timeout_seconds?: number;

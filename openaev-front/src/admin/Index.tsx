@@ -21,6 +21,7 @@ import useAuth from '../utils/hooks/useAuth';
 import useDataLoader from '../utils/hooks/useDataLoader';
 import ProtectedRoute from '../utils/permissions/ProtectedRoute';
 import { ACTIONS, SUBJECTS } from '../utils/permissions/types';
+import { useIsCurrentPlatformRoute } from '../utils/platformContext';
 import ChatbotProvider from './components/ariane/ChatbotProvider';
 import { useChatbotContentMargin, useChatbotContentTransition } from './components/ariane/useChatbotHooks';
 import { GETTING_STARTED_LOCAL_STORAGE_KEY } from './components/getting_started/GettingStartedPage';
@@ -102,6 +103,8 @@ const Index = () => {
     }
   }, [goToGettingStarted, navigate, setGoToGettingStarted]);
 
+  const isPlatform = useIsCurrentPlatformRoute();
+
   return (
     <Box
       sx={{
@@ -111,7 +114,7 @@ const Index = () => {
         marginBottom: bannerHeight,
       }}
     >
-      <TopBar />
+      <TopBar showSearchBar={!isPlatform} showTenantSwitcher={!isPlatform} />
       <LeftBar />
       <Box component="main" sx={boxSx}>
         <div className={classes.toolbar} />

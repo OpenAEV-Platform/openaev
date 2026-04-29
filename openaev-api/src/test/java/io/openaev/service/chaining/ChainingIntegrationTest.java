@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -41,9 +42,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -66,16 +67,16 @@ class ChainingIntegrationTest extends IntegrationTest {
   @Autowired private InjectTestHelper injectTestHelper;
 
   // -- Mocks
-  @MockBean private InjectorContractService injectorContractService;
-  @MockBean private TeamService teamService;
-  @MockBean private AssetService assetService;
-  @MockBean private TagService tagService;
-  @MockBean private DocumentService documentService;
-  @MockBean private InjectService injectService;
-  @MockBean private io.openaev.executors.Executor executor;
+  @MockitoBean private InjectorContractService injectorContractService;
+  @MockitoBean private TeamService teamService;
+  @MockitoBean private AssetService assetService;
+  @MockitoBean private TagService tagService;
+  @MockitoBean private DocumentService documentService;
+  @MockitoBean private InjectService injectService;
+  @MockitoBean private io.openaev.executors.Executor executor;
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper mapper;
-  @SpyBean UserService userService;
+  @MockitoSpyBean UserService userService;
   @Autowired private TestUserHolder testUserHolder;
   String injectInputJson;
   InjectorContract injectorContractSaved;
@@ -155,6 +156,7 @@ class ChainingIntegrationTest extends IntegrationTest {
       String response =
           mvc.perform(
                   post(CHAINING_URI + "/scenarios")
+                      .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(mapper.writeValueAsString(input)))
               .andExpect(status().is2xxSuccessful())
@@ -194,6 +196,7 @@ class ChainingIntegrationTest extends IntegrationTest {
       String response =
           mvc.perform(
                   post(CHAINING_URI + "/scenarios")
+                      .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(mapper.writeValueAsString(buildScenarioInput())))
               .andExpect(status().is2xxSuccessful())
@@ -245,6 +248,7 @@ class ChainingIntegrationTest extends IntegrationTest {
       String response =
           mvc.perform(
                   post(CHAINING_URI + "/scenarios")
+                      .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(mapper.writeValueAsString(buildScenarioInput())))
               .andExpect(status().is2xxSuccessful())
@@ -265,7 +269,7 @@ class ChainingIntegrationTest extends IntegrationTest {
       long simulationCountBefore = exerciseRepository.count();
 
       String simulationResult =
-          mvc.perform(post(SCENARIO_URI + "/" + scenarioId + "/exercise/running"))
+          mvc.perform(post(SCENARIO_URI + "/" + scenarioId + "/exercise/running").with(csrf()))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()
@@ -324,6 +328,7 @@ class ChainingIntegrationTest extends IntegrationTest {
       String response =
           mvc.perform(
                   post(CHAINING_URI + "/scenarios")
+                      .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(mapper.writeValueAsString(buildScenarioInput())))
               .andExpect(status().is2xxSuccessful())
@@ -348,7 +353,7 @@ class ChainingIntegrationTest extends IntegrationTest {
       stepService.createStepTemplates(workflowTemplate.getId(), List.of(step));
 
       String simulationResult =
-          mvc.perform(post(SCENARIO_URI + "/" + scenarioId + "/exercise/running"))
+          mvc.perform(post(SCENARIO_URI + "/" + scenarioId + "/exercise/running").with(csrf()))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()
@@ -369,7 +374,8 @@ class ChainingIntegrationTest extends IntegrationTest {
 
       entityManager.clear();
       // DELETE
-      mvc.perform(delete("/api/scenarios/" + scenarioId)).andExpect(status().is2xxSuccessful());
+      mvc.perform(delete("/api/scenarios/" + scenarioId).with(csrf()))
+          .andExpect(status().is2xxSuccessful());
       entityManager.flush();
       entityManager.clear();
       // Scenario deleted
@@ -408,6 +414,7 @@ class ChainingIntegrationTest extends IntegrationTest {
       String scenarioResponse =
           mvc.perform(
                   post(CHAINING_URI + "/scenarios")
+                      .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(mapper.writeValueAsString(buildScenarioInput())))
               .andExpect(status().is2xxSuccessful())
@@ -435,6 +442,7 @@ class ChainingIntegrationTest extends IntegrationTest {
       String simulation =
           mvc.perform(
                   post(SCENARIO_URI + "/" + createdScenario.getId() + "/exercise/running")
+                      .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
@@ -465,6 +473,7 @@ class ChainingIntegrationTest extends IntegrationTest {
       String result =
           mvc.perform(
                   post("/api/atomic-testings/search")
+                      .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(
                           "{\"page\":0,\"size\":20,\"sorts\":[{\"direction\":\"DESC\",\"property\":\"inject_updated_at\"}],\"textSearch\":\"\"}"))
@@ -489,6 +498,7 @@ class ChainingIntegrationTest extends IntegrationTest {
       String scenarioResponse =
           mvc.perform(
                   post(CHAINING_URI + "/scenarios")
+                      .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(mapper.writeValueAsString(buildScenarioInput())))
               .andExpect(status().is2xxSuccessful())
@@ -517,6 +527,7 @@ class ChainingIntegrationTest extends IntegrationTest {
       String result =
           mvc.perform(
                   post(CHAINING_URI + "/scenarios/" + createdScenario.getId())
+                      .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
@@ -574,6 +585,7 @@ class ChainingIntegrationTest extends IntegrationTest {
       String response =
           mvc.perform(
                   post(CHAINING_URI + "/simulations")
+                      .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(mapper.writeValueAsString(input)))
               .andExpect(status().is2xxSuccessful())
@@ -601,6 +613,7 @@ class ChainingIntegrationTest extends IntegrationTest {
       String response =
           mvc.perform(
                   post(CHAINING_URI + "/simulations")
+                      .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(mapper.writeValueAsString(buildSimulationInput())))
               .andExpect(status().is2xxSuccessful())
@@ -616,6 +629,7 @@ class ChainingIntegrationTest extends IntegrationTest {
 
       mvc.perform(
               post(CHAINING_URI + "/simulations/" + createdSimulation.getId() + "/injects")
+                  .with(csrf())
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(injectInputJson))
           .andExpect(status().is2xxSuccessful());
@@ -640,6 +654,7 @@ class ChainingIntegrationTest extends IntegrationTest {
       String response =
           mvc.perform(
                   post(CHAINING_URI + "/simulations")
+                      .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(mapper.writeValueAsString(buildSimulationInput())))
               .andExpect(status().is2xxSuccessful())
@@ -654,6 +669,7 @@ class ChainingIntegrationTest extends IntegrationTest {
 
       mvc.perform(
               post(CHAINING_URI + "/simulations/" + createdSimulation.getId() + "/injects")
+                  .with(csrf())
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(injectInputJson))
           .andExpect(status().is2xxSuccessful());
@@ -661,6 +677,7 @@ class ChainingIntegrationTest extends IntegrationTest {
       String duplicatedResponse =
           mvc.perform(
                   post(CHAINING_URI + "/simulations/" + createdSimulation.getId())
+                      .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON))
               .andExpect(status().is2xxSuccessful())
               .andReturn()

@@ -230,6 +230,7 @@ services:
       openaev-test-elasticsearch:
         condition: service_healthy
   rsa-key-generator:
+    container_name: rsa-key-generator
     image: alpine/openssl:3.5.5
     volumes:
       - rsakeys:/keys
@@ -242,6 +243,7 @@ services:
       retries: 3
     restart: always
   xtm-composer:
+    container_name: xtm-composer
     image: filigran/xtm-composer:latest
     platform: linux/amd64
     network_mode: host # allow connecting to non docker local instance

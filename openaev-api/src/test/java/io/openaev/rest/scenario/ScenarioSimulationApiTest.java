@@ -4,6 +4,7 @@ import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -89,7 +90,8 @@ public class ScenarioSimulationApiTest extends IntegrationTest {
             mvc.perform(
                     post(SCENARIO_URI + "/" + scenario.getId() + "/exercises/search")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(asJsonString(searchPaginationInput)))
+                        .content(asJsonString(searchPaginationInput))
+                        .with(csrf()))
                 .andExpect(status().is2xxSuccessful())
                 .andExpect(jsonPath("$.numberOfElements").value(2))
                 .andReturn()
@@ -117,7 +119,8 @@ public class ScenarioSimulationApiTest extends IntegrationTest {
         mvc.perform(
                 post(SCENARIO_URI + "/" + scenario.getId() + "/exercises/search")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(searchPaginationInput)))
+                    .content(asJsonString(searchPaginationInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.numberOfElements").value(1))
             .andExpect(jsonPath("$.content[0].exercise_id").value(exercise2FromScenario.getId()));
@@ -126,7 +129,8 @@ public class ScenarioSimulationApiTest extends IntegrationTest {
         mvc.perform(
                 post(SCENARIO_URI + "/" + scenario.getId() + "/exercises/search")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(searchPaginationInput)))
+                    .content(asJsonString(searchPaginationInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.numberOfElements").value(0));
       }
@@ -154,7 +158,8 @@ public class ScenarioSimulationApiTest extends IntegrationTest {
         mvc.perform(
                 post(SCENARIO_URI + "/" + scenario.getId() + "/exercises/search")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(searchPaginationInput)))
+                    .content(asJsonString(searchPaginationInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.numberOfElements").value(2))
             .andExpect(jsonPath("$.content[0].exercise_id").value(exercise2FromScenario.getId()))
@@ -197,7 +202,8 @@ public class ScenarioSimulationApiTest extends IntegrationTest {
         mvc.perform(
                 post(SCENARIO_URI + "/" + scenario.getId() + "/exercises/search")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(searchPaginationInput)))
+                    .content(asJsonString(searchPaginationInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.numberOfElements").value(3))
             .andExpect(jsonPath("$.content[0].exercise_id").value(exercise2FromScenario.getId()))
@@ -217,7 +223,8 @@ public class ScenarioSimulationApiTest extends IntegrationTest {
         mvc.perform(
                 post(SCENARIO_URI + "/" + scenario.getId() + "/exercises/search")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(searchPaginationInput)))
+                    .content(asJsonString(searchPaginationInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.numberOfElements").value(1))
             .andExpect(jsonPath("$.content[0].exercise_id").value(exercise1FromScenario.getId()));
@@ -233,7 +240,8 @@ public class ScenarioSimulationApiTest extends IntegrationTest {
         mvc.perform(
                 post(SCENARIO_URI + "/" + scenario.getId() + "/exercises/search")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(searchPaginationInput)))
+                    .content(asJsonString(searchPaginationInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.numberOfElements").value(0));
       }

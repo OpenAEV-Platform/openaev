@@ -18,6 +18,7 @@ import useAuth from '../../../utils/hooks/useAuth';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
 import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+import { TENANT_SETTINGS_LABEL } from '../nav/config/settings.config';
 import PlatformInfoPanel from './PlatformInfoPanel';
 import TenantParametersForm from './TenantParametersForm';
 import ToolsPanel from './ToolsPanel';
@@ -53,7 +54,7 @@ const TenantParameters = () => {
       <Breadcrumbs
         variant="object"
         elements={[
-          { label: t('Settings') },
+          { label: t(TENANT_SETTINGS_LABEL) },
           {
             label: t('Parameters'),
             current: true,

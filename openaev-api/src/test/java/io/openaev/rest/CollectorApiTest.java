@@ -9,6 +9,7 @@ import static io.openaev.utils.fixtures.ConnectorInstanceFixture.createDefaultCo
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -101,6 +102,7 @@ public class CollectorApiTest extends IntegrationTest {
       String response =
           mvc.perform(
                   get(COLLECTOR_URI)
+                      .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .accept(MediaType.APPLICATION_JSON))
               .andExpect(status().is2xxSuccessful())
@@ -140,6 +142,7 @@ public class CollectorApiTest extends IntegrationTest {
       String response =
           mvc.perform(
                   get(COLLECTOR_URI + "?include_next=true")
+                      .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .accept(MediaType.APPLICATION_JSON))
               .andExpect(status().is2xxSuccessful())
@@ -181,6 +184,7 @@ public class CollectorApiTest extends IntegrationTest {
       String response =
           mvc.perform(
                   get(COLLECTOR_URI + "/" + collector.getId() + "/related-ids")
+                      .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .accept(MediaType.APPLICATION_JSON))
               .andExpect(status().is2xxSuccessful())
@@ -209,6 +213,7 @@ public class CollectorApiTest extends IntegrationTest {
       String response =
           mvc.perform(
                   get(COLLECTOR_URI + "/" + collector.getId() + "/related-ids")
+                      .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .accept(MediaType.APPLICATION_JSON))
               .andExpect(status().is2xxSuccessful())
@@ -227,6 +232,7 @@ public class CollectorApiTest extends IntegrationTest {
       String response =
           mvc.perform(
                   get(COLLECTOR_URI + "/" + collector.getId() + "/related-ids")
+                      .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .accept(MediaType.APPLICATION_JSON))
               .andExpect(status().is2xxSuccessful())
@@ -259,7 +265,8 @@ public class CollectorApiTest extends IntegrationTest {
                   multipart(COLLECTOR_URI)
                       .file(buildInputPart(input))
                       .file(buildEmptyIconPart())
-                      .accept(MediaType.APPLICATION_JSON))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()
@@ -294,7 +301,8 @@ public class CollectorApiTest extends IntegrationTest {
                   multipart(COLLECTOR_URI)
                       .file(buildInputPart(input))
                       .file(buildEmptyIconPart())
-                      .accept(MediaType.APPLICATION_JSON))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()
@@ -328,7 +336,8 @@ public class CollectorApiTest extends IntegrationTest {
                   multipart(COLLECTOR_URI)
                       .file(buildInputPart(input))
                       .file(buildEmptyIconPart())
-                      .accept(MediaType.APPLICATION_JSON))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()
@@ -357,7 +366,8 @@ public class CollectorApiTest extends IntegrationTest {
               multipart(COLLECTOR_URI)
                   .file(buildInputPart(input))
                   .file(buildEmptyIconPart())
-                  .accept(MediaType.APPLICATION_JSON))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().is2xxSuccessful());
 
       Collector updated = collectorRepository.findById(input.getId()).orElseThrow();
@@ -380,7 +390,8 @@ public class CollectorApiTest extends IntegrationTest {
                   multipart(COLLECTOR_URI)
                       .file(buildInputPart(input))
                       .file(buildEmptyIconPart())
-                      .accept(MediaType.APPLICATION_JSON))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()

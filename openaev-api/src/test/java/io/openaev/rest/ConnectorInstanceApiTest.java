@@ -13,6 +13,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -129,7 +130,8 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
               post(CONNECTOR_INSTANCE_URI)
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().isForbidden())
           .andExpect(jsonPath("$.message").value("LICENSE_RESTRICTION"));
     }
@@ -146,7 +148,8 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
               post(CONNECTOR_INSTANCE_URI)
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().isBadRequest())
           .andExpect(
               result -> {
@@ -167,7 +170,8 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
               post(CONNECTOR_INSTANCE_URI)
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().isBadRequest())
           .andExpect(
               result -> {
@@ -212,7 +216,8 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
               post(CONNECTOR_INSTANCE_URI)
                   .content(asJsonString(input1))
                   .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().is2xxSuccessful());
 
       // -- Create second instance of the same catalog connector --
@@ -226,7 +231,8 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
               post(CONNECTOR_INSTANCE_URI)
                   .content(asJsonString(input2))
                   .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().is2xxSuccessful());
 
       // -- Verify both instances exist --
@@ -298,7 +304,8 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
               post(CONNECTOR_INSTANCE_URI)
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().is2xxSuccessful());
 
       List<ConnectorInstancePersisted> instanceDb =
@@ -367,7 +374,8 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
               post(CONNECTOR_INSTANCE_URI)
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().is4xxClientError())
           .andExpect(
               result -> {
@@ -439,7 +447,8 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
               post(CONNECTOR_INSTANCE_URI)
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().is2xxSuccessful())
           .andReturn()
           .getResponse()
@@ -514,7 +523,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       when(manager.getSpawnedIntegrations()).thenReturn(spawnedIntegrations);
 
       // Act
-      mvc.perform(delete(CONNECTOR_INSTANCE_URI + "/" + connectorInstance.getId()))
+      mvc.perform(delete(CONNECTOR_INSTANCE_URI + "/" + connectorInstance.getId()).with(csrf()))
           .andExpect(status().is2xxSuccessful());
 
       // Assert
@@ -557,7 +566,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       when(manager.getSpawnedIntegrations()).thenReturn(spawnedIntegrations);
 
       // Act
-      mvc.perform(delete(CONNECTOR_INSTANCE_URI + "/" + connectorInstance.getId()))
+      mvc.perform(delete(CONNECTOR_INSTANCE_URI + "/" + connectorInstance.getId()).with(csrf()))
           .andExpect(status().is2xxSuccessful());
 
       // Assert
@@ -598,7 +607,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       when(manager.getSpawnedIntegrations()).thenReturn(spawnedIntegrations);
 
       // Act
-      mvc.perform(delete(CONNECTOR_INSTANCE_URI + "/" + connectorInstance.getId()))
+      mvc.perform(delete(CONNECTOR_INSTANCE_URI + "/" + connectorInstance.getId()).with(csrf()))
           .andExpect(status().is2xxSuccessful());
 
       // Assert
@@ -624,7 +633,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       when(manager.getSpawnedIntegrations()).thenReturn(spawnedIntegrations);
 
       // Act
-      mvc.perform(delete(CONNECTOR_INSTANCE_URI + "/" + instance1.getId()))
+      mvc.perform(delete(CONNECTOR_INSTANCE_URI + "/" + instance1.getId()).with(csrf()))
           .andExpect(status().is2xxSuccessful());
 
       // Assert
@@ -641,7 +650,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       String nonExistentId = UUID.randomUUID().toString();
 
       // Act & Assert
-      mvc.perform(delete(CONNECTOR_INSTANCE_URI + "/" + nonExistentId))
+      mvc.perform(delete(CONNECTOR_INSTANCE_URI + "/" + nonExistentId).with(csrf()))
           .andExpect(status().isNotFound());
     }
 
@@ -664,7 +673,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       doThrow(new RuntimeException("Integration failed to stop")).when(integration).initialise();
 
       // Act & Assert
-      mvc.perform(delete(CONNECTOR_INSTANCE_URI + "/" + connectorInstance.getId()))
+      mvc.perform(delete(CONNECTOR_INSTANCE_URI + "/" + connectorInstance.getId()).with(csrf()))
           .andExpect(status().isUnprocessableEntity());
 
       // Assert — instance should NOT have been deleted since the stop failed
@@ -684,7 +693,8 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
         mvc.perform(
                 get(CONNECTOR_INSTANCE_URI + "/" + instance2.getId())
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -718,7 +728,8 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
         mvc.perform(
                 get(CONNECTOR_INSTANCE_URI + "/" + instance.getId() + "/configurations")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -750,7 +761,8 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
         mvc.perform(
                 get(CONNECTOR_INSTANCE_URI + "/" + instance.getId() + "/configurations")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -780,7 +792,8 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
               put(CONNECTOR_INSTANCE_URI + "/fake-instance-id/configurations")
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().isForbidden())
           .andExpect(jsonPath("$.message").value("LICENSE_RESTRICTION"));
     }
@@ -798,7 +811,8 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
               put(CONNECTOR_INSTANCE_URI + "/" + instance.getId() + "/configurations")
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().isBadRequest())
           .andExpect(
               result -> {
@@ -819,7 +833,8 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
               put(CONNECTOR_INSTANCE_URI + "/" + instance.getId() + "/configurations")
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().isBadRequest())
           .andExpect(
               result -> {
@@ -876,7 +891,8 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
               put(CONNECTOR_INSTANCE_URI + "/" + connectorInstance.getId() + "/configurations")
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().is2xxSuccessful())
           .andReturn()
           .getResponse()
@@ -915,7 +931,8 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
               put(CONNECTOR_INSTANCE_URI + "/fake-instance-id/requested-status")
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().isForbidden())
           .andExpect(jsonPath("$.message").value("LICENSE_RESTRICTION"));
     }
@@ -934,7 +951,8 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
               put(CONNECTOR_INSTANCE_URI + "/" + connectorInstance.getId() + "/requested-status")
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().isBadRequest())
           .andExpect(
               result -> {
@@ -956,7 +974,8 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
               put(CONNECTOR_INSTANCE_URI + "/" + connectorInstance.getId() + "/requested-status")
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().isBadRequest())
           .andExpect(
               result -> {
@@ -986,7 +1005,8 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
               put(CONNECTOR_INSTANCE_URI + "/" + connectorInstance.getId() + "/requested-status")
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().is2xxSuccessful())
           .andReturn()
           .getResponse()
@@ -1004,7 +1024,8 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
               put(CONNECTOR_INSTANCE_URI + "/" + connectorInstance.getId() + "/requested-status")
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().is2xxSuccessful())
           .andReturn()
           .getResponse()
@@ -1039,7 +1060,8 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
         mvc.perform(
                 get(CONNECTOR_INSTANCE_URI + "/" + connectorInstance1.getId() + "/logs")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -1054,7 +1076,8 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
         mvc.perform(
                 get(CONNECTOR_INSTANCE_URI + "/" + connectorInstance2.getId() + "/logs")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
