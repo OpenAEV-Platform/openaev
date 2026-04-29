@@ -32,8 +32,7 @@ public class ScopeVariableInput {
 
   @NotBlank
   @Schema(
-      description =
-          "Unique snake_case key used to reference the variable in templates (e.g. company_name).")
+      description = "Unique key used to reference the variable in templates (e.g. company_name).")
   @JsonProperty("scope_variable_key")
   private String key;
 
