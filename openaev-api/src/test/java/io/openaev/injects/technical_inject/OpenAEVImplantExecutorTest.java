@@ -123,6 +123,7 @@ public class OpenAEVImplantExecutorTest extends IntegrationTest {
     expectation.setScore(100.0);
     expectation.setExpectationGroup(false);
 
+    openaevInjectorIntegrationFactory.registerConnectorForTenant();
     Manager manager = new Manager(List.of(openaevInjectorIntegrationFactory));
     manager.monitorIntegrations();
     io.openaev.executors.Injector openAEVImplantExecutor =
