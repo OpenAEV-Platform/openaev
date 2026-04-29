@@ -1,33 +1,22 @@
 import { Add, DeleteOutlined } from '@mui/icons-material';
 import {
-  Button,
   Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   IconButton,
   Paper,
   Tooltip,
   Typography,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { Transition } from 'mdi-material-ui';
-import { useMemo, useState } from 'react';
-import { FormProvider, useForm } from 'react-hook-form';
+import { useState } from 'react';
 
-import SelectFieldController from '../../../components/fields/SelectFieldController';
-import TextFieldController from '../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../components/i18n';
 import { type ScopeVariableInput, type ScopeVariableOutput, type WorkflowConfigurationInput, type WorkflowConfigurationOutput } from '../../../utils/api-types';
-import useArgumentTypes from '../threat_arsenal/form/useArgumentTypes';
+import ScopeVariableCreateDialog from './ScopeVariableCreateDialog';
 
 interface ScopeVariablesProps {
   workflowConfiguration: WorkflowConfigurationOutput | undefined;
   onUpdate: (overrides: Partial<WorkflowConfigurationInput>) => void;
 }
-
-type VariableFormValues = Omit<ScopeVariableInput, 'scope_variable_id'>;
 
 const ScopeVariables = ({ workflowConfiguration, onUpdate }: ScopeVariablesProps) => {
   const { t } = useFormatter();
@@ -35,40 +24,7 @@ const ScopeVariables = ({ workflowConfiguration, onUpdate }: ScopeVariablesProps
 
   const variables: ScopeVariableOutput[] = workflowConfiguration?.workflow_scope_variables ?? [];
 
-  const { argumentTypes } = useArgumentTypes();
-
-  const typeItems = useMemo(
-    () => argumentTypes.map(at => ({
-      value: at.argument_type,
-      label: t(at.argument_type.charAt(0).toUpperCase() + at.argument_type.slice(1)),
-    })),
-    [argumentTypes, t],
-  );
-
-  // -- Dialog --
   const [open, setOpen] = useState(false);
-
-  const methods = useForm<VariableFormValues>({
-    defaultValues: {
-      scope_variable_key: '',
-      scope_variable_type: 'text',
-      scope_variable_value: '',
-      scope_variable_description: '',
-    },
-  });
-
-  const {
-    handleSubmit,
-    reset,
-    setError,
-    formState: { isDirty, isSubmitting },
-  } = methods;
-
-  const handleOpen = () => {
-    reset();
-    setOpen(true);
-  };
-  const handleClose = () => setOpen(false);
 
   const toInput = (v: ScopeVariableOutput): ScopeVariableInput => ({
     scope_variable_id: v.scope_variable_id,
@@ -78,44 +34,13 @@ const ScopeVariables = ({ workflowConfiguration, onUpdate }: ScopeVariablesProps
     scope_variable_description: v.scope_variable_description,
   });
 
-  const onSubmit = (data: VariableFormValues) => {
-    const key = data.scope_variable_key?.trim() ?? '';
-    const value = data.scope_variable_value?.trim() ?? '';
-    const type = data.scope_variable_type;
-
-    if (!key) {
-      setError('scope_variable_key', {
-        type: 'required',
-        message: t('Key is required'),
-      });
-      return;
-    }
-    if (!type) {
-      setError('scope_variable_type', {
-        type: 'required',
-        message: t('Type is required'),
-      });
-      return;
-    }
-    if (!value) {
-      setError('scope_variable_value', {
-        type: 'required',
-        message: t('Value is required'),
-      });
-      return;
-    }
-
+  const handleCreate = (data: Omit<ScopeVariableInput, 'scope_variable_id'>) => {
     onUpdate({
       workflow_scope_variables: [
         ...variables.map(toInput),
-        {
-          ...data,
-          scope_variable_key: key,
-          scope_variable_value: value,
-        },
+        data,
       ],
     });
-    handleClose();
   };
 
   const handleDelete = (id: string | undefined) => {
@@ -137,7 +62,7 @@ const ScopeVariables = ({ workflowConfiguration, onUpdate }: ScopeVariablesProps
       }}
       >
         <Typography variant="h4">{t('Variables')}</Typography>
-        <IconButton color="primary" size="small" onClick={handleOpen} aria-label={t('Add variable')}>
+        <IconButton color="primary" size="small" onClick={() => setOpen(true)} aria-label={t('Add variable')}>
           <Add fontSize="small" />
         </IconButton>
       </div>
@@ -232,62 +157,11 @@ const ScopeVariables = ({ workflowConfiguration, onUpdate }: ScopeVariablesProps
         )}
       </Paper>
 
-      {/* Create dialog */}
-      <Dialog
+      <ScopeVariableCreateDialog
         open={open}
-        slots={{ transition: Transition }}
-        onClose={handleClose}
-        fullWidth
-        maxWidth="sm"
-        slotProps={{ paper: { elevation: 1 } }}
-      >
-        <DialogTitle>{t('Create a new variable')}</DialogTitle>
-        <FormProvider {...methods}>
-          <form id="scopeVariableForm" onSubmit={handleSubmit(onSubmit)}>
-            <DialogContent style={{
-              display: 'grid',
-              gap: theme.spacing(2),
-            }}
-            >
-              <TextFieldController
-                name="scope_variable_key"
-                label={t('Key')}
-                required
-              />
-              <SelectFieldController
-                name="scope_variable_type"
-                label={t('Type')}
-                items={typeItems}
-                required
-              />
-              <TextFieldController
-                name="scope_variable_value"
-                label={t('Value')}
-                required
-              />
-              <TextFieldController
-                name="scope_variable_description"
-                label={t('Description')}
-                multiline
-                rows={2}
-              />
-            </DialogContent>
-            <DialogActions>
-              <Button variant="contained" onClick={handleClose} disabled={isSubmitting}>
-                {t('Cancel')}
-              </Button>
-              <Button
-                variant="contained"
-                color="secondary"
-                type="submit"
-                disabled={!isDirty || isSubmitting}
-              >
-                {t('Create')}
-              </Button>
-            </DialogActions>
-          </form>
-        </FormProvider>
-      </Dialog>
+        onClose={() => setOpen(false)}
+        onSubmit={handleCreate}
+      />
     </div>
   );
 };
