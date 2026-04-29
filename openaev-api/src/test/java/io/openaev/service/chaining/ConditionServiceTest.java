@@ -137,7 +137,7 @@ public class ConditionServiceTest {
         ConditionType type, NowGoalRelation relation, boolean shouldCreate) {
       // -------- Prepare --------
       Condition template = mock(Condition.class);
-      when(template.getType()).thenReturn(type);
+      lenient().when(template.getType()).thenReturn(type);
 
       Instant now = Instant.parse("2026-02-04T10:15:30Z");
       Instant goal =

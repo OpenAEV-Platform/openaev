@@ -690,13 +690,13 @@ public class ConditionService {
     MapperInputPreparation preparation =
         prepareMapperInputs(mappers, context.localEntries(), context.globalEntries());
 
-    // Validation
     if (preparation.hasMissingDynamicValues()) {
       return Collections.emptyList();
     }
 
-    // Logic Execution
     Set<String> requiredKeys = extractRequiredExecutionKeys(mappers);
+
+    // Build execution batches which be used as input for the step execution.
     List<ExecutionBatch> batches =
         buildExecutionBatches(
             mappers,
@@ -705,9 +705,7 @@ public class ConditionService {
             preparation.staticValues(),
             requiredKeys);
 
-    // 5. Persist Side Effects
     saveLocalState(context);
-
     return batches;
   }
 

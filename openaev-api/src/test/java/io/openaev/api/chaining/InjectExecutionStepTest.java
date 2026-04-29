@@ -107,6 +107,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
     injectStatus.addTrace(executionTrace);
 
     injectExecuted.setStatus(injectStatus);
+    doReturn(injectExecuted).when(injectService).inject(any());
     doReturn(injectExecuted).when(injectService).findInjectOrNull(any());
     Asset asset = AssetFixture.createDefaultAsset("AssetTest");
     asset = injectTestHelper.forceSaveAsset(asset);

@@ -10,13 +10,9 @@ import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import java.util.*;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -24,6 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class StepEventServiceTest {
 
   @Mock private StepService stepService;
+  @Mock private WorkflowService workflowService;
   @Mock private StepRepository stepRepository;
   @Mock private ActionStep actionStep;
 
@@ -134,8 +131,8 @@ class StepEventServiceTest {
   class BatchHandlers {
 
     @Test
-    void shouldConsumeReadyEvents_andReturnSameList() {
-      // -------- Prepare --------
+    void given_readyEvents_should_consumeAndReturnSameList() {
+      // Arrange
       StepEvent e1 = mock(StepEvent.class);
       StepEvent e2 = mock(StepEvent.class);
       List<StepEvent> events = List.of(e1, e2);
@@ -143,27 +140,35 @@ class StepEventServiceTest {
       when(e1.getStepId()).thenReturn(UUID.randomUUID().toString());
       when(e2.getStepId()).thenReturn(UUID.randomUUID().toString());
 
-      // -------- Act --------
+      // Act
       List<StepEvent> result = stepEventService.handleReadyEvent(events);
 
-      // -------- Assert --------
+      // Assert
       assertSame(events, result);
     }
 
     @Test
-    void shouldConsumeExternalUpdateEvents_andReturnSameList() {
-      // -------- Prepare --------
+    void given_externalUpdateEvents_should_consumeAndReturnSameList() {
+      // Arrange
       ExternalUpdateEvent e1 = mock(ExternalUpdateEvent.class);
       ExternalUpdateEvent e2 = mock(ExternalUpdateEvent.class);
       List<ExternalUpdateEvent> events = List.of(e1, e2);
 
-      when(e1.getStepId()).thenReturn(UUID.randomUUID().toString());
-      when(e2.getStepId()).thenReturn(UUID.randomUUID().toString());
+      String stepRunId1 = UUID.randomUUID().toString();
+      String stepRunId2 = UUID.randomUUID().toString();
+      when(e1.getStepId()).thenReturn(stepRunId1);
+      when(e2.getStepId()).thenReturn(stepRunId2);
 
-      // -------- Act --------
+      // Both steps not found — early return per event, no crash
+      when(stepService.findByIdAndStatus(stepRunId1, StepStatus.RUN))
+          .thenThrow(new ElementNotFoundException("not found"));
+      when(stepService.findByIdAndStatus(stepRunId2, StepStatus.RUN))
+          .thenThrow(new ElementNotFoundException("not found"));
+
+      // Act
       List<ExternalUpdateEvent> result = stepEventService.handleExternalUpdateEvent(events);
 
-      // -------- Assert --------
+      // Assert
       assertSame(events, result);
     }
   }
@@ -173,28 +178,46 @@ class StepEventServiceTest {
   @Nested
   class HandleReadyStepEvent {
 
-    @ParameterizedTest(name = "{index} => stepFound={0}")
-    @MethodSource("readyStepEventScenarios")
-    void shouldRunOnlyWhenStepExists(boolean stepFound) {
-      // -------- Prepare --------
+    @Test
+    void given_existingStep_should_runIt() throws ChainingException {
+      // Arrange
       StepEvent event = mock(StepEvent.class);
       String stepId = UUID.randomUUID().toString();
       when(event.getStepId()).thenReturn(stepId);
 
-      Step step = mock(Step.class);
+      Step step = new Step();
+      step.setStepAction(StepActionClass.INJECT_EXECUTION);
+      Step stepRun = new Step();
 
-      when(stepRepository.findById(stepId))
-          .thenReturn(stepFound ? Optional.of(step) : Optional.empty());
+      when(stepRepository.findById(stepId)).thenReturn(Optional.of(step));
+      when(stepService.factoryAction(eq(StepActionClass.INJECT_EXECUTION), any()))
+          .thenReturn(actionStep);
+      when(actionStep.run(step)).thenReturn(Optional.of(stepRun));
 
-      // -------- Act --------
+      // Act
       stepEventService.handleReadyStepEvent(event);
 
-      // -------- Assert --------
+      // Assert
       verify(stepRepository).findById(stepId);
+      assertEquals(StepStatus.RUN, stepRun.getStatus());
+      verify(stepService).saveStep(stepRun);
     }
 
-    static Stream<Arguments> readyStepEventScenarios() {
-      return Stream.of(Arguments.of(true), Arguments.of(false));
+    @Test
+    void given_missingStep_should_notRun() {
+      // Arrange
+      StepEvent event = mock(StepEvent.class);
+      String stepId = UUID.randomUUID().toString();
+      when(event.getStepId()).thenReturn(stepId);
+
+      when(stepRepository.findById(stepId)).thenReturn(Optional.empty());
+
+      // Act
+      stepEventService.handleReadyStepEvent(event);
+
+      // Assert
+      verify(stepRepository).findById(stepId);
+      verify(stepService, never()).saveStep(any());
     }
   }
 
@@ -269,29 +292,34 @@ class StepEventServiceTest {
     }
 
     @Test
-    void shouldSaveUpdatedStep_whenUpdateReturnsPresent() throws ChainingException {
-      // -------- Prepare --------
+    void given_updateReturnsPresent_should_saveAndEvaluateProgress() throws ChainingException {
+      // Arrange
       ExternalUpdateEvent event = mock(ExternalUpdateEvent.class);
       String stepRunId = UUID.randomUUID().toString();
       when(event.getStepId()).thenReturn(stepRunId);
 
       Step stepRun = mock(Step.class);
       when(stepRun.getStepAction()).thenReturn(StepActionClass.INJECT_EXECUTION);
+      when(stepRun.getId()).thenReturn(stepRunId);
 
       when(stepService.findByIdAndStatus(stepRunId, StepStatus.RUN)).thenReturn(stepRun);
 
-      ActionStep actionStep = mock(ActionStep.class);
-      when(stepService.factoryAction(StepActionClass.INJECT_EXECUTION, null))
-          .thenReturn(actionStep);
+      ActionStep localActionStep = mock(ActionStep.class);
+      when(stepService.factoryAction(StepActionClass.INJECT_EXECUTION, stepRunId))
+          .thenReturn(localActionStep);
 
       Step updated = mock(Step.class);
-      when(actionStep.update(stepRun)).thenReturn(Optional.of(updated));
+      Workflow workflowRun = mock(Workflow.class);
+      when(updated.getWorkflow()).thenReturn(workflowRun);
+      when(localActionStep.update(stepRun)).thenReturn(Optional.of(updated));
 
-      // -------- Act --------
+      // Act
       stepEventService.handleExternalUpdateEvent(event);
 
-      // -------- Assert --------
+      // Assert
       verify(stepService).saveStep(updated);
+      verify(stepService).evaluateWorkflowProgress(workflowRun);
+      verify(workflowService).saveWorkflowRun(workflowRun);
     }
   }
 }
