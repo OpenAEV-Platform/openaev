@@ -30,7 +30,7 @@ import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
 import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
-import { buildTenantApiPath } from '../../../utils/tenant-url-helper';
+import { buildTenantApiPath } from '../../../utils/url-helper';
 import AssetStatus from '../assets/AssetStatus';
 
 interface ScopeFormProps {
