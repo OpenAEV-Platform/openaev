@@ -103,8 +103,8 @@ export const buildTenantUrl = (
   }
 
   const normalizedPath = resolvedPath.startsWith('/') ? resolvedPath : `/${resolvedPath}`;
-  const resolvedSearch = search ?? window.location.search;
-  const resolvedHash = hash ?? window.location.hash;
+  const resolvedSearch = search ?? (pathname !== undefined ? '' : window.location.search);
+  const resolvedHash = hash ?? (pathname !== undefined ? '' : window.location.hash);
   return `${base}/${tenantId}${normalizedPath}${resolvedSearch}${resolvedHash}`;
 };
 

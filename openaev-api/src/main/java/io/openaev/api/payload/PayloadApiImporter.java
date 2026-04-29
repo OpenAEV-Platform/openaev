@@ -18,6 +18,7 @@ import io.openaev.service.ImportService;
 import io.openaev.service.ZipJsonService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.constraints.NotNull;
+import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -61,8 +62,8 @@ public class PayloadApiImporter extends RestBehavior {
   public ResponseEntity<JsonApiDocument<ResourceObject>> importJson(
       @RequestPart("file") @NotNull MultipartFile file) throws Exception {
     try {
-      ZipJsonService.ImportOutput<Payload> response = zipJsonApi.handleImport(file, "payload_name");
-      // TODO next chunk 4558 - complete arg
+      ZipJsonService.ImportOutput<Payload> response =
+          zipJsonApi.handleImport(file, "payload_name", IMPORT_OPTIONS, this::sanitize);
       payloadService.synchroniseInjectorContractBasedOnPayload(
           response.persistedData(), emptyList(), Set.of(), Set.of());
       return ResponseEntity.ok(response.jsonApiDocument());

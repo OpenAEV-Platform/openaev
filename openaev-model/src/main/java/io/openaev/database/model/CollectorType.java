@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.TenantBaseListener;
+import io.openaev.jsonapi.BusinessId;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import lombok.EqualsAndHashCode;
@@ -41,6 +42,7 @@ public class CollectorType implements TenantBase {
 
   @Column(name = "collector_type_name", nullable = false)
   @JsonProperty("collector_type_name")
+  @BusinessId
   @NotBlank
   private String name;
 

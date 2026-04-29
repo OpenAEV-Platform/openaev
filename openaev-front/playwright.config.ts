@@ -26,10 +26,12 @@ export default defineConfig({
       name: `OpenAEV Report`,
       outputFile: './test-results/report.html',
       // global coverage report options
-      coverage: {
-        entryFilter: () => true,
-        sourceFilter: (sourcePath: string) => sourcePath.startsWith('src'),
-      },
+      coverage: coverageOptions,
+      /*
+      onEnd: async (reportData) => {
+        // teams integration with webhook
+        await teamsWebhook(reportData);
+      } */
     }],
   ],
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */

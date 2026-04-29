@@ -13,8 +13,6 @@ import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.payload.form.*;
 import io.openaev.rest.payload.output.PayloadOutput;
 import io.openaev.rest.payload.service.*;
-import io.openaev.service.ImportService;
-import io.openaev.service.UserService;
 import io.openaev.utils.mapper.PayloadMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
@@ -35,7 +33,6 @@ public class PayloadApi extends RestBehavior {
   public static final String PAYLOAD_URI = "/api/payloads";
   public static final String TENANT_PAYLOAD_URI = TENANT_PREFIX + "/payloads";
 
-  private final ImportService importService;
   private final PayloadRepository payloadRepository;
   private final InjectorContractRepository injectorContractRepository;
   private final PayloadService payloadService;
@@ -44,7 +41,6 @@ public class PayloadApi extends RestBehavior {
   private final PayloadUpsertService payloadUpsertService;
   private final DocumentService documentService;
   private final CollectorService collectorsService;
-  private final UserService userService;
   private final PayloadMapper payloadMapper;
 
   @PostMapping({PAYLOAD_URI + "/search", TENANT_PAYLOAD_URI + "/search"})
@@ -112,71 +108,6 @@ public class PayloadApi extends RestBehavior {
   @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
   public Payload upsertPayload(@Valid @RequestBody PayloadUpsertInput input) {
     return this.payloadUpsertService.upsertPayload(input);
-  }
-
-  @PostMapping(
-      path = {PAYLOAD_URI + "/{payloadId}/export", TENANT_PAYLOAD_URI + "/{payloadId}/export"},
-      produces = "application/zip")
-  @AccessControl(
-      actionPerformed = Action.READ,
-      resourceType = ResourceType.PAYLOAD,
-      resourceId = "#payloadId")
-  public ResponseEntity<byte[]> payloadExport(@NotBlank @PathVariable String payloadId)
-      throws IOException {
-    List<String> targetIds = List.of(payloadId);
-    List<Payload> payloads = StreamHelper.fromIterable(payloadRepository.findAllById(targetIds));
-    byte[] zippedExport = payloadExportService.exportPayloadsToZip(payloads);
-    String zipName = payloadExportService.getZipFileName();
-
-    HttpHeaders headers = new HttpHeaders();
-    headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + zipName);
-    headers.add(HttpHeaders.CONTENT_TYPE, "application/zip");
-    headers.setContentLength(zippedExport.length);
-
-    return new ResponseEntity<>(zippedExport, headers, HttpStatus.OK);
-  }
-
-  @PostMapping({PAYLOAD_URI + "/export", TENANT_PAYLOAD_URI + "/export"})
-  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PAYLOAD)
-  public void payloadsExport(
-      @RequestBody @Valid final PayloadExportRequestInput payloadExportRequestInput,
-      HttpServletResponse response)
-      throws IOException {
-    List<String> targetIds = payloadExportRequestInput.getTargetsIds();
-    User currentUser = userService.currentUser();
-
-    List<Payload> payloads =
-        payloadRepository.findAll(
-            Specification.<Payload>unrestricted()
-                .and(SpecificationUtils.hasIdIn(targetIds))
-                .and(
-                    SpecificationUtils.hasGrantAccess(
-                        currentUser.getId(),
-                        currentUser.isAdminOrBypass(),
-                        currentUser.getCapabilities().contains(Capability.ACCESS_PAYLOADS),
-                        Grant.GRANT_TYPE.OBSERVER)));
-    runPayloadExport(payloads, response);
-  }
-
-  @PostMapping({PAYLOAD_URI + "/import", TENANT_PAYLOAD_URI + "/import"})
-  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PAYLOAD)
-  public void importPayloads(@RequestPart("file") @NotNull MultipartFile file) throws Exception {
-    this.importService.handleFileImport(file, null, null);
-  }
-
-  private void runPayloadExport(List<Payload> payloads, HttpServletResponse response)
-      throws IOException {
-    byte[] zippedExport = payloadExportService.exportPayloadsToZip(payloads);
-    String zipName = payloadExportService.getZipFileName();
-
-    response.addHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + zipName);
-    response.addHeader(HttpHeaders.CONTENT_TYPE, "application/zip");
-    response.setContentLength(zippedExport.length);
-    response.setStatus(HttpServletResponse.SC_OK);
-    ServletOutputStream outputStream = response.getOutputStream();
-    outputStream.write(zippedExport);
-    outputStream.flush();
-    outputStream.close();
   }
 
   @DeleteMapping({PAYLOAD_URI + "/{payloadId}", TENANT_PAYLOAD_URI + "/{payloadId}"})
