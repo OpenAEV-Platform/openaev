@@ -577,10 +577,10 @@ public class WorkflowService {
   }
 
   private Map<String, List<String>> extractScopeData(Workflow workflowRun) {
-    if (workflowRun.getWhitelist() == null) {
+    if (workflowRun.getAllowlist() == null) {
       return Collections.emptyMap();
     }
-    return workflowRun.getWhitelist().stream()
+    return workflowRun.getAllowlist().stream()
         .collect(
             Collectors.groupingBy(
                 rule -> rule.getValueType().getContractOutputType(),
