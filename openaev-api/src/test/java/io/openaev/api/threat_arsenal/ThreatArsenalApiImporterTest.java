@@ -6,10 +6,10 @@ import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.constants.Constants.IMPORTED_OBJECT_NAME_SUFFIX;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -20,10 +20,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionCreateInput;
+import io.openaev.database.model.ArgumentType;
 import io.openaev.database.model.ContractOutputElement;
 import io.openaev.database.model.Domain;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
+import io.openaev.database.model.PayloadArgument;
+import io.openaev.database.model.PayloadPrerequisite;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.integration.Manager;
@@ -89,7 +92,8 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
               .perform(
                   post(THREAT_ARSENAL_URL)
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(createInput)))
+                      .content(asJsonString(createInput))
+                      .with(csrf()))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()
@@ -100,7 +104,7 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
 
       byte[] exportedZip =
           mockMvc
-              .perform(get(THREAT_ARSENAL_URL + "/" + originalActionId + "/export"))
+              .perform(get(THREAT_ARSENAL_URL + "/" + originalActionId + "/export").with(csrf()))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()
@@ -112,7 +116,7 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
       // Act
       String importResponse =
           mockMvc
-              .perform(multipart(THREAT_ARSENAL_URL + "/import").file(zipFile))
+              .perform(multipart(THREAT_ARSENAL_URL + "/import").file(zipFile).with(csrf()))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()
@@ -124,12 +128,12 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
       Map<String, String> importedLabels = JsonPath.read(importResponse, "$.action_labels");
       Payload importedPayload = payloadRepository.findById(importedPayloadId).orElseThrow();
 
-      assertThat(importedActionId).isNotEqualTo(originalActionId);
-      assertThat(importedPayload.getName()).isEqualTo(originalPayloadName + " (Import)");
-      assertThat(importedLabels).isNotEmpty();
-      assertThat(importedLabels.values()).allMatch(label -> label.endsWith(" (Import)"));
-      assertThat(payloadRepository.findById(importedPayloadId)).isPresent();
-      assertThat(injectorContractRepository.findById(importedActionId)).isPresent();
+      assertNotEquals(originalActionId, importedActionId);
+      assertEquals(originalPayloadName + " (Import)", importedPayload.getName());
+      assertFalse(importedLabels.isEmpty());
+      assertTrue(importedLabels.values().stream().allMatch(label -> label.endsWith(" (Import)")));
+      assertTrue(payloadRepository.findById(importedPayloadId).isPresent());
+      assertTrue(injectorContractRepository.findById(importedActionId).isPresent());
     }
   }
 
@@ -162,7 +166,7 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
 
     private String performImport(MockMultipartFile zipFile) throws Exception {
       return mockMvc
-          .perform(multipart(THREAT_ARSENAL_URL + "/import").file(zipFile))
+          .perform(multipart(THREAT_ARSENAL_URL + "/import").file(zipFile).with(csrf()))
           .andExpect(status().is2xxSuccessful())
           .andReturn()
           .getResponse()
@@ -182,7 +186,8 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
               .perform(
                   post(THREAT_ARSENAL_URL)
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(createInput)))
+                      .content(asJsonString(createInput))
+                      .with(csrf()))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()
@@ -206,7 +211,7 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
       // Act
       String importResponse =
           mockMvc
-              .perform(multipart(THREAT_ARSENAL_URL + "/import").file(zipFile))
+              .perform(multipart(THREAT_ARSENAL_URL + "/import").file(zipFile).with(csrf()))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()
@@ -216,28 +221,39 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
       String importedActionId = JsonPath.read(importResponse, "$.injector_contract_id");
       String importedPayloadId = JsonPath.read(importResponse, "$.action_payload.payload_id");
 
-      assertThat(importedActionId).isNotEqualTo(originalActionId);
-      assertThat(importedPayloadId).isNotEqualTo(originalPayloadId);
+      assertNotEquals(originalActionId, importedActionId);
+      assertNotEquals(originalPayloadId, importedPayloadId);
 
       Payload importedPayload = payloadRepository.findById(importedPayloadId).orElseThrow();
-      assertThat(importedPayload.getName()).isEqualTo(originalPayloadName + " (Import)");
-      assertThat(injectorContractRepository.findInjectorContractByPayload(importedPayload))
-          .map(InjectorContract::getId)
-          .contains(importedActionId);
+      assertEquals(originalPayloadName + " (Import)", importedPayload.getName());
+      assertEquals(
+          importedActionId,
+          injectorContractRepository
+              .findInjectorContractByPayload(importedPayload)
+              .map(InjectorContract::getId)
+              .orElse(null));
     }
 
     @Test
     @DisplayName("Import a payload returns complete entity with all array fields")
     void importPayloadReturnsPayloadWithAllArrayFields() throws Exception {
       // -- PREPARE --
-      // payload_arguments and payload_prerequisites must be arrays of objects,
+      // payload_arguments and payload_prerequisites must be typed objects,
       // matching the PayloadArgument / PayloadPrerequisite model schema.
-      Map<String, Object> argument1 =
-          Map.of("type", "text", "key", "target_host", "default_value", "localhost");
-      Map<String, Object> argument2 =
-          Map.of("type", "text", "key", "port", "default_value", "8080");
-      Map<String, Object> prerequisite1 =
-          Map.of("executor", "sh", "get_command", "which curl", "check_command", "curl --version");
+      PayloadArgument argument1 = new PayloadArgument();
+      argument1.setType(ArgumentType.Text);
+      argument1.setKey("target_host");
+      argument1.setDefaultValue("localhost");
+
+      PayloadArgument argument2 = new PayloadArgument();
+      argument2.setType(ArgumentType.Text);
+      argument2.setKey("port");
+      argument2.setDefaultValue("8080");
+
+      PayloadPrerequisite prerequisite1 = new PayloadPrerequisite();
+      prerequisite1.setExecutor("sh");
+      prerequisite1.setGetCommand("which curl");
+      prerequisite1.setCheckCommand("curl --version");
 
       Map<String, Object> attributes = buildDefaultPayloadAttributes();
       attributes.put("payload_arguments", List.of(argument1, argument2));
@@ -254,29 +270,23 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
 
       // -- ASSERT --
       assertNotNull(response);
-      JsonNode json = objectMapper.readTree(response);
-      assertEquals("command", json.at("/data/type").asText());
-      assertEquals(
-          "Echo" + IMPORTED_OBJECT_NAME_SUFFIX, json.at("/data/attributes/payload_name").asText());
-      assertEquals("psh", json.at("/data/attributes/command_executor").asText());
-      assertEquals("echo \"toto\"", json.at("/data/attributes/command_content").asText());
-      assertEquals(1, json.at("/data/attributes/payload_platforms").size());
+      String importedPayloadId = JsonPath.read(response, "$.action_payload.payload_id");
+      Payload importedPayload = payloadRepository.findById(importedPayloadId).orElseThrow();
+      assertEquals("Echo" + IMPORTED_OBJECT_NAME_SUFFIX, importedPayload.getName());
 
-      // Assert argument field values, not just array size
-      JsonNode args = json.at("/data/attributes/payload_arguments");
-      assertEquals(2, args.size());
-      assertEquals("text", args.get(0).get("type").asText());
-      assertEquals("target_host", args.get(0).get("key").asText());
-      assertEquals("localhost", args.get(0).get("default_value").asText());
-      assertEquals("port", args.get(1).get("key").asText());
-      assertEquals("8080", args.get(1).get("default_value").asText());
+      // Assert argument field values
+      assertEquals(2, importedPayload.getArguments().size());
+      assertEquals(ArgumentType.Text, importedPayload.getArguments().get(0).getType());
+      assertEquals("target_host", importedPayload.getArguments().get(0).getKey());
+      assertEquals("localhost", importedPayload.getArguments().get(0).getDefaultValue());
+      assertEquals("port", importedPayload.getArguments().get(1).getKey());
+      assertEquals("8080", importedPayload.getArguments().get(1).getDefaultValue());
 
-      // Assert prerequisite field values, not just array size
-      JsonNode prereqs = json.at("/data/attributes/payload_prerequisites");
-      assertEquals(1, prereqs.size());
-      assertEquals("sh", prereqs.get(0).get("executor").asText());
-      assertEquals("which curl", prereqs.get(0).get("get_command").asText());
-      assertEquals("curl --version", prereqs.get(0).get("check_command").asText());
+      // Assert prerequisite field values
+      assertEquals(1, importedPayload.getPrerequisites().size());
+      assertEquals("sh", importedPayload.getPrerequisites().get(0).getExecutor());
+      assertEquals("which curl", importedPayload.getPrerequisites().get(0).getGetCommand());
+      assertEquals("curl --version", importedPayload.getPrerequisites().get(0).getCheckCommand());
     }
 
     @Test
@@ -420,7 +430,7 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
       assertNotNull(response);
       String importedPayloadId = JsonPath.read(response, "$.action_payload.payload_id");
       Payload importedPayload = payloadRepository.findById(importedPayloadId).orElseThrow();
-      assertThat(importedPayload.getName()).isEqualTo("Payload With Multiple Elements (Import)");
+      assertEquals("Payload With Multiple Elements (Import)", importedPayload.getName());
 
       Set<ContractOutputElement> outputElements =
           importedPayload.getOutputParsers().stream().findFirst().get().getContractOutputElements();

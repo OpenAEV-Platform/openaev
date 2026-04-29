@@ -58,6 +58,11 @@ public class ZipJsonApi<T extends Base> {
   }
 
   // -- IMPORT --
+  public ZipJsonService.ImportOutput<T> handleImport(MultipartFile file, String nameAttributeKey)
+      throws IOException {
+    return handleImport(file, nameAttributeKey, null, null);
+  }
+
   public ZipJsonService.ImportOutput<T> handleImport(
       MultipartFile file,
       String nameAttributeKey,
