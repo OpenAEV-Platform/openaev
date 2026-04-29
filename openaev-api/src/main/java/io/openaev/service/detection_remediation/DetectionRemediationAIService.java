@@ -108,7 +108,14 @@ public class DetectionRemediationAIService {
     try {
       return mapper.readValue(responseBody, classResponse);
     } catch (JsonProcessingException e) {
-      log.error("Failed to parse JSON response {} . Error: {} ", classResponse, e.getMessage(), e);
+      log.error(
+          "Failed to parse JSON response {} . Error: {} . Body (truncated): {}",
+          classResponse,
+          e.getMessage(),
+          responseBody != null && responseBody.length() > 500
+              ? responseBody.substring(0, 500) + "..."
+              : responseBody,
+          e);
       throw new ResponseStatusException(
           HttpStatus.BAD_GATEWAY,
           errorMessage + "The external service returned an invalid response: " + e.getMessage());
@@ -195,7 +202,24 @@ public class DetectionRemediationAIService {
         Thread.sleep(RETRY_CONNECTION_WAITING_MILLISECONDS);
 
       } else {
-        return EntityUtils.toString(response.getEntity());
+        String body = EntityUtils.toString(response.getEntity());
+        String contentType =
+            response.getEntity().getContentType() != null
+                ? response.getEntity().getContentType()
+                : "";
+        if (!contentType.contains("application/json")) {
+          log.error(
+              "{}Expected JSON response but received Content-Type: '{}'. Body (truncated): {}",
+              errorMessage,
+              contentType,
+              body != null && body.length() > 500 ? body.substring(0, 500) + "..." : body);
+          throw new ResponseStatusException(
+              HttpStatus.BAD_GATEWAY,
+              errorMessage
+                  + "The external service returned an unexpected content type: "
+                  + contentType);
+        }
+        return body;
       }
 
     } catch (ParseException | IOException e) {
