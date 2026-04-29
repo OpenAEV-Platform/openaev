@@ -34,6 +34,7 @@ class WorkflowServiceTest {
   @Mock private WorkflowScopeRuleRepository workflowScopeRuleRepository;
   @Mock private PreviewFeatureService previewFeatureService;
   @Mock private StepService stepService;
+  @Mock private WorkflowStateService workflowStateService;
 
   @InjectMocks private WorkflowService workflowService;
 
