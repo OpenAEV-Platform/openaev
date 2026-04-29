@@ -7101,6 +7101,8 @@ export interface ScenarioOutput {
    * @minLength 1
    */
   scenario_mail_from: string;
+  /** Sender display name of the scenario */
+  scenario_mail_from_name?: string;
   /** Main focus value of the scenario */
   scenario_main_focus?: string;
   /** Footer of the scenario */
@@ -7328,6 +7330,7 @@ export interface SimulationDetails {
   exercise_logs_number?: number;
   /** @minLength 1 */
   exercise_mail_from: string;
+  exercise_mail_from_name?: string;
   exercise_mails_reply_to?: string[];
   exercise_main_focus?: string;
   exercise_message_footer?: string;
