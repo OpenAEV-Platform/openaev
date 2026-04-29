@@ -13,8 +13,6 @@ import io.openaev.service.AssetGroupService;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
-import java.util.List;
-import java.util.Map;
 
 public class OpenaevInjectorIntegration extends IntegrationInMemory {
   public static final String OPENAEV_INJECTOR_NAME = "OpenAEV Implant";
@@ -54,21 +52,6 @@ public class OpenaevInjectorIntegration extends IntegrationInMemory {
 
   @Override
   protected void innerStart() throws Exception {
-    Map<String, String> executorCommands =
-        OpenaevImplantCommandBuilder.buildExecutorCommands(openAEVConfig);
-    Map<String, String> executorClearCommands =
-        OpenaevImplantCommandBuilder.buildExecutorClearCommands();
-
-    injectorService.registerBuiltinInjector(
-        OPENAEV_INJECTOR_ID,
-        OPENAEV_INJECTOR_NAME,
-        openAEVImplantContract,
-        false,
-        "simulation-implant",
-        executorCommands,
-        executorClearCommands,
-        true,
-        List.of());
     this.openAEVImplantExecutor =
         new OpenAEVImplantExecutor(
             injectorContext, assetGroupService, injectExpectationService, injectService);

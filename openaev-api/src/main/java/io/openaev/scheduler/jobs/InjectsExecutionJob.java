@@ -31,6 +31,8 @@ import io.openaev.service.chaining.WorkflowService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.ExecutionTraceUtils;
 import jakarta.annotation.PostConstruct;
+import jakarta.annotation.Resource;
+import jakarta.persistence.EntityManager;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -43,6 +45,7 @@ import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.hibernate.Session;
 import org.quartz.DisallowConcurrentExecution;
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;
@@ -93,7 +96,9 @@ public class InjectsExecutionJob implements Job {
       List.of(InjectExpectation.EXPECTATION_STATUS.SUCCESS);
 
   private final WorkflowService workflowService;
-  private final HealthCheckUtils healthCheckUtils;
+  @Resource protected ObjectMapper mapper;
+  @Autowired private HealthCheckUtils healthCheckUtils;
+  private final EntityManager entityManager;
 
   @PostConstruct
   private void init() {
@@ -379,6 +384,9 @@ public class InjectsExecutionJob implements Job {
   @BypassRls
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
     try {
+      // Disable tenant filter — this job runs cross-tenant, no tenant context is set
+      entityManager.unwrap(Session.class).disableFilter("tenantFilter");
+
       // Handle starting exercises if needed.
       handleAutoStartExercises();
       // Get all injects to execute grouped by exercise.

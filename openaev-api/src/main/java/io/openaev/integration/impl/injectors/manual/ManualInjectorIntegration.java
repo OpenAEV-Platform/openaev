@@ -10,7 +10,6 @@ import io.openaev.integration.QualifiedComponent;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
-import java.util.List;
 
 public class ManualInjectorIntegration extends IntegrationInMemory {
   static final String MANUAL_INJECTOR_NAME = "Manual";
@@ -42,16 +41,6 @@ public class ManualInjectorIntegration extends IntegrationInMemory {
 
   @Override
   protected void innerStart() throws Exception {
-    injectorService.registerBuiltinInjector(
-        MANUAL_INJECTOR_ID,
-        MANUAL_INJECTOR_NAME,
-        manualContract,
-        true,
-        "generic",
-        null,
-        null,
-        false,
-        List.of());
     this.manualExecutor = new ManualExecutor(injectorContext, injectExpectationService);
   }
 

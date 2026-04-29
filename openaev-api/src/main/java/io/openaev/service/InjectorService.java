@@ -376,9 +376,6 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     // Upload icon if available
     uploadInjectorIcon(contractor);
 
-    // Validate no ID conflicts exist
-    validateNoIdConflict(id, contractor);
-
     // Get contracts from contractor
     List<Contract> staticContracts;
     try {
@@ -464,24 +461,6 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
       } catch (Exception e) {
         log.warn(
             "Failed to upload icon for injector '{}': {}", contractor.getType(), e.getMessage());
-      }
-    }
-  }
-
-  private void validateNoIdConflict(String id, Contractor contractor)
-      throws InjectorRegistrationException {
-    Injector existingInjector =
-        injectorRepository.findByIdAndTenantId(id, TenantContext.getCurrentTenant()).orElse(null);
-    if (existingInjector == null) {
-      Optional<Injector> conflictingInjector =
-          injectorRepository.findByTypeAndTenantId(
-              contractor.getType(), TenantContext.getCurrentTenant());
-      if (conflictingInjector.isPresent()) {
-        throw new InjectorRegistrationException(
-            String.format(
-                "Injector '%s' already exists with a different ID (%s). "
-                    + "Please delete it or contact your administrator.",
-                contractor.getType(), conflictingInjector.get().getId()));
       }
     }
   }
