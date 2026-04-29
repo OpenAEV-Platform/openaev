@@ -22,7 +22,7 @@ processors:
 exporters:
   file:
     # Path inside the container (mapped via volume in docker-compose.yml)
-    path: /telemetry.json
+    path: /telemetry-output/telemetry.json
   debug:
     verbosity: detailed
 

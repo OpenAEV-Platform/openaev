@@ -615,10 +615,6 @@ class WorkflowServiceTest {
               .findFirst()
               .orElseThrow();
       assertEquals(ScopeRuleValueType.ASSET_GROUP_ID, mappedAssetGroupRule.getValueType());
-
-      verify(scopeMetricCollector).trackScopeCreated(ScopeRuleSelectedMode.WHITELIST, 3L);
-      verify(scopeMetricCollector).trackScopeCreated(ScopeRuleSelectedMode.BLACKLIST, 2L);
-      verify(scopeMetricCollector, times(5)).trackScopeEntryAdded(any(), any());
     }
   }
 

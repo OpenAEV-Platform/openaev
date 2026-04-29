@@ -7,7 +7,7 @@ target/
 !**/src/test/**/target/
 logs/**
 openaev-dev/.env
-openaev-dev/.telemetry.json
+openaev-dev/telemetry-output/
 
 ### STS ###
 .apt_generated

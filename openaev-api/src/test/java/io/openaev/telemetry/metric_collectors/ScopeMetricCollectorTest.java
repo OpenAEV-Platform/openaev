@@ -1,26 +1,14 @@
 package io.openaev.telemetry.metric_collectors;
 
-import static io.opentelemetry.api.common.AttributeKey.longKey;
-import static io.opentelemetry.api.common.AttributeKey.stringKey;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.eq;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
-import io.openaev.database.model.ScopeRuleSelectedMode;
-import io.openaev.database.model.ScopeRuleSource;
-import io.openaev.database.model.ScopeRuleValueType;
-import io.opentelemetry.api.common.Attributes;
-import io.opentelemetry.api.metrics.LongCounter;
-import io.opentelemetry.api.metrics.LongCounterBuilder;
-import io.opentelemetry.api.metrics.Meter;
-import org.junit.jupiter.api.BeforeEach;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.InjectMocks;
@@ -31,86 +19,97 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @DisplayName("ScopeMetricCollector")
 class ScopeMetricCollectorTest {
 
-  @Mock private Meter meter;
-  @Mock private LongCounterBuilder counterBuilder;
-  @Mock private LongCounter scopeCreatedCounter;
-  @Mock private LongCounter scopeEntryAddedCounter;
+  @Mock private MetricRegistry metricRegistry;
 
   @InjectMocks private ScopeMetricCollector scopeMetricCollector;
 
-  @Captor private ArgumentCaptor<Attributes> attributesCaptor;
+  @Captor private ArgumentCaptor<Supplier<Long>> supplierCaptor;
 
-  @BeforeEach
-  void setUp() {
-    when(meter.counterBuilder(anyString())).thenReturn(counterBuilder);
-    when(counterBuilder.setDescription(anyString())).thenReturn(counterBuilder);
-    when(counterBuilder.setUnit(anyString())).thenReturn(counterBuilder);
-    when(counterBuilder.build()).thenReturn(scopeCreatedCounter, scopeEntryAddedCounter);
-    scopeMetricCollector.init();
+  @Nested
+  @DisplayName("Scope created gauge")
+  class ScopeCreatedGauge {
+
+    @Test
+    void given_scopeCreated_should_registerGaugeAndReturnCount() {
+      // Arrange
+      scopeMetricCollector.addScopeCreatedCount();
+      scopeMetricCollector.addScopeCreatedCount();
+      scopeMetricCollector.addScopeCreatedCount();
+
+      // Act
+      scopeMetricCollector.init();
+
+      // Assert
+      verify(metricRegistry)
+          .registerGauge(
+              eq("scope_created_count"),
+              eq("Number of scope definitions created"),
+              supplierCaptor.capture());
+      assertThat(supplierCaptor.getValue().get()).isEqualTo(3L);
+    }
+
+    @Test
+    void given_scopeCreatedGauge_when_collected_should_resetToZero() {
+      // Arrange
+      scopeMetricCollector.addScopeCreatedCount();
+
+      // Act
+      scopeMetricCollector.init();
+
+      // Assert
+      verify(metricRegistry)
+          .registerGauge(
+              eq("scope_created_count"),
+              eq("Number of scope definitions created"),
+              supplierCaptor.capture());
+      Supplier<Long> supplier = supplierCaptor.getValue();
+      assertThat(supplier.get()).isEqualTo(1L);
+      // Second call should return 0 (reset after getAndSet)
+      assertThat(supplier.get()).isZero();
+    }
   }
 
-  @Test
-  void given_whitelistMode_when_trackScopeCreated_should_publishModeAndEntryCountAttributes() {
-    // Arrange
-    long entryCount = 3L;
+  @Nested
+  @DisplayName("Scope entry added gauge")
+  class ScopeEntryAddedGauge {
 
-    // Act
-    scopeMetricCollector.trackScopeCreated(ScopeRuleSelectedMode.WHITELIST, entryCount);
+    @Test
+    void given_scopeEntryAdded_should_registerGaugeAndReturnCount() {
+      // Arrange
+      scopeMetricCollector.addScopeEntryAddedCount();
+      scopeMetricCollector.addScopeEntryAddedCount();
 
-    // Assert
-    verify(scopeCreatedCounter).add(eq(1L), attributesCaptor.capture());
-    Attributes attributes = attributesCaptor.getValue();
-    assertThat(attributes.get(stringKey("mode"))).isEqualTo("whitelist");
-    assertThat(attributes.get(longKey("entry_count"))).isEqualTo(entryCount);
-  }
+      // Act
+      scopeMetricCollector.init();
 
-  @Test
-  void given_blacklistMode_when_trackScopeCreated_should_publishModeAndEntryCountAttributes() {
-    // Arrange
-    long entryCount = 2L;
+      // Assert
+      verify(metricRegistry)
+          .registerGauge(
+              eq("scope_entry_added_count"),
+              eq("Number of scope entries added"),
+              supplierCaptor.capture());
+      assertThat(supplierCaptor.getValue().get()).isEqualTo(2L);
+    }
 
-    // Act
-    scopeMetricCollector.trackScopeCreated(ScopeRuleSelectedMode.BLACKLIST, entryCount);
+    @Test
+    void given_scopeEntryAddedGauge_when_collected_should_resetToZero() {
+      // Arrange
+      scopeMetricCollector.addScopeEntryAddedCount();
 
-    // Assert
-    verify(scopeCreatedCounter).add(eq(1L), attributesCaptor.capture());
-    Attributes attributes = attributesCaptor.getValue();
-    assertThat(attributes.get(stringKey("mode"))).isEqualTo("blacklist");
-    assertThat(attributes.get(longKey("entry_count"))).isEqualTo(entryCount);
-  }
+      // Act
+      scopeMetricCollector.init();
 
-  @ParameterizedTest(name = "type={0} should map to {1}")
-  @CsvSource({
-    "IP,ip",
-    "IP_SUBNET,cidr",
-    "DOMAIN,hostname",
-    "ASSET_ID,asset",
-    "ASSET_GROUP_ID,asset_group"
-  })
-  void given_scopeEntryType_when_trackScopeEntryAdded_should_publishMappedType(
-      ScopeRuleValueType valueType, String expectedType) {
-    // Arrange
-
-    // Act
-    scopeMetricCollector.trackScopeEntryAdded(valueType, ScopeRuleSource.MANUAL);
-
-    // Assert
-    verify(scopeEntryAddedCounter).add(eq(1L), attributesCaptor.capture());
-    Attributes attributes = attributesCaptor.getValue();
-    assertThat(attributes.get(stringKey("type"))).isEqualTo(expectedType);
-    assertThat(attributes.get(stringKey("method"))).isEqualTo("manual");
-  }
-
-  @Test
-  void given_csvSource_when_trackScopeEntryAdded_should_publishCsvMethod() {
-    // Arrange
-
-    // Act
-    scopeMetricCollector.trackScopeEntryAdded(ScopeRuleValueType.IP, ScopeRuleSource.CSV);
-
-    // Assert
-    verify(scopeEntryAddedCounter).add(eq(1L), attributesCaptor.capture());
-    Attributes attributes = attributesCaptor.getValue();
-    assertThat(attributes.get(stringKey("method"))).isEqualTo("csv");
+      // Assert
+      verify(metricRegistry)
+          .registerGauge(
+              eq("scope_entry_added_count"),
+              eq("Number of scope entries added"),
+              supplierCaptor.capture());
+      Supplier<Long> supplier = supplierCaptor.getValue();
+      assertThat(supplier.get()).isEqualTo(1L);
+      // Second call should return 0 (reset after getAndSet)
+      assertThat(supplier.get()).isZero();
+    }
   }
 }
+

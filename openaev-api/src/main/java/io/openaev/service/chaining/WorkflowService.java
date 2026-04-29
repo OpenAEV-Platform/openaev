@@ -530,23 +530,9 @@ public class WorkflowService {
       }
     }
 
-    //    if (changed) {
-    //      emitScopeCreatedMetrics(deduplicated);
-    //    }
-
     return changed;
   }
 
-  private void emitScopeCreatedMetrics(List<WorkflowScopeRuleInput> deduplicatedRules) {
-    Map<ScopeRuleSelectedMode, Long> countsByMode =
-        deduplicatedRules.stream()
-            .filter(rule -> rule.getSelectedMode() != null)
-            .collect(
-                Collectors.groupingBy(
-                    WorkflowScopeRuleInput::getSelectedMode, Collectors.counting()));
-
-    countsByMode.forEach(scopeMetricCollector::trackScopeCreated);
-  }
 
   /**
    * Filters out duplicate scope-rule inputs, keeping only the first occurrence of each unique
