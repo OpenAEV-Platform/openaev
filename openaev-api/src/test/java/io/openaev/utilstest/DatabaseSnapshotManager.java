@@ -38,6 +38,9 @@ public class DatabaseSnapshotManager {
       if (snapshotCreated) return;
 
       try {
+        // Escalate to superuser to bypass RLS when reading all table data
+        jdbcTemplate.execute("RESET ROLE");
+
         List<String> tables =
             jdbcTemplate.queryForList(
                 "SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename",
@@ -50,6 +53,9 @@ public class DatabaseSnapshotManager {
 
         snapshotCreated = true;
         log.info("Startup snapshot created with JDBC ({} tables)", startupData.size());
+
+        // Re-adopt the non-superuser app role for RLS enforcement
+        jdbcTemplate.execute("SET ROLE openaev_app");
 
       } catch (Exception e) {
         log.error("Failed to create startup snapshot: {}", e.getMessage(), e);
@@ -72,6 +78,9 @@ public class DatabaseSnapshotManager {
 
       cleanElasticsearchIndices();
 
+      // Escalate to superuser for session_replication_role (openaev_app cannot set it)
+      jdbcTemplate.execute("RESET ROLE");
+
       // Deactivate FK for now
       jdbcTemplate.execute("SET session_replication_role = 'replica';");
 
@@ -89,8 +98,9 @@ public class DatabaseSnapshotManager {
         }
       }
 
-      // Activate FK back
+      // Activate FK back and re-adopt the non-superuser app role for RLS
       jdbcTemplate.execute("SET session_replication_role = 'origin';");
+      jdbcTemplate.execute("SET ROLE openaev_app");
 
       log.info("Database restored to startup state via JDBC");
 

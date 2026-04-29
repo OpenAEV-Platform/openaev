@@ -11,13 +11,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Tag;
+import io.openaev.database.model.Tenant;
 import io.openaev.rest.tag.form.TagUpdateInput;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.TagFixture;
 import io.openaev.utils.fixtures.composers.TagComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,6 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 @DisplayName("Tag API tests")
 public class TagApiTest extends IntegrationTest {
   @Autowired private TagComposer tagComposer;
+  @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper mapper;
   @Autowired private EntityManager entityManager;
@@ -71,5 +75,65 @@ public class TagApiTest extends IntegrationTest {
     expected.setId(tag.getId());
 
     assertThatJson(response).isEqualTo(mapper.writeValueAsString(expected));
+  }
+
+  @Nested
+  @DisplayName("Tenant isolation")
+  class TenantIsolation {
+
+    @Test
+    @DisplayName("given tag in Tenant XXX, when update from Tenant YYY, should return 404")
+    @WithMockUser(isAdmin = true)
+    void given_tagInTenantXXX_when_updateFromTenantYYY_should_return404() throws Exception {
+      // -- ARRANGE --
+      Tenant tenantXXX = tenantIsolationHelper.createTenant("Tenant XXX");
+      Tenant tenantYYY = tenantIsolationHelper.createTenant("Tenant YYY");
+      tenantIsolationHelper.addCurrentUserToTenant(tenantXXX, entityManager);
+      tenantIsolationHelper.addCurrentUserToTenant(tenantYYY, entityManager);
+
+      tenantIsolationHelper.switchToTenant(tenantXXX.getId(), entityManager);
+      Tag tag = tagComposer.forTag(TagFixture.getTag()).persist().get();
+      entityManager.flush();
+      entityManager.clear();
+
+      // -- ACT & ASSERT --
+      tenantIsolationHelper.switchToTenant(tenantYYY.getId(), entityManager);
+      TagUpdateInput input = new TagUpdateInput();
+      input.setName("Updated tag");
+      input.setColor("#000000");
+      mvc.perform(
+              put(TAG_URI + "/" + tag.getId())
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("given tag in Tenant XXX, when update from same tenant, should return 200")
+    @WithMockUser(isAdmin = true)
+    void given_tagInTenantXXX_when_updateFromSameTenant_should_return200() throws Exception {
+      // -- ARRANGE --
+      Tenant tenantXXX = tenantIsolationHelper.createTenant("Tenant XXX");
+      tenantIsolationHelper.addCurrentUserToTenant(tenantXXX, entityManager);
+
+      tenantIsolationHelper.switchToTenant(tenantXXX.getId(), entityManager);
+      Tag tag = tagComposer.forTag(TagFixture.getTag()).persist().get();
+      entityManager.flush();
+      entityManager.clear();
+
+      // -- ACT & ASSERT --
+      TagUpdateInput input = new TagUpdateInput();
+      input.setName("Updated tag");
+      input.setColor("#000000");
+      mvc.perform(
+              put(TAG_URI + "/" + tag.getId())
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+    }
   }
 }

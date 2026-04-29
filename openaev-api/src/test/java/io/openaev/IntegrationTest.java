@@ -8,6 +8,7 @@ import io.openaev.utils.fixtures.composers.GrantComposer;
 import io.openaev.utils.mockUser.TestUserHolder;
 import io.openaev.utils.mockUser.WithMockUserTestExecutionListener;
 import io.openaev.utilstest.RabbitMQTestListener;
+import io.openaev.utilstest.RlsToggleTestListener;
 import io.openaev.utilstest.StartupSnapshotTestListener;
 import jakarta.persistence.EntityManager;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +21,7 @@ import org.springframework.test.context.TestExecutionListeners;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @TestExecutionListeners(
     value = {
+      RlsToggleTestListener.class,
       StartupSnapshotTestListener.class,
       WithMockUserTestExecutionListener.class,
       RabbitMQTestListener.class
