@@ -74,6 +74,12 @@ public class StepService {
     }
   }
 
+  /**
+   * Copies all step templates (and their conditions) from one workflow to another.
+   *
+   * @param workflowTemplateFrom source workflow
+   * @param workflowTemplateTo target workflow
+   */
   @Transactional(rollbackFor = Exception.class)
   public void copyStepTemplate(Workflow workflowTemplateFrom, Workflow workflowTemplateTo) {
     List<Step> stepsTemplate = findAllStepTemplateByWorkflow(workflowTemplateFrom.getId());
@@ -84,6 +90,13 @@ public class StepService {
     saveSteps(stepsTemplateCopy);
   }
 
+  /**
+   * Evaluates workflow progress by checking all step templates for valid conditions and creating
+   * READY steps. Sets workflow to END if no steps are ready and no delayed steps remain.
+   *
+   * @param workflowRun the running workflow to evaluate
+   * @return the updated workflow (may have status END)
+   */
   @Transactional(rollbackFor = Exception.class)
   public Workflow evaluateWorkflowProgress(Workflow workflowRun) throws ChainingException {
     String workflowTemplateId = workflowRun.getWorkflowTemplate().getId();
@@ -294,6 +307,13 @@ public class StepService {
         null);
   }
 
+  /**
+   * Copies a list of step templates (with data and conditions) to a target workflow.
+   *
+   * @param stepsFrom source step templates
+   * @param workflowTo target workflow
+   * @return list of copied step templates
+   */
   @Transactional(rollbackFor = Exception.class)
   List<Step> copyStepsTemplate(List<Step> stepsFrom, Workflow workflowTo) {
     List<Step> stepsCopied = new ArrayList<>();
@@ -322,6 +342,12 @@ public class StepService {
     return stepsCopied;
   }
 
+  /**
+   * Copies the condition tree from a source step to a target step, preserving parent hierarchy.
+   *
+   * @param step source step with conditions
+   * @param stepCopied target step to attach copied conditions to
+   */
   @Transactional(rollbackFor = Exception.class)
   void copyStepConditionTemplate(Step step, Step stepCopied) {
     List<Condition> conditions = conditionService.findAllConditionsByStepId(step.getId());
@@ -592,6 +618,12 @@ public class StepService {
     return stepRepository.findStepIdsByExpectationIds(expectationIds);
   }
 
+  /**
+   * Returns all RUN and READY steps for a given workflow execution.
+   *
+   * @param id workflow run ID
+   * @return list of steps currently executing or ready
+   */
   public List<Step> findAllStepExecutedByWorkflowRunId(String id) {
     return stepRepository.findAllStepByWorkflow_IdAndStatusIn(
         id, List.of(StepStatus.RUN, StepStatus.READY));
@@ -938,6 +970,12 @@ public class StepService {
     return new JsonPrimitive(primitiveObject.toString());
   }
 
+  /**
+   * Retrieves an inject by its ID (delegates to InjectService).
+   *
+   * @param injectId the inject ID
+   * @return the found inject
+   */
   public Inject getInject(String injectId) {
     return injectService.inject(injectId);
   }

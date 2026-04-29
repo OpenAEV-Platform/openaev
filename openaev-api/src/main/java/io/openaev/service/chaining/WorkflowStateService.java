@@ -21,6 +21,13 @@ public class WorkflowStateService {
 
   private final WorkflowStateRepository workflowStateRepository;
 
+  /**
+   * Syncs structured output data into the global workflow state entries.
+   *
+   * @param dataToSync JSON element containing output data to merge
+   * @param fieldTypeMap mapping from field name to its contract output type
+   * @param workflowRun the running workflow whose global state is updated
+   */
   public void syncState(
       JsonElement dataToSync, Map<String, ContractOutputType> fieldTypeMap, Workflow workflowRun) {
     WorkflowState globalState = getOrCreateGlobalState(workflowRun);
@@ -42,6 +49,14 @@ public class WorkflowStateService {
     save(globalState);
   }
 
+  /**
+   * Parses structured output fields and adds their values to the state entries.
+   *
+   * @param entries state entries to populate
+   * @param structuredOutput JSON object with field arrays
+   * @param fieldTypeMap mapping from field name to contract output type
+   * @return map of field names to extracted values (for diagnostics)
+   */
   private Map<String, List<String>> saveToEntries(
       WorkflowStateEntries entries,
       JsonObject structuredOutput,
@@ -76,6 +91,12 @@ public class WorkflowStateService {
     return currentTraceParsed;
   }
 
+  /**
+   * Saves a correlated object (multi-field entry like host+port) into state entries.
+   *
+   * @param entries state entries to update
+   * @param obj JSON object whose fields form a correlated pair set
+   */
   private void saveCorrelatedObject(WorkflowStateEntries entries, JsonObject obj) {
     Set<WorkflowStateEntries.Pair> pairSet = new HashSet<>();
 
@@ -99,10 +120,17 @@ public class WorkflowStateService {
     }
   }
 
+  /** Persists a workflow state entity. */
   public WorkflowState save(WorkflowState state) {
     return workflowStateRepository.save(state);
   }
 
+  /**
+   * Returns or creates the global state for a workflow execution.
+   *
+   * @param workflow the running workflow
+   * @return existing global state, or a new (unsaved) one with empty entries
+   */
   private WorkflowState getOrCreateGlobalState(Workflow workflow) {
     WorkflowState state = getGlobalStateByWorkflowId(workflow.getId());
     if (state == null) {
@@ -152,6 +180,14 @@ public class WorkflowStateService {
     return localState;
   }
 
+  /**
+   * Creates a new local state entity for a step template (not yet persisted).
+   *
+   * @param target the step template
+   * @param workflowExecution the workflow execution
+   * @param entriesJson initial entries as JSON
+   * @return a new WorkflowState bound to the step and workflow
+   */
   private WorkflowState initializeLocalState(
       Step target, Workflow workflowExecution, String entriesJson) {
     return WorkflowState.builder()

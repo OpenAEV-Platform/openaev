@@ -603,6 +603,13 @@ public class ConditionService {
     return roots;
   }
 
+  /**
+   * Links a condition to a step via the join table, or updates the root flag if already linked.
+   *
+   * @param condition the condition to link
+   * @param step the target step (must have an ID)
+   * @param isRoot true if this is the root condition for the step
+   */
   public void linkToStep(Condition condition, Step step, boolean isRoot) {
     if (condition == null || step == null || step.getId() == null) {
       throw new BadRequestException("Steps must have a valid condition or step id");
@@ -635,6 +642,12 @@ public class ConditionService {
     conditionSteps.add(link);
   }
 
+  /**
+   * Removes the link between a condition and a step.
+   *
+   * @param condition the condition to unlink
+   * @param stepId the step ID to remove from the condition's step list
+   */
   public void unlinkFromStep(Condition condition, String stepId) {
     if (condition == null || stepId == null || stepId.isBlank()) {
       return;
@@ -723,6 +736,7 @@ public class ConditionService {
     workflowStateService.save(context.localStateEntity());
   }
 
+  /** Returns the set of key-type names that must be present in every execution combo. */
   private Set<String> extractRequiredExecutionKeys(List<Condition> mappers) {
     return mappers.stream()
         .filter(mapper -> mapper.getMappingType() != MappingType.DEFAULT)
@@ -730,6 +744,10 @@ public class ConditionService {
         .collect(Collectors.toSet());
   }
 
+  /**
+   * Collects candidate values for each mapper: DEFAULT values go to staticValues, GLOBAL/LOCAL
+   * values go to dynamic pairs. Returns early if any dynamic mapper has no values.
+   */
   private MapperInputPreparation prepareMapperInputs(
       List<Condition> mappers,
       WorkflowStateEntries localEntries,
@@ -761,6 +779,10 @@ public class ConditionService {
     return new MapperInputPreparation(allPairsList, staticValues, false);
   }
 
+  /**
+   * Computes the Cartesian product of dynamic values, filters duplicates via hash, merges static
+   * values, and returns ready-to-run execution batches.
+   */
   private List<ConditionService.ExecutionBatch> buildExecutionBatches(
       List<Condition> mappers,
       WorkflowStateEntries localEntries,
@@ -799,6 +821,7 @@ public class ConditionService {
     return batches;
   }
 
+  /** Creates a resolved copy of a mapper condition with its value filled from the input map. */
   private Condition toResolvedMapper(Condition template, Map<String, String> fullInput) {
     Condition resolved = new Condition();
     resolved.setType(ConditionType.MAPPER);

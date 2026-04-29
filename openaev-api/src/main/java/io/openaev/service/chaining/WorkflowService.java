@@ -165,6 +165,13 @@ public class WorkflowService {
     return saveWorkflowRun(run);
   }
 
+  /**
+   * Launches a workflow for a scenario by creating a simulation-level template and a run from it.
+   *
+   * @param workflowTemplateScenario the scenario's workflow template
+   * @param simulation the simulation to attach the run to
+   * @return the created workflow run
+   */
   public Workflow launchWorkflowScenario(Workflow workflowTemplateScenario, Exercise simulation) {
     // Copy workflow TEMPLATE (scenario) to a new workflow TEMPLATE (simulation)
     Workflow workflowTemplateSimulation =
@@ -177,6 +184,7 @@ public class WorkflowService {
     return saveWorkflowRun(run);
   }
 
+  /** Increments the version and clears the edited flag when the template has pending runs. */
   private Workflow updateEditedWorkflow(Workflow workflowTemplate) {
     if (workflowTemplate.isEdited() && !workflowTemplate.getWorkflowsExecuted().isEmpty()) {
       workflowTemplate.setEdited(false);
@@ -186,6 +194,7 @@ public class WorkflowService {
     return workflowTemplate;
   }
 
+  /** Creates a RUN workflow by copying configuration and scope rules from a template. */
   private Workflow copyWorkflowTemplateToRun(Workflow workflowTemplateFrom) {
     // Copy workflow TEMPLATE to Workflow RUN (execution)
     Workflow workflowRunTo =
@@ -487,10 +496,18 @@ public class WorkflowService {
     return ScopeRuleValueType.DOMAIN;
   }
 
+  /** Persists a list of workflows in batch. */
   public void saveAll(List<Workflow> workflows) {
     workflowRepository.saveAll(workflows);
   }
 
+  /**
+   * Duplicates a scenario's workflow template to a new scenario.
+   *
+   * @param scenarioIdFrom source scenario ID
+   * @param scenarioTo target scenario entity
+   * @return the new workflow template, or null if the source has no workflow
+   */
   public Workflow duplicateScenario(@NotBlank String scenarioIdFrom, @NotBlank Scenario scenarioTo)
       throws ChainingException {
 
@@ -503,6 +520,13 @@ public class WorkflowService {
     return workflowRepository.save(newWorkflowTemplateScenario);
   }
 
+  /**
+   * Duplicates a simulation's workflow template to a new simulation.
+   *
+   * @param simulationIdFrom source simulation ID
+   * @param simulationTo target simulation entity
+   * @return the new workflow template, or null if the source has no workflow
+   */
   public Workflow duplicateSimulation(
       @NotBlank String simulationIdFrom, @NotBlank Exercise simulationTo) {
 
@@ -515,6 +539,11 @@ public class WorkflowService {
     return workflowRepository.save(newWorkflowTemplateScenario);
   }
 
+  /**
+   * Throws if the chaining preview feature is not enabled.
+   *
+   * @throws ChainingException when the feature flag is disabled
+   */
   public void isPreviewFeatureChainingEnable() throws ChainingException {
     if (!previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING))
       throw new ChainingException("Feature chaining is not enabled");
@@ -559,7 +588,12 @@ public class WorkflowService {
     startWorkflow(workflowRun);
   }
 
-  /** Starts workflow evaluation by seeding state from whitelist scope rules. */
+  /**
+   * Starts workflow evaluation: seeds global state from allowlist scope rules, evaluates step
+   * progress, and saves the workflow run.
+   *
+   * @param workflowRun the workflow run to start
+   */
   @Transactional(rollbackFor = Exception.class)
   public void startWorkflow(Workflow workflowRun) throws ChainingException {
 
