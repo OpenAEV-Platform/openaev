@@ -533,7 +533,6 @@ public class WorkflowService {
     return changed;
   }
 
-
   /**
    * Filters out duplicate scope-rule inputs, keeping only the first occurrence of each unique
    * (selectedMode, ruleSource, ruleValue) combination.
