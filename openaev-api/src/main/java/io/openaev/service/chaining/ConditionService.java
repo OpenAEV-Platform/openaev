@@ -665,42 +665,62 @@ public class ConditionService {
   public List<ConditionService.ExecutionBatch> extractInputsForStepExecution(
       Step stepTemplate, Workflow workflowRun, List<Condition> mappers) throws ChainingException {
 
+    // No mappers means a default execution batch
     if (mappers.isEmpty()) {
       return List.of(new ConditionService.ExecutionBatch(null, List.of()));
     }
 
+    // Fetch and Parse State
+    WorkflowContext context = fetchWorkflowContext(workflowRun, stepTemplate);
+
+    // Prepare Inputs
+    MapperInputPreparation preparation =
+        prepareMapperInputs(mappers, context.localEntries(), context.globalEntries());
+
+    // Validation
+    if (preparation.hasMissingDynamicValues()) {
+      return Collections.emptyList();
+    }
+
+    // Logic Execution
+    Set<String> requiredKeys = extractRequiredExecutionKeys(mappers);
+    List<ExecutionBatch> batches =
+        buildExecutionBatches(
+            mappers,
+            context.localEntries(),
+            preparation.dynamicPairs(),
+            preparation.staticValues(),
+            requiredKeys);
+
+    // 5. Persist Side Effects
+    saveLocalState(context);
+
+    return batches;
+  }
+
+  /** Handles the complexity of fetching and deserializing the workflow states. */
+  private WorkflowContext fetchWorkflowContext(Workflow workflowRun, Step stepTemplate) {
     WorkflowState globalState =
         workflowStateService.getGlobalStateByWorkflowId(workflowRun.getId());
     WorkflowState localState =
         workflowStateService.getLocalStateByWorkflowAndStep(stepTemplate, workflowRun);
 
-    WorkflowStateEntries localEntries =
-        gson.fromJson(localState.getEntries(), WorkflowStateEntries.class);
-    WorkflowStateEntries globalEntries =
-        gson.fromJson(globalState.getEntries(), WorkflowStateEntries.class);
+    WorkflowStateEntries localEntries = deserializeEntries(localState.getEntries());
+    WorkflowStateEntries globalEntries = deserializeEntries(globalState.getEntries());
 
-    Set<String> requiredKeys = extractRequiredExecutionKeys(mappers);
+    return new WorkflowContext(localState, localEntries, globalEntries);
+  }
 
-    MapperInputPreparation mapperInputPreparation =
-        prepareMapperInputs(mappers, localEntries, globalEntries);
+  /** Converts JSON strings to WorkflowStateEntries objects. */
+  private WorkflowStateEntries deserializeEntries(String json) {
+    return gson.fromJson(json, WorkflowStateEntries.class);
+  }
 
-    if (mapperInputPreparation.hasMissingDynamicValues()) {
-      return new ArrayList<>();
-    }
-
-    List<ConditionService.ExecutionBatch> batches =
-        buildExecutionBatches(
-            mappers,
-            localEntries,
-            mapperInputPreparation.dynamicPairs(),
-            mapperInputPreparation.staticValues(),
-            requiredKeys);
-
-    // Save the updated hash list to the LOCAL state
-    localState.setEntries(gson.toJson(localEntries));
-    workflowStateService.save(localState);
-
-    return batches;
+  /** Syncs the POJO back to the entity and saves it. */
+  private void saveLocalState(WorkflowContext context) {
+    String json = gson.toJson(context.localEntries());
+    context.localStateEntity().setEntries(json);
+    workflowStateService.save(context.localStateEntity());
   }
 
   private Set<String> extractRequiredExecutionKeys(List<Condition> mappers) {
@@ -807,4 +827,9 @@ public class ConditionService {
       List<List<WorkflowStateEntries.Pair>> dynamicPairs,
       Map<String, String> staticValues,
       boolean hasMissingDynamicValues) {}
+
+  private record WorkflowContext(
+      WorkflowState localStateEntity,
+      WorkflowStateEntries localEntries,
+      WorkflowStateEntries globalEntries) {}
 }
