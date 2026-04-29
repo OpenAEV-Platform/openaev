@@ -63,33 +63,13 @@ public class PayloadApiImporter extends RestBehavior {
       @RequestPart("file") @NotNull MultipartFile file) throws Exception {
     try {
       ZipJsonService.ImportOutput<Payload> response =
-          zipJsonApi.handleImport(file, "payload_name", IMPORT_OPTIONS, this::sanitize);
-      payloadService.synchroniseInjectorContractBasedOnPayload(
-          response.persistedData(), emptyList(), Set.of(), Set.of());
+          zipJsonApi.handleImport(file, "payload_name", IMPORT_OPTIONS, null);
+      payloadService.synchroniseInjectorContractBasedOnPayload(response.persistedData(), emptyList(), Set.of(), Set.of());
       return ResponseEntity.ok(response.jsonApiDocument());
     } catch (Exception ex) {
       log.warn("Fallback to old import due to {}", ex.getMessage(), ex);
       importService.handleFileImport(file, null, null);
       return ResponseEntity.ok().build();
     }
-  }
-
-  /**
-   * Removes detection remediations whose collector does not exist in the target database. During
-   * import, the collector is resolved by its business key (type). If not found, the collector field
-   * is null and the remediation must be dropped to avoid constraint violations.
-   */
-  private Payload sanitize(Payload payload) {
-    payload
-        .getDetectionRemediations()
-        .removeIf(
-            dr -> {
-              if (dr.getCollectorType() == null) {
-                log.warn("Skipping detection remediation — collector not found in target database");
-                return true;
-              }
-              return false;
-            });
-    return payload;
   }
 }
