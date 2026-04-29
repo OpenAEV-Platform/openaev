@@ -16,8 +16,20 @@ description: "Testing conventions: integration tests, unit tests, fixtures, comp
 - JSON: `assertThatJson(response).node("field").isEqualTo(...)` (json-unit library)
 - URI constant at class level: `public static final String FEATURE_URI = "/api/..."`
 
+## Integration Tests (Service)
+
+- Extend `IntegrationTest` (same base as API tests)
+- `@TestInstance(PER_CLASS) @Transactional` on the class
+- `@WithMockUser` → `io.openaev.utils.mockUser.WithMockUser` (NOT `org.springframework`)
+- `@Autowired` for the service under test and repositories
+- Use **Fixtures** (`ExerciseFixture`, `InjectFixture`, `ScenarioFixture`, …) and **repositories** to set up real data
+- Group with `@Nested` + `@DisplayName`
+- Same `given_X_should_Y` naming and AAA pattern
+- Prefer integration tests over unit tests for services that interact with the database
+
 ## Unit Tests (Service)
 
+- Use only when the service has **no database interaction** (pure logic)
 - `@ExtendWith(MockitoExtension.class)`
 - `@Mock` for dependencies, `@InjectMocks` for the service under test
 - Same `given_X_should_Y` naming and AAA pattern

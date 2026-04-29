@@ -6,6 +6,7 @@ import GroupManageUsers from '../../../settings/groups/GroupManageUsers';
 
 interface Props {
   platformGroupId: string;
+  groupName: string;
   open: boolean;
   onClose: () => void;
   onSubmit: (userIds: string[]) => void;
@@ -13,6 +14,7 @@ interface Props {
 
 const PlatformGroupManageUsers: FC<Props> = ({
   platformGroupId,
+  groupName,
   open,
   onClose,
   onSubmit,
@@ -32,6 +34,7 @@ const PlatformGroupManageUsers: FC<Props> = ({
   return (
     <GroupManageUsers
       initialState={userIds}
+      groupName={groupName}
       open={open}
       onClose={onClose}
       onSubmit={onSubmit}

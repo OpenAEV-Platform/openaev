@@ -6,6 +6,7 @@ import static io.openaev.utils.CustomDashboardTimeRange.*;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -105,7 +106,8 @@ class DashboardApiTest extends IntegrationTest {
       String response =
           mvc.perform(
                   post(DASHBOARD_URI + "/entities/" + widget.getId())
-                      .contentType(MediaType.APPLICATION_JSON))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -157,7 +159,8 @@ class DashboardApiTest extends IntegrationTest {
       String response =
           mvc.perform(
                   post(DASHBOARD_URI + "/entities/" + widget.getId())
-                      .contentType(MediaType.APPLICATION_JSON))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -265,7 +268,8 @@ class DashboardApiTest extends IntegrationTest {
           mvc.perform(
                   post(DASHBOARD_URI + "/entities/" + widget.getId())
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(input)))
+                      .content(asJsonString(input))
+                      .with(csrf()))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -323,6 +327,7 @@ class DashboardApiTest extends IntegrationTest {
       String response =
           mvc.perform(
                   post(DASHBOARD_URI + "/entities/" + widget.getId())
+                      .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(asJsonString(input)))
               .andExpect(status().isOk())
@@ -377,7 +382,8 @@ class DashboardApiTest extends IntegrationTest {
           mvc.perform(
                   post(DASHBOARD_URI + "/count/" + widget.getId())
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(input)))
+                      .content(asJsonString(input))
+                      .with(csrf()))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -419,7 +425,8 @@ class DashboardApiTest extends IntegrationTest {
           mvc.perform(
                   post(DASHBOARD_URI + "/count/" + widget.getId())
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(input)))
+                      .content(asJsonString(input))
+                      .with(csrf()))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -469,7 +476,8 @@ class DashboardApiTest extends IntegrationTest {
           mvc.perform(
                   post(DASHBOARD_URI + "/count/" + widget.getId())
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(input)))
+                      .content(asJsonString(input))
+                      .with(csrf()))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -547,7 +555,8 @@ class DashboardApiTest extends IntegrationTest {
           mvc.perform(
                   post(DASHBOARD_URI + "/count/" + widget.getId())
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(input)))
+                      .content(asJsonString(input))
+                      .with(csrf()))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -639,7 +648,8 @@ class DashboardApiTest extends IntegrationTest {
           mvc.perform(
                   post(DASHBOARD_URI + "/series/" + widget.getId())
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(input)))
+                      .content(asJsonString(input))
+                      .with(csrf()))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -725,7 +735,8 @@ class DashboardApiTest extends IntegrationTest {
           mvc.perform(
                   post(DASHBOARD_URI + "/series/" + widget.getId())
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(input)))
+                      .content(asJsonString(input))
+                      .with(csrf()))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -753,7 +764,8 @@ class DashboardApiTest extends IntegrationTest {
       return mvc.perform(
               post(DASHBOARD_URI + "/entities-runtime/" + widget.getId())
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(input)))
+                  .content(asJsonString(input))
+                  .with(csrf()))
           .andExpect(status().isOk())
           .andReturn()
           .getResponse()
@@ -865,7 +877,6 @@ class DashboardApiTest extends IntegrationTest {
 
       // Execute & Assert
       String response = performWidgetEntitiesRuntimeRequest(widget, input);
-
       assertThatJson(response)
           .node("list_configuration.perspective.filter.filters")
           .isArray()

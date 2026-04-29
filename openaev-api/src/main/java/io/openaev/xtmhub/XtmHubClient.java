@@ -106,6 +106,7 @@ public class XtmHubClient {
       String platformTitle,
       String platformUrl,
       String platformVersion,
+      String tenantId,
       Long usersCount) {
     PlatformSettings settings = platformSettingsService.findSettings();
 
@@ -123,6 +124,7 @@ public class XtmHubClient {
               platformTitle,
               platformUrl,
               platformVersion,
+              tenantId,
               usersCount);
       httpPost.setEntity(httpBody);
       return httpClient.execute(httpPost, this::parseResponseAsSuccess);
@@ -230,6 +232,7 @@ public class XtmHubClient {
       String platformTitle,
       String platformUrl,
       String platformVersion,
+      String tenantId,
       Long usersCount) {
 
     JsonObject platform = new JsonObject();
@@ -238,6 +241,7 @@ public class XtmHubClient {
     platform.addProperty("title", platformTitle);
     platform.addProperty("url", platformUrl);
     platform.addProperty("version", platformVersion);
+    platform.addProperty("tenantId", tenantId);
 
     JsonObject input = new JsonObject();
     input.add("platform", platform);

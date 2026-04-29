@@ -1,8 +1,10 @@
 // imports to not let tools report them as unused
-import 'monocart-reporter';
 import 'monocart-coverage-reports';
+import 'monocart-reporter';
 
 import { defineConfig, devices } from '@playwright/test';
+
+import coverageOptions from './tests_e2e/conf/mcr.config';
 
 /**
  * See https://playwright.dev/docs/test-configuration.
@@ -24,10 +26,12 @@ export default defineConfig({
       name: `OpenAEV Report`,
       outputFile: './test-results/report.html',
       // global coverage report options
-      coverage: {
-        entryFilter: () => true,
-        sourceFilter: (sourcePath: string) => sourcePath.startsWith('src'),
-      },
+      coverage: coverageOptions,
+      /*
+      onEnd: async (reportData) => {
+        // teams integration with webhook
+        await teamsWebhook(reportData);
+      } */
     }],
   ],
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */

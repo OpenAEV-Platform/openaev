@@ -9,6 +9,7 @@ import static io.openaev.utils.fixtures.TeamFixture.TEAM_NAME;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -81,7 +82,8 @@ class ScenarioTeamApiTest extends IntegrationTest {
                 put(SCENARIO_URI + "/" + scenarioCreated.getId() + "/teams/replace")
                     .content(asJsonString(input))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -130,7 +132,8 @@ class ScenarioTeamApiTest extends IntegrationTest {
         this.mvc
             .perform(
                 get(SCENARIO_URI + "/" + scenarioCreated.getId() + "/teams")
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -171,7 +174,8 @@ class ScenarioTeamApiTest extends IntegrationTest {
                     + "/players/add")
                 .content(asJsonString(input))
                 .contentType(MediaType.APPLICATION_JSON)
-                .accept(MediaType.APPLICATION_JSON))
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
         .andExpect(status().is2xxSuccessful())
         .andReturn()
         .getResponse()
@@ -223,7 +227,8 @@ class ScenarioTeamApiTest extends IntegrationTest {
                     + "/players/remove")
                 .content(asJsonString(input))
                 .contentType(MediaType.APPLICATION_JSON)
-                .accept(MediaType.APPLICATION_JSON))
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
         .andExpect(status().is2xxSuccessful())
         .andReturn()
         .getResponse()
@@ -258,7 +263,8 @@ class ScenarioTeamApiTest extends IntegrationTest {
             put(SCENARIO_URI + "/" + scenarioCreated.getId() + "/teams/remove")
                 .content(asJsonString(input))
                 .contentType(MediaType.APPLICATION_JSON)
-                .accept(MediaType.APPLICATION_JSON))
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
         .andExpect(status().is2xxSuccessful())
         .andReturn()
         .getResponse()
@@ -299,7 +305,8 @@ class ScenarioTeamApiTest extends IntegrationTest {
                       + scenarioCreated.getId()
                       + "/teams/search?contextualOnly=false")
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(searchPaginationInput)))
+                  .content(asJsonString(searchPaginationInput))
+                  .with(csrf()))
           .andExpect(status().is2xxSuccessful())
           .andExpect(jsonPath("$.content.size()").value(2))
           .andExpect(
@@ -343,7 +350,8 @@ class ScenarioTeamApiTest extends IntegrationTest {
                       + scenarioCreated.getId()
                       + "/teams/search?contextualOnly=true")
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(searchPaginationInput)))
+                  .content(asJsonString(searchPaginationInput))
+                  .with(csrf()))
           .andExpect(status().is2xxSuccessful())
           .andExpect(jsonPath("$.content.size()").value(2))
           .andExpect(
@@ -401,7 +409,8 @@ class ScenarioTeamApiTest extends IntegrationTest {
               put(SCENARIO_URI + "/" + scenarioASaved.getId() + "/teams/replace")
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().is2xxSuccessful());
 
       // -- ASSERT --
@@ -454,14 +463,16 @@ class ScenarioTeamApiTest extends IntegrationTest {
               put(SCENARIO_URI + "/" + scenarioSaved.getId() + "/teams/replace")
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().is2xxSuccessful());
 
       mvc.perform(
               put(SCENARIO_URI + "/" + scenarioSaved.getId() + "/teams/replace")
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().is2xxSuccessful());
 
       // -- ASSERT --
@@ -503,7 +514,8 @@ class ScenarioTeamApiTest extends IntegrationTest {
               put(SCENARIO_URI + "/" + scenarioSaved.getId() + "/teams/replace")
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().is2xxSuccessful());
 
       // -- ASSERT --

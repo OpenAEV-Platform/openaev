@@ -3,8 +3,6 @@ package io.openaev.rest.injector;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.database.specification.InjectorSpecification.byName;
 import static io.openaev.helper.StreamHelper.fromIterable;
-import static io.openaev.utils.AgentUtils.AVAILABLE_ARCHITECTURES;
-import static io.openaev.utils.AgentUtils.AVAILABLE_PLATFORMS;
 import static io.openaev.utils.SecurityUtils.validateJFrogUri;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -62,11 +60,12 @@ public class InjectorApi extends RestBehavior {
   @Value("${info.app.version:unknown}")
   String version;
 
-  @Value("${executor.openaev.binaries.origin:local}")
-  private String executorOpenaevBinariesOrigin;
+  @Value("${executor.openaev-implant.binaries.origin:${executor.openaev.binaries.origin:local}}")
+  private String implantBinaryOrigin;
 
-  @Value("${executor.openaev.binaries.version:${info.app.version:unknown}}")
-  private String executorOpenaevBinariesVersion;
+  @Value(
+      "${executor.openaev-implant.binaries.version:${executor.openaev.binaries.version:${info.app.version:unknown}}}")
+  private String implantBinaryVersion;
 
   @GetMapping({INJECT0R_URI, TENANT_INJECTOR_URI})
   @Operation(
@@ -181,34 +180,30 @@ public class InjectorApi extends RestBehavior {
       @RequestParam(required = false) final String injectId,
       @RequestParam(required = false) final String agentId)
       throws IOException {
-    platform = Optional.ofNullable(platform).map(String::toLowerCase).orElse("");
-    architecture =
-        AgentUtils.getCanonicalArchitectureString(
-            Optional.ofNullable(architecture).map(String::toLowerCase).orElse(""));
-    if (!AVAILABLE_PLATFORMS.contains(platform)) {
+    String resolvedPlatform;
+    String resolvedArch;
+    try {
+      resolvedPlatform = AgentUtils.normaliseSupportedAgentPlatform(platform).name().toLowerCase();
+      resolvedArch = AgentUtils.normaliseSupportedAgentArch(architecture).name().toLowerCase();
+    } catch (IllegalArgumentException e) {
       this.injectStatusService.setImplantErrorTrace(
-          injectId, agentId, "Unable to download the implant. Platform invalid: " + platform);
-    }
-    if (!AVAILABLE_ARCHITECTURES.contains(architecture)) {
-      this.injectStatusService.setImplantErrorTrace(
-          injectId,
-          agentId,
-          "Unable to download the implant. Architecture invalid: " + architecture);
+          injectId, agentId, "Unable to download the implant. %s".formatted(e.getMessage()));
+      throw e;
     }
 
     InputStream in = null;
     String filename = "";
-    String resourcePath = "/openaev-implant/" + platform + "/" + architecture + "/";
+    String resourcePath = "/openaev-implant/" + resolvedPlatform + "/" + resolvedArch + "/";
 
-    if (executorOpenaevBinariesOrigin.equals("local")) { // if we want the local binaries
-      filename = "openaev-implant-" + version + (platform.equals("windows") ? ".exe" : "");
+    if (implantBinaryOrigin.equals("local")) { // if we want the local binaries
+      filename = "openaev-implant-" + version + (resolvedPlatform.equals("windows") ? ".exe" : "");
       in = getClass().getResourceAsStream("/implants" + resourcePath + filename);
-    } else if (executorOpenaevBinariesOrigin.equals(
+    } else if (implantBinaryOrigin.equals(
         "repository")) { // if we want a specific version from artifactory
       filename =
           "openaev-implant-"
-              + executorOpenaevBinariesVersion
-              + (platform.equals("windows") ? ".exe" : "");
+              + implantBinaryVersion
+              + (resolvedPlatform.equals("windows") ? ".exe" : "");
       in = new BufferedInputStream(validateJFrogUri(resourcePath, filename).toURL().openStream());
     }
 
@@ -220,7 +215,8 @@ public class InjectorApi extends RestBehavior {
           .contentType(MediaType.APPLICATION_OCTET_STREAM)
           .body(IOUtils.toByteArray(in));
     }
-    throw new UnsupportedOperationException("Implant " + platform + " executable not supported");
+    throw new UnsupportedOperationException(
+        "Implant " + resolvedPlatform + " executable not supported");
   }
 
   // -- OPTION --

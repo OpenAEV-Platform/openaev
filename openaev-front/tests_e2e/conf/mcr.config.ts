@@ -9,6 +9,7 @@ const coverageOptions: CoverageReportOptions = {
     'console-details',
     'v8',
     'lcovonly',
+    'json-summary',
   ],
 
   entryFilter: {

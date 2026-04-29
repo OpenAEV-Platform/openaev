@@ -202,7 +202,9 @@ public class HealthCheckUtils {
   public List<HealthCheck> runMissingContentChecks(@NotNull final Scenario scenario) {
     List<HealthCheck> result = new ArrayList<>();
     boolean atLeastOneInjectIsNotReady =
-        scenario.getInjects().stream().anyMatch(inject -> !runContentChecks(inject).isEmpty());
+        scenario.getInjects().stream()
+            .filter(Inject::isEnabled)
+            .anyMatch(inject -> !runContentChecks(inject).isEmpty());
 
     if (atLeastOneInjectIsNotReady) {
       result.add(
@@ -474,7 +476,7 @@ public class HealthCheckUtils {
 
   /**
    * Run scope definition check for a workflow template. Returns a warning when the workflow has no
-   * scope rules defined (neither whitelist nor blacklist).
+   * scope rules defined (neither allowlist nor denylist).
    *
    * @param workflow the workflow template to check
    * @return found healthchecks

@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
+import type { WorkflowConfigurationHelper } from '../../../../actions/chaining/workflow-helper';
 import { searchExerciseHealthchecks, updateExerciseStatus } from '../../../../actions/Exercise';
 import { type ExercisesHelper } from '../../../../actions/exercises/exercise-helper';
 import Transition from '../../../../components/common/Transition';
@@ -228,6 +229,14 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
   const exerciseWorkflowId = exercise.exercise_workflow_id as string | undefined;
   const isSimulationChaining = isChainingFeatureEnabled && !!exerciseWorkflowId;
 
+  const { workflowConfiguration } = useHelper(
+    (helper: WorkflowConfigurationHelper) => ({
+      workflowConfiguration: exerciseWorkflowId
+        ? helper.getWorkflowConfiguration(exerciseWorkflowId)
+        : undefined,
+    }),
+  );
+
   const [healthchecks, setHealthchecks] = useState<HealthCheck[]>([]);
 
   const isScopeMissing = isSimulationChaining
@@ -237,7 +246,7 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
     if (isChainingFeatureEnabled && exerciseWorkflowId) {
       searchExerciseHealthchecks(exerciseId).then((result: { data: HealthCheck[] }) => setHealthchecks(result.data));
     }
-  }, [exerciseId, exercise, isChainingFeatureEnabled]);
+  }, [exerciseId, exercise, isChainingFeatureEnabled, workflowConfiguration]);
 
   const actions: ExerciseActionPopover[] = isSimulationChaining
     ? ['Update', 'Delete', 'Access reports']

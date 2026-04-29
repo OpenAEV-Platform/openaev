@@ -291,7 +291,7 @@ const TopBar: FunctionComponent<{
                           rel="noreferrer"
                           onClick={handleCloseXtm}
                         >
-                          <Badge variant="dot" color={settings.xtm_hub_registration_status === 'registered' ? 'success' : 'warning'}>
+                          <Badge variant="dot" color={isRegistered ? 'success' : 'warning'}>
                             {xtmhubBadgeImg}
                           </Badge>
                         </a>

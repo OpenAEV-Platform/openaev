@@ -39,6 +39,7 @@ interface Props {
   inject: InjectPopoverType;
   setSelectedInjectId: (injectId: Inject['inject_id']) => void;
   isDisabled?: boolean;
+  isUpdateDisabled?: boolean;
   canBeTested?: boolean;
   canDone?: boolean;
   canTriggerNow?: boolean;
@@ -57,6 +58,7 @@ const InjectPopover: FunctionComponent<Props> = ({
   inject,
   setSelectedInjectId,
   isDisabled = false,
+  isUpdateDisabled = true,
   canBeTested = false,
   canDone = false,
   canTriggerNow = false,
@@ -218,7 +220,7 @@ const InjectPopover: FunctionComponent<Props> = ({
   entries.push({
     label: 'Update',
     action: () => handleOpenEditContent(),
-    disabled: isDisabled,
+    disabled: isDisabled || isUpdateDisabled,
     userRight: permissions.canManage,
   });
   entries.push({
