@@ -269,7 +269,10 @@ class ChainingIntegrationTest extends IntegrationTest {
       long simulationCountBefore = exerciseRepository.count();
 
       String simulationResult =
-          mvc.perform(post(tenantUri(TENANT_SCENARIO_URI + "/" + scenarioId + "/exercise/running").with(csrf())))
+          mvc.perform(
+                  post(
+                      tenantUri(TENANT_SCENARIO_URI + "/" + scenarioId + "/exercise/running")
+                          .with(csrf())))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()
@@ -353,7 +356,10 @@ class ChainingIntegrationTest extends IntegrationTest {
       stepService.createStepTemplates(workflowTemplate.getId(), List.of(step));
 
       String simulationResult =
-          mvc.perform(post(tenantUri(TENANT_SCENARIO_URI + "/" + scenarioId + "/exercise/running").with(csrf())))
+          mvc.perform(
+                  post(
+                      tenantUri(TENANT_SCENARIO_URI + "/" + scenarioId + "/exercise/running")
+                          .with(csrf())))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()

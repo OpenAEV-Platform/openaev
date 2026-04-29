@@ -303,7 +303,7 @@ public class WorkflowService {
 
     Set<String> inputIds =
         variableInputs.stream()
-            .map(ScopeVariableInput::id)
+            .map(ScopeVariableInput::getId)
             .filter(Objects::nonNull)
             .collect(Collectors.toSet());
 
@@ -313,11 +313,11 @@ public class WorkflowService {
     boolean changed = existing.removeIf(v -> !inputIds.contains(v.getId()));
 
     for (ScopeVariableInput input : variableInputs) {
-      if (input.id() == null) {
+      if (input.getId() == null) {
         existing.add(buildScopeVariable(input, workflow));
         changed = true;
       } else {
-        ScopeVariable existingVar = existingById.get(input.id());
+        ScopeVariable existingVar = existingById.get(input.getId());
         if (existingVar != null && hasVariableChanged(existingVar, input)) {
           updateScopeVariable(existingVar, input);
           changed = true;
@@ -328,27 +328,27 @@ public class WorkflowService {
   }
 
   private boolean hasVariableChanged(ScopeVariable existing, ScopeVariableInput input) {
-    return !Objects.equals(existing.getKey(), input.key())
-        || !Objects.equals(existing.getType(), input.type())
-        || !Objects.equals(existing.getValue(), input.value())
-        || !Objects.equals(existing.getDescription(), input.description());
+    return !Objects.equals(existing.getKey(), input.getKey())
+        || !Objects.equals(existing.getType(), input.getType())
+        || !Objects.equals(existing.getValue(), input.getValue())
+        || !Objects.equals(existing.getDescription(), input.getDescription());
   }
 
   private void updateScopeVariable(ScopeVariable existing, ScopeVariableInput input) {
-    existing.setKey(input.key());
-    existing.setType(input.type());
-    existing.setValue(input.value());
-    existing.setDescription(input.description());
+    existing.setKey(input.getKey());
+    existing.setType(input.getType());
+    existing.setValue(input.getValue());
+    existing.setDescription(input.getDescription());
   }
 
   private ScopeVariable buildScopeVariable(ScopeVariableInput input, Workflow workflow) {
-    ScopeVariable variable = new ScopeVariable();
-    variable.setKey(input.key());
-    variable.setType(input.type());
-    variable.setValue(input.value());
-    variable.setDescription(input.description());
-    variable.setWorkflow(workflow);
-    return variable;
+    return ScopeVariable.builder()
+        .key(input.getKey())
+        .type(input.getType())
+        .value(input.getValue())
+        .description(input.getDescription())
+        .workflow(workflow)
+        .build();
   }
 
   /**

@@ -78,8 +78,7 @@ class WorkflowApiTest extends IntegrationTest {
     // -- EXECUTE --
     String response =
         mockMvc
-            .perform(
-                get(workflowConfigurationUri(workflow.getId())).with(csrf()))
+            .perform(get(workflowConfigurationUri(workflow.getId())).with(csrf()))
             .andExpect(status().isOk())
             .andReturn()
             .getResponse()
@@ -128,8 +127,7 @@ class WorkflowApiTest extends IntegrationTest {
     // -- EXECUTE & ASSERT --
     String response =
         mockMvc
-            .perform(
-                get(workflowConfigurationUri(workflow.getId())).with(csrf()))
+            .perform(get(workflowConfigurationUri(workflow.getId())).with(csrf()))
             .andExpect(status().isNotFound())
             .andReturn()
             .getResponse()

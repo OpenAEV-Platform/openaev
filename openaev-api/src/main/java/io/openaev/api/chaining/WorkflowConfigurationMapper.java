@@ -57,11 +57,12 @@ public class WorkflowConfigurationMapper {
   }
 
   private static ScopeVariableOutput toScopeVariableOutput(ScopeVariable variable) {
-    return new ScopeVariableOutput(
-        variable.getId(),
-        variable.getKey(),
-        variable.getType(),
-        variable.getValue(),
-        variable.getDescription());
+    return ScopeVariableOutput.builder()
+        .id(variable.getId())
+        .key(variable.getKey())
+        .type(variable.getType())
+        .value(variable.getValue())
+        .description(variable.getDescription())
+        .build();
   }
 }
