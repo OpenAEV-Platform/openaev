@@ -198,30 +198,6 @@ public class PlatformSettings extends PublicPlatformSettings {
   @Schema(description = "True if xtmhub backend is reachable")
   private Boolean xtmHubReachable;
 
-  @JsonProperty("xtm_hub_token")
-  @Schema(description = "XTM Hub token")
-  private String xtmHubToken;
-
-  @JsonProperty("xtm_hub_registration_status")
-  @Schema(description = "XTM Hub registration status")
-  private String xtmHubRegistrationStatus;
-
-  @JsonProperty("xtm_hub_registration_date")
-  @Schema(description = "XTM Hub registration date")
-  private String xtmHubRegistrationDate;
-
-  @JsonProperty("xtm_hub_registration_user_id")
-  @Schema(description = "XTM Hub registration user id")
-  private String xtmHubRegistrationUserId;
-
-  @JsonProperty("xtm_hub_registration_user_name")
-  @Schema(description = "XTM Hub registration user name")
-  private String xtmHubRegistrationUserName;
-
-  @JsonProperty("xtm_hub_last_connectivity_check")
-  @Schema(description = "XTM Hub last connectivity check")
-  private String xtmHubLastConnectivityCheck;
-
   @JsonProperty("xtm_hub_should_send_connectivity_email")
   @Schema(description = "XTM Hub should send connectivity email")
   private String xtmHubShouldSendConnectivityEmail;
