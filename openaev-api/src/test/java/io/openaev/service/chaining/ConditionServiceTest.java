@@ -1,5 +1,8 @@
 package io.openaev.service.chaining;
 
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.EventInput;
 import io.openaev.database.model.*;
@@ -8,6 +11,12 @@ import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.utils.ConditionUtils;
 import jakarta.persistence.EntityNotFoundException;
+import java.time.Instant;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,38 +26,18 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.Instant;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.stream.Stream;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
-
 @ExtendWith(MockitoExtension.class)
 public class ConditionServiceTest {
 
-  @Spy
-  @InjectMocks
-  private ConditionService conditionService;
-  @Captor
-  private ArgumentCaptor<Condition> conditionCaptor;
-  @Captor
-  private ArgumentCaptor<List<Condition>> conditionsCaptor;
-  @Mock
-  private ConditionRepository conditionRepository;
-  @Mock
-  private StepRepository stepRepository;
-  @Mock
-  private WorkflowStateService workflowStateService;
-  @Mock
-  private ConditionUtils conditionUtils;
-  @Mock
-  private QueueChainingService queueChainingService;
-  @Mock
-  private StepDelayQueueService stepDelayQueueService;
+  @Spy @InjectMocks private ConditionService conditionService;
+  @Captor private ArgumentCaptor<Condition> conditionCaptor;
+  @Captor private ArgumentCaptor<List<Condition>> conditionsCaptor;
+  @Mock private ConditionRepository conditionRepository;
+  @Mock private StepRepository stepRepository;
+  @Mock private WorkflowStateService workflowStateService;
+  @Mock private ConditionUtils conditionUtils;
+  @Mock private QueueChainingService queueChainingService;
+  @Mock private StepDelayQueueService stepDelayQueueService;
 
   /* ============================================================
    * isTimeCondition
@@ -603,9 +592,7 @@ public class ConditionServiceTest {
   @Nested
   class MappingTypeResolution {
 
-    /**
-     * MAPPER condition with explicit LOCAL → stays LOCAL.
-     */
+    /** MAPPER condition with explicit LOCAL → stays LOCAL. */
     @Test
     void shouldPreserveMappingType_whenMapperConditionHasExplicitValue() {
       // -------- Prepare --------
@@ -630,9 +617,7 @@ public class ConditionServiceTest {
       assertEquals(MappingType.LOCAL, root.getMappingType());
     }
 
-    /**
-     * MAPPER condition with no mappingType → defaults to DEFAULT.
-     */
+    /** MAPPER condition with no mappingType → defaults to DEFAULT. */
     @Test
     void shouldDefaultMappingTypeToDefault_whenMapperConditionHasNullMappingType() {
       // -------- Prepare --------
@@ -660,9 +645,7 @@ public class ConditionServiceTest {
           "mappingType should be auto-defaulted to DEFAULT for MAPPER conditions");
     }
 
-    /**
-     * Non-MAPPER condition never carries a mappingType.
-     */
+    /** Non-MAPPER condition never carries a mappingType. */
     @Test
     void shouldLeaveMappingTypeNull_whenNonMapperCondition() {
       // -------- Prepare --------

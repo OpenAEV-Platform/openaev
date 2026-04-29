@@ -3,8 +3,6 @@ package io.openaev.service.chaining;
 import static io.openaev.api.chaining.ConditionMapper.resolveMappingType;
 
 import com.google.gson.Gson;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import io.openaev.api.chaining.ConditionMapper;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.EventInput;
