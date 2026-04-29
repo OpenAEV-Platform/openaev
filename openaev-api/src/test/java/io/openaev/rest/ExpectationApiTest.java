@@ -30,7 +30,6 @@ import io.openaev.helper.StreamHelper;
 import io.openaev.injectors.challenge.ChallengeContract;
 import io.openaev.injectors.email.EmailContract;
 import io.openaev.injectors.openaev.OpenAEVImplantContract;
-import io.openaev.integration.Manager;
 import io.openaev.integration.impl.injectors.challenge.ChallengeInjectorIntegrationFactory;
 import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
@@ -850,12 +849,9 @@ class ExpectationApiTest extends IntegrationTest {
     @Test
     @DisplayName("Get available InjectExpectations for injects")
     void getAvailableInjectExpectationsForInjects() throws Exception {
-      new Manager(
-              List.of(
-                  emailInjectorIntegrationFactory,
-                  challengeInjectorIntegrationFactory,
-                  openaevInjectorIntegrationFactory))
-          .monitorIntegrations();
+      emailInjectorIntegrationFactory.registerConnectorForTenant();
+      challengeInjectorIntegrationFactory.registerConnectorForTenant();
+      openaevInjectorIntegrationFactory.registerConnectorForTenant();
       em.flush();
       em.clear();
       List<InjectorContract> injectorContracts =
