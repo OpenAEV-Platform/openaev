@@ -50,6 +50,7 @@ public class XtmHubService {
     registration.setRegistrationUserId(currentUser.getId());
     registration.setRegistrationUserName(currentUser.getName());
     registration.setLastConnectivityCheck(LocalDateTime.now());
+    registration.setConnectivityEmailEligible(true);
     return tenantXtmHubRegistrationRepository.save(registration);
   }
 
@@ -73,6 +74,7 @@ public class XtmHubService {
     registration.setRegistrationDate(LocalDateTime.now());
     registration.setRegistrationStatus(XtmHubRegistrationStatus.REGISTERED);
     registration.setLastConnectivityCheck(LocalDateTime.now());
+    registration.setConnectivityEmailEligible(true);
     tenantXtmHubRegistrationRepository.save(registration);
   }
 
@@ -111,8 +113,10 @@ public class XtmHubService {
     Map<String, TenantRegistrationDetails> tenants = new HashMap<>();
     for (TenantXtmHubRegistration registration : registrations) {
       String tenantId = registration.getTenant().getId();
-      String url = settings.getPlatformBaseUrl() + "/" + tenantId;
-      tenants.put(tenantId, new TenantRegistrationDetails(registration.getToken(), url));
+      tenants.put(
+          tenantId,
+          new TenantRegistrationDetails(
+              registration.getToken(), buildTenantUrl(settings, tenantId)));
     }
 
     Map<String, XtmHubConnectivityStatus> statuses =
@@ -137,10 +141,12 @@ public class XtmHubService {
         }
 
         ConnectivityCheckResult checkResult =
-            new ConnectivityCheckResult(status, parseLastConnectivityCheck(registration));
+            new ConnectivityCheckResult(
+                status, parseLastConnectivityCheck(registration), registration);
 
         allCheckResults.add(checkResult);
         updateRegistrationStatus(registration, checkResult);
+        handleTenantConnectivityLossNotification(settings, checkResult);
       }
     } finally {
       TenantContext.clearCurrentTenant();
@@ -157,7 +163,7 @@ public class XtmHubService {
 
   private ConnectivityCheckResult checkConnectivityStatus(
       PlatformSettings settings, TenantXtmHubRegistration registration) {
-    String url = settings.getPlatformBaseUrl() + "/" + TenantContext.getCurrentTenant();
+    String url = buildTenantUrl(settings, TenantContext.getCurrentTenant());
 
     XtmHubConnectivityStatus status =
         xtmHubClient.refreshRegistrationStatusSingleTenant(
@@ -169,7 +175,7 @@ public class XtmHubService {
 
     LocalDateTime lastCheck = parseLastConnectivityCheck(registration);
 
-    return new ConnectivityCheckResult(status, lastCheck);
+    return new ConnectivityCheckResult(status, lastCheck, registration);
   }
 
   public Boolean contactUs(String message) {
@@ -182,6 +188,10 @@ public class XtmHubService {
     String token = registration.get().getToken();
     String platformId = platformSettingsService.findSettings().getPlatformId();
     return xtmHubClient.contactUs(message, token, platformId);
+  }
+
+  private String buildTenantUrl(PlatformSettings settings, String tenantId) {
+    return settings.getPlatformBaseUrl() + "/" + tenantId;
   }
 
   private LocalDateTime parseLastConnectivityCheck(TenantXtmHubRegistration registration) {
@@ -206,6 +216,28 @@ public class XtmHubService {
     if (shouldSendConnectivityLossEmail(settings, checkResults)) {
       platformSettingsService.updateXTMHubEmailNotification(false);
       xtmHubEmailService.sendLostConnectivityEmail();
+    }
+  }
+
+  private void handleTenantConnectivityLossNotification(
+      PlatformSettings settings, ConnectivityCheckResult checkResult) {
+    TenantXtmHubRegistration registration = checkResult.registration();
+    if (checkResult.status() == XtmHubConnectivityStatus.ACTIVE) {
+      if (!registration.isConnectivityEmailEligible()) {
+        registration.setConnectivityEmailEligible(true);
+        tenantXtmHubRegistrationRepository.save(registration);
+      }
+      return;
+    }
+
+    if (registration.isConnectivityEmailEligible()
+        && hasConnectivityBeenLostForTooLong(checkResult.lastCheck())
+        && xtmHubConfig.getConnectivityEmailEnable()) {
+      xtmHubEmailService.sendTenantLostConnectivityEmail(
+          registration.getTenant().getId(),
+          buildTenantUrl(settings, registration.getTenant().getId()));
+      registration.setConnectivityEmailEligible(false);
+      tenantXtmHubRegistrationRepository.save(registration);
     }
   }
 
@@ -250,5 +282,7 @@ public class XtmHubService {
 
   /** Encapsulates the result of a connectivity check */
   private record ConnectivityCheckResult(
-      XtmHubConnectivityStatus status, LocalDateTime lastCheck) {}
+      XtmHubConnectivityStatus status,
+      LocalDateTime lastCheck,
+      TenantXtmHubRegistration registration) {}
 }

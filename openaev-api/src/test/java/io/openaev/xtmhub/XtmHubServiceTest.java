@@ -492,16 +492,20 @@ class XtmHubServiceTest {
       // When
       xtmHubService.refreshConnectivityAllTenants();
 
-      // Then
+      // Then — tenant admin notified (per-tenant), platform admin notified (global, only tenant is
+      // down)
+      verify(xtmHubEmailService)
+          .sendTenantLostConnectivityEmail(tenantId, "http://localhost/" + tenantId);
       verify(xtmHubEmailService).sendLostConnectivityEmail();
       verify(platformSettingsService).updateXTMHubEmailNotification(false);
 
       ArgumentCaptor<TenantXtmHubRegistration> captor =
           ArgumentCaptor.forClass(TenantXtmHubRegistration.class);
-      verify(tenantXtmHubRegistrationRepository).save(captor.capture());
+      verify(tenantXtmHubRegistrationRepository, times(2)).save(captor.capture());
       assertThat(captor.getValue().getRegistrationStatus())
           .isEqualTo(XtmHubRegistrationStatus.LOST_CONNECTIVITY);
       assertThat(captor.getValue().getLastConnectivityCheck()).isEqualTo(lastCheck);
+      assertThat(captor.getValue().isConnectivityEmailEligible()).isFalse();
     }
 
     @Test
@@ -539,7 +543,8 @@ class XtmHubServiceTest {
     }
 
     @Test
-    @DisplayName("Should not send email when connectivity is lost but email sending is disabled")
+    @DisplayName(
+        "Should not send global email when global flag is disabled, but still notify tenant admin")
     void whenEmailSendingIsDisabled_ShouldNotSendEmail() {
       // Given
       TenantContext.setCurrentTenant("tenant-1");
@@ -561,8 +566,10 @@ class XtmHubServiceTest {
       // When
       xtmHubService.refreshConnectivityAllTenants();
 
-      // Then — connectivity is still lost, flag already false: flag is not touched
-      verifyNoInteractions(xtmHubEmailService);
+      // Then — per-tenant email is sent (the global flag does not affect it), global email is not
+      verify(xtmHubEmailService)
+          .sendTenantLostConnectivityEmail(tenantId, "http://localhost/" + tenantId);
+      verify(xtmHubEmailService, never()).sendLostConnectivityEmail();
       verify(platformSettingsService, never()).updateXTMHubEmailNotification(anyBoolean());
     }
 
@@ -622,14 +629,18 @@ class XtmHubServiceTest {
       // When
       xtmHubService.refreshConnectivityAllTenants();
 
-      // Then — email sent exactly once, not once per tenant
+      // Then — each tenant admin notified individually, platform admin notified once globally
+      verify(xtmHubEmailService)
+          .sendTenantLostConnectivityEmail("tenant-1", "http://localhost/tenant-1");
+      verify(xtmHubEmailService)
+          .sendTenantLostConnectivityEmail("tenant-2", "http://localhost/tenant-2");
       verify(xtmHubEmailService, times(1)).sendLostConnectivityEmail();
       verify(platformSettingsService).updateXTMHubEmailNotification(false);
     }
 
     @Test
     @DisplayName(
-        "Should not send email when only some tenants have lost connectivity — not all of them")
+        "Should not send global email when only some tenants have lost connectivity, but notify the affected tenant admin")
     void whenOnlySomeTenantsLostConnectivity_ShouldNotSendEmail() {
       // Given
       TenantContext.setCurrentTenant("tenant-1");
@@ -653,8 +664,10 @@ class XtmHubServiceTest {
       // When
       xtmHubService.refreshConnectivityAllTenants();
 
-      // Then — one tenant is still active, so no email should be sent
-      verifyNoInteractions(xtmHubEmailService);
+      // Then — tenant-1 admin notified; no global email since tenant-2 is still active
+      verify(xtmHubEmailService)
+          .sendTenantLostConnectivityEmail("tenant-1", "http://localhost/tenant-1");
+      verify(xtmHubEmailService, never()).sendLostConnectivityEmail();
       verify(platformSettingsService).updateXTMHubEmailNotification(true);
     }
 
@@ -662,9 +675,10 @@ class XtmHubServiceTest {
     @DisplayName(
         "Should not send email again and not reset flag when all tenants are still lost and email was already sent")
     void whenAllTenantsStillLostAndEmailAlreadySent_ShouldNotSendEmailAgain() {
-      // Given — flag=false simulates the email was already sent on a previous run
+      // Given — both flags disabled to simulate emails were already sent on a previous run
       TenantContext.setCurrentTenant("tenant-1");
       TenantXtmHubRegistration reg = buildRegistration("token-1", now.minusHours(30));
+      reg.setConnectivityEmailEligible(false); // per-tenant email already sent
       String tenantId = reg.getTenant().getId();
 
       when(tenantXtmHubRegistrationRepository.findAllByTenantNotDeleted()).thenReturn(List.of(reg));
@@ -673,7 +687,7 @@ class XtmHubServiceTest {
       mockSettings.setPlatformId("platform-123");
       mockSettings.setPlatformVersion("1.0.0");
       mockSettings.setPlatformBaseUrl("http://localhost");
-      mockSettings.setXtmHubShouldSendConnectivityEmail("false"); // already sent, flag disabled
+      mockSettings.setXtmHubShouldSendConnectivityEmail("false"); // global email already sent
       when(platformSettingsService.findSettings()).thenReturn(mockSettings);
 
       whenHubReturnsAllTenantsConnectivityStatuses(Map.of(tenantId, "inactive"));
@@ -681,7 +695,7 @@ class XtmHubServiceTest {
       // When
       xtmHubService.refreshConnectivityAllTenants();
 
-      // Then — no new email, and the flag is not touched (connectivity is still lost)
+      // Then — no new email, and the flags are not touched (connectivity is still lost)
       verifyNoInteractions(xtmHubEmailService);
       verify(platformSettingsService, never()).updateXTMHubEmailNotification(anyBoolean());
     }
@@ -689,9 +703,10 @@ class XtmHubServiceTest {
     @Test
     @DisplayName("Should reset the email flag when connectivity is restored after having been lost")
     void whenConnectivityRestoredAfterLoss_ShouldResetEmailFlag() {
-      // Given — flag=false simulates the email was sent on a previous run
+      // Given — both flags disabled to simulate emails were sent on a previous run
       TenantContext.setCurrentTenant("tenant-1");
       TenantXtmHubRegistration reg = buildRegistration("token-1", now.minusHours(30));
+      reg.setConnectivityEmailEligible(false); // per-tenant email was sent
       String tenantId = reg.getTenant().getId();
 
       when(tenantXtmHubRegistrationRepository.findAllByTenantNotDeleted()).thenReturn(List.of(reg));
@@ -700,7 +715,7 @@ class XtmHubServiceTest {
       mockSettings.setPlatformId("platform-123");
       mockSettings.setPlatformVersion("1.0.0");
       mockSettings.setPlatformBaseUrl("http://localhost");
-      mockSettings.setXtmHubShouldSendConnectivityEmail("false"); // was disabled after loss
+      mockSettings.setXtmHubShouldSendConnectivityEmail("false"); // global email was sent
       when(platformSettingsService.findSettings()).thenReturn(mockSettings);
 
       whenHubReturnsAllTenantsConnectivityStatuses(Map.of(tenantId, "active")); // now restored
@@ -708,9 +723,15 @@ class XtmHubServiceTest {
       // When
       xtmHubService.refreshConnectivityAllTenants();
 
-      // Then — flag re-armed, no email
+      // Then — both flags re-armed, no email sent
       verifyNoInteractions(xtmHubEmailService);
       verify(platformSettingsService).updateXTMHubEmailNotification(true);
+
+      ArgumentCaptor<TenantXtmHubRegistration> captor =
+          ArgumentCaptor.forClass(TenantXtmHubRegistration.class);
+      verify(tenantXtmHubRegistrationRepository, times(2)).save(captor.capture());
+      assertThat(captor.getAllValues())
+          .anyMatch(TenantXtmHubRegistration::isConnectivityEmailEligible);
     }
 
     @Test
@@ -919,6 +940,7 @@ class XtmHubServiceTest {
       assertThat(saved.getRegistrationStatus()).isEqualTo(XtmHubRegistrationStatus.REGISTERED);
       assertThat(saved.getRegistrationDate()).isNotNull();
       assertThat(saved.getLastConnectivityCheck()).isNotNull();
+      assertThat(saved.isConnectivityEmailEligible()).isTrue();
     }
 
     @Test
