@@ -44,6 +44,7 @@ class StepServiceTimeoutGuardsTest {
       // Arrange
       Workflow endedWorkflow = buildWorkflow(WorkflowStatus.END);
       Step stepTemplate = buildStep(StepStatus.TEMPLATE, endedWorkflow);
+      when(workflowService.isWorkflowEnded(endedWorkflow.getId())).thenReturn(true);
 
       // Act
       Optional<Step> result = stepService.ready(stepTemplate, endedWorkflow, null);

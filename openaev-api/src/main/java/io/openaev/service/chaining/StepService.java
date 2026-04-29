@@ -170,10 +170,10 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
       throws ChainingException {
 
     // Guard: ignore if workflow run has already ended (e.g. timeout).
-    // Unlike run() and handleExternalUpdateEvent(), we check the in-memory status here
-    // because ready() is always called within the same transaction that manages the workflow
-    // (startWorkflow, handleExternalUpdateEvent), so the in-memory state is guaranteed to be fresh.
-    if (workflowRun.getStatus() == WorkflowStatus.END) {
+    // Reads fresh status from DB to catch concurrent timeout completion and to avoid
+    // initializing a lazy proxy on a possibly detached workflow (handleExternalUpdateEvent
+    // is not transactional, so workflowRun may be detached when ready() is called from there).
+    if (workflowRun != null && workflowService.isWorkflowEnded(workflowRun.getId())) {
       log.info(
           "Ignoring ready request for step {} because workflow run {} has ended.",
           nextStepTemplateToExecute.getId(),

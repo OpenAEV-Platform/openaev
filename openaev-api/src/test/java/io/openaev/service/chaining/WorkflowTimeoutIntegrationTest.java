@@ -296,10 +296,12 @@ class WorkflowTimeoutIntegrationTest extends IntegrationTest {
     @Test
     @DisplayName("given_workflowJustExpired_should_returnIt")
     void given_workflowJustExpired_should_returnIt() {
-      // Arrange — created exactly timeoutSeconds ago (edge case <=)
+      // Arrange — created just past timeoutSeconds ago. The 1s buffer absorbs clock skew
+      // between the JVM and the Postgres container on CI (the query compares created_at
+      // against Postgres' now(), which can drift slightly from Instant.now() on the JVM side).
       Workflow justExpired =
           createPersistedRunWorkflowWithTimeout(
-              true, 60L, Instant.now().minus(60, ChronoUnit.SECONDS));
+              true, 60L, Instant.now().minus(61, ChronoUnit.SECONDS));
 
       // Act
       List<Workflow> result = workflowTimeoutService.findAllExpiredRunWorkflows();
