@@ -48,11 +48,6 @@ const isIpSubnet = (value: string): boolean => {
 
 const isDomain = (value: string) => DOMAIN_REGEX.test(value);
 
-export const isValidScopeValue = (value: string): boolean => {
-  const sanitized = sanitizeValue(value);
-  return isIp(sanitized) || isIpSubnet(sanitized) || isDomain(sanitized);
-};
-
 // Strip non-printable characters, BOM markers, and Unicode replacement chars that
 // appear when a CSV is saved in a non-UTF-8 encoding (e.g. UTF-16, Windows-1252).
 // eslint-disable-next-line no-control-regex
