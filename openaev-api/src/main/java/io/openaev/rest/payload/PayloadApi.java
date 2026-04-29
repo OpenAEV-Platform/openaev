@@ -110,7 +110,6 @@ public class PayloadApi extends RestBehavior {
     return this.payloadUpsertService.upsertPayload(input);
   }
 
-
   @DeleteMapping({PAYLOAD_URI + "/{payloadId}", TENANT_PAYLOAD_URI + "/{payloadId}"})
   @AccessControl(
       resourceId = "#payloadId",
