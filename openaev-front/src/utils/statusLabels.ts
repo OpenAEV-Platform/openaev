@@ -57,7 +57,7 @@ export const getStatusLabel = (status: string | undefined | null): string => {
 
 const statusTooltipMap: Record<string, string> = {
   // -- ExecutionTraceStatus (Agent level) --
-  SUCCESS: 'The inject ran successfully ',
+  SUCCESS: 'The inject ran successfully.',
   SUCCESS_WITH_CLEANUP_FAIL: 'The main command executed successfully, but the cleanup step failed. Check cleanup prerequisites and logs on the target.',
   WARNING: 'The command completed but produced stderr output. Review stderr for potential issues.',
   ACCESS_DENIED: 'The command was denied due to insufficient privileges. This confirms the security control is working — the agent attempted execution but was blocked.',
