@@ -51,7 +51,6 @@ public class InjectExecutionStepTest extends IntegrationTest {
   @MockitoBean private DocumentService documentService;
   @MockitoBean private InjectService injectService;
   @MockitoBean private ConditionService conditionService;
-  @MockitoBean private WorkflowExecutionOrchestrator workflowExecutionOrchestrator;
   @MockitoBean private ConditionUtils conditionUtils;
   @MockitoBean private io.openaev.executors.Executor executor;
   @MockitoBean private InjectStatusService injectStatusService;

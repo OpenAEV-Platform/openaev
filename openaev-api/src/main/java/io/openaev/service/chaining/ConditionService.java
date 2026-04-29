@@ -649,23 +649,6 @@ public class ConditionService {
         link -> link.getStep() != null && Objects.equals(link.getStep().getId(), stepId));
   }
 
-  public List<Condition> findAllFilterConditionsByKeyTypes(Set<ConditionKeyType> keyTypes) {
-    return conditionRepository.findAllByKeyTypeIn(keyTypes).stream()
-        .filter(conditionUtils::isFilterCondition)
-        .toList();
-  }
-
-  /**
-   * Climbs the condition tree to find the top-level parent (AND/OR node). If the filter is already
-   * at the top, it returns itself.
-   */
-  public Condition fetchRootCondition(Condition condition) {
-    if (condition.getConditionParent() == null) {
-      return condition;
-    }
-    return fetchRootCondition(condition.getConditionParent());
-  }
-
   /**
    * Builds execution batches for a template step from workflow global/local mapper states.
    *

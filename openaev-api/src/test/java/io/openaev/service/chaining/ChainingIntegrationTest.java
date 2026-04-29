@@ -60,6 +60,7 @@ class ChainingIntegrationTest extends IntegrationTest {
 
   // -- Setup inject
   @Autowired private StepService stepService;
+  @Autowired private StepEventService stepEventService;
   @Autowired private WorkflowService workflowService;
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private InjectorRepository injectorRepository;
@@ -460,7 +461,7 @@ class ChainingIntegrationTest extends IntegrationTest {
               .findFirst()
               .orElseThrow(() -> new AssertionError("Step not found"));
       if (createdStep.getStatus() == StepStatus.READY) {
-        stepService.run(createdStep);
+        stepEventService.run(createdStep);
       }
 
       assertNotNull(

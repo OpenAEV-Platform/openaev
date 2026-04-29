@@ -16,7 +16,6 @@ import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.scheduler.jobs.QueueChainingJob;
-import io.openaev.utils.ConditionUtils;
 import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -33,15 +32,13 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.quartz.JobExecutionException;
 
 @ExtendWith(MockitoExtension.class)
-public class StepServiceTest {
+class StepServiceTest {
 
   @Mock private StepRepository stepRepository;
   @Mock private InjectExecutionStep injectExecutionStep;
   @Mock private ActionStep actionStep;
   @Mock private WorkflowService workflowService;
-  @Mock private WorkflowStateService workflowStateService;
   @Mock private ConditionService conditionService;
-  @Mock private ConditionUtils conditionUtils;
   @Mock private QueueChainingService queueChainingService;
   @Mock private StepDelayQueueService stepDelayQueueService;
   @Mock private StepDelayQueueRepository stepDelayQueueRepository;
@@ -49,7 +46,7 @@ public class StepServiceTest {
   @Spy @InjectMocks StepService stepService;
   private QueueChainingJob queueChainingJob;
 
-  private final String workflowId = UUID.randomUUID().toString();
+  private Workflow workflow;
 
   @Captor private ArgumentCaptor<String> simulationIdCaptor;
   @Captor private ArgumentCaptor<String> workflowTemplateIdCaptor;
@@ -58,24 +55,24 @@ public class StepServiceTest {
   @Captor private ArgumentCaptor<List<Condition>> conditionsCaptor;
   @Captor private ArgumentCaptor<String> stepIdCaptor;
 
-  /* ============================================================
-   * createStepsTemplate — ActionStep resolution
-   * ============================================================ */
   @BeforeEach
   void setUp() {
     queueChainingJob = new QueueChainingJob(stepDelayQueueService, stepService);
+    workflow = mock(Workflow.class);
   }
 
+  /* ============================================================
+   * createStepsTemplate — ActionStep resolution
+   * ============================================================ */
   @Nested
   class ActionStepResolution {
 
     @Test
-    void shouldThrowWhenActionStepIsNull() {
+    void given_nullActionStep_should_throwChainingException() {
+      // Arrange
       StepsCreateInput.StepInput stepInput = mockStep(null, List.of());
 
-      when(workflowService.getWorkflowByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
-          .thenReturn(mock(Workflow.class));
-
+      // Act + Assert
       assertThrows(
           ChainingException.class,
           () -> stepService.createStepTemplates(workflow, List.of(stepInput)));
@@ -91,14 +88,17 @@ public class StepServiceTest {
   class NoConditions {
 
     @Test
-    void shouldSkipConditionCreationWhenEmpty() throws ChainingException {
+    void given_emptyConditions_should_skipConditionCreation() throws ChainingException {
+      // Arrange
       StepsCreateInput.StepInput stepInput =
           mockStep(StepActionClass.INJECT_EXECUTION, Collections.emptyList());
 
-      setupCreateStepTemplates(stepInput, false);
+      setupCreateStepTemplates(stepInput);
 
+      // Act
       stepService.createStepTemplates(workflow, List.of(stepInput));
 
+      // Assert
       verify(conditionService, never()).saveCondition(any());
     }
   }
@@ -111,28 +111,21 @@ public class StepServiceTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("conditionTreeTestInputs")
-    void shouldBuildConditionTreeCorrectly(
+    void given_conditionInputs_should_buildConditionTreeCorrectly(
         String description,
         List<ConditionCreateInput> inputs,
         Map<ConditionKeyType, Optional<ConditionKeyType>> expectedParentMap)
         throws ChainingException {
 
+      // Arrange
       StepsCreateInput.StepInput stepInput = mockStep(StepActionClass.INJECT_EXECUTION, inputs);
 
-      setupCreateStepTemplates(stepInput, false);
+      setupCreateStepTemplates(stepInput);
 
-      // Capture the arguments passed to createConditionTree and invoke the real BFS logic
-      // by delegating to ConditionService#findRootConditionInput so we can assert parent linkage.
-      // We use thenAnswer to exercise the factories and collect produced Conditions.
       List<Condition> producedConditions = new ArrayList<>();
 
       doAnswer(
               invocation -> {
-                // arg 0 : conditionInputs
-                // arg 1 : rootFactory   Function<ConditionCreateInput, Condition>
-                // arg 2 : childFactory  BiFunction<ConditionCreateInput, Condition, Condition>
-                // arg 3 : linkCondition BiConsumer<Condition, Boolean>
-                // arg 4 : afterRootSaved Consumer<Condition>
                 @SuppressWarnings("unchecked")
                 List<ConditionCreateInput> conditionInputs = invocation.getArgument(0);
                 java.util.function.Function<ConditionCreateInput, Condition> rootFactory =
@@ -140,7 +133,6 @@ public class StepServiceTest {
                 java.util.function.BiFunction<ConditionCreateInput, Condition, Condition>
                     childFactory = invocation.getArgument(2);
 
-                // Identify root (no parent)
                 ConditionCreateInput rootInput =
                     conditionInputs.stream()
                         .filter(c -> c.getTemporaryIdConditionParent() == null)
@@ -179,12 +171,12 @@ public class StepServiceTest {
           .when(conditionService)
           .createConditionTree(any(), any(), any(), any(), isNull());
 
+      // Act
       stepService.createStepTemplates(workflow, List.of(stepInput));
 
-      // Verify createConditionTree was called once with the right inputs
+      // Assert
       verify(conditionService).createConditionTree(eq(inputs), any(), any(), any(), isNull());
 
-      // Build a key -> Condition map from the produced conditions
       Map<ConditionKeyType, Condition> byKey =
           producedConditions.stream().collect(Collectors.toMap(Condition::getKeyType, c -> c));
 
@@ -204,7 +196,6 @@ public class StepServiceTest {
     }
 
     static Stream<Arguments> conditionTreeTestInputs() {
-
       return Stream.of(
           Arguments.of(
               "Single root condition",
@@ -238,7 +229,7 @@ public class StepServiceTest {
   class InvalidConditionTrees {
 
     @Test
-    void shouldThrowWhenMultipleRootConditions() throws ChainingException {
+    void given_multipleRootConditions_should_throw() throws ChainingException {
       // Arrange
       StepsCreateInput.StepInput stepInput =
           mockStep(
@@ -253,9 +244,8 @@ public class StepServiceTest {
                       .temporaryIdConditionParent(null)
                       .build()));
 
-      setupCreateStepTemplates(stepInput, false);
+      setupCreateStepTemplates(stepInput);
 
-      // conditionService is mocked: configure it to throw the same exception as the real impl
       doThrow(
               new IllegalArgumentException(
                   "New step (TEMPLATE): Only 1 condition can be first parent"))
@@ -269,7 +259,7 @@ public class StepServiceTest {
     }
 
     @Test
-    void shouldThrowWhenNoRootConditionExists() throws ChainingException {
+    void given_noRootCondition_should_throw() throws ChainingException {
       // Arrange
       ConditionCreateInput conditionCreateInput =
           ConditionCreateInput.builder()
@@ -279,12 +269,7 @@ public class StepServiceTest {
       StepsCreateInput.StepInput stepInput =
           mockStep(StepActionClass.INJECT_EXECUTION, List.of(conditionCreateInput));
 
-      Workflow workflow = mock(Workflow.class);
       Step step = mock(Step.class);
-      ActionStep actionStep = mock(ActionStep.class);
-
-      when(workflowService.getWorkflowByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
-          .thenReturn(workflow);
 
       when(stepService.factoryAction(stepInput.getStepAction(), null)).thenReturn(actionStep);
 
@@ -293,7 +278,6 @@ public class StepServiceTest {
       assertNotNull(step);
       when(stepRepository.save(step)).thenReturn(step);
 
-      // conditionService is mocked: configure it to throw the same exception as the real impl
       doThrow(
               new IllegalArgumentException(
                   "New step (TEMPLATE): Only 1 condition can be first parent"))
@@ -308,214 +292,23 @@ public class StepServiceTest {
   }
 
   /* ============================================================
-   * startWorkflow — workflow + repository + ready filtering
-   * ============================================================ */
-  @Nested
-  class StartWorkflow {
-
-    @Test
-    void shouldLaunchWorkflow_andNeverCallReady_whenNoStepTemplates() throws ChainingException {
-      // -------- Prepare --------
-      String simulationId = UUID.randomUUID().toString();
-      String templateWorkflowId = UUID.randomUUID().toString();
-
-      Workflow workflowTemplate = mock(Workflow.class);
-      when(workflowTemplate.getId()).thenReturn(templateWorkflowId);
-
-      Workflow workflowRun = mock(Workflow.class);
-
-      when(workflowService.launchWorkflowSimulation(workflowTemplate)).thenReturn(workflowRun);
-      when(workflowService.findWorkflowTemplateBySimulationId(simulationId))
-          .thenReturn(Optional.of(workflowTemplate));
-
-      when(stepRepository.findAllByStepTemplateIdIsNullAndWorkflowId(templateWorkflowId))
-          .thenReturn(Collections.emptyList());
-
-      // -------- Act --------
-      workflowService.startWorkflowBySimulationId(simulationId);
-
-      // -------- Assert --------
-      verify(workflowService).findWorkflowTemplateBySimulationId(simulationIdCaptor.capture());
-      assertEquals(simulationId, simulationIdCaptor.getValue());
-
-      verify(stepRepository)
-          .findAllByStepTemplateIdIsNullAndWorkflowId(workflowTemplateIdCaptor.capture());
-      assertEquals(templateWorkflowId, workflowTemplateIdCaptor.getValue());
-
-      verify(workflowService).launchWorkflowSimulation(workflowCaptor.capture());
-      assertEquals(simulationId, simulationIdCaptor.getValue());
-
-      verify(stepService, never()).createReadySteps(any(Step.class), any(Workflow.class), any());
-    }
-
-    @ParameterizedTest(name = "{index} => steps={0}, nonNullReadyIndices={1}")
-    @MethodSource("startWorkflowTestInputs")
-    void shouldCallReadyForEachStep_andHandleNullAndNonNullReturns(
-        List<Step> stepTemplates, Set<Integer> nonNullReadyIndices) throws ChainingException {
-      // -------- Prepare --------
-      String simulationId = UUID.randomUUID().toString();
-      String templateWorkflowId = UUID.randomUUID().toString();
-
-      Workflow workflowTemplate = mock(Workflow.class);
-      when(workflowTemplate.getId()).thenReturn(templateWorkflowId);
-
-      Workflow workflowRun = mock(Workflow.class);
-
-      when(workflowService.findWorkflowTemplateBySimulationId(simulationId))
-          .thenReturn(Optional.of(workflowTemplate));
-      when(workflowService.launchWorkflowSimulation(workflowTemplate)).thenReturn(workflowRun);
-
-      when(stepRepository.findAllByStepTemplateIdIsNullAndWorkflowId(templateWorkflowId))
-          .thenReturn(stepTemplates);
-
-      // For each template step:
-      // - return a non-null Step for chosen indices
-      // - return null otherwise
-      Map<Step, List<Step>> readyReturnByInputStep = new HashMap<>();
-      for (int i = 0; i < stepTemplates.size(); i++) {
-        Step input = stepTemplates.get(i);
-        List<Step> returned =
-            (nonNullReadyIndices.contains(i) ? List.of(mock(Step.class)) : List.of());
-        readyReturnByInputStep.put(input, returned);
-      }
-
-      doAnswer(
-              invocation -> {
-                Step inputStep = invocation.getArgument(0);
-                return readyReturnByInputStep.get(inputStep);
-              })
-          .when(stepService)
-          .createReadySteps(any(Step.class), eq(workflowRun), isNull());
-
-      // -------- Act --------
-      workflowService.startWorkflowBySimulationId(simulationId);
-
-      // -------- Assert --------
-      verify(workflowService).findWorkflowTemplateBySimulationId(simulationIdCaptor.capture());
-      assertEquals(simulationId, simulationIdCaptor.getValue());
-
-      verify(stepRepository)
-          .findAllByStepTemplateIdIsNullAndWorkflowId(workflowTemplateIdCaptor.capture());
-      assertEquals(templateWorkflowId, workflowTemplateIdCaptor.getValue());
-
-      verify(workflowService).launchWorkflowSimulation(workflowTemplate);
-      assertEquals(simulationId, simulationIdCaptor.getValue());
-
-      verify(stepService, times(stepTemplates.size()))
-          .createReadySteps(stepCaptor.capture(), workflowCaptor.capture(), isNull());
-
-      assertEquals(stepTemplates.size(), stepCaptor.getAllValues().size());
-      assertTrue(stepCaptor.getAllValues().containsAll(stepTemplates));
-
-      for (Workflow wfArg : workflowCaptor.getAllValues()) {
-        assertSame(workflowRun, wfArg);
-      }
-
-      verify(workflowStateService).initializeStateFromScope(workflowRun);
-
-      verifyNoMoreInteractions(workflowService);
-    }
-
-    private static Stream<Arguments> startWorkflowTestInputs() {
-      // NOTE: we use mocks for stable identity comparisons in captors/maps
-      Step s1 = mock(Step.class);
-      Step s2 = mock(Step.class);
-      Step s3 = mock(Step.class);
-
-      return Stream.of(
-          Arguments.of(List.of(s1, s2, s3), Set.of()),
-
-          // Some ready return non-null -> covers add(...) line
-          Arguments.of(List.of(s1, s2, s3), Set.of(0)),
-          Arguments.of(List.of(s1, s2, s3), Set.of(1, 2)),
-
-          // Boundary: 1 element
-          Arguments.of(List.of(s1), Set.of()),
-          Arguments.of(List.of(s1), Set.of(0)));
-    }
-
-    @ParameterizedTest(name = "validStep={0}, delayedTemplate={1} -> endExpected={2}")
-    @MethodSource("workflowStatusMatrixInputs")
-    void shouldSetWorkflowStatusAccordingToValidStepAndDelayedTemplate(
-        boolean hasValidStep, boolean hasDelayedTemplate, boolean shouldEndWorkflow)
-        throws ChainingException {
-      // -------- Prepare --------
-      String simulationId = UUID.randomUUID().toString();
-      String templateWorkflowId = UUID.randomUUID().toString();
-
-      Workflow workflowTemplate = mock(Workflow.class);
-      when(workflowTemplate.getId()).thenReturn(templateWorkflowId);
-
-      Workflow workflowRun = mock(Workflow.class);
-      Step stepTemplate = mock(Step.class);
-
-      when(workflowService.findWorkflowTemplateBySimulationId(simulationId))
-          .thenReturn(Optional.of(workflowTemplate));
-      when(workflowService.launchWorkflowSimulation(workflowTemplate)).thenReturn(workflowRun);
-      when(stepRepository.findAllByStepTemplateIdIsNullAndWorkflowId(templateWorkflowId))
-          .thenReturn(List.of(stepTemplate));
-
-      doReturn(hasValidStep ? List.of(mock(Step.class)) : List.of())
-          .when(stepService)
-          .createReadySteps(stepTemplate, workflowRun, null);
-
-      if (!hasValidStep) {
-        when(stepDelayQueueRepository.findAllByWorkflowRun(workflowRun))
-            .thenReturn(hasDelayedTemplate ? List.of(mock(StepDelayQueue.class)) : List.of());
-      }
-
-      // -------- Act --------
-      workflowService.startWorkflowBySimulationId(simulationId);
-
-      // -------- Assert --------
-      if (shouldEndWorkflow) {
-        verify(workflowRun).setStatus(WorkflowStatus.END);
-      } else {
-        verify(workflowRun, never()).setStatus(WorkflowStatus.END);
-      }
-
-      if (hasValidStep) {
-        verify(stepDelayQueueRepository, never()).findAllByWorkflowRun(workflowRun);
-      } else {
-        verify(stepDelayQueueRepository).findAllByWorkflowRun(workflowRun);
-      }
-      verify(workflowStateService).initializeStateFromScope(workflowRun);
-    }
-
-    private static Stream<Arguments> workflowStatusMatrixInputs() {
-      return Stream.of(
-          // no step valid && no delayed template -> END
-          Arguments.of(false, false, true),
-          // no step valid && delayed template exists -> RUN
-          Arguments.of(false, true, false),
-          // step valid && no delayed template -> RUN
-          Arguments.of(true, false, false),
-          // step valid && delayed template exists -> RUN
-          Arguments.of(true, true, false));
-    }
-  }
-
-  /* ============================================================
    * ready — Execution step creation and queue chaining
    * ============================================================ */
   @Nested
   class Ready {
 
-    /* ============================================================
-     * ready — ActionStep resolution
-     * ============================================================ */
     @Nested
     class ActionStepResolution {
 
       @Test
-      void shouldThrowWhenActionStepIsNull() throws Exception {
-        // -------- Prepare --------
+      void given_nullAction_should_throw() throws Exception {
+        // Arrange
         Step nextStepTemplateToExecute = mock(Step.class);
         Workflow workflowRun = mock(Workflow.class);
 
         when(nextStepTemplateToExecute.getStepAction()).thenReturn(null);
 
-        // -------- Act + Assert --------
+        // Act + Assert
         assertThrows(
             ChainingException.class,
             () ->
@@ -529,27 +322,23 @@ public class StepServiceTest {
       }
     }
 
-    /* ============================================================
-     * ready — Condition checking and outcomes
-     * ============================================================ */
     @Nested
     class ConditionOutcomes {
 
       @Test
-      void shouldReturnEmptyListAndStop_whenConditionExecutionIsNull() throws Exception {
-        // -------- Prepare --------
-        // "no batches" is the new equivalent of "conditions returned null" — execution is deferred
+      void given_nullConditionExecution_should_returnEmptyList() throws Exception {
+        // Arrange
         Step nextStepTemplateToExecute = mock(Step.class);
         Step persistedTemplate = mock(Step.class);
         Workflow workflowRun = mock(Workflow.class);
-        ActionStep actionStep = mock(ActionStep.class);
+        ActionStep localActionStep = mock(ActionStep.class);
 
         String input = "{\"hello\":\"world\"}";
         String stepId = UUID.randomUUID().toString();
 
         when(nextStepTemplateToExecute.getStepAction())
             .thenReturn(StepActionClass.INJECT_EXECUTION);
-        doReturn(actionStep)
+        doReturn(localActionStep)
             .when(stepService)
             .factoryAction(StepActionClass.INJECT_EXECUTION, stepId);
 
@@ -560,11 +349,11 @@ public class StepServiceTest {
         when(conditionService.checkCondition(persistedTemplate, workflowRun, input))
             .thenReturn(null);
 
-        // -------- Act --------
+        // Act
         List<Step> result =
             stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input);
 
-        // -------- Assert --------
+        // Assert
         assertTrue(result.isEmpty());
 
         verify(stepRepository).findByIdAndStatus(stepIdCaptor.capture(), any());
@@ -572,27 +361,23 @@ public class StepServiceTest {
 
         verify(conditionService).checkCondition(persistedTemplate, workflowRun, input);
 
-        verify(actionStep, never()).ready(any(), any(), any());
+        verify(localActionStep, never()).ready(any(), any(), any());
         verify(stepRepository, never()).save(any());
         verify(conditionService, never()).saveAllConditions(anyList());
         verify(queueChainingService, never()).readyStep(any(), any());
       }
     }
 
-    /* ============================================================
-     * ready — Nominal case
-     * ============================================================ */
     @Nested
     class ReadyNominalCase {
 
       @Test
-      void shouldCreateReadyStep_saveConditions_andQueueStep_whenConditionsAreValid()
-          throws Exception {
-        // -------- Prepare --------
+      void given_validConditions_should_createReadyStep_andSaveConditions() throws Exception {
+        // Arrange
         Step nextStepTemplateToExecute = mock(Step.class);
         Step persistedTemplate = mock(Step.class);
         Workflow workflowRun = mock(Workflow.class);
-        ActionStep actionStep = mock(ActionStep.class);
+        ActionStep localActionStep = mock(ActionStep.class);
 
         String input = "{\"x\":1}";
         String stepId = UUID.randomUUID().toString();
@@ -600,7 +385,7 @@ public class StepServiceTest {
         when(nextStepTemplateToExecute.getStepAction())
             .thenReturn(StepActionClass.INJECT_EXECUTION);
         when(stepService.factoryAction(StepActionClass.INJECT_EXECUTION, stepId))
-            .thenReturn(actionStep);
+            .thenReturn(localActionStep);
 
         when(nextStepTemplateToExecute.getId()).thenReturn(stepId);
 
@@ -608,41 +393,34 @@ public class StepServiceTest {
         Condition c2 = mock(Condition.class);
         List<Condition> usedMappers = new ArrayList<>(List.of(c1, c2));
 
-        // Provide one batch carrying the resolved input and the two mapper conditions
         when(conditionService.checkCondition(persistedTemplate, workflowRun, input))
             .thenReturn(List.of(new ConditionService.ExecutionBatch(input, usedMappers)));
 
         Step stepReady = mock(Step.class);
 
-        when(actionStep.ready(persistedTemplate, input, workflowRun))
+        when(localActionStep.ready(persistedTemplate, input, workflowRun))
             .thenReturn(Optional.ofNullable(stepReady));
         assertNotNull(stepReady);
         when(stepRepository.save(stepReady)).thenReturn(stepReady);
 
         when(stepRepository.findByIdAndStatus(any(), eq(StepStatus.TEMPLATE)))
             .thenReturn(Optional.of(persistedTemplate));
-        // -------- Act --------
+
+        // Act
         List<Step> result =
             stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input);
-        assertEquals(1, result.size());
 
-        // -------- Assert --------
+        // Assert
+        assertEquals(1, result.size());
         assertSame(stepReady, result.getFirst());
 
-        // findByIdAndStatus(...) is private -> verify repository call instead
         verify(stepRepository).findByIdAndStatus(stepIdCaptor.capture(), eq(StepStatus.TEMPLATE));
         assertEquals(stepId, stepIdCaptor.getValue());
 
-        verify(actionStep).ready(persistedTemplate, input, workflowRun);
+        verify(localActionStep).ready(persistedTemplate, input, workflowRun);
 
-        // saveStep(...) is private -> verify repository save instead
         verify(stepRepository).save(stepCaptor.capture());
         assertSame(stepReady, stepCaptor.getValue());
-
-        // conditions should be linked to the final step (savedstepReady)
-        // TODO:update this check
-        //        verify(c1).linkToStep(stepReady, true);
-        //        verify(c2).linkToStep(stepReady, true);
 
         verify(conditionService).saveAllConditions(conditionsCaptor.capture());
         assertEquals(2, conditionsCaptor.getValue().size());
@@ -652,26 +430,23 @@ public class StepServiceTest {
       }
     }
 
-    /* ============================================================
-     * ready — Queue chaining is handled elsewhere
-     * ============================================================ */
     @Nested
     class QueueChainingDelegation {
 
       @Test
-      void shouldNotQueueInsideReady() throws Exception {
-        // -------- Prepare --------
+      void given_readyStep_should_notQueueInsideReady() throws Exception {
+        // Arrange
         Step nextStepTemplateToExecute = mock(Step.class);
         Step persistedTemplate = mock(Step.class);
         Workflow workflowRun = mock(Workflow.class);
-        ActionStep actionStep = mock(ActionStep.class);
+        ActionStep localActionStep = mock(ActionStep.class);
 
         String input = "{\"q\":true}";
         String stepId = UUID.randomUUID().toString();
         when(nextStepTemplateToExecute.getStepAction())
             .thenReturn(StepActionClass.INJECT_EXECUTION);
         when(stepService.factoryAction(StepActionClass.INJECT_EXECUTION, stepId))
-            .thenReturn(actionStep);
+            .thenReturn(localActionStep);
 
         when(nextStepTemplateToExecute.getId()).thenReturn(stepId);
         when(stepRepository.findByIdAndStatus(stepId, StepStatus.TEMPLATE))
@@ -680,27 +455,26 @@ public class StepServiceTest {
         Condition c1 = mock(Condition.class);
         List<Condition> usedMappers = new ArrayList<>(List.of(c1));
 
-        // Supply one batch so the loop body executes and a READY step is created
         when(conditionService.checkCondition(persistedTemplate, workflowRun, input))
             .thenReturn(List.of(new ConditionService.ExecutionBatch(input, usedMappers)));
 
         Step stepReady = mock(Step.class);
 
-        when(actionStep.ready(persistedTemplate, input, workflowRun))
+        when(localActionStep.ready(persistedTemplate, input, workflowRun))
             .thenReturn(Optional.ofNullable(stepReady));
         assertNotNull(stepReady);
 
         when(stepRepository.save(stepReady)).thenReturn(stepReady);
 
-        // -------- Act --------
+        // Act
         List<Step> result =
             stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input);
 
-        // -------- Assert --------
+        // Assert
         assertEquals(1, result.size());
         assertSame(stepReady, result.getFirst());
 
-        verify(actionStep).ready(persistedTemplate, input, workflowRun);
+        verify(localActionStep).ready(persistedTemplate, input, workflowRun);
         verify(stepRepository, times(1)).save(stepReady);
 
         verify(conditionService).saveAllConditions(anyList());
@@ -717,31 +491,36 @@ public class StepServiceTest {
   class QueueReadySteps {
 
     @Test
-    void shouldQueueAllSteps() throws Exception {
+    void given_readySteps_should_queueAll() throws Exception {
+      // Arrange
       Step stepReady1 = mock(Step.class);
       Step stepReady2 = mock(Step.class);
       Workflow workflowRun = mock(Workflow.class);
 
+      // Act
       stepService.enqueueReadySteps(List.of(stepReady1, stepReady2), workflowRun);
 
+      // Assert
       verify(queueChainingService).readyStep(stepReady1, workflowRun);
       verify(queueChainingService).readyStep(stepReady2, workflowRun);
     }
 
     @Test
-    void shouldEndStepAndWrapIOExceptionWhenQueueFails() throws Exception {
+    void given_ioException_should_endStepAndWrapException() throws Exception {
+      // Arrange
       Step stepReady = mock(Step.class);
       Workflow workflowRun = mock(Workflow.class);
 
       when(stepReady.getId()).thenReturn(UUID.randomUUID().toString());
       doThrow(new IOException("boom")).when(queueChainingService).readyStep(stepReady, workflowRun);
 
+      // Act + Assert
       ChainingException ex =
           assertThrows(
               ChainingException.class,
               () -> stepService.enqueueReadySteps(List.of(stepReady), workflowRun));
 
-      assertTrue(ex.getCause() instanceof IOException);
+      assertInstanceOf(IOException.class, ex.getCause());
       verify(stepReady).setStatus(StepStatus.END);
       verify(stepRepository).save(stepReady);
     }
@@ -754,8 +533,8 @@ public class StepServiceTest {
   class CountExecutedStep {
 
     @Test
-    void shouldReturnRepositoryCount() {
-      // -------- Prepare --------
+    void given_workflowAndTemplate_should_returnRepositoryCount() {
+      // Arrange
       String workflowRunId = UUID.randomUUID().toString();
       String stepTemplateId = UUID.randomUUID().toString();
       int expected = 42;
@@ -764,12 +543,11 @@ public class StepServiceTest {
               workflowRunId, stepTemplateId))
           .thenReturn(expected);
 
-      // -------- Act --------
+      // Act
       int result = stepService.countExecutedStep(workflowRunId, stepTemplateId);
 
-      // -------- Assert --------
+      // Assert
       assertEquals(expected, result);
-
       verify(stepRepository)
           .countStepExecutedByStepTemplateIdAndWorkflowRunId(workflowRunId, stepTemplateId);
       verifyNoMoreInteractions(stepRepository);
@@ -783,11 +561,11 @@ public class StepServiceTest {
   class FactoryAction {
 
     @Test
-    void shouldReturnInjectExecutionStep_whenActionIsInjectExecution() throws ChainingException {
-      // -------- Act --------
+    void given_injectExecution_should_returnInjectExecutionStep() throws ChainingException {
+      // Act
       ActionStep result = stepService.factoryAction(StepActionClass.INJECT_EXECUTION, null);
 
-      // -------- Assert --------
+      // Assert
       assertSame(injectExecutionStep, result);
     }
   }
@@ -802,39 +580,36 @@ public class StepServiceTest {
     @Captor private ArgumentCaptor<Step> stepCaptor;
 
     @Test
-    void shouldCallSaveAll_withGivenSteps() {
-      // -------- Prepare --------
+    void given_steps_should_callSaveAll() {
+      // Arrange
       Step s1 = mock(Step.class);
       Step s2 = mock(Step.class);
       List<Step> steps = List.of(s1, s2);
 
-      // -------- Act --------
+      // Act
       stepService.saveSteps(steps);
 
-      // -------- Assert --------
+      // Assert
       verify(stepRepository).saveAll(stepsCaptor.capture());
       assertSame(steps, stepsCaptor.getValue());
-
       verifyNoMoreInteractions(stepRepository);
     }
 
     @Test
-    void shouldSaveStep_andReturnSavedInstance() {
-      // -------- Prepare --------
+    void given_step_should_saveAndReturnSavedInstance() {
+      // Arrange
       Step step = mock(Step.class);
       Step saved = mock(Step.class);
 
       when(stepRepository.save(step)).thenReturn(saved);
 
-      // -------- Act --------
+      // Act
       Step result = stepService.saveStep(step);
 
-      // -------- Assert --------
+      // Assert
       assertSame(saved, result);
-
       verify(stepRepository).save(stepCaptor.capture());
       assertSame(step, stepCaptor.getValue());
-
       verifyNoMoreInteractions(stepRepository);
     }
   }
@@ -846,64 +621,61 @@ public class StepServiceTest {
   class FindSteps {
 
     @Test
-    void shouldFindStepTemplateById() {
-      // -------- Prepare --------
+    void given_validId_should_findStepTemplateById() {
+      // Arrange
       String stepId = UUID.randomUUID().toString();
       Step step = mock(Step.class);
 
       when(stepRepository.findByStepTemplateIdIsNullAndIdAndStatus(stepId, StepStatus.TEMPLATE))
           .thenReturn(Optional.ofNullable(step));
 
-      // -------- Act --------
+      // Act
       Step result = stepService.findStepTemplateById(stepId);
 
-      // -------- Assert --------
+      // Assert
       assertSame(step, result);
-
       verify(stepRepository).findByStepTemplateIdIsNullAndIdAndStatus(stepId, StepStatus.TEMPLATE);
       verifyNoMoreInteractions(stepRepository);
     }
 
     @Test
-    void shouldFindAllStepTemplateByWorkflow() {
-      // -------- Prepare --------
-      String workflowId = UUID.randomUUID().toString();
+    void given_workflowId_should_findAllStepTemplateByWorkflow() {
+      // Arrange
+      String wfId = UUID.randomUUID().toString();
       List<Step> steps = List.of(mock(Step.class), mock(Step.class));
 
-      when(stepRepository.findAllByStepTemplateIdIsNullAndWorkflowId(workflowId)).thenReturn(steps);
+      when(stepRepository.findAllByStepTemplateIdIsNullAndWorkflowId(wfId)).thenReturn(steps);
 
-      // -------- Act --------
-      List<Step> result = stepService.findAllStepTemplateByWorkflow(workflowId);
+      // Act
+      List<Step> result = stepService.findAllStepTemplateByWorkflow(wfId);
 
-      // -------- Assert --------
+      // Assert
       assertSame(steps, result);
-
-      verify(stepRepository).findAllByStepTemplateIdIsNullAndWorkflowId(workflowId);
+      verify(stepRepository).findAllByStepTemplateIdIsNullAndWorkflowId(wfId);
       verifyNoMoreInteractions(stepRepository);
     }
 
     @Test
-    void shouldFindStepReadyById() {
-      // -------- Prepare --------
+    void given_validId_should_findStepReadyById() {
+      // Arrange
       String stepId = UUID.randomUUID().toString();
       Step step = mock(Step.class);
 
       when(stepRepository.findByStepTemplateIdIsNotNullAndIdAndStatus(stepId, StepStatus.READY))
           .thenReturn(step);
 
-      // -------- Act --------
+      // Act
       Step result = stepService.findStepReadyById(stepId);
 
-      // -------- Assert --------
+      // Assert
       assertSame(step, result);
-
       verify(stepRepository).findByStepTemplateIdIsNotNullAndIdAndStatus(stepId, StepStatus.READY);
       verifyNoMoreInteractions(stepRepository);
     }
 
     @Test
-    void shouldFindAllExecutedStepsByTemplateAndWorkflow() {
-      // -------- Prepare --------
+    void given_templateAndWorkflow_should_findAllExecutedSteps() {
+      // Arrange
       String stepTemplateId = UUID.randomUUID().toString();
       String workflowRunId = UUID.randomUUID().toString();
 
@@ -913,83 +685,77 @@ public class StepServiceTest {
               stepTemplateId, workflowRunId))
           .thenReturn(steps);
 
-      // -------- Act --------
+      // Act
       List<Step> result =
           stepService.findAllStepExecutedByStepTemplateIdAndWorkflowRunId(
               stepTemplateId, workflowRunId);
 
-      // -------- Assert --------
+      // Assert
       assertSame(steps, result);
-
       verify(stepRepository)
           .findAllStepExecutedByStepTemplateIdAndWorkflowRunId(stepTemplateId, workflowRunId);
       verifyNoMoreInteractions(stepRepository);
     }
 
     @Test
-    void shouldFindById_whenStepExists() {
-      // -------- Prepare --------
+    void given_existingId_should_findById() {
+      // Arrange
       String stepId = UUID.randomUUID().toString();
       Step step = mock(Step.class);
 
       when(stepRepository.findById(stepId)).thenReturn(Optional.of(step));
 
-      // -------- Act --------
+      // Act
       Optional<Step> resultOpt = Optional.ofNullable(stepService.findById(stepId));
 
-      // -------- Assert --------
+      // Assert
       assertTrue(resultOpt.isPresent());
       assertSame(step, resultOpt.get());
-
       verify(stepRepository).findById(stepId);
       verifyNoMoreInteractions(stepRepository);
     }
 
     @Test
-    void shouldThrow_whenFindByIdReturnsEmpty() {
-      // -------- Prepare --------
+    void given_missingId_should_throwWhenFindById() {
+      // Arrange
       String stepId = UUID.randomUUID().toString();
 
       when(stepRepository.findById(stepId)).thenReturn(Optional.empty());
 
-      // -------- Act + Assert --------
+      // Act + Assert
       assertThrows(ElementNotFoundException.class, () -> stepService.findById(stepId));
-
       verify(stepRepository).findById(stepId);
       verifyNoMoreInteractions(stepRepository);
     }
 
     @Test
-    void shouldFindStepIdByInjectId() {
-      // -------- Prepare --------
+    void given_injectId_should_findStepId() {
+      // Arrange
       String injectId = UUID.randomUUID().toString();
       String stepId = UUID.randomUUID().toString();
 
       when(stepRepository.findStepIdByInjectId(injectId)).thenReturn(Optional.of(stepId));
 
-      // -------- Act --------
+      // Act
       String result = stepService.findStepIdByInjectId(injectId);
 
-      // -------- Assert --------
+      // Assert
       assertNotNull(result);
       assertEquals(stepId, result);
-
       verify(stepRepository).findStepIdByInjectId(injectId);
       verifyNoMoreInteractions(stepRepository);
     }
 
     @Test
-    void shouldThrowAnException_whenNoStepFoundForInjectId() {
-      // -------- Prepare --------
+    void given_missingInjectId_should_throw() {
+      // Arrange
       String injectId = UUID.randomUUID().toString();
 
       when(stepRepository.findStepIdByInjectId(injectId)).thenReturn(Optional.empty());
 
-      // -------- Act --------
-      // -------- Assert --------
+      // Act + Assert
       assertThrows(
           ElementNotFoundException.class, () -> stepService.findStepIdByInjectId(injectId));
-
       verify(stepRepository).findStepIdByInjectId(injectId);
       verifyNoMoreInteractions(stepRepository);
     }
@@ -1001,17 +767,15 @@ public class StepServiceTest {
   @Nested
   class QueueEventsHandling {
 
-    /* ============================================================
-     * processDelayStep — find next queued step then createReadySteps(...)
-     * ============================================================ */
     @Nested
     class ProcessDelayStep {
 
       @ParameterizedTest(name = "{index} => stepFound={0}, throwException={1}")
       @MethodSource("delayStepEventScenarios")
-      void shouldReadyOnlyWhenStepExists(boolean stepFound, boolean throwException)
+      void given_delayStepEvent_should_readyOnlyWhenStepExists(
+          boolean stepFound, boolean throwException)
           throws ChainingException, JobExecutionException {
-        // -------- Prepare --------
+        // Arrange
         StepDelayQueue stepDelayQueue = mock(StepDelayQueue.class);
         Step step = mock(Step.class);
         Workflow workflowRun = mock(Workflow.class);
@@ -1034,10 +798,10 @@ public class StepServiceTest {
           }
         }
 
-        // -------- Act --------
+        // Act
         queueChainingJob.execute(null);
 
-        // -------- Assert --------
+        // Assert
         if (stepFound) {
           verify(stepService).createReadySteps(step, workflowRun, null);
         } else {
@@ -1053,21 +817,17 @@ public class StepServiceTest {
   }
 
   @Test
-  void should_throw_when_stepConditionTemplate_fails() throws Exception {
-
-    String workflowId = "wf-1";
-    Workflow workflow = new Workflow();
+  void given_stepConditionTemplateFailure_should_throw() throws Exception {
+    // Arrange
+    Workflow localWorkflow = new Workflow();
 
     StepsCreateInput.StepInput input = mock(StepsCreateInput.StepInput.class);
 
     Step step = new Step();
 
-    when(workflowService.getWorkflowByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
-        .thenReturn(workflow);
-
     doReturn(actionStep).when(stepService).factoryAction(any(), any());
 
-    when(actionStep.create(any(), eq(workflow))).thenReturn(Optional.of(step));
+    when(actionStep.create(any(), eq(localWorkflow))).thenReturn(Optional.of(step));
 
     when(stepRepository.save(step)).thenReturn(step);
 
@@ -1075,24 +835,20 @@ public class StepServiceTest {
         .when(stepService)
         .stepConditionTemplate(any(), any(), any());
 
+    // Act + Assert
     assertThrows(
         IllegalArgumentException.class,
-        () -> stepService.createStepTemplates(workflow, List.of(input)));
+        () -> stepService.createStepTemplates(localWorkflow, List.of(input)));
   }
 
   /* ============================================================
    * Helpers
    * ============================================================ */
 
-  private void setupCreateStepTemplates(StepsCreateInput.StepInput stepInput, boolean saveCondition)
+  private void setupCreateStepTemplates(StepsCreateInput.StepInput stepInput)
       throws ChainingException {
 
-    Workflow workflow = mock(Workflow.class);
     Step step = mock(Step.class);
-    ActionStep actionStep = mock(ActionStep.class);
-
-    when(workflowService.getWorkflowByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
-        .thenReturn(workflow);
 
     when(stepService.factoryAction(stepInput.getStepAction(), null)).thenReturn(actionStep);
 
@@ -1100,10 +856,6 @@ public class StepServiceTest {
 
     assertNotNull(step);
     when(stepRepository.save(step)).thenReturn(step);
-
-    if (saveCondition) {
-      when(conditionService.saveCondition(any())).thenAnswer(i -> i.getArgument(0));
-    }
   }
 
   private StepsCreateInput.StepInput mockStep(
@@ -1138,30 +890,33 @@ public class StepServiceTest {
   class StepTemplateCrud {
 
     @Test
-    void shouldCreateStepTemplate_andLinkExistingConditions() throws ChainingException {
+    void given_validInput_should_createStepTemplate_andLinkConditions() throws ChainingException {
+      // Arrange
       StepsCreateInput.StepInput stepInput = mock(StepsCreateInput.StepInput.class);
-      Workflow workflow = mock(Workflow.class);
+      Workflow localWorkflow = mock(Workflow.class);
       Step created = mock(Step.class);
       List<String> conditionIds = List.of("cond-1", "cond-2");
 
       when(stepInput.getStepAction()).thenReturn(StepActionClass.INJECT_EXECUTION);
       when(stepInput.getConditions()).thenReturn(Collections.emptyList());
       when(stepInput.getConditionIds()).thenReturn(conditionIds);
-      when(workflowService.getWorkflowByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
-          .thenReturn(workflow);
       doReturn(actionStep).when(stepService).factoryAction(StepActionClass.INJECT_EXECUTION, null);
-      when(actionStep.create(stepInput, workflow)).thenReturn(Optional.of(created));
+      when(actionStep.create(stepInput, localWorkflow)).thenReturn(Optional.of(created));
       when(stepRepository.save(created)).thenReturn(created);
 
-      Step result = stepService.createStepTemplate(workflowId, stepInput);
+      // Act
+      Step result = stepService.createStepTemplate(localWorkflow, stepInput);
 
+      // Assert
       assertSame(created, result);
       verify(conditionService).linkExistingConditionsToStep(created, conditionIds);
       verify(stepRepository).save(created);
     }
 
     @Test
-    void shouldUpdateStepTemplate_andRebuildConditions() throws ChainingException {
+    void given_existingStep_should_updateStepTemplate_andRebuildConditions()
+        throws ChainingException {
+      // Arrange
       String stepId = UUID.randomUUID().toString();
       StepInput stepInput = mock(StepInput.class);
       Step existing = new Step();
@@ -1187,8 +942,10 @@ public class StepServiceTest {
           .thenReturn(Optional.of(candidate));
       when(stepRepository.save(existing)).thenReturn(existing);
 
+      // Act
       Step updated = stepService.updateStepTemplate(stepId, stepInput);
 
+      // Assert
       assertSame(existing, updated);
       assertEquals(5, updated.getLimitExecution());
       assertEquals("{\"updated\":true}", updated.getData());
@@ -1198,56 +955,68 @@ public class StepServiceTest {
     }
 
     @Test
-    void shouldDeleteStepTemplate_andDeleteLinkedConditions() {
+    void given_stepId_should_deleteStepTemplate_andDeleteConditions() {
+      // Arrange
       String stepId = UUID.randomUUID().toString();
       Step template = new Step();
 
       when(stepRepository.findByStepTemplateIdIsNullAndIdAndStatus(stepId, StepStatus.TEMPLATE))
           .thenReturn(Optional.of(template));
 
+      // Act
       stepService.deleteStepTemplate(stepId);
 
+      // Assert
       verify(conditionService).deleteAllConditionsByStepId(stepId);
       verify(stepRepository).delete(template);
     }
 
     @Test
-    void shouldFindStepTemplateById() {
+    void given_stepId_should_findStepTemplateById() {
+      // Arrange
       String stepId = UUID.randomUUID().toString();
       Step template = new Step();
 
       when(stepRepository.findByStepTemplateIdIsNullAndIdAndStatus(stepId, StepStatus.TEMPLATE))
           .thenReturn(Optional.of(template));
 
+      // Act
       Step result = stepService.findStepTemplateById(stepId);
 
+      // Assert
       assertSame(template, result);
     }
 
     @Test
-    void shouldThrowWhenFindStepTemplateByIdNotFound() {
+    void given_missingStepId_should_throwWhenFindStepTemplateById() {
+      // Arrange
       String stepId = UUID.randomUUID().toString();
       when(stepRepository.findByStepTemplateIdIsNullAndIdAndStatus(stepId, StepStatus.TEMPLATE))
           .thenReturn(Optional.empty());
 
+      // Act + Assert
       assertThrows(ElementNotFoundException.class, () -> stepService.findStepTemplateById(stepId));
     }
 
     @Test
-    void shouldFindAllStepTemplateByWorkflow() {
+    void given_workflowId_should_findAllStepTemplateByWorkflow() {
+      // Arrange
       String wfId = UUID.randomUUID().toString();
       List<Step> expected = List.of(new Step(), new Step());
 
       when(stepRepository.findAllByStepTemplateIdIsNullAndWorkflowId(wfId)).thenReturn(expected);
 
+      // Act
       List<Step> result = stepService.findAllStepTemplateByWorkflow(wfId);
 
+      // Assert
       assertSame(expected, result);
       verify(stepRepository).findAllByStepTemplateIdIsNullAndWorkflowId(wfId);
     }
 
     @Test
-    void shouldFindAllStepTemplates_onlyTemplateRows() {
+    void given_mixedSteps_should_findAllStepTemplates_onlyTemplateRows() {
+      // Arrange
       Step templateA = new Step();
       Step templateB = new Step();
       Step executed = new Step();
@@ -1258,8 +1027,10 @@ public class StepServiceTest {
 
       when(stepRepository.findAll()).thenReturn(List.of(templateA, executed, templateB));
 
+      // Act
       List<Step> result = stepService.findAllStepTemplates();
 
+      // Assert
       assertEquals(2, result.size());
       assertTrue(result.contains(templateA));
       assertTrue(result.contains(templateB));

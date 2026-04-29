@@ -1,27 +1,17 @@
 package io.openaev.service.chaining;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.gson.Gson;
 import io.openaev.database.model.*;
-import io.openaev.database.model.WorkflowState;
-import io.openaev.database.model.WorkflowStateEntries;
 import io.openaev.database.repository.WorkflowStateRepository;
-import io.openaev.injector_contract.outputs.InjectorContractContentOutputElement;
-import io.openaev.rest.inject.service.StructuredOutputUtils;
-import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import io.openaev.utils.ConditionUtils;
 import java.util.*;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -32,137 +22,46 @@ class WorkflowStateServiceTest {
 
   @Mock private WorkflowStateRepository workflowStateRepository;
   @Mock private ConditionUtils conditionUtils;
-  @Mock private InjectorContractContentUtils injectorContractContentUtils;
-  @Mock private StructuredOutputUtils structuredOutputUtils;
 
   @InjectMocks private WorkflowStateService workflowStateService;
 
   private final Gson gson = new Gson();
-  private final ObjectMapper objectMapper = new ObjectMapper();
 
   // ========================================================================
-  // createLocalState Tests
-  // ========================================================================
-  @Nested
-  @DisplayName("createLocalState")
-  class CreateStateTests {
-
-    @Captor private ArgumentCaptor<WorkflowState> workflowStateCaptor;
-
-    @Test
-    @DisplayName("should create state with correct properties")
-    void shouldCreateStateWithCorrectProperties() {
-      // Prepare
-      Set<String> executionKeys = Set.of("key1", "key2");
-      Step stepTemplate = mock(Step.class);
-      Workflow workflowExecution = mock(Workflow.class);
-
-      // Act
-      workflowStateService.createLocalState(executionKeys, stepTemplate, workflowExecution);
-
-      // Assert
-      verify(workflowStateRepository).save(workflowStateCaptor.capture());
-      WorkflowState savedState = workflowStateCaptor.getValue();
-
-      assertNotNull(savedState);
-      assertEquals(stepTemplate, savedState.getStepTemplate());
-      assertEquals(workflowExecution, savedState.getWorkflowExecution());
-      assertNotNull(savedState.getEntries());
-    }
-
-    @Test
-    @DisplayName("should throw exception with empty execution keys")
-    void shouldNotCreateStateWithEmptyExecutionKeys_Throw() {
-      // Prepare
-      Set<String> executionKeys = Collections.emptySet();
-      Step stepTemplate = mock(Step.class);
-      Workflow workflowExecution = mock(Workflow.class);
-
-      // Act + Assert
-      assertThrows(
-          IllegalArgumentException.class,
-          () ->
-              workflowStateService.createLocalState(
-                  executionKeys, stepTemplate, workflowExecution));
-    }
-
-    @Test
-    @DisplayName("should throw exception with null execution keys")
-    void shouldNotCreateStateWithNullExecutionKeys_Throw() {
-      // Prepare
-      Step stepTemplate = mock(Step.class);
-      Workflow workflowExecution = mock(Workflow.class);
-
-      // Act + Assert
-      assertThrows(
-          IllegalArgumentException.class,
-          () -> workflowStateService.createLocalState(null, stepTemplate, workflowExecution));
-    }
-
-    @Test
-    @DisplayName("should create state with single execution key")
-    void shouldCreateStateWithSingleExecutionKey() {
-      // Prepare
-      Set<String> executionKeys = Set.of("singleKey");
-      Step stepTemplate = mock(Step.class);
-      Workflow workflowExecution = mock(Workflow.class);
-
-      // Act
-      workflowStateService.createLocalState(executionKeys, stepTemplate, workflowExecution);
-
-      // Assert
-      verify(workflowStateRepository).save(workflowStateCaptor.capture());
-      assertNotNull(workflowStateCaptor.getValue());
-      verifyNoMoreInteractions(workflowStateRepository);
-    }
-  }
-
-  // ========================================================================
-  // getState Tests
+  // getLocalStateByWorkflowAndStep Tests
   // ========================================================================
   @Nested
-  @DisplayName("getState")
-  class GetStateTests {
-
-    @Captor private ArgumentCaptor<String> stepTemplateIdCaptor;
-    @Captor private ArgumentCaptor<String> workflowExecutionIdCaptor;
+  @DisplayName("getLocalStateByWorkflowAndStep")
+  class GetLocalStateByWorkflowAndStepTests {
 
     @Test
-    @DisplayName("should return state entries when found")
-    void shouldReturnStateEntriesWhenFound() {
-      // Prepare
+    @DisplayName("should return local state when found")
+    void given_existingState_should_returnLocalState() {
+      // Arrange
       String stepTemplateId = UUID.randomUUID().toString();
       Step stepTemplate = Step.builder().id(stepTemplateId).build();
       String workflowExecutionId = UUID.randomUUID().toString();
       Workflow workflowExecution = Workflow.builder().id(workflowExecutionId).build();
 
-      WorkflowStateEntries expectedEntries =
-          new WorkflowStateEntries(
-              new ArrayList<>(), new ArrayList<>(), new HashSet<>(), Set.of("key1"));
-      String entriesJson = gson.toJson(expectedEntries);
-
-      WorkflowState workflowState = mock(WorkflowState.class);
-      when(workflowState.getEntries()).thenReturn(entriesJson);
+      WorkflowState expected = mock(WorkflowState.class);
       when(workflowStateRepository.findByStepTemplate_IdAndWorkflowExecution_Id(
               stepTemplateId, workflowExecutionId))
-          .thenReturn(workflowState);
+          .thenReturn(expected);
 
       // Act
-      WorkflowStateEntries result = workflowStateService.getState(stepTemplate, workflowExecution);
+      WorkflowState result =
+          workflowStateService.getLocalStateByWorkflowAndStep(stepTemplate, workflowExecution);
 
       // Assert
+      assertSame(expected, result);
       verify(workflowStateRepository)
-          .findByStepTemplate_IdAndWorkflowExecution_Id(
-              stepTemplateIdCaptor.capture(), workflowExecutionIdCaptor.capture());
-      assertEquals(stepTemplateId, stepTemplateIdCaptor.getValue());
-      assertEquals(workflowExecutionId, workflowExecutionIdCaptor.getValue());
-      assertNotNull(result);
+          .findByStepTemplate_IdAndWorkflowExecution_Id(stepTemplateId, workflowExecutionId);
     }
 
     @Test
-    @DisplayName("should throw exception when state not found")
-    void shouldThrowExceptionWhenNotFound() {
-      // Prepare
+    @DisplayName("should initialize local state when not found")
+    void given_noExistingState_should_initializeLocalState() {
+      // Arrange
       String stepTemplateId = UUID.randomUUID().toString();
       Step stepTemplate = Step.builder().id(stepTemplateId).build();
       String workflowExecutionId = UUID.randomUUID().toString();
@@ -172,39 +71,76 @@ class WorkflowStateServiceTest {
               stepTemplateId, workflowExecutionId))
           .thenReturn(null);
 
-      // Act & Assert
-      assertThrows(
-          NullPointerException.class,
-          () -> workflowStateService.getState(stepTemplate, workflowExecution));
-    }
-
-    @Test
-    @DisplayName("should return state with execution keys")
-    void shouldReturnStateWithExecutionKeys() {
-      // Prepare
-      String stepTemplateId = UUID.randomUUID().toString();
-      Step stepTemplate = Step.builder().id(stepTemplateId).build();
-      String workflowExecutionId = UUID.randomUUID().toString();
-      Workflow workflowExecution = Workflow.builder().id(workflowExecutionId).build();
-
-      Set<String> executionKeys = Set.of("key1", "key2", "key3");
-      WorkflowStateEntries expectedEntries =
-          new WorkflowStateEntries(
-              new ArrayList<>(), new ArrayList<>(), new HashSet<>(), executionKeys);
-      String entriesJson = gson.toJson(expectedEntries);
-
-      WorkflowState workflowState = mock(WorkflowState.class);
-      when(workflowState.getEntries()).thenReturn(entriesJson);
-      when(workflowStateRepository.findByStepTemplate_IdAndWorkflowExecution_Id(
-              stepTemplateId, workflowExecutionId))
-          .thenReturn(workflowState);
-
       // Act
-      WorkflowStateEntries result = workflowStateService.getState(stepTemplate, workflowExecution);
+      WorkflowState result =
+          workflowStateService.getLocalStateByWorkflowAndStep(stepTemplate, workflowExecution);
 
       // Assert
       assertNotNull(result);
-      assertEquals(executionKeys, result.getExecutionKeys());
+      assertEquals(workflowExecution, result.getWorkflowExecution());
+      assertEquals(stepTemplate, result.getStepTemplate());
+    }
+  }
+
+  // ========================================================================
+  // getGlobalStateByWorkflowId Tests
+  // ========================================================================
+  @Nested
+  @DisplayName("getGlobalStateByWorkflowId")
+  class GetGlobalStateByWorkflowIdTests {
+
+    @Test
+    @DisplayName("should return global state when found")
+    void given_existingGlobalState_should_returnIt() {
+      // Arrange
+      String workflowId = UUID.randomUUID().toString();
+      WorkflowState expected = mock(WorkflowState.class);
+      when(workflowStateRepository.findByStepTemplateIsNullAndWorkflowExecutionId(workflowId))
+          .thenReturn(expected);
+
+      // Act
+      WorkflowState result = workflowStateService.getGlobalStateByWorkflowId(workflowId);
+
+      // Assert
+      assertSame(expected, result);
+      verify(workflowStateRepository).findByStepTemplateIsNullAndWorkflowExecutionId(workflowId);
+    }
+
+    @Test
+    @DisplayName("should return null when no global state exists")
+    void given_noGlobalState_should_returnNull() {
+      // Arrange
+      String workflowId = UUID.randomUUID().toString();
+      when(workflowStateRepository.findByStepTemplateIsNullAndWorkflowExecutionId(workflowId))
+          .thenReturn(null);
+
+      // Act
+      WorkflowState result = workflowStateService.getGlobalStateByWorkflowId(workflowId);
+
+      // Assert
+      assertNull(result);
+    }
+  }
+
+  // ========================================================================
+  // save Tests
+  // ========================================================================
+  @Nested
+  @DisplayName("save")
+  class SaveTests {
+
+    @Test
+    @DisplayName("should delegate directly to the repository")
+    void given_state_should_delegateToRepository() {
+      // Arrange
+      WorkflowState state = mock(WorkflowState.class);
+
+      // Act
+      workflowStateService.save(state);
+
+      // Assert
+      verify(workflowStateRepository).save(state);
+      verifyNoMoreInteractions(workflowStateRepository);
     }
   }
 
@@ -217,8 +153,8 @@ class WorkflowStateServiceTest {
 
     @Test
     @DisplayName("should add new value to input when path is not correlated")
-    void shouldAddNewValueToInputWhenPathNotCorrelated() {
-      // Prepare
+    void given_nonCorrelatedPath_should_addNewValue() {
+      // Arrange
       String key = "stdout";
       String path = "outputs.message.stdout";
       String output = "{\"outputs\":{\"message\":{\"stdout\":\"test-value\"}}}";
@@ -239,8 +175,8 @@ class WorkflowStateServiceTest {
 
     @Test
     @DisplayName("should not add duplicate value to input")
-    void shouldNotAddDuplicateValueToInput() {
-      // Prepare
+    void given_existingValue_should_notAddDuplicate() {
+      // Arrange
       String key = "stdout";
       String path = "outputs.message.stdout";
       String output = "{\"outputs\":{\"message\":{\"stdout\":\"existing-value\"}}}";
@@ -263,8 +199,8 @@ class WorkflowStateServiceTest {
 
     @Test
     @DisplayName("should handle correlated path")
-    void shouldHandleCorrelatedPath() {
-      // Prepare
+    void given_correlatedPath_should_handleIt() {
+      // Arrange
       String path = "outputs.message.ip+outputs.message.port";
       String output = "{\"outputs\":{\"message\":{\"ip\":\"192.168.1.1\",\"port\":\"8080\"}}}";
       String key = "ip+port";
@@ -287,8 +223,8 @@ class WorkflowStateServiceTest {
 
     @Test
     @DisplayName("should not add correlated when already exists")
-    void shouldNotAddCorrelatedWhenAlreadyExists() {
-      // Prepare
+    void given_existingCorrelated_should_notAddDuplicate() {
+      // Arrange
       String path = "outputs.message.ip+outputs.message.port";
       String output = "{\"outputs\":{\"message\":{\"ip\":\"192.168.1.1\",\"port\":\"8080\"}}}";
       String key = "ip+port";
@@ -325,8 +261,8 @@ class WorkflowStateServiceTest {
 
     @Test
     @DisplayName("should extract primitive string value")
-    void shouldExtractPrimitiveStringValue() {
-      // Prepare
+    void given_stringOutput_should_extractValue() {
+      // Arrange
       String key = "message";
       String path = "outputs.message";
       String output = "{\"outputs\":{\"message\":\"hello world\"}}";
@@ -347,8 +283,8 @@ class WorkflowStateServiceTest {
 
     @Test
     @DisplayName("should handle null value in output")
-    void shouldHandleNullValueInOutput() {
-      // Prepare
+    void given_nullOutput_should_handleGracefully() {
+      // Arrange
       String key = "message";
       String path = "outputs.message";
       String output = "{\"outputs\":{\"message\":null}}";
@@ -369,8 +305,8 @@ class WorkflowStateServiceTest {
 
     @Test
     @DisplayName("should extract numeric value as string")
-    void shouldExtractNumericValueAsString() {
-      // Prepare
+    void given_numericOutput_should_extractAsString() {
+      // Arrange
       String key = "count";
       String path = "outputs.count";
       String output = "{\"outputs\":{\"count\":42}}";
@@ -391,8 +327,8 @@ class WorkflowStateServiceTest {
 
     @Test
     @DisplayName("should extract boolean value as string")
-    void shouldExtractBooleanValueAsString() {
-      // Prepare
+    void given_booleanOutput_should_extractAsString() {
+      // Arrange
       String key = "enabled";
       String path = "outputs.enabled";
       String output = "{\"outputs\":{\"enabled\":true}}";
@@ -409,682 +345,6 @@ class WorkflowStateServiceTest {
 
       // Assert
       assertTrue(input.getValues().contains("true"));
-    }
-  }
-
-  // ========================================================================
-  // save Tests
-  // ========================================================================
-  @Nested
-  @DisplayName("save")
-  class SaveTests {
-
-    @Test
-    @DisplayName("should delegate directly to the repository")
-    void shouldDelegateToRepository() {
-      WorkflowState state = mock(WorkflowState.class);
-
-      workflowStateService.save(state);
-
-      verify(workflowStateRepository).save(state);
-      verifyNoMoreInteractions(workflowStateRepository);
-    }
-  }
-
-  // ========================================================================
-  // getGlobalStateByWorkflowId Tests
-  // ========================================================================
-  @Nested
-  @DisplayName("getGlobalStateByWorkflowId")
-  class GetGlobalStateByWorkflowIdTests {
-
-    @Test
-    @DisplayName("should return global state when found")
-    void shouldReturnGlobalState_whenFound() {
-      // Prepare
-      String workflowId = UUID.randomUUID().toString();
-      WorkflowState expected = mock(WorkflowState.class);
-      when(workflowStateRepository.findByStepTemplateIsNullAndWorkflowExecutionId(workflowId))
-          .thenReturn(expected);
-
-      // Act
-      WorkflowState result = workflowStateService.getGlobalStateByWorkflowId(workflowId);
-
-      // Assert
-      assertSame(expected, result);
-      verify(workflowStateRepository).findByStepTemplateIsNullAndWorkflowExecutionId(workflowId);
-    }
-
-    @Test
-    @DisplayName("should return null when no global state exists")
-    void shouldReturnNull_whenNotFound() {
-      // Prepare
-      String workflowId = UUID.randomUUID().toString();
-      when(workflowStateRepository.findByStepTemplateIsNullAndWorkflowExecutionId(workflowId))
-          .thenReturn(null);
-
-      // Act
-      WorkflowState result = workflowStateService.getGlobalStateByWorkflowId(workflowId);
-
-      // Assert
-      assertNull(result);
-    }
-  }
-
-  // ========================================================================
-  // getLocalStateByWorkflowIdAndStepId Tests
-  // ========================================================================
-  @Nested
-  @DisplayName("Get LocalState By WorkflowId And StepId")
-  class GetLocalStateByWorkflowIdAndStepIdTests {
-
-    @Test
-    @DisplayName("should return local state when found")
-    void shouldReturnLocalState_whenFound() {
-      // Prepare
-      String stepTemplateId = UUID.randomUUID().toString();
-      Step stepTemplate = Step.builder().id(stepTemplateId).build();
-      String workflowExecutionId = UUID.randomUUID().toString();
-      Workflow workflowExecution = Workflow.builder().id(workflowExecutionId).build();
-
-      WorkflowState expected = mock(WorkflowState.class);
-      when(workflowStateRepository.findByStepTemplate_IdAndWorkflowExecution_Id(
-              stepTemplateId, workflowExecutionId))
-          .thenReturn(expected);
-
-      // Act
-      WorkflowState result =
-          workflowStateService.getLocalStateByWorkflowAndStep(stepTemplate, workflowExecution);
-
-      // Assert
-      assertSame(expected, result);
-      verify(workflowStateRepository)
-          .findByStepTemplate_IdAndWorkflowExecution_Id(stepTemplateId, workflowExecutionId);
-    }
-
-    @Test
-    @DisplayName("should return null when no local state exists")
-    void shouldReturnNull_whenNotFound() {
-      // Prepare
-      String stepTemplateId = UUID.randomUUID().toString();
-      Step stepTemplate = Step.builder().id(stepTemplateId).build();
-      String workflowExecutionId = UUID.randomUUID().toString();
-      Workflow workflowExecution = Workflow.builder().id(workflowExecutionId).build();
-      when(workflowStateRepository.findByStepTemplate_IdAndWorkflowExecution_Id(
-              stepTemplateId, workflowExecutionId))
-          .thenReturn(null);
-
-      // Act
-      WorkflowState result =
-          workflowStateService.getLocalStateByWorkflowAndStep(stepTemplate, workflowExecution);
-
-      // Assert
-      assertNull(result);
-    }
-  }
-
-  // ========================================================================
-  // createGlobalState Tests
-  // ========================================================================
-  @Nested
-  @DisplayName("Create Global State")
-  class CreateGlobalStateTests {
-
-    @Captor private ArgumentCaptor<WorkflowState> stateCaptor;
-
-    @Test
-    @DisplayName("should create and save global state with null step-template")
-    void shouldCreateGlobalState_withNoWhitelistRules() {
-      // Prepare
-      Workflow workflow = mock(Workflow.class);
-      when(workflow.getWhitelist()).thenReturn(Collections.emptyList());
-
-      // Act
-      WorkflowState result = workflowStateService.createGlobalState(workflow);
-
-      // Assert
-      assertNotNull(result);
-      // Global state has no linked step template
-      assertNull(result.getStepTemplate());
-      // scope and entries must be serialised JSON strings
-      assertNotNull(result.getEntries());
-      assertFalse(result.getEntries().isBlank());
-      assertNotNull(result.getEntries());
-      assertFalse(result.getEntries().isBlank());
-      assertEquals(workflow, result.getWorkflowExecution());
-      verify(workflowStateRepository).save(result);
-    }
-
-    @Test
-    @DisplayName("should populate scope entries from whitelist rules")
-    void shouldCreateGlobalState_withWhitelistRules() {
-      // Prepare
-      Workflow workflow = mock(Workflow.class);
-
-      WorkflowScopeRule rule =
-          WorkflowScopeRule.builder()
-              .selectedMode(ScopeRuleSelectedMode.WHITELIST)
-              .valueType(ScopeRuleValueType.IP)
-              .ruleValue("192.168.1.0/24")
-              .build();
-      when(workflow.getWhitelist()).thenReturn(List.of(rule));
-
-      // Act
-      WorkflowState result = workflowStateService.createGlobalState(workflow);
-
-      // Assert
-      assertNotNull(result);
-      verify(workflowStateRepository).save(stateCaptor.capture());
-
-      // Scope JSON must contain the rule value
-      String scope = stateCaptor.getValue().getEntries();
-      assertNotNull(scope);
-      assertTrue(scope.contains("192.168.1.0/24"), "Scope should contain the whitelisted IP range");
-    }
-
-    @Test
-    @DisplayName("should return the persisted state instance")
-    void shouldReturnSavedStateInstance() {
-      // Prepare
-      Workflow workflow = mock(Workflow.class);
-      when(workflow.getWhitelist()).thenReturn(Collections.emptyList());
-
-      // Act
-      WorkflowState result = workflowStateService.createGlobalState(workflow);
-
-      // returned object is the same that was passed to save
-      verify(workflowStateRepository).save(result);
-    }
-  }
-
-  // ========================================================================
-  // syncInjectOutputToGlobalState Tests
-  // ========================================================================
-  @Nested
-  @DisplayName("sync InjectOutput To GlobalState")
-  class SyncInjectOutputToGlobalStateTests {
-
-    @Test
-    @DisplayName("should return early and not save when inject has no status")
-    void shouldReturnEarly_whenInjectHasNoStatus() {
-      // Prepare
-      Inject inject = mock(Inject.class);
-      Step stepRun = mock(Step.class);
-      when(inject.getStatus()).thenReturn(Optional.empty());
-
-      // Act
-      workflowStateService.processExecutionOutput(inject, stepRun);
-
-      // Assert
-      verifyNoInteractions(workflowStateRepository);
-    }
-
-    @Test
-    @DisplayName("should return early and not save when trace list is null")
-    void shouldReturnEarly_whenTracesAreNull() {
-      // Prepare
-      Inject inject = mock(Inject.class);
-      Step stepRun = mock(Step.class);
-      InjectStatus status = mock(InjectStatus.class);
-      when(status.getTraces()).thenReturn(null);
-      when(inject.getStatus()).thenReturn(Optional.of(status));
-
-      // Act
-      workflowStateService.processExecutionOutput(inject, stepRun);
-
-      // Assert
-      verifyNoInteractions(workflowStateRepository);
-    }
-
-    @Test
-    @DisplayName("should return early without saving when global state is null")
-    void shouldReturnEarly_whenGlobalStateIsNull() {
-      // Prepare
-      Inject inject = mock(Inject.class);
-      Step stepRun = mock(Step.class);
-      Workflow workflow = mock(Workflow.class);
-      String workflowId = UUID.randomUUID().toString();
-
-      InjectStatus status = mock(InjectStatus.class);
-      when(status.getTraces()).thenReturn(new ArrayList<>());
-      when(inject.getStatus()).thenReturn(Optional.of(status));
-      when(inject.getInjectorContract()).thenReturn(Optional.empty());
-      when(structuredOutputUtils.extractOutputParsers(inject)).thenReturn(Set.of());
-      when(injectorContractContentUtils.getAllContractOutputs(any(Set.class)))
-          .thenReturn(List.of());
-
-      when(stepRun.getWorkflow()).thenReturn(workflow);
-      when(workflow.getId()).thenReturn(workflowId);
-      when(workflowStateRepository.findByStepTemplateIsNullAndWorkflowExecutionId(workflowId))
-          .thenReturn(null);
-
-      // Act
-      workflowStateService.processExecutionOutput(inject, stepRun);
-
-      // Assert
-      verify(workflowStateRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("should skip trace when structured output is null")
-    void shouldSkipTrace_whenStructuredOutputIsNull() {
-      // Prepare
-      Inject inject = mock(Inject.class);
-      Step stepRun = mock(Step.class);
-      Workflow workflow = mock(Workflow.class);
-      String workflowId = UUID.randomUUID().toString();
-      InjectorContract injectorContract = mock(InjectorContract.class);
-
-      ExecutionTrace trace = mock(ExecutionTrace.class);
-      when(trace.getStructuredOutput()).thenReturn(null);
-
-      InjectStatus status = mock(InjectStatus.class);
-      when(status.getTraces()).thenReturn(List.of(trace));
-      when(inject.getStatus()).thenReturn(Optional.of(status));
-      when(inject.getInjectorContract()).thenReturn(Optional.of(injectorContract));
-      when(injectorContractContentUtils.getAllContractOutputs(injectorContract))
-          .thenReturn(List.of());
-
-      WorkflowStateEntries entries =
-          new WorkflowStateEntries(
-              new ArrayList<>(), new ArrayList<>(), new HashSet<>(), Set.of("IPv4"));
-      WorkflowState globalState =
-          WorkflowState.builder().workflowExecution(workflow).entries(gson.toJson(entries)).build();
-
-      when(stepRun.getWorkflow()).thenReturn(workflow);
-      when(workflow.getId()).thenReturn(workflowId);
-      when(workflowStateRepository.findByStepTemplateIsNullAndWorkflowExecutionId(workflowId))
-          .thenReturn(globalState);
-
-      // Act
-      workflowStateService.processExecutionOutput(inject, stepRun);
-
-      // Assert
-      verify(workflowStateRepository).save(globalState);
-    }
-
-    @Test
-    @DisplayName("should sync primitive array values into entries when InjectorContract present")
-    void shouldSyncPrimitiveArrayValues_whenInjectorContractPresent() {
-      // Prepare
-      Inject inject = mock(Inject.class);
-      Step stepRun = mock(Step.class);
-      Workflow workflow = mock(Workflow.class);
-      String workflowId = UUID.randomUUID().toString();
-      InjectorContract injectorContract = mock(InjectorContract.class);
-
-      // Structured output with an array of primitives for the "ipv4-field" key
-      ObjectNode structuredOutput = objectMapper.createObjectNode();
-      structuredOutput.putArray("ipv4-field").add("10.0.0.1").add("10.0.0.2");
-
-      ExecutionTrace trace = mock(ExecutionTrace.class);
-      when(trace.getStructuredOutput()).thenReturn(structuredOutput);
-
-      InjectStatus status = mock(InjectStatus.class);
-      when(status.getTraces()).thenReturn(List.of(trace));
-      when(inject.getStatus()).thenReturn(Optional.of(status));
-      when(inject.getInjectorContract()).thenReturn(Optional.of(injectorContract));
-
-      // Contract declares "ipv4-field" as IPv4 type
-      InjectorContractContentOutputElement element = new InjectorContractContentOutputElement();
-      element.setField("ipv4-field");
-      element.setType(ContractOutputType.IPv4);
-      when(injectorContractContentUtils.getAllContractOutputs(injectorContract))
-          .thenReturn(List.of(element));
-
-      // Global state with an IPv4 input bucket
-      WorkflowStateEntries entries =
-          new WorkflowStateEntries(
-              new ArrayList<>(), new ArrayList<>(), new HashSet<>(), Set.of("IPv4"));
-      WorkflowState globalState =
-          WorkflowState.builder().workflowExecution(workflow).entries(gson.toJson(entries)).build();
-
-      when(stepRun.getWorkflow()).thenReturn(workflow);
-      when(workflow.getId()).thenReturn(workflowId);
-      when(workflowStateRepository.findByStepTemplateIsNullAndWorkflowExecutionId(workflowId))
-          .thenReturn(globalState);
-
-      // Act
-      workflowStateService.processExecutionOutput(inject, stepRun);
-
-      // Assert
-      verify(workflowStateRepository).save(globalState);
-      WorkflowStateEntries updatedEntries =
-          gson.fromJson(globalState.getEntries(), WorkflowStateEntries.class);
-      Set<String> syncedValues =
-          updatedEntries.getInputByKey(ConditionKeyType.IPv4.name()).getValues();
-      assertTrue(syncedValues.contains("10.0.0.1"));
-      assertTrue(syncedValues.contains("10.0.0.2"));
-    }
-
-    @Test
-    @DisplayName("should use outputParsers when inject has no InjectorContract")
-    void shouldUseOutputParsers_whenNoInjectorContract() {
-      // Prepare
-      Inject inject = mock(Inject.class);
-      Step stepRun = mock(Step.class);
-      Workflow workflow = mock(Workflow.class);
-      String workflowId = UUID.randomUUID().toString();
-
-      InjectStatus status = mock(InjectStatus.class);
-      when(status.getTraces()).thenReturn(new ArrayList<>());
-      when(inject.getStatus()).thenReturn(Optional.of(status));
-      when(inject.getInjectorContract()).thenReturn(Optional.empty());
-
-      OutputParser parser = mock(OutputParser.class);
-      when(structuredOutputUtils.extractOutputParsers(inject)).thenReturn(Set.of(parser));
-      when(injectorContractContentUtils.getAllContractOutputs(Set.of(parser)))
-          .thenReturn(List.of());
-
-      WorkflowStateEntries entries =
-          new WorkflowStateEntries(new ArrayList<>(), new ArrayList<>(), new HashSet<>(), Set.of());
-      WorkflowState globalState =
-          WorkflowState.builder().workflowExecution(workflow).entries(gson.toJson(entries)).build();
-
-      when(stepRun.getWorkflow()).thenReturn(workflow);
-      when(workflow.getId()).thenReturn(workflowId);
-      when(workflowStateRepository.findByStepTemplateIsNullAndWorkflowExecutionId(workflowId))
-          .thenReturn(globalState);
-
-      // Act
-      workflowStateService.processExecutionOutput(inject, stepRun);
-
-      // Assert
-      // extractOutputParsers was used (no InjectorContract branch)
-      verify(structuredOutputUtils).extractOutputParsers(inject);
-      verify(injectorContractContentUtils).getAllContractOutputs(Set.of(parser));
-    }
-  }
-
-  // ========================================================================
-  // syncMappersToLocalPartition Tests
-  // ========================================================================
-  @Nested
-  @DisplayName("sync Mappers To Local Partition")
-  class SyncMappersToLocalPartitionTests {
-
-    private Step buildStepWithId(String id) {
-      Step s = mock(Step.class);
-      when(s.getId()).thenReturn(id);
-      return s;
-    }
-
-    private Workflow buildWorkflowWithId(String id) {
-      Workflow w = mock(Workflow.class);
-      when(w.getId()).thenReturn(id);
-      return w;
-    }
-
-    /** Helper: builds a LOCAL mapper Condition mock for a given key type. */
-    private Condition localMapper(ConditionKeyType keyType) {
-      Condition c = mock(Condition.class);
-      when(c.getMappingType()).thenReturn(MappingType.LOCAL);
-      lenient().when(c.getKeyType()).thenReturn(keyType);
-      return c;
-    }
-
-    /** currentOutput shaped as List<WorkflowStateEntries.Input> JSON. */
-    private String buildOutput(ConditionKeyType keyType, String... values) {
-      WorkflowStateEntries.Input input =
-          new WorkflowStateEntries.Input(keyType.name(), new HashSet<>(Arrays.asList(values)));
-      return gson.toJson(List.of(input));
-    }
-
-    @Test
-    @DisplayName("should return false and not save when there are no mappers")
-    void shouldReturnFalse_andNotSave_whenNoMappers() {
-      // Prepare
-      String stepId = UUID.randomUUID().toString();
-      String wfId = UUID.randomUUID().toString();
-
-      Step template = buildStepWithId(stepId);
-      Workflow workflow = buildWorkflowWithId(wfId);
-
-      WorkflowStateEntries entries =
-          new WorkflowStateEntries(new ArrayList<>(), new ArrayList<>(), new HashSet<>(), Set.of());
-      WorkflowState localState = WorkflowState.builder().entries(gson.toJson(entries)).build();
-
-      when(workflowStateRepository.findByStepTemplate_IdAndWorkflowExecution_Id(stepId, wfId))
-          .thenReturn(localState);
-
-      // Act
-      workflowStateService.syncMappersToLocalPartition(template, workflow, "{}", null, List.of());
-
-      // Assert
-      verify(workflowStateRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("should return false when mapper is not LOCAL (GLOBAL type)")
-    void shouldReturnFalse_whenMapperIsGlobal() {
-      // Prepare
-      String stepId = UUID.randomUUID().toString();
-      String wfId = UUID.randomUUID().toString();
-
-      Step template = buildStepWithId(stepId);
-      Workflow workflow = buildWorkflowWithId(wfId);
-
-      Condition globalMapper = mock(Condition.class);
-      when(globalMapper.getMappingType()).thenReturn(MappingType.GLOBAL);
-
-      WorkflowStateEntries entries =
-          new WorkflowStateEntries(new ArrayList<>(), new ArrayList<>(), new HashSet<>(), Set.of());
-      WorkflowState localState = WorkflowState.builder().entries(gson.toJson(entries)).build();
-
-      when(workflowStateRepository.findByStepTemplate_IdAndWorkflowExecution_Id(stepId, wfId))
-          .thenReturn(localState);
-
-      // Act
-      workflowStateService.syncMappersToLocalPartition(
-          template,
-          workflow,
-          buildOutput(ConditionKeyType.IPv4, "1.1.1.1"),
-          null,
-          List.of(globalMapper));
-
-      // Assert
-      verify(workflowStateRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("should return false when currentOutput is blank")
-    void shouldReturnFalse_whenCurrentOutputIsBlank() {
-      // Prepare
-      String stepId = UUID.randomUUID().toString();
-      String wfId = UUID.randomUUID().toString();
-
-      Step template = buildStepWithId(stepId);
-      Workflow workflow = buildWorkflowWithId(wfId);
-      Condition mapper = mock(Condition.class);
-      when(mapper.getMappingType()).thenReturn(MappingType.LOCAL);
-
-      WorkflowStateEntries entries =
-          new WorkflowStateEntries(
-              new ArrayList<>(), new ArrayList<>(), new HashSet<>(), Set.of("IPv4"));
-      WorkflowState localState = WorkflowState.builder().entries(gson.toJson(entries)).build();
-
-      when(workflowStateRepository.findByStepTemplate_IdAndWorkflowExecution_Id(stepId, wfId))
-          .thenReturn(localState);
-
-      // Act
-      workflowStateService.syncMappersToLocalPartition(
-          template, workflow, "   ", null, List.of(mapper));
-
-      // Assert
-      verify(workflowStateRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("should return false when value does not pass filter condition")
-    void shouldReturnFalse_whenValueRejectedByFilter() {
-      // Prepare
-      String stepId = UUID.randomUUID().toString();
-      String wfId = UUID.randomUUID().toString();
-
-      Step template = buildStepWithId(stepId);
-      Workflow workflow = buildWorkflowWithId(wfId);
-      Condition mapper = localMapper(ConditionKeyType.IPv4);
-      Condition filter = mock(Condition.class);
-
-      WorkflowStateEntries entries =
-          new WorkflowStateEntries(
-              new ArrayList<>(), new ArrayList<>(), new HashSet<>(), Set.of("IPv4"));
-      WorkflowState localState = WorkflowState.builder().entries(gson.toJson(entries)).build();
-
-      when(workflowStateRepository.findByStepTemplate_IdAndWorkflowExecution_Id(stepId, wfId))
-          .thenReturn(localState);
-      when(conditionUtils.isFilterConditionValid(any(), eq(filter))).thenReturn(false);
-
-      // Act
-      workflowStateService.syncMappersToLocalPartition(
-          template,
-          workflow,
-          buildOutput(ConditionKeyType.IPv4, "192.168.1.1"),
-          filter,
-          List.of(mapper));
-
-      // Assert
-      verify(workflowStateRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("should return true and save when a new valid value is added")
-    void shouldReturnTrue_andSave_whenNewValueAdded() {
-      // Prepare
-      String stepId = UUID.randomUUID().toString();
-      String wfId = UUID.randomUUID().toString();
-
-      Step template = buildStepWithId(stepId);
-      Workflow workflow = buildWorkflowWithId(wfId);
-      Condition mapper = localMapper(ConditionKeyType.IPv4);
-      Condition filter = mock(Condition.class);
-
-      WorkflowStateEntries entries =
-          new WorkflowStateEntries(
-              new ArrayList<>(), new ArrayList<>(), new HashSet<>(), Set.of("IPv4"));
-      WorkflowState localState = WorkflowState.builder().entries(gson.toJson(entries)).build();
-
-      when(workflowStateRepository.findByStepTemplate_IdAndWorkflowExecution_Id(stepId, wfId))
-          .thenReturn(localState);
-      when(conditionUtils.isFilterConditionValid(any(), eq(filter))).thenReturn(true);
-
-      // Act
-      workflowStateService.syncMappersToLocalPartition(
-          template,
-          workflow,
-          buildOutput(ConditionKeyType.IPv4, "10.10.0.1"),
-          filter,
-          List.of(mapper));
-
-      // Assert
-      verify(workflowStateRepository).save(localState);
-      assertTrue(localState.getEntries().contains("10.10.0.1"));
-    }
-
-    @Test
-    @DisplayName("should return false when value is already present in entries")
-    void shouldReturnFalse_whenValueAlreadyPresent() {
-      // Prepare
-      String stepId = UUID.randomUUID().toString();
-      String wfId = UUID.randomUUID().toString();
-
-      Step template = buildStepWithId(stepId);
-      Workflow workflow = buildWorkflowWithId(wfId);
-      Condition mapper = localMapper(ConditionKeyType.IPv4);
-      Condition filter = mock(Condition.class);
-
-      // Pre-populate the entries with the value that will come in
-      WorkflowStateEntries.Input existingInput =
-          new WorkflowStateEntries.Input("IPv4", new HashSet<>(Set.of("10.10.0.1")));
-      WorkflowStateEntries entries =
-          new WorkflowStateEntries(
-              new ArrayList<>(List.of(existingInput)),
-              new ArrayList<>(),
-              new HashSet<>(),
-              Set.of("IPv4"));
-      WorkflowState localState = WorkflowState.builder().entries(gson.toJson(entries)).build();
-
-      when(workflowStateRepository.findByStepTemplate_IdAndWorkflowExecution_Id(stepId, wfId))
-          .thenReturn(localState);
-      when(conditionUtils.isFilterConditionValid(any(), eq(filter))).thenReturn(true);
-
-      // Act
-      workflowStateService.syncMappersToLocalPartition(
-          template,
-          workflow,
-          buildOutput(ConditionKeyType.IPv4, "10.10.0.1"),
-          filter,
-          List.of(mapper));
-
-      // Assert
-      verify(workflowStateRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("should initialise local state when it does not exist yet")
-    void shouldInitialiseLocalState_whenNotFound() {
-      // Prepare
-      String stepId = UUID.randomUUID().toString();
-      String wfId = UUID.randomUUID().toString();
-
-      Step template = buildStepWithId(stepId);
-      Workflow workflow = buildWorkflowWithId(wfId);
-      Condition mapper = localMapper(ConditionKeyType.IPv4);
-      Condition filter = mock(Condition.class);
-
-      // Local state does not exist yet
-      when(workflowStateRepository.findByStepTemplate_IdAndWorkflowExecution_Id(stepId, wfId))
-          .thenReturn(null);
-      when(conditionUtils.isFilterConditionValid(any(), eq(filter))).thenReturn(true);
-
-      // Act
-      workflowStateService.syncMappersToLocalPartition(
-          template,
-          workflow,
-          buildOutput(ConditionKeyType.IPv4, "172.16.0.5"),
-          filter,
-          List.of(mapper));
-
-      // Assert
-      verify(workflowStateRepository).save(any(WorkflowState.class));
-    }
-
-    @Test
-    @DisplayName("should skip GLOBAL mapper and process only LOCAL mapper")
-    void shouldSkipGlobalMapper_andProcessLocalMapper() {
-      // Prepare
-      String stepId = UUID.randomUUID().toString();
-      String wfId = UUID.randomUUID().toString();
-
-      Step template = buildStepWithId(stepId);
-      Workflow workflow = buildWorkflowWithId(wfId);
-      Condition filter = mock(Condition.class);
-
-      Condition globalMapper = mock(Condition.class);
-      when(globalMapper.getMappingType()).thenReturn(MappingType.GLOBAL);
-
-      Condition localMapperCond = localMapper(ConditionKeyType.IPv4);
-
-      WorkflowStateEntries entries =
-          new WorkflowStateEntries(
-              new ArrayList<>(), new ArrayList<>(), new HashSet<>(), Set.of("IPv4"));
-      WorkflowState localState = WorkflowState.builder().entries(gson.toJson(entries)).build();
-
-      when(workflowStateRepository.findByStepTemplate_IdAndWorkflowExecution_Id(stepId, wfId))
-          .thenReturn(localState);
-      when(conditionUtils.isFilterConditionValid(any(), eq(filter))).thenReturn(true);
-
-      // Act
-      workflowStateService.syncMappersToLocalPartition(
-          template,
-          workflow,
-          buildOutput(ConditionKeyType.IPv4, "10.0.0.99"),
-          filter,
-          List.of(globalMapper, localMapperCond));
-
-      // Assert
-      // GLOBAL was skipped; LOCAL was processed and added the value
-      verify(workflowStateRepository).save(localState);
     }
   }
 }
