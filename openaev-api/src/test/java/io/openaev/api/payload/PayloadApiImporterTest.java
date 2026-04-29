@@ -84,8 +84,8 @@ class PayloadApiImporterTest extends IntegrationTest {
 
   private ResourceObject buildCollectorResource(String collectorResourceId, String collectorType) {
     Map<String, Object> attributes = new HashMap<>();
-    attributes.put("collector_type", collectorType);
-    return new ResourceObject(collectorResourceId, "collectors", attributes, emptyMap());
+    attributes.put("collector_type_name", collectorType);
+    return new ResourceObject(collectorResourceId, "collector_types", attributes, emptyMap());
   }
 
   // -- TESTS --
@@ -525,7 +525,7 @@ class PayloadApiImporterTest extends IntegrationTest {
 
     ResourceObject remediation =
         DetectionRemediationFixture.buildDetectionRemediationResource(
-            remediationId, "{\"rule\":\"test\"}", "collectors", unknownCollectorResourceId);
+            remediationId, "{\"rule\":\"test\"}", "collector_types", unknownCollectorResourceId);
 
     JsonApiDocument<ResourceObject> document =
         new JsonApiDocument<>(
@@ -574,12 +574,15 @@ class PayloadApiImporterTest extends IntegrationTest {
 
     ResourceObject knownRemediation =
         DetectionRemediationFixture.buildDetectionRemediationResource(
-            knownRemediationId, "{\"rule\":\"valid\"}", "collectors", knownCollectorResourceId);
+            knownRemediationId,
+            "{\"rule\":\"valid\"}",
+            "collector_types",
+            knownCollectorResourceId);
     ResourceObject unknownRemediation =
         DetectionRemediationFixture.buildDetectionRemediationResource(
             unknownRemediationId,
             "{\"rule\":\"invalid\"}",
-            "collectors",
+            "collector_types",
             unknownCollectorResourceId);
 
     JsonApiDocument<ResourceObject> document =
@@ -635,10 +638,10 @@ class PayloadApiImporterTest extends IntegrationTest {
 
     ResourceObject firstRemediation =
         DetectionRemediationFixture.buildDetectionRemediationResource(
-            firstRemediationId, "{\"rule\":\"first\"}", "collectors", collectorResourceId);
+            firstRemediationId, "{\"rule\":\"first\"}", "collector_types", collectorResourceId);
     ResourceObject secondRemediation =
         DetectionRemediationFixture.buildDetectionRemediationResource(
-            secondRemediationId, "{\"rule\":\"second\"}", "collectors", collectorResourceId);
+            secondRemediationId, "{\"rule\":\"second\"}", "collector_types", collectorResourceId);
 
     JsonApiDocument<ResourceObject> document =
         new JsonApiDocument<>(
