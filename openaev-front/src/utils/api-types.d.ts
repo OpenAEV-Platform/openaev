@@ -7196,7 +7196,7 @@ export interface ScopeVariableInput {
   /** ID of an existing scope variable. Null means a new variable will be created. */
   scope_variable_id?: string;
   /**
-   * Unique snake_case key used to reference the variable in templates (e.g. company_name).
+   * Unique key used to reference the variable in templates (e.g. company_name).
    * @minLength 1
    */
   scope_variable_key: string;
