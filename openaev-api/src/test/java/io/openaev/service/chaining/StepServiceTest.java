@@ -792,7 +792,7 @@ class StepServiceTest {
                 .when(stepService)
                 .createReadySteps(any(Step.class), any(Workflow.class), any());
           } else {
-            doReturn(Optional.of(mock(Step.class)))
+            doReturn(List.of(mock(Step.class)))
                 .when(stepService)
                 .createReadySteps(any(Step.class), any(Workflow.class), any());
           }

@@ -457,7 +457,8 @@ class WorkflowServiceTest {
 
       workflowService.startWorkflowBySimulationId(simulationId);
 
-      verify(workflowService).startWorkflow(run);
+      verify(workflowStateService).syncState(any(), any(), eq(run));
+      verify(stepService).evaluateWorkflowProgress(run);
     }
 
     @Test
@@ -494,7 +495,8 @@ class WorkflowServiceTest {
       workflowService.startWorkflowByScenarioIdAndSimulation(scenarioId, simulation);
 
       verify(stepService).copyStepTemplate(scenarioTemplate, simulationTemplate);
-      verify(workflowService).startWorkflow(run);
+      verify(workflowStateService).syncState(any(), any(), eq(run));
+      verify(stepService).evaluateWorkflowProgress(run);
     }
   }
 
