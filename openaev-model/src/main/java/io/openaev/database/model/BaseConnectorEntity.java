@@ -1,5 +1,6 @@
 package io.openaev.database.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Transient;
 import lombok.Data;
 import org.springframework.data.domain.Persistable;
@@ -28,6 +29,7 @@ public abstract class BaseConnectorEntity implements Base, Persistable<String> {
    */
   @Override
   @Transient
+  @JsonIgnore
   public boolean isNew() {
     return false;
   }
