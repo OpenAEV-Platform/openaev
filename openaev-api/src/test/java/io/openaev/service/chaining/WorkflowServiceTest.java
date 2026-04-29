@@ -34,7 +34,6 @@ class WorkflowServiceTest {
   @Mock private WorkflowScopeRuleRepository workflowScopeRuleRepository;
   @Mock private PreviewFeatureService previewFeatureService;
   @Mock private StepService stepService;
-  @Mock private WorkflowExecutionOrchestrator workflowExecutionOrchestrator;
 
   @InjectMocks private WorkflowService workflowService;
 
@@ -457,7 +456,7 @@ class WorkflowServiceTest {
 
       workflowService.startWorkflowBySimulationId(simulationId);
 
-      verify(workflowExecutionOrchestrator).startWorkflow(run);
+      verify(workflowService).startWorkflow(run);
     }
 
     @Test
@@ -494,7 +493,7 @@ class WorkflowServiceTest {
       workflowService.startWorkflowByScenarioIdAndSimulation(scenarioId, simulation);
 
       verify(stepService).copyStepTemplate(scenarioTemplate, simulationTemplate);
-      verify(workflowExecutionOrchestrator).startWorkflow(run);
+      verify(workflowService).startWorkflow(run);
     }
   }
 

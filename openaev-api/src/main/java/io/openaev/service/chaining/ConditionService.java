@@ -30,14 +30,14 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(rollbackFor = Exception.class)
 public class ConditionService {
 
+  private static final Gson gson = new Gson();
+
   private final WorkflowStateService workflowStateService;
 
   private final ConditionUtils conditionUtils;
 
   private final ConditionRepository conditionRepository;
   private final StepRepository stepRepository;
-
-  private static final Gson gson = new Gson();
 
   // -- CONDITION TREE CREATE --
   /**
