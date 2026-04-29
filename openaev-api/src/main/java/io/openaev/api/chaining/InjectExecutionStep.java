@@ -22,7 +22,6 @@ import io.openaev.execution.ExecutableInject;
 import io.openaev.executors.Executor;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ChainingException;
-import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.StructuredOutputUtils;
@@ -32,7 +31,6 @@ import io.openaev.rest.tag.TagService;
 import io.openaev.service.*;
 import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.StepService;
-import io.openaev.service.chaining.WorkflowExecutionOrchestrator;
 import io.openaev.utils.ConditionUtils;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.TargetType;
@@ -70,7 +68,6 @@ public class InjectExecutionStep implements ActionStep {
 
   private static final Gson gson = new Gson();
 
-  private final WorkflowExecutionOrchestrator workflowExecutionOrchestrator;
   private final InjectorContractService injectorContractService;
   private final UserService userService;
   private final AssetService assetService;
@@ -84,8 +81,8 @@ public class InjectExecutionStep implements ActionStep {
 
   private final InjectorContractRepository injectorContractRepository;
 
-  private final InjectorContractContentUtils injectorContractContentUtils;
   private final StructuredOutputUtils structuredOutputUtils;
+  private final InjectorContractContentUtils injectorContractContentUtils;
   private final ConditionUtils conditionUtils;
   private final InjectUtils injectUtils;
 
@@ -237,14 +234,7 @@ public class InjectExecutionStep implements ActionStep {
     // GET INJECT
     String data = stepRun.getData();
     String injectId = StepService.getField(data, "inject_id");
-    Inject inject = injectService.findInjectOrNull(injectId);
-    Map<String, ContractOutputType> fieldTypeMap = buildFieldTypeMap(inject);
-
-    if (inject == null) {
-      throw new ChainingException(
-          "Inject not found. ID: " + injectId,
-          new ElementNotFoundException("Inject not found. ID: " + injectId));
-    }
+    Inject inject = injectService.inject(injectId);
 
     // GET INJECT STATUS
     InjectStatus injectStatus = inject.getStatus().orElse(null);
@@ -272,11 +262,10 @@ public class InjectExecutionStep implements ActionStep {
 
       // UPDATE step output
       stepRun.setOutput(jsonObject.toString());
+
       // Propagate state changes into engine if parsed output is present
-      workflowExecutionOrchestrator.syncStateAndEvaluateWorkflowProgress(
-          gson.toJsonTree(output.stream().filter(o -> !o.get("parsed").isJsonNull()).toList()),
-          fieldTypeMap,
-          stepRun.getWorkflow());
+      // Map<String, ContractOutputType> fieldTypeMap = buildFieldTypeMapFromInject(inject);
+      // workflowStateService.syncState(gson.toJsonTree(stepUpdatedOpt.get().getOutput().stream().filter(o -> !o.get("parsed").isJsonNull()).toList()), fieldTypeMap, workflowRun);
 
       return Optional.of(stepRun);
     }
@@ -526,7 +515,7 @@ public class InjectExecutionStep implements ActionStep {
    *
    * @param step the {@link Step} containing the JSON data for the inject
    * @return the deserialized {@link Inject} object with its injector set if found; {@code null} if
-   *     the injector contract is missing or if an exception occurs during deserialization
+   *     the injector ctor contract is missing or if an exception occurs during deserialization
    */
   private Inject getInjectFromDataStep(Step step) throws ChainingException {
     ObjectMapper om =
@@ -698,7 +687,7 @@ public class InjectExecutionStep implements ActionStep {
 
   private static void formatManualUpdateToOutput(List<Map<String, JsonElement>> output) {}
 
-  private Map<String, ContractOutputType> buildFieldTypeMap(Inject inject) {
+  private Map<String, ContractOutputType> buildFieldTypeMapFromInject(Inject inject) {
     Map<String, ContractOutputType> fieldTypeMap = new HashMap<>();
     if (inject.getPayload().isPresent()) {
       Set<OutputParser> outputParsers = structuredOutputUtils.extractOutputParsers(inject);

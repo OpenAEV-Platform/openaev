@@ -29,11 +29,11 @@ public class WorkflowService {
   private static final Gson GSON = new Gson();
 
   private final StepService stepService;
-  private final WorkflowExecutionOrchestrator workflowExecutionOrchestrator;
   private final PreviewFeatureService previewFeatureService;
 
   private final WorkflowRepository workflowRepository;
   private final WorkflowScopeRuleRepository workflowScopeRuleRepository;
+  private final WorkflowStateService workflowStateService;
 
   // -- READ --
 
@@ -562,12 +562,18 @@ public class WorkflowService {
   /** Starts workflow evaluation by seeding state from whitelist scope rules. */
   @Transactional(rollbackFor = Exception.class)
   public void startWorkflow(Workflow workflowRun) throws ChainingException {
+
     Map<String, ContractOutputType> fieldTypeMap =
         java.util.Arrays.stream(ContractOutputType.values())
             .collect(Collectors.toMap(ContractOutputType::name, type -> type));
+
     Map<String, List<String>> scopeData = extractScopeData(workflowRun);
-    workflowExecutionOrchestrator.syncStateAndEvaluateWorkflowProgress(
-        GSON.toJsonTree(scopeData), fieldTypeMap, workflowRun);
+
+    // Sync global state and define next steps to be executed
+    workflowStateService.syncState(GSON.toJsonTree(scopeData), fieldTypeMap, workflowRun);
+    stepService.evaluateWorkflowProgress(workflowRun);
+
+    saveWorkflowRun(workflowRun);
   }
 
   private Map<String, List<String>> extractScopeData(Workflow workflowRun) {

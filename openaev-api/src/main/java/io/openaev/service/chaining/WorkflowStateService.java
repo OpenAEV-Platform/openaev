@@ -62,20 +62,15 @@ public class WorkflowStateService {
               }
 
               JsonArray array = jsonValue.getAsJsonArray();
-              List<String> values = new ArrayList<>();
 
               for (JsonElement element : array) {
                 if (element.isJsonPrimitive()) {
                   String val = element.getAsString();
                   entries.getInputByKey(type.name()).getValues().add(val);
-                  values.add(val);
                 } else if (element.isJsonObject()) {
                   // e.g. "portscan": [{"port": 22, "host": "1.1.1.1"}]
                   saveCorrelatedObject(entries, element.getAsJsonObject());
                 }
-              }
-              if (!values.isEmpty()) {
-                currentTraceParsed.put(type.name(), values);
               }
             });
     return currentTraceParsed;

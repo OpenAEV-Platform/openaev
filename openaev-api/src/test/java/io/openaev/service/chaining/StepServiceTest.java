@@ -345,7 +345,7 @@ public class StepServiceTest {
       verify(workflowService).launchWorkflowSimulation(workflowCaptor.capture());
       assertEquals(simulationId, simulationIdCaptor.getValue());
 
-      verify(stepService, never()).ready(any(Step.class), any(Workflow.class), any());
+      verify(stepService, never()).createReadySteps(any(Step.class), any(Workflow.class), any());
     }
 
     @ParameterizedTest(name = "{index} => steps={0}, nonNullReadyIndices={1}")
@@ -371,13 +371,11 @@ public class StepServiceTest {
       // For each template step:
       // - return a non-null Step for chosen indices
       // - return null otherwise
-      Map<Step, Optional<Step>> readyReturnByInputStep = new HashMap<>();
+      Map<Step, List<Step>> readyReturnByInputStep = new HashMap<>();
       for (int i = 0; i < stepTemplates.size(); i++) {
         Step input = stepTemplates.get(i);
-        Optional<Step> returned =
-            (nonNullReadyIndices.contains(i)
-                ? Optional.ofNullable(mock(Step.class))
-                : Optional.empty());
+        List<Step> returned =
+            (nonNullReadyIndices.contains(i) ? List.of(mock(Step.class)) : List.of());
         readyReturnByInputStep.put(input, returned);
       }
 
@@ -387,7 +385,7 @@ public class StepServiceTest {
                 return readyReturnByInputStep.get(inputStep);
               })
           .when(stepService)
-          .ready(any(Step.class), eq(workflowRun), isNull());
+          .createReadySteps(any(Step.class), eq(workflowRun), isNull());
 
       // -------- Act --------
       workflowService.startWorkflowBySimulationId(simulationId);
@@ -404,7 +402,7 @@ public class StepServiceTest {
       assertEquals(simulationId, simulationIdCaptor.getValue());
 
       verify(stepService, times(stepTemplates.size()))
-          .ready(stepCaptor.capture(), workflowCaptor.capture(), isNull());
+          .createReadySteps(stepCaptor.capture(), workflowCaptor.capture(), isNull());
 
       assertEquals(stepTemplates.size(), stepCaptor.getAllValues().size());
       assertTrue(stepCaptor.getAllValues().containsAll(stepTemplates));
@@ -457,9 +455,9 @@ public class StepServiceTest {
       when(stepRepository.findAllByStepTemplateIdIsNullAndWorkflowId(templateWorkflowId))
           .thenReturn(List.of(stepTemplate));
 
-      doReturn(hasValidStep ? Optional.of(mock(Step.class)) : Optional.empty())
+      doReturn(hasValidStep ? List.of(mock(Step.class)) : List.of())
           .when(stepService)
-          .ready(stepTemplate, workflowRun, null);
+          .createReadySteps(stepTemplate, workflowRun, null);
 
       if (!hasValidStep) {
         when(stepDelayQueueRepository.findAllByWorkflowRun(workflowRun))
@@ -520,7 +518,8 @@ public class StepServiceTest {
         // -------- Act + Assert --------
         assertThrows(
             ChainingException.class,
-            () -> stepService.ready(nextStepTemplateToExecute, workflowRun, "{\"a\":1}"));
+            () ->
+                stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, "{\"a\":1}"));
 
         verify(stepRepository, never()).findById(anyString());
         verify(stepRepository, never()).save(any());
@@ -537,7 +536,7 @@ public class StepServiceTest {
     class ConditionOutcomes {
 
       @Test
-      void shouldReturnNullAndStop_whenConditionExecutionIsNull() throws Exception {
+      void shouldReturnEmptyListAndStop_whenConditionExecutionIsNull() throws Exception {
         // -------- Prepare --------
         // "no batches" is the new equivalent of "conditions returned null" — execution is deferred
         Step nextStepTemplateToExecute = mock(Step.class);
@@ -562,10 +561,11 @@ public class StepServiceTest {
             .thenReturn(null);
 
         // -------- Act --------
-        Optional<Step> resultOpt = stepService.ready(nextStepTemplateToExecute, workflowRun, input);
+        List<Step> result =
+            stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input);
 
         // -------- Assert --------
-        assertTrue(resultOpt.isEmpty());
+        assertTrue(result.isEmpty());
 
         verify(stepRepository).findByIdAndStatus(stepIdCaptor.capture(), any());
         assertEquals(stepId, stepIdCaptor.getValue());
@@ -619,19 +619,15 @@ public class StepServiceTest {
         assertNotNull(stepReady);
         when(stepRepository.save(stepReady)).thenReturn(stepReady);
 
-        // queueChainingService.readyStep(...) does not throw here
-        doNothing().when(queueChainingService).readyStep(stepReady, workflowRun);
-
         when(stepRepository.findByIdAndStatus(any(), eq(StepStatus.TEMPLATE)))
             .thenReturn(Optional.of(persistedTemplate));
         // -------- Act --------
-        Optional<Step> resultOpt = stepService.ready(nextStepTemplateToExecute, workflowRun, input);
-        assertTrue(resultOpt.isPresent());
-        Step result = resultOpt.get();
+        List<Step> result =
+            stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input);
+        assertEquals(1, result.size());
 
         // -------- Assert --------
-        // ready() now returns the persisted template, not the ready step
-        assertSame(persistedTemplate, result);
+        assertSame(stepReady, result.getFirst());
 
         // findByIdAndStatus(...) is private -> verify repository call instead
         verify(stepRepository).findByIdAndStatus(stepIdCaptor.capture(), eq(StepStatus.TEMPLATE));
@@ -652,18 +648,18 @@ public class StepServiceTest {
         assertEquals(2, conditionsCaptor.getValue().size());
         assertTrue(conditionsCaptor.getValue().containsAll(List.of(c1, c2)));
 
-        verify(queueChainingService).readyStep(stepReady, workflowRun);
+        verify(queueChainingService, never()).readyStep(any(), any());
       }
     }
 
     /* ============================================================
-     * ready — Queue chaining exception handling
+     * ready — Queue chaining is handled elsewhere
      * ============================================================ */
     @Nested
-    class QueueChainingIOException {
+    class QueueChainingDelegation {
 
       @Test
-      void shouldWrapIOExceptionIntoChainingException() throws Exception {
+      void shouldNotQueueInsideReady() throws Exception {
         // -------- Prepare --------
         Step nextStepTemplateToExecute = mock(Step.class);
         Step persistedTemplate = mock(Step.class);
@@ -684,7 +680,7 @@ public class StepServiceTest {
         Condition c1 = mock(Condition.class);
         List<Condition> usedMappers = new ArrayList<>(List.of(c1));
 
-        // Supply one batch so the loop body executes and readyStep is reached
+        // Supply one batch so the loop body executes and a READY step is created
         when(conditionService.checkCondition(persistedTemplate, workflowRun, input))
             .thenReturn(List.of(new ConditionService.ExecutionBatch(input, usedMappers)));
 
@@ -696,138 +692,58 @@ public class StepServiceTest {
 
         when(stepRepository.save(stepReady)).thenReturn(stepReady);
 
-        IOException ioException = new IOException("boom");
-        doThrow(ioException).when(queueChainingService).readyStep(stepReady, workflowRun);
-
         // -------- Act --------
-        ChainingException ex =
-            assertThrows(
-                ChainingException.class,
-                () -> stepService.ready(nextStepTemplateToExecute, workflowRun, input));
+        List<Step> result =
+            stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input);
 
         // -------- Assert --------
-        assertSame(ioException, ex.getCause());
+        assertEquals(1, result.size());
+        assertSame(stepReady, result.getFirst());
 
         verify(actionStep).ready(persistedTemplate, input, workflowRun);
-        verify(stepRepository, times(2)).save(stepReady);
+        verify(stepRepository, times(1)).save(stepReady);
 
         verify(conditionService).saveAllConditions(anyList());
 
-        verify(queueChainingService).readyStep(stepReady, workflowRun);
+        verify(queueChainingService, never()).readyStep(any(), any());
       }
     }
   }
 
   /* ============================================================
-   * run — Execute ready step
+   * queueReadySteps — Queue pushing and exception handling
    * ============================================================ */
   @Nested
-  class Run {
+  class QueueReadySteps {
 
-    /* ============================================================
-     * run — ActionStep resolution
-     * ============================================================ */
     @Test
-    void shouldMoveStateStepToEndWhenActionStepIsNull() throws ChainingException {
-      // -------- Prepare --------
-      Step stepReady = mock(Step.class);
+    void shouldQueueAllSteps() throws Exception {
+      Step stepReady1 = mock(Step.class);
+      Step stepReady2 = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
 
-      // -------- Act + Assert --------
-      stepService.run(stepReady);
-      verify(stepService).factoryAction(stepReady.getStepAction(), stepReady.getId());
-      verify(stepRepository, times(1)).save(any());
-      verify(workflowService, never()).saveWorkflowRun(any());
+      stepService.enqueueReadySteps(List.of(stepReady1, stepReady2), workflowRun);
+
+      verify(queueChainingService).readyStep(stepReady1, workflowRun);
+      verify(queueChainingService).readyStep(stepReady2, workflowRun);
     }
 
-    /* ============================================================
-     * run — actionStep.run returns null
-     * ============================================================ */
-    @Nested
-    class WhenRunReturnsNull {
+    @Test
+    void shouldEndStepAndWrapIOExceptionWhenQueueFails() throws Exception {
+      Step stepReady = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
 
-      @Test
-      void shouldEndStepOnly_whenStepReadyExecutionFailed() throws ChainingException {
-        // -------- Prepare --------
-        Step stepReady = mock(Step.class);
-        Workflow workflowRun = mock(Workflow.class);
-        ActionStep actionStep = mock(ActionStep.class);
+      when(stepReady.getId()).thenReturn(UUID.randomUUID().toString());
+      doThrow(new IOException("boom")).when(queueChainingService).readyStep(stepReady, workflowRun);
 
-        when(stepReady.getStepAction()).thenReturn(StepActionClass.INJECT_EXECUTION);
-        when(stepService.factoryAction(StepActionClass.INJECT_EXECUTION, null))
-            .thenReturn(actionStep);
+      ChainingException ex =
+          assertThrows(
+              ChainingException.class,
+              () -> stepService.enqueueReadySteps(List.of(stepReady), workflowRun));
 
-        // -------- Act --------
-        stepService.run(stepReady);
-
-        // -------- Assert --------
-        verify(stepReady).setStatus(StepStatus.END);
-        verify(stepRepository).save(stepReady);
-
-        verify(workflowRun, never()).setStatus(any());
-        verify(workflowService, never()).saveWorkflowRun(any());
-      }
-
-      /*COMMENTED cause workflow end should be handle after implementation of delay by DB for step template delayed.
-      @Test
-        void shouldEndStepAndWorkflow_whenNoRunningStepsRemain() {
-          // -------- Prepare --------
-          Step stepReady = mock(Step.class);
-          Workflow workflowRun = mock(Workflow.class);
-          ActionStep actionStep = mock(ActionStep.class);
-
-      String workflowRunId = UUID.randomUUID().toString();
-
-      when(stepReady.getStepAction()).thenReturn(StepActionClass.INJECT_EXECUTION);
-      when(stepService.factoryAction(StepActionClass.INJECT_EXECUTION)).thenReturn(actionStep);
-
-      when(actionStep.run(stepReady)).thenReturn(null);
-
-      when(stepReady.getWorkflow()).thenReturn(workflowRun);
-      when(workflowRun.getId()).thenReturn(workflowRunId);
-
-      when(stepRepository.countRunningStep(workflowRunId)).thenReturn(0);
-
-      // -------- Act --------
-      stepService.run(stepReady);
-
-      // -------- Assert --------
+      assertTrue(ex.getCause() instanceof IOException);
       verify(stepReady).setStatus(StepStatus.END);
       verify(stepRepository).save(stepReady);
-
-      verify(stepRepository).countRunningStep(workflowRunId);
-
-          verify(workflowRun).setStatus(WorkflowStatus.END);
-          verify(workflowService).saveWorkflowRun(workflowRun);
-        }*/
-    }
-
-    /* ============================================================
-     * run — actionStep.run returns a step
-     * ============================================================ */
-    @Test
-    void shouldSetRunStatusAndSaveStep_whenRunReturnsStep() throws ChainingException {
-      // -------- Prepare --------
-      Step stepReady = mock(Step.class);
-      Step stepRun = mock(Step.class);
-      ActionStep actionStep = mock(ActionStep.class);
-
-      when(stepReady.getStepAction()).thenReturn(StepActionClass.INJECT_EXECUTION);
-      when(stepService.factoryAction(StepActionClass.INJECT_EXECUTION, null))
-          .thenReturn(actionStep);
-
-      when(actionStep.run(stepReady)).thenReturn(Optional.ofNullable(stepRun));
-
-      // -------- Act --------
-      stepService.run(stepReady);
-
-      // -------- Assert --------
-      verify(stepRun).setStatus(StepStatus.RUN);
-      assertNotNull(stepRun);
-      verify(stepRepository).save(stepRun);
-
-      verify(stepReady, never()).setStatus(any());
-      verify(stepRepository, never()).countRunningStep(any());
-      verify(workflowService, never()).saveWorkflowRun(any());
     }
   }
 
@@ -1080,102 +996,13 @@ public class StepServiceTest {
   }
 
   /* ============================================================
-   * Queue events handling — handleReadyEvent / handleDelayEvent / handleExternalUpdateEvent
+   * Queue events handling — processDelayStep
    * ============================================================ */
   @Nested
   class QueueEventsHandling {
 
-    @Captor private ArgumentCaptor<StepEvent> stepEventCaptor;
-    @Captor private ArgumentCaptor<ExternalUpdateEvent> externalUpdateEventCaptor;
-
     /* ============================================================
-     * handleReadyEvent / handleDelayEvent / handleExternalUpdateEvent (list)
-     * ============================================================ */
-    @Nested
-    class BatchHandlers {
-
-      @Test
-      void shouldConsumeReadyEvents_andReturnSameList() {
-        // -------- Prepare --------
-        StepEvent e1 = mock(StepEvent.class);
-        StepEvent e2 = mock(StepEvent.class);
-        List<StepEvent> events = List.of(e1, e2);
-
-        doNothing().when(stepService).handleReadyStepEvent(any(StepEvent.class));
-
-        // -------- Act --------
-        List<StepEvent> result = stepService.handleReadyEvent(events);
-
-        // -------- Assert --------
-        assertSame(events, result);
-
-        verify(stepService, times(2)).handleReadyStepEvent(stepEventCaptor.capture());
-        assertTrue(stepEventCaptor.getAllValues().containsAll(events));
-      }
-
-      @Test
-      void shouldConsumeExternalUpdateEvents_andReturnSameList() {
-        // -------- Prepare --------
-        ExternalUpdateEvent e1 = mock(ExternalUpdateEvent.class);
-        ExternalUpdateEvent e2 = mock(ExternalUpdateEvent.class);
-        List<ExternalUpdateEvent> events = List.of(e1, e2);
-
-        doNothing().when(stepService).handleExternalUpdateEvent(any(ExternalUpdateEvent.class));
-
-        // -------- Act --------
-        List<ExternalUpdateEvent> result = stepService.handleExternalUpdateEvent(events);
-
-        // -------- Assert --------
-        assertSame(events, result);
-
-        verify(stepService, times(2))
-            .handleExternalUpdateEvent(externalUpdateEventCaptor.capture());
-        assertTrue(externalUpdateEventCaptor.getAllValues().containsAll(events));
-      }
-    }
-
-    /* ============================================================
-     * handleReadyStepEvent — repository lookup then run
-     * ============================================================ */
-    @Nested
-    class HandleReadyStepEvent {
-
-      @ParameterizedTest(name = "{index} => stepFound={0}")
-      @MethodSource("readyStepEventScenarios")
-      void shouldRunOnlyWhenStepExists(boolean stepFound) {
-        // -------- Prepare --------
-        StepEvent event = mock(StepEvent.class);
-        String stepId = UUID.randomUUID().toString();
-        when(event.getStepId()).thenReturn(stepId);
-
-        Step step = mock(Step.class);
-
-        when(stepRepository.findById(stepId))
-            .thenReturn(stepFound ? Optional.of(step) : Optional.empty());
-        if (stepFound)
-        // Avoid executing real run(...) logic
-        {
-          doNothing().when(stepService).run(any(Step.class));
-        }
-
-        // -------- Act --------
-        stepService.handleReadyStepEvent(event);
-
-        // -------- Assert --------
-        verify(stepRepository).findById(stepId);
-
-        if (stepFound) {
-          verify(stepService).run(step);
-        }
-      }
-
-      static Stream<Arguments> readyStepEventScenarios() {
-        return Stream.of(Arguments.of(true), Arguments.of(false));
-      }
-    }
-
-    /* ============================================================
-     * processDelayStep — find next queued step then ready(...)
+     * processDelayStep — find next queued step then createReadySteps(...)
      * ============================================================ */
     @Nested
     class ProcessDelayStep {
@@ -1199,11 +1026,11 @@ public class StepServiceTest {
           if (throwException) {
             doThrow(new ChainingException("error"))
                 .when(stepService)
-                .ready(any(Step.class), any(Workflow.class), any());
+                .createReadySteps(any(Step.class), any(Workflow.class), any());
           } else {
             doReturn(Optional.of(mock(Step.class)))
                 .when(stepService)
-                .ready(any(Step.class), any(Workflow.class), any());
+                .createReadySteps(any(Step.class), any(Workflow.class), any());
           }
         }
 
@@ -1212,115 +1039,15 @@ public class StepServiceTest {
 
         // -------- Assert --------
         if (stepFound) {
-          verify(stepService).ready(step, workflowRun, null);
+          verify(stepService).createReadySteps(step, workflowRun, null);
         } else {
-          verify(stepService, never()).ready(any(), any(), any());
+          verify(stepService, never()).createReadySteps(any(), any(), any());
         }
       }
 
       static Stream<Arguments> delayStepEventScenarios() {
         return Stream.of(
             Arguments.of(true, false), Arguments.of(true, true), Arguments.of(false, false));
-      }
-    }
-
-    /* ============================================================
-     * handleExternalUpdateEvent — update step then compute next steps to ready
-     * ============================================================ */
-    @Nested
-    class HandleExternalUpdateEventSingle {
-
-      @Test
-      void shouldEndStepReadyWhenActionStepIsNull() throws ChainingException {
-        // -------- Prepare --------
-        ExternalUpdateEvent event = mock(ExternalUpdateEvent.class);
-        String stepRunId = UUID.randomUUID().toString();
-        when(event.getStepId()).thenReturn(stepRunId);
-
-        Step stepRun = mock(Step.class);
-        when(stepRun.getStepAction()).thenReturn(null);
-
-        doReturn(Optional.of(stepRun))
-            .when(stepRepository)
-            .findByIdAndStatus(stepRunId, StepStatus.RUN);
-        // -------- Act + Assert --------
-        stepService.handleExternalUpdateEvent(event);
-
-        verify(stepRepository).findByIdAndStatus(stepRunId, StepStatus.RUN);
-        verify(stepService, never()).ready(any(), any(), any());
-        verify(stepRun).setStatus(StepStatus.END);
-      }
-
-      @Test
-      void shouldDoNothing_whenUpdateReturnsOptionalEmpty() throws ChainingException {
-        // -------- Prepare --------
-        ExternalUpdateEvent event = mock(ExternalUpdateEvent.class);
-        String stepRunId = UUID.randomUUID().toString();
-        when(event.getStepId()).thenReturn(stepRunId);
-
-        Step stepRun = mock(Step.class);
-        when(stepRun.getStepAction()).thenReturn(StepActionClass.INJECT_EXECUTION);
-
-        doReturn(Optional.of(stepRun))
-            .when(stepRepository)
-            .findByIdAndStatus(stepRunId, StepStatus.RUN);
-        ActionStep actionStep = mock(ActionStep.class);
-        when(stepService.factoryAction(StepActionClass.INJECT_EXECUTION, null))
-            .thenReturn(actionStep);
-
-        when(actionStep.update(stepRun)).thenReturn(Optional.empty());
-
-        // -------- Act --------
-        stepService.handleExternalUpdateEvent(event);
-
-        // -------- Assert --------
-        verify(stepRepository).findByIdAndStatus(stepRunId, StepStatus.RUN);
-        verify(actionStep).update(stepRun);
-
-        verify(stepRepository, never()).save(any());
-        verify(stepService, never()).ready(any(), any(), any());
-        verify(conditionService, never()).findAllConditionsByStepId(anyString());
-      }
-
-      @Test
-      void shouldSaveUpdatedStep_andReadyNextStepsWhoseConditionsDependOnCurrentTemplate()
-          throws ChainingException {
-        // -------- Prepare --------
-        ExternalUpdateEvent event = mock(ExternalUpdateEvent.class);
-        String stepRunId = UUID.randomUUID().toString();
-        when(event.getStepId()).thenReturn(stepRunId);
-
-        // Current running step
-        Step stepRun = mock(Step.class);
-        when(stepRun.getStepAction()).thenReturn(StepActionClass.INJECT_EXECUTION);
-
-        Workflow workflowRun = mock(Workflow.class);
-
-        when(stepRepository.findByIdAndStatus(stepRunId, StepStatus.RUN))
-            .thenReturn(Optional.of(stepRun));
-
-        // actionStep.update(...) returns non-null updated step
-        ActionStep actionStep = mock(ActionStep.class);
-        when(stepService.factoryAction(StepActionClass.INJECT_EXECUTION, null))
-            .thenReturn(actionStep);
-
-        Step updated = mock(Step.class);
-        when(actionStep.update(stepRun)).thenReturn(Optional.ofNullable(updated));
-
-        assertNotNull(updated);
-        when(stepRepository.save(updated)).thenReturn(updated);
-
-        // updated step carries output and workflow — fed into processDataChaining
-        String currentOutput = "{\"text\":\"abc\"}";
-        when(updated.getOutput()).thenReturn(currentOutput);
-        when(updated.getWorkflow()).thenReturn(workflowRun);
-
-        // -------- Act --------
-        stepService.handleExternalUpdateEvent(event);
-
-        // -------- Assert --------
-        // updated step is saved
-        verify(stepRepository).save(updated);
       }
     }
   }
@@ -1351,66 +1078,6 @@ public class StepServiceTest {
     assertThrows(
         IllegalArgumentException.class,
         () -> stepService.createStepTemplates(workflow, List.of(input)));
-  }
-
-  @Test
-  void should_run_step_successfully() throws Exception {
-    Step stepReady = new Step();
-    stepReady.setStepAction(StepActionClass.INJECT_EXECUTION);
-
-    Step stepRun = new Step();
-
-    doReturn(actionStep)
-        .when(stepService)
-        .factoryAction(eq(StepActionClass.INJECT_EXECUTION), any());
-    when(actionStep.run(stepReady)).thenReturn(Optional.of(stepRun));
-    doReturn(stepRun).when(stepService).saveStep(stepRun);
-
-    stepService.run(stepReady);
-
-    assertEquals(StepStatus.RUN, stepRun.getStatus());
-    verify(stepService).saveStep(stepRun);
-  }
-
-  @Test
-  void should_throw_when_actionStep_is_null_andIdNotNull() {
-    Step stepReady = new Step();
-    stepReady.setId("Id");
-    stepReady.setStepAction(null);
-
-    ChainingException exception =
-        assertThrows(
-            ChainingException.class,
-            () -> stepService.factoryAction(stepReady.getStepAction(), stepReady.getId()));
-    assertEquals("Action step is null. Step ID:Id", exception.getMessage());
-  }
-
-  @Test
-  void should_throw_when_actionStep_is_not_null_and_id_null() {
-    Step stepReady = new Step();
-    stepReady.setId(null);
-    stepReady.setStepAction(null);
-
-    ChainingException exception =
-        assertThrows(
-            ChainingException.class,
-            () -> stepService.factoryAction(stepReady.getStepAction(), stepReady.getId()));
-    assertEquals("Action step of new step (TEMPLATE) is null", exception.getMessage());
-  }
-
-  @Test
-  void should_set_stepReady_to_end_when_run_returns_empty() throws Exception {
-    Step stepReady = new Step();
-    stepReady.setStepAction(StepActionClass.INJECT_EXECUTION);
-
-    doReturn(actionStep).when(stepService).factoryAction(any(), any());
-    doReturn(Optional.empty()).when(actionStep).run(stepReady);
-    doReturn(stepReady).when(stepService).saveStep(stepReady);
-
-    stepService.run(stepReady);
-
-    assertEquals(StepStatus.END, stepReady.getStatus());
-    verify(stepService).saveStep(stepReady);
   }
 
   /* ============================================================

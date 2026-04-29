@@ -8,10 +8,12 @@ import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.StepDelayQueueRepository;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.inject.service.InjectService;
 import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
 import java.util.*;
@@ -25,14 +27,16 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @RequiredArgsConstructor
 @Service
-public class StepService implements StepEventHandler, ExternalUpdateEventHandler {
+public class StepService {
 
   private final InjectExecutionStep injectExecutionStep;
 
+  public final InjectService injectService;
   public final ConditionService conditionService;
   private final QueueChainingService queueChainingService;
 
   private final StepRepository stepRepository;
+  private final StepDelayQueueRepository stepDelayQueueRepository;
 
   /**
    * Create a single step template.
@@ -80,58 +84,130 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     saveSteps(stepsTemplateCopy);
   }
 
+  @Transactional(rollbackFor = Exception.class)
+  public Workflow evaluateWorkflowProgress(Workflow workflowRun) throws ChainingException {
+    String workflowTemplateId = workflowRun.getWorkflowTemplate().getId();
+
+    // Get all step template
+    List<Step> stepsTemplate = findAllStepTemplateByWorkflow(workflowTemplateId);
+
+    if (stepsTemplate.isEmpty()) {
+      log.info(
+          "No step template for workflow template {}. End running {}",
+          workflowTemplateId,
+          workflowRun.getId());
+      workflowRun.setStatus(WorkflowStatus.END);
+      return workflowRun;
+    }
+
+    // At least one template generated one or more ready execution steps.
+    boolean hasReadySteps = false;
+
+    for (Step step : stepsTemplate) {
+      List<Step> stepReadys = createReadySteps(step, workflowRun, null);
+      if (!stepReadys.isEmpty()) {
+        hasReadySteps = true;
+        enqueueReadySteps(stepReadys, workflowRun);
+      }
+    }
+
+    // If none step TEMPLATE with valid conditions && no step template delayed update workflow with
+    // status END
+    if (!hasReadySteps && stepDelayQueueRepository.findAllByWorkflowRun(workflowRun).isEmpty()) {
+      workflowRun.setStatus(WorkflowStatus.END);
+    }
+
+    return workflowRun;
+  }
+
   /**
-   * Create an execution step in the ready state for given template
+   * Evaluates conditions for a step template and creates READY execution steps for each valid
+   * batch. Returns an empty list when conditions defer execution.
    *
    * @param nextStepTemplateToExecute step template to ready
    * @param workflowRun the running workflow
    * @param input json input for the execution step
-   * @return ready step
+   * @return created ready execution steps
    */
-  public Optional<Step> ready(Step nextStepTemplateToExecute, Workflow workflowRun, String input)
-      throws ChainingException {
+  public List<Step> createReadySteps(
+      Step nextStepTemplateToExecute, Workflow workflowRun, String input) throws ChainingException {
 
     ActionStep actionStep =
         factoryAction(nextStepTemplateToExecute.getStepAction(), nextStepTemplateToExecute.getId());
 
-    Step nextStepTemplateToExecutePersisted =
+    Step persistedTemplate =
         findByIdAndStatus(nextStepTemplateToExecute.getId(), StepStatus.TEMPLATE);
 
-    // CHECK CONDITIONS
-    List<ConditionService.ExecutionBatch> executionBatchs =
-        conditionService.checkCondition(nextStepTemplateToExecutePersisted, workflowRun, input);
+    List<ConditionService.ExecutionBatch> executionBatches =
+        conditionService.checkCondition(persistedTemplate, workflowRun, input);
 
-    if (executionBatchs == null) {
-      return Optional.empty();
+    if (executionBatches == null) {
+      return List.of();
     }
 
-    // List<ExecutionBatch> executionBatchs:
-    // 1. null  : push in delay queue or exced limit execution or condition invalid  -> no execution
-    // 2. empty  : no condition                                                  -> direct execution
-    // 3. not empty : all conditions mappings are valid (will be saved as condition execution)   ->
-    // execution
-    for (ConditionService.ExecutionBatch batch : executionBatchs) {
-      Step stepReady =
-          actionStep
-              .ready(nextStepTemplateToExecutePersisted, batch.inputString(), workflowRun)
-              .orElseThrow(
-                  () ->
-                      new ChainingException(
-                          "Error creating step (READY) from step (TEMPLATE). Step ID: "
-                              + nextStepTemplateToExecute.getId()));
-      stepReady = saveStep(stepReady);
-      Step finalStepReady = stepReady;
+    List<Step> stepReadys = new ArrayList<>();
+    for (ConditionService.ExecutionBatch batch : executionBatches) {
+      stepReadys.add(createReadyStepFromBatch(actionStep, persistedTemplate, workflowRun, batch));
+    }
+    return stepReadys;
+  }
 
-      // Link and Save conditions
-      List<Condition> conditionsToSave = new ArrayList<>();
-      for (Condition mapper : batch.usedMappers()) {
-        conditionService.linkToStep(mapper, stepReady, true);
-        conditionsToSave.add(mapper);
-      }
-      conditionService.saveAllConditions(conditionsToSave);
+  /**
+   * Creates a single READY step from an {@link ConditionService.ExecutionBatch}, persists it, and
+   * links the batch's conditions to the new step.
+   *
+   * @param actionStep resolved action implementation
+   * @param template persisted step template
+   * @param workflowRun running workflow
+   * @param batch execution batch carrying the resolved input and mapper conditions
+   * @return persisted READY step
+   */
+  private Step createReadyStepFromBatch(
+      ActionStep actionStep,
+      Step template,
+      Workflow workflowRun,
+      ConditionService.ExecutionBatch batch)
+      throws ChainingException {
 
+    Step stepReady =
+        actionStep
+            .ready(template, batch.inputString(), workflowRun)
+            .orElseThrow(
+                () ->
+                    new ChainingException(
+                        "Error creating step (READY) from step (TEMPLATE). Step ID: "
+                            + template.getId()));
+    stepReady = saveStep(stepReady);
+    linkBatchConditions(batch, stepReady);
+    return stepReady;
+  }
+
+  /**
+   * Links all mapper conditions from a batch to the given READY step and persists them.
+   *
+   * @param batch execution batch whose conditions to link
+   * @param stepReady target step
+   */
+  private void linkBatchConditions(ConditionService.ExecutionBatch batch, Step stepReady) {
+    List<Condition> conditionsToSave = new ArrayList<>();
+    for (Condition mapper : batch.usedMappers()) {
+      conditionService.linkToStep(mapper, stepReady, true);
+      conditionsToSave.add(mapper);
+    }
+    conditionService.saveAllConditions(conditionsToSave);
+  }
+
+  /**
+   * Pushes already-created READY steps to the queue.
+   *
+   * @param stepReadys steps to queue
+   * @param workflowRun workflow run owning these steps
+   */
+  public void enqueueReadySteps(List<Step> stepReadys, Workflow workflowRun)
+      throws ChainingException {
+    for (Step stepReady : stepReadys) {
       try {
-        queueChainingService.readyStep(finalStepReady, workflowRun);
+        queueChainingService.readyStep(stepReady, workflowRun);
       } catch (IOException e) {
         stepReady.setStatus(StepStatus.END);
         saveStep(stepReady);
@@ -141,45 +217,6 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
             e);
       }
     }
-
-    return Optional.of(nextStepTemplateToExecutePersisted);
-  }
-
-  /**
-   * Run step that is ready
-   *
-   * @param stepReady step ready to run
-   */
-  public void run(Step stepReady) {
-    Step stepRun;
-    try {
-      ActionStep actionStep = factoryAction(stepReady.getStepAction(), stepReady.getId());
-      stepRun =
-          actionStep
-              .run(stepReady)
-              .orElseThrow(() -> new ChainingException("Step (READY) execution failed"));
-    } catch (ChainingException e) {
-      // todo system notif queue fail + system log for step + status FAIL
-      log.error(
-          "Ready consume : Step (READY) execution failed. Step moved to (END) state. Step ID: {} {}",
-          stepReady.getId(),
-          e.getMessage(),
-          e);
-      stepReady.setStatus(StepStatus.END);
-      saveStep(stepReady);
-      return;
-      // todo Check all executed steps, if all ended, end workflow run
-      /* int runningStep = stepRepository.countRunningStep(stepReady.getWorkflow().getId());
-      if (runningStep == 0) {
-        // TODO manage steptemplate with time delay
-        Workflow run = stepReady.getWorkflow();
-        run.setStatus(WorkflowStatus.END);
-        workflowService.saveWorkflowRun(run);
-      }*/
-    }
-
-    stepRun.setStatus(StepStatus.RUN);
-    saveStep(stepRun);
   }
 
   /**
@@ -901,90 +938,8 @@ public class StepService implements StepEventHandler, ExternalUpdateEventHandler
     return new JsonPrimitive(primitiveObject.toString());
   }
 
-  /**
-   * Consume ready event from queue
-   *
-   * @param events list of events
-   * @return consumed list of events
-   */
-  // Do not help to have a consistence data;
-  // need a re push event system and/or log system to retry new output
-  // @Transactional(rollbackOn = Exception.class)
-  public List<StepEvent> handleReadyEvent(List<StepEvent> events) {
-    events.forEach(this::handleReadyStepEvent);
-    return events;
-  }
-
-  /**
-   * Consume update event from queue
-   *
-   * @param events list of events
-   * @return consumed list of events
-   */
-  // Do not help to have a consistence data;
-  // need a re push event system and/or log system to retry new output
-  @Transactional(rollbackFor = Exception.class)
-  public List<ExternalUpdateEvent> handleExternalUpdateEvent(List<ExternalUpdateEvent> events) {
-    events.forEach(this::handleExternalUpdateEvent);
-    return events;
-  }
-
-  /**
-   * Handle ready event and run the corresponding step
-   *
-   * @param stepEvent event to handle
-   */
-  @Override
-  public void handleReadyStepEvent(StepEvent stepEvent) {
-    stepRepository
-        .findById(stepEvent.getStepId())
-        .ifPresentOrElse(
-            this::run,
-            () ->
-                log.error(
-                    "Ready consume: Step not found for StepEvent ID: {}", stepEvent.getStepId()));
-  }
-
-  /**
-   * Handle external update event and create next ready step
-   *
-   * @param stepEvent event to handle
-   */
-  @Override
-  public void handleExternalUpdateEvent(ExternalUpdateEvent stepEvent) {
-    Step stepRun;
-    try {
-      stepRun = findByIdAndStatus(stepEvent.getStepId(), StepStatus.RUN);
-    } catch (ElementNotFoundException e) {
-      // Todo: system notif queue fail + system log for step + status FAIL
-      log.error(
-          "Update consume: Step (RUN) not found. Step ID: {} {}",
-          stepEvent.getStepId(),
-          e.getMessage(),
-          e);
-      return;
-    }
-    Optional<Step> stepUpdatedOpt;
-
-    try {
-      ActionStep actionStep = factoryAction(stepRun.getStepAction(), stepRun.getId());
-      stepUpdatedOpt = actionStep.update(stepRun);
-    } catch (ChainingException e) {
-      // Todo: system notif queue fail + system log for step + status FAIL
-      log.error(
-          "Update consume : Step (RUN) update failed. Step moved to (END) state. Step ID: {} {}",
-          stepRun.getId(),
-          e.getMessage(),
-          e);
-      stepRun.setStatus(StepStatus.END);
-      saveStep(stepRun);
-      return;
-    }
-
-    if (stepUpdatedOpt.isPresent()) {
-      Step stepUpdated = stepUpdatedOpt.get();
-      this.saveStep(stepUpdated);
-    }
+  public Inject getInject(String injectId) {
+    return injectService.inject(injectId);
   }
 
   public enum ACTION_JSON {
