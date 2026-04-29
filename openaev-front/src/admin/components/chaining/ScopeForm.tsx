@@ -1,5 +1,5 @@
-import { Close, DevicesOtherOutlined } from '@mui/icons-material';
-import { Box, Button, Chip, IconButton, Tab, Tabs, Tooltip, Typography } from '@mui/material';
+import { DevicesOtherOutlined } from '@mui/icons-material';
+import { Box, Button, Tab, Tabs, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { SelectGroup } from 'mdi-material-ui';
 import { type FunctionComponent, type SyntheticEvent, useCallback, useContext, useEffect, useMemo, useState } from 'react';
@@ -24,6 +24,7 @@ import useDataLoader from '../../../utils/hooks/useDataLoader';
 import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { buildTenantApiPath } from '../../../utils/url-helper';
+import { download } from '../../../utils/utils';
 import AssetStatus from '../assets/AssetStatus';
 import {
   buildScopeRulesCsvTemplate,

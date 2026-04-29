@@ -1,5 +1,5 @@
-import { Add, FileDownloadOutlined, InfoOutlined } from '@mui/icons-material';
-import { Box, Button, Chip, Paper, Typography } from '@mui/material';
+import { Add, Close, FileDownloadOutlined, InfoOutlined } from '@mui/icons-material';
+import { Box, Button, Chip, IconButton, Paper, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type ChangeEvent, type KeyboardEvent, useMemo, useRef, useState } from 'react';
 
@@ -103,6 +103,7 @@ const ScopeInventoryBox = ({
 
       <Box
         sx={{
+          position: 'relative',
           minHeight: 100,
           border: `1px solid ${theme.palette.divider}`,
           borderRadius: 1,
@@ -116,6 +117,24 @@ const ScopeInventoryBox = ({
         }}
         onClick={() => inputRef.current?.focus()}
       >
+        {chips.length > 0 && (
+          <Tooltip title={t('Clear all')}>
+            <IconButton
+              size="small"
+              color="primary"
+              onClick={() => {
+
+              }}
+              sx={{
+                position: 'absolute',
+                top: 4,
+                right: 4,
+              }}
+            >
+              <Close fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        )}
         {chips.length === 0 && inputValue.length === 0 && (
           <Typography variant="body2" sx={{ color: 'text.disabled' }}>
             {t('No asset selected. Add asset manually or select some in the asset list.')}
