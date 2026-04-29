@@ -515,7 +515,8 @@ public class WorkflowService {
       if (ruleId == null) {
         WorkflowScopeRule newRule = buildScopeRule(ruleInput, workflow);
         existing.add(newRule);
-        scopeMetricCollector.trackScopeEntryAdded(newRule.getValueType(), newRule.getRuleSource());
+        scopeMetricCollector.addScopeCreatedCount();
+        scopeMetricCollector.addScopeEntryAddedCount();
         changed = true;
       } else {
         if (!processedIds.contains(ruleId)) {
@@ -529,9 +530,9 @@ public class WorkflowService {
       }
     }
 
-    if (changed) {
-      emitScopeCreatedMetrics(deduplicated);
-    }
+    //    if (changed) {
+    //      emitScopeCreatedMetrics(deduplicated);
+    //    }
 
     return changed;
   }

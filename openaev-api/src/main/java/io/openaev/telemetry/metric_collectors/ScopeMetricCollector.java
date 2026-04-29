@@ -11,33 +11,47 @@ import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.Meter;
 import jakarta.annotation.PostConstruct;
 import java.util.Locale;
+import java.util.concurrent.atomic.AtomicLong;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ScopeMetricCollector {
 
   private final Meter meter;
+  private final MetricRegistry metricRegistry;
 
   private LongCounter scopeCreatedCounter;
   private LongCounter scopeEntryAddedCounter;
 
+  // Counter
+  private final AtomicLong scopeCreatedCount = new AtomicLong(0);
+  private final AtomicLong scopeEntryAddedCount = new AtomicLong(0);
+
   @PostConstruct
   public void init() {
-    scopeCreatedCounter =
-        meter
-            .counterBuilder("scope.created")
-            .setDescription("Count scope definitions grouped by mode")
-            .setUnit("count")
-            .build();
+    metricRegistry.registerGauge(
+        "scope.created",
+        "Count scope definitions grouped by mode",
+        () -> scopeCreatedCount.getAndSet(0));
 
-    scopeEntryAddedCounter =
-        meter
-            .counterBuilder("scope.entry.added")
-            .setDescription("Count newly added scope entries grouped by type and method")
-            .setUnit("count")
-            .build();
+    metricRegistry.registerGauge(
+        "scope.entry.added",
+        "Count newly added scope entries grouped by type and method",
+        () -> scopeEntryAddedCount.getAndSet(0));
+  }
+
+  public void addScopeCreatedCount() {
+    scopeCreatedCount.incrementAndGet();
+    log.info("Increment Scope Created Counter");
+  }
+
+  public void addScopeEntryAddedCount() {
+    scopeEntryAddedCount.incrementAndGet();
+    log.info("Increment Scope Entry Added Counter");
   }
 
   public void trackScopeCreated(ScopeRuleSelectedMode mode, long entryCount) {
