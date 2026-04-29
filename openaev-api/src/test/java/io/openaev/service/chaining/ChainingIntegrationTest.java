@@ -445,7 +445,11 @@ class ChainingIntegrationTest extends IntegrationTest {
       stepService.createStepTemplates(workflowTemplate.getId(), List.of(step));
       String simulation =
           mvc.perform(
-                  post(tenantUri(TENANT_SCENARIO_URI + "/" + createdScenario.getId() + "/exercise/running"))
+                  post(tenantUri(
+                          TENANT_SCENARIO_URI
+                              + "/"
+                              + createdScenario.getId()
+                              + "/exercise/running"))
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON))
               .andExpect(status().is2xxSuccessful())
@@ -632,7 +636,11 @@ class ChainingIntegrationTest extends IntegrationTest {
       long stepCountBefore = stepRepository.count();
 
       mvc.perform(
-              post(tenantUri(TENANT_CHAINING_URI + "/simulations/" + createdSimulation.getId() + "/injects"))
+              post(tenantUri(
+                      TENANT_CHAINING_URI
+                          + "/simulations/"
+                          + createdSimulation.getId()
+                          + "/injects"))
                   .with(csrf())
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(injectInputJson))
@@ -672,7 +680,11 @@ class ChainingIntegrationTest extends IntegrationTest {
       Workflow workflowTemplate = findTemplateWorkflowBySimulationId(createdSimulation.getId());
 
       mvc.perform(
-              post(tenantUri(TENANT_CHAINING_URI + "/simulations/" + createdSimulation.getId() + "/injects"))
+              post(tenantUri(
+                      TENANT_CHAINING_URI
+                          + "/simulations/"
+                          + createdSimulation.getId()
+                          + "/injects"))
                   .with(csrf())
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(injectInputJson))
