@@ -6,7 +6,6 @@ import { getReferential, postReferential, putReferential, simpleCall, simplePost
 import type { PolicyInput, SettingsEnterpriseEditionUpdateInput, SettingsPlatformWhitemarkUpdateInput, SettingsUpdateInput, ThemeInput, User } from '../utils/api-types';
 import { extractTenantFromUrl } from '../utils/url-helper';
 import * as schema from './Schema';
-import { extractTenantFromUrl } from '../utils/tenant-url-helper';
 
 interface ResetValues {
   password: string;
