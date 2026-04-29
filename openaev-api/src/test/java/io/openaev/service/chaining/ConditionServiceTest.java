@@ -35,7 +35,7 @@ public class ConditionServiceTest {
   @Mock private ConditionRepository conditionRepository;
   @Mock private StepRepository stepRepository;
   @Mock private WorkflowStateService workflowStateService;
-  @Mock private ConditionUtils conditionUtils;
+  @Spy private ConditionUtils conditionUtils;
 
   /* ============================================================
    * isTimeCondition

@@ -203,6 +203,7 @@ public class InjectExecutionStep implements ActionStep {
     }
   }
 
+  /** Loads the concrete payload subtype (Command, Executable, etc.) into the injector contract. */
   private void prepareGetStatusPayloadFromInject(InjectorContract injectorContract) {
     if (injectorContract.getPayload() == null) {
       return;
@@ -273,6 +274,9 @@ public class InjectExecutionStep implements ActionStep {
     return Optional.empty();
   }
 
+  /**
+   * Syncs parsed execution output into workflow global state, potentially triggering chained steps.
+   */
   private void processOutputAndStateSync(
       Step stepRun, List<Map<String, JsonElement>> output, Inject inject) {
     boolean hasParsedData = output.stream().anyMatch(map -> map.containsKey("parsed"));
@@ -291,6 +295,7 @@ public class InjectExecutionStep implements ActionStep {
     }
   }
 
+  /** Extracts key-value pairs from structured "parsed" output entries. */
   private Map<String, List<String>> extractDataFromParsed(List<Map<String, JsonElement>> output) {
     Map<String, List<String>> result = new HashMap<>();
 
@@ -723,14 +728,22 @@ public class InjectExecutionStep implements ActionStep {
     }
   }
 
+  /** Placeholder — formats inject status into step output. */
   private static void formatStatusToOutput(List<Map<String, JsonElement>> output) {}
 
+  /** Placeholder — formats collector expectation results into step output. */
   private static void formatCollectorExpectationToOutput(List<Map<String, JsonElement>> output) {}
 
+  /** Placeholder — formats expiration manager data into step output. */
   private static void formatExpirationManagerToOutput(List<Map<String, JsonElement>> output) {}
 
+  /** Placeholder — formats manual update data into step output. */
   private static void formatManualUpdateToOutput(List<Map<String, JsonElement>> output) {}
 
+  /**
+   * Builds a map of output field names to their contract types from the inject's payload or
+   * contract.
+   */
   private Map<String, ContractOutputType> buildFieldTypeMapFromInject(Inject inject) {
     Map<String, ContractOutputType> fieldTypeMap = new HashMap<>();
     if (inject.getPayload().isPresent()) {
