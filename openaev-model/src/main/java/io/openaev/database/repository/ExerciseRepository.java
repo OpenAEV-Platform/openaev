@@ -207,7 +207,7 @@ public interface ExerciseRepository
               + "LEFT JOIN lessons_answers la ON la.lessons_answer_question = lq.lessons_question_id "
               + "LEFT JOIN logs ON logs.log_exercise = ex.exercise_id "
               + "LEFT JOIN injects inj ON ex.exercise_id = inj.inject_exercise "
-              + "LEFT JOIN workflows w ON w.workflow_simulation_id = ex.exercise_id "
+              + "LEFT JOIN workflows w ON w.workflow_simulation_id = ex.exercise_id AND w.workflow_status = 'TEMPLATE' "
               + "WHERE ex.exercise_id = :exerciseId "
               + "GROUP BY ex.exercise_id ;",
       nativeQuery = true)

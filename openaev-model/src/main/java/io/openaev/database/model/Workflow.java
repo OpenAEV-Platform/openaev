@@ -144,16 +144,16 @@ public class Workflow implements Base {
   private List<WorkflowScopeRule> workflowScopeRules = new ArrayList<WorkflowScopeRule>();
 
   @JsonIgnore
-  public List<WorkflowScopeRule> getWhitelist() {
+  public List<WorkflowScopeRule> getAllowlist() {
     return this.workflowScopeRules.stream()
-        .filter(r -> ScopeRuleSelectedMode.WHITELIST.equals(r.getSelectedMode()))
+        .filter(r -> ScopeRuleSelectedMode.ALLOWLIST.equals(r.getSelectedMode()))
         .toList();
   }
 
   @JsonIgnore
-  public List<WorkflowScopeRule> getBlacklist() {
+  public List<WorkflowScopeRule> getDenylist() {
     return this.workflowScopeRules.stream()
-        .filter(r -> ScopeRuleSelectedMode.BLACKLIST.equals(r.getSelectedMode()))
+        .filter(r -> ScopeRuleSelectedMode.DENYLIST.equals(r.getSelectedMode()))
         .toList();
   }
 

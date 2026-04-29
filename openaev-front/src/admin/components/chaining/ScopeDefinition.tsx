@@ -1,17 +1,17 @@
 import { useTheme } from '@mui/material/styles';
 import { useCallback } from 'react';
 
-import { fetchAssetGroups } from '../../../../../actions/asset_groups/assetgroup-action';
-import { fetchEndpoints } from '../../../../../actions/assets/endpoint-actions';
+import { fetchAssetGroups } from '../../../actions/asset_groups/assetgroup-action';
+import { fetchEndpoints } from '../../../actions/assets/endpoint-actions';
 import {
   fetchWorkflowConfiguration,
   updateWorkflowConfiguration,
-} from '../../../../../actions/chaining/workflow-actions';
-import type { WorkflowConfigurationHelper } from '../../../../../actions/chaining/workflow-helper';
-import { useHelper } from '../../../../../store';
-import type { WorkflowConfigurationInput, WorkflowScopeRuleInput } from '../../../../../utils/api-types';
-import { useAppDispatch } from '../../../../../utils/hooks';
-import useDataLoader from '../../../../../utils/hooks/useDataLoader';
+} from '../../../actions/chaining/workflow-actions';
+import type { WorkflowConfigurationHelper } from '../../../actions/chaining/workflow-helper';
+import { useHelper } from '../../../store';
+import type { WorkflowConfigurationInput, WorkflowScopeRuleInput } from '../../../utils/api-types';
+import { useAppDispatch } from '../../../utils/hooks';
+import useDataLoader from '../../../utils/hooks/useDataLoader';
 import ScopeRateLimit from './ScopeRateLimit';
 import ScopeRules from './ScopeRules';
 import ScopeTimeOut from './ScopeTimeOut';
@@ -40,7 +40,7 @@ const ScopeDefinition = ({ workflowId }: ScopeDefinitionProps) => {
             r.workflow_scope_rule_id ?? (r.get?.('workflow_scope_rule_id') as string | undefined),
     workflow_scope_rule_selected_mode:
             r.workflow_scope_rule_selected_mode
-            ?? (r.get?.('workflow_scope_rule_selected_mode') as 'WHITELIST' | 'BLACKLIST'),
+            ?? (r.get?.('workflow_scope_rule_selected_mode') as 'ALLOWLIST' | 'DENYLIST'),
     workflow_scope_rule_source:
             r.workflow_scope_rule_source
             ?? (r.get?.('workflow_scope_rule_source') as 'ASSET' | 'ASSET_GROUP' | 'MANUAL' | 'CSV'),
@@ -79,7 +79,7 @@ const ScopeDefinition = ({ workflowId }: ScopeDefinitionProps) => {
 
       }}
       >
-        <ScopeRules workflowConfiguration={workflowConfiguration} />
+        <ScopeRules workflowConfiguration={workflowConfiguration} onUpdate={handleUpdate} />
         <ScopeVariables />
       </div>
       <div style={{
