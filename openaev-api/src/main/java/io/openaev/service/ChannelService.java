@@ -3,6 +3,7 @@ package io.openaev.service;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.injectors.channel.ChannelContract.CHANNEL_PUBLISH;
 import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.buildForMediaPressure;
+import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.hasNoResults;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -109,7 +110,7 @@ public class ChannelService {
                           .flatMap(
                               inject ->
                                   inject.getUserExpectationsForArticle(user, article).stream()))
-              .filter(exec -> exec.getResults().isEmpty())
+              .filter(exec -> hasNoResults(exec.getResults()))
               .toList();
 
       // Update all expectations linked to player
