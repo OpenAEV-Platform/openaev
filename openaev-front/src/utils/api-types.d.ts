@@ -7495,6 +7495,7 @@ export interface StepInput {
 }
 
 export interface StepOutput {
+  step_condition_ids?: string[];
   step_condition_key_types?: (
     | "execution_time"
     | "step_template_id"
@@ -8735,12 +8736,7 @@ export interface WidgetConfiguration {
     | "LAST_SEMESTER"
     | "LAST_YEAR";
   title?: string;
-  widget_configuration_type:
-    | "flat"
-    | "average"
-    | "list"
-    | "temporal-histogram"
-    | "structural-histogram";
+  widget_configuration_type: string;
 }
 
 export interface WidgetInput {
