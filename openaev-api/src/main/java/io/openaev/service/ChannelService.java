@@ -18,7 +18,6 @@ import io.openaev.rest.channel.response.ChannelReader;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.ExpectationUtils;
-import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -36,7 +35,7 @@ public class ChannelService {
   private final ScenarioService scenarioService;
   private final ArticleRepository articleRepository;
   private final ChannelRepository channelRepository;
-  @Resource protected ObjectMapper mapper;
+  private final ObjectMapper mapper;
 
   public Channel channel(@NotNull final String channelId) {
     return channelRepository
