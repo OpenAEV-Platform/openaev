@@ -154,8 +154,9 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
         workflowService.saveWorkflowRun(stepUpdated.getWorkflow());
       } catch (ChainingException e) {
         log.error(
-            "Update consume : Evaluation of Workflow Progress has failed. Workflow ID: {}",
+            "Update consume: Evaluation of WORKFLOW Progress has failed with STEP (RUN) update. Workflow ID: {}, Step ID: {}. {}",
             stepUpdated.getWorkflow().getId(),
+            stepUpdated.getId(),
             e.getMessage(),
             e);
       }
