@@ -11,6 +11,7 @@ import io.openaev.injectors.email.service.EmailService;
 import io.openaev.integration.BuiltinIntegrationFactory;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
@@ -95,15 +96,19 @@ public class EmailInjectorIntegrationFactory extends BuiltinIntegrationFactory {
 
   @Override
   public void registerConnectorForTenant() throws Exception {
-    injectorService.registerBuiltinInjector(
-        EmailInjectorIntegration.EMAIL_INJECTOR_ID,
-        EmailInjectorIntegration.EMAIL_INJECTOR_NAME,
-        emailContract,
-        false,
-        "communication",
-        null,
-        null,
-        false,
-        List.of(ExternalServiceDependency.SMTP, ExternalServiceDependency.IMAP));
+    try {
+      injectorService.injector(EmailInjectorIntegration.EMAIL_INJECTOR_ID);
+    } catch (ElementNotFoundException e) {
+      injectorService.registerBuiltinInjector(
+          EmailInjectorIntegration.EMAIL_INJECTOR_ID,
+          EmailInjectorIntegration.EMAIL_INJECTOR_NAME,
+          emailContract,
+          false,
+          "communication",
+          null,
+          null,
+          false,
+          List.of(ExternalServiceDependency.SMTP, ExternalServiceDependency.IMAP));
+    }
   }
 }

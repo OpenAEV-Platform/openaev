@@ -9,6 +9,7 @@ import io.openaev.injectors.manual.ManualContract;
 import io.openaev.integration.BuiltinIntegrationFactory;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
@@ -90,15 +91,19 @@ public class ManualInjectorIntegrationFactory extends BuiltinIntegrationFactory 
 
   @Override
   public void registerConnectorForTenant() throws Exception {
-    injectorService.registerBuiltinInjector(
-        ManualInjectorIntegration.MANUAL_INJECTOR_ID,
-        ManualInjectorIntegration.MANUAL_INJECTOR_NAME,
-        manualContract,
-        true,
-        "generic",
-        null,
-        null,
-        false,
-        List.of());
+    try {
+      injectorService.injector(ManualInjectorIntegration.MANUAL_INJECTOR_ID);
+    } catch (ElementNotFoundException e) {
+      injectorService.registerBuiltinInjector(
+          ManualInjectorIntegration.MANUAL_INJECTOR_ID,
+          ManualInjectorIntegration.MANUAL_INJECTOR_NAME,
+          manualContract,
+          true,
+          "generic",
+          null,
+          null,
+          false,
+          List.of());
+    }
   }
 }

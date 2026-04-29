@@ -17,6 +17,7 @@ import jakarta.persistence.EntityManager;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Session;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -81,6 +82,12 @@ public class ManagerFactory implements DependenciesManager {
     String previousTenant = TenantContext.getCurrentTenant();
     try {
       TenantContext.setCurrentTenant(tenant.getId());
+      // Re-enable the Hibernate filter with the correct tenant — the AOP aspect already activated
+      // it with the previous tenant value before this method body runs.
+      entityManager
+          .unwrap(Session.class)
+          .enableFilter("tenantFilter")
+          .setParameter("tenantId", tenant.getId());
       for (BuiltinTenantRegistrable registrable : builtinRegistrables) {
         try {
           registrable.registerForTenant();

@@ -4,6 +4,7 @@ import io.openaev.collectors.expectations_expiration_manager.config.Expectations
 import io.openaev.collectors.expectations_expiration_manager.service.ExpectationsExpirationManagerService;
 import io.openaev.integration.BuiltinTenantRegistrable;
 import io.openaev.rest.collector.service.CollectorService;
+import io.openaev.rest.exception.ElementNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -41,14 +42,18 @@ public class ExpectationsExpirationManagerJob implements Runnable, BuiltinTenant
 
   @Override
   public void registerForTenant() throws Exception {
-    collectorService.register(
-        config.getId(),
-        FAKE_DETECTOR_COLLECTOR_TYPE,
-        FAKE_DETECTOR_COLLECTOR_NAME,
-        false,
-        0,
-        null,
-        getClass().getResourceAsStream("/img/icon-fake-detector.png"));
+    try {
+      collectorService.collector(config.getId());
+    } catch (ElementNotFoundException e) {
+      collectorService.register(
+          config.getId(),
+          FAKE_DETECTOR_COLLECTOR_TYPE,
+          FAKE_DETECTOR_COLLECTOR_NAME,
+          false,
+          0,
+          null,
+          getClass().getResourceAsStream("/img/icon-fake-detector.png"));
+    }
   }
 
   @Override
