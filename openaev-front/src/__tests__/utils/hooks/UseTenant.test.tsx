@@ -232,8 +232,6 @@ describe('useTenant', () => {
         expect(mockBuildTenantUrl).toHaveBeenCalledWith(
           TENANT_ALPHA.tenant_id,
           expect.any(String),
-          expect.any(String),
-          expect.any(String),
         );
       });
       expect(window.location.href).toContain(TENANT_ALPHA.tenant_id);
@@ -252,8 +250,6 @@ describe('useTenant', () => {
       await waitFor(() => {
         expect(mockBuildTenantUrl).toHaveBeenCalledWith(
           TENANT_ALPHA.tenant_id,
-          expect.any(String),
-          expect.any(String),
           expect.any(String),
         );
       });
@@ -310,8 +306,6 @@ describe('useTenant', () => {
       // Assert
       expect(mockBuildTenantUrl).toHaveBeenCalledWith(
         TENANT_BETA.tenant_id,
-        expect.any(String),
-        expect.any(String),
         expect.any(String),
       );
       expect(window.location.href).toContain(TENANT_BETA.tenant_id);
@@ -417,8 +411,6 @@ describe('useTenant', () => {
       // Assert — navigateToTenant triggers a full page navigation (skips setTenant)
       expect(mockBuildTenantUrl).toHaveBeenCalledWith(
         TENANT_GAMMA.tenant_id,
-        expect.any(String),
-        expect.any(String),
         expect.any(String),
       );
       expect(window.location.href).toContain(TENANT_GAMMA.tenant_id);
