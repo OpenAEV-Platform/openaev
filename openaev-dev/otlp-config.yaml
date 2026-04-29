@@ -12,7 +12,7 @@ receivers:
     protocols:
       http:
         #For mac : use port 2010 instead of 1010 to avoid conflicts with host services
-        endpoint: 0.0.0.0:2010
+        endpoint: 0.0.0.0:9090
 
 processors:
   batch:
