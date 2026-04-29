@@ -30,8 +30,10 @@ public class XtmOneService {
               "General-purpose assistant for adversary emulation"),
           Map.of("name", "summarize", "description", "Summarize content or findings"),
           Map.of("name", "make.it.shorter", "description", "Shorten or condense content"),
+          Map.of("name", "make.it.longer", "description", "Expand or elaborate content"),
           Map.of("name", "fix.spelling", "description", "Fix spelling and grammar"),
           Map.of("name", "change.tone", "description", "Change tone of content"),
+          Map.of("name", "explain", "description", "Explain content in simple terms"),
           Map.of(
               "name",
               "ttp.extractor",

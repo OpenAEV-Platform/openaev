@@ -2,6 +2,12 @@
 // remediation detection, and text AI features to call XTM One
 // agents through the OpenAEV proxy endpoints.
 
+/** Read the Spring Security XSRF-TOKEN cookie value (needed for mutating requests). */
+const getCsrfToken = (): string | null => {
+  const match = document.cookie.split('; ').find((row) => row.startsWith('XSRF-TOKEN='));
+  return match ? decodeURIComponent(match.split('=')[1]) : null;
+};
+
 export interface AgentOption {
   id: string;
   name: string;
@@ -27,9 +33,13 @@ export const fetchAgentsForIntent = async (intent: string): Promise<AgentOption[
 };
 
 export const callAgent = async (agentSlug: string, content: string): Promise<AgentResponse> => {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const csrf = getCsrfToken();
+  if (csrf) headers['X-XSRF-TOKEN'] = csrf;
+
   const response = await fetch('/api/chatbot/agent', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({ agent_slug: agentSlug, content }),
   });
   if (!response.ok) {
@@ -56,9 +66,13 @@ export const callAgentStream = async (
   onChunk: (partialContent: string) => void,
   signal?: AbortSignal,
 ): Promise<AgentResponse> => {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const csrf = getCsrfToken();
+  if (csrf) headers['X-XSRF-TOKEN'] = csrf;
+
   const response = await fetch('/api/chatbot/agent/stream', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({ agent_slug: agentSlug, content }),
     signal,
   });

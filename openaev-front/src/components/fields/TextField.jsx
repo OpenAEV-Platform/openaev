@@ -22,7 +22,10 @@ const TextFieldBase = ({ askAi, control, setValue, ...props }) => {
             <TextFieldAskAI
               variant="text"
               currentValue={currentValue ?? ''}
-              setFieldValue={val => setValue(props.inputProps.name, val)}
+              setFieldValue={val => setValue(props.inputProps.name, val, {
+                shouldDirty: true,
+                shouldValidate: true,
+              })}
               format="text"
               disabled={props.disabled}
             />

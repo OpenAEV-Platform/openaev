@@ -256,10 +256,7 @@ public class AppSecurityConfig {
   private RequestMatcher bearerWithoutCookiesMatcher() {
     return request -> {
       String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
-      Cookie[] cookies = request.getCookies();
-      boolean hasBearer = authorization != null && authorization.startsWith("Bearer ");
-      boolean hasCookies = cookies != null && cookies.length > 0;
-      return hasBearer && !hasCookies;
+      return authorization != null && authorization.startsWith("Bearer ");
     };
   }
 }
