@@ -669,24 +669,35 @@ public class InjectExecutionStep implements ActionStep {
 
       JsonNode inputValues = mapper.readTree(inputJson);
 
-      List<Condition> mappings =
-          conditionService.findAllConditionsByStepId(step.getId()).stream()
-              .filter(conditionUtils::isMapperCondition)
-              .toList();
+      conditionService.findAllConditionsByStepId(step.getId()).stream()
+          .filter(conditionUtils::isMapperCondition)
+          .forEach(mapping -> applyMapping(contentNode, mapping, inputValues));
 
-      for (Condition mapping : mappings) {
-        String inputKey = mapping.getKeyType().name(); // e.g., "IPv4"
-        String targetJsonKey = mapping.getKey();
-
-        if (inputValues.has(inputKey)) {
-          contentNode.set(targetJsonKey, inputValues.get(inputKey));
-        }
-      }
+      conditionService.findAllConditionsByStepId(step.getId()).stream()
+          .filter(conditionUtils::isMapperCondition)
+          .toList();
 
       return contentNode;
 
     } catch (JsonProcessingException e) {
       return mapper.createObjectNode();
+    }
+  }
+
+  /**
+   * Maps a value from the input source to the target content node based on the condition's key type
+   * and target key.
+   *
+   * @param contentNode the JSON object to be updated
+   * @param mapping the condition defining the source and target keys
+   * @param inputValues the source JSON containing the values to map
+   */
+  private void applyMapping(ObjectNode contentNode, Condition mapping, JsonNode inputValues) {
+    String inputKey = mapping.getKeyType().name(); // e.g., "IPv4"
+    String targetJsonKey = mapping.getKey();
+
+    if (inputValues.has(inputKey)) {
+      contentNode.set(targetJsonKey, inputValues.get(inputKey));
     }
   }
 
@@ -728,16 +739,12 @@ public class InjectExecutionStep implements ActionStep {
     }
   }
 
-  /** Placeholder — formats inject status into step output. */
   private static void formatStatusToOutput(List<Map<String, JsonElement>> output) {}
 
-  /** Placeholder — formats collector expectation results into step output. */
   private static void formatCollectorExpectationToOutput(List<Map<String, JsonElement>> output) {}
 
-  /** Placeholder — formats expiration manager data into step output. */
   private static void formatExpirationManagerToOutput(List<Map<String, JsonElement>> output) {}
 
-  /** Placeholder — formats manual update data into step output. */
   private static void formatManualUpdateToOutput(List<Map<String, JsonElement>> output) {}
 
   /**
