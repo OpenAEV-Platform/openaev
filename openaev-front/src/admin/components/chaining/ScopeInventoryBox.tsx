@@ -107,12 +107,12 @@ const ScopeInventoryBox = ({
           minHeight: 100,
           border: `1px solid ${theme.palette.divider}`,
           borderRadius: 1,
-          padding: theme.spacing(2),
+          padding: 2,
           display: 'flex',
           flexWrap: 'wrap',
           alignItems: 'flex-start',
           alignContent: 'flex-start',
-          gap: theme.spacing(1),
+          gap: 1,
           cursor: 'text',
         }}
         onClick={() => inputRef.current?.focus()}
@@ -135,11 +135,6 @@ const ScopeInventoryBox = ({
             </IconButton>
           </Tooltip>
         )}
-        {chips.length === 0 && inputValue.length === 0 && (
-          <Typography variant="body2" sx={{ color: 'text.disabled' }}>
-            {t('No asset selected. Add asset manually or select some in the asset list.')}
-          </Typography>
-        )}
         {chips.map(chip => (
           <Chip key={chip.key} label={chip.label} size="small" onDelete={chip.onDelete} />
         ))}
@@ -148,7 +143,7 @@ const ScopeInventoryBox = ({
           value={inputValue}
           onChange={e => setInputValue(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={t('Type IPs, CIDRs or hostnames...')}
+          placeholder={chips.length === 0 && inputValue.length === 0 ? t('No asset selected. Add asset manually by typing IPs, CIDRs or hostnames or select some in the asset list.') : t('Type IPs, CIDRs or hostnames...')}
           style={{
             border: 'none',
             outline: 'none',
@@ -166,11 +161,11 @@ const ScopeInventoryBox = ({
           variant="outlined"
           sx={{
             mt: 0.5,
-            padding: theme.spacing(1.5),
+            padding: 1.5,
             display: 'flex',
             flexWrap: 'wrap',
             alignItems: 'center',
-            gap: theme.spacing(1),
+            gap: 1,
             borderColor: theme.palette.primary.main,
           }}
         >
@@ -178,7 +173,6 @@ const ScopeInventoryBox = ({
             variant="body2"
             sx={{
               color: 'text.secondary',
-              mr: 1,
               whiteSpace: 'nowrap',
               cursor: 'pointer',
               textDecoration: 'underline',
@@ -188,7 +182,6 @@ const ScopeInventoryBox = ({
             {t('Tap enter or click here to add:')}
           </Typography>
           {parsedValues.map((val, idx) => (
-            // eslint-disable-next-line react/no-array-index-key
             <Chip
               key={`${val}-${idx}`}
               label={val}
