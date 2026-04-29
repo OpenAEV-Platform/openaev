@@ -425,6 +425,28 @@ describe('url-helper', () => {
     });
   });
 
+  // -- stripDetailSegments --
+
+  describe('stripDetailSegments', () => {
+    it.each([
+      ['/admin/scenarios/123e4567-e89b-12d3-a456-426614174000', '/admin/scenarios'],
+      ['/admin/scenarios/123e4567-e89b-12d3-a456-426614174000/injects', '/admin/scenarios'],
+      ['/admin/scenarios/123e4567-e89b-12d3-a456-426614174000/injects/ABCDEF12-0000-1111-2222-333344445555', '/admin/scenarios'],
+      ['/admin/scenarios', '/admin/scenarios'],
+      ['/admin', '/admin'],
+      ['/', '/'],
+    ])('given_%s_should_return_%s', async (input, expected) => {
+      // Arrange
+      const { stripDetailSegments } = await importHelper();
+
+      // Act
+      const result = stripDetailSegments(input);
+
+      // Assert
+      expect(result).toBe(expected);
+    });
+  });
+
   // -- buildTenantApiPath --
 
   describe('buildTenantApiPath', () => {
