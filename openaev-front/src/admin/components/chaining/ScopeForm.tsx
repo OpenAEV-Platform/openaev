@@ -335,6 +335,12 @@ const ScopeForm: FunctionComponent<ScopeFormProps> = ({
     }
   }, [onCustomRulesChange, selectedCustomRules]);
 
+  const handleClearAll = useCallback(() => {
+    onEndpointIdsChange([]);
+    onAssetGroupIdsChange([]);
+    onCustomRulesChange([]);
+  }, [onEndpointIdsChange, onAssetGroupIdsChange, onCustomRulesChange]);
+
   const removeCustomRule = useCallback((ruleToRemove: ScopeCustomRule) => {
     onCustomRulesChange(
       selectedCustomRules.filter(
@@ -385,6 +391,7 @@ const ScopeForm: FunctionComponent<ScopeFormProps> = ({
         onDownloadTemplate={handleDownloadTemplate}
         onUploadCsv={handleUploadCsv}
         onAddManual={handleAddManual}
+        onClearAll={handleClearAll}
       />
 
       {/* Add section */}

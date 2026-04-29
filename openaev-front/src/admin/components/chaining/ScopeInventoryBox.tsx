@@ -19,6 +19,7 @@ interface ScopeInventoryBoxProps {
   onDownloadTemplate: () => void;
   onUploadCsv: (formData: FormData, file: File) => Promise<void> | void;
   onAddManual: (values: string[]) => void;
+  onClearAll: () => void;
 }
 
 const ScopeInventoryBox = ({
@@ -28,6 +29,7 @@ const ScopeInventoryBox = ({
   onDownloadTemplate,
   onUploadCsv,
   onAddManual,
+  onClearAll,
 }: ScopeInventoryBoxProps) => {
   const { t } = useFormatter();
   const theme = useTheme();
@@ -75,6 +77,7 @@ const ScopeInventoryBox = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
+        gap: theme.spacing(1),
       }}
       >
         <Typography variant="h4">
@@ -82,6 +85,7 @@ const ScopeInventoryBox = ({
         </Typography>
         <div style={{
           display: 'flex',
+          alignItems: 'center',
           gap: theme.spacing(1),
         }}
         >
@@ -122,8 +126,9 @@ const ScopeInventoryBox = ({
             <IconButton
               size="small"
               color="primary"
-              onClick={() => {
-
+              onClick={(e) => {
+                e.stopPropagation();
+                onClearAll();
               }}
               sx={{
                 position: 'absolute',

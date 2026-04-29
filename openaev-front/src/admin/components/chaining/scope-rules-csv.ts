@@ -1,3 +1,5 @@
+import ipaddr from 'ipaddr.js';
+
 export type ScopeCsvType = 'DOMAIN' | 'IP' | 'IP_SUBNET';
 
 export interface ScopeCsvRule {
@@ -15,62 +17,46 @@ export interface ScopeCsvParseResult {
   invalid: ScopeCsvInvalidRow[];
 }
 
-const IPV4_PART = String.raw`(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)`;
-const IPV4_REGEX = new RegExp(String.raw`^${IPV4_PART}(\.${IPV4_PART}){3}$`);
 const DOMAIN_REGEX = /^(?=.{1,253}$)(?!-)(?:[a-zA-Z0-9-]{1,63}\.)+[a-zA-Z]{2,63}$/;
 
+const TYPE_MAP: Record<string, ScopeCsvType> = {
+  'domain': 'DOMAIN',
+  'ip': 'IP',
+  'ipsubnet': 'IP_SUBNET',
+  'ip_subnet': 'IP_SUBNET',
+  'ip-subnet': 'IP_SUBNET',
+};
+
 const normalizeType = (raw: string): ScopeCsvType | null => {
-  const value = raw.trim().toLowerCase();
-  if (value === 'domain') {
-    return 'DOMAIN';
-  }
-  if (value === 'ip') {
-    return 'IP';
-  }
-  if (value === 'ipsubnet' || value === 'ip_subnet' || value === 'ip-subnet') {
-    return 'IP_SUBNET';
-  }
-  return null;
+  return TYPE_MAP[raw.trim().toLowerCase()] ?? null;
 };
 
-const isIpv6 = (value: string) => {
-  if (!value.includes(':')) {
-    return false;
-  }
-
-  const parts = value.split('::');
-  if (parts.length > 2) {
-    return false;
-  }
-
-  const left = parts[0] ? parts[0].split(':') : [];
-  const right = parts.length === 2 && parts[1] ? parts[1].split(':') : [];
-  const segments = [...left, ...right];
-  if (segments.length > 8 || (parts.length === 1 && segments.length !== 8)) {
-    return false;
-  }
-
-  return segments.every(segment => /^[0-9a-fA-F]{1,4}$/.test(segment));
+const isIp = (value: string): boolean => {
+  // Reject short-form IPv4 (e.g. "10" → 10.0.0.0) — require dotted or colon notation
+  if (!value.includes('.') && !value.includes(':')) return false;
+  return ipaddr.isValid(value);
 };
 
-const isIp = (value: string) => IPV4_REGEX.test(value) || isIpv6(value);
-
-const isIpSubnet = (value: string) => {
-  const [ip, rawMask] = value.split('/');
-  if (!ip || !rawMask || !isIp(ip.trim())) {
+const isIpSubnet = (value: string): boolean => {
+  try {
+    ipaddr.parseCIDR(value);
+    return true;
+  } catch {
     return false;
   }
-
-  const mask = Number(rawMask);
-  if (!Number.isInteger(mask)) {
-    return false;
-  }
-
-  const isIpv6 = ip.includes(':');
-  return isIpv6 ? mask >= 0 && mask <= 128 : mask >= 0 && mask <= 32;
 };
 
 const isDomain = (value: string) => DOMAIN_REGEX.test(value);
+
+export const isValidScopeValue = (value: string): boolean => {
+  const sanitized = sanitizeValue(value);
+  return isIp(sanitized) || isIpSubnet(sanitized) || isDomain(sanitized);
+};
+
+// Strip non-printable characters, BOM markers, and Unicode replacement chars that
+// appear when a CSV is saved in a non-UTF-8 encoding (e.g. UTF-16, Windows-1252).
+// eslint-disable-next-line no-control-regex
+const sanitizeValue = (value: string) => value.replaceAll(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F\uFEFF\uFFFD]/g, '').trim();
 
 const isHeader = (first: string, second: string) => {
   return first.trim().toLowerCase() === 'type' && second.trim().toLowerCase() === 'value';
@@ -123,7 +109,7 @@ export const parseScopeRulesCsv = (content: string): ScopeCsvParseResult => {
     }
 
     const cells = splitCsvLine(line);
-    const [rawType = '', rawValue = ''] = cells;
+    const [rawType = '', rawValue = ''] = cells.map(sanitizeValue);
 
     if (cells.length !== 2 || !rawType || !rawValue) {
       result.invalid.push({
