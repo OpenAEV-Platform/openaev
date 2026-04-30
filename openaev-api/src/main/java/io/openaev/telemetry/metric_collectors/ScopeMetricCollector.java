@@ -1,11 +1,6 @@
 package io.openaev.telemetry.metric_collectors;
 
-import static io.opentelemetry.api.common.AttributeKey.stringKey;
-
-import io.opentelemetry.api.common.Attributes;
 import jakarta.annotation.PostConstruct;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,42 +13,40 @@ public class ScopeMetricCollector {
 
   private final MetricRegistry metricRegistry;
 
-  // KPI 1: scope.created {mode="allowlist"|"denylist"}
-  private final Map<Attributes, AtomicLong> scopeCreatedCounters = new ConcurrentHashMap<>();
-
-  // KPI 2: scope.entry.added {type="ip", source="manual"}
-  private final Map<Attributes, AtomicLong> entryAddedCounters = new ConcurrentHashMap<>();
+  // Counters reset to 0 after each collect (gauge pattern)
+  private final AtomicLong scopeCreatedCount = new AtomicLong(0);
+  private final AtomicLong scopeEntryAddedCount = new AtomicLong(0);
 
   @PostConstruct
   public void init() {
-    metricRegistry.registerObservableCounter(
-        "scope.created",
-        "Number of scope rules created, by mode",
-        measurement ->
-            scopeCreatedCounters.forEach((attrs, count) -> measurement.record(count.get(), attrs)),
-        "count");
+    metricRegistry.registerGauge(
+        "scope_created_count",
+        "Number of scope rules created since last collect",
+        () -> scopeCreatedCount.getAndSet(0));
 
-    metricRegistry.registerObservableCounter(
-        "scope.entry.added",
-        "Number of scope entries added, by type and source",
-        measurement ->
-            entryAddedCounters.forEach((attrs, count) -> measurement.record(count.get(), attrs)),
-        "count");
+    metricRegistry.registerGauge(
+        "scope_entry_added_count",
+        "Number of scope entries added since last collect",
+        () -> scopeEntryAddedCount.getAndSet(0));
   }
 
-  /** Records scope rules created for a given mode (KPI 1). */
+  /**
+   * Records that scope rules were created (called once per workflow update that adds new rules).
+   *
+   * @param entryCount number of new rules created in this batch
+   */
   public void recordScopeCreated(String mode, int entryCount) {
-    Attributes attrs = Attributes.of(stringKey("mode"), mode.toLowerCase());
-    scopeCreatedCounters.computeIfAbsent(attrs, k -> new AtomicLong()).addAndGet(entryCount);
-    log.info("Recorded Scope Created: mode={}, entries={}", mode, entryCount);
+    scopeCreatedCount.addAndGet(entryCount);
+    log.info("Recorded Scope Created: mode={}, entries={} (total pending: {})",
+        mode, entryCount, scopeCreatedCount.get());
   }
 
-  /** Records a single scope entry addition (KPI 2). */
+  /**
+   * Records a single scope entry addition with type and source context.
+   */
   public void recordEntryAdded(String type, String source) {
-    Attributes attrs =
-        Attributes.of(
-            stringKey("type"), type.toLowerCase(), stringKey("source"), source.toLowerCase());
-    entryAddedCounters.computeIfAbsent(attrs, k -> new AtomicLong()).incrementAndGet();
-    log.info("Recorded Entry Added: type={}, source={}", type, source);
+    scopeEntryAddedCount.incrementAndGet();
+    log.info("Recorded Entry Added: type={}, source={} (total pending: {})",
+        type, source, scopeEntryAddedCount.get());
   }
 }

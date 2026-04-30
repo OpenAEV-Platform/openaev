@@ -32,9 +32,8 @@ class ScopeMetricCollectorTest {
     @Test
     void given_scopeCreated_should_registerGaugeAndReturnCount() {
       // Arrange
-      scopeMetricCollector.addScopeCreatedCount();
-      scopeMetricCollector.addScopeCreatedCount();
-      scopeMetricCollector.addScopeCreatedCount();
+      scopeMetricCollector.recordScopeCreated("ALLOWLIST", 2);
+      scopeMetricCollector.recordScopeCreated("DENYLIST", 1);
 
       // Act
       scopeMetricCollector.init();
@@ -43,7 +42,7 @@ class ScopeMetricCollectorTest {
       verify(metricRegistry)
           .registerGauge(
               eq("scope_created_count"),
-              eq("Number of scope definitions created"),
+              eq("Number of scope rules created since last collect"),
               supplierCaptor.capture());
       assertThat(supplierCaptor.getValue().get()).isEqualTo(3L);
     }
@@ -51,7 +50,7 @@ class ScopeMetricCollectorTest {
     @Test
     void given_scopeCreatedGauge_when_collected_should_resetToZero() {
       // Arrange
-      scopeMetricCollector.addScopeCreatedCount();
+      scopeMetricCollector.recordScopeCreated("ALLOWLIST", 1);
 
       // Act
       scopeMetricCollector.init();
@@ -60,7 +59,7 @@ class ScopeMetricCollectorTest {
       verify(metricRegistry)
           .registerGauge(
               eq("scope_created_count"),
-              eq("Number of scope definitions created"),
+              eq("Number of scope rules created since last collect"),
               supplierCaptor.capture());
       Supplier<Long> supplier = supplierCaptor.getValue();
       assertThat(supplier.get()).isEqualTo(1L);
@@ -76,8 +75,8 @@ class ScopeMetricCollectorTest {
     @Test
     void given_scopeEntryAdded_should_registerGaugeAndReturnCount() {
       // Arrange
-      scopeMetricCollector.addScopeEntryAddedCount();
-      scopeMetricCollector.addScopeEntryAddedCount();
+      scopeMetricCollector.recordEntryAdded("ASSET_ID", "ASSET");
+      scopeMetricCollector.recordEntryAdded("IP", "MANUAL");
 
       // Act
       scopeMetricCollector.init();
@@ -86,7 +85,7 @@ class ScopeMetricCollectorTest {
       verify(metricRegistry)
           .registerGauge(
               eq("scope_entry_added_count"),
-              eq("Number of scope entries added"),
+              eq("Number of scope entries added since last collect"),
               supplierCaptor.capture());
       assertThat(supplierCaptor.getValue().get()).isEqualTo(2L);
     }
@@ -94,7 +93,7 @@ class ScopeMetricCollectorTest {
     @Test
     void given_scopeEntryAddedGauge_when_collected_should_resetToZero() {
       // Arrange
-      scopeMetricCollector.addScopeEntryAddedCount();
+      scopeMetricCollector.recordEntryAdded("IP", "MANUAL");
 
       // Act
       scopeMetricCollector.init();
@@ -103,7 +102,7 @@ class ScopeMetricCollectorTest {
       verify(metricRegistry)
           .registerGauge(
               eq("scope_entry_added_count"),
-              eq("Number of scope entries added"),
+              eq("Number of scope entries added since last collect"),
               supplierCaptor.capture());
       Supplier<Long> supplier = supplierCaptor.getValue();
       assertThat(supplier.get()).isEqualTo(1L);
