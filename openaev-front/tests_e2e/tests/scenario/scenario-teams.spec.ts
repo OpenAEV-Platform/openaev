@@ -25,8 +25,9 @@ test.describe('Scenario - Teams management', () => {
       `;
       document.head.appendChild(style);
     });
-    await page.goto(tenantUrl(`/admin/scenarios/${emptyScenario.scenario_id}`));
-    await scenarioPage.goToDefinitionTab();
+    await page.goto(tenantUrl(`/admin/scenarios/${emptyScenario.scenario_id}/definition`));
+    await page.waitForLoadState('domcontentloaded');
+    await scenarioPage.definitionTab.waitFor({ state: 'visible', timeout: 90000 });
   });
 
   test.describe('Team CRUD Operations in scenario', () => {
