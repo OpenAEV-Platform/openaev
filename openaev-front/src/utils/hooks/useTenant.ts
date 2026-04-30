@@ -42,8 +42,8 @@ const useTenantState = () => {
  * After login (when the URL has no tenant segment yet), the hook
  * falls back to the first tenant in the user's tenant list.
  */
-const useTenant = (me: User | undefined, logged: unknown, isPlatformRoute: boolean) => {
-  const [userTenants, setUserTenants] = useState<TenantOutput[]>([]);
+const useTenant = (me: User | undefined, logged: unknown) => {
+  const [userTenants, setUserTenants] = useState<TenantOutput[] | undefined>(undefined);
   const { currentUserTenant, setTenant } = useTenantState();
   const location = useLocation();
 
@@ -78,11 +78,6 @@ const useTenant = (me: User | undefined, logged: unknown, isPlatformRoute: boole
     if (tenants && tenants.length > 0) {
       setUserTenants(tenants);
 
-      // Platform routes are tenant-agnostic
-      if (isPlatformRoute) {
-        return;
-      }
-
       // If a preferred tenant is requested, switch to it
       if (newCurrentTenantId && navigateToTenant(newCurrentTenantId, tenants)) {
         return;
@@ -112,7 +107,7 @@ const useTenant = (me: User | undefined, logged: unknown, isPlatformRoute: boole
     if (tenantId === currentUserTenant?.tenant_id) {
       return;
     }
-    navigateToTenant(tenantId, userTenants);
+    navigateToTenant(tenantId, userTenants ?? []);
   }, [currentUserTenant, userTenants, navigateToTenant]);
 
   return {

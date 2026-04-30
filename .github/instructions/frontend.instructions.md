@@ -16,6 +16,8 @@ description: "Frontend React/TypeScript conventions: components, MUI, forms, per
 - Use auto-generated `api-types.d.ts` — prefer over manual types
 - Migrate `.js`/`.jsx` → `.ts`/`.tsx` when touching files
 - TypeScript strict mode, annotate API responses with generated types
+- No `any` types, no `@ts-ignore` without explanatory comment
+- Props defined via explicit `interface Props` (not inline)
 
 ## MUI & Layout
 
@@ -35,7 +37,7 @@ description: "Frontend React/TypeScript conventions: components, MUI, forms, per
 - Capability: `ability.can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT)`
 - Grant: `ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, resourceId)`
 - Create/Edit: wrap with `<Can I={ACTIONS.MANAGE} a={SUBJECTS.X}>`
-- Delete: `ability.can()` in popover entries `userRight`
+- Delete: `ability.can()` in popover entries
 - New subject → add in `src/utils/permissions/types.ts`
 
 ## i18n
@@ -44,7 +46,8 @@ description: "Frontend React/TypeScript conventions: components, MUI, forms, per
 - Null-check backend strings before `t()` (crashes on null/undefined)
 - Keys = English text: `t('Tenant name')`
 
-## Data Loading
+## Data Loading & State
 
-- Small/medium datasets: Redux store (normalized via normalizr)
-- Large datasets: fetch directly, bypass store
+- **Paginated lists** (new pattern): `useQueryableWithLocalStorage` + `PaginationComponentV2` + `SortHeadersComponentV2`
+- **Feature hook**: `use{Feature}s.ts` with `useState` + `useCallback` for local state (add/update/remove)
+- **Actions**: simple API calls in `actions/{feature}/{feature}-actions.ts` using `simpleCall` / `simplePostCall`

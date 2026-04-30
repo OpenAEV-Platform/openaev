@@ -6,6 +6,7 @@ import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.multitenancy.DependenciesManagerException;
+import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.tenants.TenantService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
@@ -18,7 +19,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/tenants")
 @RequiredArgsConstructor
-public class TenantApi {
+public class TenantApi extends RestBehavior {
 
   private final TenantService tenantService;
 

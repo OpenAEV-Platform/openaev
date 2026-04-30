@@ -338,10 +338,10 @@ public enum Capability {
       pair(ResourceType.INJECTOR, Action.DELETE),
       pair(ResourceType.INJECTOR_CONTRACT, Action.DELETE)),
 
-  // Platform Groups & Roles
-  ACCESS_PLATFORM_GROUPS_AND_ROLES(
+  // Platform Users, Groups & Roles
+  ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES(
       null,
-      CapabilityGroup.PLATFORM_GROUPS_AND_ROLES,
+      CapabilityGroup.PLATFORM_USERS_GROUPS_AND_ROLES,
       EnumSet.of(CapabilityScope.PLATFORM),
       pair(ResourceType.PLATFORM_GROUP, Action.READ),
       pair(ResourceType.PLATFORM_GROUP, Action.SEARCH),
@@ -349,16 +349,16 @@ public enum Capability {
       pair(ResourceType.PLATFORM_ROLE, Action.SEARCH),
       pair(ResourceType.PLATFORM_USER, Action.READ),
       pair(ResourceType.PLATFORM_USER, Action.SEARCH)),
-  MANAGE_PLATFORM_GROUPS_AND_ROLES(
-      ACCESS_PLATFORM_GROUPS_AND_ROLES,
+  MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES(
+      ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES,
       pair(ResourceType.PLATFORM_GROUP, Action.WRITE),
       pair(ResourceType.PLATFORM_GROUP, Action.CREATE),
       pair(ResourceType.PLATFORM_ROLE, Action.WRITE),
       pair(ResourceType.PLATFORM_ROLE, Action.CREATE),
       pair(ResourceType.PLATFORM_USER, Action.WRITE),
       pair(ResourceType.PLATFORM_USER, Action.CREATE)),
-  DELETE_PLATFORM_GROUPS_AND_ROLES(
-      MANAGE_PLATFORM_GROUPS_AND_ROLES,
+  DELETE_PLATFORM_USERS_GROUPS_AND_ROLES(
+      MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES,
       pair(ResourceType.PLATFORM_GROUP, Action.DELETE),
       pair(ResourceType.PLATFORM_ROLE, Action.DELETE),
       pair(ResourceType.PLATFORM_USER, Action.DELETE)),
@@ -469,6 +469,20 @@ public enum Capability {
 
   public static void validateForTenantRole(Set<Capability> capabilities) {
     validateScope(capabilities, CapabilityScope.TENANT);
+  }
+
+  /** Returns all capabilities that include the PLATFORM scope (excluding BYPASS itself). */
+  public static Set<Capability> allPlatformScoped() {
+    return Arrays.stream(values())
+        .filter(c -> c != BYPASS && c.scopes.contains(CapabilityScope.PLATFORM))
+        .collect(Collectors.toUnmodifiableSet());
+  }
+
+  /** Returns all capabilities that include the TENANT scope (excluding BYPASS itself). */
+  public static Set<Capability> allTenantScoped() {
+    return Arrays.stream(values())
+        .filter(c -> c != BYPASS && c.scopes.contains(CapabilityScope.TENANT))
+        .collect(Collectors.toUnmodifiableSet());
   }
 
   private static void validateScope(Set<Capability> capabilities, CapabilityScope requiredScope) {

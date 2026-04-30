@@ -70,10 +70,15 @@ public class PermissionService {
       ResourceType resourceType,
       Action action) {
 
-    Set<Capability> userCapabilities = user.getCapabilities();
+    // admin user bypasses all checks
+    if (user.isAdmin()) {
+      return true;
+    }
 
-    // admin user or capa bypass
-    if (user.isAdminOrBypass()) {
+    // BYPASS scope must match the scope of the requested resource:
+    //  - platform BYPASS  +  platform-scoped resource  → OK
+    //  - tenant   BYPASS  +  tenant-scoped   resource  → OK
+    if (isBypassGranted(user, resourceType, action)) {
       return true;
     }
 
@@ -159,19 +164,41 @@ public class PermissionService {
       @NotNull final User user,
       @NotNull final ResourceType resourceType,
       @NotNull final Action action) {
-    Set<Capability> userCapabilities = user.getCapabilities();
-
-    if (userCapabilities.contains(Capability.BYPASS)) {
-      return true;
-    }
 
     if (isOpenResource(resourceType, action)) {
       return true;
     }
 
-    Capability requiredCapability = Capability.of(resourceType, action).orElse(Capability.BYPASS);
+    if (isBypassGranted(user, resourceType, action)) {
+      return true;
+    }
 
-    return userCapabilities.contains(requiredCapability);
+    Capability requiredCapability = Capability.of(resourceType, action).orElse(Capability.BYPASS);
+    return user.getCapabilities().contains(requiredCapability);
+  }
+
+  /** Checks whether the user's BYPASS capability covers the requested resource scope. */
+  private static boolean isBypassGranted(User user, ResourceType resourceType, Action action) {
+    boolean hasPlatformBypass = user.hasPlatformBypass();
+    boolean hasTenantBypass = user.hasTenantBypass();
+    if (!hasPlatformBypass && !hasTenantBypass) {
+      return false;
+    }
+
+    Capability requiredCapability = Capability.of(resourceType, action).orElse(null);
+    if (requiredCapability == null) {
+      // No mapped capability — any BYPASS is sufficient
+      return true;
+    }
+
+    Set<CapabilityScope> scopes = requiredCapability.getScopes();
+    if (scopes.contains(CapabilityScope.PLATFORM) && hasPlatformBypass) {
+      return true;
+    }
+    if (scopes.contains(CapabilityScope.TENANT) && hasTenantBypass) {
+      return true;
+    }
+    return false;
   }
 
   private Target resolveTarget(

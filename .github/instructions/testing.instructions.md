@@ -45,6 +45,15 @@ description: "Testing conventions: integration tests, unit tests, fixtures, comp
 - `@Component`, extends `ComposerBase<{Entity}>`
 - Call `.reset()` in `@BeforeEach`
 
+## Dual-Scope Entity Tests
+
+For entities with nullable `tenant_id` (Settings, User, Role, Group):
+
+- **Isolation test**: create a platform entity (`tenant_id = null`) and a tenant entity (`tenant_id = X`); verify `PlatformXxxService.list()` returns only platform entries and `TenantXxxService.list(tenantId)` returns only tenant entries
+- **Cross-tenant test**: create entities in tenant A and tenant B; verify `TenantXxxService.list(tenantA)` never returns tenant B data
+- **Create scope test**: verify `PlatformXxxService.create()` always sets `tenant = null`; verify `TenantXxxService.create(tenantId)` always sets `tenant` to a non-null reference
+- Test both APIs independently with appropriate `@WithMockUser` capabilities
+
 ## Frontend Tests (Vitest)
 
 - **File location**: `openaev-front/src/__tests__/`, mirroring the source tree structure (e.g. source `src/utils/foo.ts` → test `src/__tests__/utils/foo.test.ts`)

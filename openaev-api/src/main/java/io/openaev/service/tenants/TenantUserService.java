@@ -11,11 +11,14 @@ import io.openaev.api.users.dto.UserMapper;
 import io.openaev.api.users.dto.UserOutput;
 import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.TenantContext;
+import io.openaev.database.model.Group;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.raw.RawUser;
+import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.database.specification.GroupSpecification;
 import io.openaev.database.specification.UserSpecification;
 import io.openaev.multitenancy.DependenciesManager;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -41,6 +44,7 @@ public class TenantUserService implements DependenciesManager {
   private final UserService userService;
   private final UserRepository userRepository;
   private final TenantRepository tenantRepository;
+  private final GroupRepository groupRepository;
   private final TenantMembershipCacheManager tenantMembershipCacheManager;
   @PersistenceContext private EntityManager entityManager;
 
@@ -53,14 +57,16 @@ public class TenantUserService implements DependenciesManager {
     String tenantId = tenantId();
     var existingUser = userRepository.findByEmailIgnoreCase(input.email());
     if (existingUser.isPresent()) {
-      UserOutput output = UserMapper.toOutput(existingUser.get());
-      attachToTenant(existingUser.get().getId(), tenantId);
-      return output;
+      User user = existingUser.get();
+      attachToTenant(user.getId(), tenantId);
+      assignDefaultTenantGroups(user, tenantId);
+      return UserMapper.toOutput(user);
     }
     User user = userService.createUser(input);
-    UserOutput output = UserMapper.toOutput(user);
     attachToTenant(user.getId(), tenantId);
-    return output;
+    tenantRepository.addUserToTenant(user.getId(), tenantId);
+    assignDefaultTenantGroups(user, tenantId);
+    return UserMapper.toOutput(user);
   }
 
   /** Attaches a user to the specified tenant. Does nothing if already attached. */
@@ -147,5 +153,19 @@ public class TenantUserService implements DependenciesManager {
       throw new IllegalStateException("TenantUserService requires a tenant context");
     }
     return tenantId;
+  }
+
+  private void assignDefaultTenantGroups(User user, String tenantId) {
+    List<Group> defaultGroups =
+        groupRepository.findAll(GroupSpecification.defaultUserAssignableTenant(tenantId));
+    if (defaultGroups.isEmpty()) {
+      return;
+    }
+    for (Group group : defaultGroups) {
+      if (!group.getUsers().contains(user)) {
+        group.getUsers().add(user);
+        groupRepository.save(group);
+      }
+    }
   }
 }

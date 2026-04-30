@@ -3,6 +3,7 @@ package io.openaev.rest.custom_dashboard;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.ResourceType;
@@ -91,7 +92,8 @@ public class CustomDashboardApi extends RestBehavior {
       resourceType = ResourceType.DASHBOARD)
   public ResponseEntity<Void> deleteCustomDashboard(
       @PathVariable @NotBlank final String customDashboardId) {
-    this.customDashboardService.deleteCustomDashboard(customDashboardId);
+    String tenantId = TenantContext.getCurrentTenant();
+    this.customDashboardService.deleteCustomDashboard(tenantId, customDashboardId);
     return ResponseEntity.noContent().build();
   }
 

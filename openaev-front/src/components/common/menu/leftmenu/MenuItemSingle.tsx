@@ -1,10 +1,9 @@
 import { ListItemIcon, ListItemText, MenuItem } from '@mui/material';
 import { type FunctionComponent } from 'react';
-import { useLocation } from 'react-router';
+import { Link, useLocation } from 'react-router';
 
 import { useFormatter } from '../../../i18n';
 import { type LeftMenuItem } from './leftmenu-model';
-import useResolveMenuLink from './menu-link-helper';
 import StyledTooltip from './StyledTooltip';
 import useLeftMenuStyle from './useLeftMenuStyle';
 
@@ -18,7 +17,6 @@ const MenuItemSingle: FunctionComponent<Props> = ({ navOpen, item }) => {
   const { t } = useFormatter();
   const location = useLocation();
   const leftMenuStyle = useLeftMenuStyle();
-  const resolveMenuLink = useResolveMenuLink();
 
   const isCurrentTab = location.pathname === item.path;
 
@@ -26,7 +24,8 @@ const MenuItemSingle: FunctionComponent<Props> = ({ navOpen, item }) => {
     <StyledTooltip title={t(item.label)} placement="right">
       <MenuItem
         aria-label={t(item.label)}
-        {...resolveMenuLink(item.path)}
+        component={Link}
+        to={item.path}
         selected={isCurrentTab}
         dense
         sx={{

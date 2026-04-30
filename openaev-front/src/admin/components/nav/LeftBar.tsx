@@ -32,12 +32,14 @@ import LeftMenu from '../../../components/common/menu/leftmenu/LeftMenu';
 import { type LeftMenuEntries } from '../../../components/common/menu/leftmenu/leftmenu-model';
 import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+import { isFeatureEnabled } from '../../../utils/utils';
 import { GETTING_STARTED_URI } from '../getting_started/GettingStartedRoutes';
-import platformEntries from './config/platform.config';
 import settingsEntries from './config/settings.config';
+import TenantSwitcher from './LeftBarTenantSwitcher';
 
 const LeftBar = () => {
   const ability = useContext(AbilityContext);
+  const isMultiTenancyEnabled = isFeatureEnabled('MULTI_TENANCY');
   const entries: LeftMenuEntries[] = [
     {
       userRight: true,
@@ -219,20 +221,11 @@ const LeftBar = () => {
       ],
     },
   ];
+  const settingsItems = settingsEntries(ability);
   entries.push(
     {
-      userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS),
-      items: [
-        ...settingsEntries(ability),
-      ],
-    },
-  );
-  entries.push(
-    {
-      userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
-      items: [
-        ...platformEntries(ability),
-      ],
+      userRight: settingsItems.some(item => item.userRight),
+      items: settingsItems,
     },
   );
   const bottomEntries = [
@@ -249,7 +242,13 @@ const LeftBar = () => {
     },
   ];
   return (
-    <LeftMenu entries={entries} bottomEntries={bottomEntries} />
+    <LeftMenu
+      entries={entries}
+      bottomEntries={bottomEntries}
+      headerElement={isMultiTenancyEnabled
+        ? (navOpen: boolean) => <TenantSwitcher navOpen={navOpen} />
+        : undefined}
+    />
   );
 };
 
