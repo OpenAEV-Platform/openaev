@@ -566,15 +566,7 @@ class WorkflowServiceTest {
       WorkflowConfigurationInput input = new WorkflowConfigurationInput();
       input.setSafeModeEnabled(true);
       input.setWorkflowScopeRules(WorkflowFixture.getDefaultWorkflowScopeRuleInputList());
-
       // Service now owns the apply logic — no manual mapper call needed
-      WorkflowService service =
-          new WorkflowService(
-              workflowRepository,
-              workflowScopeRuleRepository,
-              scopeVariableRepository,
-              previewFeatureService);
-
       when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
           .thenReturn(Optional.of(workflow));
       when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
@@ -665,12 +657,6 @@ class WorkflowServiceTest {
       WorkflowConfigurationInput input =
           WorkflowConfigurationInput.builder().workflowScopeRules(List.of(ruleInput)).build();
 
-      WorkflowService service =
-          new WorkflowService(
-              workflowRepository,
-              workflowScopeRuleRepository,
-              scopeVariableRepository,
-              previewFeatureService);
       when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
           .thenReturn(Optional.of(workflow));
       when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
@@ -701,10 +687,12 @@ class WorkflowServiceTest {
     void setUp() {
       service =
           new WorkflowService(
+              stepService,
+              previewFeatureService,
               workflowRepository,
               workflowScopeRuleRepository,
               scopeVariableRepository,
-              previewFeatureService);
+              workflowStateService);
     }
 
     private Workflow buildTemplate() {
