@@ -134,9 +134,7 @@ const styles = (theme: any) => ({
     backgroundColor: 'rgb(15, 30, 56)',
     paddingRight: theme.spacing(1),
   },
-  selectedCount: {
-    fontWeight: 'bold',
-  },
+  selectedCount: { fontWeight: 'bold' },
   clearButton: {
     marginLeft: 0,
     padding: theme.spacing(0.5),
@@ -145,19 +143,17 @@ const styles = (theme: any) => ({
     display: 'flex',
     alignItems: 'center',
     marginRight: theme.spacing(2),
-		gap: theme.spacing(0.5),
-		textTransform: 'lowercase',
-		whiteSpace: 'nowrap',
+    gap: theme.spacing(0.5),
+    textTransform: 'lowercase',
+    whiteSpace: 'nowrap',
   },
   infoText: {
-		textTransform: 'lowercase',
-		whiteSpace: 'nowrap',
+    textTransform: 'lowercase',
+    whiteSpace: 'nowrap',
   },
 });
 
-type StyleClasses = {
-  [key: string]: string;
-};
+type StyleClasses = { [key: string]: string };
 
 type ToolBarOwnProps = {
   numberOfSelectedElements: number;
@@ -187,13 +183,9 @@ type DispatchProps = {
   fetchAssetGroups: () => void;
 };
 
-type I18nProps = {
-  t: (key: string, options?: Record<string, unknown>) => string;
-};
+type I18nProps = { t: (key: string, options?: Record<string, unknown>) => string };
 
-type ClassesProps = {
-  classes: StyleClasses;
-};
+type ClassesProps = { classes: StyleClasses };
 
 type ToolBarProps = ToolBarOwnProps & ReduxProps & DispatchProps & I18nProps & ClassesProps;
 
@@ -207,7 +199,7 @@ type ToolBarState = {
   actionsInputs: ToolBarActionInput[];
 };
 
-class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
+export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
   constructor(props: ToolBarProps) {
     super(props);
     this.state = {
@@ -274,9 +266,7 @@ class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
   };
 
   handleAddStep() {
-    this.setState((prevState) => ({
-      actionsInputs: [...prevState.actionsInputs, {}],
-    }));
+    this.setState(prevState => ({ actionsInputs: [...prevState.actionsInputs, {}] }));
   }
 
   handleRemoveStep(i: number) {
@@ -319,7 +309,10 @@ class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
 
   handleChangeActionInputValues(
     i: number,
-    event: { stopPropagation: () => void; preventDefault: () => void } | null,
+    event: {
+      stopPropagation: () => void;
+      preventDefault: () => void;
+    } | null,
     value: ToolBarActionValue[] | ToolBarActionValue | null,
   ) {
     if (event) {
@@ -375,10 +368,10 @@ class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
         variant="standard"
         disabled={disabled}
         value={actionsInputs[i]?.field || ''}
-        onChange={(event) => this.handleChangeActionInput(i, 'field', event as { target: { value: string } })}
+        onChange={event => this.handleChangeActionInput(i, 'field', event as { target: { value: string } })}
       >
         {options.length > 0 ? (
-          options.map((n) => (
+          options.map(n => (
             <MenuItem key={n.value} value={n.value}>
               {n.label}
             </MenuItem>
@@ -416,7 +409,7 @@ class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
             getOptionLabel={(option: ToolBarSelectOption) => (option.label ? option.label : '')}
             value={(actionsInputs[i]?.values as ToolBarSelectOption[]) || []}
             multiple
-            renderInput={(params) => (
+            renderInput={params => (
               <TextField
                 {...params}
                 variant="standard"
@@ -451,7 +444,7 @@ class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
             getOptionLabel={(option: ToolBarSelectOption) => (option.label ? option.label : '')}
             value={(actionsInputs[i]?.values as ToolBarSelectOption[]) || []}
             multiple
-            renderInput={(params) => (
+            renderInput={params => (
               <TextField
                 {...params}
                 variant="standard"
@@ -486,7 +479,7 @@ class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
             getOptionLabel={(option: ToolBarSelectOption) => (option.label ? option.label : '')}
             value={(actionsInputs[i]?.values as ToolBarSelectOption[]) || []}
             multiple
-            renderInput={(params) => (
+            renderInput={params => (
               <TextField
                 {...params}
                 variant="standard"
@@ -517,7 +510,7 @@ class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
             disabled={disabled}
             label={t('Values')}
             fullWidth
-            onChange={(event) => this.handleChangeActionInputValuesReplace(i, event as { target: { value: string } })}
+            onChange={event => this.handleChangeActionInputValuesReplace(i, event as { target: { value: string } })}
           />
         );
     }
@@ -540,12 +533,10 @@ class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
       .filter((action): action is Required<Pick<ToolBarActionInput, 'field' | 'type' | 'values'>> => {
         return Boolean(action?.field && action?.type && action?.values?.length);
       })
-      .map((action) => ({
+      .map(action => ({
         field: action.field as ToolBarBulkUpdateActionInput['field'],
         type: action.type as ToolBarBulkUpdateActionInput['type'],
-        values: action.values.map((value) => ({
-          value: typeof value === 'string' ? value : value.value,
-        })),
+        values: action.values.map(value => ({ value: typeof value === 'string' ? value : value.value })),
       }));
     this.props.handleUpdate?.(updateActions);
   }
@@ -605,7 +596,7 @@ class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
             color="inherit"
           >
             <span className={classes.selectedCount}>
-            {numberOfSelectedElements}
+              {numberOfSelectedElements}
             </span>
             {' '}
             {t('selected').toLowerCase()}
@@ -623,24 +614,24 @@ class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
           {info && (
             <div className={classes.infoWrapper}>
               <InfoOutlined fontSize="small" color="info" />
-              <Typography variant="body2" >
+              <Typography variant="body2">
                 {info.toLowerCase()}
               </Typography>
             </div>
           )}
           {canExport && (
             <Tooltip title={t('Export')}>
-            <span>
-              <IconButton
-                aria-label="export"
-                disabled={numberOfSelectedElements === 0 || this.state.processing}
-                onClick={this.handleOpenExport.bind(this)}
-                color="primary"
-                size="small"
-              >
-                <FileDownloadOutlined fontSize="small" />
-              </IconButton>
-            </span>
+              <span>
+                <IconButton
+                  aria-label="export"
+                  disabled={numberOfSelectedElements === 0 || this.state.processing}
+                  onClick={this.handleOpenExport.bind(this)}
+                  color="primary"
+                  size="small"
+                >
+                  <FileDownloadOutlined fontSize="small" />
+                </IconButton>
+              </span>
             </Tooltip>
           )}
           {canUpdate && (
@@ -688,7 +679,7 @@ class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
               </span>
             </Tooltip>
           )}
-          {toolTasks.map((toolTask) => (
+          {toolTasks.map(toolTask => (
             <Tooltip key={toolTask.type} title={toolTask.title ?? ''}>
               <span>
                 <IconButton
@@ -745,7 +736,7 @@ class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
                         <Select
                           variant="standard"
                           value={actionsInputs[i]?.type || ''}
-                          onChange={(event) => this.handleChangeActionInput(i, 'type', event as { target: { value: string } })}
+                          onChange={event => this.handleChangeActionInput(i, 'type', event as { target: { value: string } })}
                         >
                           <MenuItem value="ADD">{t('Add')}</MenuItem>
                           <MenuItem value="REPLACE">
@@ -820,19 +811,19 @@ class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
 const mapStateToProps = (state: unknown, ownProps: ToolBarOwnProps): ReduxProps => {
   const helper = storeHelper(state as never);
   const endpoints = (helper.getEndpoints().toJS() as ToolBarEndpointInput[])
-    .map((n) => ({
+    .map(n => ({
       label: n.asset_name,
       value: n.asset_id,
     }))
     .sort((a, b) => a.label.localeCompare(b.label));
   const assetGroups = (helper.getAssetGroups().toJS() as ToolBarAssetGroupInput[])
-    .map((n) => ({
+    .map(n => ({
       label: n.asset_group_name,
       value: n.asset_group_id,
     }))
     .sort((a, b) => a.label.localeCompare(b.label));
   const teams = (ownProps.teamsFromExerciseOrScenario ?? [])
-    .map((n) => ({
+    .map(n => ({
       label: n.team_name,
       value: n.team_id,
     }))
@@ -852,4 +843,3 @@ const ConnectedToolBar = connect(mapStateToProps, {
 })(I18nToolBar as ComponentType<unknown>);
 
 export default ConnectedToolBar as ComponentType<ToolBarOwnProps>;
-

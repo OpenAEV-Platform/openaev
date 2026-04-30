@@ -47,7 +47,7 @@ import InjectPopover from './InjectPopover';
 import InjectsListButtons from './InjectsListButtons';
 import UpdateInject from './UpdateInject';
 
-const useStyles = makeStyles()((theme) => ({
+const useStyles = makeStyles()(theme => ({
   disabled: {
     opacity: 0.38,
     pointerEvents: 'none',
@@ -572,9 +572,7 @@ const Injects: FunctionComponent<Props> = ({
           <ListItem
             classes={{ root: classes.itemHead }}
             divider={false}
-            style={{
-              ...(numberOfSelectedElements > 0 ? { backgroundColor: 'rgb(15, 30, 56)', } : {}),
-            }}
+            style={{ ...(numberOfSelectedElements > 0 ? { backgroundColor: 'rgb(15, 30, 56)' } : {}) }}
             {...(numberOfSelectedElements === 0 ? { secondaryAction: <>&nbsp;</> } : {})}
           >
             <ListItemIcon style={{ minWidth: 40 }}>
@@ -586,37 +584,37 @@ const Injects: FunctionComponent<Props> = ({
                 disabled={typeof handleToggleSelectAll !== 'function'}
               />
             </ListItemIcon>
-          {
-            numberOfSelectedElements > 0 ? (
-							<ListItemText
-								primary={(
-									<ToolBar
-										numberOfSelectedElements={numberOfSelectedElements}
-										handleClearSelectedElements={handleClearSelectedElements}
-										teamsFromExerciseOrScenario={teams}
-										handleUpdate={massUpdateInjects}
-										handleBulkDelete={bulkDeleteInjects}
-										handleBulkTest={massTestInjects}
-										handleExport={handleExport}
-										canManage={permissions.canManage}
-									/>
-								)}
-							/>
-            ) : (
-              <>
-                <ListItemIcon />
-              <ListItemText
-                primary={(
-                  <SortHeadersComponentV2
-                    headers={headers}
-                    inlineStylesHeaders={inlineStyles}
-                    sortHelpers={queryableHelpers.sortHelpers}
+            {
+              numberOfSelectedElements > 0 ? (
+                <ListItemText
+                  primary={(
+                    <ToolBar
+                      numberOfSelectedElements={numberOfSelectedElements}
+                      handleClearSelectedElements={handleClearSelectedElements}
+                      teamsFromExerciseOrScenario={teams}
+                      handleUpdate={massUpdateInjects}
+                      handleBulkDelete={bulkDeleteInjects}
+                      handleBulkTest={massTestInjects}
+                      handleExport={handleExport}
+                      canManage={permissions.canManage}
+                    />
+                  )}
+                />
+              ) : (
+                <>
+                  <ListItemIcon />
+                  <ListItemText
+                    primary={(
+                      <SortHeadersComponentV2
+                        headers={headers}
+                        inlineStylesHeaders={inlineStyles}
+                        sortHelpers={queryableHelpers.sortHelpers}
+                      />
+                    )}
                   />
-                )}
-              />
-              </>
-            )
-					}
+                </>
+              )
+            }
 
           </ListItem>
           {loading

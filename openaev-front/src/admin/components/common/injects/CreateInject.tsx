@@ -55,7 +55,10 @@ import InjectCardComponent from './InjectCardComponent';
 import InjectIcon from './InjectIcon';
 
 const useStyles = makeStyles()(theme => ({
-  itemHead: { textTransform: 'uppercase', minHeight: 50 },
+  itemHead: {
+    textTransform: 'uppercase',
+    minHeight: 50,
+  },
   bodyItems: { display: 'flex' },
   bodyItem: {
     fontSize: theme.typography.body2.fontSize,
@@ -507,9 +510,7 @@ const CreateInject: FunctionComponent<Props> = ({
                 <ListItem
                   classes={{ root: classes.itemHead }}
                   divider={false}
-                  style={{
-                    ...(numberOfSelectedElements > 0 ? { backgroundColor: 'rgb(15, 30, 56)'} : {}),
-                  }}
+                  style={{ ...(numberOfSelectedElements > 0 ? { backgroundColor: 'rgb(15, 30, 56)' } : {}) }}
                   {...(numberOfSelectedElements === 0 ? { secondaryAction: <>&nbsp;</> } : {})}
                 >
                   {numberOfSelectedElements > 0 ? (
@@ -517,11 +518,9 @@ const CreateInject: FunctionComponent<Props> = ({
                       <ListItemIcon style={{ minWidth: 40 }} />
                       <ListItemText
                         sx={{
-                          margin: 0,
-                          padding: 0,
-                          '& .MuiTypography-root': {
-                            margin: 0,
-                          },
+                          'margin': 0,
+                          'padding': 0,
+                          '& .MuiTypography-root': { margin: 0 },
                         }}
                         primary={<ToolBar {...createInjectToolBarProps} />}
                       />
