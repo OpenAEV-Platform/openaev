@@ -232,7 +232,7 @@ public class CatalogConnectorIngestionService {
           log.warn("Unknown format '{}', ignoring it", connectorConfigurationFormat);
         }
       } else {
-        log.warn("format is null or empty");
+        log.debug("format is null or empty");
       }
 
       // default
