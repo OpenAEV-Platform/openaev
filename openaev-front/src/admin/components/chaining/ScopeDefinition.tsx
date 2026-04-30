@@ -9,7 +9,7 @@ import {
 } from '../../../actions/chaining/workflow-actions';
 import type { WorkflowConfigurationHelper } from '../../../actions/chaining/workflow-helper';
 import { useHelper } from '../../../store';
-import type { WorkflowConfigurationInput, WorkflowScopeRuleInput } from '../../../utils/api-types';
+import type { ScopeVariableInput, WorkflowConfigurationInput, WorkflowScopeRuleInput } from '../../../utils/api-types';
 import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
 import ScopeRateLimit from './ScopeRateLimit';
@@ -34,6 +34,7 @@ const ScopeDefinition = ({ workflowId }: ScopeDefinitionProps) => {
   });
 
   type WorkflowScopeRuleLike = Partial<WorkflowScopeRuleInput> & { get?: (key: keyof WorkflowScopeRuleInput) => unknown };
+  type ScopeVariableLike = Partial<ScopeVariableInput> & { get?: (key: keyof ScopeVariableInput) => unknown };
 
   const toWorkflowScopeRuleInput = (r: WorkflowScopeRuleLike): WorkflowScopeRuleInput => ({
     workflow_scope_rule_id:
@@ -48,6 +49,14 @@ const ScopeDefinition = ({ workflowId }: ScopeDefinitionProps) => {
             r.workflow_scope_rule_value ?? (r.get?.('workflow_scope_rule_value') as string),
   });
 
+  const toScopeVariableInput = (v: ScopeVariableLike): ScopeVariableInput => ({
+    scope_variable_id: v.scope_variable_id ?? (v.get?.('scope_variable_id') as string | undefined),
+    scope_variable_key: v.scope_variable_key ?? (v.get?.('scope_variable_key') as string) ?? '',
+    scope_variable_type: (v.scope_variable_type ?? v.get?.('scope_variable_type') ?? 'text') as ScopeVariableInput['scope_variable_type'],
+    scope_variable_value: v.scope_variable_value ?? (v.get?.('scope_variable_value') as string | undefined) ?? '',
+    scope_variable_description: v.scope_variable_description ?? (v.get?.('scope_variable_description') as string | undefined),
+  });
+
   const handleUpdate = useCallback((overrides: Partial<WorkflowConfigurationInput>) => {
     const input: WorkflowConfigurationInput = {
       workflow_configuration_timeout_enabled: workflowConfiguration?.workflow_configuration_timeout_enabled,
@@ -60,6 +69,11 @@ const ScopeDefinition = ({ workflowId }: ScopeDefinitionProps) => {
         ? Array.from(
             workflowConfiguration.workflow_scope_rules as Iterable<WorkflowScopeRuleLike>,
           ).map(toWorkflowScopeRuleInput)
+        : [],
+      workflow_scope_variables: workflowConfiguration?.workflow_scope_variables
+        ? Array.from(
+            workflowConfiguration.workflow_scope_variables as Iterable<ScopeVariableLike>,
+          ).map(toScopeVariableInput)
         : [],
       ...overrides,
     };
@@ -80,7 +94,7 @@ const ScopeDefinition = ({ workflowId }: ScopeDefinitionProps) => {
       }}
       >
         <ScopeRules workflowConfiguration={workflowConfiguration} onUpdate={handleUpdate} />
-        <ScopeVariables />
+        <ScopeVariables workflowConfiguration={workflowConfiguration} onUpdate={handleUpdate} />
       </div>
       <div style={{
         display: 'grid',
