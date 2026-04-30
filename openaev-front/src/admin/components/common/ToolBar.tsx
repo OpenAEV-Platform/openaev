@@ -25,6 +25,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
+import { type Theme } from '@mui/material/styles';
 import { SelectGroup } from 'mdi-material-ui';
 import { Component, type ComponentType } from 'react';
 import { connect } from 'react-redux';
@@ -48,7 +49,7 @@ import {
   type ToolBarTeamInput,
 } from '../../../utils/api-types-custom';
 
-const styles = (theme: any) => ({
+const styles = (theme: Theme) => ({
   drawerPaper: {
     minHeight: '100vh',
     width: '50%',
@@ -320,11 +321,12 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
       event.preventDefault();
     }
     const actionsInputs = [...this.state.actionsInputs];
-    const normalizedValues = Array.isArray(value)
-      ? value
-      : value
-        ? [value]
-        : [];
+    let normalizedValues: ToolBarActionValue[] = [];
+    if (Array.isArray(value)) {
+      normalizedValues = value;
+    } else if (value) {
+      normalizedValues = [value];
+    }
     actionsInputs[i] = {
       ...actionsInputs[i],
       values: normalizedValues,
@@ -835,7 +837,7 @@ const mapStateToProps = (state: unknown, ownProps: ToolBarOwnProps): ReduxProps 
   };
 };
 
-const StyledToolBar = withStyles(ToolBarComponent as ComponentType<any>, styles as any);
+const StyledToolBar = withStyles(ToolBarComponent, styles);
 const I18nToolBar = inject18n(StyledToolBar);
 const ConnectedToolBar = connect(mapStateToProps, {
   fetchEndpoints,

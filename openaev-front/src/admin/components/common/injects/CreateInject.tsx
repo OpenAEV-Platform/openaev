@@ -3,6 +3,7 @@ import { Avatar, Checkbox, Chip, IconButton, List, ListItem, ListItemButton, Lis
 import { useTheme } from '@mui/material/styles';
 import { type AxiosResponse } from 'axios';
 import {
+  type ComponentProps,
   type CSSProperties,
   type FunctionComponent,
   type SyntheticEvent,
@@ -362,7 +363,7 @@ const CreateInject: FunctionComponent<Props> = ({
       title: t('Add'),
     },
   ];
-  const createInjectToolBarProps = {
+  const createInjectToolBarProps: ComponentProps<typeof ToolBar> = {
     info: t('Bulk select lets you add multiple injects. They\'ll show as "missing content" until configured'),
     numberOfSelectedElements,
     handleClearSelectedElements,
@@ -371,7 +372,7 @@ const CreateInject: FunctionComponent<Props> = ({
     showUpdate: false,
     showBulkTest: false,
     showBulkDelete: false,
-  } as any;
+  };
 
   let selectedContractKillChainPhase = null;
   if (selectedContract) {
