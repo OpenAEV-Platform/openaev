@@ -49,8 +49,7 @@ public class TenantAwareDataSourceConfig implements BeanPostProcessor {
           } else {
             String tenantId = TenantContext.getCurrentTenant();
             try (PreparedStatement stmt =
-                connection.prepareStatement(
-                    "SELECT set_config('app.current_tenant', ?, false)")) {
+                connection.prepareStatement("SELECT set_config('app.current_tenant', ?, false)")) {
               stmt.setString(1, tenantId);
               stmt.execute();
             }
