@@ -1,6 +1,5 @@
 package io.openaev.api.stix_process;
 
-import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.RBAC;
 import io.openaev.database.model.Action;
@@ -90,17 +89,6 @@ public class StixApi extends RestBehavior {
       // here we explicitly return a status of HTTP 200 OK
       // it's a silent error
       return ResponseEntity.status(HttpStatus.OK).build();
-    } catch (JsonParseException e) {
-      log.error(
-          "Input STIX bundle is malformed (workId={}). ctiEvent={}",
-          ctiEvent.getInternal().getWorkId(),
-          ctiEvent,
-          e);
-      openCTIService.acknowledgeProcessedOfCoverage(
-          ctiEvent.getInternal().getWorkId(),
-          "Input STIX bundle is malformed: %s".formatted(e.getMessage()),
-          true);
-      return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
     } catch (Exception e) {
       log.error(
           "An error occurred while processing STIX bundle (workId={}). ctiEvent={}",
