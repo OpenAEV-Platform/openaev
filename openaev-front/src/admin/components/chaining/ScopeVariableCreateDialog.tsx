@@ -1,3 +1,4 @@
+import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Button,
   Dialog,
@@ -8,12 +9,14 @@ import {
 import { useTheme } from '@mui/material/styles';
 import { useMemo } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
+import { z } from 'zod';
 
 import Transition from '../../../components/common/Transition';
 import SelectFieldController from '../../../components/fields/SelectFieldController';
 import TextFieldController from '../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../components/i18n';
 import type { ScopeVariableInput } from '../../../utils/api-types';
+import { zodImplement } from '../../../utils/Zod';
 import useArgumentTypes from '../threat_arsenal/form/useArgumentTypes';
 
 interface ScopeVariableCreateDialogProps {
@@ -38,7 +41,27 @@ const ScopeVariableCreateDialog = ({ open, onClose, onSubmit }: ScopeVariableCre
     [argumentTypes, t],
   );
 
+  const scopeVariableTypes = useMemo(
+    () => argumentTypes.map(at => at.argument_type) as [ScopeVariableInput['scope_variable_type'], ...ScopeVariableInput['scope_variable_type'][]],
+    [argumentTypes],
+  );
+
+  const schema = useMemo(
+    () => zodImplement<VariableFormValues>().with({
+      scope_variable_key: z.string().min(1, { message: t('Key is required') }),
+      scope_variable_type: z.enum(
+        scopeVariableTypes.length > 0 ? scopeVariableTypes : ['text'],
+        { message: t('Type is required') },
+      ),
+      scope_variable_value: z.string().min(1, { message: t('Value is required') }),
+      scope_variable_description: z.string().optional(),
+    }),
+    [t, scopeVariableTypes],
+  );
+
   const methods = useForm<VariableFormValues>({
+    mode: 'onTouched',
+    resolver: zodResolver(schema),
     defaultValues: {
       scope_variable_key: '',
       scope_variable_type: 'text',
@@ -50,7 +73,6 @@ const ScopeVariableCreateDialog = ({ open, onClose, onSubmit }: ScopeVariableCre
   const {
     handleSubmit,
     reset,
-    setError,
     formState: { isDirty, isSubmitting },
   } = methods;
 
@@ -60,36 +82,10 @@ const ScopeVariableCreateDialog = ({ open, onClose, onSubmit }: ScopeVariableCre
   };
 
   const handleFormSubmit = (data: VariableFormValues) => {
-    const key = data.scope_variable_key?.trim() ?? '';
-    const value = data.scope_variable_value?.trim() ?? '';
-    const type = data.scope_variable_type;
-
-    if (!key) {
-      setError('scope_variable_key', {
-        type: 'required',
-        message: t('Key is required'),
-      });
-      return;
-    }
-    if (!type) {
-      setError('scope_variable_type', {
-        type: 'required',
-        message: t('Type is required'),
-      });
-      return;
-    }
-    if (!value) {
-      setError('scope_variable_value', {
-        type: 'required',
-        message: t('Value is required'),
-      });
-      return;
-    }
-
     onSubmit({
       ...data,
-      scope_variable_key: key,
-      scope_variable_value: value,
+      scope_variable_key: data.scope_variable_key.trim(),
+      scope_variable_value: data.scope_variable_value.trim(),
     });
     handleClose();
   };
