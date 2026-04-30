@@ -1,11 +1,13 @@
 package io.openaev.telemetry.metric_collectors;
 
-import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.api.metrics.ObservableDoubleGauge;
+import io.opentelemetry.api.metrics.ObservableLongCounter;
+import io.opentelemetry.api.metrics.ObservableLongMeasurement;
 import jakarta.annotation.PreDestroy;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Lazy;
@@ -14,18 +16,20 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class MetricRegistry {
+
   @Lazy private final Meter meter;
   private final List<ObservableDoubleGauge> activeGauges = new ArrayList<>();
+  private final List<ObservableLongCounter> activeCounters = new ArrayList<>();
 
   @PreDestroy
   private void destroy() {
-    if (!activeGauges.isEmpty()) {
-      activeGauges.forEach(ObservableDoubleGauge::close);
-    }
+    activeGauges.forEach(ObservableDoubleGauge::close);
+    activeCounters.forEach(ObservableLongCounter::close);
   }
 
   // -- Gauge Registration --
 
+  /** Registers a gauge that reports a single snapshot value polled at export time. */
   public void registerGauge(
       String name, String description, Supplier<Long> valueSupplier, String unit) {
     activeGauges.add(
@@ -42,9 +46,19 @@ public class MetricRegistry {
     registerGauge(name, description, valueSupplier, "count");
   }
 
-  // -- Counter Registration --
+  // --  Counter Registration --
 
-  public LongCounter registerCounter(String name, String description, String unit) {
-    return meter.counterBuilder(name).setDescription(description).setUnit(unit).build();
+  /**
+   * Registers a dimensional observable counter. Can report multiple attribute combinations via
+   * {@code measurement.record(value, attrs)}.
+   */
+  public void registerObservableCounter(
+      String name, String description, Consumer<ObservableLongMeasurement> callback, String unit) {
+    activeCounters.add(
+        meter
+            .counterBuilder(name)
+            .setDescription(description)
+            .setUnit(unit)
+            .buildWithCallback(callback));
   }
 }
