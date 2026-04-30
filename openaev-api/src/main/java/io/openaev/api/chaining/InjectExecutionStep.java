@@ -299,9 +299,9 @@ public class InjectExecutionStep implements ActionStep {
   private Map<String, List<String>> extractDataFromParsed(List<Map<String, JsonElement>> output) {
     Map<String, List<String>> result = new HashMap<>();
 
-    for (Map<String, JsonElement> entry : output) {
-      if (entry.containsKey("parsed")) {
-        try {
+    try {
+      for (Map<String, JsonElement> entry : output) {
+        if (entry.containsKey("parsed")) {
           JsonObject parsed = entry.get("parsed").getAsJsonObject();
           if (parsed.has("_children")) {
             JsonObject children = parsed.getAsJsonObject("_children");
@@ -315,10 +315,11 @@ public class InjectExecutionStep implements ActionStep {
               }
             }
           }
-        } catch (Exception e) {
-          log.error("Failed to parse structured output for syncState", e);
         }
       }
+    } catch (Exception e) {
+      log.error("Failed to parse structured output for synchronize global State", e);
+      return Collections.emptyMap();
     }
     return result;
   }
