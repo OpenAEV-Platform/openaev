@@ -11,6 +11,12 @@ description: >
   OPENAEV_ADMIN_ENCRYPTION_KEY, OPENAEV_ADMIN_ENCRYPTION_SALT,
   SPRING_PROFILES_ACTIVE, GH_TOKEN.
 
+inputs:
+  is-pr:
+    description: "Whether this run is triggered by a pull request (true/false)."
+    required: false
+    default: "false"
+
 runs:
   using: composite
   steps:
@@ -195,7 +201,12 @@ runs:
         }
         echo "✅ Application is ready (HTTP 200)"
     - name: Run E2E tests
-      run: yarn test:e2e
+      run: |
+        if [ "${{ inputs.is-pr }}" = "true" ]; then
+          yarn playwright test
+        else
+          yarn playwright test --config playwright.push.config.ts
+        fi
       shell: bash
       working-directory: openaev-front
       env:

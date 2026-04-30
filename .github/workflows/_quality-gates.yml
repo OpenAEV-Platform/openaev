@@ -13,6 +13,10 @@ name: "Quality Gates"
 on:
   workflow_call:
     inputs:
+      is-pr:
+        description: "Whether this run is triggered by a pull request (true/false)."
+        type: boolean
+        default: false
       upload-codecov:
         description: "Upload coverage reports to Codecov and save artifacts"
         type: boolean
@@ -133,6 +137,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/e2e-tests
+        with:
+          is-pr: ${{ inputs.is-pr }}
 
   codecov:
     name: "📊 Coverage Merge & Upload"
