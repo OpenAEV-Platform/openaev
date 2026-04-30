@@ -21,6 +21,7 @@ public class ManagerIntegrationsSyncJob implements Job {
   @Override
   @Transactional(rollbackFor = Exception.class)
   @LogExecutionTime
+  @io.openaev.aop.BypassRls
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
     try {
       managerFactory.getManager().monitorIntegrations();

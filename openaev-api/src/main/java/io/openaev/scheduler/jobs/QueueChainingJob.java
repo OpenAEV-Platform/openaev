@@ -23,6 +23,7 @@ public class QueueChainingJob implements Job {
 
   /** Periodically processes the next eligible step from the delay queue. */
   @Override
+  @io.openaev.aop.BypassRls
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
     // Retrieve and delete the next delayed step whose goal time is reached
     List<StepDelayQueue> stepsDelayQueue = stepDelayQueueService.popNextToProcess();

@@ -27,6 +27,7 @@ public class EngineSyncExecutionJob implements Job {
   @Override
   @Transactional(rollbackFor = Exception.class)
   @LogExecutionTime
+  @io.openaev.aop.BypassRls
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
     List<EsModel<EsBase>> models = engineContext.getModels();
     log.info("Executing bulk parallel processing for {} models", models.size());

@@ -30,6 +30,7 @@ public class SecurityCoverageJob implements Job {
   @Override
   @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
   @LogExecutionTime
+  @io.openaev.aop.BypassRls
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
     List<SecurityCoverageSendJob> jobs =
         securityCoverageSendJobService.getPendingSecurityCoverageSendJobs();

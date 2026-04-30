@@ -20,6 +20,7 @@ public class ExecutionTracesBatchRequeueJob implements Job {
   private final BatchingInjectStatusService batchingInjectStatusService;
 
   @Override
+  @io.openaev.aop.BypassRls
   public void execute(JobExecutionContext context) throws JobExecutionException {
     try {
       batchingInjectStatusService.requeueCallbacks();

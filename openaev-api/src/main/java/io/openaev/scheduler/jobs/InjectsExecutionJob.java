@@ -9,6 +9,7 @@ import static java.util.stream.Collectors.groupingBy;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.InjectDependenciesRepository;
@@ -378,6 +379,7 @@ public class InjectsExecutionJob implements Job {
 
   @Override
   @LogExecutionTime
+  @io.openaev.aop.BypassRls
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
     try {
       // Handle starting exercises if needed.
@@ -423,21 +425,29 @@ public class InjectsExecutionJob implements Job {
       byExercises.entrySet().parallelStream()
           .forEach(
               (entry) -> {
-                // Execute each inject for the exercise in order.
-                entry.getValue().parallelStream()
-                    .forEach(
-                        executableInject -> {
-                          try {
-                            this.executeInject(executableInject);
-                          } catch (Exception e) {
-                            Inject inject = executableInject.getInjection().getInject();
-                            log.warn(e.getMessage(), e);
-                            injectStatusService.failInjectStatus(inject.getId(), e.getMessage());
-                          }
-                        });
-                // Update the exercise
-                if (!entry.getKey().equals("atomic")) {
-                  updateExercise(entry.getKey());
+                TenantContext.setRlsBypass();
+                try {
+                  // Execute each inject for the exercise in order.
+                  entry.getValue().parallelStream()
+                      .forEach(
+                          executableInject -> {
+                            TenantContext.setRlsBypass();
+                            try {
+                              this.executeInject(executableInject);
+                            } catch (Exception e) {
+                              Inject inject = executableInject.getInjection().getInject();
+                              log.warn(e.getMessage(), e);
+                              injectStatusService.failInjectStatus(inject.getId(), e.getMessage());
+                            } finally {
+                              TenantContext.clearRlsBypass();
+                            }
+                          });
+                  // Update the exercise
+                  if (!entry.getKey().equals("atomic")) {
+                    updateExercise(entry.getKey());
+                  }
+                } finally {
+                  TenantContext.clearRlsBypass();
                 }
               });
       // Change status of finished simulations.
