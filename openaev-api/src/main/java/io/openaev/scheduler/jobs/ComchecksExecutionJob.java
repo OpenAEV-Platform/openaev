@@ -9,6 +9,7 @@ import static java.util.stream.Collectors.groupingBy;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.aop.BypassRls;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.*;
@@ -76,7 +77,7 @@ public class ComchecksExecutionJob implements Job {
   @Override
   @Transactional
   @LogExecutionTime
-  @io.openaev.aop.BypassRls
+  @BypassRls
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
     Instant now = now();
     try {

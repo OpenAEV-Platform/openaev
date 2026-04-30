@@ -8,6 +8,7 @@ import static java.util.stream.Collectors.groupingBy;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
+import io.openaev.aop.BypassRls;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
@@ -379,7 +380,7 @@ public class InjectsExecutionJob implements Job {
 
   @Override
   @LogExecutionTime
-  @io.openaev.aop.BypassRls
+  @BypassRls
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
     try {
       // Handle starting exercises if needed.
