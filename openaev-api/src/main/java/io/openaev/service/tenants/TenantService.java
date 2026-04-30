@@ -46,11 +46,9 @@ public class TenantService {
 
     Tenant createdTenant = tenantRepository.save(tenant);
 
-    //    When you create a tenant, you're already inside a transaction with a DB connection that
-    // was checked out before the
-    //    new tenant existed. The connection's app.current_tenant is still set to the previous
-    // tenant (likely the
-    //    default/platform tenant).
+    // When you create a tenant, you're already inside a transaction with a DB connection that
+    // was checked out before the new tenant existed. The connection's app.current_tenant is
+    // still set to the previous tenant (likely the default/platform tenant).
     //    After tenantRepository.save(tenant), you need to insert tenant-scoped dependencies
     // (domains, roles, etc.)
     //    into that new tenant. But if RLS is active, those INSERTs would fail or go to the wrong

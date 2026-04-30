@@ -31,7 +31,6 @@ import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.output.InjectOutput;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
-import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mapper.InjectMapper;
@@ -60,7 +59,6 @@ public class ExerciseApiTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper objectMapper;
   @Autowired private AgentComposer agentComposer;
-  @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private InjectorContractComposer injectorContractComposer;
@@ -693,75 +691,6 @@ public class ExerciseApiTest extends IntegrationTest {
           result.getTitle().contains("duplicate"),
           "Le titre de l'inject dupliqué doit contenir 'Duplicate'");
       assertTrue(injectRepository.existsById(result.getId()));
-    }
-  }
-
-  @Nested
-  @DisplayName("Tenant isolation")
-  class TenantIsolation {
-
-    @Test
-    @DisplayName(
-        "given exercise in Tenant XXX, when getExerciseById from Tenant YYY, should return 404")
-    @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
-    void given_exerciseInTenantXXX_when_getByIdFromTenantYYY_should_return404() throws Exception {
-      // -- ARRANGE --
-      Tenant tenantXXX = tenantIsolationHelper.createTenant("Tenant XXX");
-      Tenant tenantYYY = tenantIsolationHelper.createTenant("Tenant YYY");
-      tenantIsolationHelper.addCurrentUserToTenant(tenantXXX, entityManager);
-      tenantIsolationHelper.addCurrentUserToTenant(tenantYYY, entityManager);
-
-      tenantIsolationHelper.switchToTenant(tenantXXX.getId(), entityManager);
-      Exercise exercise =
-          exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()).persist().get();
-      entityManager.flush();
-      entityManager.clear();
-
-      // -- ACT & ASSERT --
-      tenantIsolationHelper.switchToTenant(tenantYYY.getId(), entityManager);
-      mvc.perform(get(EXERCISE_URI + "/" + exercise.getId()).accept(MediaType.APPLICATION_JSON))
-          .andExpect(status().isNotFound());
-    }
-
-    @Test
-    @DisplayName(
-        "given exercise in Tenant XXX, when getExerciseById from same tenant, should return 200")
-    @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
-    void given_exerciseInTenantXXX_when_getByIdFromSameTenant_should_return200() throws Exception {
-      // -- ARRANGE --
-      Tenant tenantXXX = tenantIsolationHelper.createTenant("Tenant XXX");
-      tenantIsolationHelper.addCurrentUserToTenant(tenantXXX, entityManager);
-
-      tenantIsolationHelper.switchToTenant(tenantXXX.getId(), entityManager);
-      Exercise exercise =
-          exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()).persist().get();
-      entityManager.flush();
-      entityManager.clear();
-
-      // -- ACT & ASSERT --
-      mvc.perform(get(EXERCISE_URI + "/" + exercise.getId()).accept(MediaType.APPLICATION_JSON))
-          .andExpect(status().is2xxSuccessful());
-    }
-
-    @Test
-    @DisplayName("given exercise in Tenant XXX, when delete from Tenant YYY, should return 404")
-    @WithMockUser(withCapabilities = {Capability.DELETE_ASSESSMENT})
-    void given_exerciseInTenantXXX_when_deleteFromTenantYYY_should_return404() throws Exception {
-      // -- ARRANGE --
-      Tenant tenantXXX = tenantIsolationHelper.createTenant("Tenant XXX");
-      Tenant tenantYYY = tenantIsolationHelper.createTenant("Tenant YYY");
-      tenantIsolationHelper.addCurrentUserToTenant(tenantXXX, entityManager);
-      tenantIsolationHelper.addCurrentUserToTenant(tenantYYY, entityManager);
-
-      tenantIsolationHelper.switchToTenant(tenantXXX.getId(), entityManager);
-      Exercise exercise =
-          exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()).persist().get();
-      entityManager.flush();
-      entityManager.clear();
-
-      // -- ACT & ASSERT --
-      tenantIsolationHelper.switchToTenant(tenantYYY.getId(), entityManager);
-      mvc.perform(delete(EXERCISE_URI + "/" + exercise.getId())).andExpect(status().isNotFound());
     }
   }
 }

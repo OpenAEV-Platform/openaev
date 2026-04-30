@@ -15,9 +15,9 @@ import org.springframework.test.context.support.AbstractTestExecutionListener;
  * Test listener that enables or disables PostgreSQL Row-Level Security on all tenant-scoped tables
  * at test startup, based on the property {@code openaev.rls.enabled}.
  *
- * <p>Usage: set {@code openaev.rls.enabled=false} in test properties (or via
- * {@code -Dopenaev.rls.enabled=false}) to disable RLS. When RLS is disabled, tenant isolation tests
- * should fail — proving they actually depend on RLS.
+ * <p>Usage: set {@code openaev.rls.enabled=false} in test properties (or via {@code
+ * -Dopenaev.rls.enabled=false}) to disable RLS. When RLS is disabled, tenant isolation tests should
+ * fail — proving they actually depend on RLS.
  *
  * <p>Default: {@code true} (RLS enabled).
  *
@@ -72,6 +72,3 @@ public class RlsToggleTestListener extends AbstractTestExecutionListener {
     }
   }
 }
-
-
-

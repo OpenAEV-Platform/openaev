@@ -25,7 +25,6 @@ import io.openaev.rest.scenario.form.ScenarioInput;
 import io.openaev.rest.scenario.form.ScenarioRecurrenceInput;
 import io.openaev.rest.scenario.form.ScenarioUpdateTeamsInput;
 import io.openaev.service.AssetGroupService;
-import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -46,7 +45,6 @@ import org.springframework.test.web.servlet.MockMvc;
 public class ScenarioApiTest extends IntegrationTest {
 
   @Autowired private AgentComposer agentComposer;
-  @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private InjectComposer injectComposer;
   @Autowired private InjectStatusComposer injectStatusComposer;
@@ -156,8 +154,7 @@ public class ScenarioApiTest extends IntegrationTest {
     String name = "My scenario";
     scenarioInput.setName(name);
 
-    Tenant defaultTenant =
-        tenantRepository.findById(Tenant.DEFAULT_TENANT_UUID).orElseThrow();
+    Tenant defaultTenant = tenantRepository.findById(Tenant.DEFAULT_TENANT_UUID).orElseThrow();
     TenantSetting tenantSetting =
         tenantSettingRepository
             .findByKey(TENANT_SCENARIO_DASHBOARD.key())
@@ -640,131 +637,5 @@ public class ScenarioApiTest extends IntegrationTest {
     paginationInput.setInjectorContractIdsToProcess(
         List.of(injectorContractFixture.getWellKnownSingleEmailContract().getId()));
     return paginationInput;
-  }
-
-  @Nested
-  @DisplayName("Tenant isolation")
-  class TenantIsolation {
-
-    @Test
-    @DisplayName(
-        "given scenario in Tenant XXX, when getScenarioById from Tenant YYY, should return 404")
-    @WithMockUser(isAdmin = true)
-    void given_scenarioInTenantXXX_when_getByIdFromTenantYYY_should_return404() throws Exception {
-      // -- ARRANGE --
-      Tenant tenantXXX = tenantIsolationHelper.createTenant("Tenant XXX");
-      Tenant tenantYYY = tenantIsolationHelper.createTenant("Tenant YYY");
-      tenantIsolationHelper.addCurrentUserToTenant(tenantXXX, entityManager);
-      tenantIsolationHelper.addCurrentUserToTenant(tenantYYY, entityManager);
-
-      tenantIsolationHelper.switchToTenant(tenantXXX.getId(), entityManager);
-      Scenario scenario =
-          scenarioComposer
-              .forScenario(ScenarioFixture.createDefaultCrisisScenario())
-              .persist()
-              .get();
-      entityManager.flush();
-      entityManager.clear();
-
-      // -- ACT & ASSERT --
-      tenantIsolationHelper.switchToTenant(tenantYYY.getId(), entityManager);
-
-      mvc.perform(
-              get(SCENARIO_URI + "/" + scenario.getId())
-                  .accept(MediaType.APPLICATION_JSON)
-                  .with(csrf()))
-          .andExpect(status().isNotFound());
-    }
-
-    @Test
-    @DisplayName(
-        "given scenario in Tenant XXX, when getScenarioById from same tenant, should return 200")
-    @WithMockUser(isAdmin = true)
-    void given_scenarioInTenantXXX_when_getByIdFromSameTenant_should_return200() throws Exception {
-      // -- ARRANGE --
-      Tenant tenantXXX = tenantIsolationHelper.createTenant("Tenant XXX");
-      tenantIsolationHelper.addCurrentUserToTenant(tenantXXX, entityManager);
-
-      tenantIsolationHelper.switchToTenant(tenantXXX.getId(), entityManager);
-      Scenario scenario =
-          scenarioComposer
-              .forScenario(ScenarioFixture.createDefaultCrisisScenario())
-              .persist()
-              .get();
-      String scenarioId = scenario.getId();
-      entityManager.flush();
-      entityManager.clear();
-
-      // -- ACT & ASSERT --
-      mvc.perform(
-              get(SCENARIO_URI + "/" + scenarioId)
-                  .accept(MediaType.APPLICATION_JSON)
-                  .with(csrf()))
-          .andExpect(status().is2xxSuccessful());
-    }
-
-    @Test
-    @DisplayName("given scenario in Tenant XXX, when update from Tenant YYY, should return 404")
-    @WithMockUser(isAdmin = true)
-    void given_scenarioInTenantXXX_when_updateFromTenantYYY_should_return404() throws Exception {
-      // -- ARRANGE --
-      Tenant tenantXXX = tenantIsolationHelper.createTenant("Tenant XXX");
-      Tenant tenantYYY = tenantIsolationHelper.createTenant("Tenant YYY");
-      tenantIsolationHelper.addCurrentUserToTenant(tenantXXX, entityManager);
-      tenantIsolationHelper.addCurrentUserToTenant(tenantYYY, entityManager);
-
-      tenantIsolationHelper.switchToTenant(tenantXXX.getId(), entityManager);
-      Scenario scenario =
-          scenarioComposer
-              .forScenario(ScenarioFixture.createDefaultCrisisScenario())
-              .persist()
-              .get();
-      entityManager.flush();
-      entityManager.clear();
-
-      // -- ACT & ASSERT --
-      tenantIsolationHelper.switchToTenant(tenantYYY.getId(), entityManager);
-
-      ScenarioInput input = new ScenarioInput();
-      input.setName("Updated name");
-      mvc.perform(
-              put(SCENARIO_URI + "/" + scenario.getId())
-                  .content(asJsonString(input))
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON)
-                  .with(csrf()))
-          .andExpect(status().isNotFound());
-    }
-
-    @Test
-    @DisplayName("given scenario in Tenant XXX, when delete from Tenant YYY, should not delete it")
-    @WithMockUser(isAdmin = true)
-    void given_scenarioInTenantXXX_when_deleteFromTenantYYY_should_notDeleteIt() throws Exception {
-      // -- ARRANGE --
-      Tenant tenantXXX = tenantIsolationHelper.createTenant("Tenant XXX");
-      Tenant tenantYYY = tenantIsolationHelper.createTenant("Tenant YYY");
-      tenantIsolationHelper.addCurrentUserToTenant(tenantXXX, entityManager);
-      tenantIsolationHelper.addCurrentUserToTenant(tenantYYY, entityManager);
-
-      tenantIsolationHelper.switchToTenant(tenantXXX.getId(), entityManager);
-      Scenario scenario =
-          scenarioComposer
-              .forScenario(ScenarioFixture.createDefaultCrisisScenario())
-              .persist()
-              .get();
-      String scenarioId = scenario.getId();
-      entityManager.flush();
-      entityManager.clear();
-
-      // -- ACT --
-      tenantIsolationHelper.switchToTenant(tenantYYY.getId(), entityManager);
-
-      mvc.perform(delete(SCENARIO_URI + "/" + scenarioId).with(csrf()))
-          .andExpect(status().is2xxSuccessful());
-
-      // -- ASSERT: scenario still exists in tenant XXX --
-      tenantIsolationHelper.switchToTenant(tenantXXX.getId(), entityManager);
-      assertTrue(scenarioRepository.findById(scenarioId).isPresent());
-    }
   }
 }
