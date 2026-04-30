@@ -1,7 +1,7 @@
 import type { Dispatch } from 'redux';
 
 import { getReferential, putReferential, simpleCall, simpleDelCall, simplePostCall, simplePutCall } from '../../utils/Action';
-import type { WorkflowConfigurationInput, InjectInput } from '../../utils/api-types';
+import type { WorkflowConfigurationInput, WorkflowScopeRuleInput, InjectInput } from '../../utils/api-types';
 import type { Workflow, WorkflowStep, WorkflowCondition } from '../../utils/api-types-custom';
 import workflowConfigurationSchema from './workflow-schema';
 
@@ -47,6 +47,7 @@ interface StepOutputDTO {
   step_status: string;
   step_condition_key_types: string[];
   step_data: Record<string, unknown> | null;
+  step_output_parser?: string;
   step_created_at: string;
   step_updated_at: string;
 }
@@ -58,6 +59,7 @@ interface EventOutputDTO {
   event_description?: string;
   event_workflow_id: string;
   event_conditions: ConditionOutputDTO[];
+  event_linked_step_ids?: string[];
   event_created_at: string;
   event_updated_at: string;
 }
@@ -70,7 +72,9 @@ interface ConditionOutputDTO {
   condition_parent_id?: string;
   condition_key_type?: string;
   condition_key_subtype?: string;
+  condition_key?: string;
   condition_mapping_type?: string;
+  condition_step_from?: string;
 }
 
 // -- Workflow configuration (Redux) --
@@ -138,8 +142,11 @@ const mapConditionsForSteps = (events: EventOutputDTO[]): WorkflowCondition[] =>
         conditions.push({
           condition_id: c.condition_id,
           condition_type: c.condition_type as WorkflowCondition['condition_type'],
+          condition_key: c.condition_key_type,
+          condition_field: c.condition_key,
           condition_value: c.condition_value,
           condition_parent_id: c.condition_parent_id,
+          step_from_id: c.condition_step_from,
         });
       }
     }
@@ -148,17 +155,33 @@ const mapConditionsForSteps = (events: EventOutputDTO[]): WorkflowCondition[] =>
 };
 
 /** Convert StepOutputDTOs into WorkflowStep view models (action nodes) */
-const mapActionSteps = (steps: StepOutputDTO[], allConditions: WorkflowCondition[]): WorkflowStep[] => {
-  return steps.map((s) => ({
-    step_id: s.step_id,
-    step_action_class: 'INJECT_EXECUTION' as const,
-    step_data: s.step_data ? JSON.stringify(s.step_data) : undefined,
-    step_limit_execution: 1,
-    step_status: s.step_status as WorkflowStep['step_status'],
-    step_created_at: s.step_created_at,
-    step_updated_at: s.step_updated_at,
-    step_conditions: allConditions.filter((c) => c.step_from_id === s.step_id),
-  }));
+const mapActionSteps = (
+  steps: StepOutputDTO[],
+  allConditions: WorkflowCondition[],
+  eventLinksByStepId: Map<string, string[]>,
+): WorkflowStep[] => {
+  return steps.map((s) => {
+    // Synthetic DEPEND_ON conditions from the event→step join table
+    const eventLinks: WorkflowCondition[] = (eventLinksByStepId.get(s.step_id) ?? []).map((eventId) => ({
+      condition_id: `link-${eventId}-${s.step_id}`,
+      condition_type: 'DEPEND_ON' as const,
+      step_from_id: eventId,
+    }));
+    return {
+      step_id: s.step_id,
+      step_action_class: 'INJECT_EXECUTION' as const,
+      step_data: s.step_data ? JSON.stringify(s.step_data) : undefined,
+      step_output_parser: s.step_output_parser,
+      step_limit_execution: 1,
+      step_status: s.step_status as WorkflowStep['step_status'],
+      step_created_at: s.step_created_at,
+      step_updated_at: s.step_updated_at,
+      step_conditions: [
+        ...allConditions.filter((c) => c.step_from_id === s.step_id),
+        ...eventLinks,
+      ],
+    };
+  });
 };
 
 /** Convert EventOutputDTOs into WorkflowStep view models (event nodes) */
@@ -177,10 +200,33 @@ const mapEventSteps = (events: EventOutputDTO[]): WorkflowStep[] => {
     step_conditions: (e.event_conditions ?? []).map((c) => ({
       condition_id: c.condition_id,
       condition_type: c.condition_type as WorkflowCondition['condition_type'],
+      condition_key: c.condition_key_type,
+      condition_field: c.condition_key,
       condition_value: c.condition_value,
       condition_parent_id: c.condition_parent_id,
     })),
   }));
+};
+
+// -- Scope (direct API, no Redux) --
+
+export const fetchWorkflowConfig = async (workflowId: string) => {
+  const response = await simpleCall(`${WORKFLOW_URI}/${workflowId}/workflow-configuration`);
+  return response.data;
+};
+
+export const updateWorkflowScopeRules = async (
+  workflowId: string,
+  scopeRules: WorkflowScopeRuleInput[],
+  timeoutSeconds: number,
+) => {
+  const data: WorkflowConfigurationInput = {
+    workflow_scope_rules: scopeRules,
+    workflow_configuration_timeout_seconds: timeoutSeconds,
+    workflow_configuration_timeout_enabled: true,
+  };
+  const response = await simplePutCall(`${WORKFLOW_URI}/${workflowId}/workflow-configuration`, data);
+  return response.data;
 };
 
 export const fetchWorkflow = async (workflowId: string): Promise<Workflow> => {
@@ -193,8 +239,20 @@ export const fetchWorkflow = async (workflowId: string): Promise<Workflow> => {
   const configData = configResponse.data;
   const allConditions = mapConditionsForSteps(conditionsResult);
 
+  // Build a map: stepId → [eventIds] from the join-table links returned by the API
+  const eventLinksByStepId = new Map<string, string[]>();
+  for (const event of conditionsResult) {
+    if (event.event_linked_step_ids) {
+      for (const stepId of event.event_linked_step_ids) {
+        const existing = eventLinksByStepId.get(stepId) ?? [];
+        existing.push(event.event_id);
+        eventLinksByStepId.set(stepId, existing);
+      }
+    }
+  }
+
   // Merge action steps and event steps into a single array for the UI
-  const actionSteps = mapActionSteps(stepsResult, allConditions);
+  const actionSteps = mapActionSteps(stepsResult, allConditions, eventLinksByStepId);
   const eventSteps = mapEventSteps(conditionsResult);
 
   return {

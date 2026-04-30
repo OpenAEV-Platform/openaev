@@ -97,8 +97,7 @@ public class InjectExecutionStep implements ActionStep {
           "New step (TEMPLATE): Error processing Inject. Workflow has no simulation or scenario");
 
     String input = stepInputFromConditionMapper(newStep.getConditions());
-    // TODO: get outputParser
-    String outputParser = this.stepOutputParser("");
+    String outputParser = this.stepOutputParser(newStep);
     Step stepTemplate =
         Step.builder()
             .data(data)
@@ -375,17 +374,64 @@ public class InjectExecutionStep implements ActionStep {
   }
 
   /**
-   * Returns the active output parsers at given time
+   * Builds the output parser JSON from the injector contract's payload output types.
    *
-   * @param data data to process
-   * @return json with outputParser
+   * <p>Extracts all {@link ContractOutputType} values from the contract's payload output parsers and
+   * serializes them as {@code [{"type":"port"},{"type":"portscan"}]}.
+   *
+   * @param step the step creation input containing the inject definition
+   * @return a JSON array string of output type descriptors, or {@code "[]"} if none found
    */
-  private String stepOutputParser(String data) {
-    // TODO
-    // inject.getPayload().get().getOutputParsers();
-    // Nmap
-    // Nuclei
-    return "{}";
+  private String stepOutputParser(StepsCreateInput.StepInput step) {
+    InjectInput data = (InjectInput) step.getDataStep();
+    if (data == null || data.getInjectorContract() == null) {
+      return "[]";
+    }
+    try {
+      InjectorContract contract =
+          this.injectorContractService.injectorContract(data.getInjectorContract());
+
+      Set<String> types = new java.util.LinkedHashSet<>();
+
+      // 1. Extract from payload output parsers (structured model)
+      if (contract.getPayload() != null) {
+        Set<OutputParser> outputParsers = contract.getPayload().getOutputParsers();
+        if (outputParsers != null) {
+          for (OutputParser op : outputParsers) {
+            for (ContractOutputElement el : op.getContractOutputElements()) {
+              types.add(el.getType().getLabel());
+            }
+          }
+        }
+      }
+
+      // 2. Fallback: parse injector_contract_content JSON for outputs[].type
+      if (types.isEmpty() && contract.getContent() != null) {
+        try {
+          JsonObject contentObj = JsonParser.parseString(contract.getContent()).getAsJsonObject();
+          if (contentObj.has("outputs") && contentObj.get("outputs").isJsonArray()) {
+            for (JsonElement el : contentObj.getAsJsonArray("outputs")) {
+              if (el.isJsonObject() && el.getAsJsonObject().has("type")) {
+                types.add(el.getAsJsonObject().get("type").getAsString());
+              }
+            }
+          }
+        } catch (Exception e) {
+          log.debug("Could not parse contract content outputs: {}", e.getMessage());
+        }
+      }
+
+      JsonArray arr = new JsonArray();
+      for (String type : types) {
+        JsonObject obj = new JsonObject();
+        obj.addProperty("type", type);
+        arr.add(obj);
+      }
+      return arr.toString();
+    } catch (Exception e) {
+      log.warn("Could not resolve output types for contract: {}", data.getInjectorContract(), e);
+      return "[]";
+    }
   }
 
   /**

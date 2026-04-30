@@ -53,12 +53,16 @@ public class ConditionMapper {
     List<ConditionOutput> conditionOutputs =
         deduplicatedById.values().stream().map(ConditionMapper::toConditionOutput).toList();
 
+    List<String> linkedStepIds =
+        root.getConditionSteps().stream().map(cs -> cs.getStep().getId()).toList();
+
     return EventOutput.builder()
         .id(root.getId())
         .name(root.getName())
         .description(root.getDescription())
         .workflowId(root.getWorkflowId())
         .conditions(conditionOutputs)
+        .linkedStepIds(linkedStepIds)
         .createdAt(root.getCreationDate())
         .updatedAt(root.getUpdateDate())
         .build();
@@ -78,15 +82,18 @@ public class ConditionMapper {
 
   private static ConditionOutput toConditionOutput(Condition c) {
     String parentId = c.getConditionParent() != null ? c.getConditionParent().getId() : null;
+    String stepFromId = c.getStepFrom() != null ? c.getStepFrom().getId() : null;
 
     return ConditionOutput.builder()
         .id(c.getId())
         .keyType(c.getKeyType())
         .keySubtype(c.getKeySubtype())
+        .key(c.getKey())
         .type(c.getType() != null ? c.getType().name() : null)
         .value(c.getValue())
         .conditionParentId(parentId)
         .mappingType(c.getMappingType())
+        .stepFromId(stepFromId)
         .build();
   }
 
@@ -116,6 +123,7 @@ public class ConditionMapper {
     return Condition.builder()
         .keyType(input.getKeyType())
         .keySubtype(input.getKeySubtype())
+        .key(input.getKey())
         .type(input.getType())
         .value(input.getValue())
         .conditionParent(conditionParent)

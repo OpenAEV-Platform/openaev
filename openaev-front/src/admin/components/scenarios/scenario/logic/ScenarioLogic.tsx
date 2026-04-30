@@ -10,6 +10,7 @@ import {
   deleteStep,
   updateStep,
   createConditionTree,
+  updateConditionTree,
   deleteConditionTree,
   fetchWorkflow,
   type StepCreateInput,
@@ -123,6 +124,7 @@ const ScenarioLogic: FunctionComponent = () => {
           step_workflow_id: workflowId,
           step_action: 'INJECT_EXECUTION',
           step_data_step: enrichedData,
+          step_condition_ids: conditionIds.length > 0 ? conditionIds : undefined,
         });
       } catch { /* contract enrichment is best-effort */ }
     }
@@ -148,10 +150,15 @@ const ScenarioLogic: FunctionComponent = () => {
         field_scopes: fieldScopes,
         ...(injectContent ? { inject_content: { ...currentData.inject_content as Record<string, unknown>, ...injectContent } } : {}),
       } as InjectInput;
+      // Preserve existing event→action links (synthetic DEPEND_ON conditions)
+      const existingEventLinks = (step.step_conditions ?? [])
+        .filter((c) => c.condition_id?.startsWith('link-') && c.step_from_id)
+        .map((c) => c.step_from_id!);
       await updateStep(step.step_id, {
         step_workflow_id: workflowId,
         step_action: 'INJECT_EXECUTION',
         step_data_step: updatedData,
+        step_condition_ids: existingEventLinks.length > 0 ? existingEventLinks : undefined,
       });
     } catch { /* ignore */ }
     setActionEditOpen(false);
@@ -177,7 +184,8 @@ const ScenarioLogic: FunctionComponent = () => {
       condition_temporary_id: `child-${idx}`,
       condition_temporary_id_condition_parent: 'root',
       condition_type: rule.operator,
-      condition_key: rule.key,
+      condition_key_type: rule.key,
+      condition_key: rule.field || undefined,
       condition_value: rule.value || undefined,
     }));
 
@@ -190,13 +198,22 @@ const ScenarioLogic: FunctionComponent = () => {
     }
 
     if (editingStep) {
+      // Preserve existing action links: find action steps that have DEPEND_ON pointing to this event
+      const existingLinkedStepIds = (workflow?.workflow_steps ?? [])
+        .filter((s) => s.step_action_class === 'INJECT_EXECUTION')
+        .filter((s) => s.step_conditions.some(
+          (c) => c.condition_type === 'DEPEND_ON' && c.step_from_id === editingStep.step_id,
+        ))
+        .map((s) => s.step_id);
+      const allStepIds = [...new Set([...existingLinkedStepIds, ...stepIds])];
+
       // Update existing event
       const eventInput: EventCreateInput = {
         event_name: data.label,
         event_description: data.description,
         event_workflow_id: workflowId,
         event_conditions: eventConditions,
-        event_step_ids: stepIds.length > 0 ? stepIds : undefined,
+        event_step_ids: allStepIds.length > 0 ? allStepIds : undefined,
       };
       // The editingStep.step_id corresponds to the event root condition ID
       await updateConditionTree(editingStep.step_id, eventInput);
@@ -218,7 +235,11 @@ const ScenarioLogic: FunctionComponent = () => {
   };
 
   const handleDeleteStep = (stepId: string) => {
-    deleteStep(stepId).then(() => loadWorkflow());
+    const step = workflow?.workflow_steps.find((s) => s.step_id === stepId);
+    const deleteFn = step?.step_action_class === 'EVENT'
+      ? deleteConditionTree(stepId)
+      : deleteStep(stepId);
+    deleteFn.then(() => loadWorkflow());
   };
 
   const handleEditEvent = (step: WorkflowStep) => {
@@ -232,7 +253,7 @@ const ScenarioLogic: FunctionComponent = () => {
     setActionFormOpen(true);
   };
 
-  const handleAddActionFromContract = async (contractId: string, contractLabel: string) => {
+  const handleAddActionFromContract = async (contractId: string, contractLabel: string, eventStepId?: string) => {
     if (!workflowId) return;
     const stepDataStep: InjectInput = {
       inject_title: contractLabel,
@@ -242,6 +263,7 @@ const ScenarioLogic: FunctionComponent = () => {
       step_workflow_id: workflowId,
       step_action: 'INJECT_EXECUTION',
       step_data_step: stepDataStep,
+      step_condition_ids: eventStepId ? [eventStepId] : undefined,
     };
 
     const newStepOutput = await createStep(input);
@@ -260,6 +282,7 @@ const ScenarioLogic: FunctionComponent = () => {
         step_workflow_id: workflowId,
         step_action: 'INJECT_EXECUTION',
         step_data_step: enrichedData,
+        step_condition_ids: eventStepId ? [eventStepId] : undefined,
       });
     } catch { /* contract enrichment is best-effort */ }
 

@@ -26,9 +26,6 @@ const SimulationAttackPath: FunctionComponent = () => {
   const { exerciseId } = useParams() as { exerciseId: Exercise['exercise_id'] };
 
   const attackPathEnabled = isFeatureEnabled('CHAINING_ATTACK_PATH');
-  if (!attackPathEnabled) {
-    return null;
-  }
 
   const exercise = useHelper((helper: ExercisesHelper) => helper.getExercise(exerciseId));
   const expectations: InjectExpectation[] = useHelper((helper: ExercisesHelper) =>
@@ -40,11 +37,6 @@ const SimulationAttackPath: FunctionComponent = () => {
     scenarioId ? helper.getScenario(scenarioId) : null,
   );
   const workflowId = scenario?.scenario_workflow_id;
-
-  const exercise = useHelper((helper: ExercisesHelper) => helper.getExercise(exerciseId));
-  const expectations: InjectExpectation[] = useHelper((helper: ExercisesHelper) =>
-    helper.getExerciseInjectExpectations(exerciseId),
-  ) ?? [];
 
   const [workflow, setWorkflow] = useState<Workflow | null>(null);
   const [loading, setLoading] = useState(true);
@@ -80,6 +72,10 @@ const SimulationAttackPath: FunctionComponent = () => {
   const handleSelectStep = useCallback((stepId: string | null) => {
     setSelectedStepId(stepId);
   }, []);
+
+  if (!attackPathEnabled) {
+    return null;
+  }
 
   if (loading) return <Loader />;
 

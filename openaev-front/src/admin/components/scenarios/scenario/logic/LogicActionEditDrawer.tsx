@@ -115,8 +115,11 @@ const LogicActionEditDrawer: FunctionComponent<Props> = ({
       try {
         const data = JSON.parse(step.step_data ?? '{}');
         setInjectContent(data.inject_content ?? {});
-        // Load contract
-        const contractId = data.inject_injector_contract;
+        // Load contract — normalize contractId (may be string or object)
+        const rawContract = data.inject_injector_contract;
+        const contractId = typeof rawContract === 'object' && rawContract !== null
+          ? (rawContract.injector_contract_id ?? rawContract.id)
+          : rawContract;
         if (contractId) loadContract(contractId);
       } catch {
         setInjectContent({});

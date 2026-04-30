@@ -23,6 +23,10 @@ public class ConditionOutput {
   @JsonProperty("condition_key_subtype")
   private ConditionKeySubtype keySubtype;
 
+  @JsonProperty("condition_key")
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  private String key;
+
   @JsonProperty("condition_type")
   private String type;
 
@@ -35,4 +39,8 @@ public class ConditionOutput {
   @JsonProperty("condition_mapping_type")
   @JsonInclude(JsonInclude.Include.NON_NULL)
   private MappingType mappingType;
+
+  @JsonProperty("condition_step_from")
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  private String stepFromId;
 }

@@ -36,6 +36,9 @@ public class EventOutput {
   @JsonProperty("event_conditions")
   private List<ConditionOutput> conditions;
 
+  @JsonProperty("event_linked_step_ids")
+  private List<String> linkedStepIds;
+
   @JsonProperty("event_created_at")
   private Instant createdAt;
 

@@ -170,9 +170,23 @@ export const getStepAttackPatterns = (
       && data.injector_contract_attack_patterns.length > 0) {
       return data.injector_contract_attack_patterns;
     }
-    // Fallback: resolve from injector contract
-    if (injectorContractsMap && data.inject_injector_contract) {
-      const contract = injectorContractsMap[data.inject_injector_contract];
+    // Resolve contract — may be embedded object or string ID
+    const rawContract = data.inject_injector_contract;
+    if (!rawContract) return [];
+
+    // If the contract is embedded as a full object in step_data
+    if (typeof rawContract === 'object' && rawContract !== null) {
+      if (Array.isArray(rawContract.injector_contract_attack_patterns)) {
+        return rawContract.injector_contract_attack_patterns;
+      }
+    }
+
+    // Fallback: resolve from injector contracts map using string ID
+    const contractId = typeof rawContract === 'string'
+      ? rawContract
+      : rawContract.injector_contract_id ?? rawContract.id;
+    if (injectorContractsMap && contractId) {
+      const contract = injectorContractsMap[contractId];
       if (contract && Array.isArray(contract.injector_contract_attack_patterns)) {
         return contract.injector_contract_attack_patterns;
       }

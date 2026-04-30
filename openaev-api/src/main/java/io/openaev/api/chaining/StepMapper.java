@@ -27,6 +27,7 @@ public final class StepMapper {
           .conditionIds(rootConditionIds)
           .conditionKeyTypes(step.getConditionKeyTypes())
           .data(step.getData() == null ? null : OBJECT_MAPPER.readTree(step.getData()))
+          .outputParser(step.getOutputParser())
           .createdAt(step.getCreatedAt())
           .updatedAt(step.getUpdatedAt())
           .build();

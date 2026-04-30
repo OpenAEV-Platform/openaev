@@ -31,6 +31,9 @@ public class StepOutput {
   @JsonProperty("step_data")
   private JsonNode data;
 
+  @JsonProperty("step_output_parser")
+  private String outputParser;
+
   @JsonProperty("step_created_at")
   private Instant createdAt;
 

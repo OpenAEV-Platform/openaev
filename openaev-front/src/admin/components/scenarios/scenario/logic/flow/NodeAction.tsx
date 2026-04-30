@@ -2,7 +2,6 @@ import { PlayArrowOutlined } from '@mui/icons-material';
 import { Chip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Handle, type Node, type NodeProps, Position } from '@xyflow/react';
-import { memo } from 'react';
 
 import ButtonPopover from '../../../../../../components/common/ButtonPopover';
 import { useFormatter } from '../../../../../../components/i18n';
@@ -124,4 +123,4 @@ const NodeAction = ({ data }: NodeProps<NodeActionType>) => {
   );
 };
 
-export default memo(NodeAction);
+export default NodeAction;

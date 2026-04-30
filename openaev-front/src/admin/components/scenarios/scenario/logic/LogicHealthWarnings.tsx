@@ -12,12 +12,13 @@ import { getActionsProvisioningField, getRootActionSteps, isActionStep, isEventS
 
 interface Props {
   workflow: Workflow;
-  onAddActionFromContract?: (contractId: string, contractLabel: string) => void;
+  onAddActionFromContract?: (contractId: string, contractLabel: string, eventStepId?: string) => void;
 }
 
 interface FieldWarning {
   fieldType: string;
   eventLabel: string;
+  eventStepId: string;
 }
 
 
@@ -52,6 +53,7 @@ const LogicHealthWarnings: FunctionComponent<Props> = ({ workflow, onAddActionFr
   // Drawer state
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerFieldType, setDrawerFieldType] = useState('');
+  const [drawerEventStepId, setDrawerEventStepId] = useState('');
   const [drawerResults, setDrawerResults] = useState<CompatibleContract[]>([]);
   const [drawerLoading, setDrawerLoading] = useState(false);
 
@@ -86,8 +88,9 @@ const LogicHealthWarnings: FunctionComponent<Props> = ({ workflow, onAddActionFr
     return unique;
   };
 
-  const handleShowCompatible = useCallback(async (fieldType: string) => {
+  const handleShowCompatible = useCallback(async (fieldType: string, eventStepId: string) => {
     setDrawerFieldType(fieldType);
+    setDrawerEventStepId(eventStepId);
     setDrawerOpen(true);
     setDrawerLoading(true);
 
@@ -124,6 +127,8 @@ const LogicHealthWarnings: FunctionComponent<Props> = ({ workflow, onAddActionFr
 
   const handleAddAction = (contractId: string, contractLabel: string) => {
     if (onAddActionFromContract) {
+      // Healthcheck actions are root actions (no event link) — the connection
+      // to the event is implicit via output type matching in the graph
       onAddActionFromContract(contractId, contractLabel);
       setDrawerOpen(false);
     }
@@ -143,7 +148,7 @@ const LogicHealthWarnings: FunctionComponent<Props> = ({ workflow, onAddActionFr
             eventLabel = data.event_name ?? eventLabel;
           } catch { /* ignore */ }
 
-          fieldWarnings.push({ fieldType: condition.condition_key, eventLabel });
+          fieldWarnings.push({ fieldType: condition.condition_key, eventLabel, eventStepId: step.step_id });
         }
       }
     }
@@ -182,7 +187,7 @@ const LogicHealthWarnings: FunctionComponent<Props> = ({ workflow, onAddActionFr
               size="small"
               variant="outlined"
               startIcon={<InfoOutlined />}
-              onClick={() => handleShowCompatible(warning.fieldType)}
+              onClick={() => handleShowCompatible(warning.fieldType, warning.eventStepId)}
               sx={{ textTransform: 'none', fontSize: 11, whiteSpace: 'nowrap' }}
             >
               {t('Show compatible actions')}

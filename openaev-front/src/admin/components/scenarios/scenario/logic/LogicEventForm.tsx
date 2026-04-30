@@ -48,6 +48,11 @@ const LogicEventForm: FunctionComponent<Props> = ({
       } catch {
         setDescription('');
       }
+      // Restore logic operator from root condition
+      const rootCondition = editingStep.step_conditions.find(
+        (c) => c.condition_type === 'AND' || c.condition_type === 'OR',
+      );
+      setLogicOperator(rootCondition?.condition_type === 'OR' ? 'OR' : 'AND');
       setConditions(
         editingStep.step_conditions
           .filter(c => c.condition_key)

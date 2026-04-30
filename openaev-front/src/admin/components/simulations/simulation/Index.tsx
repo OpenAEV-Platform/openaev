@@ -38,6 +38,7 @@ const Chat = lazy(() => import('./chat/Chat'));
 const Validations = lazy(() => import('./validation/Validations'));
 const SimulationScope = lazy(() => import('./scope/SimulationScope'));
 const SimulationLogic = lazy(() => import('./logic/SimulationLogic'));
+const SimulationAttackPath = lazy(() => import('./attack_path/SimulationAttackPath'));
 
 const useStyles = makeStyles()(() => ({
   scheduling: {
@@ -139,6 +140,12 @@ const IndexComponent: FunctionComponent<{ exercise: SimulationDetails }> = ({ ex
                               value={`/admin/simulations/${exercise.exercise_id}/animation`}
                               label={t('Animation')}
                             />
+                            <Tab
+                              component={Link}
+                              to={`/admin/simulations/${exercise.exercise_id}/attack_path`}
+                              value={`/admin/simulations/${exercise.exercise_id}/attack_path`}
+                              label={t('Attack Path')}
+                            />
                           </Tabs>
                         )
                       : (
@@ -218,6 +225,7 @@ const IndexComponent: FunctionComponent<{ exercise: SimulationDetails }> = ({ ex
                       <Route path="analysis" element={errorWrapper(SimulationAnalysis)()} />
                       <Route path="scope" element={errorWrapper(SimulationScope)()} />
                       <Route path="logic" element={errorWrapper(SimulationLogic)()} />
+                      <Route path="attack_path" element={errorWrapper(SimulationAttackPath)()} />
                       {/* Not found */}
                       <Route path="*" element={<NotFound />} />
                     </Routes>

@@ -2,7 +2,6 @@ import { Add, BoltOutlined } from '@mui/icons-material';
 import { Chip, IconButton, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Handle, type Node, type NodeProps, Position } from '@xyflow/react';
-import { memo } from 'react';
 
 import ButtonPopover from '../../../../../../components/common/ButtonPopover';
 import FindingIcon from '../../../../../../components/FindingIcon';
@@ -212,4 +211,4 @@ const NodeEvent = ({ data }: NodeProps<NodeEventType>) => {
   );
 };
 
-export default memo(NodeEvent);
+export default NodeEvent;
