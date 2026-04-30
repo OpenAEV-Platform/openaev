@@ -47,7 +47,7 @@ import InjectPopover from './InjectPopover';
 import InjectsListButtons from './InjectsListButtons';
 import UpdateInject from './UpdateInject';
 
-const useStyles = makeStyles()(() => ({
+const useStyles = makeStyles()((theme) => ({
   disabled: {
     opacity: 0.38,
     pointerEvents: 'none',
@@ -55,25 +55,25 @@ const useStyles = makeStyles()(() => ({
   duration: {
     fontSize: 12,
     lineHeight: '12px',
-    height: 20,
+    height: theme.spacing(2.5),
     float: 'left',
-    marginRight: 7,
-    borderRadius: 4,
+    marginRight: theme.spacing(1),
+    borderRadius: theme.shape.borderRadius,
     width: 180,
     backgroundColor: 'rgba(0, 177, 255, 0.08)',
     color: '#00b1ff',
     border: '1px solid #00b1ff',
   },
   itemHead: { textTransform: 'uppercase' },
-  item: { height: 50 },
+  item: { height: theme.spacing(6.25) },
   bodyItems: { display: 'flex' },
   bodyItem: {
-    height: 20,
+    height: theme.spacing(2.5),
     fontSize: 13,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
-    paddingRight: 10,
+    paddingRight: theme.spacing(1.25),
   },
 }));
 
@@ -572,8 +572,10 @@ const Injects: FunctionComponent<Props> = ({
           <ListItem
             classes={{ root: classes.itemHead }}
             divider={false}
-            style={{ paddingTop: 0 }}
-            secondaryAction={<>&nbsp;</>}
+            style={{
+              ...(numberOfSelectedElements > 0 ? { backgroundColor: 'rgb(15, 30, 56)', } : {}),
+            }}
+            {...(numberOfSelectedElements === 0 ? { secondaryAction: <>&nbsp;</> } : {})}
           >
             <ListItemIcon style={{ minWidth: 40 }}>
               <Checkbox
@@ -584,17 +586,38 @@ const Injects: FunctionComponent<Props> = ({
                 disabled={typeof handleToggleSelectAll !== 'function'}
               />
             </ListItemIcon>
+          {
+            numberOfSelectedElements > 0 ? (
+							<ListItemText
+								primary={(
+									<ToolBar
+										numberOfSelectedElements={numberOfSelectedElements}
+										handleClearSelectedElements={handleClearSelectedElements}
+										teamsFromExerciseOrScenario={teams}
+										handleUpdate={massUpdateInjects}
+										handleBulkDelete={bulkDeleteInjects}
+										handleBulkTest={massTestInjects}
+										handleExport={handleExport}
+										canManage={permissions.canManage}
+									/>
+								)}
+							/>
+            ) : (
+              <>
+                <ListItemIcon />
+              <ListItemText
+                primary={(
+                  <SortHeadersComponentV2
+                    headers={headers}
+                    inlineStylesHeaders={inlineStyles}
+                    sortHelpers={queryableHelpers.sortHelpers}
+                  />
+                )}
+              />
+              </>
+            )
+					}
 
-            <ListItemIcon />
-            <ListItemText
-              primary={(
-                <SortHeadersComponentV2
-                  headers={headers}
-                  inlineStylesHeaders={inlineStyles}
-                  sortHelpers={queryableHelpers.sortHelpers}
-                />
-              )}
-            />
           </ListItem>
           {loading
             ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} />
@@ -703,25 +726,6 @@ const Injects: FunctionComponent<Props> = ({
             />
           )}
 
-          {
-            numberOfSelectedElements > 0 && (
-              <ToolBar
-                numberOfSelectedElements={numberOfSelectedElements}
-                totalNumberOfElements={queryableHelpers.paginationHelpers.getTotalElements()}
-                selectedElements={selectedElements}
-                deSelectedElements={deSelectedElements}
-                selectAll={selectAll}
-                handleClearSelectedElements={handleClearSelectedElements}
-                teamsFromExerciseOrScenario={teams}
-                id={contextId}
-                handleUpdate={massUpdateInjects}
-                handleBulkDelete={bulkDeleteInjects}
-                handleBulkTest={massTestInjects}
-                handleExport={handleExport}
-                canManage={permissions.canManage}
-              />
-            )
-          }
           {openCreateDrawer
             && (
               <CreateInject

@@ -2,6 +2,7 @@
 
 import type { ContractVariable } from '../actions/contract/contract';
 import type { ExpectationInput } from '../admin/components/common/injects/expectations/Expectation';
+import type { ReactNode } from 'react';
 import type * as ApiTypes from './api-types';
 
 type PayloadCreateInputOmit = 'payload_type' | 'payload_source' | 'payload_status' | 'payload_created_at' | 'payload_id' | 'payload_updated_at' | 'payload_output_parsers';
@@ -91,3 +92,37 @@ export type InjectorContractConverted = Omit<InjectorContract, 'convertedContent
     variables?: ContractVariable[];
   };
 };
+
+// ToolBar custom types derived from generated API types.
+export type ToolBarSelectOption = { label: string; value: string };
+
+export type ToolBarActionValue = ToolBarSelectOption | string;
+
+export type ToolBarTask = {
+  type: string;
+  icon: () => ReactNode;
+  onClick: () => void;
+  title?: string;
+};
+
+export type ToolBarActionInput = {
+  type?: string;
+  field?: string;
+  values?: ToolBarActionValue[];
+  fieldType?: string;
+  inputValue?: string;
+  options?: Record<string, boolean>;
+};
+
+export type ToolBarBulkUpdateActionInput = Omit<ApiTypes.InjectBulkUpdateOperation, 'field' | 'operation' | 'values'> & {
+  field: NonNullable<ApiTypes.InjectBulkUpdateOperation['field']>;
+  type: Uppercase<NonNullable<ApiTypes.InjectBulkUpdateOperation['operation']>>;
+  values: Array<{ value: string }>;
+};
+
+export type ToolBarTeamInput = Pick<ApiTypes.Team, 'team_name' | 'team_id'>;
+
+export type ToolBarEndpointInput = Pick<ApiTypes.Endpoint, 'asset_name' | 'asset_id'>;
+
+export type ToolBarAssetGroupInput = Pick<ApiTypes.AssetGroup, 'asset_group_name' | 'asset_group_id'>;
+
