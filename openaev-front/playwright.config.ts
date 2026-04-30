@@ -12,13 +12,11 @@ import coverageOptions from './tests_e2e/conf/mcr.config';
 export default defineConfig({
   testDir: './tests_e2e',
   /* Run tests in files in parallel */
-  fullyParallel: true,
+  fullyParallel: false,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
-  /* Retry on CI only */
-  retries: process.env.CI ? 2 : 0,
-  /* 2 workers because is faster */
-  workers: 2,
+  retries: 0,
+  workers: 1,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [
     ['list'],
