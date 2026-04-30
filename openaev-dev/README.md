@@ -4,7 +4,7 @@ This folder contains configuration files for setting up a local development envi
 
 ## Prerequisites
 
-- Docker and Docker Compose
+- Podman and Podman Compose (or `podman compose`)
 - Java 21+ (for backend development)
 - Node.js 20+ and Yarn (for frontend development)
 - IntelliJ IDEA (recommended IDE)
@@ -28,13 +28,41 @@ Copy-Item .env.example .env
 
 The default values should work for local development.
 
-### 2. Start the Docker containers
+### 2. Create the backend dev configuration
+
+Copy the example and fill in your values:
 
 ```bash
-docker compose up -d
+cp ../openaev-api/src/main/resources/application-dev.properties.example \
+   ../openaev-api/src/main/resources/application-dev.properties
 ```
 
-This will start the following services:
+### 3. Start the containers
+
+#### Minimal start (recommended to get up and running quickly)
+
+Only **4 services** are required to run OpenAEV locally:
+
+```bash
+podman compose up -d openaev-dev-pgsql openaev-dev-minio openaev-dev-elasticsearch openaev-dev-rabbitmq
+```
+
+| Service | Port | Why it's required |
+|---------|------|-------------------|
+| **PostgreSQL (dev)** | 5432 | Primary data store — all entities, users, scenarios |
+| **MinIO** | 10000 (API), 10001 (Console) | File/document storage (S3-compatible) |
+| **Elasticsearch (dev)** | 9200, 9300 | Full-text search & indexing engine |
+| **RabbitMQ** | 5672 (AMQP), 15672 (Management) | Async messaging between backend components |
+
+> **Tip:** If you prefer OpenSearch over Elasticsearch, start `openaev-dev-opensearch` instead and set `engine.engine-selector=opensearch` / `engine.url=http://localhost:9202` in your `application-dev.properties`.
+
+#### Full start (all services)
+
+```bash
+podman compose up -d
+```
+
+This starts everything, including optional services:
 
 | Service | Port | Description |
 |---------|------|-------------|
@@ -42,27 +70,25 @@ This will start the following services:
 | PostgreSQL (test) | 5433 | Test database (ephemeral, no volume) |
 | MinIO | 10000 (API), 10001 (Console) | Object storage |
 | RabbitMQ | 5672 (AMQP), 15672 (Management) | Message queue |
-| Caldera | 8888 | Adversary simulation platform |
 | Elasticsearch (dev) | 9200, 9300 | Search engine |
 | Elasticsearch (test) | 9201, 9301 | Test search engine |
 | OpenSearch (dev) | 9202, 9600 | Alternative search engine |
 | Kibana (dev) | 5601 | Elasticsearch UI |
-| Kibana (test) | 5602 | Test Elasticsearch UI |
-| pgAdmin | 5050 | PostgreSQL management UI |
+| Kibana (test) | 5602 | Test Elasticsearch UI (optional) |
+| pgAdmin | 5050 | PostgreSQL management UI (optional) |
 
-### 3. Access services
+### 4. Access services
 
 - **MinIO Console**: http://localhost:10001 (minioadmin/minioadmin)
 - **RabbitMQ Management**: http://localhost:15672 (guest/guest)
 - **pgAdmin**: http://localhost:5050 (admin@openaev.io/admin by default, see `.env`)
 - **Kibana**: http://localhost:5601
-- **Caldera**: http://localhost:8888 (red/ChangeMe or blue/ChangeMe by default, see `caldera.yml`)
 
 ## IntelliJ Run Configurations
 
 This folder contains pre-configured IntelliJ run configurations:
 
-- **Backend docker compose**: Starts all Docker containers
+- **Backend docker compose**: Starts all containers via Podman
 - **Backend start**: Starts the Spring Boot backend with the `dev` profile
 - **Frontend start**: Starts the frontend development server
 
@@ -73,11 +99,11 @@ To use them, copy the `*.run.xml` files to your `.idea/runConfigurations/` folde
 | File | Description |
 |------|-------------|
 | `.env.example` | Example environment variables (copy to `.env`) |
-| `docker-compose.yml` | Docker Compose configuration for all services |
-| `caldera.yml` | Caldera server configuration |
+| `docker-compose.yml` | Container composition file (used via `podman compose`) |
 | `rabbitmq.conf` | RabbitMQ configuration |
 | `otlp-config.yaml` | OpenTelemetry Collector configuration (for telemetry) |
 | `Project.xml` | IntelliJ code style settings |
+| `../openaev-api/src/main/resources/application-dev.properties.example` | Example Spring dev profile (copy to `application-dev.properties`) |
 
 ## Notes
 
