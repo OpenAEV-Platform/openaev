@@ -2,15 +2,12 @@ import { expect } from '@playwright/test';
 
 import { test } from '../../fixtures';
 import UpdateTeamDialog from '../../model/common/UpdateTeamDialog';
-import InjectFormComponent from '../../model/injects/InjectFormComponent';
 import ScenarioPage from '../../model/scenario/ScenarioPage';
-import MuiListHelpers from '../../utils/MuiListHelpers';
 import { tenantUrl } from '../../utils/url';
 
 test.describe('Scenario - Teams management', () => {
   let scenarioPage: ScenarioPage;
   let updateTeamDialog: UpdateTeamDialog;
-  let injectFormComponent: InjectFormComponent;
 
   test.beforeEach(async ({ page, emptyScenario }) => {
     updateTeamDialog = new UpdateTeamDialog(page);
