@@ -1,5 +1,6 @@
 package io.openaev.telemetry.metric_collectors;
 
+import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.api.metrics.ObservableDoubleGauge;
 import jakarta.annotation.PreDestroy;
@@ -23,6 +24,8 @@ public class MetricRegistry {
     }
   }
 
+  // -- Gauge Registration --
+
   public void registerGauge(
       String name, String description, Supplier<Long> valueSupplier, String unit) {
     activeGauges.add(
@@ -37,5 +40,11 @@ public class MetricRegistry {
 
   public void registerGauge(String name, String description, Supplier<Long> valueSupplier) {
     registerGauge(name, description, valueSupplier, "count");
+  }
+
+  // -- Counter Registration --
+
+  public LongCounter registerCounter(String name, String description, String unit) {
+    return meter.counterBuilder(name).setDescription(description).setUnit(unit).build();
   }
 }

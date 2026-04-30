@@ -508,24 +508,51 @@ public class WorkflowService {
 
     boolean changed = existing.removeIf(r -> !inputIds.contains(r.getId()));
 
-    Set<String> processedIds = new HashSet<>();
+    // Build new rules from inputs without an ID
+    List<WorkflowScopeRule> newRules =
+        deduplicated.stream()
+            .filter(r -> r.getId() == null)
+            .map(r -> buildScopeRule(r, workflow))
+            .toList();
 
+    if (!newRules.isEmpty()) {
+      existing.addAll(newRules);
+      changed = true;
+
+      // KPI 1: Record Scope Creation Pattern (Batch Level)
+      long allowlistCount =
+          newRules.stream()
+              .filter(r -> ScopeRuleSelectedMode.ALLOWLIST.equals(r.getSelectedMode()))
+              .count();
+      long denylistCount =
+          newRules.stream()
+              .filter(r -> ScopeRuleSelectedMode.DENYLIST.equals(r.getSelectedMode()))
+              .count();
+      if (allowlistCount > 0) {
+        scopeMetricCollector.recordScopeCreated(
+            ScopeRuleSelectedMode.ALLOWLIST.name(), (int) allowlistCount);
+      }
+      if (denylistCount > 0) {
+        scopeMetricCollector.recordScopeCreated(
+            ScopeRuleSelectedMode.DENYLIST.name(), (int) denylistCount);
+      }
+
+      // KPI 2: Record Entry Detail (Per Item Level)
+      for (WorkflowScopeRule newRule : newRules) {
+        scopeMetricCollector.recordEntryAdded(
+            newRule.getValueType().name(), newRule.getRuleSource().name());
+      }
+    }
+
+    // Update existing rules that have changed
+    Set<String> processedIds = new HashSet<>();
     for (WorkflowScopeRuleInput ruleInput : deduplicated) {
       String ruleId = ruleInput.getId();
-      if (ruleId == null) {
-        WorkflowScopeRule newRule = buildScopeRule(ruleInput, workflow);
-        existing.add(newRule);
-        scopeMetricCollector.addScopeCreatedCount();
-        scopeMetricCollector.addScopeEntryAddedCount();
-        changed = true;
-      } else {
-        if (!processedIds.contains(ruleId)) {
-          WorkflowScopeRule existingRule = existingById.get(ruleId);
-          if (existingRule != null && hasRuleChanged(existingRule, ruleInput)) {
-            updateScopeRule(existingRule, ruleInput);
-            changed = true;
-          }
-          processedIds.add(ruleId);
+      if (ruleId != null && processedIds.add(ruleId)) {
+        WorkflowScopeRule existingRule = existingById.get(ruleId);
+        if (existingRule != null && hasRuleChanged(existingRule, ruleInput)) {
+          updateScopeRule(existingRule, ruleInput);
+          changed = true;
         }
       }
     }

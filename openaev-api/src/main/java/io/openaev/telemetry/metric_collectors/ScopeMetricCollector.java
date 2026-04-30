@@ -1,7 +1,11 @@
 package io.openaev.telemetry.metric_collectors;
 
+import static io.opentelemetry.api.common.AttributeKey.longKey;
+import static io.opentelemetry.api.common.AttributeKey.stringKey;
+
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.metrics.LongCounter;
 import jakarta.annotation.PostConstruct;
-import java.util.concurrent.atomic.AtomicLong;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -12,31 +16,34 @@ import org.springframework.stereotype.Service;
 public class ScopeMetricCollector {
 
   private final MetricRegistry metricRegistry;
-
-  // Counter
-  private final AtomicLong scopeCreatedCount = new AtomicLong(0);
-  private final AtomicLong scopeEntryAddedCount = new AtomicLong(0);
+  private LongCounter scopeCreatedCounter;
+  private LongCounter scopeEntryAddedCounter;
 
   @PostConstruct
   public void init() {
-    metricRegistry.registerGauge(
-        "scope_created_count",
-        "Number of scope definitions created",
-        () -> scopeCreatedCount.getAndSet(0));
+    this.scopeCreatedCounter =
+        metricRegistry.registerCounter(
+            "scope.created", "Number of scope definitions created", "count");
 
-    metricRegistry.registerGauge(
-        "scope_entry_added_count",
-        "Number of scope entries added",
-        () -> scopeEntryAddedCount.getAndSet(0));
+    this.scopeEntryAddedCounter =
+        metricRegistry.registerCounter(
+            "scope.entry.added", "Number of scope entries added", "count");
   }
 
-  public void addScopeCreatedCount() {
-    scopeCreatedCount.incrementAndGet();
-    log.info("Increment Scope Created Counter");
+  public void recordScopeCreated(String mode, int entryCount) {
+    Attributes attrs =
+        Attributes.of(
+            stringKey("mode"), mode.toLowerCase(), longKey("entry_count"), (long) entryCount);
+    scopeCreatedCounter.add(1, attrs);
+    log.info("Recorded Scope Created: mode={}, entries={}", mode, entryCount);
   }
 
-  public void addScopeEntryAddedCount() {
-    scopeEntryAddedCount.incrementAndGet();
-    log.info("Increment Scope Entry Added Counter");
+  public void recordEntryAdded(String type, String method) {
+    Attributes attrs =
+        Attributes.of(
+            stringKey("type"), type.toLowerCase(),
+            stringKey("method"), method.toLowerCase());
+    scopeEntryAddedCounter.add(1, attrs);
+    log.info("Recorded Entry Added: type={}, method={}", type, method);
   }
 }
