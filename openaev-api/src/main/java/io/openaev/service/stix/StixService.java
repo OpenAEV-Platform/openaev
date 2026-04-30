@@ -31,7 +31,6 @@ public class StixService {
    * @param stixJson string form of the provided stix bundle
    * @return Scenario
    */
-  @Transactional(rollbackFor = Exception.class)
   public Scenario processBundle(String stixJson)
       throws IOException, ParsingException, ConnectorError, BundleValidationError {
     Bundle bundle = stixParser.parseBundle(stixJson);
