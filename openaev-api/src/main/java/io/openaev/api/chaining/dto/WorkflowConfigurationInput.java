@@ -64,4 +64,13 @@ public class WorkflowConfigurationInput {
   @Schema(description = "List scope rules.")
   @JsonProperty("workflow_scope_rules")
   private List<WorkflowScopeRuleInput> workflowScopeRules;
+
+  // -- Scope variables --
+
+  @Valid
+  @Schema(
+      description =
+          "List of custom variables available for template substitution in this workflow.")
+  @JsonProperty("workflow_scope_variables")
+  private List<ScopeVariableInput> workflowScopeVariables;
 }

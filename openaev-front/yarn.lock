@@ -7485,6 +7485,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"ipaddr.js@npm:^2.2.0":
+  version: 2.3.0
+  resolution: "ipaddr.js@npm:2.3.0"
+  checksum: 10c0/084bab99e2f6875d7a62adc3325e1c64b038a12c9521e35fb967b5e263a8b3afb1b8884dd77c276092331f5d63298b767491e10997ef147c62da01b143780bbd
+  languageName: node
+  linkType: hard
+
 "is-alphabetical@npm:^2.0.0":
   version: 2.0.1
   resolution: "is-alphabetical@npm:2.0.1"
@@ -9701,6 +9708,7 @@ __metadata:
     http-proxy-middleware: "npm:3.0.5"
     i18n-auto-translation: "npm:2.2.3"
     immutable: "npm:5.1.5"
+    ipaddr.js: "npm:^2.2.0"
     js-file-download: "npm:0.4.12"
     mdi-material-ui: "npm:7.9.4"
     moment: "npm:2.30.1"

@@ -1,0 +1,81 @@
+# =============================================================================
+# OpenAEV Development Profile (Spring profile: dev)
+# =============================================================================
+# Copy this file to application-dev.properties and update values as needed.
+# Activate with: --spring.profiles.active=dev (or ACTIVE_PROFILES=dev in IntelliJ)
+#
+# Default values below match the docker-compose services in openaev-dev/.
+
+# OpenAEV General Configuration
+openaev.admin.email=admin@openaev.io
+openaev.admin.password=admin
+openaev.admin.token=<generate-a-uuid>
+openaev.admin.encryption_key=ChangeMe
+openaev.admin.encryption_salt=ChangeMe
+# Enterprise license (leave empty for community edition)
+# A valid license can be found in the team's 1Password vault.
+openaev.application-license=
+
+########################
+# RUNTIME DEPENDENCIES #
+########################
+
+### POSTGRESQL Configuration
+# Values should match POSTGRES_USER / POSTGRES_PASSWORD from openaev-dev/.env
+spring.datasource.url=jdbc:postgresql://localhost:5432/openaev
+spring.datasource.username=${POSTGRES_USER:openaev}
+spring.datasource.password=${POSTGRES_PASSWORD:openaev}
+
+### ENGINE Configuration
+# selector can be "elk" (Elasticsearch, port 9200) or "opensearch" (OpenSearch, port 9202)
+engine.engine-selector=opensearch
+engine.url=http://localhost:9200
+
+### MINIO Configuration
+# Ports match docker-compose: API on 10000, console on 10001
+minio.endpoint=localhost
+minio.port=10000
+minio.access-key=minioadmin
+minio.access-secret=minioadmin
+
+######################
+# RUNTIME PROPERTIES #
+######################
+
+# Logging
+logging.level.root=info
+logging.level.io.openaev=info
+
+#############
+# INJECTORS #
+#############
+
+# Mail sending config (required for email-based injects)
+# Credentials can be found in 1Password: "[OpenAEV/Dev] SMTP / IMAP account"
+openaev.default-mailer=no-reply@openaev.io
+openaev.default-reply-to=contact@openaev.io
+spring.mail.host=<see-1password>
+spring.mail.port=465
+spring.mail.username=<see-1password>
+spring.mail.password=<see-1password>
+# Extra mail configuration
+spring.mail.properties.mail.smtp.ssl.trust=*
+spring.mail.properties.mail.smtp.ssl.enable=true
+spring.mail.properties.mail.smtp.auth=true
+spring.mail.properties.mail.smtp.starttls.enable=true
+
+# IMAP Configuration (optional, for email reception)
+# Credentials can be found in 1Password: "[OpenAEV/Dev] SMTP / IMAP account"
+openaev.mail.imap.enabled=false
+openaev.mail.imap.host=ssl0.ovh.net
+openaev.mail.imap.username=<see-1password>
+openaev.mail.imap.password=<see-1password>
+openaev.mail.imap.port=993
+openaev.mail.imap.inbox=INBOX
+
+#############################
+# FEATURE UNDER DEVELOPMENT #
+#############################
+# Use "*" to enable all dev features, or a comma-separated list
+openaev.enabled-dev-features=*
+
