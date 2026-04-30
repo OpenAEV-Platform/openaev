@@ -6,10 +6,10 @@ import static org.springframework.util.StringUtils.hasText;
 
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
+import io.openaev.database.repository.TenantRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.service.UserMappingService;
 import io.openaev.service.UserService;
-import io.openaev.service.tenants.TenantService;
 import io.openaev.service.user_events.UserEventService;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.constraints.NotBlank;
@@ -40,7 +40,7 @@ public class SecurityService {
   private final UserMappingService userMappingService;
   private final Environment env;
   private final UserEventService userEventService;
-  private final TenantService tenantService;
+  private final TenantRepository tenantRepository;
 
   public User userManagement(
       String emailAttribute,
@@ -114,7 +114,11 @@ public class SecurityService {
       return;
     }
     try {
-      Tenant tenant = tenantService.findById(tenantId);
+      Tenant tenant =
+          tenantRepository
+              .findById(tenantId)
+              .orElseThrow(() -> new EntityNotFoundException("Tenant not found: " + tenantId));
+      ;
       user.getTenants().add(tenant);
     } catch (EntityNotFoundException e) {
       log.warn("SSO tenant ID '{}' configured but not found in database", tenantId);
