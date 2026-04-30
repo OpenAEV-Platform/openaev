@@ -676,7 +676,7 @@ public class ConditionService {
    * @return list of execution batches; empty when no mapper-driven execution is currently possible
    */
   public List<ConditionService.ExecutionBatch> prepareInputsForStepExecution(
-      Step stepTemplate, Workflow workflowRun, List<Condition> mappers) throws ChainingException {
+      Step stepTemplate, Workflow workflowRun, List<Condition> mappers) {
 
     // No mappers means a default execution batch
     if (mappers.isEmpty()) {
