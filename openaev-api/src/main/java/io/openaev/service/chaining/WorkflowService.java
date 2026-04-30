@@ -1,7 +1,7 @@
 package io.openaev.service.chaining;
 
-import io.openaev.api.chaining.dto.ScopeVariableInput;
 import com.google.gson.Gson;
+import io.openaev.api.chaining.dto.ScopeVariableInput;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
 import io.openaev.database.model.*;
