@@ -36,7 +36,12 @@ const CreateEventForm: FunctionComponent<Props> = ({ onSubmit, handleClose }) =>
   const [conditions, setConditions] = useState<ConditionRow[]>([emptyCondition()]);
 
   const updateCondition = (index: number, field: keyof ConditionRow, value: string) => {
-    setConditions(prev => prev.map((c, i) => (i === index ? { ...c, [field]: value } : c)));
+    setConditions(prev => prev.map((c, i) => (i === index
+      ? {
+          ...c,
+          [field]: value,
+        }
+      : c)));
   };
 
   const addCondition = () => setConditions(prev => [...prev, emptyCondition()]);
@@ -56,7 +61,12 @@ const CreateEventForm: FunctionComponent<Props> = ({ onSubmit, handleClose }) =>
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 16,
+    }}
+    >
       <TextField
         label={t('Name (event_name)')}
         fullWidth
@@ -89,7 +99,12 @@ const CreateEventForm: FunctionComponent<Props> = ({ onSubmit, handleClose }) =>
       </FormControl>
 
       <Divider />
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+      }}
+      >
         <Typography variant="subtitle2">{t('Conditions')}</Typography>
         <IconButton size="small" color="primary" onClick={addCondition}>
           <AddOutlined fontSize="small" />
@@ -99,13 +114,25 @@ const CreateEventForm: FunctionComponent<Props> = ({ onSubmit, handleClose }) =>
       {conditions.map((cond, idx) => (
         <div
           key={idx}
-          style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 12, border: '1px solid #ccc', borderRadius: 4, position: 'relative' }}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 12,
+            padding: 12,
+            border: '1px solid #ccc',
+            borderRadius: 4,
+            position: 'relative',
+          }}
         >
           {conditions.length > 1 && (
             <IconButton
               size="small"
               onClick={() => removeCondition(idx)}
-              sx={{ position: 'absolute', top: 4, right: 4 }}
+              sx={{
+                position: 'absolute',
+                top: 4,
+                right: 4,
+              }}
             >
               <DeleteOutline fontSize="small" />
             </IconButton>

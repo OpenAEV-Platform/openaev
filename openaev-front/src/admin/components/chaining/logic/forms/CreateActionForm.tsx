@@ -362,7 +362,12 @@ const CreateActionForm: FunctionComponent<Props> = ({ onSubmit, handleClose }) =
               label={t('Key type')}
               value={mc.condition_key_type}
               onChange={(e) => {
-                setMapperConditions(prev => prev.map((c, i) => (i === idx ? { ...c, condition_key_type: e.target.value } : c)));
+                setMapperConditions(prev => prev.map((c, i) => (i === idx
+                  ? {
+                      ...c,
+                      condition_key_type: e.target.value,
+                    }
+                  : c)));
               }}
             >
               {CONDITION_KEY_TYPES.map(kt => (
@@ -378,7 +383,12 @@ const CreateActionForm: FunctionComponent<Props> = ({ onSubmit, handleClose }) =
                     label={t('Contract field')}
                     value={mc.condition_key}
                     onChange={(e) => {
-                      setMapperConditions(prev => prev.map((c, i) => (i === idx ? { ...c, condition_key: e.target.value } : c)));
+                      setMapperConditions(prev => prev.map((c, i) => (i === idx
+                        ? {
+                            ...c,
+                            condition_key: e.target.value,
+                          }
+                        : c)));
                     }}
                   >
                     {contractFields.map(field => (
@@ -395,7 +405,12 @@ const CreateActionForm: FunctionComponent<Props> = ({ onSubmit, handleClose }) =
                   size="small"
                   value={mc.condition_key}
                   onChange={(e) => {
-                    setMapperConditions(prev => prev.map((c, i) => (i === idx ? { ...c, condition_key: e.target.value } : c)));
+                    setMapperConditions(prev => prev.map((c, i) => (i === idx
+                      ? {
+                          ...c,
+                          condition_key: e.target.value,
+                        }
+                      : c)));
                   }}
                   sx={{ flex: 1 }}
                 />
@@ -406,7 +421,12 @@ const CreateActionForm: FunctionComponent<Props> = ({ onSubmit, handleClose }) =
               label={t('Mapping')}
               value={mc.condition_mapping_type}
               onChange={(e) => {
-                setMapperConditions(prev => prev.map((c, i) => (i === idx ? { ...c, condition_mapping_type: e.target.value } : c)));
+                setMapperConditions(prev => prev.map((c, i) => (i === idx
+                  ? {
+                      ...c,
+                      condition_mapping_type: e.target.value,
+                    }
+                  : c)));
               }}
             >
               {MAPPING_TYPES.map(mt => (
@@ -425,7 +445,11 @@ const CreateActionForm: FunctionComponent<Props> = ({ onSubmit, handleClose }) =
       <Button
         size="small"
         startIcon={<Add />}
-        onClick={() => setMapperConditions(prev => [...prev, { condition_key_type: 'text', condition_key: '', condition_mapping_type: 'GLOBAL' }])}
+        onClick={() => setMapperConditions(prev => [...prev, {
+          condition_key_type: 'text',
+          condition_key: '',
+          condition_mapping_type: 'GLOBAL',
+        }])}
       >
         {t('Add mapper condition')}
       </Button>

@@ -62,9 +62,7 @@ interface EventMeta {
   conditions: ConditionRow[];
 }
 
-interface LogicProps {
-  workflowId: string | undefined;
-}
+interface LogicProps { workflowId: string | undefined }
 
 const Logic = ({ workflowId }: LogicProps) => {
   const { t } = useFormatter();

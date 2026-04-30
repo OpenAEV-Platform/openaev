@@ -3,8 +3,8 @@ import { IconButton } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
   BaseEdge,
-  type EdgeProps,
   EdgeLabelRenderer,
+  type EdgeProps,
   getSmoothStepPath,
 } from '@xyflow/react';
 
@@ -52,10 +52,10 @@ const DeletableEdge = ({
             size="small"
             onClick={() => data?.onDelete?.(id, source, target)}
             sx={{
-              width: 20,
-              height: 20,
-              background: theme.palette.background.paper,
-              border: `1px solid ${theme.palette.divider}`,
+              'width': 20,
+              'height': 20,
+              'background': theme.palette.background.paper,
+              'border': `1px solid ${theme.palette.divider}`,
               '&:hover': {
                 background: theme.palette.error.main,
                 color: theme.palette.error.contrastText,
