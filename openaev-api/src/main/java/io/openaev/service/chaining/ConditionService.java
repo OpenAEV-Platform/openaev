@@ -514,6 +514,17 @@ public class ConditionService {
   }
 
   /**
+   * Returns {@code true} if the given step has at least one condition of type {@link
+   * ConditionType#MAPPER}.
+   *
+   * @param step the step to inspect
+   * @return {@code true} if a mapper condition is linked to the step, {@code false} otherwise
+   */
+  public boolean hasConditionMapper(Step step) {
+    return step.getConditions().stream().anyMatch(conditionUtils::isMapperCondition);
+  }
+
+  /**
    * Links existing condition roots to a step via the conditions_steps join table.
    *
    * @param step the step to link

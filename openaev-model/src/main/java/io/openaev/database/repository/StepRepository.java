@@ -136,4 +136,14 @@ public interface StepRepository extends JpaRepository<Step, String> {
   Set<String> findStepIdsByExpectationIds(@Param("expectationIds") Set<String> expectationIds);
 
   List<Step> findAllStepByWorkflow_IdAndStatusIn(String id, List<StepStatus> run);
+
+  /**
+   * Returns {@code true} if at least one executed step references the given step template within
+   * the given workflow run.
+   *
+   * @param stepTemplateId the ID of the step template to check
+   * @param workflowRunId the ID of the workflow run to scope the check
+   * @return {@code true} if a matching step exists
+   */
+  boolean existsByStepTemplateIdAndWorkflowId(String stepTemplateId, String workflowRunId);
 }

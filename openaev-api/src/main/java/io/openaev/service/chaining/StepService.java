@@ -145,6 +145,13 @@ public class StepService {
   public List<Step> createReadySteps(
       Step nextStepTemplateToExecute, Workflow workflowRun, String input) throws ChainingException {
 
+    // If no condition mapper and step already executed, we skip the step to avoid to execute it
+    // again
+    if (!conditionService.hasConditionMapper(nextStepTemplateToExecute)
+        && isStepAlreadyExecutedOnce(nextStepTemplateToExecute.getId(), workflowRun.getId())) {
+      return List.of();
+    }
+
     ActionStep actionStep =
         factoryAction(nextStepTemplateToExecute.getStepAction(), nextStepTemplateToExecute.getId());
 
@@ -242,6 +249,18 @@ public class StepService {
   public int countExecutedStep(String workflowRunId, String stepTemplateId) {
     return stepRepository.countStepExecutedByStepTemplateIdAndWorkflowRunId(
         workflowRunId, stepTemplateId);
+  }
+
+  /**
+   * Returns {@code true} if at least one executed step references the given step template, meaning
+   * this template has already been executed at least once in the given workflow run.
+   *
+   * @param stepTemplateId the ID of the step template to check
+   * @param workflowRunId the ID of the workflow run to scope the check
+   * @return {@code true} if the step template has been executed at least once in that run
+   */
+  public boolean isStepAlreadyExecutedOnce(String stepTemplateId, String workflowRunId) {
+    return stepRepository.existsByStepTemplateIdAndWorkflowId(stepTemplateId, workflowRunId);
   }
 
   /**
