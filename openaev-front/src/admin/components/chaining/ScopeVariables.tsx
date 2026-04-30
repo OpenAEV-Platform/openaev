@@ -1,67 +1,168 @@
-import { Paper, Typography } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
-import { useContext } from 'react';
-import { useParams } from 'react-router';
-
+import { Add, DeleteOutlined } from '@mui/icons-material';
 import {
-  addVariableForExercise,
-  deleteVariableForExercise,
-  fetchVariablesForExercise,
-  updateVariableForExercise,
-} from '../../../actions/variables/variable-actions';
-import { type VariablesHelper } from '../../../actions/variables/variable-helper';
-import { useFormatter } from '../../../components/i18n';
-import { useHelper } from '../../../store';
-import { type Exercise, type Variable, type VariableInput } from '../../../utils/api-types';
-import { useAppDispatch } from '../../../utils/hooks';
-import useDataLoader from '../../../utils/hooks/useDataLoader';
-import { PermissionsContext, VariableContext, type VariableContextType } from '../common/Context';
-import CreateVariable from '../components/variables/CreateVariable';
-import Variables from '../components/variables/Variables';
+  Chip,
+  IconButton,
+  Paper,
+  Tooltip,
+  Typography,
+} from '@mui/material';
+import { useTheme } from '@mui/material/styles';
+import { useState } from 'react';
 
-const ScopeVariables = () => {
-  // Standard hooks
+import { useFormatter } from '../../../components/i18n';
+import { type ScopeVariableInput, type ScopeVariableOutput, type WorkflowConfigurationInput, type WorkflowConfigurationOutput } from '../../../utils/api-types';
+import ScopeVariableCreateDialog from './ScopeVariableCreateDialog';
+
+interface ScopeVariablesProps {
+  workflowConfiguration: WorkflowConfigurationOutput | undefined;
+  onUpdate: (overrides: Partial<WorkflowConfigurationInput>) => void;
+}
+
+const ScopeVariables = ({ workflowConfiguration, onUpdate }: ScopeVariablesProps) => {
   const { t } = useFormatter();
-  const dispatch = useAppDispatch();
   const theme = useTheme();
 
-  // Fetching data
-  const { exerciseId } = useParams() as { exerciseId: Exercise['exercise_id'] };
-  const { permissions } = useContext(PermissionsContext);
-  const variables = useHelper((helper: VariablesHelper) => helper.getExerciseVariables(exerciseId));
-  useDataLoader(() => {
-    dispatch(fetchVariablesForExercise(exerciseId));
+  const variables: ScopeVariableOutput[] = workflowConfiguration?.workflow_scope_variables ?? [];
+
+  const [open, setOpen] = useState(false);
+
+  const toInput = (v: ScopeVariableOutput): ScopeVariableInput => ({
+    scope_variable_id: v.scope_variable_id,
+    scope_variable_key: v.scope_variable_key ?? '',
+    scope_variable_type: v.scope_variable_type ?? 'text',
+    scope_variable_value: v.scope_variable_value ?? '',
+    scope_variable_description: v.scope_variable_description,
   });
 
-  const context: VariableContextType = {
-    onCreateVariable: (data: VariableInput) => dispatch(addVariableForExercise(exerciseId, data)),
-    onEditVariable: (variable: Variable, data: VariableInput) => dispatch(updateVariableForExercise(exerciseId, variable.variable_id, data)),
-    onDeleteVariable: (variable: Variable) => dispatch(deleteVariableForExercise(exerciseId, variable.variable_id)),
+  const handleCreate = (data: Omit<ScopeVariableInput, 'scope_variable_id'>) => {
+    onUpdate({
+      workflow_scope_variables: [
+        ...variables.map(toInput),
+        data,
+      ],
+    });
+  };
+
+  const handleDelete = (id: string | undefined) => {
+    onUpdate({ workflow_scope_variables: variables.filter(v => v.scope_variable_id !== id).map(toInput) });
   };
 
   return (
-    <VariableContext.Provider value={context}>
+    <div style={{
+      display: 'grid',
+      gridTemplateRows: 'min-content 1fr',
+      gap: theme.spacing(1),
+    }}
+    >
+      {/* Header */}
       <div style={{
-        display: 'grid',
-        gridTemplateRows: 'min-content 1fr',
-        gap: theme.spacing(1),
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
       }}
       >
-        <Typography
-          variant="h4"
-          sx={{
-            display: 'flex',
+        <Typography variant="h4">{t('Variables')}</Typography>
+        <IconButton color="primary" size="small" onClick={() => setOpen(true)} aria-label={t('Add variable')}>
+          <Add fontSize="small" />
+        </IconButton>
+      </div>
+
+      {/* List */}
+      <Paper variant="outlined" sx={{ p: theme.spacing(2) }}>
+        {variables.length > 0 ? (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr 1fr 1fr auto',
+            gap: theme.spacing(1),
             alignItems: 'center',
           }}
-        >
-          {t('Variables')}
-          {permissions.canManage && (<CreateVariable />)}
-        </Typography>
-        <Paper sx={{ padding: theme.spacing(2) }} variant="outlined">
-          <Variables variables={variables} />
-        </Paper>
-      </div>
-    </VariableContext.Provider>
+          >
+            {/* Column headers */}
+            {[t('Key'), t('Type'), t('Value'), t('Description')].map(label => (
+              <Typography
+                key={label}
+                variant="caption"
+                sx={{
+                  color: 'text.disabled',
+                  fontWeight: 600,
+                  textAlign: 'left',
+                }}
+              >
+                {label}
+              </Typography>
+            ))}
+            <span />
+
+            {/* Rows */}
+            {variables.map(variable => (
+              <>
+                <Typography
+                  key={`key-${variable.scope_variable_id}`}
+                  variant="body2"
+                  sx={{
+                    fontWeight: 600,
+                    wordBreak: 'break-all',
+                  }}
+                >
+                  {variable.scope_variable_key}
+                </Typography>
+                <Chip
+                  key={`type-${variable.scope_variable_id}`}
+                  label={variable.scope_variable_type ?? '—'}
+                  size="small"
+                  variant="outlined"
+                  sx={{
+                    justifySelf: 'start',
+                    fontSize: '0.7rem',
+                  }}
+                />
+                <Typography
+                  key={`value-${variable.scope_variable_id}`}
+                  variant="body2"
+                  sx={{
+                    color: 'text.secondary',
+                    wordBreak: 'break-all',
+                  }}
+                >
+                  {variable.scope_variable_value ?? '—'}
+                </Typography>
+                <Typography
+                  key={`desc-${variable.scope_variable_id}`}
+                  variant="body2"
+                  sx={{
+                    color: 'text.secondary',
+                    fontStyle: variable.scope_variable_description ? 'normal' : 'italic',
+                    wordBreak: 'break-all',
+                  }}
+                >
+                  {variable.scope_variable_description ?? '—'}
+                </Typography>
+                <Tooltip key={`del-${variable.scope_variable_id}`} title={t('Delete variable')}>
+                  <IconButton
+                    size="small"
+                    color="error"
+                    onClick={() => handleDelete(variable.scope_variable_id)}
+                    aria-label={t('Delete variable')}
+                  >
+                    <DeleteOutlined fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </>
+            ))}
+          </div>
+        ) : (
+          <Typography variant="body2" sx={{ color: 'text.disabled' }}>
+            {t('No variable defined yet.')}
+          </Typography>
+        )}
+      </Paper>
+
+      <ScopeVariableCreateDialog
+        open={open}
+        onClose={() => setOpen(false)}
+        onSubmit={handleCreate}
+      />
+    </div>
   );
 };
 

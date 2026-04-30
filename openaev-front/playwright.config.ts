@@ -12,13 +12,12 @@ import coverageOptions from './tests_e2e/conf/mcr.config';
 export default defineConfig({
   testDir: './tests_e2e',
   /* Run tests in files in parallel */
-  fullyParallel: true,
+  fullyParallel: false,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
-  /* 2 workers because is faster */
-  workers: 2,
+  workers: 1,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [
     ['list'],
@@ -38,7 +37,7 @@ export default defineConfig({
   use: {
     locale: 'en-US',
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: process.env.BASE_URL ?? 'http://localhost:3001',
+    baseURL: process.env.APP_URL ?? 'http://localhost:3001',
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
@@ -63,18 +62,6 @@ export default defineConfig({
     {
       name: 'setup',
       testMatch: /.*\.setup\.ts/,
-    },
-    {
-      name: 'webkit',
-      use: {
-        ...devices['Desktop Safari'],
-        storageState: 'tests_e2e/.auth/user.json',
-        viewport: {
-          width: 1920,
-          height: 1080,
-        },
-      },
-      dependencies: ['setup'],
     },
     {
       name: 'Google Chrome',

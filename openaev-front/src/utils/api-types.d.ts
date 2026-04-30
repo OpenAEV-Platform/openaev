@@ -7189,6 +7189,84 @@ export interface ScenarioUpdateTeamsInput {
   scenario_teams?: string[];
 }
 
+/** Input for a scope variable attached to a workflow. */
+export interface ScopeVariableInput {
+  /** Optional description of the variable's purpose. */
+  scope_variable_description?: string;
+  /** ID of an existing scope variable. Null means a new variable will be created. */
+  scope_variable_id?: string;
+  /**
+   * Unique key used to reference the variable in templates (e.g. company_name).
+   * @minLength 1
+   */
+  scope_variable_key: string;
+  /** Argument type driving how the variable value is interpreted. */
+  scope_variable_type:
+    | "text"
+    | "number"
+    | "port"
+    | "portscan"
+    | "ipv4"
+    | "ipv6"
+    | "credentials"
+    | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account"
+    | "document"
+    | "targeted-asset";
+  /**
+   * Value of the variable.
+   * @minLength 1
+   */
+  scope_variable_value: string;
+}
+
+/** Output for a scope variable attached to a workflow. */
+export interface ScopeVariableOutput {
+  /** Optional description of the variable's purpose. */
+  scope_variable_description?: string;
+  /** Unique ID of the scope variable. */
+  scope_variable_id?: string;
+  /** Key used to reference the variable in templates. */
+  scope_variable_key?: string;
+  /** Argument type driving how the variable value is interpreted. */
+  scope_variable_type?:
+    | "text"
+    | "number"
+    | "port"
+    | "portscan"
+    | "ipv4"
+    | "ipv6"
+    | "credentials"
+    | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account"
+    | "document"
+    | "targeted-asset";
+  /** Value of the variable. */
+  scope_variable_value?: string;
+}
+
 export interface SearchPaginationInput {
   /** Filter object to search within filterable attributes */
   filterGroup?: FilterGroup;
@@ -8749,6 +8827,8 @@ export interface WorkflowConfigurationInput {
   workflow_configuration_timeout_seconds?: number;
   /** List scope rules. */
   workflow_scope_rules?: WorkflowScopeRuleInput[];
+  /** List of custom variables available for template substitution in this workflow. */
+  workflow_scope_variables?: ScopeVariableInput[];
 }
 
 /** Output for a workflow configuration. */
@@ -8776,6 +8856,8 @@ export interface WorkflowConfigurationOutput {
   workflow_configuration_timeout_seconds?: number;
   /** List scope rules */
   workflow_scope_rules?: WorkflowScopeRuleOutput[];
+  /** Custom variables available for template substitution in this workflow. */
+  workflow_scope_variables?: ScopeVariableOutput[];
 }
 
 /** Input for a scope rule used in workflow configuration. */

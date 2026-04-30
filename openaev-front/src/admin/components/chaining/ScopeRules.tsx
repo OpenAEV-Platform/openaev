@@ -14,7 +14,7 @@ import type {
   WorkflowScopeRuleInput,
   WorkflowScopeRuleOutput,
 } from '../../../utils/api-types';
-import ScopeForm from './ScopeForm';
+import ScopeForm, { type ScopeCustomRule } from './ScopeForm';
 
 type ScopeMode = 'ALLOWLIST' | 'DENYLIST';
 
@@ -87,8 +87,10 @@ const ScopeRules = ({ workflowConfiguration, onUpdate }: ScopeRulesProps) => {
   // Selected IDs for the form
   const [selectedEndpointIds, setSelectedEndpointIds] = useState<string[]>([]);
   const [selectedAssetGroupIds, setSelectedAssetGroupIds] = useState<string[]>([]);
+  const [selectedCustomRules, setSelectedCustomRules] = useState<ScopeCustomRule[]>([]);
   const [initialEndpointIds, setInitialEndpointIds] = useState<string[]>([]);
   const [initialAssetGroupIds, setInitialAssetGroupIds] = useState<string[]>([]);
+  const [initialCustomRules, setInitialCustomRules] = useState<ScopeCustomRule[]>([]);
 
   const handleOpenDrawer = (mode: ScopeMode) => {
     setDrawerMode(mode);
@@ -104,11 +106,20 @@ const ScopeRules = ({ workflowConfiguration, onUpdate }: ScopeRulesProps) => {
       .filter(r => r.workflow_scope_rule_source === 'ASSET_GROUP')
       .map(r => r.workflow_scope_rule_value ?? '')
       .filter(Boolean);
+    const customRules = rulesForMode
+      .filter(r => r.workflow_scope_rule_source === 'MANUAL' || r.workflow_scope_rule_source === 'CSV')
+      .map(r => ({
+        source: (r.workflow_scope_rule_source as 'MANUAL' | 'CSV') ?? 'CSV',
+        value: r.workflow_scope_rule_value ?? '',
+      }))
+      .filter(r => !!r.value);
 
     setSelectedEndpointIds(endpointIds);
     setSelectedAssetGroupIds(assetGroupIds);
+    setSelectedCustomRules(customRules);
     setInitialEndpointIds(endpointIds);
     setInitialAssetGroupIds(assetGroupIds);
+    setInitialCustomRules(customRules);
 
     setDrawerOpen(true);
   };
@@ -127,6 +138,11 @@ const ScopeRules = ({ workflowConfiguration, onUpdate }: ScopeRulesProps) => {
         workflow_scope_rule_selected_mode: drawerMode,
         workflow_scope_rule_source: 'ASSET_GROUP' as const,
         workflow_scope_rule_value: id,
+      })),
+      ...selectedCustomRules.map(rule => ({
+        workflow_scope_rule_selected_mode: drawerMode,
+        workflow_scope_rule_source: rule.source,
+        workflow_scope_rule_value: rule.value,
       })),
     ];
 
@@ -246,10 +262,13 @@ const ScopeRules = ({ workflowConfiguration, onUpdate }: ScopeRulesProps) => {
           mode={drawerMode}
           selectedEndpointIds={selectedEndpointIds}
           selectedAssetGroupIds={selectedAssetGroupIds}
+          selectedCustomRules={selectedCustomRules}
           initialEndpointIds={initialEndpointIds}
           initialAssetGroupIds={initialAssetGroupIds}
+          initialCustomRules={initialCustomRules}
           onEndpointIdsChange={setSelectedEndpointIds}
           onAssetGroupIdsChange={setSelectedAssetGroupIds}
+          onCustomRulesChange={setSelectedCustomRules}
           onCancel={handleCloseDrawer}
           onSubmit={handleSubmitScope}
         />
