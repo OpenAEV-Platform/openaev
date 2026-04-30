@@ -3,7 +3,7 @@ import { Fab } from '@mui/material';
 import { type FunctionComponent, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import { addThreatArsenalAction } from '../../../actions/threat_arsenals/ThreatArsenal-actions';
+import { addThreatArsenalAction } from '../../../actions/threat_arsenals/threatArsenal-actions';
 import Drawer from '../../../components/common/Drawer';
 import { useFormatter } from '../../../components/i18n';
 import {

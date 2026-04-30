@@ -96,6 +96,9 @@ runs:
         done
 
         echo "📥 Downloading backend-compiled..."
+        # Remove any cached openaev artifacts to prevent "file exists"
+        # errors when extracting the freshly compiled artifact.
+        rm -rf ~/.m2/repository/io/openaev/
         if ! gh run download "${{ github.run_id }}" -n backend-compiled -D ~/.m2/repository/io/openaev/; then
           echo "❌ Failed to download backend-compiled artifact"
           exit 1

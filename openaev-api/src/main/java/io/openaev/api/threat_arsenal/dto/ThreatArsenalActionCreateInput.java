@@ -1,4 +1,4 @@
-package io.openaev.rest.threat_arsenal.dto;
+package io.openaev.api.threat_arsenal.dto;
 
 import static io.openaev.config.AppConfig.MANDATORY_MESSAGE;
 

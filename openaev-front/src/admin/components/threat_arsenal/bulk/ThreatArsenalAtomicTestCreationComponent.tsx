@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import { createAtomicTesting } from '../../../../actions/atomic_testings/atomic-testing-actions';
-import { searchThreatArsenalActions } from '../../../../actions/threat_arsenals/ThreatArsenal-actions';
+import { searchThreatArsenalActions } from '../../../../actions/threat_arsenals/threatArsenal-actions';
 import { useFormatter } from '../../../../components/i18n';
 import {
   type InjectInput,

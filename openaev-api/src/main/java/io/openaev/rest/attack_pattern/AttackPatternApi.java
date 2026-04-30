@@ -29,7 +29,6 @@ import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -86,9 +85,7 @@ public class AttackPatternApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.ATTACK_PATTERN)
   public AttackPattern attackPattern(@PathVariable String attackPatternId) {
-    return attackPatternRepository
-        .findById(attackPatternId)
-        .orElseThrow(ElementNotFoundException::new);
+    return attackPatternService.findById(attackPatternId);
   }
 
   @PostMapping
@@ -135,63 +132,6 @@ public class AttackPatternApi extends RestBehavior {
     return attackPatternRepository.save(attackPattern);
   }
 
-  private List<AttackPattern> internalUpsertAttackPatterns(
-      List<AttackPatternCreateInput> attackPatterns, Boolean ignoreDependencies) {
-    List<AttackPattern> upserted = new ArrayList<>();
-    attackPatterns.forEach(
-        attackPatternInput -> {
-          String attackPatternExternalId = attackPatternInput.getExternalId();
-          Optional<AttackPattern> optionalAttackPattern =
-              attackPatternRepository.findByExternalId(attackPatternExternalId);
-          List<KillChainPhase> killChainPhases =
-              attackPatternInput.getKillChainPhasesIds() != null
-                      && !attackPatternInput.getKillChainPhasesIds().isEmpty()
-                  ? fromIterable(
-                      killChainPhaseRepository.findAllById(
-                          attackPatternInput.getKillChainPhasesIds()))
-                  : new ArrayList<>();
-          AttackPattern attackPatternParent =
-              attackPatternInput.getParentId() != null
-                  ? attackPatternRepository
-                      .findByStixId(attackPatternInput.getParentId())
-                      .orElseThrow(ElementNotFoundException::new)
-                  : null;
-          if (optionalAttackPattern.isEmpty()) {
-            AttackPattern newAttackPattern = new AttackPattern();
-            newAttackPattern.setStixId(attackPatternInput.getStixId());
-            newAttackPattern.setExternalId(attackPatternExternalId);
-            newAttackPattern.setKillChainPhases(killChainPhases);
-            newAttackPattern.setName(attackPatternInput.getName());
-            newAttackPattern.setDescription(attackPatternInput.getDescription());
-            newAttackPattern.setPlatforms(attackPatternInput.getPlatforms());
-            newAttackPattern.setPermissionsRequired(attackPatternInput.getPermissionsRequired());
-            newAttackPattern.setParent(attackPatternParent);
-            upserted.add(newAttackPattern);
-          } else {
-            AttackPattern attackPattern = optionalAttackPattern.get();
-            // In this case, the input may not contain kill chain phases or parent, we keep the
-            // original
-            if (ignoreDependencies) {
-              if (killChainPhases.isEmpty() && !attackPattern.getKillChainPhases().isEmpty()) {
-                killChainPhases = attackPattern.getKillChainPhases();
-              }
-              if (attackPatternParent == null && attackPattern.getParent() != null) {
-                attackPatternParent = attackPattern.getParent();
-              }
-            }
-            attackPattern.setStixId(attackPatternInput.getStixId());
-            attackPattern.setKillChainPhases(killChainPhases);
-            attackPattern.setName(attackPatternInput.getName());
-            attackPattern.setDescription(attackPatternInput.getDescription());
-            attackPattern.setPlatforms(attackPatternInput.getPlatforms());
-            attackPattern.setPermissionsRequired(attackPatternInput.getPermissionsRequired());
-            attackPattern.setParent(attackPatternParent);
-            upserted.add(attackPattern);
-          }
-        });
-    return fromIterable(this.attackPatternRepository.saveAll(upserted));
-  }
-
   @PostMapping("/upsert")
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ATTACK_PATTERN)
   @Transactional(rollbackOn = Exception.class)
@@ -204,9 +144,11 @@ public class AttackPatternApi extends RestBehavior {
     List<AttackPatternCreateInput> patternsWithParent =
         attackPatterns.stream().filter(a -> a.getParentId() != null).toList();
     upserted.addAll(
-        internalUpsertAttackPatterns(patternsWithoutParent, input.getIgnoreDependencies()));
+        attackPatternService.internalUpsertAttackPatterns(
+            patternsWithoutParent, input.getIgnoreDependencies()));
     upserted.addAll(
-        internalUpsertAttackPatterns(patternsWithParent, input.getIgnoreDependencies()));
+        attackPatternService.internalUpsertAttackPatterns(
+            patternsWithParent, input.getIgnoreDependencies()));
     return upserted;
   }
 

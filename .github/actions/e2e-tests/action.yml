@@ -86,15 +86,15 @@ runs:
       uses: actions/cache@v5
       with:
         path: ~/.cache/ms-playwright
-        key: playwright-${{ runner.os }}-${{ hashFiles('openaev-front/yarn.lock') }}
+        key: playwright-chromium-webkit-${{ runner.os }}-${{ hashFiles('openaev-front/yarn.lock') }}
     - name: Install Playwright browsers (overlaps with artifact wait)
       if: steps.playwright-cache.outputs.cache-hit != 'true'
-      run: yarn playwright install --with-deps chromium
+      run: yarn playwright install --with-deps chromium webkit
       shell: bash
       working-directory: openaev-front
     - name: Install Playwright system dependencies (cache hit)
       if: steps.playwright-cache.outputs.cache-hit == 'true'
-      run: yarn playwright install-deps chromium
+      run: yarn playwright install-deps chromium webkit
       shell: bash
       working-directory: openaev-front
 
