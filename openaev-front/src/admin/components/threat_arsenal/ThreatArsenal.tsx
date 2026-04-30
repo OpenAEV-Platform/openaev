@@ -280,7 +280,12 @@ const ThreatArsenal = () => {
                         )
                       : (
                           <InjectorContractPopover
-                            injectorContract={action}
+                            injectorContract={{
+                              injector_contract_id: action.injector_contract_id,
+                              injector_contract_attack_patterns: action.action_attack_patterns_ids,
+                              injector_contract_domains: action.action_domains_ids,
+                              injector_contract_tags: action.action_tags_ids,
+                            }}
                             canDelete={false}
                             canEditCustomForm={false}
                             onUpdate={(result: ThreatArsenalAction) =>
