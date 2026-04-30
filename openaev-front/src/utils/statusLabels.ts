@@ -24,7 +24,10 @@ const statusLabelMap: Record<string, string> = {
 };
 
 // -- REMOVE THIS PART IN #5643 --
-const injectStatusLabelMap: Record<string, string> = { SUCCESS: 'EXECUTED' };
+const injectStatusLabelMap: Record<string, string> = {
+  SUCCESS: 'EXECUTED',
+  EXECUTING: 'RUNNING',
+};
 
 export const getInjectStatusLabel = (status: string | undefined | null): string => {
   if (!status) return '';
@@ -35,6 +38,7 @@ const traceStatusLabelMap: Record<string, string> = {
   SUCCESS: 'EXECUTED',
   SUCCESS_WITH_CLEANUP_FAIL: 'EXECUTED_WITH_CLEANUP_FAIL',
   WARNING: 'EXECUTED_WITH_WARNING',
+  QUEUING: 'PENDING IN QUEUE',
 };
 
 export const getTraceStatusLabel = (status: string | undefined | null): string => {
@@ -55,7 +59,7 @@ export const getStatusLabel = (status: string | undefined | null): string => {
 
 // -- STATUS TOOLTIPS --
 
-const statusTooltipMap: Record<string, string> = {
+const agentStatusTooltipMap: Record<string, string> = {
   // -- ExecutionTraceStatus (Agent level) --
   SUCCESS: 'The inject ran successfully.',
   SUCCESS_WITH_CLEANUP_FAIL: 'The main command executed successfully, but the cleanup step failed. Check cleanup prerequisites and logs on the target.',
@@ -75,7 +79,21 @@ const statusTooltipMap: Record<string, string> = {
  * Returns the explanatory tooltip text for a given status.
  * Returns undefined if no tooltip is defined (no tooltip will be shown).
  */
-export const getStatusTooltip = (status: string | undefined | null): string | undefined => {
+export const getAgentStatusTooltip = (status: string | undefined | null): string | undefined => {
   if (!status) return undefined;
-  return statusTooltipMap[status.toUpperCase()];
+  return agentStatusTooltipMap[status.toUpperCase()];
+};
+
+const injectStatusTooltipMap: Record<string, string> = {
+  SUCCESS: 'The inject completed successfully. All targets were processed and results have been recorded.',
+  ERROR: 'The inject could not be completed. No result was recorded for any target. Review the inject configuration or check the execution details for more information.',
+  PARTIAL: 'The inject completed on some targets but not all. Review the individual target results for more details.',
+  DRAFT: 'This inject has not been executed yet. It is saved as a draft and can be edited before being queued for execution.',
+  QUEUING: 'The inject is queued and waiting to be dispatched. Execution will begin based on scheduling order.',
+  EXECUTING: 'The inject is currently being executed across target.',
+  PENDING: 'The inject has been scheduled but execution has not started yet. The platform is waiting for the execution window or for agent availability before dispatching.',
+};
+
+export const getInjectStatusTooltip = (status: string): string => {
+  return injectStatusTooltipMap[status.toUpperCase()] ?? status;
 };

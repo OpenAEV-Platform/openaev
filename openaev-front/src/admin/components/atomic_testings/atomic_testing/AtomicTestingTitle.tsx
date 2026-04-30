@@ -3,11 +3,10 @@ import { Box, IconButton, Tooltip, Typography } from '@mui/material';
 import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../../../components/i18n';
-import ItemStatus from '../../../../components/ItemStatus';
 import Loader from '../../../../components/Loader';
-import type { InjectResultOverviewOutput } from '../../../../utils/api-types';
-import { getInjectStatusLabel } from '../../../../utils/statusLabels';
+import type { InjectResultOverviewOutput, InjectStatus as InjectStatusType } from '../../../../utils/api-types';
 import { truncate } from '../../../../utils/String';
+import InjectStatus from '../../common/injects/status/InjectStatus';
 import AtomicTestingInformation from './AtomicTestingInformation';
 
 const useStyles = makeStyles()(theme => ({
@@ -38,10 +37,7 @@ const AtomicTestingTitle = ({ injectResultOverview }: Props) => {
           {truncate(injectResultOverview.inject_title, 80)}
         </Typography>
       </Tooltip>
-      <ItemStatus
-        status={injectResultOverview.inject_status?.status_name}
-        label={t(getInjectStatusLabel(injectResultOverview.inject_status?.status_name ?? 'Unknown'))}
-      />
+      <InjectStatus status={injectResultOverview.inject_status?.status_name as InjectStatusType['status_name']} />
       <Tooltip
         slotProps={{
           tooltip: {

@@ -16,7 +16,6 @@ import type { VariablesHelper } from '../../../../../actions/variables/variable-
 import { BACK_LABEL, BACK_URI } from '../../../../../components/Breadcrumbs';
 import Empty from '../../../../../components/Empty';
 import { useFormatter } from '../../../../../components/i18n';
-import ItemStatus from '../../../../../components/ItemStatus';
 import ProgressBarCountdown from '../../../../../components/ProgressBarCountdown';
 import SearchFilter from '../../../../../components/SearchFilter';
 import Timeline from '../../../../../components/Timeline';
@@ -27,12 +26,12 @@ import endpointContextForExercise from '../../../../../utils/context/endpoint/En
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
 import useSearchAndFilter from '../../../../../utils/SortingFiltering';
-import { getInjectStatusLabel } from '../../../../../utils/statusLabels';
 import { isNotEmptyField } from '../../../../../utils/utils';
 import { ArticleContext, ChallengeContext, TeamContext } from '../../../common/Context';
 import TagsFilter from '../../../common/filters/TagsFilter';
 import InjectIcon from '../../../common/injects/InjectIcon';
 import InjectPopover from '../../../common/injects/InjectPopover';
+import InjectStatus from '../../../common/injects/status/InjectStatus';
 import UpdateInject from '../../../common/injects/UpdateInject';
 import AnimationMenu from '../AnimationMenu';
 import articleContextForExercise from '../articles/articleContextForExercise';
@@ -251,12 +250,7 @@ const TimelineOverview = () => {
                           <div
                             className={classes.bodyItem}
                           >
-                            <ItemStatus
-                              key={inject.inject_id}
-                              variant="inList"
-                              label={t(getInjectStatusLabel(inject.inject_status?.status_name || 'Unknown'))}
-                              status={inject.inject_status?.status_name}
-                            />
+                            <InjectStatus status={inject.inject_status?.status_name} />
                           </div>
                           <div
                             className={classes.bodyItem}

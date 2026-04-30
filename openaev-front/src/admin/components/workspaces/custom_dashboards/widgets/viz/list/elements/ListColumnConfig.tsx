@@ -18,9 +18,9 @@ import {
   type EsBase,
   type EsInjectExpectation,
 } from '../../../../../../../../utils/api-types';
-import { getInjectStatusLabel } from '../../../../../../../../utils/statusLabels';
 import { computeInjectExpectationLabel } from '../../../../../../../../utils/statusUtils';
 import EndpointListItemFragments from '../../../../../../common/endpoints/EndpointListItemFragments';
+import InjectStatus from '../../../../../../common/injects/status/InjectStatus';
 
 export type ColumnRenderer = (value: string | string[] | boolean | boolean[], opts: {
   element: EsBase;
@@ -51,7 +51,7 @@ const vulnerableEndpointColumnsRenderers: RendererMap = {
 };
 
 const injectColumnsRenderers: RendererMap = {
-  ['inject_status']: status => <ItemStatus status={status as string} label={getInjectStatusLabel(status as string)} variant="inList" />,
+  ['inject_status']: status => <InjectStatus status={status as InjectStatus['status_name']} />,
   ['base_platforms_side_denormalized']: platform => <AssetPlatformFragment platform={platform as string} />,
   ['execution_date']: value => <DateFragment value={value as string} />,
 

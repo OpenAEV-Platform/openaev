@@ -14,17 +14,16 @@ import { type Header } from '../../../components/common/SortHeadersList';
 import Empty from '../../../components/Empty';
 import { useFormatter } from '../../../components/i18n';
 import ItemDomains from '../../../components/ItemDomains';
-import ItemStatus from '../../../components/ItemStatus';
 import ItemTargets from '../../../components/ItemTargets';
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
 import { type InjectResultOutput, type SearchPaginationInput } from '../../../utils/api-types';
 import { Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
-import { getInjectStatusLabel } from '../../../utils/statusLabels';
 import { isNotEmptyField } from '../../../utils/utils';
 import InjectIcon from '../common/injects/InjectIcon';
 import InjectImportJsonDialog from '../common/injects/InjectImportJsonDialog';
 import InjectorContract from '../common/injects/InjectorContract';
+import InjectStatus from '../common/injects/status/InjectStatus';
 import AtomicTestingPopover from './atomic_testing/AtomicTestingPopover';
 import AtomicTestingResult from './atomic_testing/AtomicTestingResult';
 
@@ -135,8 +134,11 @@ const InjectResultList: FunctionComponent<Props> = ({
       label: 'Execution status',
       isSortable: false,
       value: (injectResultOutput: InjectResultOutput) => {
-        return (<ItemStatus status={injectResultOutput.inject_status?.status_name} label={t(getInjectStatusLabel(injectResultOutput.inject_status?.status_name || '-'))} variant="inList" />);
+        return (<InjectStatus status={injectResultOutput.inject_status?.status_name} />);
       },
+      // value: (injectResultOutput: InjectResultOutput) => {
+      //   return (<ItemStatus status={injectResultOutput.inject_status?.status_name} label={t(getInjectStatusLabel(injectResultOutput.inject_status?.status_name || '-'))} variant="inList" />);
+      // },
     },
     {
       field: 'inject_targets',

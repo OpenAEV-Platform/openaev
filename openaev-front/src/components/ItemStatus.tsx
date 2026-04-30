@@ -26,6 +26,7 @@ const useStyles = makeStyles()(() => ({
 interface ItemStatusProps {
   label: string;
   status?: string | null;
+  tooltipLabel?: string;
   variant?: 'inList';
   isInject?: boolean;
 }
@@ -33,6 +34,7 @@ interface ItemStatusProps {
 const ItemStatus: FunctionComponent<ItemStatusProps> = ({
   label,
   status,
+  tooltipLabel,
   variant,
 }) => {
   const { classes } = useStyles();
@@ -40,7 +42,7 @@ const ItemStatus: FunctionComponent<ItemStatusProps> = ({
   const classStyle = computeStatusStyle(status);
 
   return (
-    <Tooltip title={label}>
+    <Tooltip title={tooltipLabel ?? label}>
       <Chip classes={{ root: style }} style={classStyle} label={label} />
     </Tooltip>
   );
