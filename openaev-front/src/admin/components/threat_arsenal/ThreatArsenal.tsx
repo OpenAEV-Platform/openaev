@@ -204,7 +204,7 @@ const ThreatArsenal = () => {
       <Breadcrumbs
         variant="list"
         elements={[{
-          label: t('Threat Arsenals'),
+          label: t('Threat Arsenal'),
           current: true,
         }]}
       />
