@@ -34,7 +34,6 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
    * @param events list of events
    * @return consumed list of events
    */
-  @Transactional(rollbackFor = Exception.class)
   public List<StepEvent> handleReadyEvent(List<StepEvent> events) {
     events.forEach(this::handleReadyStepEvent);
     return events;
@@ -46,6 +45,7 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
    * @param stepEvent event to handle
    */
   @Override
+  @Transactional(rollbackFor = Exception.class)
   public void handleReadyStepEvent(StepEvent stepEvent) {
     stepRepository
         .findById(stepEvent.getStepId())
