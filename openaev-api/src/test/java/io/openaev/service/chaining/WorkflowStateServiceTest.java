@@ -50,7 +50,7 @@ class WorkflowStateServiceTest {
 
       // Act
       WorkflowState result =
-          workflowStateService.getLocalStateByWorkflowAndStep(stepTemplate, workflowExecution);
+          workflowStateService.loadOrBuildLocalState(stepTemplate, workflowExecution);
 
       // Assert
       assertSame(expected, result);
@@ -73,7 +73,7 @@ class WorkflowStateServiceTest {
 
       // Act
       WorkflowState result =
-          workflowStateService.getLocalStateByWorkflowAndStep(stepTemplate, workflowExecution);
+          workflowStateService.loadOrBuildLocalState(stepTemplate, workflowExecution);
 
       // Assert
       assertNotNull(result);

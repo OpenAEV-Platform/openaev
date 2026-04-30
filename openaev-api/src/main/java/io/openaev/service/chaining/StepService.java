@@ -31,8 +31,8 @@ public class StepService {
 
   private final InjectExecutionStep injectExecutionStep;
 
-  public final InjectService injectService;
-  public final ConditionService conditionService;
+  private final InjectService injectService;
+  private final ConditionService conditionService;
   private final QueueChainingService queueChainingService;
 
   private final StepRepository stepRepository;

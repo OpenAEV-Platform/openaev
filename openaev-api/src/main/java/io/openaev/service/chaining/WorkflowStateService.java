@@ -30,11 +30,7 @@ public class WorkflowStateService {
    */
   public void syncState(
       JsonElement dataToSync, Map<String, ContractOutputType> fieldTypeMap, Workflow workflowRun) {
-    WorkflowState globalState = getOrCreateGlobalState(workflowRun);
-    if (globalState == null) {
-      log.warn("No global state found for workflow {}. Skipping sync.", workflowRun.getId());
-      return;
-    }
+    WorkflowState globalState = loadOrBuildGlobalState(workflowRun);
 
     WorkflowStateEntries entries =
         gson.fromJson(globalState.getEntries(), WorkflowStateEntries.class);
@@ -131,7 +127,7 @@ public class WorkflowStateService {
    * @param workflow the running workflow
    * @return existing global state, or a new (unsaved) one with empty entries
    */
-  private WorkflowState getOrCreateGlobalState(Workflow workflow) {
+  private WorkflowState loadOrBuildGlobalState(Workflow workflow) {
     WorkflowState state = getGlobalStateByWorkflowId(workflow.getId());
     if (state == null) {
       state =
@@ -165,8 +161,7 @@ public class WorkflowStateService {
    * @param workflowExecution the workflow execution ID
    * @return the local state, or {@code null} if not yet initialized
    */
-  public WorkflowState getLocalStateByWorkflowAndStep(
-      Step targetTemplate, Workflow workflowExecution) {
+  public WorkflowState loadOrBuildLocalState(Step targetTemplate, Workflow workflowExecution) {
     WorkflowState localState =
         workflowStateRepository.findByStepTemplate_IdAndWorkflowExecution_Id(
             targetTemplate.getId(), workflowExecution.getId());

@@ -327,7 +327,7 @@ public class ConditionServiceTest {
           List.of(new ConditionService.ExecutionBatch("{\"IPv4\":\"10.10.10.10\"}", List.of()));
       doReturn(expected)
           .when(conditionService)
-          .extractInputsForStepExecution(stepTemplate, workflowRun, List.of(mapperTemplate));
+          .prepareInputsForStepExecution(stepTemplate, workflowRun, List.of(mapperTemplate));
 
       // -------- Act --------
       List<ConditionService.ExecutionBatch> result =
@@ -336,7 +336,7 @@ public class ConditionServiceTest {
       // -------- Assert --------
       assertEquals(expected, result);
       verify(conditionService)
-          .extractInputsForStepExecution(stepTemplate, workflowRun, List.of(mapperTemplate));
+          .prepareInputsForStepExecution(stepTemplate, workflowRun, List.of(mapperTemplate));
     }
   }
 

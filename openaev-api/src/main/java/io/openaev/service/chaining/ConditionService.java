@@ -462,7 +462,7 @@ public class ConditionService {
     List<Condition> mapperConditions =
         conditionTemplate.stream().filter(conditionUtils::isMapperCondition).toList();
 
-    return extractInputsForStepExecution(nextStepTemplateToExecute, workflowRun, mapperConditions);
+    return prepareInputsForStepExecution(nextStepTemplateToExecute, workflowRun, mapperConditions);
 
     //    // StepFrom (DEPEND_ON) conditions
     //    List<Condition> stepFrom =
@@ -675,7 +675,7 @@ public class ConditionService {
    * @param workflowRun active workflow run used to resolve global/local workflow states
    * @return list of execution batches; empty when no mapper-driven execution is currently possible
    */
-  public List<ConditionService.ExecutionBatch> extractInputsForStepExecution(
+  public List<ConditionService.ExecutionBatch> prepareInputsForStepExecution(
       Step stepTemplate, Workflow workflowRun, List<Condition> mappers) throws ChainingException {
 
     // No mappers means a default execution batch
@@ -714,7 +714,7 @@ public class ConditionService {
     WorkflowState globalState =
         workflowStateService.getGlobalStateByWorkflowId(workflowRun.getId());
     WorkflowState localState =
-        workflowStateService.getLocalStateByWorkflowAndStep(stepTemplate, workflowRun);
+        workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun);
 
     WorkflowStateEntries localEntries = deserializeEntries(localState.getEntries());
     WorkflowStateEntries globalEntries = deserializeEntries(globalState.getEntries());
