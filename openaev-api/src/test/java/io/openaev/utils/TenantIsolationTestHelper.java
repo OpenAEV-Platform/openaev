@@ -11,7 +11,6 @@ import jakarta.persistence.EntityManager;
 import java.util.UUID;
 import org.hibernate.Session;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,9 +37,6 @@ public class TenantIsolationTestHelper {
   @Autowired private TenantRepository tenantRepository;
   @Autowired private TenantMembershipCacheManager tenantMembershipCacheManager;
   @Autowired private TestUserHolder testUserHolder;
-
-  @Value("${openaev.rls.enabled:true}")
-  private boolean rlsEnabled;
 
   /**
    * Creates a tenant and attaches the current mock user to it.
@@ -90,8 +86,8 @@ public class TenantIsolationTestHelper {
   /**
    * Switches the current tenant context and configures the DB connection for RLS enforcement.
    *
-   * <p>When {@code openaev.rls.enabled=true} (default), applies {@code SET ROLE openaev_app} so
-   * that the connection uses a non-superuser role subject to RLS policies.
+   * <p>Applies {@code SET ROLE openaev_app} so that the connection uses a non-superuser role
+   * subject to RLS policies.
    *
    * @param tenantId the tenant ID to switch to
    * @param entityManager the current {@link EntityManager}
@@ -100,20 +96,18 @@ public class TenantIsolationTestHelper {
     entityManager.flush();
     entityManager.clear();
     TenantContext.setCurrentTenant(tenantId);
-    if (rlsEnabled) {
-      Session session = entityManager.unwrap(Session.class);
-      session.doWork(
-          connection -> {
-            try (var stmt = connection.createStatement()) {
-              stmt.execute("SET ROLE openaev_app");
-            }
-            try (var stmt =
-                connection.prepareStatement("SELECT set_config('app.current_tenant', ?, false)")) {
-              stmt.setString(1, tenantId);
-              stmt.execute();
-            }
-          });
-    }
+    Session session = entityManager.unwrap(Session.class);
+    session.doWork(
+        connection -> {
+          try (var stmt = connection.createStatement()) {
+            stmt.execute("SET ROLE openaev_app");
+          }
+          try (var stmt =
+              connection.prepareStatement("SELECT set_config('app.current_tenant', ?, false)")) {
+            stmt.setString(1, tenantId);
+            stmt.execute();
+          }
+        });
   }
 
   /** Clears the current tenant context. */

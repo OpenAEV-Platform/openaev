@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
@@ -796,6 +797,83 @@ public class ScenarioApiTest extends IntegrationTest {
       tenantIsolationHelper.switchToTenant(tenantXXX.getId(), em);
       mvc.perform(
               get(TENANT_SCENARIO_URI.formatted(tenantXXX.getId()) + "/" + scenarioId)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+    }
+  }
+
+  /**
+   * Proves that WITHOUT RLS enforcement, tenant isolation leaks — cross-tenant data is visible.
+   * These tests are the inverse of the {@link TenantIsolation} tests: they disable RLS by resetting
+   * the connection role to the DB superuser, then show that queries return data from other tenants.
+   *
+   * <p>This validates that the isolation tests above are not false positives — they genuinely
+   * depend on RLS being active.
+   */
+  @Nested
+  @DisplayName("Tenant isolation leak without RLS")
+  class TenantIsolationLeakWithoutRls {
+
+    private static final String TENANT_SCENARIO_URI = "/api/tenants/%s/scenarios";
+
+    /**
+     * Switches tenant context but uses {@code RESET ROLE} so the connection runs as the DB
+     * superuser, which bypasses all RLS policies.
+     */
+    private void switchToTenantWithoutRls(String tenantId) {
+      em.flush();
+      em.clear();
+      TenantContext.setCurrentTenant(tenantId);
+      org.hibernate.Session session = em.unwrap(org.hibernate.Session.class);
+      session.doWork(
+          connection -> {
+            // RESET ROLE → superuser → RLS policies are bypassed
+            try (var stmt = connection.createStatement()) {
+              stmt.execute("RESET ROLE");
+            }
+            try (var stmt =
+                connection.prepareStatement("SELECT set_config('app.current_tenant', ?, false)")) {
+              stmt.setString(1, tenantId);
+              stmt.execute();
+            }
+          });
+    }
+
+    @Test
+    @DisplayName(
+        "given scenario in Tenant XXX, when RLS disabled and getById from Tenant YYY, should LEAK data (200)")
+    @WithMockUser(isAdmin = true)
+    void given_scenarioInTenantXXX_when_rlsDisabled_getByIdFromTenantYYY_should_leak()
+        throws Exception {
+      // -- ARRANGE --
+      Tenant tenantXXX = tenantIsolationHelper.createTenantWithCurrentUser("Tenant XXX");
+      Tenant tenantYYY = tenantIsolationHelper.createTenantWithCurrentUser("Tenant YYY");
+
+      // Create scenario in Tenant XXX (with RLS enforced)
+      tenantIsolationHelper.switchToTenant(tenantXXX.getId(), em);
+      ScenarioInput scenarioInput = new ScenarioInput();
+      scenarioInput.setName("Leaky scenario");
+      String createResponse =
+          mvc.perform(
+                  post(TENANT_SCENARIO_URI.formatted(tenantXXX.getId()))
+                      .content(asJsonString(scenarioInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      String scenarioId = JsonPath.read(createResponse, "$.scenario_id");
+
+      // -- ACT & ASSERT --
+      // Switch to Tenant YYY WITHOUT RLS → superuser bypasses policies.
+      // Without RLS, scenario from Tenant XXX is visible from Tenant YYY —
+      // proving isolation depends on RLS.
+      switchToTenantWithoutRls(tenantYYY.getId());
+      mvc.perform(
+              get(TENANT_SCENARIO_URI.formatted(tenantYYY.getId()) + "/" + scenarioId)
                   .accept(MediaType.APPLICATION_JSON)
                   .with(csrf()))
           .andExpect(status().is2xxSuccessful());
