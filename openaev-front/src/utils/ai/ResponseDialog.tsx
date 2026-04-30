@@ -1,6 +1,6 @@
+import { RefreshOutlined } from '@mui/icons-material';
 import { LoadingButton } from '@mui/lab';
 import { Alert, Autocomplete, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, IconButton, InputLabel, MenuItem, Select, TextField } from '@mui/material';
-import { RefreshOutlined } from '@mui/icons-material';
 // As we can ask AI after and follow up, there is a dependency lifecycle here that can be accepted
 // TODO: Cleanup a bit in upcoming version
 // eslint-disable-next-line import/no-cycle
@@ -93,7 +93,9 @@ const ResponseDialog: FunctionComponent<ResponseDialogProps> = ({
   const { content: streamContent, loading: agentLoading, error: agentError, execute: executeStream, abort: abortStream } = useAgentStream();
 
   // Sync streamed content to parent
-  useEffect(() => { if (streamContent) setContent(streamContent); }, [streamContent, setContent]);
+  useEffect(() => {
+    if (streamContent) setContent(streamContent);
+  }, [streamContent, setContent]);
 
   // Load agents when dialog opens in agent mode
   useEffect(() => {
@@ -117,6 +119,13 @@ const ResponseDialog: FunctionComponent<ResponseDialogProps> = ({
     }
   }, [isOpen, agentMode?.intent, agentMode?.action]);
 
+  const executeAgentCall = () => {
+    if (!selectedAgent || !agentMode) return;
+    setAgentExecuted(true);
+    const prompt = buildPrompt(agentMode.action, agentMode.inputContent, agentMode.format, tone);
+    executeStream(selectedAgent.slug, prompt);
+  };
+
   // Auto-execute when agent is selected
   useEffect(() => {
     if (isOpen && agentMode && selectedAgent && !agentExecuted && !agentLoading) {
@@ -132,13 +141,6 @@ const ResponseDialog: FunctionComponent<ResponseDialogProps> = ({
       executeAgentCall();
     }
   }, [tone]);
-
-  const executeAgentCall = () => {
-    if (!selectedAgent || !agentMode) return;
-    setAgentExecuted(true);
-    const prompt = buildPrompt(agentMode.action, agentMode.inputContent, agentMode.format, tone);
-    executeStream(selectedAgent.slug, prompt);
-  };
 
   const handleRefresh = () => {
     if (!selectedAgent || !agentMode) return;
@@ -176,41 +178,50 @@ const ResponseDialog: FunctionComponent<ResponseDialogProps> = ({
   const effectiveDisabled = isDisabled || agentLoading;
   const noAgents = agentMode && !loadingAgents && agentOptions.length === 0;
 
-  const dialogTitle = agentMode ? (
-    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 2 }}>
-      <span>{t('Ask AI')}</span>
-      <Autocomplete<AgentOption>
-        sx={{ width: 220 }}
-        size="small"
-        options={agentOptions}
-        getOptionLabel={(option) => option.name}
-        value={selectedAgent}
-        onChange={handleAgentChange}
-        loading={loadingAgents}
-        disabled={!!noAgents}
-        noOptionsText={t('No agent available')}
-        renderInput={(params) => (
-          <TextField
-            {...params}
-            variant="outlined"
+  const dialogTitle = agentMode
+    ? (
+        <Box sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          width: '100%',
+          gap: 2,
+        }}
+        >
+          <span>{t('Ask AI')}</span>
+          <Autocomplete<AgentOption>
+            sx={{ width: 220 }}
             size="small"
-            placeholder={noAgents ? t('No agent available') : t('Select agent')}
-            InputProps={{
-              ...params.InputProps,
-              endAdornment: (
-                <>
-                  {loadingAgents ? <CircularProgress color="inherit" size={16} /> : null}
-                  {params.InputProps.endAdornment}
-                </>
-              ),
-            }}
+            options={agentOptions}
+            getOptionLabel={option => option.name}
+            value={selectedAgent}
+            onChange={handleAgentChange}
+            loading={loadingAgents}
+            disabled={!!noAgents}
+            noOptionsText={t('No agent available')}
+            renderInput={params => (
+              <TextField
+                {...params}
+                variant="outlined"
+                size="small"
+                placeholder={noAgents ? t('No agent available') : t('Select agent')}
+                InputProps={{
+                  ...params.InputProps,
+                  endAdornment: (
+                    <>
+                      {loadingAgents ? <CircularProgress color="inherit" size={16} /> : null}
+                      {params.InputProps.endAdornment}
+                    </>
+                  ),
+                }}
+              />
+            )}
+            isOptionEqualToValue={(option, value) => option.id === value.id}
+            clearIcon={null}
           />
-        )}
-        isOptionEqualToValue={(option, value) => option.id === value.id}
-        clearIcon={null}
-      />
-    </Box>
-  ) : t('Ask AI');
+        </Box>
+      )
+    : t('Ask AI');
 
   const renderContentEditors = () => (
     <>
@@ -353,7 +364,7 @@ const ResponseDialog: FunctionComponent<ResponseDialogProps> = ({
                   labelId="tone-label"
                   label={t('Tone')}
                   value={tone}
-                  onChange={(event) => setTone(event.target.value)}
+                  onChange={event => setTone(event.target.value)}
                   size="small"
                 >
                   <MenuItem value="formal">{t('Formal')}</MenuItem>
@@ -380,19 +391,36 @@ const ResponseDialog: FunctionComponent<ResponseDialogProps> = ({
                   size="small"
                   onClick={handleRefresh}
                   disabled={agentLoading || !selectedAgent}
-                  sx={{ position: 'absolute', top: 2, right: 2, zIndex: 1 }}
+                  sx={{
+                    position: 'absolute',
+                    top: 2,
+                    right: 2,
+                    zIndex: 1,
+                  }}
                 >
                   <RefreshOutlined fontSize="small" />
                 </IconButton>
 
                 {((agentLoading && !content) || loadingAgents) && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                  <Box sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    height: '100%',
+                  }}
+                  >
                     <CircularProgress size={40} />
                   </Box>
                 )}
 
                 {noAgents && !agentLoading && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                  <Box sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    height: '100%',
+                  }}
+                  >
                     <Alert severity="info" variant="outlined">
                       {t('No agent available for this action. Ask your administrator to configure XTM One.')}
                     </Alert>
@@ -400,7 +428,13 @@ const ResponseDialog: FunctionComponent<ResponseDialogProps> = ({
                 )}
 
                 {agentError && !agentLoading && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                  <Box sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    height: '100%',
+                  }}
+                  >
                     <Alert severity="error" variant="outlined">
                       {agentError}
                     </Alert>

@@ -4,9 +4,9 @@ import { Controller, useFormContext } from 'react-hook-form';
 
 import { postDetectionRemediationAIRulesByPayload } from '../../../../actions/detection-remediation/detectionremediation-action';
 import CKEditor from '../../../../components/CKEditor';
-import { type Collector, type PayloadInput } from '../../../../utils/api-types';
 import { callAgent, fetchAgentsForIntent } from '../../../../utils/ai/agentApi';
 import formatAgentRules from '../../../../utils/ai/formatAgentRules';
+import { type Collector, type PayloadInput } from '../../../../utils/api-types';
 import useAI from '../../../../utils/hooks/useAI';
 import { isNotEmptyField } from '../../../../utils/utils';
 import {

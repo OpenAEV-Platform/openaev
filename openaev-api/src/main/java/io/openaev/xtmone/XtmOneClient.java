@@ -272,13 +272,12 @@ public class XtmOneClient {
       }
 
       // Use a service-level JWT (no real user context)
-      String jwt =
-          issueAuthenticationJwt("system", "OpenAEV Platform", "system@openaev.internal");
+      String jwt = issueAuthenticationJwt("system", "OpenAEV Platform", "system@openaev.internal");
 
       HttpPost httpPost =
-          chatPostBuilder("/api/v1/platform/chat/messages", jwt, objectMapper.writeValueAsString(body));
-      httpPost.setConfig(
-          RequestConfig.custom().setResponseTimeout(Timeout.ofMinutes(5)).build());
+          chatPostBuilder(
+              "/api/v1/platform/chat/messages", jwt, objectMapper.writeValueAsString(body));
+      httpPost.setConfig(RequestConfig.custom().setResponseTimeout(Timeout.ofMinutes(5)).build());
 
       return httpClient.execute(
           httpPost,

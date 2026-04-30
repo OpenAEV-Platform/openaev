@@ -32,9 +32,7 @@ interface CrowdStrikeRule {
   field_configuration?: FieldConfiguration;
 }
 
-interface SplunkRule {
-  spl_query?: string;
-}
+interface SplunkRule { spl_query?: string }
 
 interface AgentRulesResponse {
   rules?: (CrowdStrikeRule | SplunkRule)[];
@@ -86,7 +84,7 @@ const formatSplunkRules = (rules: SplunkRule[], raw: AgentRulesResponse): string
   const first = rules[0];
   if (first?.spl_query) return first.spl_query;
   // Fallback: join all spl_query values
-  return rules.map((r) => r.spl_query ?? '').filter(Boolean).join('\n\n');
+  return rules.map(r => r.spl_query ?? '').filter(Boolean).join('\n\n');
 };
 
 /**

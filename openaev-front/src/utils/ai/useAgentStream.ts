@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+
 import { callAgentStream } from './agentApi';
 
 interface UseAgentStreamReturn {
@@ -39,7 +40,7 @@ const useAgentStream = (): UseAgentStreamReturn => {
     callAgentStream(
       agentSlug,
       prompt,
-      (partialContent) => setContent(partialContent),
+      partialContent => setContent(partialContent),
       controller.signal,
     )
       .then((result) => {
@@ -61,7 +62,14 @@ const useAgentStream = (): UseAgentStreamReturn => {
   // Abort on unmount
   useEffect(() => () => abort(), [abort]);
 
-  return { content, setContent, loading, error, execute, abort };
+  return {
+    content,
+    setContent,
+    loading,
+    error,
+    execute,
+    abort,
+  };
 };
 
 export default useAgentStream;

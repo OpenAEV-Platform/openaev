@@ -112,13 +112,15 @@ public class XtmOneService {
         }
         Object catalog = result.get("intent_catalog");
         if (catalog instanceof List<?> catalogList) {
-          discoveredIntentCatalog = catalogList.stream()
-              .filter(Map.class::isInstance)
-              .map(e -> (Map<String, Object>) e)
-              .toList();
-          int agentCount = discoveredIntentCatalog.stream()
-              .mapToInt(e -> e.get("agents") instanceof List<?> a ? a.size() : 0)
-              .sum();
+          discoveredIntentCatalog =
+              catalogList.stream()
+                  .filter(Map.class::isInstance)
+                  .map(e -> (Map<String, Object>) e)
+                  .toList();
+          int agentCount =
+              discoveredIntentCatalog.stream()
+                  .mapToInt(e -> e.get("agents") instanceof List<?> a ? a.size() : 0)
+                  .sum();
           log.info(
               "[XTM One] Intent catalog updated (intents={}, agents={})",
               discoveredIntentCatalog.size(),

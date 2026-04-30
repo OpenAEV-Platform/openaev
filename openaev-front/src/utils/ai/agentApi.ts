@@ -4,7 +4,7 @@
 
 /** Read the Spring Security XSRF-TOKEN cookie value (needed for mutating requests). */
 const getCsrfToken = (): string | null => {
-  const match = document.cookie.split('; ').find((row) => row.startsWith('XSRF-TOKEN='));
+  const match = document.cookie.split('; ').find(row => row.startsWith('XSRF-TOKEN='));
   return match ? decodeURIComponent(match.split('=')[1]) : null;
 };
 
@@ -40,10 +40,18 @@ export const callAgent = async (agentSlug: string, content: string): Promise<Age
   const response = await fetch('/api/chatbot/agent', {
     method: 'POST',
     headers,
-    body: JSON.stringify({ agent_slug: agentSlug, content }),
+    body: JSON.stringify({
+      agent_slug: agentSlug,
+      content,
+    }),
   });
   if (!response.ok) {
-    return { content: '', status: 'error', error: `Agent call failed: ${response.statusText}`, code: response.status };
+    return {
+      content: '',
+      status: 'error',
+      error: `Agent call failed: ${response.statusText}`,
+      code: response.status,
+    };
   }
   const data = await response.json();
   return {
@@ -73,17 +81,29 @@ export const callAgentStream = async (
   const response = await fetch('/api/chatbot/agent/stream', {
     method: 'POST',
     headers,
-    body: JSON.stringify({ agent_slug: agentSlug, content }),
+    body: JSON.stringify({
+      agent_slug: agentSlug,
+      content,
+    }),
     signal,
   });
 
   if (!response.ok) {
-    return { content: '', status: 'error', error: `Agent call failed: ${response.statusText}`, code: response.status };
+    return {
+      content: '',
+      status: 'error',
+      error: `Agent call failed: ${response.statusText}`,
+      code: response.status,
+    };
   }
 
   const reader = response.body?.getReader();
   if (!reader) {
-    return { content: '', status: 'error', error: 'No response stream' };
+    return {
+      content: '',
+      status: 'error',
+      error: 'No response stream',
+    };
   }
 
   const decoder = new TextDecoder();
@@ -93,6 +113,7 @@ export const callAgentStream = async (
 
   try {
     for (;;) {
+      // eslint-disable-next-line no-await-in-loop
       const { done, value } = await reader.read();
       if (done) break;
 
@@ -130,9 +151,14 @@ export const callAgentStream = async (
   }
 
   if (lastError) {
-    return { content: lastError, status: 'error', error: lastError };
+    return {
+      content: lastError,
+      status: 'error',
+      error: lastError,
+    };
   }
-  return { content: accumulated, status: 'success' };
+  return {
+    content: accumulated,
+    status: 'success',
+  };
 };
-
-

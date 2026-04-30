@@ -20,6 +20,8 @@ import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.attack_pattern.form.AttackPatternCreateInput;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.utils.SecurityCoverageUtils;
+import io.openaev.xtmone.XtmOneClient;
+import io.openaev.xtmone.XtmOneConfig;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -44,6 +46,8 @@ class AttackPatternServiceTest {
   @Mock private EnterpriseEditionService enterpriseEditionService;
   @Mock private RestTemplate restTemplate;
   @Mock private SecurityCoverageUtils securityCoverageUtils;
+  @Mock private XtmOneConfig xtmOneConfig;
+  @Mock private XtmOneClient xtmOneClient;
 
   @InjectMocks private AttackPatternService attackPatternService;
 
@@ -89,6 +93,7 @@ class AttackPatternServiceTest {
   @Test
   void given_missingEnterpriseLicense_should_throwIllegalStateException() {
     // Arrange
+    when(xtmOneConfig.isConfigured()).thenReturn(false);
     when(env.getProperty("ttp.extraction.ai.webservice.url")).thenReturn("http://localhost/api");
     when(enterpriseEditionService.getEnterpriseEditionLicensePem()).thenReturn(" ");
 
@@ -104,6 +109,7 @@ class AttackPatternServiceTest {
   @Test
   void given_webserviceResponse_should_returnInternalAttackPatternIds() {
     // Arrange
+    when(xtmOneConfig.isConfigured()).thenReturn(false);
     when(env.getProperty("ttp.extraction.ai.webservice.url")).thenReturn("http://localhost/api");
     when(enterpriseEditionService.getEnterpriseEditionLicensePem()).thenReturn("pem-content");
 
