@@ -422,15 +422,20 @@ public class InjectsExecutionJob implements Job {
                               : ex.getInjection().getExercise().getId()));
 
       // Execute injects in parallel for each exercise.
+      // Note: @BypassRls sets the ThreadLocal on the Quartz thread, but parallelStream() runs
+      // lambdas on ForkJoinPool worker threads which do NOT inherit ThreadLocal values.
+      // We must explicitly propagate the RLS bypass flag into each parallel task.
       byExercises.entrySet().parallelStream()
           .forEach(
               (entry) -> {
+                // Propagate RLS bypass to this ForkJoinPool thread
                 TenantContext.setRlsBypass();
                 try {
                   // Execute each inject for the exercise in order.
                   entry.getValue().parallelStream()
                       .forEach(
                           executableInject -> {
+                            // Propagate RLS bypass to nested ForkJoinPool thread
                             TenantContext.setRlsBypass();
                             try {
                               this.executeInject(executableInject);
