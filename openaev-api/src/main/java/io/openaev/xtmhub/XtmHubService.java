@@ -8,6 +8,7 @@ import io.openaev.database.repository.TenantXtmHubRegistrationRepository;
 import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.service.PlatformSettingsService;
 import io.openaev.service.UserService;
+import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.utils.LicenseUtils;
 import io.openaev.xtmhub.config.XtmHubConfig;
 import jakarta.validation.constraints.NotBlank;
@@ -31,6 +32,7 @@ public class XtmHubService {
 
   private final PlatformSettingsService platformSettingsService;
   private final UserService userService;
+  private final TenantSettingsService tenantSettingsService;
   private final XtmHubConfig xtmHubConfig;
   private final XtmHubClient xtmHubClient;
   private final XtmHubEmailService xtmHubEmailService;
@@ -116,7 +118,7 @@ public class XtmHubService {
       tenants.put(
           tenantId,
           new TenantRegistrationDetails(
-              registration.getToken(), buildTenantUrl(settings, tenantId)));
+              registration.getToken(), tenantSettingsService.buildTenantUrl(tenantId)));
     }
 
     Map<String, XtmHubConnectivityStatus> statuses =
@@ -163,7 +165,7 @@ public class XtmHubService {
 
   private ConnectivityCheckResult checkConnectivityStatus(
       PlatformSettings settings, TenantXtmHubRegistration registration) {
-    String url = buildTenantUrl(settings, TenantContext.getCurrentTenant());
+    String url = tenantSettingsService.buildTenantUrl(TenantContext.getCurrentTenant());
 
     XtmHubConnectivityStatus status =
         xtmHubClient.refreshRegistrationStatusSingleTenant(
@@ -188,10 +190,6 @@ public class XtmHubService {
     String token = registration.get().getToken();
     String platformId = platformSettingsService.findSettings().getPlatformId();
     return xtmHubClient.contactUs(message, token, platformId);
-  }
-
-  private String buildTenantUrl(PlatformSettings settings, String tenantId) {
-    return settings.getPlatformBaseUrl() + "/" + tenantId;
   }
 
   private LocalDateTime parseLastConnectivityCheck(TenantXtmHubRegistration registration) {
@@ -235,7 +233,7 @@ public class XtmHubService {
         && xtmHubConfig.getConnectivityEmailEnable()) {
       xtmHubEmailService.sendTenantLostConnectivityEmail(
           registration.getTenant().getId(),
-          buildTenantUrl(settings, registration.getTenant().getId()));
+          tenantSettingsService.buildTenantUrl(registration.getTenant().getId()));
       registration.setConnectivityEmailEligible(false);
       tenantXtmHubRegistrationRepository.save(registration);
     }

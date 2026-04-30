@@ -22,6 +22,7 @@ import io.openaev.ee.LicenseTypeEnum;
 import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.service.PlatformSettingsService;
 import io.openaev.service.UserService;
+import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.utilstest.DefaultTenantExtension;
 import io.openaev.xtmhub.config.XtmHubConfig;
 import java.time.LocalDateTime;
@@ -51,6 +52,7 @@ class XtmHubServiceTest {
 
   @Mock private PlatformSettingsService platformSettingsService;
   @Mock private UserService userService;
+  @Mock private TenantSettingsService tenantSettingsService;
   @Mock private XtmHubEmailService xtmHubEmailService;
   @Mock private HttpClientFactory httpClientFactory;
   @Mock private TenantXtmHubRegistrationRepository tenantXtmHubRegistrationRepository;
@@ -88,6 +90,10 @@ class XtmHubServiceTest {
     lenient()
         .when(tenantXtmHubRegistrationRepository.findByTenantId(any()))
         .thenReturn(Optional.empty());
+    // Default: build tenant URL from a fixed base URL
+    lenient()
+        .when(tenantSettingsService.buildTenantUrl(any()))
+        .thenAnswer(inv -> "http://localhost/" + inv.getArgument(0));
 
     XtmHubClient xtmHubClient =
         new XtmHubClient(xtmHubConfig, httpClientFactory, platformSettingsService);
@@ -97,6 +103,7 @@ class XtmHubServiceTest {
         new XtmHubService(
             platformSettingsService,
             userService,
+            tenantSettingsService,
             xtmHubConfig,
             xtmHubClient,
             xtmHubEmailService,

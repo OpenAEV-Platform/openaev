@@ -4,6 +4,7 @@ import static io.openaev.database.model.TenantSettingKeys.TENANT_HOME_DASHBOARD;
 import static io.openaev.database.model.TenantSettingKeys.TENANT_SCENARIO_DASHBOARD;
 import static io.openaev.database.model.TenantSettingKeys.TENANT_SIMULATION_DASHBOARD;
 
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.Setting;
 import io.openaev.database.model.TenantSetting;
 import io.openaev.database.model.TenantSettingKeys;
@@ -11,6 +12,7 @@ import io.openaev.database.repository.SettingRepository;
 import io.openaev.database.repository.TenantSettingRepository;
 import io.openaev.rest.settings.form.TenantSettingsUpdateInput;
 import io.openaev.rest.settings.response.TenantSettingsOutput;
+import jakarta.annotation.Resource;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
@@ -27,6 +29,12 @@ public class TenantSettingsService {
 
   private final TenantSettingRepository tenantSettingRepository;
   private final SettingRepository settingRepository;
+
+  @Resource private OpenAEVConfig openAEVConfig;
+
+  public String buildTenantUrl(String tenantId) {
+    return openAEVConfig.getBaseUrl() + "/" + tenantId;
+  }
 
   // -- READ --
 
