@@ -118,7 +118,6 @@ public class SecurityService {
           tenantRepository
               .findById(tenantId)
               .orElseThrow(() -> new EntityNotFoundException("Tenant not found: " + tenantId));
-      ;
       user.getTenants().add(tenant);
     } catch (EntityNotFoundException e) {
       log.warn("SSO tenant ID '{}' configured but not found in database", tenantId);

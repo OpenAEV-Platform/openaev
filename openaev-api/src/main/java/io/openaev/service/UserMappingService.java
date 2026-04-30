@@ -8,7 +8,7 @@ import io.openaev.database.model.Group;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.GroupRepository;
-import io.openaev.service.tenants.TenantService;
+import io.openaev.database.repository.TenantRepository;
 import io.openaev.sso.GroupMapping;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.constraints.NotBlank;
@@ -32,7 +32,7 @@ import org.springframework.stereotype.Service;
 public class UserMappingService {
 
   private final GroupRepository groupRepository;
-  private final TenantService tenantService;
+  private final TenantRepository tenantRepository;
   private final Environment env;
   public static final String ROLES_PATH_SUFFIX = "roles_path";
   public static final String GROUPS_PATH_SUFFIX = "groups_path";
@@ -113,7 +113,10 @@ public class UserMappingService {
       return;
     }
     try {
-      Tenant tenant = tenantService.findById(tenantId);
+      Tenant tenant =
+          tenantRepository
+              .findById(tenantId)
+              .orElseThrow(() -> new EntityNotFoundException("Tenant not found: " + tenantId));
       user.getTenants().add(tenant);
     } catch (EntityNotFoundException e) {
       log.warn("Group mapping tenant ID '{}' configured but not found in database", tenantId);
