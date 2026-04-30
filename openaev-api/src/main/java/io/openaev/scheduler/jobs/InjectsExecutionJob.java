@@ -45,7 +45,6 @@ import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.hibernate.Session;
 import org.quartz.DisallowConcurrentExecution;
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;
@@ -384,9 +383,6 @@ public class InjectsExecutionJob implements Job {
   @BypassRls
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
     try {
-      // Disable tenant filter — this job runs cross-tenant, no tenant context is set
-      entityManager.unwrap(Session.class).disableFilter("tenantFilter");
-
       // Handle starting exercises if needed.
       handleAutoStartExercises();
       // Get all injects to execute grouped by exercise.
