@@ -6,7 +6,7 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  Stack,
+  Stack, ToggleButtonGroup,
   Tooltip,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
@@ -14,8 +14,9 @@ import { type CSSProperties, useMemo, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import type { DomainHelper } from '../../../actions/domains/domain-helper';
-import { searchThreatArsenalActions } from '../../../actions/threat_arsenals/ThreatArsenal-actions';
+import { searchThreatArsenalActions } from '../../../actions/threat_arsenals/threatArsenal-actions';
 import Breadcrumbs from '../../../components/Breadcrumbs';
+import ExportButton from '../../../components/common/ExportButton';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
 import SortHeadersComponentV2 from '../../../components/common/queryable/sort/SortHeadersComponentV2';
@@ -28,7 +29,6 @@ import PaginatedListLoader from '../../../components/PaginatedListLoader';
 import PlatformIcon from '../../../components/PlatformIcon';
 import { useHelper } from '../../../store';
 import {
-  type Domain, type InjectorContract,
   type SearchPaginationInput,
   type ThreatArsenalAction,
 } from '../../../utils/api-types';
@@ -43,6 +43,7 @@ import InjectorContractPopover from '../integrations/injectors/injector_contract
 import PayloadStatusComponent from '../payloads/PayloadStatusComponent';
 import ThreatArsenalRunTestDrawer from './bulk/ThreatArsenalRunTestDrawer';
 import CreateThreatArsenalAction from './CreateThreatArsenalAction';
+import ImportUploaderThreatArsenal from './ImportUploaderThreatArsenal';
 import ThreatArsenalActionPopover from './ThreatArsenalActionPopover';
 import ThreatArsenalInformationDrawer from './ThreatArsenalInformationDrawer';
 
@@ -171,7 +172,9 @@ const ThreatArsenal = () => {
   ], []);
 
   // Sort threat arsenal by domains
-  const domainOptions: Domain[] = useHelper((helper: DomainHelper) => helper.getDomains());
+  const { domainOptions } = useHelper(
+    (helper: DomainHelper) => ({ domainOptions: helper.getDomains() }),
+  );
   const { iconBarOrderedDomains } = useDomainIconFilter({
     domainOptions,
     searchPaginationInput,
@@ -188,6 +191,13 @@ const ThreatArsenal = () => {
     'action_payload_status',
     'action_updated_at',
   ];
+
+  const exportProps = {
+    exportType: 'INJECTOR_CONTRACTS',
+    exportKeys: [],
+    exportData: threatArsenalActions,
+    searchPaginationInput,
+  };
 
   return (
     <Stack flexDirection="column">
@@ -207,6 +217,16 @@ const ThreatArsenal = () => {
         entityPrefix="threat_arsenal"
         availableFilterNames={availableFilterNames}
         queryableHelpers={queryableHelpers}
+        topBarButtons={(
+          <ToggleButtonGroup value="fake" exclusive>
+            <ExportButton totalElements={queryableHelpers.paginationHelpers.getTotalElements()} exportProps={exportProps} />
+            <Can I={ACTIONS.MANAGE} a={SUBJECTS.PAYLOADS}>
+              <ImportUploaderThreatArsenal
+                onImport={results => setThreatArsenalActions(prev => [...results, ...prev])}
+              />
+            </Can>
+          </ToggleButtonGroup>
+        )}
       />
       <List>
         <ListItem
@@ -254,8 +274,8 @@ const ThreatArsenal = () => {
                               setThreatArsenalActions(threatArsenalActions.map(a => a.injector_contract_id === action.injector_contract_id ? result : a))}
                             onDuplicate={(result: ThreatArsenalAction) => setThreatArsenalActions([result, ...threatArsenalActions])}
                             onDelete={() => setThreatArsenalActions(threatArsenalActions.filter(a => a.injector_contract_id !== action.injector_contract_id))}
-                            disableUpdate={action.action_payload?.payload_collector_type !== null}
-                            disableDelete={action.action_payload?.payload_collector_type !== null && action.action_payload?.payload_status !== 'DEPRECATED'}
+                            disableUpdate={action.action_payload.payload_collector_type !== null}
+                            disableDelete={action.action_payload.payload_collector_type !== null && action.action_payload?.payload_status !== 'DEPRECATED'}
                           />
                         )
                       : (
@@ -268,15 +288,8 @@ const ThreatArsenal = () => {
                             }}
                             canDelete={false}
                             canEditCustomForm={false}
-                            onUpdate={(result: InjectorContract) =>
-                              setThreatArsenalActions(threatArsenalActions.map(ic => (ic.injector_contract_id !== result.injector_contract_id
-                                ? ic
-                                : {
-                                    ...ic,
-                                    action_attack_patterns_ids: result.injector_contract_attack_patterns ?? [],
-                                    action_domains_ids: result.injector_contract_domains ?? [],
-                                    action_tags_ids: result.injector_contract_tags ?? [],
-                                  })))}
+                            onUpdate={(result: ThreatArsenalAction) =>
+                              setThreatArsenalActions(threatArsenalActions.map(ic => (ic.injector_contract_id !== result.injector_contract_id ? ic : result)))}
                           />
                         )
                     )}

@@ -1,4 +1,4 @@
-package io.openaev.rest.threat_arsenal;
+package io.openaev.api.threat_arsenal;
 
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.StringUtils.DUPLICATE_SUFFIX;
@@ -10,6 +10,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionCreateInput;
+import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionUpdateInput;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.CollectorRepository;
@@ -19,8 +21,6 @@ import io.openaev.database.repository.PayloadRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.integration.Manager;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
-import io.openaev.rest.threat_arsenal.dto.ThreatArsenalActionCreateInput;
-import io.openaev.rest.threat_arsenal.dto.ThreatArsenalActionUpdateInput;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.fixtures.files.AttackPatternFixture;
