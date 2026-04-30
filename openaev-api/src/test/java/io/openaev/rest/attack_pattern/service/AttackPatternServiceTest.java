@@ -177,7 +177,7 @@ class AttackPatternServiceTest {
     input.setPermissionsRequired(new String[] {"Administrator"});
 
     when(attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(anyList(), anyString()))
-        .thenReturn(new ArrayList<>());
+        .thenReturn(List.of(existing));
 
     // Act
     AttackPattern result = attackPatternService.findOrCreate(input);

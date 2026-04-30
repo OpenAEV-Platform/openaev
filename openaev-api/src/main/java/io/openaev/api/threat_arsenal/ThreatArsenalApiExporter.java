@@ -37,8 +37,8 @@ public class ThreatArsenalApiExporter {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PAYLOAD)
   public ResponseEntity<byte[]> export(@PathVariable @NotBlank final String actionId)
       throws IOException {
-    Map<String, Boolean> opts = new HashMap<>();
-    opts.put("exclude from action export", false);
+    Map<String, IncludeOptions.IncludeMode> opts = new HashMap<>();
+    opts.put("exclude from action export", IncludeOptions.IncludeMode.FALSE);
     IncludeOptions includeOptions = IncludeOptions.of(opts);
     InjectorContract injectorContract = injectorContractService.injectorContract(actionId);
     if (injectorContract.getPayload() == null) {

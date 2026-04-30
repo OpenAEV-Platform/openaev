@@ -40,6 +40,16 @@ public class PayloadImportService {
   @Resource protected ObjectMapper mapper;
 
   /**
+   * Import options that configure the collector relationship on detection remediations to only
+   * include collectors that already exist in the target database. If a collector is not found by
+   * its business key, the entire detection remediation is skipped.
+   */
+  private static final IncludeOptions IMPORT_OPTIONS =
+      IncludeOptions.of(
+          Map.of(
+              "detection_remediation_collector_type", IncludeOptions.IncludeMode.IF_EXISTS_IN_DB));
+
+  /**
    * Imports a payload from a JSON:API ZIP and synchronizes the associated injector contract.
    *
    * <p>Legacy payload exports may contain {@code payload_attack_patterns}, {@code payload_domains},
@@ -52,7 +62,8 @@ public class PayloadImportService {
    *     contract
    */
   public PayloadImportResult importPayload(MultipartFile file) throws Exception {
-    ZipJsonService.ImportOutput<Payload> response = zipJsonApi.handleImport(file, "payload_name");
+    ZipJsonService.ImportOutput<Payload> response =
+        zipJsonApi.handleImport(file, "payload_name", IMPORT_OPTIONS, null);
 
     List<AttackPattern> attackPatterns =
         extractRelationshipObjects(
