@@ -11,7 +11,6 @@ import io.openaev.database.repository.UserRepository;
 import io.openaev.service.UserMappingService;
 import io.openaev.service.UserService;
 import io.openaev.service.user_events.UserEventService;
-import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.constraints.NotBlank;
 import java.util.ArrayList;
 import java.util.List;
@@ -113,15 +112,12 @@ public class SecurityService {
     if (alreadyAttached) {
       return;
     }
-    try {
-      Tenant tenant =
-          tenantRepository
-              .findById(tenantId)
-              .orElseThrow(() -> new EntityNotFoundException("Tenant not found: " + tenantId));
-      user.getTenants().add(tenant);
-    } catch (EntityNotFoundException e) {
+    if (!tenantRepository.existsById(tenantId)) {
       log.warn("SSO tenant ID '{}' configured but not found in database", tenantId);
+      return;
     }
+    Tenant tenant = tenantRepository.getReferenceById(tenantId);
+    user.getTenants().add(tenant);
   }
 
   private List<String> getAdminRoles(@NotBlank final String registrationId) {

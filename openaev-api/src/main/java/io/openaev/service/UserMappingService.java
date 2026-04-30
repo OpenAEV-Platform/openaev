@@ -10,7 +10,6 @@ import io.openaev.database.model.User;
 import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.sso.GroupMapping;
-import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.constraints.NotBlank;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -112,15 +111,12 @@ public class UserMappingService {
     if (alreadyAttached) {
       return;
     }
-    try {
-      Tenant tenant =
-          tenantRepository
-              .findById(tenantId)
-              .orElseThrow(() -> new EntityNotFoundException("Tenant not found: " + tenantId));
-      user.getTenants().add(tenant);
-    } catch (EntityNotFoundException e) {
+    if (!tenantRepository.existsById(tenantId)) {
       log.warn("Group mapping tenant ID '{}' configured but not found in database", tenantId);
+      return;
     }
+    Tenant tenant = tenantRepository.getReferenceById(tenantId);
+    user.getTenants().add(tenant);
   }
 
   /**
