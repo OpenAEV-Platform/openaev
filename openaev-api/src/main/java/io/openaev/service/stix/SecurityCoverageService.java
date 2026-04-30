@@ -3,12 +3,10 @@ package io.openaev.service.stix;
 import static io.openaev.helper.CryptoHelper.md5Hex;
 import static io.openaev.rest.payload.service.PayloadService.DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY;
 import static io.openaev.stix.objects.constants.CommonProperties.MODIFIED;
-import static io.openaev.utils.SecurityCoverageUtils.extractAndValidateCoverage;
 import static io.openaev.utils.SecurityCoverageUtils.extractObjectReferences;
 import static io.openaev.utils.constants.StixConstants.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
@@ -58,6 +56,7 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -86,25 +85,32 @@ public class SecurityCoverageService {
   private final SecurityCoverageConnector connector;
 
   /**
-   * Parses a STIX JSON string, validates it, and delegates to create and persist a
-   * SecurityCoverage.
+   * Creates or updates a security coverage and the associated scenario, and updates the
+   * corresponding connector.
    *
-   * @param stixJson the STIX bundle as a JSON string
-   * @return the saved {@link SecurityCoverage} object
-   * @throws JsonProcessingException if the input cannot be parsed into JSON
-   * @throws ParsingException if the STIX bundle is obsolete or already stored
-   * @throws BundleValidationError if validation fails
+   * @param securityCoverageStixId the STIX ID of the security-coverage object in the bundle
+   * @param securityCoverageObj the SDO representing the security coverage
+   * @param bundle the full bundle, also containing the security coverage SDO
+   * @throws ParsingException if the STIX bundle is malformed
+   * @throws BundleValidationError if the STIX bundle is obsolete or already stored
+   * @throws ConnectorError there was an issue communicating with the connector
+   * @throws IOException there is an issue with serialisation
    */
-  public SecurityCoverage processAndBuildStixToSecurityCoverage(String stixJson)
-      throws ParsingException, BundleValidationError, JsonProcessingException {
+  @Lock(type = LockResourceType.SECURITY_COVERAGE, key = "#securityCoverageStixId")
+  @Transactional(rollbackFor = Exception.class)
+  public Scenario handleSecurityCoverageProcessing(
+      String securityCoverageStixId, ObjectBase securityCoverageObj, Bundle bundle)
+      throws ParsingException, BundleValidationError, ConnectorError, IOException {
+    String bundleHash = md5Hex(bundle.toStix(objectMapper).toString());
 
-    JsonNode root = objectMapper.readTree(stixJson);
-    String stixJsonHash = md5Hex(stixJson);
-    Bundle bundle = stixParser.parseBundle(root.toString());
-    ObjectBase stixCoverageObj = extractAndValidateCoverage(bundle);
-    String externalId = stixCoverageObj.getRequiredProperty(CommonProperties.ID.toString());
+    SecurityCoverage securityCoverage =
+        buildSecurityCoverageFromStix(
+            securityCoverageObj, bundle, securityCoverageStixId, bundleHash);
+    Scenario scenario = buildScenarioFromSecurityCoverage(securityCoverage);
 
-    return buildSecurityCoverageFromStix(stixCoverageObj, bundle, externalId, stixJsonHash);
+    // FIXME: extract this behaviour into an async worker
+    pushSecurityCoverageBundleWithExternalURI(scenario);
+    return scenario;
   }
 
   /**
@@ -119,7 +125,6 @@ public class SecurityCoverageService {
    * @throws ParsingException if the STIX bundle is malformed
    * @throws BundleValidationError if the STIX bundle is obsolete or already stored
    */
-  @Lock(type = LockResourceType.SECURITY_COVERAGE, key = "#externalId")
   private SecurityCoverage buildSecurityCoverageFromStix(
       ObjectBase stixCoverageObj, Bundle bundle, String externalId, String stixJsonHash)
       throws ParsingException, BundleValidationError {

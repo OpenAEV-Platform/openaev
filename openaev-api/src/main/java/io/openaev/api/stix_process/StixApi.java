@@ -1,13 +1,13 @@
 package io.openaev.api.stix_process;
 
 import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.RBAC;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Scenario;
 import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
+import io.openaev.opencti.dto.CTIEvent;
 import io.openaev.opencti.errors.ConnectorError;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.stix.StixService;
@@ -23,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -56,26 +57,19 @@ public class StixApi extends RestBehavior {
     @ApiResponse(responseCode = "500", description = "Unexpected server error")
   })
   @RBAC(actionPerformed = Action.PROCESS, resourceType = ResourceType.STIX_BUNDLE)
-  public ResponseEntity<?> processBundle(@RequestBody String ctiEvent)
+  public ResponseEntity<?> processBundle(@RequestBody @Validated CTIEvent ctiEvent)
       throws ParsingException, ConnectorError, IOException {
-    String workId = null;
     try {
-      JsonNode root = objectMapper.readTree(ctiEvent);
-      workId = root.path("internal").path("work_id").asText();
-      String stixJson =
-          root.path("event").path("stix_objects").asText(); // As text is required here
-      // Acknowledge the scenario creation / enrichment by sending back the security coverage
       openCTIService.acknowledgeReceivedOfCoverage(
-          workId, "OpenAEV ready to process the operation");
-      // Create scenario from stix bundle
-      // If no simulation for this scenario is in progress, start an execution right away
+          ctiEvent.getInternal().getWorkId(), "OpenAEV ready to process the operation");
 
-      Scenario scenario = stixService.processBundle(stixJson);
+      Scenario scenario = stixService.processBundle(ctiEvent.getEvent().getStixObjects());
+
       openCTIService.acknowledgeProcessedOfCoverage(
-          workId, "Coverage successfully created or updated", false);
-      // Generate response
-      String summary = stixService.generateBundleImportReport(scenario);
-      return ResponseEntity.ok(new BundleImportReport(scenario.getId(), summary));
+          ctiEvent.getInternal().getWorkId(), "Coverage successfully created or updated", false);
+      return ResponseEntity.ok(
+          new BundleImportReport(
+              scenario.getId(), stixService.generateBundleImportReport(scenario)));
     } catch (BundleValidationError e) {
       // OCTI-specific behaviour
       // in the case of a Bundle validation error,
@@ -84,12 +78,12 @@ public class StixApi extends RestBehavior {
       // we will signal the failure with a log in the OAEV process and an "isError" ack
       // for OpenCTI
       log.error(
-          String.format(
-              "OpenAEV did not process this STIX bundle due to processing rules (workId=%s). ctiEvent=%s. Error: %s",
-              workId, ctiEvent, e.getMessage()),
+          "OpenAEV did not process this STIX bundle due to processing rules (workId={}). ctiEvent={}",
+          ctiEvent.getInternal().getWorkId(),
+          ctiEvent,
           e);
       openCTIService.acknowledgeProcessedOfCoverage(
-          workId,
+          ctiEvent.getInternal().getWorkId(),
           "OpenAEV did not process this STIX bundle due to processing rules: %s"
               .formatted(e.getMessage()),
           true);
@@ -98,21 +92,23 @@ public class StixApi extends RestBehavior {
       return ResponseEntity.status(HttpStatus.OK).build();
     } catch (JsonParseException e) {
       log.error(
-          String.format(
-              "Input STIX bundle is malformed (workId=%s). ctiEvent=%s. Error: %s",
-              workId, ctiEvent, e.getMessage()),
+          "Input STIX bundle is malformed (workId={}). ctiEvent={}",
+          ctiEvent.getInternal().getWorkId(),
+          ctiEvent,
           e);
       openCTIService.acknowledgeProcessedOfCoverage(
-          workId, "Input STIX bundle is malformed: %s".formatted(e.getMessage()), true);
+          ctiEvent.getInternal().getWorkId(),
+          "Input STIX bundle is malformed: %s".formatted(e.getMessage()),
+          true);
       return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
     } catch (Exception e) {
       log.error(
-          String.format(
-              "An error occurred while processing STIX bundle (workId=%s). ctiEvent=%s. Error: %s",
-              workId, ctiEvent, e.getMessage()),
+          "An error occurred while processing STIX bundle (workId={}). ctiEvent={}",
+          ctiEvent.getInternal().getWorkId(),
+          ctiEvent,
           e);
       openCTIService.acknowledgeProcessedOfCoverage(
-          workId,
+          ctiEvent.getInternal().getWorkId(),
           "An error occurred while processing STIX bundle: %s".formatted(e.getMessage()),
           true);
       throw e;
