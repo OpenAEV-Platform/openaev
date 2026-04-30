@@ -9,12 +9,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import io.openaev.IntegrationTest;
 import io.openaev.api.users.dto.UserInput;
 import io.openaev.api.users.dto.UserOutput;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.raw.RawUser;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.fixtures.tenants.TenantComposer;
@@ -40,6 +40,7 @@ class TenantUserServiceTest extends IntegrationTest {
   @Autowired private TenantRepository tenantRepository;
   @Autowired private UserComposer userComposer;
   @Autowired private TenantComposer tenantComposer;
+  @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
   @Autowired private EntityManager entityManager;
 
   private Tenant tenant;
@@ -47,7 +48,7 @@ class TenantUserServiceTest extends IntegrationTest {
   @BeforeEach
   void setUp() {
     tenant = tenantComposer.forTenant(getTenant()).persist().get();
-    TenantContext.setCurrentTenant(tenant.getId());
+    tenantIsolationHelper.switchToTenant(tenant.getId(), entityManager);
   }
 
   // -- HELPERS --
