@@ -110,7 +110,7 @@ public class XtmHubEmailService {
 
   private List<User> findTenantAdmins() {
     return userRepository.adminsOrUsersHavingCapabilities(
-        List.of(Capability.MANAGE_TENANT_SETTINGS.toString()));
+        List.of(Capability.MANAGE_TENANT_SETTINGS.toString(), Capability.BYPASS.toString()));
   }
 
   private List<User> findPlatformAdmins() {
