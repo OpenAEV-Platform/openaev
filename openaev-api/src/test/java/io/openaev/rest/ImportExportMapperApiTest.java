@@ -12,7 +12,7 @@ import io.openaev.database.model.Tag;
 import io.openaev.database.repository.EndpointRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.helper.StreamHelper;
-import io.openaev.utils.TargetType;
+import io.openaev.utils.CsvType;
 import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -41,7 +41,7 @@ public class ImportExportMapperApiTest extends IntegrationTest {
   @DisplayName("Test testing an export csv with endpoints target")
   @Test
   @WithMockUser(isAdmin = true)
-  void testExportCsvWithEndpointsTarget() throws Exception {
+  void testExportCsvWithEndpoints() throws Exception {
     // -- PREPARE --
     endpointRepository.save(EndpointFixture.createEndpoint());
 
@@ -49,8 +49,7 @@ public class ImportExportMapperApiTest extends IntegrationTest {
     String response =
         this.mvc
             .perform(
-                MockMvcRequestBuilders.post(
-                        "/api/mappers/export/csv?targetType=" + TargetType.ENDPOINTS)
+                MockMvcRequestBuilders.post("/api/mappers/export/csv?csvType=" + CsvType.ENDPOINTS)
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(asJsonString(new SearchPaginationInput()))
                     .with(csrf()))
@@ -63,17 +62,17 @@ public class ImportExportMapperApiTest extends IntegrationTest {
     assertNotNull(response);
   }
 
-  @DisplayName("Test testing an export csv with unknown target")
+  @DisplayName("Test testing an export csv with unknown csv type")
   @Test
   @WithMockUser(isAdmin = true)
-  void testExportCsvWithUnknownTarget() throws Exception {
+  void testExportCsvWithUnknownCsvType() throws Exception {
     // -- PREPARE --
     endpointRepository.save(EndpointFixture.createEndpoint());
 
     // -- EXECUTE --
     this.mvc
         .perform(
-            MockMvcRequestBuilders.post("/api/mappers/export/csv?targetType=" + TargetType.AGENT)
+            MockMvcRequestBuilders.post("/api/mappers/export/csv?csvType=" + CsvType.AGENT)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(asJsonString(new SearchPaginationInput()))
                 .with(csrf()))
@@ -83,10 +82,10 @@ public class ImportExportMapperApiTest extends IntegrationTest {
         .getContentAsString();
   }
 
-  @DisplayName("Test testing an import csv with endpoints target")
+  @DisplayName("Test testing an import csv with endpoints csv type")
   @Test
   @WithMockUser(isAdmin = true)
-  void testImportCsvWithEndpointsTarget() throws Exception {
+  void testImportCsvWithEndpointsCsvType() throws Exception {
     // -- PREPARE --
     endpointRepository.deleteAll();
     File testFile = ResourceUtils.getFile("classpath:csv-test-files/Endpoints.csv");
@@ -98,8 +97,7 @@ public class ImportExportMapperApiTest extends IntegrationTest {
     // -- EXECUTE --
     this.mvc
         .perform(
-            MockMvcRequestBuilders.multipart(
-                    "/api/mappers/import/csv?targetType=" + TargetType.ENDPOINTS)
+            MockMvcRequestBuilders.multipart("/api/mappers/import/csv?csvType=" + CsvType.ENDPOINTS)
                 .file(csvFile)
                 .with(csrf()))
         .andExpect(status().is2xxSuccessful())
@@ -121,10 +119,10 @@ public class ImportExportMapperApiTest extends IntegrationTest {
     tagRepository.deleteById(tag.get().getId());
   }
 
-  @DisplayName("Test testing an import csv with unknown target")
+  @DisplayName("Test testing an import csv with unknown csv type")
   @Test
   @WithMockUser(isAdmin = true)
-  void testImportCsvWithUnknownTarget() throws Exception {
+  void testImportCsvWithUnknownCsvType() throws Exception {
     // -- PREPARE --
     File testFile = ResourceUtils.getFile("classpath:csv-test-files/Endpoints.csv");
 
@@ -135,8 +133,7 @@ public class ImportExportMapperApiTest extends IntegrationTest {
     // -- EXECUTE --
     this.mvc
         .perform(
-            MockMvcRequestBuilders.multipart(
-                    "/api/mappers/import/csv?targetType=" + TargetType.AGENT)
+            MockMvcRequestBuilders.multipart("/api/mappers/import/csv?csvType=" + CsvType.AGENT)
                 .file(csvFile)
                 .with(csrf()))
         .andExpect(status().is4xxClientError())

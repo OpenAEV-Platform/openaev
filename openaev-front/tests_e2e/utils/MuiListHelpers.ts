@@ -26,8 +26,7 @@ class MuiListHelpers {
       .filter({ hasText: searchText })
       .first();
     await expect(itemRow).toBeVisible();
-    await itemRow.click({ trial: true });
-    await itemRow.click();
+    await itemRow.dispatchEvent('click');
   }
 }
 

@@ -14,9 +14,10 @@ import { type MouseEvent, useContext, useState } from 'react';
 import { deletePayload } from '../../../actions/payloads/payload-actions';
 import {
   duplicateThreatArsenalAction,
+  exportThreatArsenalAction,
   fetchThreatArsenalAction,
   updateThreatArsenalAction,
-} from '../../../actions/threat_arsenals/ThreatArsenal-actions';
+} from '../../../actions/threat_arsenals/threatArsenal-actions';
 import DialogDelete from '../../../components/common/DialogDelete';
 import Drawer from '../../../components/common/Drawer';
 import Transition from '../../../components/common/Transition';
@@ -30,6 +31,7 @@ import { type ThreatArsenalActionCreateCustomInput } from '../../../utils/api-ty
 import { useAppDispatch } from '../../../utils/hooks';
 import { AbilityContext, Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+import { download } from '../../../utils/utils';
 import { type DetectionRemediationForm } from '../payloads/utils/payloadFormToPayloadInput';
 import ThreatArsenalActionForm from './ThreatArsenalActionForm';
 import SnapshotRemediationProvider from './utils/SnapshotRemediationProvider';
@@ -186,6 +188,15 @@ const ThreatArsenalActionPopover = ({
   const hasUpdateCapability = ability.can(ACTIONS.MANAGE, SUBJECTS.PAYLOADS) || ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, payloadId);
   const hasDeleteCapability = ability.can(ACTIONS.DELETE, SUBJECTS.PAYLOADS) || ability.can(ACTIONS.DELETE, SUBJECTS.RESOURCE, payloadId);
 
+  // -- Export --
+  const handleExportJsonSingle = async () => {
+    handlePopoverClose();
+    const response = await exportThreatArsenalAction(actionId);
+    const match = (response.headers['content-disposition'] as string).match(/filename="?([^"]+)"?/);
+    const filename = match?.[1] ?? 'payload.zip';
+    download(response.data, filename, 'application/zip');
+  };
+
   return (
     <>
       <IconButton color="primary" onClick={handlePopoverOpen} aria-haspopup="true" size="large">
@@ -199,6 +210,7 @@ const ThreatArsenalActionPopover = ({
         <Can I={ACTIONS.MANAGE} a={SUBJECTS.PAYLOADS}>
           <MenuItem onClick={handleOpenDuplicate}>{t('Duplicate')}</MenuItem>
         </Can>
+        <MenuItem onClick={handleExportJsonSingle}>{t('Export')}</MenuItem>
         {hasUpdateCapability && (
           <MenuItem onClick={handleOpenEdit} disabled={disableUpdate}>{t('Update')}</MenuItem>
         )}

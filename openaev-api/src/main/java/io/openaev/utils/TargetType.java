@@ -30,5 +30,5 @@ public enum TargetType {
   TEAMS,
 
   /** Endpoint devices in the infrastructure. */
-  ENDPOINTS
+  ENDPOINTS,
 }

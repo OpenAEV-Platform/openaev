@@ -28,3 +28,15 @@ export const duplicateThreatArsenalAction = (actionId: string) => {
   const uri = `${THREAT_ARSENAL_URI}/${actionId}/duplicate`;
   return simplePostCall(uri, {});
 };
+
+export const exportThreatArsenalAction = (actionId: string) => {
+  return simpleCall(`${THREAT_ARSENAL_URI}/${actionId}/export`, {
+    params: { include: true },
+    headers: { Accept: 'application/zip' },
+    responseType: 'blob',
+  });
+};
+
+export const importThreatArsenalAction = (content: FormData) => {
+  return simplePostCall(`${THREAT_ARSENAL_URI}/import`, content, { params: { include: true } }, true, true);
+};
