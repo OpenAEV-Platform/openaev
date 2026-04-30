@@ -32,7 +32,6 @@ const normalizeType = (raw: string): ScopeCsvType | null => {
 };
 
 const isIp = (value: string): boolean => {
-  // Reject short-form IPv4 (e.g. "10" → 10.0.0.0) — require dotted or colon notation
   if (!value.includes('.') && !value.includes(':')) return false;
   return ipaddr.isValid(value);
 };

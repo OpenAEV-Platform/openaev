@@ -37,6 +37,10 @@ const ScopeInventoryBox = ({
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [inputValue, setInputValue] = useState('');
 
+  const placeholderForInputValues = chips.length === 0 && inputValue.length === 0
+    ? t('No asset selected. Add asset manually by typing IPs, CIDRs or hostnames or select some in the asset list.')
+    : t('Type IPs, CIDRs or hostnames...');
+
   const parsedValues = useMemo(
     () => inputValue.split(',').map(v => v.trim()).filter(v => v.length > 0),
     [inputValue],
@@ -148,7 +152,7 @@ const ScopeInventoryBox = ({
           value={inputValue}
           onChange={e => setInputValue(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={chips.length === 0 && inputValue.length === 0 ? t('No asset selected. Add asset manually by typing IPs, CIDRs or hostnames or select some in the asset list.') : t('Type IPs, CIDRs or hostnames...')}
+          placeholder={placeholderForInputValues}
           style={{
             border: 'none',
             outline: 'none',
