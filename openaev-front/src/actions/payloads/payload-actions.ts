@@ -3,7 +3,6 @@ import type { Dispatch } from 'redux';
 import {
   delReferential,
   getReferential,
-  postReferential,
   simpleCall,
   simplePostCall,
 } from '../../utils/Action';
@@ -42,18 +41,4 @@ export const fetchDocumentsPayload = async (payloadId: string) => {
 export const fetchCollectorsForPayload = (payloadId: string) => (dispatch: Dispatch) => {
   const uri = `/api/payloads/${payloadId}/collectors`;
   return getReferential(schema.arrayOfCollectors, uri)(dispatch);
-};
-
-// -- EXPORT --
-export const exportPayload = (id: string) => {
-  return simpleCall(`${PAYLOAD_URI}/${id}/export`, {
-    params: { include: true },
-    headers: { Accept: 'application/zip' },
-    responseType: 'blob',
-  });
-};
-
-// -- IMPORT --
-export const importPayload = (content: FormData) => (dispatch: Dispatch) => {
-  return postReferential(null, `${PAYLOAD_URI}/import`, content, { params: { include: true } })(dispatch);
 };

@@ -13,6 +13,8 @@ import co.elastic.clients.util.TriConsumer;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.api.threat_arsenal.dto.ThreatArsenalAction;
+import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionWithContentOutput;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawInjectorsContracts;
@@ -38,8 +40,6 @@ import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractDomainCountOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;
 import io.openaev.rest.payload.output.PayloadSimple;
-import io.openaev.rest.threat_arsenal.dto.ThreatArsenalAction;
-import io.openaev.rest.threat_arsenal.dto.ThreatArsenalActionWithContentOutput;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.UserService;
@@ -200,19 +200,6 @@ public class InjectorContractService implements DependenciesManager {
     }
     return injectorContractRepository.getAllRawInjectorsContractsWithoutPayloadOrGranted(
         currentUser.getId());
-  }
-
-  /**
-   * Retrieves a single injector contract by ID or external ID.
-   *
-   * @param injectorContractId the contract ID or external ID
-   * @return the injector contract
-   * @throws ElementNotFoundException if not found
-   */
-  public InjectorContract getSingleInjectorContract(String injectorContractId) {
-    return injectorContractRepository
-        .findByIdOrExternalId(injectorContractId, injectorContractId)
-        .orElseThrow(ElementNotFoundException::new);
   }
 
   /**

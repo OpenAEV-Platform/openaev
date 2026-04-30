@@ -1,9 +1,9 @@
 package io.openaev.utils.mapper;
 
+import io.openaev.api.threat_arsenal.dto.ThreatArsenalAction;
+import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionFullOutput;
 import io.openaev.database.model.*;
 import io.openaev.rest.injector_contract.InjectorContractContentUtils;
-import io.openaev.rest.threat_arsenal.dto.ThreatArsenalAction;
-import io.openaev.rest.threat_arsenal.dto.ThreatArsenalActionFullOutput;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Map;

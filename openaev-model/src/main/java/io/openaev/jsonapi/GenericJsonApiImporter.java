@@ -272,7 +272,7 @@ public class GenericJsonApiImporter<T extends Base> {
       if (f == null || f.isAnnotationPresent(Id.class)) {
         continue;
       }
-      Object cast = safeConvert(e.getValue(), f.getType());
+      Object cast = safeConvert(e.getValue(), f);
       setField(entity, f, cast);
       this.addToRemapping(entitiesNeedingRemapping, cast);
     }
@@ -418,6 +418,25 @@ public class GenericJsonApiImporter<T extends Base> {
     }
 
     throw new IllegalArgumentException("Unknown type: " + type);
+  }
+
+  /**
+   * Converts a value to the type declared by the given field, preserving generic type parameters
+   * (e.g. {@code List<PayloadArgument>}) so that Jackson produces correctly typed objects instead
+   * of raw {@code LinkedHashMap} instances.
+   */
+  private Object safeConvert(Object value, Field field) {
+    if (value == null) {
+      return null;
+    }
+    if (field.getType().isInstance(value)
+        && !(value instanceof Collection)
+        && !(value instanceof Map)) {
+      return value;
+    }
+    com.fasterxml.jackson.databind.JavaType javaType =
+        objectMapper.getTypeFactory().constructType(field.getGenericType());
+    return objectMapper.convertValue(value, javaType);
   }
 
   private Object safeConvert(Object value, Class<?> targetType) {
