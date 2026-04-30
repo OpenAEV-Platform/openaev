@@ -40,11 +40,20 @@ public class TenantAwareDataSourceConfig implements BeanPostProcessor {
         }
 
         private void setTenantVariable(Connection connection) throws SQLException {
-          String tenantId = TenantContext.getCurrentTenant();
-          try (PreparedStatement stmt =
-              connection.prepareStatement("SELECT set_config('app.current_tenant', ?, false)")) {
-            stmt.setString(1, tenantId);
-            stmt.execute();
+          if (TenantContext.isRlsBypassed()) {
+            // Scheduled jobs need cross-tenant access — escalate to the DB owner
+            // (superuser) which bypasses RLS policies.
+            try (var stmt = connection.createStatement()) {
+              stmt.execute("RESET ROLE");
+            }
+          } else {
+            String tenantId = TenantContext.getCurrentTenant();
+            try (PreparedStatement stmt =
+                connection.prepareStatement(
+                    "SELECT set_config('app.current_tenant', ?, false)")) {
+              stmt.setString(1, tenantId);
+              stmt.execute();
+            }
           }
         }
       };

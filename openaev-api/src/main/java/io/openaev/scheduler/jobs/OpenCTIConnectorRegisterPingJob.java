@@ -19,6 +19,7 @@ public class OpenCTIConnectorRegisterPingJob implements Job {
 
   @Override
   @LogExecutionTime
+  @io.openaev.aop.BypassRls
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
     openCTIConnectorService.registerOrPingAllConnectors();
   }

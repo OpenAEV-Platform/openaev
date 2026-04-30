@@ -76,6 +76,7 @@ public class ComchecksExecutionJob implements Job {
   @Override
   @Transactional
   @LogExecutionTime
+  @io.openaev.aop.BypassRls
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
     Instant now = now();
     try {
