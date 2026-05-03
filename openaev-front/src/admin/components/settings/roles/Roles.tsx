@@ -7,6 +7,7 @@ import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
 import NoEnterpriseEdition from '../../../../utils/permissions/NoEnterpriseEdition';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { isFeatureEnabled } from '../../../../utils/utils';
 import EEChip from '../../common/entreprise_edition/EEChip';
 import { SETTINGS_LABEL } from '../../nav/config/settings.config';
 import SecurityMenu from '../SecurityMenu';
@@ -18,7 +19,7 @@ const Roles = () => {
   const ability = useContext(AbilityContext);
   const { isValidated: isEnterpriseEdition, openDialog } = useEnterpriseEdition();
   const canAccessTenant = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS);
-  const canAccessPlatform = ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_USERS_GROUPS_AND_ROLES);
+  const canAccessPlatform = ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_USERS_GROUPS_AND_ROLES) && isFeatureEnabled('MULTI_TENANCY');
   const defaultTab = canAccessTenant ? 'tenant' : 'platform';
   const [currentTab, setCurrentTab] = useState(() => localStorage.getItem('settings_roles_tab') ?? defaultTab);
   const handleTabChange = (val: string) => {

@@ -20,7 +20,7 @@ const SecurityMenuComponent: FunctionComponent = () => {
   const ability = useContext(AbilityContext);
   const isMultiTenancyEnabled = isFeatureEnabled('MULTI_TENANCY');
   const canAccessTenantSettings = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS);
-  const canAccessPlatformUGR = ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_USERS_GROUPS_AND_ROLES);
+  const canAccessPlatformUGR = ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_USERS_GROUPS_AND_ROLES) && isMultiTenancyEnabled;
   const canAccessTenants = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANTS);
 
   const entries: RightMenuEntry[] = [
