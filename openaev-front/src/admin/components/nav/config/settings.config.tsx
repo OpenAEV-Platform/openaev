@@ -11,11 +11,26 @@ export const SETTINGS_LABEL = 'Settings';
  * Used by ProtectedRoute to guard the parent `/settings` route
  * and derived automatically by settingsEntries for the left menu.
  */
-export const SETTINGS_ACCESS_CHECKS: { action: Actions; subject: Subjects }[] = [
-  { action: ACTIONS.ACCESS, subject: SUBJECTS.TENANT_SETTINGS },
-  { action: ACTIONS.ACCESS, subject: SUBJECTS.PLATFORM_SETTINGS },
-  { action: ACTIONS.ACCESS, subject: SUBJECTS.PLATFORM_USERS_GROUPS_AND_ROLES },
-  { action: ACTIONS.ACCESS, subject: SUBJECTS.TENANTS },
+export const SETTINGS_ACCESS_CHECKS: {
+  action: Actions;
+  subject: Subjects;
+}[] = [
+  {
+    action: ACTIONS.ACCESS,
+    subject: SUBJECTS.TENANT_SETTINGS,
+  },
+  {
+    action: ACTIONS.ACCESS,
+    subject: SUBJECTS.PLATFORM_SETTINGS,
+  },
+  {
+    action: ACTIONS.ACCESS,
+    subject: SUBJECTS.PLATFORM_USERS_GROUPS_AND_ROLES,
+  },
+  {
+    action: ACTIONS.ACCESS,
+    subject: SUBJECTS.TENANTS,
+  },
 ];
 
 const settingsEntries = (ability: AppAbility): LeftMenuItem[] => {

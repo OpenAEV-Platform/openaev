@@ -56,25 +56,26 @@ const LeftMenu: FunctionComponent<{
           return (
             <Fragment key={idxList}>
               {entry.items.some(item => item.userRight) && idxList !== 0 && <Divider />}
-              {entry.items.filter(entry => entry.userRight).length > 0 &&
+              {entry.items.filter(entry => entry.userRight).length > 0
+                && (
                   <MenuList component="nav">
                     {entry.items.filter(entry => entry.userRight).map((item) => {
                       if (hasHref(item)) {
                         return (
-                            <MenuItemGroup
-                                key={item.label}
-                                item={item}
-                                state={state}
-                                helpers={helpers}
-                            />
+                          <MenuItemGroup
+                            key={item.label}
+                            item={item}
+                            state={state}
+                            helpers={helpers}
+                          />
                         );
                       }
                       return (
-                          <MenuItemSingle key={item.label} item={item} navOpen={state.navOpen} />
+                        <MenuItemSingle key={item.label} item={item} navOpen={state.navOpen} />
                       );
                     })}
                   </MenuList>
-              }
+                )}
             </Fragment>
           );
         })}

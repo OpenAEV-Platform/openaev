@@ -18,7 +18,6 @@ export function defineAbility(capabilities: string[], grants: Record<string, str
     can('manage', 'all');
   }
   for (const cap of capabilities) {
-
     const parsed = parseCapability(cap);
     if (parsed) {
       const [action, subject] = parsed;

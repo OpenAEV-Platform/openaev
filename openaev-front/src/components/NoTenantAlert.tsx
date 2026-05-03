@@ -20,4 +20,3 @@ const NoTenantAlert = () => {
 };
 
 export default NoTenantAlert;
-
