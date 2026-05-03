@@ -148,7 +148,7 @@ describe('useTenant', () => {
       await waitFor(() => {
         expect(mockFetchUserTenants).not.toHaveBeenCalled();
       });
-      expect(result.current.userTenants).toHaveLength(0);
+      expect(result.current.userTenants).toBeUndefined();
       expect(result.current.currentUserTenant).toBeNull();
     });
 
@@ -164,7 +164,7 @@ describe('useTenant', () => {
       await waitFor(() => {
         expect(mockFetchUserTenants).not.toHaveBeenCalled();
       });
-      expect(result.current.userTenants).toHaveLength(0);
+      expect(result.current.userTenants).toBeUndefined();
       expect(result.current.currentUserTenant).toBeNull();
     });
 
