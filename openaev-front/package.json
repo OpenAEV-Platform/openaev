@@ -38,7 +38,7 @@
     "@ckeditor/ckeditor5-react": "11.1.2",
     "@emotion/react": "11.14.0",
     "@emotion/styled": "11.14.1",
-    "@filigran/chatbot": "3.0.1",
+    "@filigran/chatbot": "3.2.0",
     "@fontsource/geologica": "5.2.8",
     "@fontsource/ibm-plex-sans": "5.2.8",
     "@hello-pangea/dnd": "18.0.1",
