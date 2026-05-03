@@ -31,7 +31,10 @@ const Home = () => {
   });
 
   const handleSelectNewDashboard = async (dashboardId: string) => {
-    await updateTenantSettings({ platform_home_dashboard: dashboardId });
+    await updateTenantSettings({
+      ...tenantSettings,
+      platform_home_dashboard: dashboardId,
+    });
     dispatch(fetchTenantSettings());
   };
 

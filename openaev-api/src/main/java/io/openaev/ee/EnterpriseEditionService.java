@@ -171,7 +171,9 @@ public class EnterpriseEditionService {
 
   public String getEnterpriseEditionLicensePem() {
     Setting pemSetting =
-        this.settingRepository.findByKey(PLATFORM_ENTERPRISE_LICENSE.key()).orElse(new Setting());
+        this.settingRepository
+            .findByKeyAndTenantIsNull(PLATFORM_ENTERPRISE_LICENSE.key())
+            .orElse(new Setting());
     String pem = pemSetting.getValue();
     String pemFromConfig = openAEVConfig.getApplicationLicense();
     if (pemFromConfig != null && !pemFromConfig.trim().isEmpty()) {

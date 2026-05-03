@@ -6,6 +6,7 @@ import { Navigate, Route, Routes } from 'react-router';
 import { fetchMe, fetchPlatformParameters } from './actions/Application';
 import { type LoggedHelper } from './actions/helper';
 import fetchPublicPlatformParameters from './actions/settings/platform-settings-action';
+import { fetchTenantSettings } from './actions/settings/tenant-settings-action';
 import EnterpriseEditionAgreementDialog from './admin/components/common/entreprise_edition/EnterpriseEditionAgreementDialog';
 import ConnectedIntlProvider from './components/AppIntlProvider';
 import ConnectedThemeProvider from './components/AppThemeProvider';
@@ -13,6 +14,7 @@ import EnterpriseEditionProvider from './components/EnterpriseEditionProvider';
 import { errorWrapper } from './components/Error';
 import Loader from './components/Loader';
 import Message from './components/Message';
+import NoTenantAlert from './components/NoTenantAlert';
 import NotFound from './components/NotFound';
 import SystemBanners from './public/components/systembanners/SystemBanners';
 import LicenseBanner from './public/components/trialbanners/LicenseBanner';
@@ -24,7 +26,6 @@ import { UserContext } from './utils/hooks/useAuth';
 import useNetworkCheck from './utils/hooks/useCheckNetwork';
 import useTenant from './utils/hooks/useTenant';
 import PermissionsProvider from './utils/permissions/PermissionsProvider';
-import { useIsCurrentPlatformRoute } from './utils/platformContext';
 import { buildTenantUrl, DEFAULT_TENANT_UUID, extractTenantFromUrl } from './utils/url-helper';
 
 const RootPublic = lazy(() => import('./public/Root'));
@@ -48,9 +49,8 @@ const Root = () => {
     };
   });
   const dispatch = useAppDispatch();
-  const isPlatform = useIsCurrentPlatformRoute();
 
-  const { userTenants, currentUserTenant, switchUserTenant, reloadUserTenants } = useTenant(me, logged, isPlatform);
+  const { userTenants, currentUserTenant, switchUserTenant, reloadUserTenants } = useTenant(me, logged);
 
   useEffect(() => {
     dispatch(fetchPublicPlatformParameters());
@@ -61,6 +61,7 @@ const Root = () => {
   useEffect(() => {
     if (logged && me) {
       dispatch(fetchPlatformParameters());
+      dispatch(fetchTenantSettings());
     } else if (logged === null) {
       dispatch(fetchPublicPlatformParameters());
     }
@@ -79,14 +80,29 @@ const Root = () => {
     );
   }
 
-  // Platform routes are tenant-agnostic — no redirect needed.
   // When the user is authenticated but the URL has no tenant prefix
   // (e.g. first visit at "/", or right after login), hard-redirect to
   // the tenant-prefixed URL so BrowserRouter picks up the correct basename.
-  if (!extractTenantFromUrl() && !isPlatform) {
+  if (!extractTenantFromUrl()) {
     const tenantId = currentUserTenant?.tenant_id ?? DEFAULT_TENANT_UUID;
     window.location.href = buildTenantUrl(tenantId);
     return <Loader />;
+  }
+
+  // When the user is authenticated but has no tenant assigned,
+  // show a blocking message asking them to contact their administrator.
+  const hasNoTenant = userTenants !== undefined && userTenants.length === 0 && !me.user_admin;
+  if (hasNoTenant) {
+    return (
+      <StyledEngineProvider injectFirst>
+        <ConnectedIntlProvider>
+          <ConnectedThemeProvider>
+            <CssBaseline />
+            <NoTenantAlert />
+          </ConnectedThemeProvider>
+        </ConnectedIntlProvider>
+      </StyledEngineProvider>
+    );
   }
 
   return (

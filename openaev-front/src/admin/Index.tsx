@@ -21,14 +21,13 @@ import useAuth from '../utils/hooks/useAuth';
 import useDataLoader from '../utils/hooks/useDataLoader';
 import ProtectedRoute from '../utils/permissions/ProtectedRoute';
 import { ACTIONS, SUBJECTS } from '../utils/permissions/types';
-import { useIsCurrentPlatformRoute } from '../utils/platformContext';
 import ChatbotProvider from './components/ariane/ChatbotProvider';
 import { useChatbotContentMargin, useChatbotContentTransition } from './components/ariane/useChatbotHooks';
 import { GETTING_STARTED_LOCAL_STORAGE_KEY } from './components/getting_started/GettingStartedPage';
 import GettingStartedRoutes, { GETTING_STARTED_URI } from './components/getting_started/GettingStartedRoutes';
+import { SETTINGS_ACCESS_CHECKS } from './components/nav/config/settings.config';
 import LeftBar from './components/nav/LeftBar';
 import TopBar from './components/nav/TopBar';
-import PlatformRoutes from './components/platform/PlatformRoutes';
 import DeployScenario from './components/scenarios/DeployScenario';
 import InjectIndex from './components/simulations/simulation/injects/InjectIndex';
 
@@ -103,8 +102,6 @@ const Index = () => {
     }
   }, [goToGettingStarted, navigate, setGoToGettingStarted]);
 
-  const isPlatform = useIsCurrentPlatformRoute();
-
   return (
     <Box
       sx={{
@@ -114,7 +111,7 @@ const Index = () => {
         marginBottom: bannerHeight,
       }}
     >
-      <TopBar showSearchBar={!isPlatform} showTenantSwitcher={!isPlatform} />
+      <TopBar />
       <LeftBar />
       <Box component="main" sx={boxSx}>
         <div className={classes.toolbar} />
@@ -248,15 +245,11 @@ const Index = () => {
               path="settings/*"
               element={(
                 <ProtectedRoute
-                  checks={[{
-                    action: ACTIONS.ACCESS,
-                    subject: SUBJECTS.TENANT_SETTINGS,
-                  }]}
+                  checks={SETTINGS_ACCESS_CHECKS}
                   Component={errorWrapper(IndexSettings)()}
                 />
               )}
             />
-            {PlatformRoutes}
             {/* Not found */}
             <Route path="*" element={<NotFound />} />
           </Routes>

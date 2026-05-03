@@ -2,6 +2,9 @@ import { Navigate, Route, Routes } from 'react-router';
 
 import { errorWrapper } from '../../../components/Error';
 import NotFound from '../../../components/NotFound';
+import ProtectedRoute from '../../../utils/permissions/ProtectedRoute';
+import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+import Tenants from '../platform/tenants/Tenants';
 import Organizations from '../teams/Organizations';
 import AttackPatterns from './attack_patterns/AttackPatterns';
 import XlsMappers from './data_ingestion/XlsMappers';
@@ -26,6 +29,19 @@ const Index = () => {
       <Route path="security/users" element={errorWrapper(Users)()} />
       <Route path="security/roles" element={errorWrapper(Roles)()} />
       <Route path="security/organizations" element={errorWrapper(Organizations)()} />
+      <Route
+        path="security/tenants"
+        element={(
+          <ProtectedRoute
+            checks={[{
+              action: ACTIONS.ACCESS,
+              subject: SUBJECTS.TENANTS,
+            }]}
+            requireEE
+            Component={errorWrapper(Tenants)()}
+          />
+        )}
+      />
       <Route path="security/policies" element={errorWrapper(Policies)()} />
       <Route path="taxonomies" element={<Navigate to="tags" replace={true} />} />
       <Route path="taxonomies/tags" element={errorWrapper(Tags)()} />

@@ -6,10 +6,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
-import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,17 +18,24 @@ public interface SettingRepository
   @NotNull
   Optional<Setting> findById(@NotNull final String id);
 
-  Optional<Setting> findByKey(@NotNull final String key);
-
   List<Setting> findAllByKeyIn(List<String> keys);
+
+  // -- Platform-scoped --
+
+  Optional<Setting> findByKeyAndTenantIsNull(@NotNull String key);
+
+  List<Setting> findAllByTenantIsNull();
+
+  List<Setting> findAllByKeyInAndTenantIsNull(List<String> keys);
+
+  // -- Tenant-scoped --
+
+  Optional<Setting> findByKeyAndTenantId(@NotNull String key, @NotNull String tenantId);
+
+  List<Setting> findAllByTenantId(@NotNull String tenantId);
 
   @Query(value = "SHOW server_version", nativeQuery = true)
   String getServerVersion();
-
-  @Modifying
-  @Query(value = "delete from parameters where parameter_id in :ids", nativeQuery = true)
-  @Transactional
-  void deleteByIdsNative(@Param("ids") List<String> ids);
 
   @Transactional
   void deleteByKeyIn(@NotNull final Collection<String> keys);

@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 
 import io.openaev.IntegrationTest;
 import io.openaev.aop.AccessControlAspect;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.EvaluationRepository;
 import io.openaev.database.repository.ObjectiveRepository;
@@ -450,6 +451,7 @@ public class PermissionServiceTest extends IntegrationTest {
     Group group = new Group();
     group.setId("testid");
     group.setRoles(roles);
+    group.setTenant(entityManager.getReference(Tenant.class, TenantContext.getCurrentTenant()));
     return group;
   }
 }

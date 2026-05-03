@@ -10,7 +10,7 @@ import { isAgent, isAssetGroups, isPlayer, isTeam } from '../../../../../utils/t
 import { type ExpectationResultType, ExpectationType, type InjectExpectationsStore } from '../../../common/injects/expectations/Expectation';
 import ExecutionStatusDetail from '../../../common/injects/status/ExecutionStatusDetail';
 import TerminalViewTab from '../../../common/injects/status/traces/TerminalViewTab';
-import TabbedView, { type TabConfig } from '../../../settings/groups/grants/ui/TabbedView';
+import TabbedView, { type TabConfig } from '../../../settings/groups/tenant_groups/grants/ui/TabbedView';
 import { InjectResultOverviewOutputContext, type InjectResultOverviewOutputContextType } from '../../InjectResultOverviewOutputContext';
 import InjectExpectationProvider from '../context/InjectExpectationProvider';
 import InjectExpectationCard from './InjectExpectationCard';

@@ -1,6 +1,6 @@
 package io.openaev.rest.scenario;
 
-import static io.openaev.database.model.SettingKeys.DEFAULT_SIMULATION_DASHBOARD;
+import static io.openaev.database.model.TenantSettingKeys.TENANT_SIMULATION_DASHBOARD;
 import static io.openaev.utils.fixtures.ArticleFixture.ARTICLE_NAME;
 import static io.openaev.utils.fixtures.ArticleFixture.getArticle;
 import static io.openaev.utils.fixtures.DocumentFixture.getDocumentJpeg;
@@ -13,6 +13,7 @@ import static io.openaev.utils.fixtures.UserFixture.getUser;
 import static org.junit.jupiter.api.Assertions.*;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.service.LoadService;
@@ -210,15 +211,20 @@ class ScenarioToExerciseServiceTest extends IntegrationTest {
     CustomDashboard customDashboardSaved = customDashboardRepository.save(defaultDashboard);
     settingRepository.save(
         settingRepository
-            .findByKey(DEFAULT_SIMULATION_DASHBOARD.key())
+            .findByKeyAndTenantId(
+                TENANT_SIMULATION_DASHBOARD.key(), TenantContext.getCurrentTenant())
             .map(
                 s -> {
                   s.setValue(customDashboardSaved.getId());
                   return s;
                 })
             .orElseGet(
-                () ->
-                    new Setting(DEFAULT_SIMULATION_DASHBOARD.key(), customDashboardSaved.getId())));
+                () -> {
+                  Setting s =
+                      new Setting(TENANT_SIMULATION_DASHBOARD.key(), customDashboardSaved.getId());
+                  s.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+                  return s;
+                }));
     // -- EXECUTE --
     Exercise exercise = this.scenarioToExerciseService.toExercise(scenario, null, false);
     String exerciseId = exercise.getId();

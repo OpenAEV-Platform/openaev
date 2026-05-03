@@ -1,6 +1,6 @@
 import { Divider, Drawer, MenuList, Toolbar } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { Fragment, type FunctionComponent } from 'react';
+import { Fragment, type FunctionComponent, type ReactNode } from 'react';
 
 import { computeBannerSettings } from '../../../../public/components/systembanners/utils';
 import useAuth from '../../../../utils/hooks/useAuth';
@@ -14,7 +14,8 @@ import useLeftMenu from './useLeftMenu';
 const LeftMenu: FunctionComponent<{
   entries: LeftMenuEntries[];
   bottomEntries: LeftMenuEntries[];
-}> = ({ entries = [], bottomEntries = [] }) => {
+  headerElement?: (navOpen: boolean) => ReactNode;
+}> = ({ entries = [], bottomEntries = [], headerElement }) => {
   // Standard hooks
   const theme = useTheme();
   const { settings } = useAuth();
@@ -45,27 +46,36 @@ const LeftMenu: FunctionComponent<{
     >
       <Toolbar />
       <div style={{ marginTop: bannerHeightNumber }}>
+        {headerElement && (
+          <MenuList component="nav">
+            {headerElement(state.navOpen)}
+          </MenuList>
+        )}
+        {headerElement && <Divider />}
         {entries.filter(entry => entry.userRight).map((entry, idxList) => {
           return (
             <Fragment key={idxList}>
               {entry.items.some(item => item.userRight) && idxList !== 0 && <Divider />}
-              <MenuList component="nav">
-                {entry.items.filter(entry => entry.userRight).map((item) => {
-                  if (hasHref(item)) {
-                    return (
-                      <MenuItemGroup
-                        key={item.label}
-                        item={item}
-                        state={state}
-                        helpers={helpers}
-                      />
-                    );
-                  }
-                  return (
-                    <MenuItemSingle key={item.label} item={item} navOpen={state.navOpen} />
-                  );
-                })}
-              </MenuList>
+              {entry.items.filter(entry => entry.userRight).length > 0
+                && (
+                  <MenuList component="nav">
+                    {entry.items.filter(entry => entry.userRight).map((item) => {
+                      if (hasHref(item)) {
+                        return (
+                          <MenuItemGroup
+                            key={item.label}
+                            item={item}
+                            state={state}
+                            helpers={helpers}
+                          />
+                        );
+                      }
+                      return (
+                        <MenuItemSingle key={item.label} item={item} navOpen={state.navOpen} />
+                      );
+                    })}
+                  </MenuList>
+                )}
             </Fragment>
           );
         })}

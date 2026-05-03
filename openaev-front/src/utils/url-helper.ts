@@ -1,16 +1,6 @@
 import { APP_BASE_PATH } from './Environment';
 
 // ---------------------------------------------------------------------------
-// Platform URI
-// ---------------------------------------------------------------------------
-
-/**
- * Browser path prefix for platform-level pages.
- * These pages are tenant-agnostic: the URL must NOT contain a tenant UUID.
- */
-export const PLATFORM_URI_PREFIX = '/admin/platform';
-
-// ---------------------------------------------------------------------------
 // Tenant URI
 // ---------------------------------------------------------------------------
 
@@ -167,6 +157,14 @@ const TENANT_EXEMPT_PREFIXES = [
 ];
 
 /**
+ * API path patterns (regex) that are NEVER tenant-scoped.
+ * Used for platform endpoints whose prefix overlaps with tenant-scoped ones.
+ */
+const TENANT_EXEMPT_PATTERNS = [
+  /^\/api\/users\/[^/]+\/password$/,
+];
+
+/**
  * Rewrites an API path to include the tenant prefix.
  *
  * This is the FE equivalent of the BE's TenantInterceptor:
@@ -179,32 +177,11 @@ export const buildTenantApiPath = (uri: string): string => {
   if (TENANT_EXEMPT_PREFIXES.some(prefix => uri.startsWith(prefix))) {
     return uri;
   }
+  if (TENANT_EXEMPT_PATTERNS.some(pattern => pattern.test(uri))) {
+    return uri;
+  }
 
   const tenantId = getCurrentTenantId();
   const pathAfterApi = uri.slice('/api'.length);
   return `/api/tenants/${tenantId}${pathAfterApi}`;
-};
-
-// ---------------------------------------------------------------------------
-// URL helpers - platform URL
-// ---------------------------------------------------------------------------
-
-/**
- * Returns true when the given path starts with the platform prefix.
- */
-export const isPlatformRoute = (path: string): boolean => {
-  return path.startsWith(PLATFORM_URI_PREFIX);
-};
-
-/**
- * Returns true when the current browser URL points to a platform-level page.
- * Handles both tenant-prefixed and non-prefixed URLs.
- */
-export const isCurrentPlatformRoute = (): boolean => {
-  let pathname = getAppRelativePath();
-  const tenantId = extractTenantFromUrl();
-  if (tenantId) {
-    pathname = pathname.slice(`/${tenantId}`.length);
-  }
-  return isPlatformRoute(pathname);
 };

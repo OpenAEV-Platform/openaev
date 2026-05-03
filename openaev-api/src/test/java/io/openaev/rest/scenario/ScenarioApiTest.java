@@ -1,6 +1,6 @@
 package io.openaev.rest.scenario;
 
-import static io.openaev.database.model.SettingKeys.DEFAULT_SCENARIO_DASHBOARD;
+import static io.openaev.database.model.TenantSettingKeys.TENANT_SCENARIO_DASHBOARD;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.junit.jupiter.api.Assertions.*;
@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
@@ -155,14 +156,19 @@ public class ScenarioApiTest extends IntegrationTest {
 
     settingRepository.save(
         settingRepository
-            .findByKey(DEFAULT_SCENARIO_DASHBOARD.key())
+            .findByKeyAndTenantId(TENANT_SCENARIO_DASHBOARD.key(), TenantContext.getCurrentTenant())
             .map(
                 s -> {
                   s.setValue(customDashboardSaved.getId());
                   return s;
                 })
             .orElseGet(
-                () -> new Setting(DEFAULT_SCENARIO_DASHBOARD.key(), customDashboardSaved.getId())));
+                () -> {
+                  Setting s =
+                      new Setting(TENANT_SCENARIO_DASHBOARD.key(), customDashboardSaved.getId());
+                  s.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+                  return s;
+                }));
 
     // -- EXECUTE --
     String response =

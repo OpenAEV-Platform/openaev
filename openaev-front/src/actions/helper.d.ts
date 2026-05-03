@@ -6,12 +6,11 @@ import {
   type PlatformSettings,
   type Scenario,
   type ScenarioChallengesReader,
-  type SimulationChallengesReader,
+  type SimulationChallengesReader, type TenantSettingsOutput,
   type TenantXtmHubRegistration,
   type Token,
   type User,
 } from '../utils/api-types';
-import type { TenantSettings } from './settings/tenant-settings-action';
 
 export interface UserHelper {
   getMe: () => User;
@@ -30,7 +29,7 @@ export interface LoggedHelper {
   logged: () => any;
   getMe: () => User;
   getPlatformSettings: () => PlatformSettings;
-  getTenantSettings: () => TenantSettings;
+  getTenantSettings: () => TenantSettingsOutput;
   getPlatformName: () => string;
   getUserLang: () => string;
   getXtmHubRegistration: () => TenantXtmHubRegistration | null;

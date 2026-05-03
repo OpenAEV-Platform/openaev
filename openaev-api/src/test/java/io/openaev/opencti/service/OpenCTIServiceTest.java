@@ -21,17 +21,17 @@ import io.openaev.opencti.client.response.Response;
 import io.openaev.opencti.connectors.ConnectorBase;
 import io.openaev.opencti.connectors.Constants;
 import io.openaev.opencti.errors.ConnectorError;
-import io.openaev.service.GroupService;
 import io.openaev.service.RoleService;
+import io.openaev.service.TenantGroupService;
 import io.openaev.service.UserService;
 import io.openaev.stix.objects.Bundle;
 import io.openaev.stix.types.Identifier;
-import io.openaev.utils.fixtures.GroupFixture;
-import io.openaev.utils.fixtures.RoleFixture;
+import io.openaev.utils.fixtures.TenantGroupFixture;
+import io.openaev.utils.fixtures.TenantRoleFixture;
 import io.openaev.utils.fixtures.TokenFixture;
 import io.openaev.utils.fixtures.UserFixture;
-import io.openaev.utils.fixtures.composers.GroupComposer;
-import io.openaev.utils.fixtures.composers.RoleComposer;
+import io.openaev.utils.fixtures.composers.TenantGroupComposer;
+import io.openaev.utils.fixtures.composers.TenantRoleComposer;
 import io.openaev.utils.fixtures.composers.TokenComposer;
 import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.fixtures.opencti.ConnectorFixture;
@@ -57,18 +57,18 @@ public class OpenCTIServiceTest extends IntegrationTest {
   @Autowired private OpenCTIService openCTIService;
   @Autowired private ObjectMapper mapper;
   @Autowired private RoleService roleService;
-  @Autowired private GroupService groupService;
+  @Autowired private TenantGroupService tenantGroupService;
   @Autowired private UserService userService;
   @Autowired private EntityManager entityManager;
-  @Autowired private RoleComposer roleComposer;
-  @Autowired private GroupComposer groupComposer;
+  @Autowired private TenantRoleComposer tenantRoleComposer;
+  @Autowired private TenantGroupComposer tenantGroupComposer;
   @Autowired private UserComposer userComposer;
   @Autowired private TokenComposer tokenComposer;
 
   @BeforeEach
   public void setup() {
-    roleComposer.reset();
-    groupComposer.reset();
+    tenantRoleComposer.reset();
+    tenantGroupComposer.reset();
     userComposer.reset();
     tokenComposer.reset();
   }
@@ -361,12 +361,12 @@ public class OpenCTIServiceTest extends IntegrationTest {
           "When the specific role already exists, it is updated on register with correct attributes")
       public void whenTheSpecificRoleAlreadyExists_itIsUpdatedOnRegisterWithCorrectAttributes()
           throws IOException, ConnectorError {
-        Role specificRole = RoleFixture.getRole();
+        Role specificRole = TenantRoleFixture.getRole();
         specificRole.setId(Constants.PROCESS_STIX_ROLE_ID);
         specificRole.setName("bad name");
         specificRole.setDescription("bad description");
         specificRole.setCapabilities(Set.of());
-        roleComposer.forRole(specificRole).persist();
+        tenantRoleComposer.forRole(specificRole).persist();
         entityManager.flush();
         entityManager.clear();
 
@@ -407,7 +407,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
         entityManager.flush();
         entityManager.clear();
 
-        Optional<Group> group = groupService.findById(Constants.PROCESS_STIX_GROUP_ID);
+        Optional<Group> group = tenantGroupService.findById(Constants.PROCESS_STIX_GROUP_ID);
 
         assertThat(group).isNotEmpty();
         assertThat(group.get().getName()).isEqualTo(Constants.PROCESS_STIX_GROUP_NAME);
@@ -422,12 +422,12 @@ public class OpenCTIServiceTest extends IntegrationTest {
           "When the specific group already exists, it is updated on register with correct attributes")
       public void whenTheSpecificGroupAlreadyExists_itIsUpdatedOnRegisterWithCorrectAttributes()
           throws IOException, ConnectorError {
-        Group specificGroup = GroupFixture.createGroup();
+        Group specificGroup = TenantGroupFixture.getGroup();
         specificGroup.setId(Constants.PROCESS_STIX_GROUP_ID);
         specificGroup.setName("bad name");
         specificGroup.setDescription("bad description");
         specificGroup.setRoles(new ArrayList<>());
-        groupComposer.forGroup(specificGroup).persist();
+        tenantGroupComposer.forGroup(specificGroup).persist();
         entityManager.flush();
         entityManager.clear();
 
@@ -443,7 +443,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
         entityManager.flush();
         entityManager.clear();
 
-        Optional<Group> group = groupService.findById(Constants.PROCESS_STIX_GROUP_ID);
+        Optional<Group> group = tenantGroupService.findById(Constants.PROCESS_STIX_GROUP_ID);
 
         assertThat(group).isNotEmpty();
         assertThat(group.get().getName()).isEqualTo(Constants.PROCESS_STIX_GROUP_NAME);
@@ -554,12 +554,12 @@ public class OpenCTIServiceTest extends IntegrationTest {
           "When the specific role already exists, it is updated on ping with correct attributes")
       public void whenTheSpecificRoleAlreadyExists_itIsUpdatedOnPingWithCorrectAttributes()
           throws IOException, ConnectorError {
-        Role specificRole = RoleFixture.getRole();
+        Role specificRole = TenantRoleFixture.getRole();
         specificRole.setId(Constants.PROCESS_STIX_ROLE_ID);
         specificRole.setName("bad name");
         specificRole.setDescription("bad description");
         specificRole.setCapabilities(Set.of());
-        roleComposer.forRole(specificRole).persist();
+        tenantRoleComposer.forRole(specificRole).persist();
         entityManager.flush();
         entityManager.clear();
 
@@ -600,7 +600,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
         entityManager.flush();
         entityManager.clear();
 
-        Optional<Group> group = groupService.findById(Constants.PROCESS_STIX_GROUP_ID);
+        Optional<Group> group = tenantGroupService.findById(Constants.PROCESS_STIX_GROUP_ID);
 
         assertThat(group).isNotEmpty();
         assertThat(group.get().getName()).isEqualTo(Constants.PROCESS_STIX_GROUP_NAME);
@@ -615,12 +615,12 @@ public class OpenCTIServiceTest extends IntegrationTest {
           "When the specific group already exists, it is updated on ping with correct attributes")
       public void whenTheSpecificGroupAlreadyExists_itIsUpdatedOnPingWithCorrectAttributes()
           throws IOException, ConnectorError {
-        Group specificGroup = GroupFixture.createGroup();
+        Group specificGroup = TenantGroupFixture.getGroup();
         specificGroup.setId(Constants.PROCESS_STIX_GROUP_ID);
         specificGroup.setName("bad name");
         specificGroup.setDescription("bad description");
         specificGroup.setRoles(new ArrayList<>());
-        groupComposer.forGroup(specificGroup).persist();
+        tenantGroupComposer.forGroup(specificGroup).persist();
         entityManager.flush();
         entityManager.clear();
 
@@ -636,7 +636,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
         entityManager.flush();
         entityManager.clear();
 
-        Optional<Group> group = groupService.findById(Constants.PROCESS_STIX_GROUP_ID);
+        Optional<Group> group = tenantGroupService.findById(Constants.PROCESS_STIX_GROUP_ID);
 
         assertThat(group).isNotEmpty();
         assertThat(group.get().getName()).isEqualTo(Constants.PROCESS_STIX_GROUP_NAME);

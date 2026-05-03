@@ -149,9 +149,13 @@ public class OpenTelemetryConfig {
 
   private Resource buildResource() {
     Setting instanceId =
-        this.settingRepository.findByKey(PLATFORM_INSTANCE.key()).orElse(new Setting());
+        this.settingRepository
+            .findByKeyAndTenantIsNull(PLATFORM_INSTANCE.key())
+            .orElse(new Setting());
     Setting instanceCreationDate =
-        this.settingRepository.findByKey(PLATFORM_INSTANCE_CREATION.key()).orElse(new Setting());
+        this.settingRepository
+            .findByKeyAndTenantIsNull(PLATFORM_INSTANCE_CREATION.key())
+            .orElse(new Setting());
     LocalDateTime creationDate = LocalDateTime.now();
     if (instanceCreationDate.getValue() != null) {
       creationDate = LocalDateTime.parse(instanceCreationDate.getValue(), CREATION_DATE_FORMATTER);

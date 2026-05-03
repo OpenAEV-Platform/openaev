@@ -3413,13 +3413,6 @@ export interface Group {
   listened?: boolean;
 }
 
-export interface GroupCreateInput {
-  group_default_user_assign?: boolean;
-  group_description?: string;
-  /** @minLength 1 */
-  group_name: string;
-}
-
 export interface GroupGrantInput {
   grant_name?: "OBSERVER" | "PLANNER" | "LAUNCHER";
   grant_resource?: string;
@@ -6120,12 +6113,14 @@ export interface PayloadsDeprecateInput {
 }
 
 export interface PlatformGroupInput {
+  group_default_user_assign?: boolean;
   platform_group_description?: string;
   /** @minLength 1 */
   platform_group_name: string;
 }
 
 export interface PlatformGroupOutput {
+  group_default_user_assign?: boolean;
   platform_group_description?: string;
   /** @minLength 1 */
   platform_group_id: string;
@@ -6187,9 +6182,9 @@ export interface PlatformRoleInput {
     | "ACCESS_TENANT_SETTINGS"
     | "MANAGE_TENANT_SETTINGS"
     | "DELETE_TENANT_SETTINGS"
-    | "ACCESS_PLATFORM_GROUPS_AND_ROLES"
-    | "MANAGE_PLATFORM_GROUPS_AND_ROLES"
-    | "DELETE_PLATFORM_GROUPS_AND_ROLES"
+    | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
+    | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
+    | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_STIX_BUNDLE"
   )[];
   platform_role_description?: string;
@@ -6297,8 +6292,6 @@ export interface PlatformSettings {
   platform_base_url?: string;
   /** Definition of the dark theme */
   platform_dark_theme?: ThemeInput;
-  /** Default home dashboard of the platform */
-  platform_home_dashboard?: string;
   /** id of the platform */
   platform_id?: string;
   /**
@@ -6319,10 +6312,6 @@ export interface PlatformSettings {
   platform_openid_providers?: OAuthProvider[];
   /** Policies of the platform */
   platform_policies?: PolicyInput;
-  /** Default scenario dashboard of the platform */
-  platform_scenario_dashboard?: string;
-  /** Default simulation dashboard of the platform */
-  platform_simulation_dashboard?: string;
   /**
    * Theme of the platform
    * @minLength 1
@@ -6861,9 +6850,9 @@ export interface RoleInput {
     | "ACCESS_TENANT_SETTINGS"
     | "MANAGE_TENANT_SETTINGS"
     | "DELETE_TENANT_SETTINGS"
-    | "ACCESS_PLATFORM_GROUPS_AND_ROLES"
-    | "MANAGE_PLATFORM_GROUPS_AND_ROLES"
-    | "DELETE_PLATFORM_GROUPS_AND_ROLES"
+    | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
+    | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
+    | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_STIX_BUNDLE"
   )[];
   role_description?: string;
@@ -7326,24 +7315,6 @@ export interface SettingsPlatformWhitemarkUpdateInput {
    * @minLength 1
    */
   platform_whitemark: string;
-}
-
-export interface SettingsUpdateInput {
-  /**
-   * Language of the platform
-   * @minLength 1
-   */
-  platform_lang: string;
-  /**
-   * Name of the platform
-   * @minLength 1
-   */
-  platform_name: string;
-  /**
-   * Theme of the platform
-   * @minLength 1
-   */
-  platform_theme: string;
 }
 
 export interface SimulationChallengesReader {
@@ -7833,6 +7804,13 @@ export interface TeamUpdateInput {
   team_tags?: string[];
 }
 
+export interface TenantGroupCreateInput {
+  group_default_user_assign?: boolean;
+  group_description?: string;
+  /** @minLength 1 */
+  group_name: string;
+}
+
 export interface TenantInput {
   tenant_description?: string;
   /** @minLength 1 */
@@ -7850,15 +7828,29 @@ export interface TenantOutput {
 }
 
 export interface TenantSettingsOutput {
+  platform_dark_theme?: ThemeInput;
   platform_home_dashboard?: string;
+  /** @minLength 1 */
+  platform_lang: string;
+  platform_light_theme?: ThemeInput;
+  /** @minLength 1 */
+  platform_name: string;
   platform_scenario_dashboard?: string;
   platform_simulation_dashboard?: string;
+  /** @minLength 1 */
+  platform_theme: string;
 }
 
 export interface TenantSettingsUpdateInput {
   platform_home_dashboard?: string;
+  /** @minLength 1 */
+  platform_lang: string;
+  /** @minLength 1 */
+  platform_name: string;
   platform_scenario_dashboard?: string;
   platform_simulation_dashboard?: string;
+  /** @minLength 1 */
+  platform_theme: string;
 }
 
 export interface ThemeInput {
@@ -8323,9 +8315,9 @@ export interface User {
     | "ACCESS_TENANT_SETTINGS"
     | "MANAGE_TENANT_SETTINGS"
     | "DELETE_TENANT_SETTINGS"
-    | "ACCESS_PLATFORM_GROUPS_AND_ROLES"
-    | "MANAGE_PLATFORM_GROUPS_AND_ROLES"
-    | "DELETE_PLATFORM_GROUPS_AND_ROLES"
+    | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
+    | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
+    | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_STIX_BUNDLE"
   )[];
   /** City of the user */
@@ -8412,6 +8404,7 @@ export interface UserInput {
   user_phone?: string;
   user_plain_password?: string;
   user_tags?: string[];
+  user_tenants?: string[];
 }
 
 export interface UserOutput {
@@ -8432,6 +8425,12 @@ export interface UserOutput {
   user_phone?: string;
   /** @uniqueItems true */
   user_tags?: string[];
+  user_tenants?: UserTenantOutput[];
+}
+
+export interface UserTenantOutput {
+  tenant_id?: string;
+  tenant_name?: string;
 }
 
 export interface ValidationContent {

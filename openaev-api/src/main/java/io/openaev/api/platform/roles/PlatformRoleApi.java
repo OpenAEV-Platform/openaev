@@ -18,10 +18,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/platform-roles")
+@RequestMapping(PlatformRoleApi.PLATFORM_ROLES_URI)
 @RequiredArgsConstructor
 public class PlatformRoleApi {
 
+  public static final String PLATFORM_ROLES_URI = "/api/platform-roles";
   private final PlatformRoleService platformRoleService;
 
   // -- CREATE --
@@ -71,7 +72,7 @@ public class PlatformRoleApi {
   @PostMapping("/search")
   public Page<PlatformRoleOutput> search(
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
-    return platformRoleService.search(searchPaginationInput);
+    return platformRoleService.search(searchPaginationInput).map(PlatformRoleMapper::toOutput);
   }
 
   @Operation(summary = "Find platform roles by IDs")
