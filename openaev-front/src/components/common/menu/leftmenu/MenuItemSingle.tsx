@@ -23,7 +23,7 @@ const MenuItemSingle: FunctionComponent<Props> = ({ navOpen, item }) => {
   const isCurrentTab = location.pathname === item.path;
 
   return (
-    <StyledTooltip title={!navOpen && t(item.label)} placement="right">
+    <StyledTooltip title={t(item.label)} placement="right">
       <MenuItem
         aria-label={t(item.label)}
         {...resolveMenuLink(item.path)}

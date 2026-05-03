@@ -107,6 +107,13 @@ public interface RawSimulationIndexing extends RawTenant {
   String getExercise_mail_from();
 
   /**
+   * Returns the sender display name for exercise communications.
+   *
+   * @return the "from" display name
+   */
+  String getExercise_mail_from_name();
+
+  /**
    * Returns whether lessons learned responses are anonymized.
    *
    * @return {@code true} if lessons are anonymized, {@code false} otherwise
