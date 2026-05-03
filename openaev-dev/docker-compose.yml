@@ -280,12 +280,12 @@ services:
 #    image: otel/opentelemetry-collector-contrib:0.119.0
 #    restart: unless-stopped
 #    volumes:
-#      - "./otlp-config.yaml:/etc/config/otlp-config.yaml"
-#      - "./telemetry.json:/telemetry.json"
+#      - "./otlp-config.yaml:/etc/config/otlp-config.yaml:Z"
+#      - "./telemetry-output:/telemetry-output:Z" # Map a folder, not a file
 #    command:
 #      - '--config=/etc/config/otlp-config.yaml'
 #    ports:
-#      - "1010:1010"
+#      - "1010:9090"
 
 volumes:
   esdata:

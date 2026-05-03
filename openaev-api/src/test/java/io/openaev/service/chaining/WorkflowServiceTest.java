@@ -691,10 +691,11 @@ class WorkflowServiceTest {
           new WorkflowService(
               stepService,
               previewFeatureService,
+              workflowStateService,
               workflowRepository,
               workflowScopeRuleRepository,
               scopeVariableRepository,
-              workflowStateService);
+              scopeMetricCollector);
     }
 
     private Workflow buildTemplate() {

@@ -33,11 +33,12 @@ public class WorkflowService {
 
   private final StepService stepService;
   private final PreviewFeatureService previewFeatureService;
+  private final WorkflowStateService workflowStateService;
 
   private final WorkflowRepository workflowRepository;
   private final WorkflowScopeRuleRepository workflowScopeRuleRepository;
   private final ScopeVariableRepository scopeVariableRepository;
-  private final WorkflowStateService workflowStateService;
+
   private final ScopeMetricCollector scopeMetricCollector;
 
   // -- READ --
@@ -425,10 +426,13 @@ public class WorkflowService {
       throws ChainingException {
     List<Workflow> workflows =
         this.workflowRepository.findByScenario_IdAndStatus(scenarioId, WorkflowStatus.TEMPLATE);
-    if (workflows.size() > 1)
+    if (workflows.size() > 1) {
       throw new ChainingException(
           "Error Model DB - Many Workflow TEMPLATE for the same scenario ID : " + scenarioId);
-    if (workflows.isEmpty()) return Optional.empty();
+    }
+    if (workflows.isEmpty()) {
+      return Optional.empty();
+    }
     return Optional.ofNullable(workflows.get(0));
   }
 
@@ -519,29 +523,7 @@ public class WorkflowService {
       existing.addAll(newRules);
       changed = true;
 
-      // KPI 1: Record Scope Creation Pattern (Batch Level)
-      long allowlistCount =
-          newRules.stream()
-              .filter(r -> ScopeRuleSelectedMode.ALLOWLIST.equals(r.getSelectedMode()))
-              .count();
-      long denylistCount =
-          newRules.stream()
-              .filter(r -> ScopeRuleSelectedMode.DENYLIST.equals(r.getSelectedMode()))
-              .count();
-      if (allowlistCount > 0) {
-        scopeMetricCollector.recordScopeCreated(
-            ScopeRuleSelectedMode.ALLOWLIST.name(), (int) allowlistCount);
-      }
-      if (denylistCount > 0) {
-        scopeMetricCollector.recordScopeCreated(
-            ScopeRuleSelectedMode.DENYLIST.name(), (int) denylistCount);
-      }
-
-      // KPI 2: Record Entry Detail (Per Item Level)
-      for (WorkflowScopeRule newRule : newRules) {
-        scopeMetricCollector.recordEntryAdded(
-            newRule.getValueType().name(), newRule.getRuleSource().name());
-      }
+      trackScopeMetrics(workflow, newRules);
     }
 
     // Update existing rules that have changed
@@ -558,6 +540,41 @@ public class WorkflowService {
     }
 
     return changed;
+  }
+
+  /**
+   * Tracks metrics related to scope rules added in a workflow configuration, including the volume
+   * of new rules by mode/type/source and the usage of CSV vs Manual sources.
+   */
+  private void trackScopeMetrics(Workflow workflow, List<WorkflowScopeRule> newRules) {
+    if (CollectionUtils.isEmpty(newRules)) return;
+
+    Map<String, Integer> modeCounts = new HashMap<>();
+    Map<String, Integer> typeSourceCounts = new HashMap<>();
+    Set<String> uniqueSources = new HashSet<>();
+
+    for (WorkflowScopeRule rule : newRules) {
+      String mode = rule.getSelectedMode().name();
+      String typeSourceKey = rule.getValueType().name() + "|" + rule.getRuleSource().name();
+      String source = rule.getRuleSource().name();
+
+      modeCounts.merge(mode, 1, Integer::sum);
+      typeSourceCounts.merge(typeSourceKey, 1, Integer::sum);
+      uniqueSources.add(source);
+    }
+
+    // KP1. Record Creation Patterns (Allowlist/Denylist)
+    modeCounts.forEach(scopeMetricCollector::recordScopeCreated);
+
+    // KPI. Record Type and Source Patterns (e.g. DOMAIN|CSV, IP|Manual)
+    typeSourceCounts.forEach(
+        (key, count) -> {
+          String[] parts = key.split("\\|");
+          scopeMetricCollector.recordEntryAdded(parts[0], parts[1], count);
+        });
+
+    // KPI. Record Source Usage (CSV vs Manual)
+    uniqueSources.forEach(source -> scopeMetricCollector.recordUsage(workflow.getId(), source));
   }
 
   /**
@@ -641,7 +658,9 @@ public class WorkflowService {
       throws ChainingException {
 
     Optional<Workflow> oldWorkflowOpt = findWorkflowTemplateByScenarioId(scenarioIdFrom);
-    if (oldWorkflowOpt.isEmpty()) return null;
+    if (oldWorkflowOpt.isEmpty()) {
+      return null;
+    }
     Workflow oldWorkflowTemplateScenario = oldWorkflowOpt.get();
 
     Workflow newWorkflowTemplateScenario =
@@ -660,7 +679,9 @@ public class WorkflowService {
       @NotBlank String simulationIdFrom, @NotBlank Exercise simulationTo) {
 
     Optional<Workflow> oldWorkflowOpt = findWorkflowTemplateBySimulationId(simulationIdFrom);
-    if (oldWorkflowOpt.isEmpty()) return null;
+    if (oldWorkflowOpt.isEmpty()) {
+      return null;
+    }
     Workflow oldWorkflowTemplateSimulation = oldWorkflowOpt.get();
 
     Workflow newWorkflowTemplateScenario =
@@ -674,8 +695,9 @@ public class WorkflowService {
    * @throws ChainingException when the feature flag is disabled
    */
   public void isPreviewFeatureChainingEnable() throws ChainingException {
-    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING))
+    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)) {
       throw new ChainingException("Feature chaining is not enabled");
+    }
   }
 
   /**
