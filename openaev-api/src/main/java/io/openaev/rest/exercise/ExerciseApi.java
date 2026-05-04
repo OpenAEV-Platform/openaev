@@ -13,7 +13,9 @@ import static org.springframework.util.StringUtils.hasText;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
+import io.openaev.database.model.TenantSettingKeys;
 import io.openaev.database.raw.*;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.ComcheckSpecification;
@@ -39,6 +41,7 @@ import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
+import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -106,7 +109,7 @@ public class ExerciseApi extends RestBehavior {
   private final DocumentService documentService;
   private final ScenarioService scenarioService;
   private final UserService userService;
-  private final PlatformSettingsService platformSettingsService;
+  private final TenantSettingsService tenantSettingsService;
   private final WorkflowService workflowService;
   private final PreviewFeatureService previewFeatureService;
 
@@ -394,8 +397,10 @@ public class ExerciseApi extends RestBehavior {
           this.customDashboardService.customDashboard(input.getCustomDashboard()));
     } else {
       exercise.setCustomDashboard(
-          this.platformSettingsService
-              .setting(SettingKeys.DEFAULT_SIMULATION_DASHBOARD.key())
+          this.tenantSettingsService
+              .findSetting(
+                  TenantContext.getCurrentTenant(),
+                  TenantSettingKeys.TENANT_SIMULATION_DASHBOARD.key())
               .map(Setting::getValue)
               .filter(v -> !v.isEmpty())
               .map(this.customDashboardService::customDashboard)

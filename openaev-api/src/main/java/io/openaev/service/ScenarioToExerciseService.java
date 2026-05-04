@@ -4,11 +4,13 @@ import static io.openaev.database.model.Grant.GRANT_RESOURCE_TYPE.SIMULATION;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.injectors.channel.ChannelContract;
 import io.openaev.injectors.channel.model.ChannelContent;
 import io.openaev.rest.custom_dashboard.CustomDashboardService;
+import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.utils.CopyObjectListUtils;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
@@ -39,7 +41,7 @@ public class ScenarioToExerciseService {
   private final VariableService variableService;
   private final TeamService teamService;
   private final GrantService grantService;
-  private final PlatformSettingsService platformSettingsService;
+  private final TenantSettingsService tenantSettingsService;
   private final CustomDashboardService customDashboardService;
   @Resource protected ObjectMapper mapper;
 
@@ -70,8 +72,10 @@ public class ScenarioToExerciseService {
 
     // Custom Dashboard
     exercise.setCustomDashboard(
-        this.platformSettingsService
-            .setting(SettingKeys.DEFAULT_SIMULATION_DASHBOARD.key())
+        this.tenantSettingsService
+            .findSetting(
+                TenantContext.getCurrentTenant(),
+                TenantSettingKeys.TENANT_SIMULATION_DASHBOARD.key())
             .map(Setting::getValue)
             .filter(v -> !v.isEmpty())
             .map(this.customDashboardService::customDashboard)

@@ -12,7 +12,8 @@ public abstract class ExternalServiceBase {
   public abstract SettingRepository getSettingRepository();
 
   protected void saveServiceState(String key, boolean state) {
-    Setting setting = this.getSettingRepository().findByKey(key).orElse(new Setting(key, null));
+    Setting setting =
+        this.getSettingRepository().findByKeyAndTenantIsNull(key).orElse(new Setting(key, null));
     setting.setValue(String.valueOf(state));
     this.getSettingRepository().save(setting);
     this.serviceAvailable = state;

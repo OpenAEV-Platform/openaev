@@ -303,8 +303,10 @@ public final class ExpectationResultBuilder {
             });
   }
 
-  public static boolean hasNoResults(@NotNull final List<InjectExpectationResult> results) {
-    return results.isEmpty() || results.stream().noneMatch(r -> hasText(r.getResult()));
+  public static boolean hasNoResults(final List<InjectExpectationResult> results) {
+    return results == null
+        || results.isEmpty()
+        || results.stream().noneMatch(r -> hasText(r.getResult()));
   }
 
   public static boolean hasAnyEmptyResult(@NotNull List<InjectExpectationResult> results) {

@@ -56,8 +56,7 @@ public abstract class IntegrationTest {
   protected String tenantUri(String uriTemplate) {
     User user = testUserHolder.get();
     String tenantId =
-        user.getGroups().stream()
-            .map(Group::getTenant)
+        user.getTenants().stream()
             .filter(java.util.Objects::nonNull)
             .map(Tenant::getId)
             .findFirst()

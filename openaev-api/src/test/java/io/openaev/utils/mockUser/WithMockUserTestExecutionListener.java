@@ -3,12 +3,12 @@ package io.openaev.utils.mockUser;
 import static io.openaev.service.UserService.buildAuthenticationToken;
 
 import io.openaev.database.model.User;
-import io.openaev.utils.fixtures.GroupFixture;
-import io.openaev.utils.fixtures.RoleFixture;
+import io.openaev.utils.fixtures.TenantGroupFixture;
+import io.openaev.utils.fixtures.TenantRoleFixture;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.fixtures.composers.GrantComposer;
-import io.openaev.utils.fixtures.composers.GroupComposer;
-import io.openaev.utils.fixtures.composers.RoleComposer;
+import io.openaev.utils.fixtures.composers.TenantGroupComposer;
+import io.openaev.utils.fixtures.composers.TenantRoleComposer;
 import io.openaev.utils.fixtures.composers.UserComposer;
 import jakarta.persistence.EntityManager;
 import java.util.Set;
@@ -32,8 +32,8 @@ public class WithMockUserTestExecutionListener extends AbstractTestExecutionList
     var ctx = testContext.getApplicationContext();
     EntityManager entityManager = ctx.getBean(EntityManager.class);
     UserComposer userComposer = ctx.getBean(UserComposer.class);
-    GroupComposer groupComposer = ctx.getBean(GroupComposer.class);
-    RoleComposer roleComposer = ctx.getBean(RoleComposer.class);
+    TenantGroupComposer tenantGroupComposer = ctx.getBean(TenantGroupComposer.class);
+    TenantRoleComposer tenantRoleComposer = ctx.getBean(TenantRoleComposer.class);
     TestUserHolder testUserHolder = ctx.getBean(TestUserHolder.class);
 
     // Build user from annotation
@@ -54,11 +54,11 @@ public class WithMockUserTestExecutionListener extends AbstractTestExecutionList
             .forUser(
                 UserFixture.getUser(userFirstName, userLastName, userMail, annotation.isAdmin()))
             .withGroup(
-                groupComposer
-                    .forGroup(GroupFixture.createGroup())
+                tenantGroupComposer
+                    .forGroup(TenantGroupFixture.getGroup())
                     .withRole(
-                        roleComposer.forRole(
-                            RoleFixture.getRole(Set.of(annotation.withCapabilities())))))
+                        tenantRoleComposer.forRole(
+                            TenantRoleFixture.getRole(Set.of(annotation.withCapabilities())))))
             .persist()
             .get();
     userComposer.reset(); // reset to avoid side effects in following tests
@@ -78,15 +78,15 @@ public class WithMockUserTestExecutionListener extends AbstractTestExecutionList
   public void afterTestMethod(TestContext testContext) {
     var ctx = testContext.getApplicationContext();
     UserComposer userComposer = ctx.getBean(UserComposer.class);
-    GroupComposer groupComposer = ctx.getBean(GroupComposer.class);
-    RoleComposer roleComposer = ctx.getBean(RoleComposer.class);
+    TenantGroupComposer tenantGroupComposer = ctx.getBean(TenantGroupComposer.class);
+    TenantRoleComposer tenantRoleComposer = ctx.getBean(TenantRoleComposer.class);
     GrantComposer grantComposer = ctx.getBean(GrantComposer.class);
     TestUserHolder testUserHolder = ctx.getBean(TestUserHolder.class);
 
     testUserHolder.clear();
     grantComposer.reset();
-    roleComposer.reset();
-    groupComposer.reset();
+    tenantRoleComposer.reset();
+    tenantGroupComposer.reset();
     userComposer.reset();
   }
 

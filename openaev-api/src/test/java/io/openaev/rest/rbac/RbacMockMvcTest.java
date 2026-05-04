@@ -12,12 +12,12 @@ import io.openaev.aop.AccessControl;
 import io.openaev.database.model.*;
 import io.openaev.service.PermissionService;
 import io.openaev.utils.fixtures.GrantFixture;
-import io.openaev.utils.fixtures.GroupFixture;
-import io.openaev.utils.fixtures.RoleFixture;
+import io.openaev.utils.fixtures.TenantGroupFixture;
+import io.openaev.utils.fixtures.TenantRoleFixture;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.fixtures.composers.GrantComposer;
-import io.openaev.utils.fixtures.composers.GroupComposer;
-import io.openaev.utils.fixtures.composers.RoleComposer;
+import io.openaev.utils.fixtures.composers.TenantGroupComposer;
+import io.openaev.utils.fixtures.composers.TenantRoleComposer;
 import io.openaev.utils.fixtures.composers.UserComposer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -44,9 +44,9 @@ public class RbacMockMvcTest extends IntegrationTest {
 
   @Autowired private RbacEndpointScanner rbacEndpointScanner;
 
-  @Autowired private GroupComposer groupComposer;
+  @Autowired private TenantGroupComposer tenantGroupComposer;
 
-  @Autowired private RoleComposer roleComposer;
+  @Autowired private TenantRoleComposer tenantRoleComposer;
 
   @Autowired private GrantComposer grantComposer;
 
@@ -80,8 +80,8 @@ public class RbacMockMvcTest extends IntegrationTest {
   @AfterEach
   void afterEach() {
     userComposer.reset();
-    groupComposer.reset();
-    roleComposer.reset();
+    tenantGroupComposer.reset();
+    tenantRoleComposer.reset();
     grantComposer.reset();
   }
 
@@ -207,14 +207,14 @@ public class RbacMockMvcTest extends IntegrationTest {
 
   private Authentication buildAuthForRoleWithCapability(
       Capability capability, boolean addGrant, AccessControl accessControl) {
-    Group group = GroupFixture.createGroup();
+    Group group = TenantGroupFixture.getGroup();
 
     Set<Capability> capabilities = capability == null ? Set.of() : Set.of(capability);
 
-    GroupComposer.Composer groupComposed =
-        groupComposer
+    TenantGroupComposer.Composer groupComposed =
+        tenantGroupComposer
             .forGroup(group)
-            .withRole(roleComposer.forRole(RoleFixture.getRole(capabilities)));
+            .withRole(tenantRoleComposer.forRole(TenantRoleFixture.getRole(capabilities)));
 
     User user =
         userComposer
@@ -238,9 +238,9 @@ public class RbacMockMvcTest extends IntegrationTest {
   }
 
   private Authentication buildAuthForGrantOnly(AccessControl accessControl) {
-    Group group = GroupFixture.createGroup();
+    Group group = TenantGroupFixture.getGroup();
 
-    GroupComposer.Composer groupComposed = groupComposer.forGroup(group); // no roles
+    TenantGroupComposer.Composer groupComposed = tenantGroupComposer.forGroup(group); // no roles
 
     // Add a grant matching the resourceId in the annotation
     Grant.GRANT_RESOURCE_TYPE grantResourceType =

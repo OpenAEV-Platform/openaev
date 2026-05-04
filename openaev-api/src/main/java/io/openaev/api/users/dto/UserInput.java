@@ -10,6 +10,7 @@ import static io.openaev.api.users.dto.UserOutput.ALIAS_PHONE;
 import static io.openaev.api.users.dto.UserOutput.ALIAS_PHONE2;
 import static io.openaev.api.users.dto.UserOutput.ALIAS_PLAIN_PASSWORD;
 import static io.openaev.api.users.dto.UserOutput.ALIAS_TAGS;
+import static io.openaev.api.users.dto.UserOutput.ALIAS_TENANTS;
 import static io.openaev.config.AppConfig.EMAIL_FORMAT;
 import static io.openaev.config.AppConfig.PHONE_FORMAT;
 import static io.openaev.config.AppConfig.PHONE_REGEXP;
@@ -31,4 +32,5 @@ public record UserInput(
         String phone2,
     @JsonProperty(ALIAS_ORGANIZATION) String organizationId,
     @JsonProperty(ALIAS_TAGS) List<String> tagIds,
-    @JsonProperty(ALIAS_ADMIN) boolean admin) {}
+    @JsonProperty(ALIAS_ADMIN) boolean admin,
+    @JsonProperty(ALIAS_TENANTS) List<String> tenantIds) {}

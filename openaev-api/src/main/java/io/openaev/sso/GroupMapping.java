@@ -14,4 +14,7 @@ public class GroupMapping {
 
   @JsonProperty("autoCreate")
   private boolean autoCreate;
+
+  @JsonProperty("tenantId")
+  private String tenantId;
 }
