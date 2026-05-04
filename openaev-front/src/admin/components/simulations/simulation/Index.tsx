@@ -130,12 +130,6 @@ const IndexComponent: FunctionComponent<{ exercise: SimulationDetails }> = ({ ex
                             />
                             <Tab
                               component={Link}
-                              to={`/admin/simulations/${exercise.exercise_id}/logic`}
-                              value={`/admin/simulations/${exercise.exercise_id}/logic`}
-                              label={t('Logic')}
-                            />
-                            <Tab
-                              component={Link}
                               to={`/admin/simulations/${exercise.exercise_id}/animation`}
                               value={`/admin/simulations/${exercise.exercise_id}/animation`}
                               label={t('Animation')}
