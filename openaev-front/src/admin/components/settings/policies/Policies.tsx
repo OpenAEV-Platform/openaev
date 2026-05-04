@@ -10,7 +10,7 @@ import { useHelper } from '../../../../store';
 import { type PlatformSettings, type PolicyInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
-import { TENANT_SETTINGS_LABEL } from '../../nav/config/settings.config';
+import { SETTINGS_LABEL } from '../../nav/config/settings.config';
 import SecurityMenu from '../SecurityMenu';
 import PolicyForm from './PolicyForm';
 
@@ -48,7 +48,7 @@ const Policies: FunctionComponent = () => {
       <div style={{ flexGrow: 1 }}>
         <Breadcrumbs
           variant="list"
-          elements={[{ label: t(TENANT_SETTINGS_LABEL) }, { label: t('Security') }, {
+          elements={[{ label: t(SETTINGS_LABEL) }, { label: t('Security') }, {
             label: t('Policies'),
             current: true,
           }]}

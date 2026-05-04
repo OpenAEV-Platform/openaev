@@ -569,7 +569,9 @@ public class StarterPackTest extends IntegrationTest {
     Optional<CustomDashboard> dashboardTest = customDashboardRepository.findByName("Test 1");
     assertTrue(dashboardTest.isPresent());
 
-    Optional<Setting> staticsParameters = settingRepository.findByKey("platform_home_dashboard");
+    Optional<Setting> staticsParameters =
+        settingRepository.findByKeyAndTenantId(
+            "platform_home_dashboard", TenantContext.getCurrentTenant());
     assertTrue(staticsParameters.isPresent());
     assertEquals(dashboardTest.get().getId(), staticsParameters.get().getValue());
   }
@@ -579,7 +581,8 @@ public class StarterPackTest extends IntegrationTest {
     assertTrue(dashboardTest.isPresent());
 
     Optional<Setting> staticsParameters =
-        settingRepository.findByKey("platform_scenario_dashboard");
+        settingRepository.findByKeyAndTenantId(
+            "platform_scenario_dashboard", TenantContext.getCurrentTenant());
     assertTrue(staticsParameters.isPresent());
     assertEquals(dashboardTest.get().getId(), staticsParameters.get().getValue());
   }
@@ -589,7 +592,8 @@ public class StarterPackTest extends IntegrationTest {
     assertTrue(dashboardTest.isPresent());
 
     Optional<Setting> staticsParameters =
-        settingRepository.findByKey("platform_simulation_dashboard");
+        settingRepository.findByKeyAndTenantId(
+            "platform_simulation_dashboard", TenantContext.getCurrentTenant());
     assertTrue(staticsParameters.isPresent());
     assertEquals(dashboardTest.get().getId(), staticsParameters.get().getValue());
   }

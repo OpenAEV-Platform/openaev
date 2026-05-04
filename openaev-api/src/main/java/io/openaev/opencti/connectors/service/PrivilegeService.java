@@ -2,13 +2,13 @@ package io.openaev.opencti.connectors.service;
 
 import static io.openaev.opencti.connectors.Constants.*;
 
+import io.openaev.api.groups.dto.TenantGroupCreateInput;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
 import io.openaev.database.model.User;
 import io.openaev.opencti.connectors.ConnectorBase;
-import io.openaev.rest.group.form.GroupCreateInput;
-import io.openaev.service.GroupService;
 import io.openaev.service.RoleService;
+import io.openaev.service.TenantGroupService;
 import io.openaev.service.UserService;
 import java.util.ArrayList;
 import java.util.List;
@@ -27,7 +27,7 @@ public class PrivilegeService {
   private static final String CONNECTOR_LASTNAME = "OpenCTI Connector";
 
   private final RoleService roleService;
-  private final GroupService groupService;
+  private final TenantGroupService tenantGroupService;
   private final UserService userService;
 
   @Transactional
@@ -97,9 +97,9 @@ public class PrivilegeService {
   }
 
   private Group createWellKnownGroupWithRole(Role role) {
-    Optional<Group> processStixGroup = groupService.findById(PROCESS_STIX_GROUP_ID);
+    Optional<Group> processStixGroup = tenantGroupService.findById(PROCESS_STIX_GROUP_ID);
 
-    GroupCreateInput input = new GroupCreateInput();
+    TenantGroupCreateInput input = new TenantGroupCreateInput();
     input.setName(PROCESS_STIX_GROUP_NAME);
     input.setDescription(PROCESS_STIX_GROUP_DESCRIPTION);
     input.setDefaultUserAssignation(false);
@@ -108,12 +108,12 @@ public class PrivilegeService {
         processStixGroup
             .map(
                 group ->
-                    groupService.updateGroupInfoWithRoles(
+                    tenantGroupService.updateGroupInfoWithRoles(
                         group, input, new ArrayList<>(List.of(role))))
             .or(
                 () ->
                     Optional.of(
-                        groupService.createGroupWithRole(
+                        tenantGroupService.createGroupWithRole(
                             PROCESS_STIX_GROUP_ID, input, new ArrayList<>(List.of(role)))));
     return processStixGroup.get();
   }

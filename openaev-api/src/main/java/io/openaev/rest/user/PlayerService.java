@@ -19,6 +19,7 @@ import io.openaev.database.repository.*;
 import io.openaev.rest.user.form.player.PlayerInput;
 import io.openaev.rest.user.form.player.PlayerOutput;
 import io.openaev.service.UserService;
+import io.openaev.service.tenants.TenantUserService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -49,7 +50,7 @@ public class PlayerService {
   private final TagRepository tagRepository;
   private final TeamRepository teamRepository;
   private final OrganizationRepository organizationRepository;
-  private final TenantRepository tenantRepository;
+  private final TenantUserService tenantUserService;
   @PersistenceContext private EntityManager entityManager;
 
   private final UserRepository userRepository;
@@ -114,7 +115,7 @@ public class PlayerService {
         updateRelation(input.getOrganizationId(), user.getOrganization(), organizationRepository));
     User savedUser = userRepository.save(user);
     userService.createUserToken(savedUser);
-    tenantRepository.addUserToTenant(savedUser.getId(), TenantContext.getCurrentTenant());
+    tenantUserService.attachToTenant(savedUser.getId(), TenantContext.getCurrentTenant());
     return savedUser;
   }
 
@@ -146,7 +147,7 @@ public class PlayerService {
             updateRelation(
                 input.getOrganizationId(), existingUser.getOrganization(), organizationRepository));
       }
-      tenantRepository.addUserToTenant(existingUser.getId(), TenantContext.getCurrentTenant());
+      tenantUserService.attachToTenant(existingUser.getId(), TenantContext.getCurrentTenant());
       return userRepository.save(existingUser);
     } else {
       User newUser = new User();
@@ -158,7 +159,7 @@ public class PlayerService {
       newUser.setTeams(fromIterable(teamRepository.findAllById(input.getTeamIds())));
       User savedUser = userRepository.save(newUser);
       userService.createUserToken(savedUser);
-      tenantRepository.addUserToTenant(savedUser.getId(), TenantContext.getCurrentTenant());
+      tenantUserService.attachToTenant(savedUser.getId(), TenantContext.getCurrentTenant());
       return savedUser;
     }
   }

@@ -1,21 +1,33 @@
 import { type Dispatch } from 'redux';
 
 import { getReferential, simpleCall, simplePostCall, simplePutCall } from '../../utils/Action';
-import type { Pagination, TenantSettingsUpdateInput, WidgetToEntitiesInput } from '../../utils/api-types';
+import type { Pagination, TenantSettingsUpdateInput, ThemeInput, WidgetToEntitiesInput } from '../../utils/api-types';
 import * as schema from '../Schema';
 
 const TENANT_SETTINGS_URI = '/api/tenant-settings';
 
 type AppDispatch = Dispatch;
 
-export type TenantSettings = { platform_home_dashboard?: string };
+// -- READ --
 
 export const fetchTenantSettings = () => (dispatch: AppDispatch) => {
   return getReferential(schema.tenantSettings, TENANT_SETTINGS_URI)(dispatch);
 };
 
+// -- UPDATE --
+
 export const updateTenantSettings = (data: TenantSettingsUpdateInput) => {
   return simplePutCall(TENANT_SETTINGS_URI, data);
+};
+
+// -- THEME --
+
+export const updateTenantLightTheme = (data: ThemeInput) => {
+  return simplePutCall(`${TENANT_SETTINGS_URI}/theme/light`, data);
+};
+
+export const updateTenantDarkTheme = (data: ThemeInput) => {
+  return simplePutCall(`${TENANT_SETTINGS_URI}/theme/dark`, data);
 };
 
 // -- HOME DASHBOARD --

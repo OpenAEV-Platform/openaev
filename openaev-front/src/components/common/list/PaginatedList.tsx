@@ -47,10 +47,11 @@ const PaginatedList = <T, >({ Icon, secondaryAction, headers, items, rowKey, onR
             divider
             disablePadding={!!onRowClick}
             secondaryAction={secondaryAction?.(item)}
+            style={{ height: 50 }}
           >
             {onRowClick
               ? (
-                  <ListItemButton style={{ height: 50 }} onClick={() => onRowClick(item)}>
+                  <ListItemButton onClick={() => onRowClick(item)}>
                     {rowContent}
                   </ListItemButton>
                 )

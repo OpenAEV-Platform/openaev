@@ -46,7 +46,7 @@ const TenantCreate: FunctionComponent<Props> = ({ onCreate }) => {
 
   return (
     <>
-      <ButtonCreate onClick={handleOpen} />
+      <ButtonCreate onClick={handleOpen} variant="rightMenu" />
       <Drawer
         open={open}
         handleClose={handleClose}

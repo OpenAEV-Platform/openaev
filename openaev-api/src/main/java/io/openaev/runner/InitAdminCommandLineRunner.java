@@ -7,12 +7,11 @@ import static io.openaev.database.model.User.ADMIN_LASTNAME;
 import static io.openaev.database.model.User.ADMIN_UUID;
 import static org.springframework.util.StringUtils.hasText;
 
-import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.database.model.Token;
 import io.openaev.database.model.User;
-import io.openaev.database.repository.TenantRepository;
 import io.openaev.database.repository.TokenRepository;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.service.tenants.TenantUserService;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.Optional;
@@ -39,19 +38,16 @@ public class InitAdminCommandLineRunner implements CommandLineRunner {
   private String adminToken;
 
   private final UserRepository userRepository;
-  private final TenantRepository tenantRepository;
   private final TokenRepository tokenRepository;
-  private final TenantMembershipCacheManager tenantMembershipCacheManager;
+  private final TenantUserService tenantUserService;
 
   public InitAdminCommandLineRunner(
       @NotNull final UserRepository userRepository,
       @NotNull final TokenRepository tokenRepository,
-      @NotNull final TenantRepository tenantRepository,
-      TenantMembershipCacheManager tenantMembershipCacheManager) {
+      @NotNull final TenantUserService tenantUserService) {
     this.userRepository = userRepository;
     this.tokenRepository = tokenRepository;
-    this.tenantRepository = tenantRepository;
-    this.tenantMembershipCacheManager = tenantMembershipCacheManager;
+    this.tenantUserService = tenantUserService;
   }
 
   @Override
@@ -88,8 +84,7 @@ public class InitAdminCommandLineRunner implements CommandLineRunner {
 
     this.userRepository.createAdmin(
         ADMIN_UUID, ADMIN_FIRSTNAME, ADMIN_LASTNAME, this.adminEmail, encodedPassword());
-    tenantRepository.addUserToTenant(ADMIN_UUID, DEFAULT_TENANT_UUID);
-    tenantMembershipCacheManager.evict(ADMIN_UUID, DEFAULT_TENANT_UUID);
+    tenantUserService.attachToTenant(ADMIN_UUID, DEFAULT_TENANT_UUID);
     return this.userRepository.findById(ADMIN_UUID).orElseThrow();
   }
 

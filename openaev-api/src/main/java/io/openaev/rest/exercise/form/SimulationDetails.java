@@ -68,6 +68,9 @@ public class SimulationDetails {
   @NotBlank
   private String from;
 
+  @JsonProperty("exercise_mail_from_name")
+  private String fromName;
+
   @JsonProperty("exercise_mails_reply_to")
   private List<String> replyTo;
 
@@ -173,7 +176,8 @@ public class SimulationDetails {
         .end(exercise.getExercise_end_date())
         .header(exercise.getExercise_message_header())
         .footer(exercise.getExercise_message_footer())
-        .from(exercise.getExercise_mail_from());
+        .from(exercise.getExercise_mail_from())
+        .fromName(exercise.getExercise_mail_from_name());
     if (exercise.getExercise_reply_to() != null) {
       details.replyTo(exercise.getExercise_reply_to().stream().toList());
     }

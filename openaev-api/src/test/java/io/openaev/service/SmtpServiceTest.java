@@ -78,7 +78,8 @@ public class SmtpServiceTest {
 
     smtpService.connectionListener();
 
-    Optional<Setting> actualSmtpAvailable = settingRepository.findByKey("smtp_service_available");
+    Optional<Setting> actualSmtpAvailable =
+        settingRepository.findByKeyAndTenantIsNull("smtp_service_available");
 
     assertThat(actualSmtpAvailable)
         .isPresent()
@@ -92,7 +93,8 @@ public class SmtpServiceTest {
 
     smtpService.connectionListener();
 
-    Optional<Setting> actualSmtpAvailable = settingRepository.findByKey("smtp_service_available");
+    Optional<Setting> actualSmtpAvailable =
+        settingRepository.findByKeyAndTenantIsNull("smtp_service_available");
 
     AssertionsForClassTypes.assertThat(actualSmtpAvailable)
         .isPresent()

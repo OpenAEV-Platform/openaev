@@ -126,7 +126,7 @@ describe('useTenant', () => {
       const useTenant = await importUseTenant();
 
       // Act
-      const { result } = renderHook(() => useTenant(MOCK_USER, true, false), { wrapper: createWrapper() });
+      const { result } = renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
 
       // Assert
       await waitFor(() => {
@@ -142,13 +142,13 @@ describe('useTenant', () => {
       const useTenant = await importUseTenant();
 
       // Act
-      const { result } = renderHook(() => useTenant(undefined, true, false), { wrapper: createWrapper() });
+      const { result } = renderHook(() => useTenant(undefined, true), { wrapper: createWrapper() });
 
       // Assert
       await waitFor(() => {
         expect(mockFetchUserTenants).not.toHaveBeenCalled();
       });
-      expect(result.current.userTenants).toHaveLength(0);
+      expect(result.current.userTenants).toBeUndefined();
       expect(result.current.currentUserTenant).toBeNull();
     });
 
@@ -158,13 +158,13 @@ describe('useTenant', () => {
       const useTenant = await importUseTenant();
 
       // Act
-      const { result } = renderHook(() => useTenant(MOCK_USER, false, false), { wrapper: createWrapper() });
+      const { result } = renderHook(() => useTenant(MOCK_USER, false), { wrapper: createWrapper() });
 
       // Assert
       await waitFor(() => {
         expect(mockFetchUserTenants).not.toHaveBeenCalled();
       });
-      expect(result.current.userTenants).toHaveLength(0);
+      expect(result.current.userTenants).toBeUndefined();
       expect(result.current.currentUserTenant).toBeNull();
     });
 
@@ -174,7 +174,7 @@ describe('useTenant', () => {
       const useTenant = await importUseTenant();
 
       // Act
-      const { result } = renderHook(() => useTenant(MOCK_USER, true, false), { wrapper: createWrapper() });
+      const { result } = renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
 
       // Assert
       await waitFor(() => {
@@ -195,7 +195,7 @@ describe('useTenant', () => {
       const useTenant = await importUseTenant();
 
       // Act
-      const { result } = renderHook(() => useTenant(MOCK_USER, true, false), { wrapper: createWrapper() });
+      const { result } = renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
 
       // Assert — should select URL tenant (ALPHA)
       await waitFor(() => {
@@ -210,7 +210,7 @@ describe('useTenant', () => {
       const useTenant = await importUseTenant();
 
       // Act
-      const { result } = renderHook(() => useTenant(MOCK_USER, true, false), { wrapper: createWrapper() });
+      const { result } = renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
 
       // Assert — should select URL tenant (BETA)
       await waitFor(() => {
@@ -225,7 +225,7 @@ describe('useTenant', () => {
       const useTenant = await importUseTenant();
 
       // Act
-      renderHook(() => useTenant(MOCK_USER, true, false), { wrapper: createWrapper() });
+      renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
 
       // Assert — should trigger full page navigation to first tenant
       await waitFor(() => {
@@ -244,7 +244,7 @@ describe('useTenant', () => {
       const useTenant = await importUseTenant();
 
       // Act
-      renderHook(() => useTenant(MOCK_USER, true, false), { wrapper: createWrapper() });
+      renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
 
       // Assert — should trigger full page navigation to first tenant
       await waitFor(() => {
@@ -267,7 +267,7 @@ describe('useTenant', () => {
       const useTenant = await importUseTenant();
 
       // Act
-      renderHook(() => useTenant(MOCK_USER, true, false), { wrapper: createWrapper() });
+      renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
 
       // Assert
       await waitFor(() => {
@@ -288,7 +288,7 @@ describe('useTenant', () => {
       mockTenantsResponse([TENANT_ALPHA, TENANT_BETA]);
       const useTenant = await importUseTenant();
 
-      const { result } = renderHook(() => useTenant(MOCK_USER, true, false), { wrapper: createWrapper('/admin/scenarios') });
+      const { result } = renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper('/admin/scenarios') });
 
       await waitFor(() => {
         expect(result.current.currentUserTenant?.tenant_id).toBe(TENANT_ALPHA.tenant_id);
@@ -317,7 +317,7 @@ describe('useTenant', () => {
       mockTenantsResponse([TENANT_ALPHA, TENANT_BETA]);
       const useTenant = await importUseTenant();
 
-      const { result } = renderHook(() => useTenant(MOCK_USER, true, false), { wrapper: createWrapper() });
+      const { result } = renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(result.current.currentUserTenant?.tenant_id).toBe(TENANT_ALPHA.tenant_id);
@@ -340,7 +340,7 @@ describe('useTenant', () => {
       mockTenantsResponse([TENANT_ALPHA, TENANT_BETA]);
       const useTenant = await importUseTenant();
 
-      const { result } = renderHook(() => useTenant(MOCK_USER, true, false), { wrapper: createWrapper() });
+      const { result } = renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(result.current.currentUserTenant).not.toBeNull();
@@ -367,7 +367,7 @@ describe('useTenant', () => {
       mockTenantsResponse([TENANT_ALPHA]);
       const useTenant = await importUseTenant();
 
-      const { result } = renderHook(() => useTenant(MOCK_USER, true, false), { wrapper: createWrapper() });
+      const { result } = renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(result.current.userTenants).toHaveLength(1);
@@ -394,7 +394,7 @@ describe('useTenant', () => {
       mockTenantsResponse([TENANT_ALPHA, TENANT_BETA]);
       const useTenant = await importUseTenant();
 
-      const { result } = renderHook(() => useTenant(MOCK_USER, true, false), { wrapper: createWrapper() });
+      const { result } = renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(result.current.currentUserTenant?.tenant_id).toBe(TENANT_ALPHA.tenant_id);
@@ -422,7 +422,7 @@ describe('useTenant', () => {
       mockTenantsResponse([TENANT_ALPHA, TENANT_BETA]);
       const useTenant = await importUseTenant();
 
-      const { result } = renderHook(() => useTenant(MOCK_USER, true, false), { wrapper: createWrapper() });
+      const { result } = renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(result.current.currentUserTenant?.tenant_id).toBe(TENANT_ALPHA.tenant_id);
@@ -453,7 +453,7 @@ describe('useTenant', () => {
       const useTenant = await importUseTenant();
 
       // Act
-      const { result } = renderHook(() => useTenant(MOCK_USER, true, false), { wrapper: createWrapper() });
+      const { result } = renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
 
       // Assert
       await waitFor(() => {

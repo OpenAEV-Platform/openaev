@@ -20,8 +20,8 @@ import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.search.FullTextSearchApi;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.GrantComposer;
-import io.openaev.utils.fixtures.composers.GroupComposer;
-import io.openaev.utils.fixtures.composers.RoleComposer;
+import io.openaev.utils.fixtures.composers.TenantGroupComposer;
+import io.openaev.utils.fixtures.composers.TenantRoleComposer;
 import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -51,8 +51,8 @@ public class FullTextSearchTest extends IntegrationTest {
   @Autowired private AssetRepository assetRepository;
 
   @Autowired private UserComposer userComposer;
-  @Autowired private GroupComposer groupComposer;
-  @Autowired private RoleComposer roleComposer;
+  @Autowired private TenantGroupComposer tenantGroupComposer;
+  @Autowired private TenantRoleComposer tenantRoleComposer;
   @Autowired private GrantComposer grantComposer;
 
   private static final List<String> SCENARIO_IDS = new ArrayList<>();
@@ -85,8 +85,8 @@ public class FullTextSearchTest extends IntegrationTest {
   @AfterEach
   void afterEach() {
     userComposer.reset();
-    groupComposer.reset();
-    roleComposer.reset();
+    tenantGroupComposer.reset();
+    tenantRoleComposer.reset();
     grantComposer.reset();
   }
 
@@ -280,12 +280,12 @@ public class FullTextSearchTest extends IntegrationTest {
     SearchPaginationInput searchPaginationInput =
         PaginationFixture.getDefault().textSearch(searchTerm).build();
 
-    GroupComposer.Composer groupComposed =
-        groupComposer
-            .forGroup(GroupFixture.createGroup())
+    TenantGroupComposer.Composer groupComposed =
+        tenantGroupComposer
+            .forGroup(TenantGroupFixture.getGroup())
             .withRole(
-                roleComposer.forRole(
-                    RoleFixture.getRole(
+                tenantRoleComposer.forRole(
+                    TenantRoleFixture.getRole(
                         capability == null ? new HashSet<>() : new HashSet<>(Set.of(capability)))));
 
     this.testUser =
@@ -324,12 +324,12 @@ public class FullTextSearchTest extends IntegrationTest {
     FullTextSearchApi.SearchTerm term = new FullTextSearchApi.SearchTerm();
     term.setSearchTerm(searchTerm);
 
-    GroupComposer.Composer groupComposed =
-        groupComposer
-            .forGroup(GroupFixture.createGroup())
+    TenantGroupComposer.Composer groupComposed =
+        tenantGroupComposer
+            .forGroup(TenantGroupFixture.getGroup())
             .withRole(
-                roleComposer.forRole(
-                    RoleFixture.getRole(
+                tenantRoleComposer.forRole(
+                    TenantRoleFixture.getRole(
                         capability == null ? new HashSet<>() : new HashSet<>(Set.of(capability)))));
 
     this.testUser =

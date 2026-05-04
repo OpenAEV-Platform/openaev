@@ -37,18 +37,6 @@ public class PlatformSettings extends PublicPlatformSettings {
   @Schema(description = "Agent URL of the platform")
   private String platformAgentUrl;
 
-  @JsonProperty("platform_home_dashboard")
-  @Schema(description = "Default home dashboard of the platform")
-  private String platformHomeDashboard;
-
-  @JsonProperty("platform_scenario_dashboard")
-  @Schema(description = "Default scenario dashboard of the platform")
-  private String platformScenarioDashboard;
-
-  @JsonProperty("platform_simulation_dashboard")
-  @Schema(description = "Default simulation dashboard of the platform")
-  private String platformSimulationDashboard;
-
   @JsonProperty("map_tile_server_light")
   @Schema(description = "URL of the server containing the map tile with light theme")
   private String mapTileServerLight;

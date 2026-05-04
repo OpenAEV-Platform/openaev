@@ -47,6 +47,7 @@ Every REST endpoint must have `@AccessControl`. See the annotation in `io.openae
 - Native `@Query` bypasses the Hibernate filter — always add `WHERE tenant_id = :tenantId`
 - Never return `tenant_id` in API responses — use `@JsonIgnore` on the tenant relation
 - Never assign platform-only capabilities to tenant roles or vice versa
+- **Dual-scope entities** (Settings, User, Role, Group): `PlatformXxxApi` must require platform-admin capabilities; `TenantXxxApi` must require tenant-scoped capabilities — never share `@AccessControl` between the two
 
 ## Never Do
 

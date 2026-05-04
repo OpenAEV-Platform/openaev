@@ -85,6 +85,13 @@ public interface RawScenario {
   String getScenario_mail_from();
 
   /**
+   * Returns the sender display name for scenario communications.
+   *
+   * @return the "from" display name
+   */
+  String getScenario_mail_from_name();
+
+  /**
    * Returns the main focus area of the scenario.
    *
    * @return the main focus (e.g., "incident-response", "endpoint-protection")

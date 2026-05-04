@@ -1,16 +1,8 @@
-import { Close, DevicesOtherOutlined } from '@mui/icons-material';
-import { Box, Button, Chip, IconButton, Tab, Tabs, Tooltip, Typography } from '@mui/material';
+import { DevicesOtherOutlined } from '@mui/icons-material';
+import { Box, Button, Tab, Tabs, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { SelectGroup } from 'mdi-material-ui';
-import {
-  type FunctionComponent,
-  type SyntheticEvent,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import { type FunctionComponent, type SyntheticEvent, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 import { findAssetGroups, searchAssetGroups } from '../../../actions/asset_groups/assetgroup-action';
 import { findEndpoints, searchEndpoints } from '../../../actions/assets/endpoint-actions';
@@ -26,21 +18,36 @@ import PlatformIcon from '../../../components/PlatformIcon';
 import { useHelper } from '../../../store';
 import type { AssetGroupOutput, EndpointOutput } from '../../../utils/api-types';
 import { getActiveMsgTooltip, getExecutorsCount } from '../../../utils/endpoints/utils';
+import { MESSAGING$ } from '../../../utils/Environment';
 import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
 import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { buildTenantApiPath } from '../../../utils/url-helper';
+import { download } from '../../../utils/utils';
 import AssetStatus from '../assets/AssetStatus';
+import {
+  buildScopeRulesCsvTemplate,
+  parseScopeRulesCsv,
+} from './scope-rules-csv';
+import ScopeInventoryBox from './ScopeInventoryBox';
+
+export interface ScopeCustomRule {
+  source: 'MANUAL' | 'CSV';
+  value: string;
+}
 
 interface ScopeFormProps {
   mode: 'ALLOWLIST' | 'DENYLIST';
   selectedEndpointIds: string[];
   selectedAssetGroupIds: string[];
+  selectedCustomRules: ScopeCustomRule[];
   initialEndpointIds: string[];
   initialAssetGroupIds: string[];
+  initialCustomRules: ScopeCustomRule[];
   onEndpointIdsChange: (ids: string[]) => void;
   onAssetGroupIdsChange: (ids: string[]) => void;
+  onCustomRulesChange: (rules: ScopeCustomRule[]) => void;
   onCancel: () => void;
   onSubmit: () => void;
 }
@@ -49,10 +56,13 @@ const ScopeForm: FunctionComponent<ScopeFormProps> = ({
   mode,
   selectedEndpointIds,
   selectedAssetGroupIds,
+  selectedCustomRules,
   initialEndpointIds,
   initialAssetGroupIds,
+  initialCustomRules,
   onEndpointIdsChange,
   onAssetGroupIdsChange,
+  onCustomRulesChange,
   onCancel,
   onSubmit,
 }) => {
@@ -95,14 +105,29 @@ const ScopeForm: FunctionComponent<ScopeFormProps> = ({
     }
   }, [selectedAssetGroupIds]);
 
-  const totalSelected = selectedEndpointIds.length + selectedAssetGroupIds.length;
+  const totalSelected = selectedEndpointIds.length + selectedAssetGroupIds.length + selectedCustomRules.length;
 
   const hasChanges = useMemo(() => {
-    const sortedCurrent = [...selectedEndpointIds, ...selectedAssetGroupIds].sort();
-    const sortedInitial = [...initialEndpointIds, ...initialAssetGroupIds].sort();
+    const sortedCurrent = [
+      ...selectedEndpointIds,
+      ...selectedAssetGroupIds,
+      ...selectedCustomRules.map(r => `${r.source}:${r.value.toLowerCase()}`),
+    ].sort((a, b) => a.localeCompare(b));
+    const sortedInitial = [
+      ...initialEndpointIds,
+      ...initialAssetGroupIds,
+      ...initialCustomRules.map(r => `${r.source}:${r.value.toLowerCase()}`),
+    ].sort((a, b) => a.localeCompare(b));
     if (sortedCurrent.length !== sortedInitial.length) return true;
     return sortedCurrent.some((id, i) => id !== sortedInitial[i]);
-  }, [selectedEndpointIds, selectedAssetGroupIds, initialEndpointIds, initialAssetGroupIds]);
+  }, [
+    selectedEndpointIds,
+    selectedAssetGroupIds,
+    selectedCustomRules,
+    initialEndpointIds,
+    initialAssetGroupIds,
+    initialCustomRules,
+  ]);
 
   // -- Assets tab (endpoints) --
   const [endpoints, setEndpoints] = useState<EndpointOutput[]>([]);
@@ -260,77 +285,114 @@ const ScopeForm: FunctionComponent<ScopeFormProps> = ({
     setCurrentTab(newValue);
   }, []);
 
+  const handleDownloadTemplate = useCallback(() => {
+    download(buildScopeRulesCsvTemplate(), 'scope-rules-template.csv', 'text/csv;charset=utf-8');
+  }, []);
+
+  const handleUploadCsv = useCallback(
+    async (_formData: FormData, file: File) => {
+      const content = await file.text();
+      const result = parseScopeRulesCsv(content);
+
+      if (result.valid.length > 0) {
+        const existingKeys = new Set(
+          selectedCustomRules.map(rule => `${rule.source}:${rule.value.toLowerCase()}`),
+        );
+        const importedRules: ScopeCustomRule[] = result.valid
+          .map(rule => ({
+            source: 'CSV' as const,
+            value: rule.value.trim(),
+          }))
+          .filter(rule => !existingKeys.has(`${rule.source}:${rule.value.toLowerCase()}`));
+
+        if (importedRules.length > 0) {
+          onCustomRulesChange([...selectedCustomRules, ...importedRules]);
+        }
+      }
+
+      if (result.invalid.length > 0) {
+        const preview = result.invalid.slice(0, 3).map(err => `${t('Row')} ${err.row}: ${err.reason}`).join(' | ');
+        MESSAGING$.notifyError(`${t('Some CSV rows are invalid')}: ${preview}`);
+      } else if (result.valid.length > 0) {
+        MESSAGING$.notifySuccess(t('CSV imported successfully'));
+      }
+    },
+    [onCustomRulesChange, selectedCustomRules, t],
+  );
+
+  const handleAddManual = useCallback((values: string[]) => {
+    const existingKeys = new Set(
+      selectedCustomRules.map(rule => `${rule.source}:${rule.value.toLowerCase()}`),
+    );
+    const newRules: ScopeCustomRule[] = values
+      .map(v => ({
+        source: 'MANUAL' as const,
+        value: v.trim(),
+      }))
+      .filter(rule => rule.value.length > 0 && !existingKeys.has(`${rule.source}:${rule.value.toLowerCase()}`));
+    if (newRules.length > 0) {
+      onCustomRulesChange([...selectedCustomRules, ...newRules]);
+    }
+  }, [onCustomRulesChange, selectedCustomRules]);
+
+  const handleClearAll = useCallback(() => {
+    onEndpointIdsChange([]);
+    onAssetGroupIdsChange([]);
+    onCustomRulesChange([]);
+  }, [onEndpointIdsChange, onAssetGroupIdsChange, onCustomRulesChange]);
+
+  const removeCustomRule = useCallback((ruleToRemove: ScopeCustomRule) => {
+    onCustomRulesChange(
+      selectedCustomRules.filter(
+        item => item.source !== ruleToRemove.source || item.value !== ruleToRemove.value,
+      ),
+    );
+  }, [onCustomRulesChange, selectedCustomRules]);
+
+  const inventoryChips = useMemo(() => {
+    const endpointChips = selectedEndpoints.map(ep => ({
+      key: `endpoint-${ep.asset_id}`,
+      label: ep.asset_name,
+      onDelete: () => removeEndpoint(ep.asset_id),
+    }));
+
+    const assetGroupChips = selectedAssetGroups.map(ag => ({
+      key: `asset-group-${ag.asset_group_id}`,
+      label: ag.asset_group_name,
+      onDelete: () => removeAssetGroup(ag.asset_group_id),
+    }));
+
+    const customRuleChips = selectedCustomRules.map(rule => ({
+      key: `custom-${rule.source}-${rule.value}`,
+      label: rule.value,
+      onDelete: () => removeCustomRule(rule),
+    }));
+
+    return [...endpointChips, ...assetGroupChips, ...customRuleChips];
+  }, [
+    onCustomRulesChange,
+    selectedAssetGroups,
+    selectedCustomRules,
+    selectedEndpoints,
+    t,
+    removeCustomRule,
+  ]);
+
   return (
     <Box sx={{
       display: 'grid',
       gap: theme.spacing(3),
     }}
     >
-      {/* Inventory section */}
-      <Box>
-        <Typography variant="h4">
-          {`${listLabel} ${t('inventory')} (${totalSelected})`}
-        </Typography>
-
-        <Box
-          sx={{
-            position: 'relative',
-            minHeight: 100,
-            border: `1px solid ${theme.palette.divider}`,
-            borderRadius: 1,
-            padding: theme.spacing(2),
-            display: 'flex',
-            flexWrap: 'wrap',
-            alignItems: 'flex-start',
-            alignContent: 'flex-start',
-            gap: theme.spacing(1),
-          }}
-        >
-          {totalSelected > 0 && (
-            <Tooltip title={t('Clear all')}>
-              <IconButton
-                size="small"
-                color="primary"
-                onClick={() => {
-                  onEndpointIdsChange([]);
-                  onAssetGroupIdsChange([]);
-                }}
-                sx={{
-                  position: 'absolute',
-                  top: 4,
-                  right: 4,
-                }}
-              >
-                <Close fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          )}
-          {totalSelected === 0 && (
-            <Typography
-              variant="body2"
-              sx={{ color: 'text.disabled' }}
-            >
-              {t('No asset selected. Add asset manually or select some in the asset list.')}
-            </Typography>
-          )}
-          {selectedEndpoints.map(ep => (
-            <Chip
-              key={ep.asset_id}
-              label={ep.asset_name}
-              size="small"
-              onDelete={() => removeEndpoint(ep.asset_id)}
-            />
-          ))}
-          {selectedAssetGroups.map(ag => (
-            <Chip
-              key={ag.asset_group_id}
-              label={ag.asset_group_name}
-              size="small"
-              onDelete={() => removeAssetGroup(ag.asset_group_id)}
-            />
-          ))}
-        </Box>
-      </Box>
+      <ScopeInventoryBox
+        listLabel={listLabel}
+        totalSelected={totalSelected}
+        chips={inventoryChips}
+        onDownloadTemplate={handleDownloadTemplate}
+        onUploadCsv={handleUploadCsv}
+        onAddManual={handleAddManual}
+        onClearAll={handleClearAll}
+      />
 
       {/* Add section */}
       <Box>

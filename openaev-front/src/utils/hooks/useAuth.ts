@@ -6,7 +6,7 @@ export interface UserContextType {
   me: User | undefined;
   settings: PlatformSettings | undefined;
   isXTMHubAccessible: boolean | undefined;
-  userTenants: TenantOutput[];
+  userTenants: TenantOutput[] | undefined;
   currentUserTenant: TenantOutput | null;
   switchUserTenant: (tenantId: string) => Promise<void>;
   reloadUserTenants: (newCurrentTenantId?: string) => Promise<void>;
@@ -16,7 +16,7 @@ const defaultContext: UserContextType = {
   me: undefined,
   settings: undefined,
   isXTMHubAccessible: undefined,
-  userTenants: [],
+  userTenants: undefined,
   currentUserTenant: null,
   switchUserTenant: async (_tenantId: string) => {},
   reloadUserTenants: async (_newCurrentTenantId?: string) => {},

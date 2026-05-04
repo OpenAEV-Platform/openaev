@@ -19,7 +19,7 @@ public class SettingService {
   public boolean getBoolean(SettingKeys key) {
     Objects.requireNonNull(key, "key must not be null");
     return settingRepository
-        .findByKey(key.key())
+        .findByKeyAndTenantIsNull(key.key())
         .map(Setting::getValue)
         .map(Boolean::parseBoolean)
         .orElseGet(() -> Boolean.parseBoolean(key.defaultValue()));
@@ -30,7 +30,7 @@ public class SettingService {
     Objects.requireNonNull(key, "key must not be null");
     Setting setting =
         settingRepository
-            .findByKey(key.key())
+            .findByKeyAndTenantIsNull(key.key())
             .orElseGet(() -> new Setting(key.key(), String.valueOf(value)));
 
     setting.setValue(String.valueOf(value));
@@ -42,7 +42,7 @@ public class SettingService {
     Objects.requireNonNull(key, "key must not be null");
     int fallback = Integer.parseInt(key.defaultValue());
     return settingRepository
-        .findByKey(key.key())
+        .findByKeyAndTenantIsNull(key.key())
         .map(Setting::getValue)
         .map(
             value -> {
