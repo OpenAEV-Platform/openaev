@@ -16,7 +16,7 @@ import ItemTags from '../../../../../../../../components/ItemTags';
 import {
   type AttackPattern,
   type EsBase,
-  type EsInjectExpectation,
+  type EsInjectExpectation, type InjectStatus as InjectStatusType,
 } from '../../../../../../../../utils/api-types';
 import { computeInjectExpectationLabel } from '../../../../../../../../utils/statusUtils';
 import EndpointListItemFragments from '../../../../../../common/endpoints/EndpointListItemFragments';
@@ -51,7 +51,7 @@ const vulnerableEndpointColumnsRenderers: RendererMap = {
 };
 
 const injectColumnsRenderers: RendererMap = {
-  ['inject_status']: status => <InjectStatus status={status as InjectStatus['status_name']} />,
+  ['inject_status']: status => <InjectStatus status={status as InjectStatusType['status_name']} />,
   ['base_platforms_side_denormalized']: platform => <AssetPlatformFragment platform={platform as string} />,
   ['execution_date']: value => <DateFragment value={value as string} />,
 
