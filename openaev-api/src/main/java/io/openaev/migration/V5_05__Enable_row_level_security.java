@@ -26,7 +26,7 @@ import org.springframework.stereotype.Component;
  * superuser for DDL operations.
  */
 @Component
-public class V5_02__Enable_row_level_security extends BaseJavaMigration {
+public class V5_05__Enable_row_level_security extends BaseJavaMigration {
 
   /** Non-superuser role the application adopts at runtime so that RLS policies are enforced. */
   static final String APP_ROLE = "openaev_app";
