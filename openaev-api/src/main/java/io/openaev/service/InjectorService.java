@@ -561,29 +561,25 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
         isPayloads,
         dependencies);
 
-    // Persistable.isNew()=false → Spring Data uses merge(), which would find the existing
-    // Injector from another tenant (same static ID, JPA @Id is only injector_id).
-    // We must use persist() to force an INSERT for the new tenant.
     newInjector.setTenant(new Tenant(TenantContext.getCurrentTenant()));
-    // DB composite PK (id, tenant_id) allows the same static ID per tenant.
-    entityManager.persist(newInjector);
+    Injector savedInjector = injectorRepository.save(newInjector);
 
     List<InjectorContract> injectorContracts =
         staticContracts.stream()
             .map(
                 contract ->
                     this.injectorContractService.createBuiltinInjectorContract(
-                        contract, newInjector, isPayloads))
+                        contract, savedInjector, isPayloads))
             .toList();
     injectorContracts = fromIterable(injectorContractRepository.saveAll(injectorContracts));
     // Link managed contracts on the owning side so Hibernate populates the join table.
     // We MUST use the instances returned by saveAll() — the originals are detached after merge().
-    newInjector.getContracts().addAll(injectorContracts);
+    savedInjector.getContracts().addAll(injectorContracts);
     // Flush now so that all inserts are visible before any subsequent query triggers auto-flush
     // (e.g. deleteDummyInjectorIfItExists), which would otherwise fail with
     // TransientObjectException.
     entityManager.flush();
-    return newInjector;
+    return savedInjector;
   }
 
   private void applyBuiltinInjectorProperties(

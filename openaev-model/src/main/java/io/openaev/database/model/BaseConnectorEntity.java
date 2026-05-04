@@ -1,6 +1,8 @@
 package io.openaev.database.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.persistence.PostLoad;
+import jakarta.persistence.PostPersist;
 import jakarta.persistence.Transient;
 import lombok.Data;
 import org.springframework.data.domain.Persistable;
@@ -13,8 +15,8 @@ import org.springframework.data.domain.Persistable;
  * maps only {@code id} as {@code @Id}. The Hibernate tenant filter scopes all queries to the
  * current tenant, and services use {@code findByIdAndTenantId()} for explicit lookups.
  *
- * <p>Implements {@link Persistable} so that Spring Data JPA knows these entities always have
- * assigned IDs and should use {@code merge()} instead of {@code persist()}.
+ * <p>Implements {@link Persistable} with a transient {@code newEntity} flag so that Spring Data JPA
+ * correctly uses {@code persist()} for new entities and {@code merge()} for existing ones.
  */
 @Data
 public abstract class BaseConnectorEntity implements Base, Persistable<String> {
@@ -23,14 +25,23 @@ public abstract class BaseConnectorEntity implements Base, Persistable<String> {
   private String type;
   private boolean external;
 
+  @Transient @JsonIgnore private boolean newEntity = true;
+
   /**
-   * Connector entities always have an assigned (static) ID, so they are never "new" from JPA's
-   * perspective. This ensures Spring Data uses {@code merge()} rather than {@code persist()}.
+   * Returns {@code true} if this entity has not yet been persisted. Spring Data uses this to decide
+   * between {@code persist()} (INSERT) and {@code merge()} (SELECT + UPDATE).
    */
   @Override
   @Transient
   @JsonIgnore
   public boolean isNew() {
-    return false;
+    return newEntity;
+  }
+
+  /** Mark as persisted after being loaded from the database. */
+  @PostLoad
+  @PostPersist
+  void markNotNew() {
+    this.newEntity = false;
   }
 }

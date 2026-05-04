@@ -22,7 +22,6 @@ import io.openaev.service.connectors.AbstractConnectorService;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import io.openaev.utils.mapper.CollectorMapper;
 import jakarta.annotation.Resource;
-import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotNull;
 import java.io.InputStream;
@@ -48,8 +47,6 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
 
   private final CollectorMapper collectorMapper;
 
-  private final EntityManager entityManager;
-
   @Autowired
   public CollectorService(
       CollectorRepository collectorRepository,
@@ -60,8 +57,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
       ConnectorInstanceService connectorInstanceService,
       CatalogConnectorService catalogConnectorService,
       CollectorMapper collectorMapper,
-      CatalogConnectorMapper catalogConnectorMapper,
-      EntityManager entityManager) {
+      CatalogConnectorMapper catalogConnectorMapper) {
     super(
         ConnectorType.COLLECTOR,
         connectorInstanceConfigurationRepository,
@@ -73,7 +69,6 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
     this.fileService = fileService;
     this.collectorMapper = collectorMapper;
     this.securityPlatformRepository = securityPlatformRepository;
-    this.entityManager = entityManager;
   }
 
   @Override
@@ -236,11 +231,9 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
     if (securityPlatform != null) {
       newCollector.setSecurityPlatform(securityPlatform);
     }
-    // For new entities, use persist() to force INSERT — merge() would find the existing
-    // Collector from another tenant (same static ID, JPA @Id is only collector_id).
+    // For new entities, isNew()=true triggers persist() via Spring Data save().
     newCollector.setTenant(new Tenant(TenantContext.getCurrentTenant()));
-    entityManager.persist(newCollector);
-    return newCollector;
+    return collectorRepository.save(newCollector);
   }
 
   public List<Collector> collectorsForPayload(String payloadId) {

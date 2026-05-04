@@ -20,7 +20,6 @@ import io.openaev.service.connectors.AbstractConnectorService;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import io.openaev.utils.mapper.ExecutorMapper;
 import jakarta.annotation.Resource;
-import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import java.io.InputStream;
 import java.util.List;
@@ -41,8 +40,6 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
 
   private final ExecutorMapper executorMapper;
 
-  private final EntityManager entityManager;
-
   @Autowired
   public ExecutorService(
       ExecutorRepository executorRepository,
@@ -52,8 +49,7 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
       CatalogConnectorService catalogConnectorService,
       ConnectorInstanceService connectorInstanceService,
       ExecutorMapper executorMapper,
-      CatalogConnectorMapper catalogConnectorMapper,
-      EntityManager entityManager) {
+      CatalogConnectorMapper catalogConnectorMapper) {
     super(
         ConnectorType.EXECUTOR,
         connectorInstanceConfigurationRepository,
@@ -64,7 +60,6 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
     this.executorRepository = executorRepository;
     this.executionTraceRepository = executionTraceRepository;
     this.executorMapper = executorMapper;
-    this.entityManager = entityManager;
   }
 
   @Override
@@ -171,8 +166,7 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
 
     Executor executor =
         executorRepository.findByIdAndTenantId(id, TenantContext.getCurrentTenant()).orElse(null);
-    boolean isNew = (executor == null);
-    if (isNew) {
+    if (executor == null) {
       executor = new Executor();
       executor.setId(id);
       executor.setTenant(new Tenant(TenantContext.getCurrentTenant()));
@@ -184,12 +178,6 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
     executor.setBackgroundColor(backgroundColor);
     executor.setPlatforms(platforms);
 
-    // For new entities, use persist() to force INSERT — merge() would find the existing
-    // Executor from another tenant (same static ID, JPA @Id is only executor_id).
-    if (isNew) {
-      entityManager.persist(executor);
-      return executor;
-    }
     return executorRepository.save(executor);
   }
 

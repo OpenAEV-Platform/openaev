@@ -26,18 +26,6 @@ public class ExpectationsExpirationManagerJob implements Runnable, BuiltinTenant
     this.collectorService = collectorService;
     this.config = config;
     this.fakeDetectorService = fakeDetectorService;
-    try {
-      collectorService.register(
-          config.getId(),
-          FAKE_DETECTOR_COLLECTOR_TYPE,
-          FAKE_DETECTOR_COLLECTOR_NAME,
-          false,
-          0,
-          null,
-          getClass().getResourceAsStream("/img/icon-fake-detector.png"));
-    } catch (Exception e) {
-      log.error("Error creating expectations expiration manager ", e);
-    }
   }
 
   @Override
