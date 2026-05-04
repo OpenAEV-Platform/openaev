@@ -152,35 +152,40 @@ public class InjectExecutionStep implements ActionStep {
     // CALL BY QUEUE READY
     Inject inject = getInjectFromDataStep(readyStep);
     // CREATE & SAVE INJECT
+    if (inject.getDependsDuration() == null) {
+      inject.setDependsDuration(0L);
+    }
 
     inject = injectService.createInject(inject);
     String injectId = inject.getId();
-    prepareGetStatusPayloadFromInject(inject.getInjectorContract().get());
+    inject
+        .getInjectorContract()
+        .ifPresent(this::prepareGetStatusPayloadFromInject);
+
+    String data = setInjectId(inject.getId(), readyStep.getData());
+    readyStep.setData(data);
+
+    // EXECUTE INJECT — failure must NOT roll back inject creation
+    ExecutableInject executableInject =
+        new ExecutableInject(
+            true,
+            true,
+            inject,
+            inject.getTeams(),
+            inject.getAssets(),
+            inject.getAssetGroups(),
+            List.of()); // TODO Check users?
 
     try {
-      String data = setInjectId(inject.getId(), readyStep.getData());
-      readyStep.setData(data);
-
-      // EXECUTE INJECT
-      ExecutableInject executableInject =
-          new ExecutableInject(
-              true,
-              true,
-              inject,
-              inject.getTeams(),
-              inject.getAssets(),
-              inject.getAssetGroups(),
-              List.of()); // TODO Check users?
-
-      // TODO Check add documents? Executable Payloads
-      // executableInject.addDirectAttachment(inject.getDocuments());
-
       executor.directExecute(executableInject);
-      return Optional.of(readyStep);
     } catch (Exception e) {
-      throw new ChainingException(
-          "Inject execution failed. Inject ID: " + injectId + " (transaction rolled back)", e);
+      log.error(
+          "Inject execution failed (inject {} persisted). {}",
+          injectId,
+          e.getMessage(),
+          e);
     }
+    return Optional.of(readyStep);
   }
 
   private void prepareGetStatusPayloadFromInject(InjectorContract injectorContract) {
@@ -567,13 +572,27 @@ public class InjectExecutionStep implements ActionStep {
       JsonNode injectorNode = root.path("inject_injector");
 
       // INJECTOR ID FROM JSON NULL
-      if ((injectorNode.isMissingNode() || injectorNode.asText().isEmpty())) {
+      if (injectorNode.isMissingNode()
+          || injectorNode.isNull()
+          || injectorNode.asText().isEmpty()) {
 
-        throw new ChainingException(
-            "Injector not found for injectorContractId "
-                + injectorContract.getId()
-                + " and step (READY) ID "
-                + step.getId());
+        // Resolve injector from the managed contract's linked injectors
+        InjectorContract managedContract =
+            em.find(
+                InjectorContract.class,
+                new InjectorContractId(
+                    injectorContract.getId(), TenantContext.getCurrentTenant()));
+        Injector injector =
+            managedContract != null ? managedContract.getFirstInjector() : null;
+        if (injector == null) {
+          throw new ChainingException(
+              "Injector not found for injectorContractId "
+                  + injectorContract.getId()
+                  + " and step (READY) ID "
+                  + step.getId());
+        }
+        injector.setTenant(injectorContract.getTenant());
+        inject.setInjector(injector);
 
         // GET INJECTOR FROM DB
       } else {
@@ -581,8 +600,34 @@ public class InjectExecutionStep implements ActionStep {
         String injectorId = injectorNode.asText();
         Injector injector = inject.getInjector();
 
+        if (injector == null) {
+          // Fallback: load directly from DB (injectors list is @JsonIgnore
+          // and empty after deserialization, so getFirstInjector() won't work here)
+          injector = em.find(Injector.class, injectorId);
+        }
+
+        if (injector == null) {
+          // Last resort: try the contract's linked injectors from the managed entity
+          InjectorContract managedContract =
+              em.find(
+                  InjectorContract.class,
+                  new InjectorContractId(
+                      injectorContract.getId(), TenantContext.getCurrentTenant()));
+          if (managedContract != null) {
+            injector = managedContract.getFirstInjector();
+          }
+        }
+
+        if (injector == null) {
+          throw new ChainingException(
+              "Injector not found for injectorId "
+                  + injectorId
+                  + " and step (READY) ID "
+                  + step.getId());
+        }
+
         try {
-          Hibernate.initialize(inject.getInjector());
+          Hibernate.initialize(injector);
         } catch (Exception e) {
           throw new ChainingException(
               "Injector not found for injectorId "
