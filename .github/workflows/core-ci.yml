@@ -170,7 +170,7 @@ jobs:
     needs: [ frontend-build, backend-compile, prepare-release-assets ]
     runs-on: ubuntu-latest
     container:
-      image: maven:3.9.14-eclipse-temurin-21-alpine
+      image: maven:3.9.15-eclipse-temurin-21-alpine
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/backend-package-musl
