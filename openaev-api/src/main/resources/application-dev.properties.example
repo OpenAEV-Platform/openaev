@@ -210,7 +210,7 @@ executor.openaev.binaries.version=prerelease
 # INJECTORS #
 #############
 openaev.rabbitmq.prefix=openaev
-openaev.rabbitmq.hostname=localhost # you can also set it to host.docker.internal and then point this domain to 127.0.0.1 in your /etc/hosts
+openaev.rabbitmq.hostname=host.docker.internal # you can also set it to localhost, but in case you wish to have injectors installed locally through your docker containers, you must use host.docker.internal instead and then point this domain to 127.0.0.1 in your /etc/hosts
 openaev.rabbitmq.user=guest
 openaev.rabbitmq.pass=guest
 openaev.rabbitmq.queue-type=classic
