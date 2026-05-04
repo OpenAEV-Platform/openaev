@@ -6,10 +6,10 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.ControlledUuidGeneration;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.helper.MultiModelSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.annotation.Nullable;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import java.util.*;
@@ -17,15 +17,13 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.Fetch;
 import org.hibernate.annotations.FetchMode;
-import org.hibernate.annotations.Filter;
 
 @Setter
 @Getter
 @Entity
 @Table(name = "groups")
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
-public class Group implements TenantBase {
+@EntityListeners({ModelBaseListener.class})
+public class Group implements DualScopeBase {
 
   @Id
   @ControlledUuidGeneration
@@ -40,11 +38,11 @@ public class Group implements TenantBase {
   @NotBlank
   private String name;
 
+  @Queryable(searchable = true)
   @Column(name = "group_description")
   @JsonProperty("group_description")
   private String description;
 
-  @Queryable(sortable = true)
   @Column(name = "group_default_user_assign")
   @JsonProperty("group_default_user_assign")
   private boolean defaultUserAssignation;
@@ -81,15 +79,14 @@ public class Group implements TenantBase {
   private List<Role> roles = new ArrayList<>();
 
   @ManyToOne
-  @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
+  @JoinColumn(name = "tenant_id", updatable = false)
   @JsonIgnore
+  @Nullable
   private Tenant tenant;
 
   @Getter(onMethod_ = @JsonIgnore)
   @Transient
   private final ResourceType resourceType = ResourceType.USER_GROUP;
-
-  // endregion
 
   @Override
   public boolean isUserHasAccess(User user) {

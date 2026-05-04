@@ -10,8 +10,8 @@ description: "Database conventions: schema naming, Flyway migrations, PostgreSQL
 - Table: `snake_case_plural` (e.g. `platform_groups`)
 - Column: `{entity_singular}_{field}` (e.g. `group_name`)
 - ID column: `{entity_singular}_id`
-- FK to tenant: `tenant_id VARCHAR(255) NOT NULL` + `ON DELETE CASCADE`
-- Always add index on `tenant_id` for tenant-scoped tables
+- FK to tenant: `tenant_id VARCHAR(255)` — `NOT NULL` for tenant-only entities, **`NULLABLE`** for dual-scope entities (Settings, User, Role, Group) + `ON DELETE CASCADE`
+- Always add index on `tenant_id` for tenant-scoped and dual-scope tables
 - Join tables: `{table1}_{table2}` with composite PK + FKs `ON DELETE CASCADE`
 
 ## Business Keys & Unique Constraints
@@ -27,8 +27,9 @@ description: "Database conventions: schema naming, Flyway migrations, PostgreSQL
 
 ## Flyway Migrations
 
-- Java-based: `V4_{next}__Description.java` in `io.openaev.migration`
-- Find next number: `ls openaev-api/src/main/java/io/openaev/migration/ | sort | tail -5`
+- Java-based: `V{major}_{NN}__Description.java` in `io.openaev.migration`
+- Versioning rule: use `NN` from `01` to `99`; when exceeding `99`, increment `major` (e.g., `V4_99` -> `V5_01`, `V5_99` -> `V6_01`)
+- Find next number: inspect latest files in `openaev-api/src/main/java/io/openaev/migration/` and continue the sequence using the rule above
 - Extends `BaseJavaMigration`, annotated `@Component`
 - Use `context.getConnection().createStatement()` for raw SQL
 - Batch: `statement.addBatch(...)` then `statement.executeBatch()`
@@ -42,7 +43,13 @@ description: "Database conventions: schema naming, Flyway migrations, PostgreSQL
 - Activated automatically by `HibernateFilterTransactionAspect` on every `@Transactional`
 - `TenantBaseListener`: auto-sets tenant on `@PrePersist`, asserts immutability on `@PreUpdate`
 - Native `@Query` bypasses the filter — always add `WHERE tenant_id = :tenantId`
-- User is platform-level (no tenant filter), Group/Role are tenant-scoped
+
+### Dual-Scope Entities (Settings, User, Role, Group)
+
+- Implement `DualScopeBase` — single table with **nullable `tenant_id`**: `NULL` = platform, non-null = tenant-scoped
+- Repository keeps generic JPA methods (`findByKey()`, `findAll()`, etc.)
+- Repository adds platform-scoped methods: `findByKeyAndTenantIsNull()`, `findAllByTenantIsNull()`
+- Repository adds tenant-scoped methods: `findByKeyAndTenantId()`, `findAllByTenantId()`
 
 ## Audit Timestamps
 

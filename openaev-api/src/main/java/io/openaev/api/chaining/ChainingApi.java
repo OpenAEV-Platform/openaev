@@ -10,7 +10,9 @@ import io.openaev.api.chaining.dto.ChainingOutput;
 import io.openaev.api.chaining.dto.EventOutput;
 import io.openaev.api.chaining.dto.StepOutput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
+import io.openaev.database.model.TenantSettingKeys;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.helper.StreamHelper;
 import io.openaev.rest.custom_dashboard.CustomDashboardService;
@@ -102,8 +104,12 @@ public class ChainingApi extends RestBehavior {
     } else {
       simulation.setCustomDashboard(
           this.tenantSettingsService
-              .findSimulationDashboardId()
-              .flatMap(this.customDashboardService::findCustomDashboard)
+              .findSetting(
+                  TenantContext.getCurrentTenant(),
+                  TenantSettingKeys.TENANT_SIMULATION_DASHBOARD.key())
+              .map(Setting::getValue)
+              .filter(v -> !v.isEmpty())
+              .map(this.customDashboardService::customDashboard)
               .orElse(null));
     }
     return this.exerciseService.createSimulationChaining(simulation);
@@ -184,8 +190,12 @@ public class ChainingApi extends RestBehavior {
     } else {
       scenario.setCustomDashboard(
           this.tenantSettingsService
-              .findScenarioDashboardId()
-              .flatMap(this.customDashboardService::findCustomDashboard)
+              .findSetting(
+                  TenantContext.getCurrentTenant(),
+                  TenantSettingKeys.TENANT_SCENARIO_DASHBOARD.key())
+              .map(Setting::getValue)
+              .filter(v -> !v.isEmpty())
+              .map(this.customDashboardService::customDashboard)
               .orElse(null));
     }
     return this.scenarioService.createScenarioChaining(scenario);

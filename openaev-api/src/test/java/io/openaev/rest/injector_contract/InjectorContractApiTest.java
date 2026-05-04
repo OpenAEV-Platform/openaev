@@ -34,6 +34,7 @@ import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationI
 import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;
 import io.openaev.utils.fixtures.*;
+import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.fixtures.files.AttackPatternFixture;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -80,8 +81,8 @@ public class InjectorContractApiTest extends IntegrationTest {
   @Autowired private DomainRepository domainRepository;
 
   @Autowired private UserComposer userComposer;
-  @Autowired private GroupComposer groupComposer;
-  @Autowired private RoleComposer roleComposer;
+  @Autowired private TenantGroupComposer tenantGroupComposer;
+  @Autowired private TenantRoleComposer tenantRoleComposer;
   @Autowired private GrantComposer grantComposer;
 
   @BeforeEach
@@ -91,8 +92,8 @@ public class InjectorContractApiTest extends IntegrationTest {
     payloadComposer.reset();
     vulnerabilityComposer.reset();
     userComposer.reset();
-    groupComposer.reset();
-    roleComposer.reset();
+    tenantGroupComposer.reset();
+    tenantRoleComposer.reset();
     grantComposer.reset();
     domainComposer.reset();
   }
@@ -1353,12 +1354,12 @@ public class InjectorContractApiTest extends IntegrationTest {
                 UserFixture.getAdminUser(
                     "Admin", "User", UUID.randomUUID() + "@unittests.invalid"));
         case WITH_BYPASS -> {
-          GroupComposer.Composer bypassGroup =
-              groupComposer
-                  .forGroup(GroupFixture.createGroup())
+          TenantGroupComposer.Composer bypassGroup =
+              tenantGroupComposer
+                  .forGroup(TenantGroupFixture.getGroup())
                   .withRole(
-                      roleComposer.forRole(
-                          RoleFixture.getRole(new HashSet<>(Set.of(Capability.BYPASS)))));
+                      tenantRoleComposer.forRole(
+                          TenantRoleFixture.getRole(new HashSet<>(Set.of(Capability.BYPASS)))));
 
           yield userComposer
               .forUser(
@@ -1366,12 +1367,13 @@ public class InjectorContractApiTest extends IntegrationTest {
               .withGroup(bypassGroup);
         }
         case WITH_ACCESS_PAYLOADS -> {
-          GroupComposer.Composer payloadsGroup =
-              groupComposer
-                  .forGroup(GroupFixture.createGroup())
+          TenantGroupComposer.Composer payloadsGroup =
+              tenantGroupComposer
+                  .forGroup(TenantGroupFixture.getGroup())
                   .withRole(
-                      roleComposer.forRole(
-                          RoleFixture.getRole(new HashSet<>(Set.of(Capability.ACCESS_PAYLOADS)))));
+                      tenantRoleComposer.forRole(
+                          TenantRoleFixture.getRole(
+                              new HashSet<>(Set.of(Capability.ACCESS_PAYLOADS)))));
 
           yield userComposer
               .forUser(
@@ -1384,10 +1386,10 @@ public class InjectorContractApiTest extends IntegrationTest {
           grant.setGrantResourceType(Grant.GRANT_RESOURCE_TYPE.PAYLOAD);
           grant.setName(Grant.GRANT_TYPE.OBSERVER);
           grant.setResourceId(testPayload.getId());
-          GroupComposer.Composer observerGroup =
-              groupComposer
-                  .forGroup(GroupFixture.createGroup())
-                  .withRole(roleComposer.forRole(RoleFixture.getRole(new HashSet<>())))
+          TenantGroupComposer.Composer observerGroup =
+              tenantGroupComposer
+                  .forGroup(TenantGroupFixture.getGroup())
+                  .withRole(tenantRoleComposer.forRole(TenantRoleFixture.getRole(new HashSet<>())))
                   .withGrant(grantComposer.forGrant(grant));
 
           yield userComposer

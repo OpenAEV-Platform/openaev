@@ -11,7 +11,9 @@ import static org.springframework.util.StringUtils.hasText;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
+import io.openaev.database.model.TenantSettingKeys;
 import io.openaev.database.raw.RawPaginationScenario;
 import io.openaev.database.raw.RawPlayer;
 import io.openaev.database.repository.*;
@@ -96,8 +98,12 @@ public class ScenarioApi extends RestBehavior {
     } else {
       scenario.setCustomDashboard(
           this.tenantSettingsService
-              .findScenarioDashboardId()
-              .flatMap(this.customDashboardService::findCustomDashboard)
+              .findSetting(
+                  TenantContext.getCurrentTenant(),
+                  TenantSettingKeys.TENANT_SCENARIO_DASHBOARD.key())
+              .map(Setting::getValue)
+              .filter(v -> !v.isEmpty())
+              .map(this.customDashboardService::customDashboard)
               .orElse(null));
     }
     Scenario savedScenario = this.scenarioService.createScenario(scenario);
@@ -120,6 +126,7 @@ public class ScenarioApi extends RestBehavior {
   public Scenario createScenarioWithInjectorContracts(
       @Valid @RequestBody final ScenarioAndInjectorContractsInputs inputs) {
     return this.scenarioService.createScenarioWithInjectorContracts(
+        TenantContext.getCurrentTenant(),
         inputs.getScenarioInput(),
         inputs.getInjectorContractSearchPaginationInput(),
         inputs.getLocale());

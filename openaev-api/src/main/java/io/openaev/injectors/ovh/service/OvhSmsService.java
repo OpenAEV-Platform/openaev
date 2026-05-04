@@ -6,7 +6,6 @@ import static java.util.Collections.singletonList;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.injectors.ovh.config.OvhSmsInjectorConfig;
-import jakarta.annotation.Resource;
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.InputStreamReader;
@@ -23,7 +22,7 @@ import org.springframework.stereotype.Component;
 public class OvhSmsService {
 
   private static final String METHOD = "POST";
-  @Resource private ObjectMapper mapper;
+  private final ObjectMapper mapper;
 
   private final OvhSmsInjectorConfig config;
 

@@ -9,6 +9,10 @@ description: "Backend Java/Spring conventions: entities, services, controllers, 
 
 > `openaev-framework` is deprecated — see [copilot-instructions.md](../copilot-instructions.md) for details. Never add new code there.
 
+## ⚠️ Package Rule
+
+> The `io.openaev.rest` package is **legacy** — it will be progressively migrated to `io.openaev.api`. **Never add new controllers, DTOs, or mappers in `rest/`**. All new API code goes in `io.openaev.api.*`.
+
 ## Layering
 
 - **Controller (API)** → depends only on **Service** — never inject a Repository in a controller
@@ -59,6 +63,7 @@ public Page<{Entity}Output> search(...) { return service.search(input).map({Enti
 ## Entities
 
 - Tenant-scoped: `TenantBase` + `@Filter("tenantFilter")` + `TenantBaseListener`
+- Dual-scope (Settings, User, Role, Group): `DualScopeBase` + `ModelBaseListener` only — no `@Filter`, nullable `tenant_id`, see `multi-tenancy.instructions.md`
 - Platform-level: `Base` only + `ModelBaseListener`
 - Audit timestamps: implement `Auditable` + add `AuditableListener` (do **not** use Hibernate `@CreationTimestamp`/`@UpdateTimestamp`)
 - Column: `{entity_singular}_{field}` → `@JsonProperty("same")`
@@ -78,7 +83,7 @@ public Page<{Entity}Output> search(...) { return service.search(input).map({Enti
 - `@Service @RequiredArgsConstructor @Transactional(rollbackFor = Exception.class)`
 - Read methods: `@Transactional(readOnly = true)`
 - Always use `org.springframework.transaction.annotation.Transactional` — **never** `jakarta.transaction.Transactional` (which lacks `rollbackFor`, `readOnly`, etc.)
-- Organize methods with section comments in this order: `// -- CREATE --`, `// -- READ --`, `// -- UPDATE --`, `// -- DELETE --`
+- Organize methods with section comments in this order: `// -- LIST --`, `// -- SEARCH --`, `// -- CREATE --`, `// -- UPDATE --`, `// -- DELETE --`, `// -- OPTIONS --`
 - JavaDoc on all public methods (what + why)
 - Fail fast: `Objects.requireNonNull()`, custom exceptions for business rules
 - **Resolving associations from IDs**: use `ReferenceResolver.resolve(ids, Entity.class, repo::countByIdIn)` — never loop `findById()` (see `performance.instructions.md`)

@@ -32,41 +32,51 @@ public class CustomDashboardTenantService {
   // -- READ --
 
   /**
-   * Finds the home dashboard for the current tenant by resolving the dashboard ID from tenant
+   * Finds the home dashboard for the given tenant by resolving the dashboard ID from tenant
    * settings.
    */
   @Transactional(readOnly = true)
-  public Optional<CustomDashboard> findTenantHomeDashboard() {
-    return tenantSettingsService.findHomeDashboardId().flatMap(customDashboardRepository::findById);
+  public Optional<CustomDashboard> findTenantHomeDashboard(@NotBlank String tenantId) {
+    return tenantSettingsService
+        .findHomeDashboardId(tenantId)
+        .flatMap(customDashboardRepository::findById);
   }
 
   // -- HOME DASHBOARD WIDGET QUERIES --
 
   @Transactional(readOnly = true)
   public EsCountInterval homeDashboardCount(
-      @NotBlank final String widgetId, final Map<String, String> parameters) {
-    isWidgetInHomeDashboard(widgetId);
+      @NotBlank String tenantId,
+      @NotBlank final String widgetId,
+      final Map<String, String> parameters) {
+    isWidgetInHomeDashboard(tenantId, widgetId);
     return dashboardService.count(widgetId, parameters);
   }
 
   @Transactional(readOnly = true)
   public EsAvgs homeDashboardAverage(
-      @NotBlank final String widgetId, final Map<String, String> parameters) {
-    isWidgetInHomeDashboard(widgetId);
+      @NotBlank String tenantId,
+      @NotBlank final String widgetId,
+      final Map<String, String> parameters) {
+    isWidgetInHomeDashboard(tenantId, widgetId);
     return dashboardService.average(widgetId, parameters);
   }
 
   @Transactional(readOnly = true)
   public List<EsSeries> homeDashboardSeries(
-      @NotBlank final String widgetId, final Map<String, String> parameters) {
-    isWidgetInHomeDashboard(widgetId);
+      @NotBlank String tenantId,
+      @NotBlank final String widgetId,
+      final Map<String, String> parameters) {
+    isWidgetInHomeDashboard(tenantId, widgetId);
     return dashboardService.series(widgetId, parameters);
   }
 
   @Transactional(readOnly = true)
   public EsEntities homeDashboardEntities(
-      @NotBlank final String widgetId, @Nullable final EntitiesPaginationInput input) {
-    isWidgetInHomeDashboard(widgetId);
+      @NotBlank String tenantId,
+      @NotBlank final String widgetId,
+      @Nullable final EntitiesPaginationInput input) {
+    isWidgetInHomeDashboard(tenantId, widgetId);
     return dashboardService.entities(
         widgetId,
         input == null ? new HashMap<>() : input.getParameters(),
@@ -75,25 +85,29 @@ public class CustomDashboardTenantService {
 
   @Transactional(readOnly = true)
   public WidgetToEntitiesOutput homeDashboardEntitiesRuntime(
-      @NotBlank final String widgetId, @NotBlank WidgetToEntitiesInput input) {
-    isWidgetInHomeDashboard(widgetId);
+      @NotBlank String tenantId,
+      @NotBlank final String widgetId,
+      @NotBlank WidgetToEntitiesInput input) {
+    isWidgetInHomeDashboard(tenantId, widgetId);
     return dashboardService.widgetToEntitiesRuntime(widgetId, input);
   }
 
   @Transactional(readOnly = true)
   public List<EsAttackPath> homeDashboardAttackPaths(
-      @NotBlank final String widgetId, final Map<String, String> parameters)
+      @NotBlank String tenantId,
+      @NotBlank final String widgetId,
+      final Map<String, String> parameters)
       throws ExecutionException, InterruptedException {
-    isWidgetInHomeDashboard(widgetId);
+    isWidgetInHomeDashboard(tenantId, widgetId);
     return dashboardService.attackPaths(widgetId, parameters);
   }
 
   // -- PRIVATE HELPERS --
 
   /** Verifies that the given widget belongs to the tenant home dashboard. */
-  private void isWidgetInHomeDashboard(String widgetId) {
+  private void isWidgetInHomeDashboard(String tenantId, String widgetId) {
     boolean found =
-        findTenantHomeDashboard()
+        findTenantHomeDashboard(tenantId)
             .map(d -> d.getWidgets().stream().anyMatch(w -> widgetId.equals(w.getId())))
             .orElse(false);
     if (!found) {

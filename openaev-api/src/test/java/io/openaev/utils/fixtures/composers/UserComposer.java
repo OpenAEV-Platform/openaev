@@ -1,5 +1,6 @@
 package io.openaev.utils.fixtures.composers;
 
+import io.openaev.database.model.Group;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.Token;
 import io.openaev.database.model.User;
@@ -18,7 +19,7 @@ public class UserComposer extends ComposerBase<User> {
     private final User user;
     private OrganizationComposer.Composer organizationComposer;
     private final List<TagComposer.Composer> tagComposers = new ArrayList<>();
-    private final List<GroupComposer.Composer> groupComposers = new ArrayList<>();
+    private final List<InnerComposerBase<Group>> groupComposers = new ArrayList<>();
     private final List<TokenComposer.Composer> tokenComposers = new ArrayList<>();
 
     public Composer(User user) {
@@ -48,7 +49,7 @@ public class UserComposer extends ComposerBase<User> {
       return this;
     }
 
-    public Composer withGroup(GroupComposer.Composer groupComposer) {
+    public Composer withGroup(InnerComposerBase<Group> groupComposer) {
       groupComposers.add(groupComposer);
       this.user.getGroups().add(groupComposer.get());
       return this;
@@ -65,7 +66,7 @@ public class UserComposer extends ComposerBase<User> {
       if (organizationComposer != null) {
         organizationComposer.persist();
       }
-      this.groupComposers.forEach(GroupComposer.Composer::persist);
+      this.groupComposers.forEach(InnerComposerBase::persist);
       userRepository.save(user);
       this.tokenComposers.forEach(TokenComposer.Composer::persist);
       return this;
@@ -79,7 +80,7 @@ public class UserComposer extends ComposerBase<User> {
         organizationComposer.delete();
       }
       this.tagComposers.forEach(TagComposer.Composer::delete);
-      this.groupComposers.forEach(GroupComposer.Composer::delete);
+      this.groupComposers.forEach(InnerComposerBase::delete);
       return this;
     }
 

@@ -36,7 +36,6 @@ public final class TenantScopedTables {
           "executors",
           "exercises",
           "findings",
-          "groups",
           "import_mappers",
           "injectors",
           "injectors_contracts",
@@ -47,12 +46,10 @@ public final class TenantScopedTables {
           "notification_rules",
           "organizations",
           "payloads",
-          "roles",
           "scenarios",
           "tag_rules",
           "tags",
           "teams",
-          "tenant_settings",
           "tenant_xtmhub_registrations",
           "vulnerabilities");
 }

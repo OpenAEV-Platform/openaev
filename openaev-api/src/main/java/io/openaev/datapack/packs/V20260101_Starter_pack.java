@@ -1,8 +1,8 @@
 package io.openaev.datapack.packs;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.SettingRepository;
-import io.openaev.database.repository.TenantSettingRepository;
 import io.openaev.datapack.DataPack;
 import io.openaev.jsonapi.JsonApiDocument;
 import io.openaev.jsonapi.ResourceObject;
@@ -23,7 +23,6 @@ public class V20260101_Starter_pack extends DataPack {
   public V20260101_Starter_pack(
       DataPackService dataPackService,
       SettingRepository settingRepository,
-      TenantSettingRepository tenantSettingRepository,
       TagService tagService,
       EndpointService endpointService,
       AssetGroupService assetGroupService,
@@ -33,7 +32,6 @@ public class V20260101_Starter_pack extends DataPack {
       ResourcePatternResolver resolver) {
     super(dataPackService);
     this.settingRepository = settingRepository;
-    this.tenantSettingRepository = tenantSettingRepository;
     this.tagService = tagService;
     this.endpointService = endpointService;
     this.assetGroupService = assetGroupService;
@@ -79,7 +77,6 @@ public class V20260101_Starter_pack extends DataPack {
   private boolean isStarterPackEnabled;
 
   private final SettingRepository settingRepository;
-  private final TenantSettingRepository tenantSettingRepository;
   private final TagService tagService;
   private final EndpointService endpointService;
   private final AssetGroupService assetGroupService;
@@ -97,7 +94,7 @@ public class V20260101_Starter_pack extends DataPack {
       return false;
     }
 
-    if (this.settingRepository.findByKey(Config.STARTER_PACK_KEY).isPresent()) {
+    if (this.settingRepository.findByKeyAndTenantIsNull(Config.STARTER_PACK_KEY).isPresent()) {
       log.info("Starter pack already initialized");
       return true;
     }
@@ -238,10 +235,19 @@ public class V20260101_Starter_pack extends DataPack {
             .orElse(null);
 
     if (settingKey != null) {
-      TenantSetting tenantSetting =
-          tenantSettingRepository.findByKey(settingKey).orElse(new TenantSetting(settingKey, null));
-      tenantSetting.setValue(dashboardId);
-      tenantSettingRepository.save(tenantSetting);
+      String tenantId = TenantContext.getCurrentTenant();
+      Tenant tenant = new Tenant(tenantId);
+      Setting defaultDashboardSetting =
+          settingRepository
+              .findByKeyAndTenantId(settingKey, tenantId)
+              .orElseGet(
+                  () -> {
+                    Setting s = new Setting(settingKey, null);
+                    s.setTenant(tenant);
+                    return s;
+                  });
+      defaultDashboardSetting.setValue(dashboardId);
+      settingRepository.save(defaultDashboardSetting);
     }
   }
 }

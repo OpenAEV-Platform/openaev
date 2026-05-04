@@ -54,7 +54,6 @@ public class StarterPackTest extends IntegrationTest {
   @Autowired private ScenarioRepository scenarioRepository;
   @Autowired private CustomDashboardRepository customDashboardRepository;
   @Autowired private SettingRepository settingRepository;
-  @Autowired private TenantSettingRepository tenantSettingRepository;
   @Autowired private TagRuleRepository tagRuleRepository;
 
   @Autowired private TagService tagService;
@@ -84,7 +83,6 @@ public class StarterPackTest extends IntegrationTest {
         new V20260101_Starter_pack(
             dataPackService,
             settingRepository,
-            tenantSettingRepository,
             tagService,
             endpointService,
             assetGroupService,
@@ -126,7 +124,6 @@ public class StarterPackTest extends IntegrationTest {
         new V20260101_Starter_pack(
             dataPackService,
             settingRepository,
-            tenantSettingRepository,
             tagService,
             endpointService,
             assetGroupService,
@@ -171,7 +168,6 @@ public class StarterPackTest extends IntegrationTest {
         new V20260101_Starter_pack(
             dataPackService,
             settingRepository,
-            tenantSettingRepository,
             tagService,
             endpointService,
             assetGroupService,
@@ -206,7 +202,6 @@ public class StarterPackTest extends IntegrationTest {
         new V20260101_Starter_pack(
             dataPackService,
             settingRepository,
-            tenantSettingRepository,
             tagService,
             endpointService,
             assetGroupService,
@@ -240,7 +235,6 @@ public class StarterPackTest extends IntegrationTest {
         new V20260101_Starter_pack(
             dataPackService,
             settingRepository,
-            tenantSettingRepository,
             tagService,
             endpointService,
             assetGroupService,
@@ -278,7 +272,6 @@ public class StarterPackTest extends IntegrationTest {
         new V20260101_Starter_pack(
             dataPackService,
             settingRepository,
-            tenantSettingRepository,
             tagService,
             endpointService,
             assetGroupService,
@@ -315,7 +308,6 @@ public class StarterPackTest extends IntegrationTest {
         new V20260101_Starter_pack(
             dataPackService,
             settingRepository,
-            tenantSettingRepository,
             tagService,
             endpointService,
             assetGroupService,
@@ -365,7 +357,6 @@ public class StarterPackTest extends IntegrationTest {
         new V20260101_Starter_pack(
             dataPackService,
             settingRepository,
-            tenantSettingRepository,
             tagService,
             endpointService,
             assetGroupService,
@@ -426,7 +417,6 @@ public class StarterPackTest extends IntegrationTest {
         new V20260101_Starter_pack(
             dataPackService,
             settingRepository,
-            tenantSettingRepository,
             tagService,
             endpointService,
             assetGroupService,
@@ -579,30 +569,33 @@ public class StarterPackTest extends IntegrationTest {
     Optional<CustomDashboard> dashboardTest = customDashboardRepository.findByName("Test 1");
     assertTrue(dashboardTest.isPresent());
 
-    Optional<TenantSetting> tenantSetting =
-        tenantSettingRepository.findByKey("platform_home_dashboard");
-    assertTrue(tenantSetting.isPresent());
-    assertEquals(dashboardTest.get().getId(), tenantSetting.get().getValue());
+    Optional<Setting> staticsParameters =
+        settingRepository.findByKeyAndTenantId(
+            "platform_home_dashboard", TenantContext.getCurrentTenant());
+    assertTrue(staticsParameters.isPresent());
+    assertEquals(dashboardTest.get().getId(), staticsParameters.get().getValue());
   }
 
   private void verifyDefaultScenarioDashboardParameterExist() {
     Optional<CustomDashboard> dashboardTest = customDashboardRepository.findByName("Test 2");
     assertTrue(dashboardTest.isPresent());
 
-    Optional<TenantSetting> tenantSetting =
-        tenantSettingRepository.findByKey("platform_scenario_dashboard");
-    assertTrue(tenantSetting.isPresent());
-    assertEquals(dashboardTest.get().getId(), tenantSetting.get().getValue());
+    Optional<Setting> staticsParameters =
+        settingRepository.findByKeyAndTenantId(
+            "platform_scenario_dashboard", TenantContext.getCurrentTenant());
+    assertTrue(staticsParameters.isPresent());
+    assertEquals(dashboardTest.get().getId(), staticsParameters.get().getValue());
   }
 
   private void verifyDefaultSimulationDashboardParameterExist() {
     Optional<CustomDashboard> dashboardTest = customDashboardRepository.findByName("Test 3");
     assertTrue(dashboardTest.isPresent());
 
-    Optional<TenantSetting> tenantSetting =
-        tenantSettingRepository.findByKey("platform_simulation_dashboard");
-    assertTrue(tenantSetting.isPresent());
-    assertEquals(dashboardTest.get().getId(), tenantSetting.get().getValue());
+    Optional<Setting> staticsParameters =
+        settingRepository.findByKeyAndTenantId(
+            "platform_simulation_dashboard", TenantContext.getCurrentTenant());
+    assertTrue(staticsParameters.isPresent());
+    assertEquals(dashboardTest.get().getId(), staticsParameters.get().getValue());
   }
 
   private void verifyTagRuleExist() {

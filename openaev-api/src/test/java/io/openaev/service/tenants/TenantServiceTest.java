@@ -20,7 +20,6 @@ import io.openaev.database.model.Group;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.*;
 import io.openaev.datapack.packs.V20260330_Default_tenant_data;
-import io.openaev.helper.StreamHelper;
 import io.openaev.service.RoleService;
 import io.openaev.utils.fixtures.tenants.TenantComposer;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -103,8 +102,8 @@ class TenantServiceTest extends IntegrationTest {
     // Verify datapack
     assertThat(vulnerabilityRepository.findAll()).hasSize(7);
     assertThat(cweRepository.findAll()).hasSize(7);
-    assertThat(roleService.findAll()).hasSize(3);
-    List<Group> groups = StreamHelper.fromIterable(groupRepository.findAll());
+    assertThat(roleService.findAll(created.getId())).hasSize(3);
+    List<Group> groups = groupRepository.findAllByTenantId(created.getId());
     assertThat(groups).hasSize(3);
     assertThat(
             groups.stream()
@@ -234,8 +233,8 @@ class TenantServiceTest extends IntegrationTest {
     // Verify datapack
     assertThat(vulnerabilityRepository.findAll()).isEmpty();
     assertThat(cweRepository.findAll()).isEmpty();
-    assertThat(roleService.findAll()).isEmpty();
-    assertThat(groupRepository.findAll()).isEmpty();
+    assertThat(roleService.findAll(tenantExpired.getId())).isEmpty();
+    assertThat(groupRepository.findAllByTenantId(tenantExpired.getId())).isEmpty();
   }
 
   @Test

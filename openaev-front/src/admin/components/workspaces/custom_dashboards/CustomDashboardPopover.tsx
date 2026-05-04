@@ -1,15 +1,14 @@
 import { type FunctionComponent, useCallback, useContext, useState } from 'react';
 
-import { updatePlatformParameters } from '../../../../actions/Application';
 import { deleteCustomDashboard, exportCustomDashboard, updateCustomDashboard } from '../../../../actions/custom_dashboards/customdashboard-action';
 import type { LoggedHelper } from '../../../../actions/helper';
+import { updateTenantSettings } from '../../../../actions/settings/tenant-settings-action';
 import ButtonPopover from '../../../../components/common/ButtonPopover';
 import DialogDelete from '../../../../components/common/DialogDelete';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
-import { type CustomDashboard, type PlatformSettings } from '../../../../utils/api-types';
-import { useAppDispatch } from '../../../../utils/hooks';
+import { type CustomDashboard, type TenantSettingsOutput } from '../../../../utils/api-types';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { download } from '../../../../utils/utils';
@@ -26,10 +25,9 @@ interface Props {
 const CustomDashboardPopover: FunctionComponent<Props> = ({ customDashboard, onUpdate, onDelete, inList = false }) => {
   // Standard hooks
   const { t } = useFormatter();
-  const dispatch = useAppDispatch();
   const ability = useContext(AbilityContext);
 
-  const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
+  const { settings }: { settings: TenantSettingsOutput } = useHelper((helper: LoggedHelper) => ({ settings: helper.getTenantSettings() }));
 
   const initialValues = {
     custom_dashboard_name: customDashboard.custom_dashboard_name,
@@ -45,7 +43,7 @@ const CustomDashboardPopover: FunctionComponent<Props> = ({ customDashboard, onU
       try {
         const response = await updateCustomDashboard(customDashboard.custom_dashboard_id, data);
         if (response.data) {
-          updateDefaultDashboardsInParameters(response.data.custom_dashboard_id, data, settings, updatedSettings => dispatch(updatePlatformParameters(updatedSettings)));
+          updateDefaultDashboardsInParameters(response.data.custom_dashboard_id, data, settings, updatedSettings => updateTenantSettings(updatedSettings));
           onUpdate?.(response.data);
         }
       } finally {

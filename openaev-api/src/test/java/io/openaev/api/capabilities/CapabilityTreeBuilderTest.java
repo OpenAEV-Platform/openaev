@@ -73,7 +73,7 @@ class CapabilityTreeBuilderTest {
 
     // -- ASSERT --
     assertThat(tree).anyMatch(n -> TENANTS.name().equals(n.value()));
-    assertThat(tree).anyMatch(n -> PLATFORM_GROUPS_AND_ROLES.name().equals(n.value()));
+    assertThat(tree).anyMatch(n -> PLATFORM_USERS_GROUPS_AND_ROLES.name().equals(n.value()));
     assertThat(tree).noneMatch(n -> ASSESSMENT.name().equals(n.value()));
     assertThat(tree).noneMatch(n -> PAYLOADS.name().equals(n.value()));
   }
@@ -88,7 +88,7 @@ class CapabilityTreeBuilderTest {
     assertThat(tree).anyMatch(n -> TARGETS.name().equals(n.value()));
     assertThat(tree).anyMatch(n -> TENANT_SETTINGS.name().equals(n.value()));
     assertThat(tree).noneMatch(n -> TENANTS.name().equals(n.value()));
-    assertThat(tree).noneMatch(n -> PLATFORM_GROUPS_AND_ROLES.name().equals(n.value()));
+    assertThat(tree).noneMatch(n -> PLATFORM_USERS_GROUPS_AND_ROLES.name().equals(n.value()));
   }
 
   @Test

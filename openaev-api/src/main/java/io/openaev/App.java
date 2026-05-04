@@ -35,10 +35,11 @@ public class App {
   public void init() {
     log.info("Startup init");
     // Get the platform instance id
-    Optional<Setting> instanceId = this.settingRepository.findByKey(PLATFORM_INSTANCE.key());
+    Optional<Setting> instanceId =
+        this.settingRepository.findByKeyAndTenantIsNull(PLATFORM_INSTANCE.key());
     Setting instanceCreationDate =
         this.settingRepository
-            .findByKey(PLATFORM_INSTANCE_CREATION.key())
+            .findByKeyAndTenantIsNull(PLATFORM_INSTANCE_CREATION.key())
             .orElse(new Setting(PLATFORM_INSTANCE_CREATION.key(), ""));
 
     String platformId;

@@ -86,15 +86,6 @@ public class PlatformSettingsApi extends RestBehavior {
     return platformSettingsService.getPlatformVersion();
   }
 
-  @PutMapping()
-  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
-  @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The updated settings")})
-  @Operation(summary = "Update settings", description = "Update the settings")
-  public PlatformSettings updateBasicConfigurationSettings(
-      @Valid @RequestBody SettingsUpdateInput input) {
-    return platformSettingsService.updateBasicConfigurationSettings(input);
-  }
-
   @PutMapping("/enterprise-edition")
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(
@@ -109,7 +100,10 @@ public class PlatformSettingsApi extends RestBehavior {
   }
 
   @PutMapping("/platform_whitemark")
-  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
+  @AccessControl(
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.PLATFORM_SETTING,
+      isEnterpriseEdition = true)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The updated settings")})
   @Operation(summary = "Update Whitemark settings", description = "Update the whitemark settings")
   public PlatformSettings updateSettingsPlatformWhitemark(
