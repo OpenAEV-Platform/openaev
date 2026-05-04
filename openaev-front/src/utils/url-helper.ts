@@ -154,8 +154,6 @@ const TENANT_EXEMPT_PREFIXES = [
   '/api/stream',
   '/api/schemas',
   '/api/engine',
-  '/api/chaining',
-  '/api/workflows',
 ];
 
 /**
