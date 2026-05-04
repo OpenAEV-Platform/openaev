@@ -53,8 +53,8 @@ public class OpenTelemetryConfig {
   private final SettingRepository settingRepository;
   private final ThreadPoolTaskScheduler taskScheduler;
 
-  @Getter private final Duration collectInterval = Duration.ofMinutes(1);
-  @Getter private final Duration exportInterval = Duration.ofMinutes(2);
+  @Getter private final Duration collectInterval = Duration.ofMinutes(60);
+  @Getter private final Duration exportInterval = Duration.ofMinutes(6 * 60);
 
   private static final DateTimeFormatter CREATION_DATE_FORMATTER =
       DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss[.n]");
@@ -112,7 +112,7 @@ public class OpenTelemetryConfig {
     String endpoint = "https://telemetry.obas.filigran.io/v1/metrics";
     if (Arrays.asList(environment.getActiveProfiles()).contains("dev")
         || Arrays.asList(environment.getActiveProfiles()).contains("ci")) {
-      endpoint = "http://localhost:1010/v1/metrics";
+      endpoint = "https://telemetry.obas.staging.filigran.io/v1/metrics";
     }
     return endpoint;
   }
