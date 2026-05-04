@@ -19,7 +19,7 @@ import PaginatedListLoader from '../../../components/PaginatedListLoader';
 import {
   type InjectResultOutput,
   type InjectStatus as InjectStatusType,
-  type SearchPaginationInput
+  type SearchPaginationInput,
 } from '../../../utils/api-types';
 import { Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';

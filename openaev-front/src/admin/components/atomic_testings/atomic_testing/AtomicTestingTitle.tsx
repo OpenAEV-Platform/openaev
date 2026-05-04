@@ -20,7 +20,6 @@ interface Props { injectResultOverview: InjectResultOverviewOutput }
 
 const AtomicTestingTitle = ({ injectResultOverview }: Props) => {
   const { classes } = useStyles();
-  const { t } = useFormatter();
 
   if (!injectResultOverview) {
     return <Loader variant="inElement" />;
