@@ -179,8 +179,8 @@ describe('useTenant', () => {
       // Assert
       await waitFor(() => {
         expect(mockFetchUserTenants).toHaveBeenCalledTimes(1);
+        expect(result.current.userTenants).toHaveLength(0);
       });
-      expect(result.current.userTenants).toHaveLength(0);
       expect(result.current.currentUserTenant).toBeNull();
     });
   });
