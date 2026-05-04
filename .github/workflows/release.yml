@@ -5,7 +5,7 @@ on:
     inputs:
       branch_platform:
         type: string
-        default: 'master'
+        default: 'main'
         required: true
       previous_version:
         type: string

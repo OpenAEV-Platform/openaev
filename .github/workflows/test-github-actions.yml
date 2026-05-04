@@ -2,11 +2,11 @@ name: "Test GitHub Actions scripts"
 
 on:
   pull_request:
-    branches: [master, release/current]
+    branches: [ main ]
     paths:
       - '.github/actions/**'
   push:
-    branches: [master, release/current]
+    branches: [ main ]
     paths:
       - '.github/actions/**'
 
