@@ -14,7 +14,6 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.google.gson.*;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.executors.Executor;
@@ -553,91 +552,47 @@ public class InjectExecutionStep implements ActionStep {
       // GET INJECT FROM JSON
       Inject inject = om.readValue(step.getData(), Inject.class);
 
-      ObjectMapper mapper = new ObjectMapper();
-      JsonNode root = mapper.readTree(step.getData());
+      // GET INJECTOR CONTRACT — load managed entity via JPQL (respects tenant filter)
+      String contractId =
+          inject
+              .getInjectorContract()
+              .map(InjectorContract::getId)
+              .orElseThrow(
+                  () ->
+                      new ChainingException(
+                          "No injector contract in step data. Step ID: " + step.getId()));
 
-      // GET INJECTOR CONTRACT
-      try {
-        Hibernate.initialize(inject.getInjectorContract().get());
-      } catch (Exception e) {
+      InjectorContract managedContract =
+          injectorContractService.injectorContract(contractId);
+      inject.setInjectorContract(managedContract);
+
+      // GET INJECTOR — resolve from managed contract (EAGER-loaded injectors list)
+      Injector injector = managedContract.getFirstInjector();
+
+      if (injector == null) {
+        // Fallback: try the injector ID from JSON (may point to a stale/deleted dummy)
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode root = mapper.readTree(step.getData());
+        JsonNode injectorNode = root.path("inject_injector");
+
+        if (!injectorNode.isMissingNode()
+            && !injectorNode.isNull()
+            && !injectorNode.asText().isEmpty()) {
+          injector = em.find(Injector.class, injectorNode.asText());
+        }
+      }
+
+      if (injector == null) {
         throw new ChainingException(
-            "Injector contract not found for step (READY) ID: " + step.getId());
+            "Injector not found for contract "
+                + contractId
+                + " and step (READY) ID "
+                + step.getId());
       }
-      InjectorContract injectorContract = inject.getInjectorContract().get();
-      injectorContract.setCompositeId(
-          new InjectorContractId(injectorContract.getId(), TenantContext.getCurrentTenant()));
-      inject.setInjectorContract(injectorContract);
 
-      // GET INJECTOR
-      JsonNode injectorNode = root.path("inject_injector");
-
-      // INJECTOR ID FROM JSON NULL
-      if (injectorNode.isMissingNode()
-          || injectorNode.isNull()
-          || injectorNode.asText().isEmpty()) {
-
-        // Resolve injector from the managed contract's linked injectors
-        InjectorContract managedContract =
-            em.find(
-                InjectorContract.class,
-                new InjectorContractId(
-                    injectorContract.getId(), TenantContext.getCurrentTenant()));
-        Injector injector =
-            managedContract != null ? managedContract.getFirstInjector() : null;
-        if (injector == null) {
-          throw new ChainingException(
-              "Injector not found for injectorContractId "
-                  + injectorContract.getId()
-                  + " and step (READY) ID "
-                  + step.getId());
-        }
-        injector.setTenant(injectorContract.getTenant());
-        inject.setInjector(injector);
-
-        // GET INJECTOR FROM DB
-      } else {
-
-        String injectorId = injectorNode.asText();
-        Injector injector = inject.getInjector();
-
-        if (injector == null) {
-          // Fallback: load directly from DB (injectors list is @JsonIgnore
-          // and empty after deserialization, so getFirstInjector() won't work here)
-          injector = em.find(Injector.class, injectorId);
-        }
-
-        if (injector == null) {
-          // Last resort: try the contract's linked injectors from the managed entity
-          InjectorContract managedContract =
-              em.find(
-                  InjectorContract.class,
-                  new InjectorContractId(
-                      injectorContract.getId(), TenantContext.getCurrentTenant()));
-          if (managedContract != null) {
-            injector = managedContract.getFirstInjector();
-          }
-        }
-
-        if (injector == null) {
-          throw new ChainingException(
-              "Injector not found for injectorId "
-                  + injectorId
-                  + " and step (READY) ID "
-                  + step.getId());
-        }
-
-        try {
-          Hibernate.initialize(injector);
-        } catch (Exception e) {
-          throw new ChainingException(
-              "Injector not found for injectorId "
-                  + injectorId
-                  + " and step (READY) ID "
-                  + step.getId());
-        }
-        injector.setTenant(injectorContract.getTenant());
-        inject.setInjector(injector);
-      }
+      Hibernate.initialize(injector);
+      injector.setTenant(managedContract.getTenant());
+      inject.setInjector(injector);
 
       return inject;
 
