@@ -7495,6 +7495,7 @@ export interface StepInput {
 }
 
 export interface StepOutput {
+  step_condition_ids?: string[];
   step_condition_key_types?: (
     | "execution_time"
     | "step_template_id"
