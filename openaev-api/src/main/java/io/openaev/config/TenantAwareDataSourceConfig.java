@@ -50,8 +50,13 @@ public class TenantAwareDataSourceConfig implements BeanPostProcessor {
             // Re-apply the non-superuser role on every checkout — a previous
             // @BypassRls call may have done RESET ROLE on this pooled connection,
             // leaving it as superuser (which bypasses RLS).
+            // The role may not exist yet if Flyway hasn't run V5_05 — gracefully skip.
             try (var roleStmt = connection.createStatement()) {
               roleStmt.execute("SET ROLE openaev_app");
+            } catch (SQLException e) {
+              // Role does not exist yet (e.g. during Flyway bootstrap) — continue without RLS
+              log.fine(
+                  "Could not SET ROLE openaev_app (role may not exist yet): " + e.getMessage());
             }
             String tenantId = TenantContext.getCurrentTenant();
             try (PreparedStatement stmt =
