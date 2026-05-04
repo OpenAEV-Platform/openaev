@@ -22,6 +22,9 @@ public class StepOutput {
   @JsonProperty("step_status")
   private StepStatus status;
 
+  @JsonProperty("step_condition_ids")
+  private List<String> conditionIds;
+
   @JsonProperty("step_condition_key_types")
   private List<ConditionKeyType> conditionKeyTypes;
 
