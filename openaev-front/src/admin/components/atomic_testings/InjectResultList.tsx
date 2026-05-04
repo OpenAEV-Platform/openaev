@@ -16,7 +16,11 @@ import { useFormatter } from '../../../components/i18n';
 import ItemDomains from '../../../components/ItemDomains';
 import ItemTargets from '../../../components/ItemTargets';
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
-import { type InjectResultOutput, type SearchPaginationInput } from '../../../utils/api-types';
+import {
+  type InjectResultOutput,
+  type InjectStatus as InjectStatusType,
+  type SearchPaginationInput
+} from '../../../utils/api-types';
 import { Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { isNotEmptyField } from '../../../utils/utils';
@@ -134,11 +138,8 @@ const InjectResultList: FunctionComponent<Props> = ({
       label: 'Execution status',
       isSortable: false,
       value: (injectResultOutput: InjectResultOutput) => {
-        return (<InjectStatus status={injectResultOutput.inject_status?.status_name} />);
+        return (<InjectStatus status={injectResultOutput.inject_status?.status_name as InjectStatusType['status_name']} />);
       },
-      // value: (injectResultOutput: InjectResultOutput) => {
-      //   return (<ItemStatus status={injectResultOutput.inject_status?.status_name} label={t(getInjectStatusLabel(injectResultOutput.inject_status?.status_name || '-'))} variant="inList" />);
-      // },
     },
     {
       field: 'inject_targets',
