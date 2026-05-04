@@ -36,7 +36,7 @@ export const getInjectStatusLabel = (status: string | undefined | null): string 
 
 const traceStatusLabelMap: Record<string, string> = {
   SUCCESS: 'EXECUTED',
-  SUCCESS_WITH_CLEANUP_FAIL: 'EXECUTED_WITH_CLEANUP_FAIL',
+  SUCCESS_WITH_CLEANUP_FAIL: 'EXECUTED_WITH_CLEANUP_FAILURE',
   WARNING: 'EXECUTED_WITH_WARNING',
   QUEUING: 'PENDING IN QUEUE',
 };
