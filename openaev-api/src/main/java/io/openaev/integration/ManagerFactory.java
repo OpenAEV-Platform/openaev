@@ -12,6 +12,7 @@ import io.openaev.datapack.DataPackProcessor;
 import io.openaev.multitenancy.DependenciesManager;
 import io.openaev.multitenancy.DependenciesManagerException;
 import io.openaev.rest.injector_contract.InjectorContractService;
+import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.tenants.UserTenantService;
 import jakarta.persistence.EntityManager;
 import java.util.List;
@@ -114,6 +115,6 @@ public class ManagerFactory implements DependenciesManager {
 
   @Override
   public List<Class<? extends DependenciesManager>> getPrerequisite() {
-    return List.of(InjectorContractService.class, UserTenantService.class, DataPackProcessor.class);
+    return List.of(InjectorContractService.class, DataPackProcessor.class);
   }
 }

@@ -66,7 +66,7 @@ public class OvhInjectorIntegration extends Integration {
 
   @Override
   protected void innerStart() throws Exception {
-    OvhSmsService ovhSmsService = new OvhSmsService(this.config);
+    OvhSmsService ovhSmsService = new OvhSmsService(injectorContext.getMapper(), this.config);
     this.ovhSmsExecutor =
         new OvhSmsExecutor(injectorContext, ovhSmsService, injectExpectationService);
   }
