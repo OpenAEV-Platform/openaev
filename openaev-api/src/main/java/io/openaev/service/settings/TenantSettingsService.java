@@ -16,7 +16,6 @@ import io.openaev.database.repository.SettingRepository;
 import io.openaev.rest.settings.form.TenantSettingsUpdateInput;
 import io.openaev.rest.settings.form.ThemeInput;
 import io.openaev.rest.settings.response.TenantSettingsOutput;
-import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import java.util.Map;
 import java.util.Optional;
@@ -36,8 +35,7 @@ public class TenantSettingsService {
   public static final String THEME_TYPE_DARK = "dark";
 
   private final SettingRepository settingRepository;
-
-  @Resource private OpenAEVConfig openAEVConfig;
+  private final OpenAEVConfig openAEVConfig;
 
   public String buildTenantUrl(String tenantId) {
     return openAEVConfig.getBaseUrl() + "/" + tenantId;

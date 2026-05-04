@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V5_02__Add_connectivity_email_eligible_to_tenant_xtmhub_registration
+public class V5_05__Add_connectivity_email_eligible_to_tenant_xtmhub_registration
     extends BaseJavaMigration {
 
   @Override
