@@ -8736,7 +8736,12 @@ export interface WidgetConfiguration {
     | "LAST_SEMESTER"
     | "LAST_YEAR";
   title?: string;
-  widget_configuration_type: string;
+  widget_configuration_type:
+    | "flat"
+    | "average"
+    | "list"
+    | "temporal-histogram"
+    | "structural-histogram";
 }
 
 export interface WidgetInput {
