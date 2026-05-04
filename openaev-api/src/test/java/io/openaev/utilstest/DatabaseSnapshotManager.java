@@ -2,6 +2,7 @@ package io.openaev.utilstest;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import io.openaev.config.EngineConfig;
+import io.openaev.context.TenantContext;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -38,8 +39,8 @@ public class DatabaseSnapshotManager {
       if (snapshotCreated) return;
 
       try {
-        // Escalate to superuser to bypass RLS when reading all table data
-        jdbcTemplate.execute("RESET ROLE");
+        // Bypass RLS so that TenantAwareDataSourceConfig issues RESET ROLE on each connection
+        TenantContext.setRlsBypass();
 
         List<String> tables =
             jdbcTemplate.queryForList(
@@ -54,11 +55,10 @@ public class DatabaseSnapshotManager {
         snapshotCreated = true;
         log.info("Startup snapshot created with JDBC ({} tables)", startupData.size());
 
-        // Re-adopt the non-superuser app role for RLS enforcement
-        jdbcTemplate.execute("SET ROLE openaev_app");
-
       } catch (Exception e) {
         log.error("Failed to create startup snapshot: {}", e.getMessage(), e);
+      } finally {
+        TenantContext.clearRlsBypass();
       }
     }
   }
@@ -78,10 +78,11 @@ public class DatabaseSnapshotManager {
 
       cleanElasticsearchIndices();
 
-      // Escalate to superuser for session_replication_role (openaev_app cannot set it)
-      jdbcTemplate.execute("RESET ROLE");
+      // Bypass RLS so that TenantAwareDataSourceConfig issues RESET ROLE on each connection,
+      // allowing cross-tenant deletes and inserts during restore.
+      TenantContext.setRlsBypass();
 
-      // Deactivate FK for now
+      // Deactivate FK for now — session_replication_role requires superuser (RESET ROLE)
       jdbcTemplate.execute("SET session_replication_role = 'replica';");
 
       // Empty tables
@@ -98,14 +99,15 @@ public class DatabaseSnapshotManager {
         }
       }
 
-      // Activate FK back and re-adopt the non-superuser app role for RLS
+      // Activate FK back
       jdbcTemplate.execute("SET session_replication_role = 'origin';");
-      jdbcTemplate.execute("SET ROLE openaev_app");
 
       log.info("Database restored to startup state via JDBC");
 
     } catch (Exception e) {
       throw new RuntimeException("Error restoring startup state", e);
+    } finally {
+      TenantContext.clearRlsBypass();
     }
   }
 
