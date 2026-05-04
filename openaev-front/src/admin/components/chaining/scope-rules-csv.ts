@@ -18,7 +18,8 @@ export interface ScopeCsvParseResult {
 }
 
 // Supports ASCII domains and internationalized domain names (IDN) with Unicode letters
-// @ts-ignore
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-expect-error
 const DOMAIN_REGEX = /^(?=.{1,253}$)(?!-)(?:[\p{L}\p{N}-]{1,63}\.)+[\p{L}]{2,63}$/u;
 
 const TYPE_MAP: Record<string, ScopeCsvType> = {
