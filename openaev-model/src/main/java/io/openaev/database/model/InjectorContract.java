@@ -142,6 +142,16 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
     return ofNullable(getPayload()).map(Payload::getExecutionArch).orElse(null);
   }
 
+  @Queryable(
+      filterable = true,
+      path = "payload.status",
+      refEnumClazz = Payload.PAYLOAD_STATUS.class)
+  @JsonProperty("injector_contract_payload_status")
+  @Enumerated(EnumType.STRING)
+  public Payload.PAYLOAD_STATUS getPayloadStatus() {
+    return ofNullable(getPayload()).map(Payload::getStatus).orElse(null);
+  }
+
   @Schema(implementation = String[].class)
   @Getter
   @ManyToMany(fetch = FetchType.EAGER)
