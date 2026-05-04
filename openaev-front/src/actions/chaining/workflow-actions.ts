@@ -211,7 +211,7 @@ const mapEventSteps = (events: EventOutputDTO[]): WorkflowStep[] => {
 // -- Scope (direct API, no Redux) --
 
 export const fetchWorkflowConfig = async (workflowId: string) => {
-  const response = await simpleCall(`${WORKFLOW_URI}/${workflowId}/workflow-configuration`);
+  const response = await simpleCall(`${WORKFLOW_URI}/${workflowId}/configuration`);
   return response.data;
 };
 
@@ -225,12 +225,12 @@ export const updateWorkflowScopeRules = async (
     workflow_configuration_timeout_seconds: timeoutSeconds,
     workflow_configuration_timeout_enabled: true,
   };
-  const response = await simplePutCall(`${WORKFLOW_URI}/${workflowId}/workflow-configuration`, data);
+  const response = await simplePutCall(`${WORKFLOW_URI}/${workflowId}/configuration`, data);
   return response.data;
 };
 
 export const fetchWorkflow = async (workflowId: string): Promise<Workflow> => {
-  const configResponse = await simpleCall(`${WORKFLOW_URI}/${workflowId}/workflow-configuration`);
+  const configResponse = await simpleCall(`${WORKFLOW_URI}/${workflowId}/configuration`);
   const [stepsResult, conditionsResult] = await Promise.all([
     fetchSteps(workflowId),
     fetchConditions(workflowId),
