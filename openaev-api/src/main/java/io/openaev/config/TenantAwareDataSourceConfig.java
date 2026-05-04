@@ -53,16 +53,17 @@ public class TenantAwareDataSourceConfig implements BeanPostProcessor {
             // The role may not exist yet if Flyway hasn't run V5_05 — gracefully skip.
             try (var roleStmt = connection.createStatement()) {
               roleStmt.execute("SET ROLE openaev_app");
+              String tenantId = TenantContext.getCurrentTenant();
+              try (PreparedStatement stmt =
+                  connection.prepareStatement(
+                      "SELECT set_config('app.current_tenant', ?, false)")) {
+                stmt.setString(1, tenantId);
+                stmt.execute();
+              }
             } catch (SQLException e) {
-              // Role does not exist yet (e.g. during Flyway bootstrap) — continue without RLS
+              // Role does not exist yet (e.g. during Flyway bootstrap) — continue without RLS.
               log.fine(
                   "Could not SET ROLE openaev_app (role may not exist yet): " + e.getMessage());
-            }
-            String tenantId = TenantContext.getCurrentTenant();
-            try (PreparedStatement stmt =
-                connection.prepareStatement("SELECT set_config('app.current_tenant', ?, false)")) {
-              stmt.setString(1, tenantId);
-              stmt.execute();
             }
           }
         }
