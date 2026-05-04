@@ -43,8 +43,8 @@ const TenantFieldController: FunctionComponent<Props> = ({ name, label, disabled
           fullWidth
           disabled={disabled}
           options={options}
-          value={(value as Option[] ?? []).filter(v => options.some(o => o.id === v.id))}
-          onChange={(_, newValue) => onChange(newValue)}
+          value={options.filter(o => (value as string[] ?? []).includes(o.id))}
+          onChange={(_, newValue) => onChange(newValue.map(v => v.id))}
           getOptionLabel={option => option.label}
           isOptionEqualToValue={(option, val) => option.id === val.id}
           renderOption={(props, option) => (

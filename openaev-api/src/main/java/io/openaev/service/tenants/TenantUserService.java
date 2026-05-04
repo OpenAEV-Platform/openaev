@@ -124,6 +124,30 @@ public class TenantUserService implements DependenciesManager {
         User.class);
   }
 
+  // -- UPDATE --
+
+  /**
+   * Updates profile fields of a user within the current tenant scope. Does NOT modify tenant
+   * memberships or admin status — those are platform-level operations.
+   */
+  public UserOutput update(@NotBlank String userId, UserInput input) {
+    Specification<User> spec = inTenant(tenantId()).and(UserSpecification.byId(userId));
+    User existing =
+        userRepository
+            .findOne(spec)
+            .orElseThrow(() -> new ElementNotFoundException("User not found with id: " + userId));
+    existing.setEmail(input.email());
+    existing.setFirstname(input.firstname());
+    existing.setLastname(input.lastname());
+    existing.setPhone(input.phone());
+    existing.setPhone2(input.phone2());
+    existing.setPgpKey(input.pgpKey());
+    existing.setOrganization(userService.resolveOrganization(input.organizationId()));
+    existing.setTags(userService.resolveTags(input.tagIds()));
+    User savedUser = userRepository.save(existing);
+    return UserMapper.toOutput(savedUser);
+  }
+
   // -- DELETE --
 
   /** Detaches a user from the current tenant without deleting the user. */

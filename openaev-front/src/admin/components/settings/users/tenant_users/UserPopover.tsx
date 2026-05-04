@@ -16,7 +16,6 @@ type ActionType = 'Update' | 'Update password' | 'Delete';
 interface UserPopoverProps {
   user: UserOutput;
   actions?: ActionType[];
-  disabledActions?: Partial<Record<ActionType, string>>;
   onSubmitUpdate: (data: UserInputForm) => void;
   onSubmitDelete: () => void;
   onSubmitPassword?: (data: ChangePasswordInput) => void;
@@ -32,7 +31,6 @@ interface UserPopoverProps {
 const UserPopover: FunctionComponent<UserPopoverProps> = ({
   user,
   actions = [],
-  disabledActions = {},
   onSubmitUpdate,
   onSubmitDelete,
   onSubmitPassword,
@@ -82,22 +80,12 @@ const UserPopover: FunctionComponent<UserPopoverProps> = ({
       label: string;
       action: () => void;
       userRight: boolean;
-      disabled?: boolean;
-      disabledMessage?: string;
     }[] = [];
     if (actions.includes('Update')) {
       result.push({
         label: t('Update'),
         action: handleOpenEdit,
         userRight: canManage,
-      });
-    } else if (disabledActions.Update) {
-      result.push({
-        label: t('Update'),
-        action: () => {},
-        userRight: canManage,
-        disabled: true,
-        disabledMessage: disabledActions.Update,
       });
     }
     if (actions.includes('Update password') && onSubmitPassword) {
@@ -106,14 +94,6 @@ const UserPopover: FunctionComponent<UserPopoverProps> = ({
         action: handleOpenPassword,
         userRight: canManage,
       });
-    } else if (disabledActions['Update password']) {
-      result.push({
-        label: t('Update password'),
-        action: () => {},
-        userRight: canManage,
-        disabled: true,
-        disabledMessage: disabledActions['Update password'],
-      });
     }
     if (actions.includes('Delete')) {
       result.push({
@@ -121,17 +101,9 @@ const UserPopover: FunctionComponent<UserPopoverProps> = ({
         action: handleOpenDelete,
         userRight: canDelete,
       });
-    } else if (disabledActions.Delete) {
-      result.push({
-        label: t('Delete'),
-        action: () => {},
-        userRight: canDelete,
-        disabled: true,
-        disabledMessage: disabledActions.Delete,
-      });
     }
     return result;
-  }, [actions, disabledActions, ability, permissions, onSubmitPassword, handleOpenEdit, handleOpenPassword, handleOpenDelete, t]);
+  }, [actions, ability, permissions, onSubmitPassword, handleOpenEdit, handleOpenPassword, handleOpenDelete, t]);
 
   return (
     <>

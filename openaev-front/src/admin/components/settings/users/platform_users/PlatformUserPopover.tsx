@@ -7,7 +7,6 @@ import { type UserInputForm } from '../../../../../actions/users/users-helper';
 import { useFormatter } from '../../../../../components/i18n';
 import type { ChangePasswordInput, UserOutput } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
-import { type Option } from '../../../../../utils/Option';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import UserPopover from '../tenant_users/UserPopover';
 
@@ -30,13 +29,7 @@ const PlatformUserPopover: FunctionComponent<Props> = ({
   const dispatch = useAppDispatch();
 
   const handleUpdate = useCallback((data: UserInputForm) => {
-    const { user_organization, user_tags, user_tenants, ...rest } = data;
-    const inputValues = {
-      ...rest,
-      user_organization: user_organization?.id,
-      user_tags: user_tags?.map((tag: Option) => tag.id),
-      user_tenants: user_tenants?.map((tenant: Option) => tenant.id),
-    };
+    const inputValues = { ...data };
     dispatch(updatePlatformUser(platformUser.user_id, inputValues)).then(
       (result: {
         entities: Record<string, Record<string, UserOutput>>;
