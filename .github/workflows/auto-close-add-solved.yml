@@ -1,11 +1,8 @@
 name: Auto Close and Solve Issues
 on:
   pull_request:
-    branches:
-      - release/current
-      - master
-    types:
-      - closed
+    branches: [ main ]
+    types: [ closed ]
 permissions:
   contents: read
   issues: write
