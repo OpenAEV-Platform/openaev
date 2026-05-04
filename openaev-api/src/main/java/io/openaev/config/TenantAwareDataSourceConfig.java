@@ -47,24 +47,45 @@ public class TenantAwareDataSourceConfig implements BeanPostProcessor {
               stmt.execute("RESET ROLE");
             }
           } else {
-            // Re-apply the non-superuser role on every checkout — a previous
-            // @BypassRls call may have done RESET ROLE on this pooled connection,
-            // leaving it as superuser (which bypasses RLS).
-            // The role may not exist yet if Flyway hasn't run V5_05 — gracefully skip.
-            try (var roleStmt = connection.createStatement()) {
-              roleStmt.execute("SET ROLE openaev_app");
-              String tenantId = TenantContext.getCurrentTenant();
-              try (PreparedStatement stmt =
-                  connection.prepareStatement(
-                      "SELECT set_config('app.current_tenant', ?, false)")) {
-                stmt.setString(1, tenantId);
-                stmt.execute();
-              }
-            } catch (SQLException e) {
-              // Role does not exist yet (e.g. during Flyway bootstrap) — continue without RLS.
+            // Step 1: Set the non-superuser role so RLS policies are enforced.
+            // The role may not exist yet during Flyway bootstrap — skip gracefully.
+            if (!setRole(connection)) {
+              return;
+            }
+            // Step 2: Set the tenant variable for RLS filtering.
+            String tenantId = TenantContext.getCurrentTenant();
+            try (PreparedStatement stmt =
+                connection.prepareStatement("SELECT set_config('app.current_tenant', ?, false)")) {
+              stmt.setString(1, tenantId);
+              stmt.execute();
+            }
+          }
+        }
+
+        /**
+         * Attempts to SET ROLE openaev_app on the connection.
+         *
+         * @return true if the role was set successfully, false if the role does not exist yet
+         *     (Flyway bootstrap phase — no RLS policies exist either, so no data leak risk).
+         */
+        private boolean setRole(Connection connection) throws SQLException {
+          try (var stmt = connection.createStatement()) {
+            stmt.execute("SET ROLE openaev_app");
+            return true;
+          } catch (SQLException e) {
+            if (e.getMessage() != null && e.getMessage().contains("does not exist")) {
+              // Role not created yet (Flyway hasn't run the RLS migration).
+              // Safe to skip: no RLS policies exist either.
               log.fine(
                   "Could not SET ROLE openaev_app (role may not exist yet): " + e.getMessage());
+              return false;
             }
+            // Unexpected failure (e.g. permission issue) — refuse to continue without RLS.
+            throw new SQLException(
+                "SET ROLE openaev_app failed unexpectedly. "
+                    + "Refusing to proceed without RLS: "
+                    + e.getMessage(),
+                e);
           }
         }
       };
