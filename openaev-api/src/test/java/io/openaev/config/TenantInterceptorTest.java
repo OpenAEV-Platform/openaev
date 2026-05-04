@@ -6,6 +6,7 @@ import static org.mockito.Mockito.mock;
 import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
+import jakarta.persistence.EntityManager;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -17,7 +18,9 @@ class TenantInterceptorTest {
 
   private final TenantMembershipCacheManager tenantMembershipCacheManager =
       mock(TenantMembershipCacheManager.class);
-  private final TenantInterceptor interceptor = new TenantInterceptor(tenantMembershipCacheManager);
+  private final EntityManager entityManager = mock(EntityManager.class);
+  private final TenantInterceptor interceptor =
+      new TenantInterceptor(tenantMembershipCacheManager, entityManager);
   private final MockHttpServletRequest request = new MockHttpServletRequest();
   private final MockHttpServletResponse response = new MockHttpServletResponse();
 

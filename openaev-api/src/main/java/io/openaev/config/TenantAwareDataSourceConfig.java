@@ -47,6 +47,12 @@ public class TenantAwareDataSourceConfig implements BeanPostProcessor {
               stmt.execute("RESET ROLE");
             }
           } else {
+            // Re-apply the non-superuser role on every checkout — a previous
+            // @BypassRls call may have done RESET ROLE on this pooled connection,
+            // leaving it as superuser (which bypasses RLS).
+            try (var roleStmt = connection.createStatement()) {
+              roleStmt.execute("SET ROLE openaev_app");
+            }
             String tenantId = TenantContext.getCurrentTenant();
             try (PreparedStatement stmt =
                 connection.prepareStatement("SELECT set_config('app.current_tenant', ?, false)")) {
