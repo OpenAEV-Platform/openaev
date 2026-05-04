@@ -10,6 +10,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.google.gson.*;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
@@ -579,6 +580,30 @@ public class InjectExecutionStep implements ActionStep {
             && !injectorNode.isNull()
             && !injectorNode.asText().isEmpty()) {
           injector = em.find(Injector.class, injectorNode.asText());
+        }
+      }
+
+      if (injector == null) {
+        // Last resort: resolve injector by type from contract content (handles orphan contracts)
+        ObjectNode contentNode = managedContract.getConvertedContent();
+        if (contentNode != null) {
+          String injectorType = contentNode.path("config").path("type").asText();
+          if (!injectorType.isEmpty()) {
+            List<Injector> matches =
+                em.createQuery(
+                        "SELECT i FROM Injector i WHERE i.type = :type AND i.tenant.id = :tenantId",
+                        Injector.class)
+                    .setParameter("type", injectorType)
+                    .setParameter("tenantId", managedContract.getTenant().getId())
+                    .getResultList();
+            if (!matches.isEmpty()) {
+              injector = matches.getFirst();
+              log.info(
+                  "Resolved injector by type '{}' for orphan contract {}",
+                  injectorType,
+                  contractId);
+            }
+          }
         }
       }
 
