@@ -21,8 +21,8 @@ import org.springframework.web.servlet.HandlerMapping;
 /**
  * Interceptor that automatically extracts the {@code tenantId} path variable from any request
  * matching {@code /api/tenants/{tenantId}/**}, validates the authenticated user belongs to that
- * tenant, sets it in the {@link TenantContext}, and synchronizes the PostgreSQL RLS session variable
- * {@code app.current_tenant} on the current JDBC connection.
+ * tenant, sets it in the {@link TenantContext}, and synchronizes the PostgreSQL RLS session
+ * variable {@code app.current_tenant} on the current JDBC connection.
  */
 @Component
 @RequiredArgsConstructor
