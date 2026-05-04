@@ -58,6 +58,9 @@ public class V5_06__Enable_row_level_security extends BaseJavaMigration {
       }
       rs.close();
 
+      // PG > 15, allow access for app role for read
+      statement.execute("GRANT USAGE ON SCHEMA public TO " + APP_ROLE);
+
       // Grant the app role to the DB owner so SET ROLE works
       statement.execute("GRANT " + APP_ROLE + " TO \"" + dbOwner + "\"");
 
