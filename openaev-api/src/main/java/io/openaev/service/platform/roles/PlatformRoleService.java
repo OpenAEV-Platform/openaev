@@ -1,23 +1,20 @@
 package io.openaev.service.platform.roles;
 
-import static io.openaev.utils.pagination.CriteriaBuilderPagination.paginate;
-import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
+import static io.openaev.database.specification.RoleSpecification.platformScope;
+import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
-import io.openaev.api.platform.roles.PlatformRoleOutput;
-import io.openaev.api.platform.roles.PlatformRoleQueryHelper;
 import io.openaev.database.model.Capability;
-import io.openaev.database.model.PlatformRole;
-import io.openaev.database.repository.PlatformRoleRepository;
+import io.openaev.database.model.Role;
+import io.openaev.database.repository.RoleRepository;
 import io.openaev.utils.pagination.SearchPaginationInput;
-import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
-import jakarta.persistence.PersistenceContext;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,74 +23,64 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(rollbackFor = Exception.class)
 public class PlatformRoleService {
 
-  private final PlatformRoleRepository platformRoleRepository;
-  @PersistenceContext private EntityManager entityManager;
+  private final RoleRepository roleRepository;
 
   // -- CREATE --
 
-  public PlatformRole createPlatformRole(
+  public Role createPlatformRole(
       @NotBlank final String name,
       final String description,
       @NotNull final Set<Capability> capabilities) {
     Capability.validateForPlatformRole(capabilities);
-    PlatformRole role = new PlatformRole();
+    Role role = new Role();
     role.setName(name);
     role.setDescription(description);
     role.setCapabilities(Capability.resolveWithParents(capabilities));
-    return platformRoleRepository.save(role);
+    return roleRepository.save(role);
   }
 
   // -- READ --
 
   @Transactional(readOnly = true)
-  public PlatformRole findById(String id) {
-    return platformRoleRepository
+  public Role findById(String id) {
+    return roleRepository
         .findById(id)
         .orElseThrow(() -> new EntityNotFoundException("Platform role not found: " + id));
   }
 
   @Transactional(readOnly = true)
-  public List<PlatformRole> findByIds(List<String> ids) {
-    return platformRoleRepository.findAllById(ids);
+  public List<Role> findByIds(List<String> ids) {
+    return roleRepository.findAllById(ids);
   }
 
   @Transactional(readOnly = true)
-  public Page<PlatformRoleOutput> search(@NotNull SearchPaginationInput searchPaginationInput) {
-    return buildPaginationCriteriaBuilder(
-        (spec, specCount, pageable) ->
-            paginate(
-                entityManager,
-                PlatformRole.class,
-                spec,
-                specCount,
-                pageable,
-                PlatformRoleQueryHelper::select,
-                PlatformRoleQueryHelper::execution),
+  public Page<Role> search(@NotNull SearchPaginationInput searchPaginationInput) {
+    return buildPaginationJPA(
+        (Specification<Role> spec, org.springframework.data.domain.Pageable pageable) ->
+            roleRepository.findAll(platformScope().and(spec), pageable),
         searchPaginationInput,
-        PlatformRole.class);
+        Role.class);
   }
 
   // -- UPDATE --
 
-  public PlatformRole updatePlatformRole(
+  public Role updatePlatformRole(
       @NotBlank final String roleId,
       @NotBlank final String name,
       final String description,
       @NotNull final Set<Capability> capabilities) {
     Capability.validateForPlatformRole(capabilities);
-    PlatformRole role = findById(roleId);
+    Role role = findById(roleId);
     role.setName(name);
     role.setDescription(description);
     role.setCapabilities(Capability.resolveWithParents(capabilities));
-    return platformRoleRepository.save(role);
+    return roleRepository.save(role);
   }
 
   // -- DELETE --
 
   public void deletePlatformRole(@NotBlank final String roleId) {
-    if (!platformRoleRepository.existsById(roleId)) {
-      throw new EntityNotFoundException("Platform role not found: " + roleId);
-    }
-    platformRoleRepository.deleteByIdNative(roleId);
+    Role role = findById(roleId);
+    roleRepository.deleteByIdNative(role.getId());
   }
 }

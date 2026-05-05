@@ -10,7 +10,7 @@ import Tabs, { type TabsEntry } from '../../../../components/common/tabs/Tabs';
 import useTabs from '../../../../components/common/tabs/useTabs';
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
-import { type CustomDashboardInput, type PlatformSettings } from '../../../../utils/api-types';
+import { type CustomDashboardInput, type TenantSettingsOutput } from '../../../../utils/api-types';
 import { zodImplement } from '../../../../utils/Zod';
 import GeneralFormTab from './form/GeneralFormTab';
 import ParametersTab from './form/ParametersTab';
@@ -44,7 +44,7 @@ const CustomDashboardForm: FunctionComponent<Props> = ({
   const { t } = useFormatter();
   const theme = useTheme();
 
-  const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
+  const { settings }: { settings: TenantSettingsOutput } = useHelper((helper: LoggedHelper) => ({ settings: helper.getTenantSettings() }));
 
   const parametersSchema = z.object({
     custom_dashboards_parameter_id: z.string().optional(),

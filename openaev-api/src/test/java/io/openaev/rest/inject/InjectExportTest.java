@@ -24,6 +24,7 @@ import io.openaev.rest.inject.form.*;
 import io.openaev.service.FileService;
 import io.openaev.utils.ZipUtils;
 import io.openaev.utils.fixtures.*;
+import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.helpers.GrantHelper;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -66,8 +67,8 @@ public class InjectExportTest extends IntegrationTest {
   @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private PayloadComposer payloadComposer;
   @Autowired private GrantComposer grantComposer;
-  @Autowired private GroupComposer groupComposer;
-  @Autowired private RoleComposer roleComposer;
+  @Autowired private TenantGroupComposer tenantGroupComposer;
+  @Autowired private TenantRoleComposer tenantRoleComposer;
   @Autowired private DomainComposer domainComposer;
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper mapper;
@@ -90,8 +91,8 @@ public class InjectExportTest extends IntegrationTest {
     channelComposer.reset();
     teamComposer.reset();
     userComposer.reset();
-    groupComposer.reset();
-    roleComposer.reset();
+    tenantGroupComposer.reset();
+    tenantRoleComposer.reset();
     grantComposer.reset();
     tagComposer.reset();
     exerciseComposer.reset();
@@ -462,10 +463,10 @@ public class InjectExportTest extends IntegrationTest {
         InjectExportFromSearchRequestInput exportInput =
             createDefaultInjectExportFromSearchInput(List.of(), "", false, false, false);
 
-        GroupComposer.Composer groupComposed =
-            groupComposer
-                .forGroup(GroupFixture.createGroup())
-                .withRole(roleComposer.forRole(RoleFixture.getRole()));
+        TenantGroupComposer.Composer groupComposed =
+            tenantGroupComposer
+                .forGroup(TenantGroupFixture.getGroup())
+                .withRole(tenantRoleComposer.forRole(TenantRoleFixture.getRole()));
 
         groupComposed.withGrant(
             grantComposer.forGrant(

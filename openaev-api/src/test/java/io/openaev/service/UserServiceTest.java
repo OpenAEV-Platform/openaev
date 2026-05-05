@@ -26,17 +26,8 @@ class UserServiceTest extends IntegrationTest {
   void given_validInput_should_createUser() {
     // -- ACT --
     UserInput input =
-        new UserInput(
-            "create@test.invalid",
-            "John",
-            "Doe",
-            "secureP@ss1",
-            null,
-            "+33612345678",
-            null,
-            null,
-            null,
-            false);
+        getUserInputWithPasswordAndPhone(
+            "create@test.invalid", "John", "Doe", "secureP@ss1", "+33612345678");
     User created = userService.createUser(input);
 
     // -- ASSERT --
@@ -75,17 +66,7 @@ class UserServiceTest extends IntegrationTest {
 
     // -- ACT --
     UserInput input =
-        new UserInput(
-            "updated@test.invalid",
-            "Updated",
-            "Lastname",
-            null,
-            "pgp-key-123",
-            null,
-            null,
-            null,
-            null,
-            false);
+        getUserInputWithPgpKey("updated@test.invalid", "Updated", "Lastname", "pgp-key-123");
     User updated = userService.updateUser(persisted.getId(), input);
 
     // -- ASSERT --

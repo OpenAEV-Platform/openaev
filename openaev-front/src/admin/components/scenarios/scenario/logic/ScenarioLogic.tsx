@@ -1,19 +1,14 @@
-import { Typography } from '@mui/material';
 import { useParams } from 'react-router';
 
-import { useFormatter } from '../../../../../components/i18n';
-import { type Scenario } from '../../../../../utils/api-types';
+import { type ScenariosHelper } from '../../../../../actions/scenarios/scenario-helper';
+import { useHelper } from '../../../../../store';
+import type { Scenario } from '../../../../../utils/api-types';
+import Logic from '../../../chaining/logic/Logic';
 
 const ScenarioLogic = () => {
-  const { t } = useFormatter();
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { scenarioId } = useParams() as { scenarioId: Scenario['scenario_id'] };
-
-  return (
-    <div>
-      <Typography variant="h4">{t('Logic')}</Typography>
-    </div>
-  );
+  const { scenario } = useHelper((helper: ScenariosHelper) => ({ scenario: helper.getScenario(scenarioId) }));
+  return <Logic workflowId={scenario?.scenario_workflow_id} />;
 };
 
 export default ScenarioLogic;

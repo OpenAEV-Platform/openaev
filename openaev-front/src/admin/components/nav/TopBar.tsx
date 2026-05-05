@@ -24,9 +24,7 @@ import { useAppDispatch } from '../../../utils/hooks';
 import useAuth from '../../../utils/hooks/useAuth';
 import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
-import { isFeatureEnabled } from '../../../utils/utils';
 import AskArianeButton from '../ariane/AskArianeButton';
-import TenantSwitcher from './TenantSwitcher';
 
 const useStyles = makeStyles()(theme => ({
   appBar: {
@@ -95,10 +93,7 @@ const useStyles = makeStyles()(theme => ({
   },
 }));
 
-const TopBar: FunctionComponent<{
-  showSearchBar?: boolean;
-  showTenantSwitcher?: boolean;
-}> = ({ showSearchBar = true, showTenantSwitcher = true }) => {
+const TopBar: FunctionComponent = () => {
   // Standard hooks
   const theme = useTheme();
   const location = useLocation();
@@ -224,20 +219,17 @@ const TopBar: FunctionComponent<{
           </Link>
         </div>
         <div className={classes.menuContainer} style={{ marginLeft: navOpen ? 20 : 30 }}>
-          {showSearchBar && (
-            <SearchInput
-              variant="topBar"
-              placeholder={`${t('Search the platform')}...`}
-              fullWidth={true}
-              onSubmit={onFullTextSearch}
-              keyword={search}
-            />
-          )}
+          <SearchInput
+            variant="topBar"
+            placeholder={`${t('Search the platform')}...`}
+            fullWidth={true}
+            onSubmit={onFullTextSearch}
+            keyword={search}
+          />
         </div>
         <div className={classes.barRight}>
           <div className={classes.barRightContainer}>
             { settings.platform_license?.license_type === 'nfr' && <ItemBoolean variant="large" label="EE DEV LICENSE" status={false} /> }
-            {isFeatureEnabled('MULTI_TENANCY') && showTenantSwitcher && <TenantSwitcher />}
             <AskArianeButton isOpen={isArianeChatOpen} />
             <Tooltip title={t('Install simulation agents')}>
               <IconButton

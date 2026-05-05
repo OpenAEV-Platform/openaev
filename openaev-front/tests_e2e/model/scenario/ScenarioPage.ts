@@ -59,6 +59,8 @@ class ScenarioPage {
   }
 
   async goToDefinitionTab() {
+    await this.page.waitForLoadState('domcontentloaded');
+    await this.definitionTab.waitFor({ state: 'visible' });
     await this.definitionTab.click();
   }
 

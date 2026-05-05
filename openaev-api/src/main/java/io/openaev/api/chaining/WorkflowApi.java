@@ -25,10 +25,10 @@ import org.springframework.web.bind.annotation.*;
 @Slf4j
 @RestController
 @RequiredArgsConstructor
+@RequestMapping(WorkflowApi.TENANT_WORKFLOW_URI)
 @Tag(name = "Workflow API", description = "Operations related to Workflow")
 public class WorkflowApi extends RestBehavior {
 
-  public static final String WORKFLOW_URI = "/api/workflows";
   public static final String TENANT_WORKFLOW_URI = TENANT_PREFIX + "/workflows";
 
   private final WorkflowService workflowService;
@@ -46,13 +46,8 @@ public class WorkflowApi extends RestBehavior {
       description =
           "Workflow configuration not found for the specified workflow, or the INJECT_CHAINING feature is disabled")
   @ApiResponse(responseCode = "500", description = "Unexpected server error")
-  @GetMapping({
-    WORKFLOW_URI + "/{workflowId}/workflow-configuration",
-    TENANT_WORKFLOW_URI + "/{workflowId}/workflow-configuration"
-  })
-  @AccessControl(
-      actionPerformed = Action.READ,
-      resourceType = ResourceType.SIMULATION_OR_SCENARIO) // fixme Add RBAC
+  @GetMapping("/{workflowId}/configuration")
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.WORKFLOW)
   public WorkflowConfigurationOutput getWorkflowConfiguration(
       @PathVariable @NotBlank final String workflowId) {
     checkWorkflowFeatureEnabled();
@@ -69,13 +64,8 @@ public class WorkflowApi extends RestBehavior {
       description =
           "Workflow or workflow configuration not found, or the INJECT_CHAINING feature is disabled")
   @ApiResponse(responseCode = "500", description = "Unexpected server error")
-  @PutMapping({
-    WORKFLOW_URI + "/{workflowId}/workflow-configuration",
-    TENANT_WORKFLOW_URI + "/{workflowId}/workflow-configuration"
-  })
-  @AccessControl(
-      actionPerformed = Action.WRITE,
-      resourceType = ResourceType.SIMULATION_OR_SCENARIO) // fixme Add RBAC
+  @PutMapping("/{workflowId}/configuration")
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.WORKFLOW)
   public WorkflowConfigurationOutput updateWorkflowConfiguration(
       @PathVariable @NotBlank final String workflowId,
       @Valid @RequestBody final WorkflowConfigurationInput input) {

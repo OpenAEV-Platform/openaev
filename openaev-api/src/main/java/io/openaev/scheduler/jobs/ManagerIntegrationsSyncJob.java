@@ -1,5 +1,6 @@
 package io.openaev.scheduler.jobs;
 
+import io.openaev.aop.BypassRls;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.integration.ManagerFactory;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,7 @@ public class ManagerIntegrationsSyncJob implements Job {
   @Override
   @Transactional(rollbackFor = Exception.class)
   @LogExecutionTime
+  @BypassRls
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
     try {
       managerFactory.getManager().monitorIntegrations();

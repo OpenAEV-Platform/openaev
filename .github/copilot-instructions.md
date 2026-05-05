@@ -86,7 +86,8 @@ openaev-model/       # Domain models, entities, DTOs
 openaev-framework/   # ⚠️ DEPRECATED — will be removed (see Architecture section above)
 openaev-api/         # REST API, main application
   src/main/java/io/openaev/
-    api/             # REST controllers
+    api/             # REST controllers (new code goes here)
+    rest/            # ⚠️ LEGACY controllers — will be migrated to api/. Never add new code here.
     injectors/       # Integration modules
     service/         # Business logic
     OpenAevApplication.java
@@ -150,6 +151,13 @@ mvn test                        # Run tests
 mvn jacoco:check                # Verify coverage
 ```
 
+### Migration Versioning
+
+- Naming: `V{major}_{NN}__Description.java`
+- Sequence: `NN` runs from `01` to `99`
+- Rollover: when `NN` would exceed `99`, increment `major` and restart at `01`
+- Examples: `V4_99` -> `V5_01`, `V5_99` -> `V6_01`
+
 ### Frontend
 
 ```bash
@@ -175,15 +183,29 @@ yarn generate-types-from-api    # Generate TypeScript types from API
 
 Conventions are defined in dedicated instruction files that activate automatically when you work on matching files:
 
-| Domain                               | File                                                                            |
-|--------------------------------------|---------------------------------------------------------------------------------|
-| Backend (Java/Spring/Hibernate)      | [backend.instructions.md](.github/instructions/backend.instructions.md)         |
-| Frontend (React/TypeScript/MUI)      | [frontend.instructions.md](.github/instructions/frontend.instructions.md)       |
-| Database (schema/migrations/tenancy) | [database.instructions.md](.github/instructions/database.instructions.md)       |
-| Tests (integration/unit/fixtures)    | [testing.instructions.md](.github/instructions/testing.instructions.md)         |
-| Security (RBAC/@AccessControl)       | [security.instructions.md](.github/instructions/security.instructions.md)       |
-| Performance (N+1/pagination/fetch)   | [performance.instructions.md](.github/instructions/performance.instructions.md) |
-| Code Review                          | [code-review.instructions.md](.github/instructions/code-review.instructions.md) |
+| Domain                               | File                                                                                      |
+|--------------------------------------|-------------------------------------------------------------------------------------------|
+| Backend (Java/Spring/Hibernate)      | [backend.instructions.md](.github/instructions/backend.instructions.md)                   |
+| API Layer (controllers/DTOs/swagger) | [api.instructions.md](.github/instructions/api.instructions.md)                           |
+| Frontend (React/TypeScript/MUI)      | [frontend.instructions.md](.github/instructions/frontend.instructions.md)                 |
+| Database (schema/migrations/tenancy) | [database.instructions.md](.github/instructions/database.instructions.md)                 |
+| Migrations (Flyway/Java-based)       | [migration.instructions.md](.github/instructions/migration.instructions.md)               |
+| Multi-Tenancy (isolation/filters)    | [multi-tenancy.instructions.md](.github/instructions/multi-tenancy.instructions.md)       |
+| Tests (integration/unit/fixtures)    | [testing.instructions.md](.github/instructions/testing.instructions.md)                   |
+| Security (RBAC/@AccessControl)       | [security.instructions.md](.github/instructions/security.instructions.md)                 |
+| Performance (N+1/pagination/fetch)   | [performance.instructions.md](.github/instructions/performance.instructions.md)           |
+| Code Review                          | [code-review.instructions.md](.github/instructions/code-review.instructions.md)           |
+
+### Available Agents
+
+| Agent                    | Description                                                              |
+|--------------------------|--------------------------------------------------------------------------|
+| `code-reviewer`          | General-purpose reviewer: architecture, conventions, readability, delegation |
+| `security-reviewer`      | Reviews code for RBAC, tenant isolation, data exposure, auth bypasses    |
+| `performance-reviewer`   | Reviews code for N+1, fetch strategy, pagination, indexing, memory      |
+| `multi-tenancy-reviewer` | Reviews code for tenant isolation, cross-tenant leaks, filter bypasses |
+| `frontend-reviewer`      | Reviews frontend for component patterns, forms, permissions, MUI, i18n   |
+| `test-specialist`        | Creates and maintains tests following project patterns                   |
 
 ## PR & Review Conventions
 

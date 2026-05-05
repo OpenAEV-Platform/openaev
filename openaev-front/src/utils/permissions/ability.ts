@@ -18,14 +18,6 @@ export function defineAbility(capabilities: string[], grants: Record<string, str
     can('manage', 'all');
   }
   for (const cap of capabilities) {
-    if (cap === 'BYPASS') {
-      // We ignore ts here to accept lowercase which are CASL default keys
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-expect-error
-      can('manage', 'all'); // "manage" in lowercase means all actions, "all" means all subject
-      continue;
-    }
-
     const parsed = parseCapability(cap);
     if (parsed) {
       const [action, subject] = parsed;

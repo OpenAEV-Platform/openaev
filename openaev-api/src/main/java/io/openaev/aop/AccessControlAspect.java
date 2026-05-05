@@ -120,7 +120,7 @@ public class AccessControlAspect {
           accessControl.resourceType(),
           accessControl.actionPerformed());
       throw new ResponseStatusException(
-          HttpStatus.FORBIDDEN, "Access denied for user: " + principal.getName()) {};
+          HttpStatus.FORBIDDEN, "Access denied for user: " + principal.getEmail()) {};
     }
   }
 

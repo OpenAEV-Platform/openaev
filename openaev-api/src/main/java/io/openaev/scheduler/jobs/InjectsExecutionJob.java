@@ -6,9 +6,10 @@ import static java.time.Instant.now;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.groupingBy;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
+import io.openaev.aop.BypassRls;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.InjectDependenciesRepository;
@@ -30,7 +31,6 @@ import io.openaev.service.chaining.WorkflowService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.ExecutionTraceUtils;
 import jakarta.annotation.PostConstruct;
-import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -47,7 +47,6 @@ import org.quartz.DisallowConcurrentExecution;
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.EvaluationException;
@@ -94,8 +93,7 @@ public class InjectsExecutionJob implements Job {
       List.of(InjectExpectation.EXPECTATION_STATUS.SUCCESS);
 
   private final WorkflowService workflowService;
-  @Resource protected ObjectMapper mapper;
-  @Autowired private HealthCheckUtils healthCheckUtils;
+  private final HealthCheckUtils healthCheckUtils;
 
   @PostConstruct
   private void init() {
@@ -378,6 +376,7 @@ public class InjectsExecutionJob implements Job {
 
   @Override
   @LogExecutionTime
+  @BypassRls
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
     try {
       // Handle starting exercises if needed.
@@ -420,24 +419,37 @@ public class InjectsExecutionJob implements Job {
                               : ex.getInjection().getExercise().getId()));
 
       // Execute injects in parallel for each exercise.
+      // Note: @BypassRls sets the ThreadLocal on the Quartz thread, but parallelStream() runs
+      // lambdas on ForkJoinPool worker threads which do NOT inherit ThreadLocal values.
+      // We must explicitly propagate the RLS bypass flag into each parallel task.
       byExercises.entrySet().parallelStream()
           .forEach(
               (entry) -> {
-                // Execute each inject for the exercise in order.
-                entry.getValue().parallelStream()
-                    .forEach(
-                        executableInject -> {
-                          try {
-                            this.executeInject(executableInject);
-                          } catch (Exception e) {
-                            Inject inject = executableInject.getInjection().getInject();
-                            log.warn(e.getMessage(), e);
-                            injectStatusService.failInjectStatus(inject.getId(), e.getMessage());
-                          }
-                        });
-                // Update the exercise
-                if (!entry.getKey().equals("atomic")) {
-                  updateExercise(entry.getKey());
+                // Propagate RLS bypass to this ForkJoinPool thread
+                TenantContext.setRlsBypass();
+                try {
+                  // Execute each inject for the exercise in order.
+                  entry.getValue().parallelStream()
+                      .forEach(
+                          executableInject -> {
+                            // Propagate RLS bypass to nested ForkJoinPool thread
+                            TenantContext.setRlsBypass();
+                            try {
+                              this.executeInject(executableInject);
+                            } catch (Exception e) {
+                              Inject inject = executableInject.getInjection().getInject();
+                              log.warn(e.getMessage(), e);
+                              injectStatusService.failInjectStatus(inject.getId(), e.getMessage());
+                            } finally {
+                              TenantContext.clearRlsBypass();
+                            }
+                          });
+                  // Update the exercise
+                  if (!entry.getKey().equals("atomic")) {
+                    updateExercise(entry.getKey());
+                  }
+                } finally {
+                  TenantContext.clearRlsBypass();
                 }
               });
       // Change status of finished simulations.

@@ -26,6 +26,7 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
+import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
@@ -78,7 +79,7 @@ class ScenarioServiceTest extends IntegrationTest {
   @Mock private InjectService injectService;
   @Mock private TagRuleService tagRuleService;
   @Mock private UserService userService;
-  @Mock private PlatformSettingsService platformSettingsService;
+  @Mock private TenantSettingsService tenantSettingsService;
   @Mock private CustomDashboardService customDashboardService;
   @Mock private InjectorContractService injectorContractService;
   @InjectMocks private ScenarioService scenarioService;
@@ -118,7 +119,7 @@ class ScenarioServiceTest extends IntegrationTest {
             tagRuleService,
             injectService,
             userService,
-            platformSettingsService,
+            tenantSettingsService,
             customDashboardService,
             injectorContractService,
             injectRepository,
@@ -468,6 +469,30 @@ class ScenarioServiceTest extends IntegrationTest {
     assertEquals(HealthCheck.Type.INJECT, healthCheckToVerify.getType());
     assertEquals(HealthCheck.Detail.NOT_READY, healthCheckToVerify.getDetail());
     assertEquals(HealthCheck.Status.WARNING, healthCheckToVerify.getStatus());
+  }
+
+  @Test
+  @Transactional
+  public void given_disabledInject_should_notReturnMissingContent() {
+    // Arrange
+    Inject inject = new Inject();
+    inject.setEnabled(false);
+    Scenario scenario = new Scenario();
+    scenario.setInjects(new HashSet<>(List.of(inject)));
+    this.scenarioRepository.save(scenario);
+
+    // Act
+    when(this.injectService.runChecks(any())).thenReturn(List.of());
+    List<HealthCheck> healthchecks = scenarioService.runChecks(scenario.getId());
+
+    // Assert
+    boolean hasMissingContent =
+        healthchecks.stream()
+            .anyMatch(
+                hc ->
+                    HealthCheck.Type.INJECT.equals(hc.getType())
+                        && HealthCheck.Detail.NOT_READY.equals(hc.getDetail()));
+    assertFalse(hasMissingContent, "Disabled inject should not trigger MISSING_CONTENT check");
   }
 
   @Test

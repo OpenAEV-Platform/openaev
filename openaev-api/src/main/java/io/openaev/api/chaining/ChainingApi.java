@@ -1,6 +1,5 @@
 package io.openaev.api.chaining;
 
-import static io.openaev.api.chaining.ChainingApi.CHAINING_URI;
 import static io.openaev.api.chaining.ChainingApi.TENANT_CHAINING_URI;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.helper.StreamHelper.iterableToSet;
@@ -11,7 +10,9 @@ import io.openaev.api.chaining.dto.ChainingOutput;
 import io.openaev.api.chaining.dto.EventOutput;
 import io.openaev.api.chaining.dto.StepOutput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
+import io.openaev.database.model.TenantSettingKeys;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.helper.StreamHelper;
 import io.openaev.rest.custom_dashboard.CustomDashboardService;
@@ -21,11 +22,11 @@ import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.scenario.form.ScenarioInput;
-import io.openaev.service.PlatformSettingsService;
 import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
+import io.openaev.service.settings.TenantSettingsService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -42,21 +43,21 @@ import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping({CHAINING_URI, TENANT_CHAINING_URI})
+@RequestMapping(TENANT_CHAINING_URI)
 @Tag(
     name = "Chaining API",
     description =
         "Operations related to Chaining feature, including conditions, steps, simulations and scenarios chaining.")
 public class ChainingApi extends RestBehavior {
 
-  public static final String TENANT_CHAINING_URI = TENANT_PREFIX + "/chaining";
-  public static final String CHAINING_URI = "/api/chaining";
+  public static final String CHAINING_URI = "/chaining";
   public static final String SIMULATION_URI = "/simulations";
   public static final String SCENARIO_URI = "/scenarios";
+  public static final String TENANT_CHAINING_URI = TENANT_PREFIX + CHAINING_URI;
 
   private final ExerciseService exerciseService;
   private final CustomDashboardService customDashboardService;
-  private final PlatformSettingsService platformSettingsService;
+  private final TenantSettingsService tenantSettingsService;
   private final ScenarioService scenarioService;
   private final WorkflowService workflowService;
   private final StepService stepService;
@@ -102,8 +103,10 @@ public class ChainingApi extends RestBehavior {
           this.customDashboardService.customDashboard(input.getCustomDashboard()));
     } else {
       simulation.setCustomDashboard(
-          this.platformSettingsService
-              .setting(SettingKeys.DEFAULT_SIMULATION_DASHBOARD.key())
+          this.tenantSettingsService
+              .findSetting(
+                  TenantContext.getCurrentTenant(),
+                  TenantSettingKeys.TENANT_SIMULATION_DASHBOARD.key())
               .map(Setting::getValue)
               .filter(v -> !v.isEmpty())
               .map(this.customDashboardService::customDashboard)
@@ -186,8 +189,10 @@ public class ChainingApi extends RestBehavior {
           this.customDashboardService.customDashboard(input.getCustomDashboard()));
     } else {
       scenario.setCustomDashboard(
-          this.platformSettingsService
-              .setting(SettingKeys.DEFAULT_SCENARIO_DASHBOARD.key())
+          this.tenantSettingsService
+              .findSetting(
+                  TenantContext.getCurrentTenant(),
+                  TenantSettingKeys.TENANT_SCENARIO_DASHBOARD.key())
               .map(Setting::getValue)
               .filter(v -> !v.isEmpty())
               .map(this.customDashboardService::customDashboard)

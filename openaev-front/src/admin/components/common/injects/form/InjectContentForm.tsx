@@ -54,8 +54,13 @@ const InjectContentForm = ({
   const ability = useContext(AbilityContext);
 
   const renderTitle = (title: string, required: boolean = false, err: boolean = false) => {
+    const getTitleColor = () => {
+      if (err) return 'error';
+      if (readOnly) return 'text.disabled';
+      return 'textPrimary';
+    };
     return (
-      <Typography variant="h5" color={err ? 'error' : 'textPrimary'}>
+      <Typography variant="h5" color={getTitleColor()}>
         {title}
         {required ? '*' : '' }
       </Typography>

@@ -2,6 +2,7 @@ package io.openaev.scheduler.jobs;
 
 import static io.openaev.database.specification.ExerciseSpecification.recurringInstanceNotStarted;
 
+import io.openaev.aop.BypassRls;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Scenario;
@@ -39,6 +40,7 @@ public class ScenarioExecutionJob implements Job {
   @Override
   @Transactional(rollbackFor = Exception.class)
   @LogExecutionTime
+  @BypassRls
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
     createExercisesFromScenarios();
     cleanOutdatedRecurringScenario();

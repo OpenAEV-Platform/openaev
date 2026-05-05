@@ -12,6 +12,8 @@ import io.openaev.datapack.DataPack;
 import io.openaev.datapack.PresetTenantData;
 import io.openaev.service.DataPackService;
 import io.openaev.service.RoleService;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +28,7 @@ public class V20260330_Default_tenant_data extends DataPack {
   private final RoleService roleService;
   private final GroupRepository groupRepository;
   private final UserRepository userRepository;
+  @PersistenceContext private EntityManager entityManager;
 
   public V20260330_Default_tenant_data(
       DataPackService dataPackService,
@@ -47,13 +50,14 @@ public class V20260330_Default_tenant_data extends DataPack {
     try {
       if (!Tenant.DEFAULT_TENANT_UUID.equals(TenantContext.getCurrentTenant())) {
         // Init vulnerabilities
-        PresetTenantData.DEFAULT_VULNERABILITY_CWES.forEach(
-            input -> {
-              Cwe cwe = cweRepository.save(input.cwe());
-              Vulnerability vulnerability = input.vulnerability();
-              vulnerability.setCwes(new ArrayList<>(List.of(cwe)));
-              vulnerabilityRepository.save(vulnerability);
-            });
+        PresetTenantData.createDefaultVulnerabilityCwes()
+            .forEach(
+                input -> {
+                  Cwe cwe = cweRepository.save(input.cwe());
+                  Vulnerability vulnerability = input.vulnerability();
+                  vulnerability.setCwes(new ArrayList<>(List.of(cwe)));
+                  vulnerabilityRepository.save(vulnerability);
+                });
         // Init roles/groups and the current user (if he exists) to admin group/role for the new
         // tenant created
         PresetTenantData.DEFAULT_ROLES.forEach(
@@ -63,6 +67,8 @@ public class V20260330_Default_tenant_data extends DataPack {
               group.setName(roleName);
               group.setDescription(roleName);
               group.setDefaultUserAssignation(false);
+              group.setTenant(
+                  entityManager.getReference(Tenant.class, TenantContext.getCurrentTenant()));
               group.setRoles(List.of(role));
               if (PresetTenantData.ADMIN.equals(roleName)) {
                 userRepository

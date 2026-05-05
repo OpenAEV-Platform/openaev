@@ -1,0 +1,56 @@
+name: Frontend Quality & Unit Tests
+description: >
+  Run TypeScript checks, ESLint, i18n validation, and Vitest unit tests.
+  Uploads coverage report as an artifact.
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Node.js 22.11
+      uses: actions/setup-node@v6
+      with:
+        node-version: "22.11.0"
+    - name: Install corepack
+      run: npm install -g corepack
+      shell: bash
+    - name: Get Yarn cache directory
+      id: yarn-cache-dir
+      run: echo "dir=$(yarn config get cacheFolder)" >> "$GITHUB_OUTPUT"
+      shell: bash
+      working-directory: openaev-front
+    - name: Cache Yarn dependencies
+      uses: actions/cache@v5
+      with:
+        path: ${{ steps.yarn-cache-dir.outputs.dir }}
+        key: ${{ runner.os }}-yarn-${{ hashFiles('openaev-front/yarn.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-yarn-
+    - name: Install dependencies
+      run: yarn install --immutable
+      shell: bash
+      working-directory: openaev-front
+    - name: TypeScript check
+      run: yarn check-ts
+      shell: bash
+      working-directory: openaev-front
+    - name: Run ESLint
+      run: yarn lint
+      shell: bash
+      working-directory: openaev-front
+    - name: Check i18n translations
+      run: yarn i18n-checker
+      shell: bash
+      working-directory: openaev-front
+    - name: Run unit tests
+      run: yarn test -- --coverage
+      shell: bash
+      working-directory: openaev-front
+      env:
+        NODE_OPTIONS: --max_old_space_size=8192
+    - name: Upload frontend coverage report
+      if: ${{ !cancelled() }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: vitest-coverage
+        path: openaev-front/coverage/
+

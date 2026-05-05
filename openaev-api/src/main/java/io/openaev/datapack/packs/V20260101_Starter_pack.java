@@ -1,5 +1,6 @@
 package io.openaev.datapack.packs;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.SettingRepository;
 import io.openaev.datapack.DataPack;
@@ -51,9 +52,10 @@ public class V20260101_Starter_pack extends DataPack {
 
   private static final Map<String, String> DASHBOARD_PREFIX_TO_SETTING_KEY =
       Map.of(
-          Config.DEFAULT_FILE_DASHBOARD_HOME, SettingKeys.DEFAULT_HOME_DASHBOARD.key(),
-          Config.DEFAULT_FILE_DASHBOARD_SCENARIO, SettingKeys.DEFAULT_SCENARIO_DASHBOARD.key(),
-          Config.DEFAULT_FILE_DASHBOARD_SIMULATION, SettingKeys.DEFAULT_SIMULATION_DASHBOARD.key());
+          Config.DEFAULT_FILE_DASHBOARD_HOME, TenantSettingKeys.TENANT_HOME_DASHBOARD.key(),
+          Config.DEFAULT_FILE_DASHBOARD_SCENARIO, TenantSettingKeys.TENANT_SCENARIO_DASHBOARD.key(),
+          Config.DEFAULT_FILE_DASHBOARD_SIMULATION,
+              TenantSettingKeys.TENANT_SIMULATION_DASHBOARD.key());
 
   private static final class HoneyScanMeEndpoint {
 
@@ -92,7 +94,7 @@ public class V20260101_Starter_pack extends DataPack {
       return false;
     }
 
-    if (this.settingRepository.findByKey(Config.STARTER_PACK_KEY).isPresent()) {
+    if (this.settingRepository.findByKeyAndTenantIsNull(Config.STARTER_PACK_KEY).isPresent()) {
       log.info("Starter pack already initialized");
       return true;
     }
@@ -233,8 +235,17 @@ public class V20260101_Starter_pack extends DataPack {
             .orElse(null);
 
     if (settingKey != null) {
+      String tenantId = TenantContext.getCurrentTenant();
+      Tenant tenant = new Tenant(tenantId);
       Setting defaultDashboardSetting =
-          settingRepository.findByKey(settingKey).orElse(new Setting(settingKey, null));
+          settingRepository
+              .findByKeyAndTenantId(settingKey, tenantId)
+              .orElseGet(
+                  () -> {
+                    Setting s = new Setting(settingKey, null);
+                    s.setTenant(tenant);
+                    return s;
+                  });
       defaultDashboardSetting.setValue(dashboardId);
       settingRepository.save(defaultDashboardSetting);
     }

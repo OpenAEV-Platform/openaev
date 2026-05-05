@@ -10,9 +10,9 @@ import io.openaev.database.model.Group;
 import io.openaev.database.model.User;
 import io.openaev.opencti.connectors.Constants;
 import io.openaev.service.UserMappingService;
-import io.openaev.utils.fixtures.GroupFixture;
+import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.UserFixture;
-import io.openaev.utils.fixtures.composers.GroupComposer;
+import io.openaev.utils.fixtures.composers.TenantGroupComposer;
 import io.openaev.utils.fixtures.composers.UserComposer;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
@@ -34,14 +34,14 @@ import org.springframework.test.util.ReflectionTestUtils;
 @Transactional
 public class UserMappingServiceTest extends IntegrationTest {
 
-  @Autowired private GroupComposer groupComposer;
+  @Autowired private TenantGroupComposer tenantGroupComposer;
   @Autowired UserComposer userComposer;
   @Autowired private UserMappingService userMappingService;
   @Autowired protected EntityManager entityManager;
 
   @BeforeEach
   public void setup() {
-    groupComposer.reset();
+    tenantGroupComposer.reset();
   }
 
   @Test
@@ -52,11 +52,11 @@ public class UserMappingServiceTest extends IntegrationTest {
     // -- ARRANGE ---
     String object =
         "[{\"idpGroup\": \"observer\",\"userGroup\": \"observerUserGroup\",\"autoCreate\": \"false\"}]";
-    Group specificGroup = GroupFixture.createGroupWithName("observerUserGroup");
+    Group specificGroup = TenantGroupFixture.getGroup("observerUserGroup");
     specificGroup.setId(Constants.PROCESS_STIX_GROUP_ID);
     specificGroup.setDescription("a description");
     specificGroup.setRoles(new ArrayList<>());
-    groupComposer.forGroup(specificGroup).persist();
+    tenantGroupComposer.forGroup(specificGroup).persist();
     entityManager.flush();
     entityManager.clear();
     User user = UserFixture.getUser();
@@ -121,11 +121,11 @@ public class UserMappingServiceTest extends IntegrationTest {
     // -- ARRANGE ---
     String object =
         "[{\"idpGroup\": \"observer\",\"userGroup\": \"admin\",\"autoCreate\": \"false\"}]";
-    Group specificGroup = GroupFixture.createGroupWithName("admin");
+    Group specificGroup = TenantGroupFixture.getGroup("admin");
     specificGroup.setId(Constants.PROCESS_STIX_GROUP_ID);
     specificGroup.setDescription("a description");
     specificGroup.setRoles(new ArrayList<>());
-    groupComposer.forGroup(specificGroup).persist();
+    tenantGroupComposer.forGroup(specificGroup).persist();
     entityManager.flush();
     entityManager.clear();
     User user = UserFixture.getUser();
@@ -148,11 +148,11 @@ public class UserMappingServiceTest extends IntegrationTest {
     // -- ARRANGE ---
     String object =
         "[{\"idpGroup\": \"observer\",\"userGroup\": \"admin1\",\"autoCreate\": \"false\"},{\"idpGroup\": \"observer\",\"userGroup\": \"admin2\",\"autoCreate\": \"true\"}]";
-    Group specificGroup = GroupFixture.createGroupWithName("observer");
+    Group specificGroup = TenantGroupFixture.getGroup("observer");
     specificGroup.setId(Constants.PROCESS_STIX_GROUP_ID);
     specificGroup.setDescription("a description");
     specificGroup.setRoles(new ArrayList<>());
-    groupComposer.forGroup(specificGroup).persist();
+    tenantGroupComposer.forGroup(specificGroup).persist();
     entityManager.flush();
     entityManager.clear();
     User user = UserFixture.getUser();
@@ -176,16 +176,16 @@ public class UserMappingServiceTest extends IntegrationTest {
     // -- ARRANGE ---
     String object =
         "[{\"idpGroup\": \"observer1\",\"userGroup\": \"observerOAEV1\",\"autoCreate\": \"true\"},{\"idpGroup\": \"observer2\",\"userGroup\": \"observerOAEV2\",\"autoCreate\": \"true\"}]";
-    Group specificGroup1 = GroupFixture.createGroupWithName("observerOAEV1");
+    Group specificGroup1 = TenantGroupFixture.getGroup("observerOAEV1");
     specificGroup1.setId(Constants.PROCESS_STIX_GROUP_ID);
     specificGroup1.setDescription("a description");
     specificGroup1.setRoles(new ArrayList<>());
-    groupComposer.forGroup(specificGroup1).persist();
-    Group specificGroup2 = GroupFixture.createGroupWithName("observerOAEV2");
+    tenantGroupComposer.forGroup(specificGroup1).persist();
+    Group specificGroup2 = TenantGroupFixture.getGroup("observerOAEV2");
     specificGroup2.setId(Constants.PROCESS_STIX_ROLE_ID);
     specificGroup2.setDescription("a description");
     specificGroup2.setRoles(new ArrayList<>());
-    groupComposer.forGroup(specificGroup2).persist();
+    tenantGroupComposer.forGroup(specificGroup2).persist();
     entityManager.flush();
     entityManager.clear();
     User user = UserFixture.getUser();

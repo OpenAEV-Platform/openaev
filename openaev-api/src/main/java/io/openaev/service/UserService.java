@@ -15,6 +15,7 @@ import io.openaev.config.SessionManager;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.TagRepository;
+import io.openaev.database.repository.TenantRepository;
 import io.openaev.database.repository.TokenRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.database.specification.GroupSpecification;
@@ -88,6 +89,7 @@ public class UserService {
   private final TagRepository tagRepository;
   private final GroupRepository groupRepository;
   private final TokenRepository tokenRepository;
+  private final TenantRepository tenantRepository;
   private final ReferenceResolver referenceResolver;
   private final CacheManager cacheManager;
   private MailingService mailingService;
@@ -127,6 +129,10 @@ public class UserService {
     user.setUpdateAttributes(input);
     user.setTags(referenceResolver.resolve(input.tagIds(), Tag.class, tagRepository::countByIdIn));
     user.setOrganization(referenceResolver.resolve(input.organizationId(), Organization.class));
+    user.setTenants(
+        new ArrayList<>(
+            referenceResolver.resolve(
+                input.tenantIds(), Tenant.class, tenantRepository::countByIdIn)));
     return createUser(user, input.plainPassword(), UUID.randomUUID().toString());
   }
 
@@ -150,7 +156,7 @@ public class UserService {
       user.setPassword(this.encodeUserPassword(password));
     }
     List<Group> assignableGroups =
-        groupRepository.findAll(GroupSpecification.defaultUserAssignable());
+        groupRepository.findAll(GroupSpecification.defaultUserAssignablePlatform());
     user.setGroups(assignableGroups);
     User savedUser = userRepository.save(user);
     this.createUserToken(savedUser, token);
@@ -191,7 +197,7 @@ public class UserService {
                 specCount,
                 pageable,
                 (cq, root) -> UserQueryHelper.select(cb, cq, root),
-                UserQueryHelper::execution),
+                UserQueryHelper::executionWithTenants),
         searchPaginationInput,
         User.class);
   }
@@ -205,6 +211,10 @@ public class UserService {
     existing.setTags(
         referenceResolver.resolve(input.tagIds(), Tag.class, tagRepository::countByIdIn));
     existing.setOrganization(referenceResolver.resolve(input.organizationId(), Organization.class));
+    existing.setTenants(
+        new ArrayList<>(
+            referenceResolver.resolve(
+                input.tenantIds(), Tenant.class, tenantRepository::countByIdIn)));
     if (StringUtils.hasLength(input.plainPassword())) {
       existing.setPassword(this.encodeUserPassword(input.plainPassword()));
     }

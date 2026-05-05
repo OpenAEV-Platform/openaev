@@ -1,0 +1,38 @@
+name: Frontend Build
+description: Install frontend dependencies, build production bundle, and upload artifact
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Node.js 22.11
+      uses: actions/setup-node@v6
+      with:
+        node-version: "22.11.0"
+    - name: Install corepack
+      run: npm install -g corepack
+      shell: bash
+    - name: Get Yarn cache directory
+      id: yarn-cache-dir
+      run: echo "dir=$(yarn config get cacheFolder)" >> "$GITHUB_OUTPUT"
+      shell: bash
+      working-directory: openaev-front
+    - name: Cache Yarn dependencies
+      uses: actions/cache@v5
+      with:
+        path: ${{ steps.yarn-cache-dir.outputs.dir }}
+        key: ${{ runner.os }}-yarn-${{ hashFiles('openaev-front/yarn.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-yarn-
+    - name: Install dependencies
+      run: yarn install --immutable
+      shell: bash
+      working-directory: openaev-front
+    - name: Build frontend
+      run: yarn build
+      shell: bash
+      working-directory: openaev-front
+    - name: Upload frontend build artifact
+      uses: actions/upload-artifact@v7
+      with:
+        name: frontend-build
+        path: openaev-front/builder/prod/build/

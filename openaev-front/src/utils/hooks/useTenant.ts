@@ -5,7 +5,7 @@ import { fetchUserTenants } from '../../actions/user/user-tenant-actions';
 import { TENANT_SWITCH_SUCCESS } from '../../constants/ActionTypes';
 import { type TenantOutput, type User } from '../api-types';
 import { useAppDispatch } from '../hooks';
-import { buildTenantUrl, extractTenantFromUrl } from '../url-helper';
+import { buildTenantUrl, extractTenantFromUrl, stripDetailSegments } from '../url-helper';
 
 /**
  * Internal hook that encapsulates the current-tenant state and
@@ -42,8 +42,8 @@ const useTenantState = () => {
  * After login (when the URL has no tenant segment yet), the hook
  * falls back to the first tenant in the user's tenant list.
  */
-const useTenant = (me: User | undefined, logged: unknown, isPlatformRoute: boolean) => {
-  const [userTenants, setUserTenants] = useState<TenantOutput[]>([]);
+const useTenant = (me: User | undefined, logged: unknown) => {
+  const [userTenants, setUserTenants] = useState<TenantOutput[] | undefined>(undefined);
   const { currentUserTenant, setTenant } = useTenantState();
   const location = useLocation();
 
@@ -57,9 +57,12 @@ const useTenant = (me: User | undefined, logged: unknown, isPlatformRoute: boole
     const target = tenants.find(t => t.tenant_id === tenantId);
     if (!target) return false;
     if (extractTenantFromUrl() !== target.tenant_id) {
+      // Switching to a different tenant — strip detail segments so we land on
+      // the list page instead of a detail page for a resource that may not exist.
+      const safePath = stripDetailSegments(location.pathname);
       // Full page navigation — the reload will re-initialise tenant state,
       // so we intentionally skip setTenant to avoid a broken intermediate render.
-      window.location.href = buildTenantUrl(target.tenant_id, location.pathname, location.search, location.hash);
+      window.location.href = buildTenantUrl(target.tenant_id, safePath);
     } else {
       setTenant(target);
     }
@@ -74,11 +77,6 @@ const useTenant = (me: User | undefined, logged: unknown, isPlatformRoute: boole
 
     if (tenants && tenants.length > 0) {
       setUserTenants(tenants);
-
-      // Platform routes are tenant-agnostic
-      if (isPlatformRoute) {
-        return;
-      }
 
       // If a preferred tenant is requested, switch to it
       if (newCurrentTenantId && navigateToTenant(newCurrentTenantId, tenants)) {
@@ -109,7 +107,7 @@ const useTenant = (me: User | undefined, logged: unknown, isPlatformRoute: boole
     if (tenantId === currentUserTenant?.tenant_id) {
       return;
     }
-    navigateToTenant(tenantId, userTenants);
+    navigateToTenant(tenantId, userTenants ?? []);
   }, [currentUserTenant, userTenants, navigateToTenant]);
 
   return {
