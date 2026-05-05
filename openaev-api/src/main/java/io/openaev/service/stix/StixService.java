@@ -5,6 +5,7 @@ import io.openaev.database.model.SecurityCoverage;
 import io.openaev.opencti.errors.ConnectorError;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.stix.parsing.ParsingException;
+import io.openaev.utils.SecurityCoverageUtils;
 import java.io.IOException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,8 +15,9 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 @Service
 public class StixService {
-
+  private final Parser stixParser;
   private final SecurityCoverageService securityCoverageService;
+  private final SecurityCoverageUtils securityCoverageUtils;
 
   /**
    * Generate or update a Scenario from Stix bundle
@@ -30,14 +32,14 @@ public class StixService {
     return processSecurityCoverage(bundle);
   }
 
-      // Update Scenario using the last SecurityCoverage
-      Scenario scenario =
-          securityCoverageService.buildScenarioFromSecurityCoverage(securityCoverage);
-      securityCoverageService.pushSecurityCoverageBundleWithExternalURI(scenario);
-      return scenario;
-    } catch (BadRequestException | ParsingException e) {
-      throw e;
-    }
+  private Scenario processSecurityCoverage(Bundle bundle)
+      throws BundleValidationError, ParsingException, ConnectorError, IOException {
+    ObjectBase securityCoverageObj = securityCoverageUtils.extractAndValidateCoverage(bundle);
+    String securityCoverageStixId =
+        securityCoverageObj.getRequiredProperty(CommonProperties.ID.toString());
+
+    return securityCoverageService.handleSecurityCoverageProcessing(
+        securityCoverageStixId, securityCoverageObj, bundle);
   }
 
   /**
