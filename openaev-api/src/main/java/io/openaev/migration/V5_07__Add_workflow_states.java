@@ -1,12 +1,13 @@
 package io.openaev.migration;
 
-import java.sql.Statement;
 import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
+import java.sql.Statement;
+
 @Component
-public class V5_05__Add_workflow_states extends BaseJavaMigration {
+public class V5_07__Add_workflow_states extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
