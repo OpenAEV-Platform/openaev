@@ -1,11 +1,4 @@
-import { type User, type UserInput } from '../../utils/api-types';
-import type { Option } from '../../utils/Option';
-
-export type UserInputForm = Omit<UserInput, 'user_organization' | 'user_tags' | 'user_tenants'> & {
-  user_organization?: Option;
-  user_tags?: Option[];
-  user_tenants?: Option[];
-};
+import { type User } from '../../utils/api-types';
 
 export type UserType = 'PLATFORM' | 'TENANT';
 
