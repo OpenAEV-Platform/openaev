@@ -46,9 +46,7 @@ const useDomainIconFilter = ({
     if (!filterHelpers) return;
 
     const domainFilter = searchPaginationInput?.filterGroup?.filters?.find(({ key }) => key === domainFilterKey);
-    const currentSelectedDomains = Array.isArray(domainFilter?.values)
-      ? domainFilter.values
-      : [];
+    const currentSelectedDomains = domainFilter?.values ?? [];
 
     const nextSelectedDomains = currentSelectedDomains.includes(domainId)
       ? currentSelectedDomains.filter(id => id !== domainId)
@@ -106,7 +104,7 @@ const useDomainIconFilter = ({
       ({ key }) => key === domainFilterKey,
     );
 
-    setSelectedDomains(Array.isArray(domainFilter?.values) ? (domainFilter.values) : []);
+    setSelectedDomains(domainFilter?.values ?? []);
   }, [domainFilterKey, searchPaginationInput?.filterGroup]);
 
   const iconBarElements = useMemo(
