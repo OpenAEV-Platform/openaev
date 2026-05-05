@@ -2,7 +2,6 @@ package io.openaev.service;
 
 import static io.openaev.database.specification.GroupSpecification.tenantScope;
 import static java.util.stream.Collectors.toList;
-import static java.util.stream.StreamSupport.stream;
 
 import io.openaev.api.groups.dto.TenantGroupCreateInput;
 import io.openaev.context.TenantContext;
@@ -24,7 +23,6 @@ import jakarta.persistence.PersistenceContext;
 import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 import java.util.Optional;
-import java.util.Spliterator;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -153,9 +151,11 @@ public class TenantGroupService {
         groupRepository
             .findByIdAndTenantId(groupId, tenantId)
             .orElseThrow(ElementNotFoundException::new);
-    Spliterator<User> userSpliterator =
-        userRepository.findAllById(input.getUserIds()).spliterator();
-    group.setUsers(stream(userSpliterator, false).collect(toList()));
+    List<User> users = userRepository.findAllByIdInAndTenantId(input.getUserIds(), tenantId);
+    if (users.size() != input.getUserIds().size()) {
+      throw new ElementNotFoundException("One or more users not found in the current tenant");
+    }
+    group.setUsers(users);
     return groupRepository.save(group);
   }
 
