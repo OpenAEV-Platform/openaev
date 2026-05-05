@@ -63,6 +63,7 @@ spring.security.oauth2.client.registration.auth0.client-id=ChangeMe
 spring.security.oauth2.client.registration.auth0.client-secret=ChangeMe
 spring.security.oauth2.client.registration.auth0.redirect-uri=${openaev.base-url}/login/oauth2/code/auth0
 spring.security.oauth2.client.registration.auth0.scope=openid,profile,email,group
+#openaev.provider.auth0.groups_management=
 openaev.provider.auth0.roles_path=https://xtm-hub-development/groups
 
 ### GitHub / Facebook or any other pre handled OAuth2
@@ -85,6 +86,7 @@ openaev.provider.microsoft.lastname_attribute_key=http://schemas.xmlsoap.org/ws/
 ### To handle admin with sso
 #openaev.provider.microsoft.roles_path=http://schemas.microsoft.com/ws/2008/06/identity/claims/groups
 #openaev.provider.{registrationId}.roles_admin=
+#openaev.provider.microsoft.groups_management=
 
 openaev.logout-success-url=/
 ## Kerberos
