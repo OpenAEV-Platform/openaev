@@ -168,10 +168,11 @@ public class InjectExecutionStep implements ActionStep {
     readyStep.setData(data);
 
     // EXECUTE INJECT — failure must NOT roll back inject creation
+    // direct=false so that expectations are created (buildAndSaveInjectExpectations skips direct injects)
     ExecutableInject executableInject =
         new ExecutableInject(
             true,
-            true,
+            false,
             inject,
             inject.getTeams(),
             inject.getAssets(),
@@ -179,7 +180,7 @@ public class InjectExecutionStep implements ActionStep {
             List.of()); // TODO Check users?
 
     try {
-      executor.directExecute(executableInject);
+      executor.execute(executableInject);
     } catch (Exception e) {
       log.error(
           "Inject execution failed (inject {} persisted). {}",
