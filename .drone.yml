@@ -14,6 +14,8 @@ steps:
       SPRING_DATASOURCE_URL: jdbc:postgresql://pgsql:5432/openaev
       SPRING_DATASOURCE_USERNAME: openaev
       SPRING_DATASOURCE_PASSWORD: openaev
+      SPRING_FLYWAY_USER: openaev
+      SPRING_FLYWAY_PASSWORD: openaev
       MINIO_ENDPOINT: minio
       MINIO_PORT: 9000
       ENGINE_URL: http://elastic:9200
