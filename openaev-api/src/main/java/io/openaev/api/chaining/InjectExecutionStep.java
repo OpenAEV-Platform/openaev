@@ -151,6 +151,8 @@ public class InjectExecutionStep implements ActionStep {
   public Optional<Step> run(Step readyStep) throws ChainingException {
     // CALL BY QUEUE READY
     Inject inject = getInjectFromDataStep(readyStep);
+    // RESOLVE SCOPE RULES → attach assets/assetGroups from workflow configuration
+    applyScopeRulesToInject(readyStep.getWorkflow(), inject);
     // CREATE & SAVE INJECT
     if (inject.getDependsDuration() == null) {
       inject.setDependsDuration(0L);
@@ -623,6 +625,92 @@ public class InjectExecutionStep implements ActionStep {
 
     } catch (JsonProcessingException e) {
       throw new ChainingException("Step (READY) : Error processing JSON to Inject ", e);
+    }
+  }
+
+  /**
+   * Resolves workflow scope rules into concrete assets and asset groups on the inject.
+   *
+   * <p>ALLOWLIST rules add assets/groups; DENYLIST rules remove them. For MANUAL/CSV rules with
+   * IP, subnet, or domain values, matching assets are looked up via the endpoint repository.
+   */
+  private void applyScopeRulesToInject(Workflow workflow, Inject inject) {
+    if (workflow == null) {
+      return;
+    }
+    Hibernate.initialize(workflow.getWorkflowScopeRules());
+    List<WorkflowScopeRule> rules = workflow.getWorkflowScopeRules();
+    if (rules == null || rules.isEmpty()) {
+      return;
+    }
+
+    Set<String> allowAssetIds = new LinkedHashSet<>();
+    Set<String> allowGroupIds = new LinkedHashSet<>();
+    Set<String> denyAssetIds = new HashSet<>();
+    Set<String> denyGroupIds = new HashSet<>();
+
+    for (WorkflowScopeRule rule : rules) {
+      String value = rule.getRuleValue();
+      if (value == null || value.isBlank()) {
+        continue;
+      }
+      boolean isAllow = ScopeRuleSelectedMode.ALLOWLIST.equals(rule.getSelectedMode());
+      Set<String> targetAssets = isAllow ? allowAssetIds : denyAssetIds;
+      Set<String> targetGroups = isAllow ? allowGroupIds : denyGroupIds;
+
+      switch (rule.getRuleSource()) {
+        case ASSET -> targetAssets.add(value);
+        case ASSET_GROUP -> targetGroups.add(value);
+        case MANUAL, CSV -> {
+          // For IP/subnet/domain entries, resolve matching assets
+          List<Asset> matched = resolveManualScopeAssets(value, rule.getValueType());
+          matched.forEach(a -> targetAssets.add(a.getId()));
+        }
+      }
+    }
+
+    // Remove denied entries from allow sets
+    allowAssetIds.removeAll(denyAssetIds);
+    allowGroupIds.removeAll(denyGroupIds);
+
+    if (!allowAssetIds.isEmpty()) {
+      List<Asset> assets = assetService.assets(new ArrayList<>(allowAssetIds));
+      inject.setAssets(assets);
+    }
+    if (!allowGroupIds.isEmpty()) {
+      List<AssetGroup> groups = assetGroupService.assetGroups(new ArrayList<>(allowGroupIds));
+      inject.setAssetGroups(groups);
+    }
+  }
+
+  /**
+   * Resolves a manual/CSV scope entry (IP, subnet, or domain) to matching Asset entities.
+   */
+  private List<Asset> resolveManualScopeAssets(String value, ScopeRuleValueType valueType) {
+    if (valueType == null) {
+      return List.of();
+    }
+    try {
+      return switch (valueType) {
+        case IP ->
+            em.createNativeQuery(
+                    "SELECT * FROM assets WHERE asset_id IN "
+                        + "(SELECT asset_id FROM endpoints WHERE :ip = ANY(endpoint_ips))",
+                    Asset.class)
+                .setParameter("ip", value)
+                .getResultList();
+        case DOMAIN ->
+            em.createNativeQuery(
+                    "SELECT * FROM assets WHERE asset_id IN "
+                        + "(SELECT asset_id FROM endpoints WHERE endpoint_hostname = :hostname)",
+                    Asset.class)
+                .setParameter("hostname", value.toLowerCase())
+                .getResultList();
+        case IP_SUBNET, ASSET_ID, ASSET_GROUP_ID -> List.of();
+      };
+    } catch (Exception e) {
+      log.warn("Failed to resolve manual scope entry '{}' (type={}): {}", value, valueType, e.getMessage());
+      return List.of();
     }
   }
 
