@@ -10,6 +10,7 @@ CREATE USER openaev_owner WITH PASSWORD 'openaev' NOSUPERUSER CREATEROLE;
 -- 3. Grant the app role to the owner (so SET ROLE works at runtime)
 GRANT openaev_app TO openaev_owner;
 
--- 4. Make openaev_owner the owner of the database
+-- 4. Make openaev_owner the owner of the database and public schema
 ALTER DATABASE openaev OWNER TO openaev_owner;
+ALTER SCHEMA public OWNER TO openaev_owner;
 
