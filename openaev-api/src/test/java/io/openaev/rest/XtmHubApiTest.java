@@ -15,7 +15,6 @@ import io.openaev.IntegrationTest;
 import io.openaev.api.xtmhub.XtmHubApi;
 import io.openaev.api.xtmhub.XtmHubContactUsInput;
 import io.openaev.api.xtmhub.XtmHubRegisterInput;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantXtmHubRegistration;
 import io.openaev.database.repository.TenantXtmHubRegistrationRepository;
@@ -47,6 +46,7 @@ public class XtmHubApiTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private TenantXtmHubRegistrationRepository tenantXtmHubRegistrationRepository;
   @Autowired private TenantComposer tenantComposer;
+  @Autowired private io.openaev.utils.TenantIsolationTestHelper tenantIsolationTestHelper;
 
   @Test
   @WithMockUser(isAdmin = true)
@@ -167,8 +167,7 @@ public class XtmHubApiTest extends IntegrationTest {
       throws Exception {
     // Setup: create a second tenant and switch context to it
     Tenant customTenant = tenantComposer.forTenant(TenantFixture.getTenant()).persist().get();
-    entityManager.flush();
-    TenantContext.setCurrentTenant(customTenant.getId());
+    tenantIsolationTestHelper.switchToTenant(customTenant.getId(), entityManager);
 
     XtmHubRegisterInput input = new XtmHubRegisterInput();
     input.setToken("custom-tenant-token");

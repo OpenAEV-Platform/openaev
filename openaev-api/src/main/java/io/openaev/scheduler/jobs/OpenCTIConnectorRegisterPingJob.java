@@ -1,5 +1,6 @@
 package io.openaev.scheduler.jobs;
 
+import io.openaev.aop.BypassRls;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +20,7 @@ public class OpenCTIConnectorRegisterPingJob implements Job {
 
   @Override
   @LogExecutionTime
+  @BypassRls
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
     openCTIConnectorService.registerOrPingAllConnectors();
   }
