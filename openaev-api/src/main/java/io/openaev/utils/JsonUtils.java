@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.google.gson.Gson;
 import io.openaev.helper.ObjectMapperHelper;
 
 /**
@@ -18,6 +19,8 @@ import io.openaev.helper.ObjectMapperHelper;
  * @see io.openaev.helper.ObjectMapperHelper
  */
 public class JsonUtils {
+
+  public static final Gson gson = new Gson();
 
   private JsonUtils() {}
 

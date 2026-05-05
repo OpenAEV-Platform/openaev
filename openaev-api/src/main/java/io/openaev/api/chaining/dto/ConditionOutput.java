@@ -17,6 +17,9 @@ public class ConditionOutput {
   @JsonProperty("condition_id")
   private String id;
 
+  @JsonProperty("condition_key")
+  private String key;
+
   @JsonProperty("condition_key_type")
   private ConditionKeyType keyType;
 

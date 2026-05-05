@@ -414,6 +414,8 @@ public class InjectApi extends RestBehavior {
             description =
                 "The inject to update was not in a valid state in regards to the requested action. Retry in a few seconds."),
       })
+  // fixme: remove or adapt for LEGACY_INGESTION_EXECUTION_TRACE
+  // @WorkflowUpdateEvent(injectId = "#injectId")
   public void injectExecutionCallback(
       @PathVariable
           String agentId, // must allow null because http injector used also this method to work.

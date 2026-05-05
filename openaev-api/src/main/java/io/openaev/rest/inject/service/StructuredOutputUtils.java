@@ -24,7 +24,7 @@ public class StructuredOutputUtils {
   private final OutputProcessorFactory outputProcessorFactory;
   @Resource private final ObjectMapper mapper;
 
-  Set<OutputParser> extractOutputParsers(Inject inject) {
+  public Set<OutputParser> extractOutputParsers(Inject inject) {
     Optional<Payload> optionalPayload = inject.getPayload();
     if (optionalPayload.isEmpty()) {
       log.info("No payload found for inject: " + inject.getId());
