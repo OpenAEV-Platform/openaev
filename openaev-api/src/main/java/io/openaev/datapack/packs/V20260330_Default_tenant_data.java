@@ -50,13 +50,14 @@ public class V20260330_Default_tenant_data extends DataPack {
     try {
       if (!Tenant.DEFAULT_TENANT_UUID.equals(TenantContext.getCurrentTenant())) {
         // Init vulnerabilities
-        PresetTenantData.DEFAULT_VULNERABILITY_CWES.forEach(
-            input -> {
-              Cwe cwe = cweRepository.save(input.cwe());
-              Vulnerability vulnerability = input.vulnerability();
-              vulnerability.setCwes(new ArrayList<>(List.of(cwe)));
-              vulnerabilityRepository.save(vulnerability);
-            });
+        PresetTenantData.createDefaultVulnerabilityCwes()
+            .forEach(
+                input -> {
+                  Cwe cwe = cweRepository.save(input.cwe());
+                  Vulnerability vulnerability = input.vulnerability();
+                  vulnerability.setCwes(new ArrayList<>(List.of(cwe)));
+                  vulnerabilityRepository.save(vulnerability);
+                });
         // Init roles/groups and the current user (if he exists) to admin group/role for the new
         // tenant created
         PresetTenantData.DEFAULT_ROLES.forEach(

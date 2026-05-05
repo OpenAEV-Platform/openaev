@@ -1,11 +1,11 @@
 import { type FunctionComponent, useCallback, useContext, useMemo, useState } from 'react';
 
-import { type UserInputForm, type UserType } from '../../../../../actions/users/users-helper';
+import { type UserType } from '../../../../../actions/users/users-helper';
 import ButtonPopover from '../../../../../components/common/ButtonPopover';
 import DialogDelete from '../../../../../components/common/DialogDelete';
 import Drawer from '../../../../../components/common/Drawer';
 import { useFormatter } from '../../../../../components/i18n';
-import { type ChangePasswordInput, type UserOutput } from '../../../../../utils/api-types';
+import { type ChangePasswordInput, type UserInput, type UserOutput } from '../../../../../utils/api-types';
 import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
 import { type Actions, type Subjects } from '../../../../../utils/permissions/types';
 import UserPasswordForm from './UserPasswordForm';
@@ -16,8 +16,7 @@ type ActionType = 'Update' | 'Update password' | 'Delete';
 interface UserPopoverProps {
   user: UserOutput;
   actions?: ActionType[];
-  disabledActions?: Partial<Record<ActionType, string>>;
-  onSubmitUpdate: (data: UserInputForm) => void;
+  onSubmitUpdate: (data: UserInput) => void;
   onSubmitDelete: () => void;
   onSubmitPassword?: (data: ChangePasswordInput) => void;
   deleteMessage?: string;
@@ -32,7 +31,6 @@ interface UserPopoverProps {
 const UserPopover: FunctionComponent<UserPopoverProps> = ({
   user,
   actions = [],
-  disabledActions = {},
   onSubmitUpdate,
   onSubmitDelete,
   onSubmitPassword,
@@ -49,7 +47,7 @@ const UserPopover: FunctionComponent<UserPopoverProps> = ({
   const handleOpenEdit = useCallback(() => setIsEditOpen(true), []);
   const handleCloseEdit = useCallback(() => setIsEditOpen(false), []);
 
-  const handleUpdate = useCallback((data: UserInputForm) => {
+  const handleUpdate = useCallback((data: UserInput) => {
     onSubmitUpdate(data);
     handleCloseEdit();
   }, [onSubmitUpdate, handleCloseEdit]);
@@ -82,22 +80,12 @@ const UserPopover: FunctionComponent<UserPopoverProps> = ({
       label: string;
       action: () => void;
       userRight: boolean;
-      disabled?: boolean;
-      disabledMessage?: string;
     }[] = [];
     if (actions.includes('Update')) {
       result.push({
         label: t('Update'),
         action: handleOpenEdit,
         userRight: canManage,
-      });
-    } else if (disabledActions.Update) {
-      result.push({
-        label: t('Update'),
-        action: () => {},
-        userRight: canManage,
-        disabled: true,
-        disabledMessage: disabledActions.Update,
       });
     }
     if (actions.includes('Update password') && onSubmitPassword) {
@@ -106,14 +94,6 @@ const UserPopover: FunctionComponent<UserPopoverProps> = ({
         action: handleOpenPassword,
         userRight: canManage,
       });
-    } else if (disabledActions['Update password']) {
-      result.push({
-        label: t('Update password'),
-        action: () => {},
-        userRight: canManage,
-        disabled: true,
-        disabledMessage: disabledActions['Update password'],
-      });
     }
     if (actions.includes('Delete')) {
       result.push({
@@ -121,17 +101,9 @@ const UserPopover: FunctionComponent<UserPopoverProps> = ({
         action: handleOpenDelete,
         userRight: canDelete,
       });
-    } else if (disabledActions.Delete) {
-      result.push({
-        label: t('Delete'),
-        action: () => {},
-        userRight: canDelete,
-        disabled: true,
-        disabledMessage: disabledActions.Delete,
-      });
     }
     return result;
-  }, [actions, disabledActions, ability, permissions, onSubmitPassword, handleOpenEdit, handleOpenPassword, handleOpenDelete, t]);
+  }, [actions, ability, permissions, onSubmitPassword, handleOpenEdit, handleOpenPassword, handleOpenDelete, t]);
 
   return (
     <>

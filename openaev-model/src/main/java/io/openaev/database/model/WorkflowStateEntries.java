@@ -14,7 +14,7 @@ import lombok.Setter;
 @AllArgsConstructor
 @Getter
 @Setter
-public class StepStateEntries {
+public class WorkflowStateEntries {
   /*Correlated path are separate by "+" */
   private final String regexPathCorrelated = "^.+\\+.+$";
 
@@ -23,7 +23,7 @@ public class StepStateEntries {
 
   List<Input> inputs;
   List<Correlated> correlated;
-  Set<Long> hashExecution;
+  Set<String> hashExecution;
 
   /** List of all keys needs for the execution* */
   @NotNull @NotEmpty Set<String> executionKeys;
@@ -69,7 +69,7 @@ public class StepStateEntries {
       } else if (inputsSameKey.size() > 1) {
         throw new RuntimeException("More than one input with same key: " + key);
       } else {
-        return inputsSameKey.get(0);
+        return inputsSameKey.getFirst();
       }
     }
   }
@@ -105,7 +105,7 @@ public class StepStateEntries {
       return;
     }
 
-    long hash = hashCombo(combo);
+    String hash = hashCombo(combo);
     if (!hashExecution.contains(hash)) {
       hashExecution.add(hash);
       System.out.println("New execution : " + combo + " -> hash=" + hash);
@@ -157,7 +157,7 @@ public class StepStateEntries {
     }
   }
 
-  private List<Map<String, String>> generateCombinations(List<Input> inputs, Correlated comp) {
+  public List<Map<String, String>> generateCombinations(List<Input> inputs, Correlated comp) {
     List<Map<String, String>> results = new ArrayList<>();
 
     // Get all sets of simple values
@@ -209,13 +209,13 @@ public class StepStateEntries {
    * @param lists a list of lists for which the Cartesian product will be correlated
    * @return a list of lists containing all possible combinations
    */
-  private <T> List<List<T>> cartesianProduct(List<List<T>> lists) {
+  public <T> List<List<T>> cartesianProduct(List<List<T>> lists) {
     List<List<T>> resultLists = new ArrayList<>();
     if (lists.isEmpty()) {
       resultLists.add(new ArrayList<>());
       return resultLists;
     } else {
-      List<T> firstList = lists.get(0);
+      List<T> firstList = lists.getFirst();
       List<List<T>> remainingLists = cartesianProduct(lists.subList(1, lists.size()));
       for (T condition : firstList) {
         for (List<T> remaining : remainingLists) {
@@ -229,15 +229,16 @@ public class StepStateEntries {
     return resultLists;
   }
 
-  private long hashCombo(Map<String, String> combo) {
-    // Order key
+  public String hashCombo(Map<String, String> combo) {
+    // Canonicalize key order so hash is stable regardless of map implementation.
     StringBuilder sb = new StringBuilder();
-    combo.forEach((k, v) -> sb.append(k).append("=").append(v).append("|"));
+    new TreeMap<>(combo).forEach((k, v) -> sb.append(k).append("=").append(v).append("|"));
 
-    return Hashing.murmur3_128().hashString(sb.toString(), StandardCharsets.UTF_8).asLong();
+    return Hashing.murmur3_128().hashString(sb.toString(), StandardCharsets.UTF_8).toString();
   }
 
-  boolean comboContainAllExecutionKeys(Set<String> executionKeys, Map<String, String> combo) {
+  public boolean comboContainAllExecutionKeys(
+      Set<String> executionKeys, Map<String, String> combo) {
     return combo.keySet().containsAll(executionKeys);
   }
 }

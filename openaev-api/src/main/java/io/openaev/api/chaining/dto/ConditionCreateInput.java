@@ -29,7 +29,7 @@ public class ConditionCreateInput {
   @JsonProperty("condition_temporary_id_condition_parent")
   private String temporaryIdConditionParent;
 
-  /** Condition key: Path to the value in the output of the step from */
+  /** Condition key Type: Path to the value in the output of the step from */
   @Schema(description = "Path to the value in the output of the step from")
   @JsonProperty("condition_key_type")
   private ConditionKeyType keyType;
@@ -44,8 +44,8 @@ public class ConditionCreateInput {
   @JsonProperty("condition_value")
   private String value;
 
-  /** Condition key: Key to be compared */
-  @Schema(description = "Key to be compared")
+  /** Condition key: Property to be mapped */
+  @Schema(description = "Property to be mapped")
   @JsonProperty("condition_key")
   private String key;
 

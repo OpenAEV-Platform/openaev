@@ -18,5 +18,5 @@ export interface InjectHelper {
   getScenarioInjects: (scenarioId: Scenario['scenario_id']) => Inject[];
   getTeamScenarioInjects: (teamId: Team['team_id']) => Inject[];
 
-  getInjectExpectationsByAsset: (targetId: InjectTarget['target_id'], expectationType: string) => InjectExpectationAgentOutput[];
+  getInjectExpectationsByAssetAndInject: (targetId: InjectTarget['target_id'], injectId: Inject['inject_id'], expectationType: string) => InjectExpectationAgentOutput[];
 }

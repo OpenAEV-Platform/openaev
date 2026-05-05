@@ -12,24 +12,53 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openaev.database.model.InjectExpectation;
-import io.openaev.database.model.InjectorContract;
+import io.openaev.database.model.*;
 import io.openaev.injector_contract.outputs.InjectorContractContentOutputElement;
+import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotNull;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Spliterators;
+import java.util.*;
 import java.util.stream.StreamSupport;
-import lombok.NoArgsConstructor;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 @Component
-@NoArgsConstructor
+@RequiredArgsConstructor
+@Slf4j
 public class InjectorContractContentUtils {
+
+  @Resource protected ObjectMapper mapper;
 
   public static final String OUTPUTS = "outputs";
   public static final String FIELDS = "fields";
   public static final String MULTIPLE = "n";
+
+  /**
+   * Retrieves all contract output elements from the injector contract.
+   *
+   * @param injectorContract the injector contract to inspect
+   * @return list of contract output elements
+   */
+  public List<InjectorContractContentOutputElement> getAllContractOutputs(
+      InjectorContract injectorContract) {
+    return this.getContractOutputs(injectorContract.getConvertedContent(), mapper).stream()
+        .toList();
+  }
+
+  /**
+   * Retrieves all contract output elements from the output parsers.
+   *
+   * @param outputParsers the set of output parsers to inspect
+   * @return list of contract output elements
+   */
+  public List<ContractOutputElement> getAllContractOutputs(Set<OutputParser> outputParsers) {
+    return outputParsers.stream()
+        .flatMap(outputParser -> outputParser.getContractOutputElements().stream())
+        .filter(
+            ContractOutputElement
+                ::isFinding) // This is related to flag in the UI to compute findings
+        .toList();
+  }
 
   /**
    * Function used to get the outputs from the injector contract content.

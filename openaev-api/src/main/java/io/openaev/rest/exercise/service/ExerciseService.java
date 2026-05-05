@@ -568,7 +568,7 @@ public class ExerciseService {
         && workflowService.isSimulationChaining(exercise.getId())) {
       if (ExerciseStatus.SCHEDULED.equals(exercise.getStatus())
           && ExerciseStatus.RUNNING.equals(status)) {
-        stepService.startWorkflowBySimulationId(exercise.getId());
+        workflowService.startWorkflowBySimulationId(exercise.getId());
       }
     }
     if (isCloseState && ExerciseStatus.SCHEDULED.equals(status)) {

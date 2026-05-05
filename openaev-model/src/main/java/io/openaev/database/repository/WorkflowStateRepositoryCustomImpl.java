@@ -7,7 +7,7 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 @RequiredArgsConstructor
-public class StepStateRepositoryCustomImpl implements StepStateRepositoryCustom {
+public class WorkflowStateRepositoryCustomImpl implements WorkflowStateRepositoryCustom {
 
   private final EntityManager em;
 
@@ -16,14 +16,14 @@ public class StepStateRepositoryCustomImpl implements StepStateRepositoryCustom 
   public void addInput(Long id, String input) {
     em.createNativeQuery(
             """
-            UPDATE steps_states
-            SET step_entries = jsonb_set(
-                step_entries,
+            UPDATE workflow_states
+            SET workflow_state_entries = jsonb_set(
+                workflow_state_entries,
                 '{inputs}',
-                COALESCE(step_entries->'inputs', '[]'::jsonb) ||
+                COALESCE(workflow_state_entries->'inputs', '[]'::jsonb) ||
                 CAST(:input AS jsonb)
             )
-            WHERE state_id = :state_id
+            WHERE workflow_state_id = :state_id
         """)
         .setParameter("state_id", id)
         .setParameter("input", input)
@@ -35,14 +35,14 @@ public class StepStateRepositoryCustomImpl implements StepStateRepositoryCustom 
   public void addCorrelated(Long id, String correlated) {
     em.createNativeQuery(
             """
-            UPDATE steps_states
-            SET step_entries = jsonb_set(
-                step_entries,
+            UPDATE workflow_states
+            SET workflow_state_entries = jsonb_set(
+                workflow_state_entries,
                 '{correlated}',
-                COALESCE(step_entries->'correlated', '[]'::jsonb) ||
+                COALESCE(workflow_state_entries->'correlated', '[]'::jsonb) ||
                 CAST(:correlated AS jsonb)
             )
-            WHERE state_id = :state_id
+            WHERE workflow_state_id = :state_id
         """)
         .setParameter("state_id", id)
         .setParameter("correlated", correlated)
@@ -51,17 +51,17 @@ public class StepStateRepositoryCustomImpl implements StepStateRepositoryCustom 
 
   @Override
   @Transactional
-  public void addHash(Long id, Long hashExecution) {
+  public void addHash(Long id, String hashExecution) {
     em.createNativeQuery(
             """
-            UPDATE steps_states
-            SET step_entries = jsonb_set(
-                step_entries,
+            UPDATE workflow_states
+            SET workflow_state_entries = jsonb_set(
+                workflow_state_entries,
                 '{hashExecution}',
-                COALESCE(step_entries->'hashExecution', '[]'::jsonb) ||
-                CAST(:hashExecution AS jsonb)
+                COALESCE(workflow_state_entries->'hashExecution', '[]'::jsonb) ||
+                jsonb_build_array(CAST(:hashExecution AS text))
             )
-            WHERE state_id = :state_id
+            WHERE workflow_state_id = :state_id
         """)
         .setParameter("state_id", id)
         .setParameter("hashExecution", hashExecution)

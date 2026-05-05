@@ -708,6 +708,11 @@ export interface BrokerConnectionInfo {
   vhost?: string;
 }
 
+export interface CTIEvent {
+  event: Event;
+  internal: Internal;
+}
+
 export interface CVEBulkInsertInput {
   cves: CveCreateInput[];
   initial_dataset_completed?: boolean;
@@ -1228,7 +1233,7 @@ export interface Condition {
 
 /** Condition used to execute a step. Can be a Template or an Execution depending on the status of stepFrom. */
 export interface ConditionCreateInput {
-  /** Key to be compared */
+  /** Property to be mapped */
   condition_key?: string;
   /** Condition key subtype */
   condition_key_subtype?: "port" | "ipv4" | "ipv6" | "username" | "password";
@@ -1287,6 +1292,7 @@ export interface ConditionCreateInput {
 
 export interface ConditionOutput {
   condition_id?: string;
+  condition_key?: string;
   condition_key_subtype?: "port" | "ipv4" | "ipv6" | "username" | "password";
   condition_key_type?:
     | "execution_time"
@@ -2740,6 +2746,11 @@ export interface Evaluation {
 export interface EvaluationInput {
   /** @format int64 */
   evaluation_score?: number;
+}
+
+export interface Event {
+  /** @minLength 1 */
+  stix_objects: string;
 }
 
 export interface EventInput {
@@ -4513,6 +4524,11 @@ export interface InjectsImportTestInput {
   sheet_name: string;
   /** @format int32 */
   timezone_offset: number;
+}
+
+export interface Internal {
+  /** @minLength 1 */
+  work_id: string;
 }
 
 export interface JsonApiDocumentResourceObject {

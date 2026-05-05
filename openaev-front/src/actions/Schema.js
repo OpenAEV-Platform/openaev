@@ -366,8 +366,8 @@ export const storeHelper = state => ({
   getExerciseInjectExpectations: id => entities('injectexpectations', state).filter(
     i => i.get('inject_expectation_exercise') === id,
   ),
-  getInjectExpectationsByAsset: (id, type) => entities('injectexpectations', state).filter(
-    i => (i.get('inject_expectation_asset') === id && i.get('inject_expectation_type') === type),
+  getInjectExpectationsByAssetAndInject: (asset_id, inject_id, type) => entities('injectexpectations', state).filter(
+    i => (i.get('inject_expectation_asset') === asset_id && i.get('inject_expectation_inject') === inject_id && i.get('inject_expectation_type') === type),
   ),
   getInjectExpectationsMap: () => maps('injectexpectations', state),
   // documents
