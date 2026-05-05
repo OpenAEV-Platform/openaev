@@ -41,7 +41,8 @@ public class V4_93__Add_available_expectations_to_injector_contracts extends Bas
   private static final String EXPECTATION_ARTICLE = "ARTICLE";
   private static final String EXPECTATION_ARTICLE_NAME = "Expect targets to read the article(s)";
   private static final String EXPECTATION_CHALLENGE = "CHALLENGE";
-  private static final String EXPECTATION_CHALLENGE_NAME = "Expect targets to complete the challenge(s)";
+  private static final String EXPECTATION_CHALLENGE_NAME =
+      "Expect targets to complete the challenge(s)";
   private static final String EXPECTATION_DETECTION = "DETECTION";
   private static final String EXPECTATION_DETECTION_NAME = "Detection";
   private static final String EXPECTATION_PREVENTION = "PREVENTION";
@@ -115,10 +116,7 @@ public class V4_93__Add_available_expectations_to_injector_contracts extends Bas
   }
 
   private void processContract(
-      ObjectMapper mapper,
-      ResultSet contracts,
-      PreparedStatement backup,
-      PreparedStatement update)
+      ObjectMapper mapper, ResultSet contracts, PreparedStatement backup, PreparedStatement update)
       throws Exception {
     String contractId = contracts.getString("injector_contract_id");
     String tenantId = contracts.getString("tenant_id");
@@ -150,10 +148,10 @@ public class V4_93__Add_available_expectations_to_injector_contracts extends Bas
   }
 
   /**
-   * For each field with key {@code "expectations"}, unconditionally rebuilds
-   * {@code availableExpectations} from the canonical set derived from the injector type.
-   * This guarantees correct {@code expectation_is_limited} values regardless of whatever
-   * pre-existing content may have been stored by a previous migration or injector registration.
+   * For each field with key {@code "expectations"}, unconditionally rebuilds {@code
+   * availableExpectations} from the canonical set derived from the injector type. This guarantees
+   * correct {@code expectation_is_limited} values regardless of whatever pre-existing content may
+   * have been stored by a previous migration or injector registration.
    */
   private boolean normalizeAvailableExpectations(
       ArrayNode fields, boolean isManual, String injectorType) {
@@ -175,7 +173,6 @@ public class V4_93__Add_available_expectations_to_injector_contracts extends Bas
     return modified;
   }
 
-
   /**
    * Determines the correct set of available expectations based on injector contract type.
    *
@@ -184,47 +181,37 @@ public class V4_93__Add_available_expectations_to_injector_contracts extends Bas
    *   <li>Email → [TEXT (limited), MANUAL (not limited)]
    *   <li>Channel → [ARTICLE (limited), MANUAL (not limited)]
    *   <li>Challenge → [CHALLENGE (limited), MANUAL (not limited)]
-   *   <li>Technical (payload or other external injectors) → [DETECTION (limited), PREVENTION (limited), VULNERABILITY (limited)]
+   *   <li>Technical (payload or other external injectors) → [DETECTION (limited), PREVENTION
+   *       (limited), VULNERABILITY (limited)]
    * </ul>
    */
   private ArrayNode buildAvailableExpectations(boolean isManual, String injectorType) {
     if (isManual || TYPE_MANUAL.equals(injectorType)) {
       return arrayOf(
-          expectation(
-              EXPECTATION_MANUAL, EXPECTATION_MANUAL_NAME, HUMAN_EXPIRATION_TIME, false));
+          expectation(EXPECTATION_MANUAL, EXPECTATION_MANUAL_NAME, HUMAN_EXPIRATION_TIME, false));
     }
     if (TYPE_EMAIL.equals(injectorType)) {
       return arrayOf(
           expectation(EXPECTATION_TEXT, EXPECTATION_TEXT_NAME, HUMAN_EXPIRATION_TIME, true),
-          expectation(
-              EXPECTATION_MANUAL, EXPECTATION_MANUAL_NAME, HUMAN_EXPIRATION_TIME, false));
+          expectation(EXPECTATION_MANUAL, EXPECTATION_MANUAL_NAME, HUMAN_EXPIRATION_TIME, false));
     }
     if (TYPE_CHANNEL.equals(injectorType)) {
       return arrayOf(
-          expectation(
-              EXPECTATION_ARTICLE, EXPECTATION_ARTICLE_NAME, HUMAN_EXPIRATION_TIME, true),
-          expectation(
-              EXPECTATION_MANUAL, EXPECTATION_MANUAL_NAME, HUMAN_EXPIRATION_TIME, false));
+          expectation(EXPECTATION_ARTICLE, EXPECTATION_ARTICLE_NAME, HUMAN_EXPIRATION_TIME, true),
+          expectation(EXPECTATION_MANUAL, EXPECTATION_MANUAL_NAME, HUMAN_EXPIRATION_TIME, false));
     }
     if (TYPE_CHALLENGE.equals(injectorType)) {
       return arrayOf(
           expectation(
               EXPECTATION_CHALLENGE, EXPECTATION_CHALLENGE_NAME, HUMAN_EXPIRATION_TIME, true),
-          expectation(
-              EXPECTATION_MANUAL, EXPECTATION_MANUAL_NAME, HUMAN_EXPIRATION_TIME, false));
+          expectation(EXPECTATION_MANUAL, EXPECTATION_MANUAL_NAME, HUMAN_EXPIRATION_TIME, false));
     }
     // Default: technical inject (payload-based or external injectors such as openaev/opencti/ovh)
     return arrayOf(
         expectation(
-            EXPECTATION_DETECTION,
-            EXPECTATION_DETECTION_NAME,
-            TECHNICAL_EXPIRATION_TIME,
-            true),
+            EXPECTATION_DETECTION, EXPECTATION_DETECTION_NAME, TECHNICAL_EXPIRATION_TIME, true),
         expectation(
-            EXPECTATION_PREVENTION,
-            EXPECTATION_PREVENTION_NAME,
-            TECHNICAL_EXPIRATION_TIME,
-            true),
+            EXPECTATION_PREVENTION, EXPECTATION_PREVENTION_NAME, TECHNICAL_EXPIRATION_TIME, true),
         expectation(
             EXPECTATION_VULNERABILITY,
             EXPECTATION_VULNERABILITY_NAME,
@@ -240,8 +227,7 @@ public class V4_93__Add_available_expectations_to_injector_contracts extends Bas
     return array;
   }
 
-  private ObjectNode expectation(
-      String type, String name, long expirationTime, boolean isLimited) {
+  private ObjectNode expectation(String type, String name, long expirationTime, boolean isLimited) {
     ObjectNode node = JsonNodeFactory.instance.objectNode();
     node.put("expectation_type", type);
     node.put("expectation_name", name);
