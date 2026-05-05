@@ -1,11 +1,11 @@
 import { type FunctionComponent, useCallback, useContext, useMemo, useState } from 'react';
 
-import { type UserInputForm, type UserType } from '../../../../../actions/users/users-helper';
+import { type UserType } from '../../../../../actions/users/users-helper';
 import ButtonPopover from '../../../../../components/common/ButtonPopover';
 import DialogDelete from '../../../../../components/common/DialogDelete';
 import Drawer from '../../../../../components/common/Drawer';
 import { useFormatter } from '../../../../../components/i18n';
-import { type ChangePasswordInput, type UserOutput } from '../../../../../utils/api-types';
+import { type ChangePasswordInput, type UserInput, type UserOutput } from '../../../../../utils/api-types';
 import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
 import { type Actions, type Subjects } from '../../../../../utils/permissions/types';
 import UserPasswordForm from './UserPasswordForm';
@@ -16,7 +16,7 @@ type ActionType = 'Update' | 'Update password' | 'Delete';
 interface UserPopoverProps {
   user: UserOutput;
   actions?: ActionType[];
-  onSubmitUpdate: (data: UserInputForm) => void;
+  onSubmitUpdate: (data: UserInput) => void;
   onSubmitDelete: () => void;
   onSubmitPassword?: (data: ChangePasswordInput) => void;
   deleteMessage?: string;
@@ -47,7 +47,7 @@ const UserPopover: FunctionComponent<UserPopoverProps> = ({
   const handleOpenEdit = useCallback(() => setIsEditOpen(true), []);
   const handleCloseEdit = useCallback(() => setIsEditOpen(false), []);
 
-  const handleUpdate = useCallback((data: UserInputForm) => {
+  const handleUpdate = useCallback((data: UserInput) => {
     onSubmitUpdate(data);
     handleCloseEdit();
   }, [onSubmitUpdate, handleCloseEdit]);

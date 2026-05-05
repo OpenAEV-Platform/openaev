@@ -5,7 +5,7 @@ import { cloneElement, type FunctionComponent, type ReactElement, type Synthetic
 import { FormProvider, type Resolver, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { type UserInputForm, type UserType } from '../../../../../actions/users/users-helper';
+import { type UserType } from '../../../../../actions/users/users-helper';
 import ActionButtons from '../../../../../components/common/ActionButtons';
 import OrganizationFieldController from '../../../../../components/fields/OrganizationFieldController';
 import SwitchFieldController from '../../../../../components/fields/SwitchFieldController';
@@ -13,6 +13,7 @@ import TagFieldController from '../../../../../components/fields/TagFieldControl
 import TenantFieldController from '../../../../../components/fields/TenantFieldController';
 import TextFieldController from '../../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../../components/i18n';
+import { type UserInput } from '../../../../../utils/api-types';
 import useEnterpriseEdition from '../../../../../utils/hooks/useEnterpriseEdition';
 import { PHONE_REGEX, zodImplement } from '../../../../../utils/Zod';
 
@@ -31,8 +32,8 @@ const ScopedField: FunctionComponent<{
 };
 
 interface UserFormProps {
-  onSubmit: (data: UserInputForm) => void;
-  initialValues?: Partial<UserInputForm>;
+  onSubmit: (data: UserInput) => void;
+  initialValues?: Partial<UserInput>;
   editing: boolean;
   handleClose: () => void;
   type: UserType;
@@ -70,7 +71,7 @@ const UserForm: FunctionComponent<UserFormProps> = ({
     );
 
   const passwordRequiredMessage = t('This field is required.');
-  const schema = zodImplement<UserInputForm>().with({
+  const schema = zodImplement<UserInput>().with({
     user_email: z.email(t('Should be a valid email address')),
     user_plain_password: z.string().optional(),
     user_firstname: z.string().optional(),
@@ -90,9 +91,9 @@ const UserForm: FunctionComponent<UserFormProps> = ({
     },
   );
 
-  const methods = useForm<UserInputForm>({
+  const methods = useForm<UserInput>({
     mode: 'onTouched',
-    resolver: zodResolver(schema) as Resolver<UserInputForm>,
+    resolver: zodResolver(schema) as Resolver<UserInput>,
     defaultValues: initialValues,
   });
 

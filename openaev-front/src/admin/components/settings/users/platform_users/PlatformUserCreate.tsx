@@ -2,8 +2,7 @@ import { type FunctionComponent, useCallback } from 'react';
 
 import { addPlatformUser } from '../../../../../actions/platform/users/platform-user-action';
 import { PLATFORM_USER_SCHEMA_KEY } from '../../../../../actions/platform/users/platform-user-schema';
-import { type UserInputForm } from '../../../../../actions/users/users-helper';
-import type { UserOutput } from '../../../../../utils/api-types';
+import { type UserInput, type UserOutput } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import UserCreate from '../tenant_users/UserCreate';
 
@@ -13,7 +12,7 @@ const PlatformUserCreate: FunctionComponent<Props> = ({ onCreate }) => {
   const dispatch = useAppDispatch();
 
   const handleSubmit = useCallback(
-    async (data: UserInputForm) => {
+    async (data: UserInput) => {
       const inputValues = { ...data };
       const result = await dispatch(addPlatformUser(inputValues));
 

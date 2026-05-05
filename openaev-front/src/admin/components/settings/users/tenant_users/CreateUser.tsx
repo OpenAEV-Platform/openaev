@@ -1,8 +1,8 @@
 import { type FunctionComponent, useCallback } from 'react';
 
 import { addUser } from '../../../../../actions/users/User';
-import { type UserInputForm, type UserResult } from '../../../../../actions/users/users-helper';
-import { type User } from '../../../../../utils/api-types';
+import { type UserResult } from '../../../../../actions/users/users-helper';
+import { type User, type UserInput } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import UserCreate from './UserCreate';
 
@@ -12,7 +12,7 @@ const CreateUser: FunctionComponent<CreateUserProps> = ({ onCreate }) => {
   const dispatch = useAppDispatch();
 
   const handleSubmit = useCallback(
-    (data: UserInputForm) => {
+    (data: UserInput) => {
       const inputValues = { ...data };
       return dispatch(addUser(inputValues)).then((result: UserResult) => {
         if (result?.entities?.users && onCreate) {

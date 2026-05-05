@@ -1,6 +1,4 @@
-import { type User, type UserInput } from '../../utils/api-types';
-
-export type UserInputForm = UserInput;
+import { type User } from '../../utils/api-types';
 
 export type UserType = 'PLATFORM' | 'TENANT';
 

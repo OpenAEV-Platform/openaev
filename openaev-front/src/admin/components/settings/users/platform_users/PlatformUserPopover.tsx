@@ -3,9 +3,8 @@ import { type FunctionComponent, useCallback } from 'react';
 import { deletePlatformUser, updatePlatformUser } from '../../../../../actions/platform/users/platform-user-action';
 import { PLATFORM_USER_SCHEMA_KEY } from '../../../../../actions/platform/users/platform-user-schema';
 import { updateUserPassword } from '../../../../../actions/users/User';
-import { type UserInputForm } from '../../../../../actions/users/users-helper';
 import { useFormatter } from '../../../../../components/i18n';
-import type { ChangePasswordInput, UserOutput } from '../../../../../utils/api-types';
+import { type ChangePasswordInput, type UserInput, type UserOutput } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import UserPopover from '../tenant_users/UserPopover';
@@ -28,7 +27,7 @@ const PlatformUserPopover: FunctionComponent<Props> = ({
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
 
-  const handleUpdate = useCallback((data: UserInputForm) => {
+  const handleUpdate = useCallback((data: UserInput) => {
     const inputValues = { ...data };
     dispatch(updatePlatformUser(platformUser.user_id, inputValues)).then(
       (result: {
