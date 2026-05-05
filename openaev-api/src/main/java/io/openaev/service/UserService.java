@@ -59,6 +59,7 @@ import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
 /**
@@ -135,7 +136,9 @@ public class UserService {
         new ArrayList<>(
             referenceResolver.resolve(
                 input.tenantIds(), Tenant.class, tenantRepository::countByIdIn)));
-    tenantMembershipCacheManager.evictForUser(user.getId(), input.tenantIds());
+    if (!CollectionUtils.isEmpty(input.tenantIds())) {
+      tenantMembershipCacheManager.evictForUser(user.getId(), input.tenantIds());
+    }
     return createUser(user, input.plainPassword(), UUID.randomUUID().toString());
   }
 
