@@ -231,7 +231,7 @@ services:
         condition: service_healthy
   rsa-key-generator:
     container_name: rsa-key-generator
-    image: alpine/openssl:3.5.5
+    image: alpine/openssl:3.5.6
     volumes:
       - rsakeys:/keys
     entrypoint: [ "/bin/ash" ]
