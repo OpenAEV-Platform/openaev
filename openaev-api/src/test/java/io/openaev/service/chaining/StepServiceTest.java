@@ -949,7 +949,7 @@ class StepServiceTest {
       assertSame(existing, updated);
       assertEquals(5, updated.getLimitExecution());
       assertEquals("{\"updated\":true}", updated.getData());
-      verify(conditionService).deleteAllConditionsByStepId(stepId);
+      verify(conditionService).deleteAllConditionsByStepId(stepId, List.of("cond-x"));
       verify(conditionService).linkExistingConditionsToStep(existing, List.of("cond-x"));
       verify(stepRepository).save(existing);
     }

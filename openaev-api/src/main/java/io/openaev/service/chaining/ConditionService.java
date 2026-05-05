@@ -340,14 +340,34 @@ public class ConditionService {
    * @param stepId step identifier
    */
   public void deleteAllConditionsByStepId(String stepId) {
+    deleteAllConditionsByStepId(stepId, List.of());
+  }
+
+  /**
+   * Deletes conditions linked to a given step, excluding specific condition IDs. Rules: - Always
+   * remove the current condition-step link for this step. - Delete the condition only if, after
+   * unlinking, it has no more condition-step links and no children. - Conditions whose IDs are in
+   * {@code excludedConditionIds} are unlinked but never deleted, so they can be re-linked later.
+   *
+   * @param stepId step identifier
+   * @param excludedConditionIds condition IDs to preserve (unlink only, never delete)
+   */
+  public void deleteAllConditionsByStepId(String stepId, List<String> excludedConditionIds) {
     List<Condition> conditions = findAllConditionsByStepId(stepId);
     if (conditions.isEmpty()) {
       return;
     }
 
+    Set<String> excluded =
+        excludedConditionIds == null ? Set.of() : new HashSet<>(excludedConditionIds);
+
     for (Condition condition : conditions) {
       unlinkFromStep(condition, stepId);
       Condition persisted = conditionRepository.save(condition);
+
+      if (excluded.contains(persisted.getId())) {
+        continue;
+      }
 
       boolean hasNoStepLinks =
           persisted.getConditionSteps() == null || persisted.getConditionSteps().isEmpty();

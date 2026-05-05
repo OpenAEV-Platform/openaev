@@ -401,6 +401,27 @@ public class ConditionServiceTest {
       assertEquals(1, condition.getConditionSteps().size());
       assertEquals("step-B", condition.getConditionSteps().getFirst().getStep().getId());
     }
+
+    @Test
+    void shouldPreserveExcludedCondition_whenUnlinkedButInExclusionList() {
+      String removedStepId = "step-A";
+
+      Condition condition = new Condition();
+      condition.setId("cond-excluded");
+      Step stepA = new Step();
+      stepA.setId(removedStepId);
+      conditionService.linkToStep(condition, stepA, true);
+
+      when(conditionRepository.findAllLinkedToStepId(removedStepId)).thenReturn(List.of(condition));
+      when(conditionRepository.save(any(Condition.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
+
+      conditionService.deleteAllConditionsByStepId(removedStepId, List.of("cond-excluded"));
+
+      verify(conditionRepository).save(condition);
+      verify(conditionRepository, never()).delete(any());
+      assertTrue(condition.getConditionSteps().isEmpty());
+    }
   }
 
   /* ============================================================

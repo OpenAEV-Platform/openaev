@@ -528,8 +528,9 @@ public class StepService {
     existing.setOutputParser(updatedCandidate.getOutputParser());
     Step updated = saveStep(existing);
 
-    // Remove all existing conditions (full replace strategy)
-    conditionService.deleteAllConditionsByStepId(stepId);
+    // Remove all existing conditions (full replace strategy),
+    // but preserve conditions referenced by conditionIds so they can be re-linked
+    conditionService.deleteAllConditionsByStepId(stepId, stepInput.getConditionIds());
 
     // Recreate conditions from input (same logic as create)
     stepConditionTemplate(stepInput.getConditions(), stepInput.getWorkflowId(), updated);
@@ -635,6 +636,13 @@ public class StepService {
    */
   public Set<String> findStepIdsByExpectationIds(final Set<String> expectationIds) {
     return stepRepository.findStepIdsByExpectationIds(expectationIds);
+  }
+
+  public Set<String> findStepIdsByInjectIds(final Set<String> injectIds) {
+    if (injectIds == null || injectIds.isEmpty()) {
+      return Set.of();
+    }
+    return stepRepository.findStepIdsByInjectIds(injectIds);
   }
 
   /**

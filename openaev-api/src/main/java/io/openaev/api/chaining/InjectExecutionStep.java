@@ -717,19 +717,24 @@ public class InjectExecutionStep implements ActionStep {
    * @param injectStatus the inject status containing execution traces
    * @param output the output list to populate
    */
-  private static void formatExecutionTracesToOutput(
+  private void formatExecutionTracesToOutput(
       InjectStatus injectStatus, List<Map<String, JsonElement>> output) {
     // GET EXECUTION TRACE
     List<ExecutionTrace> traces = injectStatus.getTraces();
+    log.info("[Chaining] formatExecutionTracesToOutput — traces count: {}", traces.size());
     for (ExecutionTrace trace : traces) {
       Map<String, JsonElement> map = new HashMap<>();
       if (trace.getAgent() == null) {
+        log.info("[Chaining] Trace skipped: agent is null");
         continue;
       }
       map.put("agent_id", gson.toJsonTree(trace.getAgent().getId()));
       if (trace.getStructuredOutput() != null) {
+        log.info(
+            "[Chaining] Trace has structuredOutput: {}", trace.getStructuredOutput().toString());
         map.put("parsed", gson.toJsonTree(trace.getStructuredOutput()));
       } else {
+        log.info("[Chaining] Trace has NO structuredOutput, message: {}", trace.getMessage());
         try {
           map.put("message", JsonParser.parseString(trace.getMessage()));
         } catch (JsonSyntaxException | IllegalStateException e) {
