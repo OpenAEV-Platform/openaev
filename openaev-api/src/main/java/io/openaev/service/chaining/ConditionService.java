@@ -1,5 +1,8 @@
 package io.openaev.service.chaining;
 
+import static io.openaev.api.chaining.ConditionMapper.resolveMappingType;
+import static io.openaev.utils.JsonUtils.gson;
+
 import io.openaev.api.chaining.ConditionMapper;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.EventInput;
@@ -10,20 +13,16 @@ import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.utils.ConditionUtils;
 import jakarta.persistence.EntityNotFoundException;
-import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.time.Instant;
 import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
-
-import static io.openaev.api.chaining.ConditionMapper.resolveMappingType;
-import static io.openaev.utils.JsonUtils.gson;
+import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @AllArgsConstructor
