@@ -11,7 +11,8 @@
 info.app.name=@project.description@
 # suppress inspection "SpringBootApplicationProperties"
 info.app.version=@project.version@
-# OpenBAS configuration
+
+# OpenAEV configuration
 openaev.name=@project.name@
 openaev.version=@project.version@
 openaev.base-url=http://localhost:3001/
@@ -62,7 +63,6 @@ spring.security.oauth2.client.registration.auth0.client-id=ChangeMe
 spring.security.oauth2.client.registration.auth0.client-secret=ChangeMe
 spring.security.oauth2.client.registration.auth0.redirect-uri=${openaev.base-url}/login/oauth2/code/auth0
 spring.security.oauth2.client.registration.auth0.scope=openid,profile,email,group
-#openaev.provider.auth0.groups_management= [{"idpGroup": "4c33e60a-dca1-43ab-b8d1-010b7744c080","userGroup": "4c33e60a-dca1-43ab-b8d1-010b7744c080","autoCreate": false}]
 openaev.provider.auth0.roles_path=https://xtm-hub-development/groups
 
 ### GitHub / Facebook or any other pre handled OAuth2
@@ -203,7 +203,7 @@ executor.crowdstrike.unix-script-name=OpenBAS Subprocessor (Unix)
 # default: local
 executor.openaev.binaries.origin=repository
 # if executor.openaev.agent.binaries.origin is set to "local", this config is ignored
-# default: the OpenBAS instance's version
+# default: the OpenAEV instance's version
 executor.openaev.binaries.version=prerelease
 
 #############
