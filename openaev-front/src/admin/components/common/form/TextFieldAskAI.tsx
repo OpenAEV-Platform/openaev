@@ -408,7 +408,7 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
               onClick={() => {
                 handleCloseGenMessageOptions();
                 if (useXtmOne) {
-                  const prompt = `Generate an email message.\n\nTone: ${messageTone}\nFrom: ${messageSender || 'not specified'}\nTo: ${messageRecipient || 'not specified'}\nNumber of paragraphs: ${messageParagraphs}\nContext: ${messageContext || 'none'}\n\nContent/Instructions:\n${messageInput}\n\nReturn only the email body in ${format} format, no explanation.`;
+                  const prompt = `Generate an email message.\n\nTone: ${messageTone}\nFrom: ${messageSender || 'not specified'}\nTo: ${messageRecipient || 'not specified'}\nNumber of paragraphs: ${messageParagraphs}\nContext: ${messageContext || 'none'}\n\nContent/Instructions:\n${messageInput}\n\nReturn only the raw email body in ${format} format. Do not wrap in code fences or markdown blocks. No explanation.`;
                   setContent('');
                   setIsAcceptable(true);
                   setAgentMode({
