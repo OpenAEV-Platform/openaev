@@ -37,11 +37,17 @@ public class V4_93__Add_available_expectations_to_injector_contracts extends Bas
   private static final String EXPECTATION_MANUAL = "MANUAL";
   private static final String EXPECTATION_MANUAL_NAME = "Manual expectation";
   private static final String EXPECTATION_TEXT = "TEXT";
+  private static final String EXPECTATION_TEXT_NAME = "Simple expectation";
   private static final String EXPECTATION_ARTICLE = "ARTICLE";
+  private static final String EXPECTATION_ARTICLE_NAME = "Expect targets to read the article(s)";
   private static final String EXPECTATION_CHALLENGE = "CHALLENGE";
+  private static final String EXPECTATION_CHALLENGE_NAME = "Expect targets to complete the challenge(s)";
   private static final String EXPECTATION_DETECTION = "DETECTION";
+  private static final String EXPECTATION_DETECTION_NAME = "Detection";
   private static final String EXPECTATION_PREVENTION = "PREVENTION";
+  private static final String EXPECTATION_PREVENTION_NAME = "Prevention";
   private static final String EXPECTATION_VULNERABILITY = "VULNERABILITY";
+  private static final String EXPECTATION_VULNERABILITY_NAME = "Vulnerability";
 
   @Override
   public void migrate(Context context) throws Exception {
@@ -143,6 +149,12 @@ public class V4_93__Add_available_expectations_to_injector_contracts extends Bas
     }
   }
 
+  /**
+   * For each field with key {@code "expectations"}, unconditionally rebuilds
+   * {@code availableExpectations} from the canonical set derived from the injector type.
+   * This guarantees correct {@code expectation_is_limited} values regardless of whatever
+   * pre-existing content may have been stored by a previous migration or injector registration.
+   */
   private boolean normalizeAvailableExpectations(
       ArrayNode fields, boolean isManual, String injectorType) {
     boolean modified = false;
@@ -150,81 +162,74 @@ public class V4_93__Add_available_expectations_to_injector_contracts extends Bas
       if (!(fieldNode instanceof ObjectNode field)) {
         continue;
       }
-      if (EXPECTATIONS_KEY.equals(field.path(KEY).asText())) {
-        JsonNode currentAvailable = field.get(AVAILABLE_EXPECTATIONS);
-        if (currentAvailable == null || currentAvailable.isNull()) {
-          field.set(AVAILABLE_EXPECTATIONS, buildAvailableExpectations(isManual, injectorType));
-          modified = true;
-          continue;
-        }
-
-        if (!currentAvailable.isArray()) {
-          // Invalid legacy shape: replace with expected values.
-          field.set(AVAILABLE_EXPECTATIONS, buildAvailableExpectations(isManual, injectorType));
-          modified = true;
-          continue;
-        }
-
-        ArrayNode normalizedAvailable = normalizeIsLimitedFlags((ArrayNode) currentAvailable);
-        if (!normalizedAvailable.equals(currentAvailable)) {
-          field.set(AVAILABLE_EXPECTATIONS, normalizedAvailable);
-          modified = true;
-        }
+      if (!EXPECTATIONS_KEY.equals(field.path(KEY).asText())) {
+        continue;
+      }
+      ArrayNode expected = buildAvailableExpectations(isManual, injectorType);
+      JsonNode current = field.get(AVAILABLE_EXPECTATIONS);
+      if (!expected.equals(current)) {
+        field.set(AVAILABLE_EXPECTATIONS, expected);
+        modified = true;
       }
     }
     return modified;
   }
 
-  private ArrayNode normalizeIsLimitedFlags(ArrayNode currentAvailable) {
-    ArrayNode normalized = currentAvailable.deepCopy();
-    for (JsonNode node : normalized) {
-      if (!(node instanceof ObjectNode expectation)) {
-        continue;
-      }
-      String type = expectation.path("expectation_type").asText(null);
-      if (type == null) {
-        continue;
-      }
-      expectation.put("expectation_is_limited", EXPECTATION_MANUAL.equals(type));
-    }
-    return normalized;
-  }
 
   /**
    * Determines the correct set of available expectations based on injector contract type.
    *
    * <ul>
-   *   <li>Manual (flag or type) → [MANUAL (limited)]
-   *   <li>Email → [TEXT (not limited), MANUAL (limited)]
-   *   <li>Channel → [ARTICLE (not limited), MANUAL (limited)]
-   *   <li>Challenge → [CHALLENGE (not limited), MANUAL (limited)]
-   *   <li>Technical (payload or other external injectors) → [DETECTION, PREVENTION, VULNERABILITY (not limited)]
+   *   <li>Manual (flag or type) → [MANUAL (not limited)]
+   *   <li>Email → [TEXT (limited), MANUAL (not limited)]
+   *   <li>Channel → [ARTICLE (limited), MANUAL (not limited)]
+   *   <li>Challenge → [CHALLENGE (limited), MANUAL (not limited)]
+   *   <li>Technical (payload or other external injectors) → [DETECTION (limited), PREVENTION (limited), VULNERABILITY (limited)]
    * </ul>
    */
   private ArrayNode buildAvailableExpectations(boolean isManual, String injectorType) {
     if (isManual || TYPE_MANUAL.equals(injectorType)) {
-      return arrayOf(expectation(EXPECTATION_MANUAL, EXPECTATION_MANUAL_NAME, HUMAN_EXPIRATION_TIME, true));
+      return arrayOf(
+          expectation(
+              EXPECTATION_MANUAL, EXPECTATION_MANUAL_NAME, HUMAN_EXPIRATION_TIME, false));
     }
     if (TYPE_EMAIL.equals(injectorType)) {
       return arrayOf(
-          expectation(EXPECTATION_TEXT, "Simple expectation", HUMAN_EXPIRATION_TIME, false),
-          expectation(EXPECTATION_MANUAL, EXPECTATION_MANUAL_NAME, HUMAN_EXPIRATION_TIME, true));
+          expectation(EXPECTATION_TEXT, EXPECTATION_TEXT_NAME, HUMAN_EXPIRATION_TIME, true),
+          expectation(
+              EXPECTATION_MANUAL, EXPECTATION_MANUAL_NAME, HUMAN_EXPIRATION_TIME, false));
     }
     if (TYPE_CHANNEL.equals(injectorType)) {
       return arrayOf(
-          expectation(EXPECTATION_ARTICLE, "Expect targets to read the article(s)", HUMAN_EXPIRATION_TIME, false),
-          expectation(EXPECTATION_MANUAL, EXPECTATION_MANUAL_NAME, HUMAN_EXPIRATION_TIME, true));
+          expectation(
+              EXPECTATION_ARTICLE, EXPECTATION_ARTICLE_NAME, HUMAN_EXPIRATION_TIME, true),
+          expectation(
+              EXPECTATION_MANUAL, EXPECTATION_MANUAL_NAME, HUMAN_EXPIRATION_TIME, false));
     }
     if (TYPE_CHALLENGE.equals(injectorType)) {
       return arrayOf(
-          expectation(EXPECTATION_CHALLENGE, "Expect targets to complete the challenge(s)", HUMAN_EXPIRATION_TIME, false),
-          expectation(EXPECTATION_MANUAL, EXPECTATION_MANUAL_NAME, HUMAN_EXPIRATION_TIME, true));
+          expectation(
+              EXPECTATION_CHALLENGE, EXPECTATION_CHALLENGE_NAME, HUMAN_EXPIRATION_TIME, true),
+          expectation(
+              EXPECTATION_MANUAL, EXPECTATION_MANUAL_NAME, HUMAN_EXPIRATION_TIME, false));
     }
     // Default: technical inject (payload-based or external injectors such as openaev/opencti/ovh)
     return arrayOf(
-        expectation(EXPECTATION_DETECTION, "Detection", TECHNICAL_EXPIRATION_TIME, false),
-        expectation(EXPECTATION_PREVENTION, "Prevention", TECHNICAL_EXPIRATION_TIME, false),
-        expectation(EXPECTATION_VULNERABILITY, "Vulnerability", TECHNICAL_EXPIRATION_TIME, false));
+        expectation(
+            EXPECTATION_DETECTION,
+            EXPECTATION_DETECTION_NAME,
+            TECHNICAL_EXPIRATION_TIME,
+            true),
+        expectation(
+            EXPECTATION_PREVENTION,
+            EXPECTATION_PREVENTION_NAME,
+            TECHNICAL_EXPIRATION_TIME,
+            true),
+        expectation(
+            EXPECTATION_VULNERABILITY,
+            EXPECTATION_VULNERABILITY_NAME,
+            TECHNICAL_EXPIRATION_TIME,
+            true));
   }
 
   private ArrayNode arrayOf(ObjectNode... nodes) {
@@ -247,21 +252,34 @@ public class V4_93__Add_available_expectations_to_injector_contracts extends Bas
     node.put("expectation_is_limited", isLimited);
     return node;
   }
-
-  /*
-   * Manual rollback SQL (uses the backup table created by this migration):
-   *
-   * UPDATE injectors_contracts ic
-   * SET injector_contract_content = b.injector_contract_content
-   * FROM migration_v4_93_injector_contracts_backup b
-   * WHERE ic.injector_contract_id = b.injector_contract_id
-   *   AND ic.tenant_id = b.tenant_id;
-   */
 }
 
-
-
-
-
-
-
+/*
+ * Manual rollback SQL (removes availableExpectations from expectations fields):
+ *
+ * UPDATE injectors_contracts ic
+ * SET injector_contract_content = rollback_content.content::text
+ * FROM (
+ *   SELECT
+ *     injector_contract_id,
+ *     tenant_id,
+ *     jsonb_set(
+ *       injector_contract_content::jsonb,
+ *       '{fields}',
+ *       (
+ *         SELECT jsonb_agg(
+ *           CASE
+ *             WHEN field->>'key' = 'expectations' THEN field - 'availableExpectations'
+ *             ELSE field
+ *           END
+ *         )
+ *         FROM jsonb_array_elements(injector_contract_content::jsonb->'fields') field
+ *       ),
+ *       false
+ *     ) AS content
+ *   FROM injectors_contracts
+ *   WHERE injector_contract_content IS NOT NULL
+ * ) rollback_content
+ * WHERE ic.injector_contract_id = rollback_content.injector_contract_id
+ *   AND ic.tenant_id = rollback_content.tenant_id;
+ */

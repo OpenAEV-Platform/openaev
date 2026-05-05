@@ -237,19 +237,19 @@ public class PayloadService {
     if (expectationTypes != null) {
       for (InjectExpectation.EXPECTATION_TYPE type : expectationTypes) {
         switch (type) {
-          case TEXT -> predefined.add(this.expectationBuilderService.buildTextExpectation());
+          case TEXT -> predefined.add(withExpectedLimitedFlag(this.expectationBuilderService.buildTextExpectation()));
           case DOCUMENT ->
-              predefined.add(this.expectationBuilderService.buildDocumentExpectation());
-          case ARTICLE -> predefined.add(this.expectationBuilderService.buildArticleExpectation());
+              predefined.add(withExpectedLimitedFlag(this.expectationBuilderService.buildDocumentExpectation()));
+          case ARTICLE -> predefined.add(withExpectedLimitedFlag(this.expectationBuilderService.buildArticleExpectation()));
           case CHALLENGE ->
-              predefined.add(this.expectationBuilderService.buildChallengeExpectation());
-          case MANUAL -> predefined.add(this.expectationBuilderService.buildManualExpectation());
+              predefined.add(withExpectedLimitedFlag(this.expectationBuilderService.buildChallengeExpectation()));
+          case MANUAL -> predefined.add(withExpectedLimitedFlag(this.expectationBuilderService.buildManualExpectation()));
           case PREVENTION ->
-              predefined.add(this.expectationBuilderService.buildPreventionExpectation());
+              predefined.add(withExpectedLimitedFlag(this.expectationBuilderService.buildPreventionExpectation()));
           case DETECTION ->
-              predefined.add(this.expectationBuilderService.buildDetectionExpectation());
+              predefined.add(withExpectedLimitedFlag(this.expectationBuilderService.buildDetectionExpectation()));
           case VULNERABILITY ->
-              predefined.add(this.expectationBuilderService.buildVulnerabilityExpectation());
+              predefined.add(withExpectedLimitedFlag(this.expectationBuilderService.buildVulnerabilityExpectation()));
           default -> throw new IllegalArgumentException("Unsupported expectation type: " + type);
         }
       }
@@ -257,7 +257,10 @@ public class PayloadService {
 
     // Payload contracts are technical injects: available expectations are always the 3 standard
     // technical types.
-    List<Expectation> available = expectationService.buildAvailableExpectationsForTechnicalInject();
+    List<Expectation> available =
+        expectationService.buildAvailableExpectationsForTechnicalInject().stream()
+            .map(this::withExpectedLimitedFlag)
+            .toList();
 
     return expectationsField(predefined, available);
   }
@@ -297,6 +300,15 @@ public class PayloadService {
 
   public PayloadCreationService.PayloadInjectorContractCreationResult duplicate(
       @NotBlank final String payloadId) {
+  /**
+   * Applies the OpenAEV rule for available expectations: MANUAL is not limited, all others are.
+   */
+  private Expectation withExpectedLimitedFlag(Expectation expectation) {
+    expectation.setIsLimited(!InjectExpectation.EXPECTATION_TYPE.MANUAL.equals(expectation.getType()));
+    return expectation;
+  }
+
+  public Payload duplicate(@NotBlank final String payloadId) {
     Payload origin = this.payloadRepository.findById(payloadId).orElseThrow();
     Optional<InjectorContract> originInjectorContract =
         injectorContractRepository.findInjectorContractByPayload(origin);

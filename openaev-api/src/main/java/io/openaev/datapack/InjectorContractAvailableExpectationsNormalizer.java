@@ -179,7 +179,7 @@ public class InjectorContractAvailableExpectationsNormalizer {
       }
       String type = exp.path("expectation_type").asText(null);
       if (type != null) {
-        exp.put("expectation_is_limited", EXPECTATION_MANUAL.equals(type));
+        exp.put("expectation_is_limited", !EXPECTATION_MANUAL.equals(type));
       }
     }
     return normalized;
@@ -189,37 +189,37 @@ public class InjectorContractAvailableExpectationsNormalizer {
    * Builds the canonical availableExpectations for a given contract type.
    *
    * <ul>
-   *   <li>Manual → [MANUAL (limited)]
-   *   <li>Email → [TEXT, MANUAL (limited)]
-   *   <li>Channel → [ARTICLE, MANUAL (limited)]
-   *   <li>Challenge → [CHALLENGE, MANUAL (limited)]
-   *   <li>Technical (payload / external) → [DETECTION, PREVENTION, VULNERABILITY]
+   *   <li>Manual → [MANUAL (not limited)]
+   *   <li>Email → [TEXT (limited), MANUAL (not limited)]
+   *   <li>Channel → [ARTICLE (limited), MANUAL (not limited)]
+   *   <li>Challenge → [CHALLENGE (limited), MANUAL (not limited)]
+   *   <li>Technical (payload / external) → [DETECTION (limited), PREVENTION (limited), VULNERABILITY (limited)]
    * </ul>
    */
   private ArrayNode buildAvailableExpectations(boolean isManual, String injectorType) {
     if (isManual || TYPE_MANUAL.equals(injectorType)) {
-      return arrayOf(expectation(EXPECTATION_MANUAL, EXPECTATION_MANUAL_NAME, HUMAN_EXPIRATION_TIME, true));
+      return arrayOf(expectation(EXPECTATION_MANUAL, EXPECTATION_MANUAL_NAME, HUMAN_EXPIRATION_TIME, false));
     }
     if (TYPE_EMAIL.equals(injectorType)) {
       return arrayOf(
-          expectation(EXPECTATION_TEXT, "Simple expectation", HUMAN_EXPIRATION_TIME, false),
-          expectation(EXPECTATION_MANUAL, EXPECTATION_MANUAL_NAME, HUMAN_EXPIRATION_TIME, true));
+          expectation(EXPECTATION_TEXT, "Simple expectation", HUMAN_EXPIRATION_TIME, true),
+          expectation(EXPECTATION_MANUAL, EXPECTATION_MANUAL_NAME, HUMAN_EXPIRATION_TIME, false));
     }
     if (TYPE_CHANNEL.equals(injectorType)) {
       return arrayOf(
-          expectation(EXPECTATION_ARTICLE, "Expect targets to read the article(s)", HUMAN_EXPIRATION_TIME, false),
-          expectation(EXPECTATION_MANUAL, EXPECTATION_MANUAL_NAME, HUMAN_EXPIRATION_TIME, true));
+          expectation(EXPECTATION_ARTICLE, "Expect targets to read the article(s)", HUMAN_EXPIRATION_TIME, true),
+          expectation(EXPECTATION_MANUAL, EXPECTATION_MANUAL_NAME, HUMAN_EXPIRATION_TIME, false));
     }
     if (TYPE_CHALLENGE.equals(injectorType)) {
       return arrayOf(
-          expectation(EXPECTATION_CHALLENGE, "Expect targets to complete the challenge(s)", HUMAN_EXPIRATION_TIME, false),
-          expectation(EXPECTATION_MANUAL, EXPECTATION_MANUAL_NAME, HUMAN_EXPIRATION_TIME, true));
+          expectation(EXPECTATION_CHALLENGE, "Expect targets to complete the challenge(s)", HUMAN_EXPIRATION_TIME, true),
+          expectation(EXPECTATION_MANUAL, EXPECTATION_MANUAL_NAME, HUMAN_EXPIRATION_TIME, false));
     }
     // Default: technical (payload-based or external injectors: openaev, opencti, ovh…)
     return arrayOf(
-        expectation(EXPECTATION_DETECTION, "Detection", TECHNICAL_EXPIRATION_TIME, false),
-        expectation(EXPECTATION_PREVENTION, "Prevention", TECHNICAL_EXPIRATION_TIME, false),
-        expectation(EXPECTATION_VULNERABILITY, "Vulnerability", TECHNICAL_EXPIRATION_TIME, false));
+        expectation(EXPECTATION_DETECTION, "Detection", TECHNICAL_EXPIRATION_TIME, true),
+        expectation(EXPECTATION_PREVENTION, "Prevention", TECHNICAL_EXPIRATION_TIME, true),
+        expectation(EXPECTATION_VULNERABILITY, "Vulnerability", TECHNICAL_EXPIRATION_TIME, true));
   }
 
   private ArrayNode arrayOf(ObjectNode... nodes) {
