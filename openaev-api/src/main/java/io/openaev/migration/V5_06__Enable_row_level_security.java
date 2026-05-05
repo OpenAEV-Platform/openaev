@@ -26,7 +26,8 @@ import org.springframework.stereotype.Component;
  * ALTER DATABASE openaev SET app.current_tenant = '2cffad3a-0001-4078-b0e2-ef74274022c3';
  * </pre>
  *
- * <p>The migration user (openaev_owner) must be the table owner. No superuser privilege is required.
+ * <p>The migration user (openaev_owner) must be the table owner. No superuser privilege is
+ * required.
  */
 @Component
 public class V5_06__Enable_row_level_security extends BaseJavaMigration {
