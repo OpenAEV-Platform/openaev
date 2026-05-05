@@ -69,11 +69,6 @@ const UserForm: FunctionComponent<UserFormProps> = ({
       t('Phone number must start with + and contain only digits'),
     );
 
-  const optionSchema = z.object({
-    id: z.string(),
-    label: z.string(),
-  });
-
   const passwordRequiredMessage = t('This field is required.');
   const schema = zodImplement<UserInputForm>().with({
     user_email: z.email(t('Should be a valid email address')),

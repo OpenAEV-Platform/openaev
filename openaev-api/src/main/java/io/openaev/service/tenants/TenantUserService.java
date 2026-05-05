@@ -57,16 +57,19 @@ public class TenantUserService implements DependenciesManager {
     String tenantId = tenantId();
     var existingUser = userRepository.findByEmailIgnoreCase(input.email());
     if (existingUser.isPresent()) {
-      User user = existingUser.get();
-      attachToTenant(user.getId(), tenantId);
-      assignDefaultTenantGroups(user, tenantId);
-      return UserMapper.toOutput(user);
+      String userId = existingUser.get().getId();
+      attachToTenant(userId, tenantId);
+      assignDefaultTenantGroups(userId, tenantId);
+      // Reload user after @Modifying queries cleared the persistence context
+      User reloaded = userRepository.findById(userId).orElseThrow();
+      return UserMapper.toOutput(reloaded);
     }
     User user = userService.createUser(input);
     attachToTenant(user.getId(), tenantId);
-    tenantRepository.addUserToTenant(user.getId(), tenantId);
-    assignDefaultTenantGroups(user, tenantId);
-    return UserMapper.toOutput(user);
+    assignDefaultTenantGroups(user.getId(), tenantId);
+    // Reload user after @Modifying queries cleared the persistence context
+    User reloaded = userRepository.findById(user.getId()).orElseThrow();
+    return UserMapper.toOutput(reloaded);
   }
 
   /** Attaches a user to the specified tenant. Does nothing if already attached. */
@@ -179,12 +182,16 @@ public class TenantUserService implements DependenciesManager {
     return tenantId;
   }
 
-  private void assignDefaultTenantGroups(User user, String tenantId) {
+  private void assignDefaultTenantGroups(String userId, String tenantId) {
     List<Group> defaultGroups =
         groupRepository.findAll(GroupSpecification.defaultUserAssignableTenant(tenantId));
     if (defaultGroups.isEmpty()) {
       return;
     }
+    User user =
+        userRepository
+            .findById(userId)
+            .orElseThrow(() -> new ElementNotFoundException("User not found with id: " + userId));
     for (Group group : defaultGroups) {
       if (!group.getUsers().contains(user)) {
         group.getUsers().add(user);
