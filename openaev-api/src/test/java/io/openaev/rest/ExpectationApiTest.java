@@ -4,7 +4,6 @@ import static io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE.CHALL
 import static io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE.MANUAL;
 import static io.openaev.expectation.ExpectationPropertiesConfig.DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME;
 import static io.openaev.expectation.ExpectationType.*;
-import static io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegration.OPENAEV_INJECTOR_ID;
 import static io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegration.OPENAEV_INJECTOR_NAME;
 import static io.openaev.rest.expectation.ExpectationApi.EXPECTATIONS_URI;
 import static io.openaev.rest.expectation.ExpectationApi.INJECTS_EXPECTATIONS_URI;
@@ -53,11 +52,12 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
+@WithMockUser(isAdmin = true)
 class ExpectationApiTest extends IntegrationTest {
 
   // API Endpoints
   private static final String INJECTION_NAME = "AMSI Bypass - AMSI InitFailed";
-  private static final String INJECTOR_TYPE = "openaev_implant";
+  private static final String INJECTOR_TYPE = "openaev_implant_test";
 
   @Autowired private MockMvc mvc;
   @Autowired private EntityManager em;
@@ -76,27 +76,28 @@ class ExpectationApiTest extends IntegrationTest {
   @Autowired private OpenaevInjectorIntegrationFactory openaevInjectorIntegrationFactory;
 
   // Saved entities for test setup
-  private static Injector savedInjector;
-  private static InjectorContract savedInjectorContract;
-  private static AssetGroup savedAssetGroup;
-  private static Endpoint savedEndpoint;
-  private static Agent savedAgent1;
-  private static Agent savedAgent2;
-  private static Inject savedInject;
-  private static Collector savedCollector;
-  private static Collector savedCollector2;
+  private Injector savedInjector;
+  private InjectorContract savedInjectorContract;
+  private AssetGroup savedAssetGroup;
+  private Endpoint savedEndpoint;
+  private Agent savedAgent1;
+  private Agent savedAgent2;
+  private Inject savedInject;
+  private Collector savedCollector;
+  private Collector savedCollector2;
 
-  @BeforeAll
-  void beforeAll() throws JsonProcessingException {
+  @BeforeEach
+  void setUp() throws JsonProcessingException {
     InjectorContract injectorContract =
         InjectorContractFixture.createInjectorContract(Map.of("en", INJECTION_NAME));
     injectorContract.setCustom(true);
     savedInjector =
         injectorRepository.save(
             InjectorFixture.createInjector(
-                OPENAEV_INJECTOR_ID, OPENAEV_INJECTOR_NAME, INJECTOR_TYPE));
+                UUID.randomUUID().toString(), OPENAEV_INJECTOR_NAME + "-test", INJECTOR_TYPE));
     injectorContract.addInjector(savedInjector);
     savedInjectorContract = injectorContractRepository.save(injectorContract);
+    em.flush();
     savedInjector.getContracts().add(savedInjectorContract);
     injectorRepository.save(savedInjector);
 
@@ -139,23 +140,8 @@ class ExpectationApiTest extends IntegrationTest {
     savedCollector2 = collectorRepository.save(collector2);
   }
 
-  @AfterAll
-  void afterAll() {
-    agentRepository.deleteAll();
-    injectRepository.deleteAll();
-    injectorContractRepository.deleteAll();
-    injectorRepository.deleteAll();
-    endpointRepository.deleteAll();
-    collectorRepository.delete(savedCollector);
-    collectorRepository.delete(savedCollector2);
-  }
-
-  @AfterEach
-  void afterEach() {
-    injectExpectationRepository.deleteAll();
-  }
-
   @Nested
+  @Transactional
   @WithMockUser(isAdmin = true)
   @DisplayName("Update and delete inject expectation results from UI")
   class ResultInjectExpectation {
@@ -178,6 +164,8 @@ class ExpectationApiTest extends IntegrationTest {
               DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
       injectExpectationService.buildAndSaveInjectExpectations(
           executableInject, detectionExpectations);
+      em.flush();
+      em.clear();
 
       // -- EXECUTE --
 
@@ -283,6 +271,8 @@ class ExpectationApiTest extends IntegrationTest {
 
       injectExpectationService.buildAndSaveInjectExpectations(
           executableInject, detectionExpectations);
+      em.flush();
+      em.clear();
 
       // -- EXECUTE --
 
@@ -399,6 +389,7 @@ class ExpectationApiTest extends IntegrationTest {
   }
 
   @Nested
+  @Transactional
   @WithMockUser(isAdmin = true)
   @DisplayName("Fetch and update InjectExpectations from collectors")
   class ProcessInjectExpectationsForCollectors {
@@ -651,6 +642,8 @@ class ExpectationApiTest extends IntegrationTest {
 
       injectExpectationService.buildAndSaveInjectExpectations(
           executableInject, detectionExpectations);
+      em.flush();
+      em.clear();
 
       // -- EXECUTE --
 
@@ -731,6 +724,8 @@ class ExpectationApiTest extends IntegrationTest {
 
       injectExpectationService.buildAndSaveInjectExpectations(
           executableInject, detectionExpectations);
+      em.flush();
+      em.clear();
 
       // -- EXECUTE --
 
@@ -788,6 +783,8 @@ class ExpectationApiTest extends IntegrationTest {
 
       injectExpectationService.buildAndSaveInjectExpectations(
           executableInject, detectionExpectations);
+      em.flush();
+      em.clear();
 
       // Fetch injectExpectation created for agent 1
       List<InjectExpectation> injectExpectationsAgent1 =
@@ -841,9 +838,9 @@ class ExpectationApiTest extends IntegrationTest {
   }
 
   @Nested
+  @Transactional
   @WithMockUser(isAdmin = true)
   @DisplayName("Get available InjectExpectations for injects")
-  @Transactional
   class AvailableInjectExpectationsForInjects {
 
     @Test
@@ -852,25 +849,52 @@ class ExpectationApiTest extends IntegrationTest {
       emailInjectorIntegrationFactory.registerConnectorForTenant();
       challengeInjectorIntegrationFactory.registerConnectorForTenant();
       openaevInjectorIntegrationFactory.registerConnectorForTenant();
+
+      // OpenAEVImplantContract.contracts() returns empty, so we manually create a contract
+      // and link it to the implant injector (same pattern as the original @BeforeAll setup)
+      Injector implantInjector =
+          injectorRepository
+              .findByTypeAndTenantId(
+                  OpenAEVImplantContract.TYPE, io.openaev.context.TenantContext.getCurrentTenant())
+              .orElseThrow(() -> new AssertionError("Implant injector not registered"));
+      InjectorContract implantContract =
+          InjectorContractFixture.createInjectorContract(Map.of("en", "Implant Test Contract"));
+      implantContract.setCustom(true);
+      implantContract.addInjector(implantInjector);
+      implantContract = injectorContractRepository.save(implantContract);
+      implantInjector.getContracts().add(implantContract);
+      injectorRepository.save(implantInjector);
+
       em.flush();
       em.clear();
       List<InjectorContract> injectorContracts =
           StreamHelper.fromIterable(injectorContractRepository.findAll());
       InjectorContract mailInjectorContract =
           injectorContracts.stream()
-              .filter(ic -> ic.getFirstInjector().getType().equals(EmailContract.TYPE))
-              .toList()
-              .getFirst();
+              .filter(
+                  ic ->
+                      ic.getFirstInjector() != null
+                          && ic.getFirstInjector().getType().equals(EmailContract.TYPE))
+              .findFirst()
+              .orElseThrow(() -> new AssertionError("No contract found for EmailContract.TYPE"));
       InjectorContract challengeInjectorContract =
           injectorContracts.stream()
-              .filter(ic -> ic.getFirstInjector().getType().equals(ChallengeContract.TYPE))
-              .toList()
-              .getFirst();
+              .filter(
+                  ic ->
+                      ic.getFirstInjector() != null
+                          && ic.getFirstInjector().getType().equals(ChallengeContract.TYPE))
+              .findFirst()
+              .orElseThrow(
+                  () -> new AssertionError("No contract found for ChallengeContract.TYPE"));
       InjectorContract implantInjectorContract =
           injectorContracts.stream()
-              .filter(ic -> ic.getFirstInjector().getType().equals(OpenAEVImplantContract.TYPE))
-              .toList()
-              .getFirst();
+              .filter(
+                  ic ->
+                      ic.getFirstInjector() != null
+                          && ic.getFirstInjector().getType().equals(OpenAEVImplantContract.TYPE))
+              .findFirst()
+              .orElseThrow(
+                  () -> new AssertionError("No contract found for OpenAEVImplantContract.TYPE"));
 
       // -- EXECUTE FOR MAIL --
       String responseMail =
