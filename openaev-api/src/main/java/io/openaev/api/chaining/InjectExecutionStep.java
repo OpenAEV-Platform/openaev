@@ -635,11 +635,16 @@ public class InjectExecutionStep implements ActionStep {
    * IP, subnet, or domain values, matching assets are looked up via the endpoint repository.
    */
   private void applyScopeRulesToInject(Workflow workflow, Inject inject) {
-    if (workflow == null) {
+    if (workflow == null || workflow.getId() == null) {
       return;
     }
-    Hibernate.initialize(workflow.getWorkflowScopeRules());
-    List<WorkflowScopeRule> rules = workflow.getWorkflowScopeRules();
+    // Re-load within the current transaction to avoid LazyInitializationException
+    Workflow managedWorkflow = em.find(Workflow.class, workflow.getId());
+    if (managedWorkflow == null) {
+      return;
+    }
+    Hibernate.initialize(managedWorkflow.getWorkflowScopeRules());
+    List<WorkflowScopeRule> rules = managedWorkflow.getWorkflowScopeRules();
     if (rules == null || rules.isEmpty()) {
       return;
     }
