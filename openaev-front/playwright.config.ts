@@ -64,11 +64,6 @@ export default defineConfig({
       testMatch: /.*\.setup\.ts/,
     },
     {
-      name: 'api-tests',
-      testMatch: /.*-api\.spec\.ts/,
-      // No browser, no storageState — uses Bearer token directly
-    },
-    {
       name: 'Google Chrome',
       use: {
         ...devices['Desktop Chrome'],
