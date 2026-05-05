@@ -91,6 +91,18 @@ public class TenantUserApi extends RestBehavior {
     return tenantUserService.search(searchPaginationInput);
   }
 
+  // -- UPDATE --
+
+  @Operation(summary = "Update a tenant user")
+  @AccessControl(
+      resourceId = "#userId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.USER)
+  @PutMapping("/{userId}")
+  public UserOutput update(@PathVariable String userId, @Valid @RequestBody UserInput input) {
+    return tenantUserService.update(userId, input);
+  }
+
   // -- DELETE --
 
   @Operation(summary = "Detach a user from the current tenant")

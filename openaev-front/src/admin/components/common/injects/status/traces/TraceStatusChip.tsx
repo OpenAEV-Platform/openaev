@@ -4,7 +4,7 @@ import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
 import { useFormatter } from '../../../../../../components/i18n';
-import { getStatusLabel, getStatusTooltip } from '../../../../../../utils/statusLabels';
+import { getAgentStatusTooltip, getStatusLabel } from '../../../../../../utils/statusLabels';
 import { getStatusColor } from '../../../../../../utils/statusUtils';
 
 // -- STATUS TOOLTIP --
@@ -61,7 +61,8 @@ const TraceStatusChip: FunctionComponent<TraceStatusChipProps> = ({ status }) =>
   const theme = useTheme();
   const statusColor = getStatusColor(theme, status);
   const label = t(getStatusLabel(status));
-  const tooltip = getStatusTooltip(status);
+
+  const tooltip = getAgentStatusTooltip(status);
 
   const chip = (
     <Chip
