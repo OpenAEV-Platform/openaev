@@ -54,6 +54,7 @@ class StepServiceScenarioIntegrationTest {
   @MockBean private io.openaev.executors.Executor executor;
 
   private Exercise savedSimulation;
+  @Autowired private WorkflowService workflowService;
 
   @BeforeEach
   void beforeEach() throws Exception {
@@ -95,7 +96,7 @@ class StepServiceScenarioIntegrationTest {
     long workflowCountBefore = workflowRepository.count();
 
     // ACT & ASSERT
-    stepService.startWorkflowByScenarioIdAndSimulation(
+    workflowService.startWorkflowByScenarioIdAndSimulation(
         workflowTemplate.getScenario().getId(), savedSimulation);
 
     long workflowCountAfter = workflowRepository.count();
@@ -141,7 +142,7 @@ class StepServiceScenarioIntegrationTest {
         assertThrows(
             ElementNotFoundException.class,
             () ->
-                stepService.startWorkflowByScenarioIdAndSimulation(
+                workflowService.startWorkflowByScenarioIdAndSimulation(
                     unknownScenarioId, savedSimulation));
 
     assertTrue(exception.getMessage().contains(unknownScenarioId));
@@ -161,7 +162,7 @@ class StepServiceScenarioIntegrationTest {
             .get();
 
     // ACT & ASSERT
-    stepService.startWorkflowByScenarioIdAndSimulation(
+    workflowService.startWorkflowByScenarioIdAndSimulation(
         workflowTemplate.getScenario().getId(), savedSimulation);
 
     List<Workflow> workflows = workflowRepository.findAll();
@@ -206,7 +207,9 @@ class StepServiceScenarioIntegrationTest {
     ElementNotFoundException exception =
         assertThrows(
             ElementNotFoundException.class,
-            () -> stepService.startWorkflowByScenarioIdAndSimulation(scenarioId, savedSimulation));
+            () ->
+                workflowService.startWorkflowByScenarioIdAndSimulation(
+                    scenarioId, savedSimulation));
 
     assertTrue(exception.getMessage().contains("Workflow (TEMPLATE) not found"));
     assertTrue(exception.getMessage().contains(scenarioId));

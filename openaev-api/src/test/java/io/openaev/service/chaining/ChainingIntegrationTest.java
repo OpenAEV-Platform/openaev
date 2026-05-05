@@ -60,6 +60,7 @@ class ChainingIntegrationTest extends IntegrationTest {
 
   // -- Setup inject
   @Autowired private StepService stepService;
+  @Autowired private StepEventService stepEventService;
   @Autowired private WorkflowService workflowService;
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private InjectorRepository injectorRepository;
@@ -222,7 +223,7 @@ class ChainingIntegrationTest extends IntegrationTest {
 
       long stepCountBefore = stepRepository.count();
 
-      stepService.createStepTemplates(workflowTemplate.getId(), List.of(step1, step2));
+      stepService.createStepTemplates(workflowTemplate, List.of(step1, step2));
 
       assertEquals(stepCountBefore + 2, stepRepository.count());
 
@@ -352,7 +353,7 @@ class ChainingIntegrationTest extends IntegrationTest {
       InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
       StepsCreateInput.StepInput step = buildValidStepInput();
       step.setDataStep(injectInput);
-      stepService.createStepTemplates(workflowTemplate.getId(), List.of(step));
+      stepService.createStepTemplates(workflowTemplate, List.of(step));
 
       String simulationResult =
           mvc.perform(
@@ -442,7 +443,7 @@ class ChainingIntegrationTest extends IntegrationTest {
       InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
       StepsCreateInput.StepInput step = buildValidStepInput();
       step.setDataStep(injectInput);
-      stepService.createStepTemplates(workflowTemplate.getId(), List.of(step));
+      stepService.createStepTemplates(workflowTemplate, List.of(step));
       String simulation =
           mvc.perform(
                   post(tenantUri(
@@ -468,7 +469,7 @@ class ChainingIntegrationTest extends IntegrationTest {
               .findFirst()
               .orElseThrow(() -> new AssertionError("Step not found"));
       if (createdStep.getStatus() == StepStatus.READY) {
-        stepService.run(createdStep);
+        stepEventService.run(createdStep);
       }
 
       assertNotNull(
@@ -530,7 +531,7 @@ class ChainingIntegrationTest extends IntegrationTest {
       InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
       StepsCreateInput.StepInput step = buildValidStepInput();
       step.setDataStep(injectInput);
-      stepService.createStepTemplates(workflowTemplate.getId(), List.of(step));
+      stepService.createStepTemplates(workflowTemplate, List.of(step));
 
       String result =
           mvc.perform(

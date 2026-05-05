@@ -91,7 +91,9 @@ class WorkflowUpdateEventAspectTest {
           assertThrows(
               IllegalStateException.class, () -> aspect.afterEventProcessed(joinPoint, annotation));
 
-      assertTrue(ex.getMessage().contains("must set exactly one of injectId or expectationIds"));
+      assertTrue(
+          ex.getMessage()
+              .contains("must set exactly one of injectId, injectIds or expectationIds"));
       verifyNoInteractions(queueChainingService, stepService);
     }
 
@@ -110,7 +112,9 @@ class WorkflowUpdateEventAspectTest {
           assertThrows(
               IllegalStateException.class, () -> aspect.afterEventProcessed(joinPoint, annotation));
 
-      assertTrue(ex.getMessage().contains("must set exactly one of injectId or expectationIds"));
+      assertTrue(
+          ex.getMessage()
+              .contains("must set exactly one of injectId, injectIds or expectationIds"));
       verifyNoInteractions(queueChainingService, stepService);
     }
   }
@@ -205,6 +209,102 @@ class WorkflowUpdateEventAspectTest {
       // -------- Assert --------
       // Called twice: once in handleInjectIdParam (fails), then immediately retried in sendEvents
       verify(queueChainingService, times(2)).updateStep(stepId);
+    }
+  }
+
+  /* ============================================================
+   * InjectIds path
+   * ============================================================ */
+  @Nested
+  class InjectIdsPath {
+
+    @BeforeEach
+    void setUp() {
+      when(previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)).thenReturn(true);
+      when(annotation.injectId()).thenReturn("");
+      when(annotation.injectIds()).thenReturn("#injectIds");
+      when(annotation.expectationIds()).thenReturn("");
+    }
+
+    private void setupJoinPoint(Object injectIdsValue) {
+      when(joinPoint.getSignature()).thenReturn(methodSignature);
+      when(methodSignature.getParameterNames()).thenReturn(new String[] {"injectIds"});
+      when(joinPoint.getArgs()).thenReturn(new Object[] {injectIdsValue});
+    }
+
+    @Test
+    void shouldProcessCollection_whenInjectIdsIsCollection() throws IOException {
+      // -------- Prepare --------
+      List<String> injectIds = List.of("inject-1", "inject-2", "inject-3");
+      setupJoinPoint(injectIds);
+
+      Set<String> stepIds = Set.of("step-1", "step-2");
+      when(stepService.findStepIdsByInjectIds(Set.of("inject-1", "inject-2", "inject-3")))
+          .thenReturn(stepIds);
+
+      // -------- Act --------
+      aspect.afterEventProcessed(joinPoint, annotation);
+
+      // -------- Assert --------
+      verify(stepService).findStepIdsByInjectIds(Set.of("inject-1", "inject-2", "inject-3"));
+      verify(queueChainingService, times(2)).updateStep(stepIdCaptor.capture());
+      assertTrue(stepIdCaptor.getAllValues().containsAll(stepIds));
+    }
+
+    @Test
+    void shouldProcessSingleString_whenInjectIdsIsString() throws IOException {
+      // -------- Prepare --------
+      String injectId = "inject-single";
+      setupJoinPoint(injectId);
+
+      Set<String> stepIds = Set.of("step-1");
+      when(stepService.findStepIdsByInjectIds(Set.of(injectId))).thenReturn(stepIds);
+
+      // -------- Act --------
+      aspect.afterEventProcessed(joinPoint, annotation);
+
+      // -------- Assert --------
+      verify(stepService).findStepIdsByInjectIds(Set.of(injectId));
+      verify(queueChainingService).updateStep("step-1");
+    }
+
+    @Test
+    void shouldThrow_whenInjectIdsIsNeitherCollectionNorString() {
+      // -------- Prepare --------
+      Integer invalidValue = 12345;
+      setupJoinPoint(invalidValue);
+
+      // -------- Act + Assert --------
+      IllegalStateException ex =
+          assertThrows(
+              IllegalStateException.class, () -> aspect.afterEventProcessed(joinPoint, annotation));
+
+      assertTrue(ex.getMessage().contains("must return a Collection or a String"));
+      verifyNoInteractions(queueChainingService);
+      verify(stepService, never()).findStepIdsByInjectIds(any());
+    }
+
+    @Test
+    void shouldCacheRemainingStepIds_whenIOExceptionOccurs() throws IOException {
+      // -------- Prepare --------
+      Set<String> injectIds = new LinkedHashSet<>();
+      injectIds.add("inject-1");
+      injectIds.add("inject-2");
+      setupJoinPoint(injectIds);
+
+      Set<String> stepIds = new LinkedHashSet<>();
+      stepIds.add("step-1");
+      stepIds.add("step-2");
+      stepIds.add("step-3");
+      when(stepService.findStepIdsByInjectIds(Set.of("inject-1", "inject-2"))).thenReturn(stepIds);
+
+      doThrow(new IOException("Queue error")).when(queueChainingService).updateStep(any());
+
+      // -------- Act --------
+      assertDoesNotThrow(() -> aspect.afterEventProcessed(joinPoint, annotation));
+
+      // -------- Assert --------
+      verify(queueChainingService, atLeastOnce()).updateStep(any());
     }
   }
 

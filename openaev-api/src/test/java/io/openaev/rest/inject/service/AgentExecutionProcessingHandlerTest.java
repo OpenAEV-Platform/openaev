@@ -11,9 +11,11 @@ import io.openaev.output_processor.OutputProcessor;
 import io.openaev.output_processor.OutputProcessorFactory;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionInput;
+import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import io.openaev.utils.fixtures.AgentFixture;
 import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.fixtures.OutputParserFixture;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -30,6 +32,7 @@ class AgentExecutionProcessingHandlerTest {
 
   @Mock private StructuredOutputUtils structuredOutputUtils;
   @Mock private OutputProcessorFactory outputProcessorFactory;
+  @Mock private InjectorContractContentUtils injectorContractContentUtils;
   @Mock private OutputProcessor mockProcessor;
 
   @InjectMocks private AgentExecutionProcessingHandler handler;
@@ -105,6 +108,8 @@ class AgentExecutionProcessingHandlerTest {
 
     OutputParser parser = OutputParserFixture.getOutputParser(Set.of(element));
     when(structuredOutputUtils.extractOutputParsers(any())).thenReturn(Set.of(parser));
+    when(injectorContractContentUtils.getAllContractOutputs(any(Set.class)))
+        .thenReturn(List.of(element));
 
     ObjectNode json = mapper.createObjectNode();
     json.put("other_key", "val");
@@ -131,6 +136,8 @@ class AgentExecutionProcessingHandlerTest {
         OutputParserFixture.getContractOutputElement(ContractOutputType.CVE, "cve", Set.of(), true);
     OutputParser parser = OutputParserFixture.getOutputParser(Set.of(element));
     when(structuredOutputUtils.extractOutputParsers(any())).thenReturn(Set.of(parser));
+    when(injectorContractContentUtils.getAllContractOutputs(any(Set.class)))
+        .thenReturn(List.of(element));
 
     ObjectNode json = mapper.createObjectNode();
     json.put("cve-key", "some-value");
@@ -153,6 +160,8 @@ class AgentExecutionProcessingHandlerTest {
         OutputParserFixture.getContractOutputElement(ContractOutputType.CVE, "cve", Set.of(), true);
     OutputParser parser = OutputParserFixture.getOutputParser(Set.of(element));
     when(structuredOutputUtils.extractOutputParsers(any())).thenReturn(Set.of(parser));
+    when(injectorContractContentUtils.getAllContractOutputs(any(Set.class)))
+        .thenReturn(List.of(element));
 
     ObjectNode json = mapper.createObjectNode();
     json.put("cve-key", "cve-data");
@@ -176,6 +185,8 @@ class AgentExecutionProcessingHandlerTest {
         OutputParserFixture.getContractOutputElement(ContractOutputType.CVE, "cve", Set.of(), true);
     OutputParser parser = OutputParserFixture.getOutputParser(Set.of(element));
     when(structuredOutputUtils.extractOutputParsers(any())).thenReturn(Set.of(parser));
+    when(injectorContractContentUtils.getAllContractOutputs(any(Set.class)))
+        .thenReturn(List.of(element));
 
     ObjectNode json = mapper.createObjectNode();
     json.put("cve-key", "expected-value");
