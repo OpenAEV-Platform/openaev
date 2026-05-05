@@ -24,6 +24,7 @@ import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.WorkflowComposer;
 import io.openaev.utils.helpers.InjectTestHelper;
+import io.openaev.utils.mockUser.WithMockUser;
 import java.util.*;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,8 +33,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.mock.mockito.SpyBean;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @SpringBootTest
+@WithMockUser(isAdmin = true)
 class StepServiceIntegrationTest extends IntegrationTest {
 
   @Autowired private StepService stepService;
@@ -58,18 +62,30 @@ class StepServiceIntegrationTest extends IntegrationTest {
   InjectorContract injectorContractSaved;
   @SpyBean private StepService spyStepService;
   @Autowired private WorkflowRepository workflowRepository;
+  @Autowired private PlatformTransactionManager transactionManager;
 
   @BeforeEach
   void beforeEach() throws Exception {
-    Injector injector = InjectorFixture.createDefaultPayloadInjector();
-    Injector injectorSaved = injectorRepository.save(injector);
+    TransactionTemplate tx = new TransactionTemplate(transactionManager);
+    injectorContractSaved =
+        tx.execute(
+            status -> {
+              Injector injector = InjectorFixture.createDefaultPayloadInjector();
+              Injector injectorSaved = injectorRepository.save(injector);
 
-    InjectorContract injectorContract = InjectorContractFixture.createImplantInjectorContract();
-    injectorContract.addInjector(injectorSaved);
-    injectorContractSaved = injectorContractRepository.save(injectorContract);
-    // Link on the owning side and save to persist the join table
-    injectorSaved.getContracts().add(injectorContractSaved);
-    injectorRepository.save(injectorSaved);
+              InjectorContract injectorContract;
+              try {
+                injectorContract = InjectorContractFixture.createImplantInjectorContract();
+              } catch (Exception e) {
+                throw new RuntimeException(e);
+              }
+              injectorContract.addInjector(injectorSaved);
+              InjectorContract savedContract = injectorContractRepository.save(injectorContract);
+              // Link on the owning side and save to persist the join table
+              injectorSaved.getContracts().add(savedContract);
+              injectorRepository.save(injectorSaved);
+              return savedContract;
+            });
 
     doReturn(injectorContractSaved).when(injectorContractService).injectorContract(any());
     doReturn(new User()).when(userService).currentUser();
