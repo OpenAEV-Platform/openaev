@@ -8,6 +8,17 @@ const getCsrfToken = (): string | null => {
   return match ? decodeURIComponent(match.split('=')[1]) : null;
 };
 
+/** Ensure the XSRF-TOKEN cookie is set (same pattern as network.ts). */
+let csrfBootstrapPromise: Promise<void> | null = null;
+const ensureCsrfCookie = async (): Promise<void> => {
+  if (getCsrfToken()) return;
+  csrfBootstrapPromise ??= fetch('/csrf', { credentials: 'same-origin' })
+    .then(() => undefined)
+    .catch(() => undefined)
+    .finally(() => { csrfBootstrapPromise = null; });
+  await csrfBootstrapPromise;
+};
+
 export interface AgentOption {
   id: string;
   name: string;
@@ -33,6 +44,7 @@ export const fetchAgentsForIntent = async (intent: string): Promise<AgentOption[
 };
 
 export const callAgent = async (agentSlug: string, content: string): Promise<AgentResponse> => {
+  await ensureCsrfCookie();
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   const csrf = getCsrfToken();
   if (csrf) headers['X-XSRF-TOKEN'] = csrf;
@@ -74,6 +86,7 @@ export const callAgentStream = async (
   onChunk: (partialContent: string) => void,
   signal?: AbortSignal,
 ): Promise<AgentResponse> => {
+  await ensureCsrfCookie();
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   const csrf = getCsrfToken();
   if (csrf) headers['X-XSRF-TOKEN'] = csrf;
