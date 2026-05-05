@@ -7,6 +7,7 @@ import static io.openaev.database.model.TenantSettingKeys.TENANT_HOME_DASHBOARD;
 import static io.openaev.database.model.TenantSettingKeys.TENANT_SCENARIO_DASHBOARD;
 import static io.openaev.database.model.TenantSettingKeys.TENANT_SIMULATION_DASHBOARD;
 
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.Setting;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantSettingKeys;
@@ -34,6 +35,11 @@ public class TenantSettingsService {
   public static final String THEME_TYPE_DARK = "dark";
 
   private final SettingRepository settingRepository;
+  private final OpenAEVConfig openAEVConfig;
+
+  public String buildTenantUrl(String tenantId) {
+    return openAEVConfig.getBaseUrl() + "/" + tenantId;
+  }
 
   // -- READ --
 

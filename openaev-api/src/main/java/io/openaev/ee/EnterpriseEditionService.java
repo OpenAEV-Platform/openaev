@@ -18,33 +18,30 @@ package io.openaev.ee;
 import static io.openaev.database.model.SettingKeys.PLATFORM_ENTERPRISE_LICENSE;
 import static io.openaev.database.model.SettingKeys.PLATFORM_INSTANCE;
 import static io.openaev.ee.Pem.*;
-import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_NAME;
 import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_NAME;
 import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_NAME;
 import static io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration.TANIUM_EXECUTOR_NAME;
-import static java.util.Optional.ofNullable;
 
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.SettingRepository;
 import io.openaev.rest.exception.LicenseRestrictionException;
 import jakarta.annotation.Resource;
-import jakarta.validation.constraints.NotNull;
 import java.nio.charset.StandardCharsets;
 import java.security.cert.*;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 import javax.naming.directory.Attribute;
 import javax.naming.directory.Attributes;
 import javax.naming.ldap.LdapName;
 import javax.naming.ldap.Rdn;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 public class EnterpriseEditionService {
 
@@ -98,14 +95,10 @@ public class EnterpriseEditionService {
     }
   }
 
-  private Map<String, Setting> mapOfSettings(@NotNull List<Setting> settings) {
-    return settings.stream().collect(Collectors.toMap(Setting::getKey, Function.identity()));
-  }
-
   private License getEnterpriseEditionInfoFromPem(String certificatePem) throws Exception {
-    Map<String, Setting> dbSettings = mapOfSettings(fromIterable(this.settingRepository.findAll()));
     String instanceId =
-        ofNullable(dbSettings.get(PLATFORM_INSTANCE.key()))
+        this.settingRepository
+            .findByKeyAndTenantIsNull(PLATFORM_INSTANCE.key())
             .map(Setting::getValue)
             .orElse(PLATFORM_INSTANCE.defaultValue());
     String pemFromConfig = openAEVConfig.getApplicationLicense();
@@ -198,6 +191,7 @@ public class EnterpriseEditionService {
       }
       return getEnterpriseEditionInfoFromPem(certificatePem);
     } catch (Exception e) {
+      log.warn("Failed to retrieve Enterprise Edition license info", e);
       License license = new License();
       license.setLicenseByConfiguration(false);
       return license;

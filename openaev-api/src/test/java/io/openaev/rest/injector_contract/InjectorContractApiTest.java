@@ -55,7 +55,6 @@ import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.postgresql.util.PSQLException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
@@ -882,9 +881,7 @@ public class InjectorContractApiTest extends IntegrationTest {
         assertThatThrownBy(this::createStaticInjectorContract)
             .hasCauseInstanceOf(BatchUpdateException.class)
             .cause()
-            .hasCauseInstanceOf(PSQLException.class)
-            .hasMessageContaining(
-                "Key (injector_contract_external_id)=(" + externalId + ") already exists");
+            .hasMessageContaining("injectors_contracts_injector_contract_external_id_key");
       }
 
       @Test

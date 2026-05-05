@@ -1,5 +1,6 @@
 package io.openaev.scheduler.jobs;
 
+import io.openaev.aop.BypassRls;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.database.model.SecurityCoverageSendJob;
 import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
@@ -30,6 +31,7 @@ public class SecurityCoverageJob implements Job {
   @Override
   @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
   @LogExecutionTime
+  @BypassRls
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
     List<SecurityCoverageSendJob> jobs =
         securityCoverageSendJobService.getPendingSecurityCoverageSendJobs();
