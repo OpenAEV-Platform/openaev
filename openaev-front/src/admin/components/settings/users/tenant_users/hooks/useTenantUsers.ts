@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 
-import { type UserInputForm } from '../../../../../../actions/users/users-helper';
 import { deleteUser, searchUsers, updateUser } from '../../../../../../actions/users/User';
+import { type UserInputForm } from '../../../../../../actions/users/users-helper';
 import { type SearchPaginationInput, type UserOutput } from '../../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../../utils/hooks';
 
@@ -32,7 +32,10 @@ const useTenantUsers = () => {
 
   const editUser = useCallback((userId: string, data: UserInputForm) => {
     const inputValues = { ...data };
-    return dispatch(updateUser(userId, inputValues)).then((result: { entities: { users: Record<string, UserOutput> }; result: string }) => {
+    return dispatch(updateUser(userId, inputValues)).then((result: {
+      entities: { users: Record<string, UserOutput> };
+      result: string;
+    }) => {
       if (result?.result) {
         const updated = result.entities.users[result.result];
         setUsers(prev => prev.map(u => (u.user_id === userId ? updated : u)));

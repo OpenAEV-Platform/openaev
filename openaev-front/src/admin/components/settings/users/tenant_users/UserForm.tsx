@@ -1,20 +1,20 @@
-import {zodResolver} from '@hookform/resolvers/zod';
-import {useTheme} from '@mui/material/styles';
-import {Tooltip} from '@mui/material';
-import {cloneElement, type FunctionComponent, type ReactElement, type SyntheticEvent} from 'react';
-import {FormProvider, type Resolver, useForm} from 'react-hook-form';
-import {z} from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Tooltip } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
+import { cloneElement, type FunctionComponent, type ReactElement, type SyntheticEvent } from 'react';
+import { FormProvider, type Resolver, useForm } from 'react-hook-form';
+import { z } from 'zod';
 
-import {type UserInputForm, type UserType} from '../../../../../actions/users/users-helper';
+import { type UserInputForm, type UserType } from '../../../../../actions/users/users-helper';
 import ActionButtons from '../../../../../components/common/ActionButtons';
 import OrganizationFieldController from '../../../../../components/fields/OrganizationFieldController';
-import useEnterpriseEdition from '../../../../../utils/hooks/useEnterpriseEdition';
 import SwitchFieldController from '../../../../../components/fields/SwitchFieldController';
 import TagFieldController from '../../../../../components/fields/TagFieldController';
 import TenantFieldController from '../../../../../components/fields/TenantFieldController';
 import TextFieldController from '../../../../../components/fields/TextFieldController';
-import {useFormatter} from '../../../../../components/i18n';
-import {PHONE_REGEX, zodImplement} from '../../../../../utils/Zod';
+import { useFormatter } from '../../../../../components/i18n';
+import useEnterpriseEdition from '../../../../../utils/hooks/useEnterpriseEdition';
+import { PHONE_REGEX, zodImplement } from '../../../../../utils/Zod';
 
 const ScopedField: FunctionComponent<{
   readOnly: boolean;
