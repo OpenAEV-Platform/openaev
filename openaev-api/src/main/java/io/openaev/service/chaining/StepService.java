@@ -637,6 +637,13 @@ public class StepService {
     return stepRepository.findStepIdsByExpectationIds(expectationIds);
   }
 
+  public Set<String> findStepIdsByInjectIds(final Set<String> injectIds) {
+    return injectIds.stream()
+        .map(id -> stepRepository.findStepIdByInjectId(id).orElse(null))
+        .filter(Objects::nonNull)
+        .collect(Collectors.toSet());
+  }
+
   /**
    * Returns all RUN and READY steps for a given workflow execution.
    *

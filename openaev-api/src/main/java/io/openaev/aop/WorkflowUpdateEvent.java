@@ -17,6 +17,12 @@ public @interface WorkflowUpdateEvent {
   String injectId() default "";
 
   /**
+   * The SPEL to fetch a collection of inject IDs from the request params. Mutually exclusive with
+   * injectId and expectationIds.
+   */
+  String injectIds() default "";
+
+  /**
    * The SPEL to fetch a singular or a list of expectation IDs from the request params From these
    * expectations IDs, we will then fetch the associated inject IDs and finally, the step IDs
    * Setting this is mutually exclusive with setting the other fields from this annotation (control
