@@ -5,5 +5,5 @@ public interface WorkflowStateRepositoryCustom {
 
   void addCorrelated(Long id, String correlated);
 
-  void addHash(Long id, Long hashExecution);
+  void addHash(Long id, String hashExecution);
 }

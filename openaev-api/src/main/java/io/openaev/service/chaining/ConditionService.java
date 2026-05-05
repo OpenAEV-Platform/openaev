@@ -1,8 +1,5 @@
 package io.openaev.service.chaining;
 
-import static io.openaev.api.chaining.ConditionMapper.resolveMappingType;
-import static io.openaev.utils.JsonUtils.gson;
-
 import io.openaev.api.chaining.ConditionMapper;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.EventInput;
@@ -13,16 +10,20 @@ import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.utils.ConditionUtils;
 import jakarta.persistence.EntityNotFoundException;
+import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.time.Instant;
 import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
-import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+
+import static io.openaev.api.chaining.ConditionMapper.resolveMappingType;
+import static io.openaev.utils.JsonUtils.gson;
 
 @Service
 @AllArgsConstructor
@@ -611,7 +612,7 @@ public class ConditionService {
       throw new IllegalArgumentException(
           "New step (TEMPLATE): Only 1 condition can be first parent");
     }
-    return roots.get(0);
+    return roots.getFirst();
   }
 
   /**
@@ -830,7 +831,7 @@ public class ConditionService {
         continue;
       }
 
-      long hash = localEntries.hashCombo(comboMap);
+      String hash = localEntries.hashCombo(comboMap);
       if (localEntries.getHashExecution().contains(hash)) {
         continue;
       }

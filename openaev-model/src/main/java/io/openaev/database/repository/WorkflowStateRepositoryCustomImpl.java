@@ -51,7 +51,7 @@ public class WorkflowStateRepositoryCustomImpl implements WorkflowStateRepositor
 
   @Override
   @Transactional
-  public void addHash(Long id, Long hashExecution) {
+  public void addHash(Long id, String hashExecution) {
     em.createNativeQuery(
             """
             UPDATE workflow_states
@@ -59,7 +59,7 @@ public class WorkflowStateRepositoryCustomImpl implements WorkflowStateRepositor
                 workflow_state_entries,
                 '{hashExecution}',
                 COALESCE(workflow_state_entries->'hashExecution', '[]'::jsonb) ||
-                CAST(:hashExecution AS jsonb)
+                jsonb_build_array(CAST(:hashExecution AS text))
             )
             WHERE workflow_state_id = :state_id
         """)

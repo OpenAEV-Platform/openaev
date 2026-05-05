@@ -3,13 +3,14 @@ package io.openaev.database.model;
 import com.google.common.hash.Hashing;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
-import java.nio.charset.StandardCharsets;
-import java.util.*;
-import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
+
+import java.nio.charset.StandardCharsets;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @AllArgsConstructor
 @Getter
@@ -23,7 +24,7 @@ public class WorkflowStateEntries {
 
   List<Input> inputs;
   List<Correlated> correlated;
-  Set<Long> hashExecution;
+  Set<String> hashExecution;
 
   /** List of all keys needs for the execution* */
   @NotNull @NotEmpty Set<String> executionKeys;
@@ -105,7 +106,7 @@ public class WorkflowStateEntries {
       return;
     }
 
-    long hash = hashCombo(combo);
+    String hash = hashCombo(combo);
     if (!hashExecution.contains(hash)) {
       hashExecution.add(hash);
       System.out.println("New execution : " + combo + " -> hash=" + hash);
@@ -215,7 +216,7 @@ public class WorkflowStateEntries {
       resultLists.add(new ArrayList<>());
       return resultLists;
     } else {
-      List<T> firstList = lists.get(0);
+      List<T> firstList = lists.getFirst();
       List<List<T>> remainingLists = cartesianProduct(lists.subList(1, lists.size()));
       for (T condition : firstList) {
         for (List<T> remaining : remainingLists) {
@@ -229,12 +230,12 @@ public class WorkflowStateEntries {
     return resultLists;
   }
 
-  public long hashCombo(Map<String, String> combo) {
-    // Order key
+  public String hashCombo(Map<String, String> combo) {
+    // Canonicalize key order so hash is stable regardless of map implementation.
     StringBuilder sb = new StringBuilder();
-    combo.forEach((k, v) -> sb.append(k).append("=").append(v).append("|"));
+    new TreeMap<>(combo).forEach((k, v) -> sb.append(k).append("=").append(v).append("|"));
 
-    return Hashing.murmur3_128().hashString(sb.toString(), StandardCharsets.UTF_8).asLong();
+    return Hashing.murmur3_128().hashString(sb.toString(), StandardCharsets.UTF_8).toString();
   }
 
   public boolean comboContainAllExecutionKeys(
