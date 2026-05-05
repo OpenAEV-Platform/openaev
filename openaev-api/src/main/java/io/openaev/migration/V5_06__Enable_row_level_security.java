@@ -35,14 +35,17 @@ public class V5_06__Enable_row_level_security extends BaseJavaMigration {
   public void migrate(Context context) throws Exception {
     try (Statement statement = context.getConnection().createStatement()) {
 
-      String dbOwner = context.getConnection().getMetaData().getUserName();
-
       // -- 1. Set a role-level default for app.current_tenant so
       //       current_setting() never fails, even outside a transaction.
       //       Defaults to the default tenant — platform-level requests see only default tenant
       // data.
+      String dbName = context.getConnection().getCatalog();
       statement.execute(
-          "ALTER ROLE " + dbOwner + " SET app.current_tenant = '" + DEFAULT_TENANT_UUID + "'");
+          "ALTER ROLE CURRENT_USER IN DATABASE \""
+              + dbName
+              + "\" SET app.current_tenant = '"
+              + DEFAULT_TENANT_UUID
+              + "'");
 
       // -- 2. Create a non-superuser role that the app will adopt via SET ROLE.
       //       Superusers bypass RLS, so the app must not run queries as a superuser.
@@ -56,8 +59,8 @@ public class V5_06__Enable_row_level_security extends BaseJavaMigration {
       // PG > 15, allow access for app role for read
       statement.execute("GRANT USAGE ON SCHEMA public TO " + APP_ROLE);
 
-      // Grant the app role to the DB owner so SET ROLE works
-      statement.execute("GRANT " + APP_ROLE + " TO \"" + dbOwner + "\"");
+      // Grant the app role to the current user so SET ROLE works
+      statement.execute("GRANT " + APP_ROLE + " TO CURRENT_USER");
 
       // Grant full DML privileges on all tables and sequences
       statement.execute("GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO " + APP_ROLE);
