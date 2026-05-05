@@ -24,7 +24,7 @@ steps:
       - mvn spotless:check
       - sleep 60
       - apt-get update -qq && apt-get install -y -qq postgresql-client > /dev/null
-      - psql "postgresql://openaev:openaev@pgsql:5432/openaev" -c "CREATE ROLE openaev_app NOLOGIN NOSUPERUSER; CREATE USER openaev_owner WITH PASSWORD 'openaev' NOSUPERUSER CREATEROLE; GRANT openaev_app TO openaev_owner; ALTER DATABASE openaev OWNER TO openaev_owner; GRANT ALL ON SCHEMA public TO openaev_owner; ALTER SCHEMA public OWNER TO openaev_owner; ALTER DATABASE openaev SET app.current_tenant = '2cffad3a-0001-4078-b0e2-ef74274022c3';"
+      - psql "postgresql://openaev:openaev@pgsql:5432/openaev" -c "CREATE ROLE openaev_app NOLOGIN NOSUPERUSER;"
       - mvn clean install -q -DskipTests
       - cd openaev-api
       - mvn test
@@ -66,7 +66,7 @@ steps:
       OPENBAS_RABBITMQ_HOSTNAME: rabbitmq-e2e
     commands:
       - apt update && apt install -y gnupg git npm postgresql-client
-      - psql "postgresql://openaev:openaev@pgsql-e2e:5432/openaev" -c "CREATE ROLE openaev_app NOLOGIN NOSUPERUSER; CREATE USER openaev_owner WITH PASSWORD 'openaev' NOSUPERUSER CREATEROLE; GRANT openaev_app TO openaev_owner; ALTER DATABASE openaev OWNER TO openaev_owner; GRANT ALL ON SCHEMA public TO openaev_owner; ALTER SCHEMA public OWNER TO openaev_owner; ALTER DATABASE openaev SET app.current_tenant = '2cffad3a-0001-4078-b0e2-ef74274022c3';"
+      - psql "postgresql://openaev:openaev@pgsql-e2e:5432/openaev" -c "CREATE ROLE openaev_app NOLOGIN NOSUPERUSER;"
       - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
       - apt update && apt install -y nodejs
       - npm install -g corepack
