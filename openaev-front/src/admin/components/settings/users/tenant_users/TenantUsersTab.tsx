@@ -32,6 +32,7 @@ const TenantUsersTab = () => {
     loading,
     fetchUsers,
     addUser,
+    editUser,
     removeUser,
   } = useTenantUsers();
 
@@ -77,9 +78,8 @@ const TenantUsersTab = () => {
                 secondaryAction={user => (
                   <UserPopover
                     user={user}
-                    actions={['Delete']}
-                    disabledActions={{ Update: 'Users can only be updated from the platform settings' }}
-                    onSubmitUpdate={() => {}}
+                    actions={['Update', 'Delete']}
+                    onSubmitUpdate={data => editUser(user.user_id, data)}
                     onSubmitDelete={() => removeUser(user.user_id)}
                     permissions={{
                       manage: [ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS],

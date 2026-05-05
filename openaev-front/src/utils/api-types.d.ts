@@ -708,6 +708,11 @@ export interface BrokerConnectionInfo {
   vhost?: string;
 }
 
+export interface CTIEvent {
+  event: Event;
+  internal: Internal;
+}
+
 export interface CVEBulkInsertInput {
   cves: CveCreateInput[];
   initial_dataset_completed?: boolean;
@@ -2742,6 +2747,11 @@ export interface EvaluationInput {
   evaluation_score?: number;
 }
 
+export interface Event {
+  /** @minLength 1 */
+  stix_objects: string;
+}
+
 export interface EventInput {
   /** @minItems 1 */
   event_conditions: ConditionCreateInput[];
@@ -4513,6 +4523,11 @@ export interface InjectsImportTestInput {
   sheet_name: string;
   /** @format int32 */
   timezone_offset: number;
+}
+
+export interface Internal {
+  /** @minLength 1 */
+  work_id: string;
 }
 
 export interface JsonApiDocumentResourceObject {
