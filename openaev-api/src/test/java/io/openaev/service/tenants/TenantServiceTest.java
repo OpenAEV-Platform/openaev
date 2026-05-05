@@ -21,7 +21,7 @@ import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.*;
-import io.openaev.datapack.packs.V20260330_Default_tenant_data;
+import io.openaev.processor.datapack.V20260330_Default_tenant_data;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.RoleService;
 import io.openaev.utils.fixtures.tenants.TenantComposer;
