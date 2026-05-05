@@ -13,6 +13,7 @@ import {
 } from '@mui/icons-material';
 import {
   Autocomplete,
+  Box,
   Button,
   Drawer,
   FormControl,
@@ -25,11 +26,9 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import { type Theme } from '@mui/material/styles';
 import { SelectGroup } from 'mdi-material-ui';
 import { Component, type ComponentType } from 'react';
 import { connect } from 'react-redux';
-import { withStyles } from 'tss-react/mui';
 
 import { fetchAssetGroups } from '../../../actions/asset_groups/assetgroup-action';
 import { fetchEndpoints } from '../../../actions/assets/endpoint-actions';
@@ -48,113 +47,6 @@ import {
   type ToolBarTask,
   type ToolBarTeamInput,
 } from '../../../utils/api-types-custom';
-
-const styles = (theme: Theme) => ({
-  drawerPaper: {
-    minHeight: '100vh',
-    width: '50%',
-    position: 'fixed',
-    transition: theme.transitions.create('width', {
-      easing: theme.transitions.easing.sharp,
-      duration: theme.transitions.duration.enteringScreen,
-    }),
-  },
-  header: {
-    backgroundColor: theme.palette.background.nav,
-    padding: theme.spacing(2.5),
-  },
-  closeButton: {
-    position: 'absolute',
-    top: theme.spacing(1.5),
-    left: theme.spacing(0.625),
-    color: 'inherit',
-  },
-  buttons: {
-    marginTop: theme.spacing(2.5),
-    textAlign: 'right',
-  },
-  button: { marginLeft: theme.spacing(2) },
-  buttonAdd: {
-    width: '100%',
-    height: theme.spacing(2.5),
-  },
-  container: { padding: theme.spacing(1.25) },
-  aliases: { margin: theme.spacing(0, 0.875, 0.875, 0) },
-  title: {
-    flex: '1 1 100%',
-    fontSize: 12,
-    display: 'flex',
-    alignItems: 'center',
-    gap: theme.spacing(0.5),
-    textTransform: 'none',
-  },
-  chipValue: { margin: 0 },
-  filter: { margin: theme.spacing(0.625, 1.25, 0.625, 0) },
-  operator: {
-    fontFamily: 'Consolas, monaco, monospace',
-    backgroundColor: theme.palette.background.accent,
-    margin: theme.spacing(0.625, 1.25, 0.625, 0),
-  },
-  step: {
-    position: 'relative',
-    width: '100%',
-    margin: theme.spacing(0, 0, 2.5, 0),
-    padding: theme.spacing(1.875),
-    verticalAlign: 'middle',
-    border: `1px solid ${theme.palette.primary.main}`,
-    borderRadius: theme.shape.borderRadius,
-    display: 'flex',
-  },
-  formControl: { width: '100%' },
-  formControlPanel: { width: '100%' },
-  stepCloseButton: {
-    position: 'absolute',
-    top: -theme.spacing(2.5),
-    right: -theme.spacing(2.5),
-  },
-  icon: {
-    paddingTop: theme.spacing(0.5),
-    display: 'inline-block',
-  },
-  text: {
-    display: 'inline-block',
-    flexGrow: 1,
-    marginLeft: theme.spacing(1.25),
-  },
-  autoCompleteIndicator: { display: 'none' },
-  numberOfSelectedElements: {
-    padding: theme.spacing(0.25, 0.625),
-    marginRight: theme.spacing(0.625),
-    backgroundColor: theme.palette.background.accent,
-  },
-  toolbar: {
-    display: 'flex',
-    alignItems: 'center',
-    flex: '1 1 100%',
-    width: '100%',
-    backgroundColor: 'rgb(15, 30, 56)',
-    paddingRight: theme.spacing(1),
-  },
-  selectedCount: { fontWeight: 'bold' },
-  clearButton: {
-    marginLeft: 0,
-    padding: theme.spacing(0.5),
-  },
-  infoWrapper: {
-    display: 'flex',
-    alignItems: 'center',
-    marginRight: theme.spacing(2),
-    gap: theme.spacing(0.5),
-    textTransform: 'lowercase',
-    whiteSpace: 'nowrap',
-  },
-  infoText: {
-    textTransform: 'lowercase',
-    whiteSpace: 'nowrap',
-  },
-});
-
-type StyleClasses = { [key: string]: string };
 
 type ToolBarOwnProps = {
   numberOfSelectedElements: number;
@@ -186,9 +78,7 @@ type DispatchProps = {
 
 type I18nProps = { t: (key: string, options?: Record<string, unknown>) => string };
 
-type ClassesProps = { classes: StyleClasses };
-
-type ToolBarProps = ToolBarOwnProps & ReduxProps & DispatchProps & I18nProps & ClassesProps;
+type ToolBarProps = ToolBarOwnProps & ReduxProps & DispatchProps & I18nProps;
 
 type ToolBarState = {
   displayExport: boolean;
@@ -396,7 +286,7 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
   }
 
   renderValuesOptions(i: number) {
-    const { t, classes } = this.props;
+    const { t } = this.props;
     const { actionsInputs } = this.state;
     const disabled = !actionsInputs[i]?.field;
     switch (actionsInputs[i]?.field) {
@@ -427,10 +317,21 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
             onChange={(event, value) => this.handleChangeActionInputValues(i, event, value)}
             renderOption={(props, option: ToolBarSelectOption) => (
               <li {...props}>
-                <div className={classes.icon}>
+                <Box sx={{
+                  pt: 0.5,
+                  display: 'inline-block',
+                }}
+                >
                   <DevicesOtherOutlined />
-                </div>
-                <div className={classes.text}>{option.label}</div>
+                </Box>
+                <Box sx={{
+                  display: 'inline-block',
+                  flexGrow: 1,
+                  ml: 1.25,
+                }}
+                >
+                  {option.label}
+                </Box>
               </li>
             )}
           />
@@ -462,10 +363,21 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
             onChange={(event, value) => this.handleChangeActionInputValues(i, event, value)}
             renderOption={(props, option: ToolBarSelectOption) => (
               <li {...props}>
-                <div className={classes.icon}>
+                <Box sx={{
+                  pt: 0.5,
+                  display: 'inline-block',
+                }}
+                >
                   <SelectGroup />
-                </div>
-                <div className={classes.text}>{option.label}</div>
+                </Box>
+                <Box sx={{
+                  display: 'inline-block',
+                  flexGrow: 1,
+                  ml: 1.25,
+                }}
+                >
+                  {option.label}
+                </Box>
               </li>
             )}
           />
@@ -497,10 +409,21 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
             onChange={(event, value) => this.handleChangeActionInputValues(i, event, value)}
             renderOption={(props, option: ToolBarSelectOption) => (
               <li {...props}>
-                <div className={classes.icon}>
+                <Box sx={{
+                  pt: 0.5,
+                  display: 'inline-block',
+                }}
+                >
                   <GroupsOutlined />
-                </div>
-                <div className={classes.text}>{option.label}</div>
+                </Box>
+                <Box sx={{
+                  display: 'inline-block',
+                  flexGrow: 1,
+                  ml: 1.25,
+                }}
+                >
+                  {option.label}
+                </Box>
               </li>
             )}
           />
@@ -563,7 +486,6 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
   render() {
     const {
       t,
-      classes,
       numberOfSelectedElements,
       handleClearSelectedElements,
       canManage = false,
@@ -592,14 +514,31 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
 
     return (
       <>
-        <div className={classes.toolbar} data-testid="openaev-toolbar">
+        <Box
+          data-testid="openaev-toolbar"
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            flex: '1 1 100%',
+            width: '100%',
+            backgroundColor: 'rgb(15, 30, 56)',
+            pr: 1,
+          }}
+        >
           <Typography
-            className={classes.title}
+            sx={{
+              flex: '1 1 100%',
+              fontSize: 12,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0.5,
+              textTransform: 'none',
+            }}
             color="inherit"
           >
-            <span className={classes.selectedCount}>
+            <Box component="span" sx={{ fontWeight: 'bold' }}>
               {numberOfSelectedElements}
-            </span>
+            </Box>
             {' '}
             {t('selected').toLowerCase()}
             <IconButton
@@ -608,18 +547,30 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
               onClick={() => handleClearSelectedElements()}
               size="small"
               color="primary"
-              className={classes.clearButton}
+              sx={{
+                ml: 0,
+                p: 0.5,
+              }}
             >
               <ClearOutlined fontSize="small" />
             </IconButton>
           </Typography>
           {info && (
-            <div className={classes.infoWrapper}>
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                mr: 2,
+                gap: 0.5,
+                textTransform: 'lowercase',
+                whiteSpace: 'nowrap',
+              }}
+            >
               <InfoOutlined fontSize="small" color="info" />
               <Typography variant="body2">
                 {info.toLowerCase()}
               </Typography>
-            </div>
+            </Box>
           )}
           {canExport && (
             <Tooltip title={t('Export')}>
@@ -696,19 +647,38 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
               </span>
             </Tooltip>
           ))}
-        </div>
+        </Box>
         <Drawer
           open={this.state.displayUpdate}
           anchor="right"
           elevation={1}
-          sx={{ zIndex: 1202 }}
-          classes={{ paper: classes.drawerPaper }}
+          sx={{
+            'zIndex': 1202,
+            '& .MuiDrawer-paper': {
+              minHeight: '100vh',
+              width: '50%',
+              position: 'fixed',
+              transition: theme => theme.transitions.create('width', {
+                easing: theme.transitions.easing.sharp,
+                duration: theme.transitions.duration.enteringScreen,
+              }),
+            },
+          }}
           onClose={this.handleCloseUpdate.bind(this)}
         >
-          <div className={classes.header}>
+          <Box sx={{
+            backgroundColor: 'background.nav',
+            p: 2.5,
+          }}
+          >
             <IconButton
               aria-label="Close"
-              className={classes.closeButton}
+              sx={{
+                position: 'absolute',
+                top: 1.5,
+                left: 0.625,
+                color: 'inherit',
+              }}
               onClick={this.handleCloseUpdate.bind(this)}
               size="large"
               color="primary"
@@ -716,24 +686,45 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
               <CloseOutlined fontSize="small" color="primary" />
             </IconButton>
             <Typography variant="h6">{t('Update objects')}</Typography>
-          </div>
-          <div className={classes.container} style={{ marginTop: 20 }}>
+          </Box>
+          <Box sx={{
+            p: 1.25,
+            mt: 2.5,
+          }}
+          >
             {new Array(actionsInputs.length)
               .fill(0)
               .map((_, i) => (
-                <div key={`${actionsInputs[i]?.field || 'field'}-${actionsInputs[i]?.type || 'type'}-${i}`} className={classes.step}>
+                <Box
+                  key={`${actionsInputs[i]?.field || 'field'}-${actionsInputs[i]?.type || 'type'}-${i}`}
+                  sx={{
+                    position: 'relative',
+                    width: '100%',
+                    mb: 2.5,
+                    p: 1.875,
+                    verticalAlign: 'middle',
+                    border: '1px solid',
+                    borderColor: 'primary.main',
+                    borderRadius: 1,
+                    display: 'flex',
+                  }}
+                >
                   <IconButton
                     disabled={actionsInputs.length === 1}
                     aria-label="Delete"
-                    className={classes.stepCloseButton}
+                    sx={{
+                      position: 'absolute',
+                      top: -2.5,
+                      right: -2.5,
+                    }}
                     onClick={this.handleRemoveStep.bind(this, i)}
                     size="small"
                   >
                     <CancelOutlined fontSize="small" />
                   </IconButton>
-                  <Grid container spacing={3} className={classes.formControlPanel}>
+                  <Grid container spacing={3} sx={{ width: '100%' }}>
                     <Grid size={{ xs: 3 }}>
-                      <FormControl className={classes.formControl}>
+                      <FormControl sx={{ width: '100%' }}>
                         <InputLabel>{t('Action type')}</InputLabel>
                         <Select
                           variant="standard"
@@ -749,7 +740,7 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
                       </FormControl>
                     </Grid>
                     <Grid size={{ xs: 3 }}>
-                      <FormControl className={classes.formControl}>
+                      <FormControl sx={{ width: '100%' }}>
                         <InputLabel>{t('Field')}</InputLabel>
                         {this.renderFieldOptions(i)}
                       </FormControl>
@@ -758,32 +749,39 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
                       {this.renderValuesOptions(i)}
                     </Grid>
                   </Grid>
-                </div>
+                </Box>
               ))}
-            <div className={classes.add}>
+            <Box>
               <Button
                 disabled={!this.areStepValid()}
                 variant="contained"
                 color="secondary"
                 size="small"
                 onClick={this.handleAddStep.bind(this)}
-                classes={{ root: classes.buttonAdd }}
+                sx={{
+                  width: '100%',
+                  height: 2.5,
+                }}
               >
                 <AddOutlined fontSize="small" />
               </Button>
-            </div>
-            <div className={classes.buttons}>
+            </Box>
+            <Box sx={{
+              mt: 2.5,
+              textAlign: 'right',
+            }}
+            >
               <Button
                 disabled={!this.areStepValid()}
                 variant="contained"
                 color="primary"
                 onClick={this.handleLaunchUpdate.bind(this)}
-                classes={{ root: classes.button }}
+                sx={{ ml: 2 }}
               >
                 {t('Update')}
               </Button>
-            </div>
-          </div>
+            </Box>
+          </Box>
         </Drawer>
         <ExportOptionsDialog
           title={t('inject_export_json_selection')}
@@ -837,8 +835,7 @@ const mapStateToProps = (state: unknown, ownProps: ToolBarOwnProps): ReduxProps 
   };
 };
 
-const StyledToolBar = withStyles(ToolBarComponent, styles);
-const I18nToolBar = inject18n(StyledToolBar);
+const I18nToolBar = inject18n(ToolBarComponent);
 const ConnectedToolBar = connect(mapStateToProps, {
   fetchEndpoints,
   fetchAssetGroups,
