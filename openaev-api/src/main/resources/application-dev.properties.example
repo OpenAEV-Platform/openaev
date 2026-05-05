@@ -85,7 +85,6 @@ openaev.provider.microsoft.lastname_attribute_key=http://schemas.xmlsoap.org/ws/
 ### To handle admin with sso
 #openaev.provider.microsoft.roles_path=http://schemas.microsoft.com/ws/2008/06/identity/claims/groups
 #openaev.provider.{registrationId}.roles_admin=
-#openaev.provider.microsoft.groups_management= [{"idpGroup": "4c33e60a-dca1-43ab-b8d1-010b7744c080","userGroup": "4c33e60a-dca1-43ab-b8d1-010b7744c080","autoCreate": false}]
 
 openaev.logout-success-url=/
 ## Kerberos
