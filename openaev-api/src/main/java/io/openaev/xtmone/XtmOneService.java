@@ -43,7 +43,12 @@ public class XtmOneService {
               "name",
               "detection.generate",
               "description",
-              "Generate detection and remediation rules for security collectors"));
+              "Generate detection and remediation rules for security collectors"),
+          Map.of(
+              "name",
+              "generate.message",
+              "description",
+              "Generate email messages for adversary emulation injects"));
 
   /** Intent catalog received from the last successful registration. */
   @SuppressWarnings("unchecked")

@@ -29,7 +29,7 @@ import useAI from '../../../../utils/hooks/useAI';
 import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
 import EETooltip from '../entreprise_edition/EETooltip';
 
-export type AgentAction = 'spelling' | 'shorter' | 'longer' | 'tone' | 'summarize' | 'explain';
+export type AgentAction = 'spelling' | 'shorter' | 'longer' | 'tone' | 'summarize' | 'explain' | 'genMessage' | 'genSubject';
 
 const intentForAction: Record<AgentAction, string> = {
   spelling: 'fix.spelling',
@@ -38,6 +38,8 @@ const intentForAction: Record<AgentAction, string> = {
   tone: 'change.tone',
   summarize: 'summarize',
   explain: 'explain',
+  genMessage: 'generate.message',
+  genSubject: 'generate.message',
 };
 
 // region types
@@ -405,7 +407,20 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
               disabled={messageInput.length === 0} // Disable button if messageInput is empty
               onClick={() => {
                 handleCloseGenMessageOptions();
-                handleAskAi('genMessage');
+                if (useXtmOne) {
+                  const prompt = `Generate an email message.\n\nTone: ${messageTone}\nFrom: ${messageSender || 'not specified'}\nTo: ${messageRecipient || 'not specified'}\nNumber of paragraphs: ${messageParagraphs}\nContext: ${messageContext || 'none'}\n\nContent/Instructions:\n${messageInput}\n\nReturn only the email body in ${format} format, no explanation.`;
+                  setContent('');
+                  setIsAcceptable(true);
+                  setAgentMode({
+                    intent: intentForAction.genMessage,
+                    action: 'genMessage',
+                    inputContent: prompt,
+                    format,
+                  });
+                  handleOpenAskAI();
+                } else {
+                  handleAskAi('genMessage');
+                }
               }}
               color="secondary"
             >
