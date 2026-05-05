@@ -149,7 +149,7 @@ const InjectPopover: FunctionComponent<Props> = ({
       const contentDisposition = result.headers['content-disposition'];
       const match = contentDisposition.match(/filename\s*=\s*(.*)/i);
       const filename = match[1];
-      download(result.data, filename, result.headers['content-type']);
+      download(result.data, filename, result.headers['content-type']?.toString());
     });
     handleExportClose();
   };
