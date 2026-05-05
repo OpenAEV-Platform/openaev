@@ -31,9 +31,7 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
-/**
- * Integration test for {@link XtmHubConnectivityCollectorService}.
- */
+/** Integration test for {@link XtmHubConnectivityCollectorService}. */
 @TestInstance(TestInstance.Lifecycle.PER_METHOD)
 @WithMockUser(isAdmin = true)
 @ExtendWith(DefaultTenantExtension.class)
@@ -91,10 +89,8 @@ class XtmHubConnectivityCollectorServiceTest extends IntegrationTest {
     collectorService.run();
 
     // Then — the hub was called exactly once, carrying only the 2 active tenant IDs
-    ArgumentCaptor<Map<String, TenantRegistrationDetails>> tenantsCaptor =
-        ArgumentCaptor.captor();
-    verify(xtmHubClient)
-        .refreshRegistrationStatusAllTenants(any(), any(), tenantsCaptor.capture());
+    ArgumentCaptor<Map<String, TenantRegistrationDetails>> tenantsCaptor = ArgumentCaptor.captor();
+    verify(xtmHubClient).refreshRegistrationStatusAllTenants(any(), any(), tenantsCaptor.capture());
 
     Map<String, TenantRegistrationDetails> sentTenants = tenantsCaptor.getValue();
     assertThat(sentTenants)
@@ -128,4 +124,3 @@ class XtmHubConnectivityCollectorServiceTest extends IntegrationTest {
     }
   }
 }
-
