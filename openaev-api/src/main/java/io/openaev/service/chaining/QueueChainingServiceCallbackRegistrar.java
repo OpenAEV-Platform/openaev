@@ -15,18 +15,20 @@ import org.springframework.stereotype.Component;
 public class QueueChainingServiceCallbackRegistrar {
 
   private final QueueChainingService queueChainingService;
-  private final StepService stepService;
+  private final StepEventService stepEventService;
 
   /**
    * Registers all callback handlers after bean construction.
    *
    * <p>This method is called automatically by Spring after dependency injection. It registers the
-   * step service methods as callbacks for the ready queue, delay queue, and external update queue.
+   * step event service methods as callbacks for the ready queue, delay queue, and external update
+   * queue.
    */
   @PostConstruct
   public void registerCallbacks() {
-    // This stepService is the proxied bean, so @Transactional works
-    queueChainingService.setCallbackForReadyQueue(stepService::handleReadyEvent);
-    queueChainingService.setCallbackForExternalUpdateQueue(stepService::handleExternalUpdateEvent);
+    // This stepEventService is the proxied bean, so @Transactional works
+    queueChainingService.setCallbackForReadyQueue(stepEventService::handleReadyEvent);
+    queueChainingService.setCallbackForExternalUpdateQueue(
+        stepEventService::handleExternalUpdateEvent);
   }
 }

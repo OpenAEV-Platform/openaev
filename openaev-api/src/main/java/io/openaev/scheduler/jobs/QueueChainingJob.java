@@ -32,10 +32,12 @@ public class QueueChainingJob implements Job {
 
     for (StepDelayQueue stepDelayQueue : stepsDelayQueue) {
       try {
-        stepService.ready(
-            stepDelayQueue.getStepTemplate(),
-            stepDelayQueue.getWorkflowRun(),
-            stepDelayQueue.getInput());
+        stepService.enqueueReadySteps(
+            stepService.createReadySteps(
+                stepDelayQueue.getStepTemplate(),
+                stepDelayQueue.getWorkflowRun(),
+                stepDelayQueue.getInput()),
+            stepDelayQueue.getWorkflowRun());
       } catch (ChainingException e) {
         log.error("Delay consume failed : {}", e.getMessage(), e);
       }

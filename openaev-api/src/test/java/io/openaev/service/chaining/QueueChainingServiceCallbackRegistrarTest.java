@@ -18,7 +18,7 @@ class QueueChainingServiceCallbackRegistrarTest {
 
   @Mock private QueueChainingService queueChainingService;
 
-  @Mock private StepService stepService;
+  @Mock private StepEventService stepEventService;
 
   @InjectMocks private QueueChainingServiceCallbackRegistrar registrar;
 
@@ -115,12 +115,12 @@ class QueueChainingServiceCallbackRegistrarTest {
       callback.perform(events);
 
       // Assert
-      verify(stepService).handleReadyEvent(events);
+      verify(stepEventService).handleReadyEvent(events);
     }
 
     @Test
     @DisplayName(
-        "should invoke stepService.handleExternalUpdateEvent when external update callback is executed")
+        "should invoke stepEventService.handleExternalUpdateEvent when external update callback is executed")
     void shouldInvokeHandleExternalUpdateEvent() {
       // Prepare
       List<ExternalUpdateEvent> events = List.of(mock(ExternalUpdateEvent.class));
@@ -135,7 +135,7 @@ class QueueChainingServiceCallbackRegistrarTest {
       callback.perform(events);
 
       // Assert
-      verify(stepService).handleExternalUpdateEvent(events);
+      verify(stepEventService).handleExternalUpdateEvent(events);
     }
   }
 }

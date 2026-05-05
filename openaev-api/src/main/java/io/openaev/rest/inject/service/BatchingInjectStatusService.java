@@ -2,6 +2,7 @@ package io.openaev.rest.inject.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.aop.WorkflowUpdateEvent;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.ExecutionStatus;
 import io.openaev.database.model.Inject;
@@ -55,6 +56,7 @@ public class BatchingInjectStatusService {
    */
   @LogExecutionTime
   @Transactional(Transactional.TxType.REQUIRES_NEW)
+  @WorkflowUpdateEvent(injectIds = "#injectExecutionCallbacks.![injectId]")
   public List<InjectExecutionCallback> handleInjectExecutionCallback(
       List<InjectExecutionCallback> injectExecutionCallbacks) {
 

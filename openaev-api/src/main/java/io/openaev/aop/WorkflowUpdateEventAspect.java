@@ -6,6 +6,7 @@ import io.openaev.service.chaining.QueueChainingService;
 import io.openaev.service.chaining.StepService;
 import java.io.IOException;
 import java.util.*;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -66,16 +67,19 @@ public class WorkflowUpdateEventAspect {
     }
 
     String injectIdSPEL = annotation.injectId();
+    String injectIdsSPEL = annotation.injectIds();
     String expectationIdsSPEL = annotation.expectationIds();
 
-    boolean hasInjectId = StringUtils.isNotBlank(injectIdSPEL);
-    boolean hasExpectation = StringUtils.isNotBlank(expectationIdsSPEL);
+    long filledFields =
+        Stream.of(injectIdSPEL, injectIdsSPEL, expectationIdsSPEL)
+            .filter(StringUtils::isNotBlank)
+            .count();
 
-    if (hasInjectId == hasExpectation) {
+    if (filledFields != 1) {
       throw new IllegalStateException(
           "Annotation @WorkflowUpdateEvent on "
               + joinPoint.getSignature().toShortString()
-              + " must set exactly one of injectId or expectationIds");
+              + " must set exactly one of injectId, injectIds or expectationIds");
     }
 
     MethodSignature signature = (MethodSignature) joinPoint.getSignature();
@@ -90,12 +94,13 @@ public class WorkflowUpdateEventAspect {
       context.setVariable(parameterNames[i], args[i]);
     }
 
-    if (hasInjectId) {
+    if (StringUtils.isNotBlank(injectIdSPEL)) {
       this.handleInjectIdParam(context, injectIdSPEL);
+    } else if (StringUtils.isNotBlank(injectIdsSPEL)) {
+      this.handleInjectIdsParam(context, injectIdsSPEL);
     } else {
       this.handleExpectationTracesParam(context, expectationIdsSPEL);
     }
-
     // Retry events that are stored in the unsent cache due to previous errors
     sendEvents(unsentEventsCache);
   }
@@ -124,6 +129,31 @@ public class WorkflowUpdateEventAspect {
         unsentEventsCache.add(stepId);
       }
     }
+  }
+
+  /**
+   * Send workflow update events for a collection of inject IDs
+   *
+   * @param context the SpEL evaluation context
+   * @param injectIdsSPEL the SpEL expression to fetch the list of injectIds from the request
+   */
+  private void handleInjectIdsParam(EvaluationContext context, String injectIdsSPEL) {
+    Expression exp = parser.parseExpression(injectIdsSPEL);
+    Object injectIdsFromSPEL =
+        exp.getValue(context) != null ? Objects.requireNonNull(exp.getValue(context)) : null;
+
+    Set<String> injectIds = new HashSet<>();
+    if (injectIdsFromSPEL instanceof Collection<?> c) {
+      c.stream().map(Object::toString).forEach(injectIds::add);
+    } else if (injectIdsFromSPEL instanceof String injectId) {
+      injectIds.add(injectId);
+    } else {
+      throw new IllegalStateException(
+          "@WorkflowUpdateEvent.injectIds SpEL must return a Collection or a String");
+    }
+
+    Set<String> stepIds = stepService.findStepIdsByInjectIds(injectIds);
+    sendEvents(stepIds);
   }
 
   /**

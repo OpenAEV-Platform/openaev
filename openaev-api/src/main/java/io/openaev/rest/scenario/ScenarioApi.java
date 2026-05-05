@@ -483,7 +483,7 @@ public class ScenarioApi extends RestBehavior {
       simulation =
           scenarioToExerciseService.toExercise(
               scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true);
-      stepService.startWorkflowByScenarioIdAndSimulation(scenarioId, simulation);
+      workflowService.startWorkflowByScenarioIdAndSimulation(scenarioId, simulation);
 
     } else {
       this.scenarioService.throwIfScenarioNotLaunchable(scenario);

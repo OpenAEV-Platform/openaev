@@ -1228,7 +1228,7 @@ export interface Condition {
 
 /** Condition used to execute a step. Can be a Template or an Execution depending on the status of stepFrom. */
 export interface ConditionCreateInput {
-  /** Key to be compared */
+  /** Property to be mapped */
   condition_key?: string;
   /** Condition key subtype */
   condition_key_subtype?: "port" | "ipv4" | "ipv6" | "username" | "password";
@@ -1287,6 +1287,7 @@ export interface ConditionCreateInput {
 
 export interface ConditionOutput {
   condition_id?: string;
+  condition_key?: string;
   condition_key_subtype?: "port" | "ipv4" | "ipv6" | "username" | "password";
   condition_key_type?:
     | "execution_time"

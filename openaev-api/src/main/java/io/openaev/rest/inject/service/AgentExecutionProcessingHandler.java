@@ -2,10 +2,10 @@ package io.openaev.rest.inject.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openaev.database.model.ContractOutputElement;
 import io.openaev.database.model.ExecutionTraceAction;
 import io.openaev.database.model.OutputParser;
 import io.openaev.output_processor.OutputProcessorFactory;
+import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -23,11 +23,15 @@ import org.springframework.stereotype.Component;
 public class AgentExecutionProcessingHandler extends AbstractExecutionProcessingHandler {
 
   private final StructuredOutputUtils structuredOutputUtils;
+  private final InjectorContractContentUtils injectorContractContentUtils;
 
   public AgentExecutionProcessingHandler(
-      OutputProcessorFactory outputProcessorFactory, StructuredOutputUtils structuredOutputUtils) {
+      OutputProcessorFactory outputProcessorFactory,
+      StructuredOutputUtils structuredOutputUtils,
+      InjectorContractContentUtils injectorContractContentUtils) {
     super(outputProcessorFactory);
     this.structuredOutputUtils = structuredOutputUtils;
+    this.injectorContractContentUtils = injectorContractContentUtils;
   }
 
   /**
@@ -55,24 +59,11 @@ public class AgentExecutionProcessingHandler extends AbstractExecutionProcessing
         .map(
             structuredOutput -> {
               List<ContractOutputContext> contractOutputContexts =
-                  getAllContractOutputs(outputParsers).stream()
+                  injectorContractContentUtils.getAllContractOutputs(outputParsers).stream()
                       .map(ContractOutputContext::from)
                       .toList();
               dispatchToProcessors(executionContext, contractOutputContexts, structuredOutput);
               return structuredOutput;
             });
-  }
-
-  /**
-   * Retrieves all contract output elements from the output parsers.
-   *
-   * @param outputParsers the set of output parsers to inspect
-   * @return list of contract output elements
-   */
-  private List<ContractOutputElement> getAllContractOutputs(Set<OutputParser> outputParsers) {
-    return outputParsers.stream()
-        .flatMap(outputParser -> outputParser.getContractOutputElements().stream())
-        .filter(ContractOutputElement::isFinding)
-        .toList();
   }
 }

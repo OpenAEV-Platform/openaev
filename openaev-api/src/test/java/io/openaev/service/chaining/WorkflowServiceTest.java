@@ -37,6 +37,8 @@ class WorkflowServiceTest {
   @Mock private WorkflowScopeRuleRepository workflowScopeRuleRepository;
   @Mock private ScopeVariableRepository scopeVariableRepository;
   @Mock private PreviewFeatureService previewFeatureService;
+  @Mock private StepService stepService;
+  @Mock private WorkflowStateService workflowStateService;
 
   @InjectMocks private WorkflowService workflowService;
 
@@ -436,6 +438,73 @@ class WorkflowServiceTest {
   }
 
   @Nested
+  @DisplayName("start workflow delegation")
+  class StartWorkflowDelegationTests {
+
+    @Test
+    @DisplayName("should delegate simulation start to workflow execution orchestrator")
+    void shouldDelegateSimulationStartToOrchestrator() throws Exception {
+      String simulationId = UUID.randomUUID().toString();
+      Workflow template = Workflow.builder().id("template").status(WorkflowStatus.TEMPLATE).build();
+      Workflow run =
+          Workflow.builder()
+              .id("run")
+              .status(WorkflowStatus.RUN)
+              .workflowTemplate(template)
+              .build();
+
+      when(workflowRepository.findBySimulation_IdAndStatus(simulationId, WorkflowStatus.TEMPLATE))
+          .thenReturn(template);
+      when(workflowScopeRuleRepository.findAllByWorkflowId("template"))
+          .thenReturn(Collections.emptyList());
+      when(workflowRepository.save(any(Workflow.class))).thenReturn(run);
+
+      workflowService.startWorkflowBySimulationId(simulationId);
+
+      verify(workflowStateService).syncState(any(), any(), eq(run));
+      verify(stepService).evaluateWorkflowProgress(run);
+    }
+
+    @Test
+    @DisplayName("should copy scenario step templates then delegate start to orchestrator")
+    void shouldCopyScenarioStepTemplatesThenDelegateStart() throws Exception {
+      String scenarioId = UUID.randomUUID().toString();
+      Exercise simulation = mock(Exercise.class);
+
+      Workflow scenarioTemplate =
+          Workflow.builder().id("scenario-template").status(WorkflowStatus.TEMPLATE).build();
+      Workflow simulationTemplate =
+          Workflow.builder()
+              .id("simulation-template")
+              .status(WorkflowStatus.TEMPLATE)
+              .workflowTemplate(scenarioTemplate)
+              .build();
+      Workflow run =
+          Workflow.builder()
+              .id("run")
+              .status(WorkflowStatus.RUN)
+              .workflowTemplate(simulationTemplate)
+              .build();
+
+      when(workflowRepository.findByScenario_IdAndStatus(scenarioId, WorkflowStatus.TEMPLATE))
+          .thenReturn(List.of(scenarioTemplate));
+      when(workflowScopeRuleRepository.findAllByWorkflowId("scenario-template"))
+          .thenReturn(Collections.emptyList());
+      when(workflowScopeRuleRepository.findAllByWorkflowId("simulation-template"))
+          .thenReturn(Collections.emptyList());
+      when(workflowRepository.save(any(Workflow.class)))
+          .thenReturn(simulationTemplate)
+          .thenReturn(run);
+
+      workflowService.startWorkflowByScenarioIdAndSimulation(scenarioId, simulation);
+
+      verify(stepService).copyStepTemplate(scenarioTemplate, simulationTemplate);
+      verify(workflowStateService).syncState(any(), any(), eq(run));
+      verify(stepService).evaluateWorkflowProgress(run);
+    }
+  }
+
+  @Nested
   @DisplayName("updateWorkflowConfiguration")
   class UpdateWorkflowConfigurationTests {
 
@@ -497,20 +566,12 @@ class WorkflowServiceTest {
       WorkflowConfigurationInput input = new WorkflowConfigurationInput();
       input.setSafeModeEnabled(true);
       input.setWorkflowScopeRules(WorkflowFixture.getDefaultWorkflowScopeRuleInputList());
-
       // Service now owns the apply logic — no manual mapper call needed
-      WorkflowService service =
-          new WorkflowService(
-              workflowRepository,
-              workflowScopeRuleRepository,
-              scopeVariableRepository,
-              previewFeatureService);
-
       when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
           .thenReturn(Optional.of(workflow));
       when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
 
-      Workflow result = service.updateWorkflowConfiguration(workflowId, input);
+      Workflow result = workflowService.updateWorkflowConfiguration(workflowId, input);
 
       assertSame(workflow, result);
       assertEquals(5, result.getWorkflowScopeRules().size());
@@ -596,18 +657,12 @@ class WorkflowServiceTest {
       WorkflowConfigurationInput input =
           WorkflowConfigurationInput.builder().workflowScopeRules(List.of(ruleInput)).build();
 
-      WorkflowService service =
-          new WorkflowService(
-              workflowRepository,
-              workflowScopeRuleRepository,
-              scopeVariableRepository,
-              previewFeatureService);
       when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
           .thenReturn(Optional.of(workflow));
       when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
 
       // Act
-      Workflow result = service.updateWorkflowConfiguration(workflowId, input);
+      Workflow result = workflowService.updateWorkflowConfiguration(workflowId, input);
 
       // Assert
       assertNotNull(caseName);
@@ -632,10 +687,12 @@ class WorkflowServiceTest {
     void setUp() {
       service =
           new WorkflowService(
+              stepService,
+              previewFeatureService,
               workflowRepository,
               workflowScopeRuleRepository,
               scopeVariableRepository,
-              previewFeatureService);
+              workflowStateService);
     }
 
     private Workflow buildTemplate() {
