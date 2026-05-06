@@ -282,8 +282,8 @@ public class AttackPatternService {
   }
 
   /**
-   * Unwraps the copilot envelope into the native Filigran AI response format expected by
-   * {@link #extractExternalAttackPatternIdsFromResponse}.
+   * Unwraps the copilot envelope into the native Filigran AI response format expected by {@link
+   * #extractExternalAttackPatternIdsFromResponse}.
    *
    * <p>If the response is already in native format (e.g. {"filename.txt": [...]}), it is returned
    * as-is.
@@ -298,11 +298,14 @@ public class AttackPatternService {
     for (JsonNode entry : root.get("files")) {
       if (entry.has("extraction") && entry.get("extraction").isObject()) {
         JsonNode extraction = entry.get("extraction");
-        extraction.fields().forEachRemaining(field -> {
-          if (field.getValue().isArray()) {
-            merged.set(field.getKey(), field.getValue());
-          }
-        });
+        extraction
+            .fields()
+            .forEachRemaining(
+                field -> {
+                  if (field.getValue().isArray()) {
+                    merged.set(field.getKey(), field.getValue());
+                  }
+                });
       }
     }
     return mapper.writeValueAsString(merged);
