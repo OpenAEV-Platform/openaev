@@ -770,4 +770,3 @@ public class ScenarioApiTest extends IntegrationTest {
     }
   }
 }
-
