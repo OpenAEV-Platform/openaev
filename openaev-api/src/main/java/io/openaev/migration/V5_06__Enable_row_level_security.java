@@ -32,25 +32,28 @@ import org.springframework.stereotype.Component;
 @Component
 public class V5_06__Enable_row_level_security extends BaseJavaMigration {
 
-  /** Non-superuser role the application adopts at runtime so that RLS policies are enforced. */
-  static final String APP_ROLE = "openaev_app";
+  private static final String DEFAULT_APP_ROLE = "openaev_app";
 
   @Override
   public void migrate(Context context) throws Exception {
+    // Resolve role name from system property or env var (Spring @Value not available in Flyway)
+    String appRole = System.getProperty("openaev.rls.app-role",
+        System.getenv().getOrDefault("OPENAEV_RLS_APP_ROLE", DEFAULT_APP_ROLE));
+
     try (Statement statement = context.getConnection().createStatement()) {
 
-      // -- Prerequisites: openaev_app role, GRANT, and app.current_tenant default
+      // -- Prerequisites: the app role, GRANT, and app.current_tenant default
       //    must already exist (created by init-db.sql, CI bootstrap, or ops script).
       //    This migration only enables RLS — it does NOT create roles or alter database settings.
 
       // -- 1. Grant privileges to the app role on existing and future objects
-      statement.execute("GRANT USAGE ON SCHEMA public TO " + APP_ROLE);
-      statement.execute("GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO " + APP_ROLE);
-      statement.execute("GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO " + APP_ROLE);
+      statement.execute("GRANT USAGE ON SCHEMA public TO " + appRole);
+      statement.execute("GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO " + appRole);
+      statement.execute("GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO " + appRole);
       statement.execute(
-          "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO " + APP_ROLE);
+          "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO " + appRole);
       statement.execute(
-          "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO " + APP_ROLE);
+          "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO " + appRole);
 
       // -- 2. Enable RLS on all tenant-scoped tables with strict tenant isolation.
       //       No bypass — every query must match the current tenant.

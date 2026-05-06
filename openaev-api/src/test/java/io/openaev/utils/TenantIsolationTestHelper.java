@@ -11,6 +11,7 @@ import jakarta.persistence.EntityManager;
 import java.util.UUID;
 import org.hibernate.Session;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,6 +33,9 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Component
 public class TenantIsolationTestHelper {
+
+  @Value("${openaev.rls.app-role:openaev_app}")
+  private String appRole;
 
   @Autowired private TenantService tenantService;
   @Autowired private TenantRepository tenantRepository;
@@ -100,7 +104,7 @@ public class TenantIsolationTestHelper {
     session.doWork(
         connection -> {
           try (var stmt = connection.createStatement()) {
-            stmt.execute("SET ROLE openaev_app");
+            stmt.execute("SET ROLE " + appRole);
           }
           try (var stmt =
               connection.prepareStatement("SELECT set_config('app.current_tenant', ?, false)")) {

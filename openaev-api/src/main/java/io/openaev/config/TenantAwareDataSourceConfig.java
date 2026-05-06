@@ -7,6 +7,7 @@ import java.sql.SQLException;
 import javax.sql.DataSource;
 import lombok.extern.java.Log;
 import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.jdbc.datasource.DelegatingDataSource;
 import org.springframework.stereotype.Component;
@@ -21,9 +22,13 @@ import org.springframework.stereotype.Component;
 @Log
 public class TenantAwareDataSourceConfig implements BeanPostProcessor {
 
+  @Value("${openaev.rls.app-role:openaev_app}")
+  private String appRole;
+
   @Override
   public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
     if (bean instanceof DataSource dataSource && "dataSource".equals(beanName)) {
+      final String roleName = appRole;
       return new DelegatingDataSource(dataSource) {
         @Override
         public Connection getConnection() throws SQLException {
@@ -63,26 +68,26 @@ public class TenantAwareDataSourceConfig implements BeanPostProcessor {
         }
 
         /**
-         * Attempts to SET ROLE openaev_app on the connection.
+         * Attempts to SET ROLE on the connection using the configured app role.
          *
          * @return true if the role was set successfully, false if the role does not exist yet
          *     (Flyway bootstrap phase — no RLS policies exist either, so no data leak risk).
          */
         private boolean setRole(Connection connection) throws SQLException {
           try (var stmt = connection.createStatement()) {
-            stmt.execute("SET ROLE openaev_app");
+            stmt.execute("SET ROLE " + roleName);
             return true;
           } catch (SQLException e) {
             if (e.getMessage() != null && e.getMessage().contains("does not exist")) {
               // Role not created yet (Flyway hasn't run the RLS migration).
               // Safe to skip: no RLS policies exist either.
               log.fine(
-                  "Could not SET ROLE openaev_app (role may not exist yet): " + e.getMessage());
+                  "Could not SET ROLE " + roleName + " (role may not exist yet): " + e.getMessage());
               return false;
             }
             // Unexpected failure (e.g. permission issue) — refuse to continue without RLS.
             throw new SQLException(
-                "SET ROLE openaev_app failed unexpectedly. "
+                "SET ROLE " + roleName + " failed unexpectedly. "
                     + "Refusing to proceed without RLS: "
                     + e.getMessage(),
                 e);
