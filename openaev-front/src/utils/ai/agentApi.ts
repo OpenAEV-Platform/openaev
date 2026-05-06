@@ -2,21 +2,12 @@
 // remediation detection, and text AI features to call XTM One
 // agents through the OpenAEV proxy endpoints.
 
-/** Read the Spring Security XSRF-TOKEN cookie value (needed for mutating requests). */
+import { api } from '../../network';
+
+/** Read the Spring Security XSRF-TOKEN cookie value (needed for streaming requests using fetch). */
 const getCsrfToken = (): string | null => {
   const match = document.cookie.split('; ').find(row => row.startsWith('XSRF-TOKEN='));
   return match ? decodeURIComponent(match.split('=')[1]) : null;
-};
-
-/** Ensure the XSRF-TOKEN cookie is set (same pattern as network.ts). */
-let csrfBootstrapPromise: Promise<void> | null = null;
-const ensureCsrfCookie = async (): Promise<void> => {
-  if (getCsrfToken()) return;
-  csrfBootstrapPromise ??= fetch('/csrf', { credentials: 'same-origin' })
-    .then(() => undefined)
-    .catch(() => undefined)
-    .finally(() => { csrfBootstrapPromise = null; });
-  await csrfBootstrapPromise;
 };
 
 export interface AgentOption {
@@ -35,48 +26,42 @@ export interface AgentResponse {
 
 export const fetchAgentsForIntent = async (intent: string): Promise<AgentOption[]> => {
   try {
-    const response = await fetch(`/api/chatbot/agents?intent=${encodeURIComponent(intent)}`);
-    if (!response.ok) return [];
-    return await response.json();
+    const { data } = await api().get(`/api/chatbot/agents?intent=${encodeURIComponent(intent)}`);
+    return data;
   } catch {
     return [];
   }
 };
 
 export const callAgent = async (agentSlug: string, content: string): Promise<AgentResponse> => {
-  await ensureCsrfCookie();
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  const csrf = getCsrfToken();
-  if (csrf) headers['X-XSRF-TOKEN'] = csrf;
-
-  const response = await fetch('/api/chatbot/agent', {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
+  try {
+    const { data } = await api().post('/api/chatbot/agent', {
       agent_slug: agentSlug,
       content,
-    }),
-  });
-  if (!response.ok) {
+    });
+    return {
+      content: data.content ?? '',
+      status: data.status ?? 'success',
+      error: data.error,
+      code: data.code,
+    };
+  } catch (err: unknown) {
+    const status = (err as { status?: number })?.status;
     return {
       content: '',
       status: 'error',
-      error: `Agent call failed: ${response.statusText}`,
-      code: response.status,
+      error: `Agent call failed: ${status ?? 'unknown'}`,
+      code: status,
     };
   }
-  const data = await response.json();
-  return {
-    content: data.content ?? '',
-    status: data.status ?? 'success',
-    error: data.error,
-    code: data.code,
-  };
 };
 
 /**
  * Stream an agent call via SSE. Calls `onChunk` with accumulated content
  * as each text chunk arrives. Returns the final AgentResponse.
+ *
+ * Uses raw fetch for ReadableStream support (axios doesn't support SSE streaming).
+ * CSRF is bootstrapped via a dummy GET through the axios instance first.
  *
  * @param signal - optional AbortSignal to cancel the stream
  */
@@ -86,7 +71,9 @@ export const callAgentStream = async (
   onChunk: (partialContent: string) => void,
   signal?: AbortSignal,
 ): Promise<AgentResponse> => {
-  await ensureCsrfCookie();
+  // Bootstrap CSRF cookie via the axios instance (reuses network.ts logic)
+  await api().get('/csrf').catch(() => undefined);
+
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   const csrf = getCsrfToken();
   if (csrf) headers['X-XSRF-TOKEN'] = csrf;
