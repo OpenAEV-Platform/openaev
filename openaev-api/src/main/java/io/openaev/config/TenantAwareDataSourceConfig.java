@@ -7,6 +7,7 @@ import java.sql.SQLException;
 import javax.sql.DataSource;
 import lombok.extern.java.Log;
 import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.core.env.Environment;
 import org.springframework.jdbc.datasource.DelegatingDataSource;
@@ -26,6 +27,7 @@ public class TenantAwareDataSourceConfig implements BeanPostProcessor {
 
   private final String appRole;
 
+  @Autowired
   public TenantAwareDataSourceConfig(Environment environment) {
     this.appRole = environment.getProperty("openaev.rls.app-role", DEFAULT_APP_ROLE);
   }
