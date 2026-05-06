@@ -129,7 +129,7 @@ const ThreatArsenalActionPopover = ({
     setFetchedAction(null);
   };
 
-  const onSubmitEdit = (data: ThreatArsenalActionCreateCustomInput) => {
+  const onSubmitEdit = async (data: ThreatArsenalActionCreateCustomInput) => {
     const inputValues: ThreatArsenalActionCreateInput = {
       ...data,
       action_cleanup_executor: handleCleanupExecutorValue(
@@ -150,12 +150,11 @@ const ThreatArsenalActionPopover = ({
         }),
     } as ThreatArsenalActionCreateInput;
 
-    return dispatch(updateThreatArsenalAction(actionId, inputValues).then(({ data }: { data: ThreatArsenalAction }) => {
-      if (data && onUpdate) {
-        onUpdate(data);
-      }
-      handleCloseEdit();
-    }));
+    const response = await updateThreatArsenalAction(actionId, inputValues);
+    if (response.data && onUpdate) {
+      onUpdate(response.data as ThreatArsenalAction);
+    }
+    handleCloseEdit();
   };
 
   // -- Delete --
@@ -176,13 +175,12 @@ const ThreatArsenalActionPopover = ({
   };
   const handleCloseDuplicate = () => setOpenDuplicate(false);
 
-  const submitDuplicate = () => {
-    return dispatch(duplicateThreatArsenalAction(actionId).then(({ data }: { data: ThreatArsenalAction }) => {
-      if (data && onDuplicate) {
-        onDuplicate(data);
-      }
-      handleCloseDuplicate();
-    }));
+  const submitDuplicate = async () => {
+    const response = await duplicateThreatArsenalAction(actionId);
+    if (response.data && onDuplicate) {
+      onDuplicate(response.data as ThreatArsenalAction);
+    }
+    handleCloseDuplicate();
   };
 
   const hasUpdateCapability = ability.can(ACTIONS.MANAGE, SUBJECTS.PAYLOADS) || ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, payloadId);
