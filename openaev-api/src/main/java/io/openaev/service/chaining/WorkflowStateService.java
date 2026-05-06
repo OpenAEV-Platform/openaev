@@ -4,6 +4,7 @@ import static io.openaev.utils.JsonUtils.gson;
 
 import com.google.gson.*;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.ConditionRepository;
 import io.openaev.database.repository.WorkflowStateRepository;
 import io.openaev.utils.ConditionUtils;
 import java.util.*;
@@ -21,8 +22,11 @@ public class WorkflowStateService {
 
   private final WorkflowStateRepository workflowStateRepository;
 
+  private final ConditionRepository conditionRepository;
+
   /**
-   * Syncs structured output data into the global workflow state entries.
+   * Syncs structured output data into the global workflow state entries and propagates matching
+   * values to the local pools of steps whose filter conditions are satisfied by the output.
    *
    * @param dataToSync JSON element containing output data to merge
    * @param fieldTypeMap mapping from field name to its contract output type
@@ -37,7 +41,10 @@ public class WorkflowStateService {
 
     // Process traces
     if (dataToSync.isJsonObject()) {
-      saveToEntries(entries, dataToSync.getAsJsonObject(), fieldTypeMap);
+      Map<String, List<String>> parsedValues =
+          saveToEntries(entries, dataToSync.getAsJsonObject(), fieldTypeMap);
+      // Propagate to local pools of steps whose events need this output
+      propagateToLocalPools(parsedValues, workflowRun);
     }
 
     // Save JSON back to DB
@@ -46,19 +53,138 @@ public class WorkflowStateService {
   }
 
   /**
+   * Propagates output values to the local pools of step templates whose filter conditions (events)
+   * are satisfied by the produced output. This ensures that when a step B has an event expecting a
+   * certain value, and another step A produces that value, step B's local pool gets populated with
+   * it.
+   *
+   * @param parsedByType map of output type names to their extracted values
+   * @param workflowRun the running workflow execution
+   */
+  private void propagateToLocalPools(Map<String, List<String>> parsedByType, Workflow workflowRun) {
+
+    if (parsedByType.isEmpty() || workflowRun.getWorkflowTemplate() == null) {
+      return;
+    }
+
+    // Collect the ConditionKeyTypes matching the output types produced
+    Set<ConditionKeyType> outputKeyTypes =
+        parsedByType.keySet().stream()
+            .map(
+                typeName -> {
+                  try {
+                    return ConditionKeyType.valueOf(typeName);
+                  } catch (IllegalArgumentException e) {
+                    return null;
+                  }
+                })
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
+
+    if (outputKeyTypes.isEmpty()) {
+      return;
+    }
+
+    // Find filter conditions in the workflow template that match the output key types
+    String workflowTemplateId = workflowRun.getWorkflowTemplate().getId();
+    Set<ConditionType> excludedTypes =
+        Set.of(ConditionType.MAPPER, ConditionType.AFTER, ConditionType.BEFORE);
+    List<Condition> matchingConditions =
+        conditionRepository.findFilterConditionsByWorkflowIdAndKeyTypes(
+            workflowTemplateId, outputKeyTypes, excludedTypes);
+
+    if (matchingConditions.isEmpty()) {
+      return;
+    }
+
+    // Group conditions by the step templates they are linked to
+    Map<Step, List<Condition>> stepToConditions = new HashMap<>();
+    for (Condition condition : matchingConditions) {
+      if (condition.getConditionSteps() == null) {
+        continue;
+      }
+      for (ConditionStep conditionStep : condition.getConditionSteps()) {
+        Step step = conditionStep.getStep();
+        if (step != null) {
+          stepToConditions.computeIfAbsent(step, k -> new ArrayList<>()).add(condition);
+        }
+      }
+    }
+
+    // For each interested step, propagate matching output values to its local pool
+    for (Map.Entry<Step, List<Condition>> stepEntry : stepToConditions.entrySet()) {
+      Step stepTemplate = stepEntry.getKey();
+      List<Condition> rootConditions = stepEntry.getValue();
+
+      // Collect the key types from child conditions of the roots
+      Set<String> interestedKeyTypes =
+          rootConditions.stream()
+              .flatMap(
+                  root ->
+                      (root.getConditionChildren() != null
+                              ? root.getConditionChildren().stream()
+                              : java.util.stream.Stream.<Condition>empty())
+                          .filter(child -> child.getKeyType() != null)
+                          .map(child -> child.getKeyType().name()))
+              .collect(Collectors.toSet());
+
+      // Filter output values: keep only those matching interested key types and satisfying filters
+      Map<String, List<String>> valuesToPropagate = new HashMap<>();
+      for (String keyTypeName : interestedKeyTypes) {
+        List<String> values = parsedByType.get(keyTypeName);
+        if (values == null || values.isEmpty()) {
+          continue;
+        }
+
+        // Only propagate values that satisfy at least one root filter condition (event)
+        // isFilterConditionValid recursively checks the tree (AND/OR → leaves)
+        List<String> matchingValues =
+            values.stream()
+                .filter(
+                    val ->
+                        rootConditions.stream()
+                            .anyMatch(root -> conditionUtils.isFilterConditionValid(val, root)))
+                .toList();
+        if (!matchingValues.isEmpty()) {
+          valuesToPropagate.put(keyTypeName, matchingValues);
+        }
+      }
+
+      if (valuesToPropagate.isEmpty()) {
+        continue;
+      }
+
+      // Load or build the local state for this step template and add the values
+      WorkflowState localState = loadOrBuildLocalState(stepTemplate, workflowRun);
+      WorkflowStateEntries localEntries =
+          gson.fromJson(localState.getEntries(), WorkflowStateEntries.class);
+
+      for (Map.Entry<String, List<String>> valueEntry : valuesToPropagate.entrySet()) {
+        String keyTypeName = valueEntry.getKey();
+        List<String> values = valueEntry.getValue();
+        WorkflowStateEntries.Input input = localEntries.getInputByKey(keyTypeName);
+        input.getValues().addAll(values);
+      }
+
+      localState.setEntries(gson.toJson(localEntries));
+      save(localState);
+    }
+  }
+
+  /**
    * Parses structured output fields and adds their values to the state entries.
    *
    * @param entries state entries to populate
    * @param structuredOutput JSON object with field arrays
    * @param fieldTypeMap mapping from field name to contract output type
-   * @return map of field names to extracted values (for diagnostics)
+   * @return map of contract output type names to extracted string values
    */
   private Map<String, List<String>> saveToEntries(
       WorkflowStateEntries entries,
       JsonObject structuredOutput,
       Map<String, ContractOutputType> fieldTypeMap) {
 
-    Map<String, List<String>> currentTraceParsed = new HashMap<>();
+    Map<String, List<String>> parsedByType = new HashMap<>();
 
     structuredOutput
         .entrySet()
@@ -78,13 +204,14 @@ public class WorkflowStateService {
                 if (element.isJsonPrimitive()) {
                   String val = element.getAsString();
                   entries.getInputByKey(type.name()).getValues().add(val);
+                  parsedByType.computeIfAbsent(type.name(), k -> new ArrayList<>()).add(val);
                 } else if (element.isJsonObject()) {
                   // e.g. "portscan": [{"port": 22, "host": "1.1.1.1"}]
                   saveCorrelatedObject(entries, element.getAsJsonObject());
                 }
               }
             });
-    return currentTraceParsed;
+    return parsedByType;
   }
 
   /**

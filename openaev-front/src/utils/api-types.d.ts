@@ -4910,6 +4910,33 @@ export interface LoginUserInput {
   tenantId?: string;
 }
 
+export interface MapperConditionOutput {
+  condition_key?: string;
+  condition_key_type?:
+    | "execution_time"
+    | "step_template_id"
+    | "text"
+    | "status"
+    | "number"
+    | "port"
+    | "portscan"
+    | "ipv4"
+    | "ipv6"
+    | "credentials"
+    | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "asset";
+  condition_mapping_type?: "DEFAULT" | "LOCAL" | "GLOBAL";
+}
+
 export interface Mitigation {
   listened?: boolean;
   mitigation_attack_patterns?: string[];
@@ -7535,6 +7562,7 @@ export interface StepOutput {
   step_created_at?: string;
   step_data?: JsonNode;
   step_id?: string;
+  step_mapper_conditions?: MapperConditionOutput[];
   step_status?: "TEMPLATE" | "READY" | "RUN" | "END";
   /** @format date-time */
   step_updated_at?: string;

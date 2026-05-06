@@ -8,6 +8,7 @@ import io.openaev.aop.AccessControl;
 import io.openaev.api.chaining.dto.EventInput;
 import io.openaev.api.chaining.dto.EventOutput;
 import io.openaev.database.model.Action;
+import io.openaev.database.model.ConditionType;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.chaining.ConditionService;
@@ -75,6 +76,7 @@ public class ConditionApi extends RestBehavior {
   @GetMapping(params = "workflow_id")
   public List<EventOutput> findAllByWorkflow(@RequestParam("workflow_id") String workflowId) {
     return conditionService.findConditionRootsByWorkflowId(workflowId).stream()
+        .filter(c -> c.getType() != ConditionType.MAPPER)
         .map(ConditionMapper::toOutput)
         .toList();
   }
