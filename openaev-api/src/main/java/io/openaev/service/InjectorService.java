@@ -448,7 +448,8 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
                     });
                 injectorContractRepository.saveAll(injectorContracts);
               }
-              injectorRepository.delete(dummyInjector);
+              injectorRepository.deleteByIdAndTenantId(
+                  dummyInjector.getId(), TenantContext.getCurrentTenant());
             });
   }
 
