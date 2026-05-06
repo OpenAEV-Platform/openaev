@@ -25,9 +25,9 @@ import org.springframework.stereotype.Component;
  * ALTER DATABASE openaev SET app.current_tenant = '2cffad3a-0001-4078-b0e2-ef74274022c3';
  * </pre>
  *
- * <p>The migration runs as the database superuser (openaev). At runtime,
- * {@link io.openaev.config.TenantAwareDataSourceConfig} does {@code SET ROLE openaev_app}
- * so that RLS policies are enforced.
+ * <p>The migration runs as the database superuser (openaev). At runtime, {@link
+ * io.openaev.config.TenantAwareDataSourceConfig} does {@code SET ROLE openaev_app} so that RLS
+ * policies are enforced.
  */
 @Component
 public class V5_06__Enable_row_level_security extends BaseJavaMigration {
@@ -37,8 +37,10 @@ public class V5_06__Enable_row_level_security extends BaseJavaMigration {
   @Override
   public void migrate(Context context) throws Exception {
     // Resolve role name from system property or env var (Spring @Value not available in Flyway)
-    String appRole = System.getProperty("openaev.rls.app-role",
-        System.getenv().getOrDefault("OPENAEV_RLS_APP_ROLE", DEFAULT_APP_ROLE));
+    String appRole =
+        System.getProperty(
+            "openaev.rls.app-role",
+            System.getenv().getOrDefault("OPENAEV_RLS_APP_ROLE", DEFAULT_APP_ROLE));
 
     try (Statement statement = context.getConnection().createStatement()) {
 

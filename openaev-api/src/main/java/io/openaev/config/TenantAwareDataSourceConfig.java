@@ -82,12 +82,17 @@ public class TenantAwareDataSourceConfig implements BeanPostProcessor {
               // Role not created yet (Flyway hasn't run the RLS migration).
               // Safe to skip: no RLS policies exist either.
               log.fine(
-                  "Could not SET ROLE " + roleName + " (role may not exist yet): " + e.getMessage());
+                  "Could not SET ROLE "
+                      + roleName
+                      + " (role may not exist yet): "
+                      + e.getMessage());
               return false;
             }
             // Unexpected failure (e.g. permission issue) — refuse to continue without RLS.
             throw new SQLException(
-                "SET ROLE " + roleName + " failed unexpectedly. "
+                "SET ROLE "
+                    + roleName
+                    + " failed unexpectedly. "
                     + "Refusing to proceed without RLS: "
                     + e.getMessage(),
                 e);
