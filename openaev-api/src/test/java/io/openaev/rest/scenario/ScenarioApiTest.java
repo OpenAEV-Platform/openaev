@@ -26,15 +26,18 @@ import io.openaev.rest.scenario.form.ScenarioInput;
 import io.openaev.rest.scenario.form.ScenarioRecurrenceInput;
 import io.openaev.rest.scenario.form.ScenarioUpdateTeamsInput;
 import io.openaev.service.AssetGroupService;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Nullable;
 import jakarta.transaction.Transactional;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -67,6 +70,7 @@ public class ScenarioApiTest extends IntegrationTest {
   @Autowired private SettingRepository settingRepository;
   @Autowired private CustomDashboardRepository customDashboardRepository;
   @Autowired private AssetGroupService assetGroupService;
+  @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
 
   @AfterEach
   void afterEach() {
@@ -635,4 +639,135 @@ public class ScenarioApiTest extends IntegrationTest {
         List.of(injectorContractFixture.getWellKnownSingleEmailContract().getId()));
     return paginationInput;
   }
+
+  @Nested
+  @DisplayName("Tenant Isolation")
+  @WithMockUser
+  class TenantIsolation {
+
+    @Test
+    @DisplayName("Scenario created in tenant X should NOT be readable from tenant Y")
+    void given_scenarioInTenantX_should_notBeReadableFromTenantY() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_ASSESSMENT));
+
+      ScenarioInput scenarioInput = new ScenarioInput();
+      scenarioInput.setName("RLS Isolation Test Scenario");
+
+      String createResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantX.getId() + "/scenarios")
+                      .content(asJsonString(scenarioInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String scenarioId = JsonPath.read(createResponse, "$.scenario_id");
+
+      // -------- Act — read from tenant Y (expect 403 or 404) --------
+      int responseStatus =
+          mvc.perform(
+                  get("/api/tenants/" + tenantY.getId() + "/scenarios/" + scenarioId)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // -------- Assert --------
+      assertTrue(
+          responseStatus == 403 || responseStatus == 404,
+          "Expected 403 or 404 but got "
+              + responseStatus
+              + " — cross-tenant scenario read was NOT blocked");
+    }
+
+    @Test
+    @DisplayName("Scenario created in tenant X should be readable from tenant X")
+    void given_scenarioInTenantX_should_beReadableFromTenantX() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+
+      ScenarioInput scenarioInput = new ScenarioInput();
+      scenarioInput.setName("Same Tenant Scenario");
+
+      String createResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantX.getId() + "/scenarios")
+                      .content(asJsonString(scenarioInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String scenarioId = JsonPath.read(createResponse, "$.scenario_id");
+
+      // -------- Act & Assert — read from same tenant should succeed --------
+      mvc.perform(
+              get("/api/tenants/" + tenantX.getId() + "/scenarios/" + scenarioId)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.scenario_name").value("Same Tenant Scenario"));
+    }
+
+    @Test
+    @DisplayName("Scenario search in tenant Y should NOT return scenarios from tenant X")
+    void given_scenarioInTenantX_should_notAppearInTenantYSearch() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_ASSESSMENT));
+
+      ScenarioInput scenarioInput = new ScenarioInput();
+      scenarioInput.setName("CrossTenantSearchScenario");
+
+      mvc.perform(
+              post("/api/tenants/" + tenantX.getId() + "/scenarios")
+                  .content(asJsonString(scenarioInput))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      // -------- Act — search from tenant Y --------
+      SearchPaginationInput searchInput = new SearchPaginationInput();
+      searchInput.setTextSearch("CrossTenantSearchScenario");
+      searchInput.setSize(100);
+      searchInput.setPage(0);
+
+      String searchResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantY.getId() + "/scenarios/search")
+                      .content(asJsonString(searchInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -------- Assert — no results from tenant X --------
+      assertEquals(Integer.valueOf(0), JsonPath.read(searchResponse, "$.totalElements"));
+    }
+  }
 }
+
