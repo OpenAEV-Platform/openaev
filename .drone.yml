@@ -12,6 +12,10 @@ steps:
     image: maven:3.9.9-eclipse-temurin-22
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://pgsql:5432/openaev
+      SPRING_DATASOURCE_USERNAME: openaev
+      SPRING_DATASOURCE_PASSWORD: openaev
+      SPRING_FLYWAY_USER: openaev
+      SPRING_FLYWAY_PASSWORD: openaev
       MINIO_ENDPOINT: minio
       MINIO_PORT: 9000
       ENGINE_URL: http://elastic:9200
@@ -19,6 +23,8 @@ steps:
     commands:
       - mvn spotless:check
       - sleep 60
+      - apt-get update -qq && apt-get install -y -qq postgresql-client > /dev/null
+      - psql "postgresql://openaev:openaev@pgsql:5432/openaev" -c "CREATE ROLE openaev_app NOLOGIN NOSUPERUSER;"
       - mvn clean install -q -DskipTests
       - cd openaev-api
       - mvn test
@@ -59,7 +65,8 @@ steps:
       SPRING_PROFILES_ACTIVE: ci
       OPENBAS_RABBITMQ_HOSTNAME: rabbitmq-e2e
     commands:
-      - apt update && apt install -y gnupg git npm
+      - apt update && apt install -y gnupg git npm postgresql-client
+      - psql "postgresql://openaev:openaev@pgsql-e2e:5432/openaev" -c "CREATE ROLE openaev_app NOLOGIN NOSUPERUSER;"
       - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
       - apt update && apt install -y nodejs
       - npm install -g corepack
