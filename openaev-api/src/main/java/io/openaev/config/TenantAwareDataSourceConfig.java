@@ -7,8 +7,8 @@ import java.sql.SQLException;
 import javax.sql.DataSource;
 import lombok.extern.java.Log;
 import org.springframework.beans.BeansException;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.config.BeanPostProcessor;
+import org.springframework.core.env.Environment;
 import org.springframework.jdbc.datasource.DelegatingDataSource;
 import org.springframework.stereotype.Component;
 
@@ -22,8 +22,18 @@ import org.springframework.stereotype.Component;
 @Log
 public class TenantAwareDataSourceConfig implements BeanPostProcessor {
 
-  @Value("${openaev.rls.app-role:openaev_app}")
-  private String appRole;
+  private static final String DEFAULT_APP_ROLE = "openaev_app";
+
+  private final String appRole;
+
+  public TenantAwareDataSourceConfig(Environment environment) {
+    this.appRole = environment.getProperty("openaev.rls.app-role", DEFAULT_APP_ROLE);
+  }
+
+  /** Test-only constructor with explicit role name. */
+  TenantAwareDataSourceConfig(String appRole) {
+    this.appRole = appRole;
+  }
 
   @Override
   public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {

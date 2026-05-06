@@ -25,7 +25,7 @@ class TenantAwareDataSourceConfigTest {
 
   @BeforeEach
   void setUp() throws SQLException {
-    config = new TenantAwareDataSourceConfig();
+    config = new TenantAwareDataSourceConfig("openaev_app");
     mockDataSource = mock(DataSource.class);
     mockConnection = mock(Connection.class);
     mockStatement = mock(Statement.class);
