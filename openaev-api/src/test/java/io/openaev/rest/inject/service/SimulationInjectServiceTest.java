@@ -102,7 +102,7 @@ class SimulationInjectServiceTest extends IntegrationTest {
       TeamComposer.Composer teamWrapper =
           teamComposer.forTeam(TeamFixture.createTeamWithName(null));
       teamWrapper.persist();
-      injectInA.setTeams(List.of(teamWrapper.get()));
+      injectInA.setTeams(new java.util.ArrayList<>(List.of(teamWrapper.get())));
       injectRepository.save(injectInA);
 
       // -- ACT --

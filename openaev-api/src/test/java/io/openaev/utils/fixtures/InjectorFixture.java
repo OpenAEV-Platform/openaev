@@ -1,5 +1,6 @@
 package io.openaev.utils.fixtures;
 
+import io.openaev.aop.BypassRls;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Injector;
 import io.openaev.database.repository.InjectorRepository;
@@ -70,15 +71,18 @@ public class InjectorFixture {
     // ensure the injector is marked for payloads
     // some tests not running in a transaction may flip this
     injector.setPayloads(isPayload);
-    injectorRepository.save(injector);
-    return injector;
+    return injectorRepository.save(injector);
   }
 
+  @BypassRls
+  @org.springframework.transaction.annotation.Transactional
   public Injector getWellKnownOaevImplantInjector() {
     return getWellKnownInjector(
         OpenAEVImplantContract.TYPE, openaevInjectorIntegrationFactory, true);
   }
 
+  @BypassRls
+  @org.springframework.transaction.annotation.Transactional
   public Injector getWellKnownEmailInjector(boolean isPayload) {
     return getWellKnownInjector(EmailContract.TYPE, emailInjectorIntegrationFactory, isPayload);
   }
