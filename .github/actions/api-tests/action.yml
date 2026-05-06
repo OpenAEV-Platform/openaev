@@ -203,8 +203,12 @@ runs:
     - name: Bootstrap PostgreSQL roles for RLS
       shell: bash
       run: |
-        docker exec pgsql psql -U openaev -d openaev -c "CREATE ROLE openaev_app NOLOGIN NOSUPERUSER;"
-        echo "✅ openaev_app role created"
+        docker exec pgsql psql -U openaev -d openaev -c "
+          CREATE ROLE openaev_app NOLOGIN NOSUPERUSER;
+          GRANT openaev_app TO openaev;
+          ALTER DATABASE openaev SET app.current_tenant = '2cffad3a-0001-4078-b0e2-ef74274022c3';
+        "
+        echo "✅ openaev_app role created and granted"
 
     - name: Prepare test suite
       id: suite

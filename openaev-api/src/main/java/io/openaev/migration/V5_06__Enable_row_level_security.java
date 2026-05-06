@@ -17,17 +17,17 @@ import org.springframework.stereotype.Component;
  * bypass — platform-level requests default to the default tenant UUID, and tenant creation
  * explicitly switches the connection's tenant via {@code SET app.current_tenant}.
  *
- * <p>Prerequisites (run by DBA once):
+ * <p>Prerequisites (created by init-db.sql or CI bootstrap):
  *
  * <pre>
  * CREATE ROLE openaev_app NOLOGIN NOSUPERUSER;
- * GRANT openaev_app TO openaev_owner;
- * ALTER DATABASE openaev OWNER TO openaev_owner;
+ * GRANT openaev_app TO openaev;
  * ALTER DATABASE openaev SET app.current_tenant = '2cffad3a-0001-4078-b0e2-ef74274022c3';
  * </pre>
  *
- * <p>The migration user (openaev_owner) must be the table owner. No superuser privilege is
- * required.
+ * <p>The migration runs as the database superuser (openaev). At runtime,
+ * {@link io.openaev.config.TenantAwareDataSourceConfig} does {@code SET ROLE openaev_app}
+ * so that RLS policies are enforced.
  */
 @Component
 public class V5_06__Enable_row_level_security extends BaseJavaMigration {
@@ -38,6 +38,10 @@ public class V5_06__Enable_row_level_security extends BaseJavaMigration {
   @Override
   public void migrate(Context context) throws Exception {
     try (Statement statement = context.getConnection().createStatement()) {
+
+      // -- Prerequisites: openaev_app role, GRANT, and app.current_tenant default
+      //    must already exist (created by init-db.sql, CI bootstrap, or ops script).
+      //    This migration only enables RLS — it does NOT create roles or alter database settings.
 
       // -- 1. Grant privileges to the app role on existing and future objects
       statement.execute("GRANT USAGE ON SCHEMA public TO " + APP_ROLE);
