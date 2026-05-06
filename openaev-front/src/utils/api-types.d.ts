@@ -1259,6 +1259,9 @@ export interface ConditionCreateInput {
     | "delegation"
     | "sid"
     | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account"
     | "asset";
   /** Mapping type: DEFAULT, LOCAL, or GLOBAL. Required when condition type is MAPPER, must be null otherwise. */
   condition_mapping_type?: "DEFAULT" | "LOCAL" | "GLOBAL";
@@ -1315,6 +1318,9 @@ export interface ConditionOutput {
     | "delegation"
     | "sid"
     | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account"
     | "asset";
   condition_mapping_type?: "DEFAULT" | "LOCAL" | "GLOBAL";
   condition_parent_id?: string;
@@ -4933,8 +4939,12 @@ export interface MapperConditionOutput {
     | "delegation"
     | "sid"
     | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account"
     | "asset";
   condition_mapping_type?: "DEFAULT" | "LOCAL" | "GLOBAL";
+  condition_value?: string;
 }
 
 export interface Mitigation {
@@ -7556,6 +7566,9 @@ export interface StepOutput {
     | "delegation"
     | "sid"
     | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account"
     | "asset"
   )[];
   /** @format date-time */
