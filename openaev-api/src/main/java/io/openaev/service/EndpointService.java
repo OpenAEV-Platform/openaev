@@ -20,6 +20,7 @@ import static java.util.stream.Collectors.toList;
 
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.AssetAgentJobSpecification;
@@ -343,6 +344,7 @@ public class EndpointService {
    * @param existingAgents in the database
    * @return OpenAEV agents
    */
+  @Transactional
   public List<Agent> syncAgentsEndpoints(
       List<AgentRegisterInput> inputs, List<Agent> existingAgents, @NotNull String tenantId) {
     log.info(
@@ -376,8 +378,6 @@ public class EndpointService {
         endpointToSave.setTenant(inputToSave.getExecutor().getTenant());
         agentToUpdate.setAsset(endpointToSave);
         agentToUpdate.setLastSeen(inputToSave.getLastSeen());
-        // TODO: Making this function transactional is not helping to solve tags
-        // addSourceTagToEndpoint(endpointToSave, inputToSave);
         endpointsToSave.add(endpointToSave);
         agentsToSave.add(agentToUpdate);
         inputs.removeIf(
@@ -411,8 +411,6 @@ public class EndpointService {
             agentToSave = new Agent();
             setNewAgentAttributes(inputToSave, agentToSave);
             setUpdatedAgentAttributes(agentToSave, inputToSave, endpointToUpdate);
-            // TODO: Making this function transactional is not helping to solve tags
-            // addSourceTagToEndpoint(endpointToUpdate, inputToSave);
             endpointsToSave.add(endpointToUpdate);
             agentsToSave.add(agentToSave);
             inputs.removeIf(
@@ -431,8 +429,6 @@ public class EndpointService {
         endpointToSave.setMacAddresses(inputToUpdate.getMacAddresses());
         // Set tenant explicitly so TenantBaseListener is not needed for this background path.
         endpointToSave.setTenant(new Tenant(tenantId));
-        // TODO: Making this function transactional is not helping to solve tags
-        // addSourceTagToEndpoint(endpointToSave, inputToUpdate);
         endpointsToSave.add(endpointToSave);
         agentToSave = new Agent();
         setNewAgentAttributes(inputToUpdate, agentToSave);
@@ -440,9 +436,27 @@ public class EndpointService {
         agentsToSave.add(agentToSave);
       }
     }
-    // Save all in database
+
     assetService.saveAllAssets(endpointsToSave);
     List<Agent> savedAgents = agentService.saveAllAgents(agentsToSave);
+
+    // Add source tags after both endpoints and agents are saved
+    if (!savedAgents.isEmpty()) {
+      Executor executor =
+          savedAgents.stream()
+              .map(Agent::getExecutor)
+              .filter(Objects::nonNull)
+              .findFirst()
+              .orElse(null);
+      if (executor != null) {
+        for (Asset asset : endpointsToSave) {
+          if (asset instanceof Endpoint ep) {
+            addSourceTagToEndpoint(ep, executor);
+          }
+        }
+      }
+    }
+
     log.info(
         ":::::> syncAgentsEndpoints saved: endpoints={}, agents={}, tenantId={}",
         endpointsToSave.stream()
@@ -551,21 +565,134 @@ public class EndpointService {
   }
 
   private void addSourceTagToEndpoint(Endpoint endpoint, AgentRegisterInput input) {
-    Set<Tag> existingTags =
-        endpoint.getTags() != null ? new HashSet<>(endpoint.getTags()) : new HashSet<>();
-    existingTags.removeIf(t -> t.getName() != null && t.getName().startsWith("source:"));
-    String tagName = "source:" + input.getExecutor().getName().toLowerCase();
+    addSourceTagToEndpoint(endpoint, input.getExecutor());
+  }
+
+  private void addSourceTagToEndpoint(Endpoint endpoint, Executor executor) {
+    Set<Tag> existingTags = loadEndpointTags(endpoint);
+    String tagName = "source:" + executor.getName().toLowerCase();
+
+    // Check if the tag already exists on this endpoint, if so, nothing to do.
+    boolean alreadyHasTag = existingTags.stream().anyMatch(t -> tagName.equals(t.getName()));
+    if (alreadyHasTag) {
+      return;
+    }
+
+    // Find or create the tag entity, then add to the endpoint
     Optional<Tag> tag = tagRepository.findByName(tagName);
     if (tag.isEmpty()) {
       Tag newTag = new Tag();
-      newTag.setColor(input.getExecutor().getBackgroundColor());
+      newTag.setColor(executor.getBackgroundColor());
       newTag.setName(tagName);
+      newTag.setTenant(endpoint.getTenant());
       tagRepository.save(newTag);
       existingTags.add(newTag);
     } else {
       existingTags.add(tag.get());
     }
     endpoint.setTags(existingTags);
+    endpointRepository.save(endpoint);
+  }
+
+  /**
+   * Remove the source tag for a specific executor from an endpoint. Called when an executor becomes
+   * inactive or during startup cleanup of unregistered executors.
+   *
+   * @param endpoint the endpoint to remove the tag from
+   * @param executor the executor whose source tag should be removed
+   */
+  public void removeSourceTagFromEndpoint(Endpoint endpoint, Executor executor) {
+    Set<Tag> existingTags = loadEndpointTags(endpoint);
+    if (existingTags.isEmpty()) {
+      return;
+    }
+    String tagName = "source:" + executor.getName().toLowerCase();
+    boolean removed =
+        existingTags.removeIf(t -> t.getName() != null && t.getName().equals(tagName));
+    if (removed) {
+      endpoint.setTags(existingTags);
+    }
+  }
+
+  /**
+   * Remove source tags from endpoints for a collection of agents. Each agent's executor tag will be
+   * removed from its associated endpoint.
+   *
+   * @param agents the agents whose executor source tags should be removed from their endpoints
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void removeSourceTagsFromAgentEndpoints(Collection<Agent> agents) {
+    if (agents == null || agents.isEmpty()) {
+      return;
+    }
+
+    // Group executors by endpoint
+    Map<String, List<Executor>> executorsByEndpointId =
+        agents.stream()
+            .filter(agent -> agent.getExecutor() != null && agent.getAsset() != null)
+            .collect(
+                Collectors.groupingBy(
+                    agent -> agent.getAsset().getId(),
+                    Collectors.mapping(Agent::getExecutor, Collectors.toList())));
+
+    if (executorsByEndpointId.isEmpty()) {
+      return;
+    }
+
+    // Batch load all endpoints
+    List<Endpoint> endpoints =
+        fromIterable(endpointRepository.findAllById(executorsByEndpointId.keySet()));
+
+    // Remove tags per endpoint and collect modified ones
+    List<Endpoint> modifiedEndpoints = new ArrayList<>();
+    for (Endpoint endpoint : endpoints) {
+      Set<Tag> existingTags = loadEndpointTags(endpoint);
+      if (existingTags.isEmpty()) {
+        continue;
+      }
+      List<Executor> executors = executorsByEndpointId.get(endpoint.getId());
+      boolean modified = false;
+      for (Executor executor : executors) {
+        String tagName = "source:" + executor.getName().toLowerCase(Locale.ROOT);
+        if (existingTags.removeIf(t -> t.getName() != null && t.getName().equals(tagName))) {
+          modified = true;
+        }
+      }
+      if (modified) {
+        endpoint.setTags(existingTags);
+        endpoint.setUpdatedAt(now());
+        modifiedEndpoints.add(endpoint);
+      }
+    }
+
+    // Batch save all modified endpoints
+    if (!modifiedEndpoints.isEmpty()) {
+      endpointRepository.saveAll(modifiedEndpoints);
+    }
+  }
+
+  /**
+   * Remove the source tag for a specific executor from all endpoints that have agents for it.
+   * Called when an executor is deleted to clean up orphaned tags.
+   *
+   * @param executorId the executor ID whose agents' endpoints should be cleaned
+   * @param tenantId the tenant scope
+   */
+  public void removeSourceTagsForExecutor(String executorId, String tenantId) {
+    List<Agent> agents = agentService.getAgentsByExecutorIdAndTenantId(executorId, tenantId);
+    removeSourceTagsFromAgentEndpoints(agents);
+  }
+
+  /**
+   * Load endpoint tags from the database. This is used to check for existing tags before adding a
+   * new source tag.
+   */
+  private Set<Tag> loadEndpointTags(Endpoint endpoint) {
+    String tenantId = TenantContext.getCurrentTenant();
+    if (endpoint.getId() == null || tenantId == null) {
+      return new HashSet<>();
+    }
+    return new HashSet<>(tagRepository.findByAssetIdAndTenantId(endpoint.getId(), tenantId));
   }
 
   private Agent updateExistingEndpointAndManageAgent(Endpoint endpoint, AgentRegisterInput input) {
@@ -650,8 +777,8 @@ public class EndpointService {
     endpoint.setSeenIp(input.getSeenIp());
     endpoint.setMacAddresses(input.getMacAddresses());
     endpoint.setTenant(input.getExecutor().getTenant());
-    addSourceTagToEndpoint(endpoint, input);
     createEndpoint(endpoint);
+    addSourceTagToEndpoint(endpoint, input);
     Agent agent = new Agent();
     setUpdatedAgentAttributes(agent, input, endpoint);
     setNewAgentAttributes(input, agent);
