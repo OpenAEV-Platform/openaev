@@ -24,7 +24,10 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 @RestController
-@RequestMapping(CustomDashboardApi.CUSTOM_DASHBOARDS_URI)
+@RequestMapping({
+  CustomDashboardApi.CUSTOM_DASHBOARDS_URI,
+  CustomDashboardApi.TENANT_CUSTOM_DASHBOARDS_URI
+})
 @RequiredArgsConstructor
 public class CustomDashboardApiImporter extends RestBehavior {
 

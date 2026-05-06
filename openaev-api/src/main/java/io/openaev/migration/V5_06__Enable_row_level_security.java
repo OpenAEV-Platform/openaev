@@ -1,8 +1,5 @@
 package io.openaev.migration;
 
-import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
-
-import java.sql.ResultSet;
 import java.sql.Statement;
 import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
@@ -20,10 +17,17 @@ import org.springframework.stereotype.Component;
  * bypass — platform-level requests default to the default tenant UUID, and tenant creation
  * explicitly switches the connection's tenant via {@code SET app.current_tenant}.
  *
- * <p>Because superusers bypass RLS, this migration also creates a non-superuser role {@code
- * openaev_app} that the application adopts at runtime via {@code SET ROLE openaev_app} (configured
- * in {@code spring.datasource.hikari.connection-init-sql}). Flyway continues to run as the
- * superuser for DDL operations.
+ * <p>Prerequisites (run by DBA once):
+ *
+ * <pre>
+ * CREATE ROLE openaev_app NOLOGIN NOSUPERUSER;
+ * GRANT openaev_app TO openaev_owner;
+ * ALTER DATABASE openaev OWNER TO openaev_owner;
+ * ALTER DATABASE openaev SET app.current_tenant = '2cffad3a-0001-4078-b0e2-ef74274022c3';
+ * </pre>
+ *
+ * <p>The migration user (openaev_owner) must be the table owner. No superuser privilege is
+ * required.
  */
 @Component
 public class V5_06__Enable_row_level_security extends BaseJavaMigration {
@@ -35,44 +39,16 @@ public class V5_06__Enable_row_level_security extends BaseJavaMigration {
   public void migrate(Context context) throws Exception {
     try (Statement statement = context.getConnection().createStatement()) {
 
-      // -- 1. Set a role-level default for app.current_tenant so
-      //       current_setting() never fails, even outside a transaction.
-      //       Defaults to the default tenant — platform-level requests see only default tenant
-      // data.
-      String dbName = context.getConnection().getCatalog();
-      statement.execute(
-          "ALTER ROLE CURRENT_USER IN DATABASE \""
-              + dbName
-              + "\" SET app.current_tenant = '"
-              + DEFAULT_TENANT_UUID
-              + "'");
-
-      // -- 2. Create a non-superuser role that the app will adopt via SET ROLE.
-      //       Superusers bypass RLS, so the app must not run queries as a superuser.
-      ResultSet rs =
-          statement.executeQuery("SELECT 1 FROM pg_roles WHERE rolname = '" + APP_ROLE + "'");
-      if (!rs.next()) {
-        statement.execute("CREATE ROLE " + APP_ROLE + " NOLOGIN NOSUPERUSER");
-      }
-      rs.close();
-
-      // PG > 15, allow access for app role for read
+      // -- 1. Grant privileges to the app role on existing and future objects
       statement.execute("GRANT USAGE ON SCHEMA public TO " + APP_ROLE);
-
-      // Grant the app role to the current user so SET ROLE works
-      statement.execute("GRANT " + APP_ROLE + " TO CURRENT_USER");
-
-      // Grant full DML privileges on all tables and sequences
       statement.execute("GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO " + APP_ROLE);
       statement.execute("GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO " + APP_ROLE);
-
-      // Ensure future tables/sequences also get privileges
       statement.execute(
           "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO " + APP_ROLE);
       statement.execute(
           "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO " + APP_ROLE);
 
-      // -- 3. Enable RLS on all tenant-scoped tables with strict tenant isolation.
+      // -- 2. Enable RLS on all tenant-scoped tables with strict tenant isolation.
       //       No bypass — every query must match the current tenant.
       for (String table : TenantScopedTables.TABLES) {
         String policyName = "tenant_isolation_" + table;
