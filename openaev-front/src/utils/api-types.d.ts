@@ -6233,8 +6233,6 @@ export interface PlatformSettings {
     | "STIX_SECURITY_COVERAGE_FOR_VULNERABILITIES"
     | "LEGACY_INGESTION_EXECUTION_TRACE"
     | "MULTI_TENANCY"
-    | "SENTINEL_ONE_EXECUTOR"
-    | "PALO_ALTO_CORTEX_EXECUTOR"
     | "OPENAEV_TRIALS_XTMHUB"
     | "INJECT_CHAINING"
   )[];
@@ -6509,6 +6507,9 @@ export interface PublicPlatformSettings {
     | "_RESERVED"
     | "STIX_SECURITY_COVERAGE_FOR_VULNERABILITIES"
     | "LEGACY_INGESTION_EXECUTION_TRACE"
+    | "MULTI_TENANCY"
+    | "OPENAEV_TRIALS_XTMHUB"
+    | "INJECT_CHAINING"
   )[];
   /** Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL) */
   platform_banner_by_level?: Record<string, string[]>;
