@@ -16,6 +16,18 @@ description: "Testing conventions: integration tests, unit tests, fixtures, comp
 - JSON: `assertThatJson(response).node("field").isEqualTo(...)` (json-unit library)
 - URI constant at class level: `public static final String FEATURE_URI = "/api/..."`
 
+### Tenant Isolation Tests (API)
+
+For any tenant-scoped API (`/api/tenants/{tenantId}/...`):
+
+- Use skill: [add-tenant-isolation-test](../skills/add-test/TENANT_ISOLATION.md)
+- Add a `@Nested @DisplayName("Tenant Isolation") @WithMockUser` class
+- Use `TenantIsolationTestHelper.createTenantWithCapabilities()` for real RBAC (no `isAdmin=true`)
+- Test at minimum: cross-tenant READ blocked, same-tenant READ works, cross-tenant SEARCH filtered
+- Also test cross-tenant UPDATE and DELETE blocked
+- Accept **403 or 404** as valid isolation responses
+
+
 ## Integration Tests (Service)
 
 - Extend `IntegrationTest` (same base as API tests)
