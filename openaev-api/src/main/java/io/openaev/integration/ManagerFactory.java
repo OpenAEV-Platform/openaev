@@ -12,8 +12,6 @@ import io.openaev.datapack.DataPackProcessor;
 import io.openaev.multitenancy.DependenciesManager;
 import io.openaev.multitenancy.DependenciesManagerException;
 import io.openaev.rest.injector_contract.InjectorContractService;
-import io.openaev.service.PreviewFeatureService;
-import io.openaev.service.tenants.UserTenantService;
 import jakarta.persistence.EntityManager;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +27,6 @@ public class ManagerFactory implements DependenciesManager {
   private final List<IntegrationFactory> factories;
   private final List<BuiltinTenantRegistrable> builtinRegistrables;
   private final TenantRepository tenantRepository;
-  private final PreviewFeatureService previewFeatureService;
   private final EntityManager entityManager;
 
   private volatile Manager manager = null;
