@@ -124,7 +124,6 @@ const KillChainPhaseColumn: FunctionComponent<{
     return null;
   }
 
-
   return (
     <div>
       <Typography variant="h5" sx={titleStyle}>
