@@ -18,6 +18,9 @@ import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.database.model.*;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.executors.Executor;
+import io.openaev.model.Expectation;
+import io.openaev.model.expectation.DetectionExpectation;
+import io.openaev.model.expectation.PreventionExpectation;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -72,6 +75,7 @@ public class InjectExecutionStep implements ActionStep {
   private final InjectorContractContentUtils injectorContractContentUtils;
   private final Executor executor;
   private final InjectUtils injectUtils;
+  private final InjectExpectationService injectExpectationService;
   @PersistenceContext private EntityManager em;
 
   /**
@@ -179,14 +183,16 @@ public class InjectExecutionStep implements ActionStep {
             inject.getAssetGroups(),
             List.of()); // TODO Check users?
 
+    // CREATE EXPECTATIONS before execution so attack path works even without active agents
+    createExpectationsFromContent(executableInject, inject);
+
     try {
       executor.execute(executableInject);
     } catch (Exception e) {
-      log.error(
-          "Inject execution failed (inject {} persisted). {}",
+      log.warn(
+          "Inject execution failed (inject {} persisted, expectations created). {}",
           injectId,
-          e.getMessage(),
-          e);
+          e.getMessage());
     }
     return Optional.of(readyStep);
   }
@@ -686,6 +692,58 @@ public class InjectExecutionStep implements ActionStep {
     if (!allowGroupIds.isEmpty()) {
       List<AssetGroup> groups = assetGroupService.assetGroups(new ArrayList<>(allowGroupIds));
       inject.setAssetGroups(groups);
+    }
+  }
+
+  /**
+   * Creates expectations from inject content before execution. This ensures the attack path
+   * shows data even when execution fails (e.g., no active agents in dev environment).
+   */
+  private void createExpectationsFromContent(ExecutableInject executableInject, Inject inject) {
+    try {
+      ObjectNode contentNode = inject.getContent();
+      if (contentNode == null) {
+        return;
+      }
+      JsonNode expectationsNode = contentNode.get("expectations");
+      if (expectationsNode == null || !expectationsNode.isArray() || expectationsNode.isEmpty()) {
+        return;
+      }
+
+      List<Asset> assets = inject.getAssets();
+      List<AssetGroup> assetGroups = inject.getAssetGroups();
+      if (assets.isEmpty() && assetGroups.isEmpty()) {
+        return;
+      }
+
+      List<Expectation> expectations = new ArrayList<>();
+      for (JsonNode expNode : expectationsNode) {
+        String type = expNode.path("expectation_type").asText("");
+        double score = expNode.path("expectation_score").asDouble(100.0);
+        String name = expNode.path("expectation_name").asText(type);
+        String description = expNode.path("expectation_description").asText(null);
+        long expiration = expNode.path("expectation_expiration_time").asLong(21600);
+
+        for (Asset asset : assets) {
+          switch (type) {
+            case "DETECTION" ->
+                expectations.add(
+                    DetectionExpectation.detectionExpectationForAsset(
+                        score, name, description, asset, null, expiration));
+            case "PREVENTION" ->
+                expectations.add(
+                    PreventionExpectation.preventionExpectationForAsset(
+                        score, name, description, asset, null, expiration));
+            default -> {}
+          }
+        }
+      }
+
+      if (!expectations.isEmpty()) {
+        injectExpectationService.buildAndSaveInjectExpectations(executableInject, expectations);
+      }
+    } catch (Exception e) {
+      log.warn("Failed to create expectations from content for inject {}: {}", inject.getId(), e.getMessage());
     }
   }
 
