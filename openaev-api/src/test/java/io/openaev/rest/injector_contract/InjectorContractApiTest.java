@@ -240,6 +240,7 @@ public class InjectorContractApiTest extends IntegrationTest {
 
         assertThatJson(body)
             .whenIgnoringPaths("injector_contract_created_at", "injector_contract_updated_at")
+            .when(Option.IGNORING_EXTRA_FIELDS)
             .isEqualTo(mapper.writeValueAsString(ic));
       }
 
@@ -433,6 +434,7 @@ public class InjectorContractApiTest extends IntegrationTest {
         assertThatJson(response)
             .when(Option.IGNORING_ARRAY_ORDER)
             .whenIgnoringPaths("injector_contract_created_at", "injector_contract_updated_at")
+            .when(Option.IGNORING_EXTRA_FIELDS)
             .isEqualTo(
                 String.format(
                     """
@@ -540,6 +542,7 @@ public class InjectorContractApiTest extends IntegrationTest {
         assertThatJson(response)
             .when(Option.IGNORING_ARRAY_ORDER)
             .whenIgnoringPaths("injector_contract_created_at", "injector_contract_updated_at")
+            .when(Option.IGNORING_EXTRA_FIELDS)
             .isEqualTo(
                 String.format(
                     """
@@ -608,6 +611,7 @@ public class InjectorContractApiTest extends IntegrationTest {
         assertThatJson(response)
             .when(Option.IGNORING_ARRAY_ORDER)
             .whenIgnoringPaths("injector_contract_created_at", "injector_contract_updated_at")
+            .when(Option.IGNORING_EXTRA_FIELDS)
             .isEqualTo(
                 String.format(
                     """
@@ -747,6 +751,7 @@ public class InjectorContractApiTest extends IntegrationTest {
         assertThatJson(response)
             .whenIgnoringPaths("injector_contract_created_at", "injector_contract_updated_at")
             .when(Option.IGNORING_ARRAY_ORDER)
+            .when(Option.IGNORING_EXTRA_FIELDS)
             .isEqualTo(
                 String.format(
                     """
@@ -980,6 +985,7 @@ public class InjectorContractApiTest extends IntegrationTest {
 
         assertThatJson(body)
             .whenIgnoringPaths("injector_contract_created_at", "injector_contract_updated_at")
+            .when(Option.IGNORING_EXTRA_FIELDS)
             .isEqualTo(mapper.writeValueAsString(ic));
       }
 
@@ -1108,6 +1114,7 @@ public class InjectorContractApiTest extends IntegrationTest {
 
         assertThatJson(response)
             .whenIgnoringPaths("injector_contract_created_at", "injector_contract_updated_at")
+            .when(Option.IGNORING_EXTRA_FIELDS)
             .isEqualTo(
                 String.format(
                     """
@@ -1159,6 +1166,7 @@ public class InjectorContractApiTest extends IntegrationTest {
 
         assertThatJson(response)
             .whenIgnoringPaths("injector_contract_created_at", "injector_contract_updated_at")
+            .when(Option.IGNORING_EXTRA_FIELDS)
             .isEqualTo(
                 String.format(
                     """
