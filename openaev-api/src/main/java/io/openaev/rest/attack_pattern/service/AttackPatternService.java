@@ -138,7 +138,9 @@ public class AttackPatternService {
         AnalysisResultFromTTPExtractionAIWebserviceOutput result =
             mapper.convertValue(chunk, AnalysisResultFromTTPExtractionAIWebserviceOutput.class);
 
-        externalAttackPatternIds.addAll(result.getPredictions().keySet());
+        if (result.getPredictions() != null) {
+          externalAttackPatternIds.addAll(result.getPredictions().keySet());
+        }
       }
     }
     return externalAttackPatternIds;
@@ -270,11 +272,40 @@ public class AttackPatternService {
     }
 
     String content = (text != null && !text.isBlank()) ? text : "Extract TTPs from attached files";
-    String result = xtmOneClient.callAgentSync("ttp.extractor", content, filesNode);
+    String result = xtmOneClient.callAgentSync("ttp-extractor", content, filesNode);
     if (result == null) {
       throw new RuntimeException("XTM One TTP extraction returned no result");
     }
-    return result;
+    // The copilot returns {"files": [{..., "extraction": {filename: [...]}}]}.
+    // Unwrap to the native Filigran AI format: {filename: [...], ...}
+    return unwrapCopilotTtpResponse(result);
+  }
+
+  /**
+   * Unwraps the copilot envelope into the native Filigran AI response format expected by
+   * {@link #extractExternalAttackPatternIdsFromResponse}.
+   *
+   * <p>If the response is already in native format (e.g. {"filename.txt": [...]}), it is returned
+   * as-is.
+   */
+  private String unwrapCopilotTtpResponse(String raw) throws IOException {
+    JsonNode root = mapper.readTree(raw);
+    if (!root.has("files") || !root.get("files").isArray()) {
+      // Already native format
+      return raw;
+    }
+    com.fasterxml.jackson.databind.node.ObjectNode merged = mapper.createObjectNode();
+    for (JsonNode entry : root.get("files")) {
+      if (entry.has("extraction") && entry.get("extraction").isObject()) {
+        JsonNode extraction = entry.get("extraction");
+        extraction.fields().forEachRemaining(field -> {
+          if (field.getValue().isArray()) {
+            merged.set(field.getKey(), field.getValue());
+          }
+        });
+      }
+    }
+    return mapper.writeValueAsString(merged);
   }
 
   // -- STIX --
