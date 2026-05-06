@@ -182,7 +182,7 @@ public class TenantGroupService {
         groupRepository
             .findByIdAndTenantId(groupId, tenantId)
             .orElseThrow(ElementNotFoundException::new);
-    Grant grant = grantRepository.findById(grantId).orElseThrow(ElementNotFoundException::new);
+    Grant grant = group.getGrants().stream().filter(g -> grantId.equals(g.getId())).findFirst().orElseThrow(ElementNotFoundException::new);
     group.getGrants().remove(grant);
     return groupRepository.save(group);
   }
