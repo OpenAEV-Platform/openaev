@@ -35,6 +35,7 @@ public final class StepMapper {
                       MapperConditionOutput.builder()
                           .conditionKeyType(c.getKeyType())
                           .conditionKey(c.getKey())
+                          .conditionValue(c.getValue())
                           .conditionMappingType(c.getMappingType())
                           .build())
               .toList();

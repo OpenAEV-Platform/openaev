@@ -19,6 +19,9 @@ public class MapperConditionOutput {
   @JsonProperty("condition_key")
   private String conditionKey;
 
+  @JsonProperty("condition_value")
+  private String conditionValue;
+
   @JsonProperty("condition_mapping_type")
   private MappingType conditionMappingType;
 }

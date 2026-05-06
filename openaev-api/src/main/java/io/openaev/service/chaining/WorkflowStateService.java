@@ -26,7 +26,7 @@ public class WorkflowStateService {
 
   /**
    * Syncs structured output data into the global workflow state entries and propagates matching
-   * values to the local pools of steps whose filter conditions are satisfied by the output.
+   * values to the local states of steps whose filter conditions are satisfied by the output.
    *
    * @param dataToSync JSON element containing output data to merge
    * @param fieldTypeMap mapping from field name to its contract output type
@@ -43,8 +43,8 @@ public class WorkflowStateService {
     if (dataToSync.isJsonObject()) {
       Map<String, List<String>> parsedValues =
           saveToEntries(entries, dataToSync.getAsJsonObject(), fieldTypeMap);
-      // Propagate to local pools of steps whose events need this output
-      propagateToLocalPools(parsedValues, workflowRun);
+      // Propagate to local states of steps whose events need this output
+      propagateToLocalStates(parsedValues, workflowRun);
     }
 
     // Save JSON back to DB
@@ -53,7 +53,7 @@ public class WorkflowStateService {
   }
 
   /**
-   * Propagates output values to the local pools of step templates whose filter conditions (events)
+   * Propagates output values to the local states of step templates whose filter conditions (events)
    * are satisfied by the produced output. This ensures that when a step B has an event expecting a
    * certain value, and another step A produces that value, step B's local pool gets populated with
    * it.
@@ -61,7 +61,8 @@ public class WorkflowStateService {
    * @param parsedByType map of output type names to their extracted values
    * @param workflowRun the running workflow execution
    */
-  private void propagateToLocalPools(Map<String, List<String>> parsedByType, Workflow workflowRun) {
+  private void propagateToLocalStates(
+      Map<String, List<String>> parsedByType, Workflow workflowRun) {
 
     if (parsedByType.isEmpty() || workflowRun.getWorkflowTemplate() == null) {
       return;
