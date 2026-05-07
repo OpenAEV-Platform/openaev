@@ -7,7 +7,8 @@ import io.openaev.config.MinioConfig;
 import io.openaev.config.S3Config;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.TenantRepository;
-import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
@@ -72,8 +73,10 @@ public class MinioDriver {
   private void moveDefaultTenantFiles(MinioClient minioClient, String bucket) throws Exception {
     String defaultTenantPrefix = Tenant.DEFAULT_TENANT_UUID + "/";
 
-    List<String> tenants =
-        tenantRepository.findAll().stream().map(tenant -> tenant.getId() + "/").toList();
+    Set<String> tenants =
+        tenantRepository.findAll().stream()
+            .map(tenant -> tenant.getId() + "/")
+            .collect(Collectors.toSet());
 
     Iterable<Result<Item>> objects =
         minioClient.listObjects(ListObjectsArgs.builder().bucket(bucket).recursive(true).build());
