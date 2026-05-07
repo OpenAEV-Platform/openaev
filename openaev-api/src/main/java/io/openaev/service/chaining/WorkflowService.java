@@ -427,7 +427,7 @@ public class WorkflowService {
       throw new ChainingException(
           "Error Model DB - Many Workflow TEMPLATE for the same scenario ID : " + scenarioId);
     if (workflows.isEmpty()) return Optional.empty();
-    return Optional.ofNullable(workflows.get(0));
+    return Optional.ofNullable(workflows.getFirst());
   }
 
   /**

@@ -14,15 +14,10 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
-import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.service.InjectService;
-import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.rest.injector_contract.InjectorContractService;
-import io.openaev.rest.tag.TagService;
-import io.openaev.service.AssetService;
-import io.openaev.service.TeamService;
 import io.openaev.service.UserService;
 import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.StepService;
@@ -34,26 +29,19 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.annotation.Transactional;
 
-@SpringBootTest
 @Transactional
 public class InjectExecutionStepTest extends IntegrationTest {
 
   @MockitoBean private InjectorContractService injectorContractService;
   @MockitoBean private UserService userService;
-  @MockitoBean private TeamService teamService;
-  @MockitoBean private AssetService assetService;
-  @MockitoBean private TagService tagService;
-  @MockitoBean private DocumentService documentService;
   @MockitoBean private InjectService injectService;
   @MockitoBean private ConditionService conditionService;
   @MockitoBean private ConditionUtils conditionUtils;
   @MockitoBean private io.openaev.executors.Executor executor;
-  @MockitoBean private InjectStatusService injectStatusService;
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private InjectorRepository injectorRepository;
   @Autowired private InjectRepository injectRepository;
@@ -76,10 +64,6 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     doReturn(injectorContractSaved).when(injectorContractService).injectorContract(any());
     doReturn(new User()).when(userService).currentUser();
-    doReturn(new ArrayList<>()).when(teamService).getTeamsByIds(any());
-    doReturn(new ArrayList<>()).when(assetService).assets(any());
-    doReturn(new HashSet<>()).when(tagService).tagSet(any());
-    doReturn(null).when(documentService).document(any());
     doReturn(false).when(injectService).canApplyTargetType(any(), any());
     doReturn(new InjectStatus()).when(executor).directExecute(any());
 

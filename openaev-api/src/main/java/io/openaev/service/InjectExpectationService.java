@@ -518,11 +518,11 @@ public class InjectExpectationService {
 
     return injectExpectationRepository
         .findAll(
-            Specification.where(
-                InjectExpectationSpecification.type(type)
-                    .and(InjectExpectationSpecification.agentNotNull())
-                    .and(InjectExpectationSpecification.assetNotNull())
-                    .and(InjectExpectationSpecification.from(expirationThreshold))))
+            Specification.<InjectExpectation>unrestricted()
+                .and(InjectExpectationSpecification.type(type))
+                .and(InjectExpectationSpecification.agentNotNull())
+                .and(InjectExpectationSpecification.assetNotNull())
+                .and(InjectExpectationSpecification.from(expirationThreshold)))
         .stream()
         .filter(ExpectationUtils::isAgentExpectation)
         .filter(e -> hasNoResult(e.getResults(), sourceId))
@@ -543,11 +543,11 @@ public class InjectExpectationService {
 
     return injectExpectationRepository
         .findAll(
-            Specification.where(
-                InjectExpectationSpecification.type(type)
-                    .and(InjectExpectationSpecification.agentNotNull())
-                    .and(InjectExpectationSpecification.assetNotNull())
-                    .and(InjectExpectationSpecification.from(expirationThreshold))))
+            Specification.<InjectExpectation>unrestricted()
+                .and(InjectExpectationSpecification.type(type))
+                .and(InjectExpectationSpecification.agentNotNull())
+                .and(InjectExpectationSpecification.assetNotNull())
+                .and(InjectExpectationSpecification.from(expirationThreshold)))
         .stream()
         .filter(ExpectationUtils::isAgentExpectation)
         .filter(e -> hasNoResults(e.getResults()))
