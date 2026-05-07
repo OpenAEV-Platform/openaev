@@ -74,7 +74,7 @@ public class ConditionApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION_OR_SCENARIO)
   @GetMapping(params = "workflow_id")
   public List<EventOutput> findAllByWorkflow(@RequestParam("workflow_id") String workflowId) {
-    return conditionService.findConditionRootsByWorkflowId(workflowId).stream()
+    return conditionService.findNonMapperConditionsByWorkflowId(workflowId).stream()
         .map(ConditionMapper::toOutput)
         .toList();
   }
