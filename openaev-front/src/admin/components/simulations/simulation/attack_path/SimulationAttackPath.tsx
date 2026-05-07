@@ -1,87 +1,73 @@
-import { Alert, Box, Typography } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { Alert } from '@mui/material';
 import { type FunctionComponent, useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router';
 
-import { fetchExerciseInjectExpectations } from '../../../../../actions/Exercise';
-import { type ExercisesHelper } from '../../../../../actions/exercises/exercise-helper';
-import { type ScenariosHelper } from '../../../../../actions/scenarios/scenario-helper';
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
-import { useHelper } from '../../../../../store';
-import type { Exercise, InjectExpectation } from '../../../../../utils/api-types';
-import type { Workflow, WorkflowStep } from '../../../../../utils/api-types-custom';
-import { useAppDispatch } from '../../../../../utils/hooks';
+import type { Exercise } from '../../../../../utils/api-types';
+import { simpleCall } from '../../../../../utils/Action';
 import { isFeatureEnabled } from '../../../../../utils/utils';
-import { fetchWorkflow } from '../../../../../actions/chaining/workflow-actions';
-import AttackPathFlow from './AttackPathFlow';
+import type { AttackPathData } from './attackPathUtils';
+import AttackPathGraph from './AttackPathGraph';
 import AttackPathFeed from './AttackPathFeed';
-
-import '@xyflow/react/dist/style.css';
+import AttackPathStatsComponent from './AttackPathStats';
 
 const SimulationAttackPath: FunctionComponent = () => {
   const { t } = useFormatter();
-  const theme = useTheme();
-  const dispatch = useAppDispatch();
   const { exerciseId } = useParams() as { exerciseId: Exercise['exercise_id'] };
 
   const attackPathEnabled = isFeatureEnabled('CHAINING_ATTACK_PATH');
 
-  const exercise = useHelper((helper: ExercisesHelper) => helper.getExercise(exerciseId));
-  const expectations: InjectExpectation[] = useHelper((helper: ExercisesHelper) =>
-    helper.getExerciseInjectExpectations(exerciseId),
-  ) ?? [];
-
-  const scenarioId = exercise?.exercise_scenario;
-  const scenario = useHelper((helper: ScenariosHelper) =>
-    scenarioId ? helper.getScenario(scenarioId) : null,
-  );
-  const workflowId = scenario?.scenario_workflow_id;
-
-  const [workflow, setWorkflow] = useState<Workflow | null>(null);
+  const [data, setData] = useState<AttackPathData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 
-  // Fetch expectations into Redux store
-  useEffect(() => {
-    dispatch(fetchExerciseInjectExpectations(exerciseId));
+  // Single fetch from aggregate endpoint
+  const fetchAttackPath = useCallback(async () => {
+    try {
+      const response = await simpleCall(`/api/exercises/${exerciseId}/attack-path`);
+      setData(response.data);
+      setError(null);
+    } catch (e) {
+      setError('Failed to load attack path data');
+      setData(null);
+    } finally {
+      setLoading(false);
+    }
   }, [exerciseId]);
 
-  // Fetch workflow using the resolved workflowId
   useEffect(() => {
-    if (!workflowId) {
+    if (!attackPathEnabled) {
       setLoading(false);
       return;
     }
-    setLoading(true);
-    fetchWorkflow(workflowId)
-      .then((result: Workflow) => setWorkflow(result))
-      .catch(() => setWorkflow(null))
-      .finally(() => setLoading(false));
-  }, [workflowId]);
+    fetchAttackPath();
+  }, [attackPathEnabled, fetchAttackPath]);
 
-  // Poll expectations every 10s for live updates during execution
+  // Poll for live updates every 10s
   useEffect(() => {
-    if (exercise?.exercise_status !== 'RUNNING') return undefined;
-    const interval = setInterval(() => {
-      dispatch(fetchExerciseInjectExpectations(exerciseId));
-    }, 10_000);
+    if (!attackPathEnabled || !data) return undefined;
+    const interval = setInterval(fetchAttackPath, 10_000);
     return () => clearInterval(interval);
-  }, [exerciseId, exercise?.exercise_status]);
+  }, [attackPathEnabled, data, fetchAttackPath]);
 
-  const handleSelectStep = useCallback((stepId: string | null) => {
-    setSelectedStepId(stepId);
+  const handleSelectNode = useCallback((nodeId: string | null) => {
+    setSelectedNodeId(nodeId);
   }, []);
 
-  if (!attackPathEnabled) {
-    return null;
-  }
-
+  if (!attackPathEnabled) return null;
   if (loading) return <Loader />;
 
-  const steps: WorkflowStep[] = workflow?.workflow_steps ?? [];
+  if (error) {
+    return (
+      <Alert severity="error" sx={{ mt: 2 }}>
+        {t(error)}
+      </Alert>
+    );
+  }
 
-  if (!workflow || steps.length === 0) {
+  if (!data || data.attack_path_nodes.length === 0) {
     return (
       <Alert severity="info" sx={{ mt: 2 }}>
         {t('No chaining workflow configured for this simulation. Configure the attack chain in the scenario logic tab first.')}
@@ -90,48 +76,27 @@ const SimulationAttackPath: FunctionComponent = () => {
   }
 
   return (
-    <Box sx={{ display: 'flex', height: 'calc(100vh - 260px)', overflow: 'hidden' }}>
-      {/* Left panel ÔÇö live execution feed */}
-      <AttackPathFeed
-        steps={steps}
-        expectations={expectations}
-        injectStatuses={{}}
-        selectedStepId={selectedStepId}
-        onSelectStep={handleSelectStep}
-      />
+    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 260px)', overflow: 'hidden' }}>
+      {/* Stats banner */}
+      <AttackPathStatsComponent stats={data.attack_path_stats} />
 
-      {/* Right panel ÔÇö ReactFlow graph */}
-      <Box sx={{ flex: 1, position: 'relative' }}>
-        {/* Banner */}
-        <Box
-          sx={{
-            position: 'absolute',
-            top: 8,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 10,
-            backgroundColor: 'rgba(255, 193, 7, 0.15)',
-            border: '1px solid rgba(255, 193, 7, 0.4)',
-            borderRadius: 1,
-            px: 2,
-            py: 0.5,
-            pointerEvents: 'none',
-          }}
-        >
-          <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
-            {t('Click a node to highlight the attack path')}
-          </Typography>
-        </Box>
-
-        <AttackPathFlow
-          steps={steps}
-          expectations={expectations}
-          selectedStepId={selectedStepId}
-          onSelectStep={handleSelectStep}
+      {/* Main content: Feed (left) + Graph (center) */}
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+        <AttackPathFeed
+          nodes={data.attack_path_nodes}
+          selectedNodeId={selectedNodeId}
+          onSelectNode={handleSelectNode}
         />
-      </Box>
-    </Box>
+        <AttackPathGraph
+          nodes={data.attack_path_nodes}
+          edges={data.attack_path_edges}
+          selectedNodeId={selectedNodeId}
+          onSelectNode={handleSelectNode}
+        />
+      </div>
+    </div>
   );
 };
 
 export default SimulationAttackPath;
+
