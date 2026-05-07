@@ -29,4 +29,3 @@ import org.junit.jupiter.api.extension.ExtendWith;
 @Retention(RetentionPolicy.RUNTIME)
 @ExtendWith(RlsToggleExtension.class)
 public @interface WithoutRls {}
-

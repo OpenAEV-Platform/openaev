@@ -29,7 +29,6 @@ import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationF
 import io.openaev.rest.collector.form.CollectorCreateInput;
 import io.openaev.rest.payload.form.*;
 import io.openaev.utils.TenantIsolationTestHelper;
-import io.openaev.utils.WithoutRls;
 import io.openaev.utils.fixtures.CollectorFixture;
 import io.openaev.utils.fixtures.DomainFixture;
 import io.openaev.utils.fixtures.PayloadFixture;
@@ -37,6 +36,7 @@ import io.openaev.utils.fixtures.PayloadInputFixture;
 import io.openaev.utils.fixtures.composers.CollectorComposer;
 import io.openaev.utils.fixtures.composers.DomainComposer;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
 import java.util.*;
 import org.junit.jupiter.api.*;
@@ -45,7 +45,6 @@ import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import io.openaev.utils.pagination.SearchPaginationInput;
 
 @TestInstance(PER_CLASS)
 class PayloadApiTest extends IntegrationTest {
@@ -1185,7 +1184,7 @@ class PayloadApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Payload created in tenant X should NOT be readable from tenant Y")
-    //@WithoutRls // uncomment to fail the test: native query caught by RLS
+    // @WithoutRls // uncomment to fail the test: native query caught by RLS
     void given_payloadInTenantX_should_notBeReadableFromTenantY() throws Exception {
       Tenant tenantX =
           tenantIsolationHelper.createTenantWithCapabilities(
@@ -1259,7 +1258,8 @@ class PayloadApiTest extends IntegrationTest {
     }
 
     @Test
-    // RLS IS catching it — the payload is NOT actually deleted. But the API returns 200 anyway because deleteById silently swallows the "not found" case
+    // RLS IS catching it — the payload is NOT actually deleted. But the API returns 200 anyway
+    // because deleteById silently swallows the "not found" case
     @Disabled(
         "FIXME: PayloadApi.deletePayload() ignores tenantId and uses bare deleteById() — "
             + "needs tenant-scoped delete (findByIdAndTenantId or @Query with tenant_id)")
@@ -1276,8 +1276,7 @@ class PayloadApiTest extends IntegrationTest {
 
       int responseStatus =
           mvc.perform(
-                  delete("/api/tenants/" + tenantY.getId() + "/payloads/" + payloadId)
-                      .with(csrf()))
+                  delete("/api/tenants/" + tenantY.getId() + "/payloads/" + payloadId).with(csrf()))
               .andReturn()
               .getResponse()
               .getStatus();

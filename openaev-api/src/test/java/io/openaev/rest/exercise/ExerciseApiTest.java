@@ -33,7 +33,6 @@ import io.openaev.rest.inject.output.InjectOutput;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.utils.TenantIsolationTestHelper;
-import io.openaev.utils.WithoutRls;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mapper.InjectMapper;
@@ -718,7 +717,7 @@ public class ExerciseApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Exercise created in tenant X should NOT be readable from tenant Y")
-    //@WithoutRls // uncomment to fail the test: native query caught by RLS
+    // @WithoutRls // uncomment to fail the test: native query caught by RLS
     void given_exerciseInTenantX_should_notBeReadableFromTenantY() throws Exception {
       // -------- Arrange --------
       Tenant tenantX =
@@ -847,7 +846,7 @@ public class ExerciseApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Exercise created in tenant X should NOT be updatable from tenant Y")
-    //@WithoutRls // uncomment to fail the test: native query caught by RLS
+    // @WithoutRls // uncomment to fail the test: native query caught by RLS
     void given_exerciseInTenantX_should_notBeUpdatableFromTenantY() throws Exception {
       // -------- Arrange --------
       Tenant tenantX =
@@ -903,7 +902,7 @@ public class ExerciseApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Exercise created in tenant X should NOT be deletable from tenant Y")
-    //@WithoutRls // uncomment to fail the test: native query caught by RLS
+    // @WithoutRls // uncomment to fail the test: native query caught by RLS
     void given_exerciseInTenantX_should_notBeDeletableFromTenantY() throws Exception {
       // -------- Arrange --------
       Tenant tenantX =

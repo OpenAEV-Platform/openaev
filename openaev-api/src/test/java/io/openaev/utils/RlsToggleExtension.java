@@ -33,6 +33,3 @@ public class RlsToggleExtension implements BeforeEachCallback, AfterEachCallback
     return SpringExtension.getApplicationContext(context).getBean(EntityManager.class);
   }
 }
-
-
-
