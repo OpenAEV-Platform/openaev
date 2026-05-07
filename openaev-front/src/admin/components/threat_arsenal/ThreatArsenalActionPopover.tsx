@@ -23,9 +23,7 @@ import Drawer from '../../../components/common/Drawer';
 import Transition from '../../../components/common/Transition';
 import { useFormatter } from '../../../components/i18n';
 import {
-  type InjectorContract,
   type ThreatArsenalAction,
-  type ThreatArsenalActionCreateInput,
   type ThreatArsenalActionFullOutput, type ThreatArsenalActionUpdateInput,
 } from '../../../utils/api-types';
 import { type ThreatArsenalActionCreateCustomInput } from '../../../utils/api-types-custom';
@@ -33,7 +31,7 @@ import { useAppDispatch } from '../../../utils/hooks';
 import { AbilityContext, Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { download } from '../../../utils/utils';
-import InjectorContractForm from '../integrations/injectors/injector_contracts/InjectorContractForm';
+import InjectorContractForm, { type InjectorContractFormValues } from '../integrations/injectors/injector_contracts/InjectorContractForm';
 import { type DetectionRemediationForm } from '../payloads/utils/payloadFormToPayloadInput';
 import ThreatArsenalActionForm from './ThreatArsenalActionForm';
 import SnapshotRemediationProvider from './utils/SnapshotRemediationProvider';
@@ -168,12 +166,12 @@ const ThreatArsenalActionPopover = ({
     handleCloseEdit();
   };
 
-  const onSubmitInjectorContractEdit = (data: InjectorContract) => {
+  const onSubmitInjectorContractEdit = (data: InjectorContractFormValues) => {
     const updatedDataInput: ThreatArsenalActionCreateCustomInput = {
       ...fetchedAction,
       action_name: fetchedAction?.action_labels ? tPick(fetchedAction?.action_labels) : '',
       action_tags: data.injector_contract_tags,
-      action_attack_patterns: (data.injector_contract_attack_patterns || []).map(a => a.id),
+      action_attack_patterns: data.injector_contract_attack_patterns,
       action_domains: data.injector_contract_domains,
     } as ThreatArsenalActionCreateCustomInput;
     onSubmitEdit(updatedDataInput);
@@ -286,7 +284,6 @@ const ThreatArsenalActionPopover = ({
           {fetchedAction && !payloadId && (
             <InjectorContractForm
               initialValues={{
-                injector_contract_id: actionId,
                 injector_contract_attack_patterns: fetchedAction.action_attack_patterns,
                 injector_contract_domains: fetchedAction.action_domains,
                 injector_contract_tags: fetchedAction.action_tags,
