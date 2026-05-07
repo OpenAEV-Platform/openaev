@@ -29,7 +29,7 @@ import useAI from '../../../../utils/hooks/useAI';
 import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
 import EETooltip from '../entreprise_edition/EETooltip';
 
-export type AgentAction = 'spelling' | 'shorter' | 'longer' | 'tone' | 'summarize' | 'explain' | 'genMessage' | 'genSubject';
+export type AgentAction = 'spelling' | 'shorter' | 'longer' | 'tone' | 'summarize' | 'explain' | 'genMessage' | 'genSubject' | 'genMedia';
 
 const intentForAction: Record<AgentAction, string> = {
   spelling: 'fix.spelling',
@@ -40,6 +40,7 @@ const intentForAction: Record<AgentAction, string> = {
   explain: 'explain',
   genMessage: 'generate.message',
   genSubject: 'generate.message',
+  genMedia: 'generate.media',
 };
 
 // region types
@@ -499,7 +500,20 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
               disabled={messageInput.length === 0}
               onClick={() => {
                 handleCloseGenMediaOptions();
-                handleAskAi('genMedia');
+                if (useXtmOne) {
+                  const prompt = `Generate a media article.\n\nTone: ${messageTone}\nAuthor: ${messageSender || 'not specified'}\nNumber of paragraphs: ${messageParagraphs}\nContext: ${messageContext || 'none'}\n\nContent/Instructions:\n${messageInput}\n\nReturn only the raw article body in ${format} format. Do not wrap in code fences or markdown blocks. No explanation.`;
+                  setContent('');
+                  setIsAcceptable(true);
+                  setAgentMode({
+                    intent: intentForAction.genMedia,
+                    action: 'genMedia',
+                    inputContent: prompt,
+                    format,
+                  });
+                  handleOpenAskAI();
+                } else {
+                  handleAskAi('genMedia');
+                }
               }}
               color="secondary"
             >
