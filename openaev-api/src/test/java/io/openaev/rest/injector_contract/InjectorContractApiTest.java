@@ -680,6 +680,7 @@ public class InjectorContractApiTest extends IntegrationTest {
         assertThatJson(response)
             .when(Option.IGNORING_ARRAY_ORDER)
             .whenIgnoringPaths("injector_contract_created_at", "injector_contract_updated_at")
+            .when(Option.IGNORING_EXTRA_FIELDS)
             .isEqualTo(
                 String.format(
                     """
