@@ -1259,6 +1259,9 @@ export interface ConditionCreateInput {
     | "delegation"
     | "sid"
     | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account"
     | "asset";
   /** Mapping type: DEFAULT, LOCAL, or GLOBAL. Required when condition type is MAPPER, must be null otherwise. */
   condition_mapping_type?: "DEFAULT" | "LOCAL" | "GLOBAL";
@@ -1315,6 +1318,9 @@ export interface ConditionOutput {
     | "delegation"
     | "sid"
     | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account"
     | "asset";
   condition_mapping_type?: "DEFAULT" | "LOCAL" | "GLOBAL";
   condition_parent_id?: string;
@@ -4234,6 +4240,7 @@ export interface InjectorContract {
   injector_contract_manual?: boolean;
   injector_contract_needs_executor?: boolean;
   injector_contract_payload?: Payload;
+  injector_contract_payload_status?: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   injector_contract_platforms?: (
     | "Linux"
     | "Windows"
@@ -4908,6 +4915,37 @@ export interface LoginUserInput {
   password: string;
   /** The tenant ID the user is logging into (optional) */
   tenantId?: string;
+}
+
+export interface MapperConditionOutput {
+  condition_key?: string;
+  condition_key_type?:
+    | "execution_time"
+    | "step_template_id"
+    | "text"
+    | "status"
+    | "number"
+    | "port"
+    | "portscan"
+    | "ipv4"
+    | "ipv6"
+    | "credentials"
+    | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account"
+    | "asset";
+  condition_mapping_type?: "DEFAULT" | "LOCAL" | "GLOBAL";
+  condition_value?: string;
 }
 
 export interface Mitigation {
@@ -7529,12 +7567,16 @@ export interface StepOutput {
     | "delegation"
     | "sid"
     | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account"
     | "asset"
   )[];
   /** @format date-time */
   step_created_at?: string;
   step_data?: JsonNode;
   step_id?: string;
+  step_mapper_conditions?: MapperConditionOutput[];
   step_status?: "TEMPLATE" | "READY" | "RUN" | "END";
   /** @format date-time */
   step_updated_at?: string;

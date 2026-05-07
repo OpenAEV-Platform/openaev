@@ -116,7 +116,15 @@ const Logic = ({ workflowId }: LogicProps) => {
             inject_assets: assets,
             inject_asset_objects: [],
             step_condition_ids: condIds,
-            step_conditions: [],
+            step_conditions: (((s as unknown as Record<string, unknown>).step_mapper_conditions ?? []) as Array<{
+              condition_key_type?: string;
+              condition_key?: string;
+              condition_mapping_type?: string;
+            }>).map(mc => ({
+              condition_key_type: mc.condition_key_type ?? 'text',
+              condition_key: mc.condition_key ?? '',
+              condition_mapping_type: mc.condition_mapping_type ?? 'GLOBAL',
+            })),
             contract_fields: [],
           };
           return {
