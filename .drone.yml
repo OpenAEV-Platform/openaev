@@ -199,7 +199,7 @@ services:
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
-    command: [server, /data]
+    command: [server, /data, --address, ":11000"]
   - name: pgsql-e2e
     image: postgres:17-alpine
     environment:
