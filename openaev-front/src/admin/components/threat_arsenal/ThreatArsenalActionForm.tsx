@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Box, Button } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type SyntheticEvent, useEffect } from 'react';
-import { type FieldValues, FormProvider, type Resolver, type SubmitHandler, useForm, useWatch } from 'react-hook-form';
+import { type FieldValues, FormProvider, type SubmitHandler, useForm, useWatch } from 'react-hook-form';
 import { z, type ZodTypeAny } from 'zod';
 
 import Tabs, { type TabsEntry } from '../../../components/common/tabs/Tabs';
@@ -159,7 +159,7 @@ const ThreatArsenalActionForm = ({
 
   const methods = useForm<ThreatArsenalActionCreateCustomInput>({
     mode: 'onTouched',
-    resolver: zodResolver(schema) as unknown as Resolver<ThreatArsenalActionCreateCustomInput>,
+    resolver: zodResolver(schema),
     defaultValues: initialValues,
   });
   const {
