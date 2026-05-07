@@ -128,6 +128,22 @@ public class RestBehavior {
     return bag;
   }
 
+  @ResponseStatus(HttpStatus.BAD_REQUEST)
+  @ExceptionHandler(ResourceInUseException.class)
+  public ViolationErrorBag handleResourceInUseExceptions(Exception ex) {
+    ViolationErrorBag bag = new ViolationErrorBag();
+    bag.setType(ex.getClass().getSimpleName());
+    bag.setMessage(ex.getMessage());
+
+    if (ex.getCause() instanceof Exception) {
+      bag.setError( ex.getCause().getMessage() );
+    }
+    else {
+      bag.setError("Resource still linked to other components.");
+    }
+    return bag;
+  }
+
   @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
   @ExceptionHandler(UnprocessableContentException.class)
   @ApiResponses(
