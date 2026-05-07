@@ -26,7 +26,6 @@ import io.openaev.rest.scenario.form.ScenarioInput;
 import io.openaev.rest.scenario.form.ScenarioRecurrenceInput;
 import io.openaev.rest.scenario.form.ScenarioUpdateTeamsInput;
 import io.openaev.service.AssetGroupService;
-import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -68,7 +67,6 @@ public class ScenarioApiTest extends IntegrationTest {
   @Autowired private SettingRepository settingRepository;
   @Autowired private CustomDashboardRepository customDashboardRepository;
   @Autowired private AssetGroupService assetGroupService;
-  @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
 
   @AfterEach
   void afterEach() {
