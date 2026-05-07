@@ -68,7 +68,7 @@
   - SVG-based graph (replaces `AttackPathFlow.tsx` + `NodeAttackStep.tsx`)
   - Asset nodes: large rectangles (hostname, IP, OS, role)
   - Action nodes: smaller circles (payload name, status color)
-  - Event markers: circles on chain-flow edges
+  - Event labels as text on chain-flow edges (relation name + context, e.g. "Credentials Found · CORP\j.martinez")
   - Animated particles on chain-flow edges (CSS animation)
   - Zoom/pan via SVG viewBox manipulation
 - [ ] T011 [US-4] Create `AttackPathStats.tsx` — `openaev-front/src/admin/components/simulations/simulation/attack_path/`
@@ -77,7 +77,8 @@
 - [ ] T012 [US-1] Rewrite `SimulationAttackPath.tsx` — `openaev-front/src/admin/components/simulations/simulation/attack_path/`
   - Single fetch from `/api/exercises/{id}/attack-path`
   - Feature flag check (`CHAINING_ATTACK_PATH`)
-  - Orchestrates: Stats (top) + Feed (left) + Graph (center) + Details (right)
+  - Orchestrates: Stats (top) + Feed (left, 320px) + Graph (center)
+  - No separate details drawer — details expand inline in feed
   - Empty state when no workflow
 
 **Checkpoint**: Graph renders with correct nodes/edges from API data
@@ -88,24 +89,26 @@
 
 > Depends on Phase 3 (graph exists to interact with).
 
-- [ ] T013 [US-2] Create `AttackPathDetails.tsx` — `openaev-front/src/admin/components/simulations/simulation/attack_path/`
-  - Action node details: payload name, target asset, status, expectations list, execution time
-  - Asset node details: hostname, actions count, worst status, actions list
-  - Slide-in panel (right side)
+- [ ] T013 [US-2] Enhance `AttackPathFeed.tsx` with inline detail expansion — `openaev-front/src/admin/components/simulations/simulation/attack_path/`
+  - Width: 320px
+  - Reverse chronological order
+  - Each entry: timestamp, payload name, status badge, target asset + IP
+  - Click feed entry → expand inline below: status badge, target, IP, execution time, expectations list
+  - Click again or different entry → collapse
+  - Sync with graph: click graph node → auto-expand matching feed entry
 - [ ] T014 [US-2] Add node selection + chain highlighting to `AttackPathGraph.tsx`
   - Click node → highlight upstream/downstream via `getUpstreamNodes`/`getDownstreamNodes`
-  - Non-connected nodes dimmed (opacity 0.3)
+  - Non-connected nodes dimmed (opacity 0.15)
   - Click empty space or same node → deselect
-- [ ] T015 [US-3] Enhance `AttackPathFeed.tsx` — `openaev-front/src/admin/components/simulations/simulation/attack_path/`
-  - Reverse chronological order
-  - Each entry: timestamp, payload name, status dot, target asset
-  - Click feed entry → select corresponding graph node
+- [ ] T015 [US-2] Bidirectional sync: graph selection ↔ feed expansion
+  - Click graph node → scroll to + expand feed entry
+  - Click feed entry → select + highlight node in graph
 - [ ] T016 [US-1] Add zoom/pan controls to `AttackPathGraph.tsx`
   - Zoom +/- buttons
   - Pan via mouse drag on SVG background
   - Fit-to-screen button
 
-**Checkpoint**: Full interaction works — click node → details + highlight + feed sync
+**Checkpoint**: Full interaction works — click node → feed expands + highlight + sync
 
 ---
 

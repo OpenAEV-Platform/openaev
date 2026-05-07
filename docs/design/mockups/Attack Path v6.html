@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenAEV · Attack Path v6 — Implementation Mockup</title>
+  <link rel="stylesheet" href="./colors_and_type.css" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" />
+  <style>
+    .material-symbols-outlined {
+      font-size: 20px;
+      font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 20;
+    }
+    @keyframes particle-flow {
+      0% { offset-distance: 0%; opacity: 0; }
+      10% { opacity: 1; }
+      90% { opacity: 1; }
+      100% { offset-distance: 100%; opacity: 0; }
+    }
+    @keyframes pulse-ring {
+      0% { transform: scale(0.8); opacity: 1; }
+      100% { transform: scale(2.2); opacity: 0; }
+    }
+    .pulse-dot {
+      position: relative;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+    }
+    .pulse-dot::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: inherit;
+      animation: pulse-ring 2s ease-out infinite;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.26.9/babel.min.js"></script>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useMemo, useCallback } = React;
+
+    // ─── Platform Shell ─────────────────────────────────────────────────────────
+    const LOGO_URI = 'data:image/png;base64,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';
+
+    const Icon = ({ name, size = 20, style }) => (
+      <span className="material-symbols-outlined" style={{ fontSize: size, ...style }}>{name}</span>
+    );
+
+    const navGroups = [
+      { items: [
+        { id: 'home', icon: 'dashboard', label: 'Home' },
+        { id: 'dashboards', icon: 'insert_chart', label: 'Dashboards' },
+        { id: 'findings', icon: 'manage_search', label: 'Findings' },
+      ]},
+      { items: [
+        { id: 'scenarios', icon: 'movie_filter', label: 'Scenarios' },
+        { id: 'simulations', icon: 'hub', label: 'Simulations' },
+        { id: 'atomic', icon: 'my_location', label: 'Atomic testings' },
+      ]},
+      { items: [
+        { id: 'arsenals', icon: 'layers', label: 'Threat arsenals' },
+        { id: 'assets', icon: 'dns', label: 'Assets' },
+        { id: 'people', icon: 'groups_3', label: 'People' },
+        { id: 'components', icon: 'newspaper', label: 'Components' },
+      ]},
+      { items: [
+        { id: 'integrations', icon: 'dns', label: 'Integrations' },
+      ]},
+      { items: [
+        { id: 'settings', icon: 'settings', label: 'Settings' },
+      ]},
+    ];
+
+    const TopBar = () => (
+      <div style={{
+        position: 'fixed', top: 0, left: 0, right: 0,
+        height: 'var(--topbar-height)', zIndex: 1201,
+        background: 'var(--nav-background)',
+        borderBottom: '1px solid var(--border-default)',
+        display: 'flex', alignItems: 'center',
+        padding: '0 16px',
+      }}>
+        <img src={LOGO_URI} alt="OpenAEV" style={{ height: 35, margin: '2px 0 0 10px' }} />
+        <div style={{
+          marginLeft: 24, width: '40%', height: 32,
+          background: 'var(--hover-bg)', borderRadius: 'var(--radius)',
+          border: '1px solid var(--border-default)',
+          display: 'flex', alignItems: 'center', padding: '0 12px',
+          color: 'var(--text-tertiary)', fontSize: '0.8125rem',
+          fontFamily: 'var(--font-body)',
+        }}>
+          Search the platform...
+        </div>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Icon name="smart_toy" style={{ color: 'var(--text-secondary)', cursor: 'pointer' }} />
+          <Icon name="important_devices" style={{ color: 'var(--text-secondary)', cursor: 'pointer' }} />
+          <Icon name="apps" style={{ color: 'var(--text-secondary)', cursor: 'pointer' }} />
+          <Icon name="account_circle" size={24} style={{ color: 'var(--text-secondary)', cursor: 'pointer' }} />
+        </div>
+      </div>
+    );
+
+    const SidebarItem = ({ icon, label, active }) => (
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 8,
+        height: 'var(--nav-item-height)', padding: '0 12px',
+        borderRadius: 'var(--radius)',
+        background: active ? 'var(--nav-selected-bg)' : 'transparent',
+        color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
+        cursor: 'pointer', fontSize: '0.8125rem', fontWeight: active ? 500 : 400,
+        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+        transition: 'background 0.15s',
+      }}>
+        <Icon name={icon} size={18} style={{ opacity: 0.85 }} />
+        <span>{label}</span>
+      </div>
+    );
+
+    const Sidebar = ({ activeId }) => (
+      <nav style={{
+        position: 'fixed', top: 'var(--topbar-height)', left: 0, bottom: 0,
+        width: 'var(--nav-width-expanded)', zIndex: 1200,
+        background: 'var(--nav-background)',
+        borderRight: '1px solid var(--border-default)',
+        display: 'flex', flexDirection: 'column',
+        padding: '8px 6px', gap: 2,
+        overflowY: 'auto', overflowX: 'hidden',
+      }}>
+        {navGroups.map((group, gi) => (
+          <React.Fragment key={gi}>
+            {gi > 0 && <div style={{ height: 1, background: 'var(--border-default)', margin: '6px 8px' }}/>}
+            {group.items.map(item => (
+              <SidebarItem key={item.id} icon={item.icon} label={item.label} active={item.id === activeId} />
+            ))}
+          </React.Fragment>
+        ))}
+        <div style={{ marginTop: 'auto', padding: '8px 12px' }}>
+          <div style={{ marginTop: 8, fontSize: '0.625rem', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', letterSpacing: '0.04em' }}>
+            by Filigran
+          </div>
+        </div>
+      </nav>
+    );
+
+    const AppShell = ({ activeNav, children }) => (
+      <div style={{ minHeight: '100vh', minWidth: 1400 }}>
+        <TopBar />
+        <Sidebar activeId={activeNav} />
+        <main style={{
+          marginLeft: 'var(--nav-width-expanded)',
+          paddingTop: 'var(--topbar-height)',
+          height: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+        }}>
+          {children}
+        </main>
+      </div>
+    );
+
+    // ─── Mock Data (matching spec DTO structure) ────────────────────────────────
+
+    const STATUS_COLORS = {
+      prevented: 'hsl(123 73% 46%)',
+      detected: 'hsl(27 88% 48%)',
+      undetected: 'hsl(4 87% 48%)',
+      pending: 'hsl(var(--gray-400))',
+    };
+
+    const STATUS_LABELS = {
+      prevented: 'Prevented',
+      detected: 'Detected',
+      undetected: 'Undetected',
+      pending: 'Pending',
+    };
+
+    const STATUS_ICONS = {
+      prevented: 'shield',
+      detected: 'visibility',
+      undetected: 'warning',
+      pending: 'schedule',
+    };
+
+    // Simulating API response: AttackPathOutput
+    const MOCK_DATA = {
+      workflowId: 'wf-001',
+      workflowStatus: 'COMPLETED',
+      nodes: [
+        // ASSET nodes
+        { id: 'asset-1', type: 'ASSET', label: 'WKS-FINANCE-01', status: 'undetected', stepId: null, injectId: null, assetId: 'a1', assetHostname: 'WKS-FINANCE-01', assetIp: '10.0.1.42', assetOs: 'Windows 11', assetRole: 'Workstation', executedAt: null, expectations: [] },
+        { id: 'asset-2', type: 'ASSET', label: 'SRV-DC-01', status: 'undetected', stepId: null, injectId: null, assetId: 'a2', assetHostname: 'SRV-DC-01', assetIp: '10.0.0.1', assetOs: 'Win Server 2022', assetRole: 'Domain Controller', executedAt: null, expectations: [] },
+        { id: 'asset-3', type: 'ASSET', label: 'SRV-DB-01', status: 'pending', stepId: null, injectId: null, assetId: 'a3', assetHostname: 'SRV-DB-01', assetIp: '10.0.2.10', assetOs: 'Ubuntu 22.04', assetRole: 'Database Server', executedAt: null, expectations: [] },
+        // ACTION nodes
+        { id: 'action-1', type: 'ACTION', label: 'Spearphishing Email', status: 'detected', stepId: 's1', injectId: 'i1', assetId: 'a1', assetHostname: 'WKS-FINANCE-01', assetIp: '10.0.1.42', executedAt: '2026-05-07T09:01:12Z', expectations: [
+          { id: 'e1', type: 'DETECTION', status: 'SUCCESS', score: 100 },
+          { id: 'e2', type: 'PREVENTION', status: 'FAILED', score: 0 },
+        ]},
+        { id: 'action-2', type: 'ACTION', label: 'PowerShell Dropper', status: 'undetected', stepId: 's2', injectId: 'i2', assetId: 'a1', assetHostname: 'WKS-FINANCE-01', assetIp: '10.0.1.42', executedAt: '2026-05-07T09:03:44Z', expectations: [
+          { id: 'e3', type: 'DETECTION', status: 'FAILED', score: 0 },
+          { id: 'e4', type: 'PREVENTION', status: 'FAILED', score: 0 },
+        ]},
+        { id: 'action-3', type: 'ACTION', label: 'LSASS Memory Dump', status: 'prevented', stepId: 's3', injectId: 'i3', assetId: 'a1', assetHostname: 'WKS-FINANCE-01', assetIp: '10.0.1.42', executedAt: '2026-05-07T09:05:18Z', expectations: [
+          { id: 'e5', type: 'PREVENTION', status: 'SUCCESS', score: 100 },
+        ]},
+        { id: 'action-4', type: 'ACTION', label: 'SMB Lateral Move', status: 'undetected', stepId: 's4', injectId: 'i4', assetId: 'a2', assetHostname: 'SRV-DC-01', assetIp: '10.0.0.1', executedAt: '2026-05-07T09:08:02Z', expectations: [
+          { id: 'e6', type: 'DETECTION', status: 'FAILED', score: 0 },
+          { id: 'e7', type: 'PREVENTION', status: 'FAILED', score: 0 },
+        ]},
+        { id: 'action-5', type: 'ACTION', label: 'Kernel Exploit PE', status: 'undetected', stepId: 's5', injectId: 'i5', assetId: 'a2', assetHostname: 'SRV-DC-01', assetIp: '10.0.0.1', executedAt: '2026-05-07T09:11:33Z', expectations: [
+          { id: 'e8', type: 'DETECTION', status: 'FAILED', score: 0 },
+          { id: 'e9', type: 'PREVENTION', status: 'FAILED', score: 0 },
+        ]},
+        { id: 'action-6', type: 'ACTION', label: 'Data Exfiltration', status: 'pending', stepId: 's6', injectId: 'i6', assetId: 'a3', assetHostname: 'SRV-DB-01', assetIp: '10.0.2.10', executedAt: null, expectations: [
+          { id: 'e10', type: 'DETECTION', status: 'PENDING', score: null },
+          { id: 'e11', type: 'PREVENTION', status: 'PENDING', score: null },
+        ]},
+      ],
+      edges: [
+        // Asset links (structural: action belongs to asset)
+        { id: 'al-1', sourceNodeId: 'asset-1', targetNodeId: 'action-1', type: 'asset_link', eventIds: [] },
+        { id: 'al-2', sourceNodeId: 'asset-1', targetNodeId: 'action-2', type: 'asset_link', eventIds: [] },
+        { id: 'al-3', sourceNodeId: 'asset-1', targetNodeId: 'action-3', type: 'asset_link', eventIds: [] },
+        { id: 'al-4', sourceNodeId: 'asset-2', targetNodeId: 'action-4', type: 'asset_link', eventIds: [] },
+        { id: 'al-5', sourceNodeId: 'asset-2', targetNodeId: 'action-5', type: 'asset_link', eventIds: [] },
+        { id: 'al-6', sourceNodeId: 'asset-3', targetNodeId: 'action-6', type: 'asset_link', eventIds: [] },
+        // Chain flow (action → action)
+        { id: 'cf-1', sourceNodeId: 'action-1', targetNodeId: 'action-2', type: 'chain_flow', eventIds: ['evt-payload-exec'] },
+        { id: 'cf-2', sourceNodeId: 'action-2', targetNodeId: 'action-3', type: 'chain_flow', eventIds: [] },
+        { id: 'cf-3', sourceNodeId: 'action-3', targetNodeId: 'action-4', type: 'chain_flow', eventIds: ['evt-creds-avail'] },
+        { id: 'cf-4', sourceNodeId: 'action-4', targetNodeId: 'action-5', type: 'chain_flow', eventIds: [] },
+        { id: 'cf-5', sourceNodeId: 'action-5', targetNodeId: 'action-6', type: 'chain_flow', eventIds: ['evt-admin-access'] },
+      ],
+      stats: {
+        totalActions: 6,
+        executedActions: 5,
+        prevented: 1,
+        detected: 1,
+        undetected: 3,
+        pending: 1,
+      },
+    };
+
+    const EVENTS = {
+      'evt-payload-exec': { label: 'Payload Executed', detail: 'beacon.exe' },
+      'evt-creds-avail': { label: 'Credentials Found', detail: 'CORP\\j.martinez' },
+      'evt-admin-access': { label: 'Admin Access', detail: 'CORP\\Administrator' },
+    };
+
+    // ─── Layout Computation ─────────────────────────────────────────────────────
+
+    function computeLayout(nodes, edges) {
+      const assets = nodes.filter(n => n.type === 'ASSET');
+      const actions = nodes.filter(n => n.type === 'ACTION');
+      const positions = {};
+
+      const assetSpacing = 450;
+      const startX = 200;
+      const assetY = 180;
+      const actionStartY = 370;
+      const actionSpacingY = 120;
+
+      assets.forEach((asset, i) => {
+        positions[asset.id] = { x: startX + i * assetSpacing, y: assetY };
+      });
+
+      // Group actions by asset
+      const actionsByAsset = {};
+      actions.forEach(action => {
+        const assetLink = edges.find(e => e.type === 'asset_link' && e.targetNodeId === action.id);
+        const assetId = assetLink ? assetLink.sourceNodeId : null;
+        if (!actionsByAsset[assetId]) actionsByAsset[assetId] = [];
+        actionsByAsset[assetId].push(action);
+      });
+
+      Object.entries(actionsByAsset).forEach(([assetId, assetActions]) => {
+        const assetPos = positions[assetId];
+        if (!assetPos) return;
+        const totalHeight = (assetActions.length - 1) * actionSpacingY;
+        assetActions.forEach((action, i) => {
+          positions[action.id] = {
+            x: assetPos.x,
+            y: actionStartY + i * actionSpacingY,
+          };
+        });
+      });
+
+      return positions;
+    }
+
+    function getConnectedNodes(nodeId, edges, nodes) {
+      const upstream = new Set();
+      const downstream = new Set();
+
+      function findUpstream(id) {
+        edges.filter(e => e.type === 'chain_flow' && e.targetNodeId === id).forEach(e => {
+          upstream.add(e.sourceNodeId);
+          findUpstream(e.sourceNodeId);
+        });
+      }
+
+      function findDownstream(id) {
+        edges.filter(e => e.type === 'chain_flow' && e.sourceNodeId === id).forEach(e => {
+          downstream.add(e.targetNodeId);
+          findDownstream(e.targetNodeId);
+        });
+      }
+
+      findUpstream(nodeId);
+      findDownstream(nodeId);
+
+      // Also include related asset
+      const node = nodes.find(n => n.id === nodeId);
+      if (node && node.type === 'ACTION') {
+        const assetEdge = edges.find(e => e.type === 'asset_link' && e.targetNodeId === nodeId);
+        if (assetEdge) upstream.add(assetEdge.sourceNodeId);
+      }
+      if (node && node.type === 'ASSET') {
+        edges.filter(e => e.type === 'asset_link' && e.sourceNodeId === nodeId).forEach(e => {
+          downstream.add(e.targetNodeId);
+        });
+      }
+
+      return { upstream: [...upstream], downstream: [...downstream] };
+    }
+
+    // ─── Stats Banner ───────────────────────────────────────────────────────────
+
+    const StatsBanner = ({ stats }) => {
+      const items = [
+        { label: 'Prevented', count: stats.prevented, color: STATUS_COLORS.prevented, icon: 'shield' },
+        { label: 'Detected', count: stats.detected, color: STATUS_COLORS.detected, icon: 'visibility' },
+        { label: 'Undetected', count: stats.undetected, color: STATUS_COLORS.undetected, icon: 'warning' },
+        { label: 'Pending', count: stats.pending, color: STATUS_COLORS.pending, icon: 'schedule' },
+      ];
+      return (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 20,
+          padding: '10px 20px',
+          background: 'var(--box-background)',
+          borderBottom: '1px solid var(--border-default)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Icon name="route" size={18} style={{ color: 'var(--text-secondary)' }} />
+            <span style={{ fontFamily: 'var(--font-title)', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text-primary)' }}>
+              Attack Path
+            </span>
+          </div>
+          <div style={{ width: 1, height: 20, background: 'var(--border-default)' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
+              {stats.executedActions}
+            </span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>of</span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
+              {stats.totalActions}
+            </span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>actions executed</span>
+          </div>
+          <div style={{ width: 1, height: 20, background: 'var(--border-default)' }} />
+          {items.map(s => (
+            <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: s.color }} />
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.875rem', fontVariantNumeric: 'tabular-nums', color: s.color, fontWeight: 600 }}>
+                {s.count}
+              </span>
+              <span style={{ fontSize: '0.6875rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{s.label}</span>
+            </div>
+          ))}
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div className="pulse-dot" style={{ background: 'hsl(123 73% 46%)' }} />
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--text-tertiary)', letterSpacing: '0.04em' }}>
+              COMPLETED
+            </span>
+          </div>
+        </div>
+      );
+    };
+
+    // ─── Live Feed Panel ────────────────────────────────────────────────────────
+
+    const LiveFeed = ({ nodes, edges, selectedNodeId, onSelectNode }) => {
+      const feedItems = nodes
+        .filter(n => n.type === 'ACTION' && n.executedAt)
+        .sort((a, b) => new Date(b.executedAt) - new Date(a.executedAt));
+
+      const pendingItems = nodes.filter(n => n.type === 'ACTION' && !n.executedAt);
+
+      return (
+        <div style={{
+          width: 320,
+          borderRight: '1px solid var(--border-default)',
+          background: 'var(--box-background)',
+          display: 'flex', flexDirection: 'column',
+          overflow: 'hidden',
+        }}>
+          <div style={{
+            padding: '12px 14px 8px',
+            borderBottom: '1px solid var(--border-default)',
+            display: 'flex', alignItems: 'center', gap: 8,
+          }}>
+            <Icon name="terminal" size={16} style={{ color: 'var(--text-secondary)' }} />
+            <span style={{ fontFamily: 'var(--font-title)', fontSize: '0.75rem', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-secondary)' }}>
+              Execution Feed
+            </span>
+            <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: 'var(--text-tertiary)', background: 'var(--hover-bg)', padding: '2px 6px', borderRadius: 3 }}>
+              {feedItems.length}
+            </span>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '4px 0' }}>
+            {feedItems.map((item) => {
+              const isSelected = selectedNodeId === item.id;
+              return (
+                <div key={item.id}>
+                  <div
+                    onClick={() => onSelectNode(item.id)}
+                    style={{
+                      padding: '10px 14px',
+                      borderLeft: `3px solid ${STATUS_COLORS[item.status]}`,
+                      cursor: 'pointer',
+                      background: isSelected ? 'var(--hover-bg)' : 'transparent',
+                      transition: 'background 0.15s',
+                    }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--text-tertiary)', fontVariantNumeric: 'tabular-nums' }}>
+                        {new Date(item.executedAt).toLocaleTimeString('en-US', { hour12: false })}
+                      </span>
+                      <span style={{
+                        fontSize: '0.5625rem', fontFamily: 'var(--font-mono)', fontWeight: 600,
+                        padding: '1px 5px', borderRadius: 3,
+                        background: `${STATUS_COLORS[item.status]}22`, color: STATUS_COLORS[item.status],
+                        textTransform: 'uppercase', letterSpacing: '0.04em',
+                      }}>
+                        {STATUS_LABELS[item.status]}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '0.8125rem', color: 'var(--text-primary)', fontWeight: 500, marginBottom: 2 }}>
+                      {item.label}
+                    </div>
+                    <div style={{ fontSize: '0.6875rem', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Icon name="dns" size={11} style={{ color: 'var(--text-tertiary)' }} />
+                      {item.assetHostname} · {item.assetIp}
+                    </div>
+                  </div>
+                  {/* Expanded details (inline below the feed entry) */}
+                  {isSelected && (
+                    <div style={{
+                      padding: '10px 14px 14px 17px',
+                      borderLeft: `3px solid ${STATUS_COLORS[item.status]}`,
+                      background: 'hsla(220, 50%, 8%, 0.6)',
+                      borderTop: '1px solid var(--border-default)',
+                      borderBottom: '1px solid var(--border-default)',
+                    }}>
+                      {/* Status badge */}
+                      <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <div style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 5,
+                          padding: '3px 8px', borderRadius: 4,
+                          background: `${STATUS_COLORS[item.status]}12`,
+                          border: `1px solid ${STATUS_COLORS[item.status]}33`,
+                        }}>
+                          <div style={{ width: 7, height: 7, borderRadius: '50%', background: STATUS_COLORS[item.status] }} />
+                          <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: STATUS_COLORS[item.status], textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                            {STATUS_LABELS[item.status]}
+                          </span>
+                        </div>
+                      </div>
+                      {/* Details grid */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
+                        <FeedDetailRow label="Target" value={item.assetHostname} />
+                        <FeedDetailRow label="IP" value={item.assetIp} />
+                        <FeedDetailRow label="Executed" value={new Date(item.executedAt).toLocaleString()} />
+                      </div>
+                      {/* Expectations */}
+                      {item.expectations.length > 0 && (
+                        <div>
+                          <div style={{ fontSize: '0.625rem', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+                            Expectations
+                          </div>
+                          {item.expectations.map(exp => (
+                            <div key={exp.id} style={{
+                              display: 'flex', alignItems: 'center', gap: 6,
+                              padding: '4px 8px', marginBottom: 3, borderRadius: 3,
+                              background: 'var(--hover-bg)',
+                            }}>
+                              <Icon name={exp.type === 'PREVENTION' ? 'shield' : 'visibility'} size={13}
+                                style={{ color: exp.status === 'SUCCESS' ? 'hsl(123 73% 46%)' : exp.status === 'FAILED' ? 'hsl(4 87% 48%)' : 'hsl(var(--gray-400))' }} />
+                              <span style={{ fontSize: '0.6875rem', color: 'var(--text-primary)', flex: 1 }}>{exp.type}</span>
+                              <span style={{
+                                fontSize: '0.5625rem', fontFamily: 'var(--font-mono)', fontWeight: 600,
+                                color: exp.status === 'SUCCESS' ? 'hsl(123 73% 46%)' : exp.status === 'FAILED' ? 'hsl(4 87% 48%)' : 'hsl(var(--gray-400))',
+                              }}>
+                                {exp.status}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {pendingItems.length > 0 && (
+            <div style={{
+              padding: '8px 14px',
+              borderTop: '1px solid var(--border-default)',
+              fontSize: '0.6875rem', color: 'var(--text-tertiary)',
+              fontFamily: 'var(--font-mono)',
+              display: 'flex', alignItems: 'center', gap: 6,
+            }}>
+              <Icon name="schedule" size={12} style={{ color: 'var(--text-tertiary)' }} />
+              Next: {pendingItems[0]?.label}
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    const FeedDetailRow = ({ label, value }) => (
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ fontSize: '0.625rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</span>
+        <span style={{ fontSize: '0.6875rem', color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', fontWeight: 500 }}>{value}</span>
+      </div>
+    );
+
+    // ─── Graph View ─────────────────────────────────────────────────────────────
+
+    const GraphView = ({ nodes, edges, selectedNodeId, onSelectNode, positions }) => {
+      const [zoom, setZoom] = useState(1);
+      const [pan, setPan] = useState({ x: 0, y: 0 });
+      const [dragging, setDragging] = useState(false);
+      const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
+      const connected = useMemo(() => {
+        if (!selectedNodeId) return null;
+        return getConnectedNodes(selectedNodeId, edges, nodes);
+      }, [selectedNodeId, edges, nodes]);
+
+      const isHighlighted = (nodeId) => {
+        if (!selectedNodeId) return true;
+        if (nodeId === selectedNodeId) return true;
+        if (connected?.upstream.includes(nodeId)) return true;
+        if (connected?.downstream.includes(nodeId)) return true;
+        return false;
+      };
+
+      const isEdgeHighlighted = (edge) => {
+        if (!selectedNodeId) return true;
+        if (edge.type === 'asset_link') {
+          return isHighlighted(edge.sourceNodeId) && isHighlighted(edge.targetNodeId);
+        }
+        return isHighlighted(edge.sourceNodeId) && isHighlighted(edge.targetNodeId);
+      };
+
+      const handleMouseDown = (e) => {
+        if (e.target.tagName === 'svg' || e.target.tagName === 'rect' && e.target.dataset.bg) {
+          setDragging(true);
+          setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+        }
+      };
+      const handleMouseMove = (e) => {
+        if (dragging) {
+          setPan({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
+        }
+      };
+      const handleMouseUp = () => setDragging(false);
+
+      const viewBox = `${-pan.x / zoom} ${-pan.y / zoom} ${1500 / zoom} ${700 / zoom}`;
+
+      return (
+        <div style={{ flex: 1, position: 'relative', overflow: 'hidden', background: 'hsl(220 56% 5%)' }}
+          onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
+          {/* Zoom controls */}
+          <div style={{
+            position: 'absolute', bottom: 16, right: 16, zIndex: 10,
+            display: 'flex', flexDirection: 'column', gap: 4,
+          }}>
+            <button onClick={() => setZoom(z => Math.min(z * 1.2, 3))} style={zoomBtnStyle}>
+              <Icon name="add" size={16} style={{ color: 'var(--text-primary)' }} />
+            </button>
+            <button onClick={() => setZoom(z => Math.max(z / 1.2, 0.5))} style={zoomBtnStyle}>
+              <Icon name="remove" size={16} style={{ color: 'var(--text-primary)' }} />
+            </button>
+            <button onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }} style={zoomBtnStyle}>
+              <Icon name="fit_screen" size={16} style={{ color: 'var(--text-primary)' }} />
+            </button>
+          </div>
+
+          <svg
+            viewBox={viewBox}
+            style={{ width: '100%', height: '100%', cursor: dragging ? 'grabbing' : 'grab' }}
+            preserveAspectRatio="xMidYMid meet"
+            onClick={(e) => { if (e.target.tagName === 'svg') onSelectNode(null); }}
+          >
+            <defs>
+              <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5"
+                markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="hsl(var(--gray-400))" />
+              </marker>
+              <marker id="arrow-chain" viewBox="0 0 10 10" refX="9" refY="5"
+                markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="hsl(195 100% 45%)" />
+              </marker>
+              <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="2" result="blur" />
+                <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+              </filter>
+              <filter id="node-shadow" x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="0" dy="2" stdDeviation="4" floodColor="rgba(0,0,0,0.4)" />
+              </filter>
+            </defs>
+
+            {/* Background rect for click-to-deselect */}
+            <rect data-bg="true" x="-2000" y="-2000" width="5000" height="5000" fill="transparent" />
+
+            {/* Asset link edges (dashed, subtle) */}
+            {edges.filter(e => e.type === 'asset_link').map(edge => {
+              const from = positions[edge.sourceNodeId];
+              const to = positions[edge.targetNodeId];
+              if (!from || !to) return null;
+              const highlighted = isEdgeHighlighted(edge);
+              return (
+                <line key={edge.id}
+                  x1={from.x} y1={from.y + 50} x2={to.x} y2={to.y - 24}
+                  stroke="hsl(var(--gray-700))" strokeWidth="1" strokeDasharray="4 3"
+                  opacity={highlighted ? 0.5 : 0.1}
+                  style={{ transition: 'opacity 0.3s' }}
+                />
+              );
+            })}
+
+            {/* Chain flow edges */}
+            {edges.filter(e => e.type === 'chain_flow').map(edge => {
+              const from = positions[edge.sourceNodeId];
+              const to = positions[edge.targetNodeId];
+              if (!from || !to) return null;
+              const highlighted = isEdgeHighlighted(edge);
+              const hasEvent = edge.eventIds.length > 0;
+
+              const dx = to.x - from.x;
+              const dy = to.y - from.y;
+              const curveX = Math.abs(dx) > 100 ? dx * 0.3 : 0;
+              const curveY = Math.abs(dx) > 100 ? -50 : dy * 0.3;
+
+              const path = `M ${from.x} ${from.y + 20} C ${from.x + curveX} ${from.y + 20 + curveY}, ${to.x - curveX} ${to.y - 24 + curveY}, ${to.x} ${to.y - 24}`;
+              const mx = (from.x + to.x) / 2;
+              const my = (from.y + 20 + to.y - 24) / 2 + curveY / 2;
+
+              return (
+                <g key={edge.id} opacity={highlighted ? 1 : 0.12} style={{ transition: 'opacity 0.3s' }}>
+                  {/* Glow */}
+                  {hasEvent && highlighted && (
+                    <path d={path} fill="none" stroke="hsl(195 100% 45%)" strokeWidth="4" opacity="0.12" />
+                  )}
+                  {/* Main path */}
+                  <path d={path} fill="none"
+                    stroke={hasEvent ? 'hsl(195 100% 45%)' : 'hsl(var(--gray-500))'}
+                    strokeWidth={hasEvent ? 1.5 : 1}
+                    markerEnd={hasEvent ? 'url(#arrow-chain)' : 'url(#arrow)'}
+                    opacity={0.8}
+                  />
+                  {/* Animated particles */}
+                  {highlighted && (
+                    <>
+                      <circle r="2.5" fill={hasEvent ? 'hsl(195 100% 65%)' : 'hsl(var(--gray-300))'} opacity="0.9">
+                        <animateMotion dur="2.5s" repeatCount="indefinite" path={path} />
+                      </circle>
+                      {hasEvent && (
+                        <circle r="2" fill="hsl(195 100% 65%)" opacity="0.5">
+                          <animateMotion dur="2.5s" repeatCount="indefinite" path={path} begin="1.25s" />
+                        </circle>
+                      )}
+                    </>
+                  )}
+                  {/* Event label (text only, no circle marker) */}
+                  {hasEvent && (
+                    <g>
+                      <text x={mx} y={my - 6}
+                        textAnchor="middle" fontSize="8.5" fontFamily="var(--font-mono)"
+                        fill="hsl(195 100% 60%)" letterSpacing="0.02em" fontWeight="500"
+                      >
+                        {EVENTS[edge.eventIds[0]]?.label || 'Event'}
+                      </text>
+                      <text x={mx} y={my + 6}
+                        textAnchor="middle" fontSize="7.5" fontFamily="var(--font-mono)"
+                        fill="hsl(195 100% 45%)" letterSpacing="0.02em" opacity="0.8"
+                      >
+                        {EVENTS[edge.eventIds[0]]?.detail || ''}
+                      </text>
+                    </g>
+                  )}
+                </g>
+              );
+            })}
+
+            {/* Asset nodes */}
+            {nodes.filter(n => n.type === 'ASSET').map(node => {
+              const pos = positions[node.id];
+              if (!pos) return null;
+              const highlighted = isHighlighted(node.id);
+              const isSelected = selectedNodeId === node.id;
+              const assetActions = edges.filter(e => e.type === 'asset_link' && e.sourceNodeId === node.id)
+                .map(e => nodes.find(n => n.id === e.targetNodeId)).filter(Boolean);
+              const statusPriority = ['undetected', 'detected', 'pending', 'prevented'];
+              const worstStatus = statusPriority.find(s => assetActions.some(a => a.status === s)) || 'pending';
+              const borderColor = STATUS_COLORS[worstStatus];
+
+              return (
+                <g key={node.id}
+                  onClick={(e) => { e.stopPropagation(); onSelectNode(node.id); }}
+                  style={{ cursor: 'pointer', transition: 'opacity 0.3s' }}
+                  opacity={highlighted ? 1 : 0.2}
+                >
+                  {/* Selection ring */}
+                  {isSelected && (
+                    <rect x={pos.x - 96} y={pos.y - 50} width={192} height={100} rx={8}
+                      fill="none" stroke={borderColor} strokeWidth="2" opacity="0.4" strokeDasharray="4 2"
+                    />
+                  )}
+                  {/* Background */}
+                  <rect x={pos.x - 90} y={pos.y - 44} width={180} height={88} rx={6}
+                    fill="hsl(218 50% 9%)" stroke={borderColor} strokeWidth={isSelected ? 2 : 1.2}
+                    filter="url(#node-shadow)"
+                  />
+                  {/* Header bar */}
+                  <rect x={pos.x - 84} y={pos.y - 38} width={168} height={22} rx={3}
+                    fill="hsla(0,0%,100%,0.03)"
+                  />
+                  {/* Hostname */}
+                  <text x={pos.x} y={pos.y - 22}
+                    textAnchor="middle" fontSize="11" fontFamily="var(--font-mono)"
+                    fontWeight="600" fill="hsl(var(--gray-100))" letterSpacing="0.02em"
+                  >
+                    {node.assetHostname}
+                  </text>
+                  {/* OS + IP */}
+                  <text x={pos.x} y={pos.y + 2}
+                    textAnchor="middle" fontSize="9" fontFamily="var(--font-mono)"
+                    fill="hsl(var(--gray-400))" letterSpacing="0.01em"
+                  >
+                    {node.assetOs} · {node.assetIp}
+                  </text>
+                  {/* Role badge */}
+                  <rect x={pos.x - 38} y={pos.y + 14} width={76} height={18} rx={3}
+                    fill="hsla(0,0%,100%,0.04)" stroke="hsl(var(--gray-700))" strokeWidth="0.5"
+                  />
+                  <text x={pos.x} y={pos.y + 26}
+                    textAnchor="middle" fontSize="8" fontFamily="var(--font-mono)"
+                    fill="hsl(var(--gray-300))" letterSpacing="0.06em"
+                  >
+                    {node.assetRole?.toUpperCase()}
+                  </text>
+                </g>
+              );
+            })}
+
+            {/* Action nodes */}
+            {nodes.filter(n => n.type === 'ACTION').map(node => {
+              const pos = positions[node.id];
+              if (!pos) return null;
+              const highlighted = isHighlighted(node.id);
+              const isSelected = selectedNodeId === node.id;
+              const color = STATUS_COLORS[node.status];
+
+              return (
+                <g key={node.id}
+                  onClick={(e) => { e.stopPropagation(); onSelectNode(node.id); }}
+                  style={{ cursor: 'pointer', transition: 'opacity 0.3s' }}
+                  opacity={highlighted ? 1 : 0.15}
+                >
+                  {/* Selection glow */}
+                  {isSelected && (
+                    <rect x={pos.x - 58} y={pos.y - 22} width={116} height={44} rx={8}
+                      fill="none" stroke={color} strokeWidth="2.5" opacity="0.35" filter="url(#glow)"
+                    />
+                  )}
+                  {/* Background */}
+                  <rect x={pos.x - 52} y={pos.y - 18} width={104} height={36} rx={5}
+                    fill="hsl(220 50% 7%)" stroke={color} strokeWidth={isSelected ? 2 : 1.2}
+                    filter="url(#node-shadow)"
+                  />
+                  {/* Status dot */}
+                  <circle cx={pos.x - 38} cy={pos.y} r="4" fill={color} />
+                  {/* Action label */}
+                  <text x={pos.x + 6} y={pos.y + 1}
+                    textAnchor="middle" fontSize="9" fontFamily="var(--font-body)"
+                    fontWeight="500" fill="hsl(var(--gray-100))"
+                  >
+                    {node.label.length > 15 ? node.label.slice(0, 15) + '…' : node.label}
+                  </text>
+                  {/* Status label below */}
+                  <text x={pos.x} y={pos.y + 30}
+                    textAnchor="middle" fontSize="7.5" fontFamily="var(--font-mono)"
+                    fill={color} letterSpacing="0.06em" fontWeight="600"
+                  >
+                    {STATUS_LABELS[node.status]?.toUpperCase()}
+                  </text>
+                </g>
+              );
+            })}
+
+            {/* Legend */}
+            <g transform="translate(30, 640)">
+              <text x="0" y="0" fontSize="8.5" fontFamily="var(--font-mono)" fill="hsl(var(--gray-500))" letterSpacing="0.08em">LEGEND</text>
+              <rect x="0" y="10" width="14" height="10" rx="2" fill="none" stroke="hsl(var(--gray-400))" strokeWidth="1" />
+              <text x="20" y="18" fontSize="8" fontFamily="var(--font-body)" fill="hsl(var(--gray-400))">Asset</text>
+              <rect x="60" y="10" width="10" height="10" rx="2" fill="none" stroke="hsl(195 100% 40%)" strokeWidth="1" />
+              <text x="76" y="18" fontSize="8" fontFamily="var(--font-body)" fill="hsl(var(--gray-400))">Action</text>
+              <circle cx="120" cy="15" r="5" fill="transparent" stroke="hsl(195 100% 40%)" strokeWidth="1" strokeDasharray="2 1" />
+              <text x="130" y="18" fontSize="8" fontFamily="var(--font-body)" fill="hsl(var(--gray-400))">Event label</text>
+              <line x1="170" y1="15" x2="190" y2="15" stroke="hsl(var(--gray-700))" strokeWidth="1" strokeDasharray="3 2" />
+              <text x="196" y="18" fontSize="8" fontFamily="var(--font-body)" fill="hsl(var(--gray-400))">Hosted on</text>
+              <line x1="260" y1="15" x2="280" y2="15" stroke="hsl(195 100% 40%)" strokeWidth="1.5" />
+              <circle r="2" fill="hsl(195 100% 65%)"><animateMotion dur="1s" repeatCount="indefinite" path="M 260 15 L 280 15" /></circle>
+              <text x="286" y="18" fontSize="8" fontFamily="var(--font-body)" fill="hsl(var(--gray-400))">Chain flow</text>
+            </g>
+          </svg>
+        </div>
+      );
+    };
+
+    const zoomBtnStyle = {
+      width: 32, height: 32, borderRadius: 6,
+      background: 'hsl(220 50% 10%)', border: '1px solid hsl(var(--gray-700))',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      cursor: 'pointer', padding: 0,
+    };
+
+    // ─── App ────────────────────────────────────────────────────────────────────
+
+    function App() {
+      const [selectedNodeId, setSelectedNodeId] = useState(null);
+      const positions = useMemo(() => computeLayout(MOCK_DATA.nodes, MOCK_DATA.edges), []);
+
+      const handleSelectNode = (nodeId) => {
+        setSelectedNodeId(prev => prev === nodeId ? null : nodeId);
+      };
+
+      return (
+        <AppShell activeNav="simulations">
+          <StatsBanner stats={MOCK_DATA.stats} />
+          <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+            <LiveFeed
+              nodes={MOCK_DATA.nodes}
+              edges={MOCK_DATA.edges}
+              selectedNodeId={selectedNodeId}
+              onSelectNode={handleSelectNode}
+            />
+            <GraphView
+              nodes={MOCK_DATA.nodes}
+              edges={MOCK_DATA.edges}
+              selectedNodeId={selectedNodeId}
+              onSelectNode={handleSelectNode}
+              positions={positions}
+            />
+          </div>
+        </AppShell>
+      );
+    }
+
+    // ─── Render ─────────────────────────────────────────────────────────────────
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>

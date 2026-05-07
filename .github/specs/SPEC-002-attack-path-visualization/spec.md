@@ -5,7 +5,7 @@
 **Created**: 2026-05-06
 **Status**: Ready
 **Author**: Copilot + User
-**Mockup**: `docs/design/mockups/Attack Path v5.html`
+**Mockup**: `docs/design/mockups/Attack Path v6.html`
 
 ---
 
@@ -55,47 +55,44 @@ Scenario: Empty state when no workflow configured
 
 ---
 
-### US-2: Interactive Node Selection & Details Panel (Priority: P1) 🎯 MVP
+### US-2: Interactive Node Selection & Inline Details (Priority: P1) 🎯 MVP
 
-**As a** SOC analyst, **I want** to click a node and see its details + highlighted path, **so that** I can drill into specific attack steps and understand the chain progression.
+**As a** SOC analyst, **I want** to click a node and see its details expanded inline in the feed + highlighted path in the graph, **so that** I can drill into specific attack steps without losing graph context.
 
 **Why this priority**: Interactivity is essential for analysis workflows.
 
 **Acceptance Scenarios**:
 
 ```gherkin
-Scenario: Click action node shows details panel
+Scenario: Click action node expands details inline in feed
   Given the attack path graph is displayed
-  When I click on an action node
-  Then a details panel appears showing:
+  When I click on an action node (in graph or in feed)
+  Then the corresponding feed entry expands below to show:
     | Field | Content |
-    | Payload name | The inject title |
-    | Target asset | Hostname + IP |
-    | Status | Prevented/Detected/Undetected/Pending |
+    | Status badge | Prevented/Detected/Undetected/Pending with color |
+    | Target | Hostname |
+    | IP | Asset IP address |
+    | Executed | Timestamp of execution |
     | Expectations | List of DETECTION/PREVENTION with their statuses |
-    | Execution time | Timestamp of execution |
 
 Scenario: Click action node highlights chain path
   Given the attack path graph is displayed
   When I click on an action node
   Then all upstream and downstream connected nodes are highlighted
-  And non-connected nodes are dimmed (opacity reduced)
+  And non-connected nodes are dimmed (opacity reduced to ~0.15)
   And chain edges are emphasized
 
-Scenario: Click asset node shows asset summary
+Scenario: Click asset node highlights all its actions
   Given the attack path graph is displayed
   When I click on an asset node
-  Then the details panel shows:
-    | Field | Content |
-    | Hostname | Asset hostname |
-    | Actions count | Number of actions targeting this asset |
-    | Worst status | The most severe status among its actions |
-    | Actions list | All action nodes on this asset with statuses |
+  Then all action nodes connected to this asset are highlighted
+  And the asset's worst status is shown
 
 Scenario: Deselect node
   Given a node is selected
-  When I click the same node again or click empty space
+  When I click the same node again or click empty graph space
   Then the selection is cleared and all nodes return to normal opacity
+  And the feed entry collapses back
 ```
 
 ---
@@ -188,15 +185,15 @@ Scenario: Graceful degradation
 - What happens with 20+ actions? → Graph should support zoom/pan with controls
 - What happens when a workflow has cycles? → Layout algorithm handles cycles gracefully (display as-is, no infinite loops)
 - What happens when simulation has no expectations yet? → Show graph structure with all nodes in "pending" state
-- What happens when event has no matching upstream provider? → Show event marker in grey/dimmed state
+- What happens when event has no matching upstream provider? → Show event label text in grey/dimmed
 
 ## 3. Functional Requirements
 
 - **FR-001**: System MUST display an interactive graph with assets, actions, and events from the simulation's workflow
 - **FR-002**: System MUST color action nodes based on their expectation results (prevented/detected/undetected/pending)
 - **FR-003**: System MUST show animated particle flow on chain edges indicating attack direction
-- **FR-004**: System MUST display event markers (circles) on chain-flow edges between actions
-- **FR-005**: System MUST provide a details panel when clicking any node (action or asset)
+- **FR-004**: System MUST display event labels (relation name + context, e.g. "Credentials Found · CORP\j.martinez") as text on chain-flow edges between actions
+- **FR-005**: System MUST expand inline details in the feed panel when clicking any action node (no separate drawer)
 - **FR-006**: System MUST highlight upstream/downstream chain on node selection
 - **FR-007**: System MUST show a live execution feed in the left panel with chronological entries
 - **FR-008**: System MUST show a stats banner with prevented/detected/undetected/pending counts
@@ -336,8 +333,7 @@ public record AttackPathStatsOutput(
 |-----------|---------------|
 | `SimulationAttackPath.tsx` | Container: fetches data via single GET, manages SSE, orchestrates layout |
 | `AttackPathGraph.tsx` | **SVG-based** graph replacing ReactFlow (removes `@xyflow/react` dependency for this view) |
-| `AttackPathFeed.tsx` | Left panel: chronological execution feed |
-| `AttackPathDetails.tsx` | Right panel: node details on selection |
+| `AttackPathFeed.tsx` | Left panel (320px): chronological execution feed + inline details expansion on selection |
 | `AttackPathStats.tsx` | Top banner: aggregate stats from `attack_path_stats` |
 | `useAttackPathStream.ts` | Custom hook: SSE connection + fallback to 10s polling |
 
@@ -356,7 +352,7 @@ public record AttackPathStatsOutput(
 - [ ] Vitest: Status colors resolve correctly from expectations
 - [ ] Vitest: Node selection triggers highlight of connected chain
 - [ ] Vitest: Feed updates when new SSE message arrives
-- [ ] E2E: Navigate to attack path → graph displays → click node → details show
+- [ ] E2E: Navigate to attack path → graph displays → click node → feed expands details
 
 ### Security Tests
 
@@ -386,7 +382,7 @@ public record AttackPathStatsOutput(
 - The existing ReactFlow-based implementation will be replaced entirely with SVG-based graph
 - SSE (`SseEmitter`) chosen over WebSocket — no WS infrastructure exists, SSE is simpler for unidirectional updates
 - Mobile support is out of scope — minimum viewport 1200px
-- The approved mockup is at `docs/design/mockups/Attack Path v5.html`
+- The approved mockup is at `docs/design/mockups/Attack Path v6.html`
 
 ## 9. Agent Review Log
 

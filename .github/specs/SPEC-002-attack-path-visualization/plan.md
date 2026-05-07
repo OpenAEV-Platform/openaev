@@ -56,8 +56,7 @@ openaev-api/src/test/java/io/openaev/
 openaev-front/src/admin/components/simulations/simulation/attack_path/
 ├── SimulationAttackPath.tsx            # Container (rewrite)
 ├── AttackPathGraph.tsx                 # SVG graph (new, replaces AttackPathFlow.tsx)
-├── AttackPathFeed.tsx                  # Feed panel (enhance)
-├── AttackPathDetails.tsx               # Details panel (new)
+├── AttackPathFeed.tsx                  # Feed panel 320px + inline details expand (enhance)
 ├── AttackPathStats.tsx                 # Stats banner (new)
 ├── useAttackPathStream.ts             # SSE hook (new, P2)
 └── attackPathUtils.ts                 # Status resolution, layout helpers
@@ -103,10 +102,10 @@ openaev-front/src/admin/components/simulations/simulation/attack_path/
 
 ### Phase 4: Frontend — Interaction & Feed
 
-11. Create `AttackPathDetails.tsx` (details panel on node click)
-12. Enhance `AttackPathFeed.tsx` (chronological feed, click-to-select)
+11. Enhance `AttackPathFeed.tsx` (320px, inline detail expansion on click, expectations display)
+12. Add node selection + chain highlighting to graph (upstream/downstream, opacity dimming)
 13. Add zoom/pan controls to graph
-14. Add highlight/dim on node selection
+14. Sync feed ↔ graph selection (click feed → select graph node, click graph → expand feed entry)
 
 ### Phase 5: SSE Real-time (P2)
 
