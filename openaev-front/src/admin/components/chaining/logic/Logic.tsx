@@ -152,13 +152,7 @@ const Logic = ({ workflowId }: LogicProps) => {
       }
 
       const newEventMetas: Record<string, EventMeta> = {};
-      // Only display filter events in the graph (exclude MAPPER events which belong to step forms)
-      const filterEvents = events.filter((e) => {
-        const allConds = e.event_conditions ?? [];
-        const rootCond = allConds.find(c => !c.condition_parent_id);
-        return rootCond?.condition_type !== 'MAPPER';
-      });
-      const eventNodes: Node[] = filterEvents.map((e, i) => {
+      const eventNodes: Node[] = events.map((e, i) => {
         const allConds = e.event_conditions ?? [];
         // Find root condition (has no parent) — its type is the logical operator
         const rootCond = allConds.find(c => !c.condition_parent_id);

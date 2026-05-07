@@ -315,7 +315,8 @@ public class ConditionService {
    */
   @Transactional(readOnly = true)
   public List<Condition> findNonMapperConditionsByWorkflowId(String workflowId) {
-    return conditionRepository.findAllByWorkflowIdAndConditionParentIsNull(workflowId);
+    return conditionRepository.findAllByWorkflowIdAndConditionParentIsNullAndTypeNot(
+        workflowId, ConditionType.MAPPER);
   }
 
   /**

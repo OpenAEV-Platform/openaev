@@ -37,6 +37,16 @@ public interface ConditionRepository extends JpaRepository<Condition, String> {
    */
   List<Condition> findAllByWorkflowIdAndConditionParentIsNull(String workflowId);
 
+  /**
+   * Retrieves all root conditions (events) for a given workflow, excluding those of type MAPPER.
+   *
+   * @param workflowId the workflow identifier
+   * @param excludedType the condition type to exclude (MAPPER)
+   * @return a list of non-MAPPER root conditions for the given workflow
+   */
+  List<Condition> findAllByWorkflowIdAndConditionParentIsNullAndTypeNot(
+      String workflowId, ConditionType excludedType);
+
   List<Condition> findAllByKeyTypeIn(Set<ConditionKeyType> outputKeyTypes);
 
   /**
