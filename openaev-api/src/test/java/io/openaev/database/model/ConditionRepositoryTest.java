@@ -43,13 +43,13 @@ class ConditionRepositoryTest extends IntegrationTest {
     // AND: two conditions linked to the SAME step
     Condition condition1 =
         conditionComposer
-            .forCondition(ConditionFixture.getDefaultCondition(ConditionKeyType.IPV4, "val1"))
+            .forCondition(ConditionFixture.getDefaultCondition(ConditionKeyType.IPv4, "val1"))
             .withStep(stepComposer1)
             .persist()
             .get();
     Condition condition2 =
         conditionComposer
-            .forCondition(ConditionFixture.getDefaultCondition(ConditionKeyType.IPV4, "val2"))
+            .forCondition(ConditionFixture.getDefaultCondition(ConditionKeyType.IPv4, "val2"))
             .withStep(stepComposer1)
             .persist()
             .get();
@@ -66,7 +66,7 @@ class ConditionRepositoryTest extends IntegrationTest {
 
     Set<ConditionKeyType> keys =
         conditions.stream().map(Condition::getKeyType).collect(Collectors.toSet());
-    Assertions.assertEquals(Set.of(ConditionKeyType.IPV4), keys);
+    Assertions.assertEquals(Set.of(ConditionKeyType.IPv4), keys);
 
     Set<String> values = conditions.stream().map(Condition::getValue).collect(Collectors.toSet());
     Assertions.assertEquals(Set.of(condition1.getValue(), condition2.getValue()), values);

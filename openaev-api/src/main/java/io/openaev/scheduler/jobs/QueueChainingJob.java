@@ -1,5 +1,6 @@
 package io.openaev.scheduler.jobs;
 
+import io.openaev.aop.BypassRls;
 import io.openaev.database.model.StepDelayQueue;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.service.chaining.StepDelayQueueService;
@@ -23,6 +24,7 @@ public class QueueChainingJob implements Job {
 
   /** Periodically processes the next eligible step from the delay queue. */
   @Override
+  @BypassRls
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
     // Retrieve and delete the next delayed step whose goal time is reached
     List<StepDelayQueue> stepsDelayQueue = stepDelayQueueService.popNextToProcess();
@@ -30,10 +32,12 @@ public class QueueChainingJob implements Job {
 
     for (StepDelayQueue stepDelayQueue : stepsDelayQueue) {
       try {
-        stepService.ready(
-            stepDelayQueue.getStepTemplate(),
-            stepDelayQueue.getWorkflowRun(),
-            stepDelayQueue.getInput());
+        stepService.enqueueReadySteps(
+            stepService.createReadySteps(
+                stepDelayQueue.getStepTemplate(),
+                stepDelayQueue.getWorkflowRun(),
+                stepDelayQueue.getInput()),
+            stepDelayQueue.getWorkflowRun());
       } catch (ChainingException e) {
         log.error("Delay consume failed : {}", e.getMessage(), e);
       }

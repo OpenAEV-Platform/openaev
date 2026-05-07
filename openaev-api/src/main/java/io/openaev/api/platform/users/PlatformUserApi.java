@@ -1,6 +1,6 @@
 package io.openaev.api.platform.users;
 
-import static io.openaev.api.users.dto.UserMapper.toOutput;
+import static io.openaev.api.users.dto.UserMapper.toPlatformOutput;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.api.users.dto.UserInput;
@@ -36,7 +36,7 @@ public class PlatformUserApi {
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   public UserOutput create(@Valid @RequestBody UserInput input) {
-    return toOutput(userService.createUser(input));
+    return toPlatformOutput(userService.createUser(input));
   }
 
   // -- READ --
@@ -49,7 +49,7 @@ public class PlatformUserApi {
       isEnterpriseEdition = true)
   @GetMapping("/{userId}")
   public UserOutput findById(@PathVariable String userId) {
-    return toOutput(userService.user(userId));
+    return toPlatformOutput(userService.user(userId));
   }
 
   // -- SEARCH --
@@ -72,7 +72,7 @@ public class PlatformUserApi {
       isEnterpriseEdition = true)
   @PostMapping("/find")
   public List<UserOutput> find(@RequestBody @Valid @NotNull final List<String> userIds) {
-    return userService.find(userIds).stream().map(UserMapper::toOutput).toList();
+    return userService.find(userIds).stream().map(UserMapper::toPlatformOutput).toList();
   }
 
   // -- UPDATE --
@@ -85,7 +85,7 @@ public class PlatformUserApi {
       isEnterpriseEdition = true)
   @PutMapping("/{userId}")
   public UserOutput update(@PathVariable String userId, @Valid @RequestBody UserInput input) {
-    return toOutput(userService.updateUser(userId, input));
+    return toPlatformOutput(userService.updateUser(userId, input));
   }
 
   // -- DELETE --

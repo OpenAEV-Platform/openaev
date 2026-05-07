@@ -12,9 +12,11 @@ import io.openaev.config.DefaultOpenAEVPrincipal;
 import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.config.SessionHelper;
 import io.openaev.config.SessionManager;
+import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.TagRepository;
+import io.openaev.database.repository.TenantRepository;
 import io.openaev.database.repository.TokenRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.database.specification.GroupSpecification;
@@ -57,6 +59,7 @@ import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
 /**
@@ -88,10 +91,12 @@ public class UserService {
   private final TagRepository tagRepository;
   private final GroupRepository groupRepository;
   private final TokenRepository tokenRepository;
+  private final TenantRepository tenantRepository;
   private final ReferenceResolver referenceResolver;
   private final CacheManager cacheManager;
   private MailingService mailingService;
   private final RandomUtils randomUtils;
+  private final TenantMembershipCacheManager tenantMembershipCacheManager;
 
   /** Cache for admin users to improve lookup performance. */
   private Cache adminCache;
@@ -127,6 +132,13 @@ public class UserService {
     user.setUpdateAttributes(input);
     user.setTags(referenceResolver.resolve(input.tagIds(), Tag.class, tagRepository::countByIdIn));
     user.setOrganization(referenceResolver.resolve(input.organizationId(), Organization.class));
+    user.setTenants(
+        new ArrayList<>(
+            referenceResolver.resolve(
+                input.tenantIds(), Tenant.class, tenantRepository::countByIdIn)));
+    if (!CollectionUtils.isEmpty(input.tenantIds())) {
+      tenantMembershipCacheManager.evictForUser(user.getId(), input.tenantIds());
+    }
     return createUser(user, input.plainPassword(), UUID.randomUUID().toString());
   }
 
@@ -150,7 +162,7 @@ public class UserService {
       user.setPassword(this.encodeUserPassword(password));
     }
     List<Group> assignableGroups =
-        groupRepository.findAll(GroupSpecification.defaultUserAssignable());
+        groupRepository.findAll(GroupSpecification.defaultUserAssignablePlatform());
     user.setGroups(assignableGroups);
     User savedUser = userRepository.save(user);
     this.createUserToken(savedUser, token);
@@ -191,7 +203,7 @@ public class UserService {
                 specCount,
                 pageable,
                 (cq, root) -> UserQueryHelper.select(cb, cq, root),
-                UserQueryHelper::execution),
+                UserQueryHelper::executionWithTenants),
         searchPaginationInput,
         User.class);
   }
@@ -201,14 +213,28 @@ public class UserService {
   @Transactional(rollbackFor = Exception.class)
   public User updateUser(String userId, UserInput input) {
     User existing = user(userId);
+    // Capture old tenant IDs before update for cache eviction
+    List<String> oldTenantIds =
+        existing.getTenants() != null
+            ? existing.getTenants().stream().map(Tenant::getId).toList()
+            : List.of();
     existing.setUpdateAttributes(input);
     existing.setTags(
         referenceResolver.resolve(input.tagIds(), Tag.class, tagRepository::countByIdIn));
     existing.setOrganization(referenceResolver.resolve(input.organizationId(), Organization.class));
+    existing.setTenants(
+        new ArrayList<>(
+            referenceResolver.resolve(
+                input.tenantIds(), Tenant.class, tenantRepository::countByIdIn)));
     if (StringUtils.hasLength(input.plainPassword())) {
       existing.setPassword(this.encodeUserPassword(input.plainPassword()));
     }
     User savedUser = userRepository.save(existing);
+    // Evict cache for old tenants (removed memberships) and new tenants (added memberships)
+    List<String> newTenantIds = input.tenantIds() != null ? input.tenantIds() : List.of();
+    List<String> allAffectedTenants = new ArrayList<>(oldTenantIds);
+    allAffectedTenants.addAll(newTenantIds);
+    tenantMembershipCacheManager.evictForUser(userId, allAffectedTenants);
     sessionManager.refreshUserSessions(savedUser);
     return savedUser;
   }
@@ -222,6 +248,16 @@ public class UserService {
     User savedUser = userRepository.save(user);
     sessionManager.refreshUserSessions(savedUser);
     return savedUser;
+  }
+
+  /** Resolves an organization reference from its ID (or null if blank). */
+  public Organization resolveOrganization(String organizationId) {
+    return referenceResolver.resolve(organizationId, Organization.class);
+  }
+
+  /** Resolves tag references from their IDs. */
+  public java.util.Set<Tag> resolveTags(List<String> tagIds) {
+    return referenceResolver.resolve(tagIds, Tag.class, tagRepository::countByIdIn);
   }
 
   // -- DELETE --

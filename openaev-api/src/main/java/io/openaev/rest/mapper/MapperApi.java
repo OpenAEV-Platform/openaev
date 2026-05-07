@@ -24,7 +24,7 @@ import io.openaev.rest.scenario.response.ImportPostSummary;
 import io.openaev.rest.scenario.response.ImportTestSummary;
 import io.openaev.service.InjectImportService;
 import io.openaev.service.MapperService;
-import io.openaev.utils.TargetType;
+import io.openaev.utils.CsvType;
 import io.openaev.utils.constants.Constants;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
@@ -127,10 +127,10 @@ public class MapperApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.MAPPER)
   @LogExecutionTime
   public void exportMappersCsv(
-      @RequestParam TargetType targetType,
+      @RequestParam CsvType csvType,
       @RequestBody @Valid final SearchPaginationInput input,
       HttpServletResponse response) {
-    mapperService.exportMappersCsv(targetType, input, response);
+    mapperService.exportMappersCsv(csvType, input, response);
   }
 
   @PostMapping("/import")
@@ -219,9 +219,9 @@ public class MapperApi extends RestBehavior {
   @LogExecutionTime
   @Transactional(rollbackOn = Exception.class)
   public void importEndpoints(
-      @RequestParam TargetType targetType, @RequestPart("file") @NotNull MultipartFile file)
+      @RequestParam CsvType csvType, @RequestPart("file") @NotNull MultipartFile file)
       throws Exception {
-    mapperService.importMappersCsv(file, targetType);
+    mapperService.importMappersCsv(file, csvType);
   }
 
   private void validateUploadedFile(MultipartFile file) {

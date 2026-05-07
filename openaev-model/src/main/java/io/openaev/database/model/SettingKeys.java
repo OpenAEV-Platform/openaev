@@ -1,11 +1,11 @@
 package io.openaev.database.model;
 
 public enum SettingKeys {
+  // Configuration
   DEFAULT_THEME("platform_theme", "dark"),
   DEFAULT_LANG("platform_lang", "auto"),
-  DEFAULT_HOME_DASHBOARD("platform_home_dashboard", ""),
-  DEFAULT_SCENARIO_DASHBOARD("platform_scenario_dashboard", ""),
-  DEFAULT_SIMULATION_DASHBOARD("platform_simulation_dashboard", ""),
+  PLATFORM_NAME("platform_name", "OpenAEV - Open Adversarial Exposure Validation Platform"),
+
   PLATFORM_CONSENT_MESSAGE("platform_consent_message", ""),
   PLATFORM_CONSENT_CONFIRM_TEXT("platform_consent_confirm_text", ""),
   PLATFORM_ENTERPRISE_LICENSE("platform_enterprise_license", ""),
@@ -13,7 +13,6 @@ public enum SettingKeys {
       "platform_login_message",
       "This platform is dedicated to Filigran team testing. **Sandbox running the latest rolling release.**"),
   PLATFORM_WHITEMARK("platform_whitemark", "false"),
-  PLATFORM_NAME("platform_name", "OpenAEV - Open Adversarial Exposure Validation Platform"),
   PLATFORM_BANNER("platform_banner", ""),
   PLATFORM_INSTANCE("instance_id", ""),
   PLATFORM_INSTANCE_CREATION("instance_creation_date", ""),

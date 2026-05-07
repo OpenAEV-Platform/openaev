@@ -1,6 +1,7 @@
 package io.openaev.config.cache;
 
 import io.openaev.database.repository.TenantRepository;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -31,5 +32,12 @@ public class TenantMembershipCacheManager {
   @CacheEvict(value = "tenantMembership", key = "#userId + ':' + #tenantId")
   public void evict(String userId, String tenantId) {
     // eviction only
+  }
+
+  /** Evicts all cached tenant membership entries for a given user. */
+  public void evictForUser(String userId, List<String> tenantIds) {
+    for (String tenantId : tenantIds) {
+      evict(userId, tenantId);
+    }
   }
 }

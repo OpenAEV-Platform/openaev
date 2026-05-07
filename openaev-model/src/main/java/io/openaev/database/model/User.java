@@ -8,6 +8,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
+import io.openaev.context.TenantContext;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.helper.*;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
@@ -252,6 +253,7 @@ public class User implements Base {
   @JsonIgnore
   private List<Token> tokens = new ArrayList<>();
 
+  @Setter
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "users_tenants",
@@ -259,10 +261,6 @@ public class User implements Base {
       inverseJoinColumns = @JoinColumn(name = "tenant_id"))
   @JsonIgnore
   private List<Tenant> tenants = new ArrayList<>();
-
-  @ManyToMany(mappedBy = "users", fetch = FetchType.LAZY)
-  @JsonIgnore
-  private Set<PlatformGroup> platformGroups = new HashSet<>();
 
   @Getter(onMethod_ = @JsonIgnore)
   @Transient
@@ -340,26 +338,77 @@ public class User implements Base {
     return isAdmin() || getCapabilities().contains(Capability.BYPASS);
   }
 
+  /**
+   * Returns true if the user has BYPASS via a platform-level group (tenant IS NULL). A platform
+   * BYPASS grants access to both platform-only and tenant-scoped resources.
+   */
+  public boolean hasPlatformBypass() {
+    return platformGroups().stream()
+        .flatMap(group -> group.getRoles().stream())
+        .flatMap(role -> role.getCapabilities().stream())
+        .anyMatch(Capability.BYPASS::equals);
+  }
+
+  /**
+   * Returns true if the user has BYPASS via a tenant-level group. A tenant BYPASS only grants
+   * access to tenant-scoped resources, not platform-only ones.
+   */
+  public boolean hasTenantBypass() {
+    String currentTenant = TenantContext.getCurrentTenant();
+    if (currentTenant == null) {
+      return false;
+    }
+    return getGroups().stream()
+        .filter(
+            group -> group.getTenant() != null && currentTenant.equals(group.getTenant().getId()))
+        .flatMap(group -> group.getRoles().stream())
+        .flatMap(role -> role.getCapabilities().stream())
+        .anyMatch(Capability.BYPASS::equals);
+  }
+
+  /** Returns only platform-level groups (tenant IS NULL). */
+  private List<Group> platformGroups() {
+    return getGroups().stream().filter(group -> group.getTenant() == null).toList();
+  }
+
+  /**
+   * Returns only groups visible in the current tenant context: groups belonging to the current
+   * tenant plus platform-level groups (tenant IS NULL).
+   */
+  private List<Group> scopedGroups() {
+    String currentTenant = TenantContext.getCurrentTenant();
+    return getGroups().stream()
+        .filter(
+            group ->
+                group.getTenant() == null
+                    || (currentTenant != null && currentTenant.equals(group.getTenant().getId())))
+        .toList();
+  }
+
   @JsonProperty("user_capabilities")
   @Enumerated(EnumType.STRING)
   public Set<Capability> getCapabilities() {
     Set<Capability> capabilities = new HashSet<>();
-    // Tenant capabilities (groups → roles → capabilities)
-    getGroups().stream()
-        .flatMap(group -> group.getRoles().stream())
-        .flatMap(role -> role.getCapabilities().stream())
-        .forEach(capabilities::add);
-    // Platform capabilities (platform groups → platform roles → capabilities)
-    getPlatformGroups().stream()
-        .flatMap(pg -> pg.getPlatformRoles().stream())
-        .flatMap(pr -> pr.getCapabilities().stream())
-        .forEach(capabilities::add);
+    for (Group group : scopedGroups()) {
+      boolean isPlatformGroup = group.getTenant() == null;
+      for (Role role : group.getRoles()) {
+        for (Capability cap : role.getCapabilities()) {
+          if (cap == Capability.BYPASS) {
+            // Expand BYPASS into concrete capabilities matching the group scope
+            capabilities.addAll(
+                isPlatformGroup ? Capability.allPlatformScoped() : Capability.allTenantScoped());
+          } else {
+            capabilities.add(cap);
+          }
+        }
+      }
+    }
     return capabilities;
   }
 
   @JsonProperty("user_grants")
   public Map<String, String> getGrants() {
-    return getGroups().stream()
+    return scopedGroups().stream()
         .flatMap(group -> group.getGrants().stream())
         .filter(grant -> grant.getResourceId() != null)
         .collect(

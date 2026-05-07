@@ -2,6 +2,9 @@ package io.openaev.service;
 
 import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.database.model.SettingKeys.*;
+import static io.openaev.database.model.TenantSettingKeys.DEFAULT_LANG;
+import static io.openaev.database.model.TenantSettingKeys.DEFAULT_THEME;
+import static io.openaev.database.model.TenantSettingKeys.PLATFORM_NAME;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static java.lang.Boolean.parseBoolean;
 import static java.util.Optional.ofNullable;
@@ -247,7 +250,7 @@ public class PlatformSettingsService {
 
   /** Return only non-sensitive settings suitable for unauthenticated (public) access. */
   public PublicPlatformSettings findPublicSettings() {
-    Map<String, Setting> dbSettings = mapOfSettings(fromIterable(this.settingRepository.findAll()));
+    Map<String, Setting> dbSettings = mapOfSettings(this.settingRepository.findAllByTenantIsNull());
     PublicPlatformSettings settings = new PublicPlatformSettings();
     populatePublicSettings(settings, dbSettings);
     return settings;
@@ -255,7 +258,7 @@ public class PlatformSettingsService {
 
   /** Return the full platform settings. Must only be called from authenticated endpoints. */
   public PlatformSettings findSettings() {
-    Map<String, Setting> dbSettings = mapOfSettings(fromIterable(this.settingRepository.findAll()));
+    Map<String, Setting> dbSettings = mapOfSettings(this.settingRepository.findAllByTenantIsNull());
     PlatformSettings platformSettings = new PlatformSettings();
 
     // Populate public fields (shared with findPublicSettings)
@@ -263,18 +266,6 @@ public class PlatformSettingsService {
 
     // Authenticated-only fields
     platformSettings.setPlatformLicense(licenseCacheManager.getEnterpriseEditionInfo());
-    platformSettings.setPlatformHomeDashboard(
-        ofNullable(dbSettings.get(DEFAULT_HOME_DASHBOARD.key()))
-            .map(Setting::getValue)
-            .orElse(DEFAULT_HOME_DASHBOARD.defaultValue()));
-    platformSettings.setPlatformScenarioDashboard(
-        ofNullable(dbSettings.get(DEFAULT_SCENARIO_DASHBOARD.key()))
-            .map(Setting::getValue)
-            .orElse(DEFAULT_SCENARIO_DASHBOARD.defaultValue()));
-    platformSettings.setPlatformSimulationDashboard(
-        ofNullable(dbSettings.get(DEFAULT_SIMULATION_DASHBOARD.key()))
-            .map(Setting::getValue)
-            .orElse(DEFAULT_SIMULATION_DASHBOARD.defaultValue()));
     if (this.imapEnabled) {
       platformSettings.setDefaultMailer(this.imapUsername);
       platformSettings.setDefaultReplyTo(this.imapUsername);
@@ -364,7 +355,7 @@ public class PlatformSettingsService {
   }
 
   public Map<String, Setting> findSettingsByKeys(List<String> keys) {
-    return mapOfSettings(fromIterable(this.settingRepository.findAllByKeyIn(keys)));
+    return mapOfSettings(this.settingRepository.findAllByKeyInAndTenantIsNull(keys));
   }
 
   private ThemeInput createThemeInput(Map<String, Setting> dbSettings, String themeType) {
@@ -400,22 +391,12 @@ public class PlatformSettingsService {
 
   // -- UPDATE SETTINGS --
   public Optional<Setting> setting(String key) {
-    return this.settingRepository.findByKey(key);
-  }
-
-  public PlatformSettings updateBasicConfigurationSettings(SettingsUpdateInput input) {
-    Map<String, Setting> dbSettings = mapOfSettings(fromIterable(this.settingRepository.findAll()));
-    List<Setting> settingsToSave = new ArrayList<>();
-    settingsToSave.add(resolveFromMap(dbSettings, PLATFORM_NAME.key(), input.getName()));
-    settingsToSave.add(resolveFromMap(dbSettings, DEFAULT_THEME.key(), input.getTheme()));
-    settingsToSave.add(resolveFromMap(dbSettings, DEFAULT_LANG.key(), input.getLang()));
-    settingRepository.saveAll(settingsToSave);
-    return findSettings();
+    return this.settingRepository.findByKeyAndTenantIsNull(key);
   }
 
   public PlatformSettings updateSettingsEnterpriseEdition(
       SettingsEnterpriseEditionUpdateInput input) throws Exception {
-    Map<String, Setting> dbSettings = mapOfSettings(fromIterable(this.settingRepository.findAll()));
+    Map<String, Setting> dbSettings = mapOfSettings(this.settingRepository.findAllByTenantIsNull());
     List<Setting> settingsToSave = new ArrayList<>();
     String certPem = input.getEnterpriseEdition();
     if (certPem != null && !certPem.isEmpty()) {
@@ -432,7 +413,7 @@ public class PlatformSettingsService {
 
   public PlatformSettings updateSettingsPlatformWhitemark(
       SettingsPlatformWhitemarkUpdateInput input) {
-    Map<String, Setting> dbSettings = mapOfSettings(fromIterable(this.settingRepository.findAll()));
+    Map<String, Setting> dbSettings = mapOfSettings(this.settingRepository.findAllByTenantIsNull());
     List<Setting> settingsToSave = new ArrayList<>();
     settingsToSave.add(
         resolveFromMap(dbSettings, PLATFORM_WHITEMARK.key(), input.getPlatformWhitemark()));
@@ -441,7 +422,7 @@ public class PlatformSettingsService {
   }
 
   public PlatformSettings updateSettingsPolicies(PolicyInput input) {
-    Map<String, Setting> dbSettings = mapOfSettings(fromIterable(this.settingRepository.findAll()));
+    Map<String, Setting> dbSettings = mapOfSettings(this.settingRepository.findAllByTenantIsNull());
     List<Setting> settingsToSave = new ArrayList<>();
     settingsToSave.add(
         resolveFromMap(dbSettings, PLATFORM_LOGIN_MESSAGE.key(), input.getLoginMessage()));
@@ -462,30 +443,8 @@ public class PlatformSettingsService {
     return updateTheme(input, THEME_TYPE_DARK);
   }
 
-  /**
-   * Clear default platform dashboard settings if they match the provided dashboardId.
-   *
-   * @param dashboardId the dashboard ID to check against default settings
-   */
-  public void clearDefaultPlatformDashboardIfMatch(String dashboardId) {
-    List<SettingKeys> clearableSettings =
-        List.of(SettingKeys.DEFAULT_SCENARIO_DASHBOARD, SettingKeys.DEFAULT_SIMULATION_DASHBOARD);
-
-    Map<String, Setting> dbSettings = mapOfSettings(fromIterable(this.settingRepository.findAll()));
-
-    List<Setting> settingsToSave = new ArrayList<>();
-    clearableSettings.forEach(
-        setting -> {
-          String currentValue = getValueFromMapOfSettings(dbSettings, setting.key());
-          if (dashboardId.equals(currentValue)) {
-            settingsToSave.add(resolveFromMap(dbSettings, setting.key(), setting.defaultValue()));
-          }
-        });
-    settingRepository.saveAll(settingsToSave);
-  }
-
   private PlatformSettings updateTheme(ThemeInput input, String themeType) {
-    Map<String, Setting> dbSettings = mapOfSettings(fromIterable(this.settingRepository.findAll()));
+    Map<String, Setting> dbSettings = mapOfSettings(this.settingRepository.findAllByTenantIsNull());
     List<Setting> settingsToSave = new ArrayList<>();
 
     settingsToSave.add(
@@ -575,14 +534,16 @@ public class PlatformSettingsService {
    * @return the saved setting
    */
   public Setting saveSetting(String key, String value) {
-    Setting setting = settingRepository.findByKey(key).orElse(new Setting(key, value));
+    Setting setting =
+        settingRepository.findByKeyAndTenantIsNull(key).orElse(new Setting(key, value));
     setting.setValue(value);
     return settingRepository.save(setting);
   }
 
   public void updateXTMHubEmailNotification(boolean shouldSendConnectivityEmail) {
     Optional<Setting> current =
-        this.settingRepository.findByKey(XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL.key());
+        this.settingRepository.findByKeyAndTenantIsNull(
+            XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL.key());
     boolean currentValue = current.map(s -> Boolean.parseBoolean(s.getValue())).orElse(true);
     if (currentValue != shouldSendConnectivityEmail) {
       Setting setting =
@@ -602,7 +563,7 @@ public class PlatformSettingsService {
 
   public void errorMessage(@NotBlank final BannerMessage.BANNER_KEYS banner) {
     Optional<Setting> bannerLevelOpt =
-        this.settingRepository.findByKey(PLATFORM_BANNER + "." + banner.key());
+        this.settingRepository.findByKeyAndTenantIsNull(PLATFORM_BANNER + "." + banner.key());
     if (bannerLevelOpt.isEmpty()) {
       Setting bannerLevel =
           resolve(bannerLevelOpt, PLATFORM_BANNER + "." + banner.key(), banner.level().name());

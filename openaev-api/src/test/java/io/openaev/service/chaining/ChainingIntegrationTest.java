@@ -1,7 +1,7 @@
 package io.openaev.service.chaining;
 
-import static io.openaev.api.chaining.ChainingApi.CHAINING_URI;
-import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
+import static io.openaev.api.chaining.ChainingApi.TENANT_CHAINING_URI;
+import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
@@ -60,6 +60,7 @@ class ChainingIntegrationTest extends IntegrationTest {
 
   // -- Setup inject
   @Autowired private StepService stepService;
+  @Autowired private StepEventService stepEventService;
   @Autowired private WorkflowService workflowService;
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private InjectorRepository injectorRepository;
@@ -155,7 +156,7 @@ class ChainingIntegrationTest extends IntegrationTest {
       ScenarioInput input = buildScenarioInput();
       String response =
           mvc.perform(
-                  post(CHAINING_URI + "/scenarios")
+                  post(tenantUri(TENANT_CHAINING_URI + "/scenarios"))
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(mapper.writeValueAsString(input)))
@@ -195,7 +196,7 @@ class ChainingIntegrationTest extends IntegrationTest {
     void should_associate_steps_to_workflow_template() throws Exception {
       String response =
           mvc.perform(
-                  post(CHAINING_URI + "/scenarios")
+                  post(tenantUri(TENANT_CHAINING_URI + "/scenarios"))
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(mapper.writeValueAsString(buildScenarioInput())))
@@ -222,7 +223,7 @@ class ChainingIntegrationTest extends IntegrationTest {
 
       long stepCountBefore = stepRepository.count();
 
-      stepService.createStepTemplates(workflowTemplate.getId(), List.of(step1, step2));
+      stepService.createStepTemplates(workflowTemplate, List.of(step1, step2));
 
       assertEquals(stepCountBefore + 2, stepRepository.count());
 
@@ -247,7 +248,7 @@ class ChainingIntegrationTest extends IntegrationTest {
     void should_create_workflow_run_and_simulation_on_launch() throws Exception {
       String response =
           mvc.perform(
-                  post(CHAINING_URI + "/scenarios")
+                  post(tenantUri(TENANT_CHAINING_URI + "/scenarios"))
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(mapper.writeValueAsString(buildScenarioInput())))
@@ -269,7 +270,9 @@ class ChainingIntegrationTest extends IntegrationTest {
       long simulationCountBefore = exerciseRepository.count();
 
       String simulationResult =
-          mvc.perform(post(SCENARIO_URI + "/" + scenarioId + "/exercise/running").with(csrf()))
+          mvc.perform(
+                  post(tenantUri(TENANT_SCENARIO_URI + "/" + scenarioId + "/exercise/running"))
+                      .with(csrf()))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()
@@ -327,7 +330,7 @@ class ChainingIntegrationTest extends IntegrationTest {
     void should_delete_scenario_and_cascade_to_simulation_steps_and_workflows() throws Exception {
       String response =
           mvc.perform(
-                  post(CHAINING_URI + "/scenarios")
+                  post(tenantUri(TENANT_CHAINING_URI + "/scenarios"))
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(mapper.writeValueAsString(buildScenarioInput())))
@@ -350,10 +353,12 @@ class ChainingIntegrationTest extends IntegrationTest {
       InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
       StepsCreateInput.StepInput step = buildValidStepInput();
       step.setDataStep(injectInput);
-      stepService.createStepTemplates(workflowTemplate.getId(), List.of(step));
+      stepService.createStepTemplates(workflowTemplate, List.of(step));
 
       String simulationResult =
-          mvc.perform(post(SCENARIO_URI + "/" + scenarioId + "/exercise/running").with(csrf()))
+          mvc.perform(
+                  post(tenantUri(TENANT_SCENARIO_URI + "/" + scenarioId + "/exercise/running"))
+                      .with(csrf()))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()
@@ -413,7 +418,7 @@ class ChainingIntegrationTest extends IntegrationTest {
       // Create scenario with chaining enabled
       String scenarioResponse =
           mvc.perform(
-                  post(CHAINING_URI + "/scenarios")
+                  post(tenantUri(TENANT_CHAINING_URI + "/scenarios"))
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(mapper.writeValueAsString(buildScenarioInput())))
@@ -438,10 +443,14 @@ class ChainingIntegrationTest extends IntegrationTest {
       InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
       StepsCreateInput.StepInput step = buildValidStepInput();
       step.setDataStep(injectInput);
-      stepService.createStepTemplates(workflowTemplate.getId(), List.of(step));
+      stepService.createStepTemplates(workflowTemplate, List.of(step));
       String simulation =
           mvc.perform(
-                  post(SCENARIO_URI + "/" + createdScenario.getId() + "/exercise/running")
+                  post(tenantUri(
+                          TENANT_SCENARIO_URI
+                              + "/"
+                              + createdScenario.getId()
+                              + "/exercise/running"))
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON))
               .andExpect(status().is2xxSuccessful())
@@ -460,7 +469,7 @@ class ChainingIntegrationTest extends IntegrationTest {
               .findFirst()
               .orElseThrow(() -> new AssertionError("Step not found"));
       if (createdStep.getStatus() == StepStatus.READY) {
-        stepService.run(createdStep);
+        stepEventService.run(createdStep);
       }
 
       assertNotNull(
@@ -497,7 +506,7 @@ class ChainingIntegrationTest extends IntegrationTest {
       // Create scenario with chaining enabled
       String scenarioResponse =
           mvc.perform(
-                  post(CHAINING_URI + "/scenarios")
+                  post(tenantUri(TENANT_CHAINING_URI + "/scenarios"))
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(mapper.writeValueAsString(buildScenarioInput())))
@@ -522,11 +531,11 @@ class ChainingIntegrationTest extends IntegrationTest {
       InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
       StepsCreateInput.StepInput step = buildValidStepInput();
       step.setDataStep(injectInput);
-      stepService.createStepTemplates(workflowTemplate.getId(), List.of(step));
+      stepService.createStepTemplates(workflowTemplate, List.of(step));
 
       String result =
           mvc.perform(
-                  post(CHAINING_URI + "/scenarios/" + createdScenario.getId())
+                  post(tenantUri(TENANT_CHAINING_URI + "/scenarios/" + createdScenario.getId()))
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON))
               .andExpect(status().is2xxSuccessful())
@@ -584,7 +593,7 @@ class ChainingIntegrationTest extends IntegrationTest {
       CreateExerciseInput input = buildSimulationInput();
       String response =
           mvc.perform(
-                  post(CHAINING_URI + "/simulations")
+                  post(tenantUri(TENANT_CHAINING_URI + "/simulations"))
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(mapper.writeValueAsString(input)))
@@ -612,7 +621,7 @@ class ChainingIntegrationTest extends IntegrationTest {
     void should_create_step_template_when_add_inject_to_simulation_chaining() throws Exception {
       String response =
           mvc.perform(
-                  post(CHAINING_URI + "/simulations")
+                  post(tenantUri(TENANT_CHAINING_URI + "/simulations"))
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(mapper.writeValueAsString(buildSimulationInput())))
@@ -628,7 +637,11 @@ class ChainingIntegrationTest extends IntegrationTest {
       long stepCountBefore = stepRepository.count();
 
       mvc.perform(
-              post(CHAINING_URI + "/simulations/" + createdSimulation.getId() + "/injects")
+              post(tenantUri(
+                      TENANT_CHAINING_URI
+                          + "/simulations/"
+                          + createdSimulation.getId()
+                          + "/injects"))
                   .with(csrf())
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(injectInputJson))
@@ -653,7 +666,7 @@ class ChainingIntegrationTest extends IntegrationTest {
         throws Exception {
       String response =
           mvc.perform(
-                  post(CHAINING_URI + "/simulations")
+                  post(tenantUri(TENANT_CHAINING_URI + "/simulations"))
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(mapper.writeValueAsString(buildSimulationInput())))
@@ -668,7 +681,11 @@ class ChainingIntegrationTest extends IntegrationTest {
       Workflow workflowTemplate = findTemplateWorkflowBySimulationId(createdSimulation.getId());
 
       mvc.perform(
-              post(CHAINING_URI + "/simulations/" + createdSimulation.getId() + "/injects")
+              post(tenantUri(
+                      TENANT_CHAINING_URI
+                          + "/simulations/"
+                          + createdSimulation.getId()
+                          + "/injects"))
                   .with(csrf())
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(injectInputJson))
@@ -676,7 +693,7 @@ class ChainingIntegrationTest extends IntegrationTest {
 
       String duplicatedResponse =
           mvc.perform(
-                  post(CHAINING_URI + "/simulations/" + createdSimulation.getId())
+                  post(tenantUri(TENANT_CHAINING_URI + "/simulations/" + createdSimulation.getId()))
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON))
               .andExpect(status().is2xxSuccessful())

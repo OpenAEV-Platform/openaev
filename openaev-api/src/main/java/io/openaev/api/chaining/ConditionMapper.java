@@ -81,6 +81,7 @@ public class ConditionMapper {
 
     return ConditionOutput.builder()
         .id(c.getId())
+        .key(c.getKey())
         .keyType(c.getKeyType())
         .keySubtype(c.getKeySubtype())
         .type(c.getType() != null ? c.getType().name() : null)
@@ -114,6 +115,7 @@ public class ConditionMapper {
     Objects.requireNonNull(input, "condition create input must not be null");
 
     return Condition.builder()
+        .key(input.getKey())
         .keyType(input.getKeyType())
         .keySubtype(input.getKeySubtype())
         .type(input.getType())

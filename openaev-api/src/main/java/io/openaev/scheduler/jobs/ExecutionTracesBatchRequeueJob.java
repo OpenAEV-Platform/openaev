@@ -1,5 +1,6 @@
 package io.openaev.scheduler.jobs;
 
+import io.openaev.aop.BypassRls;
 import io.openaev.rest.inject.service.BatchingInjectStatusService;
 import java.io.IOException;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +21,7 @@ public class ExecutionTracesBatchRequeueJob implements Job {
   private final BatchingInjectStatusService batchingInjectStatusService;
 
   @Override
+  @BypassRls
   public void execute(JobExecutionContext context) throws JobExecutionException {
     try {
       batchingInjectStatusService.requeueCallbacks();

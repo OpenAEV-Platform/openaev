@@ -1,8 +1,11 @@
 package io.openaev.service.chaining;
 
+import com.google.gson.Gson;
+import io.openaev.api.chaining.dto.ScopeVariableInput;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.ScopeVariableRepository;
 import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.database.repository.WorkflowScopeRuleRepository;
 import io.openaev.rest.exception.ChainingException;
@@ -24,9 +27,16 @@ import org.springframework.util.CollectionUtils;
 @RequiredArgsConstructor
 @Service
 public class WorkflowService {
+
+  private static final Gson GSON = new Gson();
+
+  private final StepService stepService;
+  private final PreviewFeatureService previewFeatureService;
+
   private final WorkflowRepository workflowRepository;
   private final WorkflowScopeRuleRepository workflowScopeRuleRepository;
-  private final PreviewFeatureService previewFeatureService;
+  private final ScopeVariableRepository scopeVariableRepository;
+  private final WorkflowStateService workflowStateService;
 
   // -- READ --
 
@@ -64,6 +74,7 @@ public class WorkflowService {
   public Workflow getWorkflowConfiguration(@NotBlank String workflowId) {
     Workflow workflow = getWorkflowByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
     Hibernate.initialize(workflow.getWorkflowScopeRules());
+    Hibernate.initialize(workflow.getWorkflowScopeVariables());
     return workflow;
   }
 
@@ -158,6 +169,13 @@ public class WorkflowService {
     return saveWorkflowRun(run);
   }
 
+  /**
+   * Launches a workflow for a scenario by creating a simulation-level template and a run from it.
+   *
+   * @param workflowTemplateScenario the scenario's workflow template
+   * @param simulation the simulation to attach the run to
+   * @return the created workflow run
+   */
   public Workflow launchWorkflowScenario(Workflow workflowTemplateScenario, Exercise simulation) {
     // Copy workflow TEMPLATE (scenario) to a new workflow TEMPLATE (simulation)
     Workflow workflowTemplateSimulation =
@@ -170,6 +188,7 @@ public class WorkflowService {
     return saveWorkflowRun(run);
   }
 
+  /** Increments the version and clears the edited flag when the template has pending runs. */
   private Workflow updateEditedWorkflow(Workflow workflowTemplate) {
     if (workflowTemplate.isEdited() && !workflowTemplate.getWorkflowsExecuted().isEmpty()) {
       workflowTemplate.setEdited(false);
@@ -179,6 +198,7 @@ public class WorkflowService {
     return workflowTemplate;
   }
 
+  /** Creates a RUN workflow by copying configuration and scope rules from a template. */
   private Workflow copyWorkflowTemplateToRun(Workflow workflowTemplateFrom) {
     // Copy workflow TEMPLATE to Workflow RUN (execution)
     Workflow workflowRunTo =
@@ -196,6 +216,7 @@ public class WorkflowService {
             .safeModeEnabled(workflowTemplateFrom.isSafeModeEnabled())
             .build();
     copyScopeRules(workflowTemplateFrom, workflowRunTo);
+    copyScopeVariables(workflowTemplateFrom, workflowRunTo);
     return workflowRunTo;
   }
 
@@ -216,6 +237,7 @@ public class WorkflowService {
             .safeModeEnabled(workflowTemplateScenarioFrom.isSafeModeEnabled())
             .build();
     copyScopeRules(workflowTemplateScenarioFrom, template);
+    copyScopeVariables(workflowTemplateScenarioFrom, template);
 
     return template;
   }
@@ -237,6 +259,7 @@ public class WorkflowService {
             .safeModeEnabled(workflowTemplateFrom.isSafeModeEnabled())
             .build();
     copyScopeRules(workflowTemplateFrom, template);
+    copyScopeVariables(workflowTemplateFrom, template);
     return template;
   }
 
@@ -255,6 +278,93 @@ public class WorkflowService {
     target
         .getWorkflowScopeRules()
         .addAll(sourceRules.stream().map(rule -> WorkflowScopeRule.copyOf(rule, target)).toList());
+  }
+
+  /**
+   * Copies scope variables from a source workflow to a target workflow, creating fresh entities so
+   * each workflow owns its own variable rows.
+   */
+  private void copyScopeVariables(Workflow source, Workflow target) {
+    List<ScopeVariable> sourceVariables =
+        scopeVariableRepository.findAllByWorkflowId(source.getId());
+
+    if (CollectionUtils.isEmpty(sourceVariables)) {
+      return;
+    }
+
+    target
+        .getWorkflowScopeVariables()
+        .addAll(
+            sourceVariables.stream()
+                .map(variable -> ScopeVariable.copyOf(variable, target))
+                .toList());
+  }
+
+  /**
+   * Reconciles the workflow's scope-variable collection against the provided inputs: removes
+   * variables not present in the input, adds new ones, and updates changed ones in-place.
+   *
+   * @return {@code true} if the collection was modified
+   */
+  private boolean applyScopeVariables(List<ScopeVariableInput> variableInputs, Workflow workflow) {
+    List<ScopeVariable> existing = workflow.getWorkflowScopeVariables();
+
+    if (CollectionUtils.isEmpty(variableInputs) && CollectionUtils.isEmpty(existing)) {
+      return false;
+    }
+    if (CollectionUtils.isEmpty(variableInputs)) {
+      existing.clear();
+      return true;
+    }
+
+    Set<String> inputIds =
+        variableInputs.stream()
+            .map(ScopeVariableInput::getId)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
+
+    Map<String, ScopeVariable> existingById =
+        existing.stream().collect(Collectors.toMap(ScopeVariable::getId, v -> v));
+
+    boolean changed = existing.removeIf(v -> !inputIds.contains(v.getId()));
+
+    for (ScopeVariableInput input : variableInputs) {
+      if (input.getId() == null) {
+        existing.add(buildScopeVariable(input, workflow));
+        changed = true;
+      } else {
+        ScopeVariable existingVar = existingById.get(input.getId());
+        if (existingVar != null && hasVariableChanged(existingVar, input)) {
+          updateScopeVariable(existingVar, input);
+          changed = true;
+        }
+      }
+    }
+    return changed;
+  }
+
+  private boolean hasVariableChanged(ScopeVariable existing, ScopeVariableInput input) {
+    return !Objects.equals(existing.getKey(), input.getKey())
+        || !Objects.equals(existing.getType(), input.getType())
+        || !Objects.equals(existing.getValue(), input.getValue())
+        || !Objects.equals(existing.getDescription(), input.getDescription());
+  }
+
+  private void updateScopeVariable(ScopeVariable existing, ScopeVariableInput input) {
+    existing.setKey(input.getKey());
+    existing.setType(input.getType());
+    existing.setValue(input.getValue());
+    existing.setDescription(input.getDescription());
+  }
+
+  private ScopeVariable buildScopeVariable(ScopeVariableInput input, Workflow workflow) {
+    return ScopeVariable.builder()
+        .key(input.getKey())
+        .type(input.getType())
+        .value(input.getValue())
+        .description(input.getDescription())
+        .workflow(workflow)
+        .build();
   }
 
   /**
@@ -361,7 +471,9 @@ public class WorkflowService {
       workflow.setSafeModeEnabled(input.isSafeModeEnabled());
       changed = true;
     }
-    return applyScopeRules(input.getWorkflowScopeRules(), workflow) || changed;
+    boolean rulesChanged = applyScopeRules(input.getWorkflowScopeRules(), workflow);
+    boolean variablesChanged = applyScopeVariables(input.getWorkflowScopeVariables(), workflow);
+    return rulesChanged || variablesChanged || changed;
   }
 
   /**
@@ -480,10 +592,18 @@ public class WorkflowService {
     return ScopeRuleValueType.DOMAIN;
   }
 
+  /** Persists a list of workflows in batch. */
   public void saveAll(List<Workflow> workflows) {
     workflowRepository.saveAll(workflows);
   }
 
+  /**
+   * Duplicates a scenario's workflow template to a new scenario.
+   *
+   * @param scenarioIdFrom source scenario ID
+   * @param scenarioTo target scenario entity
+   * @return the new workflow template, or null if the source has no workflow
+   */
   public Workflow duplicateScenario(@NotBlank String scenarioIdFrom, @NotBlank Scenario scenarioTo)
       throws ChainingException {
 
@@ -496,6 +616,13 @@ public class WorkflowService {
     return workflowRepository.save(newWorkflowTemplateScenario);
   }
 
+  /**
+   * Duplicates a simulation's workflow template to a new simulation.
+   *
+   * @param simulationIdFrom source simulation ID
+   * @param simulationTo target simulation entity
+   * @return the new workflow template, or null if the source has no workflow
+   */
   public Workflow duplicateSimulation(
       @NotBlank String simulationIdFrom, @NotBlank Exercise simulationTo) {
 
@@ -508,9 +635,86 @@ public class WorkflowService {
     return workflowRepository.save(newWorkflowTemplateScenario);
   }
 
+  /**
+   * Throws if the chaining preview feature is not enabled.
+   *
+   * @throws ChainingException when the feature flag is disabled
+   */
   public void isPreviewFeatureChainingEnable() throws ChainingException {
     if (!previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING))
       throw new ChainingException("Feature chaining is not enabled");
+  }
+
+  /**
+   * Start workflow for given simulation
+   *
+   * @param simulationId id of the simulation to start
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void startWorkflowBySimulationId(String simulationId) throws ChainingException {
+    Workflow workflowTemplate =
+        findWorkflowTemplateBySimulationId(simulationId)
+            .orElseThrow(
+                () ->
+                    new ElementNotFoundException(
+                        "Workflow (TEMPLATE) not found. Simulation ID: " + simulationId));
+    Workflow workflowRun = launchWorkflowSimulation(workflowTemplate);
+    startWorkflow(workflowRun);
+  }
+
+  /**
+   * Start workflow for given scenario
+   *
+   * @param scenarioId id of the scenario to start
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void startWorkflowByScenarioIdAndSimulation(String scenarioId, Exercise simulation)
+      throws ChainingException {
+    Workflow workflowTemplateScenario =
+        findWorkflowTemplateByScenarioId(scenarioId)
+            .orElseThrow(
+                () ->
+                    new ElementNotFoundException(
+                        "Workflow (TEMPLATE) not found. Scenario ID: " + scenarioId));
+
+    Workflow workflowRun = launchWorkflowScenario(workflowTemplateScenario, simulation);
+    Workflow workflowTemplateSimulation = workflowRun.getWorkflowTemplate();
+    stepService.copyStepTemplate(workflowTemplateScenario, workflowTemplateSimulation);
+
+    startWorkflow(workflowRun);
+  }
+
+  /**
+   * Starts workflow evaluation: seeds global state from allowlist scope rules, evaluates step
+   * progress, and saves the workflow run.
+   *
+   * @param workflowRun the workflow run to start
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void startWorkflow(Workflow workflowRun) throws ChainingException {
+
+    Map<String, ContractOutputType> fieldTypeMap =
+        java.util.Arrays.stream(ContractOutputType.values())
+            .collect(Collectors.toMap(ContractOutputType::name, type -> type));
+
+    Map<String, List<String>> scopeData = extractScopeData(workflowRun);
+
+    // Sync global state and define next steps to be executed
+    workflowStateService.syncState(GSON.toJsonTree(scopeData), fieldTypeMap, workflowRun);
+    stepService.evaluateWorkflowProgress(workflowRun);
+
+    saveWorkflowRun(workflowRun);
+  }
+
+  private Map<String, List<String>> extractScopeData(Workflow workflowRun) {
+    if (workflowRun.getAllowlist() == null) {
+      return Collections.emptyMap();
+    }
+    return workflowRun.getAllowlist().stream()
+        .collect(
+            Collectors.groupingBy(
+                rule -> rule.getValueType().getContractOutputType(),
+                Collectors.mapping(WorkflowScopeRule::getRuleValue, Collectors.toList())));
   }
 
   // -- Timeout --

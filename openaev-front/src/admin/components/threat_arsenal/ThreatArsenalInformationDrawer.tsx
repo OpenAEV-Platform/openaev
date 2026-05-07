@@ -68,7 +68,7 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
     <Drawer
       open={open}
       handleClose={onClose}
-      title={t('Threat arsenal information')}
+      title={t('Threat Arsenal information')}
     >
       <>
         {(loading || threatArsenalAction == null) && <CircularProgress size={28} />}

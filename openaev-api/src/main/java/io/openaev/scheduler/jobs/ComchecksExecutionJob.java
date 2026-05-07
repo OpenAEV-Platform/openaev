@@ -9,6 +9,7 @@ import static java.util.stream.Collectors.groupingBy;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.aop.BypassRls;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.*;
@@ -20,7 +21,6 @@ import io.openaev.execution.ExecutionContext;
 import io.openaev.execution.ExecutionContextService;
 import io.openaev.injectors.email.EmailContract;
 import io.openaev.integration.ManagerFactory;
-import jakarta.annotation.Resource;
 import jakarta.transaction.Transactional;
 import java.time.Instant;
 import java.util.List;
@@ -39,7 +39,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @RequiredArgsConstructor
 public class ComchecksExecutionJob implements Job {
-  @Resource private OpenAEVConfig openAEVConfig;
+  private final OpenAEVConfig openAEVConfig;
   private final ApplicationContext context;
   private final ComcheckRepository comcheckRepository;
   private final ComcheckStatusRepository comcheckStatusRepository;
@@ -49,7 +49,7 @@ public class ComchecksExecutionJob implements Job {
 
   private final ManagerFactory managerFactory;
 
-  @Resource private ObjectMapper mapper;
+  private final ObjectMapper mapper;
 
   private Inject buildComcheckEmail(Comcheck comCheck) {
     Inject emailInject = new Inject();
@@ -76,6 +76,7 @@ public class ComchecksExecutionJob implements Job {
   @Override
   @Transactional
   @LogExecutionTime
+  @BypassRls
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
     Instant now = now();
     try {

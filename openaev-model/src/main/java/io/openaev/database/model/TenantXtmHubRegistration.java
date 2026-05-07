@@ -52,6 +52,10 @@ public class TenantXtmHubRegistration implements TenantBase {
   @JsonProperty("registration_last_connectivity_check")
   private LocalDateTime lastConnectivityCheck;
 
+  @Column(name = "registration_connectivity_email_eligible")
+  @JsonProperty("registration_connectivity_email_eligible")
+  private boolean connectivityEmailEligible = true;
+
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
   @JsonIgnore

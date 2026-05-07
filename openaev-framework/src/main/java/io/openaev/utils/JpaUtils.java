@@ -123,8 +123,15 @@ public final class JpaUtils {
 
   public static <T, U> Expression<String[]> arrayAggOnId(
       @NotNull final HibernateCriteriaBuilder cb, @NotNull final Join<T, U> join) {
+    return arrayAggOnField(cb, join, "id");
+  }
+
+  public static <T, U> Expression<String[]> arrayAggOnField(
+      @NotNull final HibernateCriteriaBuilder cb,
+      @NotNull final Join<T, U> join,
+      @NotNull final String field) {
     Expression<String> nullString = cb.nullLiteral(String.class);
-    Expression<String[]> arr = cb.arrayAgg(null, join.get("id"));
+    Expression<String[]> arr = cb.arrayAgg(null, join.get(field));
     return cb.arrayRemove(arr, nullString);
   }
 

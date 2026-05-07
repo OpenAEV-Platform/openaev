@@ -53,14 +53,14 @@ class ConditionApiTest {
   @Test
   void findAllByWorkflow_shouldReturnMappedList() {
     Condition root = conditionTree("c-wf", "wf-9", "ev-9", "d");
-    when(conditionService.findConditionRootsByWorkflowId("wf-9")).thenReturn(List.of(root));
+    when(conditionService.findNonMapperConditionsByWorkflowId("wf-9")).thenReturn(List.of(root));
 
     List<EventOutput> result = conditionApi.findAllByWorkflow("wf-9");
 
     assertEquals(1, result.size());
     assertEquals("c-wf", result.getFirst().getId());
     assertEquals("wf-9", result.getFirst().getWorkflowId());
-    verify(conditionService).findConditionRootsByWorkflowId("wf-9");
+    verify(conditionService).findNonMapperConditionsByWorkflowId("wf-9");
   }
 
   @Test
@@ -125,7 +125,7 @@ class ConditionApiTest {
     child.setId(rootId + "-child");
     child.setWorkflowId(workflowId);
     child.setType(ConditionType.EQ);
-    child.setKeyType(ConditionKeyType.PORTSCAN);
+    child.setKeyType(ConditionKeyType.Portscan);
     child.setValue("445");
     child.setMappingType(MappingType.LOCAL);
     child.setConditionParent(root);

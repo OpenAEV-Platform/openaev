@@ -116,6 +116,31 @@ public interface StepRepository extends JpaRepository<Step, String> {
       nativeQuery = true)
   Optional<String> findStepIdByInjectId(@Param("injectId") String injectId);
 
+  /**
+   * Returns the step IDs associated with any of the given inject IDs in a single query.
+   *
+   * @param injectIds the inject IDs for which we want the associated steps
+   * @return set of step IDs that reference any of the given inject IDs
+   */
+  @Query(
+      value =
+          """
+      SELECT DISTINCT s.step_id
+      FROM steps s
+      WHERE EXISTS (
+        SELECT 1
+        FROM injects i
+        WHERE i.inject_id IN (:injectIds)
+        AND jsonb_path_exists(
+          s.step_data,
+          '$.** ? (@.inject_id == $id)',
+          jsonb_build_object('id', to_jsonb(i.inject_id))
+        )
+      )
+      """,
+      nativeQuery = true)
+  Set<String> findStepIdsByInjectIds(@Param("injectIds") Set<String> injectIds);
+
   @Query(
       value =
           """
@@ -136,4 +161,14 @@ public interface StepRepository extends JpaRepository<Step, String> {
   Set<String> findStepIdsByExpectationIds(@Param("expectationIds") Set<String> expectationIds);
 
   List<Step> findAllStepByWorkflow_IdAndStatusIn(String id, List<StepStatus> run);
+
+  /**
+   * Returns {@code true} if at least one executed step references the given step template within
+   * the given workflow run.
+   *
+   * @param stepTemplateId the ID of the step template to check
+   * @param workflowRunId the ID of the workflow run to scope the check
+   * @return {@code true} if a matching step exists
+   */
+  boolean existsByStepTemplateIdAndWorkflowId(String stepTemplateId, String workflowRunId);
 }

@@ -1,6 +1,6 @@
 package io.openaev.rest.exercise;
 
-import static io.openaev.database.model.SettingKeys.DEFAULT_SIMULATION_DASHBOARD;
+import static io.openaev.database.model.TenantSettingKeys.TENANT_SIMULATION_DASHBOARD;
 import static io.openaev.database.specification.TeamSpecification.fromExercise;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
@@ -19,6 +19,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
@@ -97,15 +98,20 @@ public class ExerciseApiTest extends IntegrationTest {
 
     settingRepository.save(
         settingRepository
-            .findByKey(DEFAULT_SIMULATION_DASHBOARD.key())
+            .findByKeyAndTenantId(
+                TENANT_SIMULATION_DASHBOARD.key(), TenantContext.getCurrentTenant())
             .map(
                 s -> {
                   s.setValue(customDashboardSaved.getId());
                   return s;
                 })
             .orElseGet(
-                () ->
-                    new Setting(DEFAULT_SIMULATION_DASHBOARD.key(), customDashboardSaved.getId())));
+                () -> {
+                  Setting s =
+                      new Setting(TENANT_SIMULATION_DASHBOARD.key(), customDashboardSaved.getId());
+                  s.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+                  return s;
+                }));
 
     // -- EXECUTE --
     String response =

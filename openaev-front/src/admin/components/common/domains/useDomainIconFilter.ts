@@ -40,35 +40,36 @@ const useDomainIconFilter = ({
 }: UseDomainIconFilterParams): UseDomainIconFilterResult => {
   const [selectedDomains, setSelectedDomains] = useState<string[]>([]);
   const [domainCounts, setDomainCounts] = useState<Record<string, number>>({});
-
   const filterHelpers = queryableHelpers?.filterHelpers;
 
   const handleDomainClick = useCallback((domainId: string) => {
     if (!filterHelpers) return;
 
-    const nextSelectedDomains = selectedDomains.includes(domainId)
-      ? selectedDomains.filter(id => id !== domainId)
-      : [...selectedDomains, domainId];
+    const domainFilter = searchPaginationInput?.filterGroup?.filters?.find(({ key }) => key === domainFilterKey);
+    const currentSelectedDomains = domainFilter?.values ?? [];
+
+    const nextSelectedDomains = currentSelectedDomains.includes(domainId)
+      ? currentSelectedDomains.filter(id => id !== domainId)
+      : [...currentSelectedDomains, domainId];
 
     if (nextSelectedDomains.length === 0) {
       filterHelpers.handleRemoveFilterByKey(domainFilterKey);
       return;
     }
 
-    const hasDomainFilter = searchPaginationInput?.filterGroup?.filters?.some(({ key }) => key === domainFilterKey) ?? false;
-
-    if (hasDomainFilter) {
-      filterHelpers.handleAddMultipleValueFilter(domainFilterKey, nextSelectedDomains);
-    } else {
-      filterHelpers.handleAddFilterWithEmptyValue({
-        id: generateFilterId(),
-        key: domainFilterKey,
-        operator: 'contains',
-        values: nextSelectedDomains,
-        mode: 'or',
-      });
+    if (domainFilter?.id) {
+      filterHelpers.handleUpdateValuesById(domainFilter.id, nextSelectedDomains);
+      return;
     }
-  }, [domainFilterKey, filterHelpers, searchPaginationInput?.filterGroup?.filters, selectedDomains]);
+
+    filterHelpers.handleAddFilterWithEmptyValue({
+      id: generateFilterId(),
+      key: domainFilterKey,
+      operator: 'contains',
+      values: nextSelectedDomains,
+      mode: 'or',
+    });
+  }, [domainFilterKey, filterHelpers, searchPaginationInput?.filterGroup?.filters]);
 
   useEffect(() => {
     if (searchPaginationInput) {
@@ -103,7 +104,7 @@ const useDomainIconFilter = ({
       ({ key }) => key === domainFilterKey,
     );
 
-    setSelectedDomains(Array.isArray(domainFilter?.values) ? (domainFilter.values as string[]) : []);
+    setSelectedDomains(domainFilter?.values ?? []);
   }, [domainFilterKey, searchPaginationInput?.filterGroup]);
 
   const iconBarElements = useMemo(

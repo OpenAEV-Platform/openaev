@@ -285,9 +285,10 @@ export const storeHelper = state => ({
     t => t.get('token_user') === me(state)?.get('user_id'),
   ),
   getUserLang: () => {
+    const tenantParams = state.referential.getIn(['entities', 'tenantSettings', 'settings']);
     const publicParams = state.referential.getIn(['entities', 'publicPlatformParameters', 'parameters']);
     const privateParams = state.referential.getIn(['entities', 'platformParameters', 'parameters']);
-    const rawPlatformLang = (privateParams ?? publicParams)?.get('platform_lang') ?? 'auto';
+    const rawPlatformLang = tenantParams?.get('platform_lang') || (privateParams ?? publicParams)?.get('platform_lang') || 'auto';
     const rawUserLang = me(state)?.get('user_lang') ?? 'auto';
     const platformLang = rawPlatformLang !== 'auto' ? rawPlatformLang : locale;
     const userLang = rawUserLang !== 'auto' ? rawUserLang : platformLang;
@@ -365,8 +366,8 @@ export const storeHelper = state => ({
   getExerciseInjectExpectations: id => entities('injectexpectations', state).filter(
     i => i.get('inject_expectation_exercise') === id,
   ),
-  getInjectExpectationsByAsset: (id, type) => entities('injectexpectations', state).filter(
-    i => (i.get('inject_expectation_asset') === id && i.get('inject_expectation_type') === type),
+  getInjectExpectationsByAssetAndInject: (asset_id, inject_id, type) => entities('injectexpectations', state).filter(
+    i => (i.get('inject_expectation_asset') === asset_id && i.get('inject_expectation_inject') === inject_id && i.get('inject_expectation_type') === type),
   ),
   getInjectExpectationsMap: () => maps('injectexpectations', state),
   // documents
@@ -395,8 +396,9 @@ export const storeHelper = state => ({
     return state.referential.getIn(['entities', 'tenantSettings', 'settings']) || Map({});
   },
   getPlatformName: () => {
+    const tenantParams = state.referential.getIn(['entities', 'tenantSettings', 'settings']);
     const privateParams = state.referential.getIn(['entities', 'platformParameters', 'parameters']);
-    return privateParams?.get('platform_name') || 'OpenAEV - Open Adversarial Exposure Validation Platform';
+    return tenantParams?.get('platform_name') || privateParams?.get('platform_name') || 'OpenAEV - Open Adversarial Exposure Validation Platform';
   },
   getXtmHubRegistration: () => {
     const registrations = entities('tenantXtmHubRegistrations', state);

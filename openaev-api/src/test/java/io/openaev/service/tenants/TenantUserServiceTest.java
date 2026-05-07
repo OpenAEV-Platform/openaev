@@ -10,12 +10,16 @@ import io.openaev.IntegrationTest;
 import io.openaev.api.users.dto.UserInput;
 import io.openaev.api.users.dto.UserOutput;
 import io.openaev.context.TenantContext;
+import io.openaev.database.model.Group;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.raw.RawUser;
+import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.utils.fixtures.PaginationFixture;
+import io.openaev.utils.fixtures.TenantGroupFixture;
+import io.openaev.utils.fixtures.composers.TenantGroupComposer;
 import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.fixtures.tenants.TenantComposer;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -40,6 +44,8 @@ class TenantUserServiceTest extends IntegrationTest {
   @Autowired private TenantRepository tenantRepository;
   @Autowired private UserComposer userComposer;
   @Autowired private TenantComposer tenantComposer;
+  @Autowired private TenantGroupComposer tenantGroupComposer;
+  @Autowired private GroupRepository groupRepository;
   @Autowired private EntityManager entityManager;
 
   private Tenant tenant;
@@ -98,9 +104,7 @@ class TenantUserServiceTest extends IntegrationTest {
               .persist()
               .get();
       String existingUserId = existingUser.getId();
-      // Flush to ensure the user is visible to subsequent queries
       entityManager.flush();
-      entityManager.clear();
 
       UserInput input = getUserInput("existing@test.invalid", "Darlene", "Alderson");
 
@@ -242,6 +246,80 @@ class TenantUserServiceTest extends IntegrationTest {
       // -- ASSERT --
       assertThatThrownBy(() -> tenantUserService.user(user.getId()))
           .isInstanceOf(ElementNotFoundException.class);
+    }
+  }
+
+  @Nested
+  @DisplayName("Auto-assign — default tenant groups")
+  class AutoAssign {
+
+    @Test
+    @DisplayName("Given a tenant group with default assign, should auto-assign new user")
+    void given_defaultAssignGroup_should_autoAssignNewUser() {
+      // -- ARRANGE --
+      Group autoGroup = TenantGroupFixture.getGroup("AutoAssignTenant");
+      autoGroup.setDefaultUserAssignation(true);
+      tenantGroupComposer.forGroup(autoGroup).persist();
+      entityManager.flush();
+
+      UserInput input = getUserInput("tenant-auto@test.invalid", "TenantAuto", "Assign");
+
+      // -- ACT --
+      UserOutput result = tenantUserService.createOrAttach(input);
+
+      // -- ASSERT --
+      entityManager.flush();
+      entityManager.clear();
+      Group reloaded = groupRepository.findById(autoGroup.getId()).orElseThrow();
+      assertThat(reloaded.getUsers()).extracting(User::getId).contains(result.id());
+    }
+
+    @Test
+    @DisplayName("Given a tenant group without default assign, should not auto-assign")
+    void given_noDefaultAssignGroup_should_notAutoAssign() {
+      // -- ARRANGE --
+      Group noAutoGroup = TenantGroupFixture.getGroup("NoAutoTenant");
+      noAutoGroup.setDefaultUserAssignation(false);
+      tenantGroupComposer.forGroup(noAutoGroup).persist();
+      entityManager.flush();
+
+      UserInput input = getUserInput("tenant-noauto@test.invalid", "NoAuto", "Tenant");
+
+      // -- ACT --
+      UserOutput result = tenantUserService.createOrAttach(input);
+
+      // -- ASSERT --
+      entityManager.flush();
+      entityManager.clear();
+      Group reloaded = groupRepository.findById(noAutoGroup.getId()).orElseThrow();
+      assertThat(reloaded.getUsers()).extracting(User::getId).doesNotContain(result.id());
+    }
+
+    @Test
+    @DisplayName("Given an existing user attached to tenant, should auto-assign to default groups")
+    void given_existingUser_should_autoAssignOnAttach() {
+      // -- ARRANGE --
+      Group autoGroup = TenantGroupFixture.getGroup("AutoAssignExisting");
+      autoGroup.setDefaultUserAssignation(true);
+      tenantGroupComposer.forGroup(autoGroup).persist();
+
+      User existingUser =
+          userComposer
+              .forUser(getUser("Existing", "User", "existing-auto@test.invalid"))
+              .persist()
+              .get();
+      entityManager.flush();
+
+      UserInput input = getUserInput("existing-auto@test.invalid", "Existing", "User");
+
+      // -- ACT --
+      tenantUserService.createOrAttach(input);
+
+      // -- ASSERT --
+      entityManager.flush();
+      entityManager.clear();
+      Group reloaded = groupRepository.findById(autoGroup.getId()).orElseThrow();
+      assertThat(reloaded.getUsers()).extracting(User::getId).contains(existingUser.getId());
     }
   }
 }

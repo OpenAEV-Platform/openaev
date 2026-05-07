@@ -1,6 +1,8 @@
 package io.openaev.api.chaining;
 
+import static io.openaev.api.chaining.ChainingApi.CHAINING_URI;
 import static io.openaev.api.chaining.StepMapper.toOutput;
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.api.chaining.dto.StepInput;
@@ -8,8 +10,11 @@ import io.openaev.api.chaining.dto.StepOutput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
+import io.openaev.database.model.Workflow;
+import io.openaev.database.model.WorkflowStatus;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.service.chaining.StepService;
+import io.openaev.service.chaining.WorkflowService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -23,14 +28,15 @@ import org.springframework.web.bind.annotation.*;
 
 @Slf4j
 @RestController
-@RequestMapping(StepApi.STEP_API)
+@RequestMapping(StepApi.TENANT_STEP_URI)
 @RequiredArgsConstructor
 @Tag(name = "Step API", description = "CRUD operations for workflow step templates")
 public class StepApi {
 
-  public static final String STEP_API = "/api/chaining/steps";
+  public static final String TENANT_STEP_URI = TENANT_PREFIX + CHAINING_URI + "/steps";
 
   private final StepService stepService;
+  private final WorkflowService workflowService;
 
   // -- CREATE --
   @Operation(summary = "Create a step template")
@@ -51,7 +57,10 @@ public class StepApi {
             .conditionIds(input.getConditionIds())
             .dataStep(input.getDataStep())
             .build();
-    return toOutput(stepService.createStepTemplate(input.getWorkflowId(), createInput));
+    Workflow workflow =
+        workflowService.getWorkflowByIdAndStatus(input.getWorkflowId(), WorkflowStatus.TEMPLATE);
+
+    return toOutput(stepService.createStepTemplate(workflow, createInput));
   }
 
   // -- READ --

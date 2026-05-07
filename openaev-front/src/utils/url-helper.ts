@@ -1,16 +1,6 @@
 import { APP_BASE_PATH } from './Environment';
 
 // ---------------------------------------------------------------------------
-// Platform URI
-// ---------------------------------------------------------------------------
-
-/**
- * Browser path prefix for platform-level pages.
- * These pages are tenant-agnostic: the URL must NOT contain a tenant UUID.
- */
-export const PLATFORM_URI_PREFIX = '/admin/platform';
-
-// ---------------------------------------------------------------------------
 // Tenant URI
 // ---------------------------------------------------------------------------
 
@@ -27,7 +17,25 @@ export const TENANT_URI = '/api/tenants';
  */
 export const DEFAULT_TENANT_UUID = '2cffad3a-0001-4078-b0e2-ef74274022c3';
 
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Strips entity-specific detail segments from a path so that a tenant switch
+ * lands on the parent list page rather than a detail page for a resource
+ * that may not exist in the target tenant.
+ *
+ * e.g. "/admin/scenarios/123e4567-e89b-12d3-a456-426614174000"
+ *        → "/admin/scenarios"
+ *      "/admin/scenarios/123e4567-e89b-12d3-a456-426614174000/injects"
+ *        → "/admin/scenarios"
+ *      "/admin/scenarios" → "/admin/scenarios" (unchanged)
+ */
+export const stripDetailSegments = (pathname: string): string => {
+  const segments = pathname.split('/').filter(Boolean);
+  const uuidIndex = segments.findIndex(s => UUID_REGEX.test(s));
+  if (uuidIndex === -1) return pathname;
+  return '/' + segments.slice(0, uuidIndex).join('/');
+};
 
 // ---------------------------------------------------------------------------
 // URL helpers
@@ -103,8 +111,8 @@ export const buildTenantUrl = (
   }
 
   const normalizedPath = resolvedPath.startsWith('/') ? resolvedPath : `/${resolvedPath}`;
-  const resolvedSearch = search ?? window.location.search;
-  const resolvedHash = hash ?? window.location.hash;
+  const resolvedSearch = search ?? (pathname !== undefined ? '' : window.location.search);
+  const resolvedHash = hash ?? (pathname !== undefined ? '' : window.location.hash);
   return `${base}/${tenantId}${normalizedPath}${resolvedSearch}${resolvedHash}`;
 };
 
@@ -149,6 +157,14 @@ const TENANT_EXEMPT_PREFIXES = [
 ];
 
 /**
+ * API path patterns (regex) that are NEVER tenant-scoped.
+ * Used for platform endpoints whose prefix overlaps with tenant-scoped ones.
+ */
+const TENANT_EXEMPT_PATTERNS = [
+  /^\/api\/users\/[^/]+\/password$/,
+];
+
+/**
  * Rewrites an API path to include the tenant prefix.
  *
  * This is the FE equivalent of the BE's TenantInterceptor:
@@ -161,32 +177,11 @@ export const buildTenantApiPath = (uri: string): string => {
   if (TENANT_EXEMPT_PREFIXES.some(prefix => uri.startsWith(prefix))) {
     return uri;
   }
+  if (TENANT_EXEMPT_PATTERNS.some(pattern => pattern.test(uri))) {
+    return uri;
+  }
 
   const tenantId = getCurrentTenantId();
   const pathAfterApi = uri.slice('/api'.length);
   return `/api/tenants/${tenantId}${pathAfterApi}`;
-};
-
-// ---------------------------------------------------------------------------
-// URL helpers - platform URL
-// ---------------------------------------------------------------------------
-
-/**
- * Returns true when the given path starts with the platform prefix.
- */
-export const isPlatformRoute = (path: string): boolean => {
-  return path.startsWith(PLATFORM_URI_PREFIX);
-};
-
-/**
- * Returns true when the current browser URL points to a platform-level page.
- * Handles both tenant-prefixed and non-prefixed URLs.
- */
-export const isCurrentPlatformRoute = (): boolean => {
-  let pathname = getAppRelativePath();
-  const tenantId = extractTenantFromUrl();
-  if (tenantId) {
-    pathname = pathname.slice(`/${tenantId}`.length);
-  }
-  return isPlatformRoute(pathname);
 };

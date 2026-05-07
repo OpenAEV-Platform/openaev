@@ -5,6 +5,7 @@ import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.InjectFixture.getInjectForEmailContract;
 import static java.time.Instant.now;
 import static java.time.temporal.ChronoUnit.MINUTES;
+import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
@@ -22,7 +23,11 @@ import io.openaev.execution.ExecutableInject;
 import io.openaev.helper.InjectHelper;
 import io.openaev.injectors.email.model.EmailContent;
 import io.openaev.rest.exercise.form.ExerciseUpdateStatusInput;
+import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.utils.fixtures.*;
+import io.openaev.utils.fixtures.composers.ExerciseComposer;
+import io.openaev.utils.fixtures.composers.InjectComposer;
+import io.openaev.utils.fixtures.composers.InjectStatusComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.annotation.Resource;
 import jakarta.servlet.ServletException;
@@ -83,6 +88,10 @@ public class ExerciseApiStatusTest extends IntegrationTest {
   @Autowired private InjectHelper injectHelper;
   @Autowired private InjectorContractFixture injectorContractFixture;
   @Resource protected ObjectMapper mapper;
+  @Autowired private ExerciseService exerciseService;
+  @Autowired private ExerciseComposer exerciseComposer;
+  @Autowired private InjectComposer injectComposer;
+  @Autowired private InjectStatusComposer injectStatusComposer;
 
   @BeforeEach
   void beforeAll() {
@@ -231,13 +240,25 @@ public class ExerciseApiStatusTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   void rescheduledExerciseTest() throws Exception {
     // --PREPARE--
+    ExerciseComposer.Composer exerciseWrapper =
+        exerciseComposer
+            .forExercise(ExerciseFixture.createCanceledAttackExercise(REFERENCE_TIME))
+            .withInject(
+                injectComposer
+                    .forInject(InjectFixture.getDefaultInject())
+                    .withInjectStatus(
+                        injectStatusComposer.forInjectStatus(
+                            InjectStatusFixture.createSuccessStatus())))
+            .persist();
     ExerciseUpdateStatusInput input = new ExerciseUpdateStatusInput();
     input.setStatus(ExerciseStatus.SCHEDULED);
 
+    entityManager.flush();
+    entityManager.clear();
     // --EXECUTE--
     String response =
         mvc.perform(
-                put(EXERCISE_URI + "/" + CANCELED_EXERCISE.getId() + "/status")
+                put(EXERCISE_URI + "/" + exerciseWrapper.get().getId() + "/status")
                     .content(asJsonString(input))
                     .contentType(MediaType.APPLICATION_JSON)
                     .accept(MediaType.APPLICATION_JSON)
@@ -246,13 +267,18 @@ public class ExerciseApiStatusTest extends IntegrationTest {
             .andReturn()
             .getResponse()
             .getContentAsString();
-
+    entityManager.flush();
+    entityManager.clear();
     // --ASSERT--
     assertNull(JsonPath.read(response, "$.exercise_start_date"));
     assertNull(JsonPath.read(response, "$.exercise_end_date"));
     assertEquals(
         List.of(ExerciseStatus.RUNNING.name()),
         JsonPath.read(response, "$.exercise_next_possible_status"));
+
+    List<Inject> resetInjects =
+        exerciseService.exercise(exerciseWrapper.get().getId()).getInjects();
+    assertThat(resetInjects).allSatisfy(inject -> assertThat(inject.getStatus()).isEmpty());
   }
 
   @DisplayName("Check an exercise from finished to scheduled")
@@ -260,13 +286,25 @@ public class ExerciseApiStatusTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   void rescheduledExerciseFromFinishedStateTest() throws Exception {
     // --PREPARE--
+    ExerciseComposer.Composer exerciseWrapper =
+        exerciseComposer
+            .forExercise(ExerciseFixture.createFinishedAttackExercise(REFERENCE_TIME))
+            .withInject(
+                injectComposer
+                    .forInject(InjectFixture.getDefaultInject())
+                    .withInjectStatus(
+                        injectStatusComposer.forInjectStatus(
+                            InjectStatusFixture.createSuccessStatus())))
+            .persist();
+    entityManager.flush();
+    entityManager.clear();
     ExerciseUpdateStatusInput input = new ExerciseUpdateStatusInput();
     input.setStatus(ExerciseStatus.SCHEDULED);
 
     // --EXECUTE--
     String response =
         mvc.perform(
-                put(EXERCISE_URI + "/" + FINISHED_EXERCISE.getId() + "/status")
+                put(EXERCISE_URI + "/" + exerciseWrapper.get().getId() + "/status")
                     .content(asJsonString(input))
                     .contentType(MediaType.APPLICATION_JSON)
                     .accept(MediaType.APPLICATION_JSON)
@@ -275,6 +313,8 @@ public class ExerciseApiStatusTest extends IntegrationTest {
             .andReturn()
             .getResponse()
             .getContentAsString();
+    entityManager.flush();
+    entityManager.clear();
 
     // --ASSERT--
     assertNull(JsonPath.read(response, "$.exercise_start_date"));
@@ -282,6 +322,10 @@ public class ExerciseApiStatusTest extends IntegrationTest {
     assertEquals(
         List.of(ExerciseStatus.RUNNING.name()),
         JsonPath.read(response, "$.exercise_next_possible_status"));
+
+    List<Inject> resetInjects =
+        exerciseService.exercise(exerciseWrapper.get().getId()).getInjects();
+    assertThat(resetInjects).allSatisfy(inject -> assertThat(inject.getStatus()).isEmpty());
   }
 
   @DisplayName("Check an exercise from pause to running")

@@ -73,11 +73,23 @@ public class UserFixture {
 
   public static UserInput getUserInput(String email, String firstName, String lastName) {
     return new UserInput(
-        email, firstName, lastName, RAW_PASSWORD, null, null, null, null, null, false);
+        email, firstName, lastName, RAW_PASSWORD, null, null, null, null, null, false, null);
   }
 
   public static UserInput getUserInput(String email) {
     return getUserInput(email, "Firstname", "Lastname");
+  }
+
+  public static UserInput getUserInputWithPasswordAndPhone(
+      String email, String firstName, String lastName, String password, String phone) {
+    return new UserInput(
+        email, firstName, lastName, password, null, phone, null, null, null, false, null);
+  }
+
+  public static UserInput getUserInputWithPgpKey(
+      String email, String firstName, String lastName, String pgpKey) {
+    return new UserInput(
+        email, firstName, lastName, null, pgpKey, null, null, null, null, false, null);
   }
 
   public static User getSavedUser() {

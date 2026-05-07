@@ -57,6 +57,7 @@ import io.openaev.rest.scenario.response.ScenarioTeamUserOutput;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
 import io.openaev.service.chaining.WorkflowService;
+import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.mapper.ExerciseMapper;
@@ -132,7 +133,7 @@ public class ScenarioService {
   private final TagRuleService tagRuleService;
   private final InjectService injectService;
   private final UserService userService;
-  private final PlatformSettingsService platformSettingsService;
+  private final TenantSettingsService tenantSettingsService;
   private final CustomDashboardService customDashboardService;
   private final InjectorContractService injectorContractService;
 
@@ -165,10 +166,11 @@ public class ScenarioService {
 
   @Transactional
   public Scenario createScenarioWithInjectorContracts(
+      @NotBlank final String tenantId,
       @NotNull final ScenarioInput scenarioInput,
       @NotNull final InjectorContractSearchPaginationInput injectorContractSearchPaginationInput,
       @NotBlank final String locale) {
-    Scenario preparedScenario = prepareScenarioFromScenarioInput(scenarioInput);
+    Scenario preparedScenario = prepareScenarioFromScenarioInput(tenantId, scenarioInput);
     Scenario scenario = computeAndCreateScenario(preparedScenario);
     this.injectService.createInjectsFromInjectorContractInput(
         null, new ArrayList<>(List.of(scenario)), injectorContractSearchPaginationInput, locale);
@@ -1120,7 +1122,8 @@ public class ScenarioService {
     return this.scenarioRepository.save(scenario);
   }
 
-  private Scenario prepareScenarioFromScenarioInput(@NotNull final ScenarioInput input) {
+  private Scenario prepareScenarioFromScenarioInput(
+      @NotBlank final String tenantId, @NotNull final ScenarioInput input) {
     Scenario scenario = new Scenario();
     scenario.setUpdateAttributes(input);
     scenario.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
@@ -1129,8 +1132,8 @@ public class ScenarioService {
           this.customDashboardService.customDashboard(input.getCustomDashboard()));
     } else {
       scenario.setCustomDashboard(
-          this.platformSettingsService
-              .setting(SettingKeys.DEFAULT_SCENARIO_DASHBOARD.key())
+          this.tenantSettingsService
+              .findSetting(tenantId, TenantSettingKeys.TENANT_SCENARIO_DASHBOARD.key())
               .map(Setting::getValue)
               .filter(v -> !v.isEmpty())
               .map(this.customDashboardService::customDashboard)

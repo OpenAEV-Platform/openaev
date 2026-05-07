@@ -1,0 +1,308 @@
+# =============================================================================
+# OpenAEV Development Profile (Spring profile: dev)
+# =============================================================================
+# Copy this file to application-dev.properties and update values as needed.
+# Activate with: --spring.profiles.active=dev (or ACTIVE_PROFILES=dev in IntelliJ)
+#
+# Default values below match the docker-compose services in openaev-dev/.
+
+# Global configuration
+# suppress inspection "SpringBootApplicationProperties"
+info.app.name=@project.description@
+# suppress inspection "SpringBootApplicationProperties"
+info.app.version=@project.version@
+
+# OpenAEV configuration
+openaev.name=@project.name@
+openaev.version=@project.version@
+openaev.base-url=http://localhost:3001/
+openaev.map-tile-server-light=https://map.openaev.io/styles/filigran-light2/{z}/{x}/{y}.png
+openaev.map-tile-server-dark=https://map.openaev.io/styles/filigran-dark2/{z}/{x}/{y}.png
+openaev.cookie-name=openaev_token
+openaev.cookie-secure=false
+openaev.cookie-duration=P1D
+openaev.admin.email=admin@openaev.io
+openaev.admin.password=admin
+openaev.admin.token=<generate-a-uuid>
+openaev.unsecured-certificate=false
+openaev.with-proxy=false
+openaev.admin.encryption_key=ChangeMe
+openaev.admin.encryption_salt=ChangeMe
+
+# Enterprise license (leave empty for community edition)
+# A valid license can be found in the team's 1Password vault.
+openaev.application-license=
+
+### Telemetry
+telemetry.enable=true
+
+# Server configuration
+server.address=0.0.0.0
+server.port=8080
+server.servlet.context-path=/
+server.servlet.session.timeout=1440m
+server.ssl.enabled=false
+server.http2.enabled=${server.ssl.enabled}
+server.ssl.key-store-type=PKCS12
+server.ssl.key-store=classpath:localhost.p12
+server.ssl.key-store-password=admin
+server.ssl.key-alias=localhost
+
+# Authenticators
+## Local
+openaev.auth-local-enable=true
+
+## Oauth
+openaev.auth-openid-enable=false
+
+## Configuration examples
+### Auth0
+spring.security.oauth2.client.provider.auth0.issuer-uri=https://auth.filigran.io/
+spring.security.oauth2.client.registration.auth0.client-name=Login with auth0
+spring.security.oauth2.client.registration.auth0.client-id=ChangeMe
+spring.security.oauth2.client.registration.auth0.client-secret=ChangeMe
+spring.security.oauth2.client.registration.auth0.redirect-uri=${openaev.base-url}/login/oauth2/code/auth0
+spring.security.oauth2.client.registration.auth0.scope=openid,profile,email,group
+#openaev.provider.auth0.groups_management=
+openaev.provider.auth0.roles_path=https://xtm-hub-development/groups
+
+### GitHub / Facebook or any other pre handled OAuth2
+# spring.security.oauth2.client.registration.{registrationId}.client-name=Login with Github
+# spring.security.oauth2.client.registration.{registrationId}.client-id=
+# spring.security.oauth2.client.registration.{registrationId}.client-secret=
+
+## Saml2
+openaev.auth-saml2-enable=true
+
+## Configuration examples
+spring.security.saml2.relyingparty.registration.microsoft.entity-id=openaev-development
+spring.security.saml2.relyingparty.registration.microsoft.assertingparty.metadata-uri=https://login.microsoftonline.com/f2a29c7e-5230-41d3-b5d1-4b6e2c4e6b7c/federationmetadata/2007-06/federationmetadata.xml?appid=b5717ccc-56f6-42c1-bd76-79ad86aeeb0d
+
+#### saml attibutes keys for firstname & lastname
+openaev.provider.microsoft.firstname_attribute_key=http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname
+openaev.provider.microsoft.lastname_attribute_key=http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname
+
+## Oauth & Saml2
+### To handle admin with sso
+#openaev.provider.microsoft.roles_path=http://schemas.microsoft.com/ws/2008/06/identity/claims/groups
+#openaev.provider.{registrationId}.roles_admin=
+#openaev.provider.microsoft.groups_management=
+
+openaev.logout-success-url=/
+## Kerberos
+openaev.auth-kerberos-enable=false
+
+# Technical
+server.forward-headers-strategy=framework
+spring.servlet.multipart.max-file-size=5GB
+spring.servlet.multipart.max-request-size=5GB
+spring.application.name=${openaev.name}
+spring.quartz.properties.org.quartz.scheduler.instanceName=OpenBAS_Scheduler
+spring.mvc.pathmatch.matching-strategy=ant_path_matcher
+spring.quartz.properties.org.quartz.threadPool.threadCount=10
+spring.data.rest.basePath=/api
+springdoc.api-docs.path=/api-docs
+springdoc.swagger-ui.validatorUrl=none
+
+# Encoding
+spring.mail.default-encoding=UTF-8
+spring.messages.encoding=UTF-8
+server.tomcat.uri-encoding=UTF-8
+spring.freemarker.charset=UTF-8
+server.servlet.encoding.charset=UTF-8
+
+# Database Properties
+### POSTGRESQL Configuration
+# Values should match POSTGRES_USER / POSTGRES_PASSWORD from openaev-dev/.env
+spring.datasource.url=jdbc:postgresql://localhost:5432/openaev
+spring.datasource.username=${POSTGRES_USER:openaev}
+spring.datasource.password=${POSTGRES_PASSWORD:openaev}
+spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
+spring.jpa.hibernate.ddl-auto=none
+#spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.format_sql=true
+spring.flyway.url=${spring.datasource.url}
+spring.flyway.user=${spring.datasource.username}
+spring.flyway.password=${spring.datasource.password}
+spring.flyway.table=migrations
+spring.flyway.locations=classpath:io/openaev/migration
+spring.flyway.baseline-on-migrate=true
+spring.flyway.baseline-version=0
+spring.jpa.properties.hibernate.order_inserts=true
+spring.jpa.properties.hibernate.jdbc.batch_size=50
+#spring.jpa.properties.hibernate.generate_statistics=true
+#spring.jpa.properties.hibernate.use_sql_comments=true
+#spring.jpa.show-sql=true
+#spring.jpa.properties.hibernate.format_sql=true
+
+# IA Properties
+ai.enabled=false
+ai.type=mistralai
+ai.endpoint=
+ai.token=
+ai.model=mistral
+ai.model_images=
+
+# Minio Properties
+# Ports match docker-compose: API on 10000, console on 10001
+minio.endpoint=localhost
+minio.bucket=openaev
+minio.port=10000
+minio.access-key=minioadmin
+minio.access-secret=minioadmin
+
+# Logging
+logging.level.root=fatal
+logging.level.org.flywaydb=info
+logging.level.io.openaev=warn
+logging.file.name=./logs/openaev.log
+logging.logback.rollingpolicy.file-name-pattern=${LOG_FILE}.-%d{yyyy-MM-dd}.%i
+logging.logback.rollingpolicy.max-file-size=10MB
+logging.logback.rollingpolicy.max-history=7
+#logging.level.org.hibernate.SQL=DEBUG
+#logging.level.org.hibernate.orm.jdbc.bind=TRACE
+#logging.level.org.hibernate.type.descriptor.sql.BasicBinder=TRACE
+#logging.level.org.springframework.jdbc.core.JdbcTemplate=DEBUG
+#logging.level.org.springframework.jdbc.core.StatementCreatorUtils=TRACE
+#logging.level.org.hibernate.stat=DEBUG
+
+#############
+# EXECUTORS #
+#############
+
+# Executor Caldera
+executor.caldera.enable=true
+executor.caldera.id=2f9a0936-c327-4e95-b406-d161d32a2500
+executor.caldera.url=http://localhost:8888
+executor.caldera.public-url=http://localhost:8888
+executor.caldera.api-key=ChangeMe
+
+# Executor Tanium
+executor.tanium.enable=true
+executor.tanium.id=fbcce3cc-9cd3-4fdb-b451-1c90f4ae035d
+executor.tanium.url=https://tk-filigran-api.titankube.com
+executor.tanium.api-key=<api-id>
+executor.tanium.computer-group-id=1099673
+executor.tanium.action-group-id=1099763
+executor.tanium.windows-package-id=31056
+executor.tanium.unix-package-id=35659
+
+# Executor Crowdstrike
+executor.crowdstrike.enable=true
+executor.crowdstrike.api-url=https://api.us-2.crowdstrike.com
+executor.crowdstrike.id=2a16dcc4-55ac-40fc-8110-d5968a46cdd1
+executor.crowdstrike.api-batch-execution-action-pagination=2500
+executor.crowdstrike.api-register-interval=1200
+executor.crowdstrike.client-id=<client-id>
+executor.crowdstrike.client-secret=<client-secret>
+executor.crowdstrike.host-group=82cbb75b2e1d4ee4988597f0354c1408
+executor.crowdstrike.windows-script-name=OpenBAS Subprocessor (Windows)
+executor.crowdstrike.unix-script-name=OpenBAS Subprocessor (Unix)
+
+# Executor OpenAev
+# valid values: local | repository
+# default: local
+executor.openaev.binaries.origin=repository
+# if executor.openaev.agent.binaries.origin is set to "local", this config is ignored
+# default: the OpenAEV instance's version
+executor.openaev.binaries.version=prerelease
+
+#############
+# INJECTORS #
+#############
+openaev.rabbitmq.prefix=openaev
+openaev.rabbitmq.hostname=host.docker.internal # you can also set it to localhost, but in case you wish to have injectors installed locally through your docker containers, you must use host.docker.internal instead and then point this domain to 127.0.0.1 in your /etc/hosts
+openaev.rabbitmq.user=guest
+openaev.rabbitmq.pass=guest
+openaev.rabbitmq.queue-type=classic
+
+# Mail sending config (Always available, mandatory)
+# Credentials can be found in 1Password: "[OpenAEV/Dev] SMTP / IMAP account"
+openaev.default-mailer=no-reply@openaev.io
+openaev.default-reply-to=contact@openaev.io
+spring.mail.host=<see-1password>
+spring.mail.port=465
+spring.mail.username=<see-1password>
+spring.mail.password=<see-1password>
+
+# Extra mail configuration
+spring.mail.properties.mail.smtp.ssl.trust=*
+spring.mail.properties.mail.smtp.ssl.enable=true
+spring.mail.properties.mail.smtp.auth=true
+spring.mail.properties.mail.smtp.starttls.enable=true
+
+# IMAP Configuration
+openaev.mail.imap.enabled=true
+openaev.mail.imap.host=<see-1password>
+openaev.mail.imap.username=<see-1password>
+openaev.mail.imap.password=<see-1password>
+openaev.mail.imap.port=993
+openaev.mail.imap.inbox=INBOX
+openaev.mail.imap.sent=Sent
+
+# Extra IMAP configuration
+openaev.mail.imap.ssl.trust=*
+openaev.mail.imap.ssl.enable=true
+openaev.mail.imap.auth=true
+openaev.mail.imap.starttls.enable=true
+
+# Extra XTM configuration
+openaev.xtm.opencti.enable=false
+openaev.xtm.opencti.url=<opencti-url>
+openaev.xtm.opencti.token=<opencti-token>
+
+# Injector Caldera config
+injector.caldera.enable=true
+injector.caldera.id=7736918d-6a3f-46c7-b303-cbf5dc476c84
+injector.caldera.url=http://localhost:8888
+injector.caldera.public-url=http://localhost:8888
+injector.caldera.api-key=ChangeMe
+
+# OVH SMS config
+ovh.sms.enable=true
+ovh.sms.ak=<app-key>
+ovh.sms.as=<app-secret>
+ovh.sms.ck=<consumer-key>
+ovh.sms.service=sms-hs401625-1
+ovh.sms.sender=FILIGRAN
+
+# Mastodon config
+mastodon.enable=false
+mastodon.url=<url>
+
+# Airbus LADE config
+lade.enable=false
+lade.url=<url>
+lade.session=30
+lade.username=<username>
+lade.password=<password>
+
+### ENGINE Configuration
+engine.index-prefix=openaev
+engine.index-suffix=-000001
+engine.url=http://localhost:9200
+engine.engine-selector=elk
+#engine.engine-selector=opensearch
+
+#############
+# COLLECTORS #
+#############
+
+## Collector Sentinel
+collector.sentinel.enable=false
+collector.sentinel.id=689421a0-5121-4b7a-9f98-379827aead9c
+collector.sentinel.authority.base-url=https://login.microsoftonline.com
+collector.sentinel.authority.tenant-id=<tenant-id>
+collector.sentinel.client-id=<client-id>
+collector.sentinel.client-secret=<client-secret>
+collector.sentinel.subscription.id=<subscription-id>
+collector.sentinel.subscription.resource-groups.name=default
+collector.sentinel.subscription.workspace.name=<name>
+
+#############################
+# FEATURE UNDER DEVELOPMENT #
+#############################
+
+# Use "*" to enable all dev features, or a comma-separated list
+openaev.enabled-dev-features=*
+

@@ -409,16 +409,13 @@ class BatchQueueServiceBatchProcessingTest {
     void shouldProcessNullKeyInWorkerZero() throws Exception {
       recreateServiceWithWorkers(2);
 
-      CountDownLatch performCalled = new CountDownLatch(1);
+      CountDownLatch ackCalled = new CountDownLatch(1);
       BatchQueueServiceTest.TestQueueable nullKeyElem =
           new BatchQueueServiceTest.TestQueueable(null);
 
       when(queueExecution.perform(anyList()))
           .thenAnswer(
-              invocation -> {
-                performCalled.countDown();
-                return invocation.<List<BatchQueueServiceTest.TestQueueable>>getArgument(0);
-              });
+              invocation -> invocation.<List<BatchQueueServiceTest.TestQueueable>>getArgument(0));
 
       Map<Integer, BlockingQueue<BatchQueueServiceTest.TestQueueable>> internalQueue =
           getInternalQueue();
@@ -426,12 +423,20 @@ class BatchQueueServiceBatchProcessingTest {
       internalQueue.get(0).add(nullKeyElem);
 
       Channel mockChannel = mock(Channel.class);
+      doAnswer(
+              inv -> {
+                ackCalled.countDown();
+                return null;
+              })
+          .when(mockChannel)
+          .basicAck(eq(1L), eq(false));
+
       Map<BatchQueueServiceTest.TestQueueable, DeliveryContext> deliveryTable = getDeliveryTable();
       deliveryTable.put(
           nullKeyElem, DeliveryContext.builder().tag(1L).deliveryChannel(mockChannel).build());
 
       service.processBufferedBatch(0);
-      assertTrue(performCalled.await(5, TimeUnit.SECONDS), "perform should be called for worker 0");
+      assertTrue(ackCalled.await(5, TimeUnit.SECONDS), "basicAck should be called for worker 0");
 
       verify(mockChannel).basicAck(1L, false);
     }

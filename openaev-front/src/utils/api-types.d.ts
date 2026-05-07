@@ -708,6 +708,11 @@ export interface BrokerConnectionInfo {
   vhost?: string;
 }
 
+export interface CTIEvent {
+  event: Event;
+  internal: Internal;
+}
+
 export interface CVEBulkInsertInput {
   cves: CveCreateInput[];
   initial_dataset_completed?: boolean;
@@ -1228,7 +1233,7 @@ export interface Condition {
 
 /** Condition used to execute a step. Can be a Template or an Execution depending on the status of stepFrom. */
 export interface ConditionCreateInput {
-  /** Key to be compared */
+  /** Property to be mapped */
   condition_key?: string;
   /** Condition key subtype */
   condition_key_subtype?: "port" | "ipv4" | "ipv6" | "username" | "password";
@@ -1254,6 +1259,9 @@ export interface ConditionCreateInput {
     | "delegation"
     | "sid"
     | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account"
     | "asset";
   /** Mapping type: DEFAULT, LOCAL, or GLOBAL. Required when condition type is MAPPER, must be null otherwise. */
   condition_mapping_type?: "DEFAULT" | "LOCAL" | "GLOBAL";
@@ -1287,6 +1295,7 @@ export interface ConditionCreateInput {
 
 export interface ConditionOutput {
   condition_id?: string;
+  condition_key?: string;
   condition_key_subtype?: "port" | "ipv4" | "ipv6" | "username" | "password";
   condition_key_type?:
     | "execution_time"
@@ -1309,6 +1318,9 @@ export interface ConditionOutput {
     | "delegation"
     | "sid"
     | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account"
     | "asset";
   condition_mapping_type?: "DEFAULT" | "LOCAL" | "GLOBAL";
   condition_parent_id?: string;
@@ -2742,6 +2754,11 @@ export interface EvaluationInput {
   evaluation_score?: number;
 }
 
+export interface Event {
+  /** @minLength 1 */
+  stix_objects: string;
+}
+
 export interface EventInput {
   /** @minItems 1 */
   event_conditions: ConditionCreateInput[];
@@ -3413,13 +3430,6 @@ export interface Group {
   group_roles?: string[];
   group_users?: string[];
   listened?: boolean;
-}
-
-export interface GroupCreateInput {
-  group_default_user_assign?: boolean;
-  group_description?: string;
-  /** @minLength 1 */
-  group_name: string;
 }
 
 export interface GroupGrantInput {
@@ -4230,6 +4240,7 @@ export interface InjectorContract {
   injector_contract_manual?: boolean;
   injector_contract_needs_executor?: boolean;
   injector_contract_payload?: Payload;
+  injector_contract_payload_status?: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   injector_contract_platforms?: (
     | "Linux"
     | "Windows"
@@ -4520,6 +4531,11 @@ export interface InjectsImportTestInput {
   sheet_name: string;
   /** @format int32 */
   timezone_offset: number;
+}
+
+export interface Internal {
+  /** @minLength 1 */
+  work_id: string;
 }
 
 export interface JsonApiDocumentResourceObject {
@@ -4899,6 +4915,37 @@ export interface LoginUserInput {
   password: string;
   /** The tenant ID the user is logging into (optional) */
   tenantId?: string;
+}
+
+export interface MapperConditionOutput {
+  condition_key?: string;
+  condition_key_type?:
+    | "execution_time"
+    | "step_template_id"
+    | "text"
+    | "status"
+    | "number"
+    | "port"
+    | "portscan"
+    | "ipv4"
+    | "ipv6"
+    | "credentials"
+    | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account"
+    | "asset";
+  condition_mapping_type?: "DEFAULT" | "LOCAL" | "GLOBAL";
+  condition_value?: string;
 }
 
 export interface Mitigation {
@@ -5868,14 +5915,6 @@ export type PayloadCreateInput = BasePayloadCreateInput &
     | BasePayloadCreateInputPayloadTypeMapping<"NetworkTraffic", NetworkTraffic>
   );
 
-export interface PayloadExportRequestInput {
-  payloads?: PayloadExportTarget[];
-}
-
-export interface PayloadExportTarget {
-  payload_id?: string;
-}
-
 export interface PayloadInput {
   command_content?: string | null;
   command_executor?: string | null;
@@ -6141,12 +6180,14 @@ export interface PayloadsDeprecateInput {
 }
 
 export interface PlatformGroupInput {
+  group_default_user_assign?: boolean;
   platform_group_description?: string;
   /** @minLength 1 */
   platform_group_name: string;
 }
 
 export interface PlatformGroupOutput {
+  group_default_user_assign?: boolean;
   platform_group_description?: string;
   /** @minLength 1 */
   platform_group_id: string;
@@ -6208,9 +6249,9 @@ export interface PlatformRoleInput {
     | "ACCESS_TENANT_SETTINGS"
     | "MANAGE_TENANT_SETTINGS"
     | "DELETE_TENANT_SETTINGS"
-    | "ACCESS_PLATFORM_GROUPS_AND_ROLES"
-    | "MANAGE_PLATFORM_GROUPS_AND_ROLES"
-    | "DELETE_PLATFORM_GROUPS_AND_ROLES"
+    | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
+    | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
+    | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_STIX_BUNDLE"
   )[];
   platform_role_description?: string;
@@ -6252,8 +6293,6 @@ export interface PlatformSettings {
     | "STIX_SECURITY_COVERAGE_FOR_VULNERABILITIES"
     | "LEGACY_INGESTION_EXECUTION_TRACE"
     | "MULTI_TENANCY"
-    | "SENTINEL_ONE_EXECUTOR"
-    | "PALO_ALTO_CORTEX_EXECUTOR"
     | "OPENAEV_TRIALS_XTMHUB"
     | "INJECT_CHAINING"
   )[];
@@ -6318,8 +6357,6 @@ export interface PlatformSettings {
   platform_base_url?: string;
   /** Definition of the dark theme */
   platform_dark_theme?: ThemeInput;
-  /** Default home dashboard of the platform */
-  platform_home_dashboard?: string;
   /** id of the platform */
   platform_id?: string;
   /**
@@ -6340,10 +6377,6 @@ export interface PlatformSettings {
   platform_openid_providers?: OAuthProvider[];
   /** Policies of the platform */
   platform_policies?: PolicyInput;
-  /** Default scenario dashboard of the platform */
-  platform_scenario_dashboard?: string;
-  /** Default simulation dashboard of the platform */
-  platform_simulation_dashboard?: string;
   /**
    * Theme of the platform
    * @minLength 1
@@ -6536,8 +6569,6 @@ export interface PublicPlatformSettings {
     | "STIX_SECURITY_COVERAGE_FOR_VULNERABILITIES"
     | "LEGACY_INGESTION_EXECUTION_TRACE"
     | "MULTI_TENANCY"
-    | "SENTINEL_ONE_EXECUTOR"
-    | "PALO_ALTO_CORTEX_EXECUTOR"
     | "OPENAEV_TRIALS_XTMHUB"
     | "INJECT_CHAINING"
   )[];
@@ -6895,9 +6926,9 @@ export interface RoleInput {
     | "ACCESS_TENANT_SETTINGS"
     | "MANAGE_TENANT_SETTINGS"
     | "DELETE_TENANT_SETTINGS"
-    | "ACCESS_PLATFORM_GROUPS_AND_ROLES"
-    | "MANAGE_PLATFORM_GROUPS_AND_ROLES"
-    | "DELETE_PLATFORM_GROUPS_AND_ROLES"
+    | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
+    | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
+    | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_STIX_BUNDLE"
   )[];
   role_description?: string;
@@ -7101,6 +7132,8 @@ export interface ScenarioOutput {
    * @minLength 1
    */
   scenario_mail_from: string;
+  /** Sender display name of the scenario */
+  scenario_mail_from_name?: string;
   /** Main focus value of the scenario */
   scenario_main_focus?: string;
   /** Footer of the scenario */
@@ -7197,6 +7230,84 @@ export interface ScenarioUpdateTeamsInput {
   scenario_teams?: string[];
 }
 
+/** Input for a scope variable attached to a workflow. */
+export interface ScopeVariableInput {
+  /** Optional description of the variable's purpose. */
+  scope_variable_description?: string;
+  /** ID of an existing scope variable. Null means a new variable will be created. */
+  scope_variable_id?: string;
+  /**
+   * Unique key used to reference the variable in templates (e.g. company_name).
+   * @minLength 1
+   */
+  scope_variable_key: string;
+  /** Argument type driving how the variable value is interpreted. */
+  scope_variable_type:
+    | "text"
+    | "number"
+    | "port"
+    | "portscan"
+    | "ipv4"
+    | "ipv6"
+    | "credentials"
+    | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account"
+    | "document"
+    | "targeted-asset";
+  /**
+   * Value of the variable.
+   * @minLength 1
+   */
+  scope_variable_value: string;
+}
+
+/** Output for a scope variable attached to a workflow. */
+export interface ScopeVariableOutput {
+  /** Optional description of the variable's purpose. */
+  scope_variable_description?: string;
+  /** Unique ID of the scope variable. */
+  scope_variable_id?: string;
+  /** Key used to reference the variable in templates. */
+  scope_variable_key?: string;
+  /** Argument type driving how the variable value is interpreted. */
+  scope_variable_type?:
+    | "text"
+    | "number"
+    | "port"
+    | "portscan"
+    | "ipv4"
+    | "ipv6"
+    | "credentials"
+    | "cve"
+    | "username"
+    | "share"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account"
+    | "document"
+    | "targeted-asset";
+  /** Value of the variable. */
+  scope_variable_value?: string;
+}
+
 export interface SearchPaginationInput {
   /** Filter object to search within filterable attributes */
   filterGroup?: FilterGroup;
@@ -7282,24 +7393,6 @@ export interface SettingsPlatformWhitemarkUpdateInput {
   platform_whitemark: string;
 }
 
-export interface SettingsUpdateInput {
-  /**
-   * Language of the platform
-   * @minLength 1
-   */
-  platform_lang: string;
-  /**
-   * Name of the platform
-   * @minLength 1
-   */
-  platform_name: string;
-  /**
-   * Theme of the platform
-   * @minLength 1
-   */
-  platform_theme: string;
-}
-
 export interface SimulationChallengesReader {
   exercise_challenges?: ChallengeInformation[];
   exercise_id?: string;
@@ -7328,6 +7421,7 @@ export interface SimulationDetails {
   exercise_logs_number?: number;
   /** @minLength 1 */
   exercise_mail_from: string;
+  exercise_mail_from_name?: string;
   exercise_mails_reply_to?: string[];
   exercise_main_focus?: string;
   exercise_message_footer?: string;
@@ -7451,6 +7545,7 @@ export interface StepInput {
 }
 
 export interface StepOutput {
+  step_condition_ids?: string[];
   step_condition_key_types?: (
     | "execution_time"
     | "step_template_id"
@@ -7472,12 +7567,16 @@ export interface StepOutput {
     | "delegation"
     | "sid"
     | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account"
     | "asset"
   )[];
   /** @format date-time */
   step_created_at?: string;
   step_data?: JsonNode;
   step_id?: string;
+  step_mapper_conditions?: MapperConditionOutput[];
   step_status?: "TEMPLATE" | "READY" | "RUN" | "END";
   /** @format date-time */
   step_updated_at?: string;
@@ -7786,6 +7885,13 @@ export interface TeamUpdateInput {
   team_tags?: string[];
 }
 
+export interface TenantGroupCreateInput {
+  group_default_user_assign?: boolean;
+  group_description?: string;
+  /** @minLength 1 */
+  group_name: string;
+}
+
 export interface TenantInput {
   tenant_description?: string;
   /** @minLength 1 */
@@ -7803,15 +7909,29 @@ export interface TenantOutput {
 }
 
 export interface TenantSettingsOutput {
+  platform_dark_theme?: ThemeInput;
   platform_home_dashboard?: string;
+  /** @minLength 1 */
+  platform_lang: string;
+  platform_light_theme?: ThemeInput;
+  /** @minLength 1 */
+  platform_name: string;
   platform_scenario_dashboard?: string;
   platform_simulation_dashboard?: string;
+  /** @minLength 1 */
+  platform_theme: string;
 }
 
 export interface TenantSettingsUpdateInput {
   platform_home_dashboard?: string;
+  /** @minLength 1 */
+  platform_lang: string;
+  /** @minLength 1 */
+  platform_name: string;
   platform_scenario_dashboard?: string;
   platform_simulation_dashboard?: string;
+  /** @minLength 1 */
+  platform_theme: string;
 }
 
 export interface ThemeInput {
@@ -8276,9 +8396,9 @@ export interface User {
     | "ACCESS_TENANT_SETTINGS"
     | "MANAGE_TENANT_SETTINGS"
     | "DELETE_TENANT_SETTINGS"
-    | "ACCESS_PLATFORM_GROUPS_AND_ROLES"
-    | "MANAGE_PLATFORM_GROUPS_AND_ROLES"
-    | "DELETE_PLATFORM_GROUPS_AND_ROLES"
+    | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
+    | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
+    | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_STIX_BUNDLE"
   )[];
   /** City of the user */
@@ -8365,6 +8485,7 @@ export interface UserInput {
   user_phone?: string;
   user_plain_password?: string;
   user_tags?: string[];
+  user_tenants?: string[];
 }
 
 export interface UserOutput {
@@ -8385,6 +8506,12 @@ export interface UserOutput {
   user_phone?: string;
   /** @uniqueItems true */
   user_tags?: string[];
+  user_tenants?: UserTenantOutput[];
+}
+
+export interface UserTenantOutput {
+  tenant_id?: string;
+  tenant_name?: string;
 }
 
 export interface ValidationContent {
@@ -8757,6 +8884,8 @@ export interface WorkflowConfigurationInput {
   workflow_configuration_timeout_seconds?: number;
   /** List scope rules. */
   workflow_scope_rules?: WorkflowScopeRuleInput[];
+  /** List of custom variables available for template substitution in this workflow. */
+  workflow_scope_variables?: ScopeVariableInput[];
 }
 
 /** Output for a workflow configuration. */
@@ -8784,6 +8913,8 @@ export interface WorkflowConfigurationOutput {
   workflow_configuration_timeout_seconds?: number;
   /** List scope rules */
   workflow_scope_rules?: WorkflowScopeRuleOutput[];
+  /** Custom variables available for template substitution in this workflow. */
+  workflow_scope_variables?: ScopeVariableOutput[];
 }
 
 /** Input for a scope rule used in workflow configuration. */
