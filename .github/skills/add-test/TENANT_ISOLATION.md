@@ -63,7 +63,64 @@ class TenantIsolation {
 }
 ```
 
-### Step 4 — Implement Test Methods
+### Step 4 — Evict Hibernate L1 Cache Between Create and Cross-Tenant Access
+
+**Critical**: When a test creates an entity and then reads it within the same `@Transactional`
+test, Hibernate's L1 (session) cache may return the entity directly **without hitting the
+database**. Since RLS filtering happens at the PostgreSQL level, a cached `findById()` bypasses
+RLS entirely — making the test pass even when isolation is broken.
+
+**Always call `entityManager.flush()` + `entityManager.clear()` between the create and the
+cross-tenant access** to force Hibernate to issue a real SQL query that goes through RLS.
+
+```java
+@Autowired private jakarta.persistence.EntityManager entityManager;
+
+// ... after creating the entity in tenant X ...
+
+// Evict L1 cache so the next findById() hits the DB where RLS applies
+entityManager.flush();
+entityManager.clear();
+
+// ... now perform the cross-tenant read/update/delete from tenant Y ...
+```
+
+**Example from `AtomicTestingApiTest`** — native SQL insert with cache eviction:
+
+```java
+private Inject createInjectInTenant(Tenant tenant) {
+  String injectId = UUID.randomUUID().toString();
+  String title = "Isolation Test Inject " + UUID.randomUUID().toString().substring(0, 8);
+  // Temporarily set RLS context to target tenant for the insert
+  entityManager
+      .createNativeQuery("SELECT set_config('app.current_tenant', :tenantId, true)")
+      .setParameter("tenantId", tenant.getId())
+      .getSingleResult();
+  entityManager
+      .createNativeQuery(
+          "INSERT INTO injects (inject_id, inject_title, tenant_id, inject_depends_duration, "
+              + "inject_enabled, inject_all_teams, inject_created_at, inject_updated_at) "
+              + "VALUES (:id, :title, :tenantId, 0, true, false, now(), now())")
+      .setParameter("id", injectId)
+      .setParameter("title", title)
+      .setParameter("tenantId", tenant.getId())
+      .executeUpdate();
+  // Evict L1 cache — without this, findById() returns the cached entity and bypasses RLS
+  entityManager.flush();
+  entityManager.clear();
+  Inject inject = new Inject();
+  inject.setId(injectId);
+  inject.setTitle(title);
+  return inject;
+}
+```
+
+> **Why not just use the API to create?** Some entities require complex service-level setup
+> (e.g., injector registration) that may not exist for a freshly created tenant. Native SQL
+> with `set_config('app.current_tenant', tenantId, true)` bypasses that complexity while
+> still respecting RLS for subsequent operations.
+
+### Step 5 — Implement Test Methods
 
 Use this template. Replace placeholders:
 - `{Entity}` — entity name (e.g., `Scenario`, `Group`)
@@ -271,67 +328,63 @@ void given_{entity}InTenantX_should_notBeUpdatableFromTenantY() throws Exception
 @Test
 @DisplayName("{Entity} created in tenant X should NOT be deletable from tenant Y")
 void given_{entity}InTenantX_should_notBeDeletableFromTenantY() throws Exception {
-  // -------- Arrange --------
-  Tenant tenantX =
-      tenantIsolationHelper.createTenantWithCapabilities(
-          "Tenant X", Set.of({MANAGE_CAP}, {ACCESS_CAP}));
-  Tenant tenantY =
-      tenantIsolationHelper.createTenantWithCapabilities(
-          "Tenant Y", Set.of({DELETE_CAP}, {ACCESS_CAP}));
-
-  {CreateInput} input = new {CreateInput}();
-  input.setName("Delete Isolation Test");
-
-  String createResponse =
-      mvc.perform(
-              post("/api/tenants/" + tenantX.getId() + "/{entities}")
-                  .content(asJsonString(input))
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON)
-                  .with(csrf()))
-          .andExpect(status().is2xxSuccessful())
-          .andReturn()
-          .getResponse()
-          .getContentAsString();
-
-  String entityId = JsonPath.read(createResponse, "{entity_id_json_path}");
-
-  // -------- Act — delete from tenant Y --------
-  int responseStatus =
-      mvc.perform(
-              delete("/api/tenants/" + tenantY.getId() + "/{entities}/" + entityId)
-                  .accept(MediaType.APPLICATION_JSON)
-                  .with(csrf()))
-          .andReturn()
-          .getResponse()
-          .getStatus();
-
-  // -------- Assert --------
-  assertTrue(
-      responseStatus == 403 || responseStatus == 404,
-      "Expected 403 or 404 but got " + responseStatus
-          + " — cross-tenant delete was NOT blocked");
+  // ... (same pattern as above)
 }
 ```
 
-### Step 5 — Verify
+### Step 6 — Use `@WithoutRls` to Identify APIs That Rely Solely on RLS
 
-```bash
-mvn test -pl openaev-api -Dtest="{Feature}ApiTest\$TenantIsolation"
+The `@WithoutRls` annotation disables PostgreSQL Row-Level Security for a single test method
+by executing `RESET ROLE` (switching to superuser, which bypasses RLS). After the test,
+`SET ROLE openaev_app` is restored automatically.
+
+**Purpose**: distinguish between two levels of tenant isolation:
+
+| Layer | Mechanism | What `@WithoutRls` reveals |
+|-------|-----------|---------------------------|
+| **Application-level** | `findByIdAndTenantId()`, Hibernate `@Filter`, `WHERE tenant_id = ?` in native queries | Test still passes with `@WithoutRls` → ✅ app code filters correctly |
+| **RLS (safety net)** | PostgreSQL RLS policy on `openaev_app` role | Test fails with `@WithoutRls` → ⚠️ only RLS protects this endpoint |
+
+**How to use**:
+
+1. Write the tenant isolation test normally (it should pass with RLS active)
+2. Add `@WithoutRls` to the test method
+3. Run the test again:
+   - **Still passes (403/404)** → the application code properly scopes by tenant ✅
+   - **Fails (200)** → the API relies on RLS as its only protection ⚠️ — flag for a
+     production code fix (add `findByIdAndTenantId` or tenant-scoped query)
+
+```java
+@Test
+@WithoutRls // Disables RLS → test checks if app-level filtering exists
+@DisplayName("{Entity} created in tenant X should NOT be readable from tenant Y")
+void given_{entity}InTenantX_should_notBeReadableFromTenantY() throws Exception {
+  // ... same test body ...
+  // If this returns 200 instead of 403/404, the API has no app-level tenant check
+}
 ```
 
-## Key Points
+**Example from `PayloadApiTest`** — commented toggle for diagnostic use:
 
-| Concern | How it's handled |
-|---|---|
-| RBAC | `createTenantWithCapabilities` creates Role → Group → User in the tenant |
-| Tenant context | The `/api/tenants/{tenantId}/...` path sets `TenantContext` via interceptor |
-| Expected responses | Cross-tenant operations return **403 or 404** (both acceptable — permission layer or data layer blocks) |
-| flush/clear | `TenantIsolationTestHelper` flushes and clears the EntityManager so `userService.currentUser()` sees the new groups |
-| No `isAdmin=true` | Tests use real capabilities to verify both RBAC and data isolation together |
+```java
+@Test
+@DisplayName("Payload created in tenant X should NOT be readable from tenant Y")
+//@WithoutRls // uncomment to verify: does app-level filtering exist, or only RLS?
+void given_payloadInTenantX_should_notBeReadableFromTenantY() throws Exception {
+  // ...
+}
+```
 
-## Reference Implementations
+**Implementation details** (`WithoutRls.java` + `RlsToggleExtension.java`):
+- `@WithoutRls` is a JUnit 5 composed annotation with `@ExtendWith(RlsToggleExtension.class)`
+- `RlsToggleExtension.beforeEach()` → `RESET ROLE` (superuser bypasses RLS)
+- `RlsToggleExtension.afterEach()` → `SET ROLE openaev_app` (restore RLS)
+- Works inside `@Transactional` tests because it uses native SQL on the current connection
 
-- `ScenarioApiTest.TenantIsolation` — grant-based resource (SCENARIO in `RESOURCES_MANAGED_BY_GRANTS`)
-- `TenantGroupApiTest.TenantIsolation` — capability-only resource (USER_GROUP)
+> **When to `@Disabled` vs `@WithoutRls`**: Use `@Disabled` with a FIXME when a test reveals
+> a real vulnerability (e.g., `deleteById()` without tenant check returns 200). Use
+> `@WithoutRls` as a diagnostic tool to check whether app-level filtering exists — don't
+> leave it uncommented in committed tests (RLS should remain active by default).
+
+
 

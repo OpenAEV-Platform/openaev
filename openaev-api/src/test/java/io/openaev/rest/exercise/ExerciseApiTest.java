@@ -32,14 +32,18 @@ import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.output.InjectOutput;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.WithoutRls;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utilstest.RabbitMQTestListener;
 import jakarta.annotation.Nullable;
 import java.time.Instant;
 import java.util.*;
+import java.util.Set;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -59,6 +63,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ExerciseApiTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper objectMapper;
+  @Autowired private jakarta.persistence.EntityManager entityManager;
   @Autowired private AgentComposer agentComposer;
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private ExerciseComposer exerciseComposer;
@@ -77,6 +82,7 @@ public class ExerciseApiTest extends IntegrationTest {
   @Autowired private ScenarioRepository scenarioRepository;
   @Autowired private CustomDashboardRepository customDashboardRepository;
   @Autowired private SettingRepository settingRepository;
+  @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
 
   private static final List<String> COMPOSER_EXERCISE_IDS = new ArrayList<>();
   private static final List<String> EXERCISE_IDS = new ArrayList<>();
@@ -697,6 +703,252 @@ public class ExerciseApiTest extends IntegrationTest {
           result.getTitle().contains("duplicate"),
           "Le titre de l'inject dupliqué doit contenir 'Duplicate'");
       assertTrue(injectRepository.existsById(result.getId()));
+    }
+  }
+
+  @Nested
+  @DisplayName("Tenant Isolation")
+  @WithMockUser(
+      withCapabilities = {
+        Capability.MANAGE_ASSESSMENT,
+        Capability.ACCESS_ASSESSMENT,
+        Capability.DELETE_ASSESSMENT
+      })
+  class TenantIsolation {
+
+    @Test
+    @DisplayName("Exercise created in tenant X should NOT be readable from tenant Y")
+    //@WithoutRls // uncomment to fail the test: native query caught by RLS
+    void given_exerciseInTenantX_should_notBeReadableFromTenantY() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_ASSESSMENT));
+
+      CreateExerciseInput input = new CreateExerciseInput();
+      input.setName("RLS Isolation Test Exercise");
+
+      String createResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantX.getId() + "/exercises")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String exerciseId = JsonPath.read(createResponse, "$.exercise_id");
+
+      // -------- Act — read from tenant Y (expect 403 or 404) --------
+      int responseStatus =
+          mvc.perform(
+                  get("/api/tenants/" + tenantY.getId() + "/exercises/" + exerciseId)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // -------- Assert --------
+      assertTrue(
+          responseStatus == 403 || responseStatus == 404,
+          "Expected 403 or 404 but got "
+              + responseStatus
+              + " — cross-tenant exercise read was NOT blocked");
+    }
+
+    @Test
+    @DisplayName("Exercise created in tenant X should be readable from tenant X")
+    void given_exerciseInTenantX_should_beReadableFromTenantX() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+
+      CreateExerciseInput input = new CreateExerciseInput();
+      input.setName("Same Tenant Exercise");
+
+      String createResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantX.getId() + "/exercises")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String exerciseId = JsonPath.read(createResponse, "$.exercise_id");
+
+      // -------- Act & Assert — read from same tenant should succeed --------
+      mvc.perform(
+              get("/api/tenants/" + tenantX.getId() + "/exercises/" + exerciseId)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.exercise_name").value("Same Tenant Exercise"));
+    }
+
+    @Test
+    @DisplayName("Exercise search in tenant Y should NOT return exercises from tenant X")
+    void given_exerciseInTenantX_should_notAppearInTenantYSearch() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_ASSESSMENT));
+
+      CreateExerciseInput input = new CreateExerciseInput();
+      input.setName("CrossTenantSearchExercise");
+
+      mvc.perform(
+              post("/api/tenants/" + tenantX.getId() + "/exercises")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      // Evict L1 cache so findById() hits the DB (where RLS filters)
+      entityManager.flush();
+      entityManager.clear();
+
+      // -------- Act — search from tenant Y --------
+      SearchPaginationInput searchInput = new SearchPaginationInput();
+      searchInput.setTextSearch("CrossTenantSearchExercise");
+      searchInput.setSize(100);
+      searchInput.setPage(0);
+
+      String searchResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantY.getId() + "/exercises/search")
+                      .content(asJsonString(searchInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -------- Assert — no results from tenant X --------
+      assertEquals(Integer.valueOf(0), JsonPath.read(searchResponse, "$.totalElements"));
+    }
+
+    @Test
+    @DisplayName("Exercise created in tenant X should NOT be updatable from tenant Y")
+    //@WithoutRls // uncomment to fail the test: native query caught by RLS
+    void given_exerciseInTenantX_should_notBeUpdatableFromTenantY() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+
+      CreateExerciseInput input = new CreateExerciseInput();
+      input.setName("Update Isolation Test Exercise");
+
+      String createResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantX.getId() + "/exercises")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String exerciseId = JsonPath.read(createResponse, "$.exercise_id");
+
+      // Evict L1 cache so findById() hits the DB (where RLS filters)
+      entityManager.flush();
+      entityManager.clear();
+
+      // -------- Act — update from tenant Y --------
+      UpdateExerciseInput updateInput = new UpdateExerciseInput();
+      updateInput.setName("Hijacked Name");
+
+      int responseStatus =
+          mvc.perform(
+                  put("/api/tenants/" + tenantY.getId() + "/exercises/" + exerciseId)
+                      .content(asJsonString(updateInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // -------- Assert --------
+      assertTrue(
+          responseStatus == 403 || responseStatus == 404,
+          "Expected 403 or 404 but got "
+              + responseStatus
+              + " — cross-tenant exercise update was NOT blocked");
+    }
+
+    @Test
+    @DisplayName("Exercise created in tenant X should NOT be deletable from tenant Y")
+    //@WithoutRls // uncomment to fail the test: native query caught by RLS
+    void given_exerciseInTenantX_should_notBeDeletableFromTenantY() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.DELETE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+
+      CreateExerciseInput input = new CreateExerciseInput();
+      input.setName("Delete Isolation Test Exercise");
+
+      String createResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantX.getId() + "/exercises")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String exerciseId = JsonPath.read(createResponse, "$.exercise_id");
+
+      // Evict L1 cache so deleteById() hits the DB (where RLS filters)
+      entityManager.flush();
+      entityManager.clear();
+
+      // -------- Act — delete from tenant Y --------
+      int responseStatus =
+          mvc.perform(
+                  delete("/api/tenants/" + tenantY.getId() + "/exercises/" + exerciseId)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // -------- Assert --------
+      assertTrue(
+          responseStatus == 403 || responseStatus == 404,
+          "Expected 403 or 404 but got "
+              + responseStatus
+              + " — cross-tenant exercise delete was NOT blocked");
     }
   }
 }

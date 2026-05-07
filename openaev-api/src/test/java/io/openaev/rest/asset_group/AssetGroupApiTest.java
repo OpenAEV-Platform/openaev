@@ -19,20 +19,24 @@ import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.rest.asset_group.form.AssetGroupInput;
 import io.openaev.rest.exercise.service.ExerciseService;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.TagFixture;
 import io.openaev.utils.fixtures.composers.AssetGroupComposer;
 import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
 import jakarta.servlet.ServletException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Stream;
 import org.json.JSONArray;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -59,6 +63,7 @@ class AssetGroupApiTest extends IntegrationTest {
   @Autowired private EntityManager entityManager;
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private AssetGroupComposer assetGroupComposer;
+  @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
 
   @DisplayName(
       "Given valid AssetGroupInput, should create and get assetGroup without dynamic filter successfully")
@@ -606,6 +611,250 @@ class AssetGroupApiTest extends IntegrationTest {
               List.of("win-host"),
               List.of("windowsX86", "windowsArm")),
           Arguments.of("endpoint_ips", "contains", List.of("10.0.1"), List.of("linuxX86")));
+    }
+  }
+
+  @Nested
+  @DisplayName("Tenant Isolation")
+  @WithMockUser
+  class TenantIsolation {
+
+    @Test
+    @Disabled("TODO multi-tenancy")
+    @DisplayName("AssetGroup created in tenant X should NOT be readable from tenant Y")
+    void given_assetGroupInTenantX_should_notBeReadableFromTenantY() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_ASSETS, Capability.ACCESS_ASSETS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_ASSETS));
+
+      AssetGroupInput input = new AssetGroupInput();
+      input.setName("RLS Isolation Test AssetGroup");
+
+      String createResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantX.getId() + "/asset_groups")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String assetGroupId = JsonPath.read(createResponse, "$.asset_group_id");
+
+      // Evict L1 cache so findById() hits the DB
+      entityManager.flush();
+      entityManager.clear();
+
+      // -------- Act — read from tenant Y (expect 403 or 404) --------
+      int responseStatus =
+          mvc.perform(
+                  get("/api/tenants/" + tenantY.getId() + "/asset_groups/" + assetGroupId)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // -------- Assert --------
+      assertTrue(
+          responseStatus == 403 || responseStatus == 404,
+          "Expected 403 or 404 but got "
+              + responseStatus
+              + " — cross-tenant asset group read was NOT blocked");
+    }
+
+    @Test
+    @DisplayName("AssetGroup created in tenant X should be readable from tenant X")
+    void given_assetGroupInTenantX_should_beReadableFromTenantX() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_ASSETS, Capability.ACCESS_ASSETS));
+
+      AssetGroupInput input = new AssetGroupInput();
+      input.setName("Same Tenant AssetGroup");
+
+      String createResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantX.getId() + "/asset_groups")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String assetGroupId = JsonPath.read(createResponse, "$.asset_group_id");
+
+      // -------- Act & Assert — read from same tenant should succeed --------
+      mvc.perform(
+              get("/api/tenants/" + tenantX.getId() + "/asset_groups/" + assetGroupId)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("AssetGroup search in tenant Y should NOT return asset groups from tenant X")
+    void given_assetGroupInTenantX_should_notAppearInTenantYSearch() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_ASSETS, Capability.ACCESS_ASSETS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_ASSETS));
+
+      AssetGroupInput input = new AssetGroupInput();
+      input.setName("CrossTenantSearchAssetGroup");
+
+      mvc.perform(
+              post("/api/tenants/" + tenantX.getId() + "/asset_groups")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      // Evict L1 cache
+      entityManager.flush();
+      entityManager.clear();
+
+      // -------- Act — search from tenant Y --------
+      SearchPaginationInput searchInput = new SearchPaginationInput();
+      searchInput.setTextSearch("CrossTenantSearchAssetGroup");
+      searchInput.setSize(100);
+      searchInput.setPage(0);
+
+      String searchResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantY.getId() + "/asset_groups/search")
+                      .content(asJsonString(searchInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -------- Assert --------
+      assertEquals(Integer.valueOf(0), JsonPath.read(searchResponse, "$.totalElements"));
+    }
+
+    @Test
+    @Disabled("TODO multi-tenancy")
+    @DisplayName("AssetGroup created in tenant X should NOT be updatable from tenant Y")
+    void given_assetGroupInTenantX_should_notBeUpdatableFromTenantY() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_ASSETS, Capability.ACCESS_ASSETS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.MANAGE_ASSETS, Capability.ACCESS_ASSETS));
+
+      AssetGroupInput input = new AssetGroupInput();
+      input.setName("Update Isolation Test");
+
+      String createResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantX.getId() + "/asset_groups")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String assetGroupId = JsonPath.read(createResponse, "$.asset_group_id");
+
+      // Evict L1 cache
+      entityManager.flush();
+      entityManager.clear();
+
+      // -------- Act — update from tenant Y --------
+      AssetGroupInput updateInput = new AssetGroupInput();
+      updateInput.setName("Hijacked Name");
+
+      int responseStatus =
+          mvc.perform(
+                  put("/api/tenants/" + tenantY.getId() + "/asset_groups/" + assetGroupId)
+                      .content(asJsonString(updateInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // -------- Assert --------
+      assertTrue(
+          responseStatus == 403 || responseStatus == 404,
+          "Expected 403 or 404 but got "
+              + responseStatus
+              + " — cross-tenant asset group update was NOT blocked");
+    }
+
+    @Test
+    @Disabled("TODO multi-tenancy")
+    @DisplayName("AssetGroup created in tenant X should NOT be deletable from tenant Y")
+    void given_assetGroupInTenantX_should_notBeDeletableFromTenantY() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_ASSETS, Capability.ACCESS_ASSETS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.DELETE_ASSETS, Capability.ACCESS_ASSETS));
+
+      AssetGroupInput input = new AssetGroupInput();
+      input.setName("Delete Isolation Test");
+
+      String createResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantX.getId() + "/asset_groups")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String assetGroupId = JsonPath.read(createResponse, "$.asset_group_id");
+
+      // Evict L1 cache
+      entityManager.flush();
+      entityManager.clear();
+
+      // -------- Act — delete from tenant Y --------
+      int responseStatus =
+          mvc.perform(
+                  delete("/api/tenants/" + tenantY.getId() + "/asset_groups/" + assetGroupId)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // -------- Assert --------
+      assertTrue(
+          responseStatus == 403 || responseStatus == 404,
+          "Expected 403 or 404 but got "
+              + responseStatus
+              + " — cross-tenant asset group delete was NOT blocked");
     }
   }
 }

@@ -16,6 +16,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.DocumentRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectStatusRepository;
+import io.openaev.utils.WithoutRls;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -23,11 +24,15 @@ import jakarta.annotation.Nullable;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 import net.javacrumbs.jsonunit.core.Option;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.pagination.SearchPaginationInput;
 
 @TestInstance(PER_CLASS)
 @Transactional
@@ -892,6 +897,145 @@ public class AtomicTestingApiTest extends IntegrationTest {
             .isEqualTo(InjectExpectation.EXPECTATION_TYPE.PREVENTION.name());
         assertThatJson(responsePrevention).node("[0].inject_expectation_score").isEqualTo("100.0");
       }
+    }
+  }
+
+  @Nested
+  @DisplayName("Tenant Isolation")
+  @WithMockUser(
+      withCapabilities = {
+        Capability.MANAGE_ASSESSMENT,
+        Capability.ACCESS_ASSESSMENT,
+        Capability.DELETE_ASSESSMENT
+      })
+  class TenantIsolation {
+
+    @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
+
+    private Inject createInjectInTenant(Tenant tenant) {
+      String injectId = UUID.randomUUID().toString();
+      String title = "Isolation Test Inject " + UUID.randomUUID().toString().substring(0, 8);
+      // Temporarily set RLS context to target tenant for the insert
+      entityManager
+          .createNativeQuery("SELECT set_config('app.current_tenant', :tenantId, true)")
+          .setParameter("tenantId", tenant.getId())
+          .getSingleResult();
+      entityManager
+          .createNativeQuery(
+              "INSERT INTO injects (inject_id, inject_title, tenant_id, inject_depends_duration, inject_enabled, inject_all_teams, inject_created_at, inject_updated_at) "
+                  + "VALUES (:id, :title, :tenantId, 0, true, false, now(), now())")
+          .setParameter("id", injectId)
+          .setParameter("title", title)
+          .setParameter("tenantId", tenant.getId())
+          .executeUpdate();
+      entityManager.flush();
+      entityManager.clear();
+      Inject inject = new Inject();
+      inject.setId(injectId);
+      inject.setTitle(title);
+      return inject;
+    }
+
+    @Test
+    @DisplayName("AtomicTesting created in tenant X should NOT be readable from tenant Y")
+    void given_atomicTestingInTenantX_should_notBeReadableFromTenantY() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_ASSESSMENT));
+
+      Inject inject = createInjectInTenant(tenantX);
+
+      // -------- Act --------
+      int responseStatus =
+          mvc.perform(
+                  get("/api/tenants/" + tenantY.getId() + "/atomic-testings/" + inject.getId())
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // -------- Assert --------
+      assertTrue(
+          responseStatus == 403 || responseStatus == 404,
+          "Expected 403 or 404 but got " + responseStatus);
+    }
+
+    @Test
+    @DisplayName("AtomicTesting created in tenant X should be readable from tenant X")
+    void given_atomicTestingInTenantX_should_beReadableFromTenantX() throws Exception {
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+
+      Inject inject = createInjectInTenant(tenantX);
+
+      mvc.perform(
+              get("/api/tenants/" + tenantX.getId() + "/atomic-testings/" + inject.getId())
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("AtomicTesting search in tenant Y should NOT return results from tenant X")
+    void given_atomicTestingInTenantX_should_notAppearInTenantYSearch() throws Exception {
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_ASSESSMENT));
+
+      Inject inject = createInjectInTenant(tenantX);
+
+      SearchPaginationInput searchInput = new SearchPaginationInput();
+      searchInput.setTextSearch(inject.getTitle());
+      searchInput.setSize(100);
+      searchInput.setPage(0);
+
+      String searchResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantY.getId() + "/atomic-testings/search")
+                      .content(asJsonString(searchInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      assertEquals(Integer.valueOf(0), JsonPath.read(searchResponse, "$.totalElements"));
+    }
+
+    @Test
+    @DisplayName("AtomicTesting created in tenant X should NOT be deletable from tenant Y")
+    void given_atomicTestingInTenantX_should_notBeDeletableFromTenantY() throws Exception {
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.DELETE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+
+      Inject inject = createInjectInTenant(tenantX);
+
+      int responseStatus =
+          mvc.perform(
+                  delete("/api/tenants/" + tenantY.getId() + "/atomic-testings/" + inject.getId())
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      assertTrue(
+          responseStatus == 403 || responseStatus == 404,
+          "Expected 403 or 404 but got " + responseStatus);
     }
   }
 }
