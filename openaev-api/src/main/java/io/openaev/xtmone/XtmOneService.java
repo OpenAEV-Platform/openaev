@@ -48,7 +48,12 @@ public class XtmOneService {
               "name",
               "generate.message",
               "description",
-              "Generate email messages for adversary emulation injects"));
+              "Generate email messages for adversary emulation injects"),
+          Map.of(
+              "name",
+              "generate.media",
+              "description",
+              "Generate media articles for adversary emulation scenarios"));
 
   /** Intent catalog received from the last successful registration. */
   @SuppressWarnings("unchecked")
