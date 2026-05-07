@@ -69,7 +69,9 @@ public class StreamApi extends RestBehavior {
 
   private static final EnumSet<ResourceType> RESOURCES_STREAM_EXCLUSION =
       EnumSet.of(
-          ResourceType.VULNERABILITY, ResourceType.PAYLOAD, ResourceType.CONNECTOR_INSTANCE_LOG);
+          ResourceType.VULNERABILITY,
+          ResourceType.THREAT_ARSENAL,
+          ResourceType.CONNECTOR_INSTANCE_LOG);
 
   @Async("streamExecutor")
   @Transactional

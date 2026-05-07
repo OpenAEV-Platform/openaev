@@ -1,4 +1,4 @@
-import { simpleCall, simplePostCall, simplePutCall } from '../../utils/Action';
+import { simpleCall, simpleDelCall, simplePostCall, simplePutCall } from '../../utils/Action';
 import type {
   InjectorContractSearchPaginationInput,
   ThreatArsenalActionCreateInput, ThreatArsenalActionUpdateInput,
@@ -39,4 +39,12 @@ export const exportThreatArsenalAction = (actionId: string) => {
 
 export const importThreatArsenalAction = (content: FormData) => {
   return simplePostCall(`${THREAT_ARSENAL_URI}/import`, content, { params: { include: true } }, true, true);
+};
+
+export const deleteThreatArsenalAction = (actionId: string) => {
+  return simpleDelCall(`${THREAT_ARSENAL_URI}/${actionId}`, {}, true, true);
+};
+
+export const fetchCollectorsForActionRemediation = (actionId: string) => {
+  return simpleCall(`${THREAT_ARSENAL_URI}/${actionId}/collectors`);
 };

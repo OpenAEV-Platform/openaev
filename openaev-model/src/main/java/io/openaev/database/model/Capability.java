@@ -118,11 +118,11 @@ public enum Capability {
       pair(ResourceType.ASSET_GROUP, Action.DELETE),
       pair(ResourceType.JOB, Action.DELETE)),
 
-  // Payloads
+  // Payloads -- PAYLOAD CAPABILITIES ARE DEPRECATED
   ACCESS_PAYLOADS(
       null,
-      CapabilityGroup.PAYLOADS,
-      EnumSet.of(CapabilityScope.TENANT),
+      CapabilityGroup.THREAT_ARSENALS,
+      Set.of(),
       pair(ResourceType.PAYLOAD, Action.READ),
       pair(ResourceType.PAYLOAD, Action.SEARCH)),
   MANAGE_PAYLOADS(
@@ -131,6 +131,20 @@ public enum Capability {
       pair(ResourceType.PAYLOAD, Action.CREATE),
       pair(ResourceType.PAYLOAD, Action.DUPLICATE)),
   DELETE_PAYLOADS(MANAGE_PAYLOADS, pair(ResourceType.PAYLOAD, Action.DELETE)),
+
+  // Threat Arsenal —
+  ACCESS_THREAT_ARSENALS(
+      null,
+      CapabilityGroup.THREAT_ARSENALS,
+      EnumSet.of(CapabilityScope.TENANT),
+      pair(ResourceType.THREAT_ARSENAL, Action.READ),
+      pair(ResourceType.THREAT_ARSENAL, Action.SEARCH)),
+  MANAGE_THREAT_ARSENALS(
+      ACCESS_THREAT_ARSENALS,
+      pair(ResourceType.THREAT_ARSENAL, Action.WRITE),
+      pair(ResourceType.THREAT_ARSENAL, Action.CREATE),
+      pair(ResourceType.THREAT_ARSENAL, Action.DUPLICATE)),
+  DELETE_THREAT_ARSENALS(MANAGE_THREAT_ARSENALS, pair(ResourceType.THREAT_ARSENAL, Action.DELETE)),
 
   // Dashboards
   ACCESS_DASHBOARDS(

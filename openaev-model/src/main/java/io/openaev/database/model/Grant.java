@@ -25,6 +25,7 @@ public class Grant implements Base {
     SCENARIO,
     SIMULATION,
     ATOMIC_TESTING,
+    THREAT_ARSENAL,
     PAYLOAD,
     UNKNOWN;
 
@@ -34,6 +35,7 @@ public class Grant implements Base {
         case SIMULATION -> SIMULATION;
         case ATOMIC_TESTING -> ATOMIC_TESTING;
         case PAYLOAD -> PAYLOAD;
+        case THREAT_ARSENAL -> THREAT_ARSENAL;
         default -> UNKNOWN;
       };
     }

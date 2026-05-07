@@ -4,6 +4,7 @@ import * as PropTypes from 'prop-types';
 import { Field, Form } from 'react-final-form';
 
 import DomainsAutocompleteField from '../../../../../components/DomainsAutocompleteField.tsx';
+import AttackPatternFieldController from '../../../../../components/fields/AttackPatternFieldController.tsx';
 import TagField from '../../../../../components/fields/TagField.tsx';
 import { useFormatter } from '../../../../../components/i18n';
 import OldAttackPatternField from '../../../../../components/OldAttackPatternField';

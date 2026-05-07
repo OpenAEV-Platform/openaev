@@ -1,11 +1,9 @@
 package io.openaev.api.users.dto;
 
 import io.openaev.database.model.Organization;
-import io.openaev.database.model.Tag;
 import io.openaev.database.model.User;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 public class UserMapper {
 
@@ -23,10 +21,11 @@ public class UserMapper {
 
   private static UserOutput toOutput(User user, boolean includeTenants) {
     Organization org = user.getOrganization();
-    Set<String> tagIds =
-        user.getTags() != null
-            ? user.getTags().stream().map(Tag::getId).collect(Collectors.toSet())
-            : Set.of();
+    Set<String> tagIds = Set.of();
+    //    Set<String> tagIds =
+    //        user.getTags() != null
+    //            ? user.getTags().stream().map(Tag::getId).collect(Collectors.toSet())
+    //            : Set.of();
     List<UserOutput.UserTenantOutput> tenantOutputs =
         includeTenants && user.getTenants() != null
             ? user.getTenants().stream()

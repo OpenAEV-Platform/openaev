@@ -220,7 +220,7 @@ const ThreatArsenal = () => {
         topBarButtons={(
           <ToggleButtonGroup value="fake" exclusive>
             <ExportButton totalElements={queryableHelpers.paginationHelpers.getTotalElements()} exportProps={exportProps} />
-            <Can I={ACTIONS.MANAGE} a={SUBJECTS.PAYLOADS}>
+            <Can I={ACTIONS.MANAGE} a={SUBJECTS.THREAT_ARSENALS}>
               <ImportUploaderThreatArsenal
                 onImport={results => setThreatArsenalActions(prev => [...results, ...prev])}
               />
@@ -289,34 +289,28 @@ const ThreatArsenal = () => {
                   <ListItem
                     key={action.injector_contract_id}
                     divider
-                    secondaryAction={(action.action_payload != null
-                      ? (
-                          <ThreatArsenalActionPopover
-                            actionId={action.injector_contract_id}
-                            payloadId={action.action_payload.payload_id ?? ''}
-                            name={tPick(action.action_labels)}
-                            onUpdate={(result: ThreatArsenalAction) =>
-                              setThreatArsenalActions(threatArsenalActions.map(a => a.injector_contract_id === action.injector_contract_id ? result : a))}
-                            onDuplicate={(result: ThreatArsenalAction) => setThreatArsenalActions([result, ...threatArsenalActions])}
-                            onDelete={() => setThreatArsenalActions(threatArsenalActions.filter(a => a.injector_contract_id !== action.injector_contract_id))}
-                            disableUpdate={action.action_payload.payload_collector_type !== null}
-                            disableDelete={action.action_payload.payload_collector_type !== null && action.action_payload?.payload_status !== 'DEPRECATED'}
-                          />
-                        )
-                      : (
-                          <InjectorContractPopover
-                            injectorContract={{
-                              injector_contract_id: action.injector_contract_id,
-                              injector_contract_attack_patterns: action.action_attack_patterns_ids,
-                              injector_contract_domains: action.action_domains_ids,
-                              injector_contract_tags: action.action_tags_ids,
-                            }}
-                            canDelete={false}
-                            canEditCustomForm={false}
-                            onUpdate={(result: ThreatArsenalAction) =>
-                              setThreatArsenalActions(threatArsenalActions.map(ic => (ic.injector_contract_id !== result.injector_contract_id ? ic : result)))}
-                          />
-                        )
+                    secondaryAction={(
+                      <ThreatArsenalActionPopover
+                        actionId={action.injector_contract_id}
+                        payloadId={action.action_payload?.payload_id ?? ''}
+                        name={tPick(action.action_labels)}
+                        onUpdate={(result: ThreatArsenalAction) =>
+                          setThreatArsenalActions(threatArsenalActions.map(a => a.injector_contract_id === action.injector_contract_id ? result : a))}
+                        onDuplicate={(result: ThreatArsenalAction) => setThreatArsenalActions([result, ...threatArsenalActions])}
+                        onDelete={() => setThreatArsenalActions(threatArsenalActions.filter(a => a.injector_contract_id !== action.injector_contract_id))}
+                        // Disable update for:
+                        // - Actions not created by the user (no payload attached)
+                        // - Actions coming from a collector
+                        disableUpdate={action.action_payload && action.action_payload?.payload_collector_type !== null}
+                        // Disable delete for actions not created by the user (no payload attached)
+                        disableDuplicate={action.action_payload == null}
+                        // Disable JSON export for action not created by the user (no payload attached)
+                        disableJsonExport={action.action_payload == null}
+                        // Disable delete for:
+                        // - Actions not created by the user (no payload attached)
+                        // - Actions coming from a collector, unless they are deprecated
+                        disableDelete={action.action_payload == null || (action.action_payload.payload_collector_type !== null && action.action_payload?.payload_status !== 'DEPRECATED')}
+                      />
                     )}
                     disablePadding
                   >
@@ -371,7 +365,7 @@ const ThreatArsenal = () => {
               );
             })}
       </List>
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.PAYLOADS}>
+      <Can I={ACTIONS.MANAGE} a={SUBJECTS.THREAT_ARSENALS}>
         <CreateThreatArsenalAction
           onCreate={(result: ThreatArsenalAction) => {
             setThreatArsenalActions([result, ...threatArsenalActions]);

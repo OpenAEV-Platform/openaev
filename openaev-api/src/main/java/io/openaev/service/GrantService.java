@@ -22,7 +22,7 @@ public class GrantService {
   private final ExerciseRepository exerciseRepository;
   private final ScenarioRepository scenarioRepository;
   private final InjectRepository injectRepository;
-  private final PayloadRepository payloadRepository;
+  private final InjectorContractRepository injectorContractRepository;
 
   public boolean hasReadGrant(@NotBlank final String resourceId, @NotNull final User user) {
     return hasGrant(resourceId, user, GRANT_TYPE.OBSERVER);
@@ -61,7 +61,8 @@ public class GrantService {
             || scenarioRepository.existsById(resourceId)
             // Atomic testings:
             || injectRepository.existsByIdAndScenarioIsNullAndExerciseIsNull(resourceId)
-            || payloadRepository.existsById(resourceId);
+            // Threat arsenal (grant on injector contract ID):
+            || injectorContractRepository.findById(resourceId).isPresent();
 
     if (!exists) {
       throw new IllegalArgumentException("A valid resource ID should be present");

@@ -34,7 +34,7 @@ public class ThreatArsenalApiExporter {
           "Exports a threat arsenal action in JSON:API format, optionally including related entities.")
   @GetMapping(value = "/{actionId}/export", produces = "application/zip")
   @Transactional(readOnly = true)
-  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PAYLOAD)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.THREAT_ARSENAL)
   public ResponseEntity<byte[]> export(@PathVariable @NotBlank final String actionId)
       throws IOException {
     Map<String, IncludeOptions.IncludeMode> opts = new HashMap<>();

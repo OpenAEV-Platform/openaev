@@ -5,7 +5,7 @@ public enum CapabilityGroup {
   SUPERUSER,
   ASSESSMENT,
   TARGETS,
-  PAYLOADS,
+  THREAT_ARSENALS,
   DASHBOARDS,
   FINDINGS,
   CONTENT,

@@ -497,4 +497,8 @@ public class PayloadService {
         tagService.findOrCreateTagsFromNames(new HashSet<>(Set.of(OPENCTI_TAG_NAME))));
     return saved;
   }
+
+  public void delete(String payloadId) {
+    payloadRepository.deleteById(payloadId);
+  }
 }

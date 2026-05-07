@@ -156,9 +156,14 @@ public class InjectorContractContentUtils {
     for (JsonNode field : fieldsNode) {
       String key = field.get(CONTRACT_ELEMENT_CONTENT_KEY).asText();
       if (CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS.equals(key)) {
-        predefinedExpectations.add(
-            InjectExpectation.EXPECTATION_TYPE.valueOf(
-                field.get(PREDEFINED_EXPECTATIONS).asText()));
+        JsonNode predefined = field.get(PREDEFINED_EXPECTATIONS);
+        if (predefined != null && predefined.isArray()) {
+          for (JsonNode expectation : predefined) {
+            predefinedExpectations.add(
+                InjectExpectation.EXPECTATION_TYPE.valueOf(
+                    expectation.get("expectation_type").asText()));
+          }
+        }
       }
     }
     return predefinedExpectations.toArray(new InjectExpectation.EXPECTATION_TYPE[0]);
