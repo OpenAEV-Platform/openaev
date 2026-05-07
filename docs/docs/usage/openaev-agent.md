@@ -246,11 +246,32 @@ The main features of the OpenAEV Agent include:
 * Automatic agent upgrade (on startup and registration)
 * Periodic job retrieval (every 30 seconds)
 * Implant lifecycle management
-* Execution cleanup and directory pruning
+* Execution cleanup and directory pruning (garbage collector running every **3 minutes**):
+    * Directories matching `runtimes/execution-*` and `payloads/execution-*` older than **10 minutes** are processed: associated processes are killed, then the directories are renamed from `execution-*` to `executed-*`.
+    * Directories matching `runtimes/executed-*` and `payloads/executed-*` older than **10 minutes** are permanently deleted.
 * Health checks (heartbeat every 2 minutes)
 
 ---
+### Cleanup Configuration
 
+The garbage collector thresholds can be customized in the agent's `openaev-agent-config.toml` file:
+
+| Parameter                      | Description                                                                                                                             | Default value |
+|--------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------|---------------|
+| `executing_max_time_minutes`   | Maximum time (in minutes) an `execution-*` directory can exist before processes are killed and the directory is renamed to `executed-*` | `10`          |
+| `directory_max_time_minutes`   | Maximum time (in minutes) an `executed-*` directory can exist before it is permanently deleted                                          | `10`          |
+| `cleanup_interval_seconds`     | Interval (in seconds) between cleanup cycles                                                                                            | `180`         |
+
+Example configuration in `openaev-agent-config.toml`:
+
+```toml
+[cleanup]
+executing_max_time_minutes = 10
+directory_max_time_minutes = 10
+cleanup_interval_seconds = 180
+```
+
+---
 ## Troubleshooting
 
 Logs are available at the following locations (see installation tables for paths):

@@ -26,22 +26,18 @@ threat arsenal actions on endpoints.
 
 ---
 <a id="tanium-agent"></a>
+
 ## Tanium Agent
 
-The Tanium agent can be leveraged to execute implants as detached processes that will then execute threat arsenal actions, according
+The Tanium agent can be leveraged to execute implants as detached processes that will then execute threat arsenal
+actions, according
 to the [OpenAEV architecture](https://docs.openaev.io/latest/deployment/platform/overview/).
-
-The implants will be downloaded to these folders on the different assets:
-
-* On Windows assets: `C:\Program Files (x86)\Filigran\OAEV Agent\runtimes\implant-XXXXX`
-* On Linux or MacOS assets: `/opt/openaev-agent/runtimes/implant-XXXXX`
-
-where XXXXX will be a completely random UUID, generated for each inject that will be executed.
-This ensures that the implants are unique and will be deleted on assets' restart.
 
 ### Configure the Tanium Platform
 
-We provide [two Tanium packages](https://github.com/OpenAEV-Platform/openaev/blob/master/openaev-api/src/main/java/io/openaev/executors/tanium/openaev-tanium-packages.json) to be imported into the Tanium platform.
+We
+provide [two Tanium packages](https://github.com/OpenAEV-Platform/openaev/blob/master/openaev-api/src/main/java/io/openaev/executors/tanium/openaev-tanium-packages.json)
+to be imported into the Tanium platform.
 
 ![Tanium Packages](../assets/tanium-packages.png)
 
@@ -82,18 +78,18 @@ Once configured and imported, retrieve the package IDs from the URL:
 
 To use the Tanium executor, fill the following configuration in the Integrations (Executors) tab from OpenAEV menu.
 
-| Parameter                                             | Environment variable                                  | Default value  | Description                                                                                                                                                     |
-|:------------------------------------------------------|:------------------------------------------------------|:---------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| executor.tanium.enable                                | EXECUTOR_TANIUM_ENABLE                                | `false`        | Enable the Tanium executor                                                                                                                                      |
-| executor.tanium.url                                   | EXECUTOR_TANIUM_URL                                   |                | Tanium API URL                                                                                                                                                  |
-| executor.tanium.api-key                               | EXECUTOR_TANIUM_API-KEY                               |                | Tanium API key                                                                                                                                                  |
-| executor.tanium.api-register-interval                 | EXECUTOR_TANIUM_API_REGISTER_INTERVAL                 | 1200           | Tanium API interval to register/update the computer groups/endpoints in OpenAEV (in seconds)                                                                    | 
-| executor.tanium.api-batch-execution-action-pagination | EXECUTOR_TANIUM_API_BATCH_EXECUTION_ACTION_PAGINATION | 100            | Tanium API pagination per 5 seconds to set for endpoints batch executions (number of endpoints sent per 5 seconds to Tanium to execute a threat arsenal action) | 
-| executor.tanium.clean-implant-interval                | EXECUTOR_TANIUM_CLEAN_IMPLANT_INTERVAL                | 8              | Tanium clean old implant interval (in hours)                                                                                                                    | 
-| executor.tanium.computer-group-id                     | EXECUTOR_TANIUM_COMPUTER_GROUP_ID                     | `1`            | Tanium Computer Group or Computer Groups to be used in simulations separated with commas                                                                        |
-| executor.tanium.action-group-id                       | EXECUTOR_TANIUM_ACTION_GROUP_ID                       | `4`            | Tanium Action Group to apply actions to                                                                                                                         |
-| executor.tanium.windows-package-id                    | EXECUTOR_TANIUM_WINDOWS_PACKAGE_ID                    |                | ID of the OpenAEV Tanium Windows package                                                                                                                        |
-| executor.tanium.unix-package-id                       | EXECUTOR_TANIUM_UNIX_PACKAGE_ID                       |                | ID of the OpenAEV Tanium Unix package                                                                                                                           |
+| Parameter                                             | Environment variable                                  | Default value | Description                                                                                                                                                     |
+|:------------------------------------------------------|:------------------------------------------------------|:--------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| executor.tanium.enable                                | EXECUTOR_TANIUM_ENABLE                                | `false`       | Enable the Tanium executor                                                                                                                                      |
+| executor.tanium.url                                   | EXECUTOR_TANIUM_URL                                   |               | Tanium API URL                                                                                                                                                  |
+| executor.tanium.api-key                               | EXECUTOR_TANIUM_API-KEY                               |               | Tanium API key                                                                                                                                                  |
+| executor.tanium.api-register-interval                 | EXECUTOR_TANIUM_API_REGISTER_INTERVAL                 | 1200          | Tanium API interval to register/update the computer groups/endpoints in OpenAEV (in seconds)                                                                    | 
+| executor.tanium.api-batch-execution-action-pagination | EXECUTOR_TANIUM_API_BATCH_EXECUTION_ACTION_PAGINATION | 100           | Tanium API pagination per 5 seconds to set for endpoints batch executions (number of endpoints sent per 5 seconds to Tanium to execute a threat arsenal action) | 
+| executor.tanium.clean-implant-interval                | EXECUTOR_TANIUM_CLEAN_IMPLANT_INTERVAL                | 8             | Tanium clean old implant interval (in hours)                                                                                                                    | 
+| executor.tanium.computer-group-id                     | EXECUTOR_TANIUM_COMPUTER_GROUP_ID                     | `1`           | Tanium Computer Group or Computer Groups to be used in simulations separated with commas                                                                        |
+| executor.tanium.action-group-id                       | EXECUTOR_TANIUM_ACTION_GROUP_ID                       | `4`           | Tanium Action Group to apply actions to                                                                                                                         |
+| executor.tanium.windows-package-id                    | EXECUTOR_TANIUM_WINDOWS_PACKAGE_ID                    |               | ID of the OpenAEV Tanium Windows package                                                                                                                        |
+| executor.tanium.unix-package-id                       | EXECUTOR_TANIUM_UNIX_PACKAGE_ID                       |               | ID of the OpenAEV Tanium Unix package                                                                                                                           |
 
 !!! note "Tanium API Key"
 
@@ -124,18 +120,12 @@ Endpoints from the selected computer groups should now appear in the **OpenAEV E
 
 ---
 <a id="crowdstrike-falcon-agent"></a>
+
 ## CrowdStrike Falcon Agent
 
-The CrowdStrike Falcon agent can be leveraged to execute implants as detached processes that will then execute threat arsenal actions
+The CrowdStrike Falcon agent can be leveraged to execute implants as detached processes that will then execute threat
+arsenal actions
 according to the [OpenAEV architecture](https://docs.openaev.io/latest/deployment/platform/overview/).
-
-The implants will be downloaded to these folders on the different assets:
-
-* On Windows assets: `C:\Program Files (x86)\Filigran\OAEV Agent\runtimes\implant-XXXXX`
-* On Linux or MacOS assets: `/opt/openaev-agent/runtimes/implant-XXXXX`
-
-where XXXXX will be a completely random UUID, generated for each inject that will be executed.
-This ensures that the implants are unique and will be deleted on assets' restart.
 
 ### Configure the CrowdStrike Platform
 
@@ -229,7 +219,8 @@ To create a host group, go to `Host setup and management` > `Host groups`.
 
 #### Create/Update response policies for your targeted platforms
 
-As OpenAEV will ask CrowdStrike to create implants in order to execute threat arsenal actions as scripts, you need to allow the
+As OpenAEV will ask CrowdStrike to create implants in order to execute threat arsenal actions as scripts, you need to
+allow the
 execution of custom scripts on your assets. To do so, you need to create a new response policy or update an existing one
 for your assets' platforms.
 
@@ -258,20 +249,21 @@ applied.
 
     Please note that the CrowdStrike API key should have the following permissions: API integrations, Hosts, Host groups, Real time response.
 
-To use the CrowdStrike executor, just fill the following configuration in the Integrations (Executors) tab from OpenAEV menu.
+To use the CrowdStrike executor, just fill the following configuration in the Integrations (Executors) tab from OpenAEV
+menu.
 
-| Parameter                                                  | Environment variable                                        | Default value                      | Description                                                                                                                                                       |
-|:-----------------------------------------------------------|:------------------------------------------------------------|:-----------------------------------|:------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| executor.crowdstrike.enable                                | EXECUTOR_CROWDSTRIKE_ENABLE                                 | `false`                            | Enable the Crowdstrike executor                                                                                                                                   |
-| executor.crowdstrike.api-url                               | EXECUTOR_CROWDSTRIKE_API_URL                                | `https://api.us-2.crowdstrike.com` | Crowdstrike API url                                                                                                                                               |
-| executor.crowdstrike.api-register-interval                 | EXECUTOR_CROWDSTRIKE_API_REGISTER_INTERVAL                  | 1200                               | Crowdstrike API interval to register/update the host groups/hosts/agents in OpenAEV (in seconds)                                                                  | 
-| executor.crowdstrike.api-batch-execution-action-pagination | EXECUTOR_CROWDSTRIKE_API_BATCH_EXECUTION_ACTION_PAGINATION  | 2500                               | Crowdstrike API pagination per 5 seconds to set for hosts batch executions (number of hosts sent per 5 seconds to Crowdstrike to execute a threat arsenal action) | 
-| executor.crowdstrike.clean-implant-interval                | EXECUTOR_CROWDSTRIKE_CLEAN_IMPLANT_INTERVAL                 | 8                                  | Crowdstrike clean old implant interval (in hours)                                                                                                                 | 
-| executor.crowdstrike.client-id                             | EXECUTOR_CROWDSTRIKE_CLIENT_ID                              |                                    | Crowdstrike client id                                                                                                                                             |
-| executor.crowdstrike.client-secret                         | EXECUTOR_CROWDSTRIKE_CLIENT_SECRET                          |                                    | Crowdstrike client secret                                                                                                                                         |
-| executor.crowdstrike.host-group                            | EXECUTOR_CROWDSTRIKE_HOST_GROUP                             |                                    | Crowdstrike host group id or hosts groups ids separated with commas                                                                                               |
-| executor.crowdstrike.windows-script-name                   | EXECUTOR_CROWDSTRIKE_WINDOWS_SCRIPT_NAME                    | `OpenAEV Subprocessor (Windows)`   | Name of the OpenAEV Crowdstrike windows script                                                                                                                    |
-| executor.crowdstrike.unix-script-name                      | EXECUTOR_CROWDSTRIKE_UNIX_SCRIPT_NAME                       | `OpenAEV Subprocessor (Unix)`      | Name of the OpenAEV Crowdstrike unix script                                                                                                                       |
+| Parameter                                                  | Environment variable                                       | Default value                      | Description                                                                                                                                                       |
+|:-----------------------------------------------------------|:-----------------------------------------------------------|:-----------------------------------|:------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| executor.crowdstrike.enable                                | EXECUTOR_CROWDSTRIKE_ENABLE                                | `false`                            | Enable the Crowdstrike executor                                                                                                                                   |
+| executor.crowdstrike.api-url                               | EXECUTOR_CROWDSTRIKE_API_URL                               | `https://api.us-2.crowdstrike.com` | Crowdstrike API url                                                                                                                                               |
+| executor.crowdstrike.api-register-interval                 | EXECUTOR_CROWDSTRIKE_API_REGISTER_INTERVAL                 | 1200                               | Crowdstrike API interval to register/update the host groups/hosts/agents in OpenAEV (in seconds)                                                                  | 
+| executor.crowdstrike.api-batch-execution-action-pagination | EXECUTOR_CROWDSTRIKE_API_BATCH_EXECUTION_ACTION_PAGINATION | 2500                               | Crowdstrike API pagination per 5 seconds to set for hosts batch executions (number of hosts sent per 5 seconds to Crowdstrike to execute a threat arsenal action) | 
+| executor.crowdstrike.clean-implant-interval                | EXECUTOR_CROWDSTRIKE_CLEAN_IMPLANT_INTERVAL                | 8                                  | Crowdstrike clean old implant interval (in hours)                                                                                                                 | 
+| executor.crowdstrike.client-id                             | EXECUTOR_CROWDSTRIKE_CLIENT_ID                             |                                    | Crowdstrike client id                                                                                                                                             |
+| executor.crowdstrike.client-secret                         | EXECUTOR_CROWDSTRIKE_CLIENT_SECRET                         |                                    | Crowdstrike client secret                                                                                                                                         |
+| executor.crowdstrike.host-group                            | EXECUTOR_CROWDSTRIKE_HOST_GROUP                            |                                    | Crowdstrike host group id or hosts groups ids separated with commas                                                                                               |
+| executor.crowdstrike.windows-script-name                   | EXECUTOR_CROWDSTRIKE_WINDOWS_SCRIPT_NAME                   | `OpenAEV Subprocessor (Windows)`   | Name of the OpenAEV Crowdstrike windows script                                                                                                                    |
+| executor.crowdstrike.unix-script-name                      | EXECUTOR_CROWDSTRIKE_UNIX_SCRIPT_NAME                      | `OpenAEV Subprocessor (Unix)`      | Name of the OpenAEV Crowdstrike unix script                                                                                                                       |
 
 ### Checks
 
@@ -294,28 +286,25 @@ Endpoint on the OpenAEV endpoint page.
 
 ---
 <a id="paloaltocortex-agent"></a>
+
 ## Palo Alto Cortex Agent
 
-The Palo Alto Cortex agent can be leveraged to execute implants as detached processes that will then execute threat arsenal actions
+The Palo Alto Cortex agent can be leveraged to execute implants as detached processes that will then execute threat
+arsenal actions
 according to the [OpenAEV architecture](https://docs.openaev.io/latest/deployment/platform/overview/).
 
-On Windows, because Palo Alto Cortex whitelists its own process tree, OpenAEV creates a scheduled task to detach the process that will execute the threat arsenal actions. 
-
-The implants will be downloaded to these folders on the different assets:
-
-* On Windows assets: `C:\Program Files (x86)\Filigran\OAEV Agent\runtimes\implant-XXXXX`
-* On Linux or MacOS assets: `/opt/openaev-agent/runtimes/implant-XXXXX`
-
-where XXXXX will be a completely random UUID, generated for each inject that will be executed.
-This ensures that the implants are unique and will be deleted on assets' restart.
+On Windows, because Palo Alto Cortex whitelists its own process tree, OpenAEV creates a scheduled task to detach the
+process that will execute the threat arsenal actions.
 
 ### Configure the Palo Alto Cortex Platform
 
 #### Upload OpenAEV scripts
 
-First of all, you need to create one custom script for Unix, covering both Linux and MacOS systems and another one for Windows.
+First of all, you need to create one custom script for Unix, covering both Linux and MacOS systems and another one for
+Windows.
 
-To create these scripts, go to `Investigation & responses` > `Action Center` > `Agent Script Library` > `+ New Script`. The names
+To create these scripts, go to `Investigation & responses` > `Action Center` > `Agent Script Library` > `+ New Script`.
+The names
 of the scripts can be changed if necessary, the ids will be put in the OpenAEV configuration.
 To get the scripts IDs, it may be necessary to add the Script UID column to the scripts list view.
 
@@ -351,7 +340,8 @@ To create a group, go to `Inventory` > `Endpoints` > `Groups`.
 
     Please note that the Palo Alto Cortex API key created in "Settings/Configurations/API Keys" should have the following minimum role: “Instance Administrator” and security level: "Standard".
 
-To use the Palo Alto Cortex executor, just fill the following configuration in the Integrations (Executors) tab from OpenAEV menu.
+To use the Palo Alto Cortex executor, just fill the following configuration in the Integrations (Executors) tab from
+OpenAEV menu.
 
 | Parameter                                                     | Environment variable                                          | Default value | Description                                                                                                                                                                         |
 |:--------------------------------------------------------------|:--------------------------------------------------------------|:--------------|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -377,8 +367,10 @@ groups sections in OpenAEV:
 
 ![Palo Alto Cortex Endpoints](../assets/paloaltocortex-endpoints.png)
 
-NB : An Asset can only have one Palo Alto Cortex agent installed due to the uniqueness of the MAC address parameters. If you
-try to install again a Palo Alto Cortex agent on a platform, it will overwrite the actual one and you will always see one
+NB : An Asset can only have one Palo Alto Cortex agent installed due to the uniqueness of the MAC address parameters. If
+you
+try to install again a Palo Alto Cortex agent on a platform, it will overwrite the actual one and you will always see
+one
 Endpoint on the OpenAEV endpoint page.
 
 !!! success "Installation done"
@@ -387,23 +379,16 @@ Endpoint on the OpenAEV endpoint page.
 
 ---
 <a id="sentinelone-agent"></a>
+
 ## SentinelOne Agent
 
-The SentinelOne agent can be leveraged to execute implants as detached processes that will then execute threat arsenal actions
+The SentinelOne agent can be leveraged to execute implants as detached processes that will then execute threat arsenal
+actions
 according to the [OpenAEV architecture](https://docs.openaev.io/latest/deployment/platform/overview/).
-
-The implants will be downloaded to these folders on the different assets:
-
-* On Windows assets: `C:\Program Files (x86)\Filigran\OAEV Agent\runtimes\implant-XXXXX`
-* On Linux or MacOS assets: `/opt/openaev-agent/runtimes/implant-XXXXX`
-
-where XXXXX will be a completely random UUID, generated for each inject that will be executed.
-This ensures that the implants are unique and will be deleted on assets' restart.
 
 !!! warning "SentinelOne"
 
     Please note that the SentinelOne license with add-on “remote script orchestration” is required to launch SentinelOne scripts with OpenAEV → see in SentinelOne/Settings/Configuration/Add-ons
-
 
 ### Configure the SentinelOne Platform
 
@@ -451,7 +436,8 @@ To create a wrapper (account/site/group), go to `Settings` > `Accounts/Sites`.
 
     Please note that the SentinelOne API key created in "Settings/Users/Service Users" should have the following minimum role: “IR Team”. The API key and the scripts must be created for and with the same user and the required account/site.
 
-To use the SentinelOne executor, just fill the following configuration in the Integrations (Executors) tab from OpenAEV menu.
+To use the SentinelOne executor, just fill the following configuration in the Integrations (Executors) tab from OpenAEV
+menu.
 
 | Parameter                                                  | Environment variable                                       | Default value | Description                                                                                                                                                         |
 |:-----------------------------------------------------------|:-----------------------------------------------------------|:--------------|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -473,7 +459,8 @@ Once enabled, you should see SentinelOne available in your `Install agents` sect
 
 ![SentinelOne available agent](../assets/sentinelone-agents.png)
 
-Also, the assets and the asset groups in the selected accounts/sites/groups should now be available in the endpoints and asset
+Also, the assets and the asset groups in the selected accounts/sites/groups should now be available in the endpoints and
+asset
 groups sections in OpenAEV:
 
 ![Sentinel Endpoints](../assets/sentinelone-endpoints.png)
@@ -487,9 +474,11 @@ Endpoint on the OpenAEV endpoint page.
     You are now ready to leverage your SentinelOne platform to run OpenAEV threat arsenal actions!
 
 ---
+
 ## Caldera Agent
 
-The Caldera agent can be leveraged to execute implants as detached processes that will then execute threat arsenal actions according to
+The Caldera agent can be leveraged to execute implants as detached processes that will then execute threat arsenal
+actions according to
 the [OpenAEV architecture](https://docs.openaev.io/latest/deployment/platform/overview/).
 
 !!! note "Caldera already installed"
@@ -585,3 +574,21 @@ Run the following commands with an administrator Powershell in order to uninstal
 `schtasks /delete /tn OpenAEVCaldera`<br/>
 `Stop-Process -Name oaev-agent-caldera`<br/>
 `rm -force -Recurse "C:\Program Files (x86)\Filigran\OAEV Caldera"`
+
+## Implant Directories and Cleanup
+For all executors (except Caldera and OpenAEV Agent) :
+
+### Implant Directories
+Implants are downloaded into a `runtimes/implant-XXXXX` subdirectory relative to the agent's installation directory, where `XXXXX` is a unique UUID generated for each inject execution.
+
+Each implant directory is unique per inject.
+
+The installation directory path varies depending on the agent type and installation mode. Refer to [installation mode](../../usage/openaev-agent.md#privileges-security_1) for the exact paths.
+
+### Cleanup
+Old implant directories are periodically cleaned up by the platform. At the interval defined by `clean-implant-interval` (default: **8 hours**), the platform sends a cleanup command to each endpoint agent to remove directories in `runtimes/` and `payloads/` that are older than **24 hours**.
+
+!!! note "OpenAEV Agent"
+
+    The OpenAEV Agent has its own built-in garbage collector with different thresholds. See the [OpenAEV Agent documentation](../../usage/openaev-agent.md) for details.
+
