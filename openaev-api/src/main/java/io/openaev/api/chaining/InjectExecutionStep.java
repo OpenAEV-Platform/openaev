@@ -31,6 +31,7 @@ import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.*;
 import io.openaev.service.chaining.ConditionService;
+import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowStateService;
 import io.openaev.utils.ConditionUtils;
@@ -79,6 +80,7 @@ public class InjectExecutionStep implements ActionStep {
   private final AssetGroupService assetGroupService;
   private final ConditionService conditionService;
   private final WorkflowStateService workflowStateService;
+  private final ScopeService scopeService;
 
   private final InjectorContractRepository injectorContractRepository;
 
@@ -635,6 +637,8 @@ public class InjectExecutionStep implements ActionStep {
       // Modify payload arguments with inputs from step
       ObjectNode updatedContent = updateContentWithInputs(step, injectorContract.getContent());
       inject.setContent(updatedContent);
+
+      inject.setAssets(scopeService.getValidAssets(step.getWorkflow().getId()));
 
       return inject;
 
