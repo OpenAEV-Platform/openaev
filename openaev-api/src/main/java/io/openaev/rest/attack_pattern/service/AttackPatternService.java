@@ -272,7 +272,7 @@ public class AttackPatternService {
     }
 
     String content = (text != null && !text.isBlank()) ? text : "Extract TTPs from attached files";
-    String result = xtmOneClient.callAgentSync("ttp-extractor", content, filesNode);
+    String result = xtmOneClient.callAgentSync("filigran-ttp-extractor", content, filesNode);
     if (result == null) {
       throw new RuntimeException("XTM One TTP extraction returned no result");
     }
