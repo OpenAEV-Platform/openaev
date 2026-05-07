@@ -74,7 +74,7 @@ You launch a malware simulation.
 
 Expectation:
 
-> *Endpoint protection detects the payload.*
+> *Endpoint protection detects the threat arsenal action.*
 
 - The EDR raises an alert
 - OpenAEV receives the detection event

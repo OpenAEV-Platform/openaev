@@ -12,7 +12,7 @@ external services for two purposes:
 - Collect all alerts, logs and traces related to attacks, incidents or crisis and match them to simulated injects to
   evaluate the security posture.
 - Collect any data that may help to schedule breach and attack simulations such as list of assets, groups, identities,
-  payloads, etc.
+  threat arsenal actions, etc.
 
 ### 🛡️ Detection & Prevention (SIEM, XDR, EDR, NDR)
 
@@ -39,7 +39,7 @@ perform its task.
 
 ### 🧬 Threat Intelligence
 
-Those collectors are used to collect threat intelligence data such as kill chains, scenarios, TTPs, payloads, etc.
+Those collectors are used to collect threat intelligence data such as kill chains, scenarios, TTPs, threat arsenal actions, etc.
 
 ### 📺 Endpoint management
 

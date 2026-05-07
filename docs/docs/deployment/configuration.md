@@ -147,7 +147,7 @@ reindex.
 #### Agents (executors)
 
 To be able to use the power of the OpenAEV platform on endpoints, you need at least one **neutral executor** that will
-be in charge of executing implants as detached processes. Implants will then execute payloads.
+be in charge of executing implants as detached processes. Implants will then execute threat arsenal actions.
 
 ##### OpenAEV Agent
 

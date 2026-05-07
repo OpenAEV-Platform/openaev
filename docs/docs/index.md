@@ -39,7 +39,7 @@ OpenAEV is an open source platform allowing organizations to plan, schedule and 
     ---
 
     Understand how to use the platform, manage assets,
-    design scenarios with tailored payloads and integrate with other tools.
+    design scenarios with tailored threat arsenal actions and integrate with other tools.
 
     [:octicons-arrow-right-24:{ .middle } Explore](usage/getting-started.md)
 

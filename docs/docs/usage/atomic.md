@@ -50,5 +50,5 @@ Details of an Atomic testing is composed of three parts:
 - [Overview](inject-result.md/#overview)
 - [Findings](inject-result.md/#findings)
 - [Inject execution details](inject-result.md/#execution-details)
-- [Payload info](inject-result.md/#payload-info)
+- [Threat Arsenal Action info](inject-result.md/#threat-arsenal-action-info)
 - [Remediation](inject-result.md/#remediations-ee)

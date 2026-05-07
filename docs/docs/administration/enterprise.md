@@ -42,34 +42,34 @@ Be able to use AI for content generation including emails, media pressure articl
 
 ### CrowdStrike Falcon Agent
 
-The CrowdStrike Falcon Agent can be leveraged to execute implants as detached processes that will then execute payloads
+The CrowdStrike Falcon Agent can be leveraged to execute implants as detached processes that will then execute threat arsenal actions
 according to the [OpenAEV architecture](../deployment/platform/overview.md#architecture)
 
 ### Tanium Agent
 
-The Tanium Agent can be leveraged to execute implants as detached processes that will then execute payloads
+The Tanium Agent can be leveraged to execute implants as detached processes that will then execute threat arsenal actions
 according to the [OpenAEV architecture](../deployment/platform/overview.md#architecture)
 
 ### SentinelOne Agent
 
-The SentinelOne Agent can be leveraged to execute implants as detached processes that will then execute payloads
+The SentinelOne Agent can be leveraged to execute implants as detached processes that will then execute threat arsenal actions
 according to the [OpenAEV architecture](../deployment/platform/overview.md#architecture)
 
 ### Palo Alto Cortex Agent
 
-The Palo Alto Cortex Agent can be leveraged to execute implants as detached processes that will then execute payloads
+The Palo Alto Cortex Agent can be leveraged to execute implants as detached processes that will then execute threat arsenal actions
 according to the [OpenAEV architecture](../deployment/platform/overview.md#architecture).
 
-On Windows, because Palo Alto Cortex whitelists its own process tree, OpenAEV creates a scheduled task to detach the process that will execute the payloads.
+On Windows, because Palo Alto Cortex whitelists its own process tree, OpenAEV creates a scheduled task to detach the process that will execute the threat arsenal actions.
 
 ## Remediations in CVES
 
 More detail: [CVES](taxonomies.md) and [Findings view](../usage/findings.md)
 .
 
-## Detection Remediation in Payloads and Injects
+## Detection Remediation in Threat Arsenal Actions and Injects
 
-More detail: [Detection remediations in payloads](../usage/payloads/payloads.md)
+More detail: [Detection remediations in threat arsenal actions](../usage/threat-arsenals/threat-arsenals.md)
 and [Atomic testing remediations](../usage/atomic.md).
 
 ## More to come

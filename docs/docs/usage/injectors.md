@@ -11,7 +11,7 @@ third party systems. According to their functionality and use case, they are cat
 
 ![List of Injectors](assets/list-of-injectors.png)
 
-### 📡 Endpoint payloads execution
+### 📡 Endpoint threat arsenal actions execution
 
 Those injectors are special as they required an executor (neutral agent) to be launched on endpoints. When they register
 to the platform, they inform available executors on how to spawn them on the 3 currently supported platforms: Windows,

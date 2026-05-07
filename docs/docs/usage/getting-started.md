@@ -36,24 +36,24 @@ an alert, who escalates, who reacts according to playbooks.
 
 You can:
 
-- Deploy an **OpenAEV agent** for agent-based testing (executes payloads, reports telemetry, supports automated checks)
+- Deploy an **OpenAEV agent** for agent-based testing (executes threat arsenal actions, reports telemetry, supports automated checks)
 - Use **agentless endpoints** when software installation is not possible
 
 Assets are reused across scenarios and simulations — it’s worth naming and tagging them carefully (OS, owner,
 environment).
 
-## Payloads & Injects
+## Threat arsenal action & Injects
 
-[Payloads](payloads/payloads.md) are the technical actions: running a command, scanning a network, or checking for a
-vulnerability.
+[Threat arsenal action](threat-arsenals/threat-arsenals.md) are the technical actions: running a command, scanning a network, checking for a
+vulnerability, sending a phishing email, etc.
 
-[Injects](inject-overview.md) wrap payloads with context:
+[Injects](inject-overview.md) wrap threat arsenal action with context:
 
 - *who* is the target
 - *when* it should run
 - *what* is expected in return
 
-OpenAEV includes collectors with ready-to-use payloads: OpenAEV curated payloads and Atomic Red Team.
+OpenAEV includes collectors with ready-to-use threat arsenal actions: OpenAEV curated threat arsenal actions and Atomic Red Team.
 
 ## Scenarios & Simulations
 
@@ -94,7 +94,7 @@ It provides:
 - Pre-built scenarios (tabletop, agentless, agent-based)
 - Four dashboards
 - Injectors (Nmap, Nuclei)
-- Collectors (Atomic Red Team, MITRE ATT&CK, OpenAEV payloads, CVE/NVD feed)
+- Collectors (Atomic Red Team, MITRE ATT&CK, CVE/NVD feed.)
 - One agentless endpoint + an asset group
 
 With the Starter Pack, you can launch a complete simulation right after installation.
@@ -103,11 +103,11 @@ With the Starter Pack, you can launch a complete simulation right after installa
 
 ## An end-to-end atomic example (with agent)
 
-Let’s walk through the simplest possible set-up, using only an agent and an atomic payload.
+Let’s walk through the simplest possible set-up, using only an agent and an atomic threat arsenal action.
 
 Imagine you deployed an OpenAEV agent on a Linux endpoint named `endpoint-lin-01`.
 
-### Step 1 — Create the payload
+### Step 1 — Create the threat arsenal action
 
    ```
    echo "OpenAEV Atomic Test"
@@ -116,20 +116,20 @@ Imagine you deployed an OpenAEV agent on a Linux endpoint named `endpoint-lin-01
 ### Step 2 — Build the inject
 
 * Create an **atomic testing** in the UI
-* Use the created payload
+* Use the created threat arsenal action
 * Target `endpoint-lin-01`
 
 ### Step 3 — Run the atomic testing
 
 Click **Launch now**.
-The platform executes the payload via the agent.
+The platform executes the threat arsenal action via the agent.
 The result should appear in the atomic testing overview.
 
 ---
 
 ## Next steps
 
-* Create custom injects and payloads
+* Create custom injects and threat arsenal actions
 * Import threat-informed scenarios from the XTM Hub
 * Connect with [OpenCTI](https://filigran.io/solutions/open-cti/)
 * Track improvements over time in dashboards

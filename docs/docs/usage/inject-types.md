@@ -76,7 +76,7 @@ HTTP requests GET, POST, and PUT, can be sent. The corresponding injects are nam
 
 ## Technical Injects via the OpenAEV Agent
 
-Technical Injects execute commands and Payloads directly on target Endpoints through the
+Technical Injects execute commands and threat arsenal actions directly on target Endpoints through the
 [OpenAEV Agent](openaev-agent.md). They simulate real-world attack techniques, allowing you to gauge the effectiveness
 of your security posture against the actions an attacker would take.
 

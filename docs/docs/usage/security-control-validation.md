@@ -1,15 +1,15 @@
 # Overview
-Domains provide a classification layer that describes the type of security control involved during the execution of a scenario in OpenAEV. This classification identifies the defensive capability being evaluated and allows scenarios and payloads to be interpreted with clearer operational intent.
+Domains provide a classification layer that describes the type of security control involved during the execution of a scenario in OpenAEV. This classification identifies the defensive capability being evaluated and allows scenarios and threat arsenal actions to be interpreted with clearer operational intent.
 
 ## Domains
 
-A Domain represents the security control category targeted by a payload or injector execution. This classification helps to:
+A Domain represents the security control category targeted by a threat arsenal actions or injector execution. This classification helps to:
 
 - Clarify the objective and security angle of each execution
 - Improve visibility when reviewing results based on security control categories
 - Align test coverage with the organization's security capabilities (endpoint, network, cloud, email, etc.)
 
-Domains are currently predefined by the platform and cannot be created or modified by users. They are assigned automatically based on the Payload (and in certain cases the Injector Contract). User-defined management of Domains may be introduced in future releases.
+Domains are currently predefined by the platform and cannot be created or modified by users. They are assigned automatically based on the Threat Arsenal Action (and in certain cases the Injector Contract). User-defined management of Domains may be introduced in future releases.
 
 ## Available Domains
 
@@ -28,12 +28,12 @@ The following Domains are currently supported in OpenAEV:
 
 ## How Domains Are Applied
 
-### Payloads define the Domain
-Domains are primarily defined at the Payload level. Each payload declares one or more Domains that describe the security control category involved in its execution. This ensures consistent and predictable classification across the platform.
+### threat arsenal actions define the Domain
+Domains are primarily defined at the Threat Arsenal Action level. Each threat arsenal action declares one or more Domains that describe the security control category involved in its execution. This ensures consistent and predictable classification across the platform.
 
 ### Injector Contracts
 In some cases, an Injector Contract may also carry a Domain.  
-However, when an injector uses a Payload, the Payload’s Domain always takes precedence. This ensures that the Domain reflects the actual technical behavior of the executed action.
+However, when an injector uses a Threat Arsenal Action, the Threat Arsenal Action’s Domain always takes precedence. This ensures that the Domain reflects the actual technical behavior of the executed action.
 
 ## Usage
 
@@ -48,8 +48,8 @@ Some Injectors and Collectors can define and **manage their own Domains**.
 
 In these cases:
 
-- The Injectors/Collectors declares the Domain associated with the Injector Contracts/Payloads it produces
-- The Domain attached by the Injector or Collector is then applied to the corresponding Injector Contracts/Payload executions
+- The Injectors/Collectors declares the Domain associated with the Injector Contracts/Threat Arsenal Actions it produces
+- The Domain attached by the Injector or Collector is then applied to the corresponding Injector Contracts/Threat Arsenal Action executions
 - This mechanism allows certain integrations to carry a Domain that is closest to their technical and operational behavior, without requiring manual configuration on the platform
 
 ## Automatic weekly updates of Domains
@@ -57,7 +57,7 @@ Injectors and Collectors are **updated on a weekly basis**.
 
 During these updates:
 
-- The list of Domains associated with their Payloads is synchronized with the platform
+- The list of Domains associated with their threat arsenal actions is synchronized with the platform
 - If a Domain that should be present, according to the latest Injector or Collector definition, has been removed or modified on the platform, it will be restored to its expected value during the next update
 - Domains that have been manually added by the user, in addition to those defined by the Injector or Collector, are preserved. Only missing Domains are re-added; no user-added Domains are removed
 

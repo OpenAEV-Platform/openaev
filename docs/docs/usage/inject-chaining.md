@@ -46,7 +46,7 @@ more specific conditions. You can reposition or remove links by dragging them to
 You are simulating a multi-stage attack:
 
 1. **Inject 1**: phishing email with a malicious attachment.
-2. **Inject 2**: Payload execution on the endpoint (child of Inject 1, condition: *Prevention expectation = Fail*).
+2. **Inject 2**: Threat arsenal action execution on the endpoint (child of Inject 1, condition: *Prevention expectation = Fail*).
 3. **Inject 3**: lateral movement (child of Inject 2, condition: *Execution = Success*).
 
 If the EDR blocks the attachment (Prevention = Success), Inject 2 and 3 are automatically skipped.

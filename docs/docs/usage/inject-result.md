@@ -21,7 +21,7 @@ execution logs.
 
 ### Findings
 
-The Findings screen displays what was detected during the inject, based on the output parser in the payload. You can
+The Findings screen displays what was detected during the inject, based on the output parser in the threat arsenal action. You can
 filter findings by name, type, creation date, target, value, or tag.
 
 ![Atomic testing Overview with Results](assets/atomic_testing_findings.png)
@@ -32,20 +32,20 @@ This screen shows the full trace of the inject’s execution, including logs and
 
 ![Execution trace of a successful atomic testing](assets/atomic_testing_execution_details.png)
 
-### Payload info
+### Threat arsenal action info
 
-This screen is available for technical injects only. You can see the details of the payload related to the test.
+This screen is available for technical injects only. You can see the details of the threat arsenal actionrelated to the test.
 
-![Payload info of atomic testing](assets/atomic_testing_payload_info.png)
+![Threat arsenal action info of atomic testing](assets/atomic_testing_action_info.png)
 
 ### Remediations (EE)
 
-This screen is available for technical injects only. It displays remediation content related to the executed payload,
+This screen is available for technical injects only. It displays remediation content related to the executed threat arsenal action,
 specifically focused on detection logic. You will see one Remediation tab per collector available in the platform.
 
 Ariane can generate AI‑based rules from an executed inject with the following:
 
-- Payload types: Command, DnsResolution
+- Threat arsenal action types: Command, DnsResolution
 - Collectors: Splunk, CrowdStrike
 
 Remediation statuses:

@@ -23,7 +23,7 @@ When an Inject targets [Endpoints](assets.md), each installed Agent reports its 
 |------|-------------|
 | **Prerequisite check** | Validates required conditions before execution |
 | **Prerequisite retrieval** | Installs missing prerequisites (only if the check fails) |
-| **Attack command** | Executes the actual Payload |
+| **Attack command** | Executes the actual Threat Arsenal Action|
 | **Cleanup** | Removes artifacts left by the attack |
 
 !!! Note

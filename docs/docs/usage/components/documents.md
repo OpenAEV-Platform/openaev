@@ -1,7 +1,7 @@
 # Documents
 
 Documents serve as resources for adding content to your table-top injects, helping your animation team and players. They
-can also be utilized in payloads for file dropping purposes.
+can also be utilized in threat arsenal actions for file dropping purposes.
 
 ## Create a Document
 
@@ -19,9 +19,9 @@ will allow you to download it.
 
 ## Use a Document
 
-Documents can be added into table-top injects and payloads.
+Documents can be added into table-top injects and threat arsenal actions.
 
 When creating an table-top inject, you can attach documents to provide context or, in the case of email injects, to
 include attachments.
 
-Additionally, you can create a File Drop payload and include your documents within it.
+Additionally, you can create a File Drop threat arsenal action and include your documents within it.

@@ -33,7 +33,7 @@ OpenAEV then:
 > Attack Patterns
 
 3. Extracts relevant **Attack Patterns references**
-4. Resolves Asset Groups using **Custom Tag Rule** labeled `opencti`, extracting the associated **platforms and architectures** to match compatible payloads.
+4. Resolves Asset Groups using **Custom Tag Rule** labeled `opencti`, extracting the associated **platforms and architectures** to match compatible threat arsenal actions.
 5. Generates injects for each extracted entity
 6. Schedules the scenario for execution
 
@@ -71,12 +71,12 @@ After parsing and validating the **Security Coverage STIX** object, OpenAEV foll
     - For each **Object Reference** identified:
 
         - If the referenced **Attack Pattern**, **DNS** or **Artifact** exists in OpenAEV  
-          (matched by **External ID** or **Name**) **and** a related [Payload](../payloads/payloads.md) exists that
+          (matched by **External ID** or **Name**) **and** a related [Threat Arsenal](../threat-arsenals/threat-arsenals.md) exists that
           matches the **platforms and architectures** derived from the Asset groups resolved via **Custom Tag Rule
           labeled `opencti`**.   
           => **Concrete Inject** is created.
 
-        - If the Attack Pattern does **not** exist in OpenAEV, or no compatible payload exists for the resolved
+        - If the Attack Pattern does **not** exist in OpenAEV, or no compatible threat arsenal action exists for the resolved
           platforms/architectures.  
           => **Placeholder Inject** is created to highlight missing coverage.
 
@@ -87,22 +87,22 @@ After parsing and validating the **Security Coverage STIX** object, OpenAEV foll
     **.
 > - Targets are resolved via **Custom Tag Rule labeled `opencti`**, and the corresponding **platforms and architectures
     ** are extracted from these Asset groups.
-> - Payloads are matched against the Attack Patterns **and** must be compatible with the extracted platforms and
+> - threat arsenal actions are matched against the Attack Patterns **and** must be compatible with the extracted platforms and
     architectures.
 >
 > In other words, inject creation only occurs when:
 > 1. The Attack Pattern exists in OpenAEV, and
-> 2. A payload exists that matches both the Attack Pattern **and** the platforms/architectures derived from the Asset groups
+> 2. A threat arsenal action exists that matches both the Attack Pattern **and** the platforms/architectures derived from the Asset groups
      defined in the Custom Tag Rules.
 >
 > If either condition is not met, a **Placeholder Inject** is created to highlight missing coverage.
 
 Inject creation depends on matching the **Object Reference** values between OpenCTI and OpenAEV, example:  
 
-| OpenCTI Attack Pattern <br/> (External ID or Name) | Matching Payload in OpenAEV <br/> (Attack Pattern + Platform + Architecture) | Result                  |
-|----------------------------------------------------|------------------------------------------------------------------------------|-------------------------|
-| T1059.001                                          | Yes                                                                          | Concrete inject created |
-| T1059.001                                          | No                                                                           | Placeholder inject      |
+| OpenCTI Attack Pattern <br/> (External ID or Name) | Matching Threat Arsenal Action in OpenAEV <br/> (Attack Pattern + Platform + Architecture) | Result                  |
+|----------------------------------------------------|--------------------------------------------------------------------------------------------|-------------------------|
+| T1059.001                                          | Yes                                                                                        | Concrete inject created |
+| T1059.001                                          | No                                                                                         | Placeholder inject      |
 
 ![Inject Scenario](assets/inject-scenario-openaev.png)  
 ![Inject Placeholder Scenario](assets/inject-placeholder.png)

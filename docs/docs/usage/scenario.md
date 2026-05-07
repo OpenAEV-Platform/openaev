@@ -70,7 +70,7 @@ Instead of manually creating each inject, the Scenario Assistant automates the p
 
 !!! warning
 
-    To use the Scenario Assistant, you must have attack patterns with associated payloads.
+    To use the Scenario Assistant, you must have attack patterns with associated threat arsenal actions.
 
 ### How to Use the Scenario Assistant
 - Open the Scenario Assistant
@@ -97,11 +97,11 @@ The Scenario Assistant generates injects based on your selected TTPs, ensuring c
 
 When you select multiple assets with different architectures (for example, Linux x86_64 and Windows x86_64) along with a specific TTP (such as TTP 1072), the Scenario Assistant will:
 
-- Attempt to find a universal payload that supports the chosen TTP and is compatible with all selected architectures.
-- If no universal payload is available, it will look for individual payloads that match each asset’s specific platform architecture.
-- For asset groups, the Scenario Assistant will try to find a payload that covers all asset platforms architectures within the group.
-- If a perfect match cannot be found, it will prioritize payloads that are compatible with the largest subset of assets in the group.
-- If no suitable payloads are found, the assistant will create an inject with a placeholder for the TTP and targets.
+- Attempt to find a universal threat arsenal action that supports the chosen TTP and is compatible with all selected architectures.
+- If no universal threat arsenal action is available, it will look for individual threat arsenal actions that match each asset’s specific platform architecture.
+- For asset groups, the Scenario Assistant will try to find a threat arsenal action that covers all asset platforms architectures within the group.
+- If a perfect match cannot be found, it will prioritize threat arsenal actions that are compatible with the largest subset of assets in the group.
+- If no suitable threat arsenal actions are found, the assistant will create an inject with a placeholder for the TTP and targets.
 
 ![scenario-assistant-injects](./scenario/assets/scenario-assistant-injects.png)
 

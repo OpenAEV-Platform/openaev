@@ -64,49 +64,49 @@ Capabilities in OpenAEV are organized hierarchically. A parent capability (e.g. 
 
 Below is a full list of capabilities in OpenAEV
 
-| Capability | Description |
-|:-----------|:------------|
-| `Bypass (user has all rights)` | Grants unconditional access to all platform features, bypassing every individual capability check and any data segregation enforcement. |
-| **Assessments: Scenarios, simulations and atomic testings** | |
-| `Access assessment` | Read-only access to assessments, including scenarios, simulations and atomic tests. |
-| &nbsp;&nbsp;`Manage assessment` | Create and update assessments (scenarios, simulations, atomic tests). Requires *Access assessment*. |
-| &nbsp;&nbsp;&nbsp;&nbsp;`Delete assessment` | Permanently delete assessments. Requires *Manage assessment*. |
-| &nbsp;&nbsp;`Launch assessment` | Execute / run an assessment against defined targets. Requires *Access assessment*. |
-| **Targets** | |
-| `Access teams & players` | Read-only access to teams and player definitions used as assessment targets. |
-| &nbsp;&nbsp;`Manage teams & players` | Create and update teams and players. Requires *Access teams & players*. |
-| &nbsp;&nbsp;&nbsp;&nbsp;`Delete teams & players` | Permanently delete teams and players. Requires *Manage teams & players*. |
-| `Access assets` | Read-only access to asset inventory (hosts, endpoints, and other infrastructure targets). |
-| &nbsp;&nbsp;`Manage assets` | Create and update assets in the inventory. Requires *Access assets*. |
-| &nbsp;&nbsp;&nbsp;&nbsp;`Delete assets` | Permanently delete assets from the inventory. Requires *Manage assets*. |
-| `Access security platforms` | Read-only access to integrated security platform configurations (e.g. SIEM, EDR, firewall connectors). |
-| &nbsp;&nbsp;`Manage security platforms` | Create and update security platform integrations. Requires *Access security platforms*. |
-| &nbsp;&nbsp;&nbsp;&nbsp;`Delete security platforms` | Permanently delete security platform integrations. Requires *Manage security platforms*. |
-| **Payloads** | |
-| `Access payloads` | Read-only access to the payload library (attack scripts, tools, and techniques used in simulations). |
-| &nbsp;&nbsp;`Manage payloads` | Create and update payloads in the library. Requires *Access payloads*. |
-| &nbsp;&nbsp;&nbsp;&nbsp;`Delete payloads` | Permanently delete payloads from the library. Requires *Manage payloads*. |
-| **Dashboards** | |
-| `Access dashboards` | Read-only access to platform dashboards and their visualizations. |
-| &nbsp;&nbsp;`Manage dashboards` | Create, update, and configure dashboards. Requires *Access dashboards*. |
-| &nbsp;&nbsp;&nbsp;&nbsp;`Delete dashboards` | Permanently delete dashboards. Requires *Manage dashboards*. |
-| **Findings** | |
-| `Access findings` | Read-only access to assessment findings and results generated from simulations and atomic tests. |
-| **Content** | |
-| `Access documents` | Read-only access to documents stored in the platform (reports, attachments, playbooks). |
-| &nbsp;&nbsp;`Manage documents` | Upload, create, and update documents. Requires *Access documents*. |
-| &nbsp;&nbsp;&nbsp;&nbsp;`Delete documents` | Permanently delete documents. Requires *Manage documents*. |
-| `Access channels` | Read-only access to communication channels used to deliver exercise injects to players. |
-| &nbsp;&nbsp;`Manage channels` | Create and update channels. Requires *Access channels*. |
-| &nbsp;&nbsp;&nbsp;&nbsp;`Delete channels` | Permanently delete channels. Requires *Manage channels*. |
-| `Access challenges` | Read-only access to challenges (CTF-style tasks or objectives assigned to players during exercises). |
-| &nbsp;&nbsp;`Manage challenges` | Create and update challenges. Requires *Access challenges*. |
-| &nbsp;&nbsp;&nbsp;&nbsp;`Delete challenges` | Permanently delete challenges. Requires *Manage challenges*. |
-| `Access lessons learned` | Read-only access to lessons learned records captured after assessments or exercises. |
-| &nbsp;&nbsp;`Manage lessons learned` | Create and update lessons learned entries. Requires *Access lessons learned*. |
-| &nbsp;&nbsp;&nbsp;&nbsp;`Delete lessons learned` | Permanently delete lessons learned entries. Requires *Manage lessons learned*. |
-| **Platform Settings** | |
-| `Access Platform Settings` | Read-only access to platform-wide configuration and administration settings. |
+| Capability | Description                                                                                                                               |
+|:-----------|:------------------------------------------------------------------------------------------------------------------------------------------|
+| `Bypass (user has all rights)` | Grants unconditional access to all platform features, bypassing every individual capability check and any data segregation enforcement.   |
+| **Assessments: Scenarios, simulations and atomic testings** |                                                                                                                                           |
+| `Access assessment` | Read-only access to assessments, including scenarios, simulations and atomic tests.                                                       |
+| &nbsp;&nbsp;`Manage assessment` | Create and update assessments (scenarios, simulations, atomic tests). Requires *Access assessment*.                                       |
+| &nbsp;&nbsp;&nbsp;&nbsp;`Delete assessment` | Permanently delete assessments. Requires *Manage assessment*.                                                                             |
+| &nbsp;&nbsp;`Launch assessment` | Execute / run an assessment against defined targets. Requires *Access assessment*.                                                        |
+| **Targets** |                                                                                                                                           |
+| `Access teams & players` | Read-only access to teams and player definitions used as assessment targets.                                                              |
+| &nbsp;&nbsp;`Manage teams & players` | Create and update teams and players. Requires *Access teams & players*.                                                                   |
+| &nbsp;&nbsp;&nbsp;&nbsp;`Delete teams & players` | Permanently delete teams and players. Requires *Manage teams & players*.                                                                  |
+| `Access assets` | Read-only access to asset inventory (hosts, endpoints, and other infrastructure targets).                                                 |
+| &nbsp;&nbsp;`Manage assets` | Create and update assets in the inventory. Requires *Access assets*.                                                                      |
+| &nbsp;&nbsp;&nbsp;&nbsp;`Delete assets` | Permanently delete assets from the inventory. Requires *Manage assets*.                                                                   |
+| `Access security platforms` | Read-only access to integrated security platform configurations (e.g. SIEM, EDR, firewall connectors).                                    |
+| &nbsp;&nbsp;`Manage security platforms` | Create and update security platform integrations. Requires *Access security platforms*.                                                   |
+| &nbsp;&nbsp;&nbsp;&nbsp;`Delete security platforms` | Permanently delete security platform integrations. Requires *Manage security platforms*.                                                  |
+| **threat arsenal actions** |                                                                                                                                           |
+| `Access threat arsenal actions` | Read-only access to the threat arsenal action library (attack scripts, tools, and techniques used in simulations).                        |
+| &nbsp;&nbsp;`Manage threat arsenal actions` | Create and update threat arsenal actions in the library. Requires *Access threat arsenal actions*.                                        |
+| &nbsp;&nbsp;&nbsp;&nbsp;`Delete threat arsenal actions` | Permanently delete threat arsenal actions from the library. Requires *Manage threat arsenal actions*.                                     |
+| **Dashboards** |                                                                                                                                           |
+| `Access dashboards` | Read-only access to platform dashboards and their visualizations.                                                                         |
+| &nbsp;&nbsp;`Manage dashboards` | Create, update, and configure dashboards. Requires *Access dashboards*.                                                                   |
+| &nbsp;&nbsp;&nbsp;&nbsp;`Delete dashboards` | Permanently delete dashboards. Requires *Manage dashboards*.                                                                              |
+| **Findings** |                                                                                                                                           |
+| `Access findings` | Read-only access to assessment findings and results generated from simulations and atomic tests.                                          |
+| **Content** |                                                                                                                                           |
+| `Access documents` | Read-only access to documents stored in the platform (reports, attachments, playbooks).                                                   |
+| &nbsp;&nbsp;`Manage documents` | Upload, create, and update documents. Requires *Access documents*.                                                                        |
+| &nbsp;&nbsp;&nbsp;&nbsp;`Delete documents` | Permanently delete documents. Requires *Manage documents*.                                                                                |
+| `Access channels` | Read-only access to communication channels used to deliver exercise injects to players.                                                   |
+| &nbsp;&nbsp;`Manage channels` | Create and update channels. Requires *Access channels*.                                                                                   |
+| &nbsp;&nbsp;&nbsp;&nbsp;`Delete channels` | Permanently delete channels. Requires *Manage channels*.                                                                                  |
+| `Access challenges` | Read-only access to challenges (CTF-style tasks or objectives assigned to players during exercises).                                      |
+| &nbsp;&nbsp;`Manage challenges` | Create and update challenges. Requires *Access challenges*.                                                                               |
+| &nbsp;&nbsp;&nbsp;&nbsp;`Delete challenges` | Permanently delete challenges. Requires *Manage challenges*.                                                                              |
+| `Access lessons learned` | Read-only access to lessons learned records captured after assessments or exercises.                                                      |
+| &nbsp;&nbsp;`Manage lessons learned` | Create and update lessons learned entries. Requires *Access lessons learned*.                                                             |
+| &nbsp;&nbsp;&nbsp;&nbsp;`Delete lessons learned` | Permanently delete lessons learned entries. Requires *Manage lessons learned*.                                                            |
+| **Platform Settings** |                                                                                                                                           |
+| `Access Platform Settings` | Read-only access to platform-wide configuration and administration settings.                                                              |
 | &nbsp;&nbsp;`Manage platform settings` | Modify platform-wide settings including security configuration, integrations, and system parameters. Requires *Access Platform Settings*. |
 
 
@@ -167,7 +167,7 @@ Beyond global **capabilities** defined in roles, OpenAEV also allows assigning m
     - Scenarios
     - Organizations
     - Atomic testings
-    - Payloads
+    - threat arsenal actions
 4. Select the specific items you want the group to access and assign the appropriate grant level.
 
    ![Manage grants](assets/manage-grants.png)
@@ -214,7 +214,7 @@ They do not need all capabilities — only access to the resources explicitly gr
 
     A user can access these either through specific **grants**, or globally if the group has the **ASSESSMENT** capability (which overrides individual grants).
 
-!!! tip "Payloads"
+!!! tip "threat arsenal actions"
 
     Access is given either through specific **grants**, or globally if the group has the **PAYLOAD** capability.
 

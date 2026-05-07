@@ -184,7 +184,7 @@ nav:
         - Media pressure: usage/components/media-pressure.md
         - Challenges: usage/components/challenges.md
         - Lessons: usage/components/lessons.md
-      - Payloads: usage/payloads/payloads.md
+      - Threat Arsenal: usage/threat-arsenals/threat-arsenals.md
     - Share and export:
       - Simulations: usage/simulation-reports.md
       - Notifications: usage/notifications.md
