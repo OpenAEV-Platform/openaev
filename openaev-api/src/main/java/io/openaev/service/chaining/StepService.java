@@ -8,7 +8,6 @@ import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.database.model.*;
-import io.openaev.database.repository.StepDelayQueueRepository;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
@@ -36,7 +35,6 @@ public class StepService {
   private final QueueChainingService queueChainingService;
 
   private final StepRepository stepRepository;
-  private final StepDelayQueueRepository stepDelayQueueRepository;
 
   /**
    * Create a single step template.
@@ -91,49 +89,6 @@ public class StepService {
   }
 
   /**
-   * Evaluates workflow progress by checking all step templates for valid conditions and creating
-   * READY steps. Sets workflow to END if no steps are ready and no delayed steps remain.
-   *
-   * @param workflowRun the running workflow to evaluate
-   * @return the updated workflow (may have status END)
-   */
-  @Transactional(rollbackFor = Exception.class)
-  public Workflow evaluateWorkflowProgress(Workflow workflowRun) throws ChainingException {
-    String workflowTemplateId = workflowRun.getWorkflowTemplate().getId();
-
-    // Get all step template
-    List<Step> stepsTemplate = findAllStepTemplateByWorkflow(workflowTemplateId);
-
-    if (stepsTemplate.isEmpty()) {
-      log.info(
-          "No step template for workflow template {}. End running {}",
-          workflowTemplateId,
-          workflowRun.getId());
-      workflowRun.setStatus(WorkflowStatus.END);
-      return workflowRun;
-    }
-
-    // At least one template generated one or more ready execution steps.
-    boolean hasReadySteps = false;
-
-    for (Step step : stepsTemplate) {
-      List<Step> stepReadys = createReadySteps(step, workflowRun, null);
-      if (!stepReadys.isEmpty()) {
-        hasReadySteps = true;
-        enqueueReadySteps(stepReadys, workflowRun);
-      }
-    }
-
-    // If none step TEMPLATE with valid conditions && no step template delayed update workflow with
-    // status END
-    if (!hasReadySteps && stepDelayQueueRepository.findAllByWorkflowRun(workflowRun).isEmpty()) {
-      workflowRun.setStatus(WorkflowStatus.END);
-    }
-
-    return workflowRun;
-  }
-
-  /**
    * Evaluates conditions for a step template and creates READY execution steps for each valid
    * batch. Returns an empty list when conditions defer execution.
    *
@@ -150,18 +105,6 @@ public class StepService {
     if (!conditionService.hasConditionMapper(nextStepTemplateToExecute)
         && isStepAlreadyExecutedOnce(nextStepTemplateToExecute.getId(), workflowRun.getId())) {
       return List.of();
-    }
-
-    // Guard: ignore if workflow run has already ended (e.g. timeout).
-    // Reads fresh status from DB to catch concurrent timeout completion and to avoid
-    // initializing a lazy proxy on a possibly detached workflow (handleExternalUpdateEvent
-    // is not transactional, so workflowRun may be detached when ready() is called from there).
-    if (workflowRun != null && workflowService.isWorkflowEnded(workflowRun.getId())) {
-      log.info(
-          "Ignoring ready request for step {} because workflow run {} has ended.",
-          nextStepTemplateToExecute.getId(),
-          workflowRun.getId());
-      return Optional.empty();
     }
 
     ActionStep actionStep =
@@ -249,54 +192,6 @@ public class StepService {
             e);
       }
     }
-  }
-
-  /**
-   * Run step that is ready
-   *
-   * @param stepReady step ready to run
-   */
-  public void run(Step stepReady) {
-    // Guard: ignore if workflow run has already ended (e.g. timeout).
-    // Reads fresh status from DB to catch concurrent timeout completion.
-    Workflow workflowRun = stepReady.getWorkflow();
-    if (workflowRun != null && workflowService.isWorkflowEnded(workflowRun.getId())) {
-      log.info(
-          "Ignoring run request for step {} because workflow run {} has ended.",
-          stepReady.getId(),
-          workflowRun.getId());
-      return;
-    }
-
-    Step stepRun;
-    try {
-      ActionStep actionStep = factoryAction(stepReady.getStepAction(), stepReady.getId());
-      stepRun =
-          actionStep
-              .run(stepReady)
-              .orElseThrow(() -> new ChainingException("Step (READY) execution failed"));
-    } catch (ChainingException e) {
-      // todo system notif queue fail + system log for step + status FAIL
-      log.error(
-          "Ready consume : Step (READY) execution failed. Step moved to (END) state. Step ID: {} {}",
-          stepReady.getId(),
-          e.getMessage(),
-          e);
-      stepReady.setStatus(StepStatus.END);
-      saveStep(stepReady);
-      return;
-      // todo Check all executed steps, if all ended, end workflow run
-      /* int runningStep = stepRepository.countRunningStep(stepReady.getWorkflow().getId());
-      if (runningStep == 0) {
-        // TODO manage steptemplate with time delay
-        Workflow run = stepReady.getWorkflow();
-        run.setStatus(WorkflowStatus.END);
-        workflowService.saveWorkflowRun(run);
-      }*/
-    }
-
-    stepRun.setStatus(StepStatus.RUN);
-    saveStep(stepRun);
   }
 
   /**
@@ -1082,113 +977,6 @@ public class StepService {
    */
   public Inject getInject(String injectId) {
     return injectService.inject(injectId);
-  }
-
-  @Override
-  public void handleReadyStepEvent(StepEvent stepEvent) {
-    stepRepository
-        .findById(stepEvent.getStepId())
-        .ifPresentOrElse(
-            this::run,
-            () ->
-                log.error(
-                    "Ready consume: Step not found for StepEvent ID: {}", stepEvent.getStepId()));
-  }
-
-  /**
-   * Handle external update event and create next ready step
-   *
-   * @param stepEvent event to handle
-   */
-  @Override
-  public void handleExternalUpdateEvent(ExternalUpdateEvent stepEvent) {
-    Step stepRun;
-    try {
-      stepRun = findByIdAndStatus(stepEvent.getStepId(), StepStatus.RUN);
-    } catch (ElementNotFoundException e) {
-      // Todo: system notif queue fail + system log for step + status FAIL
-      log.error(
-          "Update consume: Step (RUN) not found. Step ID: {} {}",
-          stepEvent.getStepId(),
-          e.getMessage(),
-          e);
-      return;
-    }
-
-    // Guard: ignore if workflow run has already ended (e.g. timeout).
-    // Reads fresh status from DB to catch concurrent timeout completion.
-    Workflow workflowRun = stepRun.getWorkflow();
-    if (workflowRun != null && workflowService.isWorkflowEnded(workflowRun.getId())) {
-      log.info(
-          "Ignoring external update event for step {} because workflow run {} has ended.",
-          stepRun.getId(),
-          workflowRun.getId());
-      return;
-    }
-
-    Optional<Step> stepUpdatedOpt;
-
-    try {
-      ActionStep actionStep = factoryAction(stepRun.getStepAction(), stepRun.getId());
-      stepUpdatedOpt = actionStep.update(stepRun);
-    } catch (ChainingException e) {
-      // Todo: system notif queue fail + system log for step + status FAIL
-      log.error(
-          "Update consume : Step (RUN) update failed. Step moved to (END) state. Step ID: {} {}",
-          stepRun.getId(),
-          e.getMessage(),
-          e);
-      stepRun.setStatus(StepStatus.END);
-      saveStep(stepRun);
-      return;
-    }
-
-    if (stepUpdatedOpt.isPresent()) {
-      Step stepUpdated = stepUpdatedOpt.get();
-      this.saveStep(stepUpdated);
-      // GET STEPS TEMPLATE
-      Step stepTemplateCurrent = this.findStepTemplateById(stepRun.getStepTemplate().getId());
-      Workflow workflowTemplate = stepTemplateCurrent.getWorkflow();
-
-      // Todo: system notif queue fail + system log for step + status FAIL
-      if (workflowTemplate == null) {
-        log.error(
-            "Workflow (TEMPLATE) not found for step (TEMPLATE). Step ID: {}",
-            stepRun.getStepTemplate().getId());
-        return;
-      }
-
-      List<Step> stepsTemplate = this.findAllStepTemplateByWorkflow(workflowTemplate.getId());
-
-      // FIND OTHER STEP WHO NEED INPUT FROM THIS STEP
-      List<Step> nextStepToExecute = new ArrayList<>();
-      for (Step stepTemplate : stepsTemplate) {
-        List<Condition> conditions =
-            this.conditionService.findAllConditionsByStepId(stepTemplate.getId());
-        for (Condition conditionTemplate : conditions) {
-          if (conditionTemplate.getStepFrom() != null
-              && conditionTemplate
-                  .getStepFrom()
-                  .getId()
-                  .equals(stepRun.getStepTemplate().getId())) {
-            nextStepToExecute.add(stepTemplate);
-          }
-        }
-      }
-
-      for (Step stepTemplate : nextStepToExecute) {
-        // Todo: system notif queue fail + system log for step + status FAIL
-        try {
-          ready(stepTemplate, stepRun.getWorkflow(), null);
-        } catch (ChainingException e) {
-          log.error(
-              "Failed to execute step (TEMPLATE). Step ID: {} {}",
-              stepTemplate.getId(),
-              e.getMessage(),
-              e);
-        }
-      }
-    }
   }
 
   public enum ACTION_JSON {

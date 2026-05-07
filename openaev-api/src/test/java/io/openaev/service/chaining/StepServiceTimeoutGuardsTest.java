@@ -1,11 +1,9 @@
 package io.openaev.service.chaining;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
 
-import io.openaev.api.chaining.InjectExecutionStep;
+import io.openaev.api.chaining.ActionStep;
 import io.openaev.database.model.*;
-import io.openaev.database.repository.StepDelayQueueRepository;
 import io.openaev.database.repository.StepRepository;
 import java.util.Optional;
 import java.util.UUID;
@@ -23,55 +21,60 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class StepServiceTimeoutGuardsTest {
 
   @Mock private StepRepository stepRepository;
-  @Mock private InjectExecutionStep injectExecutionStep;
+  @Mock private StepService stepService;
   @Mock private WorkflowService workflowService;
-  @Mock private ConditionService conditionService;
-  @Mock private QueueChainingService queueChainingService;
-  @Mock private StepDelayQueueRepository stepDelayQueueRepository;
+  @Mock private ActionStep actionStep;
 
-  @Spy @InjectMocks private StepService stepService;
+  @Spy @InjectMocks private StepEventService stepEventService;
 
   // ========================================================================
-  // ready() — guard on ended workflow
+  // handleReadyStepEvent() / run() — guard on ended workflow
   // ========================================================================
   @Nested
-  @DisplayName("ready — timeout guard")
+  @DisplayName("ready event / run — timeout guard")
   class ReadyGuardTests {
 
     @Test
-    @DisplayName("given_workflowEnded_should_returnEmptyAndSkipExecution")
-    void given_workflowEnded_should_returnEmptyAndSkipExecution() throws Exception {
+    @DisplayName("given_workflowEnded_should_skipExecution")
+    void given_workflowEnded_should_skipExecution() throws Exception {
       // Arrange
       Workflow endedWorkflow = buildWorkflow(WorkflowStatus.END);
-      Step stepTemplate = buildStep(StepStatus.TEMPLATE, endedWorkflow);
+      Step stepReady = buildStep(StepStatus.READY, endedWorkflow);
+      String stepId = stepReady.getId();
+
+      StepEvent event = StepEvent.builder().stepId(stepId).build();
+      when(stepRepository.findById(stepId)).thenReturn(Optional.of(stepReady));
       when(workflowService.isWorkflowEnded(endedWorkflow.getId())).thenReturn(true);
 
       // Act
-      Optional<Step> result = stepService.ready(stepTemplate, endedWorkflow, null);
+      stepEventService.handleReadyStepEvent(event);
 
       // Assert
-      assertTrue(result.isEmpty());
-      verify(conditionService, never()).checkCondition(any(), any(), any(), any());
-      verify(queueChainingService, never()).readyStep(any(), any());
+      verify(stepService, never()).factoryAction(any(), any());
+      verify(stepService, never()).saveStep(any());
     }
 
     @Test
-    @DisplayName("given_workflowRunning_should_proceedNormally")
-    void given_workflowRunning_should_proceedNormally() throws Exception {
+    @DisplayName("given_workflowRunning_should_proceedWithExecution")
+    void given_workflowRunning_should_proceedWithExecution() throws Exception {
       // Arrange
       Workflow runningWorkflow = buildWorkflow(WorkflowStatus.RUN);
-      Step stepTemplate = buildStep(StepStatus.TEMPLATE, runningWorkflow);
+      Step stepReady = buildStep(StepStatus.READY, runningWorkflow);
+      Step stepRun = buildStep(StepStatus.RUN, runningWorkflow);
+      String stepId = stepReady.getId();
 
-      when(stepRepository.findByIdAndStatus(stepTemplate.getId(), StepStatus.TEMPLATE))
-          .thenReturn(Optional.of(stepTemplate));
-      when(conditionService.checkCondition(any(), any(), any(), any())).thenReturn(null);
+      StepEvent event = StepEvent.builder().stepId(stepId).build();
+      when(stepRepository.findById(stepId)).thenReturn(Optional.of(stepReady));
+      when(workflowService.isWorkflowEnded(runningWorkflow.getId())).thenReturn(false);
+      when(stepService.factoryAction(stepReady.getStepAction(), stepId)).thenReturn(actionStep);
+      when(actionStep.run(stepReady)).thenReturn(Optional.of(stepRun));
 
       // Act
-      Optional<Step> result = stepService.ready(stepTemplate, runningWorkflow, null);
+      stepEventService.handleReadyStepEvent(event);
 
-      // Assert — returns empty because conditions returned null (no execution), but it DID proceed
-      assertTrue(result.isEmpty());
-      verify(conditionService).checkCondition(any(), any(), any(), any());
+      // Assert
+      verify(actionStep).run(stepReady);
+      verify(stepService).saveStep(stepRun);
     }
   }
 
@@ -84,17 +87,18 @@ class StepServiceTimeoutGuardsTest {
 
     @Test
     @DisplayName("given_workflowEnded_should_skipRunAndNotExecute")
-    void given_workflowEnded_should_skipRunAndNotExecute() {
+    void given_workflowEnded_should_skipRunAndNotExecute() throws Exception {
       // Arrange
       Workflow endedWorkflow = buildWorkflow(WorkflowStatus.END);
       Step stepReady = buildStep(StepStatus.READY, endedWorkflow);
       when(workflowService.isWorkflowEnded(endedWorkflow.getId())).thenReturn(true);
 
       // Act
-      stepService.run(stepReady);
+      stepEventService.run(stepReady);
 
       // Assert — no action step executed, no status change saved
-      verify(stepRepository, never()).save(any());
+      verify(stepService, never()).factoryAction(any(), any());
+      verify(stepService, never()).saveStep(any());
     }
 
     @Test
@@ -103,18 +107,21 @@ class StepServiceTimeoutGuardsTest {
       // Arrange
       Workflow runningWorkflow = buildWorkflow(WorkflowStatus.RUN);
       Step stepReady = buildStep(StepStatus.READY, runningWorkflow);
-      stepReady.setStepAction(StepActionClass.INJECT_EXECUTION);
+      String stepReadyId = stepReady.getId();
       when(workflowService.isWorkflowEnded(runningWorkflow.getId())).thenReturn(false);
 
       Step stepRun = buildStep(StepStatus.RUN, runningWorkflow);
-      when(injectExecutionStep.run(stepReady)).thenReturn(Optional.of(stepRun));
-      when(stepRepository.save(any())).thenReturn(stepRun);
+      when(stepService.factoryAction(stepReady.getStepAction(), stepReadyId))
+          .thenReturn(actionStep);
+      when(actionStep.run(stepReady)).thenReturn(Optional.of(stepRun));
+      when(stepService.saveStep(stepRun)).thenReturn(stepRun);
 
       // Act
-      stepService.run(stepReady);
+      stepEventService.run(stepReady);
 
       // Assert — step was saved with RUN status
-      verify(stepRepository).save(any());
+      verify(actionStep).run(stepReady);
+      verify(stepService).saveStep(stepRun);
     }
 
     @Test
@@ -122,19 +129,22 @@ class StepServiceTimeoutGuardsTest {
     void given_nullWorkflow_should_proceedWithExecution() throws Exception {
       // Arrange
       Step stepReady = buildStep(StepStatus.READY, null);
-      stepReady.setStepAction(StepActionClass.INJECT_EXECUTION);
+      String stepReadyId = stepReady.getId();
 
       Step stepRun = new Step();
       stepRun.setId(UUID.randomUUID().toString());
       stepRun.setStatus(StepStatus.RUN);
-      when(injectExecutionStep.run(stepReady)).thenReturn(Optional.of(stepRun));
-      when(stepRepository.save(any())).thenReturn(stepRun);
+      when(stepService.factoryAction(stepReady.getStepAction(), stepReadyId))
+          .thenReturn(actionStep);
+      when(actionStep.run(stepReady)).thenReturn(Optional.of(stepRun));
+      when(stepService.saveStep(stepRun)).thenReturn(stepRun);
 
       // Act
-      stepService.run(stepReady);
+      stepEventService.run(stepReady);
 
       // Assert — guard did not block, execution proceeded
-      verify(stepRepository).save(any());
+      verify(actionStep).run(stepReady);
+      verify(stepService).saveStep(stepRun);
       verify(workflowService, never()).isWorkflowEnded(any());
     }
   }
@@ -148,22 +158,22 @@ class StepServiceTimeoutGuardsTest {
 
     @Test
     @DisplayName("given_stepRunWithEndedWorkflow_should_ignoreEvent")
-    void given_stepRunWithEndedWorkflow_should_ignoreEvent() {
+    void given_stepRunWithEndedWorkflow_should_ignoreEvent() throws Exception {
       // Arrange
       Workflow endedWorkflow = buildWorkflow(WorkflowStatus.END);
       Step stepRun = buildStep(StepStatus.RUN, endedWorkflow);
 
       ExternalUpdateEvent event = ExternalUpdateEvent.builder().stepId(stepRun.getId()).build();
 
-      when(stepRepository.findByIdAndStatus(stepRun.getId(), StepStatus.RUN))
-          .thenReturn(Optional.of(stepRun));
+      when(stepService.findByIdAndStatus(stepRun.getId(), StepStatus.RUN)).thenReturn(stepRun);
       when(workflowService.isWorkflowEnded(endedWorkflow.getId())).thenReturn(true);
 
       // Act
-      stepService.handleExternalUpdateEvent(event);
+      stepEventService.handleExternalUpdateEvent(event);
 
       // Assert — no update attempted, no next steps triggered
-      verify(stepRepository, never()).save(any());
+      verify(stepService, never()).factoryAction(any(), any());
+      verify(stepService, never()).saveStep(any());
     }
 
     @Test
@@ -178,17 +188,19 @@ class StepServiceTimeoutGuardsTest {
 
       ExternalUpdateEvent event = ExternalUpdateEvent.builder().stepId(stepRun.getId()).build();
 
-      when(stepRepository.findByIdAndStatus(stepRun.getId(), StepStatus.RUN))
-          .thenReturn(Optional.of(stepRun));
+      when(stepService.findByIdAndStatus(stepRun.getId(), StepStatus.RUN)).thenReturn(stepRun);
       when(workflowService.isWorkflowEnded(runningWorkflow.getId())).thenReturn(false);
+      when(stepService.factoryAction(stepRun.getStepAction(), stepRun.getId()))
+          .thenReturn(actionStep);
       // update returns empty → no next steps, but the guard was passed
-      when(injectExecutionStep.update(stepRun)).thenReturn(Optional.empty());
+      when(actionStep.update(stepRun)).thenReturn(Optional.empty());
 
       // Act
-      stepService.handleExternalUpdateEvent(event);
+      stepEventService.handleExternalUpdateEvent(event);
 
       // Assert — update was attempted (guard passed)
-      verify(injectExecutionStep).update(stepRun);
+      verify(actionStep).update(stepRun);
+      verify(stepService, never()).saveStep(any());
     }
   }
 

@@ -41,6 +41,7 @@ class WorkflowServiceTest {
   @Mock private ScopeVariableRepository scopeVariableRepository;
   @Mock private PreviewFeatureService previewFeatureService;
   @Mock private StepService stepService;
+  @Mock private StepDelayQueueService stepDelayQueueService;
   @Mock private WorkflowStateService workflowStateService;
 
   @InjectMocks private WorkflowService workflowService;
@@ -465,7 +466,7 @@ class WorkflowServiceTest {
       workflowService.startWorkflowBySimulationId(simulationId);
 
       verify(workflowStateService).syncState(any(), any(), eq(run));
-      verify(stepService).evaluateWorkflowProgress(run);
+      verify(stepService).findAllStepTemplateByWorkflow("template");
     }
 
     @Test
@@ -503,7 +504,7 @@ class WorkflowServiceTest {
 
       verify(stepService).copyStepTemplate(scenarioTemplate, simulationTemplate);
       verify(workflowStateService).syncState(any(), any(), eq(run));
-      verify(stepService).evaluateWorkflowProgress(run);
+      verify(stepService).findAllStepTemplateByWorkflow("simulation-template");
     }
   }
 
@@ -692,6 +693,7 @@ class WorkflowServiceTest {
           new WorkflowService(
               stepService,
               previewFeatureService,
+              stepDelayQueueService,
               workflowRepository,
               workflowScopeRuleRepository,
               scopeVariableRepository,

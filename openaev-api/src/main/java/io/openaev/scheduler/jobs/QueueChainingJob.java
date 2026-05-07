@@ -5,6 +5,7 @@ import io.openaev.database.model.StepDelayQueue;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.service.chaining.StepDelayQueueService;
 import io.openaev.service.chaining.StepService;
+import io.openaev.service.chaining.WorkflowService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +22,7 @@ import org.springframework.stereotype.Component;
 public class QueueChainingJob implements Job {
   private final StepDelayQueueService stepDelayQueueService;
   private final StepService stepService;
+  private final WorkflowService workflowService;
 
   /** Periodically processes the next eligible step from the delay queue. */
   @Override
@@ -31,6 +33,19 @@ public class QueueChainingJob implements Job {
     if (stepsDelayQueue.isEmpty()) return;
 
     for (StepDelayQueue stepDelayQueue : stepsDelayQueue) {
+      // Guard: ignore if workflow run has already ended (e.g. timeout).
+      if (workflowService.isWorkflowEnded(stepDelayQueue.getWorkflowRun().getId())) {
+        log.info(
+            "Ignoring step {} because workflow run {} has ended.",
+            stepDelayQueue.getId(),
+            stepDelayQueue.getWorkflowRun().getId());
+        log.info(
+            "Deleting all delayed steps for workflow run {} as it has ended.",
+            stepDelayQueue.getWorkflowRun().getId());
+        stepDelayQueueService.deleteAllByWorkflowRun(stepDelayQueue.getWorkflowRun());
+        continue;
+      }
+
       try {
         stepService.enqueueReadySteps(
             stepService.createReadySteps(

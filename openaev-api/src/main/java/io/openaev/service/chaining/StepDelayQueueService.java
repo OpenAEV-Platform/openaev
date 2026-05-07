@@ -85,4 +85,13 @@ public class StepDelayQueueService {
   public void deleteAllByWorkflowRun(Workflow workflowRun) {
     stepDelayQueueRepository.deleteAllByWorkflowRun(workflowRun);
   }
+
+  /**
+   * Find all step delayed for a given workflow
+   *
+   * @return list of steps
+   */
+  public List<StepDelayQueue> findAllByWorkflowRun(Workflow workflowRun) {
+    return stepDelayQueueRepository.findAllByWorkflowRun(workflowRun);
+  }
 }
