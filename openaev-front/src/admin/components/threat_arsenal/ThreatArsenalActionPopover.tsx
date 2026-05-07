@@ -65,7 +65,12 @@ const buildInitialValues = (action: ThreatArsenalActionFullOutput, actionName: s
     command_executor: action.command_executor as string | undefined,
     command_content: action.command_content as string | undefined,
     dns_resolution_hostname: action.dns_resolution_hostname as string | undefined,
-    action_arguments: action.action_arguments,
+    action_arguments: action.action_arguments?.map(arg => ({
+      ...arg,
+      subtype: arg.subtype ?? undefined,
+      description: arg.description ?? undefined,
+      separator: arg.separator ?? undefined,
+    })),
     action_prerequisites: action.action_prerequisites,
     file_drop_file: action.file_drop_file as string | undefined,
     action_attack_patterns: action.action_attack_patterns,
