@@ -83,7 +83,7 @@ jobs:
       SPRING_DATASOURCE_USERNAME: openaev
       SPRING_DATASOURCE_PASSWORD: openaev
       MINIO_ENDPOINT: localhost
-      MINIO_PORT: 9000
+      MINIO_PORT: 11000
       ENGINE_URL: http://localhost:9200
       OPENBAS_RABBITMQ_HOSTNAME: localhost
     steps:
@@ -172,7 +172,7 @@ jobs:
       SPRING_DATASOURCE_USERNAME: openaev
       SPRING_DATASOURCE_PASSWORD: openaev
       MINIO_ENDPOINT: localhost
-      MINIO_PORT: 9000
+      MINIO_PORT: 11000
       ENGINE_URL: http://localhost:9200
       ENGINE_ENGINESELECTOR: opensearch
       OPENBAS_RABBITMQ_HOSTNAME: localhost
@@ -278,7 +278,7 @@ jobs:
       SPRING_DATASOURCE_USERNAME: openaev
       SPRING_DATASOURCE_PASSWORD: openaev
       MINIO_ENDPOINT: localhost
-      MINIO_PORT: 9000
+      MINIO_PORT: 11000
       MINIO_ACCESS_KEY: minioadmin
       MINIO_ACCESS_SECRET: minioadmin
       ENGINE_URL: http://localhost:9200
@@ -515,7 +515,7 @@ jobs:
       SPRING_DATASOURCE_USERNAME: openaev
       SPRING_DATASOURCE_PASSWORD: openaev
       MINIO_ENDPOINT: localhost
-      MINIO_PORT: 9000
+      MINIO_PORT: 11000
       MINIO_ACCESS_KEY: minioadmin
       MINIO_ACCESS_SECRET: minioadmin
       ENGINE_URL: http://localhost:9200
