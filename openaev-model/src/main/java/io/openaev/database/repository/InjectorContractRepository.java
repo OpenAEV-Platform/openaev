@@ -165,4 +165,25 @@ public interface InjectorContractRepository
   Set<InjectorContract> findInjectorContractsByVulnerabilityIdIn(
       @Param("externalIds") Set<String> externalIds,
       @Param("contractsPerVulnerability") Integer contractsPerVulnerability);
+
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
+  @Query(
+      value =
+          """
+    INSERT INTO injectors_injector_contracts (injector_id, injector_contract_id, tenant_id)
+    SELECT i.injector_id, :contractId, i.tenant_id
+    FROM injectors i
+    WHERE i.injector_payloads = :payloads
+    AND i.tenant_id = :tenantId
+    AND NOT EXISTS (
+        SELECT 1 FROM injectors_injector_contracts ic
+        WHERE ic.injector_id = i.injector_id
+        AND ic.injector_contract_id = :contractId
+    )
+    """,
+      nativeQuery = true)
+  void addContractToInjectorsWithoutIt(
+      @Param("payloads") Boolean payloads,
+      @Param("tenantId") String tenantId,
+      @Param("contractId") String contractId);
 }

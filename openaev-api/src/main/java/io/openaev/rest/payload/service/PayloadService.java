@@ -109,12 +109,8 @@ public class PayloadService {
         injectorContractRepository.save(injectorContractToUpdate);
 
     // Link contract to all payload-supporting injectors via the owning side
-    for (Injector injector : injectors) {
-      if (!injector.getContracts().contains(injectorContractSaved)) {
-        injector.getContracts().add(injectorContractSaved);
-        injectorRepository.save(injector);
-      }
-    }
+    injectorContractRepository.addContractToInjectorsWithoutIt(
+        true, payload.getTenant().getId(), injectorContractSaved.getId());
 
     return injectorContractSaved;
   }
