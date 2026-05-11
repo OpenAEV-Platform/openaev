@@ -143,7 +143,7 @@ jobs:
           --health-cmd "pg_isready -U openaev" --health-interval 10s
           --health-timeout 5s --health-retries 5
       opensearch:
-        image: opensearchproject/opensearch:3.3.2
+        image: opensearchproject/opensearch:3.6.0
         ports:
           - 9200:9200
         env:
