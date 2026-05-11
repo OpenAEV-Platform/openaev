@@ -11,7 +11,6 @@ import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.utils.ConditionUtils;
 import jakarta.persistence.EntityNotFoundException;
-import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -37,33 +36,6 @@ public class ConditionServiceTest {
   @Mock private WorkflowStateService workflowStateService;
   @Spy private ConditionUtils conditionUtils;
 
-  /* ============================================================
-   * isTimeCondition
-   * ============================================================ */
-  @Nested
-  class IsTimeCondition {
-
-    static Stream<ConditionType> allConditionTypes() {
-      return Stream.of(ConditionType.values());
-    }
-
-    @ParameterizedTest(name = "{index} => type={0}")
-    @MethodSource("allConditionTypes")
-    void shouldReturnExpected_forGivenConditionType(ConditionType type) {
-      // -------- Prepare --------
-      Condition condition = mock(Condition.class);
-      when(condition.getType()).thenReturn(type);
-
-      assertEquals(type, condition.getType());
-
-      boolean expected = (type == ConditionType.AFTER || type == ConditionType.BEFORE);
-      // -------- Act --------
-      boolean result = conditionUtils.isTimeCondition(condition);
-
-      // -------- Assert --------
-      assertEquals(result, expected);
-    }
-  }
 
   /* ============================================================
    * isMapperCondition
@@ -114,9 +86,8 @@ public class ConditionServiceTest {
       assertEquals(type, condition.getType());
 
       boolean expected =
-          !(type == ConditionType.AFTER
-              || type == ConditionType.BEFORE
-              || type == ConditionType.MAPPER);
+          !(type == ConditionType.MAPPER
+              || type == ConditionType.DEPEND_ON);
       // -------- Act --------
       boolean result = conditionUtils.isFilterCondition(condition);
 
@@ -125,63 +96,6 @@ public class ConditionServiceTest {
     }
   }
 
-  /* ============================================================
-   * isTimeConditionValid
-   * ============================================================ */
-  @Nested
-  class IsTimeConditionValid {
-
-    @ParameterizedTest(name = "{index} => type={0}, nowVsGoal={1}, shouldCreate={2}")
-    @MethodSource("timeConditionValidScenarios")
-    void shouldReturnExpectedConditionOrNull(
-        ConditionType type, NowGoalRelation relation, boolean shouldCreate) {
-      // -------- Prepare --------
-      Condition template = mock(Condition.class);
-      lenient().when(template.getType()).thenReturn(type);
-
-      Instant now = Instant.parse("2026-02-04T10:15:30Z");
-      Instant goal =
-          switch (relation) {
-            case NOW_AFTER_GOAL -> Instant.parse("2026-02-04T10:15:00Z");
-            case NOW_BEFORE_GOAL -> Instant.parse("2026-02-04T10:16:00Z");
-            case NOW_EQUAL_GOAL -> now;
-          };
-
-      // -------- Act --------
-      boolean result = conditionUtils.isTimeConditionValid(template, now, goal);
-
-      // -------- Assert --------
-      if (shouldCreate) {
-        assertTrue(result);
-      } else {
-        assertFalse(result);
-      }
-    }
-
-    private static Stream<Arguments> timeConditionValidScenarios() {
-      return Stream.of(
-          // AFTER: only valid if now.isAfter(goal)
-          Arguments.of(ConditionType.AFTER, NowGoalRelation.NOW_AFTER_GOAL, true),
-          Arguments.of(ConditionType.AFTER, NowGoalRelation.NOW_BEFORE_GOAL, false),
-          Arguments.of(ConditionType.AFTER, NowGoalRelation.NOW_EQUAL_GOAL, false),
-
-          // BEFORE: always returns a Condition
-          Arguments.of(ConditionType.BEFORE, NowGoalRelation.NOW_AFTER_GOAL, false),
-          Arguments.of(ConditionType.BEFORE, NowGoalRelation.NOW_BEFORE_GOAL, true),
-          Arguments.of(ConditionType.BEFORE, NowGoalRelation.NOW_EQUAL_GOAL, false),
-
-          // Other types: returns null
-          Arguments.of(ConditionType.MAPPER, NowGoalRelation.NOW_AFTER_GOAL, false),
-          Arguments.of(ConditionType.EQ, NowGoalRelation.NOW_AFTER_GOAL, false),
-          Arguments.of(ConditionType.DEPEND_ON, NowGoalRelation.NOW_AFTER_GOAL, false));
-    }
-
-    private enum NowGoalRelation {
-      NOW_AFTER_GOAL,
-      NOW_BEFORE_GOAL,
-      NOW_EQUAL_GOAL
-    }
-  }
 
   /* ============================================================
    * saveCondition / saveAllConditions / findAllConditionsByStepId
@@ -320,6 +234,7 @@ public class ConditionServiceTest {
       List<Condition> conditions = List.of(filterTemplate, mapperTemplate);
 
       doReturn(conditions).when(conditionService).findAllConditionsByStepId(stepId);
+      when(filterTemplate.getType()).thenReturn(ConditionType.MAPPER);
       when(conditionUtils.isMapperCondition(filterTemplate)).thenReturn(false);
       when(conditionUtils.isMapperCondition(mapperTemplate)).thenReturn(true);
 

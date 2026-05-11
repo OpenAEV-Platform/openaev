@@ -447,94 +447,255 @@ public class ConditionService {
       return List.of(new ExecutionBatch(input, new ArrayList<>()));
     }
 
-    //    // TIME CONDITIONS
-    //    // TODO manage multi time condition (AND, OR: g C1 BEFORE OR C2 AFTER)
-    //    // Compute expected start time for the condition to be considered as valid
-    //     List<Condition> timeConditions =
-    //        conditionTemplate.stream().filter(this::isTimeCondition).toList();
-    //     for (Condition condition : timeConditions) {
-    //      Instant now = Instant.now();
-    //      Instant start = workflowRun.getWorkflowCreatedAt();
-    //      // TODO: can this happen ? Shouldn't it throw an exception instead?
-    //      if (start == null) start = now;
-    //      long value = Long.parseLong(condition.getValue());
-    //      Instant goal = start.plus(value, ChronoUnit.MILLIS);
-    //
-    //      if (isTimeConditionValid(condition, now, goal)) {
-    //        conditionsExecution.add(ConditionFactory.executionOf(condition, goal));
-    //        continue;
-    //      }
-    //      if (condition.getType().equals(ConditionType.AFTER)) {
-    //        long delay = ChronoUnit.MILLIS.between(now, goal);
-    //
-    //        stepDelayQueueService.pushStepTemplateIntoStepDelayQueue(
-    //            nextStepTemplateToExecute, now, input, delay, workflowRun, goal);
-    //        return null;
-    //      }
-    //    }
+    // DEPEND_ON CONDITIONS
+    // Evaluate dependency conditions: verify that the referenced step template has been
+    // executed at least once in the current workflow run before allowing this step to proceed.
+    List<Condition> dependOnConditions =
+        conditionTemplate.stream().filter(conditionUtils::isDependOnCondition).toList();
 
-    // Task ConditionExecution
-    // Check event was already validated
-    // Check event filters
-    // Create pool local if needed
-    //
-    //    List<Condition> filterConditions =
-    //        conditionTemplate.stream().filter(this::isFilterCondition).toList();
-    //
-    //    for (Condition condition : filterConditions) {
-    //      Condition filterConditionValid =
-    //          isFilterConditionValid(input, condition);
-    //      if (filterConditionValid == null) {
-    //        // todo condition not valid break analyse
-    //      } else {
-    //        conditionsExecution.add(filterConditionValid);
-    //      }
-    //    }
-    //
+    if (!dependOnConditions.isEmpty()) {
+      if (!evaluateDependOnConditions(dependOnConditions, workflowRun)) {
+        log.debug(
+            "Depend-on conditions not satisfied for step template {}",
+            nextStepTemplateToExecute.getId());
+        return Collections.emptyList();
+      }
+    }
+
+    // FILTER CONDITIONS
+    // Evaluate filter conditions against the current input AND the finding state (global state).
+    // If another action produced a parameter needed by the filter, we look it up
+    // in the workflow state pool.
+    List<Condition> filterConditions =
+        conditionTemplate.stream().filter(conditionUtils::isFilterCondition).toList();
+
+    if (!filterConditions.isEmpty()) {
+      if (!evaluateFilterConditions(filterConditions, workflowRun, nextStepTemplateToExecute)) {
+        log.info(
+            "[Chaining] Filter conditions not satisfied for step template {}",
+            nextStepTemplateToExecute.getId());
+        return Collections.emptyList();
+      }
+    }
 
     // MAPPER CONDITIONS
     List<Condition> mapperConditions =
         conditionTemplate.stream().filter(conditionUtils::isMapperCondition).toList();
 
-    return prepareInputsForStepExecution(nextStepTemplateToExecute, workflowRun, mapperConditions);
+    // No mapper means direct execution with the original input
+    if (mapperConditions.isEmpty()) {
+      return List.of(new ExecutionBatch(input, new ArrayList<>()));
+    }
 
-    //    // StepFrom (DEPEND_ON) conditions
-    //    List<Condition> stepFrom =
-    //        conditionTemplate.stream().filter(condition -> condition.getStepFrom() !=
-    // null).toList();
-    //    for (Condition condition : stepFrom) {
-    //      String idStepFromTemplate = condition.getStepFrom().getId();
-    //      List<Step> dependOnStepsRunByTemplateIdAndWorkflowRunId =
-    //          stepService
-    //              .findAllStepExecutedByStepTemplateIdAndWorkflowRunId(
-    //                  idStepFromTemplate, workflowRun.getId())
-    //              .stream()
-    //              .filter(step -> step.getOutput() != null)
-    //              .toList();
-    //
-    //      // Count of current step template already run into this workflow run
-    //      int stepExecutedCount =
-    //          stepService.countExecutedStep(workflowRun.getId(),
-    // nextStepTemplateToExecute.getId());
-    //
-    //      boolean hasDependencyOutput = !dependOnStepsRunByTemplateIdAndWorkflowRunId.isEmpty();
-    //      boolean underExecutionLimit =
-    //          stepExecutedCount < nextStepTemplateToExecute.getLimitExecution();
-    //
-    //      // todo : change : !dependOnStepsRunByTemplateIdAndWorkflowRunId.isEmpty()
-    //      // ( means at least 1 stepFrom is/has been running),
-    //      // to implement: check if input/output as already be used into the next stepToExecute
-    //      // This condition means:
-    //      // - the previews one has been executed and contain output
-    //      // - and the next one not reach his limit of execution
-    //      if (hasDependencyOutput && underExecutionLimit) {
-    //        conditionsExecution.add(isDependOn(idStepFromTemplate));
-    //      } else {
-    //        // Todo : condition not valid break analyse
-    //        return null;
-    //      }
-    //    }
-    // todo Mapped input-data step
+    return prepareInputsForStepExecution(nextStepTemplateToExecute, workflowRun, mapperConditions);
+  }
+
+  /**
+   * Evaluates all DEPEND_ON conditions for a step.
+   *
+   * <p>Each DEPEND_ON condition references a step template ID in its value. The condition is
+   * satisfied if and only if that step template has been executed at least once in the given
+   * workflow run.
+   *
+   * <p>All DEPEND_ON conditions must be satisfied
+   *
+   * @param dependOnConditions list of DEPEND_ON conditions to evaluate
+   * @param workflowRun the running workflow (provides the run ID to scope the check)
+   * @return {@code true} if all dependencies are satisfied
+   */
+  private boolean evaluateDependOnConditions(
+      List<Condition> dependOnConditions, Workflow workflowRun) {
+    for (Condition condition : dependOnConditions) {
+      String dependentStepTemplateId = condition.getValue();
+      if (dependentStepTemplateId == null || dependentStepTemplateId.isBlank()) {
+        log.info("DEPEND_ON condition has no step template ID value: {}", condition.getId());
+        return false;
+      }
+
+      boolean executed =
+          stepRepository.existsByStepTemplateIdAndWorkflowId(
+              dependentStepTemplateId, workflowRun.getId());
+
+      if (!executed) {
+        log.debug(
+            "DEPEND_ON not satisfied: step template {} has not been executed in workflow run {}",
+            dependentStepTemplateId,
+            workflowRun.getId());
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Evaluates all filter conditions for a step against the local and global state pools.
+   *
+   * <p>For each root filter condition tree, values are resolved at the leaf level (where each leaf
+   * has its own keyType), not at the root level. This correctly handles AND/OR trees where the root
+   * has no keyType, but children do.
+   *
+   * <p>Values are resolved in this order per leaf:
+   *
+   * <ol>
+   *   <li>From the workflow local state pool (step-specific accumulated values from propagation)
+   *   <li>From the workflow global state pool (values produced by other actions)
+   * </ol>
+   *
+   * <p>All root filter conditions must be satisfied (AND semantics at the top level).
+   *
+   * @param filterConditions list of root filter conditions to evaluate
+   * @param workflowRun the running workflow for accessing the state pools
+   * @param stepTemplate the step template for accessing local state
+   * @return {@code true} if all filter conditions are satisfied
+   */
+  private boolean evaluateFilterConditions(
+      List<Condition> filterConditions, Workflow workflowRun, Step stepTemplate) {
+
+    // Lazy-loaded state entries
+    WorkflowStateEntries[] globalEntries = {null};
+    WorkflowStateEntries[] localEntries = {null};
+
+    // Supplier to lazy-load context on first need
+    Runnable ensureStateLoaded =
+        () -> {
+          if (globalEntries[0] == null || localEntries[0] == null) {
+            WorkflowContext context = fetchWorkflowContext(workflowRun, stepTemplate);
+            globalEntries[0] = context.globalEntries();
+            localEntries[0] = context.localEntries();
+          }
+        };
+
+    for (Condition filterCondition : filterConditions) {
+      if (!isFilterTreeSatisfied(filterCondition, globalEntries, localEntries, ensureStateLoaded)) {
+        log.info(
+            "[Chaining] Filter tree NOT satisfied: rootId={}, rootType={}, rootKeyType={}, childrenCount={}",
+            filterCondition.getId(),
+            filterCondition.getType(),
+            filterCondition.getKeyType(),
+            filterCondition.getConditionChildren() != null
+                ? filterCondition.getConditionChildren().size()
+                : 0);
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  /**
+   * Recursively evaluates a filter condition tree, resolving values at the leaf level.
+   *
+   * <p>For AND/OR nodes, recurses into children. For leaf nodes (EQ, NEQ, etc.), resolves the
+   * actual value using the leaf's own keyType from the local and global state pools and compares it
+   * against the leaf's target value.
+   *
+   * @param condition the condition node to evaluate (may be AND/OR or a leaf)
+   * @param globalEntries lazy-loaded global state (array wrapper for mutation)
+   * @param localEntries lazy-loaded local state (array wrapper for mutation)
+   * @param ensureStateLoaded callback to load state entries on demand
+   * @return {@code true} if the condition tree is satisfied
+   */
+  private boolean isFilterTreeSatisfied(
+      Condition condition,
+      WorkflowStateEntries[] globalEntries,
+      WorkflowStateEntries[] localEntries,
+      Runnable ensureStateLoaded) {
+
+    if (condition == null) {
+      return true;
+    }
+
+    // AND node: all children must be satisfied
+    if (condition.getType() == ConditionType.AND) {
+      if (condition.getConditionChildren() == null || condition.getConditionChildren().isEmpty()) {
+        return true;
+      }
+      return condition.getConditionChildren().stream()
+          .allMatch(
+              child ->
+                  isFilterTreeSatisfied(child, globalEntries, localEntries, ensureStateLoaded));
+    }
+
+    // OR node: at least one child must be satisfied
+    if (condition.getType() == ConditionType.OR) {
+      if (condition.getConditionChildren() == null || condition.getConditionChildren().isEmpty()) {
+        return false;
+      }
+      return condition.getConditionChildren().stream()
+          .anyMatch(
+              child ->
+                  isFilterTreeSatisfied(child, globalEntries, localEntries, ensureStateLoaded));
+    }
+
+    // Leaf node: ensure state is loaded, resolve values, then evaluate.
+    // A leaf is satisfied if ANY value from the resolved pool matches the condition.
+    ensureStateLoaded.run();
+    List<String> valuesToCheck =
+        resolveAllFilterValues(condition, globalEntries[0], localEntries[0]);
+
+    boolean result =
+        valuesToCheck.stream()
+            .anyMatch(val -> conditionUtils.evaluateLeafCondition(val, condition));
+    if (!result) {
+      log.info(
+          "[Chaining] Filter leaf NOT satisfied: type={}, keyType={}, conditionValue={}, resolvedValues={}",
+          condition.getType(),
+          condition.getKeyType(),
+          condition.getValue(),
+          valuesToCheck);
+    }
+    return result;
+  }
+
+  /**
+   * Resolves all candidate values for a filter condition by looking at: - The local state
+   * (step-specific accumulated values from propagation) - The global state (finding pool from other
+   * actions)
+   *
+   * <p>This method returns ALL available values so that the caller can check if ANY of them
+   * satisfies the condition. This is necessary when multiple values are stored under the same key
+   * type.
+   *
+   * @param condition the filter condition whose keyType identifies the field
+   * @param globalEntries global workflow state entries (may be null if not yet loaded)
+   * @param localEntries local workflow state entries (may be null if not yet loaded)
+   * @return list of all candidate values (may be empty, never null)
+   */
+  private List<String> resolveAllFilterValues(
+      Condition condition, WorkflowStateEntries globalEntries, WorkflowStateEntries localEntries) {
+
+    String key =
+        condition.getKeyType() != null ? condition.getKeyType().name() : condition.getKey();
+
+    List<String> candidates = new ArrayList<>();
+
+    // 1. Try local state pool (step-specific accumulated values from propagation)
+    Set<String> localValues = getAllValuesFromEntries(localEntries, key);
+    candidates.addAll(localValues);
+
+    // 2. Try global state pool (finding pool from other actions)
+    Set<String> globalValues = getAllValuesFromEntries(globalEntries, key);
+    candidates.addAll(globalValues);
+
+    return candidates;
+  }
+
+  /**
+   * Returns all values for a given key from workflow state entries.
+   *
+   * @param entries workflow state entries (may be null)
+   * @param key the key to look up
+   * @return set of values (empty if not found, never null)
+   */
+  private Set<String> getAllValuesFromEntries(WorkflowStateEntries entries, String key) {
+    if (entries == null || key == null) {
+      return Set.of();
+    }
+    WorkflowStateEntries.Input input = entries.getInputByKey(key);
+    if (input != null && input.getValues() != null && !input.getValues().isEmpty()) {
+      return input.getValues();
+    }
+    return Set.of();
   }
 
   /**
@@ -762,7 +923,11 @@ public class ConditionService {
         workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun);
 
     WorkflowStateEntries localEntries = deserializeEntries(localState.getEntries());
-    WorkflowStateEntries globalEntries = deserializeEntries(globalState.getEntries());
+    WorkflowStateEntries globalEntries =
+        globalState != null
+            ? deserializeEntries(globalState.getEntries())
+            : new WorkflowStateEntries(
+                new ArrayList<>(), new ArrayList<>(), new HashSet<>(), new HashSet<>());
 
     return new WorkflowContext(localState, localEntries, globalEntries);
   }

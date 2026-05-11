@@ -119,8 +119,7 @@ public class WorkflowStateService {
       String workflowTemplateId, Set<ConditionKeyType> outputKeyTypes) {
 
     // Find filter conditions in the workflow template that match the output key types
-    Set<ConditionType> excludedTypes =
-        Set.of(ConditionType.MAPPER, ConditionType.AFTER, ConditionType.BEFORE);
+    Set<ConditionType> excludedTypes = Set.of(ConditionType.MAPPER, ConditionType.DEPEND_ON);
     List<Condition> matchingConditions =
         conditionRepository.findFilterConditionsByWorkflowIdAndKeyTypes(
             workflowTemplateId, outputKeyTypes, excludedTypes);
@@ -185,11 +184,11 @@ public class WorkflowStateService {
 
   /**
    * Filters output values to keep only those matching the interested key types from the root
-   * conditions' children and satisfying at least one root filter condition.
+   * conditions' children and matching at least one leaf condition in the event tree.
    *
    * @param rootConditions the root filter conditions to check against
    * @param parsedByType map of output type names to their extracted values
-   * @return map of key type names to values that satisfy the filter conditions
+   * @return map of key type names to values that match at least one leaf condition
    */
   private Map<String, List<String>> filterValuesMatchingConditions(
       List<Condition> rootConditions, Map<String, List<String>> parsedByType) {
@@ -206,7 +205,7 @@ public class WorkflowStateService {
                         .map(child -> child.getKeyType().name()))
             .collect(Collectors.toSet());
 
-    // Filter output values: keep only those matching interested key types and satisfying filters
+    // Filter output values: keep only those matching interested key types and relevant to the event
     Map<String, List<String>> valuesToPropagate = new HashMap<>();
     for (String keyTypeName : interestedKeyTypes) {
       List<String> values = parsedByType.get(keyTypeName);
@@ -214,20 +213,44 @@ public class WorkflowStateService {
         continue;
       }
 
-      // Only propagate values that satisfy at least one root filter condition (event)
-      // isFilterConditionValid recursively checks the tree (AND/OR → leaves)
+      // Propagate values that match any leaf condition in any root condition tree.
+      // We ignore AND/OR grouping here: a value is relevant if it satisfies any individual
+      // leaf condition, because it may contribute to the overall event satisfaction together
+      // with other values. The full AND/OR evaluation happens at step execution time.
       List<String> matchingValues =
           values.stream()
               .filter(
                   val ->
-                      rootConditions.stream()
-                          .anyMatch(root -> conditionUtils.isFilterConditionValid(val, root)))
+                      rootConditions.stream().anyMatch(root -> matchesAnyLeafCondition(val, root)))
               .toList();
       if (!matchingValues.isEmpty()) {
         valuesToPropagate.put(keyTypeName, matchingValues);
       }
     }
     return valuesToPropagate;
+  }
+
+  /**
+   * Checks whether a value matches any leaf condition in the condition tree, ignoring AND/OR
+   * logical grouping. This is used for propagation (deciding which values are relevant to an
+   * event), not for full evaluation (deciding if the event is fully satisfied).
+   *
+   * @param value the value to check
+   * @param node the condition tree node to inspect
+   * @return {@code true} if the value satisfies at least one leaf condition in the tree
+   */
+  private boolean matchesAnyLeafCondition(String value, Condition node) {
+    if (node == null) {
+      return false;
+    }
+    // For logical operator nodes (AND/OR), recurse into children looking for any matching leaf
+    if (node.getType() == ConditionType.AND || node.getType() == ConditionType.OR) {
+      return node.getConditionChildren() != null
+          && node.getConditionChildren().stream()
+              .anyMatch(child -> matchesAnyLeafCondition(value, child));
+    }
+    // For leaf nodes, delegate to the existing leaf evaluator
+    return conditionUtils.evaluateLeafCondition(value, node);
   }
 
   /**

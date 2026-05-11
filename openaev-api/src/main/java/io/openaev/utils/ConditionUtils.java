@@ -2,7 +2,6 @@ package io.openaev.utils;
 
 import io.openaev.database.model.Condition;
 import io.openaev.database.model.ConditionType;
-import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
@@ -12,38 +11,6 @@ import org.springframework.stereotype.Component;
 @Component
 public class ConditionUtils {
 
-  /**
-   * Checks whether the condition is a time-based condition.
-   *
-   * @param condition condition to evaluate
-   * @return {@code true} if the condition type is AFTER or BEFORE
-   */
-  public boolean isTimeCondition(Condition condition) {
-    return switch (condition.getType()) {
-      case ConditionType.AFTER, ConditionType.BEFORE -> true;
-      default -> false;
-    };
-  }
-
-  /**
-   * Evaluates a time condition against the current time.
-   *
-   * <p>TODO: this is for legacy behavior only (compare from start of workflow instead of previous
-   * step.
-   *
-   * @param conditionTemplate the condition to evaluate
-   * @param now current instant
-   * @param goal target instant
-   * @return {@code true} if the condition is valid
-   */
-  public Boolean isTimeConditionValid(Condition conditionTemplate, Instant now, Instant goal) {
-    if (conditionTemplate.getType().equals(ConditionType.AFTER)) {
-      return now.isAfter(goal);
-    } else if (conditionTemplate.getType().equals(ConditionType.BEFORE)) {
-      return now.isBefore(goal);
-    }
-    return false;
-  }
 
   /**
    * Checks whether the condition is a mapper condition.
@@ -52,7 +19,7 @@ public class ConditionUtils {
    * @return {@code true} if the condition type is MAPPER
    */
   public boolean isMapperCondition(Condition condition) {
-    return condition.getType() == ConditionType.MAPPER;
+    return condition.getType() != null && condition.getType() == ConditionType.MAPPER;
   }
 
   /**
@@ -63,14 +30,27 @@ public class ConditionUtils {
   }
 
   /**
+   * Checks whether the condition is a dependency condition.
+   *
+   * @param condition condition to evaluate
+   * @return {@code true} if the condition type is DEPEND_ON
+   */
+  public boolean isDependOnCondition(Condition condition) {
+    return condition.getType() != null && condition.getType() == ConditionType.DEPEND_ON;
+  }
+
+  /**
    * Checks whether the condition is a filter condition.
    *
    * @param condition condition to evaluate
-   * @return {@code true} if it is not a time or mapper condition
+   * @return {@code true} if it is a data-filtering condition (not time, mapper, or dependency)
    */
   public boolean isFilterCondition(Condition condition) {
+    if (condition.getType() == null) {
+      return false;
+    }
     return switch (condition.getType()) {
-      case ConditionType.AFTER, ConditionType.BEFORE, ConditionType.MAPPER -> false;
+      case ConditionType.MAPPER, ConditionType.DEPEND_ON -> false;
       default -> true;
     };
   }
@@ -97,8 +77,11 @@ public class ConditionUtils {
     return evaluateLeafCondition(value, rootFilter);
   }
 
-  private boolean evaluateLeafCondition(String actualValue, Condition filter) {
+  public boolean evaluateLeafCondition(String actualValue, Condition filter) {
     ConditionType type = filter.getType();
+    if (type == null) {
+      return true;
+    }
     String target = filter.getValue();
 
     switch (type) {
