@@ -74,9 +74,10 @@ public class AttackPatternApi extends RestBehavior {
       description = "Get attack patterns ids extracted from a text or files using AI")
   public List<String> searchAttackPatternWithTTPAIWebservice(
       @RequestPart("files") @Nullable List<MultipartFile> files,
-      @RequestPart("text") @Nullable final String text) {
+      @RequestPart("text") @Nullable final String text,
+      @RequestPart(value = "agent_slug", required = false) @Nullable final String agentSlug) {
     return attackPatternService.searchAttackPatternWithTTPAIWebservice(
-        files == null ? new ArrayList<>() : files, text == null ? "" : text);
+        files == null ? new ArrayList<>() : files, text == null ? "" : text, agentSlug);
   }
 
   @GetMapping("/{attackPatternId}")

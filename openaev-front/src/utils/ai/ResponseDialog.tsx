@@ -1,6 +1,6 @@
 import { RefreshOutlined } from '@mui/icons-material';
 import { LoadingButton } from '@mui/lab';
-import { Alert, Autocomplete, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, IconButton, InputLabel, MenuItem, Select, TextField } from '@mui/material';
+import { Alert, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, IconButton, InputLabel, MenuItem, Select, TextField } from '@mui/material';
 // As we can ask AI after and follow up, there is a dependency lifecycle here that can be accepted
 // TODO: Cleanup a bit in upcoming version
 // eslint-disable-next-line import/no-cycle
@@ -15,6 +15,7 @@ import CKEditor from '../../components/CKEditor';
 import { useFormatter } from '../../components/i18n';
 import { isNotEmptyField } from '../utils';
 import { type AgentOption, fetchAgentsForIntent } from './agentApi';
+import AgentSelector from './AgentSelector';
 import useAgentStream from './useAgentStream';
 
 export interface AgentMode {
@@ -189,35 +190,11 @@ const ResponseDialog: FunctionComponent<ResponseDialogProps> = ({
         }}
         >
           <span>{t('Ask AI')}</span>
-          <Autocomplete<AgentOption>
-            sx={{ width: 220 }}
-            size="small"
+          <AgentSelector
             options={agentOptions}
-            getOptionLabel={option => option.name}
             value={selectedAgent}
-            onChange={handleAgentChange}
+            onChange={newValue => handleAgentChange(null, newValue)}
             loading={loadingAgents}
-            disabled={!!noAgents}
-            noOptionsText={t('No agent available')}
-            renderInput={params => (
-              <TextField
-                {...params}
-                variant="outlined"
-                size="small"
-                placeholder={noAgents ? t('No agent available') : t('Select agent')}
-                InputProps={{
-                  ...params.InputProps,
-                  endAdornment: (
-                    <>
-                      {loadingAgents ? <CircularProgress color="inherit" size={16} /> : null}
-                      {params.InputProps.endAdornment}
-                    </>
-                  ),
-                }}
-              />
-            )}
-            isOptionEqualToValue={(option, value) => option.id === value.id}
-            clearIcon={null}
           />
         </Box>
       )
