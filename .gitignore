@@ -38,3 +38,4 @@ openaev-dev/.telemetry.json
 
 ### macOS ###
 .DS_Store
+application-local.properties

@@ -5,7 +5,7 @@ import { defineConfig, loadEnv } from 'vite';
 const basePath = '';
 
 const backProxy = () => ({
-  target: 'http://localhost:8080',
+  target: process.env.VITE_BACKEND || 'http://localhost:8080',
   changeOrigin: true,
   ws: true,
 });
