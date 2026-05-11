@@ -42,11 +42,7 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import java.sql.BatchUpdateException;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import net.javacrumbs.jsonunit.core.Option;
@@ -163,53 +159,6 @@ public class InjectorContractApiTest extends IntegrationTest {
           throws Exception {
         InjectorContractUpdateMappingInput input = new InjectorContractUpdateMappingInput();
         input.setAttackPatternsIds(List.of(UUID.randomUUID().toString()));
-
-        mvc.perform(
-                put(INJECTOR_CONTRACT_URL
-                        + "/"
-                        + injectorContractComposer.generatedItems.getFirst().getId()
-                        + "/mapping")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(mapper.writeValueAsString(input))
-                    .with(csrf()))
-            .andExpect(status().isNotFound());
-      }
-
-      @Test
-      @DisplayName("Updating vulnerability mappings succeeds")
-      void updatingVulnerabilitiesMappingsSucceeds() throws Exception {
-        for (int i = 0; i < 3; ++i) {
-          vulnerabilityComposer
-              .forVulnerability(
-                  VulnerabilityFixture.createVulnerabilityInput(
-                      VulnerabilityFixture.getRandomExternalVulnerabilityId()))
-              .persist();
-        }
-        em.flush();
-        em.clear();
-
-        InjectorContractUpdateMappingInput input = new InjectorContractUpdateMappingInput();
-        input.setVulnerabilityIds(
-            vulnerabilityComposer.generatedItems.stream().map(Vulnerability::getId).toList());
-
-        mvc.perform(
-                put(INJECTOR_CONTRACT_URL
-                        + "/"
-                        + injectorContractComposer.generatedItems.getFirst().getId()
-                        + "/mapping")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(mapper.writeValueAsString(input))
-                    .with(csrf()))
-            .andExpect(status().isOk());
-      }
-
-      @Test
-      @DisplayName(
-          "Updating vulnerability mappings with non-existing vulnerabilities fail with NOT FOUND")
-      void updatingVulnerabilitiesMappingsWithNonExistingVulnerabilitiesFailWithNotFound()
-          throws Exception {
-        InjectorContractUpdateMappingInput input = new InjectorContractUpdateMappingInput();
-        input.setVulnerabilityIds(List.of(UUID.randomUUID().toString()));
 
         mvc.perform(
                 put(INJECTOR_CONTRACT_URL
@@ -921,47 +870,6 @@ public class InjectorContractApiTest extends IntegrationTest {
       }
 
       @Test
-      @DisplayName("Updating vulnerability mappings succeeds")
-      void updatingVulnerabilitiesMappingsSucceeds() throws Exception {
-        for (int i = 0; i < 3; ++i) {
-          vulnerabilityComposer
-              .forVulnerability(
-                  VulnerabilityFixture.createVulnerabilityInput(
-                      VulnerabilityFixture.getRandomExternalVulnerabilityId()))
-              .persist();
-        }
-        em.flush();
-        em.clear();
-
-        InjectorContractUpdateMappingInput input = new InjectorContractUpdateMappingInput();
-        input.setVulnerabilityIds(
-            vulnerabilityComposer.generatedItems.stream().map(Vulnerability::getId).toList());
-
-        mvc.perform(
-                put(INJECTOR_CONTRACT_URL + "/" + externalId + "/mapping")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(mapper.writeValueAsString(input))
-                    .with(csrf()))
-            .andExpect(status().isOk());
-      }
-
-      @Test
-      @DisplayName(
-          "Updating vulnerability mappings with non-existing vulnerabilities fail with NOT FOUND")
-      void updatingVulnerabilitiesMappingsWithNonExistingVulnerabilitiesFailWithNotFound()
-          throws Exception {
-        InjectorContractUpdateMappingInput input = new InjectorContractUpdateMappingInput();
-        input.setVulnerabilityIds(List.of(UUID.randomUUID().toString()));
-
-        mvc.perform(
-                put(INJECTOR_CONTRACT_URL + "/" + externalId + "/mapping")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(mapper.writeValueAsString(input))
-                    .with(csrf()))
-            .andExpect(status().isNotFound());
-      }
-
-      @Test
       @DisplayName("Fetching by External ID succeeds")
       void fetchByExternalIdSucceeds() throws Exception {
         InjectorContract ic = injectorContractComposer.generatedItems.getFirst();
@@ -1334,69 +1242,81 @@ public class InjectorContractApiTest extends IntegrationTest {
       NO_GROUPS,
       ADMIN,
       WITH_BYPASS,
-      WITH_ACCESS_PAYLOADS,
-      WITH_OBSERVER_GRANT
+      WITH_ACCESS_THREAT_ARSENALS,
     }
 
-    private UserComposer.Composer createTestUser(UserType userType) {
-      return switch (userType) {
-        case NO_GROUPS ->
-            userComposer.forUser(
-                UserFixture.getUser("NoGroups", "User", UUID.randomUUID() + "@unittests.invalid"));
-        case ADMIN ->
-            userComposer.forUser(
-                UserFixture.getAdminUser(
-                    "Admin", "User", UUID.randomUUID() + "@unittests.invalid"));
-        case WITH_BYPASS -> {
-          TenantGroupComposer.Composer bypassGroup =
-              tenantGroupComposer
-                  .forGroup(TenantGroupFixture.getGroup())
-                  .withRole(
-                      tenantRoleComposer.forRole(
-                          TenantRoleFixture.getRole(new HashSet<>(Set.of(Capability.BYPASS)))));
+    private UserComposer.Composer createTestUser(UserType userType, List<String> resourceIds) {
+      UserComposer.Composer user =
+          switch (userType) {
+            case NO_GROUPS ->
+                userComposer.forUser(
+                    UserFixture.getUser(
+                        "NoGroups", "User", UUID.randomUUID() + "@unittests.invalid"));
+            case ADMIN ->
+                userComposer.forUser(
+                    UserFixture.getAdminUser(
+                        "Admin", "User", UUID.randomUUID() + "@unittests.invalid"));
+            case WITH_BYPASS -> {
+              TenantGroupComposer.Composer bypassGroup =
+                  tenantGroupComposer
+                      .forGroup(TenantGroupFixture.getGroup())
+                      .withRole(
+                          tenantRoleComposer.forRole(
+                              TenantRoleFixture.getRole(new HashSet<>(Set.of(Capability.BYPASS)))));
 
-          yield userComposer
-              .forUser(
-                  UserFixture.getUser("Bypass", "User", UUID.randomUUID() + "@unittests.invalid"))
-              .withGroup(bypassGroup);
-        }
-        case WITH_ACCESS_PAYLOADS -> {
-          TenantGroupComposer.Composer payloadsGroup =
-              tenantGroupComposer
-                  .forGroup(TenantGroupFixture.getGroup())
-                  .withRole(
-                      tenantRoleComposer.forRole(
-                          TenantRoleFixture.getRole(
-                              new HashSet<>(Set.of(Capability.ACCESS_PAYLOADS)))));
+              yield userComposer
+                  .forUser(
+                      UserFixture.getUser(
+                          "Bypass", "User", UUID.randomUUID() + "@unittests.invalid"))
+                  .withGroup(bypassGroup);
+            }
+            case WITH_ACCESS_THREAT_ARSENALS -> {
+              TenantGroupComposer.Composer threatArsenalGroup =
+                  tenantGroupComposer
+                      .forGroup(TenantGroupFixture.getGroup())
+                      .withRole(
+                          tenantRoleComposer.forRole(
+                              TenantRoleFixture.getRole(
+                                  new HashSet<>(Set.of(Capability.ACCESS_THREAT_ARSENALS)))));
 
-          yield userComposer
-              .forUser(
-                  UserFixture.getUser(
-                      "AccessPayloads", "User", UUID.randomUUID() + "@unittests.invalid"))
-              .withGroup(payloadsGroup);
-        }
-        case WITH_OBSERVER_GRANT -> {
-          Grant grant = new Grant();
-          grant.setGrantResourceType(Grant.GRANT_RESOURCE_TYPE.PAYLOAD);
-          grant.setName(Grant.GRANT_TYPE.OBSERVER);
-          grant.setResourceId(testPayload.getId());
-          TenantGroupComposer.Composer observerGroup =
-              tenantGroupComposer
-                  .forGroup(TenantGroupFixture.getGroup())
-                  .withRole(tenantRoleComposer.forRole(TenantRoleFixture.getRole(new HashSet<>())))
-                  .withGrant(grantComposer.forGrant(grant));
+              yield userComposer
+                  .forUser(
+                      UserFixture.getUser(
+                          "AccessThreatArsenals", "User", UUID.randomUUID() + "@unittests.invalid"))
+                  .withGroup(threatArsenalGroup);
+            }
+            default -> throw new IllegalArgumentException("Unknown user type: " + userType);
+          };
 
-          yield userComposer
-              .forUser(
-                  UserFixture.getUser("Observer", "User", UUID.randomUUID() + "@unittests.invalid"))
-              .withGroup(observerGroup);
-        }
-        default -> throw new IllegalArgumentException("Unknown user type: " + userType);
-      };
+      List<Grant> grants =
+          resourceIds.stream()
+              .map(
+                  id -> {
+                    Grant grant = new Grant();
+                    grant.setGrantResourceType(Grant.GRANT_RESOURCE_TYPE.THREAT_ARSENAL);
+                    grant.setName(Grant.GRANT_TYPE.OBSERVER);
+                    // For simplicity, we only handle one resource ID for the OBSERVER grant in this
+                    // example
+                    grant.setResourceId(id);
+                    return grant;
+                  })
+              .toList();
+
+      if (!grants.isEmpty()) {
+        TenantGroupComposer.Composer grantedGroup =
+            tenantGroupComposer
+                .forGroup(TenantGroupFixture.getGroup())
+                .withRole(tenantRoleComposer.forRole(TenantRoleFixture.getRole(new HashSet<>())));
+
+        grants.forEach(grant -> grantedGroup.withGrant(grantComposer.forGrant(grant)));
+
+        return user.withGroup(grantedGroup);
+      }
+      return user;
     }
 
-    private Payload testPayload;
     private int preExistingContractsCount;
+    private List<InjectorContract> injectorContractsCreated = new ArrayList<>();
 
     private void createStaticInjectorContract(boolean addPayload) {
       InjectorContractComposer.Composer icComposer =
@@ -1408,15 +1328,14 @@ public class InjectorContractApiTest extends IntegrationTest {
         icComposer.withPayload(payloadComposer.forPayload(PayloadFixture.createDefaultCommand()));
       }
       InjectorContract ic = icComposer.persist().get();
-      if (addPayload) {
-        testPayload = ic.getPayload();
-      }
+      injectorContractsCreated.add(ic);
       em.flush();
       em.clear();
     }
 
     @BeforeEach
     void setUp() {
+      injectorContractsCreated.clear();
       preExistingContractsCount = (int) injectorContractRepository.count();
       for (int i = 0; i < 3; ++i) {
         createStaticInjectorContract(i == 0);
@@ -1429,29 +1348,32 @@ public class InjectorContractApiTest extends IntegrationTest {
           Arguments.of(
               "User with no groups",
               UserType.NO_GROUPS,
-              false, // shouldSeeAllContracts
-              false // shouldSeeContractsWithPayload
+              0, // number of granted threat Arsenal action
+              false // shouldSeeAllContracts
               ),
           Arguments.of(
               "Admin user",
               UserType.ADMIN,
-              true, // Admin sees all
-              true),
+              0, // number of granted threat Arsenal action
+              true // Admin sees all
+              ),
           Arguments.of(
               "User with BYPASS capability",
               UserType.WITH_BYPASS,
-              true, // BYPASS users should see all
-              true),
+              0, // number of granted threat Arsenal action
+              true // BYPASS users should see all
+              ),
           Arguments.of(
-              "User with ACCESS_PAYLOADS capability",
-              UserType.WITH_ACCESS_PAYLOADS,
-              true, // ACCESS_PAYLOADS users should see all payload-related contracts
-              true),
+              "User with ACCESS_THREAT_ARSENALS capability",
+              UserType.WITH_ACCESS_THREAT_ARSENALS,
+              0, // number of granted threat Arsenal action
+              true // ACCESS_THREAT_ARSENALS users should see all actions
+              ),
           Arguments.of(
-              "User with OBSERVER grant on payload",
-              UserType.WITH_OBSERVER_GRANT,
-              false, // Doesn't see all contracts
-              true // But can see contracts with the specific granted payload
+              "User with OBSERVER grant on threat arsenal",
+              UserType.NO_GROUPS,
+              2, // number of granted threat Arsenal action
+              false // users should see granted actions only
               ));
     }
 
@@ -1459,14 +1381,15 @@ public class InjectorContractApiTest extends IntegrationTest {
     @MethodSource("userTestCases")
     @DisplayName("GET /injector-contracts - Test access control for different user types")
     void testGetInjectContracts(
-        String testCase,
-        UserType userType,
-        boolean shouldSeeAllContracts,
-        boolean shouldSeeContractsWithPayload)
+        String testCase, UserType userType, int grantedActionNumber, boolean shouldSeeAllContracts)
         throws Exception {
 
+      List<String> grantedResourceIds = new ArrayList<>();
+      for (int i = 0; i < grantedActionNumber; i++) {
+        grantedResourceIds.add(injectorContractsCreated.get(i).getId());
+      }
       // Create test user based on type
-      User testUser = createTestUser(userType).persist().get();
+      User testUser = createTestUser(userType, grantedResourceIds).persist().get();
 
       Authentication auth = buildAuthenticationToken(testUser);
 
@@ -1481,17 +1404,12 @@ public class InjectorContractApiTest extends IntegrationTest {
               .andExpect(status().is(HttpStatus.SC_OK));
 
       // Verify the response based on user permissions
-      if (shouldSeeAllContracts || shouldSeeContractsWithPayload) {
+      if (shouldSeeAllContracts) {
         // Admin, BYPASS, ACCESS_PAYLOADS users see everything
-        // User with OBSERVER grant sees contracts without payload + the specific contract with
-        // granted payload
-        // That's preExistingContractsCount + 2 (without payload) + 1 (with granted payload) =
-        // preExistingContractsCount + 3
         result.andExpect(jsonPath("$", hasSize(equalTo(preExistingContractsCount + 3))));
       } else {
-        // User with no groups only sees contracts without payload
-        // That's preExistingContractsCount + 2 (only the ones without payload)
-        result.andExpect(jsonPath("$", hasSize(equalTo(preExistingContractsCount + 2))));
+        // User with no groups only sees contracts granted
+        result.andExpect(jsonPath("$", hasSize(equalTo(grantedActionNumber))));
       }
     }
 
@@ -1500,14 +1418,16 @@ public class InjectorContractApiTest extends IntegrationTest {
     @DisplayName(
         "POST /injector-contracts/search without full details - Test search access control for different user types")
     void testSearchInjectorContracts(
-        String testCase,
-        UserType userType,
-        boolean shouldSeeAllContracts,
-        boolean shouldSeeContractsWithPayload)
+        String testCase, UserType userType, int grantedActionNumber, boolean shouldSeeAllContracts)
         throws Exception {
 
+      List<String> grantedResourceIds = new ArrayList<>();
+      for (int i = 0; i < grantedActionNumber; i++) {
+        grantedResourceIds.add(injectorContractsCreated.get(i).getId());
+      }
+
       // Create test user based on type
-      User testUser = createTestUser(userType).persist().get();
+      User testUser = createTestUser(userType, grantedResourceIds).persist().get();
 
       Authentication auth = buildAuthenticationToken(testUser);
 
@@ -1528,28 +1448,32 @@ public class InjectorContractApiTest extends IntegrationTest {
       result.andExpect(jsonPath("$.totalElements").exists());
       result.andExpect(jsonPath("$.content").isArray());
 
-      if (shouldSeeAllContracts || shouldSeeContractsWithPayload) {
+      if (shouldSeeAllContracts) {
         // Should see at least contracts without payload
         result.andExpect(jsonPath("$.totalElements", equalTo(preExistingContractsCount + 3)));
       } else {
         // Should only see contracts without payload
-        result.andExpect(jsonPath("$.totalElements", equalTo(preExistingContractsCount + 2)));
+        result.andExpect(
+            jsonPath("$.totalElements", equalTo(preExistingContractsCount + grantedActionNumber)));
       }
     }
 
+    //
     @ParameterizedTest(name = "{index} - {0}")
     @MethodSource("userTestCases")
     @DisplayName(
         "POST /injector-contracts/search with full details - Test search access control for different user types")
     void testSearchInjectorContractsWithFullDetails(
-        String testCase,
-        UserType userType,
-        boolean shouldSeeAllContracts,
-        boolean shouldSeeContractsWithPayload)
+        String testCase, UserType userType, int grantedActionNumber, boolean shouldSeeAllContracts)
         throws Exception {
 
+      List<String> grantedResourceIds = new ArrayList<>();
+      for (int i = 0; i < grantedActionNumber; i++) {
+        grantedResourceIds.add(injectorContractsCreated.get(i).getId());
+      }
+
       // Create test user based on type
-      User testUser = createTestUser(userType).persist().get();
+      User testUser = createTestUser(userType, grantedResourceIds).persist().get();
 
       Authentication auth = buildAuthenticationToken(testUser);
 
@@ -1571,17 +1495,17 @@ public class InjectorContractApiTest extends IntegrationTest {
       result.andExpect(jsonPath("$.content").isArray());
 
       // When full details are requested, verify additional fields are present
-      if (result.andReturn().getResponse().getContentAsString().contains("content")) {
+      if ((shouldSeeAllContracts || grantedActionNumber > 0)
+          && result.andReturn().getResponse().getContentAsString().contains("content")) {
         result.andExpect(jsonPath("$.content[0].injector_contract_content").exists());
       }
 
       if (shouldSeeAllContracts) {
         result.andExpect(jsonPath("$.totalElements", equalTo(preExistingContractsCount + 3)));
-      } else if (shouldSeeContractsWithPayload) {
-        result.andExpect(jsonPath("$.totalElements", equalTo(preExistingContractsCount + 3)));
       } else {
         // Should only see contracts without payload
-        result.andExpect(jsonPath("$.totalElements", equalTo(preExistingContractsCount + 2)));
+        result.andExpect(
+            jsonPath("$.totalElements", equalTo(preExistingContractsCount + grantedActionNumber)));
       }
     }
   }

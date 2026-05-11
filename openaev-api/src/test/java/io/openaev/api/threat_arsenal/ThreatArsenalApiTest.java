@@ -881,4 +881,12 @@ public class ThreatArsenalApiTest extends IntegrationTest {
       assertEquals(createInput.content(), ((Command) duplicatePayload).getContent());
     }
   }
+
+  //  // delete
+  //  class DeleteThreatArsenalAction{
+  //    void given_nonPayloadContract_should_returnFailed() throws Exception {}
+  //    void given_existingPayloadAction_should_delete() throws Exception {}
+  //  }
+  //
+  //  // collector
 }

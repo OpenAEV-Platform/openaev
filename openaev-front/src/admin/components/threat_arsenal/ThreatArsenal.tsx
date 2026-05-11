@@ -39,7 +39,6 @@ import IconBar from '../common/domains/IconBar';
 import useDomainIconFilter from '../common/domains/useDomainIconFilter';
 import InjectIcon from '../common/injects/InjectIcon';
 import ToolBar from '../common/ToolBar';
-import InjectorContractPopover from '../integrations/injectors/injector_contracts/InjectorContractPopover';
 import PayloadStatusComponent from '../payloads/PayloadStatusComponent';
 import ThreatArsenalRunTestDrawer from './bulk/ThreatArsenalRunTestDrawer';
 import CreateThreatArsenalAction from './CreateThreatArsenalAction';

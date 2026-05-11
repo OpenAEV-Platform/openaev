@@ -195,11 +195,10 @@ public class InjectorContractService implements DependenciesManager {
     User currentUser = userService.currentUser();
     String tenantId = TenantContext.getCurrentTenant();
     if (currentUser.isAdminOrBypass()
-        || currentUser.getCapabilities().contains(Capability.ACCESS_PAYLOADS)) {
+        || currentUser.getCapabilities().contains(Capability.ACCESS_THREAT_ARSENALS)) {
       return injectorContractRepository.getAllRawInjectorsContracts();
     }
-    return injectorContractRepository.getAllRawInjectorsContractsWithoutPayloadOrGranted(
-        currentUser.getId());
+    return injectorContractRepository.getAllRawInjectorsContractsGranted(currentUser.getId());
   }
 
   /**
@@ -412,16 +411,15 @@ public class InjectorContractService implements DependenciesManager {
                 () ->
                     new ElementNotFoundException(
                         "Injector contract not found: " + injectorContractId));
+    if (!injectorContract.getCustom()) {
+      throw new IllegalArgumentException(
+          "This injector contract can't be removed because is not a custom one: "
+              + injectorContractId);
+    }
     deleteInjectorContract(injectorContract);
   }
 
   public void deleteInjectorContract(InjectorContract injectorContract) {
-    if (!injectorContract.getCustom() && injectorContract.getPayload() == null) {
-      throw new IllegalArgumentException(
-          "This injector contract can't be removed because it is neither a custom contract"
-              + " nor a payload-based one: "
-              + injectorContract.getId());
-    }
     this.injectorContractRepository.delete(injectorContract);
   }
 

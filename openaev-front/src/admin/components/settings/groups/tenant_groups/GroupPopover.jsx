@@ -231,12 +231,14 @@ class GroupPopoverComponent extends Component {
           onClose={this.handleCloseRoles.bind(this)}
           onSubmit={this.submitUpdateRoles.bind(this)}
         />
-        {this.state.openGrants && <GroupManageGrants
+        {this.state.openGrants && (
+          <GroupManageGrants
             group={group}
             openGrants={this.state.openGrants}
             handleCloseGrants={this.handleCloseGrants.bind(this)}
             fetchAndUpdateGroup={this.fetchAndUpdateGroup.bind(this)}
-        />}
+          />
+        )}
       </>
     );
   }
