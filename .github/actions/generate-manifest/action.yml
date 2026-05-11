@@ -9,6 +9,12 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Checkout pyoaev
+      uses: actions/checkout@v6
+      with:
+        repository: 'OpenAEV-platform/client-python'
+        ref: ${{ inputs.ref }}
+        path: 'client-python'
     - name: Checkout injectors
       uses: actions/checkout@v6
       with:
