@@ -25,8 +25,17 @@ jobs:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/spotless-check
 
+  generate-manifest:
+    name: "📋 Generate manifest"
+    steps:
+      - uses: ./.github/actions/generate-manifest
+        with:
+          ref: ${{ github.ref }}
+
   backend-compile:
     name: "🔨 Backend Compile"
+    needs:
+      - generate-manifest
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6

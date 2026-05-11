@@ -1,0 +1,61 @@
+name: generate-manifest
+description: Generates a catalog manifest in JSON format
+inputs:
+  ref:
+    description: >
+      git ref for the children repositories checkouts
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout injectors
+      uses: actions/checkout@v6
+      with:
+        repository: 'OpenAEV-platform/injectors'
+        ref: ${{ inputs.ref }}
+        path: 'injectors'
+    - name: Checkout collectors
+      uses: actions/checkout@v6
+      with:
+        repository: 'OpenAEV-platform/collectors'
+        ref: ${{ inputs.ref }}
+        path: 'collectors'
+    - name: Checkout manifest generator
+      uses: actions/checkout@v6
+      with:
+        repository: 'FiligranHQ/filigran-ci-tools'
+        path: 'filigran-ci-tools'
+    - name: Setup python
+      uses: actions/setup-python@v6
+      with:
+        python-version: 3.13
+    - name: Install Poetry
+      run: |
+        pip install --user pipx
+        pipx ensurepath
+        pipx install poetry==2.3.3
+    - name: Generate manifest
+      working-directory: 'filigran-ci-tools/connector-manifest-writer'
+      run: |
+        poetry install
+        poetry run python -m connector_manifest_writer \
+          ../../collectors/crowdstrike/ ../../collectors/microsoft-entra \
+          ../../collectors/microsoft-intune ../../collectors/microsoft-defender \
+          ../../collectors/microsoft-azure ../../collectors/microsoft-sentinel \
+          ../../collectors/atomic-red-team ../../collectors/tanium-threat-response \
+          ../../collectors/nvd-nist-cve ../../collectors/mitre-attack \
+          ../../collectors/openaev ../../collectors/google-workspace \
+          ../../injectors/nmap ../../injectors/nuclei \
+          ../../injectors/http-query ../../injectors/aws \
+          ../../collectors/sentinelone ../../collectors/splunk-es \
+          ../../collectors/aws-resources \
+          ../../injectors/shodan \
+          ../../injectors/teams > manifest.json
+    - name: Upload generated manifest
+      working-directory: 'filigran-ci-tools/connector-manifest-writer'
+      uses: actions/upload-artifact@v7
+      with:
+        name: catalog-manifest-file
+        path: manifest.json
+

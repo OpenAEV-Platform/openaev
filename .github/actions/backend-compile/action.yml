@@ -10,6 +10,11 @@ runs:
         java-version: "21"
         distribution: temurin
         cache: maven
+    - name: Install generated manifest
+      uses: actions/download-artifact@v8
+      with:
+        name: catalog-manifest-file
+        path: openaev-api/src/main/resources/catalog/catalog-integrators.json
     - name: Compile and install all modules (skip tests)
       run: >-
         mvn -B -ntp -T 1C install -DskipTests
