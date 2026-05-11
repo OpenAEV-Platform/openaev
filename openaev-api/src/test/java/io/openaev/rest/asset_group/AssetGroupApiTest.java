@@ -620,7 +620,6 @@ class AssetGroupApiTest extends IntegrationTest {
   class TenantIsolation {
 
     @Test
-    @Disabled("TODO multi-tenancy")
     @DisplayName("AssetGroup created in tenant X should NOT be readable from tenant Y")
     void given_assetGroupInTenantX_should_notBeReadableFromTenantY() throws Exception {
       // -------- Arrange --------
@@ -631,8 +630,7 @@ class AssetGroupApiTest extends IntegrationTest {
           tenantIsolationHelper.createTenantWithCapabilities(
               "Tenant Y", Set.of(Capability.ACCESS_ASSETS));
 
-      AssetGroupInput input = new AssetGroupInput();
-      input.setName("RLS Isolation Test AssetGroup");
+      AssetGroupInput input = createDefaultAssetGroupInput("RLS Isolation Test AssetGroup");
 
       String createResponse =
           mvc.perform(
@@ -678,8 +676,7 @@ class AssetGroupApiTest extends IntegrationTest {
           tenantIsolationHelper.createTenantWithCapabilities(
               "Tenant X", Set.of(Capability.MANAGE_ASSETS, Capability.ACCESS_ASSETS));
 
-      AssetGroupInput input = new AssetGroupInput();
-      input.setName("Same Tenant AssetGroup");
+      AssetGroupInput input = createDefaultAssetGroupInput("Same Tenant AssetGroup");
 
       String createResponse =
           mvc.perform(
@@ -714,8 +711,7 @@ class AssetGroupApiTest extends IntegrationTest {
           tenantIsolationHelper.createTenantWithCapabilities(
               "Tenant Y", Set.of(Capability.ACCESS_ASSETS));
 
-      AssetGroupInput input = new AssetGroupInput();
-      input.setName("CrossTenantSearchAssetGroup");
+      AssetGroupInput input = createDefaultAssetGroupInput("CrossTenantSearchAssetGroup");
 
       mvc.perform(
               post("/api/tenants/" + tenantX.getId() + "/asset_groups")
@@ -752,7 +748,6 @@ class AssetGroupApiTest extends IntegrationTest {
     }
 
     @Test
-    @Disabled("TODO multi-tenancy")
     @DisplayName("AssetGroup created in tenant X should NOT be updatable from tenant Y")
     void given_assetGroupInTenantX_should_notBeUpdatableFromTenantY() throws Exception {
       // -------- Arrange --------
@@ -763,8 +758,7 @@ class AssetGroupApiTest extends IntegrationTest {
           tenantIsolationHelper.createTenantWithCapabilities(
               "Tenant Y", Set.of(Capability.MANAGE_ASSETS, Capability.ACCESS_ASSETS));
 
-      AssetGroupInput input = new AssetGroupInput();
-      input.setName("Update Isolation Test");
+      AssetGroupInput input = createDefaultAssetGroupInput("Update Isolation Test");
 
       String createResponse =
           mvc.perform(
@@ -785,8 +779,7 @@ class AssetGroupApiTest extends IntegrationTest {
       entityManager.clear();
 
       // -------- Act — update from tenant Y --------
-      AssetGroupInput updateInput = new AssetGroupInput();
-      updateInput.setName("Hijacked Name");
+      AssetGroupInput updateInput = createDefaultAssetGroupInput("Hijacked Name");
 
       int responseStatus =
           mvc.perform(
@@ -808,7 +801,6 @@ class AssetGroupApiTest extends IntegrationTest {
     }
 
     @Test
-    @Disabled("TODO multi-tenancy")
     @DisplayName("AssetGroup created in tenant X should NOT be deletable from tenant Y")
     void given_assetGroupInTenantX_should_notBeDeletableFromTenantY() throws Exception {
       // -------- Arrange --------
@@ -819,8 +811,7 @@ class AssetGroupApiTest extends IntegrationTest {
           tenantIsolationHelper.createTenantWithCapabilities(
               "Tenant Y", Set.of(Capability.DELETE_ASSETS, Capability.ACCESS_ASSETS));
 
-      AssetGroupInput input = new AssetGroupInput();
-      input.setName("Delete Isolation Test");
+      AssetGroupInput input = createDefaultAssetGroupInput("Delete Isolation Test");
 
       String createResponse =
           mvc.perform(
