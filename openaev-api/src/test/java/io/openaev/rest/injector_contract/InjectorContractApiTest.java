@@ -1390,7 +1390,6 @@ public class InjectorContractApiTest extends IntegrationTest {
       }
       // Create test user based on type
       User testUser = createTestUser(userType, grantedResourceIds).persist().get();
-
       Authentication auth = buildAuthenticationToken(testUser);
 
       // Perform the request with the test user context

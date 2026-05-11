@@ -10,6 +10,7 @@ import io.openaev.database.model.Collector;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
 import io.openaev.rest.collector.service.CollectorService;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.injector_contract.form.InjectorContractUpdateMappingInput;
@@ -27,7 +28,6 @@ import io.openaev.utils.ThreatArsenalFilterUtils;
 import io.openaev.utils.mapper.ThreatArsenalMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import java.util.List;
-import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.data.domain.Page;
@@ -222,10 +222,12 @@ public class ThreatArsenalService {
 
   private ThreatArsenalAction updateActionPayloadBased(
       InjectorContract injectorContract, ThreatArsenalActionUpdateInput actionInput) {
-    Objects.requireNonNull(
-        actionInput.executionArch(), "action_execution_arch is required for payload-based actions");
-    Objects.requireNonNull(
-        actionInput.expectations(), "action_expectations is required for payload-based actions");
+    if (actionInput.executionArch() == null) {
+      throw new BadRequestException("action_execution_arch is required for payload-based actions");
+    }
+    if (actionInput.expectations() == null) {
+      throw new BadRequestException("action_expectations is required for payload-based actions");
+    }
     // convert ThreatArsenalActionUpdateInput into PayloadUpdateInput
     PayloadUpdateInput payloadInput = getPayloadUpdateInputFromCommonActionInput(actionInput);
     // update payload using the resolved payload ID

@@ -24,10 +24,10 @@ import Transition from '../../../components/common/Transition';
 import { useFormatter } from '../../../components/i18n';
 import {
   type ThreatArsenalAction,
-  type ThreatArsenalActionFullOutput, type ThreatArsenalActionUpdateInput,
+  type ThreatArsenalActionFullOutput,
+  type ThreatArsenalActionUpdateInput,
 } from '../../../utils/api-types';
 import { type ThreatArsenalActionCreateCustomInput } from '../../../utils/api-types-custom';
-import { useAppDispatch } from '../../../utils/hooks';
 import { AbilityContext, Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { download } from '../../../utils/utils';
@@ -114,7 +114,6 @@ const ThreatArsenalActionPopover = ({
   const [deletion, setDeletion] = useState(false);
   const [fetchedAction, setFetchedAction] = useState<ThreatArsenalActionFullOutput | null>(null);
 
-  const dispatch = useAppDispatch();
   const { t, tPick } = useFormatter();
   const ability = useContext(AbilityContext);
 

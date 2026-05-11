@@ -2,17 +2,19 @@ package io.openaev.api.threat_arsenal;
 
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.StringUtils.DUPLICATE_SUFFIX;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionCreateInput;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionUpdateInput;
+import io.openaev.collectors.utils.CollectorsUtils;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.CollectorRepository;
@@ -59,6 +61,8 @@ public class ThreatArsenalApiTest extends IntegrationTest {
   @Autowired private AttackPatternComposer attackPatternComposer;
   @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private InjectorFixture injectorFixture;
+  @Autowired private DetectionRemediationComposer detectionRemediationComposer;
+  @Autowired private CollectorTypeComposer collectorTypeComposer;
 
   @MockitoBean private EnterpriseEditionService enterpriseEditionService;
 
@@ -69,6 +73,8 @@ public class ThreatArsenalApiTest extends IntegrationTest {
     attackPatternComposer.reset();
     tagComposer.reset();
     domainComposer.reset();
+    detectionRemediationComposer.reset();
+    collectorTypeComposer.reset();
   }
 
   @BeforeAll
@@ -624,10 +630,17 @@ public class ThreatArsenalApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("Updating a non-payload injector contract should fail with NOT FOUND")
-    void given_nonPayloadContract_should_returnNotFound() throws Exception {
+    @DisplayName(
+        "Updating a non-payload injector contract should only work with tags domains and TTP")
+    void given_nonPayloadContract_should_onlyUpdateDomainTagAndTTP() throws Exception {
       // Arrange — create a non-payload injector contract via composer
       Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      Tag tag = tagComposer.forTag(TagFixture.getTagWithText("New tag")).persist().get();
+      AttackPattern attackPattern =
+          attackPatternComposer
+              .forAttackPattern(AttackPatternFixture.createDefaultAttackPattern())
+              .persist()
+              .get();
       InjectorContract nonPayloadContract =
           injectorContractComposer
               .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
@@ -652,8 +665,8 @@ public class ThreatArsenalApiTest extends IntegrationTest {
               null,
               null,
               null,
-              Collections.emptyList(),
-              Collections.emptyList(),
+              List.of(tag.getId()),
+              List.of(attackPattern.getId()),
               null,
               null,
               List.of(domain.getId()));
@@ -664,7 +677,24 @@ public class ThreatArsenalApiTest extends IntegrationTest {
                   .with(csrf())
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(asJsonString(updateInput)))
-          .andExpect(status().isNotFound());
+          .andExpect(status().is2xxSuccessful());
+
+      // Assert
+      InjectorContract injectorContractUpdated =
+          injectorContractRepository.findById(nonPayloadContract.getId()).orElse(null);
+      assertNotNull(injectorContractUpdated);
+      assertEquals(
+          nonPayloadContract.getLabels(),
+          injectorContractUpdated.getLabels(),
+          "Labels should remain unchanged for non-payload contracts");
+      assertEquals(1, injectorContractUpdated.getDomains().size());
+      assertEquals(domain.getId(), injectorContractUpdated.getDomains().iterator().next().getId());
+      assertEquals(1, injectorContractUpdated.getAttackPatterns().size());
+      assertEquals(
+          attackPattern.getId(),
+          injectorContractUpdated.getAttackPatterns().iterator().next().getId());
+      assertEquals(1, injectorContractUpdated.getTags().size());
+      assertEquals(tag.getId(), injectorContractUpdated.getTags().iterator().next().getId());
     }
 
     @Test
@@ -882,11 +912,153 @@ public class ThreatArsenalApiTest extends IntegrationTest {
     }
   }
 
-  //  // delete
-  //  class DeleteThreatArsenalAction{
-  //    void given_nonPayloadContract_should_returnFailed() throws Exception {}
-  //    void given_existingPayloadAction_should_delete() throws Exception {}
-  //  }
-  //
-  //  // collector
+  @Nested
+  @WithMockUser(isAdmin = true)
+  @DisplayName("Delete Threat Arsenal Action")
+  class DeleteThreatArsenalAction {
+    @Test
+    @DisplayName("Deleting a non-payload-based action should fail with BAD REQUEST")
+    void given_nonPayloadContract_should_returnFailed() throws Exception {
+      // Arrange
+      Injector emailInjector = injectorFixture.getWellKnownEmailInjector(false);
+      InjectorContract nonPayloadContract =
+          injectorContractComposer
+              .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+              .withInjector(emailInjector)
+              .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
+              .persist()
+              .get();
+
+      // Act & Assert
+      mvc.perform(
+              delete(THREAT_ARSENAL_URI + "/" + nonPayloadContract.getId())
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON))
+          .andExpect(status().isNotFound())
+          .andExpect(
+              content().string(containsString("Only payload-based actions can be deleted.")));
+    }
+
+    @Test
+    @DisplayName("Payload-based deletion should complete successfully.")
+    void given_existingPayloadAction_should_delete() throws Exception {
+      // Arrange — create and delete
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      ThreatArsenalActionCreateInput createInput =
+          ThreatArsenalInputFixture.createDefaultCommandLineAction(List.of(domain.getId()));
+
+      String createResponse =
+          mvc.perform(
+                  post(THREAT_ARSENAL_URI)
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(createInput)))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String originalActionId = JsonPath.read(createResponse, "$.injector_contract_id");
+
+      // Flush and clear to force Hibernate to reload from DB with discriminator column set
+      entityManager.flush();
+      entityManager.clear();
+
+      mvc.perform(
+              delete(THREAT_ARSENAL_URI + "/" + originalActionId)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON))
+          .andExpect(status().is2xxSuccessful());
+    }
+  }
+
+  @Nested
+  @WithMockUser(isAdmin = true)
+  @DisplayName("Get collector used in action remediation")
+  class GetCollectorForActionRemediation {
+
+    @Test
+    void given_nonPayloadContract_should_returnFailed() throws Exception {
+      // Arrange
+      Injector emailInjector = injectorFixture.getWellKnownEmailInjector(false);
+      InjectorContract nonPayloadContract =
+          injectorContractComposer
+              .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+              .withInjector(emailInjector)
+              .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
+              .persist()
+              .get();
+
+      // Act & Assert
+      mvc.perform(
+              get(THREAT_ARSENAL_URI + "/" + nonPayloadContract.getId() + "/collectors")
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON))
+          .andExpect(status().isNotFound())
+          .andExpect(
+              content()
+                  .string(
+                      containsString(
+                          "Only injector contract based on payload can be duplicated.")));
+    }
+
+    @Test
+    void given_nonPayloadContract_should_returnCollectorsForActionRemediation() throws Exception {
+      // Arrange — create and delete
+      Injector oaevImplantInjector = injectorFixture.getWellKnownOaevImplantInjector();
+      Collector crowdstrikeCollector =
+          collectorComposer
+              .forCollector(CollectorFixture.createDefaultCollector(CollectorsUtils.CROWDSTRIKE))
+              .persist()
+              .get();
+      Collector defenderCollector =
+          collectorComposer
+              .forCollector(
+                  CollectorFixture.createDefaultCollector(CollectorsUtils.MICROSOFT_DEFENDER))
+              .persist()
+              .get();
+      InjectorContract nonPayloadContract =
+          injectorContractComposer
+              .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+              .withInjector(oaevImplantInjector)
+              .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
+              .withPayload(
+                  payloadComposer
+                      .forPayload(PayloadFixture.createDefaultCommand())
+                      .withDetectionRemediation(
+                          detectionRemediationComposer
+                              .forDetectionRemediation(
+                                  DetectionRemediationFixture.createDefaultDetectionRemediation())
+                              .withCollectorType(
+                                  collectorTypeComposer.forCollectorType(
+                                      CollectorTypeFixture.createCollectorType(
+                                          crowdstrikeCollector.getType()))))
+                      .withDetectionRemediation(
+                          detectionRemediationComposer
+                              .forDetectionRemediation(
+                                  DetectionRemediationFixture.createDefaultDetectionRemediation())
+                              .withCollectorType(
+                                  collectorTypeComposer.forCollectorType(
+                                      CollectorTypeFixture.createCollectorType(
+                                          defenderCollector.getType())))))
+              .persist()
+              .get();
+
+      String response =
+          mvc.perform(
+                  get(THREAT_ARSENAL_URI + "/" + nonPayloadContract.getId() + "/collectors")
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andExpect(jsonPath("$.length()").value(2))
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      List<String> collectorTypes = JsonPath.read(response, "$[*].collector_type");
+      assertThat(collectorTypes)
+          .containsExactlyInAnyOrder(
+              CollectorsUtils.CROWDSTRIKE, CollectorsUtils.MICROSOFT_DEFENDER);
+    }
+  }
 }
