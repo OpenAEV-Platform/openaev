@@ -86,7 +86,6 @@ public class TenantIsolationTestHelper {
     Tenant tenant = createTenantWithCurrentUser(name);
     User user = testUserHolder.get();
 
-
     // Create a role with the requested capabilities using fixture + composer
     TenantRoleComposer.Composer roleComposer =
         tenantRoleComposer.forRole(TenantRoleFixture.getRole(capabilities));
@@ -146,4 +145,3 @@ public class TenantIsolationTestHelper {
         });
   }
 }
-

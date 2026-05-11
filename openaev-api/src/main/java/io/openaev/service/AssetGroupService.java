@@ -90,7 +90,8 @@ public class AssetGroupService {
     AssetGroup assetGroup =
         this.assetGroupRepository
             .findById(assetGroupId)
-            .orElseThrow(() -> new ElementNotFoundException("Asset group not found: " + assetGroupId));
+            .orElseThrow(
+                () -> new ElementNotFoundException("Asset group not found: " + assetGroupId));
     return computeDynamicAssets(assetGroup);
   }
 
