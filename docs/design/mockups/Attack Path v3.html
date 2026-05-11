@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenAEV · Attack Path v3</title>
+  <link rel="stylesheet" href="./colors_and_type.css" />
+  <style>
+    /* ─── Layout ───────────────────────────────────────────────── */
+    body { overflow: hidden; height: 100vh; }
+    .layout {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      grid-template-columns: 260px 1fr;
+      height: 100vh;
+      gap: 0;
+    }
+    .stats-banner {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xl);
+      padding: var(--spacing-m) var(--spacing-xl);
+      background: var(--box-background);
+      border-bottom: 1px solid var(--border-default);
+    }
+    .left-panel {
+      background: var(--box-background);
+      border-right: 1px solid var(--border-default);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .main-area {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+    }
+    .view-toggle {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+      padding: var(--spacing-m) var(--spacing-xl);
+      border-bottom: 1px solid var(--border-default);
+      background: var(--box-background);
+    }
+    .graph-container {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      background-image:
+        linear-gradient(hsl(220 50% 15% / 0.3) 1px, transparent 1px),
+        linear-gradient(90deg, hsl(220 50% 15% / 0.3) 1px, transparent 1px);
+      background-size: 40px 40px;
+      background-position: center center;
+    }
+
+    /* ─── Stats ────────────────────────────────────────────────── */
+    .stat-item {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-s);
+    }
+    .stat-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      position: relative;
+    }
+    .stat-dot::after {
+      content: '';
+      position: absolute;
+      inset: -3px;
+      border-radius: 50%;
+      border: 1px solid currentColor;
+      opacity: 0.3;
+    }
+    .stat-value {
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+    .stat-label {
+      font-family: var(--font-body);
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+    }
+    .sim-title {
+      margin-left: auto;
+      font-family: var(--font-title);
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      font-weight: 400;
+    }
+
+    /* ─── Toggle buttons ───────────────────────────────────────── */
+    .toggle-btn {
+      font-family: var(--font-title);
+      font-size: 0.8125rem;
+      font-weight: 500;
+      letter-spacing: 0.01em;
+      padding: var(--spacing-xs) var(--spacing-m);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius);
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .toggle-btn:hover {
+      background: var(--hover-bg);
+      color: var(--text-primary);
+    }
+    .toggle-btn.active {
+      background: hsl(195 100% 40% / 0.1);
+      border-color: hsl(195 100% 40% / 0.4);
+      color: hsl(195 100% 65%);
+    }
+
+    /* ─── Live feed ────────────────────────────────────────────── */
+    .feed-header {
+      padding: var(--spacing-m) var(--spacing-l);
+      border-bottom: 1px solid var(--border-default);
+    }
+    .feed-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: var(--spacing-s);
+    }
+    .feed-item {
+      padding: var(--spacing-s) var(--spacing-m);
+      border-radius: var(--radius);
+      margin-bottom: 2px;
+      transition: background 0.15s;
+      cursor: default;
+    }
+    .feed-item:hover {
+      background: var(--hover-bg);
+    }
+    .feed-item-time {
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+      font-size: 0.6875rem;
+      color: var(--text-tertiary);
+      margin-bottom: 2px;
+    }
+    .feed-item-name {
+      font-family: var(--font-body);
+      font-size: 0.8rem;
+      color: var(--text-primary);
+      margin-bottom: 2px;
+    }
+    .feed-item-target {
+      font-family: var(--font-mono);
+      font-size: 0.6875rem;
+      color: var(--text-tertiary);
+    }
+    .feed-status-badge {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 0.625rem;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      padding: 1px 6px;
+      border-radius: var(--radius-md);
+      margin-left: var(--spacing-xs);
+    }
+
+    /* ─── Node styles (hexagonal) ──────────────────────────────── */
+    .hex-node {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      cursor: pointer;
+      transition: transform 0.2s ease, filter 0.2s ease;
+    }
+    .hex-node:hover {
+      transform: scale(1.05);
+      z-index: 10;
+    }
+    .hex-node:hover .hex-shape {
+      border-color: var(--node-color);
+    }
+    .hex-shape {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      inset: 0;
+      clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
+      background: var(--ds-bg-2);
+      border: 1px solid var(--border-default);
+      transition: all 0.3s ease;
+    }
+    .hex-glow {
+      position: absolute;
+      inset: -2px;
+      clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
+      background: var(--node-color);
+      opacity: 0.15;
+      animation: glow-pulse 3s ease-in-out infinite;
+    }
+    @keyframes glow-pulse {
+      0%, 100% { opacity: 0.1; }
+      50% { opacity: 0.25; }
+    }
+    .hex-content {
+      position: relative;
+      z-index: 2;
+      padding: var(--spacing-s);
+    }
+
+    /* ─── Kill Chain phase columns ─────────────────────────────── */
+    .killchain-view, .assets-view {
+      position: absolute;
+      inset: 0;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+    .killchain-view.hidden, .assets-view.hidden {
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(8px);
+    }
+    .phase-columns {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      height: 100%;
+      position: relative;
+    }
+    .phase-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-top: var(--spacing-xl);
+      border-right: 1px solid var(--border-default);
+      position: relative;
+    }
+    .phase-col:last-child { border-right: none; }
+    .phase-label {
+      font-family: var(--font-mono);
+      font-size: 0.625rem;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-tertiary);
+      margin-bottom: var(--spacing-xl);
+      text-align: center;
+      padding: 0 var(--spacing-xs);
+    }
+
+    /* ─── Kill chain step node ─────────────────────────────────── */
+    .step-node {
+      position: relative;
+      width: 120px;
+      height: 130px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: transform 0.2s ease;
+    }
+    .step-node:hover {
+      transform: scale(1.08);
+      z-index: 10;
+    }
+    .step-hex-outer {
+      position: absolute;
+      inset: 0;
+      clip-path: polygon(50% 2%, 91% 26%, 91% 74%, 50% 98%, 9% 74%, 9% 26%);
+      transition: opacity 0.3s;
+    }
+    .step-hex-bg {
+      position: absolute;
+      inset: 4px;
+      clip-path: polygon(50% 2%, 91% 26%, 91% 74%, 50% 98%, 9% 74%, 9% 26%);
+      background: var(--ds-bg-2);
+      border: none;
+    }
+    .step-hex-border {
+      position: absolute;
+      inset: 2px;
+      clip-path: polygon(50% 2%, 91% 26%, 91% 74%, 50% 98%, 9% 74%, 9% 26%);
+      background: var(--border-default);
+    }
+    .step-content {
+      position: relative;
+      z-index: 3;
+      text-align: center;
+      padding: var(--spacing-s);
+    }
+    .step-number {
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+      font-size: 0.625rem;
+      color: var(--text-tertiary);
+      margin-bottom: 2px;
+    }
+    .step-name {
+      font-family: var(--font-body);
+      font-size: 0.7rem;
+      font-weight: 500;
+      color: var(--text-primary);
+      line-height: 1.3;
+      max-width: 90px;
+    }
+    .step-status-label {
+      font-family: var(--font-mono);
+      font-size: 0.5625rem;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-top: 4px;
+    }
+
+    /* ─── SVG edges with particles ─────────────────────────────── */
+    .edges-svg {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 1;
+    }
+    .edge-path {
+      fill: none;
+      stroke-width: 1.5;
+      opacity: 0.6;
+    }
+    .edge-particle {
+      r: 3;
+      opacity: 0.9;
+    }
+    .edge-particle-trail {
+      r: 2;
+      opacity: 0.4;
+    }
+
+    /* ─── Assets view ──────────────────────────────────────────── */
+    .asset-node {
+      position: absolute;
+      width: 200px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .asset-node:hover {
+      transform: scale(1.03);
+      z-index: 10;
+    }
+    .asset-hex-outer {
+      width: 180px;
+      height: 195px;
+      position: relative;
+    }
+    .asset-hex-glow {
+      position: absolute;
+      inset: -3px;
+      clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
+      opacity: 0.12;
+      animation: glow-pulse 4s ease-in-out infinite;
+    }
+    .asset-hex-border {
+      position: absolute;
+      inset: 0;
+      clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
+      background: var(--border-default);
+    }
+    .asset-hex-bg {
+      position: absolute;
+      inset: 2px;
+      clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
+      background: var(--ds-bg-1);
+    }
+    .asset-content {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 2;
+      padding: var(--spacing-l);
+      text-align: center;
+    }
+    .asset-hostname {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+    .asset-os {
+      font-family: var(--font-body);
+      font-size: 0.6875rem;
+      color: var(--text-secondary);
+      margin-bottom: 2px;
+    }
+    .asset-ip {
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+      font-size: 0.625rem;
+      color: var(--text-tertiary);
+    }
+    .asset-role {
+      font-family: var(--font-mono);
+      font-size: 0.5625rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-tertiary);
+      margin-top: 4px;
+    }
+
+    /* ─── Asset step badges ────────────────────────────────────── */
+    .asset-step {
+      position: absolute;
+      width: 110px;
+      padding: var(--spacing-xs) var(--spacing-s);
+      background: var(--ds-bg-2);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius);
+      text-align: center;
+      cursor: pointer;
+      transition: transform 0.15s, border-color 0.15s;
+    }
+    .asset-step:hover {
+      transform: scale(1.06);
+      z-index: 10;
+    }
+    .asset-step-name {
+      font-family: var(--font-body);
+      font-size: 0.6875rem;
+      color: var(--text-primary);
+      line-height: 1.2;
+      margin-bottom: 2px;
+    }
+    .asset-step-status {
+      font-family: var(--font-mono);
+      font-size: 0.5625rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    /* ─── Edge animations ──────────────────────────────────────── */
+    @keyframes particle-flow {
+      0% { offset-distance: 0%; opacity: 0; }
+      5% { opacity: 1; }
+      95% { opacity: 1; }
+      100% { offset-distance: 100%; opacity: 0; }
+    }
+    @keyframes dash-flow {
+      to { stroke-dashoffset: -20; }
+    }
+    .animated-edge {
+      stroke-dasharray: 6 4;
+      animation: dash-flow 1.5s linear infinite;
+    }
+
+    /* ─── Ambient scan line ────────────────────────────────────── */
+    @keyframes scan-line {
+      0% { top: -2px; opacity: 0; }
+      10% { opacity: 0.06; }
+      90% { opacity: 0.06; }
+      100% { top: 100%; opacity: 0; }
+    }
+    .graph-container::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, hsl(195 100% 52% / 0.4), transparent);
+      animation: scan-line 8s linear infinite;
+      pointer-events: none;
+      z-index: 100;
+    }
+
+    /* ─── Highlighted chain ────────────────────────────────────── */
+    .step-node.dimmed .step-hex-outer,
+    .step-node.dimmed .step-hex-bg {
+      opacity: 0.3;
+    }
+    .step-node.dimmed .step-content {
+      opacity: 0.3;
+    }
+    .step-node.highlighted .step-hex-outer {
+      opacity: 1;
+    }
+
+    /* ─── Scrollbar ────────────────────────────────────────────── */
+    .feed-list::-webkit-scrollbar {
+      width: 4px;
+    }
+    .feed-list::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .feed-list::-webkit-scrollbar-thumb {
+      background: hsl(var(--gray-700));
+      border-radius: 2px;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.26.9/babel.min.js"></script>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useMemo } = React;
+
+    // ─── Status color mapping ─────────────────────────────────────
+    const STATUS_COLORS = {
+      prevented: 'hsl(123 73% 46%)',
+      detected: 'hsl(43 88% 49%)',
+      undetected: 'hsl(4 87% 48%)',
+      pending: 'hsl(195 100% 52%)',
+    };
+
+    const STATUS_BG = {
+      prevented: 'hsl(123 73% 46% / 0.12)',
+      detected: 'hsl(43 88% 49% / 0.12)',
+      undetected: 'hsl(4 87% 48% / 0.12)',
+      pending: 'hsl(195 100% 52% / 0.12)',
+    };
+
+    // ─── Mock data ────────────────────────────────────────────────
+    const ASSETS = [
+      { id: 'a1', hostname: 'WKS-FINANCE-01', os: 'Windows 11', ip: '10.0.1.42', role: 'Workstation' },
+      { id: 'a2', hostname: 'SRV-DC-01', os: 'Windows Server 2022', ip: '10.0.0.1', role: 'Domain Controller' },
+      { id: 'a3', hostname: 'SRV-DB-01', os: 'Ubuntu 22.04', ip: '10.0.2.10', role: 'Database Server' },
+    ];
+
+    const STEPS = [
+      { id: 1, name: 'Spearphishing Email', asset: 'a1', status: 'detected', phase: 'Initial Access' },
+      { id: 2, name: 'PowerShell Dropper', asset: 'a1', status: 'undetected', phase: 'Execution' },
+      { id: 3, name: 'LSASS Memory Dump', asset: 'a1', status: 'prevented', phase: 'Credential Access' },
+      { id: 4, name: 'SMB Lateral Movement', asset: 'a2', status: 'undetected', phase: 'Lateral Movement' },
+      { id: 5, name: 'Kernel Exploit PE', asset: 'a2', status: 'undetected', phase: 'Privilege Escalation' },
+      { id: 6, name: 'Data Exfiltration', asset: 'a3', status: 'pending', phase: 'Collection' },
+    ];
+
+    const EDGES = [
+      { from: 1, to: 2 },
+      { from: 2, to: 3 },
+      { from: 2, to: 4 },
+      { from: 4, to: 5 },
+      { from: 5, to: 6 },
+    ];
+
+    const PHASES = ['Initial Access', 'Execution', 'Credential Access', 'Lateral Movement', 'Privilege Escalation', 'Collection'];
+
+    const FEED_EVENTS = [
+      { time: '14:32:07', step: 1, name: 'Spearphishing Email', target: 'WKS-FINANCE-01', status: 'detected' },
+      { time: '14:32:18', step: 2, name: 'PowerShell Dropper', target: 'WKS-FINANCE-01', status: 'undetected' },
+      { time: '14:32:41', step: 3, name: 'LSASS Memory Dump', target: 'WKS-FINANCE-01', status: 'prevented' },
+      { time: '14:33:02', step: 4, name: 'SMB Lateral Movement', target: 'SRV-DC-01', status: 'undetected' },
+      { time: '14:33:29', step: 5, name: 'Kernel Exploit PE', target: 'SRV-DC-01', status: 'undetected' },
+      { time: '14:33:55', step: 6, name: 'Data Exfiltration', target: 'SRV-DB-01', status: 'pending' },
+    ];
+
+    const STATS = { prevented: 1, detected: 1, undetected: 3, pending: 1 };
+
+    // ─── Components ───────────────────────────────────────────────
+
+    function StatsBanner() {
+      return (
+        <div className="stats-banner">
+          {Object.entries(STATS).map(([key, val]) => (
+            <div className="stat-item" key={key}>
+              <div className="stat-dot" style={{ background: STATUS_COLORS[key], color: STATUS_COLORS[key] }} />
+              <span className="stat-value" style={{ color: STATUS_COLORS[key] }}>{val}</span>
+              <span className="stat-label">{key.charAt(0).toUpperCase() + key.slice(1)}</span>
+            </div>
+          ))}
+          <div className="sim-title">APT29 Lateral Movement Campaign</div>
+        </div>
+      );
+    }
+
+    function LiveFeed({ onHoverStep }) {
+      return (
+        <div className="left-panel">
+          <div className="feed-header">
+            <span className="eyebrow" style={{ fontSize: '0.6875rem', fontWeight: 500, letterSpacing: '0.08em', textTransform: 'uppercase', fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)' }}>
+              Live execution feed
+            </span>
+          </div>
+          <div className="feed-list">
+            {FEED_EVENTS.map((ev, i) => (
+              <div
+                key={i}
+                className="feed-item"
+                onMouseEnter={() => onHoverStep(ev.step)}
+                onMouseLeave={() => onHoverStep(null)}
+              >
+                <div className="feed-item-time">{ev.time}</div>
+                <div className="feed-item-name">
+                  {ev.name}
+                  <span
+                    className="feed-status-badge"
+                    style={{ background: STATUS_BG[ev.status], color: STATUS_COLORS[ev.status] }}
+                  >
+                    {ev.status}
+                  </span>
+                </div>
+                <div className="feed-item-target">→ {ev.target}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    function ViewToggle({ view, setView }) {
+      return (
+        <div className="view-toggle">
+          <button
+            className={`toggle-btn ${view === 'killchain' ? 'active' : ''}`}
+            onClick={() => setView('killchain')}
+          >
+            Kill Chain
+          </button>
+          <button
+            className={`toggle-btn ${view === 'assets' ? 'active' : ''}`}
+            onClick={() => setView('assets')}
+          >
+            Assets
+          </button>
+        </div>
+      );
+    }
+
+    // ─── Kill Chain View ──────────────────────────────────────────
+
+    function KillChainView({ highlightedStep, onHoverStep }) {
+      const containerRef = useRef(null);
+      const [nodePositions, setNodePositions] = useState({});
+      const [containerSize, setContainerSize] = useState({ w: 0, h: 0 });
+
+      useEffect(() => {
+        if (!containerRef.current) return;
+        const rect = containerRef.current.getBoundingClientRect();
+        setContainerSize({ w: rect.width, h: rect.height });
+
+        const colWidth = rect.width / 6;
+        const positions = {};
+        STEPS.forEach((step) => {
+          const colIdx = PHASES.indexOf(step.phase);
+          const stepsInCol = STEPS.filter(s => s.phase === step.phase);
+          const rowIdx = stepsInCol.indexOf(step);
+          const totalInCol = stepsInCol.length;
+          const ySpacing = Math.min(180, (rect.height - 120) / (totalInCol + 1));
+          const yOffset = 80 + (rowIdx + 1) * ySpacing - (totalInCol * ySpacing / 2) + (rect.height - 120) / 2 - ySpacing;
+
+          positions[step.id] = {
+            x: colIdx * colWidth + colWidth / 2,
+            y: Math.max(100, Math.min(rect.height - 80, yOffset)),
+          };
+        });
+        setNodePositions(positions);
+      }, []);
+
+      // Determine which nodes are in the highlighted chain
+      const highlightedNodes = useMemo(() => {
+        if (!highlightedStep) return new Set();
+        const nodes = new Set([highlightedStep]);
+        // Trace upstream
+        const traceUp = (id) => {
+          EDGES.filter(e => e.to === id).forEach(e => { nodes.add(e.from); traceUp(e.from); });
+        };
+        // Trace downstream
+        const traceDown = (id) => {
+          EDGES.filter(e => e.from === id).forEach(e => { nodes.add(e.to); traceDown(e.to); });
+        };
+        traceUp(highlightedStep);
+        traceDown(highlightedStep);
+        return nodes;
+      }, [highlightedStep]);
+
+      return (
+        <div ref={containerRef} style={{ position: 'absolute', inset: 0 }}>
+          {/* Phase column backgrounds */}
+          <div className="phase-columns">
+            {PHASES.map((phase, i) => (
+              <div className="phase-col" key={i}>
+                <div className="phase-label">{phase}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* SVG edges */}
+          {containerSize.w > 0 && (
+            <svg className="edges-svg" width={containerSize.w} height={containerSize.h}>
+              <defs>
+                {STEPS.map(step => (
+                  <radialGradient key={`glow-${step.id}`} id={`glow-${step.id}`}>
+                    <stop offset="0%" stopColor={STATUS_COLORS[step.status]} stopOpacity="0.6" />
+                    <stop offset="100%" stopColor={STATUS_COLORS[step.status]} stopOpacity="0" />
+                  </radialGradient>
+                ))}
+              </defs>
+
+              {EDGES.map((edge, i) => {
+                const from = nodePositions[edge.from];
+                const to = nodePositions[edge.to];
+                if (!from || !to) return null;
+
+                const sourceStep = STEPS.find(s => s.id === edge.from);
+                const color = STATUS_COLORS[sourceStep.status];
+                const isHighlighted = !highlightedStep || (highlightedNodes.has(edge.from) && highlightedNodes.has(edge.to));
+
+                // Calculate bezier control points
+                const dx = to.x - from.x;
+                const dy = to.y - from.y;
+                const cx1 = from.x + dx * 0.4;
+                const cy1 = from.y;
+                const cx2 = to.x - dx * 0.4;
+                const cy2 = to.y;
+                const pathD = `M ${from.x} ${from.y} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${to.x} ${to.y}`;
+                const pathId = `edge-path-${i}`;
+
+                return (
+                  <g key={i} style={{ opacity: isHighlighted ? 1 : 0.15, transition: 'opacity 0.3s' }}>
+                    {/* Glow under the edge */}
+                    <path d={pathD} fill="none" stroke={color} strokeWidth="6" opacity="0.1" />
+                    {/* Main dashed line */}
+                    <path
+                      id={pathId}
+                      d={pathD}
+                      fill="none"
+                      stroke={color}
+                      strokeWidth="1.5"
+                      strokeDasharray="8 5"
+                      opacity="0.7"
+                      style={{ animation: 'dash-flow 2s linear infinite' }}
+                    />
+                    {/* Flowing particles */}
+                    <circle r="3.5" fill={color} opacity="0.9">
+                      <animateMotion
+                        dur={`${1.8 + i * 0.3}s`}
+                        repeatCount="indefinite"
+                        path={pathD}
+                      />
+                    </circle>
+                    <circle r="2" fill={color} opacity="0.5">
+                      <animateMotion
+                        dur={`${1.8 + i * 0.3}s`}
+                        repeatCount="indefinite"
+                        path={pathD}
+                        begin={`${0.4 + i * 0.1}s`}
+                      />
+                    </circle>
+                    <circle r="1.5" fill={color} opacity="0.3">
+                      <animateMotion
+                        dur={`${1.8 + i * 0.3}s`}
+                        repeatCount="indefinite"
+                        path={pathD}
+                        begin={`${0.9 + i * 0.1}s`}
+                      />
+                    </circle>
+                    {/* Arrow at end */}
+                    <circle cx={to.x} cy={to.y} r="4" fill="none" stroke={color} strokeWidth="1" opacity="0.5" />
+                  </g>
+                );
+              })}
+
+              {/* Node glow halos */}
+              {STEPS.map(step => {
+                const pos = nodePositions[step.id];
+                if (!pos) return null;
+                return (
+                  <circle
+                    key={`halo-${step.id}`}
+                    cx={pos.x}
+                    cy={pos.y}
+                    r="45"
+                    fill={`url(#glow-${step.id})`}
+                    opacity={!highlightedStep || highlightedNodes.has(step.id) ? 0.4 : 0.05}
+                    style={{ transition: 'opacity 0.3s' }}
+                  />
+                );
+              })}
+            </svg>
+          )}
+
+          {/* Step nodes */}
+          {STEPS.map(step => {
+            const pos = nodePositions[step.id];
+            if (!pos) return null;
+            const isDimmed = highlightedStep && !highlightedNodes.has(step.id);
+            return (
+              <div
+                key={step.id}
+                className={`step-node ${isDimmed ? 'dimmed' : ''}`}
+                onMouseEnter={() => onHoverStep(step.id)}
+                onMouseLeave={() => onHoverStep(null)}
+                style={{
+                  left: pos.x - 60,
+                  top: pos.y - 65,
+                  '--node-color': STATUS_COLORS[step.status],
+                }}
+              >
+                <div className="step-hex-outer" style={{ background: STATUS_COLORS[step.status], opacity: 0.2 }} />
+                <div className="step-hex-border" style={{ background: `color-mix(in srgb, ${STATUS_COLORS[step.status]} 30%, var(--border-default))` }} />
+                <div className="step-hex-bg" />
+                <div className="step-content">
+                  <div className="step-number">#{step.id}</div>
+                  <div className="step-name">{step.name}</div>
+                  <div className="step-status-label" style={{ color: STATUS_COLORS[step.status] }}>
+                    {step.status}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    // ─── Assets View ──────────────────────────────────────────────
+
+    function AssetsView({ highlightedStep }) {
+      const containerRef = useRef(null);
+      const [containerSize, setContainerSize] = useState({ w: 0, h: 0 });
+
+      useEffect(() => {
+        if (!containerRef.current) return;
+        const rect = containerRef.current.getBoundingClientRect();
+        setContainerSize({ w: rect.width, h: rect.height });
+      }, []);
+
+      // Asset positions (triangular layout)
+      const assetPositions = useMemo(() => {
+        if (containerSize.w === 0) return {};
+        const cx = containerSize.w / 2;
+        const cy = containerSize.h / 2;
+        return {
+          a1: { x: cx - 240, y: cy - 60 },
+          a2: { x: cx + 80, y: cy - 100 },
+          a3: { x: cx + 80, y: cy + 120 },
+        };
+      }, [containerSize]);
+
+      // Step positions around their assets
+      const stepPositions = useMemo(() => {
+        if (containerSize.w === 0) return {};
+        const positions = {};
+        const assetSteps = {};
+        STEPS.forEach(s => {
+          if (!assetSteps[s.asset]) assetSteps[s.asset] = [];
+          assetSteps[s.asset].push(s);
+        });
+
+        Object.entries(assetSteps).forEach(([assetId, steps]) => {
+          const ap = assetPositions[assetId];
+          if (!ap) return;
+          const angleStep = (Math.PI * 0.8) / Math.max(steps.length - 1, 1);
+          const startAngle = -Math.PI * 0.4;
+          steps.forEach((step, i) => {
+            const angle = startAngle + i * angleStep;
+            const radius = 140;
+            positions[step.id] = {
+              x: ap.x + Math.cos(angle) * radius,
+              y: ap.y + Math.sin(angle) * radius,
+            };
+          });
+        });
+        return positions;
+      }, [assetPositions, containerSize]);
+
+      // Find lateral edges (cross-asset)
+      const lateralEdges = EDGES.filter(e => {
+        const fromStep = STEPS.find(s => s.id === e.from);
+        const toStep = STEPS.find(s => s.id === e.to);
+        return fromStep.asset !== toStep.asset;
+      });
+
+      const localEdges = EDGES.filter(e => {
+        const fromStep = STEPS.find(s => s.id === e.from);
+        const toStep = STEPS.find(s => s.id === e.to);
+        return fromStep.asset === toStep.asset;
+      });
+
+      return (
+        <div ref={containerRef} style={{ position: 'absolute', inset: 0 }}>
+          {containerSize.w > 0 && (
+            <svg className="edges-svg" width={containerSize.w} height={containerSize.h}>
+              {/* Local edges (within asset) */}
+              {localEdges.map((edge, i) => {
+                const from = stepPositions[edge.from];
+                const to = stepPositions[edge.to];
+                if (!from || !to) return null;
+                const sourceStep = STEPS.find(s => s.id === edge.from);
+                const color = STATUS_COLORS[sourceStep.status];
+                const dx = to.x - from.x;
+                const dy = to.y - from.y;
+                const pathD = `M ${from.x} ${from.y} Q ${from.x + dx * 0.5 + dy * 0.15} ${from.y + dy * 0.5 - dx * 0.15}, ${to.x} ${to.y}`;
+                return (
+                  <g key={`local-${i}`} opacity="0.6">
+                    <path d={pathD} fill="none" stroke={color} strokeWidth="1" strokeDasharray="4 3" opacity="0.5" />
+                    <circle r="2" fill={color} opacity="0.8">
+                      <animateMotion dur="2s" repeatCount="indefinite" path={pathD} />
+                    </circle>
+                  </g>
+                );
+              })}
+
+              {/* Lateral edges (cross-asset) — dramatic */}
+              {lateralEdges.map((edge, i) => {
+                const from = stepPositions[edge.from];
+                const to = stepPositions[edge.to];
+                if (!from || !to) return null;
+                const sourceStep = STEPS.find(s => s.id === edge.from);
+                const color = STATUS_COLORS[sourceStep.status];
+                const dx = to.x - from.x;
+                const dy = to.y - from.y;
+                const cx1 = from.x + dx * 0.3;
+                const cy1 = from.y - 30;
+                const cx2 = to.x - dx * 0.3;
+                const cy2 = to.y + 30;
+                const pathD = `M ${from.x} ${from.y} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${to.x} ${to.y}`;
+                return (
+                  <g key={`lateral-${i}`}>
+                    {/* Wide glow */}
+                    <path d={pathD} fill="none" stroke={color} strokeWidth="8" opacity="0.08" />
+                    <path d={pathD} fill="none" stroke={color} strokeWidth="3" opacity="0.15" />
+                    {/* Main line */}
+                    <path
+                      d={pathD}
+                      fill="none"
+                      stroke={color}
+                      strokeWidth="2"
+                      strokeDasharray="10 5"
+                      opacity="0.8"
+                      style={{ animation: 'dash-flow 1.2s linear infinite' }}
+                    />
+                    {/* Particles */}
+                    <circle r="4" fill={color} opacity="0.9">
+                      <animateMotion dur="1.5s" repeatCount="indefinite" path={pathD} />
+                    </circle>
+                    <circle r="2.5" fill={color} opacity="0.6">
+                      <animateMotion dur="1.5s" repeatCount="indefinite" path={pathD} begin="0.5s" />
+                    </circle>
+                    <circle r="1.5" fill={color} opacity="0.3">
+                      <animateMotion dur="1.5s" repeatCount="indefinite" path={pathD} begin="1s" />
+                    </circle>
+                  </g>
+                );
+              })}
+
+              {/* Asset halos */}
+              {ASSETS.map(asset => {
+                const pos = assetPositions[asset.id];
+                if (!pos) return null;
+                return (
+                  <circle
+                    key={`asset-halo-${asset.id}`}
+                    cx={pos.x}
+                    cy={pos.y}
+                    r="70"
+                    fill="hsl(195 100% 52%)"
+                    opacity="0.04"
+                  />
+                );
+              })}
+            </svg>
+          )}
+
+          {/* Asset nodes */}
+          {ASSETS.map(asset => {
+            const pos = assetPositions[asset.id];
+            if (!pos) return null;
+            return (
+              <div
+                key={asset.id}
+                className="asset-node"
+                style={{ left: pos.x - 90, top: pos.y - 97 }}
+              >
+                <div className="asset-hex-outer">
+                  <div className="asset-hex-glow" style={{ background: 'hsl(195 100% 52%)' }} />
+                  <div className="asset-hex-border" />
+                  <div className="asset-hex-bg" />
+                  <div className="asset-content">
+                    <div className="asset-hostname">{asset.hostname}</div>
+                    <div className="asset-os">{asset.os}</div>
+                    <div className="asset-ip">{asset.ip}</div>
+                    <div className="asset-role">{asset.role}</div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Step nodes around assets */}
+          {STEPS.map(step => {
+            const pos = stepPositions[step.id];
+            if (!pos) return null;
+            return (
+              <div
+                key={step.id}
+                className="asset-step"
+                style={{
+                  left: pos.x - 55,
+                  top: pos.y - 20,
+                  borderColor: `color-mix(in srgb, ${STATUS_COLORS[step.status]} 40%, var(--border-default))`,
+                }}
+              >
+                <div className="asset-step-name">{step.name}</div>
+                <div className="asset-step-status" style={{ color: STATUS_COLORS[step.status] }}>{step.status}</div>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    // ─── App ──────────────────────────────────────────────────────
+
+    function App() {
+      const [view, setView] = useState('killchain');
+      const [hoveredStep, setHoveredStep] = useState(null);
+
+      return (
+        <div className="layout">
+          <StatsBanner />
+          <LiveFeed onHoverStep={setHoveredStep} />
+          <div className="main-area">
+            <ViewToggle view={view} setView={setView} />
+            <div className="graph-container">
+              <div className={`killchain-view ${view !== 'killchain' ? 'hidden' : ''}`}>
+                <KillChainView highlightedStep={hoveredStep} onHoverStep={setHoveredStep} />
+              </div>
+              <div className={`assets-view ${view !== 'assets' ? 'hidden' : ''}`}>
+                <AssetsView highlightedStep={hoveredStep} />
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>

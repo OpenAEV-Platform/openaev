@@ -1,0 +1,1503 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Event Output Contracts — UX Mockup</title>
+<style>
+  :root {
+    --bg: #070d19;
+    --paper: #09101e;
+    --accent: #0f1e38;
+    --primary: #0fbcff;
+    --secondary: #00f1bd;
+    --warning: #ffa726;
+    --error: #f44336;
+    --success: #03a847;
+    --divider: rgba(255,255,255,0.12);
+    --text-primary: rgba(255,255,255,0.87);
+    --text-secondary: rgba(255,255,255,0.6);
+    --text-disabled: rgba(255,255,255,0.38);
+    --font-body: 'IBM Plex Sans', -apple-system, sans-serif;
+    --font-heading: 'Geologica', 'IBM Plex Sans', sans-serif;
+    --radius: 4px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: var(--font-body);
+    background: var(--bg);
+    color: var(--text-primary);
+    font-size: 14px;
+    line-height: 1.5;
+    overflow-x: auto;
+  }
+
+  /* ─── Pan & Zoom Canvas ─── */
+  .canvas-container {
+    width: 100vw;
+    height: 100vh;
+    overflow: auto;
+    position: relative;
+  }
+
+  .canvas {
+    min-width: 4000px;
+    min-height: 2400px;
+    padding: 60px;
+    position: relative;
+  }
+
+  /* ─── Title Bar ─── */
+  .title-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    background: var(--paper);
+    border-bottom: 1px solid var(--divider);
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .title-bar h1 {
+    font-family: var(--font-heading);
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  .title-bar .badge {
+    background: var(--primary);
+    color: #000;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+  }
+  .title-bar .subtitle {
+    color: var(--text-secondary);
+    font-size: 12px;
+  }
+
+  /* ─── Section headers ─── */
+  .section-header {
+    font-family: var(--font-heading);
+    font-size: 22px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .section-header .direction-badge {
+    background: var(--warning);
+    color: #000;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-family: var(--font-body);
+  }
+
+  /* ─── Mockup sections ─── */
+  .mockup-section {
+    margin-bottom: 80px;
+    position: relative;
+  }
+  .mockup-description {
+    color: var(--text-secondary);
+    font-size: 13px;
+    margin-bottom: 24px;
+    max-width: 700px;
+    line-height: 1.6;
+  }
+
+  /* ─── Flow Canvas (swimlane) ─── */
+  .flow-canvas {
+    background: var(--bg);
+    border: 1px solid var(--divider);
+    border-radius: 8px;
+    padding: 20px;
+    position: relative;
+    overflow: visible;
+    display: flex;
+    gap: 0;
+    min-height: 400px;
+  }
+
+  /* ─── Swimlane column ─── */
+  .swimlane-col {
+    position: relative;
+    min-width: 320px;
+    padding: 0 10px;
+  }
+  .swimlane-col::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 8px;
+    opacity: 0.08;
+    pointer-events: none;
+  }
+  .swimlane-col[data-phase="recon"]::before { background: #2196f3; border: 1px solid rgba(33,150,243,0.2); }
+  .swimlane-col[data-phase="weaponization"]::before { background: #ff9800; border: 1px solid rgba(255,152,0,0.2); }
+  .swimlane-col[data-phase="delivery"]::before { background: #4caf50; border: 1px solid rgba(76,175,80,0.2); }
+  .swimlane-col[data-phase="exploitation"]::before { background: #e91e63; border: 1px solid rgba(233,30,99,0.2); }
+
+  .swimlane-label {
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 10px 0;
+    opacity: 0.85;
+    position: relative;
+    z-index: 1;
+  }
+  .swimlane-col[data-phase="recon"] .swimlane-label { color: #2196f3; }
+  .swimlane-col[data-phase="weaponization"] .swimlane-label { color: #ff9800; }
+  .swimlane-col[data-phase="delivery"] .swimlane-label { color: #4caf50; }
+  .swimlane-col[data-phase="exploitation"] .swimlane-label { color: #e91e63; }
+
+  .swimlane-nodes {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 40px;
+    padding-top: 20px;
+  }
+
+  /* ─── Event Node (CIRCLE) ─── */
+  .node-event {
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    background: var(--paper);
+    border: 2px solid var(--divider);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    position: relative;
+    cursor: pointer;
+    transition: border 0.2s, box-shadow 0.2s;
+  }
+  .node-event:hover {
+    border-color: var(--warning);
+    box-shadow: 0 4px 12px rgba(255,167,38,0.2);
+  }
+  .node-event.highlighted {
+    border-color: var(--warning);
+    box-shadow: 0 4px 20px rgba(255,167,38,0.3);
+  }
+  .node-event .bolt-icon {
+    color: var(--warning);
+    font-size: 16px;
+    margin-right: 2px;
+  }
+  .node-event .event-label {
+    font-size: 13px;
+    font-weight: 700;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 90px;
+  }
+  .node-event .menu-dot {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 18px;
+    height: 18px;
+    color: var(--text-secondary);
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .node-event .seq-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--warning);
+    color: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    z-index: 2;
+  }
+
+  /* ─── Output Contract Badge (NEW) ─── */
+  .node-event .output-badge {
+    position: absolute;
+    bottom: -4px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--secondary);
+    color: #000;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 8px;
+    white-space: nowrap;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    z-index: 2;
+  }
+
+  /* ─── Conditions below circle ─── */
+  .event-conditions {
+    display: flex;
+    gap: 3px;
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: 220px;
+    margin-top: 6px;
+  }
+
+  /* ─── Add Action button ─── */
+  .add-action-btn {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    margin-top: 4px;
+    border: none;
+  }
+
+  /* ─── Action Node (RECTANGLE) ─── */
+  .node-action {
+    width: 280px;
+    background: var(--paper);
+    border: 1px solid var(--divider);
+    border-left: 4px solid var(--primary);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    cursor: pointer;
+    transition: border 0.2s, box-shadow 0.2s;
+    position: relative;
+  }
+  .node-action:hover {
+    border-color: var(--primary);
+    box-shadow: 0 4px 12px rgba(15,188,255,0.15);
+    border-left-color: var(--primary);
+  }
+  .node-action .action-icon {
+    color: var(--primary);
+    font-size: 20px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .node-action .action-content {
+    flex: 1;
+    min-width: 0;
+  }
+  .node-action .action-title {
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 160px;
+  }
+  .node-action .action-chips {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+  }
+
+  /* ─── Chips ─── */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    height: 18px;
+    font-size: 10px;
+    padding: 0 6px;
+    border-radius: 9px;
+    border: 1px solid;
+    white-space: nowrap;
+  }
+  .chip-primary { border-color: var(--primary); color: var(--primary); }
+  .chip-secondary { border-color: var(--secondary); color: var(--secondary); }
+  .chip-warning { border-color: var(--warning); color: var(--warning); }
+  .chip-success { border-color: var(--success); color: var(--success); }
+  .chip-filled { background: var(--primary); color: #000; border-color: var(--primary); }
+
+  /* ─── Edge lines ─── */
+  .edge-line {
+    position: absolute;
+    height: 2px;
+    background: var(--divider);
+    z-index: 0;
+  }
+  .edge-line.active { background: var(--warning); }
+
+  /* ─── Drawer overlay ─── */
+  .drawer-overlay {
+    position: relative;
+    width: 420px;
+    background: var(--paper);
+    border: 1px solid var(--divider);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  }
+  .drawer-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--divider);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .drawer-header h2 {
+    font-family: var(--font-heading);
+    font-size: 16px;
+    font-weight: 600;
+  }
+  .drawer-close {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: none;
+    border: 1px solid var(--divider);
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+  }
+  .drawer-body {
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  /* ─── Text field (variant="standard") ─── */
+  .text-field {
+    position: relative;
+    padding-top: 16px;
+  }
+  .text-field label {
+    position: absolute;
+    top: 0;
+    left: 0;
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-weight: 500;
+  }
+  .text-field input, .text-field textarea {
+    width: 100%;
+    background: none;
+    border: none;
+    border-bottom: 1px solid var(--divider);
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    font-size: 14px;
+    padding: 4px 0 6px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .text-field input:focus, .text-field textarea:focus {
+    border-bottom-color: var(--primary);
+  }
+  .text-field textarea { resize: vertical; min-height: 36px; }
+  .text-field.required label::after { content: ' *'; color: var(--error); }
+
+  /* ─── Divider ─── */
+  .divider {
+    height: 1px;
+    background: var(--divider);
+    margin: 4px 0;
+  }
+
+  /* ─── Toggle buttons ─── */
+  .toggle-group {
+    display: inline-flex;
+    border: 1px solid var(--divider);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .toggle-btn {
+    padding: 3px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-family: var(--font-body);
+  }
+  .toggle-btn.active {
+    background: var(--primary);
+    color: #000;
+  }
+
+  /* ─── Condition row ─── */
+  .condition-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+  }
+  .condition-row .row-num {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    min-width: 24px;
+  }
+  .condition-row select, .condition-row .mini-input {
+    background: var(--accent);
+    border: 1px solid var(--divider);
+    border-radius: var(--radius);
+    color: var(--text-primary);
+    font-size: 12px;
+    padding: 4px 8px;
+    font-family: var(--font-body);
+    min-width: 100px;
+  }
+  .condition-row .mini-input { min-width: 80px; }
+  .condition-row .provider-hint {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 10px;
+    color: var(--text-disabled);
+  }
+  .condition-row .delete-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: none;
+    background: none;
+    color: var(--error);
+    cursor: pointer;
+    font-size: 14px;
+  }
+
+  /* ─── Section label ─── */
+  .section-label {
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-label .caption {
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--text-secondary);
+  }
+
+  /* ─── Output Contract section (NEW) ─── */
+  .output-contract-section {
+    border: 1px solid rgba(0,241,189,0.25);
+    border-radius: var(--radius);
+    padding: 12px;
+    background: rgba(0,241,189,0.04);
+  }
+  .output-contract-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .output-contract-header .label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--secondary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .output-contract-header .auto-badge {
+    font-size: 9px;
+    background: rgba(0,241,189,0.15);
+    color: var(--secondary);
+    padding: 1px 6px;
+    border-radius: 8px;
+    font-weight: 600;
+  }
+
+  .output-field-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    background: rgba(0,241,189,0.06);
+    border-radius: var(--radius);
+    margin-bottom: 4px;
+    border: 1px solid rgba(0,241,189,0.12);
+  }
+  .output-field-row .field-icon {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--secondary);
+    color: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .output-field-row .field-type {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+    min-width: 80px;
+  }
+  .output-field-row .field-desc {
+    font-size: 11px;
+    color: var(--text-secondary);
+    flex: 1;
+  }
+  .output-field-row .field-subfields {
+    display: flex;
+    gap: 3px;
+    flex-wrap: wrap;
+  }
+  .output-field-row .subfield-chip {
+    font-size: 9px;
+    padding: 1px 5px;
+    border-radius: 6px;
+    background: rgba(0,241,189,0.12);
+    color: var(--secondary);
+    border: 1px solid rgba(0,241,189,0.25);
+  }
+  .output-field-row .auto-tag {
+    font-size: 9px;
+    color: var(--text-disabled);
+    font-style: italic;
+  }
+  .output-field-row .remove-btn {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: none;
+    background: none;
+    color: var(--text-disabled);
+    cursor: pointer;
+    font-size: 12px;
+  }
+  .output-field-row .remove-btn:hover { color: var(--error); }
+
+  .add-output-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border: 1px dashed rgba(0,241,189,0.4);
+    border-radius: var(--radius);
+    background: none;
+    color: var(--secondary);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 6px;
+    font-family: var(--font-body);
+  }
+  .add-output-btn:hover { background: rgba(0,241,189,0.06); }
+
+  /* ─── Action drawer binding rows ─── */
+  .binding-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: var(--radius);
+    border: 1px solid rgba(3,168,71,0.25);
+    background: rgba(3,168,71,0.05);
+    margin-bottom: 6px;
+  }
+  .binding-row .link-icon {
+    color: var(--success);
+    font-size: 14px;
+  }
+  .binding-row .binding-info {
+    flex: 1;
+    min-width: 0;
+  }
+  .binding-row .binding-key {
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .binding-row .binding-source {
+    font-size: 10px;
+    color: var(--text-secondary);
+  }
+  .binding-row .scope-toggle {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 9px;
+    color: var(--text-secondary);
+  }
+  .binding-row .scope-toggle .scope-switch {
+    width: 28px;
+    height: 14px;
+    border-radius: 7px;
+    background: var(--primary);
+    position: relative;
+    cursor: pointer;
+  }
+  .binding-row .scope-toggle .scope-switch::after {
+    content: '';
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: white;
+    position: absolute;
+    top: 2px;
+    left: 2px;
+  }
+  .binding-row .unlink-btn {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: none;
+    background: none;
+    color: var(--text-disabled);
+    cursor: pointer;
+    font-size: 14px;
+  }
+
+  .manual-field-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: var(--radius);
+    border: 1px solid var(--divider);
+    background: var(--accent);
+    margin-bottom: 6px;
+  }
+  .manual-field-row .link-menu-btn {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 1px solid var(--divider);
+    background: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 12px;
+  }
+
+  /* ─── Comparison table ─── */
+  .comparison-table {
+    width: 100%;
+    max-width: 900px;
+    border-collapse: collapse;
+    font-size: 12px;
+    margin-top: 16px;
+  }
+  .comparison-table th, .comparison-table td {
+    padding: 8px 12px;
+    border: 1px solid var(--divider);
+    text-align: left;
+    vertical-align: top;
+  }
+  .comparison-table th {
+    background: var(--accent);
+    font-weight: 600;
+    font-size: 11px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .comparison-table td { background: var(--paper); }
+  .comparison-table .pro { color: var(--success); }
+  .comparison-table .con { color: var(--error); }
+
+  /* ─── Annotation arrow ─── */
+  .annotation {
+    position: absolute;
+    font-size: 11px;
+    color: var(--warning);
+    font-weight: 600;
+    padding: 4px 8px;
+    background: rgba(255,167,38,0.1);
+    border: 1px solid rgba(255,167,38,0.3);
+    border-radius: var(--radius);
+    white-space: nowrap;
+  }
+
+  /* ─── Button ─── */
+  .btn {
+    padding: 6px 14px;
+    border-radius: var(--radius);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    font-family: var(--font-body);
+  }
+  .btn-primary { background: var(--primary); color: #000; }
+  .btn-secondary { background: var(--secondary); color: #000; }
+  .btn-outlined { background: none; border: 1px solid var(--divider); color: var(--text-primary); }
+  .btn-cancel { background: var(--accent); color: var(--text-primary); border: 1px solid var(--divider); }
+
+  /* ─── NEW/CHANGED indicator ─── */
+  .new-indicator {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 700;
+    background: var(--secondary);
+    color: #000;
+    padding: 1px 5px;
+    border-radius: 6px;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+  .changed-indicator {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 700;
+    background: var(--warning);
+    color: #000;
+    padding: 1px 5px;
+    border-radius: 6px;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+
+  /* ─── Layout helper ─── */
+  .flex-row { display: flex; gap: 24px; align-items: flex-start; }
+  .flex-col { display: flex; flex-direction: column; gap: 16px; }
+</style>
+</head>
+<body>
+
+<div class="title-bar">
+  <h1>Event Output Contracts</h1>
+  <span class="badge">UX MOCKUP</span>
+  <span class="subtitle">Scénario Logic page — proposition de design pour les contrats de sortie</span>
+</div>
+
+<div class="canvas-container">
+<div class="canvas" style="padding-top: 80px;">
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SECTION 1: Current State (Before)
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="mockup-section">
+  <div class="section-header">
+    État actuel — Logic Flow
+    <span class="direction-badge">AVANT</span>
+  </div>
+  <p class="mockup-description">
+    Aujourd'hui : les Events déclenchent sur des types output mais n'ont pas de "contrat de sortie" explicite.
+    Les Actions résolvent elles-mêmes le binding de leurs arguments via <code>input_sources</code> vers les output types des actions en amont.
+  </p>
+
+  <div class="flow-canvas" style="min-height: 340px; align-items: flex-start;">
+    <!-- Column: Reconnaissance -->
+    <div class="swimlane-col" data-phase="recon" style="min-height: 300px;">
+      <div class="swimlane-label">Reconnaissance</div>
+      <div class="swimlane-nodes">
+        <!-- Root Action -->
+        <div class="node-action">
+          <span class="action-icon">▶</span>
+          <div class="action-content">
+            <div class="action-title">Nmap Port Scan</div>
+            <div class="action-chips">
+              <span class="chip chip-primary">Action</span>
+              <span class="chip chip-secondary">T1046</span>
+            </div>
+          </div>
+          <span class="menu-dot" style="position:absolute;top:8px;right:8px;color:var(--text-secondary)">⋮</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Column: Weaponization -->
+    <div class="swimlane-col" data-phase="weaponization" style="min-height: 300px;">
+      <div class="swimlane-label">Weaponization</div>
+      <div class="swimlane-nodes">
+        <!-- Event circle -->
+        <div style="display:flex;flex-direction:column;align-items:center;">
+          <div class="node-event">
+            <span class="seq-badge">1</span>
+            <div style="display:flex;align-items:center;gap:2px;">
+              <span class="bolt-icon">⚡</span>
+              <span class="event-label">Port Found</span>
+            </div>
+          </div>
+          <div class="event-conditions">
+            <span class="chip chip-warning">port IS_NOT_NULL</span>
+          </div>
+          <button class="add-action-btn">+</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Column: Delivery -->
+    <div class="swimlane-col" data-phase="delivery" style="min-height: 300px;">
+      <div class="swimlane-label">Delivery</div>
+      <div class="swimlane-nodes">
+        <div class="node-action">
+          <span class="action-icon">▶</span>
+          <div class="action-content">
+            <div class="action-title">SSH Brute Force</div>
+            <div class="action-chips">
+              <span class="chip chip-primary">Action</span>
+              <span class="chip chip-secondary">T1110</span>
+            </div>
+          </div>
+          <span class="menu-dot" style="position:absolute;top:8px;right:8px;color:var(--text-secondary)">⋮</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edges (simplified as arrows) -->
+    <svg style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;">
+      <defs>
+        <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="rgba(255,255,255,0.3)" />
+        </marker>
+      </defs>
+      <!-- Nmap → Event -->
+      <line x1="310" y1="140" x2="380" y2="140" stroke="rgba(255,255,255,0.2)" stroke-width="2" marker-end="url(#arrowhead)" />
+      <!-- Event → SSH -->
+      <line x1="530" y1="140" x2="650" y2="140" stroke="rgba(255,255,255,0.2)" stroke-width="2" marker-end="url(#arrowhead)" />
+    </svg>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SECTION 2: DIRECTION A — Output contract in Event drawer
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="mockup-section">
+  <div class="section-header">
+    Direction A — Contrat dans le drawer Event
+    <span class="direction-badge">APRÈS</span>
+  </div>
+  <p class="mockup-description">
+    <strong>Concept :</strong> L'Event déclare un "Output Contract" dans son formulaire drawer (sous les conditions).
+    Auto-généré à partir des types filtrés dans les conditions, mais éditable (ajout/suppression de champs).
+    Un petit badge <code>3 outputs</code> apparaît sur le nœud cercle.
+  </p>
+
+  <div class="flex-row">
+    <!-- Left: The flow canvas with badge on event -->
+    <div>
+      <div class="flow-canvas" style="min-height: 340px; min-width: 1000px;">
+        <!-- Column: Reconnaissance -->
+        <div class="swimlane-col" data-phase="recon" style="min-height: 300px;">
+          <div class="swimlane-label">Reconnaissance</div>
+          <div class="swimlane-nodes">
+            <div class="node-action">
+              <span class="action-icon">▶</span>
+              <div class="action-content">
+                <div class="action-title">Nmap Port Scan</div>
+                <div class="action-chips">
+                  <span class="chip chip-primary">Action</span>
+                  <span class="chip chip-secondary">T1046</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Column: Weaponization — Event WITH output badge -->
+        <div class="swimlane-col" data-phase="weaponization" style="min-height: 300px;">
+          <div class="swimlane-label">Weaponization</div>
+          <div class="swimlane-nodes">
+            <div style="display:flex;flex-direction:column;align-items:center;">
+              <div class="node-event highlighted">
+                <span class="seq-badge">1</span>
+                <span class="output-badge">3 outputs</span>
+                <div style="display:flex;align-items:center;gap:2px;">
+                  <span class="bolt-icon">⚡</span>
+                  <span class="event-label">Port Found</span>
+                </div>
+              </div>
+              <div class="event-conditions">
+                <span class="chip chip-warning">port IS_NOT_NULL</span>
+                <span class="chip chip-warning">port.number ≥ 1</span>
+              </div>
+              <button class="add-action-btn">+</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Column: Delivery -->
+        <div class="swimlane-col" data-phase="delivery" style="min-height: 300px;">
+          <div class="swimlane-label">Delivery</div>
+          <div class="swimlane-nodes">
+            <div class="node-action">
+              <span class="action-icon">▶</span>
+              <div class="action-content">
+                <div class="action-title">SSH Brute Force</div>
+                <div class="action-chips">
+                  <span class="chip chip-primary">Action</span>
+                  <span class="chip chip-secondary">T1110</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Column: Exploitation -->
+        <div class="swimlane-col" data-phase="exploitation" style="min-height: 300px;">
+          <div class="swimlane-label">Exploitation</div>
+          <div class="swimlane-nodes">
+            <div style="display:flex;flex-direction:column;align-items:center;">
+              <div class="node-event">
+                <span class="seq-badge">2</span>
+                <span class="output-badge">2 outputs</span>
+                <div style="display:flex;align-items:center;gap:2px;">
+                  <span class="bolt-icon">⚡</span>
+                  <span class="event-label">Creds Found</span>
+                </div>
+              </div>
+              <div class="event-conditions">
+                <span class="chip chip-warning">credential IS_NOT_NULL</span>
+              </div>
+              <button class="add-action-btn">+</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Edges -->
+        <svg style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;">
+          <defs>
+            <marker id="arrowhead2" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+              <polygon points="0 0, 8 3, 0 6" fill="rgba(255,167,38,0.6)" />
+            </marker>
+          </defs>
+          <line x1="310" y1="140" x2="380" y2="140" stroke="rgba(255,167,38,0.4)" stroke-width="2" marker-end="url(#arrowhead2)" />
+          <line x1="530" y1="140" x2="650" y2="140" stroke="rgba(255,167,38,0.4)" stroke-width="2" marker-end="url(#arrowhead2)" />
+          <line x1="950" y1="140" x2="1010" y2="140" stroke="rgba(255,255,255,0.2)" stroke-width="2" marker-end="url(#arrowhead)" />
+        </svg>
+      </div>
+
+      <!-- Annotation -->
+      <div class="annotation" style="position:relative; margin-top:8px; display:inline-block;">
+        ↑ Badge "3 outputs" sur le nœud Event — visible au survol ou quand highlighted
+      </div>
+    </div>
+
+    <!-- Right: Event Drawer with Output Contract section -->
+    <div class="drawer-overlay">
+      <div class="drawer-header">
+        <h2>Edit event</h2>
+        <button class="drawer-close">✕</button>
+      </div>
+      <div class="drawer-body">
+        <!-- Event name -->
+        <div class="text-field required">
+          <label>Event name</label>
+          <input type="text" value="Port Found" />
+        </div>
+
+        <!-- Description -->
+        <div class="text-field">
+          <label>Description</label>
+          <textarea>Triggered when Nmap finds an open port</textarea>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- Trigger Conditions (existing) -->
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span class="section-label">Trigger conditions <span class="caption">(at least one required)</span></span>
+          <div class="toggle-group">
+            <button class="toggle-btn active">AND</button>
+            <button class="toggle-btn">OR</button>
+          </div>
+        </div>
+
+        <!-- Condition rows -->
+        <div class="condition-row">
+          <span class="row-num"># 1</span>
+          <select><option>port</option></select>
+          <select><option>(any)</option><option>number</option><option>protocol</option></select>
+          <select><option>Is not null</option></select>
+          <span class="provider-hint">▶ Nmap Port Scan</span>
+          <button class="delete-btn">🗑</button>
+        </div>
+        <div class="condition-row">
+          <span class="row-num"># 2</span>
+          <select><option>port</option></select>
+          <select><option>number</option></select>
+          <select><option>Greater or equal</option></select>
+          <input class="mini-input" value="1" />
+          <span class="provider-hint">▶ Nmap Port Scan</span>
+          <button class="delete-btn">🗑</button>
+        </div>
+
+        <button class="btn btn-outlined" style="align-self:flex-start;font-size:11px;">+ Add condition</button>
+
+        <div class="divider"></div>
+
+        <!-- ═══ NEW: Output Contract Section ═══ -->
+        <div class="output-contract-section">
+          <div class="output-contract-header">
+            <span class="label">
+              ↗ Output Contract
+              <span class="new-indicator">NEW</span>
+            </span>
+            <span class="auto-badge">Auto-generated + editable</span>
+          </div>
+
+          <p style="font-size:11px;color:var(--text-secondary);margin-bottom:10px;">
+            Ce que cet event expose aux actions en aval. Les types filtrés dans les conditions sont pré-remplis.
+          </p>
+
+          <!-- Auto-generated from conditions -->
+          <div class="output-field-row">
+            <span class="field-icon">P</span>
+            <span class="field-type">port</span>
+            <div class="field-subfields">
+              <span class="subfield-chip">number</span>
+              <span class="subfield-chip">protocol</span>
+              <span class="subfield-chip">service</span>
+              <span class="subfield-chip">state</span>
+            </div>
+            <span class="auto-tag">auto</span>
+            <button class="remove-btn">✕</button>
+          </div>
+
+          <div class="output-field-row">
+            <span class="field-icon">H</span>
+            <span class="field-type">host</span>
+            <div class="field-subfields">
+              <span class="subfield-chip">ip</span>
+              <span class="subfield-chip">hostname</span>
+              <span class="subfield-chip">os</span>
+            </div>
+            <span class="auto-tag">auto</span>
+            <button class="remove-btn">✕</button>
+          </div>
+
+          <!-- Manually added -->
+          <div class="output-field-row" style="border-color: rgba(0,241,189,0.35);">
+            <span class="field-icon">V</span>
+            <span class="field-type">vulnerability</span>
+            <div class="field-subfields">
+              <span class="subfield-chip">cve</span>
+              <span class="subfield-chip">severity</span>
+            </div>
+            <button class="remove-btn">✕</button>
+          </div>
+
+          <button class="add-output-btn">+ Add output type</button>
+        </div>
+
+        <!-- Buttons -->
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px;">
+          <button class="btn btn-cancel">Cancel</button>
+          <button class="btn btn-secondary">Update</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SECTION 3: DIRECTION B — Action Drawer referencing Event contract
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="mockup-section">
+  <div class="section-header">
+    Direction B — Action Drawer (binding vers le contrat Event)
+    <span class="direction-badge">APRÈS</span>
+    <span class="changed-indicator">CHANGÉ</span>
+  </div>
+  <p class="mockup-description">
+    <strong>Concept :</strong> Le drawer d'édition d'Action montre les bindings qui pointent vers le <em>contrat de l'Event parent</em>
+    au lieu de pointer directement vers les output types des actions en amont. Le source affiche "Event: Port Found → port.number".
+  </p>
+
+  <div class="flex-row">
+    <!-- Action Edit Drawer -->
+    <div class="drawer-overlay" style="width: 460px;">
+      <div class="drawer-header">
+        <h2>Edit action</h2>
+        <button class="drawer-close">✕</button>
+      </div>
+      <div class="drawer-body">
+        <!-- Action info -->
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="color:var(--primary);font-size:20px;">▶</span>
+          <div>
+            <div style="font-size:11px;color:var(--text-secondary);">openaev_caldera</div>
+            <div class="action-chips" style="margin-top:2px;">
+              <span class="chip chip-secondary" style="height:18px;">T1110</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="text-field required">
+          <label>Action title</label>
+          <input type="text" value="SSH Brute Force" />
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- Targets -->
+        <span class="section-label">Targets</span>
+        <p style="font-size:11px;color:var(--text-secondary);">From upstream action through event</p>
+
+        <div class="divider"></div>
+
+        <!-- Arguments section — BOUND through Event contract -->
+        <span class="section-label">Arguments <span class="changed-indicator">VIA EVENT CONTRACT</span></span>
+
+        <!-- Bound: target_host from Event contract -->
+        <div class="binding-row">
+          <span class="link-icon">🔗</span>
+          <div class="binding-info">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span class="binding-key">target_host</span>
+              <span class="chip chip-success" style="height:16px;font-size:9px;">host.ip</span>
+            </div>
+            <span class="binding-source">
+              Event: <strong>Port Found</strong> → host.ip
+              <span class="new-indicator">VIA CONTRACT</span>
+            </span>
+          </div>
+          <div class="scope-toggle">
+            <span>🎯</span>
+            <div class="scope-switch"></div>
+            <span>Local</span>
+          </div>
+          <button class="unlink-btn" title="Unlink">⛓️‍💥</button>
+        </div>
+
+        <!-- Bound: target_port from Event contract -->
+        <div class="binding-row">
+          <span class="link-icon">🔗</span>
+          <div class="binding-info">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span class="binding-key">target_port</span>
+              <span class="chip chip-success" style="height:16px;font-size:9px;">port.number</span>
+            </div>
+            <span class="binding-source">
+              Event: <strong>Port Found</strong> → port.number
+              <span class="new-indicator">VIA CONTRACT</span>
+            </span>
+          </div>
+          <div class="scope-toggle">
+            <span>🎯</span>
+            <div class="scope-switch"></div>
+            <span>Local</span>
+          </div>
+          <button class="unlink-btn" title="Unlink">⛓️‍💥</button>
+        </div>
+
+        <!-- Bound: protocol from Event contract -->
+        <div class="binding-row">
+          <span class="link-icon">🔗</span>
+          <div class="binding-info">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span class="binding-key">protocol</span>
+              <span class="chip chip-success" style="height:16px;font-size:9px;">port.protocol</span>
+            </div>
+            <span class="binding-source">
+              Event: <strong>Port Found</strong> → port.protocol
+              <span class="new-indicator">VIA CONTRACT</span>
+            </span>
+          </div>
+          <div class="scope-toggle">
+            <span>🎯</span>
+            <div class="scope-switch"></div>
+            <span>Local</span>
+          </div>
+          <button class="unlink-btn" title="Unlink">⛓️‍💥</button>
+        </div>
+
+        <!-- Manual: password_list (not from contract) -->
+        <div class="manual-field-row">
+          <button class="link-menu-btn" title="Link to event output">🔗</button>
+          <div style="flex:1;">
+            <div style="font-size:12px;font-weight:600;">password_list</div>
+            <input type="text" value="/opt/wordlists/rockyou.txt" style="width:100%;background:none;border:none;border-bottom:1px solid var(--divider);color:var(--text-primary);font-size:12px;padding:2px 0;margin-top:4px;" />
+          </div>
+        </div>
+
+        <!-- Buttons -->
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px;">
+          <button class="btn btn-cancel">Cancel</button>
+          <button class="btn btn-secondary">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Explanation panel -->
+    <div style="max-width:360px;padding:16px;">
+      <h3 style="font-size:14px;font-family:var(--font-heading);margin-bottom:12px;color:var(--warning);">Comment ça change</h3>
+      <ul style="list-style:none;font-size:12px;line-height:2;">
+        <li>✅ <strong>Avant</strong>: Action liait vers <code>upstream_action.output_type.field</code></li>
+        <li>✅ <strong>Après</strong>: Action lie vers <code>event.contract.type.field</code></li>
+        <li>✅ Le source affiche "Event: Port Found → port.number"</li>
+        <li>✅ Si l'Event change de provider (autre action en amont), les bindings restent valides</li>
+        <li>✅ Le Link menu (🔗) propose les outputs du <em>contrat de l'event parent</em></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SECTION 4: Link Menu Dropdown
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="mockup-section">
+  <div class="section-header">
+    Direction C — Link Menu (quand on clique 🔗)
+    <span class="direction-badge">DÉTAIL</span>
+  </div>
+  <p class="mockup-description">
+    Quand l'utilisateur clique le bouton Link sur un argument non-lié, le menu dropdown propose les outputs du contrat de l'Event parent
+    (au lieu de tous les output types de toutes les actions en amont).
+  </p>
+
+  <div class="flex-row">
+    <!-- The manual field with menu open -->
+    <div style="position:relative;">
+      <div class="manual-field-row" style="width:380px;">
+        <button class="link-menu-btn" style="background:var(--primary);color:#000;border-color:var(--primary);">🔗</button>
+        <div style="flex:1;">
+          <div style="font-size:12px;font-weight:600;">password_list</div>
+          <input type="text" value="" placeholder="Not linked" style="width:100%;background:none;border:none;border-bottom:1px solid var(--divider);color:var(--text-disabled);font-size:12px;padding:2px 0;margin-top:4px;" />
+        </div>
+      </div>
+
+      <!-- Dropdown menu -->
+      <div style="position:absolute;top:52px;left:0;width:300px;background:var(--paper);border:1px solid var(--divider);border-radius:var(--radius);box-shadow:0 8px 24px rgba(0,0,0,0.6);z-index:10;padding:4px 0;">
+        <div style="padding:6px 12px;font-size:10px;color:var(--text-disabled);text-transform:uppercase;letter-spacing:0.5px;">
+          Event: Port Found — Available outputs
+        </div>
+        <div style="padding:8px 12px;cursor:pointer;display:flex;align-items:center;gap:8px;border-left:3px solid transparent;" onmouseover="this.style.background='var(--accent)';this.style.borderLeftColor='var(--secondary)'" onmouseout="this.style.background='';this.style.borderLeftColor='transparent'">
+          <span style="width:16px;height:16px;border-radius:50%;background:var(--secondary);color:#000;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;">P</span>
+          <span style="font-size:12px;">port.number</span>
+          <span style="font-size:10px;color:var(--text-disabled);margin-left:auto;">integer</span>
+        </div>
+        <div style="padding:8px 12px;cursor:pointer;display:flex;align-items:center;gap:8px;border-left:3px solid transparent;" onmouseover="this.style.background='var(--accent)';this.style.borderLeftColor='var(--secondary)'" onmouseout="this.style.background='';this.style.borderLeftColor='transparent'">
+          <span style="width:16px;height:16px;border-radius:50%;background:var(--secondary);color:#000;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;">P</span>
+          <span style="font-size:12px;">port.protocol</span>
+          <span style="font-size:10px;color:var(--text-disabled);margin-left:auto;">string</span>
+        </div>
+        <div style="padding:8px 12px;cursor:pointer;display:flex;align-items:center;gap:8px;border-left:3px solid transparent;" onmouseover="this.style.background='var(--accent)';this.style.borderLeftColor='var(--secondary)'" onmouseout="this.style.background='';this.style.borderLeftColor='transparent'">
+          <span style="width:16px;height:16px;border-radius:50%;background:var(--secondary);color:#000;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;">P</span>
+          <span style="font-size:12px;">port.service</span>
+          <span style="font-size:10px;color:var(--text-disabled);margin-left:auto;">string</span>
+        </div>
+        <div style="padding:8px 12px;cursor:pointer;display:flex;align-items:center;gap:8px;border-left:3px solid transparent;" onmouseover="this.style.background='var(--accent)';this.style.borderLeftColor='var(--secondary)'" onmouseout="this.style.background='';this.style.borderLeftColor='transparent'">
+          <span style="width:16px;height:16px;border-radius:50%;background:var(--secondary);color:#000;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;">P</span>
+          <span style="font-size:12px;">port.state</span>
+          <span style="font-size:10px;color:var(--text-disabled);margin-left:auto;">string</span>
+        </div>
+        <div style="height:1px;background:var(--divider);margin:4px 0;"></div>
+        <div style="padding:8px 12px;cursor:pointer;display:flex;align-items:center;gap:8px;border-left:3px solid transparent;" onmouseover="this.style.background='var(--accent)';this.style.borderLeftColor='var(--secondary)'" onmouseout="this.style.background='';this.style.borderLeftColor='transparent'">
+          <span style="width:16px;height:16px;border-radius:50%;background:var(--secondary);color:#000;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;">H</span>
+          <span style="font-size:12px;">host.ip</span>
+          <span style="font-size:10px;color:var(--text-disabled);margin-left:auto;">string</span>
+        </div>
+        <div style="padding:8px 12px;cursor:pointer;display:flex;align-items:center;gap:8px;border-left:3px solid transparent;" onmouseover="this.style.background='var(--accent)';this.style.borderLeftColor='var(--secondary)'" onmouseout="this.style.background='';this.style.borderLeftColor='transparent'">
+          <span style="width:16px;height:16px;border-radius:50%;background:var(--secondary);color:#000;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;">H</span>
+          <span style="font-size:12px;">host.hostname</span>
+          <span style="font-size:10px;color:var(--text-disabled);margin-left:auto;">string</span>
+        </div>
+        <div style="padding:8px 12px;cursor:pointer;display:flex;align-items:center;gap:8px;border-left:3px solid transparent;" onmouseover="this.style.background='var(--accent)';this.style.borderLeftColor='var(--secondary)'" onmouseout="this.style.background='';this.style.borderLeftColor='transparent'">
+          <span style="width:16px;height:16px;border-radius:50%;background:var(--secondary);color:#000;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;">H</span>
+          <span style="font-size:12px;">host.os</span>
+          <span style="font-size:10px;color:var(--text-disabled);margin-left:auto;">string</span>
+        </div>
+        <div style="height:1px;background:var(--divider);margin:4px 0;"></div>
+        <div style="padding:8px 12px;cursor:pointer;display:flex;align-items:center;gap:8px;border-left:3px solid transparent;" onmouseover="this.style.background='var(--accent)';this.style.borderLeftColor='var(--secondary)'" onmouseout="this.style.background='';this.style.borderLeftColor='transparent'">
+          <span style="width:16px;height:16px;border-radius:50%;background:var(--secondary);color:#000;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;">V</span>
+          <span style="font-size:12px;">vulnerability.cve</span>
+          <span style="font-size:10px;color:var(--text-disabled);margin-left:auto;">string</span>
+        </div>
+        <div style="padding:8px 12px;cursor:pointer;display:flex;align-items:center;gap:8px;border-left:3px solid transparent;" onmouseover="this.style.background='var(--accent)';this.style.borderLeftColor='var(--secondary)'" onmouseout="this.style.background='';this.style.borderLeftColor='transparent'">
+          <span style="width:16px;height:16px;border-radius:50%;background:var(--secondary);color:#000;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;">V</span>
+          <span style="font-size:12px;">vulnerability.severity</span>
+          <span style="font-size:10px;color:var(--text-disabled);margin-left:auto;">string</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Current vs Proposed comparison -->
+    <div style="max-width:400px;">
+      <h3 style="font-size:14px;font-family:var(--font-heading);margin-bottom:12px;color:var(--text-primary);">Avant vs Après — Link Menu</h3>
+      <table class="comparison-table">
+        <tr>
+          <th>Aspect</th>
+          <th>Avant</th>
+          <th>Après</th>
+        </tr>
+        <tr>
+          <td>Source des options</td>
+          <td>Tous les output types de toutes les actions upstream</td>
+          <td class="pro">Uniquement les outputs déclarés dans le contrat de l'Event parent</td>
+        </tr>
+        <tr>
+          <td>Stabilité</td>
+          <td class="con">Si on change l'action provider, les bindings cassent</td>
+          <td class="pro">Event = interface stable ; provider changeable sans casser les bindings</td>
+        </tr>
+        <tr>
+          <td>Lisibilité</td>
+          <td>Affiche "Nmap Port Scan → port.number"</td>
+          <td class="pro">Affiche "Event: Port Found → port.number"</td>
+        </tr>
+        <tr>
+          <td>Contrôle</td>
+          <td class="con">L'action voit tout (même les types non pertinents)</td>
+          <td class="pro">L'Event filtre et expose seulement ce qui est pertinent</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SECTION 5: Data Flow Diagram
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="mockup-section">
+  <div class="section-header">
+    Flux de données
+    <span class="direction-badge">ARCHITECTURE</span>
+  </div>
+  <p class="mockup-description">
+    Résumé visuel du flux de données avec output contracts.
+  </p>
+
+  <div style="display:flex;align-items:center;gap:16px;padding:24px;background:var(--paper);border-radius:8px;border:1px solid var(--divider);flex-wrap:wrap;">
+    <!-- Action upstream -->
+    <div style="text-align:center;">
+      <div class="node-action" style="width:200px;margin:0 auto;">
+        <span class="action-icon">▶</span>
+        <div class="action-content">
+          <div class="action-title" style="font-size:11px;">Nmap Port Scan</div>
+          <div class="action-chips">
+            <span class="chip chip-primary" style="font-size:9px;height:16px;">produces</span>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:8px;font-size:10px;color:var(--text-secondary);">
+        output_types: [port, host, vuln]
+      </div>
+    </div>
+
+    <!-- Arrow -->
+    <div style="font-size:20px;color:var(--warning);">→</div>
+
+    <!-- Event with contract -->
+    <div style="text-align:center;">
+      <div class="node-event" style="margin:0 auto;">
+        <span class="output-badge">3 outputs</span>
+        <div style="display:flex;align-items:center;gap:2px;">
+          <span class="bolt-icon">⚡</span>
+          <span class="event-label">Port Found</span>
+        </div>
+      </div>
+      <div style="margin-top:24px;padding:8px;background:rgba(0,241,189,0.08);border:1px solid rgba(0,241,189,0.2);border-radius:4px;font-size:10px;text-align:left;max-width:200px;">
+        <div style="color:var(--secondary);font-weight:600;margin-bottom:4px;">Output Contract:</div>
+        <div>• port (number, protocol, service, state)</div>
+        <div>• host (ip, hostname, os)</div>
+        <div>• vulnerability (cve, severity)</div>
+      </div>
+    </div>
+
+    <!-- Arrow -->
+    <div style="font-size:20px;color:var(--secondary);">→</div>
+
+    <!-- Action downstream -->
+    <div style="text-align:center;">
+      <div class="node-action" style="width:200px;margin:0 auto;">
+        <span class="action-icon">▶</span>
+        <div class="action-content">
+          <div class="action-title" style="font-size:11px;">SSH Brute Force</div>
+          <div class="action-chips">
+            <span class="chip chip-success" style="font-size:9px;height:16px;">consumes</span>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:8px;font-size:10px;color:var(--text-secondary);">
+        binds: host.ip → target_host<br>
+        binds: port.number → target_port
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:16px;padding:12px;background:var(--accent);border-radius:4px;max-width:700px;">
+    <h4 style="font-size:12px;color:var(--warning);margin-bottom:8px;">💡 Principe clé</h4>
+    <p style="font-size:11px;color:var(--text-secondary);line-height:1.6;">
+      L'<strong>Event</strong> joue le rôle d'<strong>interface / contrat</strong> entre les actions productrices (upstream) et les actions consommatrices (downstream).
+      Si on change l'action productrice (ex: remplacer Nmap par Masscan), tant que le contrat de l'Event est respecté, les actions en aval n'ont rien à changer.
+    </p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SECTION 6: Summary Comparison
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="mockup-section">
+  <div class="section-header">
+    Résumé des changements UI
+  </div>
+
+  <table class="comparison-table" style="max-width:1000px;">
+    <tr>
+      <th style="width:160px;">Zone UI</th>
+      <th>Ce qui change</th>
+      <th>Pourquoi</th>
+    </tr>
+    <tr>
+      <td><strong>Event Node (cercle)</strong></td>
+      <td>+ Badge "N outputs" en bas du cercle (visible quand highlighté)</td>
+      <td>Feedback visuel discret : l'event a un contrat défini</td>
+    </tr>
+    <tr>
+      <td><strong>Event Drawer</strong></td>
+      <td>+ Section "Output Contract" sous les conditions de trigger — types auto-générés + éditables</td>
+      <td>Définir explicitement ce que l'event expose en aval</td>
+    </tr>
+    <tr>
+      <td><strong>Action Drawer — Arguments</strong></td>
+      <td>Les bindings affichent "Event: X → type.field" au lieu de "Action: Y → type.field"</td>
+      <td>L'action consomme le contrat de l'event, pas directement les outputs de l'action productrice</td>
+    </tr>
+    <tr>
+      <td><strong>Action Drawer — Link Menu</strong></td>
+      <td>Le dropdown propose uniquement les outputs du contrat de l'event parent</td>
+      <td>Scope réduit, plus pertinent, plus stable</td>
+    </tr>
+    <tr>
+      <td><strong>Edge (lien sur le canvas)</strong></td>
+      <td>Pas de changement visuel</td>
+      <td>Le contrat est un concept logique, pas topologique</td>
+    </tr>
+  </table>
+</div>
+
+</div><!-- end canvas -->
+</div><!-- end canvas-container -->
+
+</body>
+</html>

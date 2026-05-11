@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenAEV · Attack Path v4</title>
+  <link rel="stylesheet" href="./colors_and_type.css" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" />
+  <style>
+    .material-symbols-outlined {
+      font-size: 20px;
+      font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 20;
+    }
+
+    /* Background themes */
+    .bg-command-center {
+      background: #0b1120;
+      background-image:
+        repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,180,255,0.015) 2px, rgba(0,180,255,0.015) 3px),
+        repeating-linear-gradient(90deg, transparent, transparent 60px, rgba(0,180,255,0.02) 60px, rgba(0,180,255,0.02) 61px),
+        repeating-linear-gradient(0deg, transparent, transparent 60px, rgba(0,180,255,0.02) 60px, rgba(0,180,255,0.02) 61px);
+    }
+    .bg-command-center::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: conic-gradient(from 0deg at 50% 50%, transparent 0deg, rgba(0,150,255,0.03) 30deg, transparent 60deg);
+      animation: radar-sweep 8s linear infinite;
+      pointer-events: none;
+    }
+    @keyframes radar-sweep {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .bg-pure-noir {
+      background: #0a0a0a;
+    }
+
+    .bg-circuit-board {
+      background: #080e08;
+      background-image:
+        repeating-linear-gradient(90deg, transparent, transparent 40px, rgba(0,255,100,0.02) 40px, rgba(0,255,100,0.02) 41px),
+        repeating-linear-gradient(0deg, transparent, transparent 40px, rgba(0,255,100,0.02) 40px, rgba(0,255,100,0.02) 41px),
+        radial-gradient(circle at 25% 25%, rgba(0,255,100,0.008) 0%, transparent 50%);
+    }
+
+    .bg-glassmorphism {
+      background: #0c0f18;
+      background-image:
+        radial-gradient(ellipse at 20% 30%, rgba(60,80,180,0.08) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 70%, rgba(0,180,150,0.06) 0%, transparent 40%);
+    }
+
+    /* Particle animation along path */
+    @keyframes particle-flow {
+      0% { offset-distance: 0%; opacity: 0; }
+      5% { opacity: 1; }
+      95% { opacity: 1; }
+      100% { offset-distance: 100%; opacity: 0; }
+    }
+    @keyframes particle-flow-slow {
+      0% { offset-distance: 0%; opacity: 0; }
+      5% { opacity: 0.6; }
+      95% { opacity: 0.6; }
+      100% { offset-distance: 100%; opacity: 0; }
+    }
+
+    /* Diamond pulse */
+    @keyframes diamond-pulse {
+      0%, 100% { transform: rotate(45deg) scale(1); opacity: 0.9; }
+      50% { transform: rotate(45deg) scale(1.15); opacity: 1; }
+    }
+
+    /* Glow ring for nodes */
+    @keyframes glow-breathe {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 0.7; }
+    }
+
+    /* Satellite orbit */
+    @keyframes orbit-float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-2px); }
+    }
+
+    /* Feed item enter */
+    @keyframes feed-in {
+      from { opacity: 0; transform: translateX(-8px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.26.9/babel.min.js"></script>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useMemo } = React;
+
+    // ─── Platform Shell ─────────────────────────────────────────────────────────
+    const LOGO_URI = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALMAAAAjCAYAAADfcjuwAAAXyUlEQVR42u2ce5RddZXnP/t3zr1Vtx73VoVUEERQlKgEQeThQgSqAklIbLWZNoXdIBBaZcCx0WmFtaZ1khp6Vouzup3WBhtHxUagsVBeQiCpKipEQKdBmkfEERAVkAAlqbq37r1V93F+3/njnrqp1CsVkgCN2Wudlaxb5/E7v99+fPd379+BVywygEy/ftr+iJTu04UADCpkn+yT10DcvinYJ/uUeZ/sk9eZ7ElIYKyVYwjHWs1tJD0ITK/626oGjTB4TZ6/T/5jKLOJMj3mgfLr5u0kYxMBnQizCJukwJJjE45OPGb+j14TJuc6m/DxWs5njh1g3LiLz+u2iLVyrKu5FkC7vA6Tr7+R+o1eYQJoyvTr36yZ45TnceD3gsAMP/N746yZkDz/I7vcBuhVQLdFe8kDO2zKvdergTYcJzA+TbHXwbwXcJ/sLe9juxMxd98zexwVsFYOtxYOZ46haBSsGaqjHARAx+4Y0xyeombhUfMGLQob+BPEUsS75FlAkcAGKHC3fmuO+wxuGzZ7DGCvGdd/AElv0EUkWOhCiCr8YHQpT7AOm9XA18rRYz4zoC/QwHGMU0U7XU8RYPKM59q4oHWEi1yKE/A4lRjInWZXTVq/2aVXAd34lkFODJJ8lnE8YtvuK7MRWQqiEW6yUX4mCMwRTRq+YQhhiM8RssgCSntlRXoVYBZ19KqlvIhLgAssySKshpNte0AD8W7ESl9ibeYe3RIVWJdfZY//USl0rBSZDRxlbVyBB8uAe47FmJ1N7xy5z5Ka4sqzMmhjqXJAYieUgmL3mQde4kKXJO8ynKkxYIyl+2/QtS+aFZBsh8g5C7B1Vf1Xtx9n0AT+D3x/TyizpwHk+XFuhX1vrlMzfTqHBAfsvYWxqPkOvafcwvXWyBEq1iZQJSBiq8RLQGSQAQ62ZhI4EhayOmhhVWajPptdblejmlG84ZV5dU0p5HSeGZEKjGuMpBwfaRrUm4pd9sKEB57jLjmNUlWx5h1ljM/hoUWAIyKfSZHKjnFtZiuX4eiwZvYbH2cF6GY2EQDVWSNCt0XNG7QIx1L/B6qIivN8dc9QcwIXzAJZrlKCQYU8qAQiZG9wCKq9YGaD3hu2MGiOI1QAjKrK/AsRSwk4PLfM3ptbZsdkKyyJxFEq8UWJ3yCgTMrSfLd1oz6HWUSvgjc2PJVhFu13r1oNPq4CjpBmPM610pqI+DgAnTulbwNESEjSG+c3F1kSVjgy5Vkyw3FEqsLhzWMcl22lwCorYdxsTYQIyXMemOhkduOJxxOGfNQ1kbEEgTwPDK+wLeEeUGQjAnkWp/t0nA9IWpWIJizIUxw5nUfBhGT07wVVlox10DKohYhbzdiPCAh4ysG5w512/7RrVlkpD78EfpkZ1Ld9lX9wTaxRgXLQwtfa7tJTI6fb7dshh6w+8snhbyKb3hR7ok7EOjTvRHLq9UOI1fhZQ2ydWpyBldm+2PNjZ2LvVynxYdfC/hoDRQwAx1lEq8T59OobdDLvCBV4ils/YsVdYEEg4rsa50I8Zo7T2vt08LDZM7NGhE01RZfnLKsiEpiVuRb2TNEkUAEswRddin8Lk9wbNPDTIOR+H/CDena6bi8kezVKxtFj3lW43Jo5WBGR9/w2yNE5fIrdz6BCehXUFWFCKdbKMagw22UjuU47X2NcaSmSKuOV4KrMoNpYja9dZ8LiY0IJFU+2WUSXVemyKmYRPebpVTAn1y65+mJNvr47pg+njpdJhjQxBsli7+rr19fG4OvvN7cy+5hSXQMIUbGITwEPIrAG3pNZSGd9PPPST2rjHlRYH99sRzzO7AoeosIDhMiaSHk4c9aIEM95a58Wm+MDqmI+Ty5KcMue45kdqEpe1TrOCZ2jGe2lRG9H5iJqvlNLLMG5GsWThKDIWds+bL/nQSU41iozKgWIHjxr5ViCZTfz2cwpvB/H+6yFA32e/4LZ3yIFDCqRGaEx7CB6uZFxjrUKPZAe0Nst4EhVeBOAS/B7M/59+BR7dgqzMi1JBWjdpMNcwHtUYpEJr5BnoiQPFU60lyYzBvF1yfZ2UgDNzZSfMxsDaNmkdzvjfXjSgtEg4tERs0drCjoLMxD/3tKvwzFOQSBxX26F/SazUTdgLLUAVOZTwMD83RqKlV87T+AmooNVFeq7LsnxKoPE2fTqH2aMCLUI5M3RbU0k8MAYt+dPtiF6Fey+Zzaq1gxmXOYrLPYVFjv4G2vBgL2bRMXhNQhZY40E1ohTiZuHT4898kyKPFV6zNNRo6BU5W8swDSGTKw56H6lMIsyVdbZATxZHedhXsKl1+vt6Xt0owU8bAlucmmudK1cScCtXmxJb9b32m7XIVjspackqS39OimzWeud5xFL8qNgAd+0BVzlktwZVngsc4+uaFmvjtjLJwFa2/lzpXhSLTyZK/CfUht1YOYe/TgQ/+4SXOsauTJI8n05Hs5s1obmW7UEMz+jh56YN3FOrBSG+DaSeeMmFRlSBIIPLVivg+oFjp1DzoBBhbQQMqiZj8nzESusD7nJF8gSgTVwZGua988YETqp5TKeM1UGPMhzDchYDW6n4WC2Yy22Q3lYjORX2VB+lQ3hGN5e14nPXzIJZvj42la23w/tOgzpZGKSl6kcUz/wHSSjcxfweZdVkSyXYEBjPIVhhBxaKHBMTOUvIMVCIJNO8DFLcb9r4WOWokUV0CiRxuI4Z6RdknOV5v+29OmDdMfJZKzImY36QpBk0DWx0lKk/ChZv42n/Tae1RjemlhkTVwUpLgv06dDWU0FwAKaaaAD0QF0Jox+t5A/sUYaVAJV4nXwmCVYnmhjc9tdOoqeqQoto4uIXqUEZ+KRxnghrPBj1mGjy+xl4EYLwTXRUm3g7HkmgkiM0GVVVllpB+gz+ZhMe8YKmz/ZhgxusUawBLiAc6bVIWoRTa3tHG8JlgBojF/nDmSwBgPx4bzCwWx22AP0SzEgt5nTw/r9I/pq55qjEv9eecVeeW0tVDb3axHibQB+nFzkeQizWm68a14+oMuq9OlnluAdAFHE0cC95hHjSNBo8C/WRKARtgLfQtxTjRhKOPbzRU42xwUa581m7B8kuK1tQEePLOVZzHxmgz5tGf4XZfA5fmUBl4WwaVvAyx0QVjxv1ygX4viUpTjMj3LzAT/nhK1QxOOpIuWpWsAnrRWirdxj4hqM3/gqza7CaQRcqCJmKRb4ElczqOMn8DEAg7X3zLRppaV4a6yiP9q2ynJsUZIeygT8H5W5wByOiDU8qL/nGKpzVugihPFXrX162kHI1Cqw8DQTUOSh7Gl281QIZI6rqXKuqoBxRnufLh3usmydc44V28FfWBLDQGVu4AgrM6iQLquG6T7dOx1SEsR2Hkk1D2dg1H6XakOfYOWO0AiYcUm6X2fHFrpII1RxvL1+fwPBQeSoIi5L9+tihAOq1kyCIrdkT7OvzrtosQ7ogWREh3e0xEWRlwpJtu0mO/PberSJeEvsy8xqfiRpKQIVeNB5/mx4mT0z5ep7mvv1rdBxsxwnWAPtPs/XMftopk+H4vgaFaQKv6x6lhaW2osTFw7V/nkE+M/pAY1bhYtdK0cWh7kA+BqeEKsVoCwFGuXK3Gn2mSnPvz29UXdaA7eqSOSaOTpT4JRsz6TWgQnay/hLHIpZjGsAeLwW6bJd9nC6T/dZIye5FIvTw5yaM7urxr/PAB1rEcG7NJ+YNQuLwNoh+h03ATdP4F+6LUKykRu5N9POYyQ5whpZFI3xIeD6Gq5WLUneoGaJM6gAEZXAuL7O4ABhsD8nTlvPQkxZN4GLB6cqUKyFUtdEvavDD9eKEpbhUJfiUASKgDJYQMYa4vtPFC88kOFdLohhQQS2AKpP8fwrKXH7gCQ1ZUNGhS6rTqOvdkWXA4q2fZGSO1SvHE5VspRYPbzSnonxbMRqxI0YEBROsxcX3qk/qzTymMZYYAk+ktqoAzHOs1aaNIYn4jOFZfbibAlaWOK/R+IcC8kIzgO+hqMaV9ASKvJUNuBiJOPnhDwdK+jhBLkjbEN6o611zbGyGicAA3RgE8+LDWspAqo8mFvBAxPFCAYV0oMXfAfHyfGbfxq4qw7kZiMBRtkGlACbdqZRlSeBeHbGqNhtVfp1rSW5nCoyz3nA9XTia9FEUWvIqa6BNyOkMvdvW2aPT57DMHqJz87gnS61Zg7Qy1wHPBD/erS1cC4FXooKXG4TyZ34a5fmrcrR67P8RK7WaCTh8DC5tC1PgAMbjVOO+GdXIDR4dDJlNF+JqhSDkEgQyJNivRpYZaX5lUSnvbgR0b69YEpxEs7HUgTKc0N2pf02ZkrK0/zPg0r84Vjbmt6oa1wrn0eQrHCmxCkGUpkXKuKJltu00PqR3a/tY8yBAixqxDPO03iOMVjMbWoyo4TAGjFf4Ba6rMpVSnDBpCR3UDWF7WcQ+EvAzGiaygZ4OCdoojGOwtcCxmpC1qnKjYheBS7kNhUZIkmHOVZm+nRo1uzpGflfAQGBlVmjBJsjCINwugeXx1KeUm4iT5lCE5YDrk8WWYvRRMAp6UG9I2f2FA8qAJOTzsIQDsP4/uR3Aghzp9k/TWs66dMnLcVBUZ5b88vtJoDWjVrlGjlfBYZHl9k/1kvU/fq4NfHWaJQ7RpfbNbvNUMy/c00AQQMvEDGC2A9j//YE+w/DM7v83KG4x9rpnZO8ym/iBVccSpExGLeWzmwoowjJNMAgEZ/HA8Zy4G0ax8xYmIRHaIrfoDDZJcdwrlYQbtUYIkFDW4mOCKqB1Y3seZCxeIYxmHm7W+PbXUX8vycwLqDKFiXdVs7Cg4r8IRny3diz7WCYWRjJbNRVluBLJGn0o3wC6KETR88sDidgJNtlI3NNc262Ne9VMNZlzyX6tMGl+FMCksrz58BlHEO1eYMWyVhhEaYyw141bnkyhRfOuGevWis7m0hP/N0qZBA15Dw1gAjMaI3PDWetq8/NTOxaX7GZYnw3kunXL81xojWRivKciPTsnPX9mStrvr1PGQ8nqIbJPIqjUqwQcXKyrc6lzmYUZgr7NOyjGF6JAw1aqAIBSUuycOf4CeRjWOeIomkJtmnWqD9TMt6FA1PrCzrVmniHSkSAK0f8MNM3hXbbvsZtGiciJDA4h/X6Cl2UZ2OeBOGkHvJozrWbKr/AQCbxbeAMlcHgL1ivrwLl0PiopcgAqMyPR5fZy5M5+5oyT3b3ExKzDhhR/e8bFREhiabWfq20iUTA04aPF7zLqgyKGe+5N2TCS3huJeSD1OipCzH7VwZ3AWH8nJBjrRJt0FkuTYfKSJ7Hckm2bFctMAdmpGaszk2BK5GjyeIAaEYOMW7NoFHujYpcIo+z5BwLXsVwmCoE2TxbMwtpxO9Gzfapugl8EgdEmLWwwFKsmM0m5EF5oERkLRzaNs7pI9itDCqsRbJp2rxrRZMdvHONVBi9k4FMkadJcigNvCsT8MGs2YA26hPmUezyrpnJoOZfAQxq2bSFHOJSrK+PP49UgpiZeHUltv5qM9cEY3zJRKtr4qTMBp2X7bLv0ask3Tb3zpe4uNKyXh2W4Msx1+uo8I0djDJuX4zGeR9mt3GV3IxFoWEcWGTSey2sUVa+xE8xWi3gAIQbXWY/3eXEtF9ut/oBVlJu79PBkWOlxgGjojw/9/lZDMrqEfdAAt4KSBEXALfSiY8T3j0oJjYpZJWV6Nd11sCXAVTiYy3r9aiFnIAwlfhVdgGbY5TgX5Eye1F0ZYaIqPhRJoolMtGOq5VZX3WJSffCifZSpl9/Zxm+ohxlUnwzvUHP51bYxnrYG0L8AtVpvdqWKWFW7ehVSznFjRbwJgz8KI/k2rlmgr+sZ+tFZI5zWK+/YyVlFiukkyguGlEPr+0KgPNURuawwPi+dxxAxJGEHNM8oCWFpTzOJhoYmsK1d2B04DjCyqyV4/0kWGWlPTFXvl8fd02kYrx8a3aZnbmzy1r7tNjBFo2RIODU1o06bNTsSa5SYpoxT1QAxwgY3En06iKaxlnHiaAX17oxLrWQJMbyIEFkIWGsrTdwrFVqkHZHBDA/ZR5UmIfbF2R5R5CKH5jFXAaVPQPWwPEz8o+vhnTj6VWQDfj7dJZlrpVTVaBijdzWdrcuHdnEFdNgT8926NC6SSdUjCvMcbSqeBzjzjiHY63CFiV34FIjKq6Jt6XFN3Nm5++AyS0GB7Wk+OvWyLvlwY/zSG6ZPZbu03VW5WwCkoH4Bl9nJRfbeL0AtK6efQigZb068s8yQp49A9m2KKnnOZfYwARXIxnfIuTTMzxjHUYnbrTLnsj06W5rZDkhSVdgDfDfeMv0SFyvAPIKx9xjHsmNmj2R6dMmGllGmUMwPqMyUKXi2ZFbnr8yW8xN/gLHEirbzKYlo5l+vcb75kysjsewgW4VudNaOF6jRDTyv9Nl1tCvXue5zwc8F3gqHvazgCOBP5X4sCCwWrI17ot8bHSFPUqvAoamTZhRBdfMmszd2t8CLncFHt62ktGOTTSPiaMcXGIJPqISVWsgNMdfIVnO7K5Mn3qtjW4r0pU5krsZ0JezjvvpsvHYwFgwqIOqnjOsiUvSDVyaO9Wu380JCkCWfp4u18jhqpWvn85VGYwjSnUWfCs65UCG59s4VmgcSXzigAf1t1uPYWxqBdCMs9MDOi4mz/ysyanhLeCGbJeNTKNQY6pNnqvNWB7H0qo1E/gCPxldZk/Mys/PqSYRpZlom+l592ssMbOR67FtHb06tWJ8wxo5Dw8u5CgaOEoloMp4ZEQmmohLolTBGkAltmiU80dX2QP1nSYTTM8EJ+6QKlxHhdW2gFUaYVU1wbPpAUZKkAmMgy0ZF4JShD7PhbnltjluCVWj5/zxPO3WwjKr8AGVGMhEPEm/fidjzDyLqhHvdE20WTP4ApcddL9ufu4DNrbDXGsnfScOAX77WSZD5xHgLcSpwg2sshKDCrE5kvUYCjSVtL4Q8Kw53uxSHFQcYRVmP5yUTQhPZE1cbDtrFo0pzsoIPwFG6p09U/Kghiy3lx1bSfAmqpRxhI64UjmJW965MhtinCqOS9N9OscMN20CJ/b2wTvjDqbX9oMycUPNULflgTXtd+uHUcAXzHOiBSQsBQaN9amb6AwRv9Y432r6Ff+09QIrTqV7djDZJEmV+LrBd1TgSkvxLkvyFoy34OPgGoHE//MFvji6fFKDv2QvmhW4Sh/KLOZLGBdaIx00cJgFHDYxLpVBeSq+zGbg8ueS29tqrQGHA+VJzJksRoSuAUcIKlLODKoNz5kYphIExnWzheppUW9Q4dYuK6b79K+W4RIiYIzP06ub6bZIRpIkRolwUrPXTpXZZoOlVnvmUJfl0336gWvlcyrQoDzDNHLbVG55p8pssNCaCYNGjibJ0XMmhi/FaYDtpeb7XcdcBtiw2R3AHe2b9J5onJMNlijiAINAAcMYT2H8LJ3k3uc+YGPZGuhzc+79q1GQC7LL7K6OXh1XOoBVNsYHFXEQNdruOUI2Z1/gDrptbIc+E4t325hVsrC26U79c0KsYIz3ec+bEWYBLyjgFy7k3uxJ9sgkDpyE56ZqgccBXMSTMy7qREtlA3dbkVMxzIknqSIfslxFIu8Zyy63xycKLPNjjGRW4ivKs4ExZA5fY22IBH9tY/zPyOM1Hx2oldDJp/ndrGOYeGZIjxX5kdU2JA8Pn2TDc7UqzPjwdJ8ucikW+vF5JHXiU8ECDom28ZncMrtyBwbgtZReBXNuQdoxcwlqaG7KufG7ZPp1hTVzkcqgCstz27ibbvyc33iYtWFKRi9up81UknHjPM77o5K5v6sxo2fOLbMr53v7TL9OJ8Eh8wgwrzLLESvB5D1yE0T/amATNmnPXbTL9x5USKdUv88ErdYZ49VZ72mim6hOGU4eV0d9L+FENTSapty18c9tpNPOBXonwcBXYiCT7zn5HvFOnVe8PvN95uqdf/EonLWQsDN5glpvQESC1/NX22oTsOeT1KH4k1+7k7TuCoVVOz96xed27yZ1Otvz9+ZXoHblnWdV5nnBhNjl9ymqETO8cT9EqNjbAhaw74OLr1PZEwxEizURaHLv7xsPqSWtAWcNOIlgn9q8PmVPfNHoDp/nKRO/2gH/vRFkqL7L5tcq8pCqSBVG6hhun7yu5P8DTdYerY55VkcAAAAASUVORK5CYII=';
+
+    const Icon = ({ name, size = 20, style }) => (
+      <span className="material-symbols-outlined" style={{ fontSize: size, ...style }}>{name}</span>
+    );
+
+    const navGroups = [
+      { items: [
+        { id: 'home', icon: 'dashboard', label: 'Home' },
+        { id: 'dashboards', icon: 'insert_chart', label: 'Dashboards' },
+        { id: 'findings', icon: 'manage_search', label: 'Findings' },
+      ]},
+      { items: [
+        { id: 'scenarios', icon: 'movie_filter', label: 'Scenarios' },
+        { id: 'simulations', icon: 'hub', label: 'Simulations' },
+        { id: 'atomic', icon: 'my_location', label: 'Atomic testings' },
+      ]},
+      { items: [
+        { id: 'arsenals', icon: 'layers', label: 'Threat arsenals' },
+        { id: 'assets', icon: 'dns', label: 'Assets' },
+        { id: 'people', icon: 'groups_3', label: 'People' },
+        { id: 'components', icon: 'newspaper', label: 'Components' },
+      ]},
+      { items: [
+        { id: 'integrations', icon: 'dns', label: 'Integrations' },
+      ]},
+      { items: [
+        { id: 'settings', icon: 'settings', label: 'Settings' },
+      ]},
+    ];
+
+    const TopBar = () => (
+      <div style={{
+        position: 'fixed', top: 0, left: 0, right: 0,
+        height: 'var(--topbar-height)', zIndex: 1201,
+        background: 'var(--nav-background)',
+        borderBottom: '1px solid var(--border-default)',
+        display: 'flex', alignItems: 'center',
+        padding: '0 16px',
+      }}>
+        <img src={LOGO_URI} alt="OpenAEV" style={{ height: 35, margin: '2px 0 0 10px' }} />
+        <div style={{
+          marginLeft: 24, width: '40%', height: 32,
+          background: 'var(--hover-bg)', borderRadius: 'var(--radius)',
+          border: '1px solid var(--border-default)',
+          display: 'flex', alignItems: 'center', padding: '0 12px',
+          color: 'var(--text-tertiary)', fontSize: '0.8125rem',
+          fontFamily: 'var(--font-body)',
+        }}>
+          Search the platform...
+        </div>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Icon name="smart_toy" style={{ color: 'var(--text-secondary)', cursor: 'pointer' }} />
+          <Icon name="important_devices" style={{ color: 'var(--text-secondary)', cursor: 'pointer' }} />
+          <Icon name="apps" style={{ color: 'var(--text-secondary)', cursor: 'pointer' }} />
+          <Icon name="account_circle" size={24} style={{ color: 'var(--text-secondary)', cursor: 'pointer' }} />
+        </div>
+      </div>
+    );
+
+    const SidebarItem = ({ icon, label, active }) => (
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 8,
+        height: 'var(--nav-item-height)', padding: '0 12px',
+        borderRadius: 'var(--radius)',
+        background: active ? 'var(--nav-selected-bg)' : 'transparent',
+        color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
+        cursor: 'pointer', fontSize: '0.8125rem', fontWeight: active ? 500 : 400,
+        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+        transition: 'background 0.15s',
+      }}>
+        <Icon name={icon} size={18} style={{ opacity: 0.85 }} />
+        <span>{label}</span>
+      </div>
+    );
+
+    const Sidebar = ({ activeId }) => (
+      <nav style={{
+        position: 'fixed', top: 'var(--topbar-height)', left: 0, bottom: 0,
+        width: 'var(--nav-width-expanded)', zIndex: 1200,
+        background: 'var(--nav-background)',
+        borderRight: '1px solid var(--border-default)',
+        display: 'flex', flexDirection: 'column',
+        padding: '8px 6px', gap: 2,
+        overflowY: 'auto', overflowX: 'hidden',
+      }}>
+        {navGroups.map((group, gi) => (
+          <React.Fragment key={gi}>
+            {gi > 0 && <div style={{ height: 1, background: 'var(--border-default)', margin: '6px 8px' }}/>}
+            {group.items.map(item => (
+              <SidebarItem key={item.id} icon={item.icon} label={item.label} active={item.id === activeId} />
+            ))}
+          </React.Fragment>
+        ))}
+        <div style={{ marginTop: 'auto', padding: '8px 12px' }}>
+          <div style={{ marginTop: 8, fontSize: '0.625rem', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', letterSpacing: '0.04em' }}>
+            by Filigran
+          </div>
+        </div>
+      </nav>
+    );
+
+    // ─── Data Model ─────────────────────────────────────────────────────────────
+
+    const STATUS_COLORS = {
+      prevented: 'hsl(123, 73%, 46%)',
+      detected: 'hsl(27, 88%, 48%)',
+      undetected: 'hsl(4, 87%, 48%)',
+      pending: 'hsl(var(--gray-500))',
+    };
+
+    const STATUS_LABELS = {
+      prevented: 'Prevented',
+      detected: 'Detected',
+      undetected: 'Undetected',
+      pending: 'Pending',
+    };
+
+    const assets = [
+      { id: 'wks-finance-01', hostname: 'WKS-FINANCE-01', ip: '10.0.1.42', os: 'Windows 11', role: 'Workstation', x: 250, y: 350 },
+      { id: 'srv-dc-01', hostname: 'SRV-DC-01', ip: '10.0.0.1', os: 'Windows Server 2022', role: 'Domain Controller', x: 750, y: 320 },
+      { id: 'srv-db-01', hostname: 'SRV-DB-01', ip: '10.0.2.10', os: 'Ubuntu 22.04', role: 'Database Server', x: 1200, y: 380 },
+    ];
+
+    const actions = [
+      { id: 'a1', name: 'Spearphishing Email', asset: 'wks-finance-01', status: 'detected', phase: 'Initial Access', order: 1 },
+      { id: 'a2', name: 'PowerShell Dropper', asset: 'wks-finance-01', status: 'undetected', phase: 'Execution', order: 2 },
+      { id: 'a3', name: 'LSASS Memory Dump', asset: 'wks-finance-01', status: 'prevented', phase: 'Credential Access', order: 3 },
+      { id: 'a4', name: 'SMB Lateral Move', asset: 'srv-dc-01', status: 'undetected', phase: 'Lateral Movement', order: 4 },
+      { id: 'a5', name: 'Kernel Exploit PE', asset: 'srv-dc-01', status: 'undetected', phase: 'Privilege Escalation', order: 5 },
+      { id: 'a6', name: 'Data Exfiltration', asset: 'srv-db-01', status: 'pending', phase: 'Collection', order: 6 },
+    ];
+
+    const events = [
+      { id: 'e3', name: 'Payload Executed', fromAction: 'a1', toAction: 'a2' },
+      { id: 'e1', name: 'Credentials Available', fromAction: 'a3', toAction: 'a4' },
+      { id: 'e2', name: 'Admin Access Gained', fromAction: 'a5', toAction: 'a6' },
+    ];
+
+    const lateralMoves = [
+      { from: 'wks-finance-01', to: 'srv-dc-01', action: 'SMB Lateral Move', status: 'undetected' },
+      { from: 'srv-dc-01', to: 'srv-db-01', action: 'Data Exfiltration', status: 'pending' },
+    ];
+
+    const chainOrder = ['a1', 'e3', 'a2', 'a3', 'e1', 'a4', 'a5', 'e2', 'a6'];
+
+    const stats = { prevented: 1, detected: 1, undetected: 3, pending: 1 };
+
+    // ─── Components ─────────────────────────────────────────────────────────────
+
+    const StatsBanner = () => (
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 24,
+        padding: '10px 20px',
+        background: 'var(--box-background)',
+        borderBottom: '1px solid var(--border-default)',
+      }}>
+        <span style={{ fontFamily: 'var(--font-title)', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text-secondary)', marginRight: 8 }}>
+          Execution results
+        </span>
+        {Object.entries(stats).map(([key, val]) => (
+          <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: STATUS_COLORS[key] }} />
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', fontVariantNumeric: 'tabular-nums', color: 'var(--text-primary)' }}>{val}</span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{STATUS_LABELS[key]}</span>
+          </div>
+        ))}
+        <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--text-tertiary)' }}>
+          6 of 6 actions executed
+        </span>
+      </div>
+    );
+
+    const LiveFeed = () => {
+      const feedItems = [
+        { time: '14:23:07', action: 'Data Exfiltration', status: 'pending', detail: 'Waiting on SRV-DB-01' },
+        { time: '14:22:54', action: 'Kernel Exploit PE', status: 'undetected', detail: 'Escalated to SYSTEM' },
+        { time: '14:22:31', action: 'SMB Lateral Move', status: 'undetected', detail: 'Moved to SRV-DC-01' },
+        { time: '14:21:58', action: 'LSASS Memory Dump', status: 'prevented', detail: 'Blocked by CrowdStrike' },
+        { time: '14:21:12', action: 'PowerShell Dropper', status: 'undetected', detail: 'Payload deployed' },
+        { time: '14:20:45', action: 'Spearphishing Email', status: 'detected', detail: 'Alert raised by Defender' },
+      ];
+
+      return (
+        <div style={{
+          width: 240, borderRight: '1px solid var(--border-default)',
+          display: 'flex', flexDirection: 'column', overflow: 'hidden',
+          background: 'var(--box-background)',
+        }}>
+          <div style={{
+            padding: '10px 12px', borderBottom: '1px solid var(--border-default)',
+            display: 'flex', alignItems: 'center', gap: 6,
+          }}>
+            <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'hsl(4,87%,48%)', animation: 'glow-breathe 2s infinite' }} />
+            <span className="eyebrow">Live execution</span>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
+            {feedItems.map((item, i) => (
+              <div key={i} style={{
+                padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 3,
+                borderBottom: '1px solid var(--border-default)',
+                animation: `feed-in 0.3s ease ${i * 0.05}s both`,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: 'var(--text-tertiary)', fontVariantNumeric: 'tabular-nums' }}>{item.time}</span>
+                  <div style={{ width: 5, height: 5, borderRadius: '50%', background: STATUS_COLORS[item.status] }} />
+                </div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-primary)', fontWeight: 500 }}>{item.action}</span>
+                <span style={{ fontSize: '0.6875rem', color: 'var(--text-tertiary)' }}>{item.detail}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    };
+
+    // ─── SVG Graph: Assets View ─────────────────────────────────────────────────
+
+    const AssetNode = ({ asset, actions: assetActions }) => {
+      const worstStatus = assetActions.reduce((worst, a) => {
+        const priority = { undetected: 3, pending: 2, detected: 1, prevented: 0 };
+        return priority[a.status] > priority[worst] ? a.status : worst;
+      }, 'prevented');
+
+      const glowColor = STATUS_COLORS[worstStatus];
+      const nodeW = 160, nodeH = 80;
+
+      // Satellite positions around the asset — spread evenly below
+      const satellitePositions = assetActions.map((_, i) => {
+        const total = assetActions.length;
+        const angleStart = 200; // start below-left
+        const angleSpread = 140; // spread arc
+        const angle = (angleStart + (i / Math.max(total - 1, 1)) * angleSpread) * (Math.PI / 180);
+        const radius = 130;
+        return {
+          x: Math.cos(angle) * radius,
+          y: Math.sin(angle) * radius,
+        };
+      });
+
+      return (
+        <g transform={`translate(${asset.x}, ${asset.y})`}>
+          {/* Glow ring */}
+          <rect x={-nodeW/2 - 4} y={-nodeH/2 - 4} width={nodeW + 8} height={nodeH + 8}
+            rx="6" fill="none" stroke={glowColor} strokeWidth="1.5" opacity="0.3"
+            style={{ animation: 'glow-breathe 3s ease-in-out infinite' }} />
+
+          {/* Main node — hexagonal-ish rounded rect */}
+          <rect x={-nodeW/2} y={-nodeH/2} width={nodeW} height={nodeH}
+            rx="4" fill="hsl(218, 50%, 9%)" stroke="hsl(var(--gray-700))" strokeWidth="1" />
+
+          {/* Inner structure lines */}
+          <line x1={-nodeW/2} y1={-nodeH/2 + 22} x2={nodeW/2} y2={-nodeH/2 + 22}
+            stroke="hsl(var(--gray-800))" strokeWidth="0.5" />
+
+          {/* Role badge */}
+          <rect x={-nodeW/2 + 6} y={-nodeH/2 + 5} width={asset.role.length * 5.5 + 12} height={14}
+            rx="2" fill={glowColor} opacity="0.15" />
+          <text x={-nodeW/2 + 12} y={-nodeH/2 + 15}
+            style={{ fontSize: '8px', fontFamily: 'IBM Plex Mono', fill: glowColor, letterSpacing: '0.05em' }}>
+            {asset.role.toUpperCase()}
+          </text>
+
+          {/* Hostname */}
+          <text x={0} y={-2} textAnchor="middle"
+            style={{ fontSize: '12px', fontFamily: 'IBM Plex Mono', fontWeight: 500, fill: 'hsl(var(--gray-100))' }}>
+            {asset.hostname}
+          </text>
+
+          {/* IP + OS */}
+          <text x={0} y={14} textAnchor="middle"
+            style={{ fontSize: '9px', fontFamily: 'IBM Plex Mono', fill: 'hsl(var(--gray-400))', fontVariantNumeric: 'tabular-nums' }}>
+            {asset.ip} · {asset.os}
+          </text>
+
+          {/* Satellite action nodes */}
+          {assetActions.map((action, i) => {
+            const pos = satellitePositions[i];
+            const pillW = Math.min(action.name.length * 5.8 + 20, 120);
+            return (
+              <g key={action.id} transform={`translate(${pos.x}, ${pos.y})`}
+                style={{ animation: `orbit-float 4s ease-in-out ${i * 0.5}s infinite` }}>
+                {/* Connection line to parent asset center */}
+                <line x1={0} y1={0} x2={-pos.x} y2={-pos.y}
+                  stroke="hsl(var(--gray-700))" strokeWidth="0.5" strokeDasharray="3,3" opacity="0.4" />
+                {/* Pill shape */}
+                <rect x={-pillW/2} y={-10} width={pillW} height={20}
+                  rx="10" fill="hsl(220, 50%, 9%)" stroke={STATUS_COLORS[action.status]} strokeWidth="1" opacity="0.9" />
+                {/* Status dot */}
+                <circle cx={-pillW/2 + 10} cy={0} r={3} fill={STATUS_COLORS[action.status]} />
+                {/* Payload name */}
+                <text x={-pillW/2 + 18} y={3.5}
+                  style={{ fontSize: '8px', fontFamily: 'IBM Plex Sans', fill: 'hsl(var(--gray-200))', fontWeight: 400 }}>
+                  {action.name.length > 16 ? action.name.slice(0, 15) + '…' : action.name}
+                </text>
+              </g>
+            );
+          })}
+        </g>
+      );
+    };
+
+    const AnimatedEdge = ({ x1, y1, x2, y2, status, label, eventName }) => {
+      const pathId = `edge-${x1}-${y1}-${x2}-${y2}`;
+      // Cubic bezier for smooth curve
+      const mx = (x1 + x2) / 2;
+      const my = (y1 + y2) / 2;
+      const ctrl1x = x1 + (x2 - x1) * 0.3;
+      const ctrl1y = y1 - 30;
+      const ctrl2x = x1 + (x2 - x1) * 0.7;
+      const ctrl2y = y2 - 30;
+      const d = `M ${x1} ${y1} C ${ctrl1x} ${ctrl1y}, ${ctrl2x} ${ctrl2y}, ${x2} ${y2}`;
+      const color = STATUS_COLORS[status];
+      const speed = status === 'pending' ? '4s' : '2s';
+
+      // Diamond (event) position at midpoint
+      const diamondX = mx;
+      const diamondY = my - 15;
+
+      return (
+        <g>
+          {/* Path line */}
+          <path d={d} fill="none" stroke={color} strokeWidth="1.5" opacity="0.25" />
+          <path d={d} fill="none" stroke={color} strokeWidth="0.5" opacity="0.6" strokeDasharray="4,6" />
+
+          {/* Animated particles */}
+          {[0, 0.33, 0.66].map((offset, i) => (
+            <circle key={i} r="3" fill={color} opacity="0.9">
+              <animateMotion dur={speed} repeatCount="indefinite" begin={`${offset * parseFloat(speed)}s`}>
+                <mpath href={`#${pathId}`} />
+              </animateMotion>
+            </circle>
+          ))}
+          {/* Smaller trailing particles */}
+          {[0.1, 0.43, 0.76].map((offset, i) => (
+            <circle key={`t${i}`} r="1.5" fill={color} opacity="0.5">
+              <animateMotion dur={speed} repeatCount="indefinite" begin={`${offset * parseFloat(speed)}s`}>
+                <mpath href={`#${pathId}`} />
+              </animateMotion>
+            </circle>
+          ))}
+
+          {/* Hidden path for animateMotion */}
+          <path id={pathId} d={d} fill="none" stroke="none" />
+
+          {/* Edge label */}
+          {label && (
+            <text x={mx} y={my + 18} textAnchor="middle"
+              style={{ fontSize: '8px', fontFamily: 'IBM Plex Sans', fill: 'hsl(var(--gray-400))', fontStyle: 'italic' }}>
+              {label}
+            </text>
+          )}
+
+          {/* Diamond event gate */}
+          {eventName && (
+            <g transform={`translate(${diamondX}, ${diamondY})`}>
+              <rect x={-8} y={-8} width={16} height={16} rx="2"
+                fill="hsl(218, 50%, 12%)" stroke={color} strokeWidth="1"
+                style={{ transform: 'rotate(45deg)', transformOrigin: 'center', animation: 'diamond-pulse 3s ease-in-out infinite' }} />
+              <text x={0} y={-14} textAnchor="middle"
+                style={{ fontSize: '7px', fontFamily: 'IBM Plex Mono', fill: color, letterSpacing: '0.03em' }}>
+                {eventName}
+              </text>
+            </g>
+          )}
+        </g>
+      );
+    };
+
+    const AssetsView = ({ bgClass }) => {
+      const svgRef = useRef(null);
+
+      const assetActionsMap = useMemo(() => {
+        const map = {};
+        assets.forEach(a => { map[a.id] = actions.filter(act => act.asset === a.id); });
+        return map;
+      }, []);
+
+      return (
+        <div className={bgClass} style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+          <svg ref={svgRef} width="100%" height="100%" viewBox="0 0 1500 750" preserveAspectRatio="xMidYMid meet"
+            style={{ position: 'absolute', inset: 0 }}>
+            {/* Lateral movement edges */}
+            {lateralMoves.map((lm, i) => {
+              const fromAsset = assets.find(a => a.id === lm.from);
+              const toAsset = assets.find(a => a.id === lm.to);
+              const evt = events.find(e => {
+                const fromAct = actions.find(a => a.id === e.fromAction);
+                const toAct = actions.find(a => a.id === e.toAction);
+                return fromAct && toAct && fromAct.asset === lm.from && toAct.asset === lm.to;
+              });
+              return (
+                <AnimatedEdge key={i}
+                  x1={fromAsset.x + 100} y1={fromAsset.y}
+                  x2={toAsset.x - 100} y2={toAsset.y}
+                  status={lm.status}
+                  label={lm.action}
+                  eventName={evt ? evt.name : null}
+                />
+              );
+            })}
+
+            {/* Asset nodes */}
+            {assets.map(asset => (
+              <AssetNode key={asset.id} asset={asset} actions={assetActionsMap[asset.id]} />
+            ))}
+          </svg>
+        </div>
+      );
+    };
+
+    // ─── SVG Graph: Kill Chain View ─────────────────────────────────────────────
+
+    const KillChainView = ({ bgClass }) => {
+      const phases = ['Initial Access', 'Execution', 'Credential Access', 'Lateral Movement', 'Privilege Escalation', 'Collection'];
+      const phaseWidth = 180;
+      const phaseGap = 20;
+      const startX = 60;
+      const nodeY = 260;
+
+      // Position each chain element within its phase column
+      const positions = useMemo(() => {
+        const pos = {};
+        // Map actions to phase indices
+        const phaseIndex = {};
+        phases.forEach((p, i) => { phaseIndex[p] = i; });
+
+        // Actions get placed in their phase column center
+        actions.forEach(a => {
+          const pi = phaseIndex[a.phase] ?? 0;
+          const cx = startX + pi * (phaseWidth + phaseGap) + phaseWidth / 2;
+          pos[a.id] = { x: cx, y: nodeY, isEvent: false };
+        });
+
+        // Events get placed between their source and target actions
+        events.forEach(e => {
+          const fromPos = pos[e.fromAction];
+          const toPos = pos[e.toAction];
+          if (fromPos && toPos) {
+            pos[e.id] = { x: (fromPos.x + toPos.x) / 2, y: nodeY - 60, isEvent: true };
+          }
+        });
+        return pos;
+      }, []);
+
+      return (
+        <div className={bgClass} style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+          <svg width="100%" height="100%" viewBox="0 0 1300 520" preserveAspectRatio="xMidYMid meet"
+            style={{ position: 'absolute', inset: 0 }}>
+
+            {/* Phase columns */}
+            {phases.map((phase, i) => {
+              const colX = startX + i * (phaseWidth + phaseGap);
+              return (
+                <g key={phase}>
+                  <rect x={colX} y={30} width={phaseWidth} height={24}
+                    rx="2" fill="hsla(0,0%,100%,0.03)" stroke="hsl(var(--gray-800))" strokeWidth="0.5" />
+                  <text x={colX + phaseWidth/2} y={46} textAnchor="middle"
+                    style={{ fontSize: '8px', fontFamily: 'IBM Plex Mono', fill: 'hsl(var(--gray-400))', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                    {phase}
+                  </text>
+                  {/* Vertical guide line */}
+                  <line x1={colX + phaseWidth/2} y1={58}
+                    x2={colX + phaseWidth/2} y2={450}
+                    stroke="hsl(var(--gray-800))" strokeWidth="0.5" strokeDasharray="2,4" opacity="0.3" />
+                </g>
+              );
+            })}
+
+            {/* Edges between connected actions (through events) */}
+            {(() => {
+              const edges = [];
+              // Direct action→action edges (via events)
+              const connections = [
+                { from: 'a1', to: 'a2', event: 'e3' },
+                { from: 'a2', to: 'a3', event: null },
+                { from: 'a3', to: 'a4', event: 'e1' },
+                { from: 'a4', to: 'a5', event: null },
+                { from: 'a5', to: 'a6', event: 'e2' },
+              ];
+              connections.forEach((conn, idx) => {
+                const fromPos = positions[conn.from];
+                const toPos = positions[conn.to];
+                if (!fromPos || !toPos) return;
+
+                const fromAction = actions.find(a => a.id === conn.from);
+                const color = fromAction ? STATUS_COLORS[fromAction.status] : 'hsl(var(--gray-500))';
+                const speed = '2.5s';
+
+                // Curved path
+                const dx = toPos.x - fromPos.x;
+                const dy = toPos.y - fromPos.y;
+                const mx = (fromPos.x + toPos.x) / 2;
+                const curveY = Math.min(fromPos.y, toPos.y) - 40;
+                const d = `M ${fromPos.x + 55} ${fromPos.y} C ${fromPos.x + 55 + dx * 0.3} ${curveY}, ${toPos.x - 55 - dx * 0.3} ${curveY}, ${toPos.x - 55} ${toPos.y}`;
+                const pathId = `kc-edge-${idx}`;
+
+                edges.push(
+                  <g key={idx}>
+                    <path d={d} fill="none" stroke={color} strokeWidth="1.5" opacity="0.25" />
+                    <path d={d} fill="none" stroke={color} strokeWidth="0.7" opacity="0.5" strokeDasharray="4,6" />
+                    {/* Particles */}
+                    {[0, 0.4, 0.8].map((offset, pi) => (
+                      <circle key={pi} r="2.5" fill={color} opacity="0.85">
+                        <animateMotion dur={speed} repeatCount="indefinite" begin={`${offset * 2.5}s`}>
+                          <mpath href={`#${pathId}`} />
+                        </animateMotion>
+                      </circle>
+                    ))}
+                    <path id={pathId} d={d} fill="none" stroke="none" />
+                  </g>
+                );
+              });
+              return edges;
+            })()}
+
+            {/* Action nodes */}
+            {actions.map((action) => {
+              const pos = positions[action.id];
+              if (!pos) return null;
+              const color = STATUS_COLORS[action.status];
+              const pillW = 130;
+              return (
+                <g key={action.id} transform={`translate(${pos.x}, ${pos.y})`}>
+                  {/* Glow */}
+                  <rect x={-pillW/2 - 2} y={-20} width={pillW + 4} height={40}
+                    rx="20" fill="none" stroke={color} strokeWidth="1" opacity="0.2"
+                    style={{ animation: 'glow-breathe 3s ease-in-out infinite' }} />
+                  {/* Main pill */}
+                  <rect x={-pillW/2} y={-18} width={pillW} height={36}
+                    rx="18" fill="hsl(218, 50%, 9%)" stroke={color} strokeWidth="1.5" />
+                  {/* Status dot */}
+                  <circle cx={-pillW/2 + 16} cy={0} r={4} fill={color} />
+                  {/* Label */}
+                  <text x={-pillW/2 + 26} y={4}
+                    style={{ fontSize: '9.5px', fontFamily: 'IBM Plex Sans', fill: 'hsl(var(--gray-100))', fontWeight: 500 }}>
+                    {action.name.length > 15 ? action.name.slice(0, 14) + '…' : action.name}
+                  </text>
+                  {/* Status label above */}
+                  <text x={0} y={-28} textAnchor="middle"
+                    style={{ fontSize: '7px', fontFamily: 'IBM Plex Mono', fill: color, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    {STATUS_LABELS[action.status]}
+                  </text>
+                </g>
+              );
+            })}
+
+            {/* Event diamond gates */}
+            {events.map((evt) => {
+              const pos = positions[evt.id];
+              if (!pos) return null;
+              const srcAction = actions.find(a => a.id === evt.fromAction);
+              const color = srcAction ? STATUS_COLORS[srcAction.status] : 'hsl(var(--gray-500))';
+              return (
+                <g key={evt.id} transform={`translate(${pos.x}, ${pos.y})`}>
+                  <rect x={-10} y={-10} width={20} height={20} rx="3"
+                    fill="hsl(218, 50%, 10%)" stroke={color} strokeWidth="1.5"
+                    style={{ transform: 'rotate(45deg)', transformOrigin: 'center', animation: 'diamond-pulse 3s ease-in-out infinite' }} />
+                  <circle cx={0} cy={0} r={2.5} fill={color} opacity="0.7" />
+                  <text x={0} y={22} textAnchor="middle"
+                    style={{ fontSize: '7.5px', fontFamily: 'IBM Plex Mono', fill: color, letterSpacing: '0.02em' }}>
+                    {evt.name}
+                  </text>
+                  <text x={0} y={-18} textAnchor="middle"
+                    style={{ fontSize: '6px', fontFamily: 'IBM Plex Mono', fill: 'hsl(var(--gray-500))', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                    EVENT
+                  </text>
+                </g>
+              );
+            })}
+          </svg>
+        </div>
+      );
+    };
+
+    // ─── Background Switcher ────────────────────────────────────────────────────
+
+    const bgOptions = [
+      { id: 'command-center', label: 'Command Center', cls: 'bg-command-center' },
+      { id: 'pure-noir', label: 'Pure Noir', cls: 'bg-pure-noir' },
+      { id: 'circuit-board', label: 'Circuit Board', cls: 'bg-circuit-board' },
+      { id: 'glassmorphism', label: 'Glassmorphism', cls: 'bg-glassmorphism' },
+    ];
+
+    const BackgroundSwitcher = ({ current, onChange }) => {
+      const [open, setOpen] = useState(false);
+      return (
+        <div style={{ position: 'absolute', bottom: 12, right: 12, zIndex: 10 }}>
+          {open && (
+            <div style={{
+              position: 'absolute', bottom: 36, right: 0,
+              background: 'hsl(218, 50%, 9%)', border: '1px solid var(--border-default)',
+              borderRadius: 'var(--radius)', padding: 4, minWidth: 150,
+            }}>
+              {bgOptions.map(opt => (
+                <div key={opt.id} onClick={() => { onChange(opt.id); setOpen(false); }}
+                  style={{
+                    padding: '6px 10px', cursor: 'pointer', borderRadius: 'var(--radius)',
+                    fontSize: '0.75rem', fontFamily: 'var(--font-body)',
+                    color: current === opt.id ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    background: current === opt.id ? 'var(--hover-bg)' : 'transparent',
+                  }}>
+                  {opt.label}
+                </div>
+              ))}
+            </div>
+          )}
+          <div onClick={() => setOpen(!open)} style={{
+            width: 28, height: 28, borderRadius: 'var(--radius)',
+            background: 'hsl(218, 50%, 9%)', border: '1px solid var(--border-default)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+          }}>
+            <Icon name="palette" size={16} style={{ color: 'var(--text-secondary)' }} />
+          </div>
+        </div>
+      );
+    };
+
+    // ─── Main App ───────────────────────────────────────────────────────────────
+
+    function App() {
+      const [view, setView] = useState('assets');
+      const [bgId, setBgId] = useState('command-center');
+      const bgClass = bgOptions.find(b => b.id === bgId)?.cls || 'bg-command-center';
+
+      return (
+        <div style={{ minHeight: '100vh', minWidth: 1400 }}>
+          <TopBar />
+          <Sidebar activeId="simulations" />
+          <main style={{
+            marginLeft: 'var(--nav-width-expanded)',
+            paddingTop: 'var(--topbar-height)',
+            display: 'flex', flexDirection: 'column',
+            height: '100vh',
+          }}>
+            {/* Stats banner */}
+            <StatsBanner />
+
+            {/* Main content area */}
+            <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+              {/* Left: Live Feed */}
+              <LiveFeed />
+
+              {/* Right: Graph area */}
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}>
+                {/* View toggle */}
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 0,
+                  padding: '8px 16px',
+                  background: 'var(--box-background)',
+                  borderBottom: '1px solid var(--border-default)',
+                }}>
+                  <span style={{
+                    fontFamily: 'var(--font-title)', fontSize: '0.875rem', fontWeight: 500,
+                    color: 'var(--text-secondary)', marginRight: 16,
+                  }}>
+                    APT29 Lateral Movement Campaign
+                  </span>
+                  <div style={{ display: 'flex', gap: 0, marginLeft: 'auto' }}>
+                    {[
+                      { id: 'assets', label: 'Assets', icon: 'dns' },
+                      { id: 'killchain', label: 'Kill Chain', icon: 'timeline' },
+                    ].map(tab => (
+                      <div key={tab.id} onClick={() => setView(tab.id)} style={{
+                        display: 'flex', alignItems: 'center', gap: 5,
+                        padding: '5px 14px', cursor: 'pointer',
+                        borderRadius: 'var(--radius)',
+                        background: view === tab.id ? 'var(--hover-bg)' : 'transparent',
+                        border: view === tab.id ? '1px solid var(--border-medium-light)' : '1px solid transparent',
+                        fontSize: '0.8125rem', fontFamily: 'var(--font-body)',
+                        color: view === tab.id ? 'var(--text-primary)' : 'var(--text-secondary)',
+                        transition: 'all 0.15s',
+                      }}>
+                        <Icon name={tab.icon} size={14} />
+                        <span>{tab.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Graph */}
+                {view === 'assets' ? <AssetsView bgClass={bgClass} /> : <KillChainView bgClass={bgClass} />}
+
+                {/* Background switcher */}
+                <BackgroundSwitcher current={bgId} onChange={setBgId} />
+              </div>
+            </div>
+          </main>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>

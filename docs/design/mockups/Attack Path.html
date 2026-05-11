@@ -1,0 +1,1189 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenAEV · Attack Path</title>
+  <link rel="stylesheet" href="./colors_and_type.css" />
+  <style>
+    @keyframes pulse-ring {
+      0% { transform: scale(0.8); opacity: 1; }
+      100% { transform: scale(2.2); opacity: 0; }
+    }
+    .pulse-dot {
+      position: relative;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+    }
+    .pulse-dot::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: inherit;
+      animation: pulse-ring 2s ease-out infinite;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.26.9/babel.min.js"></script>
+
+  <script type="text/babel">
+    const { useState, useRef, useCallback } = React;
+
+    // ─── Shared utilities ───────────────────────────────────────────────────────
+
+    const Eyebrow = ({ children, style }) => (
+      <span style={{
+        fontSize: '0.6875rem', fontWeight: 500,
+        letterSpacing: '0.08em', textTransform: 'uppercase',
+        fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)',
+        ...style,
+      }}>{children}</span>
+    );
+
+    const Num = ({ children, severity, style }) => (
+      <span style={{
+        fontFamily: 'var(--font-mono)',
+        fontVariantNumeric: 'tabular-nums',
+        color: severity ? `var(--severity-${severity})` : 'inherit',
+        ...style,
+      }}>{children}</span>
+    );
+
+    // ─── Mock data ──────────────────────────────────────────────────────────────
+
+    const STEPS = [
+      {
+        id: 'step-1',
+        name: 'Spearphishing Attachment',
+        technique: 'T1566.001',
+        tactic: 'initial-access',
+        tacticLabel: 'Initial Access',
+        target: 'WKS-FINANCE-01',
+        targetType: 'workstation',
+        status: 'detected',
+        description: 'Delivery of weaponized DOCX via email to finance team mailbox',
+        timestamp: '2024-11-14T09:12:34Z',
+        dependsOn: [],
+      },
+      {
+        id: 'step-2',
+        name: 'PowerShell Execution',
+        technique: 'T1059.001',
+        tactic: 'execution',
+        tacticLabel: 'Execution',
+        target: 'WKS-FINANCE-01',
+        targetType: 'workstation',
+        status: 'undetected',
+        description: 'Macro launches PowerShell reverse shell via encoded command',
+        timestamp: '2024-11-14T09:13:07Z',
+        dependsOn: ['step-1'],
+      },
+      {
+        id: 'step-3',
+        name: 'LSASS Memory Dump',
+        technique: 'T1003.001',
+        tactic: 'credential-access',
+        tacticLabel: 'Credential Access',
+        target: 'WKS-FINANCE-01',
+        targetType: 'workstation',
+        status: 'prevented',
+        description: 'Attempt to dump LSASS process memory using Mimikatz',
+        timestamp: '2024-11-14T09:14:22Z',
+        dependsOn: ['step-2'],
+      },
+      {
+        id: 'step-4',
+        name: 'SMB/Admin Shares',
+        technique: 'T1021.002',
+        tactic: 'lateral-movement',
+        tacticLabel: 'Lateral Movement',
+        target: 'SRV-DC-01',
+        targetType: 'server',
+        status: 'undetected',
+        description: 'Lateral movement to domain controller via admin shares with cached credentials',
+        timestamp: '2024-11-14T09:16:45Z',
+        dependsOn: ['step-2'],
+      },
+      {
+        id: 'step-5',
+        name: 'Exploitation for PE',
+        technique: 'T1068',
+        tactic: 'privilege-escalation',
+        tacticLabel: 'Privilege Escalation',
+        target: 'SRV-DC-01',
+        targetType: 'server',
+        status: 'undetected',
+        description: 'Kernel exploit to gain SYSTEM privileges on domain controller',
+        timestamp: '2024-11-14T09:18:11Z',
+        dependsOn: ['step-4'],
+      },
+      {
+        id: 'step-6',
+        name: 'Data from Local System',
+        technique: 'T1005',
+        tactic: 'collection',
+        tacticLabel: 'Collection',
+        target: 'SRV-DB-01',
+        targetType: 'server',
+        status: 'pending',
+        description: 'Exfiltration of sensitive database exports from file system',
+        timestamp: '2024-11-14T09:20:00Z',
+        dependsOn: ['step-5'],
+      },
+    ];
+
+    const ASSETS = [
+      { id: 'WKS-FINANCE-01', label: 'WKS-FINANCE-01', type: 'Windows 11 Workstation', icon: '□' },
+      { id: 'SRV-DC-01', label: 'SRV-DC-01', type: 'Domain Controller', icon: '◆' },
+      { id: 'SRV-DB-01', label: 'SRV-DB-01', type: 'Database Server', icon: '◇' },
+    ];
+
+    const TACTICS_ORDER = [
+      'initial-access', 'execution', 'credential-access',
+      'lateral-movement', 'privilege-escalation', 'collection'
+    ];
+
+    const STATUS_CONFIG = {
+      prevented: { color: 'var(--severity-low)', label: 'Prevented', bg: 'hsla(132, 77%, 38%, 0.12)' },
+      detected: { color: 'var(--severity-high)', label: 'Detected', bg: 'hsla(27, 88%, 48%, 0.12)' },
+      undetected: { color: 'var(--severity-critical)', label: 'Undetected', bg: 'hsla(0, 84%, 58%, 0.12)' },
+      pending: { color: 'var(--text-tertiary)', label: 'Pending', bg: 'hsla(0, 0%, 50%, 0.08)' },
+    };
+
+    // ─── Design Canvas ──────────────────────────────────────────────────────────
+
+    const DesignCanvas = ({ children }) => {
+      const [transform, setTransform] = useState({ x: 0, y: 0, scale: 0.55 });
+      const containerRef = useRef(null);
+      const dragging = useRef(false);
+      const lastPos = useRef({ x: 0, y: 0 });
+
+      const handleWheel = (e) => {
+        if (e.ctrlKey || e.metaKey) {
+          e.preventDefault();
+          const delta = e.deltaY > 0 ? 0.9 : 1.1;
+          setTransform(t => ({ ...t, scale: Math.max(0.15, Math.min(3, t.scale * delta)) }));
+        } else {
+          setTransform(t => ({ ...t, x: t.x - e.deltaX, y: t.y - e.deltaY }));
+        }
+      };
+
+      const handleMouseDown = (e) => {
+        if (e.target === containerRef.current || e.target.closest('[data-canvas-bg]')) {
+          dragging.current = true;
+          lastPos.current = { x: e.clientX, y: e.clientY };
+        }
+      };
+
+      const handleMouseMove = (e) => {
+        if (!dragging.current) return;
+        const dx = e.clientX - lastPos.current.x;
+        const dy = e.clientY - lastPos.current.y;
+        lastPos.current = { x: e.clientX, y: e.clientY };
+        setTransform(t => ({ ...t, x: t.x + dx, y: t.y + dy }));
+      };
+
+      const handleMouseUp = () => { dragging.current = false; };
+
+      return (
+        <div
+          ref={containerRef}
+          data-canvas-bg
+          onWheel={handleWheel}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          style={{
+            position: 'fixed', inset: 0, overflow: 'hidden',
+            background: 'var(--page-background)',
+            cursor: dragging.current ? 'grabbing' : 'grab',
+          }}
+        >
+          <div style={{
+            transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
+            transformOrigin: '0 0',
+            display: 'flex', flexDirection: 'column', gap: 100,
+            padding: 60,
+          }}>
+            {children}
+          </div>
+          <button onClick={() => setTransform({ x: 0, y: 0, scale: 0.55 })} style={{
+            position: 'fixed', bottom: 16, left: 16,
+            padding: '6px 12px', borderRadius: 'var(--radius)',
+            background: 'var(--card-bg)', border: '1px solid var(--border-default)',
+            color: 'var(--text-secondary)', fontSize: '0.75rem',
+            cursor: 'pointer', fontFamily: 'var(--font-mono)',
+          }}>Reset view</button>
+          <div style={{
+            position: 'fixed', bottom: 16, right: 16,
+            padding: '6px 12px', borderRadius: 'var(--radius)',
+            background: 'var(--card-bg)', border: '1px solid var(--border-default)',
+            color: 'var(--text-tertiary)', fontSize: '0.6875rem',
+            fontFamily: 'var(--font-mono)',
+          }}>Ctrl+scroll to zoom · Drag to pan</div>
+        </div>
+      );
+    };
+
+    const DCSection = ({ title, description, children }) => (
+      <div>
+        <div style={{ marginBottom: 24 }}>
+          <h2 style={{ fontFamily: 'var(--font-title)', fontSize: '1.125rem', fontWeight: 500, color: 'var(--text-primary)' }}>{title}</h2>
+          {description && <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginTop: 4 }}>{description}</p>}
+        </div>
+        <div style={{ display: 'flex', gap: 40, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          {children}
+        </div>
+      </div>
+    );
+
+    const DCArtboard = ({ label, width = 1440, children }) => (
+      <div>
+        <div style={{
+          fontSize: '0.6875rem', fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)',
+          marginBottom: 8, letterSpacing: '0.05em',
+        }}>{label} · {width}px</div>
+        <div style={{
+          width, minHeight: 400,
+          background: 'var(--page-background)',
+          border: '1px solid var(--border-default)',
+          borderRadius: 'var(--radius-lg)',
+          overflow: 'hidden',
+        }}>
+          {children}
+        </div>
+      </div>
+    );
+
+    // ─── Direction A: Kill Chain Swim Lanes ─────────────────────────────────────
+
+    const DirectionA = () => {
+      const [selectedStep, setSelectedStep] = useState(null);
+      const [hoveredStep, setHoveredStep] = useState(null);
+
+      const stepsByTactic = {};
+      TACTICS_ORDER.forEach(t => { stepsByTactic[t] = []; });
+      STEPS.forEach(s => { stepsByTactic[s.tactic].push(s); });
+
+      const summary = {
+        prevented: STEPS.filter(s => s.status === 'prevented').length,
+        detected: STEPS.filter(s => s.status === 'detected').length,
+        undetected: STEPS.filter(s => s.status === 'undetected').length,
+        pending: STEPS.filter(s => s.status === 'pending').length,
+      };
+
+      return (
+        <div style={{ display: 'flex', height: '100%', minHeight: 700 }}>
+          {/* Left detail panel */}
+          <div style={{
+            width: 320, minWidth: 320,
+            borderRight: '1px solid var(--border-default)',
+            display: 'flex', flexDirection: 'column',
+            background: 'var(--box-background)',
+            overflow: 'auto',
+          }}>
+            {/* Header */}
+            <div style={{ padding: '16px 16px 12px' }}>
+              <Eyebrow>Attack path results</Eyebrow>
+              <h2 style={{
+                fontFamily: 'var(--font-title)', fontSize: '1rem', fontWeight: 500,
+                color: 'var(--text-primary)', marginTop: 4,
+              }}>APT29 Lateral Movement Campaign</h2>
+              <div style={{
+                display: 'flex', gap: 12, marginTop: 12,
+                padding: '8px 0', borderTop: '1px solid var(--border-default)',
+              }}>
+                {Object.entries(summary).map(([key, val]) => (
+                  <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <div style={{
+                      width: 8, height: 8, borderRadius: '50%',
+                      background: STATUS_CONFIG[key].color,
+                    }} />
+                    <Num style={{ fontSize: '0.8125rem', color: 'var(--text-primary)' }}>{val}</Num>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                      {STATUS_CONFIG[key].label.toLowerCase()}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Step list */}
+            <div style={{ flex: 1, overflow: 'auto', padding: '0 8px 8px' }}>
+              {STEPS.map((step, i) => {
+                const isSelected = selectedStep === step.id;
+                const cfg = STATUS_CONFIG[step.status];
+                return (
+                  <div
+                    key={step.id}
+                    onClick={() => setSelectedStep(isSelected ? null : step.id)}
+                    style={{
+                      padding: '10px 12px',
+                      marginBottom: 4,
+                      borderRadius: 'var(--radius)',
+                      border: isSelected ? `1px solid ${cfg.color}` : '1px solid transparent',
+                      background: isSelected ? cfg.bg : 'transparent',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s',
+                    }}
+                    onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = 'var(--hover-bg)'; }}
+                    onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Num style={{ fontSize: '0.6875rem', color: 'var(--text-tertiary)', width: 16 }}>{i + 1}</Num>
+                      <div style={{
+                        width: 8, height: 8, borderRadius: '50%',
+                        background: cfg.color, flexShrink: 0,
+                      }} />
+                      <span style={{
+                        fontSize: '0.8125rem', fontWeight: 500,
+                        color: 'var(--text-primary)', flex: 1,
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      }}>{step.name}</span>
+                      <span style={{
+                        fontSize: '0.6875rem', fontFamily: 'var(--font-mono)',
+                        color: 'var(--text-tertiary)',
+                      }}>{step.technique}</span>
+                    </div>
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      marginTop: 4, paddingLeft: 24,
+                    }}>
+                      <span style={{
+                        fontSize: '0.6875rem', color: cfg.color, fontWeight: 500,
+                      }}>{cfg.label}</span>
+                      <span style={{ fontSize: '0.6875rem', color: 'var(--text-tertiary)' }}>·</span>
+                      <span style={{
+                        fontSize: '0.6875rem', fontFamily: 'var(--font-mono)',
+                        color: 'var(--text-tertiary)',
+                      }}>{step.target}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Main panel — swim lanes */}
+          <div style={{ flex: 1, overflow: 'auto', padding: 24 }}>
+            {/* Kill chain header row */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: `repeat(${TACTICS_ORDER.length}, 1fr)`,
+              gap: 8, marginBottom: 16,
+            }}>
+              {TACTICS_ORDER.map((tactic, i) => (
+                <div key={tactic} style={{
+                  padding: '8px 12px',
+                  borderBottom: '2px solid var(--border-medium-light)',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                    <Num style={{ fontSize: '0.6875rem', color: 'var(--text-tertiary)' }}>{i + 1}</Num>
+                    <span style={{
+                      fontSize: '0.75rem', fontWeight: 500,
+                      fontFamily: 'var(--font-title)', color: 'var(--text-primary)',
+                      textTransform: 'capitalize',
+                    }}>{tactic.replace(/-/g, ' ')}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Grid of steps */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: `repeat(${TACTICS_ORDER.length}, 1fr)`,
+              gap: 8, alignItems: 'start',
+            }}>
+              {TACTICS_ORDER.map(tactic => (
+                <div key={tactic} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {stepsByTactic[tactic].map(step => {
+                    const cfg = STATUS_CONFIG[step.status];
+                    const isSelected = selectedStep === step.id;
+                    const isHovered = hoveredStep === step.id;
+                    const isInPath = selectedStep && (
+                      step.id === selectedStep ||
+                      STEPS.find(s => s.id === selectedStep)?.dependsOn.includes(step.id) ||
+                      step.dependsOn.includes(selectedStep)
+                    );
+                    const dimmed = selectedStep && !isInPath && step.id !== selectedStep;
+                    return (
+                      <div
+                        key={step.id}
+                        onClick={() => setSelectedStep(isSelected ? null : step.id)}
+                        onMouseEnter={() => setHoveredStep(step.id)}
+                        onMouseLeave={() => setHoveredStep(null)}
+                        style={{
+                          padding: '12px',
+                          borderRadius: 'var(--radius)',
+                          border: `1px solid ${isSelected ? cfg.color : 'var(--border-default)'}`,
+                          background: isSelected ? cfg.bg : 'var(--card-bg)',
+                          cursor: 'pointer',
+                          opacity: dimmed ? 0.3 : 1,
+                          transition: 'all 0.15s',
+                          transform: isHovered ? 'translateY(-1px)' : 'none',
+                        }}
+                      >
+                        {/* Status indicator line */}
+                        <div style={{
+                          width: '100%', height: 2, borderRadius: 1,
+                          background: cfg.color, marginBottom: 8, opacity: 0.7,
+                        }} />
+                        <div style={{
+                          fontSize: '0.8125rem', fontWeight: 500,
+                          color: 'var(--text-primary)', marginBottom: 4,
+                          lineHeight: 1.3,
+                        }}>{step.name}</div>
+                        <div style={{
+                          fontSize: '0.6875rem', fontFamily: 'var(--font-mono)',
+                          color: 'var(--text-tertiary)', marginBottom: 6,
+                        }}>{step.technique}</div>
+                        <div style={{
+                          display: 'flex', alignItems: 'center', gap: 4,
+                          padding: '4px 6px', borderRadius: 'var(--radius-md)',
+                          background: 'var(--hover-bg)', width: 'fit-content',
+                        }}>
+                          <span style={{
+                            width: 5, height: 5, borderRadius: '50%',
+                            background: step.targetType === 'server' ? 'var(--entity-locations)' : 'var(--entity-observables)',
+                          }} />
+                          <span style={{
+                            fontSize: '0.6875rem', fontFamily: 'var(--font-mono)',
+                            color: 'var(--text-secondary)',
+                          }}>{step.target}</span>
+                        </div>
+                        <div style={{
+                          display: 'flex', alignItems: 'center', gap: 4,
+                          marginTop: 8,
+                        }}>
+                          <div style={{
+                            width: 6, height: 6, borderRadius: '50%',
+                            background: cfg.color,
+                          }} />
+                          <span style={{
+                            fontSize: '0.6875rem', color: cfg.color, fontWeight: 500,
+                          }}>{cfg.label}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+
+            {/* Connection arrows (simplified SVG overlay) */}
+            <svg style={{
+              position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+              pointerEvents: 'none', opacity: 0,
+            }}>
+            </svg>
+          </div>
+        </div>
+      );
+    };
+
+    // ─── Direction B: Topology Flow ─────────────────────────────────────────────
+
+    const DirectionB = () => {
+      const [selectedStep, setSelectedStep] = useState(null);
+      const [hoveredAsset, setHoveredAsset] = useState(null);
+
+      const summary = {
+        prevented: STEPS.filter(s => s.status === 'prevented').length,
+        detected: STEPS.filter(s => s.status === 'detected').length,
+        undetected: STEPS.filter(s => s.status === 'undetected').length,
+        pending: STEPS.filter(s => s.status === 'pending').length,
+      };
+
+      // Layout: position assets in a horizontal flow
+      const assetPositions = {
+        'WKS-FINANCE-01': { x: 180, y: 220 },
+        'SRV-DC-01': { x: 520, y: 220 },
+        'SRV-DB-01': { x: 860, y: 220 },
+      };
+
+      // Build edges between assets
+      const assetEdges = [
+        { from: 'WKS-FINANCE-01', to: 'SRV-DC-01', step: STEPS[3] },
+        { from: 'SRV-DC-01', to: 'SRV-DB-01', step: STEPS[5] },
+      ];
+
+      return (
+        <div style={{ display: 'flex', height: '100%', minHeight: 700 }}>
+          {/* Left panel — timeline feed */}
+          <div style={{
+            width: 340, minWidth: 340,
+            borderRight: '1px solid var(--border-default)',
+            display: 'flex', flexDirection: 'column',
+            background: 'var(--box-background)',
+          }}>
+            {/* Header */}
+            <div style={{ padding: '16px 16px 12px' }}>
+              <Eyebrow>Attack timeline</Eyebrow>
+              <h2 style={{
+                fontFamily: 'var(--font-title)', fontSize: '1rem', fontWeight: 500,
+                color: 'var(--text-primary)', marginTop: 4,
+              }}>APT29 Lateral Movement Campaign</h2>
+
+              {/* Status summary bar */}
+              <div style={{
+                display: 'flex', height: 4, borderRadius: 2,
+                overflow: 'hidden', marginTop: 12, gap: 2,
+              }}>
+                {STEPS.map(s => (
+                  <div key={s.id} style={{
+                    flex: 1, background: STATUS_CONFIG[s.status].color,
+                    borderRadius: 1,
+                  }} />
+                ))}
+              </div>
+              <div style={{
+                display: 'flex', justifyContent: 'space-between', marginTop: 6,
+              }}>
+                <span style={{ fontSize: '0.6875rem', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>
+                  {STEPS.length} steps
+                </span>
+                <span style={{ fontSize: '0.6875rem', color: 'var(--severity-critical)', fontFamily: 'var(--font-mono)' }}>
+                  {summary.undetected} undetected
+                </span>
+              </div>
+            </div>
+
+            {/* Timeline */}
+            <div style={{ flex: 1, overflow: 'auto', padding: '0 12px 12px' }}>
+              {STEPS.map((step, i) => {
+                const cfg = STATUS_CONFIG[step.status];
+                const isSelected = selectedStep === step.id;
+                const isLast = i === STEPS.length - 1;
+                return (
+                  <div key={step.id} style={{ display: 'flex', gap: 12 }}>
+                    {/* Timeline rail */}
+                    <div style={{
+                      display: 'flex', flexDirection: 'column', alignItems: 'center',
+                      width: 20, flexShrink: 0,
+                    }}>
+                      <div style={{
+                        width: 12, height: 12, borderRadius: '50%',
+                        background: cfg.color,
+                        border: isSelected ? '2px solid var(--text-primary)' : '2px solid transparent',
+                        boxSizing: 'border-box',
+                        position: 'relative',
+                      }}>
+                        {step.status === 'pending' && (
+                          <div className="pulse-dot" style={{
+                            position: 'absolute', inset: 0, borderRadius: '50%',
+                            background: cfg.color,
+                          }} />
+                        )}
+                      </div>
+                      {!isLast && (
+                        <div style={{
+                          width: 1, flex: 1, minHeight: 30,
+                          background: 'var(--border-medium-light)',
+                        }} />
+                      )}
+                    </div>
+
+                    {/* Content */}
+                    <div
+                      onClick={() => setSelectedStep(isSelected ? null : step.id)}
+                      style={{
+                        flex: 1, paddingBottom: 16, cursor: 'pointer',
+                      }}
+                    >
+                      <div style={{
+                        padding: '8px 10px',
+                        borderRadius: 'var(--radius)',
+                        border: isSelected ? `1px solid ${cfg.color}` : '1px solid transparent',
+                        background: isSelected ? cfg.bg : 'transparent',
+                        transition: 'all 0.15s',
+                      }}
+                        onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = 'var(--hover-bg)'; }}
+                        onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.background = isSelected ? cfg.bg : 'transparent'; }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                          <span style={{
+                            fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text-primary)',
+                          }}>{step.name}</span>
+                          <span style={{
+                            fontSize: '0.6875rem', fontFamily: 'var(--font-mono)',
+                            color: 'var(--text-tertiary)', marginLeft: 'auto',
+                          }}>{step.technique}</span>
+                        </div>
+                        <div style={{
+                          display: 'flex', alignItems: 'center', gap: 8, marginTop: 4,
+                        }}>
+                          <span style={{
+                            fontSize: '0.6875rem', fontFamily: 'var(--font-mono)',
+                            color: 'var(--text-secondary)',
+                          }}>{step.target}</span>
+                          <span style={{
+                            fontSize: '0.6875rem', color: cfg.color, fontWeight: 500,
+                          }}>{cfg.label}</span>
+                        </div>
+                        <div style={{
+                          fontSize: '0.6875rem', fontFamily: 'var(--font-mono)',
+                          color: 'var(--text-tertiary)', marginTop: 4,
+                        }}>
+                          {new Date(step.timestamp).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Main panel — topology graph */}
+          <div style={{
+            flex: 1, position: 'relative', overflow: 'hidden',
+            background: 'var(--page-background)',
+          }}>
+            {/* Legend */}
+            <div style={{
+              position: 'absolute', top: 16, right: 16, zIndex: 10,
+              padding: '8px 12px', borderRadius: 'var(--radius)',
+              background: 'var(--card-bg)', border: '1px solid var(--border-default)',
+              display: 'flex', gap: 12,
+            }}>
+              {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
+                <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: cfg.color }} />
+                  <span style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)' }}>{cfg.label}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* SVG topology */}
+            <svg width="100%" height="100%" viewBox="0 0 1100 480" style={{
+              position: 'absolute', inset: 0,
+            }}>
+              {/* Grid dots background */}
+              <defs>
+                <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                  <circle cx="20" cy="20" r="0.5" fill="var(--border-default)" />
+                </pattern>
+              </defs>
+              <rect width="100%" height="100%" fill="url(#grid)" />
+
+              {/* Asset connection lines */}
+              {assetEdges.map((edge, i) => {
+                const from = assetPositions[edge.from];
+                const to = assetPositions[edge.to];
+                const cfg = STATUS_CONFIG[edge.step.status];
+                return (
+                  <g key={i}>
+                    <line
+                      x1={from.x + 60} y1={from.y}
+                      x2={to.x - 60} y2={to.y}
+                      stroke={cfg.color} strokeWidth="2"
+                      strokeDasharray={edge.step.status === 'pending' ? '6 4' : 'none'}
+                      opacity="0.6"
+                    />
+                    <polygon
+                      points={`${to.x - 65},${to.y - 4} ${to.x - 60},${to.y} ${to.x - 65},${to.y + 4}`}
+                      fill={cfg.color} opacity="0.6"
+                    />
+                  </g>
+                );
+              })}
+
+              {/* Asset nodes */}
+              {ASSETS.map(asset => {
+                const pos = assetPositions[asset.id];
+                const assetSteps = STEPS.filter(s => s.target === asset.id);
+                const isHovered = hoveredAsset === asset.id;
+                const worstStatus = assetSteps.find(s => s.status === 'undetected')
+                  ? 'undetected'
+                  : assetSteps.find(s => s.status === 'detected')
+                    ? 'detected'
+                    : assetSteps.find(s => s.status === 'pending')
+                      ? 'pending'
+                      : 'prevented';
+                const borderColor = STATUS_CONFIG[worstStatus].color;
+
+                return (
+                  <g key={asset.id}
+                    onMouseEnter={() => setHoveredAsset(asset.id)}
+                    onMouseLeave={() => setHoveredAsset(null)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    {/* Outer glow on hover */}
+                    {isHovered && (
+                      <rect
+                        x={pos.x - 58} y={pos.y - 42}
+                        width={116} height={84}
+                        rx="4" fill="none"
+                        stroke={borderColor} strokeWidth="1" opacity="0.3"
+                      />
+                    )}
+                    {/* Asset box */}
+                    <rect
+                      x={pos.x - 54} y={pos.y - 38}
+                      width={108} height={76}
+                      rx="4"
+                      fill="var(--card-bg)"
+                      stroke={borderColor}
+                      strokeWidth={isHovered ? '2' : '1'}
+                    />
+                    {/* Asset icon placeholder */}
+                    <text
+                      x={pos.x} y={pos.y - 10}
+                      textAnchor="middle" fontSize="18"
+                      fill="var(--text-secondary)"
+                    >{asset.icon}</text>
+                    {/* Asset name */}
+                    <text
+                      x={pos.x} y={pos.y + 10}
+                      textAnchor="middle" fontSize="10"
+                      fontFamily="var(--font-mono)"
+                      fill="var(--text-primary)"
+                    >{asset.label}</text>
+                    {/* Asset type */}
+                    <text
+                      x={pos.x} y={pos.y + 24}
+                      textAnchor="middle" fontSize="9"
+                      fontFamily="var(--font-body)"
+                      fill="var(--text-tertiary)"
+                    >{asset.type}</text>
+                  </g>
+                );
+              })}
+
+              {/* Step badges on assets */}
+              {ASSETS.map(asset => {
+                const pos = assetPositions[asset.id];
+                const assetSteps = STEPS.filter(s => s.target === asset.id);
+                return assetSteps.map((step, i) => {
+                  const cfg = STATUS_CONFIG[step.status];
+                  const yOffset = 70 + i * 48;
+                  const isSelected = selectedStep === step.id;
+                  return (
+                    <g key={step.id}
+                      onClick={() => setSelectedStep(isSelected ? null : step.id)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <rect
+                        x={pos.x - 70} y={pos.y + yOffset - 16}
+                        width={140} height={38}
+                        rx="3"
+                        fill={isSelected ? cfg.bg : 'var(--card-bg)'}
+                        stroke={isSelected ? cfg.color : 'var(--border-default)'}
+                        strokeWidth={isSelected ? '1.5' : '1'}
+                      />
+                      {/* Status dot */}
+                      <circle
+                        cx={pos.x - 56} cy={pos.y + yOffset}
+                        r="4" fill={cfg.color}
+                      />
+                      {/* Step name */}
+                      <text
+                        x={pos.x - 46} y={pos.y + yOffset + 3}
+                        fontSize="10" fontFamily="var(--font-body)"
+                        fill="var(--text-primary)" fontWeight="500"
+                      >{step.name.length > 18 ? step.name.slice(0, 18) + '…' : step.name}</text>
+                      {/* Technique ID */}
+                      <text
+                        x={pos.x - 46} y={pos.y + yOffset + 15}
+                        fontSize="9" fontFamily="var(--font-mono)"
+                        fill="var(--text-tertiary)"
+                      >{step.technique} · {cfg.label}</text>
+                    </g>
+                  );
+                });
+              })}
+            </svg>
+
+            {/* Asset detail tooltip */}
+            {hoveredAsset && (
+              <div style={{
+                position: 'absolute',
+                bottom: 16, left: 16,
+                padding: '10px 14px', borderRadius: 'var(--radius)',
+                background: 'var(--card-bg)', border: '1px solid var(--border-default)',
+                maxWidth: 280,
+              }}>
+                <div style={{
+                  fontSize: '0.8125rem', fontFamily: 'var(--font-mono)',
+                  color: 'var(--text-primary)', fontWeight: 500,
+                }}>{hoveredAsset}</div>
+                <div style={{
+                  fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: 2,
+                }}>{ASSETS.find(a => a.id === hoveredAsset)?.type}</div>
+                <div style={{
+                  fontSize: '0.6875rem', color: 'var(--text-tertiary)', marginTop: 6,
+                  fontFamily: 'var(--font-mono)',
+                }}>
+                  {STEPS.filter(s => s.target === hoveredAsset).length} attack steps targeting this asset
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    };
+
+    // ─── Direction C: Hybrid — Graph + Detail Panel ─────────────────────────────
+
+    const DirectionC = () => {
+      const [selectedStep, setSelectedStep] = useState('step-4');
+
+      const selected = STEPS.find(s => s.id === selectedStep);
+      const cfg = selected ? STATUS_CONFIG[selected.status] : null;
+
+      // Positions for a left-to-right flow graph
+      const nodePositions = {
+        'step-1': { x: 80, y: 200 },
+        'step-2': { x: 280, y: 200 },
+        'step-3': { x: 480, y: 120 },
+        'step-4': { x: 480, y: 280 },
+        'step-5': { x: 680, y: 280 },
+        'step-6': { x: 880, y: 280 },
+      };
+
+      const edges = [
+        { from: 'step-1', to: 'step-2' },
+        { from: 'step-2', to: 'step-3' },
+        { from: 'step-2', to: 'step-4' },
+        { from: 'step-4', to: 'step-5' },
+        { from: 'step-5', to: 'step-6' },
+      ];
+
+      // Determine path highlight
+      const getPathIds = (stepId) => {
+        const ids = new Set([stepId]);
+        const step = STEPS.find(s => s.id === stepId);
+        if (!step) return ids;
+        // upstream
+        const queue = [...step.dependsOn];
+        while (queue.length) {
+          const id = queue.shift();
+          ids.add(id);
+          const s = STEPS.find(st => st.id === id);
+          if (s) queue.push(...s.dependsOn);
+        }
+        // downstream
+        STEPS.forEach(s => {
+          if (s.dependsOn.includes(stepId)) ids.add(s.id);
+        });
+        return ids;
+      };
+
+      const pathIds = selectedStep ? getPathIds(selectedStep) : null;
+
+      return (
+        <div style={{ display: 'flex', height: '100%', minHeight: 700 }}>
+          {/* Main graph area */}
+          <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+            {/* Top bar */}
+            <div style={{
+              position: 'absolute', top: 0, left: 0, right: 0,
+              padding: '12px 20px',
+              display: 'flex', alignItems: 'center', gap: 16,
+              borderBottom: '1px solid var(--border-default)',
+              background: 'var(--box-background)',
+              zIndex: 10,
+            }}>
+              <Eyebrow>Attack path</Eyebrow>
+              <span style={{
+                fontSize: '0.875rem', fontFamily: 'var(--font-title)',
+                color: 'var(--text-primary)', fontWeight: 500, marginLeft: 4,
+              }}>APT29 Lateral Movement Campaign</span>
+              <div style={{ flex: 1 }} />
+              {Object.entries(STATUS_CONFIG).map(([key, c]) => {
+                const count = STEPS.filter(s => s.status === key).length;
+                if (count === 0) return null;
+                return (
+                  <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: c.color }} />
+                    <Num style={{ fontSize: '0.75rem', color: c.color }}>{count}</Num>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{c.label.toLowerCase()}</span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* SVG Graph */}
+            <svg width="100%" height="100%" viewBox="0 0 1000 480" style={{
+              position: 'absolute', inset: 0, marginTop: 48,
+            }}>
+              <defs>
+                <pattern id="grid2" width="40" height="40" patternUnits="userSpaceOnUse">
+                  <circle cx="20" cy="20" r="0.5" fill="var(--border-default)" />
+                </pattern>
+                <marker id="arrow-prevented" markerWidth="8" markerHeight="8" refX="8" refY="4" orient="auto">
+                  <path d="M0,0 L8,4 L0,8" fill="none" stroke="var(--severity-low)" strokeWidth="1.5" />
+                </marker>
+                <marker id="arrow-detected" markerWidth="8" markerHeight="8" refX="8" refY="4" orient="auto">
+                  <path d="M0,0 L8,4 L0,8" fill="none" stroke="var(--severity-high)" strokeWidth="1.5" />
+                </marker>
+                <marker id="arrow-undetected" markerWidth="8" markerHeight="8" refX="8" refY="4" orient="auto">
+                  <path d="M0,0 L8,4 L0,8" fill="none" stroke="var(--severity-critical)" strokeWidth="1.5" />
+                </marker>
+                <marker id="arrow-pending" markerWidth="8" markerHeight="8" refX="8" refY="4" orient="auto">
+                  <path d="M0,0 L8,4 L0,8" fill="none" stroke="var(--text-tertiary)" strokeWidth="1.5" />
+                </marker>
+              </defs>
+              <rect width="100%" height="100%" fill="url(#grid2)" />
+
+              {/* Edges */}
+              {edges.map((edge, i) => {
+                const from = nodePositions[edge.from];
+                const to = nodePositions[edge.to];
+                const sourceStep = STEPS.find(s => s.id === edge.from);
+                const srcCfg = STATUS_CONFIG[sourceStep?.status || 'pending'];
+                const inPath = pathIds && pathIds.has(edge.from) && pathIds.has(edge.to);
+                return (
+                  <line key={i}
+                    x1={from.x + 24} y1={from.y}
+                    x2={to.x - 24} y2={to.y}
+                    stroke={srcCfg.color}
+                    strokeWidth={inPath ? '2.5' : '1.5'}
+                    opacity={pathIds && !inPath ? 0.15 : 0.7}
+                    markerEnd={`url(#arrow-${sourceStep?.status || 'pending'})`}
+                  />
+                );
+              })}
+
+              {/* Nodes */}
+              {STEPS.map(step => {
+                const pos = nodePositions[step.id];
+                const sCfg = STATUS_CONFIG[step.status];
+                const isSelected = selectedStep === step.id;
+                const inPath = !pathIds || pathIds.has(step.id);
+                return (
+                  <g key={step.id}
+                    onClick={() => setSelectedStep(isSelected ? null : step.id)}
+                    style={{ cursor: 'pointer' }}
+                    opacity={inPath ? 1 : 0.2}
+                  >
+                    {/* Node circle */}
+                    <circle
+                      cx={pos.x} cy={pos.y} r={isSelected ? 22 : 18}
+                      fill={sCfg.bg}
+                      stroke={sCfg.color}
+                      strokeWidth={isSelected ? '2.5' : '1.5'}
+                    />
+                    {/* Sequence number */}
+                    <text
+                      x={pos.x} y={pos.y + 4}
+                      textAnchor="middle" fontSize="11"
+                      fontFamily="var(--font-mono)" fontWeight="600"
+                      fill={sCfg.color}
+                    >{STEPS.indexOf(step) + 1}</text>
+                    {/* Label below */}
+                    <text
+                      x={pos.x} y={pos.y + 38}
+                      textAnchor="middle" fontSize="10"
+                      fontFamily="var(--font-body)" fontWeight="500"
+                      fill="var(--text-primary)"
+                    >{step.name.length > 22 ? step.name.slice(0, 22) + '…' : step.name}</text>
+                    {/* Technique below label */}
+                    <text
+                      x={pos.x} y={pos.y + 52}
+                      textAnchor="middle" fontSize="9"
+                      fontFamily="var(--font-mono)"
+                      fill="var(--text-tertiary)"
+                    >{step.technique}</text>
+                    {/* Asset above node */}
+                    <text
+                      x={pos.x} y={pos.y - 28}
+                      textAnchor="middle" fontSize="9"
+                      fontFamily="var(--font-mono)"
+                      fill="var(--text-secondary)"
+                    >{step.target}</text>
+                  </g>
+                );
+              })}
+            </svg>
+          </div>
+
+          {/* Right detail panel */}
+          {selected && (
+            <div style={{
+              width: 320, minWidth: 320,
+              borderLeft: '1px solid var(--border-default)',
+              background: 'var(--box-background)',
+              padding: 20, overflow: 'auto',
+            }}>
+              {/* Step header */}
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16,
+              }}>
+                <div style={{
+                  width: 10, height: 10, borderRadius: '50%',
+                  background: cfg.color,
+                }} />
+                <span style={{
+                  fontSize: '0.75rem', color: cfg.color, fontWeight: 500,
+                }}>{cfg.label}</span>
+              </div>
+
+              <h3 style={{
+                fontFamily: 'var(--font-title)', fontSize: '1rem', fontWeight: 500,
+                color: 'var(--text-primary)', marginBottom: 4,
+              }}>{selected.name}</h3>
+
+              <div style={{
+                fontSize: '0.6875rem', fontFamily: 'var(--font-mono)',
+                color: 'var(--text-tertiary)', marginBottom: 16,
+              }}>{selected.technique} · {selected.tacticLabel}</div>
+
+              <p style={{
+                fontSize: '0.8125rem', color: 'var(--text-secondary)',
+                lineHeight: 1.5, marginBottom: 20,
+              }}>{selected.description}</p>
+
+              {/* Metadata */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div>
+                  <Eyebrow>Target asset</Eyebrow>
+                  <div style={{
+                    fontSize: '0.8125rem', fontFamily: 'var(--font-mono)',
+                    color: 'var(--text-primary)', marginTop: 4,
+                  }}>{selected.target}</div>
+                </div>
+                <div>
+                  <Eyebrow>Kill chain phase</Eyebrow>
+                  <div style={{
+                    fontSize: '0.8125rem', color: 'var(--text-primary)', marginTop: 4,
+                    textTransform: 'capitalize',
+                  }}>{selected.tactic.replace(/-/g, ' ')}</div>
+                </div>
+                <div>
+                  <Eyebrow>Executed at</Eyebrow>
+                  <div style={{
+                    fontSize: '0.8125rem', fontFamily: 'var(--font-mono)',
+                    color: 'var(--text-primary)', marginTop: 4,
+                  }}>{new Date(selected.timestamp).toLocaleString('en-GB', {
+                    day: '2-digit', month: 'short', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit', second: '2-digit'
+                  })}</div>
+                </div>
+              </div>
+
+              {/* Expectations */}
+              <div style={{ marginTop: 24 }}>
+                <Eyebrow>Expectations</Eyebrow>
+                <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '6px 8px', borderRadius: 'var(--radius)',
+                    background: 'var(--hover-bg)',
+                  }}>
+                    <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>Prevention</span>
+                    <span style={{
+                      fontSize: '0.75rem', fontFamily: 'var(--font-mono)',
+                      color: selected.status === 'prevented' ? 'var(--severity-low)' : 'var(--severity-critical)',
+                      fontWeight: 500,
+                    }}>{selected.status === 'prevented' ? 'SUCCESS' : selected.status === 'pending' ? 'PENDING' : 'FAILED'}</span>
+                  </div>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '6px 8px', borderRadius: 'var(--radius)',
+                    background: 'var(--hover-bg)',
+                  }}>
+                    <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>Detection</span>
+                    <span style={{
+                      fontSize: '0.75rem', fontFamily: 'var(--font-mono)',
+                      color: selected.status === 'detected' ? 'var(--severity-low)' : selected.status === 'prevented' ? 'var(--severity-low)' : selected.status === 'pending' ? 'var(--text-tertiary)' : 'var(--severity-critical)',
+                      fontWeight: 500,
+                    }}>{selected.status === 'detected' ? 'SUCCESS' : selected.status === 'prevented' ? 'N/A' : selected.status === 'pending' ? 'PENDING' : 'FAILED'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Upstream/downstream */}
+              <div style={{ marginTop: 24 }}>
+                <Eyebrow>Connected steps</Eyebrow>
+                <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {selected.dependsOn.length > 0 && selected.dependsOn.map(depId => {
+                    const dep = STEPS.find(s => s.id === depId);
+                    if (!dep) return null;
+                    return (
+                      <div key={depId} style={{
+                        display: 'flex', alignItems: 'center', gap: 6,
+                        padding: '4px 8px', borderRadius: 'var(--radius)',
+                        cursor: 'pointer',
+                      }}
+                        onClick={() => setSelectedStep(depId)}
+                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--hover-bg)'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <span style={{ fontSize: '0.6875rem', color: 'var(--text-tertiary)' }}>←</span>
+                        <div style={{ width: 5, height: 5, borderRadius: '50%', background: STATUS_CONFIG[dep.status].color }} />
+                        <span style={{ fontSize: '0.8125rem', color: 'var(--text-primary)' }}>{dep.name}</span>
+                      </div>
+                    );
+                  })}
+                  {STEPS.filter(s => s.dependsOn.includes(selected.id)).map(child => (
+                    <div key={child.id} style={{
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      padding: '4px 8px', borderRadius: 'var(--radius)',
+                      cursor: 'pointer',
+                    }}
+                      onClick={() => setSelectedStep(child.id)}
+                      onMouseEnter={(e) => e.currentTarget.style.background = 'var(--hover-bg)'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <span style={{ fontSize: '0.6875rem', color: 'var(--text-tertiary)' }}>→</span>
+                      <div style={{ width: 5, height: 5, borderRadius: '50%', background: STATUS_CONFIG[child.status].color }} />
+                      <span style={{ fontSize: '0.8125rem', color: 'var(--text-primary)' }}>{child.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    // ─── App (Canvas) ───────────────────────────────────────────────────────────
+
+    function App() {
+      return (
+        <DesignCanvas>
+          <DCSection
+            title="Direction A — Kill chain swim lanes"
+            description="Matrix layout organized by MITRE ATT&CK tactic columns. Answers 'where are my detection gaps per kill chain phase?'"
+          >
+            <DCArtboard label="Full view — swim lane matrix" width={1440}>
+              <DirectionA />
+            </DCArtboard>
+          </DCSection>
+
+          <DCSection
+            title="Direction B — Network topology"
+            description="Asset-centric graph showing lateral movement between machines. Answers 'what was the attacker's path through my network?'"
+          >
+            <DCArtboard label="Full view — asset topology" width={1440}>
+              <DirectionB />
+            </DCArtboard>
+          </DCSection>
+
+          <DCSection
+            title="Direction C — Hybrid flow graph"
+            description="DAG flow with sequential nodes and a detail panel. Balances the kill-chain progression with per-step drill-down."
+          >
+            <DCArtboard label="Full view — flow + detail panel" width={1440}>
+              <DirectionC />
+            </DCArtboard>
+          </DCSection>
+        </DesignCanvas>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>

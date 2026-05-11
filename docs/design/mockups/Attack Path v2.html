@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenAEV · Attack Path v2</title>
+  <link rel="stylesheet" href="./colors_and_type.css" />
+  <style>
+    @keyframes pulse-ring {
+      0% { transform: scale(0.8); opacity: 1; }
+      100% { transform: scale(2.2); opacity: 0; }
+    }
+    .pulse-dot {
+      position: relative;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+    }
+    .pulse-dot::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: inherit;
+      animation: pulse-ring 2s ease-out infinite;
+    }
+    @keyframes edge-flow {
+      0% { stroke-dashoffset: 20; }
+      100% { stroke-dashoffset: 0; }
+    }
+    @keyframes glow-pulse {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 0.9; }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.26.9/babel.min.js"></script>
+
+  <script type="text/babel">
+    const { useState, useRef } = React;
+
+    // ============================================================
+    // SHARED DATA & COMPONENTS
+    // ============================================================
+
+    const STEPS = [
+      { id: 1, technique: 'T1566.001', name: 'Spearphishing Attachment', asset: 'WKS-FINANCE-01', status: 'detected', phase: 'Initial Access', time: '09:01:12' },
+      { id: 2, technique: 'T1059.001', name: 'PowerShell Execution', asset: 'WKS-FINANCE-01', status: 'undetected', phase: 'Execution', time: '09:03:44' },
+      { id: 3, technique: 'T1003.001', name: 'LSASS Memory Dump', asset: 'WKS-FINANCE-01', status: 'prevented', phase: 'Credential Access', time: '09:05:18' },
+      { id: 4, technique: 'T1021.002', name: 'SMB/Admin Shares', asset: 'SRV-DC-01', status: 'undetected', phase: 'Lateral Movement', time: '09:08:02' },
+      { id: 5, technique: 'T1068', name: 'Exploitation for Privilege Escalation', asset: 'SRV-DC-01', status: 'undetected', phase: 'Privilege Escalation', time: '09:11:33' },
+      { id: 6, technique: 'T1005', name: 'Data from Local System', asset: 'SRV-DB-01', status: 'pending', phase: 'Collection', time: '—' },
+    ];
+
+    const ASSETS = [
+      { id: 'WKS-FINANCE-01', os: 'Windows 11', ip: '10.0.1.42', role: 'Workstation' },
+      { id: 'SRV-DC-01', os: 'Windows Server 2022', ip: '10.0.0.1', role: 'Domain Controller' },
+      { id: 'SRV-DB-01', os: 'Ubuntu 22.04', ip: '10.0.2.10', role: 'Database Server' },
+    ];
+
+    const DEPS = [[1,2],[2,3],[2,4],[4,5],[5,6]];
+
+    const PHASES = ['Initial Access', 'Execution', 'Credential Access', 'Lateral Movement', 'Privilege Escalation', 'Collection'];
+
+    const STATUS_COLORS = {
+      prevented: 'hsl(123 73% 46%)',
+      detected: 'hsl(27 88% 48%)',
+      undetected: 'hsl(4 87% 48%)',
+      pending: 'hsl(var(--gray-400))',
+    };
+
+    const STATUS_LABELS = {
+      prevented: 'Prevented',
+      detected: 'Detected',
+      undetected: 'Undetected',
+      pending: 'Pending',
+    };
+
+    const STATS = { prevented: 1, detected: 1, undetected: 3, pending: 1 };
+
+    // -- Shared small components --
+
+    const Eyebrow = ({ children, style }) => (
+      <span style={{
+        fontSize: '0.6875rem', fontWeight: 500,
+        letterSpacing: '0.08em', textTransform: 'uppercase',
+        fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)',
+        ...style,
+      }}>{children}</span>
+    );
+
+    const Mono = ({ children, style }) => (
+      <span style={{
+        fontFamily: 'var(--font-mono)',
+        fontVariantNumeric: 'tabular-nums',
+        ...style,
+      }}>{children}</span>
+    );
+
+    const StatusDot = ({ status, size = 8 }) => (
+      <span style={{
+        display: 'inline-block',
+        width: size, height: size,
+        borderRadius: '50%',
+        background: STATUS_COLORS[status],
+        flexShrink: 0,
+      }} />
+    );
+
+    // ============================================================
+    // DESIGN CANVAS
+    // ============================================================
+
+    const DesignCanvas = ({ children }) => {
+      const [transform, setTransform] = useState({ x: 40, y: 40, scale: 0.55 });
+      const dragging = useRef(false);
+      const lastPos = useRef({ x: 0, y: 0 });
+
+      const handleWheel = (e) => {
+        if (e.ctrlKey || e.metaKey) {
+          e.preventDefault();
+          const delta = e.deltaY > 0 ? 0.92 : 1.08;
+          setTransform(t => ({ ...t, scale: Math.max(0.2, Math.min(3, t.scale * delta)) }));
+        } else {
+          setTransform(t => ({ ...t, x: t.x - e.deltaX, y: t.y - e.deltaY }));
+        }
+      };
+
+      const handleMouseDown = (e) => {
+        if (e.target.closest('[data-artboard]')) return;
+        dragging.current = true;
+        lastPos.current = { x: e.clientX, y: e.clientY };
+      };
+      const handleMouseMove = (e) => {
+        if (!dragging.current) return;
+        const dx = e.clientX - lastPos.current.x;
+        const dy = e.clientY - lastPos.current.y;
+        lastPos.current = { x: e.clientX, y: e.clientY };
+        setTransform(t => ({ ...t, x: t.x + dx, y: t.y + dy }));
+      };
+      const handleMouseUp = () => { dragging.current = false; };
+
+      return (
+        <div onWheel={handleWheel} onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}
+          style={{
+            position: 'fixed', inset: 0, overflow: 'hidden',
+            background: 'hsl(220 56% 4%)', cursor: 'grab',
+          }}>
+          <div style={{
+            transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
+            transformOrigin: '0 0',
+            display: 'flex', flexDirection: 'column', gap: 100,
+            padding: 60,
+          }}>
+            {children}
+          </div>
+          <div style={{
+            position: 'fixed', bottom: 16, left: 16, display: 'flex', gap: 8,
+          }}>
+            <button onClick={() => setTransform({ x: 40, y: 40, scale: 0.55 })} style={{
+              padding: '6px 12px', borderRadius: 'var(--radius)',
+              background: 'var(--card-bg)', border: '1px solid var(--border-default)',
+              color: 'var(--text-secondary)', fontSize: '0.75rem',
+              cursor: 'pointer', fontFamily: 'var(--font-mono)',
+            }}>Reset view</button>
+            <span style={{
+              padding: '6px 12px', borderRadius: 'var(--radius)',
+              background: 'var(--card-bg)', border: '1px solid var(--border-default)',
+              color: 'var(--text-tertiary)', fontSize: '0.6875rem',
+              fontFamily: 'var(--font-mono)',
+            }}>Ctrl+scroll to zoom · scroll to pan</span>
+          </div>
+        </div>
+      );
+    };
+
+    const DCSection = ({ title, description, children }) => (
+      <div>
+        <div style={{ marginBottom: 24 }}>
+          <h2 style={{ fontFamily: 'var(--font-title)', fontSize: '1.125rem', fontWeight: 500, color: 'var(--text-primary)' }}>{title}</h2>
+          {description && <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginTop: 4 }}>{description}</p>}
+        </div>
+        <div style={{ display: 'flex', gap: 40, alignItems: 'flex-start' }}>
+          {children}
+        </div>
+      </div>
+    );
+
+    const DCArtboard = ({ label, width = 1440, children }) => (
+      <div data-artboard="true">
+        <div style={{
+          fontSize: '0.6875rem', fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)',
+          marginBottom: 8, letterSpacing: '0.05em',
+        }}>{label} · {width}px</div>
+        <div style={{
+          width, minHeight: 400,
+          background: 'var(--page-background)',
+          border: '1px solid var(--border-default)',
+          borderRadius: 'var(--radius-lg)',
+          overflow: 'hidden',
+        }}>
+          {children}
+        </div>
+      </div>
+    );
+
+
+    // ============================================================
+    // DIRECTION A — CLINICAL PRECISION
+    // Minimal, clean lines, subtle nodes, lots of breathing room
+    // ============================================================
+
+    const DirectionA = () => {
+      const [view, setView] = useState('assets');
+      const [selected, setSelected] = useState(null);
+
+      return (
+        <div style={{ display: 'flex', height: 820, background: 'var(--page-background)' }}>
+          {/* Left feed panel */}
+          <div style={{
+            width: 260, borderRight: '1px solid var(--border-default)',
+            display: 'flex', flexDirection: 'column', background: 'var(--box-background)',
+          }}>
+            <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-default)' }}>
+              <Eyebrow>Execution feed</Eyebrow>
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
+              {STEPS.map(step => (
+                <div key={step.id}
+                  onClick={() => setSelected(step.id)}
+                  style={{
+                    padding: '10px 16px',
+                    cursor: 'pointer',
+                    background: selected === step.id ? 'var(--hover-bg)' : 'transparent',
+                    borderLeft: selected === step.id ? `2px solid ${STATUS_COLORS[step.status]}` : '2px solid transparent',
+                    transition: 'background 0.12s',
+                  }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <StatusDot status={step.status} />
+                    <Mono style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{step.technique}</Mono>
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-primary)', marginTop: 3, lineHeight: 1.3 }}>
+                    {step.name}
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                    <Mono style={{ fontSize: '0.6875rem', color: 'var(--text-tertiary)' }}>{step.asset}</Mono>
+                    <Mono style={{ fontSize: '0.6875rem', color: 'var(--text-tertiary)' }}>{step.time}</Mono>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Main area */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+            {/* Stats banner */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 24,
+              padding: '10px 20px',
+              borderBottom: '1px solid var(--border-default)',
+              background: 'var(--box-background)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <StatusDot status="prevented" />
+                <Mono style={{ fontSize: '0.8125rem', color: STATUS_COLORS.prevented }}>{STATS.prevented}</Mono>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>prevented</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <StatusDot status="detected" />
+                <Mono style={{ fontSize: '0.8125rem', color: STATUS_COLORS.detected }}>{STATS.detected}</Mono>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>detected</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <StatusDot status="undetected" />
+                <Mono style={{ fontSize: '0.8125rem', color: STATUS_COLORS.undetected }}>{STATS.undetected}</Mono>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>undetected</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <StatusDot status="pending" />
+                <Mono style={{ fontSize: '0.8125rem', color: STATUS_COLORS.pending }}>{STATS.pending}</Mono>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>pending</span>
+              </div>
+              <div style={{ flex: 1 }} />
+              <Mono style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>6 of 6 steps executed</Mono>
+            </div>
+
+            {/* Toggle + Graph */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+              {/* Toggle bar */}
+              <div style={{ padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 0 }}>
+                <button onClick={() => setView('assets')} style={{
+                  padding: '5px 14px', fontSize: '0.75rem', fontFamily: 'var(--font-title)',
+                  fontWeight: view === 'assets' ? 600 : 400,
+                  letterSpacing: '0.04em', textTransform: 'uppercase',
+                  background: view === 'assets' ? 'var(--hover-bg)' : 'transparent',
+                  border: '1px solid var(--border-default)',
+                  borderRadius: 'var(--radius) 0 0 var(--radius)',
+                  color: view === 'assets' ? 'var(--text-primary)' : 'var(--text-tertiary)',
+                  cursor: 'pointer', transition: 'all 0.12s',
+                }}>Assets</button>
+                <button onClick={() => setView('killchain')} style={{
+                  padding: '5px 14px', fontSize: '0.75rem', fontFamily: 'var(--font-title)',
+                  fontWeight: view === 'killchain' ? 600 : 400,
+                  letterSpacing: '0.04em', textTransform: 'uppercase',
+                  background: view === 'killchain' ? 'var(--hover-bg)' : 'transparent',
+                  border: '1px solid var(--border-default)',
+                  borderLeft: 'none',
+                  borderRadius: '0 var(--radius) var(--radius) 0',
+                  color: view === 'killchain' ? 'var(--text-primary)' : 'var(--text-tertiary)',
+                  cursor: 'pointer', transition: 'all 0.12s',
+                }}>Kill Chain</button>
+              </div>
+
+              {/* View content */}
+              <div style={{ flex: 1, padding: '0 20px 20px 20px', overflow: 'auto' }}>
+                {view === 'assets' ? <AssetsViewA selected={selected} setSelected={setSelected} /> : <KillChainViewA selected={selected} setSelected={setSelected} />}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // -- Assets View (Direction A): Clean topology --
+    const AssetsViewA = ({ selected, setSelected }) => {
+      // Positions for assets (centered layout)
+      const positions = {
+        'WKS-FINANCE-01': { x: 140, y: 280 },
+        'SRV-DC-01': { x: 460, y: 180 },
+        'SRV-DB-01': { x: 780, y: 320 },
+      };
+
+      // Step positions (clustered near their asset)
+      const stepPositions = {
+        1: { x: 70, y: 170 },
+        2: { x: 200, y: 170 },
+        3: { x: 140, y: 400 },
+        4: { x: 400, y: 300 },
+        5: { x: 530, y: 280 },
+        6: { x: 730, y: 420 },
+      };
+
+      return (
+        <div style={{ position: 'relative', height: 540, background: 'var(--card-bg)', borderRadius: 'var(--radius)', border: '1px solid var(--border-default)' }}>
+          <svg width="100%" height="100%" style={{ position: 'absolute', top: 0, left: 0 }}>
+            {/* Dependency edges */}
+            {DEPS.map(([from, to], i) => {
+              const f = stepPositions[from];
+              const t = stepPositions[to];
+              return (
+                <line key={i} x1={f.x} y1={f.y} x2={t.x} y2={t.y}
+                  stroke="var(--border-medium-light)"
+                  strokeWidth="1" strokeDasharray="4 3" opacity="0.6" />
+              );
+            })}
+            {/* Asset-to-asset lateral lines */}
+            <line x1={positions['WKS-FINANCE-01'].x} y1={positions['WKS-FINANCE-01'].y}
+              x2={positions['SRV-DC-01'].x} y2={positions['SRV-DC-01'].y}
+              stroke="var(--border-default)" strokeWidth="1" opacity="0.3" />
+            <line x1={positions['SRV-DC-01'].x} y1={positions['SRV-DC-01'].y}
+              x2={positions['SRV-DB-01'].x} y2={positions['SRV-DB-01'].y}
+              stroke="var(--border-default)" strokeWidth="1" opacity="0.3" />
+          </svg>
+
+          {/* Asset nodes */}
+          {ASSETS.map(asset => {
+            const pos = positions[asset.id];
+            const assetSteps = STEPS.filter(s => s.asset === asset.id);
+            const hasUndetected = assetSteps.some(s => s.status === 'undetected');
+            return (
+              <div key={asset.id} style={{
+                position: 'absolute',
+                left: pos.x - 64, top: pos.y - 36,
+                width: 128, padding: '10px 12px',
+                background: 'var(--box-background)',
+                border: `1px solid ${hasUndetected ? 'hsl(4 87% 48% / 0.4)' : 'var(--border-default)'}`,
+                borderRadius: 'var(--radius)',
+                textAlign: 'center',
+              }}>
+                <div style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--text-primary)', fontWeight: 500 }}>
+                  {asset.id}
+                </div>
+                <div style={{ fontSize: '0.6875rem', color: 'var(--text-tertiary)', marginTop: 2 }}>
+                  {asset.role}
+                </div>
+                <Mono style={{ fontSize: '0.625rem', color: 'var(--text-tertiary)', display: 'block', marginTop: 2 }}>
+                  {asset.ip}
+                </Mono>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: 3, marginTop: 6 }}>
+                  {assetSteps.map(s => (
+                    <StatusDot key={s.id} status={s.status} size={6} />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Step nodes (small) */}
+          {STEPS.map(step => {
+            const pos = stepPositions[step.id];
+            const isSelected = selected === step.id;
+            return (
+              <div key={step.id}
+                onClick={() => setSelected(step.id)}
+                style={{
+                  position: 'absolute',
+                  left: pos.x - 40, top: pos.y - 14,
+                  padding: '4px 8px',
+                  background: isSelected ? 'var(--hover-bg)' : 'hsla(0,0%,0%,0.3)',
+                  border: `1px solid ${isSelected ? STATUS_COLORS[step.status] : 'var(--border-default)'}`,
+                  borderRadius: 'var(--radius)',
+                  cursor: 'pointer',
+                  transition: 'border-color 0.12s',
+                  display: 'flex', alignItems: 'center', gap: 5,
+                }}>
+                <StatusDot status={step.status} size={6} />
+                <Mono style={{ fontSize: '0.625rem', color: 'var(--text-secondary)' }}>
+                  {step.technique}
+                </Mono>
+              </div>
+            );
+          })}
+        </div>
+      );
+    };
+
+    // -- Kill Chain View (Direction A): Clean columns --
+    const KillChainViewA = ({ selected, setSelected }) => (
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: `repeat(${PHASES.length}, 1fr)`,
+        gap: 8, height: 540,
+      }}>
+        {PHASES.map(phase => {
+          const phaseSteps = STEPS.filter(s => s.phase === phase);
+          return (
+            <div key={phase} style={{
+              background: 'var(--card-bg)',
+              border: '1px solid var(--border-default)',
+              borderRadius: 'var(--radius)',
+              display: 'flex', flexDirection: 'column',
+            }}>
+              {/* Phase header */}
+              <div style={{
+                padding: '10px 10px 8px',
+                borderBottom: '1px solid var(--border-default)',
+              }}>
+                <Eyebrow style={{ fontSize: '0.5625rem' }}>{phase}</Eyebrow>
+              </div>
+              {/* Steps in this phase */}
+              <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {phaseSteps.map(step => (
+                  <div key={step.id}
+                    onClick={() => setSelected(step.id)}
+                    style={{
+                      padding: '8px 8px',
+                      background: selected === step.id ? 'var(--hover-bg)' : 'var(--box-background)',
+                      border: `1px solid ${selected === step.id ? STATUS_COLORS[step.status] : 'var(--border-default)'}`,
+                      borderRadius: 'var(--radius)',
+                      cursor: 'pointer',
+                      transition: 'border-color 0.12s',
+                    }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                      <StatusDot status={step.status} size={6} />
+                      <Mono style={{ fontSize: '0.625rem', color: 'var(--text-secondary)' }}>{step.technique}</Mono>
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-primary)', lineHeight: 1.3 }}>
+                      {step.name}
+                    </div>
+                    <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Mono style={{ fontSize: '0.5625rem', color: 'var(--text-tertiary)' }}>{step.asset}</Mono>
+                    </div>
+                    <div style={{ marginTop: 4 }}>
+                      <span style={{
+                        fontSize: '0.5625rem', fontFamily: 'var(--font-mono)',
+                        color: STATUS_COLORS[step.status],
+                        textTransform: 'uppercase', letterSpacing: '0.06em',
+                      }}>{STATUS_LABELS[step.status]}</span>
+                    </div>
+                  </div>
+                ))}
+                {phaseSteps.length === 0 && (
+                  <div style={{ padding: '20px 8px', textAlign: 'center' }}>
+                    <span style={{ fontSize: '0.6875rem', color: 'var(--text-tertiary)' }}>No steps</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+
+
+    // ============================================================
+    // DIRECTION B — SIGNAL DRAMA
+    // Glowing edges, animated status, thicker visual hierarchy
+    // ============================================================
+
+    const DirectionB = () => {
+      const [view, setView] = useState('assets');
+      const [selected, setSelected] = useState(null);
+
+      return (
+        <div style={{ display: 'flex', height: 820, background: 'var(--page-background)' }}>
+          {/* Left feed panel — more expressive */}
+          <div style={{
+            width: 280, borderRight: '1px solid var(--border-default)',
+            display: 'flex', flexDirection: 'column', background: 'var(--box-background)',
+          }}>
+            <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border-default)' }}>
+              <Eyebrow>Live execution</Eyebrow>
+              <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div className="pulse-dot" style={{ background: STATUS_COLORS.pending, width: 6, height: 6 }} />
+                <span style={{ fontSize: '0.6875rem', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>
+                  1 step pending
+                </span>
+              </div>
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '4px 0' }}>
+              {STEPS.map(step => {
+                const isActive = selected === step.id;
+                return (
+                  <div key={step.id}
+                    onClick={() => setSelected(step.id)}
+                    style={{
+                      padding: '12px 16px',
+                      cursor: 'pointer',
+                      background: isActive ? `${STATUS_COLORS[step.status]}11` : 'transparent',
+                      borderLeft: `3px solid ${isActive ? STATUS_COLORS[step.status] : 'transparent'}`,
+                      transition: 'all 0.15s',
+                      position: 'relative',
+                    }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{
+                        width: 10, height: 10, borderRadius: '50%',
+                        background: STATUS_COLORS[step.status],
+                        boxShadow: step.status === 'undetected' ? `0 0 8px ${STATUS_COLORS[step.status]}` : 'none',
+                      }} />
+                      <Mono style={{ fontSize: '0.75rem', color: 'var(--text-primary)', fontWeight: 500 }}>{step.technique}</Mono>
+                      <Mono style={{ fontSize: '0.625rem', color: 'var(--text-tertiary)', marginLeft: 'auto' }}>{step.time}</Mono>
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-primary)', marginTop: 4, paddingLeft: 18 }}>
+                      {step.name}
+                    </div>
+                    <div style={{ paddingLeft: 18, marginTop: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Mono style={{ fontSize: '0.625rem', color: 'var(--text-tertiary)' }}>{step.asset}</Mono>
+                      <span style={{
+                        fontSize: '0.5625rem', fontFamily: 'var(--font-mono)',
+                        padding: '1px 5px', borderRadius: 'var(--radius-md)',
+                        background: `${STATUS_COLORS[step.status]}22`,
+                        color: STATUS_COLORS[step.status],
+                        textTransform: 'uppercase', letterSpacing: '0.05em',
+                      }}>{STATUS_LABELS[step.status]}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Main area */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+            {/* Stats banner — bold treatment */}
+            <div style={{
+              display: 'flex', alignItems: 'stretch', gap: 0,
+              borderBottom: '1px solid var(--border-default)',
+              background: 'var(--box-background)',
+            }}>
+              {[
+                { key: 'prevented', label: 'Prevented' },
+                { key: 'detected', label: 'Detected' },
+                { key: 'undetected', label: 'Undetected' },
+                { key: 'pending', label: 'Pending' },
+              ].map(({ key, label }) => (
+                <div key={key} style={{
+                  flex: 1, padding: '12px 16px',
+                  borderRight: '1px solid var(--border-default)',
+                  borderBottom: `2px solid ${STATUS_COLORS[key]}`,
+                }}>
+                  <Mono style={{ fontSize: '1.25rem', color: STATUS_COLORS[key], fontWeight: 500 }}>
+                    {STATS[key]}
+                  </Mono>
+                  <div style={{ fontSize: '0.6875rem', color: 'var(--text-tertiary)', marginTop: 2, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    {label}
+                  </div>
+                </div>
+              ))}
+              <div style={{ flex: 1.5, padding: '12px 16px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                <Eyebrow>APT29 Lateral Movement Campaign</Eyebrow>
+                <Mono style={{ fontSize: '0.6875rem', color: 'var(--text-tertiary)', marginTop: 4 }}>6 of 6 steps · 3 assets targeted</Mono>
+              </div>
+            </div>
+
+            {/* Toggle — pill style */}
+            <div style={{ padding: '12px 20px', display: 'flex', alignItems: 'center' }}>
+              <div style={{
+                display: 'inline-flex', background: 'var(--card-bg)',
+                border: '1px solid var(--border-default)', borderRadius: 'var(--radius)',
+              }}>
+                <button onClick={() => setView('assets')} style={{
+                  padding: '6px 16px', fontSize: '0.75rem', fontFamily: 'var(--font-title)',
+                  fontWeight: 500, letterSpacing: '0.03em', textTransform: 'uppercase',
+                  background: view === 'assets' ? 'var(--primary)' : 'transparent',
+                  color: view === 'assets' ? 'var(--primary-fg)' : 'var(--text-tertiary)',
+                  border: 'none', borderRadius: 'var(--radius)',
+                  cursor: 'pointer', transition: 'all 0.15s',
+                }}>Assets</button>
+                <button onClick={() => setView('killchain')} style={{
+                  padding: '6px 16px', fontSize: '0.75rem', fontFamily: 'var(--font-title)',
+                  fontWeight: 500, letterSpacing: '0.03em', textTransform: 'uppercase',
+                  background: view === 'killchain' ? 'var(--primary)' : 'transparent',
+                  color: view === 'killchain' ? 'var(--primary-fg)' : 'var(--text-tertiary)',
+                  border: 'none', borderRadius: 'var(--radius)',
+                  cursor: 'pointer', transition: 'all 0.15s',
+                }}>Kill Chain</button>
+              </div>
+              <div style={{ flex: 1 }} />
+              <Mono style={{ fontSize: '0.6875rem', color: 'var(--text-tertiary)' }}>
+                {view === 'assets' ? 'Network topology · lateral movement' : 'MITRE ATT&CK phases · detection gaps'}
+              </Mono>
+            </div>
+
+            {/* View content */}
+            <div style={{ flex: 1, padding: '0 20px 20px 20px', overflow: 'auto' }}>
+              {view === 'assets' ? <AssetsViewB selected={selected} setSelected={setSelected} /> : <KillChainViewB selected={selected} setSelected={setSelected} />}
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // -- Assets View (Direction B): Glowing topology --
+    const AssetsViewB = ({ selected, setSelected }) => {
+      const positions = {
+        'WKS-FINANCE-01': { x: 160, y: 300 },
+        'SRV-DC-01': { x: 500, y: 200 },
+        'SRV-DB-01': { x: 820, y: 340 },
+      };
+
+      const stepPositions = {
+        1: { x: 80, y: 180 },
+        2: { x: 220, y: 180 },
+        3: { x: 160, y: 430 },
+        4: { x: 420, y: 320 },
+        5: { x: 580, y: 300 },
+        6: { x: 770, y: 450 },
+      };
+
+      return (
+        <div style={{ position: 'relative', height: 560, background: 'var(--card-bg)', borderRadius: 'var(--radius)', border: '1px solid var(--border-default)', overflow: 'hidden' }}>
+          <svg width="100%" height="100%" style={{ position: 'absolute', top: 0, left: 0 }}>
+            <defs>
+              <filter id="glow-red">
+                <feGaussianBlur stdDeviation="3" result="blur" />
+                <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+              </filter>
+              <filter id="glow-green">
+                <feGaussianBlur stdDeviation="2.5" result="blur" />
+                <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+              </filter>
+              <filter id="glow-orange">
+                <feGaussianBlur stdDeviation="2.5" result="blur" />
+                <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+              </filter>
+            </defs>
+
+            {/* Dependency edges with colored glow */}
+            {DEPS.map(([from, to], i) => {
+              const f = stepPositions[from];
+              const t = stepPositions[to];
+              const toStep = STEPS.find(s => s.id === to);
+              const color = STATUS_COLORS[toStep.status];
+              const isLateral = (from === 2 && to === 4) || (from === 5 && to === 6);
+              return (
+                <g key={i}>
+                  <line x1={f.x} y1={f.y} x2={t.x} y2={t.y}
+                    stroke={color} strokeWidth={isLateral ? 2 : 1.5}
+                    strokeDasharray={isLateral ? "none" : "6 4"}
+                    opacity="0.7"
+                    filter={toStep.status === 'undetected' ? 'url(#glow-red)' : 'none'}
+                    style={{ animation: 'edge-flow 1s linear infinite' }}
+                  />
+                  {isLateral && (
+                    <line x1={f.x} y1={f.y} x2={t.x} y2={t.y}
+                      stroke={color} strokeWidth="4" opacity="0.15"
+                      style={{ animation: 'glow-pulse 2s ease-in-out infinite' }}
+                    />
+                  )}
+                </g>
+              );
+            })}
+          </svg>
+
+          {/* Asset nodes — larger, more prominent */}
+          {ASSETS.map(asset => {
+            const pos = positions[asset.id];
+            const assetSteps = STEPS.filter(s => s.asset === asset.id);
+            const worstStatus = assetSteps.find(s => s.status === 'undetected') ? 'undetected'
+              : assetSteps.find(s => s.status === 'detected') ? 'detected'
+              : assetSteps.find(s => s.status === 'prevented') ? 'prevented' : 'pending';
+            return (
+              <div key={asset.id} style={{
+                position: 'absolute',
+                left: pos.x - 76, top: pos.y - 44,
+                width: 152, padding: '12px 14px',
+                background: 'var(--box-background)',
+                border: `1px solid ${STATUS_COLORS[worstStatus]}44`,
+                borderRadius: 'var(--radius)',
+                boxShadow: worstStatus === 'undetected' ? `0 0 16px ${STATUS_COLORS.undetected}22` : 'none',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{
+                    width: 8, height: 8, borderRadius: '50%',
+                    background: STATUS_COLORS[worstStatus],
+                    boxShadow: `0 0 6px ${STATUS_COLORS[worstStatus]}`,
+                  }} />
+                  <Mono style={{ fontSize: '0.75rem', color: 'var(--text-primary)', fontWeight: 500 }}>
+                    {asset.id}
+                  </Mono>
+                </div>
+                <div style={{ marginTop: 6, display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '0.625rem', color: 'var(--text-tertiary)' }}>{asset.role}</span>
+                  <Mono style={{ fontSize: '0.5625rem', color: 'var(--text-tertiary)' }}>{asset.ip}</Mono>
+                </div>
+                <div style={{ marginTop: 8, display: 'flex', gap: 3, borderTop: '1px solid var(--border-default)', paddingTop: 6 }}>
+                  {assetSteps.map(s => (
+                    <div key={s.id} style={{
+                      width: 18, height: 4, borderRadius: 1,
+                      background: STATUS_COLORS[s.status],
+                      opacity: 0.8,
+                    }} />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Step nodes — with glow */}
+          {STEPS.map(step => {
+            const pos = stepPositions[step.id];
+            const isSelected = selected === step.id;
+            const isUndetected = step.status === 'undetected';
+            return (
+              <div key={step.id}
+                onClick={() => setSelected(step.id)}
+                style={{
+                  position: 'absolute',
+                  left: pos.x - 48, top: pos.y - 16,
+                  padding: '5px 10px',
+                  background: isSelected ? `${STATUS_COLORS[step.status]}18` : 'hsla(220, 56%, 6%, 0.85)',
+                  border: `1px solid ${STATUS_COLORS[step.status]}${isSelected ? 'cc' : '55'}`,
+                  borderRadius: 'var(--radius)',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s',
+                  boxShadow: isUndetected ? `0 0 10px ${STATUS_COLORS.undetected}33` : 'none',
+                  display: 'flex', alignItems: 'center', gap: 6,
+                }}>
+                <div style={{
+                  width: 7, height: 7, borderRadius: '50%',
+                  background: STATUS_COLORS[step.status],
+                  boxShadow: isUndetected ? `0 0 5px ${STATUS_COLORS.undetected}` : 'none',
+                }} />
+                <Mono style={{ fontSize: '0.625rem', color: 'var(--text-secondary)' }}>
+                  {step.technique}
+                </Mono>
+              </div>
+            );
+          })}
+        </div>
+      );
+    };
+
+    // -- Kill Chain View (Direction B): Dramatic columns with status bars --
+    const KillChainViewB = ({ selected, setSelected }) => (
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: `repeat(${PHASES.length}, 1fr)`,
+        gap: 6, height: 560,
+      }}>
+        {PHASES.map(phase => {
+          const phaseSteps = STEPS.filter(s => s.phase === phase);
+          const phaseStatus = phaseSteps.length > 0
+            ? (phaseSteps.find(s => s.status === 'undetected') ? 'undetected'
+              : phaseSteps.find(s => s.status === 'detected') ? 'detected'
+              : phaseSteps.find(s => s.status === 'prevented') ? 'prevented' : 'pending')
+            : null;
+
+          return (
+            <div key={phase} style={{
+              background: 'var(--card-bg)',
+              border: '1px solid var(--border-default)',
+              borderRadius: 'var(--radius)',
+              display: 'flex', flexDirection: 'column',
+              position: 'relative',
+              overflow: 'hidden',
+            }}>
+              {/* Top colored bar for phase status */}
+              {phaseStatus && (
+                <div style={{
+                  height: 3, background: STATUS_COLORS[phaseStatus],
+                  opacity: 0.8,
+                  boxShadow: phaseStatus === 'undetected' ? `0 2px 8px ${STATUS_COLORS.undetected}44` : 'none',
+                }} />
+              )}
+              {/* Phase header */}
+              <div style={{
+                padding: '10px 10px 8px',
+                borderBottom: '1px solid var(--border-default)',
+              }}>
+                <Eyebrow style={{ fontSize: '0.5625rem' }}>{phase}</Eyebrow>
+                {phaseSteps.length > 0 && (
+                  <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <Mono style={{ fontSize: '0.625rem', color: STATUS_COLORS[phaseStatus] }}>
+                      {phaseSteps.length} {phaseSteps.length === 1 ? 'step' : 'steps'}
+                    </Mono>
+                  </div>
+                )}
+              </div>
+              {/* Steps */}
+              <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
+                {phaseSteps.map(step => {
+                  const isSelected = selected === step.id;
+                  return (
+                    <div key={step.id}
+                      onClick={() => setSelected(step.id)}
+                      style={{
+                        padding: '10px 10px',
+                        background: isSelected ? `${STATUS_COLORS[step.status]}12` : 'var(--box-background)',
+                        border: `1px solid ${STATUS_COLORS[step.status]}${isSelected ? '88' : '33'}`,
+                        borderRadius: 'var(--radius)',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s',
+                        boxShadow: step.status === 'undetected' && isSelected ? `0 0 12px ${STATUS_COLORS.undetected}22` : 'none',
+                      }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
+                        <div style={{
+                          width: 8, height: 8, borderRadius: '50%',
+                          background: STATUS_COLORS[step.status],
+                          boxShadow: step.status === 'undetected' ? `0 0 5px ${STATUS_COLORS.undetected}` : 'none',
+                        }} />
+                        <Mono style={{ fontSize: '0.625rem', color: 'var(--text-secondary)' }}>{step.technique}</Mono>
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-primary)', lineHeight: 1.3 }}>
+                        {step.name}
+                      </div>
+                      <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Mono style={{ fontSize: '0.5625rem', color: 'var(--text-tertiary)' }}>{step.asset}</Mono>
+                        <span style={{
+                          fontSize: '0.5625rem', fontFamily: 'var(--font-mono)',
+                          padding: '1px 5px', borderRadius: 'var(--radius-md)',
+                          background: `${STATUS_COLORS[step.status]}22`,
+                          color: STATUS_COLORS[step.status],
+                          textTransform: 'uppercase', letterSpacing: '0.05em',
+                        }}>{STATUS_LABELS[step.status]}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+                {phaseSteps.length === 0 && (
+                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <span style={{ fontSize: '0.625rem', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>No coverage</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+
+
+    // ============================================================
+    // APP — Design Canvas with both directions
+    // ============================================================
+
+    function App() {
+      return (
+        <DesignCanvas>
+          <DCSection
+            title="Direction A — Clinical precision"
+            description="Minimal lines, restrained color, maximum data clarity. Suited for prolonged analyst sessions where calm density reduces fatigue."
+          >
+            <DCArtboard label="Assets + Kill Chain (toggle)" width={1440}>
+              <DirectionA />
+            </DCArtboard>
+          </DCSection>
+
+          <DCSection
+            title="Direction B — Signal drama"
+            description="Glowing edges convey severity at a glance. Status radiates visually — red paths demand immediate attention without reading labels."
+          >
+            <DCArtboard label="Assets + Kill Chain (toggle)" width={1440}>
+              <DirectionB />
+            </DCArtboard>
+          </DCSection>
+        </DesignCanvas>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
