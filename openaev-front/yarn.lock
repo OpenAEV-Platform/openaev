@@ -6184,12 +6184,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"final-form-arrays@npm:4.0.0":
-  version: 4.0.0
-  resolution: "final-form-arrays@npm:4.0.0"
+"final-form-arrays@npm:4.0.1":
+  version: 4.0.1
+  resolution: "final-form-arrays@npm:4.0.1"
   peerDependencies:
     final-form: ^5.0.0
-  checksum: 10c0/0f183c74fe16742f2e088d3c592700300d54c1a19fa59418545eed9316944dcc0dec5f376dfec1758033233954bd243c9c1039d9a22a474ed828c83fee52d701
+  checksum: 10c0/e2ff4f6feb8f5720f0d763dd10c04b639394da27f53474f9d71db2b2cbbaa7cf2ca92268d5385e1e0f8894430b4a0f3e8ffd1a3bd53d28551bdca59b8fc60a02
   languageName: node
   linkType: hard
 
@@ -9679,7 +9679,7 @@ __metadata:
     express: "npm:5.2.1"
     filigran-icon: "npm:0.21.0"
     final-form: "npm:4.20.10"
-    final-form-arrays: "npm:4.0.0"
+    final-form-arrays: "npm:4.0.1"
     fs-extra: "npm:11.3.4"
     globals: "npm:17.4.0"
     happy-dom: "npm:^20.8.9"
