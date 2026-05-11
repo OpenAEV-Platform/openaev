@@ -8,7 +8,7 @@ import { type TargetSimple } from '../utils/api-types';
 import { getLabelOfRemainingItems, getRemainingItemsCount, getVisibleItems, truncate } from '../utils/String';
 
 const useStyles = makeStyles()(() => ({
-  inline: { display: 'inline-block' },
+  inline: { display: 'flex' },
   target: {
     fontSize: 12,
     height: 20,

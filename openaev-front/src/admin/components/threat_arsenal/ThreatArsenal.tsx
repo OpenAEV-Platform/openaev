@@ -316,13 +316,13 @@ const ThreatArsenal = () => {
 
                       <ListItemIcon style={{ minWidth: 56 }}>
                         <InjectIcon
-                          variant="list"
                           type={
                             action.action_payload != null
                               ? action.action_payload.payload_collector_type ?? action.action_payload.payload_type
                               : action.action_injector_type
                           }
                           isPayload={action.action_payload != null}
+                          variant="list"
                         />
                       </ListItemIcon>
 
