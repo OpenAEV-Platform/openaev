@@ -26,7 +26,6 @@ import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import java.util.List;
 import java.util.Set;
-import java.util.UUID;
 import net.javacrumbs.jsonunit.core.Option;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -912,27 +911,8 @@ public class AtomicTestingApiTest extends IntegrationTest {
     @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
 
     private Inject createInjectInTenant(Tenant tenant) {
-      String injectId = UUID.randomUUID().toString();
-      String title = "Isolation Test Inject " + UUID.randomUUID().toString().substring(0, 8);
-      // Temporarily set RLS context to target tenant for the insert
-      entityManager
-          .createNativeQuery("SELECT set_config('app.current_tenant', :tenantId, true)")
-          .setParameter("tenantId", tenant.getId())
-          .getSingleResult();
-      entityManager
-          .createNativeQuery(
-              "INSERT INTO injects (inject_id, inject_title, tenant_id, inject_depends_duration, inject_enabled, inject_all_teams, inject_created_at, inject_updated_at) "
-                  + "VALUES (:id, :title, :tenantId, 0, true, false, now(), now())")
-          .setParameter("id", injectId)
-          .setParameter("title", title)
-          .setParameter("tenantId", tenant.getId())
-          .executeUpdate();
-      entityManager.flush();
-      entityManager.clear();
-      Inject inject = new Inject();
-      inject.setId(injectId);
-      inject.setTitle(title);
-      return inject;
+      tenantIsolationHelper.switchToTenant(tenant.getId(), entityManager);
+      return injectComposer.forInject(InjectFixture.getDefaultInject()).persist().get();
     }
 
     @Test
