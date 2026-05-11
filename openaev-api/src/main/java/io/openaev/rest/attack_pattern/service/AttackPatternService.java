@@ -35,6 +35,8 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
 
 @Slf4j
 @Service
@@ -228,15 +230,17 @@ public class AttackPatternService {
    *
    * @param files List of files to be analyzed, maximum 5 files.
    * @param text Text input to be analyzed.
+   * @param agentSlug Optional XTM One agent slug to use; when null/blank falls back to the
+   *     default TTP extractor agent (only relevant when XTM One is configured).
    * @return List of attack pattern IDs found in the analysis.
    */
   public List<String> searchAttackPatternWithTTPAIWebservice(
-      List<MultipartFile> files, String text) {
+      List<MultipartFile> files, String text, String agentSlug) {
     validateInputs(files, text);
     try {
       String responseBody;
       if (xtmOneConfig.isConfigured()) {
-        responseBody = callTTPExtractionViaXtmOne(files, text);
+        responseBody = callTTPExtractionViaXtmOne(files, text, agentSlug);
       } else {
         responseBody = callTTPExtractionAIWebservice(files, text);
       }
@@ -245,8 +249,17 @@ public class AttackPatternService {
       return getAttackPatternInternalIdsFromExternalIds(attackPatternExternalIds);
 
     } catch (IOException e) {
-      throw new RuntimeException(e);
+      throw new ResponseStatusException(
+          HttpStatus.SERVICE_UNAVAILABLE,
+          "AI service is unavailable: " + e.getMessage(),
+          e);
     }
+  }
+
+  /** Backwards-compatible overload — uses the default TTP extractor agent. */
+  public List<String> searchAttackPatternWithTTPAIWebservice(
+      List<MultipartFile> files, String text) {
+    return searchAttackPatternWithTTPAIWebservice(files, text, null);
   }
 
   /**
@@ -254,7 +267,7 @@ public class AttackPatternService {
    * format expected by the copilot agent, sends the request through {@link XtmOneClient}, and
    * returns the agent's content (same JSON format as the legacy webservice).
    */
-  private String callTTPExtractionViaXtmOne(List<MultipartFile> files, String text)
+  private String callTTPExtractionViaXtmOne(List<MultipartFile> files, String text, String agentSlug)
       throws IOException {
     // Convert files to base64 JSON nodes
     com.fasterxml.jackson.databind.node.ArrayNode filesNode = null;
@@ -272,9 +285,13 @@ public class AttackPatternService {
     }
 
     String content = (text != null && !text.isBlank()) ? text : "Extract TTPs from attached files";
-    String result = xtmOneClient.callAgentSync("filigran-ttp-extractor", content, filesNode);
+    String slug =
+        (agentSlug != null && !agentSlug.isBlank()) ? agentSlug : "filigran-ttp-extractor";
+    String result = xtmOneClient.callAgentSync(slug, content, filesNode);
     if (result == null) {
-      throw new RuntimeException("XTM One TTP extraction returned no result");
+      throw new ResponseStatusException(
+          HttpStatus.SERVICE_UNAVAILABLE,
+          "XTM One AI service is unavailable or returned no result");
     }
     // The copilot returns {"files": [{..., "extraction": {filename: [...]}}]}.
     // Unwrap to the native Filigran AI format: {filename: [...], ...}

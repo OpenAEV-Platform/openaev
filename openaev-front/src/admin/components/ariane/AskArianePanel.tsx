@@ -1,5 +1,3 @@
-import '@filigran/chatbot/styles.css';
-
 import { type ChatMode, ChatPanel } from '@filigran/chatbot';
 import { SvgIcon } from '@mui/material';
 import type { Theme } from '@mui/material/styles';

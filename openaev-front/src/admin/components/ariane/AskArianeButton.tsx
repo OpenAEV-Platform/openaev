@@ -17,10 +17,11 @@ const AskArianeButton: FunctionComponent = () => {
   const theme = useTheme();
   const { settings } = useAuth();
   const { isValidated: isEnterpriseEdition, openDialog: openEnterpriseEditionDialog, setEEFeatureDetectedInfo } = useEnterpriseEdition();
-  const { enabled, configured } = useAI();
+  const { enabled, configured, xtmOneConfigured } = useAI();
   const { isOpen, mode, toggleChat, closeChat, setMode, setSidebarWidth, setIsResizing } = useChatbot();
 
-  const isAvailable = isEnterpriseEdition && enabled && configured;
+  // When XTM One is configured, AI is provided through it and legacy AI tokens are not required.
+  const isAvailable = isEnterpriseEdition && (xtmOneConfigured || (enabled && configured));
 
   if (!settings.platform_xtm_one_configured) {
     return null;

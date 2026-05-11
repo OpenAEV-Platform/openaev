@@ -4,9 +4,10 @@ import { Controller, useFormContext } from 'react-hook-form';
 
 import { postDetectionRemediationAIRulesByPayload } from '../../../../actions/detection-remediation/detectionremediation-action';
 import CKEditor from '../../../../components/CKEditor';
-import { callAgent, fetchAgentsForIntent } from '../../../../utils/ai/agentApi';
+import { callAgent } from '../../../../utils/ai/agentApi';
 import formatAgentRules from '../../../../utils/ai/formatAgentRules';
 import { type Collector, type PayloadInput } from '../../../../utils/api-types';
+import { MESSAGING$ } from '../../../../utils/Environment';
 import useAI from '../../../../utils/hooks/useAI';
 import { isNotEmptyField } from '../../../../utils/utils';
 import {
@@ -71,7 +72,7 @@ const RemediationFormTab = ({ activeTab }: RemediationFormTabProps) => {
     }
   };
 
-  const onClickUseArianeViaXtmOne = async () => {
+  const onClickUseArianeViaXtmOne = async (agentSlug?: string) => {
     const payloadInput: Partial<PayloadInput> = payloadFormToPayloadInputForAI(getValues());
 
     setSnapshot((prev) => {
@@ -86,19 +87,18 @@ const RemediationFormTab = ({ activeTab }: RemediationFormTabProps) => {
       return prevEdited;
     });
 
-    try {
-      const agents = await fetchAgentsForIntent('detection.generate');
-      const agent = agents[0];
-      if (!agent) {
-        setLoadingSnapshot(activeTab.collector_type, false);
-        return;
-      }
+    if (!agentSlug) {
+      MESSAGING$.notifyError('AI service is unavailable. No agent selected for detection generation.');
+      setLoadingSnapshot(activeTab.collector_type, false);
+      return;
+    }
 
+    try {
       // Build prompt with payload context for the remediation agent chain
       const prompt = `Generate ${activeTab.collector_type} detection rules for the following payload:\n\n`
         + `${JSON.stringify(payloadInput, null, 2)}`;
 
-      const result = await callAgent(agent.slug, prompt);
+      const result = await callAgent(agentSlug, prompt);
       if (result.status === 'success' && result.content) {
         const formatted = formatAgentRules(result.content, activeTab.collector_type);
         applyRulesToEditor(formatted);
@@ -106,6 +106,7 @@ const RemediationFormTab = ({ activeTab }: RemediationFormTabProps) => {
         setLoadingSnapshot(activeTab.collector_type, false);
       }
     } catch {
+      MESSAGING$.notifyError('AI service is unavailable.');
       setLoadingSnapshot(activeTab.collector_type, false);
     }
   };
@@ -134,7 +135,9 @@ const RemediationFormTab = ({ activeTab }: RemediationFormTabProps) => {
     });
   };
 
-  const onClickUseAriane = xtmOneConfigured ? onClickUseArianeViaXtmOne : onClickUseArianeLegacy;
+  const onClickUseAriane = xtmOneConfigured
+    ? (agentSlug?: string) => onClickUseArianeViaXtmOne(agentSlug)
+    : () => onClickUseArianeLegacy();
 
   function initSnap() {
     const formValues: DetectionRemediationForm = getValues(fieldName);

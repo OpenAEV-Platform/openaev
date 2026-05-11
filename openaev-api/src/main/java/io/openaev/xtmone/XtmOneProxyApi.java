@@ -53,6 +53,9 @@ public class XtmOneProxyApi extends RestBehavior {
   @SuppressWarnings("unchecked")
   public ResponseEntity<List<Map<String, Object>>> getChatbotAgents(
       @RequestParam(value = "intent", defaultValue = "global.assistant") String intent) {
+    if (!config.isConfigured()) {
+      return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(List.of());
+    }
     List<Map<String, Object>> catalog = xtmOneService.getIntentCatalog();
     List<Map<String, Object>> agents =
         catalog.stream()
