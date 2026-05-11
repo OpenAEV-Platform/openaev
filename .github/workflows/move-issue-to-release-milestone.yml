@@ -30,7 +30,7 @@ jobs:
         uses: ./.github/actions/get-or-create-next-minor-milestone
 
       - name: Assign issue to release milestone
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
