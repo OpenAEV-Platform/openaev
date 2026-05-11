@@ -1,10 +1,13 @@
 package io.openaev.service.chaining;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.*;
 
-import io.openaev.database.model.Workflow;
-import io.openaev.database.model.WorkflowStatus;
+import io.openaev.database.model.*;
+import io.openaev.rest.exercise.service.ExerciseService;
+import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.inject.service.InjectStatusService;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -23,6 +26,9 @@ class WorkflowTimeoutServiceTest {
   @Mock private WorkflowService workflowService;
   @Mock private StepService stepService;
   @Mock private StepDelayQueueService stepDelayQueueService;
+  @Mock private ExerciseService simulationService;
+  @Mock private InjectService injectService;
+  @Mock private InjectStatusService injectStatusService;
 
   @InjectMocks private WorkflowTimeoutService workflowTimeoutService;
 
@@ -31,25 +37,111 @@ class WorkflowTimeoutServiceTest {
   class ForceCompleteWorkflowTests {
 
     @Test
-    @DisplayName("should_endSteps_deleteDelayQueue_andEndWorkflow_inOrder")
-    void should_endSteps_deleteDelayQueue_andEndWorkflow_inOrder() {
+    @DisplayName(
+        "should_endSteps_deleteDelayQueue_endWorkflow_completeActiveInjects_finishSimulation_inOrder")
+    void
+        should_endSteps_deleteDelayQueue_endWorkflow_completeActiveInjects_finishSimulation_inOrder() {
       // Arrange
-      Workflow workflowRun = buildRunWorkflow();
+      Exercise simulation = new Exercise();
+      simulation.setId(UUID.randomUUID().toString());
+      simulation.setStatus(ExerciseStatus.RUNNING);
+      Workflow workflowRun = buildRunWorkflowWithSimulation(simulation);
       when(stepService.endActiveStepsByWorkflowId(workflowRun.getId())).thenReturn(3);
+
+      Inject activeInject = buildInjectWithStatus(ExecutionStatus.PENDING);
+      Inject finishedInject = buildInjectWithStatus(ExecutionStatus.SUCCESS);
+      when(injectService.findBySimulationId(simulation.getId()))
+          .thenReturn(List.of(activeInject, finishedInject));
 
       // Act
       workflowTimeoutService.forceCompleteWorkflow(workflowRun);
 
-      // Assert — verify ordering: steps first, delay queue second, workflow last
-      InOrder inOrder = inOrder(stepService, stepDelayQueueService, workflowService);
+      // Assert — verify ordering
+      InOrder inOrder =
+          inOrder(
+              stepService,
+              stepDelayQueueService,
+              workflowService,
+              injectService,
+              injectStatusService,
+              simulationService);
       inOrder.verify(stepService).endActiveStepsByWorkflowId(workflowRun.getId());
       inOrder.verify(stepDelayQueueService).deleteAllByWorkflowRun(workflowRun);
       inOrder.verify(workflowService).endWorkflow(workflowRun);
+      inOrder.verify(injectService).findBySimulationId(simulation.getId());
+      inOrder.verify(injectStatusService).save(activeInject.getStatus().get());
+      inOrder.verify(simulationService).saveSimulation(simulation);
+
+      // Assert — active inject status was set to SUCCESS with info trace
+      assertEquals(ExecutionStatus.SUCCESS, activeInject.getStatus().get().getName());
+      assertNotNull(activeInject.getStatus().get().getTrackingEndDate());
+      assertEquals(1, activeInject.getStatus().get().getTraces().size());
+      ExecutionTrace trace = activeInject.getStatus().get().getTraces().get(0);
+      assertEquals(ExecutionTraceStatus.INFO, trace.getStatus());
+      assertEquals(ExecutionTraceAction.COMPLETE, trace.getAction());
+      assertEquals("Inject stopped due to simulation timeout.", trace.getMessage());
+
+      // Assert — already finished inject was NOT touched
+      verify(injectStatusService, never()).save(finishedInject.getStatus().get());
+
+      // Assert simulation status is FINISHED
+      assertEquals(ExerciseStatus.FINISHED, simulation.getStatus());
     }
 
     @Test
-    @DisplayName("given_noActiveSteps_should_stillEndWorkflowAndPurgeDelayQueue")
-    void given_noActiveSteps_should_stillEndWorkflowAndPurgeDelayQueue() {
+    @DisplayName("should_completeAllActiveInjectStatuses_queuingExecutingPending")
+    void should_completeAllActiveInjectStatuses_queuingExecutingPending() {
+      // Arrange
+      Exercise simulation = new Exercise();
+      simulation.setId(UUID.randomUUID().toString());
+      simulation.setStatus(ExerciseStatus.RUNNING);
+      Workflow workflowRun = buildRunWorkflowWithSimulation(simulation);
+      when(stepService.endActiveStepsByWorkflowId(workflowRun.getId())).thenReturn(0);
+
+      Inject queuingInject = buildInjectWithStatus(ExecutionStatus.QUEUING);
+      Inject executingInject = buildInjectWithStatus(ExecutionStatus.EXECUTING);
+      Inject pendingInject = buildInjectWithStatus(ExecutionStatus.PENDING);
+      when(injectService.findBySimulationId(simulation.getId()))
+          .thenReturn(List.of(queuingInject, executingInject, pendingInject));
+
+      // Act
+      workflowTimeoutService.forceCompleteWorkflow(workflowRun);
+
+      // Assert — all three active injects completed with SUCCESS
+      assertEquals(ExecutionStatus.SUCCESS, queuingInject.getStatus().get().getName());
+      assertEquals(ExecutionStatus.SUCCESS, executingInject.getStatus().get().getName());
+      assertEquals(ExecutionStatus.SUCCESS, pendingInject.getStatus().get().getName());
+      verify(injectStatusService).save(queuingInject.getStatus().get());
+      verify(injectStatusService).save(executingInject.getStatus().get());
+      verify(injectStatusService).save(pendingInject.getStatus().get());
+    }
+
+    @Test
+    @DisplayName("given_noActiveInjects_should_stillFinishSimulation")
+    void given_noActiveInjects_should_stillFinishSimulation() {
+      // Arrange
+      Exercise simulation = new Exercise();
+      simulation.setId(UUID.randomUUID().toString());
+      simulation.setStatus(ExerciseStatus.RUNNING);
+      Workflow workflowRun = buildRunWorkflowWithSimulation(simulation);
+      when(stepService.endActiveStepsByWorkflowId(workflowRun.getId())).thenReturn(0);
+
+      Inject finishedInject = buildInjectWithStatus(ExecutionStatus.SUCCESS);
+      when(injectService.findBySimulationId(simulation.getId()))
+          .thenReturn(List.of(finishedInject));
+
+      // Act
+      workflowTimeoutService.forceCompleteWorkflow(workflowRun);
+
+      // Assert — simulation still finished, no inject status changed
+      verify(simulationService).saveSimulation(simulation);
+      verifyNoInteractions(injectStatusService);
+      assertEquals(ExerciseStatus.FINISHED, simulation.getStatus());
+    }
+
+    @Test
+    @DisplayName("given_noSimulation_should_stillEndWorkflowWithoutError")
+    void given_noSimulation_should_stillEndWorkflowWithoutError() {
       // Arrange
       Workflow workflowRun = buildRunWorkflow();
       when(stepService.endActiveStepsByWorkflowId(workflowRun.getId())).thenReturn(0);
@@ -57,10 +149,13 @@ class WorkflowTimeoutServiceTest {
       // Act
       workflowTimeoutService.forceCompleteWorkflow(workflowRun);
 
-      // Assert — all operations still called even with 0 active steps
+      // Assert — workflow ended, no simulation interaction
       verify(stepService).endActiveStepsByWorkflowId(workflowRun.getId());
       verify(stepDelayQueueService).deleteAllByWorkflowRun(workflowRun);
       verify(workflowService).endWorkflow(workflowRun);
+      verifyNoInteractions(simulationService);
+      verifyNoInteractions(injectService);
+      verifyNoInteractions(injectStatusService);
     }
   }
 
@@ -89,5 +184,20 @@ class WorkflowTimeoutServiceTest {
     workflow.setId(UUID.randomUUID().toString());
     workflow.setStatus(WorkflowStatus.RUN);
     return workflow;
+  }
+
+  private static Workflow buildRunWorkflowWithSimulation(Exercise simulation) {
+    Workflow workflow = buildRunWorkflow();
+    workflow.setSimulation(simulation);
+    return workflow;
+  }
+
+  private static Inject buildInjectWithStatus(ExecutionStatus status) {
+    Inject inject = new Inject();
+    inject.setId(UUID.randomUUID().toString());
+    InjectStatus injectStatus = new InjectStatus();
+    injectStatus.setName(status);
+    inject.setStatus(injectStatus);
+    return inject;
   }
 }
