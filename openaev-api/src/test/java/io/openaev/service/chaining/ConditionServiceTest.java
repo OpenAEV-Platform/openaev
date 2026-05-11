@@ -36,7 +36,6 @@ public class ConditionServiceTest {
   @Mock private WorkflowStateService workflowStateService;
   @Spy private ConditionUtils conditionUtils;
 
-
   /* ============================================================
    * isMapperCondition
    * ============================================================ */
@@ -85,9 +84,7 @@ public class ConditionServiceTest {
 
       assertEquals(type, condition.getType());
 
-      boolean expected =
-          !(type == ConditionType.MAPPER
-              || type == ConditionType.DEPEND_ON);
+      boolean expected = !(type == ConditionType.MAPPER || type == ConditionType.DEPEND_ON);
       // -------- Act --------
       boolean result = conditionUtils.isFilterCondition(condition);
 
@@ -95,7 +92,6 @@ public class ConditionServiceTest {
       assertEquals(expected, result);
     }
   }
-
 
   /* ============================================================
    * saveCondition / saveAllConditions / findAllConditionsByStepId

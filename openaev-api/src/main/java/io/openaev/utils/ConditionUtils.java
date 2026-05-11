@@ -11,7 +11,6 @@ import org.springframework.stereotype.Component;
 @Component
 public class ConditionUtils {
 
-
   /**
    * Checks whether the condition is a mapper condition.
    *
