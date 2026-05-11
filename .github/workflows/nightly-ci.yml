@@ -69,7 +69,7 @@ jobs:
           1" --health-interval 15s --health-timeout 10s --health-retries 20
           --health-start-period 30s
       rabbitmq:
-        image: rabbitmq:4.1-management
+        image: rabbitmq:4.3-management
         ports:
           - 5672:5672
         env:
@@ -155,7 +155,7 @@ jobs:
           1" --health-interval 15s --health-timeout 10s --health-retries 20
           --health-start-period 30s
       rabbitmq:
-        image: rabbitmq:4.1-management
+        image: rabbitmq:4.3-management
         ports:
           - 5672:5672
         env:
@@ -258,7 +258,7 @@ jobs:
           --health-cmd "pg_isready -U openaev" --health-interval 10s
           --health-timeout 5s --health-retries 5
       rabbitmq:
-        image: rabbitmq:4.1-management
+        image: rabbitmq:4.3-management
         ports:
           - 5672:5672
         env:
@@ -492,7 +492,7 @@ jobs:
           --health-cmd "pg_isready -U openaev" --health-interval 10s
           --health-timeout 5s --health-retries 5
       rabbitmq:
-        image: rabbitmq:4.1-management
+        image: rabbitmq:4.3-management
         ports:
           - 5672:5672
         env:
