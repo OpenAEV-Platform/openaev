@@ -459,10 +459,15 @@ class ChainingIntegrationTest extends IntegrationTest {
               .getContentAsString();
       String simulationId = mapper.readTree(simulation).get("exercise_id").asText();
 
-      List<Workflow> workflowsRun = workflowService.findWorkflowRunBySimulationId(simulationId);
+      // After launch the workflow may have already transitioned from RUN to END,
+      // so we look for any execution workflow (non-TEMPLATE) linked to this simulation.
+      List<Workflow> executionWorkflows =
+          workflowRepository.findAllBySimulation_Id(simulationId).stream()
+              .filter(w -> !WorkflowStatus.TEMPLATE.equals(w.getStatus()))
+              .toList();
 
-      assertTrue((workflowsRun.size() == 1), "The Workflow RUN must be unique");
-      Workflow workflowRun = workflowsRun.get(0);
+      assertEquals(1, executionWorkflows.size(), "Exactly one execution workflow must exist");
+      Workflow workflowRun = executionWorkflows.getFirst();
       // Retrieve the inject created from the step
       Step createdStep =
           stepService.findAllStepExecutedByWorkflowRunId(workflowRun.getId()).stream()
