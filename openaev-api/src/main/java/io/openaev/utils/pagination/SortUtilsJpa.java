@@ -43,13 +43,7 @@ public class SortUtilsJpa {
                             .filter(p -> p.getJsonName().equals(property))
                             .findFirst()
                             .map(PropertySchema::getName)
-                            .orElseThrow(
-                                () ->
-                                    new IllegalArgumentException(
-                                        "Property not sortable: "
-                                            + property
-                                            + " for class "
-                                            + clazz));
+                            .orElseThrow(() -> new InvalidSortPropertyException(property));
                     Sort.NullHandling nullHandling =
                         field.nullHandling() != null
                             ? field.nullHandling()
