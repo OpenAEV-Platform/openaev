@@ -13,18 +13,14 @@ import { useFormatter } from '../../../components/i18n';
 import useAuth from '../../../utils/hooks/useAuth';
 
 interface AskArianePanelProps {
-  mode: ChatMode;
   onClose: () => void;
-  onModeChange: (mode: ChatMode) => void;
   onWidthChange?: (width: number) => void;
   onResizeStart?: () => void;
   onResizeEnd?: () => void;
 }
 
 const AskArianePanel: React.FC<AskArianePanelProps> = ({
-  mode,
   onClose,
-  onModeChange,
   onWidthChange,
   onResizeStart,
   onResizeEnd,
@@ -32,6 +28,7 @@ const AskArianePanel: React.FC<AskArianePanelProps> = ({
   const theme = useTheme<Theme>();
   const { t } = useFormatter();
   const { me, settings } = useAuth();
+  const [mode, setMode] = useState<ChatMode>('sidebar');
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
 
   const topOffset = 64;
@@ -83,7 +80,7 @@ const AskArianePanel: React.FC<AskArianePanelProps> = ({
     <ChatPanel
       mode={mode}
       onClose={onClose}
-      onModeChange={onModeChange}
+      onModeChange={setMode}
       topOffset={topOffset}
       backendType="rest"
       apiBaseUrl="/api/xtmone/chat"
