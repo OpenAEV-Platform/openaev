@@ -134,7 +134,7 @@ void given_{entity}InTenantX_should_notBeReadableFromTenantY() throws Exception 
   entityManager.flush();
   entityManager.clear();
 
-  // -------- Act — read from tenant Y (expect 403 or 404) --------
+  // -------- Act — read from tenant Y (expect 404) --------
   int responseStatus =
       mvc.perform(
               get("/api/tenants/" + tenantY.getId() + "/{entities}/" + entityId)
@@ -145,12 +145,19 @@ void given_{entity}InTenantX_should_notBeReadableFromTenantY() throws Exception 
           .getStatus();
 
   // -------- Assert --------
-  assertTrue(
-      responseStatus == 403 || responseStatus == 404,
-      "Expected 403 or 404 but got " + responseStatus
-          + " — cross-tenant read was NOT blocked");
+  assertEquals(404, responseStatus,
+      "Expected 404 but got " + responseStatus);
 }
 ```
+
+> **Expected status code**: 
+> 1/ Cross-tenant access typically returns **404 Not Found** — the
+> `@AccessControl` aspect passes the capability check, then the service layer throws
+> `ElementNotFoundException` when the entity isn't found in the target tenant. 
+> 2/ In some cases
+> (when `@AccessControl` does a resource-level permission check via `resourceId`), it may
+> return **403 Forbidden** instead. Always run the test once to determine the actual
+> deterministic status code, then use `assertEquals(actual, responseStatus)`.
 
 > **Fixture convention**: Each entity should have a Fixture class (e.g., `AssetGroupFixture`,
 > `ExerciseFixture`) with a factory method that creates a default input DTO. Use
@@ -299,10 +306,8 @@ void given_{entity}InTenantX_should_notBeUpdatableFromTenantY() throws Exception
           .getStatus();
 
   // -------- Assert --------
-  assertTrue(
-      responseStatus == 403 || responseStatus == 404,
-      "Expected 403 or 404 but got " + responseStatus
-          + " — cross-tenant update was NOT blocked");
+  assertEquals(404, responseStatus,
+      "Expected 404 but got " + responseStatus);
 }
 ```
 
@@ -364,11 +369,6 @@ void given_payloadInTenantX_should_notBeReadableFromTenantY() throws Exception {
 - `RlsToggleExtension.beforeEach()` → `RESET ROLE` (superuser bypasses RLS)
 - `RlsToggleExtension.afterEach()` → `SET ROLE openaev_app` (restore RLS)
 - Works inside `@Transactional` tests because it uses native SQL on the current connection
-
-> **When to `@Disabled` vs `@WithoutRls`**: Use `@Disabled` with a FIXME when a test reveals
-> a real vulnerability (e.g., `deleteById()` without tenant check returns 200). Use
-> `@WithoutRls` as a diagnostic tool to check whether app-level filtering exists — don't
-> leave it uncommented in committed tests (RLS should remain active by default).
 
 
 

@@ -717,7 +717,8 @@ public class ExerciseApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Exercise created in tenant X should NOT be readable from tenant Y")
-    // @WithoutRls // uncomment to fail the test: native query caught by RLS
+    //@WithoutRls
+      // uncomment to fail the test: native query caught by RLS
     void given_exerciseInTenantX_should_notBeReadableFromTenantY() throws Exception {
       // -------- Arrange --------
       Tenant tenantX =
@@ -744,7 +745,7 @@ public class ExerciseApiTest extends IntegrationTest {
 
       String exerciseId = JsonPath.read(createResponse, "$.exercise_id");
 
-      // -------- Act — read from tenant Y (expect 403 or 404) --------
+      // -------- Act — read from tenant Y (expect 404) --------
       int responseStatus =
           mvc.perform(
                   get("/api/tenants/" + tenantY.getId() + "/exercises/" + exerciseId)
@@ -755,11 +756,8 @@ public class ExerciseApiTest extends IntegrationTest {
               .getStatus();
 
       // -------- Assert --------
-      assertTrue(
-          responseStatus == 403 || responseStatus == 404,
-          "Expected 403 or 404 but got "
-              + responseStatus
-              + " — cross-tenant exercise read was NOT blocked");
+      assertEquals(404, responseStatus,
+          "Expected 404 but got " + responseStatus);
     }
 
     @Test
@@ -893,11 +891,8 @@ public class ExerciseApiTest extends IntegrationTest {
               .getStatus();
 
       // -------- Assert --------
-      assertTrue(
-          responseStatus == 403 || responseStatus == 404,
-          "Expected 403 or 404 but got "
-              + responseStatus
-              + " — cross-tenant exercise update was NOT blocked");
+      assertEquals(404, responseStatus,
+          "Expected 404 but got " + responseStatus);
     }
 
     @Test
@@ -943,11 +938,8 @@ public class ExerciseApiTest extends IntegrationTest {
               .getStatus();
 
       // -------- Assert --------
-      assertTrue(
-          responseStatus == 403 || responseStatus == 404,
-          "Expected 403 or 404 but got "
-              + responseStatus
-              + " — cross-tenant exercise delete was NOT blocked");
+      assertEquals(404, responseStatus,
+          "Expected 404 but got " + responseStatus);
     }
   }
 }

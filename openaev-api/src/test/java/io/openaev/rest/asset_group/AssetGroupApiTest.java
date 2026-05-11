@@ -649,7 +649,7 @@ class AssetGroupApiTest extends IntegrationTest {
       entityManager.flush();
       entityManager.clear();
 
-      // -------- Act — read from tenant Y (expect 403 or 404) --------
+      // -------- Act — read from tenant Y (expect 403) --------
       int responseStatus =
           mvc.perform(
                   get("/api/tenants/" + tenantY.getId() + "/asset_groups/" + assetGroupId)
@@ -660,11 +660,8 @@ class AssetGroupApiTest extends IntegrationTest {
               .getStatus();
 
       // -------- Assert --------
-      assertTrue(
-          responseStatus == 403 || responseStatus == 404,
-          "Expected 403 or 404 but got "
-              + responseStatus
-              + " — cross-tenant asset group read was NOT blocked");
+      assertEquals(404, responseStatus,
+          "Expected 404 but got " + responseStatus);
     }
 
     @Test
@@ -792,11 +789,8 @@ class AssetGroupApiTest extends IntegrationTest {
               .getStatus();
 
       // -------- Assert --------
-      assertTrue(
-          responseStatus == 403 || responseStatus == 404,
-          "Expected 403 or 404 but got "
-              + responseStatus
-              + " — cross-tenant asset group update was NOT blocked");
+      assertEquals(404, responseStatus,
+          "Expected 404 but got " + responseStatus);
     }
 
     @Test
@@ -840,11 +834,8 @@ class AssetGroupApiTest extends IntegrationTest {
               .getStatus();
 
       // -------- Assert --------
-      assertTrue(
-          responseStatus == 403 || responseStatus == 404,
-          "Expected 403 or 404 but got "
-              + responseStatus
-              + " — cross-tenant asset group delete was NOT blocked");
+      assertEquals(404, responseStatus,
+          "Expected 404 but got " + responseStatus);
     }
   }
 }
