@@ -1,11 +1,13 @@
 package io.openaev.api.threat_arsenal;
 
+import static io.openaev.service.UserService.buildAuthenticationToken;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.StringUtils.DUPLICATE_SUFFIX;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -26,8 +28,10 @@ import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationF
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.fixtures.files.AttackPatternFixture;
+import io.openaev.utils.helpers.UserTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Stream;
@@ -37,6 +41,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.Authentication;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -63,6 +68,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
   @Autowired private InjectorFixture injectorFixture;
   @Autowired private DetectionRemediationComposer detectionRemediationComposer;
   @Autowired private CollectorTypeComposer collectorTypeComposer;
+  @Autowired private UserTestHelper userTestHelper;
 
   @MockitoBean private EnterpriseEditionService enterpriseEditionService;
 
@@ -553,6 +559,106 @@ public class ThreatArsenalApiTest extends IntegrationTest {
   }
 
   @Nested
+  @DisplayName("Search Threat Arsenal Actions with different user access right")
+  class SearchThreatArsenalActionsWithDifferentUsersAccessRight {
+    private int preExistingContractsCount;
+    private List<InjectorContract> injectorContractsCreated = new ArrayList<>();
+
+    private InjectorContract createStaticInjectorContract() {
+      InjectorContractComposer.Composer icComposer =
+          injectorContractComposer
+              .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+              .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()).persist())
+              .withInjector(injectorFixture.getWellKnownOaevImplantInjector());
+      return icComposer.persist().get();
+    }
+
+    @BeforeEach
+    void setUp() {
+      injectorContractsCreated.clear();
+      preExistingContractsCount = (int) injectorContractRepository.count();
+      injectorContractsCreated.add(createStaticInjectorContract());
+      injectorContractsCreated.add(createStaticInjectorContract());
+      injectorContractsCreated.add(createStaticInjectorContract());
+    }
+
+    private static Stream<Arguments> userTestCases() {
+      return Stream.of(
+          Arguments.of(
+              "User with no groups",
+              UserTestHelper.UserType.NO_GROUPS,
+              0, // number of granted threat Arsenal action
+              false // shouldSeeAllContracts
+              ),
+          Arguments.of(
+              "Admin user",
+              UserTestHelper.UserType.ADMIN,
+              0, // number of granted threat Arsenal action
+              true // Admin sees all
+              ),
+          Arguments.of(
+              "User with BYPASS capability",
+              UserTestHelper.UserType.WITH_BYPASS,
+              0, // number of granted threat Arsenal action
+              true // BYPASS users should see all
+              ),
+          Arguments.of(
+              "User with ACCESS_THREAT_ARSENALS capability",
+              UserTestHelper.UserType.WITH_ACCESS_THREAT_ARSENALS,
+              0, // number of granted threat Arsenal action
+              true // ACCESS_THREAT_ARSENALS users should see all actions
+              ),
+          Arguments.of(
+              "User with OBSERVER grant on threat arsenal",
+              UserTestHelper.UserType.NO_GROUPS,
+              2, // number of granted threat Arsenal action
+              false // users should see granted actions only
+              ));
+    }
+
+    @ParameterizedTest(name = "{index} - {0}")
+    @MethodSource("userTestCases")
+    @DisplayName("GET /threat-arsenals - Test access control for different user types")
+    void given_user_should_searchThreatArsenal(
+        String testCase,
+        UserTestHelper.UserType userType,
+        int grantedActionNumber,
+        boolean shouldSeeAllContracts)
+        throws Exception {
+
+      List<String> grantedResourceIds = new ArrayList<>();
+      for (int i = 0; i < grantedActionNumber; i++) {
+        grantedResourceIds.add(injectorContractsCreated.get(i).getId());
+      }
+      // Create test user based on type
+      User testUser = userTestHelper.createTestUser(userType, grantedResourceIds).persist().get();
+      Authentication auth = buildAuthenticationToken(testUser);
+
+      String response =
+          mvc.perform(
+                  post(THREAT_ARSENAL_URI + "/search")
+                      .with(authentication(auth))
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(PaginationFixture.getDefault().build())))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Verify the response based on user permissions
+      int totalElements = JsonPath.read(response, "$.totalElements");
+      if (shouldSeeAllContracts) {
+        // Admin, BYPASS, ACCESS_THREAT_ARSENALS users see everything
+        assertEquals(preExistingContractsCount + 3, totalElements);
+      } else {
+        // User with no groups only sees contracts granted
+        assertEquals(grantedActionNumber, totalElements);
+      }
+    }
+  }
+
+  @Nested
   @WithMockUser(isAdmin = true)
   @DisplayName("Update Threat Arsenal Action")
   class UpdateThreatArsenalAction {
@@ -978,6 +1084,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
   class GetCollectorForActionRemediation {
 
     @Test
+    @DisplayName("Getting collectors for a non-payload-based action should fail")
     void given_nonPayloadContract_should_returnFailed() throws Exception {
       // Arrange
       Injector emailInjector = injectorFixture.getWellKnownEmailInjector(false);
@@ -1003,6 +1110,8 @@ public class ThreatArsenalApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName(
+        "Getting collectors for a payload-based action should return the associated collectors")
     void given_nonPayloadContract_should_returnCollectorsForActionRemediation() throws Exception {
       // Arrange — create and delete
       Injector oaevImplantInjector = injectorFixture.getWellKnownOaevImplantInjector();

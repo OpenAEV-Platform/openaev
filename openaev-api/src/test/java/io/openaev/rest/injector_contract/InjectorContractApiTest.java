@@ -34,9 +34,9 @@ import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationI
 import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;
 import io.openaev.utils.fixtures.*;
-import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.fixtures.files.AttackPatternFixture;
+import io.openaev.utils.helpers.UserTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
@@ -80,6 +80,8 @@ public class InjectorContractApiTest extends IntegrationTest {
   @Autowired private TenantGroupComposer tenantGroupComposer;
   @Autowired private TenantRoleComposer tenantRoleComposer;
   @Autowired private GrantComposer grantComposer;
+
+  @Autowired private UserTestHelper userTestHelper;
 
   @BeforeEach
   public void setup() {
@@ -1245,74 +1247,9 @@ public class InjectorContractApiTest extends IntegrationTest {
       WITH_ACCESS_THREAT_ARSENALS,
     }
 
-    private UserComposer.Composer createTestUser(UserType userType, List<String> resourceIds) {
-      UserComposer.Composer user =
-          switch (userType) {
-            case NO_GROUPS ->
-                userComposer.forUser(
-                    UserFixture.getUser(
-                        "NoGroups", "User", UUID.randomUUID() + "@unittests.invalid"));
-            case ADMIN ->
-                userComposer.forUser(
-                    UserFixture.getAdminUser(
-                        "Admin", "User", UUID.randomUUID() + "@unittests.invalid"));
-            case WITH_BYPASS -> {
-              TenantGroupComposer.Composer bypassGroup =
-                  tenantGroupComposer
-                      .forGroup(TenantGroupFixture.getGroup())
-                      .withRole(
-                          tenantRoleComposer.forRole(
-                              TenantRoleFixture.getRole(new HashSet<>(Set.of(Capability.BYPASS)))));
-
-              yield userComposer
-                  .forUser(
-                      UserFixture.getUser(
-                          "Bypass", "User", UUID.randomUUID() + "@unittests.invalid"))
-                  .withGroup(bypassGroup);
-            }
-            case WITH_ACCESS_THREAT_ARSENALS -> {
-              TenantGroupComposer.Composer threatArsenalGroup =
-                  tenantGroupComposer
-                      .forGroup(TenantGroupFixture.getGroup())
-                      .withRole(
-                          tenantRoleComposer.forRole(
-                              TenantRoleFixture.getRole(
-                                  new HashSet<>(Set.of(Capability.ACCESS_THREAT_ARSENALS)))));
-
-              yield userComposer
-                  .forUser(
-                      UserFixture.getUser(
-                          "AccessThreatArsenals", "User", UUID.randomUUID() + "@unittests.invalid"))
-                  .withGroup(threatArsenalGroup);
-            }
-            default -> throw new IllegalArgumentException("Unknown user type: " + userType);
-          };
-
-      List<Grant> grants =
-          resourceIds.stream()
-              .map(
-                  id -> {
-                    Grant grant = new Grant();
-                    grant.setGrantResourceType(Grant.GRANT_RESOURCE_TYPE.THREAT_ARSENAL);
-                    grant.setName(Grant.GRANT_TYPE.OBSERVER);
-                    // For simplicity, we only handle one resource ID for the OBSERVER grant in this
-                    // example
-                    grant.setResourceId(id);
-                    return grant;
-                  })
-              .toList();
-
-      if (!grants.isEmpty()) {
-        TenantGroupComposer.Composer grantedGroup =
-            tenantGroupComposer
-                .forGroup(TenantGroupFixture.getGroup())
-                .withRole(tenantRoleComposer.forRole(TenantRoleFixture.getRole(new HashSet<>())));
-
-        grants.forEach(grant -> grantedGroup.withGrant(grantComposer.forGrant(grant)));
-
-        return user.withGroup(grantedGroup);
-      }
-      return user;
+    public UserComposer.Composer createTestUser(UserType userType, List<String> resourceIds) {
+      return userTestHelper.createTestUser(
+          UserTestHelper.UserType.valueOf(userType.name()), resourceIds);
     }
 
     private int preExistingContractsCount;
@@ -1404,7 +1341,7 @@ public class InjectorContractApiTest extends IntegrationTest {
 
       // Verify the response based on user permissions
       if (shouldSeeAllContracts) {
-        // Admin, BYPASS, ACCESS_PAYLOADS users see everything
+        // Admin, BYPASS, ACCESS_THREAT_ARSENALS users see everything
         result.andExpect(jsonPath("$", hasSize(equalTo(preExistingContractsCount + 3))));
       } else {
         // User with no groups only sees contracts granted

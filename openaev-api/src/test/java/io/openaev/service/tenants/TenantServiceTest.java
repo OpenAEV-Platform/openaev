@@ -53,6 +53,7 @@ class TenantServiceTest extends IntegrationTest {
   @Autowired private MinioClient minioClient;
   @Autowired private DomainRepository domainRepository;
   @Autowired private TenantRepository tenantRepository;
+  @Autowired private RoleRepository roleRepository;
   @Autowired private VulnerabilityRepository vulnerabilityRepository;
   @Autowired private CweRepository cweRepository;
   @Autowired private RoleService roleService;
