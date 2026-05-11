@@ -1,0 +1,540 @@
+/* ==========================================================================
+   OpenAEV Design Tokens — colors_and_type.css
+   Source: filigran-ui/packages/filigran-ui/src/theme.css
+   
+   Ce fichier est la SEULE source de couleurs/typographie pour les mockups HTML.
+   Ne jamais inventer de couleur en dehors de ce fichier.
+   
+   Usage: <link rel="stylesheet" href="colors_and_type.css">
+   Dark mode: ajouter class="dark" sur <html> ou <body>
+   ========================================================================== */
+
+/* --- Fonts (Google Fonts) --- */
+@import url('https://fonts.googleapis.com/css2?family=Geologica:wght@300;400;500;600;700&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+/* --- Root: Light theme (default) --- */
+:root {
+  /* Fonts */
+  --font-title: 'Geologica', system-ui, sans-serif;
+  --font-body: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+
+  /* Radius */
+  --radius: 0.25rem;
+  --radius-lg: 0.25rem;
+  --radius-md: calc(0.25rem - 2px);
+  --radius-sm: calc(0.25rem - 4px);
+
+  /* Spacing */
+  --spacing-xxs: 0.125rem;
+  --spacing-xs: 0.25rem;
+  --spacing-s: 0.5rem;
+  --spacing-m: 0.75rem;
+  --spacing-l: 1rem;
+  --spacing-xl: 1.5rem;
+  --spacing-xxl: 2rem;
+
+  /* --- Gray scale --- */
+  --gray-50: 240 11% 96%;
+  --gray-100: 240 4% 95%;
+  --gray-150: 220 5.88% 90%;
+  --gray-200: 225 3.92% 80%;
+  --gray-300: 231.43 4.58% 70%;
+  --gray-400: 232.5 3.92% 60%;
+  --gray-500: 229.09 4.31% 50%;
+  --gray-600: 232.5 3.92% 40%;
+  --gray-700: 231.43 4.58% 30%;
+  --gray-800: 225 3.92% 20%;
+  --gray-900: 220 5.88% 10%;
+  --gray-1000: 230 100% 2.35%;
+
+  /* --- Dark Blue scale --- */
+  --darkblue-100: 231.67 100% 92.94%;
+  --darkblue-200: 232.41 100% 82.94%;
+  --darkblue-300: 232.61 100% 72.94%;
+  --darkblue-400: 232.38 100% 62.94%;
+  --darkblue-500: 232.5 100% 52.94%;
+  --darkblue-600: 232.6 100% 42.94%;
+  --darkblue-700: 232.5 100% 32.94%;
+  --darkblue-800: 232.31 100% 22.94%;
+  --darkblue-900: 232.73 100% 12.94%;
+
+  /* --- Blue scale --- */
+  --blue-100: 195 100% 90%;
+  --blue-200: 195 100% 85%;
+  --blue-300: 199 100% 75%;
+  --blue-400: 197 100% 65%;
+  --blue-500: 195 100% 40%;
+  --blue-600: 195 100% 30%;
+  --blue-700: 195 100% 25%;
+  --blue-800: 195 100% 20%;
+  --blue-900: 195 100% 13%;
+
+  /* --- Turquoise scale --- */
+  --turquoise-100: 164 100% 87%;
+  --turquoise-200: 164 100% 75%;
+  --turquoise-300: 164 100% 66%;
+  --turquoise-400: 164 100% 56%;
+  --turquoise-500: 167 100% 47%;
+  --turquoise-600: 167 100% 37%;
+  --turquoise-700: 167 100% 29%;
+  --turquoise-800: 167 100% 17%;
+  --turquoise-900: 167 100% 7%;
+
+  /* --- Green scale --- */
+  --green-100: 123 80% 88%;
+  --green-200: 123 80% 76%;
+  --green-300: 123 73% 68%;
+  --green-400: 123 73% 57%;
+  --green-500: 123 73% 46%;
+  --green-600: 123 76% 38%;
+  --green-700: 123 76% 27%;
+  --green-800: 122 79% 17%;
+  --green-900: 122 75% 13%;
+
+  /* --- Red scale --- */
+  --red-100: 6 88% 88%;
+  --red-200: 5 88% 76%;
+  --red-300: 5 88% 68%;
+  --red-400: 4 87% 58%;
+  --red-500: 4 87% 48%;
+  --red-600: 5 90% 38%;
+  --red-700: 5 91% 28%;
+  --red-800: 4 90% 18%;
+  --red-900: 4 92% 12%;
+
+  /* --- Orange scale --- */
+  --orange-100: 29 88% 87%;
+  --orange-200: 29 88% 76%;
+  --orange-300: 29 88% 68%;
+  --orange-400: 29 88% 59%;
+  --orange-500: 27 88% 48%;
+  --orange-600: 26 90% 38%;
+  --orange-700: 27 91% 28%;
+  --orange-800: 27 90% 18%;
+  --orange-900: 26 93% 12%;
+
+  /* --- Yellow scale --- */
+  --yellow-100: 43 88% 88%;
+  --yellow-200: 43 88% 76%;
+  --yellow-300: 43 88% 69%;
+  --yellow-400: 43 88% 59%;
+  --yellow-500: 41 87% 49%;
+  --yellow-600: 43 90% 38%;
+  --yellow-700: 44 91% 28%;
+  --yellow-800: 42 90% 18%;
+  --yellow-900: 41 91% 12%;
+
+  /* --- Purple scale --- */
+  --purple-100: 262 85% 92%;
+  --purple-200: 261 85% 87%;
+  --purple-300: 262 100% 76%;
+  --purple-400: 262 90% 65%;
+  --purple-500: 262 78% 47%;
+  --purple-600: 262 80% 38%;
+  --purple-700: 261 79% 31%;
+  --purple-800: 262 80% 20%;
+  --purple-900: 262 80% 12%;
+
+  /* === SEMANTIC TOKENS (light) === */
+
+  /* Page & surfaces */
+  --page-background: hsl(0 0% 100%);
+  --box-background: hsl(var(--gray-50));
+  --background: hsl(var(--gray-50));
+  --foreground: hsl(var(--gray-1000));
+  --card-bg: hsl(0 0% 100%);
+  --card-fg: hsl(222.2 84% 4.9%);
+  --popover-bg: hsl(0 0% 100%);
+  --popover-fg: hsl(222.2 84% 4.9%);
+  --hover-bg: hsl(var(--gray-150));
+
+  /* Text */
+  --text-primary: hsl(var(--gray-1000));
+  --text-secondary: hsl(var(--gray-600));
+  --text-tertiary: hsl(240 0% 45%);
+  --text-light: hsl(231 5% 30%);
+  --text-disabled: hsl(219 11% 48%);
+  --text-inverted: hsl(var(--gray-50));
+
+  /* Borders */
+  --border-strong: hsl(var(--gray-400));
+  --border-medium: hsl(var(--gray-800));
+  --border-medium-strong: hsl(var(--gray-600));
+  --border-medium-light: hsl(var(--gray-200));
+  --border-light: hsl(var(--gray-150));
+  --border-focus: hsl(var(--darkblue-300));
+  --border-default: hsl(var(--gray-150));
+
+  /* Primary / Secondary / Destructive */
+  --primary: hsl(var(--darkblue-700));
+  --primary-fg: hsl(var(--gray-50));
+  --secondary: hsl(var(--turquoise-600));
+  --secondary-fg: hsl(var(--gray-50));
+  --destructive: hsl(var(--red-500));
+  --destructive-fg: hsl(var(--gray-50));
+  --muted: hsl(var(--gray-200));
+  --muted-fg: hsl(var(--gray-500));
+
+  /* --- Severity --- */
+  --severity-critical: hsl(0 84% 58%);
+  --severity-high: hsl(27 88% 48%);
+  --severity-medium: hsl(47 76% 51%);
+  --severity-low: hsl(132 77% 38%);
+  --severity-info: hsl(212 80% 42%);
+  --severity-none: hsl(0 0% 26%);
+  --severity-bg: hsl(233 94% 93%);
+
+  /* --- Alert --- */
+  --alert-info: hsl(197 100% 31%);
+  --alert-info-secondary: hsl(195 75% 52%);
+  --alert-success: hsl(149 71% 38%);
+  --alert-success-secondary: hsl(149 65% 57%);
+  --alert-warning: hsl(27 88% 48%);
+  --alert-warning-secondary: hsl(29 89% 76%);
+  --alert-error: hsl(4 87% 58%);
+  --alert-error-secondary: hsl(5 89% 76%);
+
+  /* --- Entity colors (cyber threat intel) --- */
+  --entity-analyse: hsl(93 50% 46%);
+  --entity-cases: hsl(291 95% 75%);
+  --entity-events: hsl(340 92% 70%);
+  --entity-observations: hsl(14 100% 63%);
+  --entity-threats: hsl(36 100% 50%);
+  --entity-arsenal: hsl(45 92% 49%);
+  --entity-techniques: hsl(66 70% 61%);
+  --entity-victimology: hsl(265 100% 77%);
+  --entity-locations: hsl(187 95% 39%);
+  --entity-observables: hsl(180 100% 76%);
+  --entity-relationships: hsl(0 0% 38%);
+  --entity-restricted: hsl(0 0% 26%);
+
+  /* --- AI tokens --- */
+  --ai-main: hsl(262 78% 47%);
+  --ai-light: hsl(261 85% 87%);
+  --ai-dark: hsl(261 79% 31%);
+  --ai-background: rgba(221, 225, 254, 0.94);
+
+  /* --- EE (Enterprise) tokens --- */
+  --ee-main: hsl(167 100% 37%);
+  --ee-background: rgba(0, 189, 148, 0.2);
+
+  /* --- DS (Design System page) tokens --- */
+  --ds-bg: hsl(240 19% 94%);
+  --ds-bg-1: hsl(0 0% 97%);
+  --ds-bg-2: hsl(0 0% 100%);
+  --ds-bg-3: hsl(0 0% 89%);
+  --ds-bg-4: hsl(233 94% 93%);
+  --ds-border: hsl(0 0% 82%);
+  --ds-border-1: hsl(0 0% 76%);
+  --ds-border-2: hsl(0 1% 60%);
+
+  /* --- Gradients --- */
+  --gradient-background: linear-gradient(100.35deg, #ECECF2 0%, #F7F7F7 100%);
+  --gradient-ia: linear-gradient(90deg, #3C108C 0.67%, #5E1AD5 100.67%);
+  --gradient-focus: linear-gradient(90deg, #0015A8 -3.68%, #00BD94 106.62%);
+}
+
+/* === DARK THEME === */
+.dark,
+[data-theme="dark"] {
+  --background: hsl(220 56% 6%);
+  --foreground: hsl(var(--gray-100));
+  --page-background: hsl(220 54% 8%);
+  --box-background: hsl(218 50% 9%);
+  --card-bg: hsl(247 45% 5.59%);
+  --card-fg: hsl(247 10% 97.15%);
+  --popover-bg: hsl(247 45% 5.59%);
+  --popover-fg: hsl(247 10% 97.15%);
+  --hover-bg: hsla(0, 0%, 100%, 0.1);
+
+  /* Text */
+  --text-primary: hsl(var(--gray-100));
+  --text-secondary: hsl(var(--gray-300));
+  --text-tertiary: hsl(236 6% 55%);
+  --text-light: hsl(231 5% 70%);
+  --text-disabled: hsl(219 15% 53%);
+  --text-inverted: hsl(var(--gray-1000));
+
+  /* Borders */
+  --border-strong: hsl(var(--gray-150));
+  --border-medium: hsl(var(--gray-500));
+  --border-medium-strong: hsl(var(--gray-200));
+  --border-medium-light: hsl(var(--gray-700));
+  --border-light: hsl(var(--gray-800));
+  --border-focus: hsl(var(--blue-600));
+  --border-default: hsl(var(--gray-800));
+
+  /* Primary / Secondary */
+  --primary: hsl(196.75 100% 52.94%);
+  --primary-fg: hsl(var(--gray-1000));
+  --secondary: hsl(var(--turquoise-500));
+  --secondary-fg: hsl(var(--gray-1000));
+  --destructive: hsl(var(--red-400));
+  --destructive-fg: hsl(var(--gray-50));
+  --muted: hsl(247 50% 12.9%);
+  --muted-fg: hsl(var(--gray-300));
+
+  /* Severity (unchanged in dark except bg) */
+  --severity-bg: hsl(215 45% 20%);
+
+  /* Alert */
+  --alert-info: hsl(197 100% 65%);
+  --alert-info-secondary: hsl(195 100% 20%);
+  --alert-success: hsl(123 76% 38%);
+  --alert-success-secondary: hsl(122 79% 17%);
+  --alert-warning: hsl(27 88% 48%);
+  --alert-warning-secondary: hsl(27 92% 28%);
+  --alert-error: hsl(4 87% 58%);
+  --alert-error-secondary: hsl(5 92% 28%);
+
+  /* AI */
+  --ai-main: hsl(262 100% 76%);
+  --ai-light: hsl(261 85% 87%);
+  --ai-dark: hsl(262 78% 47%);
+  --ai-background: rgba(28, 47, 73, 0.94);
+
+  /* EE */
+  --ee-main: hsl(155 100% 47%);
+  --ee-background: rgba(0, 241, 141, 0.2);
+
+  /* DS */
+  --ds-bg: hsl(220 56% 6%);
+  --ds-bg-1: hsl(218 50% 9%);
+  --ds-bg-2: hsl(217 53% 11%);
+  --ds-bg-3: hsl(216 32% 21%);
+  --ds-bg-4: hsl(215 45% 20%);
+  --ds-border: hsl(221 25% 22%);
+  --ds-border-1: hsl(220 10% 29%);
+  --ds-border-2: hsl(222 35% 17%);
+
+  /* Gradients */
+  --gradient-background: linear-gradient(100.35deg, #070D19 0%, #08101D 100%);
+  --gradient-ia: linear-gradient(90deg, #D6C2FA 0.67%, #B286FF 100.67%);
+  --gradient-focus: linear-gradient(90deg, #0FBCFF -3.68%, #00F1BD 106.62%);
+}
+
+/* === TYPOGRAPHY CLASSES === */
+
+/* Title font: Geologica */
+.txt-jumbo {
+  font-size: 2.5rem;
+  letter-spacing: 0.01875rem;
+  font-family: var(--font-title);
+}
+.txt-title {
+  font-size: 1.375rem;
+  font-weight: 400;
+  letter-spacing: 0.01125rem;
+  font-family: var(--font-title);
+}
+.txt-subtitle {
+  font-size: 1rem;
+  font-weight: 500;
+  letter-spacing: 0.00844rem;
+  font-family: var(--font-title);
+}
+.txt-category {
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.00656rem;
+  font-family: var(--font-title);
+}
+.txt-tab {
+  font-size: 0.875rem;
+  letter-spacing: 0.00656rem;
+  text-transform: uppercase;
+  font-family: var(--font-title);
+}
+.txt-container-title {
+  font-size: 0.75rem;
+  letter-spacing: 0.00563rem;
+  text-transform: uppercase;
+}
+.txt-h3 {
+  font-size: 0.8125rem;
+  font-weight: 400;
+  letter-spacing: 0.003rem;
+  font-family: var(--font-title);
+}
+.txt-h4 {
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.00563rem;
+}
+.txt-h5 {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.00656rem;
+  font-family: var(--font-title);
+}
+
+/* Body font: IBM Plex Sans */
+.txt-default {
+  font-size: 0.9rem;
+  line-height: 1.52;
+  letter-spacing: 0.0035rem;
+}
+.txt-body2 {
+  font-size: 0.8rem;
+  line-height: 1.2rem;
+  letter-spacing: 0.003rem;
+}
+.txt-subtitle2 {
+  font-size: 1.125rem;
+  font-weight: 400;
+  letter-spacing: 0.00844rem;
+}
+.txt-sub-content {
+  font-size: 0.75rem;
+  line-height: 1.52;
+  letter-spacing: 0.003rem;
+}
+.txt-table {
+  font-size: 0.8125rem;
+  line-height: 1.52;
+  letter-spacing: 0.003rem;
+}
+.txt-mini {
+  font-size: 0.5625rem;
+  line-height: 1.52;
+  letter-spacing: 0.00225rem;
+}
+
+/* Mono: for IDs, numbers, code, timestamps */
+.txt-mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Eyebrow: uppercase category label */
+.eyebrow {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-family: var(--font-mono);
+  color: var(--text-tertiary);
+}
+
+/* === BASE RESET === */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  line-height: 1.52;
+  letter-spacing: 0.0035rem;
+  background: var(--page-background);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-title);
+}
+
+code, pre, kbd {
+  font-family: var(--font-mono);
+}
+
+/* === UTILITY CLASSES === */
+
+/* Severity badges */
+.sev-critical { color: var(--severity-critical); }
+.sev-high { color: var(--severity-high); }
+.sev-medium { color: var(--severity-medium); }
+.sev-low { color: var(--severity-low); }
+.sev-info { color: var(--severity-info); }
+.sev-none { color: var(--severity-none); }
+
+.sev-bg-critical { background: var(--severity-critical); color: white; }
+.sev-bg-high { background: var(--severity-high); color: white; }
+.sev-bg-medium { background: var(--severity-medium); color: hsl(var(--gray-900)); }
+.sev-bg-low { background: var(--severity-low); color: white; }
+.sev-bg-info { background: var(--severity-info); color: white; }
+
+/* Entity colors */
+.entity-analyse { color: var(--entity-analyse); }
+.entity-cases { color: var(--entity-cases); }
+.entity-events { color: var(--entity-events); }
+.entity-observations { color: var(--entity-observations); }
+.entity-threats { color: var(--entity-threats); }
+.entity-arsenal { color: var(--entity-arsenal); }
+.entity-techniques { color: var(--entity-techniques); }
+.entity-victimology { color: var(--entity-victimology); }
+.entity-locations { color: var(--entity-locations); }
+.entity-observables { color: var(--entity-observables); }
+
+/* Button base */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-s);
+  padding: var(--spacing-s) var(--spacing-l);
+  border-radius: var(--radius);
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--border-default);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  transition: background 0.15s, border-color 0.15s;
+}
+.btn:hover {
+  background: var(--hover-bg);
+  border-color: var(--border-medium-light);
+}
+.btn-primary {
+  background: var(--primary);
+  color: var(--primary-fg);
+  border-color: var(--primary);
+}
+.btn-primary:hover {
+  opacity: 0.9;
+}
+.btn-destructive {
+  background: var(--destructive);
+  color: var(--destructive-fg);
+  border-color: var(--destructive);
+}
+
+/* Card surface */
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-l);
+}
+
+/* === APP SHELL (nav chrome) === */
+
+/* Nav surfaces — match the real OpenAEV platform */
+:root {
+  --nav-background: hsl(0 0% 100%);
+  --nav-width-expanded: 180px;
+  --nav-width-collapsed: 55px;
+  --topbar-height: 64px;
+  --nav-selected-bg: hsla(0, 0%, 100%, 0.08);
+  --nav-selected-border: var(--primary);
+  --nav-item-height: 35px;
+}
+
+.dark,
+[data-theme="dark"] {
+  --nav-background: hsl(220 56% 6%);
+  --nav-selected-bg: hsla(0, 0%, 100%, 0.08);
+  --nav-selected-border: var(--primary);
+}
+
+/* Scrollbar (dark) */
+.dark ::-webkit-scrollbar-thumb,
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  border-color: hsl(var(--gray-1000));
+}
