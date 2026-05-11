@@ -5,6 +5,7 @@ import static org.mockito.Mockito.*;
 
 import com.google.gson.Gson;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.ConditionRepository;
 import io.openaev.database.repository.WorkflowStateRepository;
 import io.openaev.utils.ConditionUtils;
 import java.util.*;
@@ -21,6 +22,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class WorkflowStateServiceTest {
 
   @Mock private WorkflowStateRepository workflowStateRepository;
+  @Mock private ConditionRepository conditionRepository;
   @Mock private ConditionUtils conditionUtils;
 
   @InjectMocks private WorkflowStateService workflowStateService;

@@ -23,7 +23,19 @@ public interface GroupRepository
   @NotNull
   List<Group> findAllByRoles(Role role);
 
+  // -- Platform-scoped --
+
+  Optional<Group> findByIdAndTenantIsNull(String id);
+
+  List<Group> findAllByTenantIsNull();
+
+  // -- Tenant-scoped --
+
+  Optional<Group> findByIdAndTenantId(String id, String tenantId);
+
   List<Group> findAllByTenantId(String tenantId);
+
+  Optional<Group> findByNameAndTenantId(String name, String tenantId);
 
   Optional<Group> findByName(String name);
 

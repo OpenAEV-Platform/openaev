@@ -65,6 +65,14 @@ public class RoleService {
   }
 
   @Transactional(readOnly = true)
+  public Role findByIdInTenant(@NotBlank final String roleId) {
+    String tenantId = TenantContext.getCurrentTenant();
+    return roleRepository
+        .findByIdAndTenantId(roleId, tenantId)
+        .orElseThrow(() -> new ElementNotFoundException("Role not found with id: " + roleId));
+  }
+
+  @Transactional(readOnly = true)
   public List<Role> findAll(@NotBlank final String tenantId) {
     return roleRepository.findAllByTenantId(tenantId);
   }
@@ -87,10 +95,10 @@ public class RoleService {
       @NotBlank final String roleDescription,
       @NotNull final Set<Capability> capabilities) {
     Capability.validateForTenantRole(capabilities);
-
+    String tenantId = TenantContext.getCurrentTenant();
     Role role =
         roleRepository
-            .findById(roleId)
+            .findByIdAndTenantId(roleId, tenantId)
             .orElseThrow(() -> new ElementNotFoundException("Role not found with id: " + roleId));
     role.setUpdatedAt(Instant.now());
     role.setName(roleName);
@@ -102,9 +110,10 @@ public class RoleService {
   // -- DELETE --
 
   public void deleteRole(@NotBlank final String roleId) {
+    String tenantId = TenantContext.getCurrentTenant();
     Role role =
         roleRepository
-            .findById(roleId)
+            .findByIdAndTenantId(roleId, tenantId)
             .orElseThrow(() -> new ElementNotFoundException("Role not found with id: " + roleId));
 
     List<Group> groups = groupRepository.findAllByRoles(role);

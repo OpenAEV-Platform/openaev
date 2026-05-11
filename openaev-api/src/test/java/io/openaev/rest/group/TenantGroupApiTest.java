@@ -15,6 +15,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.GroupRepository;
 import io.openaev.rest.group.form.GroupUpdateRolesInput;
 import io.openaev.rest.group.form.GroupUpdateUsersInput;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.TenantRoleFixture;
 import io.openaev.utils.fixtures.composers.TenantGroupComposer;
@@ -40,6 +41,7 @@ public class TenantGroupApiTest extends IntegrationTest {
   @Autowired private TenantGroupComposer tenantGroupComposer;
   @Autowired private TenantRoleComposer tenantRoleComposer;
   @Autowired private PlatformGroupComposer platformGroupComposer;
+  @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
 
   @Nested
   @DisplayName("Create")
@@ -430,10 +432,10 @@ public class TenantGroupApiTest extends IntegrationTest {
 
   @Nested
   @DisplayName("Tenant Isolation")
-  @WithMockUser(withCapabilities = {Capability.ACCESS_TENANT_SETTINGS})
   class TenantIsolation {
 
     @Test
+    @WithMockUser(withCapabilities = {Capability.ACCESS_TENANT_SETTINGS})
     @DisplayName("Platform groups should not appear in tenant search")
     void given_platformGroupExists_should_notAppearInTenantSearch() throws Exception {
       // -------- Arrange --------
@@ -461,6 +463,51 @@ public class TenantGroupApiTest extends IntegrationTest {
 
       // -------- Assert --------
       assertEquals(Integer.valueOf(0), JsonPath.read(response, "$.totalElements"));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Tenant group created in tenant X should NOT be readable from tenant Y")
+    void given_groupInTenantX_should_notBeReadableFromTenantY() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X",
+              Set.of(Capability.MANAGE_TENANT_SETTINGS, Capability.ACCESS_TENANT_SETTINGS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_TENANT_SETTINGS));
+
+      TenantGroupCreateInput input = new TenantGroupCreateInput();
+      input.setName("RLS Isolated Group");
+
+      String createResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantX.getId() + "/groups")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String groupId = JsonPath.read(createResponse, "$.group_id");
+
+      // -------- Act — read from tenant Y (expect 403 or 404 — both mean isolation works) --------
+      int status =
+          mvc.perform(
+                  get("/api/tenants/" + tenantY.getId() + "/groups/" + groupId)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      assertTrue(
+          status == 403 || status == 404,
+          "Expected 403 or 404 but got " + status + " — cross-tenant group read was NOT blocked");
     }
   }
 }
