@@ -166,6 +166,21 @@ public interface InjectorContractRepository
       @Param("externalIds") Set<String> externalIds,
       @Param("contractsPerVulnerability") Integer contractsPerVulnerability);
 
+  /**
+   * Associates an injector contract to all injectors matching the given criteria, skipping those
+   * that already have the contract assigned.
+   *
+   * <p>This method executes a native SQL {@code INSERT} that targets the {@code
+   * injectors_injector_contracts} join table. For each injector belonging to the specified tenant
+   * and matching the {@code payloads} flag, a new row is inserted only if no association with the
+   * given contract already exists (idempotent by design).
+   *
+   * @param payloads {@code true} to target injectors flagged as payload-based, {@code false} for
+   *     non-payload injectors.
+   * @param tenantId the identifier of the tenant whose injectors should be considered.
+   * @param contractId the identifier of the injector contract to associate with the matching
+   *     injectors.
+   */
   @Modifying(clearAutomatically = true, flushAutomatically = true)
   @Query(
       value =
