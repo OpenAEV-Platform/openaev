@@ -42,11 +42,15 @@ description: >-
 ```java
 @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
 ```
+We also need the `EntityManager` to populate with pre-requisites data.
+```java
+@Autowired private jakarta.persistence.EntityManager entityManager;
+```
 
 Also add imports:
 ```java
 import io.openaev.utils.TenantIsolationTestHelper;
-import java.util.Set;
+import jakarta.persistence.EntityManager;
 ```
 
 ### Step 3 — Create the Nested `TenantIsolation` Class
@@ -73,58 +77,26 @@ RLS entirely — making the test pass even when isolation is broken.
 **Always call `entityManager.flush()` + `entityManager.clear()` between the create and the
 cross-tenant access** to force Hibernate to issue a real SQL query that goes through RLS.
 
+> NOTE 1: this is done in switchToTenant() for example.
 ```java
-@Autowired private jakarta.persistence.EntityManager entityManager;
-
-// ... after creating the entity in tenant X ...
-
-// Evict L1 cache so the next findById() hits the DB where RLS applies
-entityManager.flush();
-entityManager.clear();
-
-// ... now perform the cross-tenant read/update/delete from tenant Y ...
-```
-
-**Example from `AtomicTestingApiTest`** — native SQL insert with cache eviction:
-
-```java
-private Inject createInjectInTenant(Tenant tenant) {
-  String injectId = UUID.randomUUID().toString();
-  String title = "Isolation Test Inject " + UUID.randomUUID().toString().substring(0, 8);
-  // Temporarily set RLS context to target tenant for the insert
-  entityManager
-      .createNativeQuery("SELECT set_config('app.current_tenant', :tenantId, true)")
-      .setParameter("tenantId", tenant.getId())
-      .getSingleResult();
-  entityManager
-      .createNativeQuery(
-          "INSERT INTO injects (inject_id, inject_title, tenant_id, inject_depends_duration, "
-              + "inject_enabled, inject_all_teams, inject_created_at, inject_updated_at) "
-              + "VALUES (:id, :title, :tenantId, 0, true, false, now(), now())")
-      .setParameter("id", injectId)
-      .setParameter("title", title)
-      .setParameter("tenantId", tenant.getId())
-      .executeUpdate();
-  // Evict L1 cache — without this, findById() returns the cached entity and bypasses RLS
+public void switchToTenant(String tenantId, EntityManager entityManager) {
   entityManager.flush();
   entityManager.clear();
-  Inject inject = new Inject();
-  inject.setId(injectId);
-  inject.setTitle(title);
-  return inject;
+  ...
 }
 ```
-
-> **Why not just use the API to create?** Some entities require complex service-level setup
-> (e.g., injector registration) that may not exist for a freshly created tenant. Native SQL
-> with `set_config('app.current_tenant', tenantId, true)` bypasses that complexity while
-> still respecting RLS for subsequent operations.
+> NOTE 2: **Why not just use the API to create?** Some entities require complex service-level setup
+> (e.g., injector registration) that may not exist for a freshly created tenant. In those cases,
+> use the entity's Composer (e.g., `injectComposer.forInject(InjectFixture.getDefaultInject())
+> .persist().get()`) combined with `tenantIsolationHelper.switchToTenant()` to set the correct
+> tenant context before persisting.
 
 ### Step 5 — Implement Test Methods
 
 Use this template. Replace placeholders:
 - `{Entity}` — entity name (e.g., `Scenario`, `Group`)
 - `{entity}` — lowercase (e.g., `scenario`, `group`)
+- `{EntityFixture}` — fixture class name (e.g., `AssetGroupFixture`, `ExerciseFixture`)
 - `{MANAGE_CAP}` — capability for create/update (e.g., `Capability.MANAGE_ASSESSMENT`)
 - `{ACCESS_CAP}` — capability for read/search (e.g., `Capability.ACCESS_ASSESSMENT`)
 - `{DELETE_CAP}` — capability for delete (e.g., `Capability.DELETE_ASSESSMENT`)
@@ -147,8 +119,8 @@ void given_{entity}InTenantX_should_notBeReadableFromTenantY() throws Exception 
       tenantIsolationHelper.createTenantWithCapabilities(
           "Tenant Y", Set.of({ACCESS_CAP}));
 
-  {CreateInput} input = new {CreateInput}();
-  input.setName("RLS Isolation Test");
+  // Use the entity's Fixture class to create the input DTO
+  {CreateInput} input = {EntityFixture}.createDefault{CreateInput}("RLS Isolation Test");
 
   String createResponse =
       mvc.perform(
@@ -163,6 +135,10 @@ void given_{entity}InTenantX_should_notBeReadableFromTenantY() throws Exception 
           .getContentAsString();
 
   String entityId = JsonPath.read(createResponse, "{entity_id_json_path}");
+
+  // Evict L1 cache so findById() hits the DB (where RLS filters)
+  entityManager.flush();
+  entityManager.clear();
 
   // -------- Act — read from tenant Y (expect 403 or 404) --------
   int responseStatus =
@@ -182,6 +158,16 @@ void given_{entity}InTenantX_should_notBeReadableFromTenantY() throws Exception 
 }
 ```
 
+> **Fixture convention**: Each entity should have a Fixture class (e.g., `AssetGroupFixture`,
+> `ExerciseFixture`) with a factory method that creates a default input DTO. Use
+> `{EntityFixture}.createDefault{CreateInput}("name")` instead of inline
+> `new {CreateInput}()` + `setName(...)`. If the fixture method doesn't exist yet, add it
+> following the pattern in `AssetGroupFixture.createDefaultAssetGroupInput()`.
+>
+> **Composer convention**: When creating entities directly (bypassing the REST API), use the
+> entity's Composer (e.g., `injectComposer.forInject(InjectFixture.getDefaultInject()).persist().get()`)
+> combined with `tenantIsolationHelper.switchToTenant()` to set the correct tenant context.
+
 #### Test 2 — Same-tenant READ works
 
 ```java
@@ -193,8 +179,7 @@ void given_{entity}InTenantX_should_beReadableFromTenantX() throws Exception {
       tenantIsolationHelper.createTenantWithCapabilities(
           "Tenant X", Set.of({MANAGE_CAP}, {ACCESS_CAP}));
 
-  {CreateInput} input = new {CreateInput}();
-  input.setName("Same Tenant Entity");
+  {CreateInput} input = {EntityFixture}.createDefault{CreateInput}("Same Tenant Entity");
 
   String createResponse =
       mvc.perform(
@@ -234,8 +219,7 @@ void given_{entity}InTenantX_should_notAppearInTenantYSearch() throws Exception 
       tenantIsolationHelper.createTenantWithCapabilities(
           "Tenant Y", Set.of({ACCESS_CAP}));
 
-  {CreateInput} input = new {CreateInput}();
-  input.setName("CrossTenantSearch");
+  {CreateInput} input = {EntityFixture}.createDefault{CreateInput}("CrossTenantSearch");
 
   mvc.perform(
           post("/api/tenants/" + tenantX.getId() + "/{entities}")
@@ -244,6 +228,10 @@ void given_{entity}InTenantX_should_notAppearInTenantYSearch() throws Exception 
               .accept(MediaType.APPLICATION_JSON)
               .with(csrf()))
       .andExpect(status().is2xxSuccessful());
+
+  // Evict L1 cache
+  entityManager.flush();
+  entityManager.clear();
 
   // -------- Act — search from tenant Y --------
   SearchPaginationInput searchInput = new SearchPaginationInput();
@@ -282,8 +270,7 @@ void given_{entity}InTenantX_should_notBeUpdatableFromTenantY() throws Exception
       tenantIsolationHelper.createTenantWithCapabilities(
           "Tenant Y", Set.of({MANAGE_CAP}, {ACCESS_CAP}));
 
-  {CreateInput} input = new {CreateInput}();
-  input.setName("Update Isolation Test");
+  {CreateInput} input = {EntityFixture}.createDefault{CreateInput}("Update Isolation Test");
 
   String createResponse =
       mvc.perform(
@@ -299,9 +286,12 @@ void given_{entity}InTenantX_should_notBeUpdatableFromTenantY() throws Exception
 
   String entityId = JsonPath.read(createResponse, "{entity_id_json_path}");
 
+  // Evict L1 cache
+  entityManager.flush();
+  entityManager.clear();
+
   // -------- Act — update from tenant Y --------
-  {CreateInput} updateInput = new {CreateInput}();
-  updateInput.setName("Hijacked Name");
+  {CreateInput} updateInput = {EntityFixture}.createDefault{CreateInput}("Hijacked Name");
 
   int responseStatus =
       mvc.perform(
