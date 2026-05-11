@@ -77,7 +77,7 @@ RLS entirely — making the test pass even when isolation is broken.
 **Always call `entityManager.flush()` + `entityManager.clear()` between the create and the
 cross-tenant access** to force Hibernate to issue a real SQL query that goes through RLS.
 
-> NOTE 1: this is done in switchToTenant() for example.
+> NOTE: this is done in switchToTenant() for example.
 ```java
 public void switchToTenant(String tenantId, EntityManager entityManager) {
   entityManager.flush();
@@ -85,12 +85,6 @@ public void switchToTenant(String tenantId, EntityManager entityManager) {
   ...
 }
 ```
-> NOTE 2: **Why not just use the API to create?** Some entities require complex service-level setup
-> (e.g., injector registration) that may not exist for a freshly created tenant. In those cases,
-> use the entity's Composer (e.g., `injectComposer.forInject(InjectFixture.getDefaultInject())
-> .persist().get()`) combined with `tenantIsolationHelper.switchToTenant()` to set the correct
-> tenant context before persisting.
-
 ### Step 5 — Implement Test Methods
 
 Use this template. Replace placeholders:
