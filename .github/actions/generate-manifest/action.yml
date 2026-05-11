@@ -31,12 +31,14 @@ runs:
       with:
         python-version: 3.13
     - name: Install Poetry
+      shell: bash
       run: |
         pip install --user pipx
         pipx ensurepath
         pipx install poetry==2.3.3
     - name: Generate manifest
       working-directory: 'filigran-ci-tools/connector-manifest-writer'
+      shell: bash
       run: |
         poetry install
         poetry run python -m connector_manifest_writer \
@@ -53,9 +55,8 @@ runs:
           ../../injectors/shodan \
           ../../injectors/teams > manifest.json
     - name: Upload generated manifest
-      working-directory: 'filigran-ci-tools/connector-manifest-writer'
       uses: actions/upload-artifact@v7
       with:
         name: catalog-manifest-file
-        path: manifest.json
+        path: filigran-ci-tools/connector-manifest-writer/manifest.json
 
