@@ -27,6 +27,7 @@ jobs:
 
   generate-manifest:
     name: "📋 Generate manifest"
+    runs-on: ubuntu-latest
     steps:
       - uses: ./.github/actions/generate-manifest
         with:
