@@ -3,9 +3,6 @@
 |  |                                                                                       |
 | --- |---------------------------------------------------------------------------------------|
 | Status | Accepted                                                                              |
-| Date | 2026-05-11                                                                            |
-| Deciders | Corinne, Backend team                                                                 |
-| Consulted | —                                                                                     |
 | Related | https://github.com/OpenAEV-Platform/openaev/issues/3505|
 
 ## 1. Context
