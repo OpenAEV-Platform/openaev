@@ -295,14 +295,28 @@ public class ConditionService {
   }
 
   /**
+   * Returns all event condition tree roots for a given workflow, excluding mapper conditions.
+   *
+   * @param workflowId the workflow identifier
+   * @return list of root event conditions for that workflow
+   */
+  @Transactional(readOnly = true)
+  public List<Condition> findEventRootsByWorkflowId(String workflowId) {
+    return conditionRepository.findAllByWorkflowIdAndConditionParentIsNull(workflowId).stream()
+        .filter(c -> !conditionUtils.isMapperCondition(c))
+        .toList();
+  }
+
+  /**
    * Returns all condition tree roots for a given workflow (conditions with no parent).
    *
    * @param workflowId the workflow identifier
    * @return list of root conditions for that workflow
    */
   @Transactional(readOnly = true)
-  public List<Condition> findConditionRootsByWorkflowId(String workflowId) {
-    return conditionRepository.findAllByWorkflowIdAndConditionParentIsNull(workflowId);
+  public List<Condition> findNonMapperConditionsByWorkflowId(String workflowId) {
+    return conditionRepository.findAllByWorkflowIdAndConditionParentIsNullAndTypeNot(
+        workflowId, ConditionType.MAPPER);
   }
 
   /**

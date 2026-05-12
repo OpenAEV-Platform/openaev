@@ -49,7 +49,7 @@ runs:
           -e RABBITMQ_DEFAULT_PASS=guest \
           rabbitmq:4.1-management
         docker run -d --name minio \
-          -p 9000:9000 \
+          -p 11000:9000 \
           -e MINIO_ROOT_USER=minioadmin \
           -e MINIO_ROOT_PASSWORD=minioadmin \
           minio/minio:RELEASE.2025-06-13T11-33-47Z server /data
@@ -193,10 +193,10 @@ runs:
 
         echo "⏳ Waiting for MinIO..."
         for i in $(seq 1 30); do
-          curl -sf http://localhost:9000/minio/health/live && break
+          curl -sf http://localhost:11000/minio/health/live && break
           sleep 1
         done
-        curl -sf http://localhost:9000/minio/health/live || { echo "❌ MinIO failed to start"; exit 1; }
+        curl -sf http://localhost:11000/minio/health/live || { echo "❌ MinIO failed to start"; exit 1; }
 
         echo "✅ All services ready"
 

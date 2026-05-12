@@ -8,7 +8,7 @@ import { type TargetSimple } from '../utils/api-types';
 import { getLabelOfRemainingItems, getRemainingItemsCount, getVisibleItems, truncate } from '../utils/String';
 
 const useStyles = makeStyles()(() => ({
-  inline: { display: 'inline-block' },
+  inline: { display: 'flex' },
   target: {
     fontSize: 12,
     height: 20,
@@ -35,8 +35,8 @@ const ItemTargets: FunctionComponent<Props> = ({
   }
 
   // Extract the first two targets as visible chips
-  const visibleTargets = getVisibleItems(targets, 2);
-  const tooltipLabel = getLabelOfRemainingItems(targets, 2, 'target_name');
+  const visibleTargets = getVisibleItems(targets, 1);
+  const tooltipLabel = getLabelOfRemainingItems(targets, 1, 'target_name');
   const remainingTargetsCount = getRemainingItemsCount(targets, visibleTargets);
 
   if (!targets || targets.length === 0) {

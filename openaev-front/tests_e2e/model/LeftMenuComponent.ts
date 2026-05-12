@@ -13,7 +13,7 @@ class LeftMenuComponent {
   }
 
   goToThreatArsenal() {
-    return this.page.getByRole('menuitem', { name: 'Threat Arsenals' }).click();
+    return this.page.getByRole('menuitem', { name: 'Threat Arsenal' }).click();
   };
 
   async goToTeams() {

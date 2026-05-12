@@ -19,6 +19,8 @@ public interface RoleRepository
   @NotNull
   Optional<Role> findById(@NotNull String id);
 
+  Optional<Role> findByIdAndTenantId(String id, String tenantId);
+
   List<Role> findAllByTenantId(String tenantId);
 
   long countByIdIn(Set<String> ids);

@@ -11,8 +11,10 @@ import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Role;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.RoleRepository;
 import io.openaev.rest.role.form.RoleInput;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.PlatformRoleFixture;
 import io.openaev.utils.fixtures.TenantRoleFixture;
 import io.openaev.utils.fixtures.composers.PlatformRoleComposer;
@@ -29,13 +31,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
 @Transactional
-@DisplayName("Tenant Role API")
+@DisplayName("Tenant Isolation")
 public class TenantRoleApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private RoleRepository roleRepository;
   @Autowired private TenantRoleComposer tenantRoleComposer;
   @Autowired private PlatformRoleComposer platformRoleComposer;
+  @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
 
   @Nested
   @DisplayName("Create")
@@ -412,6 +415,163 @@ public class TenantRoleApiTest extends IntegrationTest {
 
       // -------- Assert --------
       assertEquals(Integer.valueOf(0), JsonPath.read(response, "$.totalElements"));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Tenant role created in tenant X should NOT be readable from tenant Y")
+    void given_roleInTenantX_should_notBeReadableFromTenantY() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X",
+              Set.of(Capability.MANAGE_TENANT_SETTINGS, Capability.ACCESS_TENANT_SETTINGS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_TENANT_SETTINGS));
+
+      RoleInput input =
+          RoleInput.builder()
+              .name("RLS Isolated Role")
+              .capabilities(Set.of(Capability.ACCESS_ASSETS))
+              .build();
+
+      String createResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantX.getId() + "/roles")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String roleId = JsonPath.read(createResponse, "$.role_id");
+
+      // -------- Act — read from tenant Y (expect 403 or 404) --------
+      int status =
+          mvc.perform(
+                  get("/api/tenants/" + tenantY.getId() + "/roles/" + roleId)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // -------- Assert --------
+      assertTrue(
+          status == 403 || status == 404,
+          "Expected 403 or 404 but got " + status + " — cross-tenant role read was NOT blocked");
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Tenant role created in tenant X should NOT be updatable from tenant Y")
+    void given_roleInTenantX_should_notBeUpdatableFromTenantY() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X",
+              Set.of(Capability.MANAGE_TENANT_SETTINGS, Capability.ACCESS_TENANT_SETTINGS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y",
+              Set.of(Capability.MANAGE_TENANT_SETTINGS, Capability.ACCESS_TENANT_SETTINGS));
+
+      RoleInput input =
+          RoleInput.builder()
+              .name("Update Isolation Role")
+              .capabilities(Set.of(Capability.ACCESS_ASSETS))
+              .build();
+
+      String createResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantX.getId() + "/roles")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String roleId = JsonPath.read(createResponse, "$.role_id");
+
+      // -------- Act — update from tenant Y --------
+      RoleInput updateInput =
+          RoleInput.builder()
+              .name("Hijacked Role")
+              .capabilities(Set.of(Capability.ACCESS_CHALLENGES))
+              .build();
+
+      int status =
+          mvc.perform(
+                  put("/api/tenants/" + tenantY.getId() + "/roles/" + roleId)
+                      .content(asJsonString(updateInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // -------- Assert --------
+      assertTrue(
+          status == 403 || status == 404,
+          "Expected 403 or 404 but got " + status + " — cross-tenant role update was NOT blocked");
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Tenant role created in tenant X should NOT be deletable from tenant Y")
+    void given_roleInTenantX_should_notBeDeletableFromTenantY() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X",
+              Set.of(Capability.MANAGE_TENANT_SETTINGS, Capability.ACCESS_TENANT_SETTINGS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y",
+              Set.of(Capability.DELETE_TENANT_SETTINGS, Capability.ACCESS_TENANT_SETTINGS));
+
+      RoleInput input =
+          RoleInput.builder()
+              .name("Delete Isolation Role")
+              .capabilities(Set.of(Capability.ACCESS_ASSETS))
+              .build();
+
+      String createResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantX.getId() + "/roles")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String roleId = JsonPath.read(createResponse, "$.role_id");
+
+      // -------- Act — delete from tenant Y --------
+      int status =
+          mvc.perform(
+                  delete("/api/tenants/" + tenantY.getId() + "/roles/" + roleId)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // -------- Assert --------
+      assertTrue(
+          status == 403 || status == 404,
+          "Expected 403 or 404 but got " + status + " — cross-tenant role delete was NOT blocked");
     }
   }
 }
