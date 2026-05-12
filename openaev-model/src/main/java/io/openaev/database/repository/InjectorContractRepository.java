@@ -175,8 +175,6 @@ public interface InjectorContractRepository
    * and matching the {@code payloads} flag, a new row is inserted only if no association with the
    * given contract already exists (idempotent by design).
    *
-   * @param payloads {@code true} to target injectors flagged as payload-based, {@code false} for
-   *     non-payload injectors.
    * @param tenantId the identifier of the tenant whose injectors should be considered.
    * @param contractId the identifier of the injector contract to associate with the matching
    *     injectors.
@@ -188,7 +186,7 @@ public interface InjectorContractRepository
     INSERT INTO injectors_injector_contracts (injector_id, injector_contract_id, tenant_id)
     SELECT i.injector_id, :contractId, i.tenant_id
     FROM injectors i
-    WHERE i.injector_payloads = :payloads
+    WHERE i.injector_payloads = TRUE
     AND i.tenant_id = :tenantId
     AND NOT EXISTS (
         SELECT 1 FROM injectors_injector_contracts ic
@@ -197,8 +195,6 @@ public interface InjectorContractRepository
     )
     """,
       nativeQuery = true)
-  void addContractToInjectorsWithoutIt(
-      @Param("payloads") Boolean payloads,
-      @Param("tenantId") String tenantId,
-      @Param("contractId") String contractId);
+  void addContractToPayloadsInjectors(
+      @Param("tenantId") String tenantId, @Param("contractId") String contractId);
 }
