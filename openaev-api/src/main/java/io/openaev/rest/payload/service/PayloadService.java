@@ -323,7 +323,8 @@ public class PayloadService {
     return expectation;
   }
 
-  public Payload duplicate(@NotBlank final String payloadId) {
+  public PayloadCreationService.PayloadInjectorContractCreationResult duplicate(
+      @NotBlank final String payloadId) {
     Payload origin = this.payloadRepository.findById(payloadId).orElseThrow();
     Optional<InjectorContract> originInjectorContract =
         injectorContractRepository.findInjectorContractByPayload(origin);
