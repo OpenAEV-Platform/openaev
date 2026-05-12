@@ -27,6 +27,7 @@ import org.springframework.core.env.Environment;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.MultipartBodyBuilder;
@@ -36,7 +37,6 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
-import org.springframework.http.HttpStatus;
 
 @Slf4j
 @Service
@@ -230,8 +230,8 @@ public class AttackPatternService {
    *
    * @param files List of files to be analyzed, maximum 5 files.
    * @param text Text input to be analyzed.
-   * @param agentSlug Optional XTM One agent slug to use; when null/blank falls back to the
-   *     default TTP extractor agent (only relevant when XTM One is configured).
+   * @param agentSlug Optional XTM One agent slug to use; when null/blank falls back to the default
+   *     TTP extractor agent (only relevant when XTM One is configured).
    * @return List of attack pattern IDs found in the analysis.
    */
   public List<String> searchAttackPatternWithTTPAIWebservice(
@@ -250,9 +250,7 @@ public class AttackPatternService {
 
     } catch (IOException e) {
       throw new ResponseStatusException(
-          HttpStatus.SERVICE_UNAVAILABLE,
-          "AI service is unavailable: " + e.getMessage(),
-          e);
+          HttpStatus.SERVICE_UNAVAILABLE, "AI service is unavailable: " + e.getMessage(), e);
     }
   }
 
@@ -267,8 +265,8 @@ public class AttackPatternService {
    * format expected by the copilot agent, sends the request through {@link XtmOneClient}, and
    * returns the agent's content (same JSON format as the legacy webservice).
    */
-  private String callTTPExtractionViaXtmOne(List<MultipartFile> files, String text, String agentSlug)
-      throws IOException {
+  private String callTTPExtractionViaXtmOne(
+      List<MultipartFile> files, String text, String agentSlug) throws IOException {
     // Convert files to base64 JSON nodes
     com.fasterxml.jackson.databind.node.ArrayNode filesNode = null;
     if (!files.isEmpty()) {
