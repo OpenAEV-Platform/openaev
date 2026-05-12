@@ -123,10 +123,7 @@ void given_{entity}InTenantX_should_notAppearInTenantYSearch() throws Exception 
   entityManager.flush();
   entityManager.clear();
 
-  SearchPaginationInput searchInput = new SearchPaginationInput();
-  searchInput.setTextSearch("CrossTenantSearch");
-  searchInput.setSize(100);
-  searchInput.setPage(0);
+  SearchPaginationInput searchInput = PaginationFixture.simpleTextSearch("CrossTenantSearch");
 
   String searchResponse = mvc.perform(
           post("/api/tenants/" + tenantY.getId() + "/{entities}/search")

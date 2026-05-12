@@ -2,6 +2,7 @@ package io.openaev.rest;
 
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -29,8 +30,6 @@ import java.util.Set;
 import net.javacrumbs.jsonunit.core.Option;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -973,10 +972,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
       Inject inject = createInjectInTenant(tenantX);
 
-      SearchPaginationInput searchInput = new SearchPaginationInput();
-      searchInput.setTextSearch(inject.getTitle());
-      searchInput.setSize(100);
-      searchInput.setPage(0);
+      SearchPaginationInput searchInput = PaginationFixture.simpleTextSearch(inject.getTitle());
 
       String searchResponse =
           mvc.perform(

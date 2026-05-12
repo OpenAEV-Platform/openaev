@@ -23,6 +23,7 @@ import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.ExerciseFixture;
+import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.fixtures.TagFixture;
 import io.openaev.utils.fixtures.composers.AssetGroupComposer;
 import io.openaev.utils.fixtures.composers.EndpointComposer;
@@ -719,10 +720,8 @@ class AssetGroupApiTest extends IntegrationTest {
       entityManager.clear();
 
       // -------- Act — search from tenant Y --------
-      SearchPaginationInput searchInput = new SearchPaginationInput();
-      searchInput.setTextSearch("CrossTenantSearchAssetGroup");
-      searchInput.setSize(100);
-      searchInput.setPage(0);
+      SearchPaginationInput searchInput =
+          PaginationFixture.simpleTextSearch("CrossTenantSearchAssetGroup");
 
       String searchResponse =
           mvc.perform(

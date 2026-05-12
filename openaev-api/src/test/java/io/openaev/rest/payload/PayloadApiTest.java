@@ -4,6 +4,7 @@ import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTEN
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_PROPERTY;
 import static io.openaev.database.specification.InjectorContractSpecification.byPayloadId;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
@@ -31,6 +32,7 @@ import io.openaev.rest.payload.form.*;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.CollectorFixture;
 import io.openaev.utils.fixtures.DomainFixture;
+import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.fixtures.PayloadFixture;
 import io.openaev.utils.fixtures.PayloadInputFixture;
 import io.openaev.utils.fixtures.composers.CollectorComposer;
@@ -41,8 +43,6 @@ import jakarta.annotation.Resource;
 import java.util.*;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
@@ -1238,10 +1238,8 @@ class PayloadApiTest extends IntegrationTest {
 
       createPayloadInTenant(tenantX, "CrossTenantPayloadSearch");
 
-      SearchPaginationInput searchInput = new SearchPaginationInput();
-      searchInput.setTextSearch("CrossTenantPayloadSearch");
-      searchInput.setSize(100);
-      searchInput.setPage(0);
+      SearchPaginationInput searchInput =
+          PaginationFixture.simpleTextSearch("CrossTenantPayloadSearch");
 
       String searchResponse =
           mvc.perform(

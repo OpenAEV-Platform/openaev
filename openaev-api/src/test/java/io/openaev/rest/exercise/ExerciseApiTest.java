@@ -4,6 +4,7 @@ import static io.openaev.database.model.TenantSettingKeys.TENANT_SIMULATION_DASH
 import static io.openaev.database.specification.TeamSpecification.fromExercise;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -34,6 +35,7 @@ import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.*;
+import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -47,8 +49,6 @@ import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestExecutionListeners;
@@ -823,10 +823,8 @@ public class ExerciseApiTest extends IntegrationTest {
       entityManager.clear();
 
       // -------- Act — search from tenant Y --------
-      SearchPaginationInput searchInput = new SearchPaginationInput();
-      searchInput.setTextSearch("CrossTenantSearchExercise");
-      searchInput.setSize(100);
-      searchInput.setPage(0);
+      SearchPaginationInput searchInput =
+          PaginationFixture.simpleTextSearch("CrossTenantSearchExercise");
 
       String searchResponse =
           mvc.perform(
