@@ -26,6 +26,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
+@Deprecated(since = "Remove after closing https://github.com/OpenAEV-Platform/client-python/issues/211")
 public class PayloadApi extends RestBehavior {
 
   public static final String PAYLOAD_URI = "/api/payloads";
