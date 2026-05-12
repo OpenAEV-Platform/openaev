@@ -119,15 +119,8 @@ The `app.current_tenant` session variable is set on every connection checkout by
 
 ## 7. Follow-ups
 
-| # | Limitation or follow-up | Severity | Owner | Target |
-| --- | --- | --- | --- | --- |
-| 1 | Add Playwright E2E tests specifically for RLS on native `@Query` endpoints | Medium | — | Next sprint |
-| 2 | Automate `TenantScopedTables` validation (fail build if entity has `TenantBase` but table not listed) | Low | — | Backlog |
+| # | Limitation or follow-up | Severity | Owner | Target      |
+| --- | --- | --- | --- |-------------|
+| 1 | Add Playwright E2E tests specifically for RLS on native `@Query` endpoints | Medium | — | In progress |
+| 2 | Automate `TenantScopedTables` validation (fail build if entity has `TenantBase` but table not listed) | Low | — | Backlog     |
 | 3 | Audit all existing native `@Query` methods for missing `WHERE tenant_id` | High | — | In progress |
-
-## 8. Decision log
-
-| Date | Author | Change |
-| --- | --- | --- |
-| 2026-05-11 | Corinne | Initial draft |
-
