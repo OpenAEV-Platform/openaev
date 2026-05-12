@@ -5,6 +5,7 @@ import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.AssetGroupFixture.*;
 import static io.openaev.utils.fixtures.InjectFixture.getDefaultInject;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -43,6 +44,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -656,7 +658,7 @@ class AssetGroupApiTest extends IntegrationTest {
               .getStatus();
 
       // -------- Assert --------
-      assertEquals(404, responseStatus, "Expected 404 but got " + responseStatus);
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
     }
 
     @Test
@@ -784,7 +786,7 @@ class AssetGroupApiTest extends IntegrationTest {
               .getStatus();
 
       // -------- Assert --------
-      assertEquals(404, responseStatus, "Expected 404 but got " + responseStatus);
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
     }
 
     @Test
@@ -828,7 +830,7 @@ class AssetGroupApiTest extends IntegrationTest {
               .getStatus();
 
       // -------- Assert --------
-      assertEquals(404, responseStatus, "Expected 404 but got " + responseStatus);
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
     }
   }
 }

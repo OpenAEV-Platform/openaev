@@ -64,7 +64,7 @@ void given_{entity}InTenantX_should_notBeReadableFromTenantY() throws Exception 
               .with(csrf()))
       .andReturn().getResponse().getStatus();
 
-  assertEquals(404, responseStatus, "Expected 404 but got " + responseStatus);
+  assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
 }
 ```
 
@@ -178,7 +178,7 @@ void given_{entity}InTenantX_should_notBeUpdatableFromTenantY() throws Exception
               .with(csrf()))
       .andReturn().getResponse().getStatus();
 
-  assertEquals(404, responseStatus, "Expected 404 but got " + responseStatus);
+  assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
 }
 ```
 
@@ -214,7 +214,7 @@ void given_{entity}InTenantX_should_notBeDeletableFromTenantY() throws Exception
               .with(csrf()))
       .andReturn().getResponse().getStatus();
 
-  assertEquals(404, responseStatus, "Expected 404 but got " + responseStatus);
+  assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
 }
 ```
 

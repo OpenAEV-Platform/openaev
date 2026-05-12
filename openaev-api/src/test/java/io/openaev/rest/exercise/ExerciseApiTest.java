@@ -47,6 +47,9 @@ import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.test.web.servlet.MockMvc;
@@ -756,7 +759,7 @@ public class ExerciseApiTest extends IntegrationTest {
               .getStatus();
 
       // -------- Assert --------
-      assertEquals(404, responseStatus, "Expected 404 but got " + responseStatus);
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
     }
 
     @Test
@@ -890,7 +893,7 @@ public class ExerciseApiTest extends IntegrationTest {
               .getStatus();
 
       // -------- Assert --------
-      assertEquals(404, responseStatus, "Expected 404 but got " + responseStatus);
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
     }
 
     @Test
@@ -936,7 +939,7 @@ public class ExerciseApiTest extends IntegrationTest {
               .getStatus();
 
       // -------- Assert --------
-      assertEquals(404, responseStatus, "Expected 404 but got " + responseStatus);
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
     }
   }
 }

@@ -41,6 +41,9 @@ import jakarta.annotation.Resource;
 import java.util.*;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -1204,7 +1207,7 @@ class PayloadApiTest extends IntegrationTest {
               .getResponse()
               .getStatus();
 
-      assertEquals(404, responseStatus, "Expected 404 but got " + responseStatus);
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
     }
 
     @Test
@@ -1279,7 +1282,7 @@ class PayloadApiTest extends IntegrationTest {
               .getResponse()
               .getStatus();
 
-      assertEquals(404, responseStatus, "Expected 404 but got " + responseStatus);
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
     }
   }
 }
