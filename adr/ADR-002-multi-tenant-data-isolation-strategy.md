@@ -25,7 +25,7 @@ RLS policies will filter rows based on the `app.current_tenant` session variable
 1. **Security and data isolation** — a tenant must never see another tenant's data, even partially.
 2. **Defence in depth** — no single layer failure should cause a data leak.
 3. **Developer ergonomics** — isolation should be automatic and hard to bypass accidentally.
-4. **Testability** — each layer must be independently verifiable in CI. Each integration test shuould validate tenant isolation for the code it covers. New AIskills added to cover tenant isolation gaps (e.g., native queries) should be added to CI.
+4. **Testability** — each layer must be independently verifiable in CI. Each integration test should validate tenant isolation for the code it covers. New AI skills have added to cover tenant isolation gaps (e.g., native queries). See [TENANT_ISOLATION](https://github.com/OpenAEV-Platform/openaev/blob/release/current/.github/skills/add-test/TENANT_ISOLATION.md).
 5. **Performance** — isolation must not add measurable latency to hot paths.
 
 ## 3. Considered options
