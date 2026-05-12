@@ -316,9 +316,7 @@ public class PayloadService {
     return new PayloadWithRelatedEntities(payload, attackPatternIds, domainIds, tagIds);
   }
 
-  /**
-   * Applies the OpenAEV rule for available expectations: MANUAL is not limited, all others are.
-   */
+  /** Applies the OpenAEV rule for available expectations: MANUAL is not limited, all others are. */
   private Expectation withExpectedLimitedFlag(Expectation expectation) {
     expectation.setIsLimited(
         !InjectExpectation.EXPECTATION_TYPE.MANUAL.equals(expectation.getType()));
