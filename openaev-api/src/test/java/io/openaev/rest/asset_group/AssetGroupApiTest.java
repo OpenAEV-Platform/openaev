@@ -28,7 +28,6 @@ import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
-import jakarta.servlet.ServletException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -256,22 +255,19 @@ class AssetGroupApiTest extends IntegrationTest {
       "Given valid AssetGroupInput for a nonexistent assetGroup, should return 404 Not Found")
   @Test
   @WithMockUser(isAdmin = true)
-  void given_validAssetGroupInputForNonexistentAssetGroup_should_returnNotFound() {
+  void given_validAssetGroupInputForNonexistentAssetGroup_should_returnNotFound() throws Exception {
     // --PREPARE--
-    AssetGroup input = createDefaultAssetGroup("Asset group");
+    AssetGroupInput input = createDefaultAssetGroupInput("Asset group updated");
     String nonexistentAssetGroupId = "nonexistent-id";
-    input.setName("Asset group updated");
 
-    // --EXECUTE--
-    assertThrows(
-        ServletException.class,
-        () ->
-            mvc.perform(
-                put(ASSET_GROUP_URI + "/" + nonexistentAssetGroupId)
-                    .content(asJsonString(input))
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON)
-                    .with(csrf())));
+    // --EXECUTE & ASSERT--
+    mvc.perform(
+            put(ASSET_GROUP_URI + "/" + nonexistentAssetGroupId)
+                .content(asJsonString(input))
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().isNotFound());
   }
 
   @DisplayName("Given existing assetGroup, should delete assetGroup successfully")
