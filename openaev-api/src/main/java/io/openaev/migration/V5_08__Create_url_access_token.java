@@ -11,7 +11,8 @@ public class V5_08__Create_url_access_token extends BaseJavaMigration {
   @Override
   public void migrate(Context context) throws Exception {
     try (Statement statement = context.getConnection().createStatement()) {
-      statement.addBatch("""
+      statement.addBatch(
+          """
           CREATE TABLE IF NOT EXISTS url_access_token (
               id              VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid(),
               token_hash      VARCHAR(64)  NOT NULL,
@@ -49,4 +50,3 @@ public class V5_08__Create_url_access_token extends BaseJavaMigration {
 // DROP INDEX IF EXISTS idx_url_access_token_expires_at;
 // DROP INDEX IF EXISTS idx_url_access_token_token_hash;
 // DROP TABLE IF EXISTS url_access_token;
-
