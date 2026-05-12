@@ -41,9 +41,8 @@ import io.openaev.utils.fixtures.ThreatArsenalInputFixture;
 import io.openaev.utils.fixtures.composers.DomainComposer;
 import io.openaev.utils.fixtures.composers.InjectorContractComposer;
 import io.openaev.utils.mockUser.WithMockUser;
-import java.util.*;
-
 import jakarta.servlet.ServletException;
+import java.util.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -323,15 +322,17 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
       attributes.put("payload_platforms", new String[] {}); // empty array
 
       JsonApiDocument<ResourceObject> document =
-              new JsonApiDocument<>(
-                      new ResourceObject(null, "command", attributes, emptyMap()), emptyList());
+          new JsonApiDocument<>(
+              new ResourceObject(null, "command", attributes, emptyMap()), emptyList());
 
       MockMultipartFile zipFile = buildZipFile(document);
 
       // -- EXECUTE --
-      assertThrows(ServletException.class,
-        () -> mockMvc.perform(multipart(THREAT_ARSENAL_URL + "/import").file(zipFile).with(csrf()))
-      );
+      assertThrows(
+          ServletException.class,
+          () ->
+              mockMvc.perform(
+                  multipart(THREAT_ARSENAL_URL + "/import").file(zipFile).with(csrf())));
     }
 
     @Test
@@ -488,9 +489,11 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
       MockMultipartFile zipFile = buildZipFile(document);
 
       // -- EXECUTE --
-      assertThrows(ServletException.class,
-        () -> mockMvc.perform(multipart(THREAT_ARSENAL_URL + "/import").file(zipFile).with(csrf()))
-      );
+      assertThrows(
+          ServletException.class,
+          () ->
+              mockMvc.perform(
+                  multipart(THREAT_ARSENAL_URL + "/import").file(zipFile).with(csrf())));
     }
   }
 }
