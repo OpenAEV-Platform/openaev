@@ -21,6 +21,10 @@ public class PaginationFixture {
     return si;
   }
 
+  public static SearchPaginationInput simpleTextSearch(String textSearch) {
+    return getDefault().textSearch(textSearch).size(100).build();
+  }
+
   public static SearchPaginationInput simpleSearchWithAndOperator(
       String key, String value, Filters.FilterOperator operator) {
     Filters.Filter filter = new Filters.Filter();

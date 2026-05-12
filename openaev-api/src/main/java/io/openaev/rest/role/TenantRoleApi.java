@@ -7,7 +7,6 @@ import io.openaev.aop.LogExecutionTime;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
-import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.role.form.RoleInput;
 import io.openaev.rest.role.form.RoleMapper;
@@ -71,10 +70,7 @@ public class TenantRoleApi extends RestBehavior {
       })
   public RoleOutput findRole(
       @PathVariable @NotBlank @Schema(description = "ID of the role") final String roleId) {
-    return roleService
-        .findById(roleId)
-        .map(roleMapper::toRoleOutput)
-        .orElseThrow(() -> new ElementNotFoundException("Role not found with id: " + roleId));
+    return roleMapper.toRoleOutput(roleService.findByIdInTenant(roleId));
   }
 
   @LogExecutionTime
