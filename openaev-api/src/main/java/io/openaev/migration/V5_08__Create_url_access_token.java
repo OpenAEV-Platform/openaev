@@ -23,7 +23,6 @@ public class V5_08__Create_url_access_token extends BaseJavaMigration {
               last_used_at    TIMESTAMP    NULL,
               created_at      TIMESTAMP    NOT NULL DEFAULT now(),
               creator_user_id VARCHAR(255) NULL,
-              CONSTRAINT pk_url_access_token PRIMARY KEY (id),
               CONSTRAINT fk_url_access_token_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
               CONSTRAINT fk_url_access_token_exercise FOREIGN KEY (exercise_id) REFERENCES exercises(exercise_id) ON DELETE CASCADE,
               CONSTRAINT fk_url_access_token_creator FOREIGN KEY (creator_user_id) REFERENCES users(user_id) ON DELETE SET NULL
