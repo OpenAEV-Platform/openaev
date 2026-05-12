@@ -117,13 +117,13 @@ const KillChainPhaseColumn: FunctionComponent<{
     });
   }, [openWidgetDataDrawer, widgetId]);
 
+  // Memoize title style
+  const titleStyle = useMemo(() => ({ marginBottom: theme.spacing(2) }), [theme]);
+
   // Early return if no data and showCoveredOnly
   if (resolvedDataSuccess.length === 0 && resolvedDataFailure.length === 0 && showCoveredOnly) {
     return null;
   }
-
-  // Memoize title style
-  const titleStyle = useMemo(() => ({ marginBottom: theme.spacing(2) }), [theme]);
 
   return (
     <div>

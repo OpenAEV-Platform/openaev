@@ -22,7 +22,7 @@ jobs:
     steps:
       - name: Extract issue numbers from PR title and body
         id: extract
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -56,7 +56,7 @@ jobs:
       issues: write
     steps:
       - name: Add "solved" label and close issues
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |

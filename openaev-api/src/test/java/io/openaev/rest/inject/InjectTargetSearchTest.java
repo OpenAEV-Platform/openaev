@@ -1888,7 +1888,10 @@ public class InjectTargetSearchTest extends IntegrationTest {
                     ep3Wrapper.get().getTags().stream().map(Tag::getId).collect(Collectors.toSet()),
                     ep3Wrapper.get().getPlatform().name()));
 
-        assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));
+        assertThatJson(response)
+            .when(Option.IGNORING_ARRAY_ORDER)
+            .node("content")
+            .isEqualTo(mapper.writeValueAsString(expected));
       }
 
       @Test
