@@ -338,6 +338,7 @@ public class ImapService extends ExternalServiceBase {
         } catch (MessagingException e) {
           log.warn(e.getMessage());
           this.saveServiceState(IMAP_SETTINGS_KEY, false);
+          return;
         }
       }
       syncFolders();
