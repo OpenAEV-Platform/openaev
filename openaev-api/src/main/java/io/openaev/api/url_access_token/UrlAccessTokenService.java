@@ -1,4 +1,4 @@
-package io.openaev.rest.url_access_token.service;
+package io.openaev.api.url_access_token;
 
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.UrlAccessToken;

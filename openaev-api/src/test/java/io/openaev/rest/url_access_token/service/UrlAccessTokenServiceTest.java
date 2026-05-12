@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
+import io.openaev.api.url_access_token.UrlAccessTokenService;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.UrlAccessToken;
 import io.openaev.database.model.User;
