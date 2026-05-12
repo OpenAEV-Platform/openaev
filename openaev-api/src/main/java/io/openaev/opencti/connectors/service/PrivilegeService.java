@@ -14,6 +14,7 @@ import io.openaev.service.tenants.TenantUserService;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -39,12 +40,14 @@ public class PrivilegeService {
    * the user, its group, role, and tenant attachment as needed.
    */
   public void ensurePrivilegedUserExistsForConnector(ConnectorBase connector) {
-    Group group = createWellKnownGroupWithRole(createWellKnownRole());
     String email = CONNECTOR_EMAIL_PATTERN.formatted(connector.getId());
 
     // TODO: remove once all deployments have been migrated to multi-tenant
-    legacyOpenCTIConnectorMigration.deleteLegacyConnectorUserIfExists(email);
+    legacyOpenCTIConnectorMigration.deleteLegacyConnectorIfExists(email);
 
+    Group group =
+        createWellKnownGroupWithRole(
+            createWellKnownRole(connector.getTenantId()), connector.getTenantId());
     Optional<User> connectorUser =
         userService.findByTokenAndTenantId(connector.getToken(), connector.getTenantId());
     Optional<User> existingEmailUser = userService.findByEmailIgnoreCase(email);
@@ -90,25 +93,31 @@ public class PrivilegeService {
     user.setGroups(new ArrayList<>(List.of(group)));
   }
 
-  private Role createWellKnownRole() {
-    Optional<Role> processStixRole = roleService.findById(PROCESS_STIX_ROLE_ID);
+  private Role createWellKnownRole(String tenantId) {
+    String roleId =
+        UUID.nameUUIDFromBytes((UUID.fromString(PROCESS_STIX_ROLE_ID) + ":" + tenantId).getBytes())
+            .toString();
+    Optional<Role> processStixRole = roleService.findById(roleId);
     if (processStixRole.isEmpty()) {
       return roleService.createRole(
-          PROCESS_STIX_ROLE_ID,
+          roleId,
           PROCESS_STIX_ROLE_NAME,
           PROCESS_STIX_ROLE_DESCRIPTION,
           PROCESS_STIX_ROLE_CAPABILITIES);
     } else {
       return roleService.updateRole(
-          PROCESS_STIX_ROLE_ID,
+          roleId,
           PROCESS_STIX_ROLE_NAME,
           PROCESS_STIX_ROLE_DESCRIPTION,
           PROCESS_STIX_ROLE_CAPABILITIES);
     }
   }
 
-  private Group createWellKnownGroupWithRole(Role role) {
-    Optional<Group> processStixGroup = tenantGroupService.findById(PROCESS_STIX_GROUP_ID);
+  private Group createWellKnownGroupWithRole(Role role, String tenantId) {
+    String groupId =
+        UUID.nameUUIDFromBytes((UUID.fromString(PROCESS_STIX_GROUP_ID) + ":" + tenantId).getBytes())
+            .toString();
+    Optional<Group> processStixGroup = tenantGroupService.findById(groupId);
 
     TenantGroupCreateInput input = new TenantGroupCreateInput();
     input.setName(PROCESS_STIX_GROUP_NAME);
@@ -119,7 +128,7 @@ public class PrivilegeService {
     if (processStixGroup.isPresent()) {
       return tenantGroupService.updateGroupInfoWithRoles(processStixGroup.get(), input, roles);
     } else {
-      return tenantGroupService.createGroupWithRole(PROCESS_STIX_GROUP_ID, input, roles);
+      return tenantGroupService.createGroupWithRole(groupId, input, roles);
     }
   }
 }

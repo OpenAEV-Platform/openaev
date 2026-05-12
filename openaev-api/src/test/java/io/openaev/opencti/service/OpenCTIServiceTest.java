@@ -45,6 +45,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -74,6 +75,20 @@ public class OpenCTIServiceTest extends IntegrationTest {
     tenantGroupComposer.reset();
     userComposer.reset();
     tokenComposer.reset();
+  }
+
+  private String tenantScopedId(String id) {
+    return UUID.nameUUIDFromBytes(
+            (UUID.fromString(id) + ":" + TenantContext.getCurrentTenant()).getBytes())
+        .toString();
+  }
+
+  private String tenantScopedRoleId() {
+    return tenantScopedId(Constants.PROCESS_STIX_ROLE_ID);
+  }
+
+  private String tenantScopedGroupId() {
+    return tenantScopedId(Constants.PROCESS_STIX_GROUP_ID);
   }
 
   @Nested
@@ -350,7 +365,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
         entityManager.flush();
         entityManager.clear();
 
-        Optional<Role> role = roleService.findById(Constants.PROCESS_STIX_ROLE_ID);
+        Optional<Role> role = roleService.findById(tenantScopedRoleId());
 
         assertThat(role).isNotEmpty();
         assertThat(role.orElseThrow().getCapabilities())
@@ -365,7 +380,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
       public void whenTheSpecificRoleAlreadyExists_itIsUpdatedOnRegisterWithCorrectAttributes()
           throws IOException, ConnectorError {
         Role specificRole = TenantRoleFixture.getRole();
-        specificRole.setId(Constants.PROCESS_STIX_ROLE_ID);
+        specificRole.setId(tenantScopedRoleId());
         specificRole.setName("bad name");
         specificRole.setDescription("bad description");
         specificRole.setCapabilities(Set.of());
@@ -385,7 +400,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
         entityManager.flush();
         entityManager.clear();
 
-        Optional<Role> role = roleService.findById(Constants.PROCESS_STIX_ROLE_ID);
+        Optional<Role> role = roleService.findById(tenantScopedRoleId());
 
         assertThat(role).isNotEmpty();
         assertThat(role.get().getCapabilities())
@@ -410,14 +425,14 @@ public class OpenCTIServiceTest extends IntegrationTest {
         entityManager.flush();
         entityManager.clear();
 
-        Optional<Group> group = tenantGroupService.findById(Constants.PROCESS_STIX_GROUP_ID);
+        Optional<Group> group = tenantGroupService.findById(tenantScopedGroupId());
 
         assertThat(group).isNotEmpty();
         assertThat(group.get().getName()).isEqualTo(Constants.PROCESS_STIX_GROUP_NAME);
         assertThat(group.get().getDescription())
             .isEqualTo(Constants.PROCESS_STIX_GROUP_DESCRIPTION);
         assertThat(group.get().getRoles().stream().map(Role::getId).toList())
-            .isEqualTo(List.of(Constants.PROCESS_STIX_ROLE_ID));
+            .isEqualTo(List.of(tenantScopedRoleId()));
       }
 
       @Test
@@ -426,7 +441,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
       public void whenTheSpecificGroupAlreadyExists_itIsUpdatedOnRegisterWithCorrectAttributes()
           throws IOException, ConnectorError {
         Group specificGroup = TenantGroupFixture.getGroup();
-        specificGroup.setId(Constants.PROCESS_STIX_GROUP_ID);
+        specificGroup.setId(tenantScopedGroupId());
         specificGroup.setName("bad name");
         specificGroup.setDescription("bad description");
         specificGroup.setRoles(new ArrayList<>());
@@ -446,14 +461,14 @@ public class OpenCTIServiceTest extends IntegrationTest {
         entityManager.flush();
         entityManager.clear();
 
-        Optional<Group> group = tenantGroupService.findById(Constants.PROCESS_STIX_GROUP_ID);
+        Optional<Group> group = tenantGroupService.findById(tenantScopedGroupId());
 
         assertThat(group).isNotEmpty();
         assertThat(group.get().getName()).isEqualTo(Constants.PROCESS_STIX_GROUP_NAME);
         assertThat(group.get().getDescription())
             .isEqualTo(Constants.PROCESS_STIX_GROUP_DESCRIPTION);
         assertThat(group.get().getRoles().stream().map(Role::getId).toList())
-            .isEqualTo(List.of(Constants.PROCESS_STIX_ROLE_ID));
+            .isEqualTo(List.of(tenantScopedRoleId()));
       }
 
       @Test
@@ -481,7 +496,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
             .isEqualTo(CONNECTOR_EMAIL_PATTERN.formatted(testConnector.getId()));
         assertThat(user.get().getFirstname()).isEqualTo(testConnector.getName());
         assertThat(user.get().getGroups().stream().map(Group::getId).toList())
-            .isEqualTo(List.of(Constants.PROCESS_STIX_GROUP_ID));
+            .isEqualTo(List.of(tenantScopedGroupId()));
       }
 
       @Test
@@ -524,7 +539,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
             .isEqualTo(CONNECTOR_EMAIL_PATTERN.formatted(testConnector.getId()));
         assertThat(user.get().getFirstname()).isEqualTo(testConnector.getName());
         assertThat(user.get().getGroups().stream().map(Group::getId).toList())
-            .isEqualTo(List.of(Constants.PROCESS_STIX_GROUP_ID));
+            .isEqualTo(List.of(tenantScopedGroupId()));
       }
     }
 
@@ -548,7 +563,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
         entityManager.flush();
         entityManager.clear();
 
-        Optional<Role> role = roleService.findById(Constants.PROCESS_STIX_ROLE_ID);
+        Optional<Role> role = roleService.findById(tenantScopedRoleId());
 
         assertThat(role).isNotEmpty();
         assertThat(role.get().getCapabilities())
@@ -563,7 +578,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
       public void whenTheSpecificRoleAlreadyExists_itIsUpdatedOnPingWithCorrectAttributes()
           throws IOException, ConnectorError {
         Role specificRole = TenantRoleFixture.getRole();
-        specificRole.setId(Constants.PROCESS_STIX_ROLE_ID);
+        specificRole.setId(tenantScopedRoleId());
         specificRole.setName("bad name");
         specificRole.setDescription("bad description");
         specificRole.setCapabilities(Set.of());
@@ -583,7 +598,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
         entityManager.flush();
         entityManager.clear();
 
-        Optional<Role> role = roleService.findById(Constants.PROCESS_STIX_ROLE_ID);
+        Optional<Role> role = roleService.findById(tenantScopedRoleId());
 
         assertThat(role).isNotEmpty();
         assertThat(role.get().getCapabilities())
@@ -608,14 +623,14 @@ public class OpenCTIServiceTest extends IntegrationTest {
         entityManager.flush();
         entityManager.clear();
 
-        Optional<Group> group = tenantGroupService.findById(Constants.PROCESS_STIX_GROUP_ID);
+        Optional<Group> group = tenantGroupService.findById(tenantScopedGroupId());
 
         assertThat(group).isNotEmpty();
         assertThat(group.get().getName()).isEqualTo(Constants.PROCESS_STIX_GROUP_NAME);
         assertThat(group.get().getDescription())
             .isEqualTo(Constants.PROCESS_STIX_GROUP_DESCRIPTION);
         assertThat(group.get().getRoles().stream().map(Role::getId).toList())
-            .isEqualTo(List.of(Constants.PROCESS_STIX_ROLE_ID));
+            .isEqualTo(List.of(tenantScopedRoleId()));
       }
 
       @Test
@@ -624,7 +639,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
       public void whenTheSpecificGroupAlreadyExists_itIsUpdatedOnPingWithCorrectAttributes()
           throws IOException, ConnectorError {
         Group specificGroup = TenantGroupFixture.getGroup();
-        specificGroup.setId(Constants.PROCESS_STIX_GROUP_ID);
+        specificGroup.setId(tenantScopedGroupId());
         specificGroup.setName("bad name");
         specificGroup.setDescription("bad description");
         specificGroup.setRoles(new ArrayList<>());
@@ -644,14 +659,14 @@ public class OpenCTIServiceTest extends IntegrationTest {
         entityManager.flush();
         entityManager.clear();
 
-        Optional<Group> group = tenantGroupService.findById(Constants.PROCESS_STIX_GROUP_ID);
+        Optional<Group> group = tenantGroupService.findById(tenantScopedGroupId());
 
         assertThat(group).isNotEmpty();
         assertThat(group.get().getName()).isEqualTo(Constants.PROCESS_STIX_GROUP_NAME);
         assertThat(group.get().getDescription())
             .isEqualTo(Constants.PROCESS_STIX_GROUP_DESCRIPTION);
         assertThat(group.get().getRoles().stream().map(Role::getId).toList())
-            .isEqualTo(List.of(Constants.PROCESS_STIX_ROLE_ID));
+            .isEqualTo(List.of(tenantScopedRoleId()));
       }
 
       @Test
@@ -679,7 +694,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
             .isEqualTo(CONNECTOR_EMAIL_PATTERN.formatted(testConnector.getId()));
         assertThat(user.get().getFirstname()).isEqualTo(testConnector.getName());
         assertThat(user.get().getGroups().stream().map(Group::getId).toList())
-            .isEqualTo(List.of(Constants.PROCESS_STIX_GROUP_ID));
+            .isEqualTo(List.of(tenantScopedGroupId()));
       }
 
       @Test
@@ -722,7 +737,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
             .isEqualTo(CONNECTOR_EMAIL_PATTERN.formatted(testConnector.getId()));
         assertThat(user.get().getFirstname()).isEqualTo(testConnector.getName());
         assertThat(user.get().getGroups().stream().map(Group::getId).toList())
-            .isEqualTo(List.of(Constants.PROCESS_STIX_GROUP_ID));
+            .isEqualTo(List.of(tenantScopedGroupId()));
       }
     }
   }
