@@ -50,7 +50,7 @@ PostgreSQL Row-Level Security policies filter all queries transparently based on
 
 Combine entity-level Hibernate filters, application-level tenant scoping, and database-level RLS as a safety net.
 
-**Pros**: Defence in depth — each layer catches what the others miss. Testable at each level independently.
+**Pros**: Defence in depth — RLS layer catches what the application layer miss. Testable at each level independently.
 **Cons**: Slightly more complexity. Developer need to develop code being aware of multitenancy.
 
 ## 4. Decision
