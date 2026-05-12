@@ -87,239 +87,30 @@ public void switchToTenant(String tenantId, EntityManager entityManager) {
 ```
 ### Step 5 — Implement Test Methods
 
-Use this template. Replace placeholders:
-- `{Entity}` — entity name (e.g., `Scenario`, `Group`)
-- `{entity}` — lowercase (e.g., `scenario`, `group`)
-- `{EntityFixture}` — fixture class name (e.g., `AssetGroupFixture`, `ExerciseFixture`)
-- `{MANAGE_CAP}` — capability for create/update (e.g., `Capability.MANAGE_ASSESSMENT`)
-- `{ACCESS_CAP}` — capability for read/search (e.g., `Capability.ACCESS_ASSESSMENT`)
-- `{DELETE_CAP}` — capability for delete (e.g., `Capability.DELETE_ASSESSMENT`)
-- `{TENANT_URI}` — tenant-scoped URI (e.g., `/api/tenants/{tenantId}/scenarios`)
-- `{entity_id_json_path}` — JSON path to entity ID in response (e.g., `$.scenario_id`)
-- `{entity_name_json_path}` — JSON path to entity name (e.g., `$.scenario_name`)
-- `{CreateInput}` — DTO class for create (e.g., `ScenarioInput`)
+> **Template**: All 5 test templates (READ, same-tenant READ, SEARCH, UPDATE, DELETE) are in
+> [`examples/tenant-isolation-templates.md`](examples/tenant-isolation-templates.md).
+> Read that file for the full code templates with placeholder documentation.
 
-#### Test 1 — Cross-tenant READ blocked
+> **Real-world examples** (read these for patterns to follow):
+> - [`AssetGroupApiTest.TenantIsolation`](../../../openaev-api/src/test/java/io/openaev/rest/asset_group/AssetGroupApiTest.java) — fixture + REST API create
+> - [`AtomicTestingApiTest.TenantIsolation`](../../../openaev-api/src/test/java/io/openaev/rest/AtomicTestingApiTest.java) — composer + `switchToTenant()`
+> - [`ExerciseApiTest.TenantIsolation`](../../../openaev-api/src/test/java/io/openaev/rest/exercise/ExerciseApiTest.java) — REST API create
 
-```java
-@Test
-@DisplayName("{Entity} created in tenant X should NOT be readable from tenant Y")
-void given_{entity}InTenantX_should_notBeReadableFromTenantY() throws Exception {
-  // -------- Arrange --------
-  Tenant tenantX =
-      tenantIsolationHelper.createTenantWithCapabilities(
-          "Tenant X", Set.of({MANAGE_CAP}, {ACCESS_CAP}));
-  Tenant tenantY =
-      tenantIsolationHelper.createTenantWithCapabilities(
-          "Tenant Y", Set.of({ACCESS_CAP}));
+**Key rules:**
 
-  // Use the entity's Fixture class to create the input DTO
-  {CreateInput} input = {EntityFixture}.createDefault{CreateInput}("RLS Isolation Test");
+1. **Use Fixture classes** for input DTOs: `{EntityFixture}.createDefault{CreateInput}("name")`
+   instead of inline `new DTO()` + setters. Add the fixture method if it doesn't exist.
 
-  String createResponse =
-      mvc.perform(
-              post("/api/tenants/" + tenantX.getId() + "/{entities}")
-                  .content(asJsonString(input))
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON)
-                  .with(csrf()))
-          .andExpect(status().is2xxSuccessful())
-          .andReturn()
-          .getResponse()
-          .getContentAsString();
+2. **Use Composers** when creating entities directly (bypassing REST API):
+   `injectComposer.forInject(InjectFixture.getDefaultInject()).persist().get()`
+   combined with `tenantIsolationHelper.switchToTenant()`.
 
-  String entityId = JsonPath.read(createResponse, "{entity_id_json_path}");
+3. **Expected status codes** — always use deterministic `assertEquals`:
+   - **404** (most common): Hibernate `@Filter` blocks `findById()` → `ElementNotFoundException`
+   - **403** (some cases): `@AccessControl(resourceId=...)` rejects at resource-level before service layer
+   - Run the test once to determine the actual code, then hardcode it.
 
-  // Evict L1 cache so findById() hits the DB (where RLS filters)
-  entityManager.flush();
-  entityManager.clear();
-
-  // -------- Act — read from tenant Y (expect 404) --------
-  int responseStatus =
-      mvc.perform(
-              get("/api/tenants/" + tenantY.getId() + "/{entities}/" + entityId)
-                  .accept(MediaType.APPLICATION_JSON)
-                  .with(csrf()))
-          .andReturn()
-          .getResponse()
-          .getStatus();
-
-  // -------- Assert --------
-  assertEquals(404, responseStatus,
-      "Expected 404 but got " + responseStatus);
-}
-```
-
-> **Expected status code**: 
-> 1/ Cross-tenant access typically returns **404 Not Found** — the
-> `@AccessControl` aspect passes the capability check, then the service layer throws
-> `ElementNotFoundException` when the entity isn't found in the target tenant. 
-> 2/ In some cases
-> (when `@AccessControl` does a resource-level permission check via `resourceId`), it may
-> return **403 Forbidden** instead. Always run the test once to determine the actual
-> deterministic status code, then use `assertEquals(actual, responseStatus)`.
-
-> **Fixture convention**: Each entity should have a Fixture class (e.g., `AssetGroupFixture`,
-> `ExerciseFixture`) with a factory method that creates a default input DTO. Use
-> `{EntityFixture}.createDefault{CreateInput}("name")` instead of inline
-> `new {CreateInput}()` + `setName(...)`. If the fixture method doesn't exist yet, add it
-> following the pattern in `AssetGroupFixture.createDefaultAssetGroupInput()`.
->
-> **Composer convention**: When creating entities directly (bypassing the REST API), use the
-> entity's Composer (e.g., `injectComposer.forInject(InjectFixture.getDefaultInject()).persist().get()`)
-> combined with `tenantIsolationHelper.switchToTenant()` to set the correct tenant context.
-
-#### Test 2 — Same-tenant READ works
-
-```java
-@Test
-@DisplayName("{Entity} created in tenant X should be readable from tenant X")
-void given_{entity}InTenantX_should_beReadableFromTenantX() throws Exception {
-  // -------- Arrange --------
-  Tenant tenantX =
-      tenantIsolationHelper.createTenantWithCapabilities(
-          "Tenant X", Set.of({MANAGE_CAP}, {ACCESS_CAP}));
-
-  {CreateInput} input = {EntityFixture}.createDefault{CreateInput}("Same Tenant Entity");
-
-  String createResponse =
-      mvc.perform(
-              post("/api/tenants/" + tenantX.getId() + "/{entities}")
-                  .content(asJsonString(input))
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON)
-                  .with(csrf()))
-          .andExpect(status().is2xxSuccessful())
-          .andReturn()
-          .getResponse()
-          .getContentAsString();
-
-  String entityId = JsonPath.read(createResponse, "{entity_id_json_path}");
-
-  // -------- Act & Assert — read from same tenant should succeed --------
-  mvc.perform(
-          get("/api/tenants/" + tenantX.getId() + "/{entities}/" + entityId)
-              .accept(MediaType.APPLICATION_JSON)
-              .with(csrf()))
-      .andExpect(status().isOk())
-      .andExpect(jsonPath("{entity_name_json_path}").value("Same Tenant Entity"));
-}
-```
-
-#### Test 3 — Cross-tenant SEARCH filtered
-
-```java
-@Test
-@DisplayName("{Entity} search in tenant Y should NOT return entities from tenant X")
-void given_{entity}InTenantX_should_notAppearInTenantYSearch() throws Exception {
-  // -------- Arrange --------
-  Tenant tenantX =
-      tenantIsolationHelper.createTenantWithCapabilities(
-          "Tenant X", Set.of({MANAGE_CAP}, {ACCESS_CAP}));
-  Tenant tenantY =
-      tenantIsolationHelper.createTenantWithCapabilities(
-          "Tenant Y", Set.of({ACCESS_CAP}));
-
-  {CreateInput} input = {EntityFixture}.createDefault{CreateInput}("CrossTenantSearch");
-
-  mvc.perform(
-          post("/api/tenants/" + tenantX.getId() + "/{entities}")
-              .content(asJsonString(input))
-              .contentType(MediaType.APPLICATION_JSON)
-              .accept(MediaType.APPLICATION_JSON)
-              .with(csrf()))
-      .andExpect(status().is2xxSuccessful());
-
-  // Evict L1 cache
-  entityManager.flush();
-  entityManager.clear();
-
-  // -------- Act — search from tenant Y --------
-  SearchPaginationInput searchInput = new SearchPaginationInput();
-  searchInput.setTextSearch("CrossTenantSearch");
-  searchInput.setSize(100);
-  searchInput.setPage(0);
-
-  String searchResponse =
-      mvc.perform(
-              post("/api/tenants/" + tenantY.getId() + "/{entities}/search")
-                  .content(asJsonString(searchInput))
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON)
-                  .with(csrf()))
-          .andExpect(status().is2xxSuccessful())
-          .andReturn()
-          .getResponse()
-          .getContentAsString();
-
-  // -------- Assert — no results from tenant X --------
-  assertEquals(Integer.valueOf(0), JsonPath.read(searchResponse, "$.totalElements"));
-}
-```
-
-#### Test 4 — Cross-tenant UPDATE blocked
-
-```java
-@Test
-@DisplayName("{Entity} created in tenant X should NOT be updatable from tenant Y")
-void given_{entity}InTenantX_should_notBeUpdatableFromTenantY() throws Exception {
-  // -------- Arrange --------
-  Tenant tenantX =
-      tenantIsolationHelper.createTenantWithCapabilities(
-          "Tenant X", Set.of({MANAGE_CAP}, {ACCESS_CAP}));
-  Tenant tenantY =
-      tenantIsolationHelper.createTenantWithCapabilities(
-          "Tenant Y", Set.of({MANAGE_CAP}, {ACCESS_CAP}));
-
-  {CreateInput} input = {EntityFixture}.createDefault{CreateInput}("Update Isolation Test");
-
-  String createResponse =
-      mvc.perform(
-              post("/api/tenants/" + tenantX.getId() + "/{entities}")
-                  .content(asJsonString(input))
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON)
-                  .with(csrf()))
-          .andExpect(status().is2xxSuccessful())
-          .andReturn()
-          .getResponse()
-          .getContentAsString();
-
-  String entityId = JsonPath.read(createResponse, "{entity_id_json_path}");
-
-  // Evict L1 cache
-  entityManager.flush();
-  entityManager.clear();
-
-  // -------- Act — update from tenant Y --------
-  {CreateInput} updateInput = {EntityFixture}.createDefault{CreateInput}("Hijacked Name");
-
-  int responseStatus =
-      mvc.perform(
-              put("/api/tenants/" + tenantY.getId() + "/{entities}/" + entityId)
-                  .content(asJsonString(updateInput))
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON)
-                  .with(csrf()))
-          .andReturn()
-          .getResponse()
-          .getStatus();
-
-  // -------- Assert --------
-  assertEquals(404, responseStatus,
-      "Expected 404 but got " + responseStatus);
-}
-```
-
-#### Test 5 — Cross-tenant DELETE blocked
-
-```java
-@Test
-@DisplayName("{Entity} created in tenant X should NOT be deletable from tenant Y")
-void given_{entity}InTenantX_should_notBeDeletableFromTenantY() throws Exception {
-  // ... (same pattern as above)
-}
-```
+4. **Flush + clear** before cross-tenant access (see Step 4).
 
 ### Step 6 — Use `@WithoutRls` to Identify APIs That Rely Solely on RLS
 
@@ -343,17 +134,7 @@ by executing `RESET ROLE` (switching to superuser, which bypasses RLS). After th
    - **Fails (200)** → the API relies on RLS as its only protection ⚠️ — flag for a
      production code fix (add `findByIdAndTenantId` or tenant-scoped query)
 
-```java
-@Test
-@WithoutRls // Disables RLS → test checks if app-level filtering exists
-@DisplayName("{Entity} created in tenant X should NOT be readable from tenant Y")
-void given_{entity}InTenantX_should_notBeReadableFromTenantY() throws Exception {
-  // ... same test body ...
-  // If this returns 200 instead of 403/404, the API has no app-level tenant check
-}
-```
-
-**Example from `PayloadApiTest`** — commented toggle for diagnostic use:
+**Example** — commented toggle for diagnostic use:
 
 ```java
 @Test
@@ -369,6 +150,4 @@ void given_payloadInTenantX_should_notBeReadableFromTenantY() throws Exception {
 - `RlsToggleExtension.beforeEach()` → `RESET ROLE` (superuser bypasses RLS)
 - `RlsToggleExtension.afterEach()` → `SET ROLE openaev_app` (restore RLS)
 - Works inside `@Transactional` tests because it uses native SQL on the current connection
-
-
 
