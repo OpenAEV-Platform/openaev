@@ -9,6 +9,7 @@ import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.document.DocumentService;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.payload.form.*;
 import io.openaev.rest.payload.output.PayloadOutput;
@@ -116,6 +117,9 @@ public class PayloadApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.PAYLOAD)
   public void deletePayload(@PathVariable String payloadId) {
+    payloadRepository
+        .findById(payloadId)
+        .orElseThrow(() -> new ElementNotFoundException("Payload not found: " + payloadId));
     payloadRepository.deleteById(payloadId);
   }
 

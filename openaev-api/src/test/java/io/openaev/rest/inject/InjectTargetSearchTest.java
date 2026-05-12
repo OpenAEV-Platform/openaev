@@ -186,7 +186,9 @@ public class InjectTargetSearchTest extends IntegrationTest {
 
         List<FilterUtilsJpa.Option> expected = List.of();
 
-        assertThatJson(response).isEqualTo(mapper.writeValueAsString(expected));
+        assertThatJson(response)
+            .when(Option.IGNORING_ARRAY_ORDER)
+            .isEqualTo(mapper.writeValueAsString(expected));
       }
 
       @Test
@@ -1415,7 +1417,9 @@ public class InjectTargetSearchTest extends IntegrationTest {
                 new FilterUtilsJpa.Option(ep1Wrapper.get().getId(), ep1Wrapper.get().getName()),
                 new FilterUtilsJpa.Option(ep2Wrapper.get().getId(), ep2Wrapper.get().getName()));
 
-        assertThatJson(response).isEqualTo(mapper.writeValueAsString(expected));
+        assertThatJson(response)
+            .when(net.javacrumbs.jsonunit.core.Option.IGNORING_ARRAY_ORDER)
+            .isEqualTo(mapper.writeValueAsString(expected));
       }
 
       @Test
