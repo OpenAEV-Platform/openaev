@@ -112,6 +112,23 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+  # Test MinIO object storage (S3-compatible)
+  openaev-test-minio:
+    container_name: openaev-test-minio
+    image: minio/minio:RELEASE.2025-06-13T11-33-47Z
+    ports:
+      - "11000:9000"
+      - "11001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    restart: unless-stopped
   # Development OpenSearch (alternative to Elasticsearch, persistent storage)
   # NOTE: OpenSearch and Elasticsearch both use port 9200 by default internally.
   # OpenSearch is mapped to external port 9202 to avoid conflicts.

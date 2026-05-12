@@ -160,6 +160,12 @@ public interface UserRepository
           + "AND (u.admin = true OR c IN :capabilities)")
   List<User> adminsOrUsersHavingCapabilities(@Param("capabilities") List<String> capabilities);
 
+  // -- Tenant-scoped --
+
+  @Query("SELECT u FROM User u JOIN u.tenants t WHERE u.id IN :ids AND t.id = :tenantId")
+  List<User> findAllByIdInAndTenantId(
+      @Param("ids") List<String> ids, @Param("tenantId") String tenantId);
+
   // -- PAGINATION --
 
   @NotNull

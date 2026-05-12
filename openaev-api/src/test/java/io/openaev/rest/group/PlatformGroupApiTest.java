@@ -487,7 +487,7 @@ public class PlatformGroupApiTest extends IntegrationTest {
   }
 
   @Nested
-  @DisplayName("Isolation")
+  @DisplayName("Tenant Isolation")
   @WithMockUser(withCapabilities = {Capability.ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES})
   class Isolation {
 
@@ -517,6 +517,31 @@ public class PlatformGroupApiTest extends IntegrationTest {
 
       // -------- Assert --------
       assertEquals(Integer.valueOf(0), JsonPath.read(response, "$.totalElements"));
+    }
+
+    @Test
+    @DisplayName("Platform group should be accessible regardless of tenant context")
+    void given_platformGroup_should_beAccessibleFromAnyContext() throws Exception {
+      // -------- Arrange --------
+      Group group =
+          platformGroupComposer
+              .forPlatformGroup(PlatformGroupFixture.getPlatformGroup("SharedAccessGroup"))
+              .persist()
+              .get();
+
+      // -------- Act & Assert — platform group is always readable via platform API --------
+      String response =
+          mvc.perform(
+                  get(PLATFORM_GROUPS_URI + "/" + group.getId())
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      assertEquals(group.getId(), JsonPath.read(response, "$.platform_group_id"));
+      assertEquals("SharedAccessGroup", JsonPath.read(response, "$.platform_group_name"));
     }
   }
 }

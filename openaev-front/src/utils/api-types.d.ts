@@ -4240,6 +4240,7 @@ export interface InjectorContract {
   injector_contract_manual?: boolean;
   injector_contract_needs_executor?: boolean;
   injector_contract_payload?: Payload;
+  injector_contract_payload_status?: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   injector_contract_platforms?: (
     | "Linux"
     | "Windows"
