@@ -12,7 +12,8 @@ public enum ResourceType {
   TEAM,
   ATOMIC_TESTING,
   NOTIFICATION_RULE,
-  @Deprecated(since = "Remove after closing https://github.com/OpenAEV-Platform/client-python/issues/211")
+  @Deprecated(
+      since = "Remove after closing https://github.com/OpenAEV-Platform/client-python/issues/211")
   PAYLOAD,
   THREAT_ARSENAL,
   RESOURCE_TYPE,

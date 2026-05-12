@@ -119,20 +119,23 @@ public enum Capability {
       pair(ResourceType.JOB, Action.DELETE)),
 
   // Payloads -- PAYLOAD CAPABILITIES ARE DEPRECATED
-  @Deprecated(since = "Remove after closing https://github.com/OpenAEV-Platform/client-python/issues/211")
+  @Deprecated(
+      since = "Remove after closing https://github.com/OpenAEV-Platform/client-python/issues/211")
   ACCESS_PAYLOADS(
       null,
       CapabilityGroup.THREAT_ARSENALS,
       Set.of(),
       pair(ResourceType.PAYLOAD, Action.READ),
       pair(ResourceType.PAYLOAD, Action.SEARCH)),
-  @Deprecated(since = "Remove after closing https://github.com/OpenAEV-Platform/client-python/issues/211")
+  @Deprecated(
+      since = "Remove after closing https://github.com/OpenAEV-Platform/client-python/issues/211")
   MANAGE_PAYLOADS(
       ACCESS_PAYLOADS,
       pair(ResourceType.PAYLOAD, Action.WRITE),
       pair(ResourceType.PAYLOAD, Action.CREATE),
       pair(ResourceType.PAYLOAD, Action.DUPLICATE)),
-  @Deprecated(since = "Remove after closing https://github.com/OpenAEV-Platform/client-python/issues/211")
+  @Deprecated(
+      since = "Remove after closing https://github.com/OpenAEV-Platform/client-python/issues/211")
   DELETE_PAYLOADS(MANAGE_PAYLOADS, pair(ResourceType.PAYLOAD, Action.DELETE)),
 
   // Threat Arsenal —
