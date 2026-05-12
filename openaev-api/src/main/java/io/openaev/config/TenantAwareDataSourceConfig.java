@@ -22,11 +22,11 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class TenantAwareDataSourceConfig implements BeanPostProcessor {
 
-  @Value("${openaev.rls.app-role:openaev_app}")
+  @Value("${openaev.rls.app-role:" + TenantContext.DEFAULT_RLS_APP_ROLE + "}")
   private final String appRole;
 
   public TenantAwareDataSourceConfig(
-      @Value("${openaev.rls.app-role:openaev_app}") String appRole) {
+      @Value("${openaev.rls.app-role:" + TenantContext.DEFAULT_RLS_APP_ROLE + "}") String appRole) {
     this.appRole = appRole;
   }
 

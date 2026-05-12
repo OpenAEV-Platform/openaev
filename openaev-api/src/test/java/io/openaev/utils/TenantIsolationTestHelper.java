@@ -34,7 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Component
 public class TenantIsolationTestHelper {
 
-  @Value("${openaev.rls.app-role:openaev_app}")
+  @Value("${openaev.rls.app-role:" + TenantContext.DEFAULT_RLS_APP_ROLE + "}")
   private String appRole;
 
   @Autowired private TenantService tenantService;

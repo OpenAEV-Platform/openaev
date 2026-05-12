@@ -8,6 +8,9 @@ import org.springframework.stereotype.Component;
 @Component
 public class TenantContext implements EvaluationContextExtension {
 
+  /** Default PostgreSQL role used for RLS enforcement (non-superuser). */
+  public static final String DEFAULT_RLS_APP_ROLE = "openaev_app";
+
   private static final ThreadLocal<String> CURRENT_TENANT = new ThreadLocal<>();
   private static final ThreadLocal<Boolean> RLS_BYPASS =
       ThreadLocal.withInitial(() -> Boolean.FALSE);
