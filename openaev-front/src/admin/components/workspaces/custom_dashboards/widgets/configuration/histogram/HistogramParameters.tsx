@@ -44,7 +44,7 @@ const HistogramParameters = ({ widgetType, control, setValue }: Props) => {
     control,
     name: 'widget_config.end',
   });
-  const entities = series.map(v => getBaseEntities(v.filter)).flat();
+  const entities = series.flatMap(v => getBaseEntities(v.filter));
 
   const { setError, clearErrors } = useFormContext();
 
@@ -73,27 +73,25 @@ const HistogramParameters = ({ widgetType, control, setValue }: Props) => {
   // -- HANDLE MODE --
   const availableModes = getAvailableModes(widgetType);
 
+  const setModeAndConfigType = (newMode: string) => {
+    setValue('widget_config.mode', newMode as 'temporal' | 'structural');
+    switch (newMode) {
+      case 'temporal':
+        setValue('widget_config.widget_configuration_type', 'temporal-histogram');
+        break;
+      case 'structural':
+      default:
+        setValue('widget_config.widget_configuration_type', 'structural-histogram');
+    }
+  };
+
   useEffect(() => {
     if (availableModes.length === 1) {
-      setValue('widget_config.mode', availableModes[0]); // If only one mode is available, hide the field and set it automatically
+      setModeAndConfigType(availableModes[0]); // If only one mode is available, hide the field and set it automatically
     }
   }, []);
 
   const hasLimit = getLimit(widgetType);
-
-  // -- HANDLE widget config type --
-  useEffect(() => {
-    switch (mode) {
-      case 'structural':
-        setValue('widget_config.widget_configuration_type', 'structural-histogram');
-        break;
-      case 'temporal':
-        setValue('widget_config.widget_configuration_type', 'temporal-histogram');
-        break;
-      default:
-        setValue('widget_config.widget_configuration_type', 'structural-histogram');
-    }
-  }, [mode]);
 
   // -- HANDLE FIELDS --
   const [fieldOptions, setFieldOptions] = useState<GroupOption[]>([]);
@@ -146,7 +144,7 @@ const HistogramParameters = ({ widgetType, control, setValue }: Props) => {
                 value={field.value ?? ''}
                 error={!!fieldState.error}
                 helperText={fieldState.error?.message}
-                onChange={e => field.onChange(e.target.value)}
+                onChange={e => setModeAndConfigType(e.target.value)}
                 required
               >
                 {availableModes.map(mode => <MenuItem key={mode} value={mode}>{t(mode)}</MenuItem>)}

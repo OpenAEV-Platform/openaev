@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@mui/material';
 import { type FunctionComponent, useState } from 'react';
-import { Controller, FormProvider, useForm, useFormContext } from 'react-hook-form';
+import { Controller, FormProvider, useForm, type FieldErrors } from 'react-hook-form';
 import { z } from 'zod';
 
 import Dialog from '../../../../../../components/common/dialog/Dialog';
@@ -26,12 +26,11 @@ const ActionsComponent: FunctionComponent<{
 }> = ({ disabled, onCancel, onSubmit, editing }) => {
   // Standard hooks
   const { t } = useFormatter();
-  const { formState: { errors } } = useFormContext();
 
   return (
     <>
       <Button onClick={onCancel}>{t('Cancel')}</Button>
-      <Button color="secondary" onClick={onSubmit} disabled={disabled || Object.keys(errors).length > 0}>
+      <Button color="secondary" onClick={onSubmit} disabled={disabled}>
         {editing ? t('Update') : t('Create')}
       </Button>
     </>
@@ -207,10 +206,26 @@ const WidgetForm: FunctionComponent<Props> = ({
   };
 
   const handleSubmitWithoutPropagation = () => {
-    handleSubmit((values) => {
-      onSubmit(values);
-      onClose();
-    })();
+    handleSubmit(
+      (values) => {
+        onSubmit(values);
+        onClose();
+      },
+      (errors: FieldErrors<WidgetInputWithoutLayout>) => {
+        if (errors.widget_type) {
+          setActiveStep(0);
+          return;
+        }
+
+        const widgetConfigErrors = errors.widget_config;
+        if (widgetConfigErrors && typeof widgetConfigErrors === 'object' && ('series' in widgetConfigErrors || 'perspective' in widgetConfigErrors)) {
+          setActiveStep(1);
+          return;
+        }
+
+        setActiveStep(lastStepIndex);
+      },
+    )();
   };
 
   const getSeriesComponent = (widgetType: Widget['widget_type']) => {
