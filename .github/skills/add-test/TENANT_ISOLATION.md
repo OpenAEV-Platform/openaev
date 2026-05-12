@@ -107,8 +107,6 @@ public void switchToTenant(String tenantId, EntityManager entityManager) {
 
 3. **Expected status codes** — always use deterministic `assertEquals`:
    - **404** (most common): Hibernate `@Filter` blocks `findById()` → `ElementNotFoundException`
-   - **403** (some cases): `@AccessControl(resourceId=...)` rejects at resource-level before service layer
-   - Run the test once to determine the actual code, then hardcode it.
 
 4. **Flush + clear** before cross-tenant access (see Step 4).
 

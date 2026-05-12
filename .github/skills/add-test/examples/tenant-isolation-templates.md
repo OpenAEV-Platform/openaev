@@ -26,8 +26,7 @@
 ## Status code expectations
 
 Cross-tenant access typically returns **404** (Hibernate `@Filter` or RLS blocks the SELECT →
-`ElementNotFoundException`). In some cases with resource-level `@AccessControl(resourceId = "...")`,
-it returns **403** instead. Always run the test once to determine the deterministic status code.
+`ElementNotFoundException`).
 
 ---
 
