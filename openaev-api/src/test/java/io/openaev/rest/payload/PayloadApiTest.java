@@ -1257,11 +1257,6 @@ class PayloadApiTest extends IntegrationTest {
     }
 
     @Test
-    // RLS IS catching it — the payload is NOT actually deleted. But the API returns 200 anyway
-    // because deleteById silently swallows the "not found" case
-    @Disabled(
-        "FIXME: PayloadApi.deletePayload() ignores tenantId and uses bare deleteById() — "
-            + "needs tenant-scoped delete (findByIdAndTenantId or @Query with tenant_id)")
     @DisplayName("Payload created in tenant X should NOT be deletable from tenant Y")
     void given_payloadInTenantX_should_notBeDeletableFromTenantY() throws Exception {
       Tenant tenantX =
