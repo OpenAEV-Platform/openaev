@@ -316,8 +316,6 @@ public class PayloadService {
     return new PayloadWithRelatedEntities(payload, attackPatternIds, domainIds, tagIds);
   }
 
-  public PayloadCreationService.PayloadInjectorContractCreationResult duplicate(
-      @NotBlank final String payloadId) {
   /**
    * Applies the OpenAEV rule for available expectations: MANUAL is not limited, all others are.
    */
