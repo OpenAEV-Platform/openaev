@@ -939,8 +939,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
               .getStatus();
 
       // -------- Assert --------
-      assertEquals(404, responseStatus,
-          "Expected 404 but got " + responseStatus);
+      assertEquals(404, responseStatus, "Expected 404 but got " + responseStatus);
     }
 
     @Test
@@ -1011,8 +1010,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
               .getResponse()
               .getStatus();
 
-      assertEquals(403, responseStatus,
-          "Expected 403 but got " + responseStatus);
+      assertEquals(403, responseStatus, "Expected 403 but got " + responseStatus);
     }
   }
 }

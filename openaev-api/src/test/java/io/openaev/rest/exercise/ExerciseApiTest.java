@@ -717,8 +717,8 @@ public class ExerciseApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Exercise created in tenant X should NOT be readable from tenant Y")
-    //@WithoutRls
-      // uncomment to fail the test: native query caught by RLS
+    // @WithoutRls
+    // uncomment to fail the test: native query caught by RLS
     void given_exerciseInTenantX_should_notBeReadableFromTenantY() throws Exception {
       // -------- Arrange --------
       Tenant tenantX =
@@ -756,8 +756,7 @@ public class ExerciseApiTest extends IntegrationTest {
               .getStatus();
 
       // -------- Assert --------
-      assertEquals(404, responseStatus,
-          "Expected 404 but got " + responseStatus);
+      assertEquals(404, responseStatus, "Expected 404 but got " + responseStatus);
     }
 
     @Test
@@ -891,8 +890,7 @@ public class ExerciseApiTest extends IntegrationTest {
               .getStatus();
 
       // -------- Assert --------
-      assertEquals(404, responseStatus,
-          "Expected 404 but got " + responseStatus);
+      assertEquals(404, responseStatus, "Expected 404 but got " + responseStatus);
     }
 
     @Test
@@ -938,8 +936,7 @@ public class ExerciseApiTest extends IntegrationTest {
               .getStatus();
 
       // -------- Assert --------
-      assertEquals(404, responseStatus,
-          "Expected 404 but got " + responseStatus);
+      assertEquals(404, responseStatus, "Expected 404 but got " + responseStatus);
     }
   }
 }

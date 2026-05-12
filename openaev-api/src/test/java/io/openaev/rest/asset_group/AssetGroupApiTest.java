@@ -660,8 +660,7 @@ class AssetGroupApiTest extends IntegrationTest {
               .getStatus();
 
       // -------- Assert --------
-      assertEquals(404, responseStatus,
-          "Expected 404 but got " + responseStatus);
+      assertEquals(404, responseStatus, "Expected 404 but got " + responseStatus);
     }
 
     @Test
@@ -789,8 +788,7 @@ class AssetGroupApiTest extends IntegrationTest {
               .getStatus();
 
       // -------- Assert --------
-      assertEquals(404, responseStatus,
-          "Expected 404 but got " + responseStatus);
+      assertEquals(404, responseStatus, "Expected 404 but got " + responseStatus);
     }
 
     @Test
@@ -834,8 +832,7 @@ class AssetGroupApiTest extends IntegrationTest {
               .getStatus();
 
       // -------- Assert --------
-      assertEquals(404, responseStatus,
-          "Expected 404 but got " + responseStatus);
+      assertEquals(404, responseStatus, "Expected 404 but got " + responseStatus);
     }
   }
 }

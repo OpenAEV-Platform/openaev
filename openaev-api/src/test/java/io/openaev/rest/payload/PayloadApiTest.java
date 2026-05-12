@@ -1204,8 +1204,7 @@ class PayloadApiTest extends IntegrationTest {
               .getResponse()
               .getStatus();
 
-      assertEquals(404, responseStatus,
-          "Expected 404 but got " + responseStatus);
+      assertEquals(404, responseStatus, "Expected 404 but got " + responseStatus);
     }
 
     @Test
@@ -1280,8 +1279,7 @@ class PayloadApiTest extends IntegrationTest {
               .getResponse()
               .getStatus();
 
-      assertEquals(404, responseStatus,
-          "Expected 404 but got " + responseStatus);
+      assertEquals(404, responseStatus, "Expected 404 but got " + responseStatus);
     }
   }
 }
