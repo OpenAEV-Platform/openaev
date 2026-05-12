@@ -7,9 +7,8 @@ import java.sql.SQLException;
 import javax.sql.DataSource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeansException;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.config.BeanPostProcessor;
-import org.springframework.core.env.Environment;
 import org.springframework.jdbc.datasource.DelegatingDataSource;
 import org.springframework.stereotype.Component;
 
@@ -23,17 +22,11 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class TenantAwareDataSourceConfig implements BeanPostProcessor {
 
-  private static final String DEFAULT_APP_ROLE = "openaev_app";
-
+  @Value("${openaev.rls.app-role:openaev_app}")
   private final String appRole;
 
-  @Autowired
-  public TenantAwareDataSourceConfig(Environment environment) {
-    this.appRole = environment.getProperty("openaev.rls.app-role", DEFAULT_APP_ROLE);
-  }
-
-  /** Test-only constructor with explicit role name. */
-  TenantAwareDataSourceConfig(String appRole) {
+  public TenantAwareDataSourceConfig(
+      @Value("${openaev.rls.app-role:openaev_app}") String appRole) {
     this.appRole = appRole;
   }
 
