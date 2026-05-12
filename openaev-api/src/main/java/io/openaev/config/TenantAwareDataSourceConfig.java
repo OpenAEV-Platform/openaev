@@ -5,7 +5,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import javax.sql.DataSource;
-import lombok.extern.java.Log;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.BeanPostProcessor;
@@ -20,7 +20,7 @@ import org.springframework.stereotype.Component;
  * connection HikariCP returns.
  */
 @Component
-@Log
+@Slf4j
 public class TenantAwareDataSourceConfig implements BeanPostProcessor {
 
   private static final String DEFAULT_APP_ROLE = "openaev_app";
@@ -93,7 +93,7 @@ public class TenantAwareDataSourceConfig implements BeanPostProcessor {
             if (e.getMessage() != null && e.getMessage().contains("does not exist")) {
               // Role not created yet (Flyway hasn't run the RLS migration).
               // Safe to skip: no RLS policies exist either.
-              log.fine(
+              log.debug(
                   "Could not SET ROLE "
                       + roleName
                       + " (role may not exist yet): "
