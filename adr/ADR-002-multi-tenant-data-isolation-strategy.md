@@ -10,7 +10,7 @@
 
 ## 1. Context
 
-OpenAEV is evolving from a single-tenant platform to a multi-tenant SaaS. All tenant-scoped entities share the same PostgreSQL database and schema (shared-schema multi-tenancy). 
+OpenAEV is evolving from a single-tenant platform to a multi-tenant platform. All tenant-scoped entities share the same PostgreSQL database and schema (shared-schema multi-tenancy). 
 We need to guarantee that one tenant's data can never be read, modified, or leaked to another tenant. The initial chosen approach for tenant isolation was to use
 **Hibernate `@Filter`** for automatic entity-level scoping in all JPQL to have a developper experience as close as possible to single-tenant code. 
 
