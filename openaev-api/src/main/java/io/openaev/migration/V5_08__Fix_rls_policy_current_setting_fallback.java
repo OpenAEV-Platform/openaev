@@ -9,8 +9,8 @@ import org.springframework.stereotype.Component;
  * Updates RLS policies to use {@code current_setting('app.current_tenant', true)} instead of {@code
  * current_setting('app.current_tenant')}. The second parameter {@code true} makes the function
  * return {@code NULL} instead of throwing an error if the session variable hasn't been set yet on
- * the connection. This prevents hard query failures during startup or if a connection is used before
- * {@link io.openaev.config.TenantAwareDataSourceConfig} has set the variable.
+ * the connection. This prevents hard query failures during startup or if a connection is used
+ * before {@link io.openaev.config.TenantAwareDataSourceConfig} has set the variable.
  */
 @Component
 public class V5_08__Fix_rls_policy_current_setting_fallback extends BaseJavaMigration {
@@ -33,4 +33,3 @@ public class V5_08__Fix_rls_policy_current_setting_fallback extends BaseJavaMigr
     }
   }
 }
-
