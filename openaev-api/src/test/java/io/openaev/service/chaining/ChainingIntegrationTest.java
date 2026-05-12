@@ -439,10 +439,13 @@ class ChainingIntegrationTest extends IntegrationTest {
               .findFirst()
               .orElseThrow();
 
-      // Add a step with an inject to the workflow template
+      // Add a step with an inject to the workflow template (no conditions so the step
+      // becomes READY immediately and gets executed during the workflow run).
       InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
-      StepsCreateInput.StepInput step = buildValidStepInput();
+      StepsCreateInput.StepInput step = new StepsCreateInput.StepInput();
+      step.setStepAction(StepActionClass.INJECT_EXECUTION);
       step.setDataStep(injectInput);
+      step.setConditions(List.of());
       stepService.createStepTemplates(workflowTemplate, List.of(step));
       String simulation =
           mvc.perform(
