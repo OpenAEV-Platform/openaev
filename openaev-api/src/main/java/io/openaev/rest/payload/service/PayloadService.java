@@ -109,8 +109,9 @@ public class PayloadService {
         injectorContractRepository.save(injectorContractToUpdate);
 
     // Link contract to all payload-supporting injectors via the owning side
+    Set<String> injectorIds = injectors.stream().map(Injector::getId).collect(Collectors.toSet());
     injectorContractRepository.addContractToPayloadsInjectors(
-        payload.getTenant().getId(), injectorContractSaved.getCompositeId().getId());
+        injectorIds, injectorContractSaved.getCompositeId().getId());
 
     return injectorContractSaved;
   }
