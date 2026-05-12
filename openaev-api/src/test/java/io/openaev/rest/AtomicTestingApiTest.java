@@ -914,7 +914,10 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
     private Inject createInjectInTenant(Tenant tenant) {
       tenantIsolationHelper.switchToTenant(tenant.getId(), entityManager);
-      return injectComposer.forInject(InjectFixture.getDefaultInject()).persist().get();
+      Inject inject = injectComposer.forInject(InjectFixture.getDefaultInject()).persist().get();
+      entityManager.flush();
+      entityManager.clear();
+      return inject;
     }
 
     @Test
@@ -1009,7 +1012,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
               .getResponse()
               .getStatus();
 
-      assertThat(responseStatus).isEqualTo(HttpStatus.FORBIDDEN.value());
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
     }
   }
 }
