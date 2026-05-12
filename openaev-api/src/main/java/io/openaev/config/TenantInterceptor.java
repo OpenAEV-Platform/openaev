@@ -11,6 +11,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Session;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -26,6 +27,7 @@ import org.springframework.web.servlet.HandlerMapping;
  */
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class TenantInterceptor implements HandlerInterceptor {
 
   private final TenantMembershipCacheManager tenantMembershipCacheManager;
@@ -68,14 +70,24 @@ public class TenantInterceptor implements HandlerInterceptor {
   }
 
   private void syncRlsVariable(String tenantId) {
-    Session session = entityManager.unwrap(Session.class);
-    session.doWork(
-        connection -> {
-          try (var stmt =
-              connection.prepareStatement("SELECT set_config('app.current_tenant', ?, false)")) {
-            stmt.setString(1, tenantId);
-            stmt.execute();
-          }
-        });
+    try {
+      Session session = entityManager.unwrap(Session.class);
+      session.doWork(
+          connection -> {
+            try (var stmt =
+                connection.prepareStatement("SELECT set_config('app.current_tenant', ?, false)")) {
+              stmt.setString(1, tenantId);
+              stmt.execute();
+            }
+          });
+      log.warn("Synced RLS variable app.current_tenant={}", tenantId);
+    } catch (Exception e) {
+      // Log but don't fail — TenantAwareDataSourceConfig will also set the variable
+      // on the next getConnection() call using TenantContext (which is already set).
+      log.warn(
+          "Could not sync RLS variable on OSIV connection for tenant {}: {}",
+          tenantId,
+          e.getMessage());
+    }
   }
 }

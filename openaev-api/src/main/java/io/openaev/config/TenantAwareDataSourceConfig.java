@@ -28,12 +28,14 @@ public class TenantAwareDataSourceConfig implements BeanPostProcessor {
   public TenantAwareDataSourceConfig(
       @Value("${openaev.rls.app-role:" + TenantContext.DEFAULT_RLS_APP_ROLE + "}") String appRole) {
     this.appRole = appRole;
+    log.info("RLS app role configured as: '{}'", appRole);
   }
 
   @Override
   public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
     if (bean instanceof DataSource dataSource && "dataSource".equals(beanName)) {
       final String roleName = appRole;
+      log.info("Wrapping DataSource '{}' with RLS-aware proxy (role={})", beanName, roleName);
       return new DelegatingDataSource(dataSource) {
         @Override
         public Connection getConnection() throws SQLException {

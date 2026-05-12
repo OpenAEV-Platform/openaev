@@ -65,12 +65,15 @@ public class V5_06__Enable_row_level_security extends BaseJavaMigration {
         statement.addBatch("ALTER TABLE " + table + " ENABLE ROW LEVEL SECURITY");
         statement.addBatch("ALTER TABLE " + table + " FORCE ROW LEVEL SECURITY");
         statement.addBatch("DROP POLICY IF EXISTS " + policyName + " ON " + table);
+        // current_setting with 'true' returns NULL (instead of throwing) if the variable
+        // hasn't been set yet on the connection — preventing hard query failures during
+        // bootstrap or if TenantAwareDataSourceConfig hasn't run yet on this connection.
         statement.addBatch(
             "CREATE POLICY "
                 + policyName
                 + " ON "
                 + table
-                + " USING (tenant_id = current_setting('app.current_tenant'))");
+                + " USING (tenant_id = current_setting('app.current_tenant', true))");
       }
 
       statement.executeBatch();
