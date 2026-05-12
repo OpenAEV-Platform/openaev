@@ -186,7 +186,9 @@ public class InjectTargetSearchTest extends IntegrationTest {
 
         List<FilterUtilsJpa.Option> expected = List.of();
 
-        assertThatJson(response).isEqualTo(mapper.writeValueAsString(expected));
+        assertThatJson(response)
+            .when(Option.IGNORING_ARRAY_ORDER)
+            .isEqualTo(mapper.writeValueAsString(expected));
       }
 
       @Test
