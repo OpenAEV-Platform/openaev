@@ -12,9 +12,8 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 /**
- * Repository for {@link UrlAccessToken} entities.
- * Provides token lookup by hash, bulk revocation by exercise scope, and purge operations for
- * expired or revoked entries.
+ * Repository for {@link UrlAccessToken} entities. Provides token lookup by hash, bulk revocation by
+ * exercise scope, and purge operations for expired or revoked entries.
  */
 @Repository
 public interface UrlAccessTokenRepository extends JpaRepository<UrlAccessToken, String> {
@@ -28,29 +27,31 @@ public interface UrlAccessTokenRepository extends JpaRepository<UrlAccessToken, 
   Optional<UrlAccessToken> findByTokenHash(@NotBlank String tokenHash);
 
   /**
-   * Revokes all active URL access tokens linked to a specific exercise.
-   * Only non-revoked tokens are updated.
+   * Revokes all active URL access tokens linked to a specific exercise. Only non-revoked tokens are
+   * updated.
    *
    * @param exerciseId exercise identifier used to scope revocation
    * @return number of rows updated
    */
   @Modifying(flushAutomatically = true, clearAutomatically = true)
-  @Query("""
+  @Query(
+      """
     UPDATE UrlAccessToken t SET t.revokedAt = CURRENT_TIMESTAMP
     WHERE t.exercise.id = :exerciseId AND t.revokedAt IS NULL
   """)
   int revokeAllByExerciseId(@Param("exerciseId") @NotBlank String exerciseId);
 
   /**
-   * Deletes tokens that are no longer valid and older than the retention cutoff.
-   * A token is eligible for deletion when it is expired or already revoked, and its creation
-   * date is older than {@code cutoff}.
+   * Deletes tokens that are no longer valid and older than the retention cutoff. A token is
+   * eligible for deletion when it is expired or already revoked, and its creation date is older
+   * than {@code cutoff}.
    *
    * @param cutoff retention cutoff instant
    * @return number of rows deleted
    */
   @Modifying(flushAutomatically = true, clearAutomatically = true)
-  @Query("""
+  @Query(
+      """
     DELETE FROM UrlAccessToken t
     WHERE (t.expiresAt < CURRENT_TIMESTAMP OR t.revokedAt IS NOT NULL)
       AND t.createdAt < :cutoff
