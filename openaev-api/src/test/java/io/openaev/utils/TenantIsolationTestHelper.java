@@ -3,15 +3,17 @@ package io.openaev.utils;
 import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Capability;
-import io.openaev.database.model.Group;
-import io.openaev.database.model.Role;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
-import io.openaev.database.repository.GroupRepository;
-import io.openaev.database.repository.RoleRepository;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.multitenancy.DependenciesManagerException;
 import io.openaev.service.tenants.TenantService;
+import io.openaev.utils.fixtures.TenantGroupFixture;
+import io.openaev.utils.fixtures.TenantRoleFixture;
+import io.openaev.utils.fixtures.composers.TenantGroupComposer;
+import io.openaev.utils.fixtures.composers.TenantRoleComposer;
+import io.openaev.utils.fixtures.tenants.TenantComposer;
+import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.TestUserHolder;
 import jakarta.persistence.EntityManager;
 import java.util.List;
@@ -49,9 +51,10 @@ public class TenantIsolationTestHelper {
   @Autowired private TenantRepository tenantRepository;
   @Autowired private TenantMembershipCacheManager tenantMembershipCacheManager;
   @Autowired private TestUserHolder testUserHolder;
-  @Autowired private RoleRepository roleRepository;
-  @Autowired private GroupRepository groupRepository;
+  @Autowired private TenantRoleComposer tenantRoleComposer;
+  @Autowired private TenantGroupComposer tenantGroupComposer;
   @Autowired private EntityManager entityManager;
+  @Autowired private TenantComposer tenantComposer;
 
   /**
    * Creates a tenant and attaches the current mock user to it.
@@ -87,22 +90,14 @@ public class TenantIsolationTestHelper {
     Tenant tenant = createTenantWithCurrentUser(name);
     User user = testUserHolder.get();
 
-    // Create a role with the requested capabilities in the new tenant
-    Role role = new Role();
-    role.setId(UUID.randomUUID().toString());
-    role.setName("test-role-" + UUID.randomUUID().toString().substring(0, 8));
-    role.setCapabilities(capabilities);
-    role.setTenant(tenant);
-    roleRepository.save(role);
+    // Create a role with the requested capabilities using fixture + composer
+    TenantRoleComposer.Composer roleComposer =
+        tenantRoleComposer.forRole(TenantRoleFixture.getRole(capabilities));
 
-    // Create a group in the new tenant, assign the role and the user
-    Group group = new Group();
-    group.setId(UUID.randomUUID().toString());
-    group.setName("test-group-" + UUID.randomUUID().toString().substring(0, 8));
-    group.setRoles(List.of(role));
+    // Create a group in the new tenant, assign the role and the user using fixture + composer
+    var group = TenantGroupFixture.getGroup();
     group.setUsers(List.of(user));
-    group.setTenant(tenant);
-    groupRepository.save(group);
+    tenantGroupComposer.forGroup(group).withRole(roleComposer).persist();
 
     // Flush to DB and clear persistence context so that subsequent user loads
     // (e.g., userService.currentUser()) see the new group/role/capabilities
@@ -122,21 +117,9 @@ public class TenantIsolationTestHelper {
    * @return the persisted {@link Tenant}
    */
   public Tenant createTenant(String name) throws DependenciesManagerException {
-    Tenant tenant = new Tenant();
-    tenant.setName(name + "-" + UUID.randomUUID().toString().substring(0, 8));
+    Tenant tenant =
+        TenantFixture.getTenant(name + "-" + UUID.randomUUID().toString().substring(0, 8));
     return tenantService.create(tenant);
-  }
-
-  /**
-   * Adds the current mock user to the given tenant via the repository.
-   *
-   * @param tenant the tenant to add the user to
-   */
-  @Transactional
-  public void addCurrentUserToTenant(Tenant tenant) {
-    String userId = testUserHolder.get().getId();
-    tenantRepository.addUserToTenant(userId, tenant.getId());
-    tenantMembershipCacheManager.evict(userId, tenant.getId());
   }
 
   /**
@@ -164,10 +147,5 @@ public class TenantIsolationTestHelper {
             stmt.execute();
           }
         });
-  }
-
-  /** Clears the current tenant context. */
-  public void clearTenantContext() {
-    TenantContext.setCurrentTenant(null);
   }
 }

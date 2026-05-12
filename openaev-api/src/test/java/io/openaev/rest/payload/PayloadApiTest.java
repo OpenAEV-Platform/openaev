@@ -4,6 +4,7 @@ import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTEN
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_PROPERTY;
 import static io.openaev.database.specification.InjectorContractSpecification.byPayloadId;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
@@ -28,17 +29,21 @@ import io.openaev.integration.Manager;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
 import io.openaev.rest.collector.form.CollectorCreateInput;
 import io.openaev.rest.payload.form.*;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.CollectorFixture;
 import io.openaev.utils.fixtures.DomainFixture;
+import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.fixtures.PayloadFixture;
 import io.openaev.utils.fixtures.PayloadInputFixture;
 import io.openaev.utils.fixtures.composers.CollectorComposer;
 import io.openaev.utils.fixtures.composers.DomainComposer;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
 import java.util.*;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -59,6 +64,8 @@ class PayloadApiTest extends IntegrationTest {
 
   @Autowired private CollectorComposer collectorComposer;
   @Autowired private DomainComposer domainComposer;
+  @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
+  @Autowired private jakarta.persistence.EntityManager entityManager;
 
   @Resource private ObjectMapper objectMapper;
 
@@ -1138,5 +1145,137 @@ class PayloadApiTest extends IntegrationTest {
         .andExpect(jsonPath("$.payload_name").value("Command Payload 2"))
         .andExpect(jsonPath("$.payload_collector_type").value(collectorCreateInput.getType()))
         .andExpect(jsonPath("$.payload_status").value("UNVERIFIED"));
+  }
+
+  @Nested
+  @DisplayName("Tenant Isolation")
+  @WithMockUser(
+      withCapabilities = {
+        Capability.MANAGE_PAYLOADS,
+        Capability.ACCESS_PAYLOADS,
+        Capability.DELETE_PAYLOADS
+      })
+  @org.springframework.transaction.annotation.Transactional
+  class TenantIsolation {
+
+    /**
+     * Creates a payload directly in the given tenant via native SQL, bypassing the creation service
+     * which requires injector integration to be registered for the tenant.
+     */
+    private String createPayloadInTenant(Tenant tenant, String name) {
+      String payloadId = UUID.randomUUID().toString();
+      entityManager
+          .createNativeQuery("SELECT set_config('app.current_tenant', :tenantId, false)")
+          .setParameter("tenantId", tenant.getId())
+          .getSingleResult();
+      entityManager
+          .createNativeQuery(
+              "INSERT INTO payloads (payload_id, payload_type, payload_name, payload_status, payload_source, tenant_id, payload_created_at, payload_updated_at) "
+                  + "VALUES (:id, 'Command', :name, 'VERIFIED', 'MANUAL', :tenantId, now(), now())")
+          .setParameter("id", payloadId)
+          .setParameter("name", name)
+          .setParameter("tenantId", tenant.getId())
+          .executeUpdate();
+      // Reset RLS context to default tenant so subsequent API calls don't inherit tenantX
+      entityManager
+          .createNativeQuery("SELECT set_config('app.current_tenant', '', false)")
+          .getSingleResult();
+      entityManager.flush();
+      entityManager.clear();
+      return payloadId;
+    }
+
+    @Test
+    @DisplayName("Payload created in tenant X should NOT be readable from tenant Y")
+    // @WithoutRls // uncomment to fail the test: native query caught by RLS
+    void given_payloadInTenantX_should_notBeReadableFromTenantY() throws Exception {
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_PAYLOADS, Capability.ACCESS_PAYLOADS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_PAYLOADS));
+
+      String payloadId = createPayloadInTenant(tenantX, "IsolationReadTest");
+
+      int responseStatus =
+          mvc.perform(
+                  get("/api/tenants/" + tenantY.getId() + "/payloads/" + payloadId)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
+    }
+
+    @Test
+    @DisplayName("Payload created in tenant X should be readable from tenant X")
+    void given_payloadInTenantX_should_beReadableFromTenantX() throws Exception {
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_PAYLOADS, Capability.ACCESS_PAYLOADS));
+
+      String payloadId = createPayloadInTenant(tenantX, "IsolationSameTenantTest");
+
+      mvc.perform(
+              get("/api/tenants/" + tenantX.getId() + "/payloads/" + payloadId)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("Payload search in tenant Y should NOT return payloads from tenant X")
+    void given_payloadInTenantX_should_notAppearInTenantYSearch() throws Exception {
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_PAYLOADS, Capability.ACCESS_PAYLOADS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_PAYLOADS));
+
+      createPayloadInTenant(tenantX, "CrossTenantPayloadSearch");
+
+      SearchPaginationInput searchInput =
+          PaginationFixture.simpleTextSearch("CrossTenantPayloadSearch");
+
+      String searchResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantY.getId() + "/payloads/search")
+                      .content(asJsonString(searchInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      assertEquals(Integer.valueOf(0), JsonPath.read(searchResponse, "$.totalElements"));
+    }
+
+    @Test
+    @DisplayName("Payload created in tenant X should NOT be deletable from tenant Y")
+    void given_payloadInTenantX_should_notBeDeletableFromTenantY() throws Exception {
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_PAYLOADS, Capability.ACCESS_PAYLOADS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.DELETE_PAYLOADS, Capability.ACCESS_PAYLOADS));
+
+      String payloadId = createPayloadInTenant(tenantX, "IsolationDeleteTest");
+
+      int responseStatus =
+          mvc.perform(
+                  delete("/api/tenants/" + tenantY.getId() + "/payloads/" + payloadId).with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
+    }
   }
 }
