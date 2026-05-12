@@ -46,17 +46,16 @@ PostgreSQL Row-Level Security policies filter all queries transparently based on
 **Pros**: Database-level guarantee, covers native SQL, impossible to bypass from application code.
 **Cons**: Difficult to test (superuser in tests bypasses RLS), error messages are opaque (silent empty results vs. 404), no Hibernate L1 cache awareness, harder to debug, requires `SET ROLE` to a non-superuser, tables need to be listed in RLS scope.
 
-### Option C: Three-layer defence in depth (chosen)
+### Option C: two-layer defence in depth (chosen)
 
 Combine entity-level Hibernate filters, application-level tenant scoping, and database-level RLS as a safety net.
 
 **Pros**: Defence in depth — each layer catches what the others miss. Testable at each level independently.
-**Cons**: Slightly more complexity. Developer need to develop code being aware of multitenancy. 
-Requires synchronizing tenant context across three systems (ThreadLocal, Hibernate session, JDBC connection) during mid-transaction tenant switches.
+**Cons**: Slightly more complexity. Developer need to develop code being aware of multitenancy.
 
 ## 4. Decision
 
-We chose **Option C** — three complementary layers of tenant isolation:
+We chose **Option C** — two layers of tenant isolation:
 
 ### Layer 1: Hibernate `@Filter` (entity level)
 
