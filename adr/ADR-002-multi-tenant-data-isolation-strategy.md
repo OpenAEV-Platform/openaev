@@ -8,8 +8,13 @@
 ## 1. Context
 
 OpenAEV is evolving from a single-tenant platform to a multi-tenant platform. All tenant-scoped entities share the same PostgreSQL database and schema (shared-schema multi-tenancy). 
-We need to guarantee that one tenant's data can never be read, modified, or leaked to another tenant. The initial chosen approach for tenant isolation was to use
-**Hibernate `@Filter`** for automatic entity-level scoping in all JPQL to have a developper experience as close as possible to single-tenant code. 
+
+In the phase1 implementation of multi-tenant, a user can be part of multiple tenants, but each tenant's data is isolated with its tenant's context.
+If a user login and access data from tenant A, they should never be able to read or modify data from tenant B, even if they are also a member of tenant B.
+A user accesses the data by selecting its tenant (from the UI or from the API path), CRUD operations are automatically scoped to the selected tenant.
+
+As we need to guarantee that one tenant's data can never be read, modified, or leaked to another tenant. The initial chosen approach for tenant isolation was to use
+**Hibernate `@Filter`** for automatic entity-level scoping in all JPQL to have a developer experience as close as possible to single-tenant code. 
 
 However, Hibernate filters only apply to JPQL/Criteria queries and can be easily bypassed by native SQL or if a developer forgets to use the correct repository method (e.g., `findByIdAndTenantId` vs `findById`).
 A single isolation mechanism is insufficient: Hibernate filters don't cover native SQL.
@@ -19,7 +24,7 @@ RLS policies will filter rows based on the `app.current_tenant` session variable
 
 ## 2. Decision drivers
 
-1. **Security and data isolation** — a tenant must never see another tenant's data, even partially.
+1. **Security and data isolation** — a tenant must never see another tenant's data from a different tenant context.
 2. **Defence in depth** — no single layer failure should cause a data leak.
 3. **Developer ergonomics** — isolation should be automatic and hard to bypass accidentally.
 4. **Testability** — each layer must be independently verifiable in CI. Each integration test should validate tenant isolation for the code it covers. New AI skills have added to cover tenant isolation gaps (e.g., native queries). See [TENANT_ISOLATION](https://github.com/OpenAEV-Platform/openaev/blob/release/current/.github/skills/add-test/TENANT_ISOLATION.md).
