@@ -1,12 +1,12 @@
 # ADR-0002: Multi-tenant data isolation strategy
 
-|  |                                                                                        |
-| --- |----------------------------------------------------------------------------------------|
-| Status | Accepted                                                                               |
-| Date | 2026-05-11                                                                             |
-| Deciders | Corinne, Backend team                                                                  |
-| Consulted | —                                                                                      |
-| Related |  https://www.notion.so/filigran/OAEV-Multi-tenancy-EE-2c58fce17f2a80fbb24ec4544f7dc1c7 <br/>https://github.com/OpenAEV-Platform/openaev/issues/3505|
+|  |                                                                                       |
+| --- |---------------------------------------------------------------------------------------|
+| Status | Accepted                                                                              |
+| Date | 2026-05-11                                                                            |
+| Deciders | Corinne, Backend team                                                                 |
+| Consulted | —                                                                                     |
+| Related | https://github.com/OpenAEV-Platform/openaev/issues/3505|
 
 ## 1. Context
 
