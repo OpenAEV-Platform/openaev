@@ -21,16 +21,23 @@ export interface ExportProps<T> {
 interface Props<T> {
   totalElements: number;
   exportProps: ExportProps<T>;
+  exportCsvMapperFunction?: (searchPaginationInput: SearchPaginationInput | undefined) => Promise<{
+    data: string;
+    filename: string;
+  }>;
 }
 
-const ExportButton = <T extends object>({ totalElements, exportProps }: Props<T>) => {
+const ExportButton = <T extends object>({ totalElements, exportProps, exportCsvMapperFunction }: Props<T>) => {
   // Standard hooks
   const { t } = useFormatter();
   // Fetching data
   const { tagsMap } = useHelper((helper: TagHelper) => ({ tagsMap: helper.getTagsMap() }));
 
   const exportCsvMapperAction = () => {
-    exportCsvMapper(exportProps.exportType, exportProps.searchPaginationInput).then(
+    const exportPromise = exportCsvMapperFunction
+      ? exportCsvMapperFunction(exportProps.searchPaginationInput)
+      : exportCsvMapper(exportProps.exportType, exportProps.searchPaginationInput);
+    exportPromise.then(
       (result: {
         data: string;
         filename: string;

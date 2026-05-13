@@ -4,6 +4,7 @@ import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.InjectorContractId;
 import io.openaev.database.model.Payload;
+import io.openaev.database.model.ResourceType;
 import io.openaev.database.raw.RawInjectorsContracts;
 import io.openaev.database.raw.RawPayloadRelatedIds;
 import jakarta.validation.constraints.NotNull;
@@ -67,6 +68,10 @@ public interface InjectorContractRepository
    * @param userId the ID of the user to check access for
    * @return list of raw injector contract projections the user has been granted access to
    */
+  default List<RawInjectorsContracts> getAllRawInjectorsContractsGranted(String userId) {
+    return getAllRawInjectorsContractsGranted(userId, ResourceType.THREAT_ARSENAL.name());
+  }
+
   @Query(
       value =
           "SELECT injcon.injector_contract_id, "
@@ -82,15 +87,19 @@ public interface InjectorContractRepository
               + "  INNER JOIN grants gr ON g.group_id = gr.grant_group "
               + "  WHERE u.user_id = :userId "
               + "  AND gr.grant_resource = injcon.injector_contract_id "
-              + "  AND gr.grant_resource_type = 'THREAT_ARSENAL' "
+              + "  AND gr.grant_resource_type = :resourceType "
               + ") "
               + "GROUP BY injcon.injector_contract_id",
       nativeQuery = true)
-  List<RawInjectorsContracts> getAllRawInjectorsContractsGranted(@Param("userId") String userId);
+  List<RawInjectorsContracts> getAllRawInjectorsContractsGranted(
+      @Param("userId") String userId, @Param("resourceType") String resourceType);
 
   @NotNull
   @Query("SELECT ic FROM InjectorContract ic WHERE ic.compositeId.id = :id")
   Optional<InjectorContract> findById(@Param("id") @NotNull String id);
+
+  @Query("SELECT COUNT(ic) > 0 FROM InjectorContract ic WHERE ic.compositeId.id = :id")
+  boolean existsByContractId(@Param("id") @NotNull String id);
 
   @NotNull
   @Query(

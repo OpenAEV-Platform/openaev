@@ -28,8 +28,10 @@ const GroupManageGrants: FunctionComponent<GroupManageGrantsProps> = ({
   const dispatch = useAppDispatch();
 
   useEffect(() => {
-    dispatch(fetchGroup(group.group_id));
-  }, [group.group_id]);
+    if (openGrants) {
+      dispatch(fetchGroup(group.group_id));
+    }
+  }, [openGrants, group.group_id]);
 
   const title = t('Manage grants for group: {groupName}', { groupName: group.group_name });
 

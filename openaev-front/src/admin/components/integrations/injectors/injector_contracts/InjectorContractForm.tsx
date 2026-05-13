@@ -5,6 +5,7 @@ import { FormProvider, type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
 import { type DomainHelper } from '../../../../../actions/domains/domain-helper';
+import ActionButtons from '../../../../../components/common/ActionButtons';
 import AttackPatternFieldController from '../../../../../components/fields/AttackPatternFieldController';
 import DomainFieldController from '../../../../../components/fields/DomainFieldController';
 import TagFieldController from '../../../../../components/fields/TagFieldController';
@@ -86,30 +87,14 @@ const InjectorContractForm = ({
           name="injector_contract_tags"
           label={t('Tags')}
         />
-
-        <div style={{
-          display: 'flex',
-          flexDirection: 'row-reverse',
-          gap: theme.spacing(1),
-        }}
-        >
-          <Button
-            color="secondary"
-            type="submit"
-            variant="contained"
-            disabled={!isDirty || isSubmitting}
-          >
-            {editing ? t('Update') : t('Create')}
-          </Button>
-          <Button
-            variant="contained"
-            onClick={handleClose}
-            style={{ marginRight: theme.spacing(2) }}
-            disabled={isSubmitting}
-          >
-            {t('Cancel')}
-          </Button>
-        </div>
+        <ActionButtons
+          onCancel={handleClose}
+          submitLabel={editing ? t('Update') : t('Create')}
+          cancelLabel={t('Cancel')}
+          disabled={!isDirty}
+          submitting={isSubmitting}
+          style={{ flexDirection: 'row-reverse' }}
+        />
       </form>
     </FormProvider>
   );

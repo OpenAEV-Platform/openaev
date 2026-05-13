@@ -14,7 +14,10 @@ import { type CSSProperties, useMemo, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import type { DomainHelper } from '../../../actions/domains/domain-helper';
-import { searchThreatArsenalActions } from '../../../actions/threat_arsenals/threatArsenal-actions';
+import {
+  exportThreatArsenalCsvMapper,
+  searchThreatArsenalActions,
+} from '../../../actions/threat_arsenals/threatArsenal-actions';
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import ExportButton from '../../../components/common/ExportButton';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
@@ -192,7 +195,7 @@ const ThreatArsenal = () => {
   ];
 
   const exportProps = {
-    exportType: 'INJECTOR_CONTRACTS',
+    exportType: 'THREAT_ARSENAL_ACTIONS',
     exportKeys: [],
     exportData: threatArsenalActions,
     searchPaginationInput,
@@ -218,7 +221,11 @@ const ThreatArsenal = () => {
         queryableHelpers={queryableHelpers}
         topBarButtons={(
           <ToggleButtonGroup value="fake" exclusive>
-            <ExportButton totalElements={queryableHelpers.paginationHelpers.getTotalElements()} exportProps={exportProps} />
+            <ExportButton
+              totalElements={queryableHelpers.paginationHelpers.getTotalElements()}
+              exportProps={exportProps}
+              exportCsvMapperFunction={exportThreatArsenalCsvMapper}
+            />
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.THREAT_ARSENALS}>
               <ImportUploaderThreatArsenal
                 onImport={results => setThreatArsenalActions(prev => [...results, ...prev])}

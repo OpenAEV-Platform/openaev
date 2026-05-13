@@ -44,13 +44,15 @@ const RemediationFormTabs = ({ actionId }: RemediationFormTabsProps) => {
       });
     } else if (actionId) {
       setLoading(true);
-      fetchCollectorsForActionRemediation(actionId).finally(() => {
+      dispatch(fetchCollectorsForActionRemediation(actionId)).finally(() => {
+        console.log('fetchCollectorsForActionRemediation');
         setLoading(false);
       });
     }
   });
 
   useEffect(() => {
+    console.log('collectors', collectors);
     if (collectors.length > 0) {
       const filteredCollectors = collectors.filter((collector: Collector) =>
         COLLECTOR_LIST.includes(collector.collector_type),

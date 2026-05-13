@@ -62,7 +62,7 @@ public class GrantService {
             // Atomic testings:
             || injectRepository.existsByIdAndScenarioIsNullAndExerciseIsNull(resourceId)
             // Threat arsenal (grant on injector contract ID):
-            || injectorContractRepository.findById(resourceId).isPresent();
+            || injectorContractRepository.existsByContractId(resourceId);
 
     if (!exists) {
       throw new IllegalArgumentException("A valid resource ID should be present");

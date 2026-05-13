@@ -10,7 +10,6 @@ import io.openaev.database.model.Collector;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
 import io.openaev.rest.collector.service.CollectorService;
-import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.injector_contract.form.InjectorContractUpdateMappingInput;
@@ -223,10 +222,12 @@ public class ThreatArsenalService {
   private ThreatArsenalAction updateActionPayloadBased(
       InjectorContract injectorContract, ThreatArsenalActionUpdateInput actionInput) {
     if (actionInput.executionArch() == null) {
-      throw new BadRequestException("action_execution_arch is required for payload-based actions");
+      throw new IllegalArgumentException(
+          "action_execution_arch is required for payload-based actions");
     }
     if (actionInput.expectations() == null) {
-      throw new BadRequestException("action_expectations is required for payload-based actions");
+      throw new IllegalArgumentException(
+          "action_expectations is required for payload-based actions");
     }
     // convert ThreatArsenalActionUpdateInput into PayloadUpdateInput
     PayloadUpdateInput payloadInput = getPayloadUpdateInputFromCommonActionInput(actionInput);

@@ -34,17 +34,7 @@ public class PermissionService {
           ResourceType.ORGANIZATION,
           // INJECTOR is open for READ/SEARCH because multiple views (e.g. threat arsenal)
           // need to list injectors for filtering, and injector names are not sensitive.
-          ResourceType.INJECTOR,
-          // INJECTOR_CONTRACT is present here AND in the RESOURCES_USING_PARENT_PERMISSION list
-          // because it's a resource that's fully OPEN except if it's linked to a payload.
-          // In the code, w check parent permission before checking open resources, so if the IC is
-          // linked to a payload, the resource type will change to PAYLOAD and the permission will
-          // be checked against that payload.
-
-          // In the code, we check parent permission before checking open resources, so if the IC is
-          // linked to a payload, the resource type will change to THREAT_ARSENAL and the permission
-          // will be checked against that threat arsenal (grant on injector contract ID).
-          ResourceType.INJECTOR_CONTRACT); // TODO review open apis see issue/3789
+          ResourceType.INJECTOR);
 
   private static final EnumSet<ResourceType> RESOURCES_MANAGED_BY_GRANTS =
       EnumSet.of(

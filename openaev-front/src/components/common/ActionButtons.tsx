@@ -1,6 +1,6 @@
 import { Button } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent } from 'react';
+import { type CSSProperties, type FunctionComponent } from 'react';
 
 interface ActionButtonsProps {
   onCancel: () => void;
@@ -9,6 +9,7 @@ interface ActionButtonsProps {
   cancelLabel: string;
   disabled?: boolean;
   submitting?: boolean;
+  style?: CSSProperties;
 }
 
 const ActionButtons: FunctionComponent<ActionButtonsProps> = ({
@@ -18,6 +19,7 @@ const ActionButtons: FunctionComponent<ActionButtonsProps> = ({
   cancelLabel,
   disabled = false,
   submitting = false,
+  style = {},
 }) => {
   const theme = useTheme();
 
@@ -26,6 +28,7 @@ const ActionButtons: FunctionComponent<ActionButtonsProps> = ({
       display: 'flex',
       flexDirection: 'row',
       gap: theme.spacing(2),
+      ...style,
     }}
     >
       <Button
