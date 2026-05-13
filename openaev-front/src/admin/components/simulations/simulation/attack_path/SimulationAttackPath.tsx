@@ -27,12 +27,9 @@ const SimulationAttackPath: FunctionComponent = () => {
   const fetchAttackPath = useCallback(async () => {
     try {
       const response = await simpleCall(`/api/exercises/${exerciseId}/attack-path`);
-      console.log('[AttackPath] raw response:', response);
-      console.log('[AttackPath] response.data:', response.data);
       setData(response.data);
       setError(null);
     } catch (e) {
-      console.error('[AttackPath] fetch error:', e);
       setError('Failed to load attack path data');
       setData(null);
     } finally {
