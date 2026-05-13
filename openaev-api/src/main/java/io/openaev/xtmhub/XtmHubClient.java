@@ -63,7 +63,12 @@ public class XtmHubClient {
   }
 
   public XtmHubConnectivityStatus refreshRegistrationStatusSingleTenant(
-      String platformId, String platformVersion, String token, String url, String tenantId) {
+      String platformId,
+      String platformVersion,
+      String token,
+      String url,
+      String tenantId,
+      String tenantName) {
     try (CloseableHttpClient httpClient = httpClientFactory.httpClientCustom()) {
       HttpPost httpPost = new HttpPost(this.graphqlEndpoint);
       httpPost.addHeader("Accept", "application/json");
@@ -71,12 +76,12 @@ public class XtmHubClient {
       httpPost.addHeader(ACCEPT, APPLICATION_JSON_VALUE);
 
       StringEntity httpBody =
-          buildRefreshStatusSingleTenantBody(platformId, platformVersion, token, url, tenantId);
+          buildRefreshStatusSingleTenantBody(
+              platformId, platformVersion, token, url, tenantId, tenantName);
       httpPost.setEntity(httpBody);
       return httpClient.execute(httpPost, this::parseResponseAsConnectivityStatus);
     } catch (Exception e) {
       log.error("XTM Hub is unreachable on {}: {}", config.getApiUrl(), e.getMessage(), e);
-
       return XtmHubConnectivityStatus.INACTIVE;
     }
   }
@@ -107,6 +112,7 @@ public class XtmHubClient {
       String platformUrl,
       String platformVersion,
       String tenantId,
+      String tenantName,
       Long usersCount) {
     PlatformSettings settings = platformSettingsService.findSettings();
 
@@ -125,6 +131,7 @@ public class XtmHubClient {
               platformUrl,
               platformVersion,
               tenantId,
+              tenantName,
               usersCount);
       httpPost.setEntity(httpBody);
       return httpClient.execute(httpPost, this::parseResponseAsSuccess);
@@ -163,7 +170,12 @@ public class XtmHubClient {
 
   @NotNull
   private StringEntity buildRefreshStatusSingleTenantBody(
-      String platformId, String platformVersion, String token, String url, String tenantId) {
+      String platformId,
+      String platformVersion,
+      String token,
+      String url,
+      String tenantId,
+      String tenantName) {
     String mutationBody =
         String.format(
             """
@@ -182,12 +194,13 @@ public class XtmHubClient {
                       "token": "%s",
                       "platformIdentifier": "%s",
                       "url": "%s",
-                      "tenantId": "%s"
+                      "tenantId": "%s",
+                      "tenantName": "%s"
                     }
                   }
                 }
                 """,
-            platformId, platformVersion, token, platformIdentifier, url, tenantId);
+            platformId, platformVersion, token, platformIdentifier, url, tenantId, tenantName);
 
     JsonElement element = JsonParser.parseString(mutationBody);
     return new StringEntity(element.toString());
@@ -202,6 +215,7 @@ public class XtmHubClient {
         (tenantId, details) -> {
           JsonObject tenantToken = new JsonObject();
           tenantToken.addProperty("tenantId", tenantId);
+          tenantToken.addProperty("tenantName", details.tenantName());
           tenantToken.addProperty("token", details.token());
           tenantToken.addProperty("url", details.url());
           tenantsArray.add(tenantToken);
@@ -233,6 +247,7 @@ public class XtmHubClient {
       String platformUrl,
       String platformVersion,
       String tenantId,
+      String tenantName,
       Long usersCount) {
 
     JsonObject platform = new JsonObject();
@@ -242,6 +257,7 @@ public class XtmHubClient {
     platform.addProperty("url", platformUrl);
     platform.addProperty("version", platformVersion);
     platform.addProperty("tenantId", tenantId);
+    platform.addProperty("tenantName", tenantName);
 
     JsonObject input = new JsonObject();
     input.add("platform", platform);

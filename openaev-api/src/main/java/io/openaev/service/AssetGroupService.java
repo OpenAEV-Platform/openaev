@@ -9,6 +9,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.specification.EndpointSpecification;
 import io.openaev.rest.asset_group.form.AssetGroupOutput;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.mapper.AssetGroupMapper;
 import jakarta.validation.constraints.NotBlank;
@@ -89,7 +90,8 @@ public class AssetGroupService {
     AssetGroup assetGroup =
         this.assetGroupRepository
             .findById(assetGroupId)
-            .orElseThrow(() -> new IllegalArgumentException("Asset group not found"));
+            .orElseThrow(
+                () -> new ElementNotFoundException("Asset group not found: " + assetGroupId));
     return computeDynamicAssets(assetGroup);
   }
 

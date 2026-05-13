@@ -2,6 +2,7 @@ package io.openaev.rest;
 
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -16,16 +17,20 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.DocumentRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectStatusRepository;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Nullable;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import java.util.List;
+import java.util.Set;
 import net.javacrumbs.jsonunit.core.Option;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -892,6 +897,122 @@ public class AtomicTestingApiTest extends IntegrationTest {
             .isEqualTo(InjectExpectation.EXPECTATION_TYPE.PREVENTION.name());
         assertThatJson(responsePrevention).node("[0].inject_expectation_score").isEqualTo("100.0");
       }
+    }
+  }
+
+  @Nested
+  @DisplayName("Tenant Isolation")
+  @WithMockUser(
+      withCapabilities = {
+        Capability.MANAGE_ASSESSMENT,
+        Capability.ACCESS_ASSESSMENT,
+        Capability.DELETE_ASSESSMENT
+      })
+  class TenantIsolation {
+
+    @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
+
+    private Inject createInjectInTenant(Tenant tenant) {
+      tenantIsolationHelper.switchToTenant(tenant.getId(), entityManager);
+      Inject inject = injectComposer.forInject(InjectFixture.getDefaultInject()).persist().get();
+      entityManager.flush();
+      entityManager.clear();
+      return inject;
+    }
+
+    @Test
+    @DisplayName("AtomicTesting created in tenant X should NOT be readable from tenant Y")
+    void given_atomicTestingInTenantX_should_notBeReadableFromTenantY() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_ASSESSMENT));
+
+      Inject inject = createInjectInTenant(tenantX);
+
+      // -------- Act --------
+      int responseStatus =
+          mvc.perform(
+                  get("/api/tenants/" + tenantY.getId() + "/atomic-testings/" + inject.getId())
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // -------- Assert --------
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
+    }
+
+    @Test
+    @DisplayName("AtomicTesting created in tenant X should be readable from tenant X")
+    void given_atomicTestingInTenantX_should_beReadableFromTenantX() throws Exception {
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+
+      Inject inject = createInjectInTenant(tenantX);
+
+      mvc.perform(
+              get("/api/tenants/" + tenantX.getId() + "/atomic-testings/" + inject.getId())
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("AtomicTesting search in tenant Y should NOT return results from tenant X")
+    void given_atomicTestingInTenantX_should_notAppearInTenantYSearch() throws Exception {
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_ASSESSMENT));
+
+      Inject inject = createInjectInTenant(tenantX);
+
+      SearchPaginationInput searchInput = PaginationFixture.simpleTextSearch(inject.getTitle());
+
+      String searchResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantY.getId() + "/atomic-testings/search")
+                      .content(asJsonString(searchInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      assertEquals(Integer.valueOf(0), JsonPath.read(searchResponse, "$.totalElements"));
+    }
+
+    @Test
+    @DisplayName("AtomicTesting created in tenant X should NOT be deletable from tenant Y")
+    void given_atomicTestingInTenantX_should_notBeDeletableFromTenantY() throws Exception {
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.DELETE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+
+      Inject inject = createInjectInTenant(tenantX);
+
+      int responseStatus =
+          mvc.perform(
+                  delete("/api/tenants/" + tenantY.getId() + "/atomic-testings/" + inject.getId())
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
     }
   }
 }

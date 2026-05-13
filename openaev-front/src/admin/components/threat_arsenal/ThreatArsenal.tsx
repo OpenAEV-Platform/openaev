@@ -204,7 +204,7 @@ const ThreatArsenal = () => {
       <Breadcrumbs
         variant="list"
         elements={[{
-          label: t('Threat Arsenals'),
+          label: t('Threat Arsenal'),
           current: true,
         }]}
       />
@@ -316,13 +316,13 @@ const ThreatArsenal = () => {
 
                       <ListItemIcon style={{ minWidth: 56 }}>
                         <InjectIcon
-                          variant="list"
                           type={
                             action.action_payload != null
                               ? action.action_payload.payload_collector_type ?? action.action_payload.payload_type
                               : action.action_injector_type
                           }
                           isPayload={action.action_payload != null}
+                          variant="list"
                         />
                       </ListItemIcon>
 
@@ -375,10 +375,6 @@ const ThreatArsenal = () => {
         numberOfSelectedElements > 0 && (
           <ToolBar
             numberOfSelectedElements={numberOfSelectedElements}
-            totalNumberOfElements={queryableHelpers.paginationHelpers.getTotalElements()}
-            selectedElements={selectedElements}
-            deSelectedElements={deSelectedElements}
-            selectAll={selectAll}
             handleClearSelectedElements={handleClearSelectedElements}
             teamsFromExerciseOrScenario={[]}
             customAction={(

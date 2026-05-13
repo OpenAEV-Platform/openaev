@@ -25,6 +25,9 @@ public class StepOutput {
   @JsonProperty("step_condition_ids")
   private List<String> conditionIds;
 
+  @JsonProperty("step_mapper_conditions")
+  private List<MapperConditionOutput> mapperConditions;
+
   @JsonProperty("step_condition_key_types")
   private List<ConditionKeyType> conditionKeyTypes;
 

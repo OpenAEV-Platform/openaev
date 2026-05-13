@@ -5,6 +5,7 @@ import {
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
+  type ComponentProps,
   type CSSProperties,
   type FunctionComponent,
   type SyntheticEvent,
@@ -42,21 +43,23 @@ import {
   type KillChainPhase,
   type Variable,
 } from '../../../../utils/api-types';
-import { type InjectorContractConverted } from '../../../../utils/api-types-custom';
+import { type InjectorContractConverted, type ToolBarTask } from '../../../../utils/api-types-custom';
 import useEntityToggle from '../../../../utils/hooks/useEntityToggle';
 import computeAttackPatterns from '../../../../utils/injector_contract/InjectorContractUtils';
 import { isNotEmptyField } from '../../../../utils/utils';
 import { InjectContext } from '../Context';
 import IconBar from '../domains/IconBar';
 import useDomainIconFilter from '../domains/useDomainIconFilter';
-import BulkToolBar from '../toolBar/BulkToolBar';
-import { type ToolTasks } from '../toolBar/BulkToolBar-model';
+import ToolBar from '../ToolBar';
 import InjectForm from './form/InjectForm';
 import InjectCardComponent from './InjectCardComponent';
 import InjectIcon from './InjectIcon';
 
 const useStyles = makeStyles()(theme => ({
-  itemHead: { textTransform: 'uppercase' },
+  itemHead: {
+    textTransform: 'uppercase',
+    minHeight: 50,
+  },
   bodyItems: { display: 'flex' },
   bodyItem: {
     fontSize: theme.typography.body2.fontSize,
@@ -357,13 +360,24 @@ const CreateInject: FunctionComponent<Props> = ({
     onCreateMultipleInjectsInject(quickInjects);
   };
 
-  const toolTasks: ToolTasks[] = [
+  const toolTasks: ToolBarTask[] = [
     {
       type: 'info',
       icon: () => (<Add />),
-      function: () => buildQuickInject(selectedElements),
+      onClick: () => buildQuickInject(selectedElements),
+      title: t('Add'),
     },
   ];
+  const createInjectToolBarProps: ComponentProps<typeof ToolBar> = {
+    info: t('Bulk select lets you add multiple injects. They\'ll show as "missing content" until configured'),
+    numberOfSelectedElements,
+    handleClearSelectedElements,
+    toolTasks,
+    showExport: false,
+    showUpdate: false,
+    showBulkTest: false,
+    showBulkDelete: false,
+  };
 
   let selectedContractKillChainPhase = null;
   if (selectedContract) {
@@ -422,20 +436,36 @@ const CreateInject: FunctionComponent<Props> = ({
                 <ListItem
                   classes={{ root: classes.itemHead }}
                   divider={false}
-                  style={{ paddingTop: 0 }}
-                  secondaryAction={<>&nbsp;</>}
+                  style={{ ...(numberOfSelectedElements > 0 ? { backgroundColor: 'rgb(15, 30, 56)' } : {}) }}
+                  {...(numberOfSelectedElements === 0 ? { secondaryAction: <>&nbsp;</> } : {})}
                 >
-                  <ListItemIcon style={{ minWidth: 90 }} />
-                  <ListItemText
-                    primary={(
-                      <SortHeadersComponentV2
-                        headers={headers}
-                        inlineStylesHeaders={inlineStyles}
-                        sortHelpers={queryableHelpers.sortHelpers}
+                  {numberOfSelectedElements > 0 ? (
+                    <>
+                      <ListItemIcon style={{ minWidth: 40 }} />
+                      <ListItemText
+                        sx={{
+                          'margin': 0,
+                          'padding': 0,
+                          '& .MuiTypography-root': { margin: 0 },
+                        }}
+                        primary={<ToolBar {...createInjectToolBarProps} />}
                       />
-                    )}
-                  />
-                  <ListItemIcon />
+                    </>
+                  ) : (
+                    <>
+                      <ListItemIcon style={{ minWidth: 90 }} />
+                      <ListItemText
+                        primary={(
+                          <SortHeadersComponentV2
+                            headers={headers}
+                            inlineStylesHeaders={inlineStyles}
+                            sortHelpers={queryableHelpers.sortHelpers}
+                          />
+                        )}
+                      />
+                      <ListItemIcon />
+                    </>
+                  )}
                 </ListItem>
                 {contracts.map((contract: InjectorContractFullOutput, index) => {
                   const contractAttackPatterns = computeAttackPatterns(
@@ -597,16 +627,6 @@ const CreateInject: FunctionComponent<Props> = ({
               </div>
             </Slide>
           )}
-          {
-            numberOfSelectedElements > 0 && (
-              <BulkToolBar
-                info={t('Bulk select lets you add multiple injects. They\'ll show as "missing content" until configured')}
-                numberOfSelectedElements={numberOfSelectedElements}
-                handleClearSelectedElements={handleClearSelectedElements}
-                toolTasks={toolTasks}
-              />
-            )
-          }
         </div>
       </Grid>
     </Drawer>
