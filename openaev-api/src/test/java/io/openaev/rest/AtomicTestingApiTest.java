@@ -74,6 +74,9 @@ public class AtomicTestingApiTest extends IntegrationTest {
     INJECT_STATUS = injectStatusRepository.save(injectStatus);
 
     DOCUMENT = documentRepository.save(DocumentFixture.getDocumentJpeg());
+
+    entityManager.flush();
+    entityManager.clear();
   }
 
   private InjectComposer.Composer getAtomicTestingWrapper(
@@ -914,10 +917,12 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
     private Inject createInjectInTenant(Tenant tenant) {
       tenantIsolationHelper.switchToTenant(tenant.getId(), entityManager);
-      Inject inject = injectComposer.forInject(InjectFixture.getDefaultInject()).persist().get();
+      Inject inject = InjectFixture.getDefaultInject();
+      inject.setTenant(tenant);
+      Inject persisted = injectComposer.forInject(inject).persist().get();
       entityManager.flush();
       entityManager.clear();
-      return inject;
+      return persisted;
     }
 
     @Test
