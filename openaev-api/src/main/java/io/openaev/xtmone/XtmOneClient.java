@@ -1,6 +1,5 @@
 package io.openaev.xtmone;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.Jwts;
 import io.openaev.authorisation.HttpClientFactory;
