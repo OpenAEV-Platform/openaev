@@ -25,6 +25,7 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 @RequiredArgsConstructor
 public class XtmOneChatApi extends RestBehavior {
 
+  private static final String XTM_ONE_URI = "/api/xtmone";
   private final XtmOneClient client;
   private final XtmOneConfig config;
   private final UserRepository userRepository;
@@ -40,16 +41,16 @@ public class XtmOneChatApi extends RestBehavior {
         user.getId(), user.getName() != null ? user.getName() : user.getEmail(), user.getEmail());
   }
 
-  @GetMapping("/api/xtmone/chat/agents")
-  public List<Map<String, Object>> listAgents() {
+  @GetMapping(XTM_ONE_URI + "/chat/agents")
+  public ResponseEntity<List<Map<String, Object>>> listAgents() {
     if (!config.isConfigured()) {
-      return List.of();
+      return ResponseEntity.ok(List.of());
     }
     User user = resolveCurrentUser();
-    return client.listChatAgents(issueJwt(user));
+    return ResponseEntity.ok(client.listChatAgents(issueJwt(user)));
   }
 
-  @PostMapping("/api/xtmone/chat/sessions")
+  @PostMapping(XTM_ONE_URI + "/chat/sessions")
   public ResponseEntity<Map<String, Object>> createSession(@RequestBody Map<String, Object> body) {
     if (!config.isConfigured()) {
       return ResponseEntity.badRequest().build();
@@ -66,7 +67,7 @@ public class XtmOneChatApi extends RestBehavior {
     return ResponseEntity.ok(result);
   }
 
-  @PostMapping(path = "/api/xtmone/chat/messages", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+  @PostMapping(path = XTM_ONE_URI + "/chat/messages", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
   public ResponseEntity<StreamingResponseBody> sendMessage(@RequestBody Map<String, Object> body) {
     if (!config.isConfigured()) {
       return ResponseEntity.badRequest().build();

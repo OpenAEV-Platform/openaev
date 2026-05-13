@@ -1,7 +1,7 @@
 import '@filigran/chatbot/styles.css';
 
 import { type ChatMode, ChatPanel } from '@filigran/chatbot';
-import { SvgIcon } from '@mui/material';
+import { Alert, SvgIcon } from '@mui/material';
 import type { Theme } from '@mui/material/styles';
 import { useTheme } from '@mui/material/styles';
 import { LogoXtmOneIcon } from 'filigran-icon';
@@ -19,6 +19,8 @@ interface AskArianePanelProps {
   onResizeEnd?: () => void;
 }
 
+type AgentFetchState = 'loading' | 'success' | 'error';
+
 const AskArianePanel: React.FC<AskArianePanelProps> = ({
   onClose,
   onWidthChange,
@@ -30,6 +32,7 @@ const AskArianePanel: React.FC<AskArianePanelProps> = ({
   const { me, settings } = useAuth();
   const [mode, setMode] = useState<ChatMode>('sidebar');
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
+  const [agentFetchState, setAgentFetchState] = useState<AgentFetchState>('loading');
 
   const topOffset = 64;
   const firstName = me.user_email?.split('@')[0] ?? 'User';
@@ -56,6 +59,20 @@ const AskArianePanel: React.FC<AskArianePanelProps> = ({
   ];
 
   useEffect(() => {
+    fetch('/api/xtmone/chat/agents')
+      .then((response) => {
+        if (response.ok) {
+          setAgentFetchState('success');
+        } else {
+          setAgentFetchState('error');
+        }
+      })
+      .catch(() => {
+        setAgentFetchState('error');
+      });
+  }, []);
+
+  useEffect(() => {
     const div = document.createElement('div');
     div.id = 'ask-ariane-portal';
     div.className = isDarkMode ? 'dark' : '';
@@ -73,6 +90,35 @@ const AskArianePanel: React.FC<AskArianePanelProps> = ({
   }, [isDarkMode, container]);
 
   if (!container) {
+    return null;
+  }
+
+  if (agentFetchState === 'error') {
+    return createPortal(
+      <div
+        style={{
+          position: 'fixed',
+          right: 0,
+          top: topOffset,
+          bottom: 0,
+          width: 400,
+          zIndex: 1200,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: theme.palette.background.paper,
+          borderLeft: `1px solid ${theme.palette.divider}`,
+        }}
+      >
+        <Alert severity="error" sx={{ m: 2 }}>
+          {t('The AI assistant service is currently unavailable. Please try again later.')}
+        </Alert>
+      </div>,
+      container,
+    );
+  }
+
+  if (agentFetchState === 'loading') {
     return null;
   }
 
