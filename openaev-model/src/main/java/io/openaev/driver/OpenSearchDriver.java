@@ -263,7 +263,6 @@ public class OpenSearchDriver {
     template.meta("version", JsonData.of(version));
     template.indexPatterns(indexName + "*");
     template.composedOf(coreSettings);
-    //mappings.put("base_tenant_side", new Property.Builder().keyword(new KeywordProperty.Builder().build()).build());
     TypeMapping indexMapping =
         new TypeMapping.Builder()
             .dynamic(DynamicMapping.Strict)
