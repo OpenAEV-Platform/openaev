@@ -103,19 +103,19 @@ public class PrivilegeService {
       TenantContext.setCurrentTenant(tenantId);
       if (processStixRole.isEmpty()) {
         return roleService.createRole(
-                roleId,
-                PROCESS_STIX_ROLE_NAME,
-                PROCESS_STIX_ROLE_DESCRIPTION,
-                PROCESS_STIX_ROLE_CAPABILITIES);
+            roleId,
+            PROCESS_STIX_ROLE_NAME,
+            PROCESS_STIX_ROLE_DESCRIPTION,
+            PROCESS_STIX_ROLE_CAPABILITIES);
       } else {
         return roleService.updateRole(
-                roleId,
-                PROCESS_STIX_ROLE_NAME,
-                PROCESS_STIX_ROLE_DESCRIPTION,
-                PROCESS_STIX_ROLE_CAPABILITIES);
+            roleId,
+            PROCESS_STIX_ROLE_NAME,
+            PROCESS_STIX_ROLE_DESCRIPTION,
+            PROCESS_STIX_ROLE_CAPABILITIES);
       }
     } finally {
-        TenantContext.clearCurrentTenant();
+      TenantContext.clearCurrentTenant();
     }
   }
 
