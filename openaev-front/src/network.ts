@@ -13,19 +13,22 @@ interface ApiErrorResponse {
 
 let csrfBootstrapPromise: Promise<void> | null = null;
 
-const hasCsrfCookie = (): boolean =>
-  document.cookie.split('; ').some(row => row.startsWith('XSRF-TOKEN='));
+export const getCsrfToken = (): string | null => {
+  const match = document.cookie
+    .split('; ')
+    .find(row => row.startsWith('XSRF-TOKEN='));
+  return match ? decodeURIComponent(match.split('=')[1]) : null;
+};
 
-const ensureCsrfCookie = async (instance: AxiosInstance): Promise<void> => {
-  if (hasCsrfCookie()) return;
-
-  csrfBootstrapPromise ??= instance
-    .get('/csrf')
+/**
+ * Ensures the CSRF cookie exists (fetches /csrf if missing).
+ * Can be used by non-Axios callers (e.g. fetchEventSource).
+ */
+export const ensureCsrf = async (): Promise<void> => {
+  if (getCsrfToken()) return;
+  csrfBootstrapPromise ??= fetch('/csrf', { credentials: 'include' })
     .then(() => undefined)
-    .finally(() => {
-      csrfBootstrapPromise = null;
-    });
-
+    .finally(() => { csrfBootstrapPromise = null; });
   await csrfBootstrapPromise;
 };
 
@@ -42,12 +45,9 @@ export const api = <T>(schema?: Schema<T> | null): AxiosInstance => {
     const mutating = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method);
 
     if (mutating) {
-      await ensureCsrfCookie(instance);
+      await ensureCsrf();
 
-      const match = document.cookie
-        .split('; ')
-        .find(row => row.startsWith('XSRF-TOKEN='));
-      const token = match ? decodeURIComponent(match.split('=')[1]) : null;
+      const token = getCsrfToken();
 
       if (token) {
         config.headers['X-XSRF-TOKEN'] = token;
