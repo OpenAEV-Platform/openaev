@@ -1,5 +1,6 @@
 import { fetchEventSource } from '@microsoft/fetch-event-source';
 
+import { ensureCsrf, getCsrfToken } from '../network';
 import { buildUri } from '../utils/Action';
 
 /**
@@ -10,15 +11,8 @@ import { buildUri } from '../utils/Action';
  */
 export const askAI = async (uri, input, eventCallback) => {
   let aiContent = '';
-  // Ensure CSRF cookie is available
-  const hasCsrfCookie = document.cookie.split('; ').some(row => row.startsWith('XSRF-TOKEN='));
-  if (!hasCsrfCookie) {
-    await fetch(buildUri('/csrf'), { credentials: 'include' });
-  }
-  const csrfMatch = document.cookie
-    .split('; ')
-    .find(row => row.startsWith('XSRF-TOKEN='));
-  const csrfToken = csrfMatch ? decodeURIComponent(csrfMatch.split('=')[1]) : null;
+  await ensureCsrf();
+  const csrfToken = getCsrfToken();
   const headers = {
     'Accept': 'text/event-stream',
     'Content-Type': 'application/json',
