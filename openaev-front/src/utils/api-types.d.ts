@@ -1023,6 +1023,13 @@ export interface ChannelUpdateLogoInput {
   channel_logo_light?: string;
 }
 
+export interface ChatbotAgentDto {
+  description?: string;
+  id?: string;
+  name?: string;
+  slug?: string;
+}
+
 export interface CheckExerciseRulesInput {
   /** List of tag that will be applied to the simulation */
   new_tags?: string[];

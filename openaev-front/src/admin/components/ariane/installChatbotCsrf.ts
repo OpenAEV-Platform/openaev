@@ -18,9 +18,14 @@ const readCsrfToken = (): string | null => {
 };
 
 const matchesChatUrl = (input: RequestInfo | URL): boolean => {
-  const url = typeof input === 'string'
-    ? input
-    : input instanceof URL ? input.toString() : input.url;
+  let url: string;
+  if (typeof input === 'string') {
+    url = input;
+  } else if (input instanceof URL) {
+    url = input.toString();
+  } else {
+    url = input.url;
+  }
   try {
     const path = new URL(url, window.location.origin).pathname;
     return path.startsWith(CHAT_URL_PREFIX);
@@ -30,7 +35,7 @@ const matchesChatUrl = (input: RequestInfo | URL): boolean => {
 };
 
 const installChatbotCsrf = (): void => {
-  const w = window as Window & Record<string, unknown>;
+  const w = window as unknown as Record<string, unknown>;
   if (w[FLAG]) return;
   w[FLAG] = true;
 
@@ -39,9 +44,13 @@ const installChatbotCsrf = (): void => {
     if (!matchesChatUrl(input)) return originalFetch(input, init);
     const csrf = readCsrfToken();
     if (!csrf) return originalFetch(input, init);
-    const headers = new Headers(init.headers ?? (input instanceof Request ? input.headers : undefined));
+    const baseHeaders = init.headers ?? (input instanceof Request ? input.headers : undefined);
+    const headers = new Headers(baseHeaders);
     if (!headers.has('X-XSRF-TOKEN')) headers.set('X-XSRF-TOKEN', csrf);
-    return originalFetch(input, { ...init, headers });
+    return originalFetch(input, {
+      ...init,
+      headers,
+    });
   };
 };
 

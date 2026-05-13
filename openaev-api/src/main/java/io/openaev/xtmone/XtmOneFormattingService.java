@@ -90,4 +90,3 @@ public class XtmOneFormattingService {
     return String.join("\n\n", queries);
   }
 }
-

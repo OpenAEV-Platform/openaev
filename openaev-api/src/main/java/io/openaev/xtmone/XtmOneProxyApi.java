@@ -103,8 +103,7 @@ public class XtmOneProxyApi extends RestBehavior {
 
     String agentSlug = body.has("agent_slug") ? body.get("agent_slug").asText() : null;
     String content = body.has("content") ? body.get("content").asText() : null;
-    String collectorType =
-        body.has("collector_type") ? body.get("collector_type").asText() : null;
+    String collectorType = body.has("collector_type") ? body.get("collector_type").asText() : null;
 
     if (agentSlug == null || content == null || collectorType == null) {
       return ResponseEntity.badRequest()
