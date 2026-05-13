@@ -9,6 +9,7 @@ import { createPortal } from 'react-dom';
 
 import { useFormatter } from '../../../components/i18n';
 import useAuth from '../../../utils/hooks/useAuth';
+import installChatbotCsrf from './installChatbotCsrf';
 
 interface AskArianePanelProps {
   mode: ChatMode;
@@ -57,6 +58,7 @@ const AskArianePanel: React.FC<AskArianePanelProps> = ({
   ];
 
   useEffect(() => {
+    installChatbotCsrf();
     const div = document.createElement('div');
     div.id = 'ask-ariane-portal';
     div.className = isDarkMode ? 'dark' : '';
