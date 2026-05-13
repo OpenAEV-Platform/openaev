@@ -69,6 +69,10 @@ public class OpenCTIConnectorService {
         .findFirst();
   }
 
+  public List<ConnectorBase> getRegisterConnectors() {
+    return connectors.stream().filter(ConnectorBase::isRegistered).toList();
+  }
+
   /**
    * Register or pings all loaded connectors. Does not crash if registering or pinging a connector
    * raises an exception, but logs a warning.
