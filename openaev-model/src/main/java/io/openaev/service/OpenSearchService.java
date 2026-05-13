@@ -358,7 +358,6 @@ public class OpenSearchService implements EngineService {
     Query tenantFilter =
         BoolQuery.of(b -> b.should(matchesTenant, noTenantField).minimumShouldMatch("1")).toQuery();
     mainQuery.filter(tenantFilter);
-
     return mainQuery.must(mainMust).build().toQuery();
   }
 
@@ -375,6 +374,7 @@ public class OpenSearchService implements EngineService {
     filter.setKey("base_id");
     filter.setOperator(Filters.FilterOperator.eq);
     filter.setValues(ids);
+    filter.setMode(Filters.FilterMode.or);
     filterGroup.setFilters(List.of(filter));
     Query query = buildQuery(user, null, filterGroup, new HashMap<>(), new HashMap<>());
     try {
@@ -382,6 +382,8 @@ public class OpenSearchService implements EngineService {
           openSearchClient.search(
               b -> b.index(engineConfig.getIndexPrefix() + "*").size(ids.size()).query(query),
               EsBase.class);
+      log.debug("resolveIdsRepresentative - total hits: {}",
+          response.hits().total() != null ? response.hits().total().value() : "null");
       List<Hit<EsBase>> hits = response.hits().hits();
       return hits.stream()
           .map(Hit::source)
