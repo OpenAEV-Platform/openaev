@@ -83,8 +83,8 @@ class TenantRegistrationExecutorTest {
       // Act
       executor.registerForTenantIsolated(tenant);
 
-      // Assert
-      verify(session).enableFilter("tenantFilter");
+      // Assert — enableFilter called twice: once to set tenant-1, once to restore previous
+      verify(session, times(2)).enableFilter("tenantFilter");
       verify(filter).setParameter("tenantId", "tenant-1");
     }
 
@@ -97,8 +97,8 @@ class TenantRegistrationExecutorTest {
       // Act
       executor.registerForTenantIsolated(tenant);
 
-      // Assert — verify RLS variable is synced via session.doWork()
-      verify(session).doWork(any(Work.class));
+      // Assert — doWork called twice: once to set RLS for tenant-1, once to restore previous
+      verify(session, times(2)).doWork(any(Work.class));
     }
 
     @Test
