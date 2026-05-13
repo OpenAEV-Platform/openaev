@@ -1,6 +1,5 @@
 FROM node:22.16.0-alpine3.20 AS front-builder
 
-RUN corepack enable
 WORKDIR /opt/openaev-build/openaev-front
 COPY openaev-front/packages ./packages
 COPY openaev-front/patches ./patches
