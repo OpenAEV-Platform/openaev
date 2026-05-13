@@ -106,13 +106,14 @@ const ResponseDialog: FunctionComponent<ResponseDialogProps> = ({
       setLoadingAgents(true);
       setSelectedAgent(null);
       setAgentOptions([]);
-      fetchAgentsForIntent(agentMode.intent).then((agents) => {
-        setAgentOptions(agents);
-        setLoadingAgents(false);
-        if (agents.length > 0) {
-          setSelectedAgent(agents[0]);
-        }
-      });
+      fetchAgentsForIntent(agentMode.intent)
+        .then((agents) => {
+          setAgentOptions(agents);
+          if (agents.length > 0) {
+            setSelectedAgent(agents[0]);
+          }
+        })
+        .finally(() => setLoadingAgents(false));
     }
     if (!isOpen) {
       setAgentExecuted(false);

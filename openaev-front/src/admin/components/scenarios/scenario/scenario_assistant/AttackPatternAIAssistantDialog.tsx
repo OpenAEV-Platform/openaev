@@ -80,11 +80,12 @@ const AttackPatternAIAssistantDialog = ({ open, onClose, onAttackPatternIdsFind 
     setLoadingAgents(true);
     setSelectedAgent(null);
     setAgentOptions([]);
-    fetchAgentsForIntent('ttp.extractor').then((agents) => {
-      setAgentOptions(agents);
-      if (agents.length > 0) setSelectedAgent(agents[0]);
-      setLoadingAgents(false);
-    });
+    fetchAgentsForIntent('ttp.extractor')
+      .then((agents) => {
+        setAgentOptions(agents);
+        if (agents.length > 0) setSelectedAgent(agents[0]);
+      })
+      .finally(() => setLoadingAgents(false));
   }, [open, xtmOneConfigured]);
 
   const onResetAndClose = () => {

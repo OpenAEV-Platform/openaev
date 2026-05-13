@@ -24,9 +24,16 @@ export interface AgentResponse {
   code?: number;
 }
 
+// Bounded wait before giving up on the agents listing call so the UI never
+// gets stuck on a spinner when XTM One is unreachable.
+const AGENTS_FETCH_TIMEOUT_MS = 15_000;
+
 export const fetchAgentsForIntent = async (intent: string): Promise<AgentOption[]> => {
   try {
-    const { data } = await api().get(`/api/chatbot/agents?intent=${encodeURIComponent(intent)}`);
+    const { data } = await api().get(
+      `/api/chatbot/agents?intent=${encodeURIComponent(intent)}`,
+      { timeout: AGENTS_FETCH_TIMEOUT_MS },
+    );
     return data;
   } catch {
     return [];

@@ -55,11 +55,12 @@ const DetectionRemediationUseAriane = ({
     setLoadingAgents(true);
     setSelectedAgent(null);
     setAgentOptions([]);
-    fetchAgentsForIntent('detection.generate').then((agents) => {
-      setAgentOptions(agents);
-      if (agents.length > 0) setSelectedAgent(agents[0]);
-      setLoadingAgents(false);
-    });
+    fetchAgentsForIntent('detection.generate')
+      .then((agents) => {
+        setAgentOptions(agents);
+        if (agents.length > 0) setSelectedAgent(agents[0]);
+      })
+      .finally(() => setLoadingAgents(false));
   }, [agentDialogOpen]);
 
   const runOnSubmit = (agentSlug?: string) => {
