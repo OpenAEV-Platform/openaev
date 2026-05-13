@@ -1,6 +1,5 @@
 package io.openaev.rest.stream.ai;
 
-import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.rest.stream.ai.AiPrompt.generatePrompt;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -25,8 +24,6 @@ import reactor.core.publisher.Flux;
 @RestController
 public class AiApi extends RestBehavior {
   public static final String X_ACCEL_BUFFERING = "X-Accel-Buffering";
-  private static final String AI_URI = "/api/ai";
-  private static final String TENANT_AI_URI = TENANT_PREFIX + "/ai";
   private AiConfig aiConfig;
 
   @Autowired
@@ -97,7 +94,7 @@ public class AiApi extends RestBehavior {
         .body(dataFlux);
   }
 
-  @PostMapping(path = {AI_URI + "/fix_spelling", TENANT_AI_URI + "/fix_spelling"}, produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+  @PostMapping(path = "/api/ai/fix_spelling", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
   @AccessControl(skipRBAC = true)
   public ResponseEntity<Flux<AiResult>> aiFixSpelling(
       @Valid @RequestBody final AiGenericTextInput aiGenericTextInput)
@@ -123,7 +120,7 @@ public class AiApi extends RestBehavior {
     return queryAi(mapper.writeValueAsString(body));
   }
 
-  @PostMapping(path = {AI_URI + "/make_shorter", TENANT_AI_URI + "/make_shorter"}, produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+  @PostMapping(path = "/api/ai/make_shorter", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
   @AccessControl(skipRBAC = true)
   public ResponseEntity<Flux<AiResult>> aiMakeShorter(
       @Valid @RequestBody final AiGenericTextInput aiGenericTextInput)
@@ -149,7 +146,7 @@ public class AiApi extends RestBehavior {
     return queryAi(mapper.writeValueAsString(body));
   }
 
-  @PostMapping(path = {AI_URI + "/make_longer", TENANT_AI_URI + "/make_longer"}, produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+  @PostMapping(path = "/api/ai/make_longer", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
   @AccessControl(skipRBAC = true)
   public ResponseEntity<Flux<AiResult>> aiMakeLonger(
       @Valid @RequestBody final AiGenericTextInput aiGenericTextInput)
@@ -176,7 +173,7 @@ public class AiApi extends RestBehavior {
     return queryAi(mapper.writeValueAsString(body));
   }
 
-  @PostMapping(path = {AI_URI + "/change_tone", TENANT_AI_URI + "/change_tone"}, produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+  @PostMapping(path = "/api/ai/change_tone", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
   @AccessControl(skipRBAC = true)
   public ResponseEntity<Flux<AiResult>> aiChangeTone(
       @Valid @RequestBody final AiGenericTextInput aiGenericTextInput)
@@ -204,7 +201,7 @@ public class AiApi extends RestBehavior {
     return queryAi(mapper.writeValueAsString(body));
   }
 
-  @PostMapping(path = {AI_URI + "/summarize", TENANT_AI_URI + "/summarize"}, produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+  @PostMapping(path = "/api/ai/summarize", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
   @AccessControl(skipRBAC = true)
   public ResponseEntity<Flux<AiResult>> aiSummarize(
       @Valid @RequestBody final AiGenericTextInput aiGenericTextInput)
@@ -229,7 +226,7 @@ public class AiApi extends RestBehavior {
     return queryAi(mapper.writeValueAsString(body));
   }
 
-  @PostMapping(path = {AI_URI + "/explain", TENANT_AI_URI + "/explain"}, produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+  @PostMapping(path = "/api/ai/explain", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
   @AccessControl(skipRBAC = true)
   public ResponseEntity<Flux<AiResult>> aiExplain(
       @Valid @RequestBody final AiGenericTextInput aiGenericTextInput)
@@ -252,7 +249,7 @@ public class AiApi extends RestBehavior {
     return queryAi(mapper.writeValueAsString(body));
   }
 
-  @PostMapping(path = {AI_URI + "/generate_message", TENANT_AI_URI + "/generate_message"}, produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+  @PostMapping(path = "/api/ai/generate_message", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
   @AccessControl(skipRBAC = true)
   public ResponseEntity<Flux<AiResult>> aiGenerateMessage(
       @Valid @RequestBody final AiMessageInput aiMessageInput) throws JsonProcessingException {
@@ -291,7 +288,7 @@ public class AiApi extends RestBehavior {
     return queryAi(mapper.writeValueAsString(body));
   }
 
-  @PostMapping(path = {AI_URI + "/generate_subject", TENANT_AI_URI + "/generate_subject"}, produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+  @PostMapping(path = "/api/ai/generate_subject", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
   @AccessControl(skipRBAC = true)
   public ResponseEntity<Flux<AiResult>> aiGenerateSubject(
       @Valid @RequestBody final AiMessageInput aiMessageInput) throws JsonProcessingException {
@@ -327,7 +324,7 @@ public class AiApi extends RestBehavior {
     return queryAi(mapper.writeValueAsString(body));
   }
 
-  @PostMapping(path = {AI_URI + "/generate_media", TENANT_AI_URI + "/generate_media"}, produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+  @PostMapping(path = "/api/ai/generate_media", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
   @AccessControl(skipRBAC = true)
   public ResponseEntity<Flux<AiResult>> aiGenerateMedia(
       @Valid @RequestBody final AiMediaInput aiMediaInput) throws JsonProcessingException {
