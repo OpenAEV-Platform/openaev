@@ -170,7 +170,14 @@ public class XtmOneClient {
     String body = EntityUtils.toString(response.getEntity());
 
     return switch (code) {
-      case 200 -> objectMapper.readValue(body, List.class);
+      case 200 -> {
+        List<Map<String, Object>> agents = objectMapper.readValue(body, List.class);
+        if (agents == null || agents.isEmpty()) {
+          throw new ResponseStatusException(
+              HttpStatus.NOT_FOUND, "[XTM One] No chat agents available");
+        }
+        yield agents;
+      }
       case 401 ->
           throw new ResponseStatusException(
               HttpStatus.UNAUTHORIZED, "[XTM One] Unauthorized access to chat agents");

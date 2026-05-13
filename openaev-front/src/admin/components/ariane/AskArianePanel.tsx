@@ -19,7 +19,7 @@ interface AskArianePanelProps {
   onResizeEnd?: () => void;
 }
 
-type AgentFetchState = 'loading' | 'success' | 'error';
+type AgentFetchState = 'loading' | 'success' | 'no_agents' | 'error';
 
 const AskArianePanel: React.FC<AskArianePanelProps> = ({
   onClose,
@@ -63,6 +63,8 @@ const AskArianePanel: React.FC<AskArianePanelProps> = ({
       .then((response) => {
         if (response.ok) {
           setAgentFetchState('success');
+        } else if (response.status === 404) {
+          setAgentFetchState('no_agents');
         } else {
           setAgentFetchState('error');
         }
@@ -93,7 +95,11 @@ const AskArianePanel: React.FC<AskArianePanelProps> = ({
     return null;
   }
 
-  if (agentFetchState === 'error') {
+  if (agentFetchState === 'error' || agentFetchState === 'no_agents') {
+    const severity = agentFetchState === 'no_agents' ? 'info' : 'error';
+    const message = agentFetchState === 'no_agents'
+      ? t('No AI assistant agents are available at the moment.')
+      : t('The AI assistant service is currently unavailable. Please try again later.');
     return createPortal(
       <div
         style={{
@@ -110,8 +116,8 @@ const AskArianePanel: React.FC<AskArianePanelProps> = ({
           borderLeft: `1px solid ${theme.palette.divider}`,
         }}
       >
-        <Alert severity="error" sx={{ m: 2 }}>
-          {t('The AI assistant service is currently unavailable. Please try again later.')}
+        <Alert severity={severity} sx={{ m: 2 }}>
+          {message}
         </Alert>
       </div>,
       container,
