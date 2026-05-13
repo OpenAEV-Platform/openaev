@@ -3,9 +3,11 @@ package io.openaev.xtmone;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.service.PlatformSettingsService;
+import io.openaev.xtmone.dto.ChatbotAgentDto;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -62,6 +64,35 @@ public class XtmOneService {
   /** Returns the intent catalog discovered from the last XTM One registration. */
   public List<Map<String, Object>> getIntentCatalog() {
     return discoveredIntentCatalog;
+  }
+
+  /**
+   * Returns the list of enabled agents bound to the given intent in the discovered catalog. Empty
+   * when no agent is bound (or when no catalog has been discovered yet).
+   */
+  @SuppressWarnings("unchecked")
+  public List<ChatbotAgentDto> listEnabledAgentsForIntent(String intent) {
+    return discoveredIntentCatalog.stream()
+        .filter(e -> Objects.equals(intent, e.get("intent")))
+        .flatMap(
+            e -> {
+              Object agentsObj = e.get("agents");
+              if (agentsObj instanceof List<?> agentList) {
+                return agentList.stream()
+                    .filter(Map.class::isInstance)
+                    .map(a -> (Map<String, Object>) a)
+                    .filter(a -> Boolean.TRUE.equals(a.get("enabled")));
+              }
+              return java.util.stream.Stream.empty();
+            })
+        .map(
+            a ->
+                new ChatbotAgentDto(
+                    String.valueOf(a.getOrDefault("agent_id", "")),
+                    String.valueOf(a.getOrDefault("agent_name", "")),
+                    String.valueOf(a.getOrDefault("agent_slug", "")),
+                    String.valueOf(a.getOrDefault("agent_description", ""))))
+        .toList();
   }
 
   /**

@@ -7,6 +7,7 @@ import io.openaev.database.model.User;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.xtmone.dto.ChatbotAgentDto;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
@@ -50,36 +51,12 @@ public class XtmOneProxyApi extends RestBehavior {
 
   /** Returns the list of enabled agents for the given intent from the discovered catalog. */
   @GetMapping(CHATBOT_URI + "/agents")
-  @SuppressWarnings("unchecked")
-  public ResponseEntity<List<Map<String, Object>>> getChatbotAgents(
+  public ResponseEntity<List<ChatbotAgentDto>> getChatbotAgents(
       @RequestParam(value = "intent", defaultValue = "global.assistant") String intent) {
     if (!config.isConfigured()) {
       return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(List.of());
     }
-    List<Map<String, Object>> catalog = xtmOneService.getIntentCatalog();
-    List<Map<String, Object>> agents =
-        catalog.stream()
-            .filter(e -> intent.equals(e.get("intent")))
-            .flatMap(
-                e -> {
-                  Object agentsObj = e.get("agents");
-                  if (agentsObj instanceof List<?> agentList) {
-                    return agentList.stream()
-                        .filter(Map.class::isInstance)
-                        .map(a -> (Map<String, Object>) a)
-                        .filter(a -> Boolean.TRUE.equals(a.get("enabled")));
-                  }
-                  return java.util.stream.Stream.empty();
-                })
-            .map(
-                a ->
-                    Map.<String, Object>of(
-                        "id", a.getOrDefault("agent_id", ""),
-                        "name", a.getOrDefault("agent_name", ""),
-                        "slug", a.getOrDefault("agent_slug", ""),
-                        "description", a.getOrDefault("agent_description", "")))
-            .toList();
-    return ResponseEntity.ok(agents);
+    return ResponseEntity.ok(xtmOneService.listEnabledAgentsForIntent(intent));
   }
 
   /** Non-streaming agent call. Returns the agent's full response synchronously. */
