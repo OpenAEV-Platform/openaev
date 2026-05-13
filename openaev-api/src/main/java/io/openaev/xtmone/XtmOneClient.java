@@ -20,17 +20,25 @@ import org.apache.hc.client5.http.classic.methods.HttpGet;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.core5.http.ClassicHttpResponse;
 import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.HttpMessage;
+import org.apache.hc.core5.http.ParseException;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.apache.hc.core5.util.Timeout;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
+import org.springframework.web.server.ResponseStatusException;
 
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class XtmOneClient {
+
+  private static final String CHAT_AGENTS_PATH = "/api/v1/platform/chat/agents";
+  private static final String CHAT_AGENTS_TAG = "openaev";
+  private static final int AGENT_LIST_TIMEOUT_SECONDS = 10;
 
   private final XtmOneConfig config;
   private final ObjectMapper objectMapper;
@@ -135,25 +143,58 @@ public class XtmOneClient {
   @SuppressWarnings("unchecked")
   public List<Map<String, Object>> listChatAgents(String jwt) {
     if (!config.isConfigured()) {
-      return List.of();
+      throw new ResponseStatusException(
+          HttpStatus.SERVICE_UNAVAILABLE, "[XTM One] Service is not configured");
     }
     try (CloseableHttpClient httpClient = httpClientFactory.httpClientCustom()) {
-      HttpGet httpGet = chatGetBuilder("/api/v1/platform/chat/agents?tag=openaev", jwt);
-      httpGet.setConfig(RequestConfig.custom().setResponseTimeout(Timeout.ofSeconds(10)).build());
-
-      return httpClient.execute(
-          httpGet,
-          response -> {
-            if (response.getCode() == 200) {
-              return objectMapper.readValue(EntityUtils.toString(response.getEntity()), List.class);
-            }
-            log.warn("[XTM One] List chat agents failed: HTTP {}", response.getCode());
-            return List.of();
-          });
+      HttpGet httpGet = chatGetBuilder(CHAT_AGENTS_PATH + "?tag=" + CHAT_AGENTS_TAG, jwt);
+      httpGet.setConfig(
+          RequestConfig.custom()
+              .setResponseTimeout(Timeout.ofSeconds(AGENT_LIST_TIMEOUT_SECONDS))
+              .build());
+      return httpClient.execute(httpGet, this::handleAgentListResponse);
+    } catch (ResponseStatusException e) {
+      throw e;
     } catch (Exception e) {
-      log.warn("[XTM One] List chat agents error.", e);
+      log.error("[XTM One] List chat agents unexpected error.", e);
+      throw new ResponseStatusException(
+          HttpStatus.INTERNAL_SERVER_ERROR,
+          "[XTM One] Unexpected error while listing chat agents",
+          e);
     }
-    return List.of();
+  }
+
+  private List<Map<String, Object>> handleAgentListResponse(ClassicHttpResponse response)
+      throws IOException, ParseException {
+    int code = response.getCode();
+    String body = EntityUtils.toString(response.getEntity());
+
+    return switch (code) {
+      case 200 -> {
+        List<Map<String, Object>> agents = objectMapper.readValue(body, List.class);
+        if (agents == null || agents.isEmpty()) {
+          throw new ResponseStatusException(
+              HttpStatus.NOT_FOUND, "[XTM One] No chat agents available");
+        }
+        yield agents;
+      }
+      case 401 ->
+          throw new ResponseStatusException(
+              HttpStatus.UNAUTHORIZED, "[XTM One] Unauthorized access to chat agents");
+      case 403 ->
+          throw new ResponseStatusException(
+              HttpStatus.FORBIDDEN, "[XTM One] Forbidden access to chat agents");
+      case 404 ->
+          throw new ResponseStatusException(
+              HttpStatus.NOT_FOUND, "[XTM One] Chat agents endpoint not found");
+      case 503 ->
+          throw new ResponseStatusException(
+              HttpStatus.SERVICE_UNAVAILABLE, "[XTM One] Service unavailable");
+      default ->
+          throw new ResponseStatusException(
+              HttpStatus.INTERNAL_SERVER_ERROR,
+              "[XTM One] Unexpected response from chat agents: HTTP " + code);
+    };
   }
 
   @SuppressWarnings("unchecked")
