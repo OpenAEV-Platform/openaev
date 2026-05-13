@@ -382,7 +382,8 @@ public class OpenSearchService implements EngineService {
           openSearchClient.search(
               b -> b.index(engineConfig.getIndexPrefix() + "*").size(ids.size()).query(query),
               EsBase.class);
-      log.debug("resolveIdsRepresentative - total hits: {}",
+      log.debug(
+          "resolveIdsRepresentative - total hits: {}",
           response.hits().total() != null ? response.hits().total().value() : "null");
       List<Hit<EsBase>> hits = response.hits().hits();
       return hits.stream()
