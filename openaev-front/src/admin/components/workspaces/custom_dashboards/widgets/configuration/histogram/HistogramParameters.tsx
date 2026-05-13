@@ -28,6 +28,10 @@ const HistogramParameters = ({ widgetType, control, setValue }: Props) => {
     control,
     name: 'widget_config.mode',
   });
+  const widgetConfigurationType = useWatch({
+    control,
+    name: 'widget_config.widget_configuration_type',
+  });
   const widgetTimeRange = useWatch({
     control,
     name: 'widget_config.time_range',
@@ -86,10 +90,21 @@ const HistogramParameters = ({ widgetType, control, setValue }: Props) => {
   };
 
   useEffect(() => {
-    if (availableModes.length === 1) {
-      setModeAndConfigType(availableModes[0]); // If only one mode is available, hide the field and set it automatically
+    const expectedConfigType = mode === 'temporal' ? 'temporal-histogram' : 'structural-histogram';
+
+    // Auto-set only when mode is hidden (single-mode widgets).
+    if (availableModes.length === 1 && (!mode || !availableModes.includes(mode))) {
+      const defaultMode = availableModes[0];
+      setValue('widget_config.mode', defaultMode);
+      setValue('widget_config.widget_configuration_type', defaultMode === 'temporal' ? 'temporal-histogram' : 'structural-histogram');
+      return;
     }
-  }, []);
+
+    // Keep discriminator in sync when user explicitly selected a valid mode.
+    if (mode && availableModes.includes(mode) && widgetConfigurationType !== expectedConfigType) {
+      setValue('widget_config.widget_configuration_type', expectedConfigType);
+    }
+  }, [availableModes, mode, setValue, widgetConfigurationType]);
 
   const hasLimit = getLimit(widgetType);
 

@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@mui/material';
-import { type FunctionComponent, useState } from 'react';
-import { Controller, FormProvider, useForm, type FieldErrors } from 'react-hook-form';
+import { type FunctionComponent, useEffect, useState } from 'react';
+import { Controller, type FieldErrors, FormProvider, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
 import Dialog from '../../../../../../components/common/dialog/Dialog';
@@ -10,7 +10,7 @@ import { useFormatter } from '../../../../../../components/i18n';
 import { type Widget } from '../../../../../../utils/api-types';
 import { type WidgetInputWithoutLayout } from '../../../../../../utils/api-types-custom';
 import { zodImplement } from '../../../../../../utils/Zod';
-import { getAvailableSteps, lastStepIndex, steps } from '../WidgetUtils';
+import { getAvailableModes, getAvailableSteps, lastStepIndex, steps } from '../WidgetUtils';
 import WidgetSecurityDomainsSeriesSelection from './domains/WidgetSecurityDomainsSeriesSelection';
 import WidgetMultiSeriesSelection from './histogram/WidgetMultiSeriesSelection';
 import WidgetSecurityCoverageSeriesSelection from './histogram/WidgetSecurityCoverageSeriesSelection';
@@ -161,14 +161,33 @@ const WidgetForm: FunctionComponent<Props> = ({
     handleSubmit,
     watch,
     reset,
+    setError,
+    clearErrors,
+    formState: { isValid },
     setValue,
   } = methods;
 
   const widgetType = watch('widget_type');
+  const widgetMode = watch('widget_config.mode');
+  const widgetField = watch('widget_config.field');
 
   // Stepper
   const availableSteps = getAvailableSteps(widgetType);
   const [activeStep, setActiveStep] = useState(editing ? 2 : 0);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
+
+  useEffect(() => {
+    if (widgetMode) {
+      clearErrors('widget_config.mode');
+    }
+  }, [widgetMode, clearErrors]);
+
+  useEffect(() => {
+    if (widgetField) {
+      clearErrors('widget_config.field');
+    }
+  }, [widgetField, clearErrors]);
+
   const nextStep = () => {
     for (let i = activeStep + 1; i < steps.length; i++) {
       if (availableSteps.includes(steps[i])) {
@@ -196,16 +215,19 @@ const WidgetForm: FunctionComponent<Props> = ({
 
   const onClose = () => {
     setActiveStep(editing ? lastStepIndex : 0);
+    setSubmitAttempted(false);
     toggleDialog();
   };
 
   const onCancel = () => {
     reset(initialValues);
     setActiveStep(0);
+    setSubmitAttempted(false);
     onClose();
   };
 
   const handleSubmitWithoutPropagation = () => {
+    setSubmitAttempted(true);
     handleSubmit(
       (values) => {
         onSubmit(values);
@@ -218,6 +240,26 @@ const WidgetForm: FunctionComponent<Props> = ({
         }
 
         const widgetConfigErrors = errors.widget_config;
+
+        if (
+          widgetConfigErrors
+          && typeof widgetConfigErrors === 'object'
+          && 'widget_configuration_type' in widgetConfigErrors
+        ) {
+          const hasVisibleMode = getAvailableModes(widgetType).length > 1;
+          const currentMode = watch('widget_config.mode');
+          if (hasVisibleMode && !currentMode) {
+            setError('widget_config.mode', {
+              type: 'manual',
+              message: t('Should not be empty'),
+            });
+            setError('widget_config.field', {
+              type: 'manual',
+              message: t('Should not be empty'),
+            });
+          }
+        }
+
         if (widgetConfigErrors && typeof widgetConfigErrors === 'object' && ('series' in widgetConfigErrors || 'perspective' in widgetConfigErrors)) {
           setActiveStep(1);
           return;
@@ -227,6 +269,8 @@ const WidgetForm: FunctionComponent<Props> = ({
       },
     )();
   };
+
+  const isCreateDisabled = !isLastStep() || (submitAttempted && !isValid);
 
   const getSeriesComponent = (widgetType: Widget['widget_type']) => {
     switch (widgetType) {
@@ -298,7 +342,7 @@ const WidgetForm: FunctionComponent<Props> = ({
           title={<StepperComponent widgetType={widgetType} steps={steps} activeStep={activeStep} handlePrevious={goToStep} />}
           actions={(
             <ActionsComponent
-              disabled={!isLastStep()}
+              disabled={isCreateDisabled}
               onCancel={onCancel}
               onSubmit={handleSubmitWithoutPropagation}
               editing={editing}
