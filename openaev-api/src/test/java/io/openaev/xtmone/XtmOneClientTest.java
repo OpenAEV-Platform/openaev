@@ -116,17 +116,17 @@ class XtmOneClientTest {
     }
 
     @Test
-    @DisplayName("Given XTM One returns 404 should return empty list")
-    void given_returns404_should_returnEmptyList() throws Exception {
+    @DisplayName("Given XTM One returns 404 should throw NOT_FOUND")
+    void given_returns404_should_throwNotFound() throws Exception {
       // -- ARRANGE --
       configureClient();
       mockHttpResponseWithStatus(404);
 
-      // -- ACT --
-      List<Map<String, Object>> result = xtmOneClient.listChatAgents("test-jwt");
-
-      // -- ASSERT --
-      assertTrue(result.isEmpty());
+      // -- ACT & ASSERT --
+      ResponseStatusException ex =
+          assertThrows(
+              ResponseStatusException.class, () -> xtmOneClient.listChatAgents("test-jwt"));
+      assertEquals(404, ex.getStatusCode().value());
     }
 
     @Test
