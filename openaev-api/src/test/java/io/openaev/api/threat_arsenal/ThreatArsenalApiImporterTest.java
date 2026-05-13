@@ -41,6 +41,7 @@ import io.openaev.utils.fixtures.ThreatArsenalInputFixture;
 import io.openaev.utils.fixtures.composers.DomainComposer;
 import io.openaev.utils.fixtures.composers.InjectorContractComposer;
 import io.openaev.utils.mockUser.WithMockUser;
+import jakarta.servlet.ServletException;
 import java.util.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -290,11 +291,10 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("Import payload with empty array fields")
-    void importPayloadWithEmptyArrayFields() throws Exception {
+    @DisplayName("Import payload with optional empty array fields")
+    void importPayloadWithOptionalEmptyArrayFields() throws Exception {
       // -- PREPARE --
       Map<String, Object> attributes = buildDefaultPayloadAttributes();
-      attributes.put("payload_platforms", new String[] {}); // empty array
       attributes.put("payload_arguments", new String[] {}); // empty array
       attributes.put("payload_prerequisites", new String[] {}); // empty array
 
@@ -310,9 +310,29 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
       // -- ASSERT --
       assertNotNull(response);
       JsonNode json = objectMapper.readTree(response);
-      assertEquals(0, json.at("/data/attributes/payload_platforms").size());
       assertEquals(0, json.at("/data/attributes/payload_arguments").size());
       assertEquals(0, json.at("/data/attributes/payload_prerequisites").size());
+    }
+
+    @Test
+    @DisplayName("Import payload with mandatory empty array fields")
+    void importPayloadWithMandatoryEmptyArrayFields() throws Exception {
+      // -- PREPARE --
+      Map<String, Object> attributes = buildDefaultPayloadAttributes();
+      attributes.put("payload_platforms", new String[] {}); // empty array
+
+      JsonApiDocument<ResourceObject> document =
+          new JsonApiDocument<>(
+              new ResourceObject(null, "command", attributes, emptyMap()), emptyList());
+
+      MockMultipartFile zipFile = buildZipFile(document);
+
+      // -- EXECUTE --
+      assertThrows(
+          ServletException.class,
+          () ->
+              mockMvc.perform(
+                  multipart(THREAT_ARSENAL_URL + "/import").file(zipFile).with(csrf())));
     }
 
     @Test
@@ -469,14 +489,11 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
       MockMultipartFile zipFile = buildZipFile(document);
 
       // -- EXECUTE --
-      String response = performImport(zipFile);
-
-      // -- ASSERT --
-      assertNotNull(response);
-      JsonNode json = objectMapper.readTree(response);
-      assertEquals(0, json.at("/data/attributes/payload_platforms").size());
-      assertEquals(0, json.at("/data/attributes/payload_arguments").size());
-      assertEquals(0, json.at("/data/attributes/payload_prerequisites").size());
+      assertThrows(
+          ServletException.class,
+          () ->
+              mockMvc.perform(
+                  multipart(THREAT_ARSENAL_URL + "/import").file(zipFile).with(csrf())));
     }
   }
 }

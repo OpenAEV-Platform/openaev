@@ -375,10 +375,6 @@ const ThreatArsenal = () => {
         numberOfSelectedElements > 0 && (
           <ToolBar
             numberOfSelectedElements={numberOfSelectedElements}
-            totalNumberOfElements={queryableHelpers.paginationHelpers.getTotalElements()}
-            selectedElements={selectedElements}
-            deSelectedElements={deSelectedElements}
-            selectAll={selectAll}
             handleClearSelectedElements={handleClearSelectedElements}
             teamsFromExerciseOrScenario={[]}
             customAction={(

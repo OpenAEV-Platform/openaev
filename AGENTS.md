@@ -49,6 +49,7 @@ Do NOT look for conventions here — they live in dedicated instruction files, a
 |---|---|
 | [add-migration](.github/skills/add-migration/SKILL.md) | Adding a Flyway migration with validation |
 | [add-test](.github/skills/add-test/SKILL.md) | Writing tests with coverage verification |
+| [add-tenant-isolation-test](.github/skills/add-test/TENANT_ISOLATION.md) | Adding tenant isolation tests to API test classes |
 | [create-feature-module](.github/skills/create-feature-module/SKILL.md) | Full feature: entity → API → frontend |
 | [review-code](.github/skills/review-code/SKILL.md) | General code review of a PR or module |
 | [review-frontend](.github/skills/review-frontend/SKILL.md) | Auditing frontend patterns of a PR or module |

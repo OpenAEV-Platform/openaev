@@ -16,6 +16,10 @@ description: "Testing conventions: integration tests, unit tests, fixtures, comp
 - JSON: `assertThatJson(response).node("field").isEqualTo(...)` (json-unit library)
 - URI constant at class level: `public static final String FEATURE_URI = "/api/..."`
 
+### Tenant Isolation Tests (API)
+
+- Use skill: [add-tenant-isolation-test](../skills/add-test/TENANT_ISOLATION.md)
+
 ## Integration Tests (Service)
 
 - Extend `IntegrationTest` (same base as API tests)

@@ -2,6 +2,10 @@
 kind: pipeline
 name: openaev-tests
 
+trigger:
+  event:
+    - custom
+
 steps:
   - name: Runner information
     image: alpine:3.23
@@ -128,7 +132,8 @@ steps:
   - name: build-circleci
     image: curlimages/curl
     commands:
-      - curl -X POST --data "branch=$DRONE_COMMIT_BRANCH" https://circleci.com/api/v1.1/project/github/OpenAEV-Platform/openaev/build?circle-token=$CIRCLECI_TOKEN
+      - curl -X POST --data "branch=$DRONE_COMMIT_BRANCH"
+        https://circleci.com/api/v1.1/project/github/OpenAEV-Platform/openaev/build?circle-token=$CIRCLECI_TOKEN
     environment:
       CIRCLECI_TOKEN:
         from_secret: circleci_token
@@ -148,7 +153,8 @@ steps:
   - name: build-circleci-release
     image: curlimages/curl
     commands:
-      - curl -X POST --data "tag=$DRONE_TAG" https://circleci.com/api/v1.1/project/github/OpenAEV-Platform/openaev/build?circle-token=$CIRCLECI_TOKEN
+      - curl -X POST --data "tag=$DRONE_TAG"
+        https://circleci.com/api/v1.1/project/github/OpenAEV-Platform/openaev/build?circle-token=$CIRCLECI_TOKEN
     environment:
       CIRCLECI_TOKEN:
         from_secret: circleci_token

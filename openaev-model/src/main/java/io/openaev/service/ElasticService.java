@@ -308,6 +308,7 @@ public class ElasticService implements EngineService {
     filter.setKey("base_id");
     filter.setOperator(Filters.FilterOperator.eq);
     filter.setValues(ids);
+    filter.setMode(Filters.FilterMode.or);
     filterGroup.setFilters(List.of(filter));
     Query query = buildQuery(user, null, filterGroup, new HashMap<>(), new HashMap<>());
     try {
