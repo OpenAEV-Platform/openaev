@@ -1,7 +1,10 @@
 package io.openaev.rest.url_access_token.service;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.matchesRegex;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
@@ -11,6 +14,7 @@ import io.openaev.database.model.UrlAccessToken;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.UrlAccessTokenRepository;
 import io.openaev.service.UserService;
+import io.openaev.utils.RandomUtils;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
@@ -31,6 +35,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 class UrlAccessTokenServiceTest {
 
   @Mock private UserService userService;
+  @Mock private RandomUtils randomUtils;
   @Mock private UrlAccessTokenRepository urlAccessTokenRepository;
 
   @InjectMocks private UrlAccessTokenService urlAccessTokenService;
@@ -38,6 +43,7 @@ class UrlAccessTokenServiceTest {
   @BeforeEach
   void setUp() {
     ReflectionTestUtils.setField(urlAccessTokenService, "expiryMarginDays", 7);
+    lenient().when(randomUtils.getRandomAlphanumeric(anyInt())).thenReturn("raw-token");
   }
 
   @Nested
@@ -69,7 +75,6 @@ class UrlAccessTokenServiceTest {
       verify(urlAccessTokenRepository).save(tokenCaptor.capture());
 
       UrlAccessToken savedToken = tokenCaptor.getValue();
-      assertNotNull(savedToken.getId());
       assertEquals(url, savedToken.getUrl());
       assertEquals(tokenUser, savedToken.getUser());
       assertEquals(creatorUser, savedToken.getCreatorUser());
@@ -77,6 +82,7 @@ class UrlAccessTokenServiceTest {
       assertEquals(exerciseEnd.plus(7, ChronoUnit.DAYS), savedToken.getExpiresAt());
       assertNotNull(savedToken.getTokenHash());
       assertNotEquals(rawToken, savedToken.getTokenHash());
+      assertThat(savedToken.getTokenHash(), matchesRegex("^[a-f0-9]{64}$"));
     }
 
     @Test

@@ -3,14 +3,15 @@ package io.openaev.utils.fixtures;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.UrlAccessToken;
 import io.openaev.database.model.User;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.HexFormat;
 import java.util.UUID;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 public class UrlAccessTokenFixture {
-
-  private static final BCryptPasswordEncoder HASHER = new BCryptPasswordEncoder();
 
   public static final String DEFAULT_RAW_TOKEN = "test-raw-token-" + UUID.randomUUID();
   public static final String DEFAULT_TARGET_URL = "/api/exercises";
@@ -27,7 +28,7 @@ public class UrlAccessTokenFixture {
   public static UrlAccessToken createValidToken(Exercise exercise, User user, String url) {
     UrlAccessToken token = new UrlAccessToken();
     token.setId(UUID.randomUUID().toString());
-    token.setTokenHash(HASHER.encode(DEFAULT_RAW_TOKEN));
+    token.setTokenHash(hashToken(DEFAULT_RAW_TOKEN));
     token.setUrl(url);
     token.setExercise(exercise);
     token.setUser(user);
@@ -45,7 +46,7 @@ public class UrlAccessTokenFixture {
   public static UrlAccessToken createExpiredToken(Exercise exercise, User user) {
     UrlAccessToken token = new UrlAccessToken();
     token.setId(UUID.randomUUID().toString());
-    token.setTokenHash(HASHER.encode("expired-token-" + UUID.randomUUID()));
+    token.setTokenHash(hashToken("expired-token-" + UUID.randomUUID()));
     token.setUrl(DEFAULT_TARGET_URL);
     token.setExercise(exercise);
     token.setUser(user);
@@ -64,5 +65,15 @@ public class UrlAccessTokenFixture {
     UrlAccessToken token = createValidToken(exercise, user, DEFAULT_TARGET_URL);
     token.setRevokedAt(Instant.now().minus(1, ChronoUnit.HOURS));
     return token;
+  }
+
+  private static String hashToken(String rawToken) {
+    try {
+      byte[] hash =
+          MessageDigest.getInstance("SHA-256").digest(rawToken.getBytes(StandardCharsets.UTF_8));
+      return HexFormat.of().formatHex(hash);
+    } catch (NoSuchAlgorithmException exception) {
+      throw new IllegalStateException("SHA-256 algorithm is not available", exception);
+    }
   }
 }

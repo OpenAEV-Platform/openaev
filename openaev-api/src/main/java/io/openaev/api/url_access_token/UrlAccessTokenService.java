@@ -8,24 +8,27 @@ import io.openaev.service.UserService;
 import io.openaev.utils.RandomUtils;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.HexFormat;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-@Transactional(rollbackFor = Exception.class)
+@Transactional(rollbackFor = Exception.class, noRollbackFor = AccessDeniedException.class)
 public class UrlAccessTokenService {
 
-  private static final String INVALID_TOKEN_MESSAGE = "Invalid URL access token";
+  public static final String INVALID_TOKEN_MESSAGE = "Invalid URL access token";
+
   private static final int TOKEN_SIZE = 32;
-  private static final BCryptPasswordEncoder TOKEN_HASHER = new BCryptPasswordEncoder();
 
   private final RandomUtils randomUtils;
   private final UserService userService;
@@ -49,7 +52,7 @@ public class UrlAccessTokenService {
     String tokenSecret = generateRawToken();
 
     UrlAccessToken token = new UrlAccessToken();
-    token.setTokenHash(TOKEN_HASHER.encode(tokenSecret));
+    token.setTokenHash(hashToken(tokenSecret));
     token.setUrl(url);
     token.setExercise(exercise);
     token.setUser(user);
@@ -161,8 +164,17 @@ public class UrlAccessTokenService {
   }
 
   private Optional<UrlAccessToken> findByRawToken(String rawToken) {
-    String tokenHash = TOKEN_HASHER.encode(rawToken);
-    return urlAccessTokenRepository.findByTokenHash(tokenHash);
+    return urlAccessTokenRepository.findByTokenHash(hashToken(rawToken));
+  }
+
+  private String hashToken(String rawToken) {
+    try {
+      byte[] hash =
+          MessageDigest.getInstance("SHA-256").digest(rawToken.getBytes(StandardCharsets.UTF_8));
+      return HexFormat.of().formatHex(hash);
+    } catch (NoSuchAlgorithmException exception) {
+      throw new IllegalStateException("SHA-256 algorithm is not available", exception);
+    }
   }
 
   private boolean isExpiredOrRevoked(UrlAccessToken token) {
