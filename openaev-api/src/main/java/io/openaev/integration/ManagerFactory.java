@@ -4,7 +4,6 @@ import static io.openaev.aop.lock.LockResourceType.MANAGER_FACTORY;
 import static io.openaev.helper.StreamHelper.fromIterable;
 
 import io.openaev.aop.lock.Lock;
-import io.openaev.context.TenantContext;
 import io.openaev.database.audit.TenantAssertionControl;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.TenantRepository;
@@ -12,11 +11,9 @@ import io.openaev.datapack.DataPackProcessor;
 import io.openaev.multitenancy.DependenciesManager;
 import io.openaev.multitenancy.DependenciesManagerException;
 import io.openaev.rest.injector_contract.InjectorContractService;
-import jakarta.persistence.EntityManager;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.hibernate.Session;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,9 +22,8 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class ManagerFactory implements DependenciesManager {
   private final List<IntegrationFactory> factories;
-  private final List<BuiltinTenantRegistrable> builtinRegistrables;
   private final TenantRepository tenantRepository;
-  private final EntityManager entityManager;
+  private final TenantRegistrationExecutor tenantRegistrationExecutor;
 
   private volatile Manager manager = null;
 
@@ -47,9 +43,9 @@ public class ManagerFactory implements DependenciesManager {
   }
 
   /**
-   * Ensures built-in connectors are registered for every existing tenant. This covers tenants
-   * created before the builtin registration mechanism was introduced (e.g. the default tenant
-   * created by Flyway migration) and is idempotent — safe to run on every startup.
+   * Ensures built-in connectors are registered for every existing tenant. Each tenant registration
+   * runs in its own transaction and persistence context (via {@link TenantRegistrationExecutor}) to
+   * avoid JPA entity identity collisions when connector IDs are reused across tenants.
    */
   private void registerBuiltinsForAllTenants() {
     List<Tenant> tenants = fromIterable(tenantRepository.findAll());
@@ -57,7 +53,9 @@ public class ManagerFactory implements DependenciesManager {
     try {
       for (Tenant tenant : tenants) {
         try {
-          createDependencyForTenant(tenant);
+          // Use isolated transaction per tenant to avoid JPA L1 cache identity collisions
+          // (connector IDs are reused across tenants).
+          tenantRegistrationExecutor.registerForTenantIsolated(tenant);
         } catch (DependenciesManagerException e) {
           log.error(
               "Failed to register built-in connectors for tenant '{}': {}",
@@ -74,35 +72,8 @@ public class ManagerFactory implements DependenciesManager {
   // -- TENANT DEPENDENCIES --
 
   @Override
-  @Transactional
   public void createDependencyForTenant(Tenant tenant) throws DependenciesManagerException {
-
-    String previousTenant = TenantContext.getCurrentTenant();
-    try {
-      TenantContext.setCurrentTenant(tenant.getId());
-      // Re-enable the Hibernate filter with the correct tenant — the AOP aspect already activated
-      // it with the previous tenant value before this method body runs.
-      entityManager
-          .unwrap(Session.class)
-          .enableFilter("tenantFilter")
-          .setParameter("tenantId", tenant.getId());
-      for (BuiltinTenantRegistrable registrable : builtinRegistrables) {
-        try {
-          registrable.registerForTenant();
-        } catch (Exception e) {
-          throw new DependenciesManagerException(
-              "Failed to register built-in connector %s for tenant %s"
-                  .formatted(registrable.getClass().getSimpleName(), tenant.getName()),
-              e);
-        }
-      }
-      log.info(
-          "Successfully registered {} built-in connector(s) for tenant '{}'",
-          builtinRegistrables.size(),
-          tenant.getName());
-    } finally {
-      TenantContext.setCurrentTenant(previousTenant);
-    }
+    tenantRegistrationExecutor.registerForTenant(tenant);
   }
 
   @Override
