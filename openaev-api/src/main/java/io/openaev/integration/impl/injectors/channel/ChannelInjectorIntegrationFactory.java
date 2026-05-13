@@ -112,7 +112,7 @@ public class ChannelInjectorIntegrationFactory extends BuiltinIntegrationFactory
           null,
           null,
           false,
-          List.of(ExternalServiceDependency.SMTP));
+          List.of(ExternalServiceDependency.SMTP, ExternalServiceDependency.IMAP));
     }
   }
 }
