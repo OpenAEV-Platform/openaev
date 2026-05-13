@@ -9065,9 +9065,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"monocart-reporter@npm:2.11.0":
-  version: 2.11.0
-  resolution: "monocart-reporter@npm:2.11.0"
+"monocart-reporter@npm:2.11.2":
+  version: 2.11.2
+  resolution: "monocart-reporter@npm:2.11.2"
   dependencies:
     console-grid: "npm:^2.2.4"
     eight-colors: "npm:^1.3.3"
@@ -9079,7 +9079,7 @@ __metadata:
     nodemailer: "npm:^8.0.7"
   bin:
     monocart: lib/cli.js
-  checksum: 10c0/c88449e1380ca47243734c298fec001b3c8b67930f3d57167dcfc8342385bc4bdf9cdf54f54798a979a90e6781ec015541f49087fdd9abd6216ea977053d091e
+  checksum: 10c0/14cf4c8a2e10647ae210953fb6bbd0207b240490818e8fcf84a5ad413370040ca7897f74ad898e05d1954e630f3a78ea2f2be69e02c8252807722df7fd58b966
   languageName: node
   linkType: hard
 
@@ -9529,7 +9529,7 @@ __metadata:
     moment: "npm:2.30.1"
     moment-timezone: "npm:0.6.2"
     monocart-coverage-reports: "npm:2.12.11"
-    monocart-reporter: "npm:2.11.0"
+    monocart-reporter: "npm:2.11.2"
     normalizr: "npm:3.6.2"
     pdfmake: "npm:0.3.8"
     prop-types: "npm:15.8.1"
@@ -9555,7 +9555,7 @@ __metadata:
     remark-gfm: "npm:4.0.1"
     remark-parse: "npm:11.0.0"
     rxjs: "npm:7.8.2"
-    swagger-typescript-api: "npm:13.9.0"
+    swagger-typescript-api: "npm:13.9.1"
     tss-react: "npm:4.9.20"
     typescript: "npm:5.9.3"
     typescript-eslint: "npm:8.59.2"
@@ -11577,9 +11577,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"swagger-typescript-api@npm:13.9.0":
-  version: 13.9.0
-  resolution: "swagger-typescript-api@npm:13.9.0"
+"swagger-typescript-api@npm:13.9.1":
+  version: 13.9.1
+  resolution: "swagger-typescript-api@npm:13.9.1"
   dependencies:
     "@apidevtools/swagger-parser": "npm:12.1.0"
     "@biomejs/js-api": "npm:4.0.0"
@@ -11601,7 +11601,7 @@ __metadata:
   bin:
     sta: dist/cli.mjs
     swagger-typescript-api: dist/cli.mjs
-  checksum: 10c0/463f7eeac085b8c75d5eddb0566efa2532cb58f5561998a1c9efbccbfff309a8de916624b4ddc8e36e9f52944aad488220b613270d0015e69e44dafa3417a2b3
+  checksum: 10c0/a01e75366636eeaa4443fbd6ec584f97afe02c2d913957ae52b7837949e909e52a9e5d7ed0f098ce87ac23865d66ceec5e193769665faa6042cb13691a1a53b2
   languageName: node
   linkType: hard
 
