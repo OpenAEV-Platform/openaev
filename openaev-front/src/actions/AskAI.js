@@ -10,14 +10,25 @@ import { buildUri } from '../utils/Action';
  */
 export const askAI = async (uri, input, eventCallback) => {
   let aiContent = '';
+  // Ensure CSRF cookie is available
+  const hasCsrfCookie = document.cookie.split('; ').some(row => row.startsWith('XSRF-TOKEN='));
+  if (!hasCsrfCookie) {
+    await fetch(buildUri('/csrf'), { credentials: 'include' });
+  }
+  const csrfMatch = document.cookie
+    .split('; ')
+    .find(row => row.startsWith('XSRF-TOKEN='));
+  const csrfToken = csrfMatch ? decodeURIComponent(csrfMatch.split('=')[1]) : null;
+  const headers = {
+    'Accept': 'text/event-stream',
+    'Content-Type': 'application/json',
+    ...(csrfToken ? { 'X-XSRF-TOKEN': csrfToken } : {}),
+  };
   return new Promise((resolve, reject) => {
     fetchEventSource(buildUri(`/api${uri}`), {
       method: 'POST',
       body: JSON.stringify(input),
-      headers: {
-        'Accept': 'text/event-stream',
-        'Content-Type': 'application/json',
-      },
+      headers,
       onmessage(event) {
         const data = JSON.parse(event.data);
         aiContent += data.chunk_content;
