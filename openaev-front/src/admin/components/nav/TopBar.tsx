@@ -167,6 +167,13 @@ const TopBar: FunctionComponent = () => {
       sub.unsubscribe();
     };
   });
+  const [isArianeChatOpen, setIsArianeChatOpen] = useState(false);
+  useEffect(() => {
+    const sub = MESSAGING$.toggleArianeChat.subscribe({ next: () => setIsArianeChatOpen(prev => !prev) });
+    return () => {
+      sub.unsubscribe();
+    };
+  }, []);
   const handleLogout = async () => {
     await dispatch(logout());
     window.location.href = '/';
