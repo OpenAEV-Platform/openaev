@@ -77,7 +77,7 @@
     "qs": "6.15.1",
     "ramda": "0.32.0",
     "react": "19.2.6",
-    "react-apexcharts": "1.7.0",
+    "react-apexcharts": "2.1.0",
     "react-color": "2.19.3",
     "react-csv": "2.2.2",
     "react-dom": "19.2.6",
@@ -149,6 +149,6 @@
     "@types/react": "19.2.14",
     "form-data": "4.0.5",
     "html-to-image": "patch:html-to-image@1.11.13#./patches/html-to-image.patch",
-    "react-apexcharts": "patch:react-apexcharts@1.7.0#./patches/react-apexcharts.patch"
+    "react-apexcharts": "patch:react-apexcharts@2.1.0#./patches/react-apexcharts.patch"
   }
 }
