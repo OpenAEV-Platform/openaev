@@ -100,8 +100,7 @@ public class UrlAccessTokenApiTest extends IntegrationTest {
               header()
                   .string(
                       "Set-Cookie",
-                      containsString(
-                          URL_ACCESS_COOKIE_NAME + "=" + VALID_RAW_TOKEN)));
+                      containsString(URL_ACCESS_COOKIE_NAME + "=" + VALID_RAW_TOKEN)));
 
       verify(urlAccessTokenService).updateLastUsed(token);
     }
@@ -181,4 +180,3 @@ public class UrlAccessTokenApiTest extends IntegrationTest {
     }
   }
 }
-

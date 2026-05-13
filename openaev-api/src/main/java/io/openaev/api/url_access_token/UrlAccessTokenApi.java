@@ -36,7 +36,8 @@ public class UrlAccessTokenApi {
   @Operation(summary = "Validate URL access token, set secure cookie and redirect")
   public ResponseEntity<Void> access(@RequestParam("token") String rawToken) {
     if (!previewFeatureService.isFeatureEnabled(PreviewFeature.URL_ACCESS_TOKEN)) {
-      throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "URL access token feature disabled");
+      throw new ResponseStatusException(
+          HttpStatus.UNAUTHORIZED, "URL access token feature disabled");
     }
 
     UrlAccessToken token = urlAccessTokenService.validateTokenExpiration(rawToken);
@@ -56,4 +57,3 @@ public class UrlAccessTokenApi {
         .build();
   }
 }
-

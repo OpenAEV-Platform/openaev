@@ -16,7 +16,8 @@ public class UrlAccessTokenFixture {
   public static final String DEFAULT_TARGET_URL = "/api/exercises";
 
   /**
-   * Creates a valid, non-expired {@link UrlAccessToken} with the given exercise, user and target URL.
+   * Creates a valid, non-expired {@link UrlAccessToken} with the given exercise, user and target
+   * URL.
    *
    * @param exercise the exercise scope of the token
    * @param user the user scope of the token
@@ -65,4 +66,3 @@ public class UrlAccessTokenFixture {
     return token;
   }
 }
-

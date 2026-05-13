@@ -5,13 +5,12 @@ import io.openaev.database.model.UrlAccessToken;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.UrlAccessTokenRepository;
 import io.openaev.service.UserService;
+import io.openaev.utils.RandomUtils;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Base64;
 import java.util.Optional;
-import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.AccessDeniedException;
@@ -25,9 +24,10 @@ import org.springframework.transaction.annotation.Transactional;
 public class UrlAccessTokenService {
 
   private static final String INVALID_TOKEN_MESSAGE = "Invalid URL access token";
-  private static final int TOKEN_BYTE_SIZE = 32;
+  private static final int TOKEN_SIZE = 32;
   private static final BCryptPasswordEncoder TOKEN_HASHER = new BCryptPasswordEncoder();
 
+  private final RandomUtils randomUtils;
   private final UserService userService;
   private final UrlAccessTokenRepository urlAccessTokenRepository;
 
@@ -175,14 +175,6 @@ public class UrlAccessTokenService {
   }
 
   private String generateRawToken() {
-    byte[] tokenBytes = new byte[TOKEN_BYTE_SIZE];
-    SecureRandomHolder.INSTANCE.nextBytes(tokenBytes);
-    return Base64.getUrlEncoder().withoutPadding().encodeToString(tokenBytes);
-  }
-
-  private static final class SecureRandomHolder {
-    private static final java.security.SecureRandom INSTANCE = new java.security.SecureRandom();
-
-    private SecureRandomHolder() {}
+    return randomUtils.getRandomAlphanumeric(TOKEN_SIZE);
   }
 }

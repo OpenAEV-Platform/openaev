@@ -40,4 +40,3 @@ public class UrlAccessTokenComposer extends ComposerBase<UrlAccessToken> {
     return new Composer(urlAccessToken);
   }
 }
-

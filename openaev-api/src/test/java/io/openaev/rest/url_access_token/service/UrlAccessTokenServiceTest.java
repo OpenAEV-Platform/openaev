@@ -322,4 +322,3 @@ class UrlAccessTokenServiceTest {
     return token;
   }
 }
-
