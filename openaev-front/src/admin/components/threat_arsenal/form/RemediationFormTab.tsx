@@ -4,8 +4,7 @@ import { Controller, useFormContext } from 'react-hook-form';
 
 import { postDetectionRemediationAIRulesByPayload } from '../../../../actions/detection-remediation/detectionremediation-action';
 import CKEditor from '../../../../components/CKEditor';
-import { callAgent } from '../../../../utils/ai/agentApi';
-import formatAgentRules from '../../../../utils/ai/formatAgentRules';
+import { callDetectionRemediationAgent } from '../../../../utils/ai/agentApi';
 import { type Collector, type PayloadInput } from '../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../utils/Environment';
 import useAI from '../../../../utils/hooks/useAI';
@@ -98,10 +97,13 @@ const RemediationFormTab = ({ activeTab }: RemediationFormTabProps) => {
       const prompt = `Generate ${activeTab.collector_type} detection rules for the following payload:\n\n`
         + `${JSON.stringify(payloadInput, null, 2)}`;
 
-      const result = await callAgent(agentSlug, prompt);
+      const result = await callDetectionRemediationAgent(
+        agentSlug,
+        prompt,
+        activeTab.collector_type,
+      );
       if (result.status === 'success' && result.content) {
-        const formatted = formatAgentRules(result.content, activeTab.collector_type);
-        applyRulesToEditor(formatted);
+        applyRulesToEditor(result.content);
       } else {
         setLoadingSnapshot(activeTab.collector_type, false);
       }

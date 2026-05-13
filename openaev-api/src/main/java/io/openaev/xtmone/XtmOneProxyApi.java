@@ -36,6 +36,7 @@ public class XtmOneProxyApi extends RestBehavior {
   private final XtmOneConfig config;
   private final XtmOneClient client;
   private final XtmOneService xtmOneService;
+  private final XtmOneFormattingService formattingService;
   private final UserRepository userRepository;
 
   private User resolveCurrentUser() {
@@ -85,6 +86,45 @@ public class XtmOneProxyApi extends RestBehavior {
           .body(Map.of("content", "", "status", "error", "error", "Agent call failed"));
     }
     return ResponseEntity.ok(Map.of("content", result, "status", "success"));
+  }
+
+  /**
+   * Non-streaming detection-remediation agent call. Invokes the agent and applies the legacy
+   * server-side formatter for the given collector type so the frontend receives editor-ready
+   * content.
+   */
+  @PostMapping(CHATBOT_URI + "/agent/detection-remediation")
+  public ResponseEntity<Map<String, Object>> postDetectionRemediationCall(
+      @RequestBody JsonNode body) {
+    if (!config.isConfigured()) {
+      return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+          .body(Map.of("content", "", "status", "error", "error", "XTM One is not configured"));
+    }
+
+    String agentSlug = body.has("agent_slug") ? body.get("agent_slug").asText() : null;
+    String content = body.has("content") ? body.get("content").asText() : null;
+    String collectorType =
+        body.has("collector_type") ? body.get("collector_type").asText() : null;
+
+    if (agentSlug == null || content == null || collectorType == null) {
+      return ResponseEntity.badRequest()
+          .body(
+              Map.of(
+                  "content",
+                  "",
+                  "status",
+                  "error",
+                  "error",
+                  "agent_slug, content and collector_type are required"));
+    }
+
+    String raw = client.callAgentSync(agentSlug, content, null);
+    if (raw == null) {
+      return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+          .body(Map.of("content", "", "status", "error", "error", "Agent call failed"));
+    }
+    String formatted = formattingService.formatRemediationRules(raw, collectorType);
+    return ResponseEntity.ok(Map.of("content", formatted, "status", "success"));
   }
 
   /** Streaming agent call via SSE. */
