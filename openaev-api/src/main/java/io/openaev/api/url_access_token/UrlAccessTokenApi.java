@@ -31,8 +31,6 @@ public class UrlAccessTokenApi {
   private final UrlAccessTokenService urlAccessTokenService;
   private final PreviewFeatureService previewFeatureService;
 
-  // -- READ --
-
   @GetMapping
   @LogExecutionTime
   @AccessControl(skipRBAC = true)

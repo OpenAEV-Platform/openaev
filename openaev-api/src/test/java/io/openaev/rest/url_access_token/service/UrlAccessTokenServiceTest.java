@@ -65,7 +65,7 @@ class UrlAccessTokenServiceTest {
           .thenAnswer(invocation -> invocation.getArgument(0));
 
       // Act
-      String rawToken = urlAccessTokenService.generateToken(exercise, tokenUser, url);
+      String rawToken = urlAccessTokenService.generateTokenUrl(exercise, tokenUser, url);
 
       // Assert
       assertNotNull(rawToken);
@@ -95,7 +95,7 @@ class UrlAccessTokenServiceTest {
       when(userService.currentUser()).thenThrow(new RuntimeException("No security context"));
 
       // Act
-      urlAccessTokenService.generateToken(exercise, tokenUser, "/api/resource");
+      urlAccessTokenService.generateTokenUrl(exercise, tokenUser, "/api/resource");
 
       // Assert
       ArgumentCaptor<UrlAccessToken> tokenCaptor = ArgumentCaptor.forClass(UrlAccessToken.class);

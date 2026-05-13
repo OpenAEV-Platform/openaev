@@ -1,9 +1,12 @@
 package io.openaev.api.url_access_token;
 
+import io.openaev.api.users.dto.UserMapper;
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.UrlAccessToken;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.UrlAccessTokenRepository;
+import io.openaev.execution.ProtectUser;
 import io.openaev.service.UserService;
 import io.openaev.utils.RandomUtils;
 import jakarta.validation.constraints.NotBlank;
@@ -21,6 +24,9 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import static io.openaev.api.url_access_token.UrlAccessTokenApi.URL_ACCESS_URI;
+import static io.openaev.api.users.dto.UserMapper.fromProtectUser;
+
 @Service
 @RequiredArgsConstructor
 @Transactional(rollbackFor = Exception.class, noRollbackFor = AccessDeniedException.class)
@@ -33,6 +39,7 @@ public class UrlAccessTokenService {
   private final RandomUtils randomUtils;
   private final UserService userService;
   private final UrlAccessTokenRepository urlAccessTokenRepository;
+  private final OpenAEVConfig openAEVConfig;
 
   @Value("${openaev.url.access.token.expiry-margin-days:7}")
   private int expiryMarginDays;
@@ -47,7 +54,7 @@ public class UrlAccessTokenService {
    * @param url final redirect URL associated with this token
    * @return raw token to embed in outgoing links
    */
-  public String generateToken(
+  public String generateTokenUrl(
       @NotNull final Exercise exercise, @NotNull final User user, @NotBlank final String url) {
     String tokenSecret = generateRawToken();
 
@@ -59,7 +66,24 @@ public class UrlAccessTokenService {
     token.setExpiresAt(computeExpiration(exercise));
     token.setCreatorUser(resolveCreatorUser());
     urlAccessTokenRepository.save(token);
-    return tokenSecret;
+
+    return this.openAEVConfig.getBaseUrl()
+            + URL_ACCESS_URI
+            + "?token=" + tokenSecret;
+  }
+
+  /**
+   * Generates a URL access token, persists its hash and returns the raw token value.
+   *
+   * @param exercise exercise scope of the token
+   * @param protectUser protect user scope of the token
+   * @param url final redirect URL associated with this token
+   * @return raw token to embed in outgoing links
+   */
+  public String generateTokenUrl(
+          @NotNull final Exercise exercise, @NotNull final ProtectUser protectUser, @NotBlank final String url) {
+    User user = fromProtectUser(protectUser);
+    return this.generateTokenUrl(exercise, user, url);
   }
 
   private User resolveCreatorUser() {
