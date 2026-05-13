@@ -63,6 +63,8 @@
   "Add": "追加",
   "Add a new vulnerability": "新しい脆弱性を追加する",
   "Add a result": "結果を追加する",
+  "Add asset and asset groups to your allowlist": "アセットとアセット・グループを許可リストに追加",
+  "Add asset and asset groups to your denylist": "アセットとアセットグループを拒否リストに追加する",
   "Add asset groups": "アセットグループの追加",
   "Add asset groups in this inject": "アセットグループを追加する",
   "Add asset to your allowlist": "アセットを許可リストに追加する",
