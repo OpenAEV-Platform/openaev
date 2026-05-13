@@ -1,6 +1,5 @@
 package io.openaev.injectors.channel;
 
-import static io.openaev.api.url_access_token.UrlAccessTokenApi.URL_ACCESS_URI;
 import static io.openaev.database.model.ExecutionTrace.getNewErrorTrace;
 import static io.openaev.database.model.ExecutionTrace.getNewInfoTrace;
 import static io.openaev.database.model.ExecutionTrace.getNewSuccessTrace;
@@ -43,10 +42,12 @@ public class ChannelExecutor extends Injector {
   private final PreviewFeatureService previewFeatureService;
 
   public ChannelExecutor(
-          InjectorContext context,
-          ArticleRepository articleRepository,
-          EmailService emailService,
-          InjectExpectationService injectExpectationService, UrlAccessTokenService urlAccessTokenService, PreviewFeatureService previewFeatureService) {
+      InjectorContext context,
+      ArticleRepository articleRepository,
+      EmailService emailService,
+      InjectExpectationService injectExpectationService,
+      UrlAccessTokenService urlAccessTokenService,
+      PreviewFeatureService previewFeatureService) {
     super(context);
     this.articleRepository = articleRepository;
     this.emailService = emailService;
@@ -65,15 +66,16 @@ public class ChannelExecutor extends Injector {
       queryOptions = queryOptions + "&user=" + user.getId();
     }
 
-    String url = this.context.getOpenAEVConfig().getBaseUrl()
-        + "/"
-        + tenantId
-        + "/channels/"
-        + exercise.getId()
-        + "/"
-        + channelId
-        + "?"
-        + queryOptions;
+    String url =
+        this.context.getOpenAEVConfig().getBaseUrl()
+            + "/"
+            + tenantId
+            + "/channels/"
+            + exercise.getId()
+            + "/"
+            + channelId
+            + "?"
+            + queryOptions;
 
     if (!previewFeatureService.isFeatureEnabled(PreviewFeature.URL_ACCESS_TOKEN)) {
       return url;
@@ -135,10 +137,7 @@ public class ChannelExecutor extends Injector {
                                       article.getId(),
                                       article.getName(),
                                       buildArticleUri(
-                                          userInjectContext,
-                                          article,
-                                          exercise,
-                                          tenantId)))
+                                          userInjectContext, article, exercise, tenantId)))
                           .toList();
                   userInjectContext.put(VARIABLE_ARTICLES, articleVariables);
                   // Send the email.

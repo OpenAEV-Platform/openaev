@@ -38,16 +38,18 @@ public class ChannelInjectorIntegrationFactory extends BuiltinIntegrationFactory
   private final PreviewFeatureService previewFeatureService;
 
   public ChannelInjectorIntegrationFactory(
-          ComponentRequestEngine componentRequestEngine,
-          ConnectorInstanceService connectorInstanceService,
-          CatalogConnectorService catalogConnectorService,
-          ChannelContract channelContract,
-          InjectorContext injectorContext,
-          EmailService emailService,
-          InjectorService injectorService,
-          InjectExpectationService injectExpectationService,
-          ArticleRepository articleRepository,
-          HttpClientFactory httpClientFactory, UrlAccessTokenService urlAccessTokenService, PreviewFeatureService previewFeatureService) {
+      ComponentRequestEngine componentRequestEngine,
+      ConnectorInstanceService connectorInstanceService,
+      CatalogConnectorService catalogConnectorService,
+      ChannelContract channelContract,
+      InjectorContext injectorContext,
+      EmailService emailService,
+      InjectorService injectorService,
+      InjectExpectationService injectExpectationService,
+      ArticleRepository articleRepository,
+      HttpClientFactory httpClientFactory,
+      UrlAccessTokenService urlAccessTokenService,
+      PreviewFeatureService previewFeatureService) {
     super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.componentRequestEngine = componentRequestEngine;
     this.connectorInstanceService = connectorInstanceService;

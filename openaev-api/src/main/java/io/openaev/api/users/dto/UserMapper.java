@@ -4,8 +4,6 @@ import io.openaev.database.model.Organization;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.User;
 import io.openaev.execution.ProtectUser;
-import jakarta.validation.constraints.NotNull;
-
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -26,6 +24,7 @@ public class UserMapper {
 
   /**
    * Maps a ProtectUser class to User entity.
+   *
    * @param protectUser to map
    * @return mapped User
    */

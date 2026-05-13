@@ -1,6 +1,8 @@
 package io.openaev.api.url_access_token;
 
-import io.openaev.api.users.dto.UserMapper;
+import static io.openaev.api.url_access_token.UrlAccessTokenApi.URL_ACCESS_URI;
+import static io.openaev.api.users.dto.UserMapper.fromProtectUser;
+
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.UrlAccessToken;
@@ -23,9 +25,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import static io.openaev.api.url_access_token.UrlAccessTokenApi.URL_ACCESS_URI;
-import static io.openaev.api.users.dto.UserMapper.fromProtectUser;
 
 @Service
 @RequiredArgsConstructor
@@ -67,9 +66,7 @@ public class UrlAccessTokenService {
     token.setCreatorUser(resolveCreatorUser());
     urlAccessTokenRepository.save(token);
 
-    return this.openAEVConfig.getBaseUrl()
-            + URL_ACCESS_URI
-            + "?token=" + tokenSecret;
+    return this.openAEVConfig.getBaseUrl() + URL_ACCESS_URI + "?token=" + tokenSecret;
   }
 
   /**
@@ -81,7 +78,9 @@ public class UrlAccessTokenService {
    * @return raw token to embed in outgoing links
    */
   public String generateTokenUrl(
-          @NotNull final Exercise exercise, @NotNull final ProtectUser protectUser, @NotBlank final String url) {
+      @NotNull final Exercise exercise,
+      @NotNull final ProtectUser protectUser,
+      @NotBlank final String url) {
     User user = fromProtectUser(protectUser);
     return this.generateTokenUrl(exercise, user, url);
   }
