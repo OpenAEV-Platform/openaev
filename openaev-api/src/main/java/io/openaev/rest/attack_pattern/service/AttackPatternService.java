@@ -274,7 +274,9 @@ public class AttackPatternService {
           extractExternalAttackPatternIdsFromResponse(responseBody);
       return getAttackPatternInternalIdsFromExternalIds(attackPatternExternalIds);
 
-    } catch (IOException e) {
+    } catch (IOException | RestClientException e) {
+      // Catch both IOException (XTM One branch) and RestClientException (legacy webservice via
+      // RestTemplate) so upstream details are logged but never leak into the 503 response body.
       log.warn("[AttackPattern] AI service call failed.", e);
       throw new ResponseStatusException(
           HttpStatus.SERVICE_UNAVAILABLE, "AI service is unavailable", e);

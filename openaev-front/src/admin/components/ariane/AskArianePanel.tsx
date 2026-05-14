@@ -64,7 +64,9 @@ const AskArianePanel: React.FC<AskArianePanelProps> = ({
     // widget fires its first mutating request, so installChatbotCsrf can
     // inject the X-XSRF-TOKEN header.
     api().get('/csrf').catch(() => undefined).finally(() => {
-      fetch('/api/xtmone/chat/agents')
+      // `credentials: 'include'` keeps this call consistent with the `withCredentials: true`
+      // axios instance and avoids 401/403 in cross-origin deployments.
+      fetch('/api/xtmone/chat/agents', { credentials: 'include' })
         .then((response) => {
           if (response.ok) {
             setAgentFetchState('success');

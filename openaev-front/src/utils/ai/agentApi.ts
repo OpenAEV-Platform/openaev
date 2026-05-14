@@ -115,6 +115,7 @@ export const callAgentStream = async (
   const response = await fetch('/api/chatbot/agent/stream', {
     method: 'POST',
     headers,
+    credentials: 'include',
     body: JSON.stringify({
       agent_slug: agentSlug,
       content,

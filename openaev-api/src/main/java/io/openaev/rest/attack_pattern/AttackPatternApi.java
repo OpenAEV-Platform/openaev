@@ -70,7 +70,7 @@ public class AttackPatternApi extends RestBehavior {
   @PostMapping("/search-with-ai")
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   @Operation(
-      summary = "Extract Attack Paterns from text or files using AI",
+      summary = "Extract Attack Patterns from text or files using AI",
       description = "Get attack patterns ids extracted from a text or files using AI")
   public List<String> searchAttackPatternWithTTPAIWebservice(
       @RequestPart(value = "files", required = false) @Nullable List<MultipartFile> files,

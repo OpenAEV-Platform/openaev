@@ -89,11 +89,14 @@ public class XtmOneService {
             })
         .map(
             a ->
+                // Use Objects.toString so both missing keys and explicit null JSON values map to
+                // the empty string. String.valueOf(getOrDefault(...)) would surface the literal
+                // "null" when the catalog ships an agent entry with a null id/name/slug.
                 new ChatbotAgentOutput(
-                    String.valueOf(a.getOrDefault("agent_id", "")),
-                    String.valueOf(a.getOrDefault("agent_name", "")),
-                    String.valueOf(a.getOrDefault("agent_slug", "")),
-                    String.valueOf(a.getOrDefault("agent_description", ""))))
+                    Objects.toString(a.get("agent_id"), ""),
+                    Objects.toString(a.get("agent_name"), ""),
+                    Objects.toString(a.get("agent_slug"), ""),
+                    Objects.toString(a.get("agent_description"), "")))
         .toList();
   }
 
