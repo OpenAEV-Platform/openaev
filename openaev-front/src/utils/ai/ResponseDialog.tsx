@@ -93,10 +93,16 @@ const ResponseDialog: FunctionComponent<ResponseDialogProps> = ({
   // Agent streaming hook
   const { content: streamContent, loading: agentLoading, error: agentError, execute: executeStream, abort: abortStream } = useAgentStream();
 
-  // Sync streamed content to parent
+  // Sync streamed content to parent.
+  // We propagate empty strings as well so the parent UI clears immediately when a stream
+  // (re-)starts; this keeps the loading spinner condition (`agentLoading && !content`) and the
+  // empty-state behaviour correct. We only do this in agent mode to avoid clobbering the
+  // controlled `content` prop in the legacy mode (where `streamContent` stays at its initial
+  // empty value).
   useEffect(() => {
-    if (streamContent) setContent(streamContent);
-  }, [streamContent, setContent]);
+    if (!agentMode) return;
+    setContent(streamContent);
+  }, [streamContent, setContent, agentMode]);
 
   // Load agents when dialog opens in agent mode
   useEffect(() => {

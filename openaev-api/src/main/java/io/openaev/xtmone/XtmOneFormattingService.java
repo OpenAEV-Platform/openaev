@@ -17,8 +17,8 @@ import org.springframework.stereotype.Service;
  * DetectionRemediationCrowdstrikeResponse#formateRules()} formatter for CrowdStrike and producing
  * the SPL query directly for Splunk.
  *
- * <p>This logic used to live in the frontend ({@code formatAgentRules.ts}); moving it here keeps
- * the OpenAEV → XTM One contract centralised and easier to evolve.
+ * <p>Centralising this in the backend keeps the OpenAEV ↔ XTM One contract in one place and avoids
+ * duplicating parsing/formatting logic in every frontend caller.
  */
 @Slf4j
 @Service
