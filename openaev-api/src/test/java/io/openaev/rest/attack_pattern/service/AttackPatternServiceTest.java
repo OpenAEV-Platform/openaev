@@ -63,8 +63,8 @@ class AttackPatternServiceTest {
 
   /**
    * Build a stub {@link User} that satisfies the per-user JWT minting performed by the XTM One
-   * branch of {@code searchAttackPatternWithTTPAIWebservice} (no DB reads required because
-   * {@code userService} is mocked).
+   * branch of {@code searchAttackPatternWithTTPAIWebservice} (no DB reads required because {@code
+   * userService} is mocked).
    */
   private static User stubUser() {
     User user = new User();
