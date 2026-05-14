@@ -172,8 +172,7 @@ class AttackPatternServiceTest {
     verify(restTemplate, never()).postForEntity(anyString(), any(), any());
   }
 
-  @DisplayName(
-      "given_xtmOneConfiguredAndNoCatalogYet_should_fallbackToDefaultSlugAndStillExtract")
+  @DisplayName("given_xtmOneConfiguredAndNoCatalogYet_should_fallbackToDefaultSlugAndStillExtract")
   @Test
   void given_xtmOneConfiguredAndNoCatalogYet_should_fallbackToDefaultSlugAndStillExtract() {
     // Arrange — XTM One configured but the registration catalog hasn't populated yet

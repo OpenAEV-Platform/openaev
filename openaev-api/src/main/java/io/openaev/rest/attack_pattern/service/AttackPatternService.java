@@ -46,9 +46,9 @@ public class AttackPatternService {
 
   /**
    * Per-file size limit for AI uploads (in bytes). Files larger than this are rejected to avoid OOM
-   * when base64-encoding the payload to XTM One. The global multipart limit
-   * ({@code spring.servlet.multipart.max-file-size}) is much higher and intended for documents, not
-   * AI prompts.
+   * when base64-encoding the payload to XTM One. The global multipart limit ({@code
+   * spring.servlet.multipart.max-file-size}) is much higher and intended for documents, not AI
+   * prompts.
    */
   private static final long AI_UPLOAD_MAX_BYTES_PER_FILE = 5L * 1024 * 1024;
 
