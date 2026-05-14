@@ -83,7 +83,7 @@ public class XtmOneProxyApi extends RestBehavior {
 
     String result = client.callAgentSync(issueJwtForCurrentUser(), validatedSlug, content, null);
     if (result == null) {
-      return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+      return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
           .body(Map.of("content", "", "status", "error", "error", "Agent call failed"));
     }
     return ResponseEntity.ok(Map.of("content", result, "status", "success"));
@@ -136,7 +136,7 @@ public class XtmOneProxyApi extends RestBehavior {
 
     String raw = client.callAgentSync(issueJwtForCurrentUser(), resolvedSlug, content, null);
     if (raw == null) {
-      return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+      return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
           .body(Map.of("content", "", "status", "error", "error", "Agent call failed"));
     }
     String formatted = formattingService.formatRemediationRules(raw, collectorType);

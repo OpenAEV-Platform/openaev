@@ -82,15 +82,14 @@ const RemediationFormTab = ({ activeTab }: RemediationFormTabProps) => {
     const payloadInput: Partial<PayloadInput> = payloadFormToPayloadInputForAI(getValues());
 
     setSnapshot((prev) => {
-      let prevEdited = prev;
-      if (!prevEdited) prevEdited = new Map<string, SnapshotEditionRemediationType>();
+      const next = new Map(prev ?? []);
       const snapshot: SnapshotEditionRemediationType = {
-        ...prevEdited.get(activeTab.collector_type) ?? {},
+        ...next.get(activeTab.collector_type) ?? {},
         trackedFields: structuredClone(getValues(trackedFields)),
         isLoading: true,
       };
-      prevEdited.set(activeTab.collector_type, snapshot as SnapshotEditionRemediationType);
-      return prevEdited;
+      next.set(activeTab.collector_type, snapshot as SnapshotEditionRemediationType);
+      return next;
     });
 
     if (!agentSlug) {
@@ -124,17 +123,15 @@ const RemediationFormTab = ({ activeTab }: RemediationFormTabProps) => {
     const payloadInput: Partial<PayloadInput> = payloadFormToPayloadInputForAI(getValues());
 
     setSnapshot((prev) => {
-      let prevEdited = prev;
-      if (!prevEdited) prevEdited = new Map<string, SnapshotEditionRemediationType>();
-
+      const next = new Map(prev ?? []);
       const currentValue = structuredClone(getValues(trackedFields));
       const snapshot: SnapshotEditionRemediationType = {
-        ...prevEdited.get(activeTab.collector_type) ?? {},
+        ...next.get(activeTab.collector_type) ?? {},
         trackedFields: currentValue,
         isLoading: true,
       };
-      prevEdited.set(activeTab.collector_type, snapshot as SnapshotEditionRemediationType);
-      return prevEdited;
+      next.set(activeTab.collector_type, snapshot as SnapshotEditionRemediationType);
+      return next;
     });
 
     return postDetectionRemediationAIRulesByPayload(activeTab.collector_type, payloadInput).then((value) => {

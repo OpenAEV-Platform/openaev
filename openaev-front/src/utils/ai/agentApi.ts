@@ -2,13 +2,7 @@
 // remediation detection, and text AI features to call XTM One
 // agents through the OpenAEV proxy endpoints.
 
-import { api } from '../../network';
-
-/** Read the Spring Security XSRF-TOKEN cookie value (needed for streaming requests using fetch). */
-const getCsrfToken = (): string | null => {
-  const match = document.cookie.split('; ').find(row => row.startsWith('XSRF-TOKEN='));
-  return match ? decodeURIComponent(match.split('=')[1]) : null;
-};
+import { api, ensureCsrf, getCsrfToken } from '../../network';
 
 export interface AgentOption {
   id: string;
@@ -100,7 +94,7 @@ export const callDetectionRemediationAgent = async (
  * as each text chunk arrives. Returns the final AgentResponse.
  *
  * Uses raw fetch for ReadableStream support (axios doesn't support SSE streaming).
- * CSRF is bootstrapped via a dummy GET through the axios instance first.
+ * CSRF is bootstrapped through the shared `ensureCsrf` helper from `network.ts`.
  *
  * @param signal - optional AbortSignal to cancel the stream
  */
@@ -110,8 +104,9 @@ export const callAgentStream = async (
   onChunk: (partialContent: string) => void,
   signal?: AbortSignal,
 ): Promise<AgentResponse> => {
-  // Bootstrap CSRF cookie via the axios instance (reuses network.ts logic)
-  await api().get('/csrf').catch(() => undefined);
+  // Bootstrap the XSRF-TOKEN cookie if missing — reuses the shared network.ts helper so that
+  // cookie name, decoding and bootstrap behaviour stay in sync with axios callers.
+  await ensureCsrf();
 
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   const csrf = getCsrfToken();
