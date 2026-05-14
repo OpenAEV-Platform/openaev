@@ -1,9 +1,9 @@
 package io.openaev.xtmone;
 
+import io.openaev.api.xtmone.dto.ChatbotAgentOutput;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.service.PlatformSettingsService;
-import io.openaev.xtmone.dto.ChatbotAgentDto;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -73,7 +73,7 @@ public class XtmOneService {
    * when no agent is bound (or when no catalog has been discovered yet).
    */
   @SuppressWarnings("unchecked")
-  public List<ChatbotAgentDto> listEnabledAgentsForIntent(String intent) {
+  public List<ChatbotAgentOutput> listEnabledAgentsForIntent(String intent) {
     return discoveredIntentCatalog.stream()
         .filter(e -> Objects.equals(intent, e.get("intent")))
         .flatMap(
@@ -89,7 +89,7 @@ public class XtmOneService {
             })
         .map(
             a ->
-                new ChatbotAgentDto(
+                new ChatbotAgentOutput(
                     String.valueOf(a.getOrDefault("agent_id", "")),
                     String.valueOf(a.getOrDefault("agent_name", "")),
                     String.valueOf(a.getOrDefault("agent_slug", "")),
@@ -106,7 +106,7 @@ public class XtmOneService {
    *     supplied slug is not enabled for the requested intent.
    */
   public String resolveAgentSlugForIntent(String intent, String requestedSlug) {
-    List<ChatbotAgentDto> enabled = listEnabledAgentsForIntent(intent);
+    List<ChatbotAgentOutput> enabled = listEnabledAgentsForIntent(intent);
     if (enabled.isEmpty()) {
       return null;
     }

@@ -1023,7 +1023,7 @@ export interface ChannelUpdateLogoInput {
   channel_logo_light?: string;
 }
 
-export interface ChatbotAgentDto {
+export interface ChatbotAgentOutput {
   description?: string;
   id?: string;
   name?: string;
