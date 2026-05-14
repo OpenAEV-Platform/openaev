@@ -39,7 +39,9 @@ export interface Agent {
 }
 
 export interface AgentCallInput {
+  /** @minLength 1 */
   agent_slug: string;
+  /** @minLength 1 */
   content: string;
 }
 
@@ -1871,6 +1873,14 @@ export interface DetectionRemediationAIOutput {
   rules?: string;
 }
 
+export interface DetectionRemediationCallInput {
+  agent_slug?: string;
+  /** @minLength 1 */
+  collector_type: string;
+  /** @minLength 1 */
+  content: string;
+}
+
 /** Health check response of the detection/remediation service. */
 export interface DetectionRemediationHealthResponse {
   /**
@@ -1898,12 +1908,6 @@ export interface DetectionRemediationHealthResponse {
    * @example "0.1.0"
    */
   version?: string;
-}
-
-export interface DetectionRemediationCallInput {
-  agent_slug?: string;
-  collector_type: string;
-  content: string;
 }
 
 export interface DetectionRemediationInput {
