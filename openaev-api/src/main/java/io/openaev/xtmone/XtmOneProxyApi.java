@@ -1,13 +1,10 @@
 package io.openaev.xtmone;
 
-import static io.openaev.config.SessionHelper.currentUser;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.aop.AccessControl;
 import io.openaev.database.model.User;
-import io.openaev.database.repository.UserRepository;
-import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.service.UserService;
 import io.openaev.xtmone.dto.ChatbotAgentDto;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -38,15 +35,10 @@ public class XtmOneProxyApi extends RestBehavior {
   private final XtmOneClient client;
   private final XtmOneService xtmOneService;
   private final XtmOneFormattingService formattingService;
-  private final UserRepository userRepository;
+  private final UserService userService;
 
-  private User resolveCurrentUser() {
-    return userRepository
-        .findById(currentUser().getId())
-        .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
-  }
-
-  private String issueJwt(User user) {
+  private String issueJwtForCurrentUser() {
+    User user = userService.currentUser();
     return client.issueAuthenticationJwt(
         user.getId(), user.getName() != null ? user.getName() : user.getEmail(), user.getEmail());
   }
@@ -89,8 +81,7 @@ public class XtmOneProxyApi extends RestBehavior {
 
     String validatedSlug = xtmOneService.requireEnabledAgentSlug(agentSlug);
 
-    User user = resolveCurrentUser();
-    String result = client.callAgentSync(issueJwt(user), validatedSlug, content, null);
+    String result = client.callAgentSync(issueJwtForCurrentUser(), validatedSlug, content, null);
     if (result == null) {
       return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
           .body(Map.of("content", "", "status", "error", "error", "Agent call failed"));
@@ -143,8 +134,7 @@ public class XtmOneProxyApi extends RestBehavior {
                   "No detection.generate agent enabled"));
     }
 
-    User user = resolveCurrentUser();
-    String raw = client.callAgentSync(issueJwt(user), resolvedSlug, content, null);
+    String raw = client.callAgentSync(issueJwtForCurrentUser(), resolvedSlug, content, null);
     if (raw == null) {
       return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
           .body(Map.of("content", "", "status", "error", "error", "Agent call failed"));
@@ -185,8 +175,9 @@ public class XtmOneProxyApi extends RestBehavior {
 
     final String validatedSlug = xtmOneService.requireEnabledAgentSlug(agentSlug);
 
-    User user = resolveCurrentUser();
-    String jwt = issueJwt(user);
+    // Resolve the user and mint the JWT inside the request thread (Spring Security context is not
+    // propagated automatically into the streaming callback below).
+    final String jwt = issueJwtForCurrentUser();
 
     StreamingResponseBody responseBody =
         outputStream -> {

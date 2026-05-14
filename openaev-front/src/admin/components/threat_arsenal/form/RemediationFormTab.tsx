@@ -52,23 +52,30 @@ const RemediationFormTab = ({ activeTab }: RemediationFormTabProps) => {
     };
     setValue(fieldName, updated);
 
-    if (editor) {
-      typeChar(
-        editor,
-        rules,
-        (value: string) => {
-          const current = getValues(fieldName);
-          const updated = {
-            ...current,
-            content: value,
-            author_rule: 'AI',
-          };
-          setValue(fieldName, updated);
-        },
-      ).then(() => {
+    if (!editor) {
+      // Editor is not mounted yet (e.g. user triggered AI before CKEditor finished initialising):
+      // clear the loading flag so the UI doesn't stay stuck in `isLoading: true`.
+      setLoadingSnapshot(activeTab.collector_type, false);
+      return;
+    }
+
+    typeChar(
+      editor,
+      rules,
+      (value: string) => {
+        const current = getValues(fieldName);
+        const updated = {
+          ...current,
+          content: value,
+          author_rule: 'AI',
+        };
+        setValue(fieldName, updated);
+      },
+    )
+      .catch(() => undefined)
+      .finally(() => {
         setTimeout(() => setLoadingSnapshot(activeTab.collector_type, false), 10);
       });
-    }
   };
 
   const onClickUseArianeViaXtmOne = async (agentSlug?: string) => {

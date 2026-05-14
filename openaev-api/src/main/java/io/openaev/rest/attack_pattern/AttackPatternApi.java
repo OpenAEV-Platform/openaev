@@ -68,7 +68,7 @@ public class AttackPatternApi extends RestBehavior {
   }
 
   @PostMapping("/search-with-ai")
-  @AccessControl(skipRBAC = true)
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   @Operation(
       summary = "Extract Attack Paterns from text or files using AI",
       description = "Get attack patterns ids extracted from a text or files using AI")
