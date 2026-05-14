@@ -228,7 +228,7 @@ const AttackPatternAIAssistantDialog = ({ open, onClose, onAttackPatternIdsFind 
             variant="contained"
             color="secondary"
             onClick={onSubmit}
-            disabled={isLoading || (files.length === 0 && text.trim() === '') || (xtmOneConfigured ? !selectedAgent : false)}
+            disabled={isLoading || (files.length === 0 && text.trim() === '')}
           >
             {t('Generate TTP')}
           </Button>

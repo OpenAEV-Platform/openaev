@@ -8,14 +8,13 @@
  *
  * The `XSRF-TOKEN` cookie is already bootstrapped by the OpenAEV axios
  * interceptors (see network.ts) before the user can open the chat panel.
+ * The cookie is read through the shared `getCsrfToken` helper from `network.ts`
+ * so cookie name, decoding and bootstrap behaviour stay in sync with axios callers.
  */
+import { getCsrfToken } from '../../../network';
+
 const FLAG = '__openaev_chatbot_csrf_installed__';
 const CHAT_URL_PREFIX = '/api/xtmone/chat/';
-
-const readCsrfToken = (): string | null => {
-  const match = document.cookie.split('; ').find(row => row.startsWith('XSRF-TOKEN='));
-  return match ? decodeURIComponent(match.split('=')[1]) : null;
-};
 
 const matchesChatUrl = (input: RequestInfo | URL): boolean => {
   let url: string;
@@ -42,7 +41,7 @@ const installChatbotCsrf = (): void => {
   const originalFetch = window.fetch.bind(window);
   window.fetch = (input, init = {}) => {
     if (!matchesChatUrl(input)) return originalFetch(input, init);
-    const csrf = readCsrfToken();
+    const csrf = getCsrfToken();
     if (!csrf) return originalFetch(input, init);
     const baseHeaders = init.headers ?? (input instanceof Request ? input.headers : undefined);
     const headers = new Headers(baseHeaders);
