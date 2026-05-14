@@ -15,10 +15,12 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.model.User;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.attack_pattern.form.AttackPatternCreateInput;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.service.UserService;
 import io.openaev.utils.SecurityCoverageUtils;
 import io.openaev.xtmone.XtmOneClient;
 import io.openaev.xtmone.XtmOneConfig;
@@ -50,12 +52,25 @@ class AttackPatternServiceTest {
   @Mock private XtmOneConfig xtmOneConfig;
   @Mock private XtmOneClient xtmOneClient;
   @Mock private XtmOneService xtmOneService;
+  @Mock private UserService userService;
 
   @InjectMocks private AttackPatternService attackPatternService;
 
   @BeforeEach
   void beforeEach() {
     attackPatternService.mapper = new ObjectMapper();
+  }
+
+  /**
+   * Build a stub {@link User} that satisfies the per-user JWT minting performed by the XTM One
+   * branch of {@code searchAttackPatternWithTTPAIWebservice} (no DB reads required because
+   * {@code userService} is mocked).
+   */
+  private static User stubUser() {
+    User user = new User();
+    user.setId("user-id");
+    user.setEmail("tester@openaev.local");
+    return user;
   }
 
   @DisplayName("given_noFilesAndBlankText_should_throwIllegalArgumentException")
@@ -146,11 +161,14 @@ class AttackPatternServiceTest {
     when(xtmOneConfig.isConfigured()).thenReturn(true);
     when(xtmOneService.resolveAgentSlugForIntent(anyString(), anyString()))
         .thenReturn("filigran-ttp-extractor");
+    when(userService.currentUser()).thenReturn(stubUser());
+    when(xtmOneClient.issueAuthenticationJwt(anyString(), anyString(), anyString()))
+        .thenReturn("user-jwt");
     // Copilot envelope: {"files": [{"extraction": {"input": [{"predictions": {...}}]}}]}
     String copilotEnvelope =
         "{\"files\":[{\"extraction\":{\"input\":[{\"text\":\"chunk\","
             + "\"predictions\":{\"T1003\":0.9}}]}}]}";
-    when(xtmOneClient.callAgentSyncAsService(anyString(), anyString(), any()))
+    when(xtmOneClient.callAgentSync(anyString(), anyString(), anyString(), any()))
         .thenReturn(copilotEnvelope);
 
     AttackPattern ap = new AttackPattern();
@@ -167,7 +185,10 @@ class AttackPatternServiceTest {
     // Assert
     assertEquals(1, ids.size());
     assertTrue(ids.contains("internal-xtm-1"));
-    verify(xtmOneClient).callAgentSyncAsService(anyString(), anyString(), any());
+    // Per-user JWT path: callAgentSync(jwt, slug, content, files) — never the service-level
+    // overload, which would attribute the request to the generic "system" user.
+    verify(xtmOneClient).callAgentSync(anyString(), anyString(), anyString(), any());
+    verify(xtmOneClient, never()).callAgentSyncAsService(anyString(), anyString(), any());
     // Legacy path must not be exercised when XTM One is configured
     verify(restTemplate, never()).postForEntity(anyString(), any(), any());
   }
@@ -178,9 +199,12 @@ class AttackPatternServiceTest {
     // Arrange — XTM One configured but the registration catalog hasn't populated yet
     when(xtmOneConfig.isConfigured()).thenReturn(true);
     when(xtmOneService.resolveAgentSlugForIntent(anyString(), any())).thenReturn(null);
+    when(userService.currentUser()).thenReturn(stubUser());
+    when(xtmOneClient.issueAuthenticationJwt(anyString(), anyString(), anyString()))
+        .thenReturn("user-jwt");
     // Native (already-unwrapped) response shape
     String nativeResponse = "{\"input.txt\":[{\"predictions\":{\"T1059\":0.7}}]}";
-    when(xtmOneClient.callAgentSyncAsService(anyString(), anyString(), any()))
+    when(xtmOneClient.callAgentSync(anyString(), anyString(), anyString(), any()))
         .thenReturn(nativeResponse);
 
     AttackPattern ap = new AttackPattern();
@@ -196,7 +220,7 @@ class AttackPatternServiceTest {
     // Assert — caller's null slug falls back to the default; ids resolved through repository
     assertEquals(1, ids.size());
     assertTrue(ids.contains("internal-xtm-2"));
-    verify(xtmOneClient).callAgentSyncAsService(anyString(), anyString(), any());
+    verify(xtmOneClient).callAgentSync(anyString(), anyString(), anyString(), any());
   }
 
   @DisplayName("given_xtmOneCallFails_should_throwServiceUnavailable")
@@ -206,7 +230,10 @@ class AttackPatternServiceTest {
     when(xtmOneConfig.isConfigured()).thenReturn(true);
     when(xtmOneService.resolveAgentSlugForIntent(anyString(), any()))
         .thenReturn("filigran-ttp-extractor");
-    when(xtmOneClient.callAgentSyncAsService(anyString(), anyString(), any())).thenReturn(null);
+    when(userService.currentUser()).thenReturn(stubUser());
+    when(xtmOneClient.issueAuthenticationJwt(anyString(), anyString(), anyString()))
+        .thenReturn("user-jwt");
+    when(xtmOneClient.callAgentSync(anyString(), anyString(), anyString(), any())).thenReturn(null);
 
     // Act / Assert
     org.springframework.web.server.ResponseStatusException ex =
@@ -237,6 +264,7 @@ class AttackPatternServiceTest {
                     List.of(huge), "context", null));
     assertEquals(413, ex.getStatusCode().value());
     // No XTM One / legacy call should happen if validation rejects the upload
+    verify(xtmOneClient, never()).callAgentSync(anyString(), anyString(), anyString(), any());
     verify(xtmOneClient, never()).callAgentSyncAsService(anyString(), anyString(), any());
     verify(restTemplate, never()).postForEntity(anyString(), any(), any());
   }

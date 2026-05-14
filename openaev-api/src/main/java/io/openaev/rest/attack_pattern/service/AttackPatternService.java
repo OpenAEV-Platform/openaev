@@ -12,6 +12,7 @@ import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.attack_pattern.form.AnalysisResultFromTTPExtractionAIWebserviceOutput;
 import io.openaev.rest.attack_pattern.form.AttackPatternCreateInput;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.service.UserService;
 import io.openaev.utils.SecurityCoverageUtils;
 import io.openaev.xtmone.XtmOneClient;
 import io.openaev.xtmone.XtmOneConfig;
@@ -66,6 +67,7 @@ public class AttackPatternService {
   private final XtmOneConfig xtmOneConfig;
   private final XtmOneClient xtmOneClient;
   private final XtmOneService xtmOneService;
+  private final UserService userService;
 
   /**
    * Call the TTP Extraction AI Webservice to analyze files and text input.
@@ -316,7 +318,16 @@ public class AttackPatternService {
     }
 
     String content = (text != null && !text.isBlank()) ? text : "Extract TTPs from attached files";
-    String result = xtmOneClient.callAgentSyncAsService(slug, content, filesNode);
+    // TTP extraction is always user-triggered (via /api/attack_patterns/search-with-ai), so mint a
+    // per-user JWT instead of using `callAgentSyncAsService` (which would attribute the request to
+    // a generic "system" user on the XTM One side).
+    User user = userService.currentUser();
+    String jwt =
+        xtmOneClient.issueAuthenticationJwt(
+            user.getId(),
+            user.getName() != null ? user.getName() : user.getEmail(),
+            user.getEmail());
+    String result = xtmOneClient.callAgentSync(jwt, slug, content, filesNode);
     if (result == null) {
       throw new ResponseStatusException(
           HttpStatus.SERVICE_UNAVAILABLE,

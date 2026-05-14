@@ -37,23 +37,35 @@ const useAgentStream = (): UseAgentStreamReturn => {
     setLoading(true);
     setError(undefined);
 
+    // Capture the local controller so the resolution callbacks below only mutate state when this
+    // particular stream is still the active one. Without this guard a stale stream's `.finally()`
+    // (fired after `abort()`) would clobber the loading flag / abortRef of a newer stream that
+    // started immediately after.
+    const isActive = () => abortRef.current === controller;
+
     callAgentStream(
       agentSlug,
       prompt,
-      partialContent => setContent(partialContent),
+      (partialContent) => {
+        if (!isActive()) return;
+        setContent(partialContent);
+      },
       controller.signal,
     )
       .then((result) => {
+        if (!isActive()) return;
         if (result.status === 'error') {
           setError(result.error ?? 'Unknown error');
         }
       })
       .catch((err) => {
+        if (!isActive()) return;
         if (err.name !== 'AbortError') {
           setError(err.message ?? 'Stream failed');
         }
       })
       .finally(() => {
+        if (!isActive()) return;
         setLoading(false);
         abortRef.current = null;
       });
