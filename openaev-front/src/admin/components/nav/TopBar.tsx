@@ -166,7 +166,7 @@ const TopBar: FunctionComponent = () => {
     return () => {
       sub.unsubscribe();
     };
-  });
+  }, []);
   const [isArianeChatOpen, setIsArianeChatOpen] = useState(false);
   useEffect(() => {
     const sub = MESSAGING$.toggleArianeChat.subscribe({ next: () => setIsArianeChatOpen(prev => !prev) });

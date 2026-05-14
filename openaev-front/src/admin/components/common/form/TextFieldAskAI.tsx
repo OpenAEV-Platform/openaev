@@ -327,7 +327,7 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
             label: t('Retry'),
           }]}
           format={format}
-          isAcceptable={useXtmOne ? true : isAcceptable}
+          isAcceptable={isAcceptable}
           agentMode={useXtmOne ? agentMode : null}
         />
         <Dialog
