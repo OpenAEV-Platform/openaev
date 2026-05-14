@@ -38,6 +38,17 @@ export interface Agent {
   listened?: boolean;
 }
 
+export interface AgentCallInput {
+  agent_slug: string;
+  content: string;
+}
+
+export interface AgentCallOutput {
+  content?: string;
+  error?: string;
+  status?: string;
+}
+
 export interface AgentExecutorOutput {
   /** Agent executor id */
   executor_id?: string;
@@ -1887,6 +1898,12 @@ export interface DetectionRemediationHealthResponse {
    * @example "0.1.0"
    */
   version?: string;
+}
+
+export interface DetectionRemediationCallInput {
+  agent_slug?: string;
+  collector_type: string;
+  content: string;
 }
 
 export interface DetectionRemediationInput {

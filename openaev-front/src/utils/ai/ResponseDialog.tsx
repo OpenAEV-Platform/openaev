@@ -158,6 +158,10 @@ const ResponseDialog: FunctionComponent<ResponseDialogProps> = ({
 
   const handleAgentChange = (_event: unknown, newValue: AgentOption | null) => {
     if (!newValue) return;
+    // Abort any in-flight stream from the previously selected agent so its chunks can no longer
+    // repopulate the cleared content under the newly-selected agent (the AgentSelector is also
+    // disabled while `agentLoading` is true as a defensive guard).
+    abortStream();
     setSelectedAgent(newValue);
     if (agentMode) {
       setAgentExecuted(false);
@@ -202,6 +206,7 @@ const ResponseDialog: FunctionComponent<ResponseDialogProps> = ({
             value={selectedAgent}
             onChange={newValue => handleAgentChange(null, newValue)}
             loading={loadingAgents}
+            disabled={agentLoading}
           />
         </Box>
       )
