@@ -15,6 +15,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.utils.SecurityCoverageUtils;
 import io.openaev.xtmone.XtmOneClient;
 import io.openaev.xtmone.XtmOneConfig;
+import io.openaev.xtmone.XtmOneService;
 import jakarta.annotation.Resource;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -43,6 +44,17 @@ import org.springframework.web.server.ResponseStatusException;
 @RequiredArgsConstructor
 public class AttackPatternService {
 
+  /**
+   * Per-file size limit for AI uploads (in bytes). Files larger than this are rejected to avoid OOM
+   * when base64-encoding the payload to XTM One. The global multipart limit
+   * ({@code spring.servlet.multipart.max-file-size}) is much higher and intended for documents, not
+   * AI prompts.
+   */
+  private static final long AI_UPLOAD_MAX_BYTES_PER_FILE = 5L * 1024 * 1024;
+
+  /** Intent the TTP extraction flow uses to route to the right XTM One agent. */
+  private static final String TTP_EXTRACTOR_INTENT = "ttp.extractor";
+
   @Resource protected ObjectMapper mapper;
 
   private final Environment env;
@@ -53,6 +65,7 @@ public class AttackPatternService {
   private final SecurityCoverageUtils securityCoverageUtils;
   private final XtmOneConfig xtmOneConfig;
   private final XtmOneClient xtmOneClient;
+  private final XtmOneService xtmOneService;
 
   /**
    * Call the TTP Extraction AI Webservice to analyze files and text input.
@@ -223,6 +236,17 @@ public class AttackPatternService {
     if (files.size() > 5) {
       throw new IllegalArgumentException("Maximum of 5 files allowed");
     }
+    for (MultipartFile file : files) {
+      if (file.getSize() > AI_UPLOAD_MAX_BYTES_PER_FILE) {
+        throw new ResponseStatusException(
+            HttpStatus.PAYLOAD_TOO_LARGE,
+            "File '"
+                + file.getOriginalFilename()
+                + "' exceeds the AI upload size limit of "
+                + (AI_UPLOAD_MAX_BYTES_PER_FILE / (1024 * 1024))
+                + " MB");
+      }
+    }
   }
 
   /**
@@ -249,8 +273,9 @@ public class AttackPatternService {
       return getAttackPatternInternalIdsFromExternalIds(attackPatternExternalIds);
 
     } catch (IOException e) {
+      log.warn("[AttackPattern] AI service call failed.", e);
       throw new ResponseStatusException(
-          HttpStatus.SERVICE_UNAVAILABLE, "AI service is unavailable: " + e.getMessage(), e);
+          HttpStatus.SERVICE_UNAVAILABLE, "AI service is unavailable", e);
     }
   }
 
@@ -263,11 +288,19 @@ public class AttackPatternService {
   /**
    * Call the TTP extraction agent via XTM One. Converts MultipartFile attachments to base64 inline
    * format expected by the copilot agent, sends the request through {@link XtmOneClient}, and
-   * returns the agent's content (same JSON format as the legacy webservice).
+   * returns the agent's content (same JSON format as the legacy webservice). The {@code agentSlug}
+   * supplied by the caller is validated against the {@code ttp.extractor} intent catalog so users
+   * can only invoke agents that were registered as TTP extractors.
    */
   private String callTTPExtractionViaXtmOne(
       List<MultipartFile> files, String text, String agentSlug) throws IOException {
-    // Convert files to base64 JSON nodes
+    String slug = xtmOneService.resolveAgentSlugForIntent(TTP_EXTRACTOR_INTENT, agentSlug);
+    if (slug == null) {
+      // Fallback for environments where the registration catalog hasn't loaded yet but the
+      // copilot still ships the default agent. Preserves backward compatibility.
+      slug = "filigran-ttp-extractor";
+    }
+
     com.fasterxml.jackson.databind.node.ArrayNode filesNode = null;
     if (!files.isEmpty()) {
       filesNode = mapper.createArrayNode();
@@ -283,9 +316,7 @@ public class AttackPatternService {
     }
 
     String content = (text != null && !text.isBlank()) ? text : "Extract TTPs from attached files";
-    String slug =
-        (agentSlug != null && !agentSlug.isBlank()) ? agentSlug : "filigran-ttp-extractor";
-    String result = xtmOneClient.callAgentSync(slug, content, filesNode);
+    String result = xtmOneClient.callAgentSyncAsService(slug, content, filesNode);
     if (result == null) {
       throw new ResponseStatusException(
           HttpStatus.SERVICE_UNAVAILABLE,

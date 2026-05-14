@@ -294,12 +294,17 @@ public class XtmOneClient {
    * Synchronous (non-streaming) agent call via the chat messages endpoint. Collects the full SSE
    * stream, extracts the final "done" or accumulated "stream" content, and returns it.
    *
+   * <p>Callers should pass a per-user JWT (issued via {@link #issueAuthenticationJwt}) so the
+   * upstream XTM One side can attribute the call to the real user. Use {@link
+   * #callAgentSyncAsService} only for platform-level (non-user) calls.
+   *
+   * @param jwt authentication token (per-user when invoked from a user request)
    * @param agentSlug the agent slug to route the request to
    * @param content the user prompt / content
    * @param filesNode optional base64-encoded file attachments (may be {@code null})
    * @return the agent's final text content, or {@code null} on failure
    */
-  public String callAgentSync(String agentSlug, String content, ArrayNode filesNode) {
+  public String callAgentSync(String jwt, String agentSlug, String content, ArrayNode filesNode) {
     if (!config.isConfigured()) {
       log.warn("[XTM One] callAgentSync skipped: not configured");
       return null;
@@ -311,9 +316,6 @@ public class XtmOneClient {
       if (filesNode != null) {
         body.put("files", objectMapper.treeToValue(filesNode, Object.class));
       }
-
-      // Use a service-level JWT (no real user context)
-      String jwt = issueAuthenticationJwt("system", "OpenAEV Platform", "system@openaev.internal");
 
       HttpPost httpPost =
           chatPostBuilder(
@@ -338,6 +340,17 @@ public class XtmOneClient {
       log.warn("[XTM One] callAgentSync error, agent={}.", agentSlug, e);
     }
     return null;
+  }
+
+  /**
+   * Service-level (non-user) variant of {@link #callAgentSync} that mints an internal JWT. Use only
+   * for platform background flows where no user context is available; user-triggered calls must use
+   * {@link #callAgentSync(String, String, String, ArrayNode)} with a per-user JWT.
+   */
+  public String callAgentSyncAsService(String agentSlug, String content, ArrayNode filesNode) {
+    String serviceJwt =
+        issueAuthenticationJwt("system", "OpenAEV Platform", "system@openaev.internal");
+    return callAgentSync(serviceJwt, agentSlug, content, filesNode);
   }
 
   /**

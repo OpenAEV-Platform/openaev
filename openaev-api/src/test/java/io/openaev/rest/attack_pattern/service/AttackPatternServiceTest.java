@@ -22,6 +22,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.utils.SecurityCoverageUtils;
 import io.openaev.xtmone.XtmOneClient;
 import io.openaev.xtmone.XtmOneConfig;
+import io.openaev.xtmone.XtmOneService;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -48,6 +49,7 @@ class AttackPatternServiceTest {
   @Mock private SecurityCoverageUtils securityCoverageUtils;
   @Mock private XtmOneConfig xtmOneConfig;
   @Mock private XtmOneClient xtmOneClient;
+  @Mock private XtmOneService xtmOneService;
 
   @InjectMocks private AttackPatternService attackPatternService;
 
@@ -135,6 +137,109 @@ class AttackPatternServiceTest {
     assertEquals(2, ids.size());
     assertTrue(ids.contains("internal-1"));
     assertTrue(ids.contains("internal-2"));
+  }
+
+  @DisplayName("given_xtmOneConfigured_should_routeThroughXtmOneAndUnwrapCopilotEnvelope")
+  @Test
+  void given_xtmOneConfigured_should_routeThroughXtmOneAndUnwrapCopilotEnvelope() {
+    // Arrange — XTM One configured + ttp.extractor agent registered with the requested slug
+    when(xtmOneConfig.isConfigured()).thenReturn(true);
+    when(xtmOneService.resolveAgentSlugForIntent(anyString(), anyString()))
+        .thenReturn("filigran-ttp-extractor");
+    // Copilot envelope: {"files": [{"extraction": {"input": [{"predictions": {...}}]}}]}
+    String copilotEnvelope =
+        "{\"files\":[{\"extraction\":{\"input\":[{\"text\":\"chunk\","
+            + "\"predictions\":{\"T1003\":0.9}}]}}]}";
+    when(xtmOneClient.callAgentSyncAsService(anyString(), anyString(), any()))
+        .thenReturn(copilotEnvelope);
+
+    AttackPattern ap = new AttackPattern();
+    ap.setId("internal-xtm-1");
+    ap.setExternalId("T1003");
+    when(attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(anyList(), anyString()))
+        .thenReturn(List.of(ap));
+
+    // Act
+    List<String> ids =
+        attackPatternService.searchAttackPatternWithTTPAIWebservice(
+            List.of(), "Analyze this attack", "filigran-ttp-extractor");
+
+    // Assert
+    assertEquals(1, ids.size());
+    assertTrue(ids.contains("internal-xtm-1"));
+    verify(xtmOneClient).callAgentSyncAsService(anyString(), anyString(), any());
+    // Legacy path must not be exercised when XTM One is configured
+    verify(restTemplate, never()).postForEntity(anyString(), any(), any());
+  }
+
+  @DisplayName(
+      "given_xtmOneConfiguredAndNoCatalogYet_should_fallbackToDefaultSlugAndStillExtract")
+  @Test
+  void given_xtmOneConfiguredAndNoCatalogYet_should_fallbackToDefaultSlugAndStillExtract() {
+    // Arrange — XTM One configured but the registration catalog hasn't populated yet
+    when(xtmOneConfig.isConfigured()).thenReturn(true);
+    when(xtmOneService.resolveAgentSlugForIntent(anyString(), any())).thenReturn(null);
+    // Native (already-unwrapped) response shape
+    String nativeResponse = "{\"input.txt\":[{\"predictions\":{\"T1059\":0.7}}]}";
+    when(xtmOneClient.callAgentSyncAsService(anyString(), anyString(), any()))
+        .thenReturn(nativeResponse);
+
+    AttackPattern ap = new AttackPattern();
+    ap.setId("internal-xtm-2");
+    ap.setExternalId("T1059");
+    when(attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(anyList(), anyString()))
+        .thenReturn(List.of(ap));
+
+    // Act
+    List<String> ids =
+        attackPatternService.searchAttackPatternWithTTPAIWebservice(List.of(), "context", null);
+
+    // Assert — caller's null slug falls back to the default; ids resolved through repository
+    assertEquals(1, ids.size());
+    assertTrue(ids.contains("internal-xtm-2"));
+    verify(xtmOneClient).callAgentSyncAsService(anyString(), anyString(), any());
+  }
+
+  @DisplayName("given_xtmOneCallFails_should_throwServiceUnavailable")
+  @Test
+  void given_xtmOneCallFails_should_throwServiceUnavailable() {
+    // Arrange
+    when(xtmOneConfig.isConfigured()).thenReturn(true);
+    when(xtmOneService.resolveAgentSlugForIntent(anyString(), any()))
+        .thenReturn("filigran-ttp-extractor");
+    when(xtmOneClient.callAgentSyncAsService(anyString(), anyString(), any())).thenReturn(null);
+
+    // Act / Assert
+    org.springframework.web.server.ResponseStatusException ex =
+        assertThrows(
+            org.springframework.web.server.ResponseStatusException.class,
+            () ->
+                attackPatternService.searchAttackPatternWithTTPAIWebservice(
+                    List.of(), "context", null));
+    assertEquals(503, ex.getStatusCode().value());
+    // Generic message — must NOT propagate raw upstream details
+    assertTrue(ex.getReason() == null || !ex.getReason().contains("@"));
+  }
+
+  @DisplayName("given_oversizedAiUpload_should_throwPayloadTooLarge")
+  @Test
+  void given_oversizedAiUpload_should_throwPayloadTooLarge() {
+    // Arrange — 6 MB file is above the 5 MB AI-upload cap
+    byte[] big = new byte[(int) (6L * 1024 * 1024)];
+    org.springframework.web.multipart.MultipartFile huge =
+        new MockMultipartFile("file", "big.pdf", "application/pdf", big);
+
+    // Act / Assert
+    org.springframework.web.server.ResponseStatusException ex =
+        assertThrows(
+            org.springframework.web.server.ResponseStatusException.class,
+            () ->
+                attackPatternService.searchAttackPatternWithTTPAIWebservice(
+                    List.of(huge), "context", null));
+    assertEquals(413, ex.getStatusCode().value());
+    // No XTM One / legacy call should happen if validation rejects the upload
+    verify(xtmOneClient, never()).callAgentSyncAsService(anyString(), anyString(), any());
+    verify(restTemplate, never()).postForEntity(anyString(), any(), any());
   }
 
   @DisplayName("given_missingExternalIds_should_throwElementNotFoundException")

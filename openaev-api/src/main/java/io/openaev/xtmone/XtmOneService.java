@@ -10,8 +10,10 @@ import java.util.Map;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @RequiredArgsConstructor
@@ -93,6 +95,63 @@ public class XtmOneService {
                     String.valueOf(a.getOrDefault("agent_slug", "")),
                     String.valueOf(a.getOrDefault("agent_description", ""))))
         .toList();
+  }
+
+  /**
+   * Resolves the agent slug to use for the given intent. When a client supplies a slug it must be
+   * present in the enabled catalog for that intent; otherwise we fall back to the first enabled
+   * agent. Returns {@code null} when no agent is registered for the intent.
+   *
+   * @throws org.springframework.web.server.ResponseStatusException with status 400 when the
+   *     supplied slug is not enabled for the requested intent.
+   */
+  public String resolveAgentSlugForIntent(String intent, String requestedSlug) {
+    List<ChatbotAgentDto> enabled = listEnabledAgentsForIntent(intent);
+    if (enabled.isEmpty()) {
+      return null;
+    }
+    if (requestedSlug == null || requestedSlug.isBlank()) {
+      return enabled.get(0).slug();
+    }
+    boolean known = enabled.stream().anyMatch(a -> requestedSlug.equals(a.slug()));
+    if (!known) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Agent slug is not enabled for this intent");
+    }
+    return requestedSlug;
+  }
+
+  /**
+   * Ensures the supplied agent slug is registered as an enabled agent on at least one intent in the
+   * discovered catalog. Used by the generic streaming/non-streaming endpoints that aren't bound to
+   * a specific intent — they still must refuse to forward arbitrary client-controlled slugs.
+   *
+   * @throws org.springframework.web.server.ResponseStatusException with status 400 when the slug is
+   *     not found.
+   */
+  @SuppressWarnings("unchecked")
+  public String requireEnabledAgentSlug(String requestedSlug) {
+    if (requestedSlug == null || requestedSlug.isBlank()) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "agent_slug is required");
+    }
+    boolean known =
+        discoveredIntentCatalog.stream()
+            .flatMap(
+                e -> {
+                  Object agentsObj = e.get("agents");
+                  if (agentsObj instanceof List<?> agentList) {
+                    return agentList.stream()
+                        .filter(Map.class::isInstance)
+                        .map(a -> (Map<String, Object>) a);
+                  }
+                  return java.util.stream.Stream.empty();
+                })
+            .filter(a -> Boolean.TRUE.equals(a.get("enabled")))
+            .anyMatch(a -> requestedSlug.equals(a.get("agent_slug")));
+    if (!known) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown or disabled agent_slug");
+    }
+    return requestedSlug;
   }
 
   /**

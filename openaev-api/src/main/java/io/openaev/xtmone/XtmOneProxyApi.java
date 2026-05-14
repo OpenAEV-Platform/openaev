@@ -3,6 +3,7 @@ package io.openaev.xtmone;
 import static io.openaev.config.SessionHelper.currentUser;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -52,6 +53,7 @@ public class XtmOneProxyApi extends RestBehavior {
 
   /** Returns the list of enabled agents for the given intent from the discovered catalog. */
   @GetMapping(CHATBOT_URI + "/agents")
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   public ResponseEntity<List<ChatbotAgentDto>> getChatbotAgents(
       @RequestParam(value = "intent", defaultValue = "global.assistant") String intent) {
     if (!config.isConfigured()) {
@@ -60,8 +62,13 @@ public class XtmOneProxyApi extends RestBehavior {
     return ResponseEntity.ok(xtmOneService.listEnabledAgentsForIntent(intent));
   }
 
-  /** Non-streaming agent call. Returns the agent's full response synchronously. */
+  /**
+   * Non-streaming agent call. Returns the agent's full response synchronously. The supplied {@code
+   * agent_slug} is validated against the discovered intent catalog (any enabled agent across all
+   * intents) before the request is forwarded to XTM One.
+   */
   @PostMapping(CHATBOT_URI + "/agent")
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   public ResponseEntity<Map<String, Object>> postAgentCall(@RequestBody JsonNode body) {
     if (!config.isConfigured()) {
       return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
@@ -80,7 +87,10 @@ public class XtmOneProxyApi extends RestBehavior {
                   "error", "agent_slug and content are required"));
     }
 
-    String result = client.callAgentSync(agentSlug, content, null);
+    String validatedSlug = xtmOneService.requireEnabledAgentSlug(agentSlug);
+
+    User user = resolveCurrentUser();
+    String result = client.callAgentSync(issueJwt(user), validatedSlug, content, null);
     if (result == null) {
       return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
           .body(Map.of("content", "", "status", "error", "error", "Agent call failed"));
@@ -91,9 +101,11 @@ public class XtmOneProxyApi extends RestBehavior {
   /**
    * Non-streaming detection-remediation agent call. Invokes the agent and applies the legacy
    * server-side formatter for the given collector type so the frontend receives editor-ready
-   * content.
+   * content. The slug supplied by the client is always validated against the {@code
+   * detection.generate} intent catalog before forwarding the request.
    */
   @PostMapping(CHATBOT_URI + "/agent/detection-remediation")
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   public ResponseEntity<Map<String, Object>> postDetectionRemediationCall(
       @RequestBody JsonNode body) {
     if (!config.isConfigured()) {
@@ -101,11 +113,11 @@ public class XtmOneProxyApi extends RestBehavior {
           .body(Map.of("content", "", "status", "error", "error", "XTM One is not configured"));
     }
 
-    String agentSlug = body.has("agent_slug") ? body.get("agent_slug").asText() : null;
+    String requestedSlug = body.has("agent_slug") ? body.get("agent_slug").asText() : null;
     String content = body.has("content") ? body.get("content").asText() : null;
     String collectorType = body.has("collector_type") ? body.get("collector_type").asText() : null;
 
-    if (agentSlug == null || content == null || collectorType == null) {
+    if (content == null || collectorType == null) {
       return ResponseEntity.badRequest()
           .body(
               Map.of(
@@ -114,10 +126,25 @@ public class XtmOneProxyApi extends RestBehavior {
                   "status",
                   "error",
                   "error",
-                  "agent_slug, content and collector_type are required"));
+                  "content and collector_type are required"));
     }
 
-    String raw = client.callAgentSync(agentSlug, content, null);
+    String resolvedSlug =
+        xtmOneService.resolveAgentSlugForIntent("detection.generate", requestedSlug);
+    if (resolvedSlug == null) {
+      return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+          .body(
+              Map.of(
+                  "content",
+                  "",
+                  "status",
+                  "error",
+                  "error",
+                  "No detection.generate agent enabled"));
+    }
+
+    User user = resolveCurrentUser();
+    String raw = client.callAgentSync(issueJwt(user), resolvedSlug, content, null);
     if (raw == null) {
       return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
           .body(Map.of("content", "", "status", "error", "error", "Agent call failed"));
@@ -126,8 +153,12 @@ public class XtmOneProxyApi extends RestBehavior {
     return ResponseEntity.ok(Map.of("content", formatted, "status", "success"));
   }
 
-  /** Streaming agent call via SSE. */
+  /**
+   * Streaming agent call via SSE. As with {@link #postAgentCall}, the supplied {@code agent_slug}
+   * is validated against the discovered intent catalog before the request is forwarded.
+   */
   @PostMapping(value = CHATBOT_URI + "/agent/stream", produces = "text/event-stream")
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   public ResponseEntity<StreamingResponseBody> postAgentStream(@RequestBody JsonNode body) {
     if (!config.isConfigured()) {
       StreamingResponseBody errorBody =
@@ -152,6 +183,8 @@ public class XtmOneProxyApi extends RestBehavior {
       return ResponseEntity.badRequest().contentType(MediaType.TEXT_EVENT_STREAM).body(errorBody);
     }
 
+    final String validatedSlug = xtmOneService.requireEnabledAgentSlug(agentSlug);
+
     User user = resolveCurrentUser();
     String jwt = issueJwt(user);
 
@@ -162,7 +195,7 @@ public class XtmOneProxyApi extends RestBehavior {
                 jwt,
                 content,
                 null,
-                agentSlug,
+                validatedSlug,
                 sseStream -> {
                   byte[] buf = new byte[4096];
                   int n;
@@ -172,7 +205,7 @@ public class XtmOneProxyApi extends RestBehavior {
                   }
                 });
           } catch (Exception e) {
-            log.warn("[XTM One Proxy] Stream error, agent={}.", agentSlug, e);
+            log.warn("[XTM One Proxy] Stream error, agent={}.", validatedSlug, e);
             outputStream.write(
                 ("data: {\"type\":\"error\",\"content\":\"Unable to connect to the AI assistant.\"}\n\n")
                     .getBytes(StandardCharsets.UTF_8));
