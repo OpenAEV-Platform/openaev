@@ -8,6 +8,7 @@ import io.openaev.aop.AccessControl;
 import io.openaev.api.tenants.TenantMapper;
 import io.openaev.api.tenants.TenantOutput;
 import io.openaev.config.SessionManager;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Token;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.OrganizationRepository;
@@ -52,7 +53,10 @@ public class MeApi extends RestBehavior {
 
   @GetMapping(ME_URI)
   @AccessControl(skipRBAC = true)
-  public User me() {
+  public User me(@RequestParam(required = false) final String tenantId) {
+    if (tenantId != null && !tenantId.isEmpty()) {
+      TenantContext.setCurrentTenant(tenantId);
+    }
     return userRepository
         .findById(currentUser().getId())
         .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
