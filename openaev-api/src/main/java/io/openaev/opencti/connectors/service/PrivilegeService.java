@@ -3,7 +3,6 @@ package io.openaev.opencti.connectors.service;
 import static io.openaev.opencti.connectors.Constants.*;
 
 import io.openaev.api.groups.dto.TenantGroupCreateInput;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
 import io.openaev.database.model.User;
@@ -99,20 +98,20 @@ public class PrivilegeService {
         UUID.nameUUIDFromBytes((UUID.fromString(PROCESS_STIX_ROLE_ID) + ":" + tenantId).getBytes())
             .toString();
     Optional<Role> processStixRole = roleService.findById(roleId);
-      if (processStixRole.isEmpty()) {
-        return roleService.createRole(
-            roleId,
-            PROCESS_STIX_ROLE_NAME,
-            PROCESS_STIX_ROLE_DESCRIPTION,
-            PROCESS_STIX_ROLE_CAPABILITIES,
-            tenantId);
-      } else {
-        return roleService.updateRole(
-            roleId,
-            PROCESS_STIX_ROLE_NAME,
-            PROCESS_STIX_ROLE_DESCRIPTION,
-            PROCESS_STIX_ROLE_CAPABILITIES);
-      }
+    if (processStixRole.isEmpty()) {
+      return roleService.createRole(
+          roleId,
+          PROCESS_STIX_ROLE_NAME,
+          PROCESS_STIX_ROLE_DESCRIPTION,
+          PROCESS_STIX_ROLE_CAPABILITIES,
+          tenantId);
+    } else {
+      return roleService.updateRole(
+          roleId,
+          PROCESS_STIX_ROLE_NAME,
+          PROCESS_STIX_ROLE_DESCRIPTION,
+          PROCESS_STIX_ROLE_CAPABILITIES);
+    }
   }
 
   private Group createWellKnownGroupWithRole(Role role, String tenantId) {
@@ -127,10 +126,10 @@ public class PrivilegeService {
     input.setDefaultUserAssignation(false);
 
     List<Role> roles = new ArrayList<>(List.of(role));
-      if (processStixGroup.isPresent()) {
-        return tenantGroupService.updateGroupInfoWithRoles(processStixGroup.get(), input, roles);
-      } else {
-        return tenantGroupService.createGroupWithRole(groupId, input, roles, tenantId);
-      }
+    if (processStixGroup.isPresent()) {
+      return tenantGroupService.updateGroupInfoWithRoles(processStixGroup.get(), input, roles);
+    } else {
+      return tenantGroupService.createGroupWithRole(groupId, input, roles, tenantId);
+    }
   }
 }

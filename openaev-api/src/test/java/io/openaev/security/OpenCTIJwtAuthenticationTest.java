@@ -92,9 +92,7 @@ public class OpenCTIJwtAuthenticationTest extends IntegrationTest {
       Mockito.doReturn(Optional.of(c))
           .when(openCTIConnectorService)
           .getConnectorBase(TenantContext.getCurrentTenant());
-      Mockito.doReturn(List.of(c))
-              .when(openCTIConnectorService)
-              .getRegisterConnectors();
+      Mockito.doReturn(List.of(c)).when(openCTIConnectorService).getRegisterConnectors();
     }
 
     User user =
