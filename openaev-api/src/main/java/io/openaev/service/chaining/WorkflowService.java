@@ -576,7 +576,9 @@ public class WorkflowService {
     // KPI. Record Source Usage (CSV vs Manual only — ignore asset-based sources)
     uniqueSources.stream()
         .filter(
-            source -> ScopeRuleSource.CSV.equals(source) || ScopeRuleSource.MANUAL.equals(source))
+            source ->
+                ScopeRuleSource.CSV.name().equals(source)
+                    || ScopeRuleSource.MANUAL.name().equals(source))
         .forEach(source -> scopeMetricCollector.recordUsage(workflow.getId(), source));
   }
 

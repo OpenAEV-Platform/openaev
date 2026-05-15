@@ -965,6 +965,7 @@ class WorkflowServiceTest {
                           .build()))
               .build();
       service.updateWorkflowConfiguration(workflow.getId(), initialInput);
+      workflow.getWorkflowScopeRules().getFirst().setId(UUID.randomUUID().toString());
       reset(scopeMetricCollector);
 
       // Second call: same rules (now have IDs) — no new rules
@@ -1004,6 +1005,7 @@ class WorkflowServiceTest {
                           .build()))
               .build();
       service.updateWorkflowConfiguration(workflow.getId(), initialInput);
+      workflow.getWorkflowScopeRules().getFirst().setId(UUID.randomUUID().toString());
       reset(scopeMetricCollector);
 
       // Second call: retain existing + add one new CSV rule
@@ -1030,9 +1032,10 @@ class WorkflowServiceTest {
       service.updateWorkflowConfiguration(workflow.getId(), secondInput);
 
       // Assert — metrics only for the one new CSV rule
-      verify(scopeMetricCollector).recordScopeCreated("DENYLIST", 1);
-      verify(scopeMetricCollector).recordEntryAdded("DOMAIN", "CSV", 1);
-      verify(scopeMetricCollector).recordUsage(workflow.getId(), "CSV");
+      verify(scopeMetricCollector).recordScopeCreated(ScopeRuleSelectedMode.DENYLIST.name(), 1);
+      verify(scopeMetricCollector)
+          .recordEntryAdded(ScopeRuleValueType.DOMAIN.name(), ScopeRuleSource.CSV.name(), 1);
+      verify(scopeMetricCollector).recordUsage(workflow.getId(), ScopeRuleSource.CSV.name());
       verifyNoMoreInteractions(scopeMetricCollector);
     }
 
