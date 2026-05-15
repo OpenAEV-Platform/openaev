@@ -88,9 +88,13 @@ public class OpenCTIJwtAuthenticationTest extends IntegrationTest {
       SecurityCoverageConnector c = new SecurityCoverageConnector();
       c.setJwks(jwks);
       c.setOpenCTIConfig(openCTIConfig.getOpencti().get(TenantContext.getCurrentTenant()));
+      c.setTenantId(TenantContext.getCurrentTenant());
       Mockito.doReturn(Optional.of(c))
           .when(openCTIConnectorService)
           .getConnectorBase(TenantContext.getCurrentTenant());
+      Mockito.doReturn(List.of(c))
+              .when(openCTIConnectorService)
+              .getRegisterConnectors();
     }
 
     User user =

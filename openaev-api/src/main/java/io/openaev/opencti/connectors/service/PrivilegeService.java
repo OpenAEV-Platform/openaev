@@ -99,14 +99,13 @@ public class PrivilegeService {
         UUID.nameUUIDFromBytes((UUID.fromString(PROCESS_STIX_ROLE_ID) + ":" + tenantId).getBytes())
             .toString();
     Optional<Role> processStixRole = roleService.findById(roleId);
-    try {
-      TenantContext.setCurrentTenant(tenantId);
       if (processStixRole.isEmpty()) {
         return roleService.createRole(
             roleId,
             PROCESS_STIX_ROLE_NAME,
             PROCESS_STIX_ROLE_DESCRIPTION,
-            PROCESS_STIX_ROLE_CAPABILITIES);
+            PROCESS_STIX_ROLE_CAPABILITIES,
+            tenantId);
       } else {
         return roleService.updateRole(
             roleId,
@@ -114,9 +113,6 @@ public class PrivilegeService {
             PROCESS_STIX_ROLE_DESCRIPTION,
             PROCESS_STIX_ROLE_CAPABILITIES);
       }
-    } finally {
-      TenantContext.clearCurrentTenant();
-    }
   }
 
   private Group createWellKnownGroupWithRole(Role role, String tenantId) {
@@ -131,15 +127,10 @@ public class PrivilegeService {
     input.setDefaultUserAssignation(false);
 
     List<Role> roles = new ArrayList<>(List.of(role));
-    try {
-      TenantContext.setCurrentTenant(tenantId);
       if (processStixGroup.isPresent()) {
         return tenantGroupService.updateGroupInfoWithRoles(processStixGroup.get(), input, roles);
       } else {
-        return tenantGroupService.createGroupWithRole(groupId, input, roles);
+        return tenantGroupService.createGroupWithRole(groupId, input, roles, tenantId);
       }
-    } finally {
-      TenantContext.clearCurrentTenant();
-    }
   }
 }
