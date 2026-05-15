@@ -19,13 +19,5 @@ public interface CommunicationRepository
 
   List<Communication> findByInjectId(@NotNull String injectId);
 
-  @Query(
-      "select c from Communication c "
-          + "join c.users as user "
-          + "join user.tenants as tenant "
-          + "where user.id = :userId and tenant.id = :#{#tenantContext.currentTenant} "
-          + "order by c.receivedAt desc")
-  List<Communication> findByUser(@Param("userId") String userId);
-
   boolean existsByIdentifier(String identifier);
 }

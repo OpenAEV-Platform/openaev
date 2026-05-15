@@ -63,12 +63,6 @@ public class PlayerApi extends RestBehavior {
     return this.playerService.playerPagination(searchPaginationInput);
   }
 
-  @GetMapping({PLAYER_COMMUNICATION_URI, TENANT_PLAYER_COMMUNICATION_URI})
-  @AccessControl(skipRBAC = true)
-  public Iterable<Communication> playerCommunications(@PathVariable String userId) {
-    return communicationRepository.findByUser(userId);
-  }
-
   @PostMapping({PLAYER_URI, TENANT_PLAYER_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PLAYER)
   @Transactional(rollbackOn = Exception.class)
