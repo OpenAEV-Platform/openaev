@@ -39,21 +39,26 @@ public class RoleService {
       @NotBlank final String roleName,
       @NotBlank final String roleDescription,
       @NotNull final Set<Capability> capabilities) {
-    return createRole(UUID.randomUUID().toString(), roleName, roleDescription, capabilities);
+    return createRole(UUID.randomUUID().toString(), roleName, roleDescription, capabilities, null);
   }
 
   public Role createRole(
       @NotBlank final String id,
       @NotBlank final String roleName,
       @NotBlank final String roleDescription,
-      @NotNull final Set<Capability> capabilities) {
+      @NotNull final Set<Capability> capabilities,
+      String tenantId) {
     Capability.validateForTenantRole(capabilities);
     Role role = new Role();
     role.setId(id);
     role.setName(roleName);
     role.setDescription(roleDescription);
     role.setCapabilities(Capability.resolveWithParents(capabilities));
-    role.setTenant(entityManager.getReference(Tenant.class, TenantContext.getCurrentTenant()));
+    if (tenantId != null) {
+      role.setTenant(new Tenant(tenantId));
+    } else {
+      role.setTenant(entityManager.getReference(Tenant.class, TenantContext.getCurrentTenant()));
+    }
     return roleRepository.save(role);
   }
 
