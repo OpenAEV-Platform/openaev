@@ -573,8 +573,10 @@ public class WorkflowService {
           scopeMetricCollector.recordEntryAdded(parts[0], parts[1], count);
         });
 
-    // KPI. Record Source Usage (CSV vs Manual)
-    uniqueSources.forEach(source -> scopeMetricCollector.recordUsage(workflow.getId(), source));
+    // KPI. Record Source Usage (CSV vs Manual only — ignore asset-based sources)
+    uniqueSources.stream()
+        .filter(source -> "CSV".equals(source) || "MANUAL".equals(source))
+        .forEach(source -> scopeMetricCollector.recordUsage(workflow.getId(), source));
   }
 
   /**
