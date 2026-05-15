@@ -89,7 +89,7 @@ public class Injector extends BaseConnectorEntity implements TenantBase {
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "injectors_injector_contracts",
-      joinColumns = @JoinColumn(name = "injector_id", referencedColumnName = "injector_id"),
+      joinColumns = @JoinColumn(name = "injector_id"),
       inverseJoinColumns = {
         @JoinColumn(name = "injector_contract_id", referencedColumnName = "injector_contract_id"),
         @JoinColumn(name = "tenant_id", referencedColumnName = "tenant_id")

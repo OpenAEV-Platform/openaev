@@ -15,6 +15,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.injectors.manual.ManualContract;
+import io.openaev.integration.Manager;
 import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
 import io.openaev.integration.impl.injectors.manual.ManualInjectorIntegrationFactory;
 import io.openaev.rest.inject.form.InjectAssistantInput;
@@ -78,8 +79,8 @@ class ScenarioInjectApiTest extends IntegrationTest {
 
   @BeforeAll
   void beforeAll() throws Exception {
-    emailInjectorIntegrationFactory.registerConnectorForTenant();
-    manualInjectorIntegrationFactory.registerConnectorForTenant();
+    new Manager(List.of(emailInjectorIntegrationFactory, manualInjectorIntegrationFactory))
+        .monitorIntegrations();
     Scenario scenario = new Scenario();
     scenario.setName("Scenario name");
     scenario.setFrom("test@test.com");

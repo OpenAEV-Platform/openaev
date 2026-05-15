@@ -20,7 +20,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import co.elastic.clients.util.TriConsumer;
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.database.repository.ConnectorInstanceLogRepository;
@@ -572,10 +571,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
 
       // Assert
       assertFalse(connectorInstanceRepository.findById(connectorInstance.getId()).isPresent());
-      assertFalse(
-          executorRepository
-              .findByIdAndTenantId(executor.getId(), TenantContext.getCurrentTenant())
-              .isPresent());
+      assertFalse(executorRepository.findById(executor.getId()).isPresent());
     }
 
     @Test
@@ -616,10 +612,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
 
       // Assert
       assertFalse(connectorInstanceRepository.findById(connectorInstance.getId()).isPresent());
-      assertFalse(
-          injectorRepository
-              .findByIdAndTenantId(injector.getId(), TenantContext.getCurrentTenant())
-              .isPresent());
+      assertFalse(injectorRepository.findById(injector.getId()).isPresent());
     }
 
     @Test

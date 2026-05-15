@@ -27,9 +27,6 @@ public class HibernateFilterTransactionAspect {
       "@annotation(org.springframework.transaction.annotation.Transactional) || "
           + "@annotation(jakarta.transaction.Transactional)")
   public void enableFilters() {
-    if (TenantContext.isRlsBypassed()) {
-      return;
-    }
     String tenantId = TenantContext.getCurrentTenant();
     Session session = entityManager.unwrap(Session.class);
 

@@ -5,8 +5,6 @@ import io.openaev.collectors.expectations_expiration_manager.service.Expectation
 import io.openaev.rest.collector.service.CollectorService;
 import jakarta.annotation.PostConstruct;
 import java.time.Duration;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.stereotype.Service;
@@ -26,10 +24,7 @@ public class ExpectationsExpirationManagerCollector {
       ExpectationsExpirationManagerJob job =
           new ExpectationsExpirationManagerJob(
               this.collectorService, this.config, this.expectationsExpirationManagerService);
-      this.taskScheduler.scheduleAtFixedRate(
-          job,
-          Instant.now().plus(1, ChronoUnit.MINUTES),
-          Duration.ofSeconds(this.config.getInterval()));
+      this.taskScheduler.scheduleAtFixedRate(job, Duration.ofSeconds(this.config.getInterval()));
     }
   }
 }

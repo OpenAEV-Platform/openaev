@@ -84,7 +84,7 @@ public class Agent implements TenantBase {
 
   @Queryable(sortable = true)
   @ManyToOne(fetch = FetchType.EAGER)
-  @JoinColumn(name = "agent_executor", referencedColumnName = "executor_id")
+  @JoinColumn(name = "agent_executor")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("agent_executor")
   @Schema(implementation = String.class)

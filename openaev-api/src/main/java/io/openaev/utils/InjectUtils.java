@@ -12,9 +12,7 @@ import static java.util.Collections.emptyList;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
-import io.openaev.database.model.Inject;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.helper.ObjectMapperHelper;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -67,7 +65,7 @@ public class InjectUtils {
       @Nullable String injectorId, @Nullable InjectorContract injectorContract) {
     if (StringUtils.isNotBlank(injectorId)) {
       return injectorRepository
-          .findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant())
+          .findById(injectorId)
           .orElseThrow(
               () -> new ElementNotFoundException("Injector not found with id: " + injectorId));
     }

@@ -326,11 +326,10 @@ public class ConnectorInstanceService {
             .orElse(null);
 
     if (connectorId != null) {
-      String tenantId = connectorInstance.getTenant().getId();
       switch (connectorInstance.getCatalogConnector().getContainerType()) {
-        case EXECUTOR -> executorRepository.deleteByIdAndTenantId(connectorId, tenantId);
-        case INJECTOR -> injectorRepository.deleteByIdAndTenantId(connectorId, tenantId);
-        case COLLECTOR -> collectorRepository.deleteByIdAndTenantId(connectorId, tenantId);
+        case EXECUTOR -> executorRepository.deleteById(connectorId);
+        case INJECTOR -> injectorRepository.deleteById(connectorId);
+        case COLLECTOR -> collectorRepository.deleteById(connectorId);
       }
     }
 

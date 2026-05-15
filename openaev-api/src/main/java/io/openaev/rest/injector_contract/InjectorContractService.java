@@ -667,9 +667,7 @@ public class InjectorContractService implements DependenciesManager {
         ctx.attackPatternIdsExpression().alias("injector_contract_attack_patterns"),
         injectorContractRoot.get("updatedAt").alias("injector_contract_updated_at"));
 
-    List<Expression<?>> groupBy = new ArrayList<>(getCommonGroupBy(injectorContractRoot, ctx));
-    groupBy.add(ctx.injectorJoin().get("type"));
-    cq.groupBy(groupBy);
+    cq.groupBy(getCommonGroupBy(injectorContractRoot, ctx));
   }
 
   private void selectForInjectorContractThreatArsenalContent(
@@ -690,10 +688,7 @@ public class InjectorContractService implements DependenciesManager {
         injectorContractRoot.get("platforms").alias("injector_contract_platforms"),
         injectorContractRoot.get("content").alias("injector_contract_content"));
 
-    List<Expression<?>> groupBy = new ArrayList<>(getCommonGroupBy(injectorContractRoot, ctx));
-    groupBy.add(ctx.injectorJoin().get("type"));
-    groupBy.add(ctx.injectorJoin().get("name"));
-    cq.groupBy(groupBy);
+    cq.groupBy(getCommonGroupBy(injectorContractRoot, ctx));
   }
 
   private ThreatArsenalAction mapThreatArsenal(Tuple tuple) {

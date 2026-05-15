@@ -22,18 +22,8 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 public class WithMockUserTestExecutionListener extends AbstractTestExecutionListener {
 
-  /**
-   * Run after TransactionalTestExecutionListener (order 4000) so the transaction is already active,
-   * but before @BeforeEach so that test setup methods have access to the mock user and tenant
-   * context.
-   */
   @Override
-  public int getOrder() {
-    return 5000;
-  }
-
-  @Override
-  public void beforeTestMethod(TestContext testContext) throws Exception {
+  public void beforeTestExecution(TestContext testContext) throws Exception {
     WithMockUser annotation = findWithMockUserAnnotation(testContext);
     if (annotation == null) {
       return; // no mock user configured

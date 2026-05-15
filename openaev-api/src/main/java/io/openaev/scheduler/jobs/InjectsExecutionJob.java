@@ -6,7 +6,6 @@ import static java.time.Instant.now;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.groupingBy;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import io.openaev.aop.BypassRls;
 import io.openaev.aop.LogExecutionTime;
@@ -32,8 +31,6 @@ import io.openaev.service.chaining.WorkflowService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.ExecutionTraceUtils;
 import jakarta.annotation.PostConstruct;
-import jakarta.annotation.Resource;
-import jakarta.persistence.EntityManager;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -50,7 +47,6 @@ import org.quartz.DisallowConcurrentExecution;
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.EvaluationException;
@@ -97,9 +93,7 @@ public class InjectsExecutionJob implements Job {
       List.of(InjectExpectation.EXPECTATION_STATUS.SUCCESS);
 
   private final WorkflowService workflowService;
-  @Resource protected ObjectMapper mapper;
-  @Autowired private HealthCheckUtils healthCheckUtils;
-  private final EntityManager entityManager;
+  private final HealthCheckUtils healthCheckUtils;
 
   @PostConstruct
   private void init() {

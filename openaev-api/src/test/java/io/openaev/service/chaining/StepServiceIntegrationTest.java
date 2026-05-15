@@ -24,7 +24,6 @@ import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.WorkflowComposer;
 import io.openaev.utils.helpers.InjectTestHelper;
-import io.openaev.utils.mockUser.WithMockUser;
 import java.util.*;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,7 +34,6 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.mock.mockito.SpyBean;
 
 @SpringBootTest
-@WithMockUser(isAdmin = true)
 class StepServiceIntegrationTest extends IntegrationTest {
 
   @Autowired private StepService stepService;
@@ -64,11 +62,14 @@ class StepServiceIntegrationTest extends IntegrationTest {
   @BeforeEach
   void beforeEach() throws Exception {
     Injector injector = InjectorFixture.createDefaultPayloadInjector();
-    Injector injectorSaved = injectTestHelper.forceSaveInjector(injector);
+    Injector injectorSaved = injectorRepository.save(injector);
 
     InjectorContract injectorContract = InjectorContractFixture.createImplantInjectorContract();
     injectorContract.addInjector(injectorSaved);
-    injectorContractSaved = injectTestHelper.forceSaveInjectorContract(injectorContract);
+    injectorContractSaved = injectorContractRepository.save(injectorContract);
+    // Link on the owning side and save to persist the join table
+    injectorSaved.getContracts().add(injectorContractSaved);
+    injectorRepository.save(injectorSaved);
 
     doReturn(injectorContractSaved).when(injectorContractService).injectorContract(any());
     doReturn(new User()).when(userService).currentUser();

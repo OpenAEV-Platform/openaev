@@ -1,12 +1,13 @@
 package io.openaev.rest.inject_expectation;
 
 import static io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegration.OPENAEV_INJECTOR_ID;
+import static io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegration.OPENAEV_INJECTOR_NAME;
 import static io.openaev.utils.fixtures.ExpectationFixture.*;
 import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.IntegrationTest;
-import io.openaev.collectors.expectations_expiration_manager.ExpectationsExpirationManagerJob;
 import io.openaev.collectors.expectations_expiration_manager.service.ExpectationsExpirationManagerService;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
@@ -16,16 +17,19 @@ import io.openaev.service.InjectExpectationService;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.transaction.annotation.Transactional;
 
-@Transactional
-@WithMockUser(isAdmin = true)
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@ExtendWith(MockitoExtension.class)
 public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
 
   private static final String INJECTION_NAME = "AMSI Bypass - AMSI InitFailed";
+  private static final String INJECTOR_TYPE = "openaev_implant";
 
   public static final long EXPIRATION_TIME_1_s = 1L;
   @Autowired private AssetGroupRepository assetGroupRepository;
@@ -37,40 +41,24 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
   @Autowired private InjectExpectationRepository injectExpectationRepository;
   @Autowired private InjectExpectationService injectExpectationService;
   @Autowired private ExpectationsExpirationManagerService expectationsExpirationManagerService;
-  @Autowired private ExpectationsExpirationManagerJob expectationsExpirationManagerJob;
 
   // Saved entities for test setup
-  private Injector savedInjector;
-  private InjectorContract savedInjectorContract;
-  private AssetGroup savedAssetGroup;
-  private Endpoint savedEndpoint;
-  private Agent savedAgent1;
-  private Agent savedAgent2;
-  private Inject savedInject;
+  private static Injector savedInjector;
+  private static InjectorContract savedInjectorContract;
+  private static AssetGroup savedAssetGroup;
+  private static Endpoint savedEndpoint;
+  private static Agent savedAgent1;
+  private static Agent savedAgent2;
+  private static Inject savedInject;
 
-  @BeforeEach
-  void beforeEach() throws Exception {
-    // Register the builtin collector for the test tenant (builtins are only registered
-    // for tenants that exist at startup, not for the test tenant created by @WithMockUser)
-    expectationsExpirationManagerJob.registerForTenant();
-
-    // Use the builtin injector if already registered, otherwise create it
+  @BeforeAll
+  void beforeAll() throws JsonProcessingException {
+    InjectorContract injectorContract =
+        InjectorContractFixture.createInjectorContract(Map.of("en", INJECTION_NAME));
     savedInjector =
-        injectorRepository
-            .findById(OPENAEV_INJECTOR_ID)
-            .orElseGet(
-                () ->
-                    injectorRepository.save(
-                        InjectorFixture.createInjector(
-                            OPENAEV_INJECTOR_ID, "OpenAEV Implant", "openaev_implant")));
-
-    InjectorContract injectorContract;
-    try {
-      injectorContract =
-          InjectorContractFixture.createInjectorContract(java.util.Map.of("en", INJECTION_NAME));
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+        injectorRepository.save(
+            InjectorFixture.createInjector(
+                OPENAEV_INJECTOR_ID, OPENAEV_INJECTOR_NAME, INJECTOR_TYPE));
     injectorContract.addInjector(savedInjector);
     savedInjectorContract = injectorContractRepository.save(injectorContract);
     savedInjector.getContracts().add(savedInjectorContract);
@@ -92,12 +80,26 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
                 savedInjectorContract, INJECTION_NAME, savedAssetGroup));
   }
 
+  @AfterAll
+  void afterAll() {
+    agentRepository.deleteAll();
+    injectRepository.deleteAll();
+    endpointRepository.deleteAll();
+  }
+
+  @AfterEach
+  void afterEach() {
+    injectExpectationRepository.deleteAll();
+  }
+
   @Nested
+  @WithMockUser(isAdmin = true)
   @DisplayName("Update injectExpectations with expectationsExpirationManagerService")
   class ComputeExpectationsWithExpectationExpiredManagerService {
 
     @Test
     @DisplayName("All injectExpectations are expired")
+    @WithMockUser(isAdmin = true)
     void allExpectationAreExpired() {
       // -- PREPARE --
       // Build and save expectations for asset group with one asset and two agents
@@ -161,6 +163,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
 
     @Test
     @DisplayName("One injectExpectations is already filled")
+    @WithMockUser(isAdmin = true)
     void OneExpectationIsAlreadyFilled() {
       // -- PREPARE --
       // Build and save expectations for asset group with one asset and two agents
@@ -243,6 +246,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
 
     @Test
     @DisplayName("The agent expectations are already filled")
+    @WithMockUser(isAdmin = true)
     void agentExpectationsAreAlreadyFilled() {
       // -- PREPARE --
       // Build and save expectations for asset group with one asset and two agents
@@ -333,6 +337,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
 
     @Test
     @DisplayName("Asset expectations without agent expectation linked")
+    @WithMockUser(isAdmin = true)
     void assetExpectationWithoutAgentExpectationsLinked() {
       // -- PREPARE --
       // Build and save expectations for asset group with one asset and two agents
@@ -390,6 +395,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
 
     @Test
     @DisplayName("Vulnerability expectation with an agent gets expired")
+    @WithMockUser(isAdmin = true)
     void vulnerableExpectationIsExpired() {
       // -- PREPARE --
       // Build and save an expectation for an asset and one agent

@@ -19,7 +19,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
@@ -302,8 +301,7 @@ public class InjectorApiTest extends IntegrationTest {
       assertThatJson(response).inPath("connection.port").isNotNull();
       assertThatJson(response).inPath("listen").isString().contains("_injector_" + injectorId);
 
-      Optional<Injector> persisted =
-          injectorRepository.findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant());
+      Optional<Injector> persisted = injectorRepository.findById(injectorId);
       assertThat(persisted).isPresent();
       assertThat(persisted.get().isExternal()).isTrue();
       assertThat(persisted.get().getName()).isEqualTo("External Injector");
@@ -357,8 +355,7 @@ public class InjectorApiTest extends IntegrationTest {
           .andExpect(status().is2xxSuccessful());
 
       // -- ASSERT --
-      Optional<Injector> persisted =
-          injectorRepository.findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant());
+      Optional<Injector> persisted = injectorRepository.findById(injectorId);
       assertThat(persisted).isPresent();
       assertThat(persisted.get().getName()).isEqualTo("Updated Name");
       assertThat(persisted.get().getCategory()).isEqualTo("updated-category");
@@ -389,8 +386,7 @@ public class InjectorApiTest extends IntegrationTest {
           .andExpect(status().is2xxSuccessful());
 
       // -- ASSERT --
-      Optional<Injector> persisted =
-          injectorRepository.findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant());
+      Optional<Injector> persisted = injectorRepository.findById(injectorId);
       assertThat(persisted).isPresent();
       assertThat(persisted.get().isExternal()).isTrue();
       assertThat(persisted.get().getExecutorCommands()).isNullOrEmpty();
@@ -439,11 +435,9 @@ public class InjectorApiTest extends IntegrationTest {
           .andExpect(status().is2xxSuccessful());
 
       // -- ASSERT --
-      assertThat(injectorRepository.findByIdAndTenantId(dummyId, TenantContext.getCurrentTenant()))
-          .isEmpty();
+      assertThat(injectorRepository.findById(dummyId)).isEmpty();
 
-      Optional<Injector> realInjector =
-          injectorRepository.findByIdAndTenantId(realInjectorId, TenantContext.getCurrentTenant());
+      Optional<Injector> realInjector = injectorRepository.findById(realInjectorId);
       assertThat(realInjector).isPresent();
       assertThat(realInjector.get().isExternal()).isTrue();
 

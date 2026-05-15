@@ -20,6 +20,7 @@ import io.openaev.database.repository.DocumentRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.integration.Manager;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
@@ -64,7 +65,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
 
   @BeforeEach
   void beforeEach() throws Exception {
-    openaevInjectorIntegrationFactory.registerConnectorForTenant();
+    new Manager(List.of(openaevInjectorIntegrationFactory)).monitorIntegrations();
     injectorContractComposer.reset();
     attackPatternComposer.reset();
     tagComposer.reset();

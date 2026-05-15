@@ -90,10 +90,6 @@ public class InjectorContractContentUtils {
   public ObjectNode getDynamicInjectorContractFieldsForInject(InjectorContract injectorContract) {
     ObjectNode convertedContent = injectorContract.getConvertedContent();
 
-    if (convertedContent == null) {
-      return null;
-    }
-
     if (convertedContent.has(FIELDS) && convertedContent.get(FIELDS).isArray()) {
       ArrayNode fieldsArray = (ArrayNode) convertedContent.get(FIELDS);
       ArrayNode fieldsNode = fieldsArray.deepCopy();
@@ -145,9 +141,7 @@ public class InjectorContractContentUtils {
     ObjectNode convertedContent = injectorContract.getConvertedContent();
     List<InjectExpectation.EXPECTATION_TYPE> predefinedExpectations = new ArrayList<>();
 
-    if (convertedContent == null
-        || !convertedContent.has(FIELDS)
-        || !convertedContent.get(FIELDS).isArray()) {
+    if (!convertedContent.has(FIELDS) || !convertedContent.get(FIELDS).isArray()) {
       return predefinedExpectations.toArray(new InjectExpectation.EXPECTATION_TYPE[0]);
     }
 

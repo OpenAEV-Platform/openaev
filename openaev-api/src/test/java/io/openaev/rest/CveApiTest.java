@@ -15,7 +15,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.Vulnerability;
 import io.openaev.database.repository.CollectorRepository;
@@ -177,9 +176,7 @@ class CveApiTest extends IntegrationTest {
       entityManager.flush();
 
       // Verify that the collector state was updated with bulk insert metadata
-      Optional<Collector> savedCollector =
-          collectorRepository.findByIdAndTenantId(
-              collector.getId(), TenantContext.getCurrentTenant());
+      Optional<Collector> savedCollector = collectorRepository.findById(collector.getId());
       if (savedCollector.isEmpty()) {
         fail("Collector not found after bulk insert");
       }

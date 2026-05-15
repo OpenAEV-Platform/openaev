@@ -337,12 +337,7 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
   @Queryable(filterable = true, dynamicValues = true, path = "injectors.id")
   private List<String> getInjectorIds() {
     return injectors != null
-        ? new ArrayList<>(
-            injectors.stream()
-                .filter(Objects::nonNull)
-                .map(Injector::getId)
-                .filter(Objects::nonNull)
-                .toList())
+        ? new ArrayList<>(injectors.stream().map(Injector::getId).toList())
         : Collections.emptyList();
   }
 
@@ -351,7 +346,6 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
   private Map<String, String> getInjectorNames() {
     return injectors != null
         ? injectors.stream()
-            .filter(i -> i != null && i.getId() != null && i.getName() != null)
             .collect(
                 Collectors.toMap(
                     Injector::getId, Injector::getName, (a, b) -> a, LinkedHashMap::new))

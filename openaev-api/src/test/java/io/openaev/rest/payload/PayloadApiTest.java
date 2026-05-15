@@ -25,6 +25,7 @@ import io.openaev.database.repository.DocumentRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.integration.Manager;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
 import io.openaev.rest.collector.form.CollectorCreateInput;
 import io.openaev.rest.payload.form.*;
@@ -72,7 +73,7 @@ class PayloadApiTest extends IntegrationTest {
 
   @BeforeEach
   void beforeEach() throws Exception {
-    openaevInjectorIntegrationFactory.registerConnectorForTenant();
+    new Manager(List.of(openaevInjectorIntegrationFactory)).monitorIntegrations();
   }
 
   @BeforeAll
@@ -345,6 +346,7 @@ class PayloadApiTest extends IntegrationTest {
     void given_allStringTypeArguments_should_each_produce_text_field_in_contract()
         throws Exception {
       // Arrange
+      new Manager(List.of(openaevInjectorIntegrationFactory)).monitorIntegrations();
 
       Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
       PayloadCreateInput input =
@@ -483,6 +485,7 @@ class PayloadApiTest extends IntegrationTest {
         "Given an argument with a subtype, should still produce a text field in the injector contract")
     void given_argumentWithSubtype_should_produce_text_field_in_contract() throws Exception {
       // Arrange
+      new Manager(List.of(openaevInjectorIntegrationFactory)).monitorIntegrations();
 
       Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
       PayloadCreateInput input =

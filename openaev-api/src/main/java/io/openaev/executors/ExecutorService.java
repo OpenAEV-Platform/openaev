@@ -69,9 +69,7 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
 
   @Override
   protected Executor getConnectorById(String executorId) {
-    return executorRepository
-        .findByIdAndTenantId(executorId, TenantContext.getCurrentTenant())
-        .orElse(null);
+    return executorRepository.findById(executorId).orElse(null);
   }
 
   @Override
@@ -107,7 +105,7 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
    */
   public Executor executor(String id) throws ElementNotFoundException {
     return executorRepository
-        .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
+        .findById(id)
         .orElseThrow(() -> new ElementNotFoundException("Executor not found with id: " + id));
   }
 
@@ -164,12 +162,10 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
       fileService.uploadStream(EXECUTORS_IMAGES_BANNERS_BASE_PATH, type + EXT_PNG, bannerData);
     }
 
-    Executor executor =
-        executorRepository.findByIdAndTenantId(id, TenantContext.getCurrentTenant()).orElse(null);
+    Executor executor = executorRepository.findById(id).orElse(null);
     if (executor == null) {
       executor = new Executor();
       executor.setId(id);
-      executor.setTenant(new Tenant(TenantContext.getCurrentTenant()));
     }
 
     executor.setName(name);
@@ -183,9 +179,7 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
 
   @Transactional
   public void remove(String id) {
-    executorRepository
-        .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
-        .ifPresent(executor -> executorRepository.delete(executor));
+    executorRepository.findById(id).ifPresent(executor -> executorRepository.deleteById(id));
   }
 
   /**

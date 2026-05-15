@@ -618,10 +618,7 @@ public class EndpointService {
 
   private AgentRegisterInput toAgentEndpoint(EndpointRegisterInput input) {
     AgentRegisterInput agentInput = new AgentRegisterInput();
-    agentInput.setExecutor(
-        executorRepository
-            .findByIdAndTenantId(OPENAEV_EXECUTOR_ID, TenantContext.getCurrentTenant())
-            .orElse(null));
+    agentInput.setExecutor(executorRepository.findById(OPENAEV_EXECUTOR_ID).orElse(null));
     agentInput.setLastSeen(Instant.now());
     agentInput.setExternalReference(input.getExternalReference());
     agentInput.setIps(input.getIps());
