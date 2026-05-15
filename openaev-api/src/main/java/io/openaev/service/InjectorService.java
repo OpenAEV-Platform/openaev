@@ -26,6 +26,7 @@ import io.openaev.service.connectors.AbstractConnectorService;
 import io.openaev.service.exception.InjectorRegistrationException;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import io.openaev.utils.mapper.InjectorMapper;
+import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotBlank;
 import java.io.InputStream;
@@ -57,6 +58,8 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
 
   private final RabbitmqService rabbitmqService;
 
+  private final EntityManager entityManager;
+
   @Autowired
   public InjectorService(
       InjectorRepository injectorRepository,
@@ -70,7 +73,8 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
       DomainService domainService,
       InjectorMapper injectorMapper,
       CatalogConnectorMapper catalogConnectorMapper,
-      RabbitmqService rabbitmqService) {
+      RabbitmqService rabbitmqService,
+      EntityManager entityManager) {
     super(
         ConnectorType.INJECTOR,
         connectorInstanceConfigurationRepository,
@@ -85,6 +89,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     this.domainService = domainService;
     this.injectorMapper = injectorMapper;
     this.rabbitmqService = rabbitmqService;
+    this.entityManager = entityManager;
   }
 
   @Override
@@ -94,7 +99,9 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
 
   @Override
   protected Injector getConnectorById(String injectorId) {
-    return injectorRepository.findById(injectorId).orElse(null);
+    return injectorRepository
+        .findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant())
+        .orElse(null);
   }
 
   @Override
@@ -136,6 +143,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
               injector.setType(injectorType + DUMMY_SUFFIX);
               // Include tenant in the ID so each tenant gets its own dummy row.
               injector.setId(injectorType + DUMMY_SUFFIX + "_" + currentTenant);
+              injector.setTenant(new Tenant(currentTenant));
               injector.setDependencies(ExternalServiceDependency.fromInjectorType(injectorType));
               return injectorRepository.save(injector);
             });
@@ -143,7 +151,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
 
   public Injector injector(String id) {
     return injectorRepository
-        .findById(id)
+        .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
         .orElseThrow(() -> new ElementNotFoundException("Injector not found with id: " + id));
   }
 
@@ -159,6 +167,10 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
   public List<Injector> findAll() {
     return StreamSupport.stream(injectorRepository.findAll().spliterator(), false)
         .collect(Collectors.toList());
+  }
+
+  public List<Injector> findAllByIds(List<String> ids) {
+    return injectorRepository.findAllById(ids);
   }
 
   /**
@@ -201,7 +213,10 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
       }
       String queueName = this.rabbitmqService.registerQueue(input.getId());
       // We need to support upsert for registration
-      Injector injector = injectorRepository.findById(input.getId()).orElse(null);
+      Injector injector =
+          injectorRepository
+              .findByIdAndTenantId(input.getId(), TenantContext.getCurrentTenant())
+              .orElse(null);
       if (injector != null) {
         updateExistingExternalInjector(
             injector,
@@ -225,14 +240,15 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
         newInjector.setExecutorCommands(input.getExecutorCommands());
         newInjector.setExecutorClearCommands(input.getExecutorClearCommands());
         newInjector.setPayloads(input.getPayloads());
+        newInjector.setTenant(new Tenant(TenantContext.getCurrentTenant()));
         Injector savedInjector = injectorRepository.save(newInjector);
         // Save the contracts
         List<InjectorContract> injectorContracts =
             input.getContracts().stream()
                 .map(in -> injectorContractService.convertInjectorFromInput(in, savedInjector))
                 .toList();
-        injectorContractRepository.saveAll(injectorContracts);
-        // Link contracts on the owning side now that they are persisted
+        injectorContracts = fromIterable(injectorContractRepository.saveAll(injectorContracts));
+        // Link managed instances returned by saveAll() — originals are detached after merge()
         savedInjector.getContracts().addAll(injectorContracts);
         // Persist the owning side to save join table entries
         injectorRepository.save(savedInjector);
@@ -314,8 +330,8 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     injectorContractRepository.deleteAllById(toDeletes);
     // Remove deleted contracts from the owning-side collection to keep it in sync
     injector.getContracts().removeIf(c -> toDeletes.contains(c.getId()));
-    injectorContractRepository.saveAll(toCreates);
-    // Link new contracts on the owning side now that they are persisted
+    toCreates = fromIterable(injectorContractRepository.saveAll(toCreates));
+    // Link managed instances returned by saveAll() — originals are detached after merge()
     injector.getContracts().addAll(toCreates);
     return injectorRepository.save(injector);
   }
@@ -360,9 +376,6 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     // Upload icon if available
     uploadInjectorIcon(contractor);
 
-    // Validate no ID conflicts exist
-    validateNoIdConflict(id, contractor);
-
     // Get contracts from contractor
     List<Contract> staticContracts;
     try {
@@ -373,7 +386,8 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     }
 
     // Find existing injector or create new
-    Injector existingInjector = injectorRepository.findById(id).orElse(null);
+    Injector existingInjector =
+        injectorRepository.findByIdAndTenantId(id, TenantContext.getCurrentTenant()).orElse(null);
 
     if (existingInjector != null) {
       updateExistingBuiltinInjector(
@@ -434,7 +448,8 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
                     });
                 injectorContractRepository.saveAll(injectorContracts);
               }
-              injectorRepository.delete(dummyInjector);
+              injectorRepository.deleteByIdAndTenantId(
+                  dummyInjector.getId(), TenantContext.getCurrentTenant());
             });
   }
 
@@ -447,23 +462,6 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
       } catch (Exception e) {
         log.warn(
             "Failed to upload icon for injector '{}': {}", contractor.getType(), e.getMessage());
-      }
-    }
-  }
-
-  private void validateNoIdConflict(String id, Contractor contractor)
-      throws InjectorRegistrationException {
-    Injector existingInjector = injectorRepository.findById(id).orElse(null);
-    if (existingInjector == null) {
-      Optional<Injector> conflictingInjector =
-          injectorRepository.findByTypeAndTenantId(
-              contractor.getType(), TenantContext.getCurrentTenant());
-      if (conflictingInjector.isPresent()) {
-        throw new InjectorRegistrationException(
-            String.format(
-                "Injector '%s' already exists with a different ID (%s). "
-                    + "Please delete it or contact your administrator.",
-                contractor.getType(), conflictingInjector.get().getId()));
       }
     }
   }
@@ -528,9 +526,9 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     injectorContractRepository.deleteAllById(toDelete);
     // Remove deleted contracts from the owning-side collection to keep it in sync
     injector.getContracts().removeIf(c -> toDelete.contains(c.getId()));
-    injectorContractRepository.saveAll(toCreate);
+    toCreate = fromIterable(injectorContractRepository.saveAll(toCreate));
     injectorContractRepository.saveAll(toUpdate);
-    // Link new contracts on the owning side now that they are persisted
+    // Link managed instances returned by saveAll() — originals are detached after merge()
     injector.getContracts().addAll(toCreate);
     injectorRepository.save(injector);
   }
@@ -564,6 +562,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
         isPayloads,
         dependencies);
 
+    newInjector.setTenant(new Tenant(TenantContext.getCurrentTenant()));
     Injector savedInjector = injectorRepository.save(newInjector);
 
     List<InjectorContract> injectorContracts =
@@ -573,11 +572,14 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
                     this.injectorContractService.createBuiltinInjectorContract(
                         contract, savedInjector, isPayloads))
             .toList();
-    injectorContractRepository.saveAll(injectorContracts);
-    // Now that contracts are persisted, link them on the owning side (Injector.contracts)
+    injectorContracts = fromIterable(injectorContractRepository.saveAll(injectorContracts));
+    // Link managed contracts on the owning side so Hibernate populates the join table.
+    // We MUST use the instances returned by saveAll() — the originals are detached after merge().
     savedInjector.getContracts().addAll(injectorContracts);
-    // Persist the owning side to save join table entries
-    injectorRepository.save(savedInjector);
+    // Flush now so that all inserts are visible before any subsequent query triggers auto-flush
+    // (e.g. deleteDummyInjectorIfItExists), which would otherwise fail with
+    // TransientObjectException.
+    entityManager.flush();
     return savedInjector;
   }
 

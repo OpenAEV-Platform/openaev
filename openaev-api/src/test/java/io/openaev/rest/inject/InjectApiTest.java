@@ -31,7 +31,6 @@ import io.openaev.database.repository.*;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.executors.Executor;
 import io.openaev.injector_contract.ContractTargetedProperty;
-import io.openaev.integration.Manager;
 import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
 import io.openaev.rest.atomic_testing.form.ExecutionTraceOutput;
@@ -64,11 +63,7 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import net.javacrumbs.jsonunit.core.Option;
 import org.awaitility.Awaitility;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
@@ -143,8 +138,8 @@ class InjectApiTest extends IntegrationTest {
 
   @BeforeEach
   void beforeEach() throws Exception {
-    new Manager(List.of(emailInjectorIntegrationFactory, openaevInjectorIntegrationFactory))
-        .monitorIntegrations();
+    emailInjectorIntegrationFactory.registerConnectorForTenant();
+    openaevInjectorIntegrationFactory.registerConnectorForTenant();
 
     Scenario scenario = new Scenario();
     scenario.setName("Scenario name");

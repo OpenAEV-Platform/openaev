@@ -11,6 +11,7 @@ import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.execution.ExecutionContextService;
 import jakarta.annotation.Resource;
+import jakarta.persistence.EntityManager;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.List;
@@ -18,6 +19,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.Hibernate;
+import org.hibernate.Session;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import reactor.util.function.Tuple2;
@@ -41,6 +43,7 @@ public class InjectHelper {
 
   private final InjectRepository injectRepository;
   private final ExecutionContextService executionContextService;
+  private final EntityManager entityManager;
 
   /**
    * Retrieves the teams targeted by an inject.
@@ -121,6 +124,9 @@ public class InjectHelper {
    * @return list of pending injects scheduled within the threshold
    */
   public List<Inject> getAllPendingInjectsWithThresholdMinutes(int thresholdMinutes) {
+    // Disable tenant filter — called from InjectsExecutionJob which runs cross-tenant
+    entityManager.unwrap(Session.class).disableFilter("tenantFilter");
+
     return this.injectRepository.findAll(
         InjectSpecification.pendingInjectWithThresholdMinutes(thresholdMinutes));
   }
@@ -153,6 +159,9 @@ public class InjectHelper {
    */
   @Transactional
   public List<ExecutableInject> getInjectsToRun() {
+    // Disable tenant filter — called from InjectsExecutionJob which runs cross-tenant
+    entityManager.unwrap(Session.class).disableFilter("tenantFilter");
+
     // Get injects
     List<Inject> injects = this.injectRepository.findAll(InjectSpecification.executable());
     Stream<ExecutableInject> executableInjects =

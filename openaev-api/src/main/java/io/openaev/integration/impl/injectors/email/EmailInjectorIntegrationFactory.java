@@ -5,11 +5,13 @@ import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.executors.InjectorContext;
+import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.injectors.email.EmailContract;
 import io.openaev.injectors.email.service.EmailService;
+import io.openaev.integration.BuiltinIntegrationFactory;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
-import io.openaev.integration.IntegrationFactory;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
@@ -19,7 +21,7 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 
 @Service
-public class EmailInjectorIntegrationFactory extends IntegrationFactory {
+public class EmailInjectorIntegrationFactory extends BuiltinIntegrationFactory {
   private final EmailContract emailContract;
   private final InjectorContext injectorContext;
 
@@ -90,5 +92,23 @@ public class EmailInjectorIntegrationFactory extends IntegrationFactory {
         emailService,
         injectorService,
         injectExpectationService);
+  }
+
+  @Override
+  public void registerConnectorForTenant() throws Exception {
+    try {
+      injectorService.injector(EmailInjectorIntegration.EMAIL_INJECTOR_ID);
+    } catch (ElementNotFoundException e) {
+      injectorService.registerBuiltinInjector(
+          EmailInjectorIntegration.EMAIL_INJECTOR_ID,
+          EmailInjectorIntegration.EMAIL_INJECTOR_NAME,
+          emailContract,
+          false,
+          "communication",
+          null,
+          null,
+          false,
+          List.of(ExternalServiceDependency.SMTP, ExternalServiceDependency.IMAP));
+    }
   }
 }

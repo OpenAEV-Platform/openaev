@@ -8,7 +8,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
-import io.openaev.integration.Manager;
 import io.openaev.integration.impl.injectors.manual.ManualInjectorIntegrationFactory;
 import io.openaev.opencti.config.OpenCTIConfig;
 import io.openaev.opencti.connectors.impl.SecurityCoverageConnector;
@@ -19,7 +18,6 @@ import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.fixtures.composers.TokenComposer;
 import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.mockConfig.WithMockOpenCTIConfig;
-import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
@@ -55,7 +53,7 @@ public class OpenCTIJwtAuthenticationTest extends IntegrationTest {
   void setUp() throws Exception {
     userComposer.reset();
     tokenComposer.reset();
-    new Manager(List.of(manualInjectorIntegrationFactory)).monitorIntegrations();
+    manualInjectorIntegrationFactory.registerConnectorForTenant();
   }
 
   private Stream<Arguments> authorizationOpenCTI() throws Exception {

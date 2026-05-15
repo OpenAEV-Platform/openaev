@@ -39,7 +39,6 @@ import org.hibernate.annotations.*;
 @Entity
 @Table(name = "injects")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 @Slf4j
 @Grantable(Grant.GRANT_RESOURCE_TYPE.ATOMIC_TESTING)
 public class Inject implements GrantableBase, Injection, TenantBase {
@@ -184,7 +183,7 @@ public class Inject implements GrantableBase, Injection, TenantBase {
 
   @Getter
   @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "inject_injector")
+  @JoinColumn(name = "inject_injector", referencedColumnName = "injector_id")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonDeserialize(using = MonoIdDeserializerHelper.class)
   @JsonProperty("inject_injector")
