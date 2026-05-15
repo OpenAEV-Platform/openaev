@@ -911,7 +911,9 @@ class WorkflowServiceTest {
           Workflow.builder().id(workflowId).status(WorkflowStatus.TEMPLATE).version(0).build();
       when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
           .thenReturn(Optional.of(workflow));
-      when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
+      lenient()
+          .when(workflowRepository.save(any(Workflow.class)))
+          .thenAnswer(i -> i.getArgument(0));
       return workflow;
     }
 
