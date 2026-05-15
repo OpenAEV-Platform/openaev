@@ -33,23 +33,23 @@ public class ScopeMetricCollector {
 
   @PostConstruct
   public void init() {
-    // Register: scope.created
+    // Register: scope.created (delta per collection interval)
     metricRegistry.registerMultiGauge(
         "scope_created_count",
-        "Number of entries created in scope rules by mode",
+        "Number of entries created in scope rules by mode during the collection interval",
         () -> collectAndResetVolume(scopeCreatedStats),
         "count");
 
-    // Register: scope.entry.added
+    // Register: scope.entry.added (delta per collection interval)
     metricRegistry.registerMultiGauge(
         "scope_entry_added_count",
-        "Total scope entries added by type and source",
+        "Scope entries added by type and source during the collection interval",
         () -> collectAndResetVolume(entryAddedStats));
 
-    // Register: usage
+    // Register: usage (delta per collection interval)
     metricRegistry.registerMultiGauge(
-        "scope_workflow_source_usage_total",
-        "Number of unique workflows using a specific source",
+        "scope_workflow_source_usage_count",
+        "Number of unique workflows using a specific source during the collection interval",
         () -> collectAndResetUsage(sourceUsageStats));
   }
 
