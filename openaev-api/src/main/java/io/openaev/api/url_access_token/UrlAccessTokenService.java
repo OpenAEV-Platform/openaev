@@ -43,6 +43,9 @@ public class UrlAccessTokenService {
   @Value("${openaev.url.access.token.expiry-margin-days:7}")
   private int expiryMarginDays;
 
+  @Value("${openaev.url.access.token.retention-days:30}")
+  private int retentionDays;
+
   // -- CREATE --
 
   /**
@@ -184,6 +187,16 @@ public class UrlAccessTokenService {
    */
   public int revokeAllForExercise(@NotBlank final String exerciseId) {
     return urlAccessTokenRepository.revokeAllByExerciseId(exerciseId);
+  }
+
+  /**
+   * Purges expired or revoked URL access tokens older than the configured retention window.
+   *
+   * @return number of deleted tokens
+   */
+  public int purgeExpiredAndRevokedTokens() {
+    Instant cutoff = Instant.now().minus(retentionDays, ChronoUnit.DAYS);
+    return urlAccessTokenRepository.deleteExpiredAndRevokedBefore(cutoff);
   }
 
   private Optional<UrlAccessToken> findByRawToken(String rawToken) {

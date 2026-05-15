@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 import io.openaev.api.url_access_token.UrlAccessTokenService;
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.UrlAccessToken;
 import io.openaev.database.model.User;
@@ -37,13 +38,16 @@ class UrlAccessTokenServiceTest {
   @Mock private UserService userService;
   @Mock private RandomUtils randomUtils;
   @Mock private UrlAccessTokenRepository urlAccessTokenRepository;
+  @Mock private OpenAEVConfig openAEVConfig;
 
   @InjectMocks private UrlAccessTokenService urlAccessTokenService;
 
   @BeforeEach
   void setUp() {
     ReflectionTestUtils.setField(urlAccessTokenService, "expiryMarginDays", 7);
+    ReflectionTestUtils.setField(urlAccessTokenService, "retentionDays", 30);
     lenient().when(randomUtils.getRandomAlphanumeric(anyInt())).thenReturn("raw-token");
+    lenient().when(openAEVConfig.getBaseUrl()).thenReturn("http://localhost:8080");
   }
 
   @Nested
@@ -311,6 +315,32 @@ class UrlAccessTokenServiceTest {
       // Assert
       assertEquals(3, result);
       verify(urlAccessTokenRepository).revokeAllByExerciseId("exercise-1");
+    }
+  }
+
+  @Nested
+  @DisplayName("purgeExpiredAndRevokedTokens")
+  class PurgeExpiredAndRevokedTokensTests {
+
+    @Test
+    void given_retentionWindow_should_deleteTokensOlderThanCutoff() {
+      // Arrange
+      when(urlAccessTokenRepository.deleteExpiredAndRevokedBefore(any(Instant.class))).thenReturn(5);
+      Instant beforeCall = Instant.now();
+
+      // Act
+      int deletedCount = urlAccessTokenService.purgeExpiredAndRevokedTokens();
+      Instant afterCall = Instant.now();
+
+      // Assert
+      assertEquals(5, deletedCount);
+      ArgumentCaptor<Instant> cutoffCaptor = ArgumentCaptor.forClass(Instant.class);
+      verify(urlAccessTokenRepository).deleteExpiredAndRevokedBefore(cutoffCaptor.capture());
+
+      Instant expectedMin = beforeCall.minus(30, ChronoUnit.DAYS);
+      Instant expectedMax = afterCall.minus(30, ChronoUnit.DAYS);
+      assertFalse(cutoffCaptor.getValue().isBefore(expectedMin));
+      assertFalse(cutoffCaptor.getValue().isAfter(expectedMax));
     }
   }
 
