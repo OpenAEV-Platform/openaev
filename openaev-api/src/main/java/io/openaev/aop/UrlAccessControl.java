@@ -22,10 +22,8 @@ import java.lang.annotation.Target;
  * annotated method's signature by parameter name. Both are optional — if absent the scope check is
  * skipped for the missing dimension.
  *
- * <p>This annotation is a no-op when the {@code URL_ACCESS_TOKEN} preview feature flag is
- * disabled.
+ * <p>This annotation is a no-op when the {@code URL_ACCESS_TOKEN} preview feature flag is disabled.
  */
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface UrlAccessControl {}
-

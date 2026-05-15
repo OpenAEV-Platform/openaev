@@ -4,10 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
+import io.openaev.api.url_access_token.UrlAccessTokenService;
 import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
-import io.openaev.api.url_access_token.UrlAccessTokenService;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -43,10 +43,12 @@ class UrlAccessControlAspectTest {
     @Test
     @DisplayName(
         "given_classically_authenticated_user_when_url_access_control_is_applied_should_bypass_url_token_validation")
-    void given_classically_authenticated_user_when_url_access_control_is_applied_should_bypass_url_token_validation()
-        throws Throwable {
+    void
+        given_classically_authenticated_user_when_url_access_control_is_applied_should_bypass_url_token_validation()
+            throws Throwable {
       // -- Arrange --
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.URL_ACCESS_TOKEN)).thenReturn(true);
+      when(previewFeatureService.isFeatureEnabled(PreviewFeature.URL_ACCESS_TOKEN))
+          .thenReturn(true);
       ProceedingJoinPoint joinPoint = mock(ProceedingJoinPoint.class);
       when(joinPoint.proceed()).thenReturn("ok");
 
@@ -75,9 +77,11 @@ class UrlAccessControlAspectTest {
     @Test
     @DisplayName(
         "given_anonymous_user_without_request_context_when_url_access_control_is_applied_should_fail_with_illegal_state")
-    void given_anonymous_user_without_request_context_when_url_access_control_is_applied_should_fail_with_illegal_state() {
+    void
+        given_anonymous_user_without_request_context_when_url_access_control_is_applied_should_fail_with_illegal_state() {
       // -- Arrange --
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.URL_ACCESS_TOKEN)).thenReturn(true);
+      when(previewFeatureService.isFeatureEnabled(PreviewFeature.URL_ACCESS_TOKEN))
+          .thenReturn(true);
       ProceedingJoinPoint joinPoint = mock(ProceedingJoinPoint.class);
 
       // -- Act & Assert --
@@ -87,5 +91,3 @@ class UrlAccessControlAspectTest {
     }
   }
 }
-
-

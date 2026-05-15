@@ -67,8 +67,7 @@ public class UrlAccessControlAspect {
     String rawToken = extractCookieValue(request);
     if (rawToken == null) {
       log.debug("UrlAccessControlAspect: missing '{}' cookie", URL_ACCESS_COOKIE_NAME);
-      throw new ResponseStatusException(
-          HttpStatus.UNAUTHORIZED, "Missing URL access token cookie");
+      throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Missing URL access token cookie");
     }
 
     // Resolve exerciseId and userId parameter indices from the method signature
@@ -127,4 +126,3 @@ public class UrlAccessControlAspect {
         .orElse(null);
   }
 }
-

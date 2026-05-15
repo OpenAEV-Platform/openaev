@@ -1,5 +1,7 @@
 package io.openaev.rest.exercise;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.UrlAccessControl;
 import io.openaev.context.TenantContext;
@@ -15,8 +17,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 @RestController
 @RequiredArgsConstructor

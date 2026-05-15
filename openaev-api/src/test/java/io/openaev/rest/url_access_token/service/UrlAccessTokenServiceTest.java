@@ -325,7 +325,8 @@ class UrlAccessTokenServiceTest {
     @Test
     void given_retentionWindow_should_deleteTokensOlderThanCutoff() {
       // Arrange
-      when(urlAccessTokenRepository.deleteExpiredAndRevokedBefore(any(Instant.class))).thenReturn(5);
+      when(urlAccessTokenRepository.deleteExpiredAndRevokedBefore(any(Instant.class)))
+          .thenReturn(5);
       Instant beforeCall = Instant.now();
 
       // Act

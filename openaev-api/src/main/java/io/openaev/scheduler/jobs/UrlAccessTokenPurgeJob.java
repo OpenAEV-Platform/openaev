@@ -35,4 +35,3 @@ public class UrlAccessTokenPurgeJob implements Job {
     }
   }
 }
-

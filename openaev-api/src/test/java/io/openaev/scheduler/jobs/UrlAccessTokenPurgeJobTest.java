@@ -30,7 +30,8 @@ class UrlAccessTokenPurgeJobTest {
     @DisplayName("given_url_access_feature_disabled_should_not_run_purge")
     void given_url_access_feature_disabled_should_not_run_purge() throws Exception {
       // Arrange
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.URL_ACCESS_TOKEN)).thenReturn(false);
+      when(previewFeatureService.isFeatureEnabled(PreviewFeature.URL_ACCESS_TOKEN))
+          .thenReturn(false);
 
       // Act
       job.execute(null);
@@ -48,7 +49,8 @@ class UrlAccessTokenPurgeJobTest {
     @DisplayName("given_url_access_feature_enabled_should_run_purge")
     void given_url_access_feature_enabled_should_run_purge() throws Exception {
       // Arrange
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.URL_ACCESS_TOKEN)).thenReturn(true);
+      when(previewFeatureService.isFeatureEnabled(PreviewFeature.URL_ACCESS_TOKEN))
+          .thenReturn(true);
       when(urlAccessTokenService.purgeExpiredAndRevokedTokens()).thenReturn(2);
 
       // Act
@@ -59,4 +61,3 @@ class UrlAccessTokenPurgeJobTest {
     }
   }
 }
-
