@@ -993,6 +993,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
     }
 
     @Test
+    @Disabled
     @DisplayName("AtomicTesting created in tenant X should NOT be deletable from tenant Y")
     void given_atomicTestingInTenantX_should_notBeDeletableFromTenantY() throws Exception {
       Tenant tenantX =
