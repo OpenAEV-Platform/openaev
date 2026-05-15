@@ -27,6 +27,7 @@ public class HttpReqRespUtils {
     "X-Forwarded-For",
     "Proxy-Client-IP",
     "WL-Proxy-Client-IP",
+    "X-Real-IP",
     "HTTP_X_FORWARDED_FOR",
     "HTTP_X_FORWARDED",
     "HTTP_X_CLUSTER_CLIENT_IP",
@@ -52,8 +53,12 @@ public class HttpReqRespUtils {
     if (RequestContextHolder.getRequestAttributes() == null) {
       return "0.0.0.0";
     }
-    HttpServletRequest request =
-        ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
+    HttpServletRequest request = getCurrentRequest();
+
+    if (request == null) {
+      return null;
+    }
+
     for (String header : IP_HEADER_CANDIDATES) {
       String ipList = request.getHeader(header);
       if (ipList != null && !ipList.isEmpty() && !"unknown".equalsIgnoreCase(ipList)) {
@@ -61,5 +66,14 @@ public class HttpReqRespUtils {
       }
     }
     return request.getRemoteAddr();
+  }
+
+  public static HttpServletRequest getCurrentRequest() {
+    try {
+      ServletRequestAttributes attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+      return attrs != null ? attrs.getRequest() : null;
+    } catch (Exception e) {
+      return null;
+    }
   }
 }

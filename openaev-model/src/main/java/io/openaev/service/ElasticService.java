@@ -1028,6 +1028,11 @@ public class ElasticService implements EngineService {
     return null;
   }
 
+  @Override
+  public ObjectMapper getObjectMapper() {
+    return driver.getObjectMapper();
+  }
+
   // endregion
 
   private String toElasticField(@NotBlank final String field) {
