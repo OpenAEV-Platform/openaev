@@ -1165,10 +1165,6 @@ class PayloadApiTest extends IntegrationTest {
     private String createPayloadInTenant(Tenant tenant, String name) {
       String payloadId = UUID.randomUUID().toString();
       entityManager
-          .createNativeQuery("SELECT set_config('app.current_tenant', :tenantId, false)")
-          .setParameter("tenantId", tenant.getId())
-          .getSingleResult();
-      entityManager
           .createNativeQuery(
               "INSERT INTO payloads (payload_id, payload_type, payload_name, payload_status, payload_source, tenant_id, payload_created_at, payload_updated_at) "
                   + "VALUES (:id, 'Command', :name, 'VERIFIED', 'MANUAL', :tenantId, now(), now())")
@@ -1176,10 +1172,6 @@ class PayloadApiTest extends IntegrationTest {
           .setParameter("name", name)
           .setParameter("tenantId", tenant.getId())
           .executeUpdate();
-      // Reset RLS context to default tenant so subsequent API calls don't inherit tenantX
-      entityManager
-          .createNativeQuery("SELECT set_config('app.current_tenant', '', false)")
-          .getSingleResult();
       entityManager.flush();
       entityManager.clear();
       return payloadId;
@@ -1187,7 +1179,6 @@ class PayloadApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Payload created in tenant X should NOT be readable from tenant Y")
-    // @WithoutRls // uncomment to fail the test: native query caught by RLS
     void given_payloadInTenantX_should_notBeReadableFromTenantY() throws Exception {
       Tenant tenantX =
           tenantIsolationHelper.createTenantWithCapabilities(

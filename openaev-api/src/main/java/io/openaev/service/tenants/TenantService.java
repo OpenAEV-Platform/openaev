@@ -46,33 +46,12 @@ public class TenantService {
 
     Tenant createdTenant = tenantRepository.save(tenant);
 
-    // When you create a tenant, you're already inside a transaction with a DB connection that
-    // was checked out before the new tenant existed. The connection's app.current_tenant is
-    // still set to the previous tenant (likely the default/platform tenant).
-    //    After tenantRepository.save(tenant), you need to insert tenant-scoped dependencies
-    // (domains, roles, etc.)
-    //    into that new tenant. But if RLS is active, those INSERTs would fail or go to the wrong
-    // tenant because
-    //    app.current_tenant still points to the old value.
-    //    So you must update three layers:
-    //    - TenantContext (ThreadLocal) — for application-level code
-    //    - Hibernate filter — so JPA queries see the right tenant
-    //    - app.current_tenant on the connection — so RLS policies allow the INSERTs to succeed and
-    // go to the right tenant.
-    //    This is done via a native query on the connection, not via JPA, to avoid any caching or
-    // session-level issues.
+    // Switch context to the new tenant so that subsequent dependency creation
+    // (domains, roles, etc.) is scoped to the new tenant via Hibernate filter.
     String newTenantId = createdTenant.getId();
     TenantContext.setCurrentTenant(newTenantId);
     org.hibernate.Session session = entityManager.unwrap(org.hibernate.Session.class);
     session.enableFilter("tenantFilter").setParameter("tenantId", newTenantId);
-    session.doWork(
-        connection -> {
-          try (var stmt =
-              connection.prepareStatement("SELECT set_config('app.current_tenant', ?, false)")) {
-            stmt.setString(1, newTenantId);
-            stmt.execute();
-          }
-        });
 
     for (DependenciesManager dependency : sortByPrerequisites(dependencies)) {
       dependency.createDependencyForTenant(createdTenant);

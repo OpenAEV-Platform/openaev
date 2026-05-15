@@ -18,7 +18,6 @@ services:
     restart: unless-stopped
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d openaev"]
       interval: 10s
@@ -105,8 +104,6 @@ services:
     ports:
       - "5433:5432"
     restart: unless-stopped
-    volumes:
-      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER}", "-d", "openaev"]
       interval: 10s

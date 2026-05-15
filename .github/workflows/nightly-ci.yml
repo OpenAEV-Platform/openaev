@@ -115,8 +115,6 @@ jobs:
       - name: Build all modules (skip tests)
         run: mvn -B -ntp clean install -DskipTests
 
-      - name: Create openaev_app role for RLS migration
-        run: psql "postgresql://openaev:openaev@localhost:5432/openaev" -c "CREATE ROLE openaev_app NOLOGIN NOSUPERUSER;"
 
       - name: Run API tests (Elasticsearch)
         run: mvn -B -ntp -pl openaev-api verify
@@ -205,8 +203,6 @@ jobs:
       - name: Build all modules (skip tests)
         run: mvn -B -ntp clean install -DskipTests
 
-      - name: Create openaev_app role for RLS migration
-        run: psql "postgresql://openaev:openaev@localhost:5432/openaev" -c "CREATE ROLE openaev_app NOLOGIN NOSUPERUSER;"
 
       - name: Run API tests (OpenSearch)
         run: mvn -B -ntp -pl openaev-api verify
@@ -375,8 +371,6 @@ jobs:
           name: openaev-api-jar
           path: openaev-api/target
 
-      - name: Create openaev_app role for RLS migration
-        run: psql "postgresql://openaev:openaev@localhost:5432/openaev" -c "CREATE ROLE openaev_app NOLOGIN NOSUPERUSER;"
 
       - name: Start application
         run: |
@@ -609,8 +603,6 @@ jobs:
           name: openaev-api-jar
           path: openaev-api/target
 
-      - name: Create openaev_app role for RLS migration
-        run: psql "postgresql://openaev:openaev@localhost:5432/openaev" -c "CREATE ROLE openaev_app NOLOGIN NOSUPERUSER;"
 
       - name: Start application
         run: |
