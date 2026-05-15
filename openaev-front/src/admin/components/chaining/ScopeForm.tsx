@@ -296,6 +296,7 @@ const ScopeForm: FunctionComponent<ScopeFormProps> = ({
       try {
         result = parseScopeRulesCsv(content);
       } catch {
+        MESSAGING$.notifyError(t('CSV import failed'));
         return;
       }
 
