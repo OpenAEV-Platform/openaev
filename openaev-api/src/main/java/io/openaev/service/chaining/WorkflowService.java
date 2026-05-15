@@ -563,7 +563,7 @@ public class WorkflowService {
       uniqueSources.add(source);
     }
 
-    // KP1. Record Creation Patterns (Allowlist/Denylist)
+    // KPI. Record Creation Patterns (Allowlist/Denylist)
     modeCounts.forEach(scopeMetricCollector::recordScopeCreated);
 
     // KPI. Record Type and Source Patterns (e.g. DOMAIN|CSV, IP|Manual)
