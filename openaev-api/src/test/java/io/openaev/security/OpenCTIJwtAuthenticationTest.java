@@ -8,9 +8,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
+import io.openaev.database.model.Tenant;
+import io.openaev.database.model.User;
 import io.openaev.integration.Manager;
 import io.openaev.integration.impl.injectors.manual.ManualInjectorIntegrationFactory;
-import io.openaev.opencti.config.OpenCTIConfig;
+import io.openaev.opencti.config.XtmConfig;
 import io.openaev.opencti.connectors.impl.SecurityCoverageConnector;
 import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
 import io.openaev.utils.fixtures.JwtFixture;
@@ -49,7 +52,7 @@ public class OpenCTIJwtAuthenticationTest extends IntegrationTest {
   @Autowired private ManualInjectorIntegrationFactory manualInjectorIntegrationFactory;
   @Autowired private UserComposer userComposer;
   @Autowired private TokenComposer tokenComposer;
-  @Autowired private OpenCTIConfig openCTIConfig;
+  @Autowired private XtmConfig openCTIConfig;
 
   @BeforeEach
   void setUp() throws Exception {
@@ -84,14 +87,21 @@ public class OpenCTIJwtAuthenticationTest extends IntegrationTest {
     if (jwks != null) {
       SecurityCoverageConnector c = new SecurityCoverageConnector();
       c.setJwks(jwks);
-      c.setOpenctiConfig(openCTIConfig);
-      Mockito.doReturn(Optional.of(c)).when(openCTIConnectorService).getConnectorBase();
+      c.setOpenCTIConfig(openCTIConfig.getOpencti().get(TenantContext.getCurrentTenant()));
+      c.setTenantId(TenantContext.getCurrentTenant());
+      Mockito.doReturn(Optional.of(c))
+          .when(openCTIConnectorService)
+          .getConnectorBase(TenantContext.getCurrentTenant());
+      Mockito.doReturn(List.of(c)).when(openCTIConnectorService).getRegisterConnectors();
     }
 
-    userComposer
-        .forUser(UserFixture.getUserWithDefaultEmail())
-        .withToken(tokenComposer.forToken(TokenFixture.getTokenWithValue("auth token")))
-        .persist();
+    User user =
+        userComposer
+            .forUser(UserFixture.getUserWithDefaultEmail())
+            .withToken(tokenComposer.forToken(TokenFixture.getTokenWithValue("auth token")))
+            .persist()
+            .get();
+    tenantRepository.addUserToTenant(user.getId(), Tenant.DEFAULT_TENANT_UUID);
     entityManager.flush();
 
     var request =
