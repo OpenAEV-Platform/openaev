@@ -1,6 +1,7 @@
 package io.openaev.rest.user;
 
 import static io.openaev.config.SessionHelper.currentUser;
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.database.specification.TokenSpecification.fromUser;
 import static io.openaev.helper.DatabaseHelper.updateRelation;
 
@@ -8,7 +9,6 @@ import io.openaev.aop.AccessControl;
 import io.openaev.api.tenants.TenantMapper;
 import io.openaev.api.tenants.TenantOutput;
 import io.openaev.config.SessionManager;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Token;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.OrganizationRepository;
@@ -37,6 +37,7 @@ import org.springframework.web.bind.annotation.*;
 public class MeApi extends RestBehavior {
 
   public static final String ME_URI = "/api/me";
+  private static final String TENANT_ME_URI = TENANT_PREFIX + "/me";
 
   private final SessionManager sessionManager;
   private final OrganizationRepository organizationRepository;
@@ -51,12 +52,9 @@ public class MeApi extends RestBehavior {
     return ResponseEntity.ok().build();
   }
 
-  @GetMapping(ME_URI)
+  @GetMapping({ME_URI, TENANT_ME_URI})
   @AccessControl(skipRBAC = true)
-  public User me(@RequestParam(required = false) final String tenantId) {
-    if (tenantId != null && !tenantId.isEmpty()) {
-      TenantContext.setCurrentTenant(tenantId);
-    }
+  public User me() {
     return userRepository
         .findById(currentUser().getId())
         .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
