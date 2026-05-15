@@ -199,7 +199,8 @@ class ScopeMetricCollectorTest {
       verify(metricRegistry)
           .registerMultiGauge(
               eq("scope_workflow_source_usage_count"),
-              eq("Number of unique workflows using a specific source during the collection interval"),
+              eq(
+                  "Number of unique workflows using a specific source during the collection interval"),
               supplierCaptor.capture());
 
       Map<Attributes, Long> snapshot = supplierCaptor.getValue().get();
