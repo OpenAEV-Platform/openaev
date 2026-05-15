@@ -17,8 +17,7 @@ class TenantInterceptorTest {
 
   private final TenantMembershipCacheManager tenantMembershipCacheManager =
       mock(TenantMembershipCacheManager.class);
-  private final TenantInterceptor interceptor =
-      new TenantInterceptor(tenantMembershipCacheManager);
+  private final TenantInterceptor interceptor = new TenantInterceptor(tenantMembershipCacheManager);
 
   private final MockHttpServletRequest request = new MockHttpServletRequest();
   private final MockHttpServletResponse response = new MockHttpServletResponse();
