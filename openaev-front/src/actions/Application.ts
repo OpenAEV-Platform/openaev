@@ -112,7 +112,6 @@ export const checkKerberos = () => (dispatch: AppDispatch) => {
 
 export const fetchMe = () => (dispatch: AppDispatch) => {
   const tenantId = extractTenantFromUrl();
-  window.alert(tenantId);
   const uri = tenantId ? `/api/me?tenantId=${encodeURIComponent(tenantId)}` : '/api/me';
   const ref = getReferential(schema.user, uri)(dispatch);
   return ref.then((data: User) => dispatch({
