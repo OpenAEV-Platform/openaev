@@ -975,9 +975,7 @@ class WorkflowServiceTest {
               .ruleValue(existingRule.getRuleValue())
               .build();
       WorkflowConfigurationInput secondInput =
-          WorkflowConfigurationInput.builder()
-              .workflowScopeRules(List.of(retainedInput))
-              .build();
+          WorkflowConfigurationInput.builder().workflowScopeRules(List.of(retainedInput)).build();
 
       // Act
       service.updateWorkflowConfiguration(workflow.getId(), secondInput);
