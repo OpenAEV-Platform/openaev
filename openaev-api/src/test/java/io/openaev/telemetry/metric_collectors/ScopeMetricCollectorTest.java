@@ -52,7 +52,7 @@ class ScopeMetricCollectorTest {
       verify(metricRegistry)
           .registerMultiGauge(
               eq("scope_created_count"),
-              eq("Number of entries created in scope rules by mode"),
+              eq("Number of entries created in scope rules by mode during the collection interval"),
               supplierCaptor.capture(),
               eq("count"));
 
@@ -128,7 +128,7 @@ class ScopeMetricCollectorTest {
       verify(metricRegistry)
           .registerMultiGauge(
               eq("scope_entry_added_count"),
-              eq("Total scope entries added by type and source"),
+              eq("Scope entries added by type and source during the collection interval"),
               supplierCaptor.capture());
 
       Map<Attributes, Long> snapshot = supplierCaptor.getValue().get();
@@ -178,7 +178,7 @@ class ScopeMetricCollectorTest {
   }
 
   // ========================================================================
-  // scope_workflow_source_usage_total
+  // scope_workflow_source_usage_count
   // ========================================================================
   @Nested
   @DisplayName("Source usage multi-gauge")
@@ -198,8 +198,8 @@ class ScopeMetricCollectorTest {
       // Assert
       verify(metricRegistry)
           .registerMultiGauge(
-              eq("scope_workflow_source_usage_total"),
-              eq("Number of unique workflows using a specific source"),
+              eq("scope_workflow_source_usage_count"),
+              eq("Number of unique workflows using a specific source during the collection interval"),
               supplierCaptor.capture());
 
       Map<Attributes, Long> snapshot = supplierCaptor.getValue().get();
@@ -220,7 +220,7 @@ class ScopeMetricCollectorTest {
       // Assert
       verify(metricRegistry)
           .registerMultiGauge(
-              eq("scope_workflow_source_usage_total"), any(), supplierCaptor.capture());
+              eq("scope_workflow_source_usage_count"), any(), supplierCaptor.capture());
 
       Map<Attributes, Long> snapshot = supplierCaptor.getValue().get();
       assertThat(snapshot).hasSize(1);
@@ -239,7 +239,7 @@ class ScopeMetricCollectorTest {
       // Assert
       verify(metricRegistry)
           .registerMultiGauge(
-              eq("scope_workflow_source_usage_total"), any(), supplierCaptor.capture());
+              eq("scope_workflow_source_usage_count"), any(), supplierCaptor.capture());
 
       Supplier<Map<Attributes, Long>> supplier = supplierCaptor.getValue();
       assertThat(supplier.get()).hasSize(1);
