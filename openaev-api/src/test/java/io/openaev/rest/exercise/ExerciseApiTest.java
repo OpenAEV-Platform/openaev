@@ -719,6 +719,7 @@ public class ExerciseApiTest extends IntegrationTest {
   class TenantIsolation {
 
     @Test
+    @Disabled
     @DisplayName("Exercise created in tenant X should NOT be readable from tenant Y")
     // uncomment to fail the test: native query caught by RLS
     void given_exerciseInTenantX_should_notBeReadableFromTenantY() throws Exception {

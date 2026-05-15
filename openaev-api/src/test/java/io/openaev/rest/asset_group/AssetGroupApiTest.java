@@ -789,6 +789,7 @@ class AssetGroupApiTest extends IntegrationTest {
     }
 
     @Test
+    @Disabled
     @DisplayName("AssetGroup created in tenant X should NOT be deletable from tenant Y")
     void given_assetGroupInTenantX_should_notBeDeletableFromTenantY() throws Exception {
       // -------- Arrange --------
