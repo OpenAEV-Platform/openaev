@@ -1,5 +1,7 @@
 package io.openaev.scheduler.jobs;
 
+import static java.util.Optional.ofNullable;
+
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Exercise;
