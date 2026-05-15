@@ -53,7 +53,7 @@ public class ScopeMetricCollector {
         () -> collectAndResetUsage(sourceUsageStats));
   }
 
-  /** KP1. Record Creation Patterns (Allowlist/Denylist) */
+  /** KPI. Record Creation Patterns (Allowlist/Denylist) */
   public void recordScopeCreated(String mode, int entryCount) {
     Attributes attrs = Attributes.of(stringKey(SCOPE_SELECTED_MODE), mode.toLowerCase());
     scopeCreatedStats.computeIfAbsent(attrs, k -> new AtomicLong(0)).addAndGet(entryCount);
