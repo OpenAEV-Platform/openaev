@@ -22,6 +22,7 @@ import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.ee.License;
 import io.openaev.engine.EngineService;
 import io.openaev.expectation.ExpectationPropertiesConfig;
+import io.openaev.opencti.config.OpenCTIConfig;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.settings.form.*;
@@ -61,6 +62,7 @@ public class PlatformSettingsService {
   private final ApplicationContext context;
   private final Environment env;
   private final SettingRepository settingRepository;
+  private final OpenCTIConfig openCTIConfig;
   private final XtmHubConfig xtmHubConfig;
   private final AiConfig aiConfig;
   private final EnterpriseEditionService enterpriseEditionService;
@@ -295,6 +297,8 @@ public class PlatformSettingsService {
     platformSettings.setPlatformBaseUrl(openAEVConfig.getBaseUrl());
     platformSettings.setPlatformAgentUrl(openAEVConfig.getBaseUrlForAgent());
     platformSettings.setPlatformVersion(openAEVConfig.getVersion());
+    platformSettings.setXtmOpenctiEnable(openCTIConfig.getEnable());
+    platformSettings.setXtmOpenctiUrl(openCTIConfig.getUrl());
     platformSettings.setXtmOneConfigured(xtmOneConfig.isConfigured());
     platformSettings.setXtmOneUrl(xtmOneConfig.getUrl());
     platformSettings.setXtmOneWebToken(xtmOneConfig.getEffectiveWebToken());

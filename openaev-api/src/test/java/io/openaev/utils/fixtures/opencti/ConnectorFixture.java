@@ -1,6 +1,5 @@
 package io.openaev.utils.fixtures.opencti;
 
-import io.openaev.database.model.Tenant;
 import io.openaev.opencti.connectors.ConnectorBase;
 import io.openaev.opencti.connectors.ConnectorType;
 import java.util.ArrayList;
@@ -46,7 +45,6 @@ public class ConnectorFixture {
 
   public static ConnectorBase getDefaultConnector() {
     ConnectorBase cb = new TestConnector("Test connector", ConnectorType.INTERNAL_ENRICHMENT);
-    cb.setTenantId(Tenant.DEFAULT_TENANT_UUID);
     cb.setAuto(false);
     cb.setAutoUpdate(false);
     cb.setOnlyContextual(false);

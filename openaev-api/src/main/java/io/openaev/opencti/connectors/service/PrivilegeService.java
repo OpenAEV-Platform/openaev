@@ -10,11 +10,9 @@ import io.openaev.opencti.connectors.ConnectorBase;
 import io.openaev.service.RoleService;
 import io.openaev.service.TenantGroupService;
 import io.openaev.service.UserService;
-import io.openaev.service.tenants.TenantUserService;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -22,41 +20,28 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-@Transactional(rollbackFor = Exception.class)
 @Slf4j
 public class PrivilegeService {
 
-  public static final String CONNECTOR_EMAIL_PATTERN = "connector-opencti-%s@openaev.invalid";
+  private static final String CONNECTOR_EMAIL_PATTERN = "connector-%s@openaev.invalid";
   private static final String CONNECTOR_LASTNAME = "OpenCTI Connector";
 
   private final RoleService roleService;
   private final TenantGroupService tenantGroupService;
   private final UserService userService;
-  private final TenantUserService tenantUserService;
-  private final LegacyOpenCTIConnectorMigration legacyOpenCTIConnectorMigration;
 
-  /**
-   * Ensures a privileged technical user exists for the given OpenCTI connector. Creates or updates
-   * the user, its group, role, and tenant attachment as needed.
-   */
+  @Transactional
   public void ensurePrivilegedUserExistsForConnector(ConnectorBase connector) {
+    Group group = createWellKnownGroupWithRole(createWellKnownRole());
     String email = CONNECTOR_EMAIL_PATTERN.formatted(connector.getId());
 
-    // TODO: remove once all deployments have been migrated to multi-tenant
-    legacyOpenCTIConnectorMigration.deleteLegacyConnectorIfExists(email);
-
-    Group group =
-        createWellKnownGroupWithRole(
-            createWellKnownRole(connector.getTenantId()), connector.getTenantId());
-    Optional<User> connectorUser =
-        userService.findByTokenAndTenantId(connector.getToken(), connector.getTenantId());
+    Optional<User> connectorUser = userService.findByToken(connector.getToken());
     Optional<User> existingEmailUser = userService.findByEmailIgnoreCase(email);
 
     if (connectorUser.isPresent()) {
       // Token-matched user already exists — update its attributes
       applyConnectorAttributes(connectorUser.get(), connector, email, group);
       userService.saveUser(connectorUser.get());
-      tenantUserService.attachToTenant(connectorUser.get().getId(), connector.getTenantId());
     } else if (existingEmailUser.isPresent()) {
       // Email-matched user exists but has no token — reuse and attach token
       log.warn(
@@ -70,19 +55,15 @@ public class PrivilegeService {
                       userService.createUserToken(existingEmailUser.get(), connector.getToken()))));
       applyConnectorAttributes(existingEmailUser.get(), connector, email, group);
       userService.saveUser(existingEmailUser.get());
-      tenantUserService.attachToTenant(existingEmailUser.get().getId(), connector.getTenantId());
     } else {
       // No user exists — create one
       User user =
           userService.createInternalUser(
               email, connector.getName(), CONNECTOR_LASTNAME, false, connector.getToken());
       user.setGroups(new ArrayList<>(List.of(group)));
-      User savedUser = userService.saveUser(user);
-      tenantUserService.attachToTenant(savedUser.getId(), connector.getTenantId());
+      userService.saveUser(user);
     }
   }
-
-  // -- PRIVATE --
 
   private void applyConnectorAttributes(
       User user, ConnectorBase connector, String email, Group group) {
@@ -93,43 +74,47 @@ public class PrivilegeService {
     user.setGroups(new ArrayList<>(List.of(group)));
   }
 
-  private Role createWellKnownRole(String tenantId) {
-    String roleId =
-        UUID.nameUUIDFromBytes((UUID.fromString(PROCESS_STIX_ROLE_ID) + ":" + tenantId).getBytes())
-            .toString();
-    Optional<Role> processStixRole = roleService.findById(roleId);
+  private Role createWellKnownRole() {
+    Optional<Role> processStixRole = roleService.findById(PROCESS_STIX_ROLE_ID);
     if (processStixRole.isEmpty()) {
-      return roleService.createRole(
-          roleId,
-          PROCESS_STIX_ROLE_NAME,
-          PROCESS_STIX_ROLE_DESCRIPTION,
-          PROCESS_STIX_ROLE_CAPABILITIES,
-          tenantId);
+      processStixRole =
+          Optional.of(
+              roleService.createRole(
+                  PROCESS_STIX_ROLE_ID,
+                  PROCESS_STIX_ROLE_NAME,
+                  PROCESS_STIX_ROLE_DESCRIPTION,
+                  PROCESS_STIX_ROLE_CAPABILITIES));
     } else {
-      return roleService.updateRole(
-          roleId,
-          PROCESS_STIX_ROLE_NAME,
-          PROCESS_STIX_ROLE_DESCRIPTION,
-          PROCESS_STIX_ROLE_CAPABILITIES);
+      processStixRole =
+          Optional.of(
+              roleService.updateRole(
+                  PROCESS_STIX_ROLE_ID,
+                  PROCESS_STIX_ROLE_NAME,
+                  PROCESS_STIX_ROLE_DESCRIPTION,
+                  PROCESS_STIX_ROLE_CAPABILITIES));
     }
+    return processStixRole.get();
   }
 
-  private Group createWellKnownGroupWithRole(Role role, String tenantId) {
-    String groupId =
-        UUID.nameUUIDFromBytes((UUID.fromString(PROCESS_STIX_GROUP_ID) + ":" + tenantId).getBytes())
-            .toString();
-    Optional<Group> processStixGroup = tenantGroupService.findById(groupId);
+  private Group createWellKnownGroupWithRole(Role role) {
+    Optional<Group> processStixGroup = tenantGroupService.findById(PROCESS_STIX_GROUP_ID);
 
     TenantGroupCreateInput input = new TenantGroupCreateInput();
     input.setName(PROCESS_STIX_GROUP_NAME);
     input.setDescription(PROCESS_STIX_GROUP_DESCRIPTION);
     input.setDefaultUserAssignation(false);
 
-    List<Role> roles = new ArrayList<>(List.of(role));
-    if (processStixGroup.isPresent()) {
-      return tenantGroupService.updateGroupInfoWithRoles(processStixGroup.get(), input, roles);
-    } else {
-      return tenantGroupService.createGroupWithRole(groupId, input, roles, tenantId);
-    }
+    processStixGroup =
+        processStixGroup
+            .map(
+                group ->
+                    tenantGroupService.updateGroupInfoWithRoles(
+                        group, input, new ArrayList<>(List.of(role))))
+            .or(
+                () ->
+                    Optional.of(
+                        tenantGroupService.createGroupWithRole(
+                            PROCESS_STIX_GROUP_ID, input, new ArrayList<>(List.of(role)))));
+    return processStixGroup.get();
   }
 }

@@ -1,31 +1,31 @@
 package io.openaev.opencti.config;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 
+@Component
 @Data
 public class OpenCTIConfig {
   public static final String GRAPHQL_ENDPOINT_URI = "graphql";
 
-  @JsonProperty("enable")
+  @NotNull
+  @Value("${openbas.xtm.opencti.enable:${openaev.xtm.opencti.enable:false}}")
   private Boolean enable;
 
-  @JsonProperty("url")
+  @NotBlank
+  @Value("${openbas.xtm.opencti.url:${openaev.xtm.opencti.url:#{null}}}")
   private String url;
 
-  @JsonProperty("api-url")
+  @Value("${openbas.xtm.opencti.api-url:${openaev.xtm.opencti.api-url:#{null}}}")
   private String apiUrl;
 
-  @JsonProperty("token")
+  @NotBlank
+  @Value("${openbas.xtm.opencti.token:${openaev.xtm.opencti.token:#{null}}}")
   private String token;
-
-  public boolean isValid() {
-    if (!Boolean.TRUE.equals(enable)) {
-      return true;
-    }
-    return !StringUtils.isBlank(url) && !StringUtils.isBlank(token);
-  }
 
   public String getApiUrl() {
     // Case 1: apiUrl defined

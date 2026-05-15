@@ -19,7 +19,7 @@ import lombok.Data;
 public class Tenant implements Base, Auditable {
 
   // Same default ID for XTM HUB and OpenAEV instances
-  public static final String DEFAULT_TENANT_UUID = "2cffad3a-0001-4078-b0e2-ef74274022c3";
+  public static String DEFAULT_TENANT_UUID = "2cffad3a-0001-4078-b0e2-ef74274022c3";
 
   @Id
   @GeneratedValue(strategy = GenerationType.UUID)

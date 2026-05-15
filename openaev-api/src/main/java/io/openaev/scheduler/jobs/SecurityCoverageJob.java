@@ -1,12 +1,7 @@
 package io.openaev.scheduler.jobs;
 
-import static java.util.Optional.ofNullable;
-
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.context.TenantContext;
-import io.openaev.database.model.Exercise;
 import io.openaev.database.model.SecurityCoverageSendJob;
-import io.openaev.database.model.Tenant;
 import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
 import io.openaev.service.SecurityCoverageSendJobService;
 import io.openaev.service.stix.SecurityCoverageService;
@@ -44,14 +39,7 @@ public class SecurityCoverageJob implements Job {
         // send bundle
         Bundle resultBundle =
             securityCoverageService.createBundleFromSendJobs(List.of(securityCoverageSendJob));
-        String tenantId =
-            ofNullable(securityCoverageSendJob.getSimulation())
-                .map(Exercise::getTenant)
-                .map(Tenant::getId)
-                .orElseThrow(() -> new IllegalStateException("Simulation or tenant not found"));
-        // Set tenant context for downstream Hibernate filters and audit
-        TenantContext.setCurrentTenant(tenantId);
-        openCTIConnectorService.pushSecurityCoverageStixBundle(resultBundle, tenantId);
+        openCTIConnectorService.pushSecurityCoverageStixBundle(resultBundle);
         successfulJobs.add(securityCoverageSendJob);
       } catch (Exception e) {
         // don't crash the job
@@ -59,8 +47,6 @@ public class SecurityCoverageJob implements Job {
             "Could not create the STIX bundle for coverage of simulation {}",
             securityCoverageSendJob.getSimulation().getId(),
             e);
-      } finally {
-        TenantContext.clearCurrentTenant();
       }
     }
     if (!successfulJobs.isEmpty()) {

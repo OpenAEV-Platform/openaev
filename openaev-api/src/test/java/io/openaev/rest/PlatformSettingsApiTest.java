@@ -40,6 +40,9 @@ class PlatformSettingsApiTest extends IntegrationTest {
           "platform_id",
           "platform_name",
           "platform_base_url",
+          // OpenCTI
+          "xtm_opencti_enable",
+          "xtm_opencti_url",
           // XTM Hub (config-driven, always present)
           "xtm_hub_enable",
           "xtm_hub_url",

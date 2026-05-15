@@ -45,6 +45,14 @@ public class PlatformSettings extends PublicPlatformSettings {
   @Schema(description = "URL of the server containing the map tile with dark theme")
   private String mapTileServerDark;
 
+  @JsonProperty("xtm_opencti_enable")
+  @Schema(description = "True if connection with OpenCTI is enabled")
+  private Boolean xtmOpenctiEnable;
+
+  @JsonProperty("xtm_opencti_url")
+  @Schema(description = "Url of OpenCTI")
+  private String xtmOpenctiUrl;
+
   @JsonProperty("telemetry_manager_enable")
   @Schema(description = "True if telemetry manager enable")
   private Boolean telemetryManagerEnable;

@@ -8,7 +8,6 @@ import io.openaev.opencti.connectors.ConnectorBase;
 import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
 import io.openaev.opencti.errors.ConnectorError;
 import io.openaev.service.UserService;
-import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,31 +22,30 @@ public class ConnectorJwtExtractor implements ExtractorBase {
 
   @Override
   public Optional<User> authUser(String value) throws ConnectorError, JwtException {
-    List<ConnectorBase> connectors = openCTIConnectorService.getRegisterConnectors();
-    if (connectors.isEmpty()) {
-      throw new ConnectorError("Connectors not found");
+    Optional<ConnectorBase> openCTIConnector = openCTIConnectorService.getConnectorBase();
+    if (openCTIConnector.isEmpty()) {
+      throw new ConnectorError("Connector not found");
     }
-    for (ConnectorBase connector : connectors) {
-      try {
-        Jwts.parser()
-            .requireIssuer("opencti")
-            .requireSubject("connector")
-            .keyLocator(
-                header -> {
-                  String kid = (String) header.get("kid");
-                  return Jwks.setParser().build().parse(connector.getJwks()).getKeys().stream()
-                      .filter(k -> kid.equals(k.getId()))
-                      .findFirst()
-                      .orElseThrow()
-                      .toKey();
-                })
-            .build()
-            .parseSignedClaims(value);
-        return userService.findByTokenAndTenantId(connector.getToken(), connector.getTenantId());
-      } catch (Exception e) {
-        // No exception needed here because thrown above
-      }
-    }
-    throw new ConnectorError("Token or JWT not valid");
+
+    Jwts.parser()
+        .requireIssuer("opencti")
+        .requireSubject("connector")
+        .keyLocator(
+            header -> {
+              String kid = (String) header.get("kid");
+              return Jwks.setParser()
+                  .build()
+                  .parse(openCTIConnector.get().getJwks())
+                  .getKeys()
+                  .stream()
+                  .filter(k -> kid.equals(k.getId()))
+                  .findFirst()
+                  .orElseThrow()
+                  .toKey();
+            })
+        .build()
+        .parseSignedClaims(value);
+
+    return userService.findByToken(openCTIConnector.get().getToken());
   }
 }

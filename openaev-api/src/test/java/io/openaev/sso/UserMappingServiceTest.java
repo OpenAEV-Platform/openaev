@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.User;
 import io.openaev.opencti.connectors.Constants;
@@ -45,20 +44,6 @@ public class UserMappingServiceTest extends IntegrationTest {
     tenantGroupComposer.reset();
   }
 
-  private String tenantScopedId(String id) {
-    return UUID.nameUUIDFromBytes(
-            (UUID.fromString(id) + ":" + TenantContext.getCurrentTenant()).getBytes())
-        .toString();
-  }
-
-  private String tenantScopedGroupId() {
-    return tenantScopedId(Constants.PROCESS_STIX_GROUP_ID);
-  }
-
-  private String tenantScopedRoleId() {
-    return tenantScopedId(Constants.PROCESS_STIX_ROLE_ID);
-  }
-
   @Test
   @DisplayName(
       "When the specific group already exists and the autocreate is false, add it to the user")
@@ -68,7 +53,7 @@ public class UserMappingServiceTest extends IntegrationTest {
     String object =
         "[{\"idpGroup\": \"observer\",\"userGroup\": \"observerUserGroup\",\"autoCreate\": \"false\"}]";
     Group specificGroup = TenantGroupFixture.getGroup("observerUserGroup");
-    specificGroup.setId(tenantScopedGroupId());
+    specificGroup.setId(Constants.PROCESS_STIX_GROUP_ID);
     specificGroup.setDescription("a description");
     specificGroup.setRoles(new ArrayList<>());
     tenantGroupComposer.forGroup(specificGroup).persist();
@@ -137,7 +122,7 @@ public class UserMappingServiceTest extends IntegrationTest {
     String object =
         "[{\"idpGroup\": \"observer\",\"userGroup\": \"admin\",\"autoCreate\": \"false\"}]";
     Group specificGroup = TenantGroupFixture.getGroup("admin");
-    specificGroup.setId(tenantScopedGroupId());
+    specificGroup.setId(Constants.PROCESS_STIX_GROUP_ID);
     specificGroup.setDescription("a description");
     specificGroup.setRoles(new ArrayList<>());
     tenantGroupComposer.forGroup(specificGroup).persist();
@@ -164,7 +149,7 @@ public class UserMappingServiceTest extends IntegrationTest {
     String object =
         "[{\"idpGroup\": \"observer\",\"userGroup\": \"admin1\",\"autoCreate\": \"false\"},{\"idpGroup\": \"observer\",\"userGroup\": \"admin2\",\"autoCreate\": \"true\"}]";
     Group specificGroup = TenantGroupFixture.getGroup("observer");
-    specificGroup.setId(tenantScopedGroupId());
+    specificGroup.setId(Constants.PROCESS_STIX_GROUP_ID);
     specificGroup.setDescription("a description");
     specificGroup.setRoles(new ArrayList<>());
     tenantGroupComposer.forGroup(specificGroup).persist();
@@ -192,12 +177,12 @@ public class UserMappingServiceTest extends IntegrationTest {
     String object =
         "[{\"idpGroup\": \"observer1\",\"userGroup\": \"observerOAEV1\",\"autoCreate\": \"true\"},{\"idpGroup\": \"observer2\",\"userGroup\": \"observerOAEV2\",\"autoCreate\": \"true\"}]";
     Group specificGroup1 = TenantGroupFixture.getGroup("observerOAEV1");
-    specificGroup1.setId(tenantScopedGroupId());
+    specificGroup1.setId(Constants.PROCESS_STIX_GROUP_ID);
     specificGroup1.setDescription("a description");
     specificGroup1.setRoles(new ArrayList<>());
     tenantGroupComposer.forGroup(specificGroup1).persist();
     Group specificGroup2 = TenantGroupFixture.getGroup("observerOAEV2");
-    specificGroup2.setId(tenantScopedRoleId());
+    specificGroup2.setId(Constants.PROCESS_STIX_ROLE_ID);
     specificGroup2.setDescription("a description");
     specificGroup2.setRoles(new ArrayList<>());
     tenantGroupComposer.forGroup(specificGroup2).persist();

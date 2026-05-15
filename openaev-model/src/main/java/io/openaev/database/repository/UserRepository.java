@@ -171,19 +171,6 @@ public interface UserRepository
   @NotNull
   Page<User> findAll(@NotNull Specification<User> spec, @NotNull Pageable pageable);
 
-  @Query(
-      value =
-          "SELECT us.* "
-              + "FROM users us "
-              + "JOIN tokens t ON us.user_id = t.token_user "
-              + "JOIN users_tenants ut ON us.user_id = ut.user_id "
-              + "WHERE t.token_value = :token "
-              + "AND ut.tenant_id = :tenantId "
-              + "LIMIT 1",
-      nativeQuery = true)
-  Optional<User> findByTokenAndTenantId(
-      @Param("token") String token, @Param("tenantId") String tenantId);
-
   @Query("SELECT u FROM User u JOIN Token t ON u.id = t.user.id WHERE t.value = :token")
   Optional<User> findByToken(@Param("token") String token);
 

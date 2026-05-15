@@ -6436,6 +6436,10 @@ export interface PlatformSettings {
   xtm_hub_should_send_connectivity_email?: string;
   /** Url of XTM Hub */
   xtm_hub_url?: string;
+  /** True if connection with OpenCTI is enabled */
+  xtm_opencti_enable?: boolean;
+  /** Url of OpenCTI */
+  xtm_opencti_url?: string;
 }
 
 export interface PlayerInput {
@@ -7944,8 +7948,6 @@ export interface TenantSettingsOutput {
   platform_simulation_dashboard?: string;
   /** @minLength 1 */
   platform_theme: string;
-  xtm_opencti_enable?: boolean;
-  xtm_opencti_url?: string;
 }
 
 export interface TenantSettingsUpdateInput {

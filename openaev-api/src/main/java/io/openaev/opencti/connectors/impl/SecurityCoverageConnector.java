@@ -1,7 +1,6 @@
 package io.openaev.opencti.connectors.impl;
 
-import static io.openaev.config.TenantUriUtils.TENANT_BASE_PATH;
-
+import io.openaev.api.stix_process.StixApi;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.opencti.config.OpenCTIConfig;
 import io.openaev.opencti.connectors.ConnectorBase;
@@ -9,23 +8,34 @@ import io.openaev.opencti.connectors.ConnectorType;
 import io.openaev.utils.StringUtils;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 import lombok.Getter;
 import lombok.Setter;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.stereotype.Component;
 
+@Component
 @Getter
+@ConfigurationProperties(prefix = "openaev.xtm.opencti.connector.security-coverage")
 public class SecurityCoverageConnector extends ConnectorBase {
-  /**
-   * Namespace UUID used to derive deterministic connector IDs via UUID v5. DO NOT CHANGE — OpenCTI
-   * connector registrations depend on this value. Changing it would orphan all existing
-   * registrations.
-   */
-  private static final UUID NAMESPACE = UUID.fromString("68949a7b-c1c2-4649-b3de-7db804ba02bb");
+  private final String id = "68949a7b-c1c2-4649-b3de-7db804ba02bb";
 
-  @Setter private OpenCTIConfig openCTIConfig;
-  @Setter private OpenAEVConfig openAEVConfig;
+  // need to access the base URL for overriding the callback URI
+  private OpenCTIConfig openctiConfig;
+  private OpenAEVConfig mainConfig;
+
+  @Autowired
+  public void setOpenctiConfig(OpenCTIConfig openCTIConfig) {
+    this.openctiConfig = openCTIConfig;
+  }
+
+  @Autowired
+  public void setMainConfig(OpenAEVConfig mainConfig) {
+    this.mainConfig = mainConfig;
+  }
 
   private final ConnectorType type = ConnectorType.INTERNAL_ENRICHMENT;
+  private final String name = "OpenAEV Coverage";
   @Setter private volatile String jwks;
 
   public SecurityCoverageConnector() {
@@ -35,45 +45,31 @@ public class SecurityCoverageConnector extends ConnectorBase {
   }
 
   @Override
-  public String getName() {
-    return "OpenAEV Coverage - " + this.getTenantId();
-  }
-
-  @Override
-  public String getId() {
-    return UUID.nameUUIDFromBytes((NAMESPACE + ":" + this.getTenantId()).getBytes()).toString();
-  }
-
-  @Override
   public String getUrl() {
-    return openCTIConfig.getUrl();
+    return openctiConfig.getUrl();
   }
 
   @Override
   public String getApiUrl() {
-    return openCTIConfig.getApiUrl();
+    return openctiConfig.getApiUrl();
   }
 
   @Override
   public String getToken() {
-    return openCTIConfig.getToken();
+    return openctiConfig.getToken();
   }
 
   @Override
   public boolean shouldRegister() {
-    return openCTIConfig != null
-        && Boolean.TRUE.equals(openCTIConfig.getEnable())
-        && !StringUtils.isBlank(this.getTenantId())
-        && !StringUtils.isBlank(openCTIConfig.getUrl())
-        && !StringUtils.isBlank(openCTIConfig.getToken())
-        && openAEVConfig != null;
+    return openctiConfig.getEnable()
+        && !StringUtils.isBlank(this.getListenCallbackURI())
+        && !StringUtils.isBlank(this.getName())
+        && !StringUtils.isBlank(this.getToken())
+        && !StringUtils.isBlank(this.getUrl())
+        && this.getType() != null;
   }
 
-  @Override
   public String getListenCallbackURI() {
-    return openAEVConfig.getBaseUrl()
-        + TENANT_BASE_PATH
-        + this.getTenantId()
-        + "/stix/process-bundle";
+    return mainConfig.getBaseUrl() + StixApi.STIX_URI + "/process-bundle";
   }
 }

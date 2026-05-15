@@ -3,23 +3,6 @@ name: "[OpenAEV] Copilot On-Demand Review"
 on:
   issue_comment:
     types: [created]
-  # TODO: remove after testing — allows manual trigger from any branch
-  workflow_dispatch:
-    inputs:
-      pr_number:
-        description: "PR number to review"
-        required: true
-      agent:
-        description: "Agent to use"
-        required: true
-        type: choice
-        options:
-          - security-reviewer
-          - performance-reviewer
-          - multi-tenancy-reviewer
-          - test-specialist
-          - frontend-reviewer
-          - code-reviewer
 
 permissions:
   contents: read
@@ -30,31 +13,24 @@ jobs:
   on-demand-review:
     name: "🤖 On-demand agent review"
     if: >-
-      (github.event_name == 'workflow_dispatch') ||
-      (github.event.issue.pull_request && startsWith(github.event.comment.body, '/review'))
+      github.event.issue.pull_request &&
+      startsWith(github.event.comment.body, '/review')
     runs-on: ubuntu-latest
     steps:
       - name: Parse review command
         id: parse
         env:
-          COMMENT: ${{ github.event.comment.body || '' }}
-          MANUAL_AGENT: ${{ github.event.inputs.agent || '' }}
+          COMMENT: ${{ github.event.comment.body }}
         run: |
-          # Manual dispatch takes priority
-          if [ -n "$MANUAL_AGENT" ]; then
-            echo "agent=$MANUAL_AGENT" >> "$GITHUB_OUTPUT"
-            echo "pr_number=${{ github.event.inputs.pr_number }}" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
           AGENT=""
+
           case "$COMMENT" in
             */review\ security*)   AGENT="security-reviewer" ;;
             */review\ perf*)       AGENT="performance-reviewer" ;;
             */review\ tenancy*)    AGENT="multi-tenancy-reviewer" ;;
             */review\ test*)       AGENT="test-specialist" ;;
             */review\ frontend*)   AGENT="frontend-reviewer" ;;
-            */review\ all*)        AGENT="code-reviewer" ;;
+            */review\ all*)        AGENT="all" ;;
             *)
               echo "Unknown review command: $COMMENT"
               AGENT="unknown"
@@ -62,18 +38,45 @@ jobs:
           esac
 
           echo "agent=$AGENT" >> "$GITHUB_OUTPUT"
-          echo "pr_number=${{ github.event.issue.number }}" >> "$GITHUB_OUTPUT"
+
+      - name: Acknowledge command
+        if: steps.parse.outputs.agent != 'unknown'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const agent = '${{ steps.parse.outputs.agent }}';
+            const agentNames = {
+              'security-reviewer': '🔒 Security Reviewer',
+              'performance-reviewer': '⚡ Performance Reviewer',
+              'multi-tenancy-reviewer': '🏠 Multi-Tenancy Reviewer',
+              'test-specialist': '🧪 Test Specialist',
+              'frontend-reviewer': '🎨 Frontend Reviewer',
+              'all': '🔒⚡🏠🧪🎨 All Agents',
+            };
+
+            await github.rest.reactions.createForIssueComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: context.payload.comment.id,
+              content: 'rocket',
+            });
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `🤖 **${agentNames[agent] || agent}** review requested by @${context.payload.comment.user.login}.\n\n> Agent will analyze the PR and post findings as a review comment.`,
+            });
 
       - name: Unknown command
         if: steps.parse.outputs.agent == 'unknown'
         uses: actions/github-script@v7
         with:
           script: |
-            const issueNumber = ${{ steps.parse.outputs.pr_number }};
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: issueNumber,
+              issue_number: context.issue.number,
               body: [
                 '❓ Unknown review command. Available commands:',
                 '',
@@ -84,64 +87,7 @@ jobs:
                 '| `/review tenancy` | 🏠 Multi-Tenancy Reviewer |',
                 '| `/review tests` | 🧪 Test Specialist |',
                 '| `/review frontend` | 🎨 Frontend Reviewer |',
-                '| `/review all` | 🤖 Code Reviewer (delegates to specialists) |',
+                '| `/review all` | All agents |',
               ].join('\n'),
             });
 
-      - name: Request Copilot review with agent scope
-        if: steps.parse.outputs.agent != 'unknown'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const agent = '${{ steps.parse.outputs.agent }}';
-            const prNumber = ${{ steps.parse.outputs.pr_number }};
-            const owner = context.repo.owner;
-            const repo = context.repo.repo;
-
-            const agentLabels = {
-              'security-reviewer': '🔒 Security',
-              'performance-reviewer': '⚡ Performance',
-              'multi-tenancy-reviewer': '🏠 Multi-Tenancy',
-              'test-specialist': '🧪 Tests',
-              'frontend-reviewer': '🎨 Frontend',
-              'code-reviewer': '🤖 Full Review',
-            };
-
-            // 1. React to acknowledge (only for comment triggers)
-            if (context.payload.comment) {
-              await github.rest.reactions.createForIssueComment({
-                owner, repo,
-                comment_id: context.payload.comment.id,
-                content: 'rocket',
-              });
-            }
-
-            // 2. Request Copilot as reviewer on the PR
-            try {
-              await github.rest.pulls.requestReviewers({
-                owner, repo,
-                pull_number: prNumber,
-                reviewers: ['copilot'],
-              });
-            } catch (e) {
-              // Copilot may already be assigned or not available as collaborator
-              console.log(`Could not request copilot as reviewer: ${e.message}`);
-            }
-
-            const requestedBy = context.payload.comment?.user?.login || context.actor;
-
-            // 3. Post a scoping comment that Copilot will read as instructions
-            await github.rest.issues.createComment({
-              owner, repo,
-              issue_number: prNumber,
-              body: [
-                `@copilot — **${agentLabels[agent]}** review requested by @${requestedBy}.`,
-                '',
-                `Please review this PR using the **\`${agent}\`** agent definition from \`.github/agents/${agent}.agent.md\`.`,
-                '',
-                'Follow the review skill from `.github/skills/review-code/SKILL.md`.',
-                'Use conventional comments format (`issue:`, `suggestion:`, `nitpick:`, `praise:`).',
-                '',
-                `Focus exclusively on the **${agentLabels[agent]}** domain.`,
-              ].join('\n'),
-            });

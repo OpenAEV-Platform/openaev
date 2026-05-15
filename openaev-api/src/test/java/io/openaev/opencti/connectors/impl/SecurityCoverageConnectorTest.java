@@ -1,91 +1,131 @@
 package io.openaev.opencti.connectors.impl;
 
-import static io.openaev.config.TenantUriUtils.TENANT_BASE_PATH;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
-import io.openaev.database.model.Tenant;
-import io.openaev.opencti.connectors.ConnectorBase;
-import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
+import io.openaev.api.stix_process.StixApi;
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.utils.mockConfig.WithMockSecurityCoverageConnectorConfig;
-import java.util.Optional;
+import io.openaev.utilstest.RabbitMQTestListener;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.TestExecutionListeners;
 
-@Transactional
-@WithMockSecurityCoverageConnectorConfig(
-    enable = true,
-    url = "https://opencti",
-    token = "some-token")
-@DisplayName("SecurityCoverageConnector Integration Tests")
 public class SecurityCoverageConnectorTest extends IntegrationTest {
-
-  @Autowired private OpenCTIConnectorService openCTIConnectorService;
-
-  private SecurityCoverageConnector getConnector() {
-    Optional<ConnectorBase> connector =
-        openCTIConnectorService.getConnectorBase(TenantContext.getCurrentTenant());
-    assertThat(connector).isPresent();
-    return (SecurityCoverageConnector) connector.get();
-  }
-
   @Nested
   @DisplayName("Remote URL override")
-  class RemoteUrlOverride {
+  public class RemoteUrlOverride {
+    @Nested
+    @WithMockSecurityCoverageConnectorConfig(url = "https://opencti")
+    @SpringBootTest
+    @TestExecutionListeners(
+        value = {RabbitMQTestListener.class},
+        mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
+    @DisplayName("With only OpenCTI URL defined as FQDN")
+    public class WithOnlyOpenCTIURLDefinedAsFQDN {
+      @Autowired private SecurityCoverageConnector connector;
 
-    @Test
-    @DisplayName("it appends the graphql endpoint to the url")
-    void given_fqdn_should_appendGraphqlEndpoint() {
-      // Act & Assert
-      SecurityCoverageConnector connector = getConnector();
-      assertThat(connector.getApiUrl()).isEqualTo("https://opencti/graphql");
-    }
-  }
-
-  @Nested
-  @DisplayName("Connector properties")
-  class ConnectorProperties {
-
-    @Test
-    @DisplayName("connector has correct tenantId from config map")
-    void given_connector_should_haveTenantId() {
-      SecurityCoverageConnector connector = getConnector();
-      assertThat(connector.getTenantId()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
+      @Test
+      @DisplayName("it appends the graphql endpoint to the url")
+      public void itAppendsTheGraphQLEndpointToTheURL() {
+        assertThat(connector.getApiUrl()).isEqualTo("https://opencti/graphql");
+      }
     }
 
-    @Test
-    @DisplayName("connector shouldRegister returns true when properly configured")
-    void given_validConfig_should_register() {
-      SecurityCoverageConnector connector = getConnector();
-      assertThat(connector.shouldRegister()).isTrue();
+    @Nested
+    @WithMockSecurityCoverageConnectorConfig(url = "https://opencti/")
+    @SpringBootTest
+    @TestExecutionListeners(
+        value = {RabbitMQTestListener.class},
+        mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
+    @DisplayName("With only OpenCTI URL defined as FQDN with trailing slash")
+    public class WithOnlyOpenCTIURLDefinedAsFQDNWithTrailingSlash {
+      @Autowired private SecurityCoverageConnector connector;
+
+      @Test
+      @DisplayName("it appends the graphql endpoint to the url")
+      public void itAppendsTheGraphQLEndpointToTheURL() {
+        assertThat(connector.getApiUrl()).isEqualTo("https://opencti/graphql");
+      }
     }
 
-    @Test
-    @DisplayName("connector getId is deterministic based on namespace + tenantId")
-    void given_connector_should_haveDeterministicId() {
-      SecurityCoverageConnector connector = getConnector();
-      String id = connector.getId();
-      assertThat(id).isNotNull().isNotBlank();
-      // Calling again should give same result (deterministic)
-      assertThat(connector.getId()).isEqualTo(id);
+    @Nested
+    @WithMockSecurityCoverageConnectorConfig(url = "https://opencti/graphql")
+    @SpringBootTest
+    @TestExecutionListeners(
+        value = {RabbitMQTestListener.class},
+        mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
+    @DisplayName("With only OpenCTI URL defined as FQDN with graphql endpoint set")
+    public class WithOnlyOpenCTIURLDefinedAsFQDNWithGraphqlEndpointSet {
+      @Autowired private SecurityCoverageConnector connector;
+
+      @Test
+      @DisplayName("it appends the graphql endpoint to the url")
+      public void itAppendsTheGraphQLEndpointToTheURL() {
+        assertThat(connector.getApiUrl()).isEqualTo("https://opencti/graphql");
+      }
+    }
+
+    @Nested
+    @WithMockSecurityCoverageConnectorConfig(url = "")
+    @SpringBootTest
+    @TestExecutionListeners(
+        value = {RabbitMQTestListener.class},
+        mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
+    @DisplayName("With OpenCTI URL not defined")
+    public class WithNullUrl {
+      @Autowired private SecurityCoverageConnector connector;
+
+      @Test
+      @DisplayName("it is null")
+      public void itAppendsTheGraphQLEndpointToTheURL() {
+        assertThat(connector.getApiUrl()).isNull();
+      }
     }
   }
 
   @Nested
   @DisplayName("Listen Callback URI override")
-  class ListenCallbackURIOverride {
+  public class ListenCallbackURIOverride {
+    @Nested
+    @SpringBootTest
+    @TestExecutionListeners(
+        value = {RabbitMQTestListener.class},
+        mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
+    @WithMockSecurityCoverageConnectorConfig(listenCallbackURI = "some_url")
+    @DisplayName("When listen callback URI is set")
+    public class WhenListenCallbackURIIsSet {
+      @Autowired private OpenAEVConfig mainConfig;
+      @Autowired private SecurityCoverageConnector connector;
 
-    @Test
-    @DisplayName("it builds the URI with the tenant prefix")
-    void given_connector_should_buildTenantCallbackUri() {
-      // Act & Assert
-      SecurityCoverageConnector connector = getConnector();
-      assertThat(connector.getListenCallbackURI())
-          .contains(TENANT_BASE_PATH + Tenant.DEFAULT_TENANT_UUID + "/stix/process-bundle");
+      @Test
+      @DisplayName("it ignores and overrides it")
+      public void itIgnoresAndOverridesIt() {
+        assertThat(connector.getListenCallbackURI())
+            .isEqualTo(mainConfig.getBaseUrl() + StixApi.STIX_URI + "/process-bundle");
+      }
+    }
+
+    @Nested
+    @SpringBootTest
+    @TestExecutionListeners(
+        value = {RabbitMQTestListener.class},
+        mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
+    @WithMockSecurityCoverageConnectorConfig
+    @DisplayName("When listen callback URI is NOT set")
+    public class WhenListenCallbackURIIsNOTSet {
+      @Autowired private OpenAEVConfig mainConfig;
+      @Autowired private SecurityCoverageConnector connector;
+
+      @Test
+      @DisplayName("it has the expected value")
+      public void itIgnoresAndOverridesIt() {
+        assertThat(connector.getListenCallbackURI())
+            .isEqualTo(mainConfig.getBaseUrl() + StixApi.STIX_URI + "/process-bundle");
+      }
     }
   }
 }

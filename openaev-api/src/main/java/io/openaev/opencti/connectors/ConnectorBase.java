@@ -14,7 +14,6 @@ public abstract class ConnectorBase {
   private boolean playbookCompatible = false;
   private String listenCallbackURI;
   private volatile String jwks;
-  private String tenantId;
 
   public abstract String getName();
 

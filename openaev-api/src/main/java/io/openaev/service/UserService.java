@@ -431,11 +431,6 @@ public class UserService {
     return tokenRepository.save(token);
   }
 
-  public Optional<User> findByTokenAndTenantId(
-      @NotBlank final String token, @NotBlank final String tenantId) {
-    return this.userRepository.findByTokenAndTenantId(token, tenantId);
-  }
-
   public Optional<User> findByToken(@NotBlank final String token) {
     return this.userRepository.findByToken(token);
   }
