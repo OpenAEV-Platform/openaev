@@ -2,6 +2,8 @@ package io.openaev.aop;
 
 import static io.openaev.api.url_access_token.UrlAccessTokenApi.URL_ACCESS_COOKIE_NAME;
 import static io.openaev.api.url_access_token.UrlAccessTokenService.INVALID_TOKEN_MESSAGE;
+import static io.openaev.config.OpenAEVAnonymous.ANONYMOUS;
+import static io.openaev.config.SessionHelper.currentUser;
 
 import io.openaev.api.url_access_token.UrlAccessTokenService;
 import io.openaev.database.model.UrlAccessToken;
@@ -40,12 +42,16 @@ public class UrlAccessControlAspect {
   private final UrlAccessTokenService urlAccessTokenService;
   private final PreviewFeatureService previewFeatureService;
 
-  @Around("@annotation(urlAccessControl)")
-  public Object validateUrlAccess(
-      ProceedingJoinPoint joinPoint, UrlAccessControl urlAccessControl) throws Throwable {
+  @Around("@annotation(io.openaev.aop.UrlAccessControl)")
+  public Object validateUrlAccess(ProceedingJoinPoint joinPoint) throws Throwable {
 
     // Feature flag off, skip URL access control entirely and proceed with legacy flow
     if (!previewFeatureService.isFeatureEnabled(PreviewFeature.URL_ACCESS_TOKEN)) {
+      return joinPoint.proceed();
+    }
+
+    // Classical authentication (session/token) already established, no URL token control needed
+    if (isClassicallyAuthenticated()) {
       return joinPoint.proceed();
     }
 
@@ -58,7 +64,7 @@ public class UrlAccessControlAspect {
     HttpServletRequest request = requestAttributes.getRequest();
 
     // Extract the URL access token cookie
-    String rawToken = extractCookieValue(request, URL_ACCESS_COOKIE_NAME);
+    String rawToken = extractCookieValue(request);
     if (rawToken == null) {
       log.debug("UrlAccessControlAspect: missing '{}' cookie", URL_ACCESS_COOKIE_NAME);
       throw new ResponseStatusException(
@@ -101,13 +107,21 @@ public class UrlAccessControlAspect {
     return joinPoint.proceed(args);
   }
 
-  private String extractCookieValue(HttpServletRequest request, String cookieName) {
+  private boolean isClassicallyAuthenticated() {
+    try {
+      return !ANONYMOUS.equals(currentUser().getId());
+    } catch (Exception e) {
+      return false;
+    }
+  }
+
+  private String extractCookieValue(HttpServletRequest request) {
     Cookie[] cookies = request.getCookies();
     if (cookies == null) {
       return null;
     }
     return Arrays.stream(cookies)
-        .filter(c -> cookieName.equals(c.getName()))
+        .filter(c -> URL_ACCESS_COOKIE_NAME.equals(c.getName()))
         .map(Cookie::getValue)
         .findFirst()
         .orElse(null);

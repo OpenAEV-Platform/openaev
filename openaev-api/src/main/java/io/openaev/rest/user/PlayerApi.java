@@ -32,9 +32,6 @@ public class PlayerApi extends RestBehavior {
 
   public static final String PLAYER_URI = "/api/players";
   private static final String TENANT_PLAYER_URI = TENANT_PREFIX + "/players";
-  private static final String PLAYER_COMMUNICATION_URI = "/api/player/{userId}/communications";
-  private static final String TENANT_PLAYER_COMMUNICATION_URI =
-      TENANT_PREFIX + "/player/{userId}/communications";
 
   @Resource private SessionManager sessionManager;
 

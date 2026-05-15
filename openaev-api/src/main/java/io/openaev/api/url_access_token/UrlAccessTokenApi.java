@@ -4,9 +4,13 @@ import static io.openaev.api.url_access_token.UrlAccessTokenService.INVALID_TOKE
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.config.OpenAEVConfig;
+import io.openaev.database.model.Action;
+import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.UrlAccessToken;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
+import io.openaev.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
@@ -14,7 +18,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -30,6 +36,8 @@ public class UrlAccessTokenApi {
 
   private final UrlAccessTokenService urlAccessTokenService;
   private final PreviewFeatureService previewFeatureService;
+  private final OpenAEVConfig openAEVConfig;
+  private final UserService userService;
 
   @GetMapping
   @LogExecutionTime
@@ -48,7 +56,7 @@ public class UrlAccessTokenApi {
       ResponseCookie cookie =
           ResponseCookie.from(URL_ACCESS_COOKIE_NAME, rawToken)
               .httpOnly(true)
-              .secure(true)
+              .secure(openAEVConfig.isCookieSecure())
               .sameSite("Strict")
               .path("/")
               .build();
@@ -59,6 +67,33 @@ public class UrlAccessTokenApi {
           .build();
     } catch (AccessDeniedException exception) {
       throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, INVALID_TOKEN_MESSAGE);
+    }
+  }
+
+  @DeleteMapping("/{tokenId}")
+  @LogExecutionTime
+  @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.PLATFORM_SETTING)
+  @Operation(summary = "Revoke a URL access token by id (admin only)")
+  public ResponseEntity<Void> revokeByTokenId(@PathVariable("tokenId") String tokenId) {
+    ensureCurrentUserIsAdmin();
+    urlAccessTokenService.revokeToken(tokenId);
+    return ResponseEntity.noContent().build();
+  }
+
+  @DeleteMapping("/exercise/{exerciseId}")
+  @LogExecutionTime
+  @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.PLATFORM_SETTING)
+  @Operation(summary = "Revoke all URL access tokens for an exercise (admin only)")
+  public ResponseEntity<Void> revokeByExerciseId(@PathVariable("exerciseId") String exerciseId) {
+    ensureCurrentUserIsAdmin();
+    urlAccessTokenService.revokeAllForExercise(exerciseId);
+    return ResponseEntity.noContent().build();
+  }
+
+  private void ensureCurrentUserIsAdmin() {
+    if (!userService.currentUser().isAdmin()) {
+      throw new ResponseStatusException(
+          HttpStatus.FORBIDDEN, "Only administrators can revoke URL access tokens");
     }
   }
 }

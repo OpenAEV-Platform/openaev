@@ -1,6 +1,7 @@
 package io.openaev.rest.exercise;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.aop.UrlAccessControl;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.repository.ExerciseRepository;
@@ -15,17 +16,21 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+
 @RestController
 @RequiredArgsConstructor
 public class ExercisePlayerApi extends RestBehavior {
 
   public static final String EXERCISE_URI = "/api/player/exercises";
+  private static final String TENANT_EXERCISE_URI = TENANT_PREFIX + "/player/exercises";
 
   private final UserRepository userRepository;
   private final ExerciseRepository exerciseRepository;
 
-  @GetMapping(EXERCISE_URI + "/{exerciseId}")
+  @GetMapping({EXERCISE_URI + "/{exerciseId}", TENANT_EXERCISE_URI + "/{exerciseId}"})
   @AccessControl(skipRBAC = true)
+  @UrlAccessControl
   public PublicExercise playerExercise(
       @PathVariable String exerciseId, @RequestParam Optional<String> userId) {
     impersonateUser(this.userRepository, userId);

@@ -8,6 +8,7 @@ import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.aop.UrlAccessControl;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
@@ -164,6 +165,7 @@ public class ChannelApi extends RestBehavior {
     TENANT_PLAYER_CHANNEL_URI + "/{exerciseId}/{channelId}"
   })
   @AccessControl(skipRBAC = true)
+  @UrlAccessControl
   public ChannelReader playerArticles(
       @PathVariable String exerciseId,
       @PathVariable String channelId,

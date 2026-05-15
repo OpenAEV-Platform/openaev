@@ -5,6 +5,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static java.time.Instant.now;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.aop.UrlAccessControl;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
@@ -390,6 +391,7 @@ public class ExerciseLessonsApi extends RestBehavior {
     TENANT_PREFIX + "/player/lessons/exercise/{exerciseId}/lessons_categories"
   })
   @AccessControl(skipRBAC = true)
+  @UrlAccessControl
   public List<LessonsCategory> playerLessonsCategories(
       @PathVariable String exerciseId, @RequestParam Optional<String> userId) {
     impersonateUser(userRepository, userId); // Protection for ?
@@ -401,6 +403,7 @@ public class ExerciseLessonsApi extends RestBehavior {
     TENANT_PREFIX + "/player/lessons/exercise/{exerciseId}/lessons_questions"
   })
   @AccessControl(skipRBAC = true)
+  @UrlAccessControl
   public List<LessonsQuestion> playerLessonsQuestions(
       @PathVariable String exerciseId, @RequestParam Optional<String> userId) {
     impersonateUser(userRepository, userId); // Protection for ?
@@ -420,6 +423,7 @@ public class ExerciseLessonsApi extends RestBehavior {
     TENANT_PREFIX + "/player/lessons/exercise/{exerciseId}/lessons_answers"
   })
   @AccessControl(skipRBAC = true)
+  @UrlAccessControl
   public List<LessonsAnswer> playerLessonsAnswers(
       @PathVariable String exerciseId, @RequestParam Optional<String> userId) {
     impersonateUser(userRepository, userId); // Protection for ?

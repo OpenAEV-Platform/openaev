@@ -10,7 +10,10 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -29,6 +32,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
@@ -39,6 +43,8 @@ public class UrlAccessTokenApiTest extends IntegrationTest {
   public static final String TARGET_URL = "/api/exercises";
   public static final String VALID_RAW_TOKEN = "a-valid-raw-token";
   public static final String INVALID_RAW_TOKEN = "an-invalid-raw-token";
+  public static final String TOKEN_ID = "token-id";
+  public static final String EXERCISE_ID = "exercise-id";
 
   @Autowired private MockMvc mvc;
 
@@ -106,7 +112,7 @@ public class UrlAccessTokenApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("Valid token cookie should have HttpOnly, Secure and SameSite=Strict attributes")
+    @DisplayName("Valid token cookie should have HttpOnly and SameSite=Strict attributes")
     void given_validToken_should_set_cookie_with_security_attributes() throws Exception {
       // -- ARRANGE --
       UrlAccessToken token = new UrlAccessToken();
@@ -124,7 +130,6 @@ public class UrlAccessTokenApiTest extends IntegrationTest {
                       "Set-Cookie",
                       allOf(
                           containsString("HttpOnly"),
-                          containsString("Secure"),
                           containsString("SameSite=Strict"),
                           containsString("Path=/"))));
     }
@@ -178,5 +183,59 @@ public class UrlAccessTokenApiTest extends IntegrationTest {
           .andExpect(status().isFound())
           .andExpect(header().string("Location", specificUrl));
     }
+
+    @Test
+    @DisplayName("Admin can revoke one token by id")
+    void given_adminUser_when_deleteTokenById_should_return_204() throws Exception {
+      // -- ARRANGE --
+      doNothing().when(urlAccessTokenService).revokeToken(TOKEN_ID);
+
+      // -- ACT & ASSERT --
+      mvc.perform(deleteRequest(URL_ACCESS_URI + "/" + TOKEN_ID)).andExpect(status().isNoContent());
+
+      verify(urlAccessTokenService).revokeToken(TOKEN_ID);
+    }
+
+    @Test
+    @DisplayName("Admin can revoke all tokens by exercise id")
+    void given_adminUser_when_deleteTokensByExerciseId_should_return_204() throws Exception {
+      // -- ARRANGE --
+      doReturn(2).when(urlAccessTokenService).revokeAllForExercise(EXERCISE_ID);
+
+      // -- ACT & ASSERT --
+      mvc.perform(deleteRequest(URL_ACCESS_URI + "/exercise/" + EXERCISE_ID))
+          .andExpect(status().isNoContent());
+
+      verify(urlAccessTokenService).revokeAllForExercise(EXERCISE_ID);
+    }
+  }
+
+  @Nested
+  @WithMockUser
+  @DisplayName("DELETE endpoints for non-admin users")
+  class DeleteEndpointsForNonAdmin {
+
+    @Test
+    @DisplayName("Non-admin cannot revoke token by id")
+    void given_nonAdminUser_when_deleteTokenById_should_return_403() throws Exception {
+      // -- ACT & ASSERT --
+      mvc.perform(deleteRequest(URL_ACCESS_URI + "/" + TOKEN_ID)).andExpect(status().isForbidden());
+
+      verify(urlAccessTokenService, never()).revokeToken(anyString());
+    }
+
+    @Test
+    @DisplayName("Non-admin cannot revoke tokens by exercise id")
+    void given_nonAdminUser_when_deleteTokensByExerciseId_should_return_403() throws Exception {
+      // -- ACT & ASSERT --
+      mvc.perform(deleteRequest(URL_ACCESS_URI + "/exercise/" + EXERCISE_ID))
+          .andExpect(status().isForbidden());
+
+      verify(urlAccessTokenService, never()).revokeAllForExercise(anyString());
+    }
+  }
+
+  private MockHttpServletRequestBuilder deleteRequest(String uri) {
+    return delete(uri).with(csrf());
   }
 }
