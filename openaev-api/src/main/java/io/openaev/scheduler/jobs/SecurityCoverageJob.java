@@ -1,4 +1,5 @@
 package io.openaev.scheduler.jobs;
+
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Exercise;
