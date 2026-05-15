@@ -32,18 +32,26 @@ public class OpenCTIExecutor extends Injector {
   }
 
   private void createCase(
-      Execution execution, String name, String description, List<DataAttachment> attachments) {
+      Execution execution,
+      String name,
+      String description,
+      List<DataAttachment> attachments,
+      String tenantId) {
     try {
-      openCTIService.createCase(execution, name, description, attachments);
+      openCTIService.createCase(execution, name, description, attachments, tenantId);
     } catch (Exception e) {
       execution.addTrace(getNewErrorTrace(e.getMessage(), ExecutionTraceAction.COMPLETE));
     }
   }
 
   private void createReport(
-      Execution execution, String name, String description, List<DataAttachment> attachments) {
+      Execution execution,
+      String name,
+      String description,
+      List<DataAttachment> attachments,
+      String tenantId) {
     try {
-      openCTIService.createReport(execution, name, description, attachments);
+      openCTIService.createReport(execution, name, description, attachments, tenantId);
     } catch (Exception e) {
       execution.addTrace(getNewErrorTrace(e.getMessage(), ExecutionTraceAction.COMPLETE));
     }
@@ -69,8 +77,12 @@ public class OpenCTIExecutor extends Injector {
         .ifPresent(
             injectorContract -> {
               switch (injectorContract.getId()) {
-                case OPENCTI_CREATE_CASE -> createCase(execution, name, description, attachments);
-                default -> createReport(execution, name, description, attachments);
+                case OPENCTI_CREATE_CASE ->
+                    createCase(
+                        execution, name, description, attachments, inject.getTenant().getId());
+                default ->
+                    createReport(
+                        execution, name, description, attachments, inject.getTenant().getId());
               }
             });
 

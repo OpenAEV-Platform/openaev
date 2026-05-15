@@ -11,6 +11,7 @@ import io.openaev.opencti.client.response.Response;
 import io.openaev.opencti.client.response.ResponseFile;
 import io.openaev.opencti.client.response.fields.Error;
 import io.openaev.opencti.config.OpenCTIConfig;
+import io.openaev.opencti.config.XtmConfig;
 import io.openaev.opencti.connectors.ConnectorBase;
 import io.openaev.opencti.connectors.service.PrivilegeService;
 import io.openaev.opencti.errors.ConnectorError;
@@ -36,7 +37,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @RequiredArgsConstructor
 public class OpenCTIService {
-  private final OpenCTIConfig classicOpenCTIConfig;
+  private final XtmConfig xtmConfig;
   private final OpenCTIClient openCTIClient;
   private final ObjectMapper mapper;
   private final PrivilegeService privilegeService;
@@ -47,9 +48,7 @@ public class OpenCTIService {
       throws IOException, ConnectorError {
     Response r =
         openCTIClient.execute(
-            connector.getApiUrl(),
-            classicOpenCTIConfig.getToken(),
-            new QueryTypeFields(connector, typeName));
+            connector.getApiUrl(), connector.getToken(), new QueryTypeFields(connector, typeName));
     if (r.isError()) {
       throw new ConnectorError(
           """
@@ -74,7 +73,7 @@ public class OpenCTIService {
     Response r =
         openCTIClient.execute(
             connector.getApiUrl(),
-            classicOpenCTIConfig.getToken(),
+            connector.getToken(),
             new RegisterConnector(connector, typeFields.hasJwks()));
     if (r.isError()) {
       throw new ConnectorError(
@@ -114,9 +113,7 @@ public class OpenCTIService {
 
     Response r =
         openCTIClient.execute(
-            connector.getApiUrl(),
-            classicOpenCTIConfig.getToken(),
-            new Ping(connector, typeFields.hasJwks()));
+            connector.getApiUrl(), connector.getToken(), new Ping(connector, typeFields.hasJwks()));
     if (r.isError()) {
       throw new ConnectorError(
           """
@@ -148,9 +145,7 @@ public class OpenCTIService {
 
     Response r =
         openCTIClient.execute(
-            connector.getApiUrl(),
-            classicOpenCTIConfig.getToken(),
-            new WorkToReceived(workId, message));
+            connector.getApiUrl(), connector.getToken(), new WorkToReceived(workId, message));
     if (r.isError()) {
       throw new ConnectorError(
           """
@@ -184,7 +179,7 @@ public class OpenCTIService {
     Response r =
         openCTIClient.execute(
             connector.getApiUrl(),
-            classicOpenCTIConfig.getToken(),
+            connector.getToken(),
             new WorkToProcessed(workId, message, inError));
     if (r.isError()) {
       throw new ConnectorError(
@@ -218,7 +213,7 @@ public class OpenCTIService {
     Response r =
         openCTIClient.execute(
             connector.getApiUrl(),
-            classicOpenCTIConfig.getToken(),
+            connector.getToken(),
             new PushStixBundle(connector, bundle.toStix(mapper)));
     if (r.isError()) {
       throw new ConnectorError(
@@ -243,12 +238,15 @@ public class OpenCTIService {
 
   // TODO: support attachments; argument: `List<DataAttachment> attachments`
   public void createCase(
-      Execution execution, String name, String description, List<DataAttachment> ignoredAttachments)
+      Execution execution,
+      String name,
+      String description,
+      List<DataAttachment> ignoredAttachments,
+      String tenantId)
       throws Exception {
+    OpenCTIConfig config = resolveConfig(tenantId);
     Mutation mut = new CreateCase(name, description);
-    Response response =
-        openCTIClient.execute(
-            classicOpenCTIConfig.getApiUrl(), classicOpenCTIConfig.getToken(), mut);
+    Response response = openCTIClient.execute(config.getApiUrl(), config.getToken(), mut);
     if (response.getStatus() == HttpStatus.SC_OK) {
       execution.addTrace(
           getNewSuccessTrace(
@@ -260,12 +258,15 @@ public class OpenCTIService {
 
   // TODO: support attachments; argument: `List<DataAttachment> attachments`
   public void createReport(
-      Execution execution, String name, String description, List<DataAttachment> ignoredAttachments)
-      throws IOException {
+      Execution execution,
+      String name,
+      String description,
+      List<DataAttachment> ignoredAttachments,
+      String tenantId)
+      throws IOException, ConnectorError {
+    OpenCTIConfig config = resolveConfig(tenantId);
     Mutation mut = new CreateReport(name, description, Instant.now());
-    Response response =
-        openCTIClient.execute(
-            classicOpenCTIConfig.getApiUrl(), classicOpenCTIConfig.getToken(), mut);
+    Response response = openCTIClient.execute(config.getApiUrl(), config.getToken(), mut);
     if (response.getStatus() == HttpStatus.SC_OK) {
       execution.addTrace(
           getNewSuccessTrace(
@@ -283,9 +284,9 @@ public class OpenCTIService {
    * @param mimeType of the file to download
    * @return the document created from downloaded file
    */
-  public Document downloadAndSaveFile(String uri, String name, String mimeType) {
+  public Document downloadAndSaveFile(String uri, String name, String mimeType, String tenantId) {
     try {
-      ResponseFile octiResponseFile = downloadFile(uri);
+      ResponseFile octiResponseFile = downloadFile(uri, tenantId);
 
       if (octiResponseFile != null) {
         Tag openCtiTag = getOpenCTITag();
@@ -312,15 +313,31 @@ public class OpenCTIService {
     return null;
   }
 
-  private ResponseFile downloadFile(String uri) throws IOException {
+  // -- PRIVATE --
+
+  private ResponseFile downloadFile(String uri, final String tenantId)
+      throws IOException, ConnectorError {
+    OpenCTIConfig config = resolveConfig(tenantId);
     return openCTIClient.download(
-        classicOpenCTIConfig.getFormattedUrl() + URLEncoder.encode(uri, StandardCharsets.UTF_8),
-        classicOpenCTIConfig.getToken());
+        config.getFormattedUrl() + URLEncoder.encode(uri, StandardCharsets.UTF_8),
+        config.getToken());
   }
 
   private Tag getOpenCTITag() {
     TagCreateInput tagCreateInput = new TagCreateInput();
     tagCreateInput.setName(Tag.OPENCTI_TAG_NAME);
     return tagService.upsertTag(tagCreateInput);
+  }
+
+  private OpenCTIConfig resolveConfig(final String tenantId) throws ConnectorError {
+    if (xtmConfig.getOpencti() == null) {
+      throw new ConnectorError(
+          "No OpenCTI configuration found: the opencti config map is not defined");
+    }
+    OpenCTIConfig config = xtmConfig.getOpencti().get(tenantId);
+    if (config == null) {
+      throw new ConnectorError("No OpenCTI configuration found for tenant %s".formatted(tenantId));
+    }
+    return config;
   }
 }
