@@ -1,6 +1,5 @@
 package io.openaev.utils.fixtures;
 
-import io.openaev.aop.BypassRls;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Injector;
 import io.openaev.database.repository.InjectorRepository;
@@ -74,14 +73,12 @@ public class InjectorFixture {
     return injectorRepository.save(injector);
   }
 
-  @BypassRls
   @org.springframework.transaction.annotation.Transactional
   public Injector getWellKnownOaevImplantInjector() {
     return getWellKnownInjector(
         OpenAEVImplantContract.TYPE, openaevInjectorIntegrationFactory, true);
   }
 
-  @BypassRls
   @org.springframework.transaction.annotation.Transactional
   public Injector getWellKnownEmailInjector(boolean isPayload) {
     return getWellKnownInjector(EmailContract.TYPE, emailInjectorIntegrationFactory, isPayload);
