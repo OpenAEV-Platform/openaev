@@ -926,7 +926,6 @@ public class AtomicTestingApiTest extends IntegrationTest {
     }
 
     @Test
-    @Disabled
     @DisplayName("AtomicTesting created in tenant X should NOT be readable from tenant Y")
     void given_atomicTestingInTenantX_should_notBeReadableFromTenantY() throws Exception {
       // -------- Arrange --------
@@ -954,7 +953,6 @@ public class AtomicTestingApiTest extends IntegrationTest {
     }
 
     @Test
-    @Disabled
     @DisplayName("AtomicTesting created in tenant X should be readable from tenant X")
     void given_atomicTestingInTenantX_should_beReadableFromTenantX() throws Exception {
       Tenant tenantX =
@@ -971,7 +969,6 @@ public class AtomicTestingApiTest extends IntegrationTest {
     }
 
     @Test
-    @Disabled
     @DisplayName("AtomicTesting search in tenant Y should NOT return results from tenant X")
     void given_atomicTestingInTenantX_should_notAppearInTenantYSearch() throws Exception {
       Tenant tenantX =
@@ -1001,15 +998,22 @@ public class AtomicTestingApiTest extends IntegrationTest {
     }
 
     @Test
-    @Disabled
     @DisplayName("AtomicTesting created in tenant X should NOT be deletable from tenant Y")
     void given_atomicTestingInTenantX_should_notBeDeletableFromTenantY() throws Exception {
       Tenant tenantX =
           tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+              "Tenant X",
+              Set.of(
+                  Capability.MANAGE_ASSESSMENT,
+                  Capability.ACCESS_ASSESSMENT,
+                  Capability.DELETE_ASSESSMENT));
       Tenant tenantY =
           tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant Y", Set.of(Capability.DELETE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+              "Tenant Y",
+              Set.of(
+                  Capability.MANAGE_ASSESSMENT,
+                  Capability.ACCESS_ASSESSMENT,
+                  Capability.DELETE_ASSESSMENT));
 
       Inject inject = createInjectInTenant(tenantX);
 

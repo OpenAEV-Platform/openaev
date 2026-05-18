@@ -39,6 +39,7 @@ import org.hibernate.annotations.*;
 @Entity
 @Table(name = "injects")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 @Slf4j
 @Grantable(Grant.GRANT_RESOURCE_TYPE.ATOMIC_TESTING)
 public class Inject implements GrantableBase, Injection, TenantBase {
