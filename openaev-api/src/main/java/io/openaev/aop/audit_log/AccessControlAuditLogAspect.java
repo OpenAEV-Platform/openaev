@@ -120,7 +120,6 @@ public class AccessControlAuditLogAspect {
                 inputNode,
                 result
         );
-        future.join();//TODO: to be deleted. Only for testing until I have the HttpReqRespUtils.getCurrentRequest(); exception fixed.
 
         return result;
     }

@@ -31,6 +31,7 @@ public class ConsoleLogTransportUtils implements LogTransportUtils {
             else {
                 LogUtils.log(log, message, l);
             }
+            //TODO Or should I use System.out.println instead of the logger?
 
             return true;
         } catch (Exception e) {
