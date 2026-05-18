@@ -814,6 +814,7 @@ public class InjectorContractService implements DependenciesManager {
   @Override
   public void createDependencyForTenant(Tenant tenant) throws DependenciesManagerException {
     try {
+      TenantContext.clearCurrentTenant();
       for (String injectorContractId : listDefaultInjectorContract) {
         InjectorContractId compositeId =
             new InjectorContractId(injectorContractId, TenantContext.getCurrentTenant());
@@ -832,6 +833,8 @@ public class InjectorContractService implements DependenciesManager {
           e.getMessage());
       throw new DependenciesManagerException(
           "Failed to create default injector contracts for tenant " + tenant.getName(), e);
+    } finally {
+      TenantContext.setCurrentTenant(tenant.getId());
     }
   }
 
