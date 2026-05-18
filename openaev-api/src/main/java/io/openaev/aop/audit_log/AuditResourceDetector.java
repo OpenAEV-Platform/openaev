@@ -109,6 +109,8 @@ public class AuditResourceDetector {
      * Detects a child-resource by scanning {@code @PathVariable} parameters for IDs that are not the
      * parent's resourceId. For each candidate, tries {@code EntityManager.find()} against the entity
      * class map until a match is found. Returns the child info with a pre-deletion snapshot, or null.
+     *
+     * TODO: optimize this logic so it can cache foir the next requests.
      */
     public ChildResourceInfo detectChildResource(ProceedingJoinPoint joinPoint, ResourceType resourceType, String parentResourceId) {
         try {

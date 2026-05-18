@@ -125,12 +125,12 @@ public class HttpReqRespUtils {
 
         return headers;
       }
+      //else if no headers, the returns the headers saved in the thread context
     } catch(IllegalStateException e) {
       //It means the request object has been recycled and is no longer associated with this facade. In this case returns the headers saved in the thread context
-      return ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.getHeaders();
     }
 
-    return null;
+    return ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.getHeaders();
   }
 
   public static HttpServletRequest getCurrentRequest() {
