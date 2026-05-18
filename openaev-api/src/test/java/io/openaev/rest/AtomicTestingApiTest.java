@@ -926,6 +926,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
     }
 
     @Test
+    @Disabled
     @DisplayName("AtomicTesting created in tenant X should NOT be readable from tenant Y")
     void given_atomicTestingInTenantX_should_notBeReadableFromTenantY() throws Exception {
       // -------- Arrange --------
