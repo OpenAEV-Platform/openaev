@@ -100,4 +100,6 @@ public Page<{Entity}Output> search(...) { return service.search(input).map({Enti
 - DTOs: `@Builder` OK, prefer records for new code
 - Never `@Autowired` on fields in new code
 
+## Formatting (Spotless)
 
+- **After editing Java files**, run `.\scripts\hooks\format-java.ps1` (Windows) or `./scripts/hooks/format-java.sh` (Unix). Output: `OK` = success.
