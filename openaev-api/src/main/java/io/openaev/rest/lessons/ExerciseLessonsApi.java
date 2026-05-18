@@ -453,7 +453,9 @@ public class ExerciseLessonsApi extends RestBehavior {
                                     LessonsAnswerSpecification.fromQuestion(
                                         lessonsQuestion.getId()))
                                 .stream()))
-                    .filter(lessonsAnswer -> userId.isEmpty() || lessonsAnswer.getUser().getId().equals(userId.get()))
+        .filter(
+            lessonsAnswer ->
+                userId.isEmpty() || lessonsAnswer.getUser().getId().equals(userId.get()))
         .toList();
   }
 
