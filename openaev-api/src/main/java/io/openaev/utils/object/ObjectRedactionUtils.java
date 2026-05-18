@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import java.util.Set;
 
+import static io.openaev.helper.CryptoHelper.hashWithSHA256;
+
 public class ObjectRedactionUtils {
 
     private static final String REDACTED = "*** Redacted ***";
@@ -37,5 +39,9 @@ public class ObjectRedactionUtils {
                             }
                         });
         return copy;
+    }
+
+    public static String hash(String value) {
+        return hashWithSHA256(value);
     }
 }

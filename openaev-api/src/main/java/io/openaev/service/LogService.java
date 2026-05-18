@@ -388,7 +388,8 @@ public class LogService {
             if (userId != null) {
                 User user = userService.user(userId);
                 if (user != null && user.getEmail() != null) {
-                    meta.setUserEmail(user.getEmail());
+                    String email = ObjectRedactionUtils.hash(user.getEmail());
+                    meta.setUserEmail(email);
                     hasData = true;
                 }
             }
