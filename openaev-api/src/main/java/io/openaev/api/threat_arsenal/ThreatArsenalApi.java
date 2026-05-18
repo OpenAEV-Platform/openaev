@@ -12,16 +12,13 @@ import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationI
 import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractDomainCountOutput;
 import io.openaev.schema.model.PropertySchemaDTO;
-import io.openaev.service.MapperService;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
-import io.openaev.utils.CsvType;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -38,7 +35,6 @@ public class ThreatArsenalApi {
   public static final String TENANT_THREAT_ARSENAL_URL = TENANT_PREFIX + "/threat_arsenals";
 
   private final ThreatArsenalService threatArsenalService;
-  private final MapperService mapperService;
 
   // -- READ --
 
@@ -107,15 +103,6 @@ public class ThreatArsenalApi {
       })
   public List<Collector> collectorsFromAction(@PathVariable String actionId) {
     return threatArsenalService.getCollectorsForActionRemediation(actionId);
-  }
-
-  // -- EXPORT --
-  @Operation(summary = "Export threat arsenal actions as CSV")
-  @PostMapping(TENANT_THREAT_ARSENAL_URL + "/export/csv")
-  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.THREAT_ARSENAL)
-  public void exportCsv(
-      @RequestBody @Valid final SearchPaginationInput input, HttpServletResponse response) {
-    mapperService.exportMappersCsv(CsvType.INJECTOR_CONTRACTS, input, response);
   }
 
   // -- CREATE --

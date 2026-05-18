@@ -2,6 +2,7 @@ package io.openaev.utils.helpers;
 
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Grant;
+import io.openaev.utils.fixtures.GrantFixture;
 import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.TenantRoleFixture;
 import io.openaev.utils.fixtures.UserFixture;
@@ -88,13 +89,7 @@ public class UserTestHelper {
     List<Grant> grants =
         grantedResourceIds.stream()
             .map(
-                id -> {
-                  Grant grant = new Grant();
-                  grant.setGrantResourceType(Grant.GRANT_RESOURCE_TYPE.THREAT_ARSENAL);
-                  grant.setName(Grant.GRANT_TYPE.OBSERVER);
-                  grant.setResourceId(id);
-                  return grant;
-                })
+                id -> GrantFixture.getGrantForThreatArsenal(id, Grant.GRANT_TYPE.OBSERVER))
             .toList();
 
     if (!grants.isEmpty()) {

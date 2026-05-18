@@ -58,7 +58,7 @@ class ThreatArsenalApiExporterTest extends IntegrationTest {
 
   @Nested
   @WithMockUser(isAdmin = true)
-  @DisplayName("Export Threat Arsenal Action")
+  @DisplayName("JSON Export Threat Arsenal Action")
   class ExportThreatArsenalAction {
 
     @Test
@@ -141,4 +141,8 @@ class ThreatArsenalApiExporterTest extends IntegrationTest {
           .andExpect(status().isNotFound());
     }
   }
+
+  @Nested
+  @DisplayName("CSV Export ")
+  class
 }

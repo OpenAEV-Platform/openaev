@@ -499,6 +499,9 @@ public class PayloadService {
   }
 
   public void delete(String payloadId) {
+    payloadRepository
+            .findById(payloadId)
+            .orElseThrow(() -> new ElementNotFoundException("Payload not found: " + payloadId));
     payloadRepository.deleteById(payloadId);
   }
 }

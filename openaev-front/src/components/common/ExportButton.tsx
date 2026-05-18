@@ -47,53 +47,39 @@ const ExportButton = <T extends object>({ totalElements, exportProps, exportCsvM
     );
   };
 
-  if (totalElements > 0) {
-    // TODO update all Front exports by Back API exports
-    if (
-      exportProps.exportType === 'ENDPOINTS'
-      || exportProps.exportType === 'INJECTOR_CONTRACTS'
-    ) {
-      return (
-        <ToggleButton value="export" aria-label="export" size="small" onClick={exportCsvMapperAction}>
-          <Tooltip title={t('Export this list')}>
-            <FileDownloadOutlined
-              color="primary"
-              fontSize="small"
-            />
-          </Tooltip>
+  const exportBtn = (enableOnClick: boolean) => (
+    <Tooltip title={t('Export this list')}>
+      <span>
+        <ToggleButton value="export" aria-label="export" size="small" disabled={totalElements === 0} onClick={enableOnClick ? exportCsvMapperAction : undefined}>
+          <FileDownloadOutlined
+            color={totalElements === 0 ? 'disabled' : 'primary'}
+            fontSize="small"
+          />
         </ToggleButton>
-      );
-    } else {
-      return (
-        <CSVLink
-          data={exportData(
-            exportProps.exportType,
-            exportProps.exportKeys,
-            exportProps.exportData,
-            tagsMap,
-          )}
-          filename={exportProps.exportFileName}
-        >
-          <ToggleButton value="export" aria-label="export" size="small">
-            <Tooltip title={t('Export this list')}>
-              <FileDownloadOutlined
-                color="primary"
-                fontSize="small"
-              />
-            </Tooltip>
-          </ToggleButton>
-        </CSVLink>
-      );
-    }
-  } else {
-    return (
-      <ToggleButton value="export" aria-label="export" size="small" disabled={true}>
-        <Tooltip title={t('Export this list')}>
-          <FileDownloadOutlined fontSize="small" />
-        </Tooltip>
-      </ToggleButton>
-    );
+      </span>
+    </Tooltip>
+  );
+
+  if (
+    exportProps.exportType === 'ENDPOINTS'
+    || exportProps.exportType === 'INJECTOR_CONTRACTS'
+  ) {
+    return exportBtn(true);
   }
+
+  return (
+    <CSVLink
+      data={exportData(
+        exportProps.exportType,
+        exportProps.exportKeys,
+        exportProps.exportData,
+        tagsMap,
+      )}
+      filename={exportProps.exportFileName}
+    >
+      {exportBtn(false)}
+    </CSVLink>
+  );
 };
 
 export default ExportButton;

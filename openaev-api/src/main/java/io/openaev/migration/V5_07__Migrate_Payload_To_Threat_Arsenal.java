@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V5_08__Migrate_Payload_To_Threat_Arsenal extends BaseJavaMigration {
+public class V5_07__Migrate_Payload_To_Threat_Arsenal extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
