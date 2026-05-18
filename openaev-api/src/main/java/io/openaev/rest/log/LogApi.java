@@ -58,7 +58,7 @@ public class LogApi extends RestBehavior {
     String level = logDetailsInput.getLevel();
     String message = buildLogMessage(logDetailsInput, level);
 
-    logService.logMessage(message, level, LogService.AuditLogType.DEFAULT);
+    logService.logMessage(message, level, LogService.AuditLogType.GENERIC, null);
 
     /*if (WARNING.getName().equals(level)) {
       logger.warn(buildLogMessage(logDetailsInput, level));

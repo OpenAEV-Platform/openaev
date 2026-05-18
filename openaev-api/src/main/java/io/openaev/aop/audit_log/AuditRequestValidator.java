@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class AuditRequestValidator {
 
-    @Value("${openaev.audit-logs.enabled:false}")
+    @Value("${openaev.audit-logs.service.enabled:false}")
     private boolean enabled;
 
     @Value("${openaev.audit-logs.log-reads:false}")

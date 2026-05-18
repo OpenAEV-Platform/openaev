@@ -11,9 +11,9 @@ import java.util.logging.Level;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class ConsoleLogTransportUtils implements LogTransportUtils {
+public class GenericConsoleLogTransportUtils implements GenericLogTransportUtils {
 
-    @Value("${openaev.logs.console.enabled:false}")
+    @Value("${openaev.generic-logs.console.enabled:false}")
     private boolean enabled;
 
     public boolean isEnabled() {
@@ -31,7 +31,7 @@ public class ConsoleLogTransportUtils implements LogTransportUtils {
             else {
                 LogUtils.log(log, message, l);
             }
-            //TODO Or should I use System.out.println instead of the logger?
+            //TODO AUDIT: Or should I use System.out.println instead of the logger?
 
             return true;
         } catch (Exception e) {

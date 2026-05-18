@@ -2,6 +2,7 @@ package io.openaev.aop.audit_log;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.aop.AccessControl;
+import io.openaev.config.cache.AuditChildResourceCacheManager;
 import io.openaev.database.model.ResourceType;
 import io.openaev.utils.ResourceManagerUtils;
 import lombok.RequiredArgsConstructor;
@@ -16,7 +17,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.PathVariable;
 
 import java.lang.annotation.Annotation;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 
 @Component
 @RequiredArgsConstructor
@@ -28,10 +30,10 @@ public class AuditResourceDetector {
     public record AuditResourceInfo(ResourceType resourceType, String resourceId, String sourceId, ResourceType entityType, String entityId, String entityName, JsonNode entitySnapshot) {};
 
     private final ExpressionParser parser = new SpelExpressionParser();
-
     private final ResourceManagerUtils resourceManagerUtils;
+    private final AuditChildResourceCacheManager auditChildResourceCacheManager;
 
-    public AuditResourceInfo detectResourceBeforeExecution(ProceedingJoinPoint joinPoint, AccessControl accessControl, String eventScope) throws Throwable {
+    public AuditResourceInfo detectResourceBeforeExecution(ProceedingJoinPoint joinPoint, AccessControl accessControl, String eventScope) {
         ResourceType resourceType = accessControl.resourceType();
         String resourceId = resolveResourceId(joinPoint, accessControl);
 
@@ -90,6 +92,9 @@ public class AuditResourceDetector {
             MethodSignature signature = (MethodSignature) joinPoint.getSignature();
             String[] paramNames = signature.getParameterNames();
             Object[] args = joinPoint.getArgs();
+            log.warn("signature {}", signature);
+            log.warn("paramNames {}", paramNames);
+            log.warn("args {}", args);
 
             EvaluationContext ctx = SimpleEvaluationContext.forReadOnlyDataBinding().build();
             if (paramNames != null) {
@@ -97,10 +102,13 @@ public class AuditResourceDetector {
                     ctx.setVariable(paramNames[i], args[i]);
                 }
             }
+            log.warn("ctx {}", ctx);
+            log.warn("accessControl.resourceId {}", accessControl.resourceId());
+
             Object value = parser.parseExpression(accessControl.resourceId()).getValue(ctx);
             return value != null ? value.toString() : "";
         } catch (Exception e) {
-            log.debug("[AUDIT] Failed to resolve resourceId SpEL: {}", e.getMessage());
+            log.warn("[AUDIT] Failed to resolve resourceId SpEL: {}", e.getMessage(), e);
             return "";
         }
     }
@@ -110,14 +118,34 @@ public class AuditResourceDetector {
      * parent's resourceId. For each candidate, tries {@code EntityManager.find()} against the entity
      * class map until a match is found. Returns the child info with a pre-deletion snapshot, or null.
      *
-     * TODO: optimize this logic so it can cache foir the next requests.
+     * Detects a child resource by delegating to {@link AuditChildResourceCacheManager}, which
+     * handles two caching layers: a permanent method→ResourceType map (to skip the entity-class
+     * scan on repeat calls) and a short-TTL per-request Caffeine cache keyed by
+     * methodSignature|resourceType|parentResourceId.
      */
     public ChildResourceInfo detectChildResource(ProceedingJoinPoint joinPoint, ResourceType resourceType, String parentResourceId) {
         try {
             MethodSignature sig = (MethodSignature) joinPoint.getSignature();
+            String methodSignature = sig.toLongString();
+            String[] pathVariableValues = extractPathVariableValues(sig, joinPoint.getArgs());
+
+            log.warn("start detectChildResource");
+            ChildResourceInfo childInfo = auditChildResourceCacheManager.resolveChildResource(methodSignature, resourceType, parentResourceId, pathVariableValues);
+            log.warn("detectChildResource {}", childInfo);
+
+            //TODO AUDIT: childInfo is always null and cache not working bc  parentResourceId == paramValue
+
+            return childInfo;
+        } catch (RuntimeException e) {
+            log.warn("[AUDIT] Failed to detect child resource: {}", e.getMessage(), e);
+            return null;
+        }
+    }
+    /*public ChildResourceInfo detectChildResource(ProceedingJoinPoint joinPoint, ResourceType resourceType, String parentResourceId) {
+        try {
+            MethodSignature sig = (MethodSignature) joinPoint.getSignature();
             Annotation[][] paramAnnotations = sig.getMethod().getParameterAnnotations();
             Object[] args = joinPoint.getArgs();
-
 
             for (int i = 0; i < paramAnnotations.length; i++) {
                 for (Annotation ann : paramAnnotations[i]) {
@@ -145,22 +173,23 @@ public class AuditResourceDetector {
                 }
             }
         } catch (Exception e) {
-            log.debug("[AUDIT] Failed to detect child resource: {}", e.getMessage());
+            log.warn("[AUDIT] Failed to detect child resource: {}", e.getMessage(), e);
         }
         return null;
-    }
+    }*/
 
-    private ChildResourceInfo getChildResourceInfo(ResourceType resourceType, String resourceId, boolean logException) {
-        try {
-            JsonNode snapshot = resourceManagerUtils.snapshotResourceEntity(resourceType, resourceId);
+    /** Extracts all {@code @PathVariable} argument values from the join point. */
+    private String[] extractPathVariableValues(MethodSignature sig, Object[] args) {
+        Annotation[][] paramAnnotations = sig.getMethod().getParameterAnnotations();
+        List<String> values = new ArrayList<>();
 
-            if (snapshot != null) {
-                return new ChildResourceInfo(resourceType, resourceId, snapshot);
+        for (int i = 0; i < paramAnnotations.length; i++) {
+            for (Annotation ann : paramAnnotations[i]) {
+                if (ann instanceof PathVariable) {
+                    values.add(args[i] != null ? args[i].toString() : null);
+                }
             }
-        } catch (Exception e) {
-            if (logException)
-                log.debug("[AUDIT] Failed to get child resource info for {}/{}: {}", resourceType, resourceId, e.getMessage());
         }
-        return null;
+        return values.toArray(new String[0]);
     }
 }
