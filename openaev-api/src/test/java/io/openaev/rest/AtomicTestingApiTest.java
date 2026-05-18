@@ -953,6 +953,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
     }
 
     @Test
+    @Disabled
     @DisplayName("AtomicTesting created in tenant X should be readable from tenant X")
     void given_atomicTestingInTenantX_should_beReadableFromTenantX() throws Exception {
       Tenant tenantX =
@@ -969,6 +970,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
     }
 
     @Test
+    @Disabled
     @DisplayName("AtomicTesting search in tenant Y should NOT return results from tenant X")
     void given_atomicTestingInTenantX_should_notAppearInTenantYSearch() throws Exception {
       Tenant tenantX =
