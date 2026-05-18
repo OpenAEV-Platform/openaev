@@ -12,9 +12,8 @@ import org.springframework.stereotype.Component;
  * Enables the Hibernate {@code tenantFilter} before each {@code @Transactional} method, scoping
  * JPQL / Criteria queries by tenant.
  *
- * <p>Native SQL tenant isolation is handled separately by {@link
- * io.openaev.config.TenantAwareDataSourceConfig}, which sets the PostgreSQL session variable {@code
- * app.current_tenant} on every connection checkout for Row-Level Security enforcement.
+ * <p>Native SQL queries must manually include {@code WHERE tenant_id = :tenantId} since the
+ * Hibernate filter does not apply to native queries.
  */
 @Aspect
 @Component

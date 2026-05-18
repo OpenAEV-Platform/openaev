@@ -53,7 +53,6 @@ import jakarta.annotation.Resource;
 import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMessage;
 import jakarta.persistence.EntityManager;
-import jakarta.servlet.ServletException;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
@@ -977,15 +976,12 @@ class InjectApiTest extends IntegrationTest {
           .when(injectStatusService)
           .addStartImplantExecutionTraceByInject(any(), any(), any(), any());
 
-      // -- EXECUTE --
-      assertThrows(
-          ServletException.class,
-          () -> {
-            mvc.perform(
-                get(INJECT_URI + "/" + injectSaved.getId() + "/fakeagentID/executable-payload")
-                    .accept(MediaType.APPLICATION_JSON)
-                    .with(csrf()));
-          });
+      // -- EXECUTE & ASSERT --
+      mvc.perform(
+              get(INJECT_URI + "/" + injectSaved.getId() + "/fakeagentID/executable-payload")
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
     }
   }
 

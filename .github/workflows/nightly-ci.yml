@@ -69,7 +69,7 @@ jobs:
           1" --health-interval 15s --health-timeout 10s --health-retries 20
           --health-start-period 30s
       rabbitmq:
-        image: rabbitmq:4.1-management
+        image: rabbitmq:4.3-management
         ports:
           - 5672:5672
         env:
@@ -115,8 +115,6 @@ jobs:
       - name: Build all modules (skip tests)
         run: mvn -B -ntp clean install -DskipTests
 
-      - name: Create openaev_app role for RLS migration
-        run: psql "postgresql://openaev:openaev@localhost:5432/openaev" -c "CREATE ROLE openaev_app NOLOGIN NOSUPERUSER;"
 
       - name: Run API tests (Elasticsearch)
         run: mvn -B -ntp -pl openaev-api verify
@@ -146,7 +144,7 @@ jobs:
           --health-cmd "pg_isready -U openaev" --health-interval 10s
           --health-timeout 5s --health-retries 5
       opensearch:
-        image: opensearchproject/opensearch:3.3.2
+        image: opensearchproject/opensearch:3.6.0
         ports:
           - 9200:9200
         env:
@@ -158,7 +156,7 @@ jobs:
           1" --health-interval 15s --health-timeout 10s --health-retries 20
           --health-start-period 30s
       rabbitmq:
-        image: rabbitmq:4.1-management
+        image: rabbitmq:4.3-management
         ports:
           - 5672:5672
         env:
@@ -205,8 +203,6 @@ jobs:
       - name: Build all modules (skip tests)
         run: mvn -B -ntp clean install -DskipTests
 
-      - name: Create openaev_app role for RLS migration
-        run: psql "postgresql://openaev:openaev@localhost:5432/openaev" -c "CREATE ROLE openaev_app NOLOGIN NOSUPERUSER;"
 
       - name: Run API tests (OpenSearch)
         run: mvn -B -ntp -pl openaev-api verify
@@ -264,7 +260,7 @@ jobs:
           --health-cmd "pg_isready -U openaev" --health-interval 10s
           --health-timeout 5s --health-retries 5
       rabbitmq:
-        image: rabbitmq:4.1-management
+        image: rabbitmq:4.3-management
         ports:
           - 5672:5672
         env:
@@ -338,7 +334,7 @@ jobs:
       - name: Set up Node.js 22.11
         uses: actions/setup-node@v6
         with:
-          node-version: "22.11.0"
+          node-version: "22.22.2"
 
       - name: Install corepack
         run: npm install -g corepack
@@ -375,8 +371,6 @@ jobs:
           name: openaev-api-jar
           path: openaev-api/target
 
-      - name: Create openaev_app role for RLS migration
-        run: psql "postgresql://openaev:openaev@localhost:5432/openaev" -c "CREATE ROLE openaev_app NOLOGIN NOSUPERUSER;"
 
       - name: Start application
         run: |
@@ -501,7 +495,7 @@ jobs:
           --health-cmd "pg_isready -U openaev" --health-interval 10s
           --health-timeout 5s --health-retries 5
       rabbitmq:
-        image: rabbitmq:4.1-management
+        image: rabbitmq:4.3-management
         ports:
           - 5672:5672
         env:
@@ -573,7 +567,7 @@ jobs:
       - name: Set up Node.js 22.11
         uses: actions/setup-node@v6
         with:
-          node-version: "22.11.0"
+          node-version: "22.22.2"
 
       - name: Install corepack
         run: npm install -g corepack
@@ -609,8 +603,6 @@ jobs:
           name: openaev-api-jar
           path: openaev-api/target
 
-      - name: Create openaev_app role for RLS migration
-        run: psql "postgresql://openaev:openaev@localhost:5432/openaev" -c "CREATE ROLE openaev_app NOLOGIN NOSUPERUSER;"
 
       - name: Start application
         run: |

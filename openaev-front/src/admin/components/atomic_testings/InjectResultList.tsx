@@ -115,7 +115,7 @@ const InjectResultList: FunctionComponent<Props> = ({
     {
       field: 'inject_contract_domains',
       label: t('Domains'),
-      isSortable: true,
+      isSortable: false,
       value: (injectResultOutput: InjectResultOutput) => {
         return injectResultOutput.inject_contract_domains?.length
           ? (

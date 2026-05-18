@@ -200,11 +200,6 @@ runs:
 
         echo "✅ All services ready"
 
-    - name: Bootstrap PostgreSQL roles for RLS
-      shell: bash
-      run: |
-        docker exec pgsql psql -U openaev -d openaev -c "CREATE ROLE openaev_app NOLOGIN NOSUPERUSER;"
-        echo "✅ openaev_app role created"
 
     - name: Prepare test suite
       id: suite

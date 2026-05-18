@@ -119,10 +119,7 @@ public class TenantIsolationTestHelper {
   }
 
   /**
-   * Switches the current tenant context and configures the DB connection for RLS enforcement.
-   *
-   * <p>Applies {@code SET ROLE openaev_app} so that the connection uses a non-superuser role
-   * subject to RLS policies.
+   * Switches the current tenant context and enables the Hibernate tenant filter.
    *
    * @param tenantId the tenant ID to switch to
    * @param entityManager the current {@link EntityManager}
@@ -132,16 +129,6 @@ public class TenantIsolationTestHelper {
     entityManager.clear();
     TenantContext.setCurrentTenant(tenantId);
     Session session = entityManager.unwrap(Session.class);
-    session.doWork(
-        connection -> {
-          try (var stmt = connection.createStatement()) {
-            stmt.execute("SET ROLE openaev_app");
-          }
-          try (var stmt =
-              connection.prepareStatement("SELECT set_config('app.current_tenant', ?, false)")) {
-            stmt.setString(1, tenantId);
-            stmt.execute();
-          }
-        });
+    session.enableFilter("tenantFilter").setParameter("tenantId", tenantId);
   }
 }

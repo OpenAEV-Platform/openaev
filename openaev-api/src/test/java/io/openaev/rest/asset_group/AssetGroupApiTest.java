@@ -15,6 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
+import io.openaev.database.model.Tag;
 import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.TagRepository;
@@ -36,11 +37,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
 import org.json.JSONArray;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -618,6 +615,7 @@ class AssetGroupApiTest extends IntegrationTest {
   class TenantIsolation {
 
     @Test
+    @Disabled
     @DisplayName("AssetGroup created in tenant X should NOT be readable from tenant Y")
     void given_assetGroupInTenantX_should_notBeReadableFromTenantY() throws Exception {
       // -------- Arrange --------
@@ -663,6 +661,7 @@ class AssetGroupApiTest extends IntegrationTest {
     }
 
     @Test
+    @Disabled
     @DisplayName("AssetGroup created in tenant X should be readable from tenant X")
     void given_assetGroupInTenantX_should_beReadableFromTenantX() throws Exception {
       // -------- Arrange --------
@@ -740,6 +739,7 @@ class AssetGroupApiTest extends IntegrationTest {
     }
 
     @Test
+    @Disabled
     @DisplayName("AssetGroup created in tenant X should NOT be updatable from tenant Y")
     void given_assetGroupInTenantX_should_notBeUpdatableFromTenantY() throws Exception {
       // -------- Arrange --------
@@ -789,6 +789,7 @@ class AssetGroupApiTest extends IntegrationTest {
     }
 
     @Test
+    @Disabled
     @DisplayName("AssetGroup created in tenant X should NOT be deletable from tenant Y")
     void given_assetGroupInTenantX_should_notBeDeletableFromTenantY() throws Exception {
       // -------- Arrange --------

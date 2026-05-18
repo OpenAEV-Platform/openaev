@@ -250,24 +250,15 @@ public class InjectorContractApiTest extends IntegrationTest {
 
         @Test
         @DisplayName("Deleting a non custom contract fails")
-        void deleteNonCustomContractFails() {
-          assertThatThrownBy(
-                  () ->
-                      mvc.perform(
-                              delete(
-                                      INJECTOR_CONTRACT_URL
-                                          + "/"
-                                          + injectorContractComposer
-                                              .generatedItems
-                                              .getFirst()
-                                              .getId())
-                                  .contentType(MediaType.APPLICATION_JSON)
-                                  .with(csrf()))
-                          .andReturn())
-              .hasCauseInstanceOf(IllegalArgumentException.class)
-              .hasMessageEndingWith(
-                  "This injector contract can't be removed because is not a custom one: "
-                      + injectorContractComposer.generatedItems.getFirst().getId());
+        void deleteNonCustomContractFails() throws Exception {
+          mvc.perform(
+                  delete(
+                          INJECTOR_CONTRACT_URL
+                              + "/"
+                              + injectorContractComposer.generatedItems.getFirst().getId())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isBadRequest());
         }
 
         @Test
@@ -996,18 +987,12 @@ public class InjectorContractApiTest extends IntegrationTest {
 
         @Test
         @DisplayName("Deleting a non custom contract fails")
-        void deleteNonCustomContractFails() {
-          assertThatThrownBy(
-                  () ->
-                      mvc.perform(
-                              delete(INJECTOR_CONTRACT_URL + "/" + externalId)
-                                  .contentType(MediaType.APPLICATION_JSON)
-                                  .with(csrf()))
-                          .andReturn())
-              .hasCauseInstanceOf(IllegalArgumentException.class)
-              .hasMessageEndingWith(
-                  "This injector contract can't be removed because is not a custom one: "
-                      + externalId);
+        void deleteNonCustomContractFails() throws Exception {
+          mvc.perform(
+                  delete(INJECTOR_CONTRACT_URL + "/" + externalId)
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isBadRequest());
         }
 
         @Test

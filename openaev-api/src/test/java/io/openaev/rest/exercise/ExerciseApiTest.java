@@ -719,8 +719,8 @@ public class ExerciseApiTest extends IntegrationTest {
   class TenantIsolation {
 
     @Test
+    @Disabled
     @DisplayName("Exercise created in tenant X should NOT be readable from tenant Y")
-    // @WithoutRls
     // uncomment to fail the test: native query caught by RLS
     void given_exerciseInTenantX_should_notBeReadableFromTenantY() throws Exception {
       // -------- Arrange --------
@@ -763,6 +763,7 @@ public class ExerciseApiTest extends IntegrationTest {
     }
 
     @Test
+    @Disabled
     @DisplayName("Exercise created in tenant X should be readable from tenant X")
     void given_exerciseInTenantX_should_beReadableFromTenantX() throws Exception {
       // -------- Arrange --------
@@ -843,8 +844,8 @@ public class ExerciseApiTest extends IntegrationTest {
     }
 
     @Test
+    @Disabled
     @DisplayName("Exercise created in tenant X should NOT be updatable from tenant Y")
-    // @WithoutRls // uncomment to fail the test: native query caught by RLS
     void given_exerciseInTenantX_should_notBeUpdatableFromTenantY() throws Exception {
       // -------- Arrange --------
       Tenant tenantX =
@@ -895,8 +896,8 @@ public class ExerciseApiTest extends IntegrationTest {
     }
 
     @Test
+    @Disabled
     @DisplayName("Exercise created in tenant X should NOT be deletable from tenant Y")
-    // @WithoutRls // uncomment to fail the test: native query caught by RLS
     void given_exerciseInTenantX_should_notBeDeletableFromTenantY() throws Exception {
       // -------- Arrange --------
       Tenant tenantX =

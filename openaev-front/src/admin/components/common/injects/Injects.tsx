@@ -143,7 +143,7 @@ const Injects: FunctionComponent<Props> = ({
     {
       field: 'inject_contract_domains',
       label: t('Domains'),
-      isSortable: true,
+      isSortable: false,
       value: (inject: InjectOutputType, _: InjectorContractConverted['convertedContent']) => {
         return inject.inject_contract_domains?.length
           ? (
