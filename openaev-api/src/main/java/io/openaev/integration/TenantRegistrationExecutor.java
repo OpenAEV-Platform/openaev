@@ -68,9 +68,7 @@ public class TenantRegistrationExecutor {
         tenant.getName());
   }
 
-  /**
-   * Sets ThreadLocal + Hibernate filter in one call. No-op if tenantId is null.
-   */
+  /** Sets ThreadLocal + Hibernate filter in one call. No-op if tenantId is null. */
   private void switchTenantContext(String tenantId) {
     TenantContext.setCurrentTenant(tenantId);
     if (tenantId == null) {
