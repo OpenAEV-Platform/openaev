@@ -70,7 +70,9 @@ public class AtomicTestingService {
   private Inject findInject(String injectId) {
     String tenantId = TenantContext.getCurrentTenant();
     return (tenantId != null)
-        ? injectRepository.findByIdAndTenantId(injectId, tenantId).orElseThrow(ElementNotFoundException::new)
+        ? injectRepository
+            .findByIdAndTenantId(injectId, tenantId)
+            .orElseThrow(ElementNotFoundException::new)
         : injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
   }
 
@@ -84,9 +86,7 @@ public class AtomicTestingService {
     if (injectOpt.isPresent()) {
       Inject inject = injectOpt.get();
       List<AssetGroup> computedAssetGroup =
-          inject.getAssetGroups().stream()
-              .map(assetGroupService::computeDynamicAssets)
-              .toList();
+          inject.getAssetGroups().stream().map(assetGroupService::computeDynamicAssets).toList();
       inject.getAssetGroups().clear();
       inject.getAssetGroups().addAll(computedAssetGroup);
     }
