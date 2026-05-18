@@ -67,9 +67,6 @@ public class ChallengeExecutor extends Injector {
 
     if (!previewFeatureService.isFeatureEnabled(PreviewFeature.URL_ACCESS_TOKEN)) {
       url = url + "&user=" + user.getId();
-    }
-
-    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.URL_ACCESS_TOKEN)) {
       return url;
     }
     return urlAccessTokenService.generateTokenUrl(exercise, user, url);

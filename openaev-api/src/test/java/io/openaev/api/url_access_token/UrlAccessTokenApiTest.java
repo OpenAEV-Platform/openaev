@@ -51,11 +51,6 @@ public class UrlAccessTokenApiTest extends IntegrationTest {
   @MockitoBean private PreviewFeatureService previewFeatureService;
   @MockitoBean private UrlAccessTokenService urlAccessTokenService;
 
-  @BeforeEach
-  void setup() {
-    // Reset mocks before each test
-  }
-
   // -- READ --
 
   @Nested

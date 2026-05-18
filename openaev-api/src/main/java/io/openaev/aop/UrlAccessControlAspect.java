@@ -87,7 +87,7 @@ public class UrlAccessControlAspect {
       }
     }
 
-    // Validate token — expiry, revocation, and optional exercise scope
+    // Validate token : expiry, revocation, and optional exercise scope
     UrlAccessToken token;
     try {
       token = urlAccessTokenService.validateToken(rawToken, exerciseId, null);
