@@ -69,7 +69,7 @@ public class TenantRegistrationExecutor {
   }
 
   /**
-   * Sets ThreadLocal + Hibernate filter + PostgreSQL RLS in one call. No-op if tenantId is null.
+   * Sets ThreadLocal + Hibernate filter in one call. No-op if tenantId is null.
    */
   private void switchTenantContext(String tenantId) {
     TenantContext.setCurrentTenant(tenantId);
@@ -78,13 +78,5 @@ public class TenantRegistrationExecutor {
     }
     Session session = entityManager.unwrap(Session.class);
     session.enableFilter("tenantFilter").setParameter("tenantId", tenantId);
-    session.doWork(
-        connection -> {
-          try (var stmt =
-              connection.prepareStatement("SELECT set_config('app.current_tenant', ?, false)")) {
-            stmt.setString(1, tenantId);
-            stmt.execute();
-          }
-        });
   }
 }
