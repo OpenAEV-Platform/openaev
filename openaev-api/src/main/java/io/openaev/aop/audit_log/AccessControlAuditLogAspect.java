@@ -28,6 +28,7 @@ import org.springframework.web.context.request.RequestContextHolder;
 import java.lang.annotation.Annotation;
 import java.util.Collection;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 
@@ -60,9 +61,10 @@ public class AccessControlAuditLogAspect {
     public Object auditAround(ProceedingJoinPoint joinPoint, AccessControl accessControl)
             throws Throwable {
         Action action = accessControl.actionPerformed();
+        String logUUID = UUID.randomUUID().toString();
 
         if (!auditRequestValidator.valid(action)) {
-            //TODO: in the future, if openaev.all-logs.enabled is true, call the logService method to log the request and its body input.
+            //TODO AUDIT: in the future, if openaev.all-logs.enabled is true, call the logService method to log the request and its body input.
 
             return joinPoint.proceed();
         }
@@ -104,7 +106,9 @@ public class AccessControlAuditLogAspect {
                     null,
                     entityName,
                     null,
-                    sourceId);
+                    sourceId,
+                    logUUID
+            );
 
             throw ex;
         }
@@ -120,7 +124,8 @@ public class AccessControlAuditLogAspect {
                 entityName,
                 entitySnapshot,
                 inputNode,
-                result
+                result,
+                logUUID
         );
 
         return result;

@@ -9,7 +9,7 @@ import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.User;
 import io.openaev.engine.EngineService;
 import io.openaev.engine.model.log.LogEvent;
-import io.openaev.utils.log.dispatcher.LogTransportDispatcherUtils;
+import io.openaev.utils.log.dispatcher.GenericLogTransportDispatcherUtils;
 import io.openaev.utils.log.dispatcher.AuditLogTransportDispatcherUtils;
 import io.openaev.utils.object.ObjectDiffUtils;
 import io.openaev.utils.object.ObjectRedactionUtils;
@@ -34,18 +34,18 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class LogService {
 
-    @Value("${openaev.logs.enabled:false}")
-    private boolean logsEnabled;
+    @Value("${openaev.generic-logs.service.enabled:false}")
+    private boolean genericLogsEnabled;
 
-    @Value("${openaev.audit-logs.enabled:false}")
+    @Value("${openaev.audit-logs.service.enabled:false}")
     private boolean auditLogsEnabled;
 
     public static enum AuditLogType {
-        DEFAULT,
+        GENERIC,
         AUDIT
     };
 
-    private final LogTransportDispatcherUtils logTransportDispatcherUtils;
+    private final GenericLogTransportDispatcherUtils genericLogTransportDispatcherUtils;
 
     private final AuditLogTransportDispatcherUtils auditLogTransportDispatcherUtils;
 
@@ -64,14 +64,14 @@ public class LogService {
     public LogService(
             UserService userService,
             EngineService engineService,
-            LogTransportDispatcherUtils logTransportDispatcherUtils,
+            GenericLogTransportDispatcherUtils genericLogTransportDispatcherUtils,
             AuditLogTransportDispatcherUtils auditLogTransportDispatcherUtils,
             ObjectNormalizationUtils objectNormalizationUtils,
             ObjectDiffUtils objectDiffUtils
     ) {
         this.userService = userService;
         this.objectMapper = engineService.getObjectMapper();
-        this.logTransportDispatcherUtils = logTransportDispatcherUtils;
+        this.genericLogTransportDispatcherUtils = genericLogTransportDispatcherUtils;
         this.auditLogTransportDispatcherUtils = auditLogTransportDispatcherUtils;
         this.objectNormalizationUtils = objectNormalizationUtils;
         this.objectDiffUtils = objectDiffUtils;
@@ -103,7 +103,8 @@ public class LogService {
             String parentId,
             String sourceId,
             Object logLevel,
-            AuditLogType logType
+            AuditLogType logType,
+            String logUUID
     ) {
         if (!isEnabled(logType)) {
             return true;
@@ -128,7 +129,8 @@ public class LogService {
                     parentId,
                     sourceId,
                     logLevel,
-                    logType
+                    logType,
+                    logUUID
             );
         }
 
@@ -159,7 +161,8 @@ public class LogService {
             String parentId,
             String sourceId,
             Object logLevel,
-            AuditLogType logType
+            AuditLogType logType,
+            String logUUID
     ) {
         if (!isEnabled(logType)) {
             return true;
@@ -178,7 +181,7 @@ public class LogService {
                 message = eventScope + "s " + entityTypeName + " `" + displayName + "`";
             }
 
-            LogEvent doc = buildBaseAuditLog("mutation", eventStatus, event_access, eventScope);
+            LogEvent doc = buildBaseAuditLog("mutation", eventStatus, event_access, eventScope, logUUID);
 
             // -- context_data (LinkedHashMap preserves insertion order) --
             Map<String, Object> ctx = new LinkedHashMap<>();
@@ -211,7 +214,7 @@ public class LogService {
 
             return emit(doc, logLevel, logType);
         } catch (Exception e) {
-            log.warn("[AUDIT] Failed to log mutation event: {}", e.getMessage(), e);
+            log.warn("[{}] Failed to log mutation event: {}", logType.name(), e.getMessage(), e);
         }
 
         return false;
@@ -231,7 +234,8 @@ public class LogService {
             String provider,
             String reason,
             Object logLevel,
-            AuditLogType logType
+            AuditLogType logType,
+            String logUUID
     ) {
         if (!isEnabled(logType)) {
             return true;
@@ -241,7 +245,7 @@ public class LogService {
             // Build human-readable message
             String message = LogUtils.buildAuthLogMessage(eventScope, eventStatus, provider);
             String event_access = LogUtils.getAuthEventAccess();
-            LogEvent doc = buildBaseAuditLog("authentication", eventStatus, event_access, eventScope);
+            LogEvent doc = buildBaseAuditLog("authentication", eventStatus, event_access, eventScope, logUUID);
 
             // -- context_data --
             Map<String, Object> ctx = new LinkedHashMap<>();
@@ -256,35 +260,53 @@ public class LogService {
 
             return emit(doc, logLevel, logType);
         } catch (Exception e) {
-            log.warn("[AUDIT] Failed to log auth event: {}", e.getMessage(), e);
+            log.warn("[{}] Failed to log auth event: {}", logType.name(), e.getMessage(), e);
         }
 
         return false;
     }
 
-    public boolean logEvent(LogEvent doc, Object logLevel, AuditLogType logType) {
+    public boolean logEvent(
+            LogEvent doc,
+            Object logLevel,
+            AuditLogType logType,
+            String logUUID
+    ) {
         try {
             if (!isEnabled(logType)) {
                 return true;
+            }
+
+            if (logUUID != null) {
+                doc.setId(logUUID);
             }
 
             return emit(doc, logLevel, logType);
         } catch (Exception e) {
-            log.warn("[AUDIT] Failed to log event: {}", e.getMessage(), e);
+            log.warn("[{}] Failed to log event: {}", logType.name(), e.getMessage(), e);
         }
 
         return false;
     }
 
-    public boolean logMessage(String message, Object logLevel, AuditLogType logType) {
+    public boolean logMessage(
+            String message,
+            Object logLevel,
+            AuditLogType logType,
+            String logUUID
+    ) {
         try {
             if (!isEnabled(logType)) {
                 return true;
             }
 
+            if (logUUID != null) {
+                message = "[log_id: " + logUUID + "] " + message;
+            }
+
             return emit(message, logLevel, logType);
         } catch (Exception e) {
-            log.warn("[AUDIT] Failed to log message: {}", e.getMessage(), e);
+            log.warn("[{}] Failed to log message: {}", logType.name(), e.getMessage(), e);
         }
 
         return false;
@@ -293,7 +315,7 @@ public class LogService {
     // -- Internal helpers --
 
     private boolean isEnabled(AuditLogType logType) {
-        return logType == AuditLogType.AUDIT ? auditLogsEnabled : logsEnabled || auditLogsEnabled;
+        return logType == AuditLogType.AUDIT ? auditLogsEnabled : genericLogsEnabled || auditLogsEnabled;
     }
 
     private ObjectDiffUtils.DiffResult diffObjects(String eventScope, JsonNode entitySnapshot, JsonNode inputNode) {
@@ -344,11 +366,20 @@ public class LogService {
 
     /** Builds the common part of an {@link LogEvent} with all envelope and user fields populated. */
     private LogEvent buildBaseAuditLog(
-            String eventType, String eventStatus, String eventAccess, String eventScope) {
+            String eventType,
+            String eventStatus,
+            String eventAccess,
+            String eventScope,
+            String logUUID
+    ) {
         Instant now = Instant.now();
 
+        if (logUUID == null) {
+            logUUID = UUID.randomUUID().toString();
+        }
+
         LogEvent doc = new LogEvent();
-        doc.setId(UUID.randomUUID().toString());
+        doc.setId(logUUID);
         doc.setCreatedAt(now);
         doc.setTimestamp(now);
 
@@ -452,7 +483,7 @@ public class LogService {
             String json = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(doc);
             String message = "[LOG] json doc: " + json;
 
-            return logTransportDispatcherUtils.dispatch(message, logLevel);
+            return genericLogTransportDispatcherUtils.dispatch(message, logLevel);
         } catch (Exception e) {
             log.warn("[LOG] Failed to serialize event: {}", e.getMessage(), e);
         }
@@ -464,6 +495,6 @@ public class LogService {
         if (AuditLogType.AUDIT == logType) {
             return auditLogTransportDispatcherUtils.dispatch(message, logLevel);
         }
-        return logTransportDispatcherUtils.dispatch(message, logLevel);
+        return genericLogTransportDispatcherUtils.dispatch(message, logLevel);
     }
 }

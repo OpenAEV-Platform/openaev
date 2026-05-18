@@ -54,7 +54,8 @@ public class AccessControlAuditLogger {
             String entityName,
             JsonNode entitySnapshot,
             JsonNode inputNode,
-            Object result
+            Object result,
+            String logUUID
     ) {
         // -- Post-execution: apply child-resource reclassification --
         String parentId = null;
@@ -148,7 +149,8 @@ public class AccessControlAuditLogger {
                                 null,
                                 childName,
                                 resourceId,
-                                null
+                                null,
+                                logUUID
                         );
 
                         futures.add(subFuture);
@@ -180,7 +182,8 @@ public class AccessControlAuditLogger {
                 entitySnapshot,
                 entityName,
                 parentId,
-                sourceId
+                sourceId,
+                logUUID
         );
 
         return future;
@@ -188,7 +191,7 @@ public class AccessControlAuditLogger {
 
     public void prepareLogFailure() {
         if (stw) {
-            //TODO
+            //TODO AUDIT: implements the stop the world
         } else {
             log.warn("[AUDIT] Audit logging failed, but continuing without blocking the operation.");
         }
@@ -205,7 +208,9 @@ public class AccessControlAuditLogger {
             JsonNode oldSnapshot,
             String entityName,
             String parentId,
-            String sourceId) {
+            String sourceId,
+            String logUUID
+    ) {
         boolean status = false;
 
         try {
@@ -220,7 +225,9 @@ public class AccessControlAuditLogger {
                     parentId,
                     sourceId,
                     Level.WARNING,
-                    LogService.AuditLogType.AUDIT);
+                    LogService.AuditLogType.AUDIT,
+                    logUUID
+            );
         } catch (Exception e) {
             log.warn("[AUDIT] Audit logging failed (non-blocking): {}", e.getMessage(), e);
         }
@@ -238,7 +245,8 @@ public class AccessControlAuditLogger {
             String eventScope,
             String eventStatus,
             String provider,
-            String reason
+            String reason,
+            String logUUID
     ) {
         boolean status = false;
 
@@ -249,7 +257,9 @@ public class AccessControlAuditLogger {
                     provider,
                     reason,
                     Level.WARNING,
-                    LogService.AuditLogType.AUDIT);
+                    LogService.AuditLogType.AUDIT,
+                    logUUID
+            );
         } catch (Exception e) {
             log.warn("[AUDIT] Audit auth logging failed (non-blocking): {}", e.getMessage(), e);
         }
@@ -272,7 +282,9 @@ public class AccessControlAuditLogger {
             JsonNode oldValue,
             String entityName,
             String parentId,
-            String sourceId) {
+            String sourceId,
+            String logUUID
+    ) {
         boolean status = false;
 
         try {
@@ -287,7 +299,9 @@ public class AccessControlAuditLogger {
                     parentId,
                     sourceId,
                     Level.WARNING,
-                    LogService.AuditLogType.AUDIT);
+                    LogService.AuditLogType.AUDIT,
+                    logUUID
+            );
         } catch (Exception e) {
             log.warn("[AUDIT] Audit logging failed (non-blocking): {}", e.getMessage(), e);
         }

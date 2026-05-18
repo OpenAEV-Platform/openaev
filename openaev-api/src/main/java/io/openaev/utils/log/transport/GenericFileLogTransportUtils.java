@@ -1,21 +1,19 @@
 package io.openaev.utils.log.transport;
 
 import io.openaev.utils.log.LogUtils;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
 import java.util.logging.Level;
 
 @Component
 @RequiredArgsConstructor
-public class FileLogTransportUtils implements LogTransportUtils {
+public class GenericFileLogTransportUtils implements GenericLogTransportUtils {
 
-    @Value("${openaev.logs.file.enabled:false}")
+    @Value("${openaev.generic-logs.file.enabled:false}")
     private boolean enabled;
 
     /**
