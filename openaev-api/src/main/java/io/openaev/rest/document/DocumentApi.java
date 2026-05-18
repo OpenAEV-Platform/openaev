@@ -11,6 +11,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.context.TenantContext;
+import io.openaev.aop.UrlAccessControl;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
 import io.openaev.database.raw.RawPaginationDocument;
@@ -342,7 +343,7 @@ public class DocumentApi extends RestBehavior {
       @PathVariable String injectorId) throws IOException {
     Injector injector =
         this.injectorRepository
-            .findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant())
+            .findById(injectorId)
             .orElseThrow(() -> new ElementNotFoundException("Injector not found"));
     Optional<InputStream> fileStream =
         fileService.getInjectorImage(injector.getType(), injector.isExternal());
@@ -406,7 +407,7 @@ public class DocumentApi extends RestBehavior {
       @PathVariable String collectorId) throws IOException {
     Collector collector =
         this.collectorRepository
-            .findByIdAndTenantId(collectorId, TenantContext.getCurrentTenant())
+            .findById(collectorId)
             .orElseThrow(() -> new ElementNotFoundException("Collector not found"));
     Optional<InputStream> fileStream =
         fileService.getCollectorImage(collector.getType(), collector.isExternal());
@@ -544,6 +545,7 @@ public class DocumentApi extends RestBehavior {
   // -- EXERCISE & SENARIO--
   @GetMapping({PLAYER_DOCUMENTS_API, TENANT_PLAYER_DOCUMENTS_API})
   @AccessControl(skipRBAC = true)
+  @UrlAccessControl
   public List<Document> playerDocuments(
       @PathVariable String exerciseOrScenarioId, @RequestParam Optional<String> userId) {
     Optional<Exercise> exerciseOpt =
@@ -580,6 +582,7 @@ public class DocumentApi extends RestBehavior {
     TENANT_PLAYER_DOCUMENTS_API + "/{documentId}/file"
   })
   @AccessControl(skipRBAC = true)
+  @UrlAccessControl
   public void downloadPlayerDocument(
       @PathVariable String exerciseOrScenarioId,
       @PathVariable String documentId,

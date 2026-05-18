@@ -451,6 +451,7 @@ public class ExerciseLessonsApi extends RestBehavior {
         + "/player/lessons/exercise/{exerciseId}/lessons_categories/{lessonsCategoryId}/lessons_questions/{lessonsQuestionId}/lessons_answers"
   })
   @AccessControl(skipRBAC = true)
+  @UrlAccessControl
   public LessonsAnswer createExerciseLessonsQuestion(
       @PathVariable String exerciseId,
       @PathVariable String lessonsQuestionId,
