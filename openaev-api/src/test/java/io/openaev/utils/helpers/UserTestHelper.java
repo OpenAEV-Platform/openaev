@@ -88,8 +88,7 @@ public class UserTestHelper {
 
     List<Grant> grants =
         grantedResourceIds.stream()
-            .map(
-                id -> GrantFixture.getGrantForThreatArsenal(id, Grant.GRANT_TYPE.OBSERVER))
+            .map(id -> GrantFixture.getGrantForThreatArsenal(id, Grant.GRANT_TYPE.OBSERVER))
             .toList();
 
     if (!grants.isEmpty()) {

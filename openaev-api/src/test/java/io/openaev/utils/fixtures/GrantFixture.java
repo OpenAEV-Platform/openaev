@@ -30,7 +30,7 @@ public class GrantFixture {
     grant.setName(grantType);
     grant.setResourceId(resourceId);
     grant.setGrantResourceType(resourceType);
-    if(group != null){
+    if (group != null) {
       grant.setGroup(group);
     }
     return grant;
