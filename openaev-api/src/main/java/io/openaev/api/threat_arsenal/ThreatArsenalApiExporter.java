@@ -24,7 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping( ThreatArsenalApi.TENANT_THREAT_ARSENAL_URL)
+@RequestMapping(ThreatArsenalApi.TENANT_THREAT_ARSENAL_URL)
 @RequiredArgsConstructor
 public class ThreatArsenalApiExporter {
 
@@ -33,10 +33,10 @@ public class ThreatArsenalApiExporter {
   private final InjectorContractService injectorContractService;
 
   @Operation(summary = "Export threat arsenal actions as CSV")
-  @PostMapping( "/export/csv")
+  @PostMapping("/export/csv")
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.THREAT_ARSENAL)
   public void exportCsv(
-          @RequestBody @Valid final SearchPaginationInput input, HttpServletResponse response) {
+      @RequestBody @Valid final SearchPaginationInput input, HttpServletResponse response) {
     mapperService.exportMappersCsv(CsvType.INJECTOR_CONTRACTS, input, response);
   }
 
