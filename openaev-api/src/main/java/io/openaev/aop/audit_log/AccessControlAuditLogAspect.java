@@ -92,7 +92,7 @@ public class AccessControlAuditLogAspect {
 
             accessControlAuditLogger.prepareLogFailure();
 
-            // Still log the audit event, then re-throw
+            // Still log the audit event, then re-throw - async
             accessControlAuditLogger.logMutationEvent(
                     eventScope,
                     eventStatus,
@@ -107,7 +107,7 @@ public class AccessControlAuditLogAspect {
             throw ex;
         }
 
-        CompletableFuture<Boolean> future = accessControlAuditLogger.auditEvent(
+        accessControlAuditLogger.auditEvent(
                 eventScope,
                 eventStatus,
                 resourceType,
