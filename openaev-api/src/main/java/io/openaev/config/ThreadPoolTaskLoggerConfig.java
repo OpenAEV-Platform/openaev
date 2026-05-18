@@ -1,8 +1,13 @@
 package io.openaev.config;
 
+import io.openaev.utils.HttpReqRespUtils;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.Executor;
 
 import org.springframework.context.i18n.LocaleContextHolder;
@@ -11,6 +16,7 @@ import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.slf4j.MDC;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 @Configuration
 public class ThreadPoolTaskLoggerConfig {
@@ -31,8 +37,21 @@ public class ThreadPoolTaskLoggerConfig {
         ThreadPoolTaskExecutor executor = createBaseExecutor();
 
         executor.setTaskDecorator(runnable -> {
-            //CAPTURE REQUEST CONTEXT (PARENT THREAD)
+            //CAPTURE REQUEST HEADERS AND IP (PARENT THREAD)
             var requestAttributes = RequestContextHolder.getRequestAttributes();
+            HttpServletRequest request = requestAttributes instanceof ServletRequestAttributes attrs ? attrs.getRequest() : null;
+            Map<String, String> headers;
+            String remoteAddress;
+
+            if (request != null) {
+                headers = HttpReqRespUtils.extractHeaders(request);
+                remoteAddress = request.getRemoteAddr();
+            } else {
+                headers = null;
+                remoteAddress = null;
+            }
+
+            // CAPTURE LOGs CONTEXT
             var mdcContext = MDC.getCopyOfContextMap();
 
             // CAPTURE AUTHENTICATION CONTEXT (PARENT THREAD)
@@ -50,10 +69,9 @@ public class ThreadPoolTaskLoggerConfig {
 
             return () -> {
                 try {
-                    // RESTORE REQUEST CONTEXT
-                    if (requestAttributes != null) {
-                        RequestContextHolder.setRequestAttributes(requestAttributes, true);
-                    }
+                    // STORE HEADERS AND REMOTE ADDRESS
+                    ThreadRequestContextHolder.setHeaders(headers);
+                    ThreadRequestContextHolder.setRemoteAddress(remoteAddress);
 
                     // RESTORE MDC
                     if (mdcContext != null) {
@@ -71,10 +89,9 @@ public class ThreadPoolTaskLoggerConfig {
                     }
 
                     runnable.run();
-
                 } finally {
                     MDC.clear();
-                    RequestContextHolder.resetRequestAttributes();
+                    ThreadRequestContextHolder.clear();
                     SecurityContextHolder.clearContext();
                     LocaleContextHolder.resetLocaleContext();
                 }
@@ -84,5 +101,49 @@ public class ThreadPoolTaskLoggerConfig {
         executor.initialize();
 
         return executor;
+    }
+
+    public class ThreadRequestContextHolder {
+
+        private static final ThreadLocal<Map<String, Object>> CONTEXT = new ThreadLocal<>();
+
+        public static void set(String name, Object value) {
+            Map<String, Object> ctx = CONTEXT.get();
+
+            if (ctx == null) {
+                ctx = new HashMap<>();
+                CONTEXT.set(ctx);
+            }
+
+            ctx.put(name, value);
+        }
+
+        public static Object get(String name) {
+            Map<String, Object> ctx = CONTEXT.get();
+
+            if (ctx == null) {
+                return null;
+            }
+
+            return ctx.get(name);
+        }
+
+        public static void setHeaders(Map<String, String> headers) {
+            set("HEADERS", headers);
+        }
+        public static Map<String, String> getHeaders() {
+            return (Map<String, String>) get("HEADERS");
+        }
+
+        public static void setRemoteAddress(String remoteAddress) {
+            set("REMOTE_ADDR", remoteAddress);
+        }
+        public static String getRemoteAddress() {
+            return (String) get("REMOTE_ADDR");
+        }
+
+        public static void clear() {
+            CONTEXT.remove();
+        }
     }
 }

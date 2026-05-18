@@ -51,6 +51,7 @@ public class AuditConsoleLogTransportUtils implements AuditLogTransportUtils {
             }
 
             LogUtils.log(log, message, l);
+            //TODO Or should I use System.out.println instead of the logger?
 
             return CompletableFuture.completedFuture(true);
         } catch (Exception e) {

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.config.SessionHelper;
+import io.openaev.config.ThreadPoolTaskLoggerConfig;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.User;
 import io.openaev.engine.EngineService;
@@ -403,13 +404,16 @@ public class LogService {
 
         // HTTP request headers
         HttpServletRequest request = HttpReqRespUtils.getCurrentRequest();
-        if (request != null) {
-            String userAgent = request.getHeader("User-Agent");
+        Map<String, String> headers = HttpReqRespUtils.extractHeaders(request);
+
+        if (headers != null) {
+            String userAgent = HttpReqRespUtils.extractHeader(headers, "User-Agent");
             if (userAgent != null) {
                 meta.setUserAgent(userAgent);
                 hasData = true;
             }
-            String xff = request.getHeader("X-Forwarded-For");
+
+            String xff = HttpReqRespUtils.extractHeader(headers, "X-Forwarded-For");
             if (xff != null && !xff.isEmpty()) {
                 meta.setXForwardedFor(xff);
             }

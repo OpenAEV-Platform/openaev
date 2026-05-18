@@ -1,8 +1,13 @@
 package io.openaev.utils;
 
+import io.openaev.config.ThreadPoolTaskLoggerConfig;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
+
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Utility class for HTTP request and response operations.
@@ -50,22 +55,82 @@ public class HttpReqRespUtils {
    * @return the client IP address, or "0.0.0.0" if no request context is available
    */
   public static String getClientIpAddressIfServletRequestExist() {
-    if (RequestContextHolder.getRequestAttributes() == null) {
-      return "0.0.0.0";
-    }
     HttpServletRequest request = getCurrentRequest();
+    Map<String, String> headers = extractHeaders(request);
 
-    if (request == null) {
-      return null;
+    String ip = getClientIpAddressFromHeaders(headers);
+
+    if (ip != null) {
+      return ip;
     }
 
-    for (String header : IP_HEADER_CANDIDATES) {
-      String ipList = request.getHeader(header);
-      if (ipList != null && !ipList.isEmpty() && !"unknown".equalsIgnoreCase(ipList)) {
-        return ipList.split(",")[0];
+    if (request != null) {
+      return request.getRemoteAddr();
+    }
+
+    String remoteAddress = ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.getRemoteAddress();
+
+    if (remoteAddress != null) {
+      return remoteAddress;
+    }
+
+    return "0.0.0.0";
+  }
+
+  public static String getClientIpAddressFromHeaders(Map<String, String> headers) {
+    if (headers != null) {
+      for (String header : IP_HEADER_CANDIDATES) {
+        String ipList = extractHeader(headers, header);
+
+        if (ipList != null && !ipList.isEmpty() && !"unknown".equalsIgnoreCase(ipList)) {
+          return ipList.split(",")[0];
+        }
       }
     }
-    return request.getRemoteAddr();
+
+    return null;
+  }
+
+  public static String extractHeader(Map<String, String> headers, String name) {
+    if (headers != null) {
+      if (headers.containsKey(name)) {
+        return headers.get(name);
+      }
+
+      if (headers.containsKey(name.toLowerCase())) {
+        return headers.get(name.toLowerCase());
+      }
+
+      for (var entry : headers.entrySet()) {
+        if (entry.getKey().equalsIgnoreCase(name)) {
+          return entry.getValue();
+        }
+      }
+    }
+
+    return null;
+  }
+
+  public static Map<String, String> extractHeaders(HttpServletRequest request) {
+    try {
+      if (request != null) {
+        Map<String, String> headers = new HashMap<>();
+
+        Enumeration<String> headerNames = request.getHeaderNames();
+
+        while (headerNames.hasMoreElements()) {
+          String headerName = headerNames.nextElement();
+          headers.put(headerName, request.getHeader(headerName));
+        }
+
+        return headers;
+      }
+    } catch(IllegalStateException e) {
+      //It means the request object has been recycled and is no longer associated with this facade. In this case returns the headers saved in the thread context
+      return ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.getHeaders();
+    }
+
+    return null;
   }
 
   public static HttpServletRequest getCurrentRequest() {
