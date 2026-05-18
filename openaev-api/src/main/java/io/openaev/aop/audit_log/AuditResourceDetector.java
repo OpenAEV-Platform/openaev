@@ -118,6 +118,7 @@ public class AuditResourceDetector {
             Annotation[][] paramAnnotations = sig.getMethod().getParameterAnnotations();
             Object[] args = joinPoint.getArgs();
 
+
             for (int i = 0; i < paramAnnotations.length; i++) {
                 for (Annotation ann : paramAnnotations[i]) {
                     if (ann instanceof PathVariable) {

@@ -3,10 +3,14 @@ package io.openaev.utils.object;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.Set;
 
 @Component
@@ -22,9 +26,68 @@ public class ObjectNormalizationUtils {
     private final ObjectMapper objectMapper;
 
     public JsonNode normalize(JsonNode node) {
-        node = stripInsignificantValues(node);
+        JsonNode normalized = normalizeValues(node);
+        JsonNode cleaned = stripInsignificantValues(normalized);
+        return isEffectivelyEmpty(cleaned) ? NullNode.getInstance() : cleaned;
 
+        //TODO: add depth level and other controllers
+    }
+
+    private JsonNode normalizeValues(JsonNode node) {
+        if (node == null || node.isNull() || node.isMissingNode()) {
+            return NullNode.getInstance();
+        }
+        if (node.isObject()) {
+            return normalizeObjectNode(node);
+        }
+        if (node.isArray()) {
+            return normalizeArrayNode(node);
+        }
+        if (node.isTextual()) {
+            return normalizeTextNode(node);
+        }
+        if (node.isNumber()) {
+            return normalizeNumberNode(node);
+        }
         return node;
+    }
+
+    private JsonNode normalizeObjectNode(JsonNode node) {
+        ObjectNode normalized = objectMapper.createObjectNode();
+        for (var entry : node.properties()) {
+            String fieldName = entry.getKey();
+            JsonNode normalizedValue = normalizeValues(entry.getValue());
+
+            // Canonicalize empty collections to null for stable diffing.
+            if (normalizedValue.isArray() && normalizedValue.isEmpty()) {
+                normalized.set(fieldName, NullNode.getInstance());
+            } else {
+                normalized.set(fieldName, normalizedValue);
+            }
+        }
+        return normalized.isEmpty() ? NullNode.getInstance() : normalized;
+    }
+
+    private JsonNode normalizeArrayNode(JsonNode node) {
+        ArrayNode normalized = objectMapper.createArrayNode();
+        for (JsonNode element : node) {
+            normalized.add(normalizeValues(element));
+        }
+        return normalized.isEmpty() ? NullNode.getInstance() : normalized;
+    }
+
+    private JsonNode normalizeTextNode(JsonNode node) {
+        String text = node.asText();
+        return text.isBlank() ? NullNode.getInstance() : JsonNodeFactory.instance.textNode(text);
+    }
+
+    private JsonNode normalizeNumberNode(JsonNode node) {
+        BigDecimal stripped = node.decimalValue().stripTrailingZeros();
+        if (stripped.scale() <= 0) {
+            BigInteger integerValue = stripped.toBigIntegerExact();
+            return JsonNodeFactory.instance.numberNode(integerValue);
+        }
+        return JsonNodeFactory.instance.numberNode(stripped);
     }
 
         /**
@@ -85,10 +148,7 @@ public class ObjectNormalizationUtils {
             return true;
         }
         // Boolean false (default value for most boolean fields)
-        if (node.isBoolean() && !node.asBoolean()) {
-            return true;
-        }
-        return false;
+        return node.isBoolean() && !node.asBoolean();
     }
 
     /**
@@ -102,9 +162,6 @@ public class ObjectNormalizationUtils {
         if (node.isArray() && node.isEmpty()) {
             return true;
         }
-        if (node.isObject() && node.isEmpty()) {
-            return true;
-        }
-        return false;
+        return node.isObject() && node.isEmpty();
     }
 }
