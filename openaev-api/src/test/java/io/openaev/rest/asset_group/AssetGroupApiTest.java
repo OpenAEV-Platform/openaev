@@ -615,7 +615,6 @@ class AssetGroupApiTest extends IntegrationTest {
   class TenantIsolation {
 
     @Test
-    @Disabled
     @DisplayName("AssetGroup created in tenant X should NOT be readable from tenant Y")
     void given_assetGroupInTenantX_should_notBeReadableFromTenantY() throws Exception {
       // -------- Arrange --------
@@ -626,7 +625,7 @@ class AssetGroupApiTest extends IntegrationTest {
           tenantIsolationHelper.createTenantWithCapabilities(
               "Tenant Y", Set.of(Capability.ACCESS_ASSETS));
 
-      AssetGroupInput input = createDefaultAssetGroupInput("RLS Isolation Test AssetGroup");
+      AssetGroupInput input = createDefaultAssetGroupInput("Isolation Test AssetGroup");
 
       String createResponse =
           mvc.perform(
@@ -661,7 +660,6 @@ class AssetGroupApiTest extends IntegrationTest {
     }
 
     @Test
-    @Disabled
     @DisplayName("AssetGroup created in tenant X should be readable from tenant X")
     void given_assetGroupInTenantX_should_beReadableFromTenantX() throws Exception {
       // -------- Arrange --------
@@ -739,7 +737,6 @@ class AssetGroupApiTest extends IntegrationTest {
     }
 
     @Test
-    @Disabled
     @DisplayName("AssetGroup created in tenant X should NOT be updatable from tenant Y")
     void given_assetGroupInTenantX_should_notBeUpdatableFromTenantY() throws Exception {
       // -------- Arrange --------
@@ -789,7 +786,6 @@ class AssetGroupApiTest extends IntegrationTest {
     }
 
     @Test
-    @Disabled
     @DisplayName("AssetGroup created in tenant X should NOT be deletable from tenant Y")
     void given_assetGroupInTenantX_should_notBeDeletableFromTenantY() throws Exception {
       // -------- Arrange --------

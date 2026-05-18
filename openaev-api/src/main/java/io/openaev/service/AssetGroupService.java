@@ -5,6 +5,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
 import static java.time.Instant.now;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.specification.EndpointSpecification;
@@ -87,11 +88,17 @@ public class AssetGroupService {
   }
 
   public AssetGroup assetGroup(@NotBlank final String assetGroupId) {
+    String tenantId = TenantContext.getCurrentTenant();
     AssetGroup assetGroup =
-        this.assetGroupRepository
-            .findById(assetGroupId)
-            .orElseThrow(
-                () -> new ElementNotFoundException("Asset group not found: " + assetGroupId));
+        (tenantId != null)
+            ? this.assetGroupRepository
+                .findByIdAndTenantId(assetGroupId, tenantId)
+                .orElseThrow(
+                    () -> new ElementNotFoundException("Asset group not found: " + assetGroupId))
+            : this.assetGroupRepository
+                .findById(assetGroupId)
+                .orElseThrow(
+                    () -> new ElementNotFoundException("Asset group not found: " + assetGroupId));
     return computeDynamicAssets(assetGroup);
   }
 
