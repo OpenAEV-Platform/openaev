@@ -112,7 +112,7 @@ public class AppSecurityConfig {
                     .permitAll()
                     .requestMatchers("/api/login")
                     .permitAll()
-                    .requestMatchers("/api/url/access")
+                    .requestMatchers("/api/url/access/**")
                     .permitAll()
                     .requestMatchers("/api/reset/**")
                     .permitAll()

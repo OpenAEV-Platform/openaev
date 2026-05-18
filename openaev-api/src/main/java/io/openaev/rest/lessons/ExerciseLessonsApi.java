@@ -395,7 +395,18 @@ public class ExerciseLessonsApi extends RestBehavior {
   public List<LessonsCategory> playerLessonsCategories(
       @PathVariable String exerciseId, @RequestParam Optional<String> userId) {
     impersonateUser(userRepository, userId); // Protection for ?
-    return lessonsCategoryRepository.findAll(LessonsCategorySpecification.fromExercise(exerciseId));
+    return lessonsCategoryRepository
+        .findAll(LessonsCategorySpecification.fromExercise(exerciseId))
+        .stream()
+        .filter(
+            lessonsCategory ->
+                userId.isEmpty()
+                    || lessonsCategory.getTeams().stream()
+                        .anyMatch(
+                            team ->
+                                team.getUsers().stream()
+                                    .anyMatch(user -> user.getId().equals(userId.get()))))
+        .toList();
   }
 
   @GetMapping({
@@ -442,6 +453,7 @@ public class ExerciseLessonsApi extends RestBehavior {
                                     LessonsAnswerSpecification.fromQuestion(
                                         lessonsQuestion.getId()))
                                 .stream()))
+                    .filter(lessonsAnswer -> userId.isEmpty() || lessonsAnswer.getUser().getId().equals(userId.get()))
         .toList();
   }
 
