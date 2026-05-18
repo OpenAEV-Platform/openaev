@@ -4,8 +4,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import io.jsonwebtoken.Jwts;
+import io.openaev.api.xtmone.dto.ChatbotAgentOutput;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.OpenAEVConfig;
+import io.openaev.database.model.User;
+import io.openaev.service.UserService;
 import io.openaev.service.xtm_auth.XtmAuthKeyService;
 import java.io.IOException;
 import java.io.InputStream;
@@ -38,8 +41,7 @@ import org.springframework.web.server.ResponseStatusException;
 @Slf4j
 public class XtmOneClient {
 
-  private static final String CHAT_AGENTS_PATH = "/api/v1/platform/chat/agents";
-  private static final String CHAT_AGENTS_TAG = "openaev";
+  private static final String INTENTS_CATALOG_AGENTS_PATH = "/api/v1/intents/catalog";
   private static final int AGENT_LIST_TIMEOUT_SECONDS = 10;
 
   private final XtmOneConfig config;
@@ -47,6 +49,7 @@ public class XtmOneClient {
   private final XtmAuthKeyService keyService;
   private final OpenAEVConfig openAEVConfig;
   private final HttpClientFactory httpClientFactory;
+  private final UserService userService;
 
   public String issueAuthenticationJwt(String userId, String userName, String userEmail) {
     Instant now = Instant.now();
@@ -66,6 +69,12 @@ public class XtmOneClient {
         .id(UUID.randomUUID().toString())
         .signWith(keyService.getKeyPair().getPrivate(), Jwts.SIG.EdDSA)
         .compact();
+  }
+
+  private String issueJwtForCurrentUser() {
+    User user = userService.currentUser();
+    return issueAuthenticationJwt(
+        user.getId(), user.getName() != null ? user.getName() : user.getEmail(), user.getEmail());
   }
 
   private void addChatHeaders(HttpMessage request, String jwt) {
@@ -143,13 +152,15 @@ public class XtmOneClient {
   }
 
   @SuppressWarnings("unchecked")
-  public List<Map<String, Object>> listChatAgents(String jwt) {
+  public List<ChatbotAgentOutput> listChatAgents(String intentName) {
     if (!config.isConfigured()) {
       throw new ResponseStatusException(
           HttpStatus.SERVICE_UNAVAILABLE, "[XTM One] Service is not configured");
     }
     try (CloseableHttpClient httpClient = httpClientFactory.httpClientCustom()) {
-      HttpGet httpGet = chatGetBuilder(CHAT_AGENTS_PATH + "?tag=" + CHAT_AGENTS_TAG, jwt);
+      String jwt = issueJwtForCurrentUser();
+      HttpGet httpGet =
+          chatGetBuilder(INTENTS_CATALOG_AGENTS_PATH + "?vertical=aev&intent=" + intentName, jwt);
       httpGet.setConfig(
           RequestConfig.custom()
               .setResponseTimeout(Timeout.ofSeconds(AGENT_LIST_TIMEOUT_SECONDS))
@@ -166,15 +177,24 @@ public class XtmOneClient {
     }
   }
 
-  private List<Map<String, Object>> handleAgentListResponse(ClassicHttpResponse response)
+  private List<ChatbotAgentOutput> handleAgentListResponse(ClassicHttpResponse response)
       throws IOException, ParseException {
     int code = response.getCode();
     String body = EntityUtils.toString(response.getEntity());
 
     return switch (code) {
       case 200 -> {
-        List<Map<String, Object>> agents = objectMapper.readValue(body, List.class);
-        if (agents == null || agents.isEmpty()) {
+        List<Map<String, Object>> catalog = objectMapper.readValue(body, List.class);
+        List<ChatbotAgentOutput> agents =
+            catalog == null
+                ? List.of()
+                : catalog.stream()
+                    .filter(item -> item.get("agents") instanceof List<?>)
+                    .flatMap(item -> ((List<?>) item.get("agents")).stream())
+                    .map(agent -> objectMapper.convertValue(agent, ChatbotAgentOutput.class))
+                    .toList();
+
+        if (agents.isEmpty()) {
           throw new ResponseStatusException(
               HttpStatus.NOT_FOUND, "[XTM One] No chat agents available");
         }
@@ -200,12 +220,12 @@ public class XtmOneClient {
   }
 
   @SuppressWarnings("unchecked")
-  public Map<String, Object> createChatSession(
-      String jwt, String agentSlug, String conversationId) {
+  public Map<String, Object> createChatSession(String agentSlug, String conversationId) {
     if (!config.isConfigured()) {
       return null;
     }
     try (CloseableHttpClient httpClient = httpClientFactory.httpClientCustom()) {
+      String jwt = issueJwtForCurrentUser();
       Map<String, Object> body = new HashMap<>();
       if (agentSlug != null) body.put("agent_slug", agentSlug);
       if (conversationId != null) body.put("conversation_id", conversationId);
@@ -234,25 +254,19 @@ public class XtmOneClient {
    * stream and is responsible for reading it. The HTTP client and stream are automatically closed
    * when the consumer returns or throws.
    *
-   * @param jwt authentication token
    * @param content message content
    * @param conversationId optional conversation ID
    * @param agentSlug optional agent slug
    * @param streamConsumer callback that receives the SSE {@link InputStream}
-   * @throws IOException if an I/O error occurs
    */
   public void streamChatMessage(
-      String jwt,
-      String content,
-      String conversationId,
-      String agentSlug,
-      StreamConsumer streamConsumer)
-      throws IOException {
+      String content, String conversationId, String agentSlug, StreamConsumer streamConsumer) {
     if (!config.isConfigured()) {
       log.warn("[XTM One] Chat message skipped: not configured");
       return;
     }
     try (CloseableHttpClient httpClient = httpClientFactory.httpClientCustom()) {
+      String jwt = issueJwtForCurrentUser();
       Map<String, Object> body = new HashMap<>();
       body.put("content", content);
       if (conversationId != null) body.put("conversation_id", conversationId);
@@ -296,20 +310,19 @@ public class XtmOneClient {
    *
    * <p>Callers should pass a per-user JWT (issued via {@link #issueAuthenticationJwt}) so the
    * upstream XTM One side can attribute the call to the real user. Use {@link
-   * #callAgentSyncAsService} only for platform-level (non-user) calls.
    *
-   * @param jwt authentication token (per-user when invoked from a user request)
    * @param agentSlug the agent slug to route the request to
    * @param content the user prompt / content
    * @param filesNode optional base64-encoded file attachments (may be {@code null})
    * @return the agent's final text content, or {@code null} on failure
    */
-  public String callAgentSync(String jwt, String agentSlug, String content, ArrayNode filesNode) {
+  public String callAgentSync(String agentSlug, String content, ArrayNode filesNode) {
     if (!config.isConfigured()) {
       log.warn("[XTM One] callAgentSync skipped: not configured");
       return null;
     }
     try (CloseableHttpClient httpClient = httpClientFactory.httpClientCustom()) {
+      String jwt = issueJwtForCurrentUser();
       Map<String, Object> body = new HashMap<>();
       body.put("content", content);
       body.put("agent_slug", agentSlug);
@@ -340,17 +353,6 @@ public class XtmOneClient {
       log.warn("[XTM One] callAgentSync error, agent={}.", agentSlug, e);
     }
     return null;
-  }
-
-  /**
-   * Service-level (non-user) variant of {@link #callAgentSync} that mints an internal JWT. Use only
-   * for platform background flows where no user context is available; user-triggered calls must use
-   * {@link #callAgentSync(String, String, String, ArrayNode)} with a per-user JWT.
-   */
-  public String callAgentSyncAsService(String agentSlug, String content, ArrayNode filesNode) {
-    String serviceJwt =
-        issueAuthenticationJwt("system", "OpenAEV Platform", "system@openaev.internal");
-    return callAgentSync(serviceJwt, agentSlug, content, filesNode);
   }
 
   /**

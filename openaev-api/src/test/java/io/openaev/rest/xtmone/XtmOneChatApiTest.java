@@ -8,11 +8,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.api.xtmone.dto.ChatbotAgentOutput;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.xtmone.XtmOneClient;
 import io.openaev.xtmone.XtmOneConfig;
 import java.util.List;
-import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -60,10 +60,10 @@ class XtmOneChatApiTest extends IntegrationTest {
       when(xtmOneConfig.isConfigured()).thenReturn(true);
       when(xtmOneClient.issueAuthenticationJwt(anyString(), anyString(), anyString()))
           .thenReturn("fake-jwt");
-      List<Map<String, Object>> agents =
+      List<ChatbotAgentOutput> agents =
           List.of(
-              Map.of("id", "agent-1", "name", "Test Agent", "slug", "test-agent"),
-              Map.of("id", "agent-2", "name", "Another Agent", "slug", "another-agent"));
+              new ChatbotAgentOutput("id", "Test Agent", "test-agent", "Test Agent"),
+              new ChatbotAgentOutput("id", "Another Agent", "agent-2", "another-agent"));
       when(xtmOneClient.listChatAgents(anyString())).thenReturn(agents);
 
       // -- ACT & ASSERT --

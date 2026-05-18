@@ -157,10 +157,8 @@ class AttackPatternServiceTest {
   @DisplayName("given_xtmOneConfigured_should_routeThroughXtmOneAndUnwrapCopilotEnvelope")
   @Test
   void given_xtmOneConfigured_should_routeThroughXtmOneAndUnwrapCopilotEnvelope() {
-    // Arrange — XTM One configured + ttp.extractor agent registered with the requested slug
+    // Arrange — XTM One configured + cti.ttp_harvester agent registered with the requested slug
     when(xtmOneConfig.isConfigured()).thenReturn(true);
-    when(xtmOneService.resolveAgentSlugForIntent(anyString(), anyString()))
-        .thenReturn("filigran-ttp-extractor");
     when(userService.currentUser()).thenReturn(stubUser());
     when(xtmOneClient.issueAuthenticationJwt(anyString(), anyString(), anyString()))
         .thenReturn("user-jwt");
@@ -198,7 +196,6 @@ class AttackPatternServiceTest {
   void given_xtmOneConfiguredAndNoCatalogYet_should_fallbackToDefaultSlugAndStillExtract() {
     // Arrange — XTM One configured but the registration catalog hasn't populated yet
     when(xtmOneConfig.isConfigured()).thenReturn(true);
-    when(xtmOneService.resolveAgentSlugForIntent(anyString(), any())).thenReturn(null);
     when(userService.currentUser()).thenReturn(stubUser());
     when(xtmOneClient.issueAuthenticationJwt(anyString(), anyString(), anyString()))
         .thenReturn("user-jwt");
@@ -228,8 +225,6 @@ class AttackPatternServiceTest {
   void given_xtmOneCallFails_should_throwServiceUnavailable() {
     // Arrange
     when(xtmOneConfig.isConfigured()).thenReturn(true);
-    when(xtmOneService.resolveAgentSlugForIntent(anyString(), any()))
-        .thenReturn("filigran-ttp-extractor");
     when(userService.currentUser()).thenReturn(stubUser());
     when(xtmOneClient.issueAuthenticationJwt(anyString(), anyString(), anyString()))
         .thenReturn("user-jwt");

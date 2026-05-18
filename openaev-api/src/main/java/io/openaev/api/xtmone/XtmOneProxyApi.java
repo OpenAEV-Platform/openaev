@@ -6,13 +6,10 @@ import io.openaev.api.xtmone.dto.AgentCallInput;
 import io.openaev.api.xtmone.dto.AgentCallOutput;
 import io.openaev.api.xtmone.dto.ChatbotAgentOutput;
 import io.openaev.api.xtmone.dto.DetectionRemediationCallInput;
-import io.openaev.database.model.User;
 import io.openaev.rest.helper.RestBehavior;
-import io.openaev.service.UserService;
 import io.openaev.xtmone.XtmOneClient;
 import io.openaev.xtmone.XtmOneConfig;
 import io.openaev.xtmone.XtmOneFormattingService;
-import io.openaev.xtmone.XtmOneService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -49,15 +46,7 @@ public class XtmOneProxyApi extends RestBehavior {
 
   private final XtmOneConfig config;
   private final XtmOneClient client;
-  private final XtmOneService xtmOneService;
   private final XtmOneFormattingService formattingService;
-  private final UserService userService;
-
-  private String issueJwtForCurrentUser() {
-    User user = userService.currentUser();
-    return client.issueAuthenticationJwt(
-        user.getId(), user.getName() != null ? user.getName() : user.getEmail(), user.getEmail());
-  }
 
   // -- READ --
 
@@ -73,7 +62,7 @@ public class XtmOneProxyApi extends RestBehavior {
     if (!config.isConfigured()) {
       return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(List.of());
     }
-    return ResponseEntity.ok(xtmOneService.listEnabledAgentsForIntent(intent));
+    return ResponseEntity.ok(client.listChatAgents(intent));
   }
 
   // -- AGENT CALLS --
@@ -92,11 +81,7 @@ public class XtmOneProxyApi extends RestBehavior {
       return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
           .body(AgentCallOutput.error("XTM One is not configured"));
     }
-
-    String validatedSlug = xtmOneService.requireEnabledAgentSlug(input.agentSlug());
-
-    String result =
-        client.callAgentSync(issueJwtForCurrentUser(), validatedSlug, input.content(), null);
+    String result = client.callAgentSync(input.agentSlug(), input.content(), null);
     if (result == null) {
       return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
           .body(AgentCallOutput.error("Agent call failed"));
@@ -120,16 +105,7 @@ public class XtmOneProxyApi extends RestBehavior {
       return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
           .body(AgentCallOutput.error("XTM One is not configured"));
     }
-
-    String resolvedSlug =
-        xtmOneService.resolveAgentSlugForIntent("detection.generate", input.agentSlug());
-    if (resolvedSlug == null) {
-      return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-          .body(AgentCallOutput.error("No detection.generate agent enabled"));
-    }
-
-    String raw =
-        client.callAgentSync(issueJwtForCurrentUser(), resolvedSlug, input.content(), null);
+    String raw = client.callAgentSync(input.agentSlug(), input.content(), null);
     if (raw == null) {
       return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
           .body(AgentCallOutput.error("Agent call failed"));
@@ -160,18 +136,15 @@ public class XtmOneProxyApi extends RestBehavior {
           .body(errorBody);
     }
 
-    final String validatedSlug = xtmOneService.requireEnabledAgentSlug(input.agentSlug());
+    final String validatedSlug = input.agentSlug();
     final String content = input.content();
 
     // Resolve the user and mint the JWT inside the request thread (Spring Security context is not
     // propagated automatically into the streaming callback below).
-    final String jwt = issueJwtForCurrentUser();
-
     StreamingResponseBody responseBody =
         outputStream -> {
           try {
             client.streamChatMessage(
-                jwt,
                 content,
                 null,
                 validatedSlug,

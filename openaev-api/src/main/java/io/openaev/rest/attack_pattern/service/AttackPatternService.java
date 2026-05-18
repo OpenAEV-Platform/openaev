@@ -54,7 +54,9 @@ public class AttackPatternService {
   private static final long AI_UPLOAD_MAX_BYTES_PER_FILE = 5L * 1024 * 1024;
 
   /** Intent the TTP extraction flow uses to route to the right XTM One agent. */
-  private static final String TTP_EXTRACTOR_INTENT = "ttp.extractor";
+  public static final String TTP_EXTRACTOR_INTENT = "cti.ttp_harvester";
+
+  public static final String TTP_EXTRACTOR_SLUG = "cti-ttp-harvester-filigran-ia";
 
   @Resource protected ObjectMapper mapper;
 
@@ -293,18 +295,11 @@ public class AttackPatternService {
    * Call the TTP extraction agent via XTM One. Converts MultipartFile attachments to base64 inline
    * format expected by the copilot agent, sends the request through {@link XtmOneClient}, and
    * returns the agent's content (same JSON format as the legacy webservice). The {@code agentSlug}
-   * supplied by the caller is validated against the {@code ttp.extractor} intent catalog so users
-   * can only invoke agents that were registered as TTP extractors.
+   * supplied by the caller is validated against the {@code cti.ttp_harvester} intent catalog so
+   * users can only invoke agents that were registered as TTP extractors.
    */
   private String callTTPExtractionViaXtmOne(
       List<MultipartFile> files, String text, String agentSlug) throws IOException {
-    String slug = xtmOneService.resolveAgentSlugForIntent(TTP_EXTRACTOR_INTENT, agentSlug);
-    if (slug == null) {
-      // Fallback for environments where the registration catalog hasn't loaded yet but the
-      // copilot still ships the default agent. Preserves backward compatibility.
-      slug = "filigran-ttp-extractor";
-    }
-
     com.fasterxml.jackson.databind.node.ArrayNode filesNode = null;
     if (!files.isEmpty()) {
       filesNode = mapper.createArrayNode();
@@ -320,54 +315,13 @@ public class AttackPatternService {
     }
 
     String content = (text != null && !text.isBlank()) ? text : "Extract TTPs from attached files";
-    // TTP extraction is always user-triggered (via /api/attack_patterns/search-with-ai), so mint a
-    // per-user JWT instead of using `callAgentSyncAsService` (which would attribute the request to
-    // a generic "system" user on the XTM One side).
-    User user = userService.currentUser();
-    String jwt =
-        xtmOneClient.issueAuthenticationJwt(
-            user.getId(),
-            user.getName() != null ? user.getName() : user.getEmail(),
-            user.getEmail());
-    String result = xtmOneClient.callAgentSync(jwt, slug, content, filesNode);
+    String result = xtmOneClient.callAgentSync(agentSlug, content, filesNode);
     if (result == null) {
       throw new ResponseStatusException(
           HttpStatus.SERVICE_UNAVAILABLE,
           "XTM One AI service is unavailable or returned no result");
     }
-    // The copilot returns {"files": [{..., "extraction": {filename: [...]}}]}.
-    // Unwrap to the native Filigran AI format: {filename: [...], ...}
-    return unwrapCopilotTtpResponse(result);
-  }
-
-  /**
-   * Unwraps the copilot envelope into the native Filigran AI response format expected by {@link
-   * #extractExternalAttackPatternIdsFromResponse}.
-   *
-   * <p>If the response is already in native format (e.g. {"filename.txt": [...]}), it is returned
-   * as-is.
-   */
-  private String unwrapCopilotTtpResponse(String raw) throws IOException {
-    JsonNode root = mapper.readTree(raw);
-    if (!root.has("files") || !root.get("files").isArray()) {
-      // Already native format
-      return raw;
-    }
-    com.fasterxml.jackson.databind.node.ObjectNode merged = mapper.createObjectNode();
-    for (JsonNode entry : root.get("files")) {
-      if (entry.has("extraction") && entry.get("extraction").isObject()) {
-        JsonNode extraction = entry.get("extraction");
-        extraction
-            .fields()
-            .forEachRemaining(
-                field -> {
-                  if (field.getValue().isArray()) {
-                    merged.set(field.getKey(), field.getValue());
-                  }
-                });
-      }
-    }
-    return mapper.writeValueAsString(merged);
+    return result;
   }
 
   // -- STIX --

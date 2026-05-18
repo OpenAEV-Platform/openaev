@@ -89,10 +89,6 @@ public class PlatformSettings extends PublicPlatformSettings {
   @Schema(description = "XTM One platform URL")
   private String xtmOneUrl;
 
-  @JsonProperty("platform_xtm_one_web_token")
-  @Schema(description = "XTM One public chat web token for the embedded agent")
-  private String xtmOneWebToken;
-
   @JsonProperty("platform_ai_enabled")
   @Schema(description = "True if AI is enabled for the platform")
   private Boolean aiEnabled;

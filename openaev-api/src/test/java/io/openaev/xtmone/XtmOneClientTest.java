@@ -6,9 +6,8 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.api.xtmone.dto.ChatbotAgentOutput;
 import io.openaev.authorisation.HttpClientFactory;
-import io.openaev.config.OpenAEVConfig;
-import io.openaev.service.xtm_auth.XtmAuthKeyService;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -38,8 +37,6 @@ class XtmOneClientTest {
   @Mock private HttpClientFactory httpClientFactory;
   @Mock private XtmOneConfig config;
   @Mock private ObjectMapper objectMapper;
-  @Mock private XtmAuthKeyService keyService;
-  @Mock private OpenAEVConfig openAEVConfig;
   @Mock private CloseableHttpClient httpClient;
 
   @InjectMocks private XtmOneClient xtmOneClient;
@@ -56,8 +53,7 @@ class XtmOneClientTest {
 
       // -- ACT & ASSERT --
       ResponseStatusException ex =
-          assertThrows(
-              ResponseStatusException.class, () -> xtmOneClient.listChatAgents("test-jwt"));
+          assertThrows(ResponseStatusException.class, () -> xtmOneClient.listChatAgents("intent"));
       assertEquals(503, ex.getStatusCode().value());
     }
 
@@ -71,11 +67,11 @@ class XtmOneClientTest {
       mockHttpResponse(expectedAgents);
 
       // -- ACT --
-      List<Map<String, Object>> result = xtmOneClient.listChatAgents("test-jwt");
+      List<ChatbotAgentOutput> result = xtmOneClient.listChatAgents("intent");
 
       // -- ASSERT --
       assertEquals(1, result.size());
-      assertEquals("agent-1", result.getFirst().get("id"));
+      assertEquals("agent-1", result.getFirst().id());
     }
 
     @Test
@@ -87,8 +83,7 @@ class XtmOneClientTest {
 
       // -- ACT & ASSERT --
       ResponseStatusException ex =
-          assertThrows(
-              ResponseStatusException.class, () -> xtmOneClient.listChatAgents("test-jwt"));
+          assertThrows(ResponseStatusException.class, () -> xtmOneClient.listChatAgents("intent"));
       assertEquals(404, ex.getStatusCode().value());
     }
 
@@ -110,8 +105,7 @@ class XtmOneClientTest {
 
       // -- ACT & ASSERT --
       ResponseStatusException ex =
-          assertThrows(
-              ResponseStatusException.class, () -> xtmOneClient.listChatAgents("test-jwt"));
+          assertThrows(ResponseStatusException.class, () -> xtmOneClient.listChatAgents("intent"));
       assertEquals(expectedStatus, ex.getStatusCode().value());
     }
 
@@ -124,8 +118,7 @@ class XtmOneClientTest {
 
       // -- ACT & ASSERT --
       ResponseStatusException ex =
-          assertThrows(
-              ResponseStatusException.class, () -> xtmOneClient.listChatAgents("test-jwt"));
+          assertThrows(ResponseStatusException.class, () -> xtmOneClient.listChatAgents("intent"));
       assertEquals(404, ex.getStatusCode().value());
     }
 
@@ -139,8 +132,7 @@ class XtmOneClientTest {
 
       // -- ACT & ASSERT --
       ResponseStatusException ex =
-          assertThrows(
-              ResponseStatusException.class, () -> xtmOneClient.listChatAgents("test-jwt"));
+          assertThrows(ResponseStatusException.class, () -> xtmOneClient.listChatAgents("intent"));
       assertEquals(500, ex.getStatusCode().value());
     }
 

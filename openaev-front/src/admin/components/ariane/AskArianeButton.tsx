@@ -1,25 +1,23 @@
 import { Button, SvgIcon } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { LogoXtmOneIcon } from 'filigran-icon';
-import { type FunctionComponent } from 'react';
 
 import { useFormatter } from '../../../components/i18n';
-import { MESSAGING$ } from '../../../utils/Environment';
 import useAuth from '../../../utils/hooks/useAuth';
+import { useChatbot } from './useChatbotHooks';
 
-interface AskArianeButtonProps { isOpen: boolean }
-
-const AskArianeButton: FunctionComponent<AskArianeButtonProps> = ({ isOpen }) => {
+const AskArianeButton = () => {
   const theme = useTheme();
   const { t } = useFormatter();
   const { settings } = useAuth();
+  const { isOpen, toggleChat } = useChatbot();
 
   if (!settings.platform_xtm_one_configured) {
     return null;
   }
 
   const handleToggle = () => {
-    MESSAGING$.toggleArianeChat.next();
+    toggleChat();
   };
 
   return (

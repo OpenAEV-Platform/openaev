@@ -301,7 +301,6 @@ public class PlatformSettingsService {
     platformSettings.setXtmOpenctiUrl(openCTIConfig.getUrl());
     platformSettings.setXtmOneConfigured(xtmOneConfig.isConfigured());
     platformSettings.setXtmOneUrl(xtmOneConfig.getUrl());
-    platformSettings.setXtmOneWebToken(xtmOneConfig.getEffectiveWebToken());
     platformSettings.setAiEnabled(aiConfig.isEnabled());
     platformSettings.setAiHasToken(StringUtils.hasText(aiConfig.getToken()));
     platformSettings.setAiType(aiConfig.getType());

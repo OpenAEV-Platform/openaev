@@ -13,7 +13,9 @@ import useAuth from '../../../utils/hooks/useAuth';
 import installChatbotCsrf from './installChatbotCsrf';
 
 interface AskArianePanelProps {
+  mode: ChatMode;
   onClose: () => void;
+  onModeChange: (mode: ChatMode) => void;
   onWidthChange?: (width: number) => void;
   onResizeStart?: () => void;
   onResizeEnd?: () => void;
@@ -22,7 +24,9 @@ interface AskArianePanelProps {
 type AgentFetchState = 'loading' | 'success' | 'no_agents' | 'error';
 
 const AskArianePanel: React.FC<AskArianePanelProps> = ({
+  mode,
   onClose,
+  onModeChange,
   onWidthChange,
   onResizeStart,
   onResizeEnd,
@@ -30,7 +34,6 @@ const AskArianePanel: React.FC<AskArianePanelProps> = ({
   const theme = useTheme<Theme>();
   const { t } = useFormatter();
   const { me, settings } = useAuth();
-  const [mode, setMode] = useState<ChatMode>('sidebar');
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
   const [agentFetchState, setAgentFetchState] = useState<AgentFetchState>('loading');
 
@@ -140,7 +143,7 @@ const AskArianePanel: React.FC<AskArianePanelProps> = ({
     <ChatPanel
       mode={mode}
       onClose={onClose}
-      onModeChange={setMode}
+      onModeChange={onModeChange}
       topOffset={topOffset}
       backendType="rest"
       apiBaseUrl="/api/xtmone/chat"

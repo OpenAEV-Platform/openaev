@@ -2,6 +2,7 @@ package io.openaev.rest.xtmone;
 
 import static io.openaev.config.SessionHelper.currentUser;
 
+import io.openaev.api.xtmone.dto.ChatbotAgentOutput;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -36,18 +37,12 @@ public class XtmOneChatApi extends RestBehavior {
         .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
   }
 
-  private String issueJwt(User user) {
-    return client.issueAuthenticationJwt(
-        user.getId(), user.getName() != null ? user.getName() : user.getEmail(), user.getEmail());
-  }
-
   @GetMapping(XTM_ONE_URI + "/chat/agents")
-  public ResponseEntity<List<Map<String, Object>>> listAgents() {
+  public ResponseEntity<List<ChatbotAgentOutput>> listAgents() {
     if (!config.isConfigured()) {
       return ResponseEntity.ok(List.of());
     }
-    User user = resolveCurrentUser();
-    return ResponseEntity.ok(client.listChatAgents(issueJwt(user)));
+    return ResponseEntity.ok(client.listChatAgents("global.assistant"));
   }
 
   @PostMapping(XTM_ONE_URI + "/chat/sessions")
@@ -55,12 +50,10 @@ public class XtmOneChatApi extends RestBehavior {
     if (!config.isConfigured()) {
       return ResponseEntity.badRequest().build();
     }
-    User user = resolveCurrentUser();
-    String jwt = issueJwt(user);
     String agentSlug = body.get("agent_slug") != null ? body.get("agent_slug").toString() : null;
     String conversationId =
         body.get("conversation_id") != null ? body.get("conversation_id").toString() : null;
-    Map<String, Object> result = client.createChatSession(jwt, agentSlug, conversationId);
+    Map<String, Object> result = client.createChatSession(agentSlug, conversationId);
     if (result == null) {
       return ResponseEntity.internalServerError().build();
     }
@@ -72,8 +65,6 @@ public class XtmOneChatApi extends RestBehavior {
     if (!config.isConfigured()) {
       return ResponseEntity.badRequest().build();
     }
-    User user = resolveCurrentUser();
-    String jwt = issueJwt(user);
     String content = body.get("content") != null ? body.get("content").toString() : "";
     String conversationId =
         body.get("conversation_id") != null ? body.get("conversation_id").toString() : null;
@@ -83,7 +74,6 @@ public class XtmOneChatApi extends RestBehavior {
         outputStream -> {
           try {
             client.streamChatMessage(
-                jwt,
                 content,
                 conversationId,
                 agentSlug,
