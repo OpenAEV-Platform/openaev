@@ -1,6 +1,7 @@
 package io.openaev.service;
 
 import io.openaev.database.model.Document;
+import io.openaev.database.model.Tenant;
 import java.io.InputStream;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -137,7 +138,7 @@ public class FileService {
    * @return an Optional containing the image input stream, or empty if not found
    */
   public Optional<InputStream> getInjectorImage(String injectType) {
-    return getFilePath(INJECTORS_IMAGES_BASE_PATH + injectType + EXT_PNG);
+    return getPlatformImage(INJECTORS_IMAGES_BASE_PATH + injectType + EXT_PNG);
   }
 
   /**
@@ -147,7 +148,7 @@ public class FileService {
    * @return an Optional containing the image input stream, or empty if not found
    */
   public Optional<InputStream> getCollectorImage(String collectorId) {
-    return getFilePath(COLLECTORS_IMAGES_BASE_PATH + collectorId + EXT_PNG);
+    return getPlatformImage(COLLECTORS_IMAGES_BASE_PATH + collectorId + EXT_PNG);
   }
 
   /**
@@ -157,7 +158,7 @@ public class FileService {
    * @return an Optional containing the image input stream, or empty if not found
    */
   public Optional<InputStream> getExecutorIconImage(String executorId) {
-    return getFilePath(EXECUTORS_IMAGES_ICONS_BASE_PATH + executorId + EXT_PNG);
+    return getPlatformImage(EXECUTORS_IMAGES_ICONS_BASE_PATH + executorId + EXT_PNG);
   }
 
   /**
@@ -167,7 +168,7 @@ public class FileService {
    * @return an Optional containing the image input stream, or empty if not found
    */
   public Optional<InputStream> getExecutorBannerImage(String executorId) {
-    return getFilePath(EXECUTORS_IMAGES_BANNERS_BASE_PATH + executorId + EXT_PNG);
+    return getPlatformImage(EXECUTORS_IMAGES_BANNERS_BASE_PATH + executorId + EXT_PNG);
   }
 
   /**
@@ -177,7 +178,19 @@ public class FileService {
    * @return an Optional containing the image input stream, or empty if not found
    */
   public Optional<InputStream> getCatalogConnectorImage(String fileName) {
-    return getFilePath(CONNECTORS_LOGO_PATH + fileName);
+    return getPlatformImage(CONNECTORS_LOGO_PATH + fileName);
+  }
+
+  /**
+   * Platform assets are written once under the default tenant during startup; non-default tenants
+   * should transparently fall back to that location.
+   */
+  private Optional<InputStream> getPlatformImage(String filePath) {
+    Optional<InputStream> tenantFile = getFilePath(filePath);
+    if (tenantFile.isPresent()) {
+      return tenantFile;
+    }
+    return minioService.getFilePathForTenant(Tenant.DEFAULT_TENANT_UUID, filePath);
   }
 
   /**

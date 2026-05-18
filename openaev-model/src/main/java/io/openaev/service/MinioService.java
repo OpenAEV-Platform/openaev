@@ -94,6 +94,22 @@ public class MinioService implements DependenciesManager {
     }
   }
 
+  public Optional<InputStream> getFilePathForTenant(String tenantId, String name) {
+    try {
+      GetObjectResponse objectStream =
+          minioClient.getObject(
+              GetObjectArgs.builder()
+                  .bucket(bucket())
+                  .object(getPathForTenant(tenantId, name))
+                  .build());
+      InputStreamResource streamResource = new InputStreamResource(objectStream);
+      return Optional.of(streamResource.getInputStream());
+    } catch (Exception e) {
+      log.error("Error during file access", e);
+      return Optional.empty();
+    }
+  }
+
   public Optional<FileContainer> getFileContainerInTenant(String fileTarget) {
     try {
       StatObjectResponse response = objectExists(getTenantPath(fileTarget));
@@ -246,6 +262,10 @@ public class MinioService implements DependenciesManager {
   /** Returns the tenant-prefixed path for the given object name. */
   private String getTenantPath(String objectName) {
     String tenantId = TenantContext.getCurrentTenant();
+    return getPathForTenant(tenantId, objectName);
+  }
+
+  private String getPathForTenant(String tenantId, String objectName) {
     if (objectName.startsWith("/")) {
       return tenantId + objectName;
     }
