@@ -6,21 +6,15 @@ import io.openaev.aop.AccessControlAspect;
 import io.openaev.database.model.Base;
 import io.openaev.database.model.ResourceType;
 import io.openaev.service.LogService;
+import io.openaev.utils.HttpReqRespUtils;
 import io.openaev.utils.ResourceManagerUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.aspectj.lang.ProceedingJoinPoint;
-import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
 
-import java.lang.annotation.Annotation;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -326,17 +320,8 @@ public class AccessControlAuditLogger {
 
     /** Returns {@code true} if the current HTTP request method is DELETE. */
     private boolean isHttpDelete() {
-        HttpServletRequest request = getCurrentRequest();
-        return request != null && "DELETE".equalsIgnoreCase(request.getMethod());
-    }
-
-    /** Returns the current HTTP request, or null if not in a request context. */
-    private HttpServletRequest getCurrentRequest() {
-        try {
-            ServletRequestAttributes attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-            return attrs != null ? attrs.getRequest() : null;
-        } catch (Exception e) {
-            return null;
-        }
+        HttpServletRequest request = HttpReqRespUtils.getCurrentRequest();
+        String method = HttpReqRespUtils.extractMethod(request);
+        return method != null && "DELETE".equalsIgnoreCase(method);
     }
 }

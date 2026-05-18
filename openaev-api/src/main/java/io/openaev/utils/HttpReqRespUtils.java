@@ -133,7 +133,26 @@ public class HttpReqRespUtils {
     return ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.getHeaders();
   }
 
-  public static HttpServletRequest getCurrentRequest() {
+  public static String extractMethod(HttpServletRequest request) {
+    String method = null;
+
+    try {
+      if (request != null) {
+        method = request.getMethod();
+      }
+      //else if no method, the returns the method saved in the thread context
+    } catch (IllegalStateException e) {
+      //It means the request object has been recycled and is no longer associated with this facade. In this case returns the method saved in the thread context
+    }
+
+    if (method == null) {
+      method = ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.getMethod();
+    }
+
+    return method;
+  }
+
+    public static HttpServletRequest getCurrentRequest() {
     try {
       ServletRequestAttributes attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
       return attrs != null ? attrs.getRequest() : null;
