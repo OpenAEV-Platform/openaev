@@ -62,6 +62,8 @@ public class AccessControlAuditLogAspect {
         Action action = accessControl.actionPerformed();
 
         if (!auditRequestValidator.valid(action)) {
+            //TODO: in the future, if openaev.all-logs.enabled is true, call the logService method to log the request and its body input.
+
             return joinPoint.proceed();
         }
 

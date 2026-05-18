@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.config.SessionHelper;
-import io.openaev.config.ThreadPoolTaskLoggerConfig;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.User;
 import io.openaev.engine.EngineService;
@@ -16,22 +15,16 @@ import io.openaev.utils.object.ObjectDiffUtils;
 import io.openaev.utils.object.ObjectRedactionUtils;
 import io.openaev.utils.log.LogUtils;
 import io.openaev.utils.HttpReqRespUtils;
-import io.openaev.service.UserService;
-import io.openaev.utils.object.ObjectSanitizationUtils;
+import io.openaev.utils.object.ObjectNormalizationUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
 
 /**
  * Log service — builds structured {@link LogEvent} events for CRUD and authentication
@@ -56,7 +49,7 @@ public class LogService {
 
     private final AuditLogTransportDispatcherUtils auditLogTransportDispatcherUtils;
 
-    private final ObjectSanitizationUtils objectSanitizationUtils;
+    private final ObjectNormalizationUtils objectNormalizationUtils;
     private final ObjectDiffUtils objectDiffUtils;
 
     /**
@@ -73,14 +66,14 @@ public class LogService {
             EngineService engineService,
             LogTransportDispatcherUtils logTransportDispatcherUtils,
             AuditLogTransportDispatcherUtils auditLogTransportDispatcherUtils,
-            ObjectSanitizationUtils objectSanitizationUtils,
+            ObjectNormalizationUtils objectNormalizationUtils,
             ObjectDiffUtils objectDiffUtils
     ) {
         this.userService = userService;
         this.objectMapper = engineService.getObjectMapper();
         this.logTransportDispatcherUtils = logTransportDispatcherUtils;
         this.auditLogTransportDispatcherUtils = auditLogTransportDispatcherUtils;
-        this.objectSanitizationUtils = objectSanitizationUtils;
+        this.objectNormalizationUtils = objectNormalizationUtils;
         this.objectDiffUtils = objectDiffUtils;
     }
 
@@ -94,7 +87,7 @@ public class LogService {
      * @param resourceType the resource type from the {@code @AccessControl} annotation
      * @param entityId the resolved entity ID (may be empty for creates before persist)
      * @param newSnapshot the serialized input DTO (for create/update); null for delete/duplicate
-     * @param oldSnapShot the serialized previous values (for update); null for create/delete/duplicate
+     * @param oldSnapshot the serialized previous values (for update); null for create/delete/duplicate
      * @param entityName human-readable entity name for the message (e.g. scenario name)
      * @param parentId the parent entity ID when a child is created within a parent; null otherwise
      * @param sourceId the source entity ID for duplicate events; null for other event types
@@ -178,6 +171,7 @@ public class LogService {
 
             String displayName = entityName != null ? entityName : entityId;
             String message;
+
             if ("status_change".equals(eventScope)) {
                 message = LogUtils.buildStatusChangeMessage(input, entityTypeName, displayName);
             } else {
@@ -201,13 +195,13 @@ public class LogService {
 
             // Redacted input + old_value
             if (input != null) {
-                input = objectSanitizationUtils.stripInsignificantValues(input);
+                input = objectNormalizationUtils.normalize(input);
                 input = ObjectRedactionUtils.redact(input, entityTypeName);
                 ctx.put("input", objectMapper.convertValue(input, Map.class));
             }
 
             if (oldValue != null) {
-                oldValue = objectSanitizationUtils.stripInsignificantValues(oldValue);
+                oldValue = objectNormalizationUtils.normalize(oldValue);
                 oldValue = ObjectRedactionUtils.redact(oldValue, entityTypeName);
                 ctx.put("old_value", objectMapper.convertValue(oldValue, Map.class));
             }
@@ -319,7 +313,7 @@ public class LogService {
                 }
             } else if (inputNode != null) {
                 // No old snapshot available — log input as-is (without diff computation)
-                diffNewValues = objectSanitizationUtils.stripInsignificantValues(inputNode);
+                diffNewValues = objectNormalizationUtils.normalize(inputNode);
             }
         } else if ("status_change".equals(eventScope)) {
             // For status changes with a request body (exercise status, scenario recurrence):
@@ -342,7 +336,7 @@ public class LogService {
                 diffNewValues = syntheticInput;
             }
         } else if ("create".equals(eventScope) && inputNode != null) {
-            diffNewValues = objectSanitizationUtils.stripInsignificantValues(inputNode);
+            diffNewValues = objectNormalizationUtils.normalize(inputNode);
         }
 
         return new ObjectDiffUtils.DiffResult(diffNewValues, diffOldValues);

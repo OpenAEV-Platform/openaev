@@ -39,7 +39,7 @@ public class ObjectDiffUtils {
             }
 
             // Skip DTO metadata fields that are never actual entity attributes
-            if (ObjectSanitizationUtils.DIFF_SKIP_FIELDS.contains(fieldName)) {
+            if (ObjectNormalizationUtils.DIFF_SKIP_FIELDS.contains(fieldName)) {
                 continue;
             }
 
@@ -90,8 +90,8 @@ public class ObjectDiffUtils {
      */
     private static boolean semanticEquals(JsonNode a, JsonNode b) {
         // Normalise null/missing nodes
-        boolean aEmpty = ObjectSanitizationUtils.isEffectivelyEmpty(a);
-        boolean bEmpty = ObjectSanitizationUtils.isEffectivelyEmpty(b);
+        boolean aEmpty = ObjectNormalizationUtils.isEffectivelyEmpty(a);
+        boolean bEmpty = ObjectNormalizationUtils.isEffectivelyEmpty(b);
         if (aEmpty && bEmpty) {
             return true;
         }
@@ -116,7 +116,7 @@ public class ObjectDiffUtils {
             }
             // Check B doesn't have extra non-empty fields
             for (var entry : objB.properties()) {
-                if (objA.get(entry.getKey()) == null && !ObjectSanitizationUtils.isEffectivelyEmpty(entry.getValue())) {
+                if (objA.get(entry.getKey()) == null && !ObjectNormalizationUtils.isEffectivelyEmpty(entry.getValue())) {
                     return false;
                 }
             }
