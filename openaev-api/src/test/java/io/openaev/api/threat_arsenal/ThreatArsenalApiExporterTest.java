@@ -1,6 +1,5 @@
 package io.openaev.api.threat_arsenal;
 
-import static io.openaev.api.threat_arsenal.ThreatArsenalApi.THREAT_ARSENAL_URL;
 import static io.openaev.service.UserService.buildAuthenticationToken;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -74,6 +73,9 @@ class ThreatArsenalApiExporterTest extends IntegrationTest {
   @DisplayName("JSON Export Threat Arsenal Action")
   class ExportThreatArsenalAction {
 
+    private static final String EXPORT_URL =
+        ThreatArsenalApi.TENANT_THREAT_ARSENAL_URL + "/{actionId}/export";
+
     @Test
     @DisplayName("Exporting a payload-based action should return a ZIP JSON:API document")
     void given_payloadBasedActionId_should_exportZipJsonApiDocument() throws Exception {
@@ -85,7 +87,7 @@ class ThreatArsenalApiExporterTest extends IntegrationTest {
       String createResponse =
           mockMvc
               .perform(
-                  post(THREAT_ARSENAL_URL)
+                  post(tenantUri(ThreatArsenalApi.TENANT_THREAT_ARSENAL_URL))
                       .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
                       .content(asJsonString(createInput))
                       .with(csrf()))
@@ -99,7 +101,7 @@ class ThreatArsenalApiExporterTest extends IntegrationTest {
       // Act
       byte[] zipBytes =
           mockMvc
-              .perform(get(THREAT_ARSENAL_URL + "/" + actionId + "/export"))
+              .perform(get(tenantUri(EXPORT_URL).replace("{actionId}", actionId)))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()
@@ -132,7 +134,7 @@ class ThreatArsenalApiExporterTest extends IntegrationTest {
 
       // Act / Assert
       mockMvc
-          .perform(get(THREAT_ARSENAL_URL + "/" + unknownActionId + "/export"))
+          .perform(get(tenantUri(EXPORT_URL).replace("{actionId}", unknownActionId)))
           .andExpect(status().isNotFound());
     }
 
@@ -150,7 +152,7 @@ class ThreatArsenalApiExporterTest extends IntegrationTest {
 
       // Act / Assert
       mockMvc
-          .perform(get(THREAT_ARSENAL_URL + "/" + nonPayloadContract.getId() + "/export"))
+          .perform(get(tenantUri(EXPORT_URL).replace("{actionId}", nonPayloadContract.getId())))
           .andExpect(status().isNotFound());
     }
   }
@@ -188,7 +190,6 @@ class ThreatArsenalApiExporterTest extends IntegrationTest {
 
       String tenantId = TenantContext.getCurrentTenant();
       tenantRepository.addUserToTenant(testUser.getId(), tenantId);
-      tenantMembershipCacheManager.evict(testUser.getId(), tenantId);
 
       String exportUrl = EXPORT_CSV_URL.replace("{tenantId}", tenantId);
       SearchPaginationInput input = new SearchPaginationInput();
