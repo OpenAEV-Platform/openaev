@@ -8,7 +8,7 @@ on:
       #   x       — major version number (one or more digits)
       #   dddddd  — release date (exactly 6 digits)
       #   z       — sequential number starting from 0 (one or more digits)
-      - "[0-9]*.[0-9][0-9][0-9][0-9][0-9][0-9].[0-9]*"
+      - "[0-9].[0-9][0-9][0-9][0-9][0-9][0-9].[0-9]"
   pull_request:
     branches: [main]
 
