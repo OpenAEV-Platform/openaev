@@ -33,6 +33,10 @@ runs:
       run: yarn check-ts
       shell: bash
       working-directory: openaev-front
+    - name: Check licenses
+      run: yarn check-licenses
+      shell: bash
+      working-directory: openaev-front
     - name: Run ESLint
       run: yarn lint
       shell: bash
