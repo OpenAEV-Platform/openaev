@@ -199,6 +199,15 @@ public class UrlAccessTokenService {
     return urlAccessTokenRepository.deleteExpiredAndRevokedBefore(cutoff);
   }
 
+  /**
+   * Construct error page url
+   *
+   * @return error page full url
+   */
+  public String getErrorPageUrl() {
+    return this.openAEVConfig.getBaseUrl() + "/error?code=401";
+  }
+
   private Optional<UrlAccessToken> findByRawToken(String rawToken) {
     return urlAccessTokenRepository.findByTokenHash(hashToken(rawToken));
   }

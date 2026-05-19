@@ -13,6 +13,7 @@ const Channel = lazy(() => import('./components/channels/Channel'));
 const Challenges = lazy(() => import('./components/challenges/ChallengesPlayer'));
 const ExerciseViewLessons = lazy(() => import('./components/lessons/ExerciseViewLessons'));
 const ScenarioViewLessons = lazy(() => import('./components/lessons/ScenarioViewLessons'));
+const Error = lazy(() => import('./components/error/Error'));
 
 const useStyles = makeStyles()(theme => ({
   root: {
@@ -43,6 +44,7 @@ const Index = () => {
             <Route path="challenges/:exerciseId" element={errorWrapper(Challenges)()} />
             <Route path="lessons/simulation/:exerciseId" element={errorWrapper(ExerciseViewLessons)()} />
             <Route path="lessons/scenario/:scenarioId" element={errorWrapper(ScenarioViewLessons)()} />
+            <Route path="error" element={errorWrapper(Error)()} />
             <Route path="*" element={<Login />} />
           </Routes>
         </Suspense>

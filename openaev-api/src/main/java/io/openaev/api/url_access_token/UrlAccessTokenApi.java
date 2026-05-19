@@ -1,7 +1,5 @@
 package io.openaev.api.url_access_token;
 
-import static io.openaev.api.url_access_token.UrlAccessTokenService.INVALID_TOKEN_MESSAGE;
-
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.config.OpenAEVConfig;
@@ -66,7 +64,9 @@ public class UrlAccessTokenApi {
           .header(HttpHeaders.LOCATION, token.getUrl())
           .build();
     } catch (AccessDeniedException exception) {
-      throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, INVALID_TOKEN_MESSAGE);
+      return ResponseEntity.status(HttpStatus.FOUND)
+          .header(HttpHeaders.LOCATION, this.urlAccessTokenService.getErrorPageUrl())
+          .build();
     }
   }
 

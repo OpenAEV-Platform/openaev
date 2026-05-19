@@ -786,6 +786,8 @@
   "Error or prevented": "Errore o prevenuta",
   "Error switching tenant": "Errore nel cambio di tenant",
   "ERRORS DETECTED:": "ERRORI RILEVATI:",
+  "errors.401": "Questa pagina non è accessibile. Non avete o non avete più i diritti per accedervi.",
+  "errors.UNKNOWN": "Si è verificato un errore sconosciuto.",
   "Evaluate": "Valutare",
   "Event": "Evento",
   "every_fem_plural": "Ogni",
