@@ -19,7 +19,7 @@ public class V5_07__Create_url_access_token extends BaseJavaMigration {
               url             VARCHAR      NOT NULL,
               user_id         VARCHAR(255) NOT NULL,
               exercise_id     VARCHAR(255) NOT NULL,
-              expires_at      TIMESTAMP    NULL,
+              expires_at      TIMESTAMP    NOT NULL,
               revoked_at      TIMESTAMP    NULL,
               last_used_at    TIMESTAMP    NULL,
               created_at      TIMESTAMP    NOT NULL DEFAULT now(),

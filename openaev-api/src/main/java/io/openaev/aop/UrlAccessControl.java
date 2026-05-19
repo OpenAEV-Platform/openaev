@@ -14,7 +14,7 @@ import java.lang.annotation.Target;
  *   <li>Extract the {@code url_access_token} cookie from the current request.
  *   <li>Validate the token (expiry, revocation, optional exercise scope).
  *   <li>Inject the resolved {@code userId} into the method's {@code Optional<String> userId}
- *       parameter when present. Be carrefull, using userId parameter name is important !
+ *       parameter when present. Be carefull, using userId parameter name is important !
  *   <li>Return {@code 401 Unauthorized} on any validation failure.
  * </ol>
  *

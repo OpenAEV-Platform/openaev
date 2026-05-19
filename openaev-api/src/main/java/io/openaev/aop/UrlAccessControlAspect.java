@@ -90,7 +90,7 @@ public class UrlAccessControlAspect {
     // Validate token : expiry, revocation, and optional exercise scope
     UrlAccessToken token;
     try {
-      token = urlAccessTokenService.validateToken(rawToken, exerciseId, null);
+      token = urlAccessTokenService.validateToken(rawToken, exerciseId);
     } catch (AccessDeniedException e) {
       log.debug("UrlAccessControlAspect: token validation failed - {}", e.getMessage());
       throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, INVALID_TOKEN_MESSAGE);

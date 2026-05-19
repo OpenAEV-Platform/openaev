@@ -72,7 +72,7 @@ public class UrlAccessTokenApi {
 
   @DeleteMapping("/{tokenId}")
   @LogExecutionTime
-  @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.PLATFORM_SETTING)
+  @AccessControl(skipRBAC = true)
   @Operation(summary = "Revoke a URL access token by id (admin only)")
   public ResponseEntity<Void> revokeByTokenId(@PathVariable("tokenId") String tokenId) {
     ensureCurrentUserIsAdmin();
@@ -82,7 +82,7 @@ public class UrlAccessTokenApi {
 
   @DeleteMapping("/exercise/{exerciseId}")
   @LogExecutionTime
-  @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.PLATFORM_SETTING)
+  @AccessControl(skipRBAC = true)
   @Operation(summary = "Revoke all URL access tokens for an exercise (admin only)")
   public ResponseEntity<Void> revokeByExerciseId(@PathVariable("exerciseId") String exerciseId) {
     ensureCurrentUserIsAdmin();

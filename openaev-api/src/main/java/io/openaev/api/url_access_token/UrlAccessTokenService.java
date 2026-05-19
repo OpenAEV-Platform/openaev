@@ -103,22 +103,20 @@ public class UrlAccessTokenService {
    *
    * @param rawToken raw token value received from query/cookie
    * @param exerciseId optional exercise ID scope check
-   * @param userId optional user ID scope check
    * @return the matching persisted token when valid
    */
   @Transactional(readOnly = true)
   public UrlAccessToken validateToken(
-      @NotBlank final String rawToken, final String exerciseId, final String userId) {
-    return validateTokenInternal(rawToken, exerciseId, userId);
+      @NotBlank final String rawToken, final String exerciseId) {
+    return validateTokenInternal(rawToken, exerciseId);
   }
 
   private UrlAccessToken validateTokenInternal(
-      @NotBlank final String rawToken, final String exerciseId, final String userId) {
+      @NotBlank final String rawToken, final String exerciseId) {
     UrlAccessToken token = findByRawToken(rawToken).orElse(null);
     if (token == null
         || isExpiredOrRevoked(token)
-        || (exerciseId != null && !exerciseId.equals(token.getExercise().getId()))
-        || (userId != null && !userId.equals(token.getUser().getId()))) {
+        || (exerciseId != null && !exerciseId.equals(token.getExercise().getId()))) {
       throw new AccessDeniedException(INVALID_TOKEN_MESSAGE);
     }
     return token;
@@ -150,7 +148,7 @@ public class UrlAccessTokenService {
    */
   @Transactional(readOnly = true)
   public String validateTokenAndFindUserId(@NotBlank final String rawToken) {
-    return validateTokenInternal(rawToken, null, null).getUser().getId();
+    return validateTokenInternal(rawToken, null).getUser().getId();
   }
 
   // -- UPDATE --

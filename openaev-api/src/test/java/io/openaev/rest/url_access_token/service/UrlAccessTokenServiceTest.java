@@ -120,7 +120,7 @@ class UrlAccessTokenServiceTest {
       when(urlAccessTokenRepository.findByTokenHash(anyString())).thenReturn(Optional.of(token));
 
       // Act
-      UrlAccessToken result = urlAccessTokenService.validateToken(rawToken, "exercise-1", "user-1");
+      UrlAccessToken result = urlAccessTokenService.validateToken(rawToken, "exercise-1");
 
       // Assert
       assertEquals(token, result);
@@ -134,7 +134,7 @@ class UrlAccessTokenServiceTest {
       // Act + Assert
       assertThrows(
           AccessDeniedException.class,
-          () -> urlAccessTokenService.validateToken("unknown-token", null, null));
+          () -> urlAccessTokenService.validateToken("unknown-token", null));
     }
 
     @Test
@@ -147,7 +147,7 @@ class UrlAccessTokenServiceTest {
       // Act + Assert
       assertThrows(
           AccessDeniedException.class,
-          () -> urlAccessTokenService.validateToken("raw-token", "exercise-1", "user-1"));
+          () -> urlAccessTokenService.validateToken("raw-token", "exercise-1"));
     }
 
     @Test
@@ -160,7 +160,7 @@ class UrlAccessTokenServiceTest {
       // Act + Assert
       assertThrows(
           AccessDeniedException.class,
-          () -> urlAccessTokenService.validateToken("raw-token", "exercise-1", "user-1"));
+          () -> urlAccessTokenService.validateToken("raw-token", "exercise-1"));
     }
 
     @Test
@@ -172,19 +172,20 @@ class UrlAccessTokenServiceTest {
       // Act + Assert
       assertThrows(
           AccessDeniedException.class,
-          () -> urlAccessTokenService.validateToken("raw-token", "exercise-2", "user-1"));
+          () -> urlAccessTokenService.validateToken("raw-token", "exercise-2"));
     }
 
     @Test
-    void given_userScopeMismatch_should_throwAccessDeniedException() {
+    void given_validTokenWithDifferentUser_should_stillReturnTokenBecauseUserScopeIsNotValidatedHere() {
       // Arrange
       UrlAccessToken token = buildValidToken("exercise-1", "user-1");
       when(urlAccessTokenRepository.findByTokenHash(anyString())).thenReturn(Optional.of(token));
 
-      // Act + Assert
-      assertThrows(
-          AccessDeniedException.class,
-          () -> urlAccessTokenService.validateToken("raw-token", "exercise-1", "user-2"));
+      // Act
+      UrlAccessToken result = urlAccessTokenService.validateToken("raw-token", "exercise-1");
+
+      // Assert
+      assertEquals(token, result);
     }
   }
 
