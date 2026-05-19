@@ -7,10 +7,7 @@ import static io.openaev.injectors.email.EmailContract.EMAIL_GLOBAL;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openaev.database.model.AttackPattern;
-import io.openaev.database.model.Injector;
-import io.openaev.database.model.InjectorContract;
-import io.openaev.database.model.Vulnerability;
+import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.injectors.challenge.model.ChallengeContent;
@@ -41,6 +38,8 @@ public class InjectorContractComposer extends ComposerBase<InjectorContract> {
     private Optional<PayloadComposer.Composer> payloadComposer = Optional.empty();
     private final List<ChallengeComposer.Composer> challengeComposers = new ArrayList<>();
     private final List<ArticleComposer.Composer> articleComposers = new ArrayList<>();
+    private final List<DomainComposer.Composer> domainComposers = new ArrayList<>();
+    private final List<TagComposer.Composer> tagComposers = new ArrayList<>();
 
     public Composer(InjectorContract injectorContract) {
       this.injectorContract = injectorContract;
@@ -52,6 +51,22 @@ public class InjectorContractComposer extends ComposerBase<InjectorContract> {
       }
       this.payloadComposer = Optional.of(payloadComposer);
       this.injectorContract.setPayload(payloadComposer.get());
+      return this;
+    }
+
+    public Composer withTag(TagComposer.Composer tagComposer) {
+      tagComposers.add(tagComposer);
+      Set<Tag> tempTags = injectorContract.getTags();
+      tempTags.add(tagComposer.get());
+      injectorContract.setTags(tempTags);
+      return this;
+    }
+
+    public Composer withDomain(DomainComposer.Composer domainWrapper) {
+      this.domainComposers.add(domainWrapper);
+      Set<Domain> tempDomains = injectorContract.getDomains();
+      tempDomains.add(domainWrapper.get());
+      injectorContract.setDomains(tempDomains);
       return this;
     }
 
@@ -81,7 +96,8 @@ public class InjectorContractComposer extends ComposerBase<InjectorContract> {
       this.injectorContract.setId(challengeInjectorContract.getId());
       this.injectorContract.setContent(challengeInjectorContract.getContent());
       this.injectorContract.setConvertedContent(challengeInjectorContract.getConvertedContent());
-      this.injectorContract.setInjector(challengeInjectorContract.getInjector());
+      this.injectorContract.getInjectors().clear();
+      this.injectorContract.addInjectors(challengeInjectorContract.getInjectors());
       this.injectorContract.setPlatforms(challengeInjectorContract.getPlatforms());
       this.injectorContract.setUpdatedAt(challengeInjectorContract.getUpdatedAt());
       this.injectorContract.setCreatedAt(challengeInjectorContract.getCreatedAt());
@@ -100,7 +116,8 @@ public class InjectorContractComposer extends ComposerBase<InjectorContract> {
       this.injectorContract.setId(articleInjectorContract.getId());
       this.injectorContract.setContent(articleInjectorContract.getContent());
       this.injectorContract.setConvertedContent(articleInjectorContract.getConvertedContent());
-      this.injectorContract.setInjector(articleInjectorContract.getInjector());
+      this.injectorContract.getInjectors().clear();
+      this.injectorContract.addInjector(articleInjectorContract.getFirstInjector());
       this.injectorContract.setPlatforms(articleInjectorContract.getPlatforms());
       this.injectorContract.setUpdatedAt(articleInjectorContract.getUpdatedAt());
       this.injectorContract.setCreatedAt(articleInjectorContract.getCreatedAt());
@@ -110,7 +127,8 @@ public class InjectorContractComposer extends ComposerBase<InjectorContract> {
     }
 
     public Composer withInjector(Injector injector) {
-      this.injectorContract.setInjector(injector);
+      this.injectorContract.getInjectors().clear();
+      this.injectorContract.addInjector(injector);
       return this;
     }
 
@@ -138,23 +156,34 @@ public class InjectorContractComposer extends ComposerBase<InjectorContract> {
 
     @Override
     public Composer persist() {
+      domainComposers.forEach(DomainComposer.Composer::persist);
+      tagComposers.forEach(TagComposer.Composer::persist);
       payloadComposer.ifPresent(PayloadComposer.Composer::persist);
       challengeComposers.forEach(ChallengeComposer.Composer::persist);
       articleComposers.forEach(ArticleComposer.Composer::persist);
       attackPatternComposer.forEach(AttackPatternComposer.Composer::persist);
       vulnerabilityComposer.forEach(VulnerabilityComposer.Composer::persist);
       if (!WELL_KNOWN_CONTRACT_IDS.contains(injectorContract.getId())) {
-        entityManager.persist(injectorContract.getInjector());
-        injectorRepository.save(injectorContract.getInjector());
-        // for some reason hibernate refuses to save the entity with the repository
+        // Persist injectors first — they are the owning side of the ManyToMany
+        // join table. Before the ManyToOne→ManyToMany migration, the FK on
+        // injectors_contracts forced implicit persistence; now it must be explicit.
+        for (Injector injector : new ArrayList<>(injectorContract.getInjectors())) {
+          if (!entityManager.contains(injector)) {
+            entityManager.persist(injector);
+          }
+        }
         entityManager.persist(injectorContract);
-        injectorContractRepository.save(injectorContract);
+        for (Injector injector : new ArrayList<>(injectorContract.getInjectors())) {
+          injector.linkContract(injectorContract);
+        }
       }
       return this;
     }
 
     @Override
     public Composer delete() {
+      tagComposers.forEach(TagComposer.Composer::delete);
+      domainComposers.forEach(DomainComposer.Composer::delete);
       payloadComposer.ifPresent(PayloadComposer.Composer::delete);
       challengeComposers.forEach(ChallengeComposer.Composer::delete);
       articleComposers.forEach(ArticleComposer.Composer::delete);

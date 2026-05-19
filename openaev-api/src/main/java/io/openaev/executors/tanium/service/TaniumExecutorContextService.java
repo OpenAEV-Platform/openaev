@@ -6,7 +6,7 @@ import static io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegra
 
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.ExecutorHelper;
 import io.openaev.executors.ExecutorService;
@@ -29,7 +29,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class TaniumExecutorContextService extends ExecutorContextService {
 
-  private final Ee eeService;
+  private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
   private final TaniumExecutorConfig taniumExecutorConfig;
   private final TaniumExecutorClient taniumExecutorClient;
@@ -50,7 +50,7 @@ public class TaniumExecutorContextService extends ExecutorContextService {
   public List<Agent> launchBatchExecutorSubprocess(
       Inject inject, Set<Agent> agents, InjectStatus injectStatus) {
 
-    eeService.throwEEExecutorService(
+    enterpriseEditionService.throwEEExecutorService(
         licenseCacheManager.getEnterpriseEditionInfo(), SERVICE_NAME, injectStatus);
 
     List<Agent> taniumAgents = new ArrayList<>(agents);
@@ -58,14 +58,18 @@ public class TaniumExecutorContextService extends ExecutorContextService {
     // Sometimes, assets from agents aren't fetched even with the EAGER property from Hibernate
     taniumAgents.forEach(agent -> agent.setAsset((Asset) Hibernate.unproxy(agent.getAsset())));
 
-    Injector injector =
-        inject
-            .getInjectorContract()
-            .map(InjectorContract::getInjector)
-            .orElseThrow(
-                () -> new UnsupportedOperationException("Inject does not have a contract"));
-
     taniumAgents = executorService.manageWithoutPlatformAgents(taniumAgents, injectStatus);
+
+    Injector injector = inject.getInjector();
+    if (injector == null) {
+      // Fallback for legacy injects without inject_injector populated
+      injector =
+          inject
+              .getInjectorContract()
+              .map(InjectorContract::getFirstInjector)
+              .orElseThrow(
+                  () -> new UnsupportedOperationException("Inject does not have a contract"));
+    }
 
     List<TaniumAction> actions = new ArrayList<>();
     // Set implant script for each agent
@@ -77,14 +81,14 @@ public class TaniumExecutorContextService extends ExecutorContextService {
                   getWindowsActions(
                       getAgentsFromOSAndArch(taniumAgents, platform, arch),
                       injector,
-                      inject.getId(),
+                      inject,
                       arch));
           case Linux, MacOS ->
               actions.addAll(
                   getUnixActions(
                       getAgentsFromOSAndArch(taniumAgents, platform, arch),
                       injector,
-                      inject.getId(),
+                      inject,
                       platform,
                       arch));
           default -> { // No need, only Mac, Windows and Linux for now
@@ -122,7 +126,7 @@ public class TaniumExecutorContextService extends ExecutorContextService {
   }
 
   private List<TaniumAction> getWindowsActions(
-      List<Agent> agents, Injector injector, String injectId, Endpoint.PLATFORM_ARCH arch) {
+      List<Agent> agents, Injector injector, Inject inject, Endpoint.PLATFORM_ARCH arch) {
     List<TaniumAction> actions = new ArrayList<>();
     for (Agent agent : agents) {
       TaniumAction actionWindows = new TaniumAction();
@@ -135,7 +139,13 @@ public class TaniumExecutorContextService extends ExecutorContextService {
               + "\";md $location -ea 0;[Environment]::CurrentDirectory";
       String executorCommandKey = Endpoint.PLATFORM_TYPE.Windows.name() + "." + arch.name();
       String command = injector.getExecutorCommands().get(executorCommandKey);
-      command = replaceArgs(Endpoint.PLATFORM_TYPE.Windows, command, injectId, agent.getId());
+      command =
+          replaceArgs(
+              Endpoint.PLATFORM_TYPE.Windows,
+              command,
+              inject.getId(),
+              agent.getId(),
+              inject.getTenant().getId());
       command =
           command.replaceFirst(
               "\\$?x=.+location=.+;\\[Environment]::CurrentDirectory",
@@ -150,7 +160,7 @@ public class TaniumExecutorContextService extends ExecutorContextService {
   private List<TaniumAction> getUnixActions(
       List<Agent> agents,
       Injector injector,
-      String injectId,
+      Inject inject,
       Endpoint.PLATFORM_TYPE platform,
       Endpoint.PLATFORM_ARCH arch) {
     List<TaniumAction> actions = new ArrayList<>();
@@ -165,7 +175,8 @@ public class TaniumExecutorContextService extends ExecutorContextService {
               + ";mkdir -p $location;filename=";
       String executorCommandKey = platform.name() + "." + arch.name();
       String command = injector.getExecutorCommands().get(executorCommandKey);
-      command = replaceArgs(platform, command, injectId, agent.getId());
+      command =
+          replaceArgs(platform, command, inject.getId(), agent.getId(), inject.getTenant().getId());
       command =
           command.replaceFirst(
               "\\$?x=.+location=.+;filename=", Matcher.quoteReplacement(implantLocation));

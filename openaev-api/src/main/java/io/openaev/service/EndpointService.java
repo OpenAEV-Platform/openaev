@@ -19,6 +19,7 @@ import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toList;
 
 import io.openaev.config.OpenAEVConfig;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.AssetAgentJobSpecification;
@@ -129,8 +130,19 @@ public class EndpointService {
   }
 
   public List<Endpoint> findEndpointByHostnameAndAtLeastOneIp(
+      @NotBlank final String hostname,
+      @NotNull final String[] ips,
+      @NotNull final String tenantId) {
+    return this.endpointRepository.findByHostnameAndAtleastOneIp(hostname, ips, tenantId);
+  }
+
+  public List<Endpoint> findEndpointByHostnameAndAtLeastOneIp(
       @NotBlank final String hostname, @NotNull final String[] ips) {
-    return this.endpointRepository.findByHostnameAndAtleastOneIp(hostname, ips);
+    String tenantId = TenantContext.getCurrentTenant();
+    if (tenantId == null) {
+      return List.of();
+    }
+    return this.endpointRepository.findByHostnameAndAtleastOneIp(hostname, ips, tenantId);
   }
 
   public List<Endpoint> findEndpointByHostnameAndAtLeastOneMacAddress(
@@ -418,7 +430,8 @@ public class EndpointService {
     Agent agent;
     // Check if agents exist (because we can find X openaev agent on an endpoint)
     List<Agent> existingAgents =
-        agentService.findByExternalReference(agentInput.getExternalReference());
+        agentService.findByExternalReference(
+            agentInput.getExternalReference(), TenantContext.getCurrentTenant());
     if (!existingAgents.isEmpty()) {
       // Check if this specific agent exist
       Agent.DEPLOYMENT_MODE deploymentMode =
@@ -460,8 +473,10 @@ public class EndpointService {
               endpoint.getPlatform().name(),
               input.getInstallationMode(),
               input.getInstallationDirectory(),
-              input.getServiceName()));
+              input.getServiceName(),
+              agent.getTenant().getId()));
       assetAgentJob.setAgent(agent);
+      assetAgentJob.setTenant(agent.getTenant());
       assetAgentJobRepository.save(assetAgentJob);
     }
     return endpoint;
@@ -528,12 +543,12 @@ public class EndpointService {
     Agent.PRIVILEGE privilege =
         input.isElevated() ? Agent.PRIVILEGE.admin : Agent.PRIVILEGE.standard;
     Optional<Agent> existingAgent =
-        agentService.getAgentForAnAsset(
+        agentService.getAgentForAnAssetByExecutorId(
             endpoint.getId(),
             input.getExecutedByUser(),
             deploymentMode,
             privilege,
-            input.getExecutor().getType());
+            input.getExecutor().getId());
     Agent agent;
     if (existingAgent.isPresent()) {
       agent = existingAgent.get();
@@ -550,7 +565,9 @@ public class EndpointService {
     // and arch is hard coded for Crowdstrike and Palo Alto Cortex
     if (!CROWDSTRIKE_EXECUTOR_TYPE.equals(input.getExecutor().getType())) {
       endpoint.setHostname(input.getHostname());
-      endpoint.setArch(input.getArch());
+      if (!PALOALTOCORTEX_EXECUTOR_TYPE.equals(input.getExecutor().getType())) {
+        endpoint.setArch(input.getArch());
+      }
     }
     if (!PALOALTOCORTEX_EXECUTOR_TYPE.equals(input.getExecutor().getType())) {
       endpoint.setArch(input.getArch());
@@ -575,6 +592,7 @@ public class EndpointService {
     endpoint.setIps(input.getIps());
     endpoint.setSeenIp(input.getSeenIp());
     endpoint.setMacAddresses(input.getMacAddresses());
+    endpoint.setTenant(input.getExecutor().getTenant());
     addSourceTagToEndpoint(endpoint, input);
     createEndpoint(endpoint);
     Agent agent = new Agent();
@@ -595,6 +613,7 @@ public class EndpointService {
         input.isService() ? Agent.DEPLOYMENT_MODE.service : Agent.DEPLOYMENT_MODE.session);
     agent.setExecutedByUser(input.getExecutedByUser());
     agent.setExecutor(input.getExecutor());
+    agent.setTenant(input.getExecutor().getTenant());
   }
 
   private AgentRegisterInput toAgentEndpoint(EndpointRegisterInput input) {
@@ -624,7 +643,8 @@ public class EndpointService {
       String file,
       String adminToken,
       String installationDir,
-      String serviceNameOrPrefix)
+      String serviceNameOrPrefix,
+      String tenantId)
       throws IOException {
     String extension =
         switch (platform.toLowerCase()) {
@@ -661,7 +681,8 @@ public class EndpointService {
             String.valueOf(openAEVConfig.isUnsecuredCertificate()))
         .replace("${OPENAEV_WITH_PROXY}", String.valueOf(openAEVConfig.isWithProxy()))
         .replace("${OPENAEV_SERVICE_NAME}", serviceNameOrPrefix)
-        .replace("${OPENAEV_INSTALL_DIR}", installationDir);
+        .replace("${OPENAEV_INSTALL_DIR}", installationDir)
+        .replace("${OPENAEV_TENANT_ID}", tenantId);
   }
 
   public String generateServiceNameOrPrefix(
@@ -729,7 +750,8 @@ public class EndpointService {
       String token,
       String installationMode,
       String installationDir,
-      String serviceNameOrPrefix)
+      String serviceNameOrPrefix,
+      String tenantId)
       throws IOException {
     if (token == null || token.isEmpty()) {
       throw new IllegalArgumentException("Token must not be null or empty.");
@@ -742,11 +764,15 @@ public class EndpointService {
     serviceNameOrPrefix =
         generateServiceNameOrPrefix(platform, installationMode, serviceNameOrPrefix);
     return getFileOrDownloadFromJfrog(
-        platform, installerName, token, installationDir, serviceNameOrPrefix);
+        platform, installerName, token, installationDir, serviceNameOrPrefix, tenantId);
   }
 
   public String generateUpgradeCommand(
-      String platform, String installationMode, String installationDir, String serviceNameOrPrefix)
+      String platform,
+      String installationMode,
+      String installationDir,
+      String serviceNameOrPrefix,
+      String tenantId)
       throws IOException {
     String upgradeName = OPENAEV_AGENT_UPGRADE;
     if (installationMode != null && !installationMode.equals(SERVICE)) {
@@ -756,7 +782,7 @@ public class EndpointService {
     serviceNameOrPrefix =
         generateServiceNameOrPrefix(platform, installationMode, serviceNameOrPrefix);
     return getFileOrDownloadFromJfrog(
-        platform, upgradeName, adminToken, installationDir, serviceNameOrPrefix);
+        platform, upgradeName, adminToken, installationDir, serviceNameOrPrefix, tenantId);
   }
 
   public List<Endpoint> endpointsForScenario(String scenarioId) {

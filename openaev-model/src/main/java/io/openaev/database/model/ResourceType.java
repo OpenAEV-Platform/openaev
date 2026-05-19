@@ -43,9 +43,18 @@ public enum ResourceType {
   EVALUATION,
   CATALOG,
   CONNECTOR_INSTANCE_LOG,
+  TENANT,
+  TENANT_SETTING,
+  PLATFORM_ROLE,
+  PLATFORM_GROUP,
+  PLATFORM_USER,
+  XTM_HUB_REGISTRATION,
   // Special resource types
   UNKNOWN,
   SIMULATION_OR_SCENARIO, // Used to represent either a simulation or a scenario.
+  WORKFLOW,
+  STEP,
+  CONDITION,
   SKIP_RBAC; // Used to skip RBAC checks.
 
   public static ResourceType fromString(@NotNull String name) {

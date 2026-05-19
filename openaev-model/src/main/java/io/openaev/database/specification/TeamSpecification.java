@@ -7,8 +7,8 @@ import jakarta.annotation.Nullable;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.util.List;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.data.jpa.domain.Specification;
 
 public class TeamSpecification {
@@ -17,13 +17,6 @@ public class TeamSpecification {
 
   public static Specification<Team> fromIds(@NotNull final List<String> ids) {
     return (root, query, builder) -> root.get("id").in(ids);
-  }
-
-  public static Specification<Team> teamsAccessibleFromOrganizations(List<String> organizationIds) {
-    return (root, query, builder) ->
-        builder.or(
-            builder.isNull(root.get("organization")),
-            root.get("organization").get("id").in(organizationIds));
   }
 
   public static Specification<Team> contextual(final boolean contextual) {

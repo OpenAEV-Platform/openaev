@@ -1,8 +1,10 @@
 package io.openaev.database.model;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.database.audit.TenantBaseListener;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -11,6 +13,7 @@ import java.util.HashSet;
 import java.util.Set;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UuidGenerator;
 import org.hibernate.type.SqlTypes;
@@ -19,8 +22,9 @@ import org.hibernate.type.SqlTypes;
 @Setter
 @Entity
 @Table(name = "connector_instances")
-@EntityListeners(ModelBaseListener.class)
-public class ConnectorInstancePersisted extends ConnectorInstance implements Base {
+@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+public class ConnectorInstancePersisted extends ConnectorInstance implements TenantBase {
   @Id
   @Column(name = "connector_instance_id")
   @GeneratedValue(generator = "UUID")
@@ -44,6 +48,9 @@ public class ConnectorInstancePersisted extends ConnectorInstance implements Bas
   @JsonProperty("connector_instance_started_at")
   private Instant startedAt;
 
+  // Fixes a bug due to a new version of jackson and lombok
+  // cf: https://github.com/projectlombok/lombok/issues/3978
+  @Getter(onMethod_ = @JsonProperty("connector_instance_is_in_reboot_loop"))
   @Column(name = "connector_instance_is_in_reboot_loop")
   @JsonProperty("connector_instance_is_in_reboot_loop")
   private boolean isInRebootLoop;
@@ -86,6 +93,11 @@ public class ConnectorInstancePersisted extends ConnectorInstance implements Bas
   @JsonProperty("connector_instance_configurations")
   @NotNull
   private Set<ConnectorInstanceConfiguration> configurations = new HashSet<>();
+
+  @ManyToOne
+  @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
+  @JsonIgnore
+  private Tenant tenant;
 
   @Override
   public String getClassName() {

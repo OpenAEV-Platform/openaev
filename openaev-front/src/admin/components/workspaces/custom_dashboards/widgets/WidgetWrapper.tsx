@@ -1,14 +1,14 @@
 import { useTheme } from '@mui/material/styles';
-import { type SyntheticEvent, useContext, useEffect, useRef, useState } from 'react';
+import { type SyntheticEvent, useCallback, useContext, useEffect, useRef, useState } from 'react';
 
+import usePaginationState from '../../../../../components/common/queryable/pagination/usePaginationState';
 import ErrorBoundary from '../../../../../components/ErrorBoundary';
 import Loader from '../../../../../components/Loader';
 import {
   type EsAttackPath,
   type EsAvgs,
-  type EsBase,
-  type EsCountInterval,
-  type EsSeries,
+  type EsCountInterval, type EsEntities,
+  type EsSeries, type Pagination,
   type Widget,
 } from '../../../../../utils/api-types';
 import { CustomDashboardContext, type ParameterOption } from '../CustomDashboardContext';
@@ -34,6 +34,13 @@ const buildParams = (parameters: Record<string, ParameterOption>): Record<string
   );
 };
 
+type WidgetDataResponse = EsAttackPath[] | EsCountInterval | EsAvgs | EsEntities | EsSeries[];
+type WidgetFetchConfig = {
+  vizType: WidgetVizDataType;
+  fetchFn: (id: string, params: Record<string, string | undefined>, pagination?: Pagination) => Promise<{ data: WidgetDataResponse }>;
+  transformData?: (data: WidgetDataResponse) => unknown;
+};
+
 const WidgetWrapper = ({
   widget,
   fullscreen,
@@ -45,9 +52,43 @@ const WidgetWrapper = ({
 }: WidgetWrapperProps) => {
   const theme = useTheme();
   const [vizData, setVizData] = useState<WidgetVizData>({ type: WidgetVizDataType.NONE });
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true); // full widget loader
+  const [contentLoading, setContentLoading] = useState(false);
+
   const [errorMessage, setErrorMessage] = useState<string>('');
   const { customDashboardParameters, fetchCount, fetchSeries, fetchEntities, fetchAttackPaths, fetchAverage } = useContext(CustomDashboardContext);
+  const { elementsPerPage, page, handleChangePagination } = widget.widget_type === 'list'
+    ? usePaginationState(100, undefined, `widget-list-${widget.widget_id}`)
+    : {
+        elementsPerPage: 0,
+        page: 0,
+        handleChangePagination: () => {},
+      };
+
+  const WIDGET_CONFIG: Record<string, WidgetFetchConfig> = {
+    'attack-path': {
+      vizType: WidgetVizDataType.ATTACK_PATHS,
+      fetchFn: fetchAttackPaths,
+    },
+    'number': {
+      vizType: WidgetVizDataType.NUMBER,
+      fetchFn: fetchCount,
+    },
+    'average': {
+      vizType: WidgetVizDataType.AVERAGE,
+      fetchFn: fetchAverage,
+      transformData: data => determinePercentage(data as EsAvgs, theme),
+    },
+    'list': {
+      vizType: WidgetVizDataType.ENTITIES,
+      fetchFn: fetchEntities,
+    },
+  };
+
+  const DEFAULT_CONFIG: WidgetFetchConfig = {
+    vizType: WidgetVizDataType.SERIES,
+    fetchFn: fetchSeries,
+  };
 
   // Use ref to track if component is mounted
   const isMountedRef = useRef(true);
@@ -58,92 +99,53 @@ const WidgetWrapper = ({
     };
   }, []);
 
-  useEffect(() => {
-    setLoading(true);
-    setErrorMessage('');
+  const fetchWidgetData = useCallback(
+    async (pagination: Pagination) => {
+      setErrorMessage('');
 
-    const params = buildParams(customDashboardParameters);
-    type WidgetDataResponse = EsAttackPath[] | EsCountInterval | EsAvgs | EsBase[] | EsSeries[];
-    let fetchFunction: (id: string, p: Record<string, string | undefined>) => Promise<{ data: WidgetDataResponse }>;
-    let vizType: WidgetVizDataType;
+      const params = buildParams(customDashboardParameters);
+      const config = WIDGET_CONFIG[widget.widget_type] ?? DEFAULT_CONFIG;
 
-    switch (widget.widget_type) {
-      case 'attack-path':
-        fetchFunction = fetchAttackPaths;
-        vizType = WidgetVizDataType.ATTACK_PATHS;
-        break;
-      case 'number':
-        fetchFunction = fetchCount;
-        vizType = WidgetVizDataType.NUMBER;
-        break;
-      case 'average': {
-        fetchFunction = fetchAverage;
-        vizType = WidgetVizDataType.AVERAGE;
-        break;
-      }
-      case 'list':
-        fetchFunction = fetchEntities;
-        vizType = WidgetVizDataType.ENTITIES;
-        break;
-      default:
-        fetchFunction = fetchSeries;
-        vizType = WidgetVizDataType.SERIES;
-    }
-
-    fetchFunction(widget.widget_id, params)
-      .then((response) => {
-        if (!isMountedRef.current) return;
+      config.fetchFn(widget.widget_id, params, pagination).then((response) => {
         if (response.data) {
-          switch (vizType) {
-            case WidgetVizDataType.SERIES:
-              setVizData({
-                type: WidgetVizDataType.SERIES,
-                data: response.data as EsSeries[],
-              });
-              break;
-            case WidgetVizDataType.ENTITIES:
-              setVizData({
-                type: WidgetVizDataType.ENTITIES,
-                data: response.data as EsBase[],
-              });
-              break;
-            case WidgetVizDataType.ATTACK_PATHS:
-              setVizData({
-                type: WidgetVizDataType.ATTACK_PATHS,
-                data: response.data as EsAttackPath[],
-              });
-              break;
-            case WidgetVizDataType.NUMBER:
-              setVizData({
-                type: WidgetVizDataType.NUMBER,
-                data: response.data as EsCountInterval,
-              });
-              break;
-            case WidgetVizDataType.AVERAGE:
-              setVizData({
-                type: WidgetVizDataType.AVERAGE,
-                data: determinePercentage(response.data as EsAvgs, theme),
-              });
-              break;
-            default: break;
-          }
+          setVizData({
+            type: config.vizType,
+            data: config.transformData
+              ? config.transformData(response.data)
+              : response.data,
+          } as WidgetVizData);
         }
-      })
-      .catch((error) => {
+      }).catch((error) => {
         if (!isMountedRef.current) return;
         setErrorMessage(error.message);
-      })
-      .finally(() => {
-        if (isMountedRef.current) {
-          setLoading(false);
-        }
       });
-  }, [widget.widget_id, widget.widget_type, widget.widget_config, customDashboardParameters, fetchAttackPaths, fetchCount, fetchEntities, fetchSeries]);
+    },
+    [widget.widget_id, widget.widget_type, widget.widget_config, customDashboardParameters],
+  );
+
+  useEffect(() => {
+    if (!isMountedRef.current) return;
+    setInitialLoading(true);
+    fetchWidgetData({
+      page,
+      size: elementsPerPage,
+    }).then(() => {
+      if (isMountedRef.current) {
+        setInitialLoading(false);
+      }
+    });
+  }, [fetchWidgetData]);
 
   const handleMouseDown = (e: SyntheticEvent) => e.stopPropagation();
   const handleTouchStart = (e: SyntheticEvent) => e.stopPropagation();
 
   const isResizing = widget.widget_id === idToResize;
+
+  const onPaginationChange = (pagination: Pagination) => {
+    setContentLoading(true);
+    handleChangePagination(pagination);
+    fetchWidgetData(pagination).then(() => setContentLoading(false));
+  };
 
   return (
     <div style={{
@@ -166,7 +168,7 @@ const WidgetWrapper = ({
             onMouseDown={handleMouseDown}
             onTouchStart={handleTouchStart}
           >
-            {loading ? (
+            {initialLoading ? (
               <Loader variant="inElement" />
             ) : (
               <WidgetViz
@@ -175,6 +177,8 @@ const WidgetWrapper = ({
                 setFullscreen={setFullscreen}
                 vizData={vizData}
                 errorMessage={errorMessage}
+                onPaginationChange={onPaginationChange}
+                contentLoading={contentLoading}
               />
             )}
           </div>

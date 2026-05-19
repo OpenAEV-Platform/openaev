@@ -2,13 +2,12 @@ package io.openaev.database.repository;
 
 import io.openaev.database.model.ContractOutputType;
 import io.openaev.database.model.Finding;
-import io.openaev.database.raw.RawFinding;
-import io.openaev.utils.Constants;
+import io.openaev.database.raw.RawFindingIndexing;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
@@ -37,16 +36,14 @@ public interface FindingRepository
   @Query(
       value =
           "SELECT f.finding_id, f.finding_value, f.finding_type, f.finding_field,"
-              + " f.finding_inject_id, i.inject_exercise, se.scenario_id, fa.asset_id, f.finding_created_at, f.finding_updated_at "
+              + " f.finding_inject_id, i.inject_exercise, se.scenario_id, fa.asset_id, f.finding_created_at, f.finding_updated_at, f.tenant_id "
               + "FROM findings f "
               + "LEFT JOIN injects i ON i.inject_id = f.finding_inject_id "
               + "LEFT JOIN scenarios_exercises se ON i.inject_exercise = se.exercise_id "
               + "LEFT JOIN findings_assets fa ON f.finding_id = fa.finding_id "
-              + "WHERE f.finding_updated_at > :from ORDER BY f.finding_updated_at LIMIT "
-              + Constants.INDEXING_RECORD_SET_SIZE
-              + ";",
+              + "WHERE f.finding_updated_at > :from ORDER BY f.finding_updated_at LIMIT :limit;",
       nativeQuery = true)
-  List<RawFinding> findForIndexing(@Param("from") Instant from);
+  List<RawFindingIndexing> findForIndexing(@Param("from") Instant from, @Param("limit") int limit);
 
   @Query(
       value =
@@ -54,10 +51,10 @@ public interface FindingRepository
         WITH inserted_finding AS (
           INSERT INTO findings
             (finding_id, finding_field, finding_type, finding_value,
-             finding_labels, finding_inject_id, finding_name)
+             finding_labels, finding_inject_id, finding_name, tenant_id)
           VALUES
             (gen_random_uuid(), :findingField, :findingType, :findingValue,
-             :findingLabels, :findingInjectId, :findingName)
+             :findingLabels, :findingInjectId, :findingName, :tenantId)
           ON CONFLICT (finding_inject_id, finding_field, finding_type, finding_value)
           DO UPDATE SET finding_name = EXCLUDED.finding_name
           RETURNING finding_id
@@ -87,5 +84,6 @@ public interface FindingRepository
       @Param("findingInjectId") String injectId,
       @Param("findingName") String name,
       @Param("assetId") String assetId,
-      @Param("tagIds") String[] tagIds);
+      @Param("tagIds") String[] tagIds,
+      @Param("tenantId") String tenantId);
 }

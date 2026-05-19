@@ -83,7 +83,7 @@ jobs:
       SPRING_DATASOURCE_USERNAME: openaev
       SPRING_DATASOURCE_PASSWORD: openaev
       MINIO_ENDPOINT: localhost
-      MINIO_PORT: 9000
+      MINIO_PORT: 11000
       ENGINE_URL: http://localhost:9200
       OPENBAS_RABBITMQ_HOSTNAME: localhost
     steps:
@@ -99,21 +99,22 @@ jobs:
       - name: Start MinIO
         run: |
           docker run -d --name minio \
-            -p 9000:9000 \
+            -p 11000:9000 \
             -e MINIO_ROOT_USER=minioadmin \
             -e MINIO_ROOT_PASSWORD=minioadmin \
             minio/minio:RELEASE.2025-06-13T11-33-47Z server /data
 
           echo "⏳ Waiting for MinIO..."
           for i in $(seq 1 30); do
-            curl -sf http://localhost:9000/minio/health/live && break
+            curl -sf http://localhost:11000/minio/health/live && break
             sleep 1
           done
-          curl -sf http://localhost:9000/minio/health/live || { echo "❌ MinIO failed to start"; exit 1; }
+          curl -sf http://localhost:11000/minio/health/live || { echo "❌ MinIO failed to start"; exit 1; }
           echo "✅ MinIO ready"
 
       - name: Build all modules (skip tests)
         run: mvn -B -ntp clean install -DskipTests
+
 
       - name: Run API tests (Elasticsearch)
         run: mvn -B -ntp -pl openaev-api verify
@@ -169,7 +170,7 @@ jobs:
       SPRING_DATASOURCE_USERNAME: openaev
       SPRING_DATASOURCE_PASSWORD: openaev
       MINIO_ENDPOINT: localhost
-      MINIO_PORT: 9000
+      MINIO_PORT: 11000
       ENGINE_URL: http://localhost:9200
       ENGINE_ENGINESELECTOR: opensearch
       OPENBAS_RABBITMQ_HOSTNAME: localhost
@@ -186,21 +187,22 @@ jobs:
       - name: Start MinIO
         run: |
           docker run -d --name minio \
-            -p 9000:9000 \
+            -p 11000:9000 \
             -e MINIO_ROOT_USER=minioadmin \
             -e MINIO_ROOT_PASSWORD=minioadmin \
             minio/minio:RELEASE.2025-06-13T11-33-47Z server /data
 
           echo "⏳ Waiting for MinIO..."
           for i in $(seq 1 30); do
-            curl -sf http://localhost:9000/minio/health/live && break
+            curl -sf http://localhost:11000/minio/health/live && break
             sleep 1
           done
-          curl -sf http://localhost:9000/minio/health/live || { echo "❌ MinIO failed to start"; exit 1; }
+          curl -sf http://localhost:11000/minio/health/live || { echo "❌ MinIO failed to start"; exit 1; }
           echo "✅ MinIO ready"
 
       - name: Build all modules (skip tests)
         run: mvn -B -ntp clean install -DskipTests
+
 
       - name: Run API tests (OpenSearch)
         run: mvn -B -ntp -pl openaev-api verify
@@ -272,7 +274,7 @@ jobs:
       SPRING_DATASOURCE_USERNAME: openaev
       SPRING_DATASOURCE_PASSWORD: openaev
       MINIO_ENDPOINT: localhost
-      MINIO_PORT: 9000
+      MINIO_PORT: 11000
       MINIO_ACCESS_KEY: minioadmin
       MINIO_ACCESS_SECRET: minioadmin
       ENGINE_URL: http://localhost:9200
@@ -300,7 +302,7 @@ jobs:
             docker run -d --name search -p 9200:9200 \
               -e discovery.type=single-node \
               -e DISABLE_SECURITY_PLUGIN=true \
-              -e "OPENSEARCH_JAVA_OPTS=-Xms2g -Xmx2g" \
+              -e "OPENSEARCH_JAVA_OPTS="-Xms2g -Xmx2g" \
               ${{ matrix.engine.image }}
           fi
           for i in $(seq 1 60); do
@@ -313,15 +315,15 @@ jobs:
       - name: Start MinIO
         run: |
           docker run -d --name minio \
-            -p 9000:9000 \
+            -p 11000:9000 \
             -e MINIO_ROOT_USER=minioadmin \
             -e MINIO_ROOT_PASSWORD=minioadmin \
             minio/minio:RELEASE.2025-06-13T11-33-47Z server /data
           for i in $(seq 1 30); do
-            curl -sf http://localhost:9000/minio/health/live && break
+            curl -sf http://localhost:11000/minio/health/live && break
             sleep 1
           done
-          curl -sf http://localhost:9000/minio/health/live || { echo "❌ MinIO failed"; exit 1; }
+          curl -sf http://localhost:11000/minio/health/live || { echo "❌ MinIO failed"; exit 1; }
 
       - name: Set up Java 21
         uses: actions/setup-java@v5
@@ -369,6 +371,7 @@ jobs:
           name: openaev-api-jar
           path: openaev-api/target
 
+
       - name: Start application
         run: |
           nohup java -jar openaev-api/target/openaev-api.jar \
@@ -412,7 +415,7 @@ jobs:
           echo "── Service connectivity ──"
           echo -n "  PostgreSQL (5432): "; curl -sf http://localhost:5432 2>&1 | head -1 || pg_isready -h localhost -p 5432 2>&1 || echo "unreachable"
           echo -n "  Elasticsearch/OpenSearch (9200): "; curl -sf http://localhost:9200 | head -1 || echo "unreachable"
-          echo -n "  MinIO (9000): "; curl -sf http://localhost:9000/minio/health/live && echo "ok" || echo "unreachable"
+          echo -n "  MinIO (11000): "; curl -sf http://localhost:11000/minio/health/live && echo "ok" || echo "unreachable"
           echo -n "  RabbitMQ (5672): "; nc -z localhost 5672 2>&1 && echo "ok" || echo "unreachable"
 
           echo ""
@@ -506,7 +509,7 @@ jobs:
       SPRING_DATASOURCE_USERNAME: openaev
       SPRING_DATASOURCE_PASSWORD: openaev
       MINIO_ENDPOINT: localhost
-      MINIO_PORT: 9000
+      MINIO_PORT: 11000
       MINIO_ACCESS_KEY: minioadmin
       MINIO_ACCESS_SECRET: minioadmin
       ENGINE_URL: http://localhost:9200
@@ -533,7 +536,7 @@ jobs:
             docker run -d --name search -p 9200:9200 \
               -e discovery.type=single-node \
               -e DISABLE_SECURITY_PLUGIN=true \
-              -e "OPENSEARCH_JAVA_OPTS=-Xms2g -Xmx2g" \
+              -e "OPENSEARCH_JAVA_OPTS="-Xms2g -Xmx2g" \
               ${{ matrix.engine.image }}
           fi
           for i in $(seq 1 60); do
@@ -545,15 +548,15 @@ jobs:
       - name: Start MinIO
         run: |
           docker run -d --name minio \
-            -p 9000:9000 \
+            -p 11000:9000 \
             -e MINIO_ROOT_USER=minioadmin \
             -e MINIO_ROOT_PASSWORD=minioadmin \
             minio/minio:RELEASE.2025-06-13T11-33-47Z server /data
           for i in $(seq 1 30); do
-            curl -sf http://localhost:9000/minio/health/live && break
+            curl -sf http://localhost:11000/minio/health/live && break
             sleep 1
           done
-          curl -sf http://localhost:9000/minio/health/live || { echo "❌ MinIO failed"; exit 1; }
+          curl -sf http://localhost:11000/minio/health/live || { echo "❌ MinIO failed"; exit 1; }
 
       - name: Set up Java 21
         uses: actions/setup-java@v5
@@ -600,6 +603,7 @@ jobs:
           name: openaev-api-jar
           path: openaev-api/target
 
+
       - name: Start application
         run: |
           nohup java -jar openaev-api/target/openaev-api.jar \
@@ -643,7 +647,7 @@ jobs:
           echo "── Service connectivity ──"
           echo -n "  PostgreSQL (5432): "; curl -sf http://localhost:5432 2>&1 | head -1 || pg_isready -h localhost -p 5432 2>&1 || echo "unreachable"
           echo -n "  Elasticsearch/OpenSearch (9200): "; curl -sf http://localhost:9200 | head -1 || echo "unreachable"
-          echo -n "  MinIO (9000): "; curl -sf http://localhost:9000/minio/health/live && echo "ok" || echo "unreachable"
+          echo -n "  MinIO (11000): "; curl -sf http://localhost:11000/minio/health/live && echo "ok" || echo "unreachable"
           echo -n "  RabbitMQ (5672): "; nc -z localhost 5672 2>&1 && echo "ok" || echo "unreachable"
 
           echo ""
@@ -680,5 +684,4 @@ jobs:
         with:
           name: playwright-report-arm-${{ matrix.engine.name }}-${{ matrix.browser }}
           path: openaev-front/test-results/
-
 

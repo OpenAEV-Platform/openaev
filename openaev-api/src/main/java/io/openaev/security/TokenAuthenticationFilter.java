@@ -3,13 +3,11 @@ package io.openaev.security;
 import static java.util.Optional.ofNullable;
 import static org.springframework.util.StringUtils.hasLength;
 
-import io.jsonwebtoken.JwtException;
-import io.openaev.database.model.Token;
 import io.openaev.database.model.User;
-import io.openaev.database.repository.TokenRepository;
-import io.openaev.opencti.errors.ConnectorError;
-import io.openaev.security.token.JwtExtractor;
+import io.openaev.security.token.ConnectorJwtExtractor;
+import io.openaev.security.token.ExtractorBase;
 import io.openaev.security.token.PlainTokenExtractor;
+import io.openaev.security.token.XtmJwksExtractor;
 import io.openaev.service.UserService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -19,25 +17,22 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Optional;
+import java.util.Set;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.context.SecurityContext;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+@Slf4j
 public class TokenAuthenticationFilter extends OncePerRequestFilter {
 
   private static final String COOKIE_NAME = "openaev_token";
   private static final String HEADER_NAME = "Authorization";
   private static final String BEARER_PREFIX = "bearer ";
-  private TokenRepository tokenRepository;
-  private UserService userService;
-  private JwtExtractor jwtExtractor;
-  private PlainTokenExtractor plainTokenExtractor;
 
-  @Autowired
-  public void setTokenRepository(TokenRepository tokenRepository) {
-    this.tokenRepository = tokenRepository;
-  }
+  private UserService userService;
+  private ConnectorJwtExtractor connectorJwtExtractor;
+  private PlainTokenExtractor plainTokenExtractor;
+  private XtmJwksExtractor xtmJwksExtractor;
 
   @Autowired
   public void setUserService(UserService userService) {
@@ -45,8 +40,13 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
   }
 
   @Autowired
-  public void setJwtExtractor(JwtExtractor jwtExtractor) {
-    this.jwtExtractor = jwtExtractor;
+  public void setConnectorJwtExtractor(ConnectorJwtExtractor connectorJwtExtractor) {
+    this.connectorJwtExtractor = connectorJwtExtractor;
+  }
+
+  @Autowired
+  public void setXtmJwksExtractor(XtmJwksExtractor xtmJwksExtractor) {
+    this.xtmJwksExtractor = xtmJwksExtractor;
   }
 
   @Autowired
@@ -54,26 +54,37 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
     this.plainTokenExtractor = plainTokenExtractor;
   }
 
-  private String parseAuthorization(String value) {
-    if (value.toLowerCase().startsWith(BEARER_PREFIX)) {
-      String candidate = value.substring(BEARER_PREFIX.length());
+  private Optional<User> getAuthedUserFromAuthorizationHeader(String value) {
+    Set<ExtractorBase> extractors =
+        Set.of(this.connectorJwtExtractor, this.xtmJwksExtractor, this.plainTokenExtractor);
+
+    if (!value.toLowerCase().startsWith(BEARER_PREFIX)) {
+      return this.plainTokenExtractor.authUser(value);
+    }
+
+    String candidateToken = value.substring(BEARER_PREFIX.length());
+    for (ExtractorBase extractor : extractors) {
       try {
-        return this.jwtExtractor.extractToken(candidate);
-      } catch (ConnectorError | JwtException | IllegalArgumentException e) {
-        return this.plainTokenExtractor.extractToken(candidate);
+        Optional<User> candidateUser = extractor.authUser(candidateToken);
+        if (candidateUser.isPresent()) {
+          return candidateUser;
+        }
+      } catch (Exception e) {
+        log.debug("Could not authenticate using extractor {}", extractor, e);
       }
     }
-    return value;
+    return Optional.empty();
   }
 
-  private String getAuthToken(HttpServletRequest request) {
+  private Optional<User> getAuthedUser(HttpServletRequest request) {
     String header = request.getHeader(HEADER_NAME);
     Cookie[] cookies = ofNullable(request.getCookies()).orElse(new Cookie[0]);
     Optional<Cookie> defaultCookie =
         Arrays.stream(cookies).filter(cookie -> COOKIE_NAME.equals(cookie.getName())).findFirst();
     return hasLength(header)
-        ? parseAuthorization(header)
-        : defaultCookie.orElseGet(() -> new Cookie(COOKIE_NAME, null)).getValue();
+        ? getAuthedUserFromAuthorizationHeader(header)
+        : this.plainTokenExtractor.authUser(
+            defaultCookie.orElseGet(() -> new Cookie(COOKIE_NAME, null)).getValue());
   }
 
   @Override
@@ -81,18 +92,7 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
   protected void doFilterInternal(
       HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
       throws ServletException, IOException {
-    // Extract from request
-    String authToken = getAuthToken(request);
-    if (authToken != null) {
-      Optional<Token> token = tokenRepository.findByValue(authToken);
-      SecurityContext userContext = SecurityContextHolder.getContext();
-      if (token.isPresent()) {
-        User user = token.get().getUser();
-        userService.createUserSession(user);
-      } else if (userContext.getAuthentication() != null) {
-        SecurityContextHolder.setContext(SecurityContextHolder.createEmptyContext());
-      }
-    }
+    getAuthedUser(request).ifPresent(user -> userService.createUserSession(user));
     filterChain.doFilter(request, response);
   }
 }

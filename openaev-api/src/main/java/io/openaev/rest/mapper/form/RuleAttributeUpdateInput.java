@@ -20,7 +20,7 @@ public class RuleAttributeUpdateInput {
   private String name;
 
   @JsonProperty("rule_attribute_columns")
-  @Schema(nullable = true)
+  @Schema(types = {"string", "null"})
   private String columns;
 
   @JsonProperty("rule_attribute_default_value")

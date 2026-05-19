@@ -16,8 +16,12 @@ steps:
     image: maven:3.9.9-eclipse-temurin-22
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://pgsql:5432/openaev
+      SPRING_DATASOURCE_USERNAME: openaev
+      SPRING_DATASOURCE_PASSWORD: openaev
+      SPRING_FLYWAY_USER: openaev
+      SPRING_FLYWAY_PASSWORD: openaev
       MINIO_ENDPOINT: minio
-      MINIO_PORT: 9000
+      MINIO_PORT: 11000
       ENGINE_URL: http://elastic:9200
       OPENBAS_RABBITMQ_HOSTNAME: rabbitmq
     commands:
@@ -51,7 +55,7 @@ steps:
       SPRING_DATASOURCE_USERNAME: openaev
       SPRING_DATASOURCE_PASSWORD: openaev
       MINIO_ENDPOINT: minio-e2e
-      MINIO_PORT: 9000
+      MINIO_PORT: 11000
       ENGINE_URL: http://elastic:9200
       MINIO_ACCESS_KEY: minioadmin
       MINIO_ACCESS_SECRET: minioadmin
@@ -86,8 +90,8 @@ steps:
       - npm install -g corepack
       - cd openaev-front
       - yarn install
-      - yarn playwright install --with-deps chromium
-      - APP_URL=http://app-e2e:8080 yarn test:e2e
+      - yarn playwright install --with-deps chromium chrome webkit
+      - APP_URL=http://app-e2e:8080 BASE_URL=http://app-e2e:8080 yarn test:e2e
     depends_on:
       - app-e2e
 
@@ -167,7 +171,7 @@ steps:
       username: drone
       channel: notifications
     when:
-      status: [ success, failure ]
+      status: [success, failure]
     depends_on:
       - api-tests
       - frontend-tests
@@ -179,7 +183,7 @@ services:
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
-    command: [ server, /data ]
+    command: [server, /data, --address, ":11000"]
   - name: pgsql
     image: postgres:17-alpine
     environment:
@@ -198,7 +202,7 @@ services:
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
-    command: [ server, /data ]
+    command: [server, /data, --address, ":11000"]
   - name: pgsql-e2e
     image: postgres:17-alpine
     environment:

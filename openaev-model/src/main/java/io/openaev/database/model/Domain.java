@@ -1,26 +1,33 @@
 package io.openaev.database.model;
 
+import static java.time.Instant.now;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.jsonapi.BusinessId;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
 @Entity
 @Table(name = "domains")
-@EntityListeners(ModelBaseListener.class)
+@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@Builder
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
-public class Domain implements Base {
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+public class Domain implements TenantBase {
 
   @Id
   @Column(name = "domain_id")
@@ -42,17 +49,22 @@ public class Domain implements Base {
   @NotBlank
   private String color;
 
+  @ManyToOne
+  @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
+  @JsonIgnore
+  private Tenant tenant;
+
   @CreationTimestamp
   @Queryable(filterable = true, sortable = true, label = "created at")
   @Column(name = "domain_created_at", updatable = false)
   @JsonProperty("domain_created_at")
-  private Instant creationDate;
+  private Instant creationDate = now();
 
   @UpdateTimestamp
   @Queryable(filterable = true, sortable = true, label = "updated at")
   @Column(name = "domain_updated_at")
   @JsonProperty("domain_updated_at")
-  private Instant updateDate;
+  private Instant updateDate = now();
 
   @Override
   public boolean equals(Object obj) {
@@ -65,5 +77,14 @@ public class Domain implements Base {
     }
 
     return this.getName().equals(((Domain) obj).getName());
+  }
+
+  public Domain(Domain domain) {
+    this.id = domain.getId();
+    this.name = domain.getName();
+    this.color = domain.getColor();
+    this.tenant = domain.getTenant();
+    this.creationDate = domain.getCreationDate();
+    this.updateDate = domain.getUpdateDate();
   }
 }

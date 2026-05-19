@@ -2,6 +2,7 @@ import { Button, Paper } from '@mui/material';
 import { makeStyles } from 'tss-react/mui';
 
 import Drawer from '../../../../../components/common/Drawer';
+import type { FilterHelpers } from '../../../../../components/common/queryable/filter/FilterHelpers';
 import { useFormatter } from '../../../../../components/i18n';
 import type { Filter } from '../../../../../utils/api-types';
 import MitreFilter from '../../../common/filters/MitreFilter';
@@ -31,6 +32,23 @@ const SelectTTPsDrawer = ({ open, onClose, initialSelectedTTPIds, onUpdateAttack
   const { t } = useFormatter();
   const { classes } = useStyles();
 
+  const helpers: FilterHelpers = {
+    handleSwitchMode: () => {},
+    handleSwitchLocalMode: () => {},
+    handleAddFilterWithEmptyValue: (_: Filter) => {},
+    handleAddSingleValueFilter: () => {},
+    handleAddMultipleValueFilter: () => {},
+    handleChangeOperatorFilters: () => {},
+    handleClearAllFilters: () => {},
+    handleRemoveFilterByKey: () => {},
+    handleRemoveFilterById: () => {},
+    handleUpdateFilterById: () => {},
+    handleAddFilter: () => {},
+    handleSwitchLocalModeById: () => {},
+    handleChangeOperatorById: () => {},
+    handleUpdateValuesById: () => {},
+  };
+
   const selectedAttackPatternIds: Set<string> = new Set(initialSelectedTTPIds);
 
   const onClickAttackPattern = (attackPatternId: string) => {
@@ -56,15 +74,7 @@ const SelectTTPsDrawer = ({ open, onClose, initialSelectedTTPIds, onUpdateAttack
       <>
         <MitreFilter
           className={classes.TTPMitreContainer}
-          helpers={{
-            handleSwitchMode: () => {},
-            handleAddFilterWithEmptyValue: (_: Filter) => { },
-            handleAddSingleValueFilter: () => { },
-            handleAddMultipleValueFilter: () => { },
-            handleChangeOperatorFilters: () => { },
-            handleClearAllFilters: () => { },
-            handleRemoveFilterByKey: () => { },
-          }}
+          helpers={helpers}
           onClick={data => onClickAttackPattern(data)}
           defaultSelectedAttackPatternIds={initialSelectedTTPIds}
         />

@@ -4,13 +4,13 @@ import static io.openaev.database.model.Tag.OPENCTI_TAG_NAME;
 import static io.openaev.rest.payload.service.PayloadService.DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY;
 import static io.openaev.rest.payload.service.PayloadService.DYNAMIC_DNS_RESOLUTION_HOSTNAME_VARIABLE;
 import static io.openaev.utils.AssetUtils.extractPlatformArchPairs;
-import static io.openaev.utils.SecurityCoverageUtils.getExternalIds;
 
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.injectors.manual.ManualContract;
 import io.openaev.rest.attack_pattern.service.AttackPatternService;
+import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.inject.service.InjectAssistantService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.injector_contract.InjectorContractService;
@@ -18,6 +18,8 @@ import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.rest.tag.TagService;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.AssetGroupService;
+import io.openaev.service.scenario.ScenarioService;
+import io.openaev.utils.SecurityCoverageUtils;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -47,10 +49,14 @@ public class SecurityCoverageInjectService {
   private final AssetGroupService assetGroupService;
   private final InjectorContractService injectorContractService;
   private final PayloadService payloadService;
+  private final DocumentService documentService;
 
   private final InjectRepository injectRepository;
   private final InjectorContractRepository injectorContractRepository;
   private final TagService tagService;
+
+  private final SecurityCoverageUtils securityCoverageUtils;
+  private final ScenarioService scenarioService;
 
   /**
    * Creates and manages injects for the given scenario based on the associated security coverage.
@@ -94,12 +100,184 @@ public class SecurityCoverageInjectService {
     createInjectsByIndicators(
         scenario, securityCoverage.getIndicatorsRefs(), requiredAssetGroupMap);
 
+    // 8. Build injects from Artifacts
+    createInjectsByArtifacts(
+        scenario,
+        securityCoverage.getArtifactsRefs(),
+        requiredAssetGroupMap,
+        contractForInjectPlaceholders);
+
     return injectRepository.findByScenarioId(scenario.getId());
   }
 
   private void cleanInjectPlaceholders(String scenarioId) {
     injectRepository.deleteAllByScenarioIdAndInjectorContract(
         ManualContract.MANUAL_DEFAULT, scenarioId);
+  }
+
+  // -- INJECTS BY ARTIFACTS --
+
+  /**
+   * Create injects for the given scenario based on the associated security coverage and artifacts
+   * refs.
+   *
+   * <p>Steps:
+   *
+   * <ul>
+   *   <li>Resolves internal artifacts from the coverage
+   *   <li>Remove all inject from scenario linked to drop files if there is no artifacts to manage
+   *   <li>Generates injects based on injector contract related to these artifacts
+   *   <li>Delete injects who doesn't exist anymore on the STIX
+   * </ul>
+   *
+   * @param scenario the scenario for which injects are managed
+   * @param artifactsRefs the related security coverage providing Artifact references
+   * @param assetsFromGroupMap the asset groups to add on new injects
+   * @param contractForPlaceholder to create placeholder on failed download
+   */
+  private void createInjectsByArtifacts(
+      Scenario scenario,
+      Set<StixRefToExternalRef> artifactsRefs,
+      Map<AssetGroup, List<Endpoint>> assetsFromGroupMap,
+      InjectorContract contractForPlaceholder) {
+    Set<StixRefToExternalRef> fileDropRefs =
+        artifactsRefs.stream()
+            .filter(
+                artifact ->
+                    artifact.getExternalRefs() != null && !artifact.getExternalRefs().isEmpty())
+            .collect(Collectors.toSet());
+    List<Document> previousDocuments =
+        documentService.findAllDistinctOnInjectsByScenarioId(scenario.getId());
+
+    // 1. Remove Inject and Scenario on Documents with contract related to File Drop if there is no
+    // any Artifact to
+    // manage
+
+    if (fileDropRefs.isEmpty()) {
+      injectRepository.deleteAllInjectsWithFileDropContractsByScenarioId(scenario.getId());
+      Set<String> allInjectIds =
+          scenario.getInjects().stream().map(Inject::getId).collect(Collectors.toSet());
+      cleanScenarioFromDocuments(scenario, previousDocuments, allInjectIds);
+      return;
+    }
+
+    // 2. Copy existing injects on scenario, and all previous documents
+    final List<Inject> previousExistingInject =
+        scenario.getInjects().stream()
+            .filter(
+                inject ->
+                    inject.getInjectorContract().isPresent()
+                        && inject.getInjectorContract().get().getPayload() instanceof FileDrop)
+            .toList();
+    List<String> managedInjectsIds = new ArrayList<>();
+
+    // 3. Manage all artifacts with documents to create
+    fileDropRefs.forEach(
+        artifact -> {
+
+          // 4. Manage each documents for the current artifact
+          artifact
+              .getExternalRefs()
+              .forEach(
+                  documentId -> {
+                    // 5. Search for existing inject on scenario by document id
+                    String existingInjectId =
+                        findExistingInjectIdByDocumentId(scenario, documentId);
+                    if (existingInjectId != null) {
+                      managedInjectsIds.add(existingInjectId);
+                      return;
+                    }
+
+                    // 6. Create placeholders for missing files
+                    if (!this.documentService.documentExists(documentId)) {
+                      Inject inject =
+                          injectAssistantService.buildManualInject(
+                              contractForPlaceholder,
+                              documentId,
+                              null,
+                              null,
+                              FileDrop.FILE_DROP_TYPE);
+                      inject.setScenario(scenario);
+                      this.injectRepository.save(inject);
+                      return;
+                    }
+
+                    // 7. Fetch existing or created FileDrop Payload by document id
+                    FileDrop fileDrop =
+                        payloadService.getFileDropPayloadByDocument(documentId, scenario);
+
+                    // 8. Create an inject, linked to the scenario for each contract
+                    createInjectsByInjectorContracts(fileDrop, assetsFromGroupMap, scenario);
+                  });
+        });
+
+    // 9. Delete all previous injects non existing anymore on the OpenCTI report
+    Set<String> injectToDelete =
+        previousExistingInject.stream()
+            .map(Inject::getId)
+            .filter(id -> !managedInjectsIds.contains(id))
+            .collect(Collectors.toSet());
+    injectRepository.deleteAllByIdInBatch(injectToDelete);
+
+    // 9. Clean all Scenario on unused documents
+    cleanScenarioFromDocuments(scenario, previousDocuments, injectToDelete);
+  }
+
+  /**
+   * Remove scenario from all unused documents
+   *
+   * @param scenario to verify
+   * @param previousDocuments to compare
+   * @param deletedInjects to filter
+   */
+  private void cleanScenarioFromDocuments(
+      Scenario scenario, List<Document> previousDocuments, Set<String> deletedInjects) {
+    List<Inject> currentInjects =
+        scenario.getInjects().stream()
+            .filter(inject -> !deletedInjects.contains(inject.getId()))
+            .toList();
+    List<String> documentIdsInScenario =
+        currentInjects.stream()
+            .filter(
+                inject ->
+                    inject.getPayload().isPresent()
+                        && inject.getPayload().get() instanceof FileDrop)
+            .map(fileDrop -> ((FileDrop) fileDrop.getPayload().get()).getFileDropFile().getId())
+            .toList();
+
+    previousDocuments.stream()
+        .filter(document -> !documentIdsInScenario.contains(document.getId()))
+        .forEach(
+            documentToClean -> {
+              documentToClean.getScenarios().remove(scenario);
+              documentService.save(documentToClean);
+            });
+  }
+
+  /**
+   * Create an inject from an injector contract, and link it to the given scenario
+   *
+   * @param injectName to create inject
+   * @param injectDescription to create inject
+   * @param injectorContract to create inject
+   * @param assetGroups to create inject
+   * @param scenario to link inject to
+   * @param tags to add to the injects
+   * @return created inject
+   */
+  private Inject createInjectAndAssociateToScenario(
+      String injectName,
+      String injectDescription,
+      InjectorContract injectorContract,
+      List<AssetGroup> assetGroups,
+      Scenario scenario,
+      Set<Tag> tags) {
+    Inject inject =
+        injectService.buildInject(injectorContract, injectName, injectDescription, true);
+    inject.setTags(tags);
+    inject.setScenario(scenario);
+    inject.setAssetGroups(assetGroups);
+    return inject;
   }
 
   // -- INJECTS BY INDICATORS --
@@ -128,7 +306,9 @@ public class SecurityCoverageInjectService {
       Map<AssetGroup, List<Endpoint>> assetsFromGroupMap) {
     Set<StixRefToExternalRef> dnsResolutionRefs =
         indicatorsRefs.stream()
-            .filter(indicator -> indicator.getExternalRef() != null)
+            .filter(
+                indicator ->
+                    indicator.getExternalRefs() != null && !indicator.getExternalRefs().isEmpty())
             .collect(Collectors.toSet());
 
     // 1. Remove Inject with contract related to Dns Resolution if there is no any DNS Indicator to
@@ -153,7 +333,7 @@ public class SecurityCoverageInjectService {
         indicator -> {
           // 4. Search for existing inject on scenario by hostname
           String existingInjectId =
-              findExistingInjectIdByHostname(scenario, indicator.getExternalRef());
+              findExistingInjectIdByHostname(scenario, indicator.getExternalRefs().getFirst());
           if (existingInjectId != null) {
             managedInjectsIds.add(existingInjectId);
             return;
@@ -165,7 +345,7 @@ public class SecurityCoverageInjectService {
 
           // 6. Create an inject, linked to the scenario for each contract
           createInjectsByInjectorContracts(
-              indicator.getExternalRef(),
+              indicator.getExternalRefs().getFirst(),
               dynamicDnsResolutionPayload,
               assetsFromGroupMap,
               scenario);
@@ -209,14 +389,15 @@ public class SecurityCoverageInjectService {
 
     // 2. Fetch internal Ids for Vulnerabilities
     Set<Vulnerability> requiredVulnerabilities =
-        vulnerabilityService.getVulnerabilitiesByExternalIds(getExternalIds(vulnerabilityRefs));
+        vulnerabilityService.getVulnerabilitiesByExternalIds(
+            securityCoverageUtils.getExternalIds(vulnerabilityRefs));
 
     // 3. Create placeholders for vulnerabilities
     List<String> foundVulnerabilities =
         requiredVulnerabilities.stream().map(Vulnerability::getExternalId).toList();
     List<String> missingVulnerabilities =
         vulnerabilityRefs.stream()
-            .map(StixRefToExternalRef::getExternalRef)
+            .flatMap(ref -> ref.getExternalRefs().stream())
             .filter(ref -> !foundVulnerabilities.contains(ref))
             .toList();
     List<Inject> placeholdersInject =
@@ -225,7 +406,7 @@ public class SecurityCoverageInjectService {
                 vulnerabilityId ->
                     Stream.of(
                         injectAssistantService.buildManualInject(
-                            contractForPlaceholder, vulnerabilityId, null, null)))
+                            contractForPlaceholder, vulnerabilityId, null, null, null)))
             .peek(inject -> inject.setScenario(scenario))
             .toList();
     injectService.saveAll(placeholdersInject);
@@ -334,7 +515,7 @@ public class SecurityCoverageInjectService {
         attackPatterns.values().stream().map(AttackPattern::getExternalId).toList();
     List<String> missingPatterns =
         attackPatternRefs.stream()
-            .map(StixRefToExternalRef::getExternalRef)
+            .flatMap(ref -> ref.getExternalRefs().stream())
             .filter(ref -> !foundAttackPatterns.contains(ref))
             .toList();
     List<Inject> placeholdersInject =
@@ -343,7 +524,7 @@ public class SecurityCoverageInjectService {
                 attackPatternId ->
                     Stream.of(
                         injectAssistantService.buildManualInject(
-                            contractForPlaceholder, attackPatternId, null, null)))
+                            contractForPlaceholder, attackPatternId, null, null, null)))
             .peek(inject -> inject.setScenario(scenario))
             .toList();
     injectService.saveAll(placeholdersInject);
@@ -608,6 +789,41 @@ public class SecurityCoverageInjectService {
       Map<AssetGroup, List<Endpoint>> filteredAssetsFromGroupMap) {}
 
   /**
+   * Retrieve an existing inject on the given scenario by Document id
+   *
+   * @param scenario to retrieve injects
+   * @param documentId to find
+   * @return found inject id, null if not
+   */
+  private String findExistingInjectIdByDocumentId(Scenario scenario, String documentId) {
+    return scenario.getInjects().stream()
+        .filter(inject -> hasFileDropFor(inject, documentId))
+        .findAny()
+        .map(Inject::getId)
+        .orElse(null);
+  }
+
+  /**
+   * Check if the inject has a payload of FileDrop type with given document id
+   *
+   * @param inject to check
+   * @param documentId to find
+   * @return true if the inject have a FileDrop with given document id, false if not
+   */
+  private boolean hasFileDropFor(Inject inject, String documentId) {
+    if (inject.getInjectorContract().isEmpty()) {
+      return false;
+    }
+
+    Object payload = inject.getInjectorContract().get().getPayload();
+    if (!(payload instanceof FileDrop fileDrop)) {
+      return false;
+    }
+
+    return documentId.equals(fileDrop.getFileDropFile().getId());
+  }
+
+  /**
    * Retrieve an existing inject on the given scenario by Payload hostname
    *
    * @param scenario to retrieve injects
@@ -658,22 +874,23 @@ public class SecurityCoverageInjectService {
       Payload payload,
       Map<AssetGroup, List<Endpoint>> assetsFromGroupMap,
       Scenario scenario) {
-    List<InjectorContract> injectorContracts =
-        injectorContractRepository.findInjectorContractsByPayload(payload);
-    Set<Tag> tags = tagService.findOrCreateTagsFromNames(new HashSet<>(Set.of(OPENCTI_TAG_NAME)));
+    Optional<InjectorContract> injectorContract =
+        injectorContractRepository.findInjectorContractByPayload(payload);
 
-    List<Inject> injectsToCreate =
-        injectorContracts.stream()
-            .map(
-                injectorContract ->
-                    createInjectAndAssociateToScenario(
-                        hostname,
-                        injectorContract,
-                        new ArrayList<>(assetsFromGroupMap.keySet()),
-                        scenario,
-                        tags))
-            .collect(Collectors.toList());
-    injectRepository.saveAll(injectsToCreate);
+    if (injectorContract.isEmpty()) {
+      return;
+    }
+
+    Set<Tag> tags = tagService.findOrCreateTagsFromNames(new HashSet<>(Set.of(OPENCTI_TAG_NAME)));
+    Inject injectToCreate =
+        createInjectAndAssociateToScenario(
+            hostname,
+            injectorContract.get(),
+            new ArrayList<>(assetsFromGroupMap.keySet()),
+            scenario,
+            tags);
+
+    injectRepository.save(injectToCreate);
   }
 
   /**
@@ -701,5 +918,35 @@ public class SecurityCoverageInjectService {
     // Add hostname in arguments of the inject to be set and used at execution on payload
     inject.setContent(inject.getContent().put(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY, hostname));
     return inject;
+  }
+
+  /**
+   * Create all injects by injector contract linked to a payload
+   *
+   * @param payload to find linked injector contracts
+   * @param assetsFromGroupMap to set on inject
+   * @param scenario to link injects on
+   */
+  private void createInjectsByInjectorContracts(
+      Payload payload, Map<AssetGroup, List<Endpoint>> assetsFromGroupMap, Scenario scenario) {
+    Optional<InjectorContract> injectorContract =
+        injectorContractRepository.findInjectorContractByPayload(payload);
+    if (injectorContract.isEmpty()) {
+      return;
+    }
+
+    Set<Tag> tags = tagService.findOrCreateTagsFromNames(new HashSet<>(Set.of(OPENCTI_TAG_NAME)));
+
+    Inject injectToCreate =
+        createInjectAndAssociateToScenario(
+            payload.getName(),
+            payload.getDescription(),
+            injectorContract.get(),
+            new ArrayList<>(assetsFromGroupMap.keySet()),
+            scenario,
+            tags);
+
+    scenario.getInjects().add(injectToCreate);
+    injectRepository.save(injectToCreate);
   }
 }

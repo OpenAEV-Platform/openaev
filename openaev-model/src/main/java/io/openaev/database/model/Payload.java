@@ -12,13 +12,11 @@ import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.openaev.annotation.ControlledUuidGeneration;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
 import io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE;
-import io.openaev.helper.MonoIdSerializer;
-import io.openaev.helper.MultiIdListSerializer;
-import io.openaev.helper.MultiIdSetSerializer;
+import io.openaev.helper.CollectorTypeNameSerializer;
 import io.openaev.jsonapi.IncludeOption;
-import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.DiscriminatorMapping;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -39,7 +37,8 @@ import org.hibernate.annotations.*;
 @Table(name = "payloads")
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 @DiscriminatorColumn(name = "payload_type", discriminatorType = STRING)
-@EntityListeners(ModelBaseListener.class)
+@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 @Schema(
     discriminatorProperty = "payload_type",
     oneOf = {
@@ -61,7 +60,7 @@ import org.hibernate.annotations.*;
           schema = NetworkTraffic.class)
     })
 @Grantable(Grant.GRANT_RESOURCE_TYPE.PAYLOAD)
-public class Payload implements GrantableBase {
+public class Payload implements GrantableBase, TenantBase {
 
   private static final int DEFAULT_NUMBER_OF_ACTIONS_FOR_PAYLOAD = 1;
 
@@ -112,23 +111,6 @@ public class Payload implements GrantableBase {
   @JsonProperty("payload_platforms")
   @NotEmpty
   private PLATFORM_TYPE[] platforms = new PLATFORM_TYPE[0];
-
-  @ArraySchema(schema = @Schema(type = "string"))
-  @Setter
-  @ManyToMany(fetch = FetchType.EAGER)
-  @JoinTable(
-      name = "payloads_attack_patterns",
-      joinColumns = @JoinColumn(name = "payload_id"),
-      inverseJoinColumns = @JoinColumn(name = "attack_pattern_id"))
-  @JsonSerialize(using = MultiIdListSerializer.class)
-  @JsonProperty("payload_attack_patterns")
-  @Queryable(
-      filterable = true,
-      searchable = true,
-      dynamicValues = true,
-      paths = {"attackPatterns.id", "attackPatterns.externalId"},
-      clazz = String[].class)
-  private List<AttackPattern> attackPatterns = new ArrayList<>();
 
   @Setter
   @Column(name = "payload_cleanup_executor")
@@ -191,15 +173,20 @@ public class Payload implements GrantableBase {
   @NotNull
   private PAYLOAD_EXECUTION_ARCH executionArch = Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES;
 
-  // -- COLLECTOR --
+  @ManyToOne
+  @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
+  @JsonIgnore
+  private Tenant tenant;
+
+  // -- COLLECTOR TYPE --
 
   @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "payload_collector")
-  @JsonSerialize(using = MonoIdSerializer.class)
-  @JsonProperty("payload_collector")
+  @JoinColumn(name = "payload_collector_type")
+  @JsonSerialize(using = CollectorTypeNameSerializer.class)
+  @JsonProperty("payload_collector_type")
   @IncludeOption(key = "exclude from payload export")
-  @Schema(type = "string")
-  private Collector collector;
+  @Schema(implementation = String.class)
+  private CollectorType collectorType;
 
   @OneToMany(
       mappedBy = "payload",
@@ -208,19 +195,6 @@ public class Payload implements GrantableBase {
       fetch = FetchType.EAGER)
   @JsonProperty("payload_detection_remediations")
   private List<DetectionRemediation> detectionRemediations = new ArrayList<>();
-
-  // -- TAG --
-
-  @ArraySchema(schema = @Schema(type = "string"))
-  @Queryable(filterable = true, dynamicValues = true)
-  @ManyToMany(fetch = FetchType.LAZY)
-  @JoinTable(
-      name = "payloads_tags",
-      joinColumns = @JoinColumn(name = "payload_id"),
-      inverseJoinColumns = @JoinColumn(name = "tag_id"))
-  @JsonSerialize(using = MultiIdSetSerializer.class)
-  @JsonProperty("payload_tags")
-  private Set<Tag> tags = new HashSet<>();
 
   // -- OUTPUT PARSERS
 
@@ -243,16 +217,6 @@ public class Payload implements GrantableBase {
   @JsonIgnore
   private List<Grant> grants = new ArrayList<>();
 
-  @ManyToMany(fetch = FetchType.EAGER)
-  @NotEmpty
-  @Queryable(filterable = true, searchable = true, dynamicValues = true)
-  @JoinTable(
-      name = "payloads_domains",
-      joinColumns = @JoinColumn(name = "payload_id"),
-      inverseJoinColumns = @JoinColumn(name = "domain_id"))
-  @JsonProperty("payload_domains")
-  private Set<Domain> domains = new HashSet<>();
-
   // -- AUDIT --
 
   @CreationTimestamp
@@ -268,9 +232,9 @@ public class Payload implements GrantableBase {
   @NotNull
   private Instant updatedAt = now();
 
-  @JsonProperty("payload_collector_type")
-  public String getCollectorType() {
-    return this.collector != null ? this.collector.getType() : null;
+  @JsonIgnore
+  public String getCollectorTypeValue() {
+    return this.collectorType != null ? this.collectorType.getName() : null;
   }
 
   @Transient
@@ -286,7 +250,7 @@ public class Payload implements GrantableBase {
   @JsonIgnore
   public List<String> getArgumentsDocumentsIds() {
     return this.getArguments().stream()
-        .filter(payloadArgument -> payloadArgument.getType().equals("document"))
+        .filter(payloadArgument -> ArgumentType.Document == payloadArgument.getType())
         .map(PayloadArgument::getDefaultValue)
         .toList();
   }

@@ -4,7 +4,7 @@ import { type FunctionComponent, type ReactNode, useEffect, useState } from 'rea
 
 import { type LoggedHelper } from '../actions/helper';
 import { useHelper } from '../store';
-import { type PlatformSettings, type User } from '../utils/api-types';
+import { type PlatformSettings, type TenantSettingsOutput, type User } from '../utils/api-types';
 import { useFormatter } from './i18n';
 import themeDark from './ThemeDark';
 import themeLight from './ThemeLight';
@@ -24,27 +24,29 @@ const AppThemeProvider: FunctionComponent<Props> = ({ children }) => {
   const [muiLocale, setMuiLocale] = useState<Localization>(enUS);
   const { locale } = useFormatter();
   const [theme, setTheme] = useState('dark');
-  const { me, settings }: {
+  const { me, settings, tenantSettings }: {
     me: User;
     settings: PlatformSettings;
+    tenantSettings: TenantSettingsOutput;
   } = useHelper((helper: LoggedHelper) => ({
     me: helper.getMe(),
     settings: helper.getPlatformSettings(),
+    tenantSettings: helper.getTenantSettings(),
   }));
 
   useEffect(() => {
-    const rawPlatformTheme = settings.platform_theme ?? 'dark';
+    const rawPlatformTheme = tenantSettings?.platform_theme || settings.platform_theme || 'dark';
     const rawUserTheme = me?.user_theme ?? 'default';
     const themeToSet = rawUserTheme !== 'default' ? rawUserTheme : rawPlatformTheme;
     document.body.setAttribute('data-theme', themeToSet);
     setTheme(themeToSet);
-  }, [settings, me]);
+  }, [settings, tenantSettings, me]);
 
   useEffect(() => {
     setMuiLocale(localeMap[locale as keyof typeof localeMap]);
   }, [locale]);
 
-  const dark = settings.platform_dark_theme;
+  const dark = tenantSettings?.platform_dark_theme ?? settings.platform_dark_theme;
   let muiTheme = createTheme(
     {
       spacing: scaleFactor,
@@ -62,7 +64,7 @@ const AppThemeProvider: FunctionComponent<Props> = ({ children }) => {
     muiLocale,
   );
   if (theme === 'light') {
-    const light = settings.platform_light_theme;
+    const light = tenantSettings?.platform_light_theme ?? settings.platform_light_theme;
     muiTheme = createTheme(
       {
         spacing: scaleFactor,

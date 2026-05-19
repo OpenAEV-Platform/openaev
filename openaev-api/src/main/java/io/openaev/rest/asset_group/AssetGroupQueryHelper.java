@@ -34,9 +34,11 @@ public class AssetGroupQueryHelper {
             assetGroupRoot.get("id").alias("asset_group_id"),
             assetGroupRoot.get("name").alias("asset_group_name"),
             assetGroupRoot.get("description").alias("asset_group_description"),
-            assetGroupRoot
-                .get("dynamicFilter")
-                .as(String.class)
+            // FIXME : migrating to spring 3.5 upgraded hibernate from 6.4 to 6.6.
+            // It now adds distinct query which cannot work with json fields so we have to cast it
+            // as jsonb first
+            // Correct fix would be to change field in the db to jsonb
+            cb.function("to_jsonb", String.class, assetGroupRoot.get("dynamicFilter"))
                 .alias("asset_group_dynamic_filter"),
             assetIdsExpression.alias("asset_group_assets"),
             tagIdsExpression.alias("asset_group_tags"))

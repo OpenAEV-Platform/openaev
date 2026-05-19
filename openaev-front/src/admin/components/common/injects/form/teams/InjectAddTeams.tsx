@@ -147,7 +147,7 @@ const InjectAddTeams: FunctionComponent<Props> = ({
       >
         <DialogTitle>{t('Modify target teams in this inject')}</DialogTitle>
         <DialogContent>
-          <Box sx={{ marginTop: 2 }}>
+          <Box sx={{ marginTop: 2 }} data-testid="select-team-list">
             <SelectList
               values={teamValues}
               selectedValues={selectedTeamValues}

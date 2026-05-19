@@ -1,12 +1,13 @@
 package io.openaev.rest.injector;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.database.specification.InjectorSpecification.byName;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.SecurityUtils.validateJFrogUri;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
@@ -49,6 +50,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class InjectorApi extends RestBehavior {
 
   public static final String INJECT0R_URI = "/api/injectors";
+  private static final String TENANT_INJECTOR_URI = TENANT_PREFIX + "/injectors";
 
   private final InjectorRepository injectorRepository;
   private final InjectorContractRepository injectorContractRepository;
@@ -65,11 +67,11 @@ public class InjectorApi extends RestBehavior {
       "${executor.openaev-implant.binaries.version:${executor.openaev.binaries.version:${info.app.version:unknown}}}")
   private String implantBinaryVersion;
 
-  @GetMapping(INJECT0R_URI)
+  @GetMapping({INJECT0R_URI, TENANT_INJECTOR_URI})
   @Operation(
       summary = "Retrieve injectors",
       description = "Retrieve all injectors and pending injectors if includeNext is true")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR)
   @ApiResponse(
       responseCode = "200",
       content =
@@ -86,16 +88,18 @@ public class InjectorApi extends RestBehavior {
     return injectorService.injectorsOutput(includeNext);
   }
 
-  @GetMapping(INJECT0R_URI + "/{injectorId}/injector_contracts")
-  @RBAC(
+  @GetMapping({
+    INJECT0R_URI + "/{injectorId}/injector_contracts",
+    TENANT_INJECTOR_URI + "/{injectorId}/injector_contracts"
+  })
+  @AccessControl(
       resourceId = "#injectorId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECTOR)
   public Collection<JsonNode> injectorInjectTypes(@PathVariable String injectorId) {
     Injector injector =
         injectorRepository.findById(injectorId).orElseThrow(ElementNotFoundException::new);
-    return fromIterable(injectorContractRepository.findInjectorContractsByInjector(injector))
-        .stream()
+    return fromIterable(injectorContractRepository.findByInjectorsContaining(injector)).stream()
         .map(
             contract -> {
               try {
@@ -107,8 +111,8 @@ public class InjectorApi extends RestBehavior {
         .toList();
   }
 
-  @PutMapping(INJECT0R_URI + "/{injectorId}")
-  @RBAC(
+  @PutMapping({INJECT0R_URI + "/{injectorId}", TENANT_INJECTOR_URI + "/{injectorId}"})
+  @AccessControl(
       resourceId = "#injectorId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECTOR)
@@ -128,8 +132,8 @@ public class InjectorApi extends RestBehavior {
         input.getPayloads());
   }
 
-  @GetMapping(INJECT0R_URI + "/{injectorId}")
-  @RBAC(
+  @GetMapping({INJECT0R_URI + "/{injectorId}", TENANT_INJECTOR_URI + "/{injectorId}"})
+  @AccessControl(
       resourceId = "#injectorId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECTOR)
@@ -137,8 +141,11 @@ public class InjectorApi extends RestBehavior {
     return injectorRepository.findById(injectorId).orElseThrow(ElementNotFoundException::new);
   }
 
-  @GetMapping(INJECT0R_URI + "/{injectorId}/related-ids")
-  @RBAC(
+  @GetMapping({
+    INJECT0R_URI + "/{injectorId}/related-ids",
+    TENANT_INJECTOR_URI + "/{injectorId}/related-ids"
+  })
+  @AccessControl(
       resourceId = "#injectorId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECTOR)
@@ -148,10 +155,10 @@ public class InjectorApi extends RestBehavior {
   }
 
   @PostMapping(
-      value = INJECT0R_URI,
+      value = {INJECT0R_URI, TENANT_INJECTOR_URI},
       produces = {MediaType.APPLICATION_JSON_VALUE},
       consumes = {MediaType.APPLICATION_JSON_VALUE, MediaType.MULTIPART_FORM_DATA_VALUE})
-  @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.INJECTOR)
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.INJECTOR)
   @Transactional(rollbackOn = Exception.class)
   public InjectorRegistration registerInjector(
       @Valid @RequestPart("input") InjectorCreateInput input,
@@ -161,9 +168,12 @@ public class InjectorApi extends RestBehavior {
 
   // Public API
   @GetMapping(
-      value = "/api/implant/openaev/{platform}/{architecture}",
+      value = {
+        "/api/implant/openaev/{platform}/{architecture}",
+        TENANT_PREFIX + "/implant/openaev/{platform}/{architecture}"
+      },
       produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public @ResponseBody ResponseEntity<byte[]> getOpenAevImplant(
       @PathVariable String platform,
       @PathVariable String architecture,
@@ -211,8 +221,8 @@ public class InjectorApi extends RestBehavior {
 
   // -- OPTION --
 
-  @GetMapping(INJECT0R_URI + "/options")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR)
+  @GetMapping({INJECT0R_URI + "/options", TENANT_INJECTOR_URI + "/options"})
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR)
   public List<FilterUtilsJpa.Option> optionsByName(
       @RequestParam(required = false) final String searchText,
       @RequestParam(required = false) final String sourceId) {
@@ -224,8 +234,8 @@ public class InjectorApi extends RestBehavior {
         .toList();
   }
 
-  @PostMapping(INJECT0R_URI + "/options")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR)
+  @PostMapping({INJECT0R_URI + "/options", TENANT_INJECTOR_URI + "/options"})
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR)
   public List<FilterUtilsJpa.Option> optionsById(
       @RequestBody final List<String> ids, @RequestParam(required = false) final String sourceId) {
     return fromIterable(this.injectorRepository.findAllById(ids)).stream()

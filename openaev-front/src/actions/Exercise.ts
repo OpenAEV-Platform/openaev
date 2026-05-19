@@ -1,8 +1,9 @@
 import { type Dispatch } from 'redux';
 
-import { delReferential, getReferential, postReferential, putReferential, simplePostCall } from '../utils/Action';
+import { delReferential, getReferential, postReferential, putReferential, simpleCall, simplePostCall } from '../utils/Action';
 import type {
   CreateExerciseInput,
+  Exercise,
   ExerciseTeamPlayersEnableInput,
   ExerciseUpdateStartDateInput,
   ExerciseUpdateStatusInput,
@@ -118,4 +119,11 @@ export const importingExercise = (data: FormData) => (dispatch: AppDispatch) => 
 export const fetchPlayerExercise = (exerciseId: string, userId: string | null) => (dispatch: AppDispatch) => {
   const uri = `/api/player/exercises/${exerciseId}${userId ? `?userId=${userId}` : ''}`;
   return getReferential(schema.exercise, uri)(dispatch);
+};
+
+// -- HEALTHCHECKS --
+
+export const searchExerciseHealthchecks = (exerciseId: Exercise['exercise_id']) => {
+  const uri = `/api/exercises/${exerciseId}/healthchecks`;
+  return simpleCall(uri);
 };

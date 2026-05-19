@@ -1,0 +1,129 @@
+{
+  "internal": {
+    "work_id": "work_68949a7b-c1c2-4649-b3de-7db804ba02bb_2025-10-27T23:29:34.933Z"
+  },
+  "event": {
+    "stix_objects": {
+      "id": "7a517fc3-6393-4201-a7a3-a666fc32a667",
+      "spec_version": "2.1",
+      "type": "bundle",
+      "objects": [
+        {
+          "id": "security-coverage--9d705158-4dd6-57ee-bf1b-d679ad15c9f7",
+          "spec_version": "2.1",
+          "type": "security-coverage",
+          "extensions": {
+            "extension-definition--ea279b3e-5c71-4632-ac08-831c66a786ba": {
+              "extension_type": "new-sdo",
+              "id": "c55773df-e7aa-4ead-9273-539aeeca26b7",
+              "type": "Security-Coverage",
+              "created_at": "2026-01-12T16:54:15.711Z",
+              "updated_at": "2026-01-12T16:54:15.730Z",
+              "is_inferred": false,
+              "creator_ids": [
+                "88ec0c6a-13ce-5e39-b486-354fe4a7084f"
+              ]
+            }
+          },
+          "created": "2026-01-12T16:54:15.711Z",
+          "modified": "2026-01-12T16:54:15.730Z",
+          "revoked": false,
+          "confidence": 100,
+          "lang": "en",
+          "name": "test failing artifacts",
+          "covered": false,
+          "periodicity": "P1D",
+          "type_affinity": "ENDPOINT",
+          "platforms_affinity": [
+            "windows",
+            "linux",
+            "macos"
+          ],
+          "duration": "P30D",
+          "covered_ref": "report--178b8b6c-be18-5816-a99c-15512801bd0f"
+        },
+        {
+          "id": "report--178b8b6c-be18-5816-a99c-15512801bd0f",
+          "spec_version": "2.1",
+          "type": "report",
+          "extensions": {
+            "extension-definition--ea279b3e-5c71-4632-ac08-831c66a786ba": {
+              "extension_type": "property-extension",
+              "id": "5b2e709d-5b64-49a0-a1c5-2e4b519df352",
+              "type": "Report",
+              "created_at": "2026-01-12T16:54:00.375Z",
+              "updated_at": "2026-01-12T16:54:08.697Z",
+              "is_inferred": false,
+              "creator_ids": [
+                "88ec0c6a-13ce-5e39-b486-354fe4a7084f"
+              ],
+              "workflow_id": "923c3254-7113-4aa6-8ff2-24cf4f73e5ea"
+            }
+          },
+          "created": "2026-01-12T16:53:52.000Z",
+          "modified": "2026-01-12T16:54:08.697Z",
+          "revoked": false,
+          "confidence": 100,
+          "lang": "en",
+          "name": "test failing artifacts",
+          "published": "2026-01-12T16:53:52.000Z",
+          "object_refs": [
+            "artifact--02fff920-f614-527c-81d1-6353633a6d21"
+          ]
+        },
+        {
+          "id": "artifact--02fff920-f614-527c-81d1-6353633a6d21",
+          "spec_version": "2.1",
+          "type": "artifact",
+          "extensions": {
+            "extension-definition--ea279b3e-5c71-4632-ac08-831c66a786ba": {
+              "extension_type": "property-extension",
+              "id": "c0cbb7ff-5a68-47cb-8db6-3da247d8d6cf",
+              "type": "Artifact",
+              "created_at": "2026-01-12T16:48:44.143Z",
+              "updated_at": "2026-01-12T16:48:44.180Z",
+              "files": [
+                {
+                  "name": "artifact-file-test2.txt",
+                  "uri": "/storage/get/import/Artifact/c0cbb7ff-5a68-47cb-8db6-3da247d8d6cf/artifact-file-test2.txt",
+                  "version": "2026-01-12T16:48:44.123Z",
+                  "mime_type": "application/x-msdownload",
+                  "object_marking_refs": [ ]
+                }
+              ],
+              "stix_ids": [
+                "artifact--fa6e66a5-f019-51f9-8ab5-812023e58c6e",
+                "artifact--22f8ff52-8f62-5f03-a53a-6f50f54fd74c",
+                "artifact--39cf7bb7-502d-50ad-845c-b910a0598953"
+              ],
+              "is_inferred": false,
+              "creator_ids": [
+                "88ec0c6a-13ce-5e39-b486-354fe4a7084f"
+              ],
+              "labels_ids": [
+                "46a6a25d-a397-4105-b053-dcaeca89c54f"
+              ]
+            },
+            "extension-definition--f93e2c80-4231-4f9a-af8b-95c9bd566a82": {
+              "extension_type": "property-extension",
+              "labels": [
+                "test"
+              ],
+              "description": "Artifact uploaded",
+              "additional_names": [
+                "test.exe"
+              ]
+            }
+          },
+          "mime_type": "application/x-msdownload",
+          "hashes": {
+            "MD5": "d41d8cd98f00b204e9800998ecf8427e",
+            "SHA-1": "da39a3ee5e6b4b0d3255bfef95601890afd80709",
+            "SHA-256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "SHA-512": "cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e"
+          }
+        }
+      ]
+    }
+  }
+}

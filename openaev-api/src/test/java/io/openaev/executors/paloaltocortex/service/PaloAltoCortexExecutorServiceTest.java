@@ -7,10 +7,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Executor;
-import io.openaev.ee.Ee;
+import io.openaev.database.model.Tenant;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.model.AgentRegisterInput;
 import io.openaev.executors.paloaltocortex.client.PaloAltoCortexExecutorClient;
@@ -36,7 +38,7 @@ public class PaloAltoCortexExecutorServiceTest {
   @Mock private PaloAltoCortexExecutorConfig config;
   @Mock private LicenseCacheManager licenseCacheManager;
   @Mock private AssetGroupService assetGroupService;
-  @Mock private Ee enterpriseEditionService;
+  @Mock private EnterpriseEditionService enterpriseEditionService;
   @Mock private EndpointService endpointService;
   @Mock private AgentService agentService;
   @Mock private ExecutorService executorService;
@@ -54,6 +56,7 @@ public class PaloAltoCortexExecutorServiceTest {
     paloAltoCortexExecutor = new Executor();
     paloAltoCortexExecutor.setName(PALOALTOCORTEX_EXECUTOR_NAME);
     paloAltoCortexExecutor.setType(PALOALTOCORTEX_EXECUTOR_TYPE);
+    paloAltoCortexExecutor.setTenant(new Tenant(TenantContext.getCurrentTenant()));
   }
 
   @Test
@@ -61,12 +64,13 @@ public class PaloAltoCortexExecutorServiceTest {
     // Init datas
     when(config.getGroupName()).thenReturn("groupName");
     when(client.endpoints("groupName")).thenReturn(List.of(paloAltoCortexEndpoint));
+    paloAltoCortexExecutorService.setExecutor(paloAltoCortexExecutor);
     // Run method to test
     paloAltoCortexExecutorService.run();
     // Asserts
-    ArgumentCaptor<String> executorTypeCaptor = ArgumentCaptor.forClass(String.class);
-    verify(agentService).getAgentsByExecutorType(executorTypeCaptor.capture());
-    assertEquals(paloAltoCortexExecutor.getType(), executorTypeCaptor.getValue());
+    ArgumentCaptor<String> executorIdCaptor = ArgumentCaptor.forClass(String.class);
+    verify(agentService).getAgentsByExecutorId(executorIdCaptor.capture());
+    assertEquals(paloAltoCortexExecutor.getId(), executorIdCaptor.getValue());
 
     ArgumentCaptor<List<AgentRegisterInput>> inputsCaptor = ArgumentCaptor.forClass(List.class);
     ArgumentCaptor<List<Agent>> agents = ArgumentCaptor.forClass(List.class);
@@ -97,7 +101,7 @@ public class PaloAltoCortexExecutorServiceTest {
   //            "whoami",
   //            List.of(),
   //            "whoami",
-  //            Set.of(new Domain(null, "To classify", "#000000", Instant.now(), null)));
+  //            Set.of(PresetDomain.getToClassify()));
   //    Injector injector = InjectorFixture.createDefaultPayloadInjector();
   //    Map<String, String> executorCommands = new HashMap<>();
   //    executorCommands.put(

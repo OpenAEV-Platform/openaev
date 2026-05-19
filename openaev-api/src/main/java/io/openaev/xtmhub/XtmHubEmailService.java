@@ -29,25 +29,60 @@ public class XtmHubEmailService {
   private final ResourceLoader resourceLoader;
 
   public void sendLostConnectivityEmail() {
-    List<User> administrators = findUsersAbleToManageSettings();
+    List<User> administrators = findPlatformAdmins();
     if (administrators.isEmpty()) {
-      log.error("No administrators found to send XTM Hub lost connectivity email");
-      throw new RuntimeException("No administrators found to send lost connectivity email");
+      log.error("No platform administrators found to send XTM Hub lost connectivity email");
+      throw new RuntimeException(
+          "No platform administrators found to send lost connectivity email");
     }
 
     try {
       String emailBody = buildEmailBody();
       mailingService.sendEmail(EMAIL_SUBJECT, emailBody, administrators);
-      log.info("XTM Hub lost connectivity email sent to {} administrators", administrators.size());
+      log.info(
+          "XTM Hub lost connectivity email sent to {} platform administrators",
+          administrators.size());
     } catch (Exception e) {
       log.error("Failed to send lost connectivity email: {}", e.getMessage(), e);
       throw new RuntimeException(e);
     }
   }
 
+  public void sendTenantLostConnectivityEmail(String tenantId, String tenantUrl) {
+
+    List<User> administrators = findTenantAdmins();
+    if (administrators.isEmpty()) {
+      log.error(
+          "No tenant administrators found to send XTM Hub lost connectivity email for tenant {}",
+          tenantId);
+      throw new RuntimeException("No tenant administrators found to send lost connectivity email");
+    }
+
+    try {
+      String emailBody = buildEmailBody(tenantUrl);
+      mailingService.sendEmail(EMAIL_SUBJECT, emailBody, administrators);
+      log.info(
+          "XTM Hub lost connectivity email sent to {} tenant administrators for tenant {}",
+          administrators.size(),
+          tenantId);
+    } catch (Exception e) {
+      log.error(
+          "Failed to send tenant lost connectivity email for tenant {}: {}",
+          tenantId,
+          e.getMessage(),
+          e);
+      throw new RuntimeException(e);
+    }
+  }
+
   private String buildEmailBody() throws Exception {
     PlatformSettings settings = platformSettingsService.findSettings();
-    String body = createBodyContent(settings.getPlatformBaseUrl());
+    return buildEmailBody(settings.getPlatformBaseUrl());
+  }
+
+  private String buildEmailBody(String url) throws Exception {
+    PlatformSettings settings = platformSettingsService.findSettings();
+    String body = createBodyContent(url);
     String template = getTemplate();
     HashMap<String, Object> dataMap = new HashMap<>();
     dataMap.put("body", body);
@@ -73,10 +108,14 @@ public class XtmHubEmailService {
         baseUrl);
   }
 
-  private List<User> findUsersAbleToManageSettings() {
-    List<String> capabilities =
-        List.of(Capability.MANAGE_PLATFORM_SETTINGS.toString(), Capability.BYPASS.toString());
-    return userRepository.adminsOrUsersHavingCapabilities(capabilities);
+  private List<User> findTenantAdmins() {
+    return userRepository.adminsOrUsersHavingCapabilities(
+        List.of(Capability.MANAGE_TENANT_SETTINGS.toString(), Capability.BYPASS.toString()));
+  }
+
+  private List<User> findPlatformAdmins() {
+    return userRepository.adminsOrUsersHavingCapabilities(
+        List.of(Capability.MANAGE_PLATFORM_SETTINGS.toString(), Capability.BYPASS.toString()));
   }
 
   private String getTemplate() {

@@ -9,6 +9,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.model.CustomDashboardParameters.CustomDashboardParameterType;
 import io.openaev.helper.MultiModelSerializer;
 import jakarta.persistence.*;
@@ -22,6 +23,7 @@ import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
@@ -29,8 +31,9 @@ import org.hibernate.annotations.UuidGenerator;
 @Setter
 @Entity
 @Table(name = "custom_dashboards")
-@EntityListeners(ModelBaseListener.class)
-public class CustomDashboard implements Base {
+@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+public class CustomDashboard implements TenantBase {
 
   @Id
   @Column(name = "custom_dashboard_id", updatable = false, nullable = false)
@@ -67,6 +70,11 @@ public class CustomDashboard implements Base {
   @JsonProperty("custom_dashboard_parameters")
   @OrderBy("id ASC")
   private List<CustomDashboardParameters> parameters = new ArrayList<>();
+
+  @ManyToOne
+  @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
+  @JsonIgnore
+  private Tenant tenant;
 
   public CustomDashboard addParameter(
       @NotBlank final String name, @NotBlank final CustomDashboardParameterType type) {

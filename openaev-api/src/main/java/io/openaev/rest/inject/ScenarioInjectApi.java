@@ -2,11 +2,13 @@ package io.openaev.rest.inject;
 
 import static io.openaev.database.specification.InjectSpecification.fromScenario;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
+import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.form.InjectAssistantInput;
 import io.openaev.rest.inject.form.InjectInput;
@@ -18,6 +20,7 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.ScenarioInjectService;
 import io.openaev.service.*;
 import io.openaev.service.scenario.ScenarioService;
+import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.persistence.criteria.Join;
@@ -42,11 +45,15 @@ public class ScenarioInjectApi extends RestBehavior {
   private final InjectService injectService;
   private final InjectDuplicateService injectDuplicateService;
   private final ScenarioInjectService scenarioInjectService;
+  private final InjectMapper injectMapper;
 
   // -- READ --
 
-  @GetMapping(SCENARIO_URI + "/{scenarioId}/injects/simple")
-  @RBAC(
+  @GetMapping({
+    SCENARIO_URI + "/{scenarioId}/injects/simple",
+    TENANT_SCENARIO_URI + "/{scenarioId}/injects/simple"
+  })
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
@@ -56,8 +63,11 @@ public class ScenarioInjectApi extends RestBehavior {
     return injectSearchService.injects(fromScenario(scenarioId));
   }
 
-  @PostMapping(SCENARIO_URI + "/{scenarioId}/injects/simple")
-  @RBAC(
+  @PostMapping({
+    SCENARIO_URI + "/{scenarioId}/injects/simple",
+    TENANT_SCENARIO_URI + "/{scenarioId}/injects/simple"
+  })
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
@@ -80,8 +90,11 @@ public class ScenarioInjectApi extends RestBehavior {
         joinMap);
   }
 
-  @GetMapping(SCENARIO_URI + "/{scenarioId}/injects")
-  @RBAC(
+  @GetMapping({
+    SCENARIO_URI + "/{scenarioId}/injects",
+    TENANT_SCENARIO_URI + "/{scenarioId}/injects"
+  })
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
@@ -91,30 +104,45 @@ public class ScenarioInjectApi extends RestBehavior {
         .toList();
   }
 
-  @GetMapping(SCENARIO_URI + "/{scenarioId}/injects/{injectId}")
-  @RBAC(resourceId = "#injectId", actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
+  @GetMapping({
+    SCENARIO_URI + "/{scenarioId}/injects/{injectId}",
+    TENANT_SCENARIO_URI + "/{scenarioId}/injects/{injectId}"
+  })
+  @AccessControl(
+      resourceId = "#scenarioId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.SCENARIO)
   public Inject scenarioInject(
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String injectId) {
-    return scenarioInjectService.findInjectForScenario(scenarioId, injectId);
+    Scenario scenario = this.scenarioService.scenario(scenarioId);
+    assert scenarioId.equals(scenario.getId());
+    return injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
   }
 
   // -- CREATE --
 
-  @PostMapping(SCENARIO_URI + "/{scenarioId}/injects")
-  @RBAC(
+  @PostMapping({
+    SCENARIO_URI + "/{scenarioId}/injects",
+    TENANT_SCENARIO_URI + "/{scenarioId}/injects"
+  })
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
   @Transactional(rollbackFor = Exception.class)
-  public Inject createInjectForScenario(
+  public InjectOutput createInjectForScenario(
       @PathVariable @NotBlank final String scenarioId, @Valid @RequestBody InjectInput input) {
     Scenario scenario = this.scenarioService.scenario(scenarioId);
-    return this.injectService.createAndSaveInject(null, scenario, input);
+    Inject persistedInject = this.injectService.createAndSaveInject(null, scenario, input);
+    return injectMapper.toInjectOutput(persistedInject, injectService.runChecks(persistedInject));
   }
 
-  @PostMapping(SCENARIO_URI + "/{scenarioId}/injects/bulk")
-  @RBAC(
+  @PostMapping({
+    SCENARIO_URI + "/{scenarioId}/injects/bulk",
+    TENANT_SCENARIO_URI + "/{scenarioId}/injects/bulk"
+  })
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
@@ -126,8 +154,11 @@ public class ScenarioInjectApi extends RestBehavior {
     return this.injectService.createAndSaveInjectList(null, scenario, inputs);
   }
 
-  @PostMapping(SCENARIO_URI + "/{scenarioId}/injects/assistant")
-  @RBAC(
+  @PostMapping({
+    SCENARIO_URI + "/{scenarioId}/injects/assistant",
+    TENANT_SCENARIO_URI + "/{scenarioId}/injects/assistant"
+  })
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
@@ -143,35 +174,46 @@ public class ScenarioInjectApi extends RestBehavior {
         this.injectAssistantService.generateInjectsForScenario(scenario, input));
   }
 
-  @PostMapping(SCENARIO_URI + "/{scenarioId}/injects/{injectId}")
-  @RBAC(
+  @PostMapping({
+    SCENARIO_URI + "/{scenarioId}/injects/{injectId}",
+    TENANT_SCENARIO_URI + "/{scenarioId}/injects/{injectId}"
+  })
+  @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
-  public Inject duplicateInjectForScenario(
+  public InjectOutput duplicateInjectForScenario(
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String injectId) {
-    return injectDuplicateService.duplicateInjectForScenarioWithDuplicateWordInTitle(
-        scenarioId, injectId);
+    Inject persistedInject =
+        injectDuplicateService.duplicateInjectForScenarioWithDuplicateWordInTitle(
+            scenarioId, injectId);
+    return injectMapper.toInjectOutput(persistedInject, injectService.runChecks(persistedInject));
   }
 
   // -- UPDATE --
 
   @Transactional(rollbackFor = Exception.class)
-  @PutMapping(SCENARIO_URI + "/{scenarioId}/injects/{injectId}")
-  @RBAC(
+  @PutMapping({
+    SCENARIO_URI + "/{scenarioId}/injects/{injectId}",
+    TENANT_SCENARIO_URI + "/{scenarioId}/injects/{injectId}"
+  })
+  @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
-  public Inject updateInjectForScenario(
+  public InjectOutput updateInjectForScenario(
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String injectId,
       @Valid @RequestBody @NotNull InjectInput input) {
     return scenarioInjectService.updateInjectForScenario(scenarioId, injectId, input);
   }
 
-  @PutMapping(SCENARIO_URI + "/{scenarioId}/injects/{injectId}/activation")
-  @RBAC(
+  @PutMapping({
+    SCENARIO_URI + "/{scenarioId}/injects/{injectId}/activation",
+    TENANT_SCENARIO_URI + "/{scenarioId}/injects/{injectId}/activation"
+  })
+  @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
@@ -185,8 +227,11 @@ public class ScenarioInjectApi extends RestBehavior {
   // -- DELETE --
 
   @Transactional(rollbackFor = Exception.class)
-  @DeleteMapping(SCENARIO_URI + "/{scenarioId}/injects/{injectId}")
-  @RBAC(
+  @DeleteMapping({
+    SCENARIO_URI + "/{scenarioId}/injects/{injectId}",
+    TENANT_SCENARIO_URI + "/{scenarioId}/injects/{injectId}"
+  })
+  @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)

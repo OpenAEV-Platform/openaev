@@ -73,9 +73,10 @@ const ConnectorLayout = () => {
         setLoading(false);
       } else {
         setRelatedIds(data);
-        const promises: Promise<typeof store.dispatch>[] = [
-          dispatch(apiRequest.fetchSingle(connectorId)),
-        ];
+        const promises: Promise<typeof store.dispatch>[] = [];
+        if (data?.connector_registered) {
+          promises.push(dispatch(apiRequest.fetchSingle(connectorId)));
+        }
         if (data?.catalog_connector_id) {
           promises.push(dispatch(fetchConnector(data.catalog_connector_id)));
         }

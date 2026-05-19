@@ -66,6 +66,13 @@ public class InjectExpectationService {
 
   // -- CRUD --
 
+  /**
+   * Finds an inject expectation by its ID.
+   *
+   * @param injectExpectationId the ID of the inject expectation to find
+   * @return the found inject expectation
+   * @throws ElementNotFoundException if no expectation is found with the given ID
+   */
   public InjectExpectation findInjectExpectation(@NotBlank final String injectExpectationId) {
     return this.injectExpectationRepository
         .findById(injectExpectationId)
@@ -74,6 +81,14 @@ public class InjectExpectationService {
 
   // -- UPDATE FROM UI --
 
+  /**
+   * Updates an inject expectation
+   *
+   * @param expectationId the ID of the expectation to update
+   * @param input the update input containing the new data
+   * @return the updated inject expectation
+   * @throws IllegalArgumentException if trying to update an Asset Group expectation directly
+   */
   public InjectExpectation updateInjectExpectation(
       @NotBlank final String expectationId, @NotNull final ExpectationUpdateInput input) {
     InjectExpectation injectExpectation = this.findInjectExpectation(expectationId);
@@ -116,6 +131,14 @@ public class InjectExpectationService {
 
   // -- DELETE RESULT FROM UI --
 
+  /**
+   * Deletes a specific result from an inject expectation.
+   *
+   * @param expectationId the ID of the expectation
+   * @param sourceId the ID of the source result to delete
+   * @return the updated inject expectation
+   * @throws IllegalArgumentException if trying to delete from an Asset Group or Asset with Agent
+   */
   public InjectExpectation deleteInjectExpectationResult(
       @NotBlank final String expectationId, @NotBlank final String sourceId) {
     InjectExpectation injectExpectation =
@@ -146,6 +169,13 @@ public class InjectExpectationService {
 
   //  -- HUMAN RESPONSE --
 
+  /**
+   * Computes an inject expectation for a human response
+   *
+   * @param injectExpectation the expectation to compute
+   * @param input the update input containing the score
+   * @param result the result label
+   */
   private void computeInjectExpectationForHumanResponse(
       @NotNull InjectExpectation injectExpectation,
       @NotNull final ExpectationUpdateInput input,
@@ -157,6 +187,14 @@ public class InjectExpectationService {
     injectExpectation.setScore(score);
   }
 
+  /**
+   * Computes an inject expectation for a human response from a collector.
+   *
+   * @param injectExpectation the expectation to compute
+   * @param input the update input containing the response
+   * @param collector the collector submitting the response
+   * @return the updated inject expectation
+   */
   public InjectExpectation computeInjectExpectationForHumanResponse(
       @NotNull InjectExpectation injectExpectation,
       @NotNull final InjectExpectationUpdateInput input,
@@ -169,6 +207,15 @@ public class InjectExpectationService {
     return injectExpectation;
   }
 
+  /**
+   * Propagates a human response expectation update to related expectations.
+   *
+   * <p>If the expectation belongs to a player, propagates to the team. If the expectation belongs
+   * to a team, propagates to all players.
+   *
+   * @param injectExpectation the updated expectation
+   * @param result the result label to propagate
+   */
   private void propagateHumanResponseExpectation(
       @NotNull InjectExpectation injectExpectation, @Nullable final String result) {
     // If the updated expectation was a player expectation, We have to update the team expectation
@@ -187,6 +234,13 @@ public class InjectExpectationService {
     securityCoverageSendJobService.createOrUpdateCoverageSendJobForSimulationsIfReady(exercises);
   }
 
+  /**
+   * Propagates a team expectation update to all player expectations.
+   *
+   * @param injectExpectation the team expectation that was updated
+   * @param result the result label to propagate
+   * @return the list of updated player expectations
+   */
   private List<InjectExpectation> propagateToPlayers(
       @NotNull final InjectExpectation injectExpectation, @Nullable final String result) {
     // If I update the expectation team: What happens with children? -> update expectation score
@@ -205,6 +259,13 @@ public class InjectExpectationService {
     return expectationsForPlayers;
   }
 
+  /**
+   * Propagates a player expectation update to the team expectation.
+   *
+   * @param injectExpectation the player expectation that was updated
+   * @param result the result label to propagate
+   * @return the list of updated team expectations
+   */
   private List<InjectExpectation> propagateToTeam(
       @NotNull final InjectExpectation injectExpectation, @Nullable final String result) {
     List<InjectExpectation> expectationsForPlayers =
@@ -220,6 +281,12 @@ public class InjectExpectationService {
 
   // -- TECHNICAL --
 
+  /**
+   * Computes a technical expectation for an agent or agentless asset
+   *
+   * @param injectExpectation the expectation to compute
+   * @param input the update input containing the score
+   */
   private void computeInjectExpectationForAgentOrAssetAgentless(
       @NotNull final InjectExpectation injectExpectation,
       @NotNull final ExpectationUpdateInput input) {
@@ -231,6 +298,13 @@ public class InjectExpectationService {
     injectExpectation.setScore(score);
   }
 
+  /**
+   * Propagates a technical expectation update up the hierarchy (agent to asset to asset group).
+   *
+   * @param injectExpectation the expectation that was updated
+   * @param isAgentless whether the asset has no agent
+   * @param addResult optional function to create a result from a score
+   */
   private void propagateTechnicalExpectation(
       @NotNull final InjectExpectation injectExpectation,
       final boolean isAgentless,
@@ -252,6 +326,13 @@ public class InjectExpectationService {
     securityCoverageSendJobService.createOrUpdateCoverageSendJobForSimulationsIfReady(exercises);
   }
 
+  /**
+   * Propagates an agent expectation update to the asset expectation.
+   *
+   * @param injectExpectation the agent expectation that was updated
+   * @param addResult optional function to create a result from a score
+   * @return the list of updated asset expectations
+   */
   private List<InjectExpectation> propagateToAsset(
       @NotNull final InjectExpectation injectExpectation,
       @Nullable final Function<Double, InjectExpectationResult> addResult) {
@@ -262,6 +343,13 @@ public class InjectExpectationService {
     return expectationsForAssets;
   }
 
+  /**
+   * Propagates an asset expectation update to the asset group expectation.
+   *
+   * @param injectExpectation the asset expectation that was updated
+   * @param addResult optional function to create a result from a score
+   * @return the list of updated asset group expectations, or empty list if no asset group
+   */
   private List<InjectExpectation> propagateToAssetGroup(
       @NotNull final InjectExpectation injectExpectation,
       @Nullable final Function<Double, InjectExpectationResult> addResult) {
@@ -278,6 +366,13 @@ public class InjectExpectationService {
 
   // -- UPDATE FROM EXTERNAL SOURCE : COLLECTORS --
 
+  /**
+   * Updates an inject expectation from an external collector source.
+   *
+   * @param expectationId the ID of the expectation to update
+   * @param input the update input from the collector
+   * @return the updated inject expectation
+   */
   public InjectExpectation updateInjectExpectation(
       @NotBlank String expectationId, @Valid @NotNull InjectExpectationUpdateInput input) {
     InjectExpectation injectExpectation = this.findInjectExpectation(expectationId);
@@ -288,6 +383,11 @@ public class InjectExpectationService {
     return injectExpectation;
   }
 
+  /**
+   * Performs a bulk update of multiple inject expectations.
+   *
+   * @param inputs a map of expectation IDs to their update inputs
+   */
   public void bulkUpdateInjectExpectation(
       @Valid @NotNull Map<String, InjectExpectationUpdateInput> inputs) {
     if (inputs.isEmpty()) {
@@ -320,6 +420,14 @@ public class InjectExpectationService {
     }
   }
 
+  /**
+   * Computes a technical expectation (detection/prevention) from collector input.
+   *
+   * @param injectExpectation the expectation to compute
+   * @param collector the collector submitting the result
+   * @param input the update input
+   * @param shouldPropagateLastInjectExpectationResult whether to propagate the last result
+   */
   public void computeTechnicalExpectation(
       InjectExpectation injectExpectation,
       Collector collector,
@@ -339,6 +447,14 @@ public class InjectExpectationService {
 
   // -- COMPUTE RESULTS FROM INJECT EXPECTATIONS --
 
+  /**
+   * Computes an inject expectation for an agent or agentless asset from collector input.
+   *
+   * @param expectation the expectation to compute
+   * @param input the update input
+   * @param collector the collector submitting the result
+   * @return the updated inject expectation
+   */
   public InjectExpectation computeInjectExpectationForAgentOrAssetAgentless(
       @NotNull final InjectExpectation expectation,
       @NotNull final InjectExpectationUpdateInput input,
@@ -351,12 +467,23 @@ public class InjectExpectationService {
 
   // -- FINAL UPDATE --
 
+  /**
+   * Saves all inject expectations in a batch operation.
+   *
+   * @param injectExpectations the list of expectations to save
+   */
   public void updateAll(@NotNull List<InjectExpectation> injectExpectations) {
     this.injectExpectationRepository.saveAll(injectExpectations);
   }
 
   // -- FETCH INJECT EXPECTATIONS --
 
+  /**
+   * Retrieves a page of inject expectations that have not been filled (no score and no results or
+   * has an agent).
+   *
+   * @return a page of unfilled inject expectations ordered by creation date
+   */
   public Page<InjectExpectation> expectationsNotFill() {
     return this.injectExpectationRepository.findAll(
         (root, query, criteriaBuilder) ->
@@ -373,6 +500,15 @@ public class InjectExpectationService {
 
   // -- EXPECTATIONS BY TYPE --
 
+  /**
+   * Retrieves expectations of a given type that have not been filled by a specific source and are
+   * not expired.
+   *
+   * @param type the expectation type to filter by
+   * @param expirationTime the expiration threshold in minutes
+   * @param sourceId the source ID to check for existing results
+   * @return a list of matching inject expectations
+   */
   public List<InjectExpectation> expectationsNotFilledAndNotExpiredBySourceId(
       @NotNull InjectExpectation.EXPECTATION_TYPE type,
       @NotNull Integer expirationTime,
@@ -393,6 +529,13 @@ public class InjectExpectationService {
         .toList();
   }
 
+  /**
+   * Retrieves expectations of a given type that have no results and are not expired.
+   *
+   * @param type the expectation type to filter by
+   * @param expirationTime the expiration threshold in minutes
+   * @return a list of matching inject expectations
+   */
   public List<InjectExpectation> expectationsNotFilledAndNotExpired(
       @NotNull InjectExpectation.EXPECTATION_TYPE type, @NotNull Integer expirationTime) {
 
@@ -413,40 +556,75 @@ public class InjectExpectationService {
 
   // -- PREVENTION --
 
+  /**
+   * Retrieves prevention expectations that have not expired.
+   *
+   * @param expirationTime the expiration threshold in minutes
+   * @return a list of non-expired prevention expectations
+   */
   public List<InjectExpectation> preventionExpectationsNotExpired(final Integer expirationTime) {
     return this.injectExpectationRepository.findAll(
-        Specification.where(
-            InjectExpectationSpecification.type(PREVENTION)
-                .and(InjectExpectationSpecification.agentNotNull())
-                .and(InjectExpectationSpecification.assetNotNull())
-                .and(
-                    InjectExpectationSpecification.from(
-                        Instant.now().minus(expirationTime, ChronoUnit.MINUTES)))));
+        Specification.<InjectExpectation>unrestricted()
+            .and(
+                InjectExpectationSpecification.type(PREVENTION)
+                    .and(InjectExpectationSpecification.agentNotNull())
+                    .and(InjectExpectationSpecification.assetNotNull())
+                    .and(
+                        InjectExpectationSpecification.from(
+                            Instant.now().minus(expirationTime, ChronoUnit.MINUTES)))));
   }
 
+  /**
+   * Retrieves prevention expectations without results from a specific source.
+   *
+   * @param sourceId the source ID to check for existing results
+   * @return a list of prevention expectations without results from the source
+   */
   public List<InjectExpectation> preventionExpectationsNotFill(@NotBlank final String sourceId) {
     return this.injectExpectationRepository
-        .findAll(Specification.where(InjectExpectationSpecification.type(PREVENTION)))
+        .findAll(
+            Specification.<InjectExpectation>unrestricted()
+                .and(InjectExpectationSpecification.type(PREVENTION)))
         .stream()
         .filter(ExpectationUtils::isAgentExpectation)
         .filter(e -> hasNoResult(e.getResults(), sourceId))
         .toList();
   }
 
+  /**
+   * Retrieves prevention expectations without any results.
+   *
+   * @return a list of prevention expectations without results
+   */
   public List<InjectExpectation> preventionExpectationsNotFill() {
     return this.injectExpectationRepository
-        .findAll(Specification.where(InjectExpectationSpecification.type(PREVENTION)))
+        .findAll(
+            Specification.<InjectExpectation>unrestricted()
+                .and(InjectExpectationSpecification.type(PREVENTION)))
         .stream()
         .filter(ExpectationUtils::isAgentExpectation)
         .filter(e -> hasNoResults(e.getResults()))
         .toList();
   }
 
+  /**
+   * Retrieves prevention expectations without results that have not expired.
+   *
+   * @param expirationTime the expiration threshold in minutes
+   * @return a list of non-expired prevention expectations without results
+   */
   public List<InjectExpectation> preventionExpectationsNotFillAndNotExpired(
       @NotNull Integer expirationTime) {
     return expectationsNotFilledAndNotExpired(PREVENTION, expirationTime);
   }
 
+  /**
+   * Retrieves prevention expectations without results from a specific source that have not expired.
+   *
+   * @param expirationTime the expiration threshold in minutes
+   * @param sourceId the source ID to check for existing results
+   * @return a list of non-expired prevention expectations without results from the source
+   */
   public List<InjectExpectation> preventionExpectationsNotFilledAndNotExpired(
       @NotNull Integer expirationTime, @NotBlank String sourceId) {
     return expectationsNotFilledAndNotExpiredBySourceId(PREVENTION, expirationTime, sourceId);
@@ -454,40 +632,75 @@ public class InjectExpectationService {
 
   // -- DETECTION --
 
+  /**
+   * Retrieves detection expectations that have not expired.
+   *
+   * @param expirationTime the expiration threshold in minutes
+   * @return a list of non-expired detection expectations
+   */
   public List<InjectExpectation> detectionExpectationsNotExpired(final Integer expirationTime) {
     return this.injectExpectationRepository.findAll(
-        Specification.where(
-            InjectExpectationSpecification.type(DETECTION)
-                .and(InjectExpectationSpecification.agentNotNull())
-                .and(InjectExpectationSpecification.assetNotNull())
-                .and(
-                    InjectExpectationSpecification.from(
-                        Instant.now().minus(expirationTime, ChronoUnit.MINUTES)))));
+        Specification.<InjectExpectation>unrestricted()
+            .and(
+                InjectExpectationSpecification.type(DETECTION)
+                    .and(InjectExpectationSpecification.agentNotNull())
+                    .and(InjectExpectationSpecification.assetNotNull())
+                    .and(
+                        InjectExpectationSpecification.from(
+                            Instant.now().minus(expirationTime, ChronoUnit.MINUTES)))));
   }
 
+  /**
+   * Retrieves detection expectations without results from a specific source.
+   *
+   * @param sourceId the source ID to check for existing results
+   * @return a list of detection expectations without results from the source
+   */
   public List<InjectExpectation> detectionExpectationsNotFill(@NotBlank final String sourceId) {
     return this.injectExpectationRepository
-        .findAll(Specification.where(InjectExpectationSpecification.type(DETECTION)))
+        .findAll(
+            Specification.<InjectExpectation>unrestricted()
+                .and(InjectExpectationSpecification.type(DETECTION)))
         .stream()
         .filter(ExpectationUtils::isAgentExpectation)
         .filter(e -> hasNoResult(e.getResults(), sourceId))
         .toList();
   }
 
+  /**
+   * Retrieves detection expectations without any results.
+   *
+   * @return a list of detection expectations without results
+   */
   public List<InjectExpectation> detectionExpectationsNotFill() {
     return this.injectExpectationRepository
-        .findAll(Specification.where(InjectExpectationSpecification.type(DETECTION)))
+        .findAll(
+            Specification.<InjectExpectation>unrestricted()
+                .and(InjectExpectationSpecification.type(DETECTION)))
         .stream()
         .filter(ExpectationUtils::isAgentExpectation)
         .filter(e -> hasNoResults(e.getResults()))
         .toList();
   }
 
+  /**
+   * Retrieves detection expectations without results that have not expired.
+   *
+   * @param expirationTime the expiration threshold in minutes
+   * @return a list of non-expired detection expectations without results
+   */
   public List<InjectExpectation> detectionExpectationsNotFillAndNotExpired(
       @NotNull Integer expirationTime) {
     return expectationsNotFilledAndNotExpired(DETECTION, expirationTime);
   }
 
+  /**
+   * Retrieves detection expectations without results from a specific source that have not expired.
+   *
+   * @param expirationTime the expiration threshold in minutes
+   * @param sourceId the source ID to check for existing results
+   * @return a list of non-expired detection expectations without results from the source
+   */
   public List<InjectExpectation> detectionExpectationsNotFilledAndNotExpired(
       @NotNull Integer expirationTime, @NotBlank String sourceId) {
 
@@ -496,33 +709,61 @@ public class InjectExpectationService {
 
   // -- MANUAL
 
+  /**
+   * Retrieves manual expectations that have not expired.
+   *
+   * @param expirationTime the expiration threshold in minutes
+   * @return a list of non-expired manual expectations
+   */
   public List<InjectExpectation> manualExpectationsNotExpired(final Integer expirationTime) {
     return this.injectExpectationRepository.findAll(
-        Specification.where(
-            InjectExpectationSpecification.type(MANUAL)
-                .and(InjectExpectationSpecification.agentNotNull())
-                .and(InjectExpectationSpecification.assetNotNull())
-                .and(
-                    InjectExpectationSpecification.from(
-                        Instant.now().minus(expirationTime, ChronoUnit.MINUTES)))));
+        Specification.<InjectExpectation>unrestricted()
+            .and(
+                InjectExpectationSpecification.type(MANUAL)
+                    .and(InjectExpectationSpecification.agentNotNull())
+                    .and(InjectExpectationSpecification.assetNotNull())
+                    .and(
+                        InjectExpectationSpecification.from(
+                            Instant.now().minus(expirationTime, ChronoUnit.MINUTES)))));
   }
 
+  /**
+   * Retrieves manual expectations without results from a specific source.
+   *
+   * @param sourceId the source ID to check for existing results
+   * @return a list of manual expectations without results from the source
+   */
   public List<InjectExpectation> manualExpectationsNotFill(@NotBlank final String sourceId) {
     return this.injectExpectationRepository
-        .findAll(Specification.where(InjectExpectationSpecification.type(MANUAL)))
+        .findAll(
+            Specification.<InjectExpectation>unrestricted()
+                .and(InjectExpectationSpecification.type(MANUAL)))
         .stream()
         .filter(e -> hasNoResult(e.getResults(), sourceId))
         .toList();
   }
 
+  /**
+   * Retrieves manual expectations without any results.
+   *
+   * @return a list of manual expectations without results
+   */
   public List<InjectExpectation> manualExpectationsNotFill() {
     return this.injectExpectationRepository
-        .findAll(Specification.where(InjectExpectationSpecification.type(MANUAL)))
+        .findAll(
+            Specification.<InjectExpectation>unrestricted()
+                .and(InjectExpectationSpecification.type(MANUAL)))
         .stream()
         .filter(e -> hasNoResults(e.getResults()))
         .toList();
   }
 
+  /**
+   * Retrieves manual expectations without results that have not expired.
+   *
+   * @param expirationTime the expiration threshold in minutes
+   * @return a list of non-expired manual expectations without results
+   */
   public List<InjectExpectation> manualExpectationsNotFillAndNotExpired(
       @NotNull Integer expirationTime) {
     return expectationsNotFilledAndNotExpired(MANUAL, expirationTime);
@@ -530,6 +771,14 @@ public class InjectExpectationService {
 
   // -- BY TARGET TYPE
 
+  /**
+   * Finds and merges expectations by inject, target, and target type.
+   *
+   * @param injectId the inject ID
+   * @param targetId the target ID
+   * @param targetType the type of target (TEAMS, ASSETS_GROUPS, PLAYERS, AGENT, ASSETS)
+   * @return a list of merged expectations by expectation type
+   */
   public List<InjectExpectation> findMergedExpectationsByInjectAndTargetAndTargetType(
       @NotBlank final String injectId,
       @NotBlank final String targetId,
@@ -556,6 +805,15 @@ public class InjectExpectationService {
     }
   }
 
+  /**
+   * Finds expectations by inject, target, parent target, and target type.
+   *
+   * @param injectId the inject ID
+   * @param targetId the target ID
+   * @param parentTargetId the parent target ID (e.g., team ID for players)
+   * @param targetType the type of target (TEAMS, PLAYERS, AGENT, ASSETS, ASSETS_GROUPS)
+   * @return a list of matching expectations
+   */
   public List<InjectExpectation> findMergedExpectationsByInjectAndTargetAndTargetType(
       @NotBlank final String injectId,
       @NotBlank final String targetId,
@@ -565,9 +823,7 @@ public class InjectExpectationService {
       TargetType targetTypeEnum = TargetType.valueOf(targetType);
       return switch (targetTypeEnum) {
         case TEAMS -> injectExpectationRepository.findAllByInjectAndTeam(injectId, targetId);
-        case PLAYERS ->
-            injectExpectationRepository.findAllByInjectAndTeamAndPlayer(
-                injectId, parentTargetId, targetId);
+        case PLAYERS -> injectExpectationRepository.findAllByInjectAndPlayer(injectId, targetId);
         case AGENT -> injectExpectationRepository.findAllByInjectAndAgent(injectId, targetId);
         case ASSETS -> injectExpectationRepository.findAllByInjectAndAsset(injectId, targetId);
         case ASSETS_GROUPS ->
@@ -583,6 +839,13 @@ public class InjectExpectationService {
     }
   }
 
+  /**
+   * Converts a list of inject expectations to agent output DTOs.
+   *
+   * @param injectExpectations the expectations to convert
+   * @param assetId the asset ID to include in each output
+   * @return a list of agent output DTOs
+   */
   private static List<InjectExpectationAgentOutput> toInjectExpectationAgentsOutput(
       List<InjectExpectation> injectExpectations, String assetId) {
     return injectExpectations.stream()
@@ -605,6 +868,14 @@ public class InjectExpectationService {
         .collect(Collectors.toList());
   }
 
+  /**
+   * Finds merged expectations with agent details for a given inject and asset.
+   *
+   * @param injectId the inject ID
+   * @param assetId the asset ID
+   * @param expectationType the expectation type to filter by
+   * @return a list of agent outputs sorted by agent name
+   */
   public List<InjectExpectationAgentOutput> findMergedExpectationsWithAgentsByInjectAndAsset(
       String injectId, String assetId, String expectationType) {
     List<InjectExpectationAgentOutput> injectExpectationAgentOutputs =
@@ -623,7 +894,7 @@ public class InjectExpectationService {
    * @param injectId the injectId for which to add the end date signature
    * @param agentId the agentId for which to add the end date signature
    * @param date the date to set as the signature value
-   * @param signatureType the type of signature to add (start date or end date)
+   * @param signatureType the type of signature to add
    */
   private void addDateSignatureToInjectExpectationsByAgent(
       @NotBlank final String injectId,
@@ -665,6 +936,15 @@ public class InjectExpectationService {
         injectId, agentId, date, EXPECTATION_SIGNATURE_TYPE_START_DATE);
   }
 
+  /**
+   * Merges expectation results by expectation type, keeping one expectation per type.
+   *
+   * <p>Results from collector sources are not copied to the merged expectation. The score is set to
+   * the maximum score among all results.
+   *
+   * @param expectations the list of expectations to merge
+   * @return a list with one expectation per type containing merged results
+   */
   private List<InjectExpectation> mergeExpectationResultsByExpectationType(
       List<InjectExpectation> expectations) {
     List<String> notCopiedSourceTypes = List.of(COLLECTOR);
@@ -691,18 +971,40 @@ public class InjectExpectationService {
           electedExpectations
               .get(expectation.getType())
               .setScore(
-                  Collections.max(
-                      electedExpectations.get(expectation.getType()).getResults().stream()
-                          .map(InjectExpectationResult::getScore)
-                          .toList()));
+                  electedExpectations.get(expectation.getType()).getResults().stream()
+                      .map(InjectExpectationResult::getScore)
+                      .filter(Objects::nonNull)
+                      .max(Double::compareTo)
+                      .orElse(null));
         }
       }
     }
     return electedExpectations.values().stream().toList();
   }
 
+  /**
+   * Fetch a distinct list of inject IDs from a list of expectation IDs.
+   *
+   * @param expectationIds expectations IDs for which we want to retrieve the inject IDs
+   * @return a set of inject IDs
+   */
+  public Set<String> findDistinctInjectIdsByInjectExpectationIds(Set<String> expectationIds) {
+    return this.injectExpectationRepository.findDistinctInjectIdsByInjectExpectationIds(
+        expectationIds);
+  }
+
   // -- BUILD AND SAVE INJECT EXPECTATION --
 
+  /**
+   * Builds and saves inject expectations for an executable inject.
+   *
+   * <p>Creates expectations for teams, players, assets, and asset groups based on the inject
+   * configuration. For scheduled injects or atomic testing, expectations are created for all
+   * enabled players in each team.
+   *
+   * @param executableInject the inject to create expectations for
+   * @param expectations the list of expectation definitions
+   */
   @Transactional
   public void buildAndSaveInjectExpectations(
       ExecutableInject executableInject, List<Expectation> expectations) {

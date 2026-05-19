@@ -4,6 +4,7 @@ import { useTheme } from '@mui/material/styles';
 import ExpandableSection from '../../../../../../components/common/ExpandableSection';
 import { useFormatter } from '../../../../../../components/i18n';
 import { type ExecutionTraceOutput } from '../../../../../../utils/api-types';
+import { buildTenantApiPath } from '../../../../../../utils/url-helper';
 import AgentStatusHeader from './AgentStatusHeader';
 import ExecutionTime from './ExecutionTime';
 import TraceMessage from './TraceMessage';
@@ -54,7 +55,7 @@ const AgentTraces = ({ traces, isInitialExpanded = false }: Props) => {
           </Typography>
           {agentStatus.executorType && (
             <img
-              src={`/api/images/executors/icons/${agentStatus.executorType}`}
+              src={buildTenantApiPath(`/api/images/executors/icons/${agentStatus.executorType}`)}
               alt={agentStatus.executorType}
               style={{
                 width: 20,

@@ -22,9 +22,9 @@ public class EndpointHandler implements Handler<EsEndpoint> {
   }
 
   @Override
-  public List<EsEndpoint> fetch(Instant from) {
+  public List<EsEndpoint> fetch(Instant from, int limit) {
     Instant queryFrom = from != null ? from : Instant.ofEpochMilli(0);
-    List<RawEndpoint> forIndexing = endpointRepository.findForIndexing(queryFrom);
+    List<RawEndpoint> forIndexing = endpointRepository.findForIndexing(queryFrom, limit);
     return forIndexing.stream()
         .map(
             endpoint -> {
@@ -48,6 +48,7 @@ public class EndpointHandler implements Handler<EsEndpoint> {
               esEndpoint.setEndpoint_seen_ip(endpoint.getEndpoint_seen_ip());
               esEndpoint.setEndpoint_is_eol(endpoint.getEndpoint_is_eol());
               // Dependencies (see base_dependencies in EsBase)
+              esEndpoint.setBase_tenant_side(endpoint.getTenant_id());
               if (endpoint.getAsset_findings() != null && !endpoint.getAsset_findings().isEmpty()) {
                 esEndpoint.setBase_findings_side(endpoint.getAsset_findings());
               } else {

@@ -2,7 +2,7 @@ package io.openaev.engine.model.securitydomain;
 
 import static io.openaev.engine.EsUtils.buildRestrictions;
 
-import io.openaev.database.raw.RawDomain;
+import io.openaev.database.raw.RawDomainIndexing;
 import io.openaev.database.repository.DomainRepository;
 import io.openaev.engine.Handler;
 import java.time.Instant;
@@ -21,9 +21,9 @@ public class SecurityDomainHandler implements Handler<EsSecurityDomain> {
   }
 
   @Override
-  public List<EsSecurityDomain> fetch(Instant from) {
+  public List<EsSecurityDomain> fetch(Instant from, int limit) {
     Instant queryFrom = from != null ? from : Instant.ofEpochMilli(0);
-    List<RawDomain> forIndexing = domainRepository.findForIndexing(queryFrom);
+    List<RawDomainIndexing> forIndexing = domainRepository.findForIndexing(queryFrom, limit);
     return forIndexing.stream()
         .map(
             domain -> {
@@ -33,6 +33,7 @@ public class SecurityDomainHandler implements Handler<EsSecurityDomain> {
               esSecurityDomain.setBase_representative(domain.getDomain_name());
               esSecurityDomain.setBase_created_at(domain.getDomain_created_at());
               esSecurityDomain.setBase_updated_at(domain.getDomain_updated_at());
+              esSecurityDomain.setBase_tenant_side(domain.getTenant_id());
 
               esSecurityDomain.setBase_restrictions(buildRestrictions(domain.getDomain_id()));
 

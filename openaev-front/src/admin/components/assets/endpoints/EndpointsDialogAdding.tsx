@@ -25,6 +25,7 @@ import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { buildTenantApiPath } from '../../../../utils/url-helper';
 import AssetStatus from '../AssetStatus';
 
 interface Props {
@@ -52,7 +53,6 @@ const EndpointsDialogAdding: FunctionComponent<Props> = ({
   const theme = useTheme();
   const dispatch = useAppDispatch();
   const ability = useContext(AbilityContext);
-
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [endpointValues, setEndpointValues] = useState<(Endpoint | EndpointOutput)[]>([]);
   const { executorsMap } = useHelper((helper: ExecutorHelper) => ({ executorsMap: helper.getExecutorsMap() }));
@@ -158,7 +158,7 @@ const EndpointsDialogAdding: FunctionComponent<Props> = ({
                           }}
                           >
                             <img
-                              src={`/api/images/executors/icons/${executorType}`}
+                              src={buildTenantApiPath(`/api/images/executors/icons/${executorType}`)}
                               alt={executorType}
                               style={{
                                 width: 20,

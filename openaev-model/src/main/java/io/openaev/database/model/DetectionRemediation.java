@@ -1,12 +1,11 @@
 package io.openaev.database.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.helper.CollectorTypeSerializer;
-import io.openaev.jsonapi.InnerRelationship;
+import io.openaev.helper.CollectorTypeNameSerializer;
+import io.openaev.helper.MonoIdSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -28,7 +27,6 @@ import org.hibernate.type.SqlTypes;
 @AllArgsConstructor
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @Builder
-@InnerRelationship
 public class DetectionRemediation implements Base {
   public enum AUTHOR_RULE {
     HUMAN,
@@ -47,19 +45,19 @@ public class DetectionRemediation implements Base {
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "detection_remediation_payload_id")
-  @JsonIgnore
+  @JsonSerialize(using = MonoIdSerializer.class)
+  @JsonProperty("detection_remediation_payload_id")
+  @Schema(implementation = String.class)
   @NotNull
   private Payload payload;
 
   @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(
-      name = "detection_remediation_collector_type",
-      referencedColumnName = "collector_type")
-  @JsonSerialize(using = CollectorTypeSerializer.class)
+  @JoinColumn(name = "detection_remediation_collector_type")
+  @JsonSerialize(using = CollectorTypeNameSerializer.class)
   @JsonProperty("detection_remediation_collector_type")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   @NotNull
-  private Collector collector;
+  private CollectorType collectorType;
 
   @Column(name = "detection_remediation_values", columnDefinition = "JSONB")
   @JsonProperty("detection_remediation_values")

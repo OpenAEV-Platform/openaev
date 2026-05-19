@@ -14,7 +14,6 @@ import io.openaev.security.TokenAuthenticationFilter;
 import io.openaev.service.UserMappingService;
 import io.openaev.service.user_events.UserEventService;
 import jakarta.annotation.Resource;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -55,6 +54,10 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
 @Slf4j
 public class AppSecurityConfig {
 
+  private static final String TENANT_AGENT_URI = "/api/tenants/*/agent/**";
+  private static final String TENANT_IMPLANT_URI = "/api/tenants/*/implant/**";
+  private static final String TENANT_PLAYER_URI = "/api/tenants/*/player/**";
+
   private final OpenAEVConfig openAEVConfig;
   private final OpenSamlConfig openSamlConfig;
   private final SecurityService securityService;
@@ -82,17 +85,28 @@ public class AppSecurityConfig {
                     .permitAll()
                     .requestMatchers("/api/comcheck/**")
                     .permitAll()
+                    // TODO multi-tenancy to delete after the multi tenancy upgrade
                     .requestMatchers("/api/player/**")
+                    .permitAll()
+                    .requestMatchers(TENANT_PLAYER_URI)
                     .permitAll()
                     .requestMatchers("/api/settings/public")
                     .permitAll()
+                    // TODO multi-tenancy to delete after the multi tenancy upgrade
                     .requestMatchers("/api/agent/**")
                     .permitAll()
+                    .requestMatchers(TENANT_AGENT_URI)
+                    .permitAll()
+                    // TODO multi-tenancy to delete after the multi tenancy upgrade
                     .requestMatchers("/api/implant/**")
+                    .permitAll()
+                    .requestMatchers(TENANT_IMPLANT_URI)
                     .permitAll()
                     .requestMatchers("/api/login")
                     .permitAll()
                     .requestMatchers("/api/reset/**")
+                    .permitAll()
+                    .requestMatchers("/xtm/auth/jwks")
                     .permitAll()
                     .requestMatchers("/api/**")
                     .authenticated()
@@ -241,9 +255,8 @@ public class AppSecurityConfig {
   private RequestMatcher bearerWithoutCookiesMatcher() {
     return request -> {
       String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
-      Cookie[] cookies = request.getCookies();
       boolean hasBearer = authorization != null && authorization.startsWith("Bearer ");
-      boolean hasCookies = cookies != null && cookies.length > 0;
+      boolean hasCookies = request.getCookies() != null && request.getCookies().length > 0;
       return hasBearer && !hasCookies;
     };
   }

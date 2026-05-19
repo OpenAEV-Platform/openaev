@@ -1,6 +1,6 @@
 package io.openaev.rest.scenario;
 
-import static io.openaev.database.model.SettingKeys.DEFAULT_SCENARIO_DASHBOARD;
+import static io.openaev.database.model.TenantSettingKeys.TENANT_SCENARIO_DASHBOARD;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.junit.jupiter.api.Assertions.*;
@@ -13,11 +13,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
 import io.openaev.rest.inject.form.InjectInput;
+import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
 import io.openaev.rest.scenario.form.CheckScenarioRulesInput;
+import io.openaev.rest.scenario.form.ScenarioAndInjectorContractsInputs;
+import io.openaev.rest.scenario.form.ScenarioIdsAndInjectorContractsInputs;
 import io.openaev.rest.scenario.form.ScenarioInput;
 import io.openaev.rest.scenario.form.ScenarioRecurrenceInput;
 import io.openaev.rest.scenario.form.ScenarioUpdateTeamsInput;
@@ -47,10 +51,12 @@ public class ScenarioApiTest extends IntegrationTest {
   @Autowired private InjectStatusComposer injectStatusComposer;
   @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private ExecutorFixture executorFixture;
+  @Autowired private InjectorContractFixture injectorContractFixture;
 
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper objectMapper;
   @Autowired private ScenarioRepository scenarioRepository;
+  @Autowired private InjectRepository injectRepository;
   @Autowired private TagRepository tagRepository;
   @Autowired private TagRuleRepository tagRuleRepository;
   @Autowired private AssetGroupRepository assetGroupRepository;
@@ -69,6 +75,28 @@ public class ScenarioApiTest extends IntegrationTest {
     injectComposer.reset();
     injectStatusComposer.reset();
     scenarioComposer.reset();
+  }
+
+  private Scenario getScenario(@Nullable Scenario scenario, @Nullable Executor executor) {
+    Executor executorToRun = (executor == null) ? executorFixture.getDefaultExecutor() : executor;
+    Scenario scenarioToSet = (scenario == null) ? ScenarioFixture.getScenario() : scenario;
+    ScenarioComposer.Composer newScenarioComposer =
+        scenarioComposer
+            .forScenario(scenarioToSet)
+            .withInject(
+                injectComposer
+                    .forInject(InjectFixture.getDefaultInject())
+                    .withEndpoint(
+                        endpointComposer
+                            .forEndpoint(EndpointFixture.createEndpoint())
+                            .withAgent(
+                                agentComposer.forAgent(
+                                    AgentFixture.createDefaultAgentSession(executorToRun))))
+                    .withInjectStatus(
+                        injectStatusComposer.forInjectStatus(
+                            InjectStatusFixture.createDraftInjectStatus())))
+            .persist();
+    return newScenarioComposer.get();
   }
 
   @DisplayName("Create scenario succeed")
@@ -91,8 +119,6 @@ public class ScenarioApiTest extends IntegrationTest {
     // -- PREPARE --
     String name = "My scenario";
     scenarioInput.setName(name);
-    String from = "no-reply@openaev.io";
-    scenarioInput.setFrom(from);
 
     // -- EXECUTE --
     String response =
@@ -127,19 +153,22 @@ public class ScenarioApiTest extends IntegrationTest {
     ScenarioInput scenarioInput = new ScenarioInput();
     String name = "My scenario";
     scenarioInput.setName(name);
-    String from = "no-reply@openaev.io";
-    scenarioInput.setFrom(from);
 
     settingRepository.save(
         settingRepository
-            .findByKey(DEFAULT_SCENARIO_DASHBOARD.key())
+            .findByKeyAndTenantId(TENANT_SCENARIO_DASHBOARD.key(), TenantContext.getCurrentTenant())
             .map(
                 s -> {
                   s.setValue(customDashboardSaved.getId());
                   return s;
                 })
             .orElseGet(
-                () -> new Setting(DEFAULT_SCENARIO_DASHBOARD.key(), customDashboardSaved.getId())));
+                () -> {
+                  Setting s =
+                      new Setting(TENANT_SCENARIO_DASHBOARD.key(), customDashboardSaved.getId());
+                  s.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+                  return s;
+                }));
 
     // -- EXECUTE --
     String response =
@@ -229,7 +258,6 @@ public class ScenarioApiTest extends IntegrationTest {
     ScenarioInput scenarioInput = new ScenarioInput();
     String subtitle = "A subtitle";
     scenarioInput.setName(testScenario.getName());
-    scenarioInput.setFrom(testScenario.getFrom());
     scenarioInput.setSubtitle(subtitle);
 
     // -- EXECUTE --
@@ -265,13 +293,24 @@ public class ScenarioApiTest extends IntegrationTest {
         .andExpect(status().is2xxSuccessful());
   }
 
+  @DisplayName("Delete scenario with inject")
+  @Test
+  @WithMockUser(withCapabilities = {Capability.DELETE_ASSESSMENT})
+  void deleteScenarioWithInjectTest() throws Exception {
+    Scenario testScenario = getScenario(ScenarioFixture.getScheduledScenario(), null);
+    // -- EXECUTE 1 ASSERT --
+    this.mvc
+        .perform(delete(SCENARIO_URI + "/" + testScenario.getId()).with(csrf()))
+        .andExpect(status().is2xxSuccessful());
+  }
+
   @DisplayName("Check if a rule applies when a rule is found")
   @Test
   @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
   void checkIfRuleAppliesTest_WHEN_rule_found() throws Exception {
     this.tagRuleRepository.deleteAll();
     this.tagRepository.deleteAll();
-    Tag tag2 = TagFixture.getTag();
+    Tag tag2 = TagFixture.getTagNoId();
     tag2.setName("tag2");
     tag2 = this.tagRepository.save(tag2);
 
@@ -309,7 +348,7 @@ public class ScenarioApiTest extends IntegrationTest {
   void checkIfRuleAppliesTest_WHEN_no_rule_found() throws Exception {
     this.tagRuleRepository.deleteAll();
     this.tagRepository.deleteAll();
-    Tag tag2 = TagFixture.getTag();
+    Tag tag2 = TagFixture.getTagNoId();
     tag2.setName("tag2");
     tag2 = this.tagRepository.save(tag2);
     CheckScenarioRulesInput input = new CheckScenarioRulesInput();
@@ -338,28 +377,6 @@ public class ScenarioApiTest extends IntegrationTest {
   @DisplayName("Lock Scenario EE feature")
   @WithMockUser(isAdmin = true)
   class LockScenarioEEFeature {
-
-    private Scenario getScenario(@Nullable Scenario scenario, @Nullable Executor executor) {
-      Executor executorToRun = (executor == null) ? executorFixture.getDefaultExecutor() : executor;
-      Scenario scenarioToSet = (scenario == null) ? ScenarioFixture.getScenario() : scenario;
-      ScenarioComposer.Composer newScenarioComposer =
-          scenarioComposer
-              .forScenario(scenarioToSet)
-              .withInject(
-                  injectComposer
-                      .forInject(InjectFixture.getDefaultInject())
-                      .withEndpoint(
-                          endpointComposer
-                              .forEndpoint(EndpointFixture.createEndpoint())
-                              .withAgent(
-                                  agentComposer.forAgent(
-                                      AgentFixture.createDefaultAgentSession(executorToRun))))
-                      .withInjectStatus(
-                          injectStatusComposer.forInjectStatus(
-                              InjectStatusFixture.createDraftInjectStatus())))
-              .persist();
-      return newScenarioComposer.get();
-    }
 
     @Test
     @DisplayName("Throw license restricted error when launch scenario with crowdstrike")
@@ -425,7 +442,9 @@ public class ScenarioApiTest extends IntegrationTest {
       AssetGroup dynamicAssetGroupSaved = assetGroupRepository.save(dynamicAssetGroup);
 
       // Create windows endpoint with crowdstrike agent
+      entityManager.flush();
       endpointRepository.deleteAll();
+      entityManager.clear();
       endpointComposer
           .forEndpoint(EndpointFixture.createEndpoint())
           .withAgent(
@@ -495,5 +514,125 @@ public class ScenarioApiTest extends IntegrationTest {
     assertEquals(scenarioSaved.getId(), link.getScenario().getId());
     assertEquals(teamB.getId(), link.getTeam().getId());
     assertEquals(userBen.getId(), link.getUser().getId());
+  }
+
+  @DisplayName("Create scenario with injector contracts")
+  @Test
+  @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
+  void given_nullInput_should_returnBadRequest_onCreateScenarioWithInjectorContracts()
+      throws Exception {
+    // -- EXECUTE & ASSERT --
+    this.mvc
+        .perform(
+            post(SCENARIO_URI + "/with-injector-contracts")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isBadRequest());
+  }
+
+  @DisplayName("Update scenarios with injector contracts returns bad request on null input")
+  @Test
+  @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
+  void given_nullInput_should_returnBadRequest_onUpdateScenariosWithInjectorContracts()
+      throws Exception {
+    // -- EXECUTE & ASSERT --
+    this.mvc
+        .perform(
+            put(SCENARIO_URI + "/with-injector-contracts")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isBadRequest());
+  }
+
+  @DisplayName("Create scenario with injector contracts")
+  @Test
+  @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
+  void given_validInput_should_createScenarioWithInjectorContracts() throws Exception {
+    // -- PREPARE --
+    ScenarioInput scenarioInput = new ScenarioInput();
+    scenarioInput.setName("Scenario with injector contracts");
+    scenarioInput.setFromName("no-reply@openaev.io");
+
+    InjectorContractSearchPaginationInput paginationInput =
+        createInjectorContractSearchPaginationInput();
+
+    ScenarioAndInjectorContractsInputs input = new ScenarioAndInjectorContractsInputs();
+    input.setLocale("en");
+    input.setScenarioInput(scenarioInput);
+    input.setInjectorContractSearchPaginationInput(paginationInput);
+
+    // -- EXECUTE --
+    String response =
+        this.mvc
+            .perform(
+                post(SCENARIO_URI + "/with-injector-contracts")
+                    .with(csrf())
+                    .content(asJsonString(input))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().is2xxSuccessful())
+            .andExpect(jsonPath("$.scenario_name").value("Scenario with injector contracts"))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // -- ASSERT --
+    String scenarioId = JsonPath.read(response, "$.scenario_id");
+    assertFalse(scenarioId.isEmpty());
+    assertFalse(injectRepository.findByScenarioId(scenarioId).isEmpty());
+  }
+
+  @DisplayName("Update scenarios with injector contracts")
+  @Test
+  @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
+  void given_existingScenarios_should_updateScenariosWithInjectorContracts() throws Exception {
+    // -- PREPARE --
+    Scenario scenarioA =
+        scenarioComposer.forScenario(ScenarioFixture.createDefaultCrisisScenario()).persist().get();
+    Scenario scenarioB =
+        scenarioComposer
+            .forScenario(ScenarioFixture.createDefaultIncidentResponseScenario())
+            .persist()
+            .get();
+
+    InjectorContractSearchPaginationInput paginationInput =
+        createInjectorContractSearchPaginationInput();
+
+    ScenarioIdsAndInjectorContractsInputs input = new ScenarioIdsAndInjectorContractsInputs();
+    input.setLocale("en");
+    input.setScenarioIds(List.of(scenarioA.getId(), scenarioB.getId()));
+    input.setInjectorContractSearchPaginationInput(paginationInput);
+
+    // -- EXECUTE --
+    String response =
+        this.mvc
+            .perform(
+                put(SCENARIO_URI + "/with-injector-contracts")
+                    .with(csrf())
+                    .content(asJsonString(input))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // -- ASSERT --
+    List<String> returnedScenarioIds = JsonPath.read(response, "$..scenario_id");
+    assertTrue(returnedScenarioIds.contains(scenarioA.getId()));
+    assertTrue(returnedScenarioIds.contains(scenarioB.getId()));
+    assertFalse(injectRepository.findByScenarioId(scenarioA.getId()).isEmpty());
+    assertFalse(injectRepository.findByScenarioId(scenarioB.getId()).isEmpty());
+  }
+
+  private InjectorContractSearchPaginationInput createInjectorContractSearchPaginationInput() {
+    InjectorContractSearchPaginationInput paginationInput =
+        new InjectorContractSearchPaginationInput();
+    paginationInput.setIncludeFullDetails(true);
+    paginationInput.setInjectorContractIdsToProcess(
+        List.of(injectorContractFixture.getWellKnownSingleEmailContract().getId()));
+    return paginationInput;
   }
 }

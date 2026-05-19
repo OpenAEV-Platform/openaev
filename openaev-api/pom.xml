@@ -17,7 +17,7 @@
         <bcpg-jdk18on.version>1.84</bcpg-jdk18on.version>
         <commons-collections4.version>4.5.0</commons-collections4.version>
         <commons-email.version>1.5</commons-email.version>
-        <springdoc.version>2.6.0</springdoc.version>
+        <springdoc.version>2.8.15</springdoc.version>
         <springdoc-plugin.version>1.5</springdoc-plugin.version>
         <cron-utils.version>9.2.1</cron-utils.version>
         <apache-poi.version>5.5.1</apache-poi.version>
@@ -57,11 +57,6 @@
             <version>${elasticsearch.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.rabbitmq</groupId>
-            <artifactId>amqp-client</artifactId>
-            <version>5.30.0</version>
-        </dependency>
-        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-mail</artifactId>
         </dependency>
@@ -76,7 +71,7 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
-            <version>3.2.11</version>
+            <version>3.5.10</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -85,7 +80,7 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-oauth2-client</artifactId>
-            <version>3.2.11</version>
+            <version>3.5.10</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

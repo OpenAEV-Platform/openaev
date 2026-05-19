@@ -49,6 +49,9 @@ public class InjectorContractAddInput {
   @JsonProperty("contract_content")
   private String content;
 
+  // Fixes a bug due to a new version of jackson and lombok
+  // cf: https://github.com/projectlombok/lombok/issues/3978
+  @Getter(onMethod_ = @JsonProperty("is_atomic_testing"))
   @JsonProperty("is_atomic_testing")
   private boolean isAtomicTesting = true;
 

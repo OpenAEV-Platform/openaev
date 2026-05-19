@@ -1,5 +1,5 @@
 import countriesJson from '../static/geo/countries.json';
-import { type AttackPattern, type Exercise, type KillChainPhase, type Organization, type Scenario, type Tag } from './api-types';
+import { type AttackPattern, type Exercise, type KillChainPhase, type Organization, type Scenario, type Tag, type UserTenantOutput } from './api-types';
 
 interface Country {
   code: string;
@@ -133,3 +133,12 @@ export const countryOption = (iso3: string | undefined) => {
     label: country.name,
   } as Option;
 };
+
+export const tenantOptions = (
+  tenants: UserTenantOutput[] | undefined,
+): Option[] => (tenants ?? [])
+  .filter(t => t.tenant_id)
+  .map(t => ({
+    id: t.tenant_id!,
+    label: t.tenant_name ?? '',
+  }));

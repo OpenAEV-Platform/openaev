@@ -4,7 +4,7 @@ import io.openaev.annotation.EsQueryable;
 import io.openaev.annotation.Indexable;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.model.Endpoint;
-import io.openaev.engine.model.EsBase;
+import io.openaev.engine.model.tenant.EsTenantBase;
 import java.util.List;
 import java.util.Set;
 import lombok.Getter;
@@ -13,7 +13,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Indexable(index = "vulnerable-endpoint", label = "Vulnerable Endpoint")
-public class EsVulnerableEndpoint extends EsBase {
+public class EsVulnerableEndpoint extends EsTenantBase {
   /* Every attribute must be uniq, so prefixed with the entity type! */
   /* Except relationships, they should have same name on every model! */
 

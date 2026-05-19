@@ -4,19 +4,19 @@ import io.openaev.database.model.Injector;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
-import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public interface InjectorRepository
-    extends CrudRepository<Injector, String>, JpaSpecificationExecutor<Injector> {
+    extends JpaRepository<Injector, String>, JpaSpecificationExecutor<Injector> {
 
   @NotNull
   Optional<Injector> findById(@NotNull String id);
 
   @NotNull
-  Optional<Injector> findByType(@NotNull String type);
+  Optional<Injector> findByTypeAndTenantId(@NotNull String type, @NotNull String tenantId);
 
-  List<Injector> findAllByPayloads(@NotNull Boolean payloads);
+  List<Injector> findAllByPayloadsAndTenantId(@NotNull Boolean payloads, @NotNull String tenantId);
 }

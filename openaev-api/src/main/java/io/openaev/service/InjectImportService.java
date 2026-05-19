@@ -16,11 +16,14 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.scenario.response.ImportMessage;
 import io.openaev.rest.scenario.response.ImportPostSummary;
 import io.openaev.rest.scenario.response.ImportTestSummary;
 import io.openaev.utils.InjectImportUtils;
 import io.openaev.utils.InjectUtils;
+import io.openaev.utils.mapper.InjectMapper;
+import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -48,7 +51,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.logging.log4j.util.Strings;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellReference;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -74,6 +76,9 @@ public class InjectImportService {
 
   public static final String BASE_DIR = System.getProperty("java.io.tmpdir");
   static final int FILE_STORAGE_DURATION = 60;
+
+  private final InjectMapper injectMapper;
+  private final InjectService injectService;
 
   /**
    * Store a xls file for ulterior import. The file will be deleted on exit.
@@ -172,11 +177,7 @@ public class InjectImportService {
     } else if (saveAll) {
       importTestSummary.setInjects(
           importTestSummary.getInjects().stream()
-              .map(
-                  inject -> {
-                    inject.setListened(false);
-                    return inject;
-                  })
+              .peek(inject -> inject.setListened(false))
               .toList());
       Iterable<Inject> newInjects = injectRepository.saveAll(importTestSummary.getInjects());
       if (exercise != null) {
@@ -187,9 +188,13 @@ public class InjectImportService {
         throw new IllegalArgumentException(
             "At least one of exercise or scenario should be present");
       }
-      importTestSummary.setInjects(new ArrayList<>());
+      importTestSummary.setInjectOutputs(new ArrayList<>());
     } else {
-      importTestSummary.setInjects(importTestSummary.getInjects().stream().limit(5).toList());
+      importTestSummary.setInjectOutputs(
+          importTestSummary.getInjects().stream()
+              .limit(5)
+              .map(inject -> injectMapper.toInjectOutput(inject, Collections.emptyList()))
+              .toList());
     }
 
     return importTestSummary;
@@ -737,6 +742,9 @@ public class InjectImportService {
 
     // Once it's done, we set the injectorContract
     inject.setInjectorContract(injectorContract);
+    // Given that we import from XLS, we can't know the injector that will be wanted by the user so
+    // we get one that is available
+    inject.setInjector(injectorContract.getFirstInjector());
 
     // So far, we only support one expectation
     AtomicReference<InjectExpectation> expectation = new AtomicReference<>();

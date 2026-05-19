@@ -11,6 +11,12 @@ description: >
   OPENAEV_ADMIN_ENCRYPTION_KEY, OPENAEV_ADMIN_ENCRYPTION_SALT,
   SPRING_PROFILES_ACTIVE, GH_TOKEN.
 
+inputs:
+  is-pr:
+    description: "Whether this run is triggered by a pull request (true/false)."
+    required: false
+    default: "false"
+
 runs:
   using: composite
   steps:
@@ -38,7 +44,7 @@ runs:
           -e RABBITMQ_DEFAULT_PASS=guest \
           rabbitmq:4.1-management
         docker run -d --name minio \
-          -p 9000:9000 \
+          -p 11000:9000 \
           -e MINIO_ROOT_USER=minioadmin \
           -e MINIO_ROOT_PASSWORD=minioadmin \
           minio/minio:RELEASE.2025-06-13T11-33-47Z server /data
@@ -86,15 +92,15 @@ runs:
       uses: actions/cache@v5
       with:
         path: ~/.cache/ms-playwright
-        key: playwright-${{ runner.os }}-${{ hashFiles('openaev-front/yarn.lock') }}
+        key: playwright-chromium-webkit-${{ runner.os }}-${{ hashFiles('openaev-front/yarn.lock') }}
     - name: Install Playwright browsers (overlaps with artifact wait)
       if: steps.playwright-cache.outputs.cache-hit != 'true'
-      run: yarn playwright install --with-deps chromium
+      run: yarn playwright install --with-deps chromium webkit
       shell: bash
       working-directory: openaev-front
     - name: Install Playwright system dependencies (cache hit)
       if: steps.playwright-cache.outputs.cache-hit == 'true'
-      run: yarn playwright install-deps chromium
+      run: yarn playwright install-deps chromium webkit
       shell: bash
       working-directory: openaev-front
 
@@ -169,12 +175,13 @@ runs:
 
         echo "⏳ Waiting for MinIO..."
         for i in $(seq 1 30); do
-          curl -sf http://localhost:9000/minio/health/live && break
+          curl -sf http://localhost:11000/minio/health/live && break
           sleep 1
         done
-        curl -sf http://localhost:9000/minio/health/live || { echo "❌ MinIO failed to start"; exit 1; }
+        curl -sf http://localhost:11000/minio/health/live || { echo "❌ MinIO failed to start"; exit 1; }
 
         echo "✅ All services ready"
+
 
     - name: Start application
       run: java -jar openaev-api/target/openaev-api.jar &
@@ -195,7 +202,12 @@ runs:
         }
         echo "✅ Application is ready (HTTP 200)"
     - name: Run E2E tests
-      run: yarn test:e2e
+      run: |
+        if [ "${{ inputs.is-pr }}" = "true" ]; then
+          yarn playwright test
+        else
+          yarn playwright test --config playwright.push.config.ts
+        fi
       shell: bash
       working-directory: openaev-front
       env:

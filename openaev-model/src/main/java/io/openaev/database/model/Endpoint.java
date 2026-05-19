@@ -158,6 +158,9 @@ public class Endpoint extends Asset {
   @JsonProperty("endpoint_mac_addresses")
   private String[] macAddresses;
 
+  // Fixes a bug due to a new version of jackson and lombok
+  // cf: https://github.com/projectlombok/lombok/issues/3978
+  @Getter(onMethod_ = @JsonProperty("endpoint_is_eol"))
   @Column(name = "endpoint_is_eol")
   @JsonProperty("endpoint_is_eol")
   private boolean isEoL;

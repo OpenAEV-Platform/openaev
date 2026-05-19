@@ -1,5 +1,6 @@
 package io.openaev.rest.inject.service;
 
+import static java.time.Instant.now;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -8,11 +9,11 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
-import io.openaev.database.repository.InjectDocumentRepository;
-import io.openaev.database.repository.InjectRepository;
-import io.openaev.database.repository.InjectStatusRepository;
-import io.openaev.database.repository.TeamRepository;
+import io.openaev.database.raw.RawInject;
+import io.openaev.database.repository.*;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.utils.ExecutorUtils;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
@@ -20,17 +21,20 @@ import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.injectors.email.service.ImapService;
 import io.openaev.injectors.email.service.SmtpService;
 import io.openaev.rest.collector.service.CollectorService;
+import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.*;
 import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import io.openaev.rest.injector_contract.InjectorContractService;
-import io.openaev.rest.security.SecurityExpressionHandler;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.AssetService;
+import io.openaev.service.EndpointService;
 import io.openaev.service.InjectorService;
+import io.openaev.service.TagRuleService;
 import io.openaev.service.UserService;
+import io.openaev.service.threat_arsenal.ThreatArsenalService;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.fixtures.AssetGroupFixture;
@@ -40,19 +44,23 @@ import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.mapper.InjectExpectationMapper;
 import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.mapper.InjectStatusMapper;
+import io.openaev.utils.mapper.PayloadMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import java.util.*;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.Spy;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.expression.method.MethodSecurityExpressionHandler;
@@ -71,16 +79,17 @@ class InjectServiceTest {
 
   @Mock private TeamRepository teamRepository;
 
-  @Mock(extraInterfaces = {MethodSecurityExpressionHandler.class})
-  private SecurityExpressionHandler methodSecurityExpressionHandler;
-
-  @Mock private InjectDocumentRepository injectDocumentRepository;
+  @Mock private ExecutionTraceRepository executionTraceRepository;
 
   @Mock private InjectStatusRepository injectStatusRepository;
+
+  @Mock private InjectDocumentRepository injectDocumentRepository;
 
   @Mock private InjectUtils injectUtils;
 
   @Mock private InjectStatusMapper injectStatusMapper;
+
+  @Mock private PayloadMapper payloadMapper;
 
   @Mock private InjectExpectationMapper injectExpectationMapper;
 
@@ -88,7 +97,27 @@ class InjectServiceTest {
 
   @Mock private UserService userService;
 
+  @Mock private EnterpriseEditionService enterpriseEditionService;
+
+  @Mock private EndpointService endpointService;
+
+  @Mock private MethodSecurityExpressionHandler methodSecurityExpressionHandler;
+
+  @Mock private TagRuleService tagRuleService;
+
   @Mock private TagService tagService;
+
+  @Mock private DocumentService documentService;
+
+  @Mock private TagRepository tagRepository;
+
+  @Mock private DocumentRepository documentRepository;
+
+  @Mock private PayloadRepository payloadRepository;
+
+  @Mock private ThreatArsenalService threatArsenalService;
+
+  @Mock private LicenseCacheManager licenseCacheManager;
 
   @Mock private SmtpService smtpService;
 
@@ -114,7 +143,12 @@ class InjectServiceTest {
     ReflectionTestUtils.setField(
         injectService,
         "injectMapper",
-        new InjectMapper(injectStatusMapper, injectExpectationMapper, injectUtils));
+        new InjectMapper(
+            injectStatusMapper,
+            payloadMapper,
+            injectExpectationMapper,
+            injectUtils,
+            new HealthCheckUtils(new ExecutorUtils())));
     ReflectionTestUtils.setField(
         injectService, "injectorContractContentUtils", injectorContractContentUtils);
   }
@@ -607,6 +641,130 @@ class InjectServiceTest {
   }
 
   @Test
+  @DisplayName(
+      "createAndSaveInject should resolve injector from explicit injectorId instead of contract")
+  void createAndSaveInject_withExplicitInjectorId_shouldResolveFromRepository() {
+    // -- ARRANGE --
+    String injectorId = "explicit-injector-id";
+    String injectorContractId = "contract-id";
+
+    Injector contractInjector = InjectorFixture.createDefaultPayloadInjector();
+    contractInjector.setId("contract-injector-id");
+
+    InjectorContract injectorContract = new InjectorContract();
+    injectorContract.setId(injectorContractId);
+    injectorContract.addInjector(contractInjector);
+    ObjectNode contractContent = mapper.createObjectNode();
+    contractContent.set("fields", mapper.createArrayNode());
+    injectorContract.setConvertedContent(contractContent);
+
+    Injector explicitInjector = InjectorFixture.createDefaultPayloadInjector();
+    explicitInjector.setId(injectorId);
+
+    InjectInput injectInput = new InjectInput();
+    injectInput.setTitle("Test inject");
+    injectInput.setInjectorContract(injectorContractId);
+    injectInput.setInjectorId(injectorId);
+    injectInput.setDependsDuration(0L);
+
+    Scenario scenario = new Scenario();
+
+    when(injectorContractService.injectorContract(injectorContractId)).thenReturn(injectorContract);
+    when(injectUtils.resolveInjector(injectorId, injectorContract)).thenReturn(explicitInjector);
+
+    // -- ACT --
+    injectService.createAndSaveInject(null, scenario, injectInput);
+
+    // -- ASSERT --
+    ArgumentCaptor<Inject> injectCaptor = ArgumentCaptor.forClass(Inject.class);
+    verify(injectRepository).save(injectCaptor.capture());
+    Inject capturedInject = injectCaptor.getValue();
+
+    assertNotNull(capturedInject.getInjector());
+    assertEquals(injectorId, capturedInject.getInjector().getId());
+    assertNotEquals(
+        contractInjector.getId(),
+        capturedInject.getInjector().getId(),
+        "Injector should come from explicit ID, not from the contract");
+    verify(injectUtils).resolveInjector(injectorId, injectorContract);
+  }
+
+  @Test
+  @DisplayName("createAndSaveInject without injectorId should auto-resolve injector from contract")
+  void createAndSaveInject_withoutInjectorId_shouldFallbackToContractInjector() {
+    // -- ARRANGE --
+    String injectorContractId = "contract-id";
+
+    Injector contractInjector = InjectorFixture.createDefaultPayloadInjector();
+    contractInjector.setId("contract-injector-id");
+
+    InjectorContract injectorContract = new InjectorContract();
+    injectorContract.setId(injectorContractId);
+    injectorContract.addInjector(contractInjector);
+    ObjectNode contractContent = mapper.createObjectNode();
+    contractContent.set("fields", mapper.createArrayNode());
+    injectorContract.setConvertedContent(contractContent);
+
+    InjectInput injectInput = new InjectInput();
+    injectInput.setTitle("Test inject");
+    injectInput.setInjectorContract(injectorContractId);
+    // injectorId is NOT set — auto-resolve from contract
+    injectInput.setDependsDuration(0L);
+
+    Scenario scenario = new Scenario();
+
+    when(injectorContractService.injectorContract(injectorContractId)).thenReturn(injectorContract);
+    when(injectUtils.resolveInjector(null, injectorContract)).thenReturn(contractInjector);
+
+    // -- ACT --
+    injectService.createAndSaveInject(null, scenario, injectInput);
+
+    // -- ASSERT --
+    ArgumentCaptor<Inject> injectCaptor = ArgumentCaptor.forClass(Inject.class);
+    verify(injectRepository).save(injectCaptor.capture());
+    Inject capturedInject = injectCaptor.getValue();
+
+    assertNotNull(capturedInject.getInjector());
+    assertEquals(contractInjector.getId(), capturedInject.getInjector().getId());
+    verify(injectUtils).resolveInjector(null, injectorContract);
+  }
+
+  @Test
+  @DisplayName("createAndSaveInject with unknown injectorId should throw ElementNotFoundException")
+  void createAndSaveInject_withUnknownInjectorId_shouldThrow() {
+    // -- ARRANGE --
+    String unknownInjectorId = "unknown-injector-id";
+    String injectorContractId = "contract-id";
+
+    InjectorContract injectorContract = new InjectorContract();
+    injectorContract.setId(injectorContractId);
+    injectorContract.setInjectors(List.of());
+    ObjectNode contractContent = mapper.createObjectNode();
+    contractContent.set("fields", mapper.createArrayNode());
+    injectorContract.setConvertedContent(contractContent);
+
+    InjectInput injectInput = new InjectInput();
+    injectInput.setTitle("Test inject");
+    injectInput.setInjectorContract(injectorContractId);
+    injectInput.setInjectorId(unknownInjectorId);
+    injectInput.setDependsDuration(0L);
+
+    Scenario scenario = new Scenario();
+
+    when(injectorContractService.injectorContract(injectorContractId)).thenReturn(injectorContract);
+    when(injectUtils.resolveInjector(unknownInjectorId, injectorContract))
+        .thenThrow(
+            new ElementNotFoundException("Injector not found with id: " + unknownInjectorId));
+
+    // -- ACT & ASSERT --
+    assertThrows(
+        ElementNotFoundException.class,
+        () -> injectService.createAndSaveInject(null, scenario, injectInput));
+    verify(injectUtils).resolveInjector(unknownInjectorId, injectorContract);
+    verify(injectRepository, never()).save(any());
+  }
+
+  @Test
   public void testRunChecksWhenInjectIsNull() {
 
     // RUN
@@ -623,9 +781,10 @@ class InjectServiceTest {
         InjectFixture.getInjectForEmailContract(
             InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
                 InjectorFixture.createDefaultPayloadInjector(), null, List.of()));
+
+    inject.setInjector(inject.getInjectorContract().get().getFirstInjector());
+
     inject
-        .getInjectorContract()
-        .get()
         .getInjector()
         .setDependencies(new ExternalServiceDependency[] {ExternalServiceDependency.SMTP});
 
@@ -645,7 +804,7 @@ class InjectServiceTest {
         healtchChecks.stream()
             .filter(hc -> HealthCheck.Type.SMTP.equals(hc.getType()))
             .findFirst()
-            .orElse(new HealthCheck(null, null, null, null));
+            .orElse(new HealthCheck(null, null, null, now()));
     assertEquals(HealthCheck.Type.SMTP, healthCheckToVerify.getType());
     assertEquals(HealthCheck.Detail.SERVICE_UNAVAILABLE, healthCheckToVerify.getDetail());
     assertEquals(HealthCheck.Status.ERROR, healthCheckToVerify.getStatus());
@@ -658,9 +817,10 @@ class InjectServiceTest {
         InjectFixture.getInjectForEmailContract(
             InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
                 InjectorFixture.createDefaultPayloadInjector(), null, List.of()));
+
+    inject.setInjector(inject.getInjectorContract().get().getFirstInjector());
+
     inject
-        .getInjectorContract()
-        .get()
         .getInjector()
         .setDependencies(new ExternalServiceDependency[] {ExternalServiceDependency.IMAP});
 
@@ -679,7 +839,7 @@ class InjectServiceTest {
         healtchChecks.stream()
             .filter(hc -> HealthCheck.Type.IMAP.equals(hc.getType()))
             .findFirst()
-            .orElse(new HealthCheck(null, null, null, null));
+            .orElse(new HealthCheck(null, null, null, now()));
     assertEquals(HealthCheck.Type.IMAP, healthCheckToVerify.getType());
     assertEquals(HealthCheck.Detail.SERVICE_UNAVAILABLE, healthCheckToVerify.getDetail());
     assertEquals(HealthCheck.Status.WARNING, healthCheckToVerify.getStatus());
@@ -709,7 +869,7 @@ class InjectServiceTest {
         healtchChecks.stream()
             .filter(hc -> HealthCheck.Type.AGENT_OR_EXECUTOR.equals(hc.getType()))
             .findFirst()
-            .orElse(new HealthCheck(null, null, null, null));
+            .orElse(new HealthCheck(null, null, null, now()));
     assertEquals(HealthCheck.Type.AGENT_OR_EXECUTOR, healthCheckToVerify.getType());
     assertEquals(HealthCheck.Detail.EMPTY, healthCheckToVerify.getDetail());
     assertEquals(HealthCheck.Status.ERROR, healthCheckToVerify.getStatus());
@@ -736,7 +896,7 @@ class InjectServiceTest {
     expectationsArray.add(expectationPrevention);
 
     ObjectNode content = mapper.createObjectNode();
-    content.put("expectations", expectationsArray);
+    content.set("expectations", expectationsArray);
     inject.setContent(content);
 
     // MOCK
@@ -754,7 +914,7 @@ class InjectServiceTest {
         healtchChecks.stream()
             .filter(hc -> HealthCheck.Type.SECURITY_SYSTEM_COLLECTOR.equals(hc.getType()))
             .findFirst()
-            .orElse(new HealthCheck(null, null, null, null));
+            .orElse(new HealthCheck(null, null, null, now()));
     assertEquals(HealthCheck.Type.SECURITY_SYSTEM_COLLECTOR, healthCheckToVerify.getType());
     assertEquals(HealthCheck.Detail.EMPTY, healthCheckToVerify.getDetail());
     assertEquals(HealthCheck.Status.ERROR, healthCheckToVerify.getStatus());
@@ -772,7 +932,7 @@ class InjectServiceTest {
     inject
         .getInjectorContract()
         .get()
-        .getInjector()
+        .getFirstInjector()
         .setDependencies(new ExternalServiceDependency[] {ExternalServiceDependency.NMAP});
 
     // MOCK
@@ -797,9 +957,10 @@ class InjectServiceTest {
         InjectFixture.getInjectForEmailContract(
             InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
                 InjectorFixture.createDefaultPayloadInjector(), null, List.of()));
+
+    inject.setInjector(inject.getInjectorContract().get().getFirstInjector());
+
     inject
-        .getInjectorContract()
-        .get()
         .getInjector()
         .setDependencies(new ExternalServiceDependency[] {ExternalServiceDependency.NMAP});
 
@@ -830,9 +991,10 @@ class InjectServiceTest {
         InjectFixture.getInjectForEmailContract(
             InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
                 InjectorFixture.createDefaultPayloadInjector(), null, List.of()));
+
+    inject.setInjector(inject.getInjectorContract().get().getFirstInjector());
+
     inject
-        .getInjectorContract()
-        .get()
         .getInjector()
         .setDependencies(new ExternalServiceDependency[] {ExternalServiceDependency.NUCLEI});
 
@@ -852,5 +1014,192 @@ class InjectServiceTest {
     assertEquals(HealthCheck.Type.NUCLEI, healthCheckToVerify.getType());
     assertEquals(HealthCheck.Detail.SERVICE_UNAVAILABLE, healthCheckToVerify.getDetail());
     assertEquals(HealthCheck.Status.ERROR, healthCheckToVerify.getStatus());
+  }
+
+  /* ============================================================
+   * Find inject or return null
+   * ============================================================ */
+  @Nested
+  @DisplayName("findInjectOrNull")
+  class FindInjectOrNullTests {
+
+    @Captor private ArgumentCaptor<String> injectIdCaptor;
+
+    @Test
+    @DisplayName("should return inject when found")
+    void shouldReturnInjectWhenFound() {
+      // Prepare
+      String injectId = UUID.randomUUID().toString();
+      Inject inject = mock(Inject.class);
+      when(injectRepository.findById(injectId)).thenReturn(Optional.of(inject));
+
+      // Act
+      Inject result = injectService.findInjectOrNull(injectId);
+
+      // Assert
+      verify(injectRepository).findById(injectIdCaptor.capture());
+      assertEquals(injectId, injectIdCaptor.getValue());
+      assertNotNull(result);
+      assertEquals(inject, result);
+    }
+
+    @Test
+    @DisplayName("should return null when inject not found")
+    void shouldReturnNullWhenNotFound() {
+      // Prepare
+      String injectId = UUID.randomUUID().toString();
+      when(injectRepository.findById(injectId)).thenReturn(Optional.empty());
+
+      // Act
+      Inject result = injectService.findInjectOrNull(injectId);
+
+      // Assert
+      verify(injectRepository).findById(injectId);
+      assertNull(result);
+    }
+
+    @Test
+    @DisplayName("should return null when inject id is null")
+    void shouldReturnNullWhenInjectIdIsNull() {
+      // Act
+      Inject result = injectService.findInjectOrNull(null);
+
+      // Assert
+      assertNull(result);
+      verifyNoInteractions(injectRepository);
+    }
+  }
+
+  /* ============================================================
+   * Inject creation
+   * ============================================================ */
+  @Nested
+  @DisplayName("createInject")
+  class CreateInjectTests {
+
+    @Captor private ArgumentCaptor<Inject> injectCaptor;
+
+    @Test
+    @DisplayName("should save and return inject")
+    void shouldSaveAndReturnInject() {
+      // Prepare
+      Inject inject = mock(Inject.class);
+      Inject savedInject = mock(Inject.class);
+      when(injectRepository.save(inject)).thenReturn(savedInject);
+
+      // Act
+      Inject result = injectService.createInject(inject);
+
+      // Assert
+      verify(injectRepository).save(injectCaptor.capture());
+      assertEquals(inject, injectCaptor.getValue());
+      assertEquals(savedInject, result);
+    }
+
+    @Test
+    @DisplayName("should pass inject to repository")
+    void shouldPassInjectToRepository() {
+      // Prepare
+      Inject inject = mock(Inject.class);
+      when(injectRepository.save(any(Inject.class))).thenAnswer(i -> i.getArgument(0));
+
+      // Act
+      Inject result = injectService.createInject(inject);
+
+      // Assert
+      verify(injectRepository).save(inject);
+      assertEquals(inject, result);
+    }
+  }
+
+  /* ============================================================
+   * Team deletion for a simulation
+   * ============================================================ */
+  @Nested
+  @DisplayName("removeTeamsForSimulation")
+  class RemoveTeamsForSimulationTests {
+
+    @Captor private ArgumentCaptor<String> simulationIdCaptor;
+
+    @Captor private ArgumentCaptor<List<String>> teamIdsCaptor;
+
+    private static Stream<Arguments> testCases() {
+      return Stream.of(
+          Arguments.of(
+              "multiple team IDs",
+              List.of(
+                  UUID.randomUUID().toString(),
+                  UUID.randomUUID().toString(),
+                  UUID.randomUUID().toString())),
+          Arguments.of("single team ID", List.of(UUID.randomUUID().toString())),
+          Arguments.of("empty team IDs list", Collections.emptyList()));
+    }
+
+    @ParameterizedTest(name = "should remove teams for {0}")
+    @MethodSource("testCases")
+    void shouldRemoveTeams(String name, List<String> teamIds) {
+      // Prepare
+      String simulationId = UUID.randomUUID().toString();
+
+      // Act
+      injectService.removeTeamsForSimulation(simulationId, teamIds);
+
+      // Assert
+      verify(injectRepository)
+          .removeTeamsForExercise(simulationIdCaptor.capture(), teamIdsCaptor.capture());
+      assertEquals(simulationId, simulationIdCaptor.getValue());
+      assertEquals(teamIds, teamIdsCaptor.getValue());
+      verifyNoMoreInteractions(injectRepository);
+    }
+  }
+
+  /* ============================================================
+   * Find raw injects
+   * ============================================================ */
+  @Nested
+  @DisplayName("findRawByIds")
+  class FindRawByIdsTests {
+
+    @Captor private ArgumentCaptor<List<String>> idsCaptor;
+
+    private static Stream<Arguments> testCases() {
+      String id1 = UUID.randomUUID().toString();
+      String id2 = UUID.randomUUID().toString();
+      String id3 = UUID.randomUUID().toString();
+
+      RawInject rawInject1 = mock(RawInject.class);
+      RawInject rawInject2 = mock(RawInject.class);
+
+      return Stream.of(
+          Arguments.of(
+              "multiple IDs returning multiple injects",
+              List.of(id1, id2, id3),
+              List.of(rawInject1, rawInject2),
+              2),
+          Arguments.of(
+              "multiple IDs returning single inject", List.of(id1, id2), List.of(rawInject1), 1),
+          Arguments.of("single ID", List.of(id1), List.of(rawInject1), 1),
+          Arguments.of("empty IDs list", Collections.emptyList(), Collections.emptyList(), 0),
+          Arguments.of(
+              "IDs with no matching injects", List.of(id1, id2), Collections.emptyList(), 0));
+    }
+
+    @ParameterizedTest(name = "should handle {0}")
+    @MethodSource("testCases")
+    void shouldReturnRawInjects(
+        String name, List<String> ids, List<RawInject> expected, int expectedSize) {
+      // Prepare
+      when(injectRepository.findRawByIds(ids)).thenReturn(expected);
+
+      // Act
+      List<RawInject> result = injectService.findRawByIds(ids);
+
+      // Assert
+      verify(injectRepository).findRawByIds(idsCaptor.capture());
+      assertEquals(ids, idsCaptor.getValue());
+      assertNotNull(result);
+      assertEquals(expectedSize, result.size());
+      assertEquals(expected, result);
+    }
   }
 }

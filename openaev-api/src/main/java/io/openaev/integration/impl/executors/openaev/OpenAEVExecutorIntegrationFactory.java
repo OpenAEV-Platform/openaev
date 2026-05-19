@@ -36,7 +36,7 @@ public class OpenAEVExecutorIntegrationFactory extends IntegrationFactory {
 
   @Override
   protected final String getClassName() {
-    return this.getClass().getCanonicalName();
+    return OpenAEVExecutorIntegrationFactory.class.getCanonicalName();
   }
 
   @Override

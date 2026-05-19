@@ -2,7 +2,6 @@ package io.openaev.database.repository;
 
 import io.openaev.database.model.Exercise;
 import io.openaev.database.raw.*;
-import io.openaev.utils.Constants;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.List;
@@ -54,12 +53,12 @@ public interface ExerciseRepository
 
   @Query(
       """
-    SELECT e FROM Exercise e, Scenario s
-    WHERE e.scenario.id = s.id AND s.id = :#{#exercise.scenario.id}
-      AND e.launchOrder > :#{#exercise.launchOrder}
-      AND e.id != :#{#exercise.id}
-    ORDER BY e.launchOrder ASC LIMIT 1
-    """)
+        SELECT e FROM Exercise e, Scenario s
+        WHERE e.scenario.id = s.id AND s.id = :#{#exercise.scenario.id}
+          AND e.launchOrder > :#{#exercise.launchOrder}
+          AND e.id != :#{#exercise.id}
+        ORDER BY e.launchOrder ASC LIMIT 1
+        """)
   Optional<Exercise> following(@Param("exercise") Exercise exercise);
 
   /**
@@ -82,6 +81,7 @@ public interface ExerciseRepository
               + "FROM exercises ex "
               + "LEFT JOIN injects_expectations ie ON ex.exercise_id = ie.exercise_id "
               + "LEFT JOIN exercises_tags et ON et.exercise_id = ex.exercise_id "
+              + "WHERE ex.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY ex.exercise_id ;",
       nativeQuery = true)
   List<RawExerciseSimple> rawAll();
@@ -138,6 +138,7 @@ public interface ExerciseRepository
               + "INNER JOIN groups ON grants.grant_group = groups.group_id "
               + "INNER JOIN users_groups ON groups.group_id = users_groups.group_id "
               + "WHERE users_groups.user_id = :userId "
+              + "AND ex.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY ex.exercise_id ;",
       nativeQuery = true)
   List<RawExerciseSimple> rawAllGranted(@Param("userId") String userId);
@@ -185,15 +186,16 @@ public interface ExerciseRepository
       value =
           " SELECT ex.exercise_id, ex.exercise_name, ex.exercise_description, ex.exercise_status, ex.exercise_subtitle, "
               + "ex.exercise_category, ex.exercise_main_focus, ex.exercise_severity, ex.exercise_start_date, "
-              + "ex.exercise_end_date, ex.exercise_message_header, ex.exercise_message_footer, ex.exercise_mail_from, "
+              + "ex.exercise_end_date, ex.exercise_message_header, ex.exercise_message_footer, ex.exercise_mail_from, ex.exercise_mail_from_name, "
               + "ex.exercise_lessons_anonymized, ex.exercise_custom_dashboard, ex.exercise_created_at, ex.exercise_updated_at, "
-              + "se.scenario_id, inj.inject_scenario, "
+              + "MAX(se.scenario_id) as scenario_id, MAX(inj.inject_scenario) as inject_scenario, "
               + " coalesce(array_agg(emrt.exercise_reply_to) FILTER ( WHERE emrt.exercise_reply_to IS NOT NULL ), '{}') as exercise_reply_to, "
               + " coalesce(array_agg(et.tag_id) FILTER ( WHERE et.tag_id IS NOT NULL ), '{}') as exercise_tags, "
               + " coalesce(array_agg(ut.user_id) FILTER ( WHERE ut.user_id IS NOT NULL ), '{}') as exercise_users, "
               + " coalesce(array_agg(la.lessons_answer_id) FILTER ( WHERE la.lessons_answer_id IS NOT NULL ), '{}') as lessons_answers, "
               + " coalesce(array_agg(logs.log_id) FILTER ( WHERE logs.log_id IS NOT NULL ), '{}') as logs, "
-              + " coalesce(array_agg(inj.inject_id) FILTER ( WHERE inj.inject_id IS NOT NULL ), '{}') as inject_ids "
+              + " coalesce(array_agg(inj.inject_id) FILTER ( WHERE inj.inject_id IS NOT NULL ), '{}') as inject_ids, "
+              + " MAX(w.workflow_id) AS exercise_workflow_id "
               + "FROM exercises ex "
               + "LEFT JOIN scenarios_exercises se ON se.exercise_id = ex.exercise_id "
               + "LEFT JOIN exercise_mails_reply_to emrt ON emrt.exercise_id = ex.exercise_id "
@@ -205,10 +207,11 @@ public interface ExerciseRepository
               + "LEFT JOIN lessons_answers la ON la.lessons_answer_question = lq.lessons_question_id "
               + "LEFT JOIN logs ON logs.log_exercise = ex.exercise_id "
               + "LEFT JOIN injects inj ON ex.exercise_id = inj.inject_exercise "
+              + "LEFT JOIN workflows w ON w.workflow_simulation_id = ex.exercise_id AND w.workflow_status = 'TEMPLATE' "
               + "WHERE ex.exercise_id = :exerciseId "
-              + "GROUP BY ex.exercise_id, inj.inject_scenario, se.scenario_id ;",
+              + "GROUP BY ex.exercise_id ;",
       nativeQuery = true)
-  RawSimulation rawDetailsById(@Param("exerciseId") String exerciseId);
+  RawSimulationIndexing rawDetailsById(@Param("exerciseId") String exerciseId);
 
   @Query(
       value =
@@ -271,29 +274,31 @@ public interface ExerciseRepository
   @Query(
       value =
           """
-        SELECT DISTINCT e.exercise_id AS id, e.exercise_name AS label, e.exercise_created_at
-        FROM injects i
-        INNER JOIN findings f ON f.finding_inject_id = i.inject_id
-        INNER JOIN exercises e ON i.inject_exercise = e.exercise_id
-        WHERE (:name IS NULL OR LOWER(e.exercise_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')))
-        ORDER BY e.exercise_created_at DESC;
-    """,
+                SELECT DISTINCT e.exercise_id AS id, e.exercise_name AS label, e.exercise_created_at
+                FROM injects i
+                INNER JOIN findings f ON f.finding_inject_id = i.inject_id
+                INNER JOIN exercises e ON i.inject_exercise = e.exercise_id
+                WHERE (:name IS NULL OR LOWER(e.exercise_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')))
+                AND i.tenant_id = :#{#tenantContext.currentTenant}
+                ORDER BY e.exercise_created_at DESC;
+            """,
       nativeQuery = true)
   List<Object[]> findAllOptionByNameLinkedToFindings(@Param("name") String name, Pageable pageable);
 
   @Query(
       value =
           """
-        SELECT DISTINCT e.exercise_id AS id, e.exercise_name AS label, e.exercise_created_at
-        FROM injects i
-        INNER JOIN findings f ON f.finding_inject_id = i.inject_id
-        LEFT JOIN findings_assets fa ON fa.finding_id = f.finding_id
-        LEFT JOIN exercises e ON i.inject_exercise = e.exercise_id
-        LEFT JOIN scenarios_exercises se ON se.exercise_id = e.exercise_id
-        WHERE (se.scenario_id = :sourceId OR fa.asset_id = :sourceId)
-        AND (:name IS NULL OR LOWER(e.exercise_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')))
-        ORDER BY e.exercise_created_at DESC;
-    """,
+                SELECT DISTINCT e.exercise_id AS id, e.exercise_name AS label, e.exercise_created_at
+                FROM injects i
+                INNER JOIN findings f ON f.finding_inject_id = i.inject_id
+                LEFT JOIN findings_assets fa ON fa.finding_id = f.finding_id
+                LEFT JOIN exercises e ON i.inject_exercise = e.exercise_id
+                LEFT JOIN scenarios_exercises se ON se.exercise_id = e.exercise_id
+                WHERE (se.scenario_id = :sourceId OR fa.asset_id = :sourceId)
+                AND (:name IS NULL OR LOWER(e.exercise_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')))
+                AND i.tenant_id = :#{#tenantContext.currentTenant}
+                ORDER BY e.exercise_created_at DESC;
+            """,
       nativeQuery = true)
   List<Object[]> findAllOptionByNameLinkedToFindingsWithContext(
       @Param("sourceId") String sourceId, @Param("name") String name, Pageable pageable);
@@ -303,7 +308,7 @@ public interface ExerciseRepository
   @Query(
       value =
           "WITH exercise_data AS ("
-              + "SELECT ex.exercise_id, ex.exercise_name, ex.exercise_status, ex.exercise_start_date, ex.exercise_created_at, MAX(se.scenario_id) AS scenario_id, " // MAX here is used to get 1 element and not a list because we know that 1 exercise is linked to only 1 scenario
+              + "SELECT ex.exercise_id, ex.exercise_name, ex.exercise_status, ex.exercise_start_date, ex.exercise_created_at, ex.exercise_mail_from_name, ex.tenant_id, MAX(se.scenario_id) AS scenario_id, " // MAX here is used to get 1 element and not a list because we know that 1 exercise is linked to only 1 scenario
               + "GREATEST(ex.exercise_updated_at, max(inj.inject_updated_at), max(ic.injector_contract_updated_at)) as exercise_injects_updated_at, "
               + "array_agg(DISTINCT et.tag_id) FILTER ( WHERE et.tag_id IS NOT NULL ) as exercise_tags, "
               + "array_agg(DISTINCT ete.team_id) FILTER ( WHERE ete.team_id IS NOT NULL ) as exercise_teams, "
@@ -322,9 +327,8 @@ public interface ExerciseRepository
               + ") "
               + "SELECT * FROM exercise_data ed "
               + "WHERE ed.exercise_injects_updated_at > :from "
-              + "ORDER BY ed.exercise_injects_updated_at ASC LIMIT "
-              + Constants.INDEXING_RECORD_SET_SIZE
-              + ";",
+              + "ORDER BY ed.exercise_injects_updated_at ASC LIMIT :limit;",
       nativeQuery = true)
-  List<RawSimulation> findForIndexing(@Param("from") Instant from);
+  List<RawSimulationIndexing> findForIndexing(
+      @Param("from") Instant from, @Param("limit") int limit);
 }

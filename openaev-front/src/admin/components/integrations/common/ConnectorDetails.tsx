@@ -5,6 +5,7 @@ import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { buildTenantApiPath } from '../../../../utils/url-helper';
 import { type CatalogContextType } from '../catalog_connectors/CatalogLayout';
 import CreateConnectorInstanceDrawer from '../connector_instance/CreateConnectorInstanceDrawer';
 import ConnectorCatalogInfo from './ConnectorCatalogInfo';
@@ -33,7 +34,7 @@ const ConnectorDetails = () => {
           connectorName: catalogConnector.catalog_connector_title,
           connectorType: catalogConnector.catalog_connector_type,
           connectorLogoName: `connector-logo-${catalogConnector.catalog_connector_id}`,
-          connectorLogoUrl: `/api/images/catalog/connectors/logos/${catalogConnector.catalog_connector_logo_url}`,
+          connectorLogoUrl: buildTenantApiPath(`/api/images/catalog/connectors/logos/${catalogConnector.catalog_connector_logo_url}`),
           connectorDescription: catalogConnector.catalog_connector_short_description,
           isExternal: catalogConnector.catalog_connector_manager_supported,
           isVerified: true,
@@ -41,7 +42,7 @@ const ConnectorDetails = () => {
           connectorInstancesCount: catalogConnector.instance_deployed_count,
         }}
         detailsTitle
-        showDeployButton={ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS)}
+        showDeployButton={ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS)}
         onDeployBtnClick={onOpenCreateConnectorInstanceDrawer}
       />
       <CreateConnectorInstanceDrawer

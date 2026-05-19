@@ -8,8 +8,9 @@ import Dialog from '../../../../../../components/common/dialog/Dialog';
 import StepperComponent from '../../../../../../components/common/StepperComponent';
 import { useFormatter } from '../../../../../../components/i18n';
 import { type Widget } from '../../../../../../utils/api-types';
+import { type WidgetInputWithoutLayout } from '../../../../../../utils/api-types-custom';
 import { zodImplement } from '../../../../../../utils/Zod';
-import { getAvailableSteps, lastStepIndex, steps, type WidgetInputWithoutLayout } from '../WidgetUtils';
+import { getAvailableSteps, lastStepIndex, steps } from '../WidgetUtils';
 import WidgetSecurityDomainsSeriesSelection from './domains/WidgetSecurityDomainsSeriesSelection';
 import WidgetMultiSeriesSelection from './histogram/WidgetMultiSeriesSelection';
 import WidgetSecurityCoverageSeriesSelection from './histogram/WidgetSecurityCoverageSeriesSelection';
@@ -48,10 +49,7 @@ interface Props {
 const WidgetForm: FunctionComponent<Props> = ({
   open,
   toggleDialog,
-  initialValues = {
-    widget_type: undefined,
-    widget_config: { title: '' },
-  },
+  initialValues = { widget_config: { title: '' } },
   onSubmit,
   editing = false,
 }) => {
@@ -59,101 +57,101 @@ const WidgetForm: FunctionComponent<Props> = ({
   const { t } = useFormatter();
 
   // Form
-  const widgetConfigSchema = z.discriminatedUnion('widget_configuration_type', [
-    // FlatConfiguration
-    z.object({
-      title: z.string().optional(),
-      widget_configuration_type: z.literal('flat'),
-      series: z.array(z.object({
-        name: z.string().optional(),
-        filter: z.any().refine(val => val !== undefined, { message: 'Filter cannot be undefined' }),
-      })),
-      date_attribute: z.string().min(1, { message: t('Should not be empty') }),
-      time_range: z.enum(['DEFAULT', 'ALL_TIME', 'CUSTOM', 'LAST_DAY', 'LAST_WEEK', 'LAST_MONTH', 'LAST_QUARTER', 'LAST_SEMESTER', 'LAST_YEAR']),
-      start: z.string().optional().nullable(),
-      end: z.string().optional().nullable(),
-    }),
-    // AverageConfiguration
-    z.object({
-      title: z.string().optional(),
-      widget_configuration_type: z.literal('average'),
-      series: z.array(z.object({
-        name: z.string().optional(),
-        filter: z.any().refine(val => val !== undefined, { message: 'Filter cannot be undefined' }),
-      })),
-      date_attribute: z.string().min(1, { message: t('Should not be empty') }),
-      time_range: z.enum(['DEFAULT', 'ALL_TIME', 'CUSTOM', 'LAST_DAY', 'LAST_WEEK', 'LAST_MONTH', 'LAST_QUARTER', 'LAST_SEMESTER', 'LAST_YEAR']),
-      start: z.string().optional().nullable(),
-      end: z.string().optional().nullable(),
-    }),
-    // DateHistogramConfiguration
-    z.object({
-      mode: z.literal('temporal'),
-      title: z.string().optional(),
-      date_attribute: z.string().min(1, { message: t('Should not be empty') }),
-      time_range: z.enum(['DEFAULT', 'ALL_TIME', 'CUSTOM', 'LAST_DAY', 'LAST_WEEK', 'LAST_MONTH', 'LAST_QUARTER', 'LAST_SEMESTER', 'LAST_YEAR']),
-      start: z.string().optional().nullable(),
-      end: z.string().optional().nullable(),
-      interval: z.enum(['year', 'month', 'week', 'day', 'hour', 'quarter']),
-      widget_configuration_type: z.literal('temporal-histogram'),
-      stacked: z.boolean().optional(),
-      display_legend: z.boolean().optional(),
-      series: z.array(z.object({
-        name: z.string().optional(),
-        filter: z.any().refine(val => val !== undefined, { message: 'Filter cannot be undefined' }),
-      })),
-    }),
-    // StructuralHistogramConfiguration
-    z.object({
-      mode: z.literal('structural'),
-      title: z.string().optional(),
-      field: z.string().min(1, { message: t('Should not be empty') }),
-      date_attribute: z.string().min(1, { message: t('Should not be empty') }),
-      time_range: z.enum(['DEFAULT', 'ALL_TIME', 'CUSTOM', 'LAST_DAY', 'LAST_WEEK', 'LAST_MONTH', 'LAST_QUARTER', 'LAST_SEMESTER', 'LAST_YEAR']),
-      start: z.string().optional().nullable(),
-      end: z.string().optional().nullable(),
-      stacked: z.boolean().optional(),
-      display_legend: z.boolean().optional(),
-      limit: z.number()
-        .min(1, { message: t('Minimum value is 1') })
-        .max(100, { message: t('Maximum value is 100') })
-        .optional(),
-      widget_configuration_type: z.literal('structural-histogram'),
-      series: z.array(z.object({
-        name: z.string().optional(),
-        filter: z.any().refine(val => val !== undefined, { message: 'Filter cannot be undefined' }),
-      })),
-    }),
-    // ListConfiguration
-    z.object({
-      title: z.string().optional(),
-      widget_configuration_type: z.literal('list'),
-      date_attribute: z.string().min(1, { message: t('Should not be empty') }),
-      time_range: z.enum(['DEFAULT', 'ALL_TIME', 'CUSTOM', 'LAST_DAY', 'LAST_WEEK', 'LAST_MONTH', 'LAST_QUARTER', 'LAST_SEMESTER', 'LAST_YEAR']),
-      start: z.string().optional().nullable(),
-      end: z.string().optional().nullable(),
-      sorts: z.array(z.object({
-        direction: z.literal('ASC').or(z.literal('DESC')),
-        fieldName: z.string(),
-      })).optional(),
-      limit: z.number()
-        .min(1, { message: t('Minimum value is 1') })
-        .max(1000, { message: t('Maximum value is 1000') })
-        .optional(),
-      columns: z.array(z.string()),
-      perspective: z.object({
-        name: z.string().optional(),
-        filter: z.any().refine(val => val !== undefined, { message: 'Filter cannot be undefined' }),
+  const widgetConfigSchema
+    = z.discriminatedUnion('widget_configuration_type', [
+      // FlatConfiguration
+      z.object({
+        widget_configuration_type: z.literal('flat'),
+        title: z.string().optional(),
+        series: z.array(z.object({
+          name: z.string().optional(),
+          filter: z.any().optional().refine(val => val !== undefined, { error: 'Filter cannot be undefined' }),
+        })),
+        date_attribute: z.string().min(1, { error: t('Should not be empty') }),
+        time_range: z.enum(['DEFAULT', 'ALL_TIME', 'CUSTOM', 'LAST_DAY', 'LAST_WEEK', 'LAST_MONTH', 'LAST_QUARTER', 'LAST_SEMESTER', 'LAST_YEAR']),
+        start: z.string().optional().nullable(),
+        end: z.string().optional().nullable(),
       }),
-    }),
-  ]);
+      // AverageConfiguration
+      z.object({
+        widget_configuration_type: z.literal('average'),
+        title: z.string().optional(),
+        series: z.array(z.object({
+          name: z.string().optional(),
+          filter: z.any().optional().refine(val => val !== undefined, { error: 'Filter cannot be undefined' }),
+        })),
+        date_attribute: z.string().min(1, { error: t('Should not be empty') }),
+        time_range: z.enum(['DEFAULT', 'ALL_TIME', 'CUSTOM', 'LAST_DAY', 'LAST_WEEK', 'LAST_MONTH', 'LAST_QUARTER', 'LAST_SEMESTER', 'LAST_YEAR']),
+        start: z.string().optional().nullable(),
+        end: z.string().optional().nullable(),
+      }),
+      // DateHistogramConfiguration
+      z.object({
+        widget_configuration_type: z.literal('temporal-histogram'),
+        mode: z.literal('temporal'),
+        title: z.string().optional(),
+        date_attribute: z.string().min(1, { error: t('Should not be empty') }),
+        time_range: z.enum(['DEFAULT', 'ALL_TIME', 'CUSTOM', 'LAST_DAY', 'LAST_WEEK', 'LAST_MONTH', 'LAST_QUARTER', 'LAST_SEMESTER', 'LAST_YEAR']),
+        start: z.string().optional().nullable(),
+        end: z.string().optional().nullable(),
+        interval: z.enum(['year', 'month', 'week', 'day', 'hour', 'quarter']),
+        stacked: z.boolean().optional(),
+        display_legend: z.boolean().optional(),
+        series: z.array(z.object({
+          name: z.string().optional(),
+          filter: z.any().optional().refine(val => val !== undefined, { error: 'Filter cannot be undefined' }),
+        })),
+      }),
+      // StructuralHistogramConfiguration
+      z.object({
+        widget_configuration_type: z.literal('structural-histogram'),
+        mode: z.literal('structural'),
+        title: z.string().optional(),
+        field: z.string().min(1, { error: t('Should not be empty') }),
+        date_attribute: z.string().min(1, { error: t('Should not be empty') }),
+        time_range: z.enum(['DEFAULT', 'ALL_TIME', 'CUSTOM', 'LAST_DAY', 'LAST_WEEK', 'LAST_MONTH', 'LAST_QUARTER', 'LAST_SEMESTER', 'LAST_YEAR']),
+        start: z.string().optional().nullable(),
+        end: z.string().optional().nullable(),
+        stacked: z.boolean().optional(),
+        display_legend: z.boolean().optional(),
+        limit: z.number()
+          .min(1, { error: t('Minimum value is 1') })
+          .max(100, { error: t('Maximum value is 100') })
+          .optional(),
+        series: z.array(z.object({
+          name: z.string().optional(),
+          filter: z.any().optional().refine(val => val !== undefined, { error: 'Filter cannot be undefined' }),
+        })),
+      }),
+      // ListConfiguration
+      z.object({
+        widget_configuration_type: z.literal('list'),
+        title: z.string().optional(),
+        date_attribute: z.string().min(1, { error: t('Should not be empty') }),
+        time_range: z.enum(['DEFAULT', 'ALL_TIME', 'CUSTOM', 'LAST_DAY', 'LAST_WEEK', 'LAST_MONTH', 'LAST_QUARTER', 'LAST_SEMESTER', 'LAST_YEAR']),
+        start: z.string().optional().nullable(),
+        end: z.string().optional().nullable(),
+        sorts: z.array(z.object({
+          direction: z.literal('ASC').or(z.literal('DESC')),
+          fieldName: z.string(),
+        })).optional(),
+        limit: z.number()
+          .min(1, { error: t('Minimum value is 1') })
+          .max(1000, { error: t('Maximum value is 1000') })
+          .optional(),
+        columns: z.array(z.string()).optional(),
+        perspective: z.object({
+          name: z.string().optional(),
+          filter: z.any().optional().refine(val => val !== undefined, { error: 'Filter cannot be undefined' }),
+        }),
+      }),
+    ]);
 
   const methods = useForm<WidgetInputWithoutLayout>({
     mode: 'onTouched',
     resolver: zodResolver(
       zodImplement<WidgetInputWithoutLayout>().with({
         widget_type: z.enum(['vertical-barchart', 'horizontal-barchart', 'security-coverage', 'line', 'donut', 'list', 'attack-path', 'number', 'average']),
-        // @ts-expect-error: types assigned to properties are necessary for validation purposes
         widget_config: widgetConfigSchema,
       }),
     ),
@@ -208,7 +206,7 @@ const WidgetForm: FunctionComponent<Props> = ({
     onClose();
   };
 
-  const handleSubmitWithoutPropagation = async () => {
+  const handleSubmitWithoutPropagation = () => {
     handleSubmit((values) => {
       onSubmit(values);
       onClose();
@@ -254,7 +252,6 @@ const WidgetForm: FunctionComponent<Props> = ({
                 onChange={onChange}
                 onSubmit={nextStep}
               />
-
             )}
           />
         );

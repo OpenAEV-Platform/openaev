@@ -3,7 +3,7 @@ package io.openaev.utils;
 import static java.util.Collections.emptyList;
 
 import io.openaev.database.model.*;
-import io.openaev.database.raw.RawInjectExpectation;
+import io.openaev.database.raw.RawInjectExpectationIndexing;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.rest.inject.form.InjectExpectationResultsByAttackPattern;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
@@ -50,7 +50,7 @@ public class ResultUtils {
       return emptyList();
     }
 
-    List<RawInjectExpectation> expectations =
+    List<RawInjectExpectationIndexing> expectations =
         injectExpectationRepository.rawForComputeGlobalByInjectIds(injectIds);
 
     return injectExpectationMapper.extractExpectationResultByTypesFromRaw(injectIds, expectations);

@@ -10,11 +10,12 @@ const useBodyItemsStyles: () => {
   return ({
     bodyItems: {
       display: 'flex',
+      alignItems: 'center',
       flexWrap: 'nowrap',
       maxWidth: '100%',
     },
     bodyItem: {
-      height: 20,
+      minHeight: 20,
       fontSize: theme.typography.body2.fontSize,
       whiteSpace: 'nowrap',
       overflow: 'hidden',

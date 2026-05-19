@@ -5,6 +5,7 @@ import { SelectGroup } from 'mdi-material-ui';
 
 import PlatformIcon from '../../../../components/PlatformIcon';
 import type { InjectTarget } from '../../../../utils/api-types';
+import { buildTenantApiPath } from '../../../../utils/url-helper';
 import NewAtomicTestingResult from './NewAtomicTestingResult';
 
 interface Props {
@@ -27,7 +28,7 @@ const NewTargetListItem: React.FC<Props> = ({ onClick, target, selected }) => {
       PLAYERS: <PersonOutlined fontSize="small" />,
       AGENT: (
         <img
-          src={`/api/images/executors/icons/${target.target_subtype}`}
+          src={buildTenantApiPath(`/api/images/executors/icons/${target.target_subtype}`)}
           alt={target.target_subtype}
           style={{
             width: 20,

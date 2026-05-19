@@ -31,7 +31,6 @@ import io.openaev.database.repository.*;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.executors.Executor;
 import io.openaev.injector_contract.ContractTargetedProperty;
-import io.openaev.injector_contract.fields.ContractFieldType;
 import io.openaev.integration.Manager;
 import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
@@ -39,10 +38,11 @@ import io.openaev.rest.atomic_testing.form.ExecutionTraceOutput;
 import io.openaev.rest.atomic_testing.form.InjectStatusOutput;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exercise.service.ExerciseService;
-import io.openaev.rest.helper.queue.BatchQueueService;
 import io.openaev.rest.inject.form.*;
 import io.openaev.rest.inject.service.BatchingInjectStatusService;
 import io.openaev.rest.inject.service.InjectStatusService;
+import io.openaev.scheduler.jobs.InjectsExecutionJob;
+import io.openaev.service.queue.BatchQueueService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.fixtures.*;
@@ -54,7 +54,6 @@ import jakarta.annotation.Resource;
 import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMessage;
 import jakarta.persistence.EntityManager;
-import jakarta.servlet.ServletException;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
@@ -74,12 +73,12 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.http.MediaType;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
@@ -100,7 +99,10 @@ class InjectApiTest extends IntegrationTest {
   @Autowired private EntityManager entityManager;
   @Autowired private ScenarioService scenarioService;
   @Autowired private ExerciseService exerciseService;
-  @SpyBean private InjectStatusService injectStatusService;
+  @MockitoSpyBean private InjectStatusService injectStatusService;
+
+  @Autowired private InjectApi injectApi;
+  @Autowired private InjectsExecutionJob injectsExecutionJob;
 
   @Autowired private AgentComposer agentComposer;
   @Autowired private EndpointComposer endpointComposer;
@@ -109,6 +111,7 @@ class InjectApiTest extends IntegrationTest {
   @Autowired private PayloadComposer payloadComposer;
   @Autowired private DetectionRemediationComposer detectionRemediationComposer;
   @Autowired private CollectorComposer collectorComposer;
+  @Autowired private CollectorTypeComposer collectorTypeComposer;
   @Autowired private DocumentComposer documentComposer;
   @Autowired private InjectStatusComposer injectStatusComposer;
   @Autowired private ExecutionTraceComposer executionTraceComposer;
@@ -118,7 +121,7 @@ class InjectApiTest extends IntegrationTest {
 
   @Autowired private ExerciseRepository exerciseRepository;
   @Autowired private AgentRepository agentRepository;
-  @SpyBean private Executor executor;
+  @MockitoSpyBean private Executor executor;
   @Autowired private EndpointRepository endpointRepository;
   @Autowired private ScenarioRepository scenarioRepository;
   @Autowired private InjectRepository injectRepository;
@@ -129,7 +132,7 @@ class InjectApiTest extends IntegrationTest {
   @Autowired private FindingRepository findingRepository;
   @Autowired private UserRepository userRepository;
   @Resource private ObjectMapper objectMapper;
-  @MockBean private JavaMailSender javaMailSender;
+  @MockitoBean private JavaMailSender javaMailSender;
 
   @Autowired private InjectTestHelper injectTestHelper;
   @Autowired private InjectExpectationComposer injectExpectationComposer;
@@ -288,7 +291,8 @@ class InjectApiTest extends IntegrationTest {
     InjectInput injectInput = new InjectInput();
     injectInput.setTitle("Test inject");
     injectInput.setDependsDuration(0L);
-    Inject inject = injectInput.toInject(injectorContractFixture.getWellKnownSingleEmailContract());
+    InjectorContract emailContract = injectorContractFixture.getWellKnownSingleEmailContract();
+    Inject inject = injectInput.toInject(emailContract, emailContract.getFirstInjector());
     Inject savedInject = injectRepository.save(inject);
 
     Inject injectToUpdate = injectRepository.findById(savedInject.getId()).orElseThrow();
@@ -327,6 +331,7 @@ class InjectApiTest extends IntegrationTest {
     input.setTitle(inject.getTitle());
     input.setDescription(inject.getDescription());
     input.setInjectorContract(inject.getInjectorContract().orElseThrow().getId());
+    input.setInjectorId(injectorContract.getFirstInjector().getId());
     input.setUserIds(List.of(user.getId()));
     ObjectNode content = objectMapper.createObjectNode();
     content.set("subject", objectMapper.convertValue("Subject", JsonNode.class));
@@ -388,6 +393,7 @@ class InjectApiTest extends IntegrationTest {
     input.setTitle(inject.getTitle());
     input.setDescription(inject.getDescription());
     input.setInjectorContract(inject.getInjectorContract().orElseThrow().getId());
+    input.setInjectorId(injectorContract.getFirstInjector().getId());
     ObjectNode content = objectMapper.createObjectNode();
     content.set("subject", objectMapper.convertValue("Subject", JsonNode.class));
     content.set("body", objectMapper.convertValue("Test body", JsonNode.class));
@@ -429,6 +435,7 @@ class InjectApiTest extends IntegrationTest {
     input.setTitle(inject.getTitle());
     input.setDescription(inject.getDescription());
     input.setInjectorContract(inject.getInjectorContract().orElseThrow().getId());
+    input.setInjectorId(injectorContract.getFirstInjector().getId());
 
     MockMultipartFile inputJson =
         new MockMultipartFile(
@@ -448,6 +455,62 @@ class InjectApiTest extends IntegrationTest {
     // -- ASSERT --
     assertNotNull(response);
     assertTrue(JsonPath.read(response, "$.status_traces").toString().contains("Inject is empty"));
+  }
+
+  @DisplayName(
+      "Execute an email inject for exercise with null injector (legacy fallback via type+tenant)")
+  @Test
+  @WithMockUser(isAdmin = true)
+  void executeEmailInjectForExercise_withNullInjector_shouldFallbackToTypeResolution()
+      throws Exception {
+    // -- ARRANGE --
+    InjectorContract injectorContract = injectorContractFixture.getWellKnownSingleEmailContract();
+    Inject inject = getInjectForEmailContract(injectorContract);
+    User user = userRepository.findById(currentUser().getId()).orElseThrow();
+
+    DirectInjectInput input = new DirectInjectInput();
+    input.setTitle(inject.getTitle());
+    input.setDescription(inject.getDescription());
+    input.setInjectorContract(inject.getInjectorContract().orElseThrow().getId());
+    input.setUserIds(List.of(user.getId()));
+    ObjectNode content = objectMapper.createObjectNode();
+    content.set("subject", objectMapper.convertValue("Subject", JsonNode.class));
+    content.set("body", objectMapper.convertValue("Test body", JsonNode.class));
+    content.set("expectationType", objectMapper.convertValue("none", JsonNode.class));
+    input.setContent(content);
+
+    MockMultipartFile inputJson =
+        new MockMultipartFile(
+            "input", null, "application/json", objectMapper.writeValueAsString(input).getBytes());
+
+    // Mock the behavior of JavaMailSender
+    doNothing().when(javaMailSender).send(ArgumentMatchers.any(SimpleMailMessage.class));
+    when(javaMailSender.createMimeMessage()).thenReturn(new MimeMessage((Session) null));
+
+    // Intercept executor.execute() to null out the injector — simulating a legacy inject
+    doAnswer(
+            invocation -> {
+              ExecutableInject executableInject = invocation.getArgument(0);
+              executableInject.getInjection().getInject().setInjector(null);
+              return invocation.callRealMethod();
+            })
+        .when(executor)
+        .execute(any());
+
+    // -- ACT --
+    String response =
+        mvc.perform(
+                multipart(EXERCISE_URI + "/" + EXERCISE.getId() + "/inject")
+                    .file(inputJson)
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // -- ASSERT --
+    assertNotNull(response);
+    assertEquals("SUCCESS", JsonPath.read(response, "$.status_name"));
   }
 
   // -- BULK DELETE --
@@ -594,12 +657,9 @@ class InjectApiTest extends IntegrationTest {
               .withInjectorContract(
                   injectorContractComposer
                       .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+                      .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                       .withInjector(InjectorFixture.createDefaultPayloadInjector())
-                      .withPayload(
-                          payloadComposer
-                              .forPayload(payloadCommand)
-                              .withDomain(
-                                  domainComposer.forDomain(DomainFixture.getRandomDomain()))))
+                      .withPayload(payloadComposer.forPayload(payloadCommand)))
               .persist()
               .get();
 
@@ -648,10 +708,10 @@ class InjectApiTest extends IntegrationTest {
       Command payloadCommand = PayloadFixture.createCommand("bash", command, null, null);
       PayloadArgument targetedAssetArgument =
           PayloadFixture.createPayloadArgument(
-              "asset-separate-by-space", ContractFieldType.TargetedAsset, "hostname", "-u");
+              "asset-separate-by-space", ArgumentType.TargetedAsset, "hostname", "-u");
       PayloadArgument targetedAssetArgument2 =
           PayloadFixture.createPayloadArgument(
-              "asset-separate-by-comma", ContractFieldType.TargetedAsset, "seen_ip", ",");
+              "asset-separate-by-comma", ArgumentType.TargetedAsset, "seen_ip", ",");
       payloadCommand.setArguments(List.of(targetedAssetArgument, targetedAssetArgument2));
 
       InjectorContract injectorContract = InjectorContractFixture.createDefaultInjectorContract();
@@ -696,11 +756,8 @@ class InjectApiTest extends IntegrationTest {
                   injectorContractComposer
                       .forInjectorContract(injectorContract)
                       .withInjector(InjectorFixture.createDefaultPayloadInjector())
-                      .withPayload(
-                          payloadComposer
-                              .forPayload(payloadCommand)
-                              .withDomain(
-                                  domainComposer.forDomain(DomainFixture.getRandomDomain()))))
+                      .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
+                      .withPayload(payloadComposer.forPayload(payloadCommand)))
               .withEndpoint(endpointWrapper1)
               .withEndpoint(endpointWrapper2)
               .persist()
@@ -752,12 +809,10 @@ class InjectApiTest extends IntegrationTest {
               .withInjectorContract(
                   injectorContractComposer
                       .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+                      .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                       .withInjector(InjectorFixture.createDefaultPayloadInjector())
                       .withPayload(
-                          payloadComposer
-                              .forPayload(PayloadFixture.createDefaultCommand())
-                              .withDomain(
-                                  domainComposer.forDomain(DomainFixture.getRandomDomain()))))
+                          payloadComposer.forPayload(PayloadFixture.createDefaultCommand())))
               .withExpectation(
                   injectExpectationComposer
                       .forExpectation(
@@ -818,11 +873,8 @@ class InjectApiTest extends IntegrationTest {
                           InjectorContractFixture.createPayloadInjectorContractWithObfuscator(
                               payloadCommand.getExecutor()))
                       .withInjector(InjectorFixture.createDefaultPayloadInjector())
-                      .withPayload(
-                          payloadComposer
-                              .forPayload(payloadCommand)
-                              .withDomain(
-                                  domainComposer.forDomain(DomainFixture.getRandomDomain()))))
+                      .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
+                      .withPayload(payloadComposer.forPayload(payloadCommand)))
               .persist()
               .get();
       doNothing()
@@ -870,12 +922,9 @@ class InjectApiTest extends IntegrationTest {
                       .forInjectorContract(
                           InjectorContractFixture.createPayloadInjectorContractWithObfuscator(
                               payloadCommand.getExecutor()))
+                      .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                       .withInjector(InjectorFixture.createDefaultPayloadInjector())
-                      .withPayload(
-                          payloadComposer
-                              .forPayload(payloadCommand)
-                              .withDomain(
-                                  domainComposer.forDomain(DomainFixture.getRandomDomain()))))
+                      .withPayload(payloadComposer.forPayload(payloadCommand)))
               .persist()
               .get();
       doNothing()
@@ -923,27 +972,21 @@ class InjectApiTest extends IntegrationTest {
                       .forInjectorContract(
                           InjectorContractFixture.createPayloadInjectorContractWithObfuscator(
                               payloadCommand.getExecutor()))
+                      .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                       .withInjector(InjectorFixture.createDefaultPayloadInjector())
-                      .withPayload(
-                          payloadComposer
-                              .forPayload(payloadCommand)
-                              .withDomain(
-                                  domainComposer.forDomain(DomainFixture.getRandomDomain()))))
+                      .withPayload(payloadComposer.forPayload(payloadCommand)))
               .persist()
               .get();
       doNothing()
           .when(injectStatusService)
           .addStartImplantExecutionTraceByInject(any(), any(), any(), any());
 
-      // -- EXECUTE --
-      assertThrows(
-          ServletException.class,
-          () -> {
-            mvc.perform(
-                get(INJECT_URI + "/" + injectSaved.getId() + "/fakeagentID/executable-payload")
-                    .accept(MediaType.APPLICATION_JSON)
-                    .with(csrf()));
-          });
+      // -- EXECUTE & ASSERT --
+      mvc.perform(
+              get(INJECT_URI + "/" + injectSaved.getId() + "/fakeagentID/executable-payload")
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
     }
   }
 
@@ -953,6 +996,19 @@ class InjectApiTest extends IntegrationTest {
   @DisplayName("Inject Execution Callback Handling (simulating a request from an implant)")
   @KeepRabbit
   class handleInjectExecutionCallback {
+
+    private BatchQueueService<InjectExecutionCallback> savedQueueService;
+
+    @BeforeEach
+    void setUpSyncPath() {
+      savedQueueService = injectApi.getInjectTraceQueueService();
+      injectApi.setInjectTraceQueueService(null);
+    }
+
+    @AfterEach
+    void restoreSyncPath() {
+      injectApi.setInjectTraceQueueService(savedQueueService);
+    }
 
     private Inject getPendingInjectWithAssets() {
       return injectTestHelper.getPendingInjectWithAssets(
@@ -997,9 +1053,7 @@ class InjectApiTest extends IntegrationTest {
      */
     private Object[] buildInjectWithOutputParser(OutputParser outputParser) throws Exception {
       Domain domain = injectTestHelper.forceSaveDomain(DomainFixture.getRandomDomain());
-      Command command =
-          PayloadFixture.createCommand(
-              "bash", "echo test", null, null, new HashSet<>(Set.of(domain)));
+      Command command = PayloadFixture.createCommand("bash", "echo test", null, null);
       command.setOutputParsers(Set.of(outputParser));
       Payload payloadSaved = injectTestHelper.forceSavePayload(command);
 
@@ -1009,6 +1063,7 @@ class InjectApiTest extends IntegrationTest {
       InjectorContract injectorContract =
           InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
               injector, payloadSaved, List.of());
+      injectorContract.setDomains(Set.of(domain));
       injectorContract.setContent(injectorContract.getConvertedContent().toString());
       InjectorContract injectorContractSaved =
           injectTestHelper.forceSaveInjectorContract(injectorContract);
@@ -1052,23 +1107,9 @@ class InjectApiTest extends IntegrationTest {
         String agentId = ((Endpoint) inject.getAssets().getFirst()).getAgents().getFirst().getId();
         performCallbackRequest(agentId, inject.getId(), input);
 
-        Awaitility.await()
-            .atMost(15, TimeUnit.SECONDS)
-            .with()
-            .pollInterval(1, TimeUnit.SECONDS)
-            .until(
-                () -> {
-                  Optional<Inject> injectSaved = injectRepository.findById(inject.getId());
-                  if (injectSaved.isEmpty()) {
-                    return false;
-                  }
-                  Optional<InjectStatus> injectStatusSaved = injectSaved.get().getStatus();
-                  return injectStatusSaved
-                      .filter(injectStatus -> !injectStatus.getTraces().isEmpty())
-                      .isPresent();
-                });
-
         // -- ASSERT --
+        entityManager.flush();
+        entityManager.clear();
         Inject injectSaved = injectRepository.findById(inject.getId()).orElseThrow();
         InjectStatus injectStatusSaved = injectSaved.getStatus().orElseThrow();
         assertEquals(ExecutionStatus.PENDING, injectStatusSaved.getName());
@@ -1102,23 +1143,9 @@ class InjectApiTest extends IntegrationTest {
         input2.setStatus("INFO");
         performCallbackRequest(agentId, inject.getId(), input2);
 
-        Awaitility.await()
-            .atMost(180, TimeUnit.SECONDS)
-            .with()
-            .pollInterval(1, TimeUnit.SECONDS)
-            .until(
-                () -> {
-                  Optional<Inject> injectSaved = injectRepository.findById(inject.getId());
-                  if (injectSaved.isEmpty()) {
-                    return false;
-                  }
-                  Optional<InjectStatus> injectStatusSaved = injectSaved.get().getStatus();
-                  return injectStatusSaved
-                      .filter(injectStatus -> injectStatus.getTraces().size() > 1)
-                      .isPresent();
-                });
-
         // -- ASSERT --
+        entityManager.flush();
+        entityManager.clear();
         Inject injectSaved = injectRepository.findById(inject.getId()).orElseThrow();
         InjectStatus injectStatusSaved = injectSaved.getStatus().orElseThrow();
         // Check inject status
@@ -1164,23 +1191,9 @@ class InjectApiTest extends IntegrationTest {
         performCallbackRequest(firstAgentId, inject.getId(), input2);
         performCallbackRequest(secondAgentId, inject.getId(), input2);
 
-        Awaitility.await()
-            .atMost(15, TimeUnit.SECONDS)
-            .with()
-            .pollInterval(1, TimeUnit.SECONDS)
-            .until(
-                () -> {
-                  Optional<Inject> injectSaved = injectRepository.findById(inject.getId());
-                  if (injectSaved.isEmpty()) {
-                    return false;
-                  }
-                  Optional<InjectStatus> injectStatusSaved = injectSaved.get().getStatus();
-                  return injectStatusSaved
-                      .filter(injectStatus -> injectStatus.getTraces().size() > 1)
-                      .isPresent();
-                });
-
         // -- ASSERT --
+        entityManager.flush();
+        entityManager.clear();
         Inject injectSaved = injectRepository.findById(inject.getId()).orElseThrow();
         InjectStatus injectStatusSaved = injectSaved.getStatus().orElseThrow();
         // Check inject status
@@ -1207,23 +1220,10 @@ class InjectApiTest extends IntegrationTest {
         input.setDuration(1000);
 
         performCallbackRequest(agent.getId(), inject.getId(), input);
-        Awaitility.await()
-            .atMost(15, TimeUnit.SECONDS)
-            .with()
-            .pollInterval(1, TimeUnit.SECONDS)
-            .until(
-                () -> {
-                  List<InjectExpectation> injectExpectationSaved =
-                      injectExpectationRepository.findAllByInjectAndAgent(
-                          inject.getId(), agent.getId());
-                  List<InjectExpectationSignature> endDatesignatures =
-                      injectExpectationSaved.getFirst().getSignatures().stream()
-                          .filter(s -> EXPECTATION_SIGNATURE_TYPE_END_DATE.equals(s.getType()))
-                          .toList();
-                  return endDatesignatures.size() > 0;
-                });
 
         // -- ASSERT --
+        entityManager.flush();
+        entityManager.clear();
         List<InjectExpectation> injectExpectationSaved =
             injectExpectationRepository.findAllByInjectAndAgent(inject.getId(), agent.getId());
         assertEquals(1, injectExpectationSaved.size());
@@ -1251,18 +1251,10 @@ class InjectApiTest extends IntegrationTest {
         input.setDuration(1000);
 
         performAgentlessCallbackRequest(inject.getId(), input);
-        Awaitility.await()
-            .atMost(15, TimeUnit.SECONDS)
-            .with()
-            .pollInterval(1, TimeUnit.SECONDS)
-            .until(
-                () -> {
-                  Inject dbInject = injectRepository.findById(inject.getId()).orElseThrow();
-                  return dbInject.getStatus().isPresent()
-                      && !dbInject.getStatus().get().getTraces().isEmpty();
-                });
 
         // -- ASSERT --
+        entityManager.flush();
+        entityManager.clear();
         Inject dbInject = injectRepository.findById(inject.getId()).orElseThrow();
         assertThat(dbInject.getStatus().get().getTraces()).isNotEmpty();
         assertThat(dbInject.getStatus().get().getTraces().size()).isEqualTo(1);
@@ -1301,23 +1293,9 @@ class InjectApiTest extends IntegrationTest {
         input.setStatus("INFO");
         performCallbackRequest(firstAgentId, inject.getId(), input);
 
-        Awaitility.await()
-            .atMost(15, TimeUnit.SECONDS)
-            .with()
-            .pollInterval(1, TimeUnit.SECONDS)
-            .until(
-                () -> {
-                  Optional<Inject> injectSaved = injectRepository.findById(inject.getId());
-                  if (injectSaved.isEmpty()) {
-                    return false;
-                  }
-                  Optional<InjectStatus> injectStatusSaved = injectSaved.get().getStatus();
-                  return injectStatusSaved
-                      .filter(injectStatus -> injectStatus.getTraces().size() > 2)
-                      .isPresent();
-                });
-
         // -- ASSERT --
+        entityManager.flush();
+        entityManager.clear();
         Inject injectSaved = injectRepository.findById(inject.getId()).orElseThrow();
         InjectStatus injectStatusSaved = injectSaved.getStatus().orElseThrow();
         List<ExecutionTrace> completeTraces =
@@ -1378,9 +1356,7 @@ class InjectApiTest extends IntegrationTest {
         OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(CVEOutputElement));
 
         Domain domainSaved = injectTestHelper.forceSaveDomain(DomainFixture.getRandomDomain());
-        Command payloadCommand =
-            PayloadFixture.createCommand(
-                "bash", "command", null, null, new HashSet<>(Set.of(domainSaved)));
+        Command payloadCommand = PayloadFixture.createCommand("bash", "command", null, null);
         payloadCommand.setOutputParsers(Set.of(outputParser));
         Payload payloadSaved = injectTestHelper.forceSavePayload(payloadCommand);
 
@@ -1390,6 +1366,7 @@ class InjectApiTest extends IntegrationTest {
         InjectorContract injectorContract =
             InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
                 injector, payloadSaved, List.of());
+        injectorContract.setDomains(Set.of(domainSaved));
         InjectorContractFixture.addTargetedAssetFields(
             injectorContract, "asset-key", ContractTargetedProperty.seen_ip);
         injectorContract.setContent(injectorContract.getConvertedContent().toString());
@@ -1411,16 +1388,9 @@ class InjectApiTest extends IntegrationTest {
         String agentId = ((Endpoint) inject.getAssets().getFirst()).getAgents().getFirst().getId();
         performCallbackRequest(agentId, inject.getId(), input);
 
-        Awaitility.await()
-            .atMost(15, TimeUnit.SECONDS)
-            .with()
-            .pollInterval(1, TimeUnit.SECONDS)
-            .until(
-                () -> {
-                  List<Finding> findings = findingRepository.findAllByInjectId(inject.getId());
-                  return findings.size() > 1;
-                });
-
+        // -- ASSERT --
+        entityManager.flush();
+        entityManager.clear();
         List<Finding> findings = findingRepository.findAllByInjectId(inject.getId());
         assertEquals(2, findings.size());
         assertEquals(1, findings.getFirst().getAssets().size());
@@ -1474,22 +1444,19 @@ class InjectApiTest extends IntegrationTest {
         convertedContent.set(CONTRACT_CONTENT_FIELDS, objectMapper.valueToTree(List.of()));
         InjectorContract injectorContract =
             InjectorContractFixture.createInjectorContract(convertedContent);
-        injectorContract.setInjector(injector);
         InjectorContract injectorContractSaved =
             injectTestHelper.forceSaveInjectorContract(injectorContract);
         inject.setInjectorContract(injectorContractSaved);
         inject.setContent(convertedContent);
+        inject.setInjector(injector);
         injectTestHelper.forceSaveInject(inject);
 
         // -- EXECUTE --
         performAgentlessCallbackRequest(inject.getId(), input);
 
         // -- ASSERT --
-        Awaitility.await()
-            .atMost(15, TimeUnit.SECONDS)
-            .with()
-            .pollInterval(1, TimeUnit.SECONDS)
-            .until(() -> !injectTestHelper.findFindingsByInjectId(inject.getId()).isEmpty());
+        entityManager.flush();
+        entityManager.clear();
 
         List<Finding> findings = findingRepository.findAllByInjectId(inject.getId());
         assertEquals(
@@ -1539,22 +1506,19 @@ class InjectApiTest extends IntegrationTest {
         convertedContent.set(CONTRACT_CONTENT_FIELDS, objectMapper.valueToTree(List.of()));
         InjectorContract injectorContract =
             InjectorContractFixture.createInjectorContract(convertedContent);
-        injectorContract.setInjector(injector);
         InjectorContract injectorContractSaved =
             injectTestHelper.forceSaveInjectorContract(injectorContract);
         inject.setInjectorContract(injectorContractSaved);
         inject.setContent(convertedContent);
+        inject.setInjector(injector);
         injectTestHelper.forceSaveInject(inject);
 
         // -- EXECUTE --
         performAgentlessCallbackRequest(inject.getId(), input);
 
         // -- ASSERT --
-        Awaitility.await()
-            .atMost(15, TimeUnit.SECONDS)
-            .with()
-            .pollInterval(1, TimeUnit.SECONDS)
-            .until(() -> injectTestHelper.findFindingsByInjectId(inject.getId()).size() >= 2);
+        entityManager.flush();
+        entityManager.clear();
 
         List<Finding> findings = findingRepository.findAllByInjectId(inject.getId());
         assertEquals(
@@ -1620,22 +1584,19 @@ class InjectApiTest extends IntegrationTest {
         convertedContent.set(CONTRACT_CONTENT_FIELDS, objectMapper.valueToTree(List.of()));
         InjectorContract injectorContract =
             InjectorContractFixture.createInjectorContract(convertedContent);
-        injectorContract.setInjector(injector);
         InjectorContract injectorContractSaved =
             injectTestHelper.forceSaveInjectorContract(injectorContract);
         inject.setInjectorContract(injectorContractSaved);
         inject.setContent(convertedContent);
+        inject.setInjector(injector);
         injectTestHelper.forceSaveInject(inject);
 
         // -- EXECUTE --
         performAgentlessCallbackRequest(inject.getId(), input);
 
         // -- ASSERT --
-        Awaitility.await()
-            .atMost(15, TimeUnit.SECONDS)
-            .with()
-            .pollInterval(1, TimeUnit.SECONDS)
-            .until(() -> !injectTestHelper.findFindingsByInjectId(inject.getId()).isEmpty());
+        entityManager.flush();
+        entityManager.clear();
 
         List<Finding> findings = findingRepository.findAllByInjectId(inject.getId());
         assertEquals(
@@ -3177,28 +3138,18 @@ class InjectApiTest extends IntegrationTest {
         convertedContent.set(CONTRACT_CONTENT_FIELDS, objectMapper.valueToTree(List.of()));
         InjectorContract injectorContract =
             InjectorContractFixture.createInjectorContract(convertedContent);
-        injectorContract.setInjector(injector);
         InjectorContract injectorContractSaved =
             injectTestHelper.forceSaveInjectorContract(injectorContract);
         inject.setInjectorContract(injectorContractSaved);
         inject.setContent(convertedContent);
+        inject.setInjector(injector);
         injectTestHelper.forceSaveInject(inject);
 
         // -- EXECUTE --
         performAgentlessCallbackRequest(inject.getId(), input);
 
-        Awaitility.await()
-            .atMost(15, TimeUnit.SECONDS)
-            .with()
-            .pollInterval(1, TimeUnit.SECONDS)
-            .until(
-                () -> {
-                  List<Endpoint> endpointsA =
-                      endpointRepository.findByExternalReference("https://shodan.io/.../assetA");
-                  List<Endpoint> endpointsB =
-                      endpointRepository.findByExternalReference("https://shodan.io/.../assetB");
-                  return endpointsA.size() == 1 && endpointsB.size() == 1;
-                });
+        entityManager.flush();
+        entityManager.clear();
 
         List<Endpoint> endpointsA =
             endpointRepository.findByExternalReference("https://shodan.io/.../assetA");
@@ -3279,26 +3230,18 @@ class InjectApiTest extends IntegrationTest {
         convertedContent.set(CONTRACT_CONTENT_FIELDS, objectMapper.valueToTree(List.of()));
         InjectorContract injectorContract =
             InjectorContractFixture.createInjectorContract(convertedContent);
-        injectorContract.setInjector(injector);
         InjectorContract injectorContractSaved =
             injectTestHelper.forceSaveInjectorContract(injectorContract);
         inject.setInjectorContract(injectorContractSaved);
         inject.setContent(convertedContent);
+        inject.setInjector(injector);
         injectTestHelper.forceSaveInject(inject);
 
         // -- EXECUTE --
         performAgentlessCallbackRequest(inject.getId(), input);
 
-        Awaitility.await()
-            .atMost(15, TimeUnit.SECONDS)
-            .with()
-            .pollInterval(1, TimeUnit.SECONDS)
-            .until(
-                () -> {
-                  List<Endpoint> endpointsA =
-                      endpointRepository.findByExternalReference("https://shodan.io/.../assetA");
-                  return endpointsA.size() == 1;
-                });
+        entityManager.flush();
+        entityManager.clear();
 
         List<Endpoint> endpointsA =
             endpointRepository.findByExternalReference("https://shodan.io/.../assetA");
@@ -3360,11 +3303,11 @@ class InjectApiTest extends IntegrationTest {
         convertedContent.set(CONTRACT_CONTENT_FIELDS, objectMapper.valueToTree(List.of()));
         InjectorContract injectorContract =
             InjectorContractFixture.createInjectorContract(convertedContent);
-        injectorContract.setInjector(injector);
         InjectorContract injectorContractSaved =
             injectTestHelper.forceSaveInjectorContract(injectorContract);
         inject.setInjectorContract(injectorContractSaved);
         inject.setContent(convertedContent);
+        inject.setInjector(injector);
         injectTestHelper.forceSaveInject(inject);
 
         // -- EXECUTE --
@@ -3414,11 +3357,11 @@ class InjectApiTest extends IntegrationTest {
         convertedContent.set(CONTRACT_CONTENT_FIELDS, objectMapper.valueToTree(List.of()));
         InjectorContract injectorContract =
             InjectorContractFixture.createInjectorContract(convertedContent);
-        injectorContract.setInjector(injector);
         InjectorContract injectorContractSaved =
             injectTestHelper.forceSaveInjectorContract(injectorContract);
         inject.setInjectorContract(injectorContractSaved);
         inject.setContent(convertedContent);
+        inject.setInjector(injector);
         injectTestHelper.forceSaveInject(inject);
 
         // -- EXECUTE --
@@ -3489,26 +3432,18 @@ class InjectApiTest extends IntegrationTest {
         convertedContent.set(CONTRACT_CONTENT_FIELDS, objectMapper.valueToTree(List.of()));
         InjectorContract injectorContract =
             InjectorContractFixture.createInjectorContract(convertedContent);
-        injectorContract.setInjector(injector);
         InjectorContract injectorContractSaved =
             injectTestHelper.forceSaveInjectorContract(injectorContract);
         inject.setInjectorContract(injectorContractSaved);
         inject.setContent(convertedContent);
+        inject.setInjector(injector);
         injectTestHelper.forceSaveInject(inject);
 
         // -- EXECUTE --
         performAgentlessCallbackRequest(inject.getId(), input);
 
-        Awaitility.await()
-            .atMost(15, TimeUnit.SECONDS)
-            .with()
-            .pollInterval(1, TimeUnit.SECONDS)
-            .until(
-                () -> {
-                  List<Endpoint> endpointsA =
-                      endpointRepository.findByExternalReference("https://shodan.io/.../assetC");
-                  return endpointsA.size() == 1;
-                });
+        entityManager.flush();
+        entityManager.clear();
 
         List<Endpoint> endpointsA =
             endpointRepository.findByExternalReference("https://shodan.io/.../assetC");
@@ -3758,10 +3693,10 @@ class InjectApiTest extends IntegrationTest {
           .withInjectorContract(
               injectorContractComposer
                   .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+                  .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                   .withPayload(
                       payloadComposer
                           .forPayload(PayloadFixture.createDefaultFileDrop())
-                          .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                           .withFileDrop(
                               documentComposer.forDocument(
                                   DocumentFixture.getDocument(
@@ -3776,10 +3711,10 @@ class InjectApiTest extends IntegrationTest {
           .withInjectorContract(
               injectorContractComposer
                   .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+                  .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                   .withPayload(
                       payloadComposer
                           .forPayload(PayloadFixture.createDefaultExecutable())
-                          .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                           .withExecutable(
                               documentComposer.forDocument(
                                   DocumentFixture.getDocument(FileFixture.getBeadFileContent())))))
@@ -3927,16 +3862,19 @@ class InjectApiTest extends IntegrationTest {
               .withInjectorContract(
                   injectorContractComposer
                       .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+                      .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                       .withPayload(
                           payloadComposer
                               .forPayload(PayloadFixture.createDefaultCommand())
-                              .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                               .withDetectionRemediation(
                                   detectionRemediationComposer
                                       .forDetectionRemediation(
                                           DetectionRemediationFixture
                                               .createDefaultDetectionRemediation())
-                                      .withCollector(collectorComposer.forCollector(collector)))))
+                                      .withCollectorType(
+                                          collectorTypeComposer.forCollectorType(
+                                              CollectorTypeFixture.createCollectorType(
+                                                  collector.getType()))))))
               .persist()
               .get();
 

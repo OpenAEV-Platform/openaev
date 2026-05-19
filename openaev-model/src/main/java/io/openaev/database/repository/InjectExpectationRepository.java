@@ -1,7 +1,7 @@
 package io.openaev.database.repository;
 
 import io.openaev.database.model.InjectExpectation;
-import io.openaev.database.raw.RawInjectExpectation;
+import io.openaev.database.raw.RawInjectExpectationIndexing;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -84,24 +84,6 @@ public interface InjectExpectationRepository
       @Param("injectId") @NotBlank final String injectId,
       @Param("playerId") @NotBlank final String playerId);
 
-  @Query(
-      "select ie from InjectExpectation ie "
-          + "where ie.inject.id = :injectId "
-          + "and ie.team.id = :teamId "
-          + "and ie.name = :expectationName "
-          + "ORDER BY ie.type, ie.createdAt")
-  List<InjectExpectation> findAllByInjectAndTeamAndExpectationName(
-      final String injectId, final String teamId, final String expectationName);
-
-  @Query(
-      "select ie from InjectExpectation ie "
-          + "where ie.inject.id = :injectId "
-          + "and ie.team.id = :teamId "
-          + "and ie.name = :expectationName "
-          + "and ie.user is not null")
-  List<InjectExpectation> findAllByInjectAndTeamAndExpectationNameAndUserIsNotNull(
-      final String injectId, final String teamId, final String expectationName);
-
   // -- RETRIEVE EXPECTATIONS FOR TEAM AND NOT FOR PLAYERS
   @Query(
       value =
@@ -177,7 +159,7 @@ public interface InjectExpectationRepository
               + "AND i.agent_id is null ;",
       nativeQuery = true)
   // We don't include expectations for players, only for the team, neither for agents, if applicable
-  List<RawInjectExpectation> rawForComputeGlobalByInjectIds(
+  List<RawInjectExpectationIndexing> rawForComputeGlobalByInjectIds(
       @Param("injectIds") Set<String> injectIds);
 
   @Query(
@@ -201,7 +183,7 @@ public interface InjectExpectationRepository
               + "AND i.agent_id is null ;",
       nativeQuery = true)
   // We don't include expectations for players, only for the team, if applicable
-  List<RawInjectExpectation> rawForComputeGlobalByExerciseIds(
+  List<RawInjectExpectationIndexing> rawForComputeGlobalByExerciseIds(
       @Param("exerciseIds") Set<String> exerciseIds);
 
   @Query(
@@ -251,10 +233,11 @@ public interface InjectExpectationRepository
       ie.agent_id,
       ie.asset_id,
       ie.asset_group_id,
+      i.tenant_id,
       i.inject_title as inject_title,
       MAX(ins.tracking_sent_date) AS tracking_sent_date,
       array_agg(DISTINCT ap.attack_pattern_id) FILTER ( WHERE ap.attack_pattern_id IS NOT NULL ) AS attack_pattern_ids,
-      coalesce(array_agg(DISTINCT p_d.domain_id) FILTER (WHERE p_d.domain_id IS NOT NULL ),array_agg(DISTINCT ic_d.domain_id) FILTER (WHERE ic_d.domain_id IS NOT NULL )) domain_ids,
+      array_agg(DISTINCT ic_d.domain_id) FILTER (WHERE ic_d.domain_id IS NOT NULL ) AS domain_ids,
       MAX(se.scenario_id) AS scenario_id,
       array_agg(DISTINCT c.collector_security_platform) FILTER ( WHERE c.collector_security_platform IS NOT NULL ) ||
       array_agg(DISTINCT a.asset_id) FILTER ( WHERE a.asset_id IS NOT NULL ) AS security_platform_ids
@@ -266,7 +249,6 @@ public interface InjectExpectationRepository
     LEFT JOIN injectors_contracts_attack_patterns ic_ap ON ic_ap.injector_contract_id = ic.injector_contract_id
     LEFT JOIN attack_patterns ap ON ap.attack_pattern_id = ic_ap.attack_pattern_id
     LEFT JOIN injectors_contracts_domains ic_d ON ic_d.injector_contract_id = ic.injector_contract_id
-    LEFT JOIN payloads_domains p_d ON p_d.payload_id = ic.injector_contract_payload
     LEFT JOIN users u ON u.user_id = ie.user_id
     LEFT JOIN teams t ON t.team_id = ie.team_id
     LEFT JOIN assets asset ON asset.asset_id = ie.asset_id
@@ -278,13 +260,30 @@ public interface InjectExpectationRepository
     GROUP BY
       ie.inject_expectation_id,
       ic.injector_contract_id,
-      i.inject_title
+      i.inject_title,
+        i.tenant_id
     )
     SELECT * FROM inject_expectation_data ied
     WHERE ied.inject_expectation_updated_at > :from AND ied.agent_id IS NULL
     ORDER BY ied.inject_expectation_updated_at ASC
-    LIMIT 500
+    LIMIT :limit
     """,
       nativeQuery = true)
-  List<RawInjectExpectation> findForIndexing(@Param("from") Instant from);
+  List<RawInjectExpectationIndexing> findForIndexing(
+      @Param("from") Instant from, @Param("limit") int limit);
+
+  /**
+   * Retrieves a set of distinct inject IDs associated with the specified inject expectation IDs.
+   *
+   * @param expectationIds the set of inject expectation IDs to filter by
+   * @return a set of distinct inject IDs linked to the given expectation IDs
+   */
+  @Query(
+      """
+      SELECT DISTINCT ie.inject.id
+      FROM InjectExpectation ie
+      WHERE ie.id IN :expectationIds
+      """)
+  Set<String> findDistinctInjectIdsByInjectExpectationIds(
+      @Param("expectationIds") Set<String> expectationIds);
 }

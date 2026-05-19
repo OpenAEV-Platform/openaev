@@ -1,132 +1,34 @@
-import { CheckCircleOutlined, PersonOutlined } from '@mui/icons-material';
-import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
-import { useState } from 'react';
-import { useSearchParams } from 'react-router';
-import { makeStyles } from 'tss-react/mui';
+import { Box, Tab, Tabs } from '@mui/material';
+import { useContext, useState } from 'react';
 
-import { fetchOrganizations } from '../../../../actions/Organization';
-import { searchUsers } from '../../../../actions/users/User';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
-import ExportButton from '../../../../components/common/ExportButton';
-import { initSorting } from '../../../../components/common/queryable/Page';
-import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
-import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
-import SortHeadersComponentV2 from '../../../../components/common/queryable/sort/SortHeadersComponentV2';
-import { useQueryableWithLocalStorage } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useFormatter } from '../../../../components/i18n';
-import ItemTags from '../../../../components/ItemTags';
-import { type User, type UserOutput } from '../../../../utils/api-types';
-import { useAppDispatch } from '../../../../utils/hooks';
-import useDataLoader from '../../../../utils/hooks/useDataLoader';
-import { Can } from '../../../../utils/permissions/permissionsContext';
+import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
+import NoEnterpriseEdition from '../../../../utils/permissions/NoEnterpriseEdition';
+import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { isFeatureEnabled } from '../../../../utils/utils';
+import EEChip from '../../common/entreprise_edition/EEChip';
+import { SETTINGS_LABEL } from '../../nav/config/settings.config';
 import SecurityMenu from '../SecurityMenu';
-import CreateUser from './CreateUser';
-import UserPopover from './UserPopover';
-
-const useStyles = makeStyles()(() => ({
-  container: {
-    margin: 0,
-    padding: '0 200px 50px 0',
-  },
-  itemHead: {
-    paddingLeft: 10,
-    textTransform: 'uppercase',
-    cursor: 'pointer',
-  },
-  item: {
-    paddingLeft: 10,
-    height: 50,
-  },
-  bodyItems: {
-    display: 'flex',
-    alignItems: 'center',
-  },
-  bodyItem: {
-    fontSize: 13,
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    paddingRight: 10,
-  },
-}));
-
-const inlineStyles = {
-  user_email: { width: '20%' },
-  user_firstname: { width: '15%' },
-  user_lastname: { width: '15%' },
-  user_organization: {
-    width: '15%',
-    cursor: 'default',
-  },
-  user_admin: { width: '10%' },
-  user_tags: { width: '25%' },
-};
+import PlatformUsersTab from './platform_users/PlatformUsersTab';
+import TenantUsersTab from './tenant_users/TenantUsersTab';
 
 const Users = () => {
-  // Standard hooks
-  const { classes } = useStyles();
-  const dispatch = useAppDispatch();
   const { t } = useFormatter();
-
-  useDataLoader(() => {
-    dispatch(fetchOrganizations());
-  });
-
-  // Headers
-  const headers = [
-    {
-      field: 'user_email',
-      label: 'Email address',
-      isSortable: true,
-    },
-    {
-      field: 'user_firstname',
-      label: 'Firstname',
-      isSortable: true,
-    },
-    {
-      field: 'user_lastname',
-      label: 'Lastname',
-      isSortable: true,
-    },
-    {
-      field: 'user_organization',
-      label: 'Organization',
-      isSortable: false,
-    },
-    {
-      field: 'user_admin',
-      label: 'Administrator',
-      isSortable: true,
-    },
-    {
-      field: 'user_tags',
-      label: 'Tags',
-      isSortable: true,
-    },
-  ];
-
-  // Query param
-  const [searchParams] = useSearchParams();
-  const [search] = searchParams.getAll('search');
-
-  const [users, setUsers] = useState<UserOutput[]>([]);
-  const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage('users', buildSearchPagination({
-    sorts: initSorting('user_firstname'),
-    textSearch: search,
-  }));
-
-  // Export
-  const exportProps = {
-    exportType: 'tags',
-    exportKeys: [
-      'user_email',
-      'user_firstname',
-      'user_lastname',
-    ],
-    exportData: users,
-    exportFileName: `${t('Users')}.csv`,
+  const ability = useContext(AbilityContext);
+  const { isValidated: isEnterpriseEdition, openDialog } = useEnterpriseEdition();
+  const canAccessTenant = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS);
+  const canAccessPlatform = ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_USERS_GROUPS_AND_ROLES) && isFeatureEnabled('MULTI_TENANCY');
+  const defaultTab = canAccessTenant ? 'tenant' : 'platform';
+  const [currentTab, setCurrentTab] = useState(() => localStorage.getItem('settings_users_tab') ?? defaultTab);
+  const handleTabChange = (val: string) => {
+    if (val === 'platform' && !isEnterpriseEdition) {
+      openDialog();
+      return;
+    }
+    localStorage.setItem('settings_users_tab', val);
+    setCurrentTab(val);
   };
 
   return (
@@ -134,98 +36,35 @@ const Users = () => {
       <div style={{ flexGrow: 1 }}>
         <Breadcrumbs
           variant="list"
-          elements={[{ label: t('Settings') }, { label: t('Security') }, {
+          elements={[{ label: t(SETTINGS_LABEL) }, { label: t('Security') }, {
             label: t('Users'),
             current: true,
           }]}
         />
-        <PaginationComponentV2
-          disableFilters
-          fetch={searchUsers}
-          searchPaginationInput={searchPaginationInput}
-          setContent={setUsers}
-          entityPrefix="user"
-          queryableHelpers={queryableHelpers}
-          topBarButtons={
-            <ExportButton totalElements={queryableHelpers.paginationHelpers.getTotalElements()} exportProps={exportProps} />
-          }
-        />
-        <List>
-          <ListItem
-            classes={{ root: classes.itemHead }}
-            divider={false}
-            style={{ paddingTop: 0 }}
-            secondaryAction={<>&nbsp;</>}
+        <Box sx={{
+          borderBottom: 1,
+          borderColor: 'divider',
+          marginBottom: 2,
+        }}
+        >
+          <Tabs
+            value={currentTab}
+            onChange={(_, val) => handleTabChange(val)}
           >
-            <ListItemIcon>
-              <span
-                style={{
-                  padding: '0 8px 0 8px',
-                  fontWeight: 700,
-                  fontSize: 12,
-                }}
-              >
-              &nbsp;
-              </span>
-            </ListItemIcon>
-            <ListItemText
-              primary={(
-                <SortHeadersComponentV2
-                  headers={headers}
-                  inlineStylesHeaders={inlineStyles}
-                  sortHelpers={queryableHelpers.sortHelpers}
-                />
-              )}
-            />
-          </ListItem>
-          {users.map(user => (
-            <ListItem
-              key={user.user_id}
-              classes={{ root: classes.item }}
-              divider={true}
-              secondaryAction={(
-                <UserPopover
-                  user={user}
-                  onUpdate={(result: User) => setUsers(users.map(u => (u.user_id !== result.user_id ? u : result)))}
-                  onDelete={(result: string) => setUsers(users.filter(u => (u.user_id !== result)))}
-                />
-              )}
-            >
-              <ListItemIcon>
-                <PersonOutlined color="primary" />
-              </ListItemIcon>
-              <ListItemText
-                primary={(
-                  <div className={classes.bodyItems}>
-                    <div className={classes.bodyItem} style={inlineStyles.user_email}>
-                      {user.user_email}
-                    </div>
-                    <div className={classes.bodyItem} style={inlineStyles.user_firstname}>
-                      {user.user_firstname}
-                    </div>
-                    <div className={classes.bodyItem} style={inlineStyles.user_lastname}>
-                      {user.user_lastname}
-                    </div>
-                    <div className={classes.bodyItem} style={inlineStyles.user_organization}>
-                      {user.user_organization_name}
-                    </div>
-                    <div className={classes.bodyItem} style={inlineStyles.user_admin}>
-                      {user.user_admin ? (<CheckCircleOutlined fontSize="small" />) : ('-')}
-                    </div>
-                    <div className={classes.bodyItem} style={inlineStyles.user_tags}>
-                      <ItemTags variant="list" tags={user.user_tags} />
-                    </div>
-                  </div>
-                )}
+            {canAccessTenant && <Tab label="Tenant" value="tenant" />}
+            {canAccessPlatform && (
+              <Tab
+                label={t('Platform')}
+                value="platform"
+                icon={!isEnterpriseEdition ? <EEChip clickable /> : undefined}
+                iconPosition="end"
+                sx={{ gap: 1 }}
               />
-            </ListItem>
-          ))}
-        </List>
-        <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
-          <CreateUser
-            onCreate={(result: User) => setUsers([result, ...users])}
-          />
-        </Can>
+            )}
+          </Tabs>
+        </Box>
+        {currentTab === 'tenant' && canAccessTenant && <TenantUsersTab />}
+        {currentTab === 'platform' && canAccessPlatform && (isEnterpriseEdition ? <PlatformUsersTab /> : <NoEnterpriseEdition />)}
       </div>
       <SecurityMenu />
     </div>

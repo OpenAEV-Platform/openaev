@@ -1,5 +1,4 @@
-import * as R from 'ramda';
-import { type Dispatch, type SetStateAction, useEffect, useState } from 'react';
+import { type Dispatch, type SetStateAction, useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { useLocalStorage } from 'usehooks-ts';
 
@@ -82,15 +81,43 @@ export const useQueryableWithLocalStorage = (localStorageKey: string, initSearch
     localStorageKey,
     searchPaginationInputFromUri ?? finalSearchPaginationInput,
   );
-  // add a transitional state to avoid re render because of useLocalStorage hook
-  const [searchPaginationInput, setSearchPaginationInput] = useState(searchPaginationInputFromUri ?? searchPaginationInputFromLocalStorage);
+
+  // Transitional state to avoid re-render caused by useLocalStorage hook
+  const [searchPaginationInput, setSearchPaginationInput] = useState(
+    searchPaginationInputFromUri ?? searchPaginationInputFromLocalStorage,
+  );
+
+  // Flag to skip useEffect when the update originates from within this hook
+  const isInternalUpdate = useRef(false);
+
+  // Always write to both states together to keep them in sync
+  const updateSearchPaginationInput = useCallback(
+    (value: SetStateAction<SearchPaginationInput>) => {
+      // Resolve functional updates (e.g. (prev) => newState)
+      const newInput = typeof value === 'function' ? value(searchPaginationInput) : value;
+      isInternalUpdate.current = true;
+      setSearchPaginationInput(newInput);
+      setSearchPaginationInputFromLocalStorage(newInput);
+    },
+    [searchPaginationInput, setSearchPaginationInputFromLocalStorage],
+  );
 
   useEffect(() => {
-    // check deep changes between state from local storage and transitional state
-    if (!R.equals(searchPaginationInputFromLocalStorage, searchPaginationInput)) {
+    // Ignore internal updates — already handled by setSearchPaginationInputBoth
+    if (isInternalUpdate.current) {
+      isInternalUpdate.current = false;
+      return;
+    }
+    // Only react to external changes (e.g. another tab updating localStorage)
+    if (JSON.stringify(searchPaginationInputFromLocalStorage) !== JSON.stringify(searchPaginationInput)) {
       setSearchPaginationInput(searchPaginationInputFromLocalStorage);
     }
   }, [searchPaginationInputFromLocalStorage]);
 
-  return buildUseQueryable(localStorageKey, initSearchPaginationInput, searchPaginationInput, setSearchPaginationInputFromLocalStorage);
+  return buildUseQueryable(
+    localStorageKey,
+    initSearchPaginationInput,
+    searchPaginationInput,
+    updateSearchPaginationInput,
+  );
 };

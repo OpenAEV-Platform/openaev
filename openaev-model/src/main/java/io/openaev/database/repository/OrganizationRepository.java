@@ -2,9 +2,9 @@ package io.openaev.database.repository;
 
 import io.openaev.database.model.Organization;
 import io.openaev.database.raw.RawOrganization;
+import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Optional;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
@@ -32,6 +32,7 @@ public interface OrganizationRepository
               + "LEFT JOIN users_teams ON users.user_id = users_teams.user_id "
               + "LEFT JOIN injects_teams ON injects_teams.team_id = users_teams.team_id "
               + "LEFT JOIN injects ON injects.inject_id = injects_teams.inject_id OR injects.inject_all_teams "
+              + "WHERE org.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY org.organization_id",
       nativeQuery = true)
   List<RawOrganization> rawAll();

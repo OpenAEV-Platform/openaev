@@ -8,6 +8,7 @@ import static org.springframework.util.StringUtils.hasText;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.config.EngineConfig;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.CustomDashboardParameters;
 import io.openaev.database.model.Filters;
 import io.openaev.database.model.IndexingStatus;
@@ -20,7 +21,7 @@ import io.openaev.engine.EngineService;
 import io.openaev.engine.EsModel;
 import io.openaev.engine.Handler;
 import io.openaev.engine.api.*;
-import io.openaev.engine.api.WidgetConfiguration.Series;
+import io.openaev.engine.api.WidgetConfigurationWithSeries.Series;
 import io.openaev.engine.model.EsBase;
 import io.openaev.engine.model.EsSearch;
 import io.openaev.engine.query.*;
@@ -341,6 +342,22 @@ public class OpenSearchService implements EngineService {
     }
     Query dataQuery = dataQueryBuilder.should(shouldList).minimumShouldMatch("1").build().toQuery();
     mainMust.add(dataQuery);
+
+    // Filter by current tenant: match tenant-scoped documents belonging to this tenant,
+    // or platform-level documents that have no tenant field at all.
+    Query matchesTenant =
+        TermQuery.of(
+                t ->
+                    t.field("base_tenant_side.keyword")
+                        .value(v -> v.stringValue(TenantContext.getCurrentTenant())))
+            .toQuery();
+    Query noTenantField =
+        BoolQuery.of(
+                b -> b.mustNot(ExistsQuery.of(e -> e.field("base_tenant_side.keyword")).toQuery()))
+            .toQuery();
+    Query tenantFilter =
+        BoolQuery.of(b -> b.should(matchesTenant, noTenantField).minimumShouldMatch("1")).toQuery();
+    mainQuery.filter(tenantFilter);
     return mainQuery.must(mainMust).build().toQuery();
   }
 
@@ -357,6 +374,7 @@ public class OpenSearchService implements EngineService {
     filter.setKey("base_id");
     filter.setOperator(Filters.FilterOperator.eq);
     filter.setValues(ids);
+    filter.setMode(Filters.FilterMode.or);
     filterGroup.setFilters(List.of(filter));
     Query query = buildQuery(user, null, filterGroup, new HashMap<>(), new HashMap<>());
     try {
@@ -390,7 +408,8 @@ public class OpenSearchService implements EngineService {
                   String index = model.getIndex(engineConfig);
                   Instant fetchInstant =
                       indexingStatus.map(IndexingStatus::getLastIndexing).orElse(null);
-                  List<? extends EsBase> results = handler.fetch(fetchInstant);
+                  List<? extends EsBase> results =
+                      handler.fetch(fetchInstant, engineConfig.getIndexingBatchSize());
                   if (!results.isEmpty()) {
                     // Create bulk for the data
                     BulkRequest.Builder br = new BulkRequest.Builder();
@@ -925,7 +944,7 @@ public class OpenSearchService implements EngineService {
         .toList();
   }
 
-  public List<EsBase> entities(RawUserAuth user, ListRuntime runtime) {
+  public EsEntities entities(RawUserAuth user, ListRuntime runtime) {
     Filters.FilterGroup searchFilters = runtime.getWidget().getPerspective().getFilter();
     String entityName =
         searchFilters.getFilters().stream()
@@ -982,18 +1001,26 @@ public class OpenSearchService implements EngineService {
           openSearchClient.search(
               b ->
                   b.index(engineConfig.getIndexPrefix() + "*")
-                      .size(runtime.getWidget().getLimit())
+                      .size(runtime.getPagination().getSize())
+                      .from(runtime.getPagination().getPage() * runtime.getPagination().getSize())
                       .query(finalQuery)
                       .sort(engineSorts),
               getClassForEntity(entityName));
-      return response.hits().hits().stream()
-          .filter(hit -> hit.source() != null)
-          .map(hit -> (EsBase) hit.source())
-          .toList();
+      long total = response.hits().total() != null ? response.hits().total().value() : 0;
+      return new EsEntities(
+          response.hits().hits().stream()
+              .filter(hit -> hit.source() != null)
+              .map(hit -> (EsBase) hit.source())
+              .toList(),
+          total,
+          runtime.getPagination().getSize(),
+          runtime.getPagination().getPage(),
+          Math.ceilDiv(total, runtime.getPagination().getSize()));
+
     } catch (IOException e) {
       log.error("query exception: {}", e.getMessage(), e);
     }
-    return List.of();
+    return new EsEntities(new ArrayList<>(), 0, 0, 0, 0);
   }
 
   /**

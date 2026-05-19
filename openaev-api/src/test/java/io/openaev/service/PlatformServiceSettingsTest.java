@@ -6,14 +6,12 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 import io.openaev.IntegrationTest;
 import io.openaev.config.OpenAEVConfig;
-import io.openaev.config.RabbitmqConfig;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.RabbitMQTestListener;
 import jakarta.annotation.Resource;
 import java.util.List;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -33,15 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class PlatformServiceSettingsTest extends IntegrationTest {
 
   @Autowired private PlatformSettingsService platformSettingsService;
-  @Resource private RabbitmqConfig rabbitmqConfig;
   @Resource private OpenAEVConfig openaevConfig;
-
-  @BeforeAll
-  public void beforeAll() {
-    // some repetitive setup necessary to mock config
-    rabbitmqConfig.setUser("admin");
-    rabbitmqConfig.setPass("pass");
-  }
 
   @Test
   @WithMockUser(isAdmin = true)

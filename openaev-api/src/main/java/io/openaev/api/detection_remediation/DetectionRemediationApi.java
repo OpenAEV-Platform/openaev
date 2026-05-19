@@ -1,9 +1,9 @@
 package io.openaev.api.detection_remediation;
 
-import static io.openaev.api.detection_remediation.DetectionRemediationApi.DETECTION_REMEDIATION_URI;
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
+import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.aop.RBAC;
 import io.openaev.api.detection_remediation.dto.DetectionRemediationAIOutput;
 import io.openaev.api.detection_remediation.dto.PayloadInput;
 import io.openaev.database.model.*;
@@ -26,13 +26,14 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 @RestController
-@RequestMapping(DETECTION_REMEDIATION_URI)
 @RequiredArgsConstructor
 public class DetectionRemediationApi {
   private final DetectionRemediationService detectionRemediationService;
   private final InjectService injectService;
 
-  public static final String DETECTION_REMEDIATION_URI = "api/detection-remediations/ai";
+  public static final String DETECTION_REMEDIATION_URI = "/api/detection-remediations/ai";
+  public static final String TENANT_DETECTION_REMEDIATION_URI =
+      TENANT_PREFIX + "/detection-remediations/ai";
 
   @Operation(summary = "Get the status of the remediation-detection web service")
   @ApiResponses(
@@ -44,9 +45,9 @@ public class DetectionRemediationApi {
             responseCode = "503",
             description = "Web service is not deployed on this instance")
       })
-  @GetMapping("/health")
+  @GetMapping({DETECTION_REMEDIATION_URI + "/health", TENANT_DETECTION_REMEDIATION_URI + "/health"})
   @LogExecutionTime
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public ResponseEntity<DetectionRemediationHealthResponse> checkHealth() {
     return ResponseEntity.ok(detectionRemediationService.checkHealthWebservice());
   }
@@ -73,9 +74,12 @@ public class DetectionRemediationApi {
             responseCode = "501",
             description = "AI Webservice for collector type microsoft sentinel not implemented")
       })
-  @PostMapping("/rules/{collectorType}")
+  @PostMapping({
+    DETECTION_REMEDIATION_URI + "/rules/{collectorType}",
+    TENANT_DETECTION_REMEDIATION_URI + "/rules/{collectorType}"
+  })
   @LogExecutionTime
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.PAYLOAD)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PAYLOAD)
   public ResponseEntity<DetectionRemediationAIOutput> postRuleDetectionRemediation(
       @PathVariable @NotBlank final String collectorType, @Valid @RequestBody PayloadInput input) {
     if (input.getType().equals(FileDrop.FILE_DROP_TYPE)
@@ -139,8 +143,11 @@ public class DetectionRemediationApi {
             description = "Collector not found with type {collectorType}")
       })
   @LogExecutionTime
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.PAYLOAD)
-  @PostMapping("rules/inject/{injectId}/collector/{collectorType}")
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PAYLOAD)
+  @PostMapping({
+    DETECTION_REMEDIATION_URI + "/rules/inject/{injectId}/collector/{collectorType}",
+    TENANT_DETECTION_REMEDIATION_URI + "/rules/inject/{injectId}/collector/{collectorType}"
+  })
   public ResponseEntity<DetectionRemediationOutput>
       postRuleDetectionRemediationByInjectIdAndCollectorType(
           @PathVariable @NotBlank String injectId, @PathVariable @NotBlank String collectorType) {
@@ -152,10 +159,15 @@ public class DetectionRemediationApi {
       throw new IllegalStateException("Illegal value: Inject has not payload");
 
     Payload payload = payloadOptional.get();
+    List<AttackPattern> attackPatterns =
+        inject.getInjectorContract().isPresent()
+            ? inject.getInjectorContract().get().getAttackPatterns()
+            : List.of();
+
     List<DetectionRemediation> detectionRemediations = payload.getDetectionRemediations();
     DetectionRemediation detectionRemediation =
         detectionRemediationService.getOrCreateDetectionRemediationWithAIRulesByCollector(
-            detectionRemediations, payload, collectorType);
+            detectionRemediations, payload, collectorType, attackPatterns);
 
     DetectionRemediationOutput detectionRemediationOutput =
         PayloadMapper.toDetectionRemediationOutput(detectionRemediation);

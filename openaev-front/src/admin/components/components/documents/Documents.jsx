@@ -19,6 +19,7 @@ import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { useHelper } from '../../../../store';
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { buildTenantApiPath } from '../../../../utils/url-helper';
 import CreateDocument from './CreateDocument';
 import DocumentPopover from './DocumentPopover';
 import DocumentType from './DocumentType';
@@ -242,7 +243,7 @@ const Documents = () => {
                   <ListItemButton
                     classes={{ root: classes.item }}
                     component="a"
-                    href={`/api/documents/${document.document_id}/file`}
+                    href={buildTenantApiPath(`/api/documents/${document.document_id}/file`)}
                   >
                     <ListItemIcon>
                       <DescriptionOutlined color="primary" />

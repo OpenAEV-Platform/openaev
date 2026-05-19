@@ -16,18 +16,22 @@ import java.io.IOException;
 import java.util.List;
 import org.apache.hc.client5.http.ClientProtocolException;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
-import org.apache.hc.core5.http.*;
+import org.apache.hc.core5.http.ClassicHttpRequest;
+import org.apache.hc.core5.http.HttpStatus;
 import org.apache.hc.core5.http.io.HttpClientResponseHandler;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
 public class OpenCTIClientTest extends IntegrationTest {
 
-  @MockBean private HttpClientFactory mockHttpClientFactory;
+  @MockitoBean private HttpClientFactory mockHttpClientFactory;
   @Mock private CloseableHttpClient mockHttpClient;
   @Autowired private OpenCTIClient client;
 

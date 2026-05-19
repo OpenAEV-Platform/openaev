@@ -43,4 +43,8 @@ public class OpenCTIConfig {
 
     return String.join("/", urlStripped, GRAPHQL_ENDPOINT_URI);
   }
+
+  public String getFormattedUrl() {
+    return url.endsWith("/") ? url : url + "/";
+  }
 }

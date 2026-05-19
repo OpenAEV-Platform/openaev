@@ -10,11 +10,12 @@ import static java.util.Optional.ofNullable;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
-import io.openaev.database.raw.RawInjectExpectation;
+import io.openaev.database.raw.RawInjectExpectationIndexing;
 import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.repository.TeamRepository;
+import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.rest.atomic_testing.form.InjectResultOutput;
 import io.openaev.rest.atomic_testing.form.InjectStatusSimple;
 import io.openaev.rest.atomic_testing.form.InjectorContractSimple;
@@ -54,6 +55,8 @@ public class InjectSearchService {
 
   private final InjectMapper injectMapper;
   private final InjectExpectationMapper injectExpectationMapper;
+
+  private final HealthCheckUtils healthCheckUtils;
 
   @PersistenceContext private EntityManager entityManager;
 
@@ -142,7 +145,7 @@ public class InjectSearchService {
     Join<Base, Base> payloadJoin = injectorContractJoin.join("payload", JoinType.LEFT);
     joinMap.put("payload", payloadJoin);
 
-    Join<Base, Base> injectorJoin = injectorContractJoin.join("injector", JoinType.LEFT);
+    Join<Base, Base> injectorJoin = injectorContractJoin.join("injectors", JoinType.LEFT);
     joinMap.put("injector", injectorJoin);
 
     Join<Base, Base> injectDependency = injectRoot.join("dependsOn", JoinType.LEFT);
@@ -154,39 +157,35 @@ public class InjectSearchService {
     Expression<String[]> assetIdsExpression = createJoinArrayAggOnId(cb, injectRoot, "assets");
     Expression<String[]> assetGroupIdsExpression =
         createJoinArrayAggOnId(cb, injectRoot, "assetGroups");
-    Expression<String[]> domainsPayloadIdExpression =
-        createJoinArrayAggOnIdForJoin(cb, payloadJoin, "domains");
     Expression<String[]> domainsContractIdExpression =
         createJoinArrayAggOnIdForJoin(cb, injectorContractJoin, "domains");
 
     // SELECT
     cq.multiselect(
-            injectRoot.get("id").alias("inject_id"),
-            injectRoot.get("title").alias("inject_title"),
-            injectRoot.get("enabled").alias("inject_enabled"),
-            injectRoot.get("content").alias("inject_content"),
-            injectRoot.get("allTeams").alias("inject_all_teams"),
-            injectExerciseJoin.get("id").alias("inject_exercise"),
-            injectScenarioJoin.get("id").alias("inject_scenario"),
-            injectRoot.get("dependsDuration").alias("inject_depends_duration"),
-            injectorContractJoin.alias("inject_injector_contract"),
-            tagIdsExpression.alias("inject_tags"),
-            teamIdsExpression.alias("inject_teams"),
-            assetIdsExpression.alias("inject_assets"),
-            assetGroupIdsExpression.alias("inject_asset_groups"),
-            injectorJoin.get("type").alias("inject_type"),
-            domainsPayloadIdExpression.alias("payload_domains"),
-            domainsContractIdExpression.alias("injector_contract_domains"),
-            injectDependency.alias("inject_depends_on"))
-        .distinct(true);
+        injectRoot.get("id").alias("inject_id"),
+        injectRoot.get("title").alias("inject_title"),
+        injectRoot.get("enabled").alias("inject_enabled"),
+        injectRoot.get("content").alias("inject_content"),
+        injectRoot.get("allTeams").alias("inject_all_teams"),
+        injectExerciseJoin.get("id").alias("inject_exercise"),
+        injectScenarioJoin.get("id").alias("inject_scenario"),
+        injectRoot.get("dependsDuration").alias("inject_depends_duration"),
+        injectorContractJoin.alias("inject_injector_contract"),
+        tagIdsExpression.alias("inject_tags"),
+        teamIdsExpression.alias("inject_teams"),
+        assetIdsExpression.alias("inject_assets"),
+        assetGroupIdsExpression.alias("inject_asset_groups"),
+        injectorJoin.get("type").alias("inject_type"),
+        domainsContractIdExpression.alias("injector_contract_domains"),
+        injectDependency.alias("inject_depends_on"));
 
-    // GROUP BY
+    // GROUP BY — compositeId expands to both PK columns (injector_contract_id + tenant_id)
     cq.groupBy(
         Arrays.asList(
             injectRoot.get("id"),
             injectExerciseJoin.get("id"),
             injectScenarioJoin.get("id"),
-            injectorContractJoin.get("id"),
+            injectorContractJoin.get("compositeId"),
             injectorJoin.get("id"),
             injectDependency.get("id")));
   }
@@ -194,23 +193,95 @@ public class InjectSearchService {
   private List<InjectOutput> execInject(TypedQuery<Tuple> query) {
     return query.getResultList().stream()
         .map(
-            tuple ->
-                injectMapper.toInjectOutput(
-                    tuple.get("inject_id", String.class),
-                    tuple.get("inject_title", String.class),
-                    tuple.get("inject_enabled", Boolean.class),
-                    tuple.get("inject_content", ObjectNode.class),
-                    tuple.get("inject_all_teams", Boolean.class),
-                    tuple.get("inject_exercise", String.class),
-                    tuple.get("inject_scenario", String.class),
-                    tuple.get("inject_depends_duration", Long.class),
-                    tuple.get("inject_injector_contract", InjectorContract.class),
-                    tuple.get("inject_tags", String[].class),
-                    tuple.get("inject_teams", String[].class),
-                    tuple.get("inject_assets", String[].class),
-                    tuple.get("inject_asset_groups", String[].class),
-                    tuple.get("inject_type", String.class),
-                    tuple.get("inject_depends_on", InjectDependency.class)))
+            tuple -> {
+              Inject inject = new Inject();
+              inject.setId(tuple.get("inject_id", String.class));
+              inject.setTitle(tuple.get("inject_title", String.class));
+              inject.setEnabled(tuple.get("inject_enabled", Boolean.class));
+              inject.setContent(tuple.get("inject_content", ObjectNode.class));
+              inject.setAllTeams(tuple.get("inject_all_teams", Boolean.class));
+              inject.setExercise(
+                  ofNullable(tuple.get("inject_exercise", String.class))
+                      .map(
+                          id -> {
+                            Exercise exercise = new Exercise();
+                            exercise.setId(id);
+                            return exercise;
+                          })
+                      .orElse(null));
+              inject.setScenario(
+                  ofNullable(tuple.get("inject_scenario", String.class))
+                      .map(
+                          id -> {
+                            Scenario scenario = new Scenario();
+                            scenario.setId(id);
+                            return scenario;
+                          })
+                      .orElse(null));
+              inject.setDependsDuration(tuple.get("inject_depends_duration", Long.class));
+              inject.setInjectorContract(
+                  tuple.get("inject_injector_contract", InjectorContract.class));
+              inject.setTags(
+                  ofNullable(tuple.get("inject_tags", String[].class))
+                      .map(
+                          ids ->
+                              Arrays.stream(ids)
+                                  .map(
+                                      id -> {
+                                        Tag tag = new Tag();
+                                        tag.setId(id);
+                                        return tag;
+                                      })
+                                  .collect(Collectors.toSet()))
+                      .orElse(new HashSet<>()));
+              inject.setTeams(
+                  ofNullable(tuple.get("inject_teams", String[].class))
+                      .map(
+                          ids ->
+                              Arrays.stream(ids)
+                                  .map(
+                                      id -> {
+                                        Team team = new Team();
+                                        team.setId(id);
+                                        return team;
+                                      })
+                                  .collect(Collectors.toList()))
+                      .orElse(new ArrayList<>()));
+              inject.setAssets(
+                  ofNullable(tuple.get("inject_assets", String[].class))
+                      .map(
+                          ids ->
+                              Arrays.stream(ids)
+                                  .map(
+                                      id -> {
+                                        Asset asset = new Asset();
+                                        asset.setId(id);
+                                        return asset;
+                                      })
+                                  .collect(Collectors.toList()))
+                      .orElse(new ArrayList<>()));
+              inject.setAssetGroups(
+                  ofNullable(tuple.get("inject_asset_groups", String[].class))
+                      .map(
+                          ids ->
+                              Arrays.stream(ids)
+                                  .map(
+                                      id -> {
+                                        AssetGroup assetGroup = new AssetGroup();
+                                        assetGroup.setId(id);
+                                        return assetGroup;
+                                      })
+                                  .collect(Collectors.toList()))
+                      .orElse(new ArrayList<>()));
+              inject.setDependsOn(
+                  tuple.get("inject_depends_on", InjectDependency.class) != null
+                      ? new ArrayList<>(
+                          List.of(tuple.get("inject_depends_on", InjectDependency.class)))
+                      : null);
+              // Check only for content checks because this result is only used to display the
+              // inject list on scenario
+              return injectMapper.toInjectOutput(inject, healthCheckUtils.runContentChecks(inject));
+            })
         .toList();
   }
 
@@ -220,12 +291,14 @@ public class InjectSearchService {
     Map<String, Join<Base, Base>> joinMap = new HashMap<>();
 
     Specification<Inject> customSpec =
-        Specification.where(
-            (root, query, cb) -> {
-              Predicate predicate = cb.conjunction();
-              predicate = cb.and(predicate, cb.equal(root.get("exercise").get("id"), exerciseId));
-              return predicate;
-            });
+        Specification.<Inject>unrestricted()
+            .and(
+                (root, query, cb) -> {
+                  Predicate predicate = cb.conjunction();
+                  predicate =
+                      cb.and(predicate, cb.equal(root.get("exercise").get("id"), exerciseId));
+                  return predicate;
+                });
 
     return buildPaginationCriteriaBuilder(
         (Specification<Inject> specification,
@@ -262,8 +335,8 @@ public class InjectSearchService {
   public List<InjectResultOutput> getListOfInjectResults(String exerciseId) {
     // Create specification for filtering by exerciseId
     Specification<Inject> specification =
-        Specification.where(
-            (root, query, cb) -> cb.equal(root.get("exercise").get("id"), exerciseId));
+        Specification.<Inject>unrestricted()
+            .and((root, query, cb) -> cb.equal(root.get("exercise").get("id"), exerciseId));
 
     // Prepare query and execute
     CriteriaBuilder cb = entityManager.getCriteriaBuilder();
@@ -320,7 +393,7 @@ public class InjectSearchService {
       Map<String, List<Object[]>> teamMap = fetchRelatedTargets(injectIds, "teams");
       Map<String, List<Object[]>> assetMap = fetchRelatedTargets(injectIds, "assets");
       Map<String, List<Object[]>> assetGroupMap = fetchRelatedTargets(injectIds, "assetGroups");
-      Map<String, List<RawInjectExpectation>> expectationMap = fetchExpectations(injectIds);
+      Map<String, List<RawInjectExpectationIndexing>> expectationMap = fetchExpectations(injectIds);
 
       // Map results to InjectResultOutput and set targets
       mapResultsToInjects(injects, teamMap, assetMap, assetGroupMap, expectationMap);
@@ -356,7 +429,7 @@ public class InjectSearchService {
         .collect(Collectors.groupingBy(row -> (String) row[0]));
   }
 
-  private Map<String, List<RawInjectExpectation>> fetchExpectations(Set<String> injectIds) {
+  private Map<String, List<RawInjectExpectationIndexing>> fetchExpectations(Set<String> injectIds) {
     if (injectIds == null || injectIds.isEmpty()) {
       return new HashMap<>();
     }
@@ -365,7 +438,7 @@ public class InjectSearchService {
         .orElse(emptyList())
         .stream()
         .filter(Objects::nonNull)
-        .collect(Collectors.groupingBy(RawInjectExpectation::getInject_id));
+        .collect(Collectors.groupingBy(RawInjectExpectationIndexing::getInject_id));
   }
 
   private void mapResultsToInjects(
@@ -373,7 +446,7 @@ public class InjectSearchService {
       Map<String, List<Object[]>> teamMap,
       Map<String, List<Object[]>> assetMap,
       Map<String, List<Object[]>> assetGroupMap,
-      Map<String, List<RawInjectExpectation>> expectationMap) {
+      Map<String, List<RawInjectExpectationIndexing>> expectationMap) {
 
     for (InjectResultOutput inject : injects) {
       if (inject.getId() != null) {
@@ -418,14 +491,14 @@ public class InjectSearchService {
     Join<Base, Base> injectorContractJoin = injectRoot.join("injectorContract", JoinType.LEFT);
     joinMap.put("injectorContract", injectorContractJoin);
 
-    Join<Base, Base> injectorJoin = injectorContractJoin.join("injector", JoinType.LEFT);
+    Join<Base, Base> injectorJoin = injectorContractJoin.join("injectors", JoinType.LEFT);
     joinMap.put("injector", injectorJoin);
 
     Join<Base, Base> payloadJoin = injectorContractJoin.join("payload", JoinType.LEFT);
     joinMap.put("payload", payloadJoin);
 
-    Join<Base, Base> collectorJoin = payloadJoin.join("collector", JoinType.LEFT);
-    joinMap.put("collector", collectorJoin);
+    Join<Base, Base> collectorTypeJoin = payloadJoin.join("collectorType", JoinType.LEFT);
+    joinMap.put("collectorType", collectorTypeJoin);
 
     Join<Base, Base> statusJoin = injectRoot.join("status", JoinType.LEFT);
     joinMap.put("status", statusJoin);
@@ -435,44 +508,40 @@ public class InjectSearchService {
     Expression<String[]> assetIdsExpression = createJoinArrayAggOnId(cb, injectRoot, "assets");
     Expression<String[]> assetGroupIdsExpression =
         createJoinArrayAggOnId(cb, injectRoot, "assetGroups");
-    Expression<String[]> domainsPayloadIdExpression =
-        createJoinArrayAggOnIdForJoin(cb, payloadJoin, "domains");
     Expression<String[]> domainsContractIdExpression =
         createJoinArrayAggOnIdForJoin(cb, injectorContractJoin, "domains");
 
     // SELECT
     cq.multiselect(
-            injectRoot.get("id").alias("inject_id"),
-            injectRoot.get("title").alias("inject_title"),
-            injectRoot.get("updatedAt").alias("inject_updated_at"),
-            injectRoot.get("content").alias("inject_content"),
-            injectorJoin.get("type").alias("inject_type"),
-            injectorContractJoin.get("id").alias("injector_contract_id"),
-            injectorContractJoin.get("content").alias("injector_contract_content"),
-            injectorContractJoin.get("convertedContent").alias("convertedContent"),
-            injectorContractJoin.get("platforms").alias("injector_contract_platforms"),
-            injectorContractJoin.get("labels").alias("injector_contract_labels"),
-            payloadJoin.get("id").alias("payload_id"),
-            payloadJoin.get("type").alias("payload_type"),
-            collectorJoin.get("type").alias("payload_collector_type"),
-            statusJoin.get("id").alias("status_id"),
-            statusJoin.get("name").alias("status_name"),
-            statusJoin.get("trackingSentDate").alias("status_tracking_sent_date"),
-            teamIdsExpression.alias("inject_teams"),
-            assetIdsExpression.alias("inject_assets"),
-            domainsPayloadIdExpression.alias("payload_domains"),
-            domainsContractIdExpression.alias("injector_contract_domains"),
-            assetGroupIdsExpression.alias("inject_asset_groups"))
-        .distinct(true);
+        injectRoot.get("id").alias("inject_id"),
+        injectRoot.get("title").alias("inject_title"),
+        injectRoot.get("updatedAt").alias("inject_updated_at"),
+        injectRoot.get("content").alias("inject_content"),
+        injectorJoin.get("type").alias("inject_type"),
+        injectorContractJoin.get("compositeId").get("id").alias("injector_contract_id"),
+        injectorContractJoin.get("content").alias("injector_contract_content"),
+        injectorContractJoin.get("convertedContent").alias("convertedContent"),
+        injectorContractJoin.get("platforms").alias("injector_contract_platforms"),
+        injectorContractJoin.get("labels").alias("injector_contract_labels"),
+        payloadJoin.get("id").alias("payload_id"),
+        payloadJoin.get("type").alias("payload_type"),
+        collectorTypeJoin.get("name").alias("payload_collector_type"),
+        statusJoin.get("id").alias("status_id"),
+        statusJoin.get("name").alias("status_name"),
+        statusJoin.get("trackingSentDate").alias("status_tracking_sent_date"),
+        teamIdsExpression.alias("inject_teams"),
+        assetIdsExpression.alias("inject_assets"),
+        domainsContractIdExpression.alias("injector_contract_domains"),
+        assetGroupIdsExpression.alias("inject_asset_groups"));
 
-    // GROUP BY
+    // GROUP BY — compositeId expands to both PK columns (injector_contract_id + tenant_id)
     cq.groupBy(
         Arrays.asList(
             injectRoot.get("id"),
-            injectorContractJoin.get("id"),
+            injectorContractJoin.get("compositeId"),
             injectorJoin.get("id"),
             payloadJoin.get("id"),
-            collectorJoin.get("id"),
+            collectorTypeJoin.get("name"),
             statusJoin.get("id")));
   }
 
@@ -501,7 +570,6 @@ public class InjectSearchService {
                         .id(payloadId)
                         .type(tuple.get("payload_type", String.class))
                         .collectorType(tuple.get("payload_collector_type", String.class))
-                        .domains(tuple.get("payload_domains", String[].class))
                         .build();
               }
 

@@ -2,17 +2,20 @@ import { Navigate, Route, Routes } from 'react-router';
 
 import { errorWrapper } from '../../../components/Error';
 import NotFound from '../../../components/NotFound';
+import ProtectedRoute from '../../../utils/permissions/ProtectedRoute';
+import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+import Tenants from '../platform/tenants/Tenants';
 import Organizations from '../teams/Organizations';
 import AttackPatterns from './attack_patterns/AttackPatterns';
 import XlsMappers from './data_ingestion/XlsMappers';
 import Experience from './experience/Experience';
 import Groups from './groups/Groups';
 import KillChainPhases from './kill_chain_phases/KillChainPhases';
-import Parameters from './Parameters';
 import Policies from './policies/Policies';
 import Roles from './roles/Roles';
 import TagRules from './tag_rules/TagRules';
 import Tags from './tags/Tags';
+import TenantParameters from './TenantParameters';
 import Users from './users/Users';
 import Vulnerabilities from './vulnerabilities/Vulnerabilities';
 
@@ -20,12 +23,25 @@ const Index = () => {
   return (
     <Routes>
       <Route path="" element={<Navigate to="parameters" replace={true} />} />
-      <Route path="parameters" element={errorWrapper(Parameters)()} />
+      <Route path="parameters" element={errorWrapper(TenantParameters)()} />
       <Route path="security" element={<Navigate to="roles" replace={true} />} />
       <Route path="security/groups" element={errorWrapper(Groups)()} />
       <Route path="security/users" element={errorWrapper(Users)()} />
       <Route path="security/roles" element={errorWrapper(Roles)()} />
       <Route path="security/organizations" element={errorWrapper(Organizations)()} />
+      <Route
+        path="security/tenants"
+        element={(
+          <ProtectedRoute
+            checks={[{
+              action: ACTIONS.ACCESS,
+              subject: SUBJECTS.TENANTS,
+            }]}
+            requireEE
+            Component={errorWrapper(Tenants)()}
+          />
+        )}
+      />
       <Route path="security/policies" element={errorWrapper(Policies)()} />
       <Route path="taxonomies" element={<Navigate to="tags" replace={true} />} />
       <Route path="taxonomies/tags" element={errorWrapper(Tags)()} />

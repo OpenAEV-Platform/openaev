@@ -44,10 +44,12 @@ public class CatalogConnectorMapper {
         .build();
   }
 
-  public ConnectorIds toConnectorIds(String catalogConnectorId, String connectorInstanceId) {
+  public ConnectorIds toConnectorIds(
+      String catalogConnectorId, String connectorInstanceId, boolean connectorRegistered) {
     return ConnectorIds.builder()
         .catalogConnectorId(catalogConnectorId)
         .connectorInstanceId(connectorInstanceId)
+        .connectorRegistered(connectorRegistered)
         .build();
   }
 }

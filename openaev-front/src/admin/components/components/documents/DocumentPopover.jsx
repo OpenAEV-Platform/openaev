@@ -21,6 +21,7 @@ import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { exerciseOptions, scenarioOptions, tagOptions } from '../../../../utils/Option';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { buildTenantApiPath } from '../../../../utils/url-helper';
 import DocumentForm from './DocumentForm';
 
 const entityPaths = {
@@ -91,7 +92,7 @@ const DocumentPopover = (props) => {
   const handleOpenDelete = () => {
     setOpenDelete(true);
     setLoadingRelations(true);
-    fetch(`/api/documents/${document.document_id}/relations`)
+    fetch(buildTenantApiPath(`/api/documents/${document.document_id}/relations`))
       .then(res => res.json())
       .then((data) => {
         setRelations(data);

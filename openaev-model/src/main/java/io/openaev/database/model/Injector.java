@@ -8,6 +8,7 @@ import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.hypersistence.utils.hibernate.type.basic.PostgreSQLHStoreType;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -16,14 +17,16 @@ import java.time.Instant;
 import java.util.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.Type;
 
 @Getter
 @Setter
 @Entity
 @Table(name = "injectors")
-@EntityListeners(ModelBaseListener.class)
-public class Injector extends BaseConnectorEntity {
+@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+public class Injector extends BaseConnectorEntity implements TenantBase {
 
   @Id
   @Column(name = "injector_id")
@@ -83,9 +86,21 @@ public class Injector extends BaseConnectorEntity {
   @JsonProperty("injector_dependencies")
   private ExternalServiceDependency[] dependencies;
 
-  @OneToMany(mappedBy = "injector", fetch = FetchType.LAZY)
+  @ManyToMany(fetch = FetchType.LAZY)
+  @JoinTable(
+      name = "injectors_injector_contracts",
+      joinColumns = @JoinColumn(name = "injector_id"),
+      inverseJoinColumns = {
+        @JoinColumn(name = "injector_contract_id", referencedColumnName = "injector_contract_id"),
+        @JoinColumn(name = "tenant_id", referencedColumnName = "tenant_id")
+      })
   @JsonIgnore
-  private List<InjectorContract> contracts = new ArrayList<>();
+  private Set<InjectorContract> contracts = new HashSet<>();
+
+  @ManyToOne
+  @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
+  @JsonIgnore
+  private Tenant tenant;
 
   @Getter(onMethod_ = @JsonIgnore)
   @Transient
@@ -108,6 +123,18 @@ public class Injector extends BaseConnectorEntity {
     if (o == null || !Base.class.isAssignableFrom(o.getClass())) return false;
     Base base = (Base) o;
     return id.equals(base.getId());
+  }
+
+  public void linkContract(InjectorContract contract) {
+    this.contracts.add(contract);
+    if (!contract.getInjectors().contains(this)) {
+      contract.getInjectors().add(this);
+    }
+  }
+
+  public void unlinkContract(InjectorContract contract) {
+    this.contracts.remove(contract);
+    contract.getInjectors().remove(this);
   }
 
   @Override

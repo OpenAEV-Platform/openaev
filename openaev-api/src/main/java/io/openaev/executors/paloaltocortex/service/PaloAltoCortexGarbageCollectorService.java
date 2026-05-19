@@ -2,7 +2,6 @@ package io.openaev.executors.paloaltocortex.service;
 
 import static io.openaev.executors.ExecutorHelper.*;
 import static io.openaev.executors.utils.ExecutorUtils.getAgentsFromOS;
-import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_TYPE;
 
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.Endpoint;
@@ -23,19 +22,22 @@ public class PaloAltoCortexGarbageCollectorService implements Runnable {
   private final PaloAltoCortexExecutorConfig config;
   private final PaloAltoCortexExecutorContextService paloAltoCortexExecutorContextService;
   private final AgentService agentService;
+  private final String executorId;
 
   public PaloAltoCortexGarbageCollectorService(
       PaloAltoCortexExecutorConfig config,
       PaloAltoCortexExecutorContextService paloAltoCortexExecutorContextService,
-      AgentService agentService) {
+      AgentService agentService,
+      String executorId) {
     this.config = config;
     this.paloAltoCortexExecutorContextService = paloAltoCortexExecutorContextService;
     this.agentService = agentService;
+    this.executorId = executorId;
   }
 
   @Override
   public void run() {
-    List<Agent> agents = this.agentService.getAgentsByExecutorType(PALOALTOCORTEX_EXECUTOR_TYPE);
+    List<Agent> agents = this.agentService.getAgentsByExecutorId(executorId);
     if (!agents.isEmpty()) {
       log.info(
           "Running Palo Alto Cortex executor garbage collector on " + agents.size() + " agents");

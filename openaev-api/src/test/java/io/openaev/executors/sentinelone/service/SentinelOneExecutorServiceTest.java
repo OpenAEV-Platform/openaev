@@ -8,8 +8,9 @@ import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.model.AgentRegisterInput;
 import io.openaev.executors.sentinelone.client.SentinelOneExecutorClient;
@@ -19,7 +20,6 @@ import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
 import io.openaev.utils.fixtures.*;
-import java.time.Instant;
 import java.util.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,7 +36,7 @@ public class SentinelOneExecutorServiceTest {
   @Mock private SentinelOneExecutorConfig config;
   @Mock private LicenseCacheManager licenseCacheManager;
   @Mock private AssetGroupService assetGroupService;
-  @Mock private Ee eeService;
+  @Mock private EnterpriseEditionService enterpriseEditionService;
   @Mock private EndpointService endpointService;
   @Mock private AgentService agentService;
   @Mock private ExecutorService executorService;
@@ -54,18 +54,20 @@ public class SentinelOneExecutorServiceTest {
     sentinelOneExecutor = new Executor();
     sentinelOneExecutor.setName(SENTINELONE_EXECUTOR_NAME);
     sentinelOneExecutor.setType(SENTINELONE_EXECUTOR_TYPE);
+    sentinelOneExecutor.setTenant(new Tenant(TenantContext.getCurrentTenant()));
   }
 
   @Test
   void test_run_sentinelone() {
     // Init datas
     when(client.agents()).thenReturn(Set.of(sentinelOneAgent));
+    sentinelOneExecutorService.setExecutor(sentinelOneExecutor);
     // Run method to test
     sentinelOneExecutorService.run();
     // Asserts
-    ArgumentCaptor<String> executorTypeCaptor = ArgumentCaptor.forClass(String.class);
-    verify(agentService).getAgentsByExecutorType(executorTypeCaptor.capture());
-    assertEquals(sentinelOneExecutor.getType(), executorTypeCaptor.getValue());
+    ArgumentCaptor<String> executorIdCaptor = ArgumentCaptor.forClass(String.class);
+    verify(agentService).getAgentsByExecutorId(executorIdCaptor.capture());
+    assertEquals(sentinelOneExecutor.getId(), executorIdCaptor.getValue());
 
     ArgumentCaptor<List<AgentRegisterInput>> inputsCaptor = ArgumentCaptor.forClass(List.class);
     ArgumentCaptor<List<Agent>> agents = ArgumentCaptor.forClass(List.class);
@@ -93,16 +95,10 @@ public class SentinelOneExecutorServiceTest {
       throws JsonProcessingException, InterruptedException {
     // Init datas
     when(licenseCacheManager.getEnterpriseEditionInfo()).thenReturn(null);
-    doNothing().when(eeService).throwEEExecutorService(any(), any(), any());
+    doNothing().when(enterpriseEditionService).throwEEExecutorService(any(), any(), any());
     when(config.getApiBatchExecutionActionPagination()).thenReturn(1);
     when(config.getWindowsScriptId()).thenReturn("1234567890");
-    Command payloadCommand =
-        PayloadFixture.createCommand(
-            "cmd",
-            "whoami",
-            List.of(),
-            "whoami",
-            Set.of(new Domain(null, "To classify", "#000000", Instant.now(), null)));
+    Command payloadCommand = PayloadFixture.createCommand("cmd", "whoami", List.of(), "whoami");
     Injector injector = InjectorFixture.createDefaultPayloadInjector();
     Map<String, String> executorCommands = new HashMap<>();
     executorCommands.put(
@@ -110,7 +106,8 @@ public class SentinelOneExecutorServiceTest {
     injector.setExecutorCommands(executorCommands);
     Inject inject =
         InjectFixture.createTechnicalInject(
-            InjectorContractFixture.createPayloadInjectorContract(injector, payloadCommand),
+            InjectorContractFixture.createPayloadInjectorContractWithDefaultDomain(
+                injector, payloadCommand),
             "Inject",
             EndpointFixture.createEndpoint());
     inject.setId("injectId");

@@ -6,23 +6,22 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_METHOD;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
-import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
+import io.openaev.integration.Manager;
+import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
 import io.openaev.rest.domain.enums.PresetDomain;
-import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.constants.Constants;
+import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import org.jetbrains.annotations.NotNull;
-import org.junit.jupiter.api.*;
+import java.util.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.mockito.MockitoAnnotations;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.domain.Specification;
@@ -32,34 +31,20 @@ import org.springframework.transaction.annotation.Transactional;
 class V1_DataImporterTest extends IntegrationTest {
 
   @Autowired private V1_DataImporter importer;
-
   @Autowired private ExerciseRepository exerciseRepository;
-
   @Autowired private TeamRepository teamRepository;
-
   @Autowired private UserRepository userRepository;
-
   @Autowired private OrganizationRepository organizationRepository;
-
   @Autowired private TagRepository tagRepository;
-
   @Autowired private ScenarioRepository scenarioRepository;
-
-  @Autowired private ScenarioService scenarioService;
-
   @Autowired private PayloadRepository payloadRepository;
-
   @Autowired private AttackPatternRepository attackPatternRepository;
-
   @Autowired private KillChainPhaseRepository killChainPhaseRepository;
-
   @Autowired private InjectorRepository injectorRepository;
-
   @Autowired private InjectorContractRepository injectorContractRepository;
-
   @Autowired private InjectRepository injectRepository;
-
   @Autowired private DomainRepository domainRepository;
+  @Autowired private OpenaevInjectorIntegrationFactory openaevInjectorIntegrationFactory;
 
   private JsonNode importNode;
 
@@ -125,8 +110,8 @@ class V1_DataImporterTest extends IntegrationTest {
 
   @Test
   @Transactional
-  void testScenario_with_attackpattern() throws IOException {
-
+  void testScenario_with_attackpattern() throws Exception {
+    new Manager(List.of(openaevInjectorIntegrationFactory)).monitorIntegrations();
     MockitoAnnotations.openMocks(this);
     ObjectMapper mapper = new ObjectMapper();
     String jsonContent =
@@ -139,9 +124,11 @@ class V1_DataImporterTest extends IntegrationTest {
         this.importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     Payload payload = payloadRepository.findAll().iterator().next();
+    InjectorContract injectorContract =
+        injectorContractRepository.findInjectorContractByPayload(payload).orElseThrow();
 
     // the scenario should have one inject with one attack pattern with one killchain
-    AttackPattern attackPattern = payload.getAttackPatterns().getFirst();
+    AttackPattern attackPattern = injectorContract.getAttackPatterns().getFirst();
 
     KillChainPhase killChainPhase = attackPattern.getKillChainPhases().getFirst();
     assertEquals(ATTACK_PATTERN_EXTERNAL_ID, attackPattern.getExternalId());
@@ -149,13 +136,24 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // delete scenario and payload before reimporting to verify that the killchainphase is not
     // recreated
+    // Clear the persistence context to avoid TransientObjectException from stale references
+    entityManager.flush();
+    entityManager.clear();
+    // Delete in FK order: injects → injector contracts → scenarios → payloads
+    injectRepository.deleteAll();
+    injectorContractRepository.deleteAll();
     scenarioRepository.deleteAll();
     payloadRepository.deleteAll();
+    entityManager.flush();
+    entityManager.clear();
+    new Manager(List.of(openaevInjectorIntegrationFactory)).monitorIntegrations();
 
     this.importer.importData(
         this.importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
     payload = payloadRepository.findAll().iterator().next();
-    AttackPattern attackPattern2 = payload.getAttackPatterns().getFirst();
+    InjectorContract injectorContract2 =
+        injectorContractRepository.findInjectorContractByPayload(payload).orElseThrow();
+    AttackPattern attackPattern2 = injectorContract2.getAttackPatterns().getFirst();
     KillChainPhase killChainPhase2 = attackPattern.getKillChainPhases().getFirst();
 
     // verify that the new payload use the same attack pattern / killchain phase
@@ -182,9 +180,11 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // dummy injector should be created with 1 associated injector contract
     Injector dummyInjector =
-        this.injectorRepository.findByType(NMAP_DUMMY_INJECTOR_TYPE).orElseThrow();
+        this.injectorRepository
+            .findByTypeAndTenantId(NMAP_DUMMY_INJECTOR_TYPE, TenantContext.getCurrentTenant())
+            .orElseThrow();
     List<InjectorContract> injectorContracts =
-        injectorContractRepository.findInjectorContractsByInjector(dummyInjector);
+        injectorContractRepository.findByInjectorsContaining(dummyInjector);
     assertEquals(1, injectorContracts.size());
   }
 
@@ -222,13 +222,13 @@ class V1_DataImporterTest extends IntegrationTest {
     this.importNode = mapper.readTree(jsonContent);
 
     Domain domainToClassify =
-        domainRepository.findByName(PresetDomain.TOCLASSIFY.getName()).orElseThrow();
+        domainRepository.findByName(PresetDomain.getToClassify().getName()).orElseThrow();
 
-    List<String> importDomainIds =
-        this.importer.importDomains(this.importNode, "payload_", new HashMap<>());
+    Set<Domain> importDomain =
+        this.importer.mergeDomains(new HashMap<>(), this.importNode, "payload_", null, null);
 
-    assertEquals(1, importDomainIds.size());
-    assertEquals(domainToClassify.getId(), importDomainIds.get(0));
+    assertEquals(1, importDomain.size());
+    assertEquals(domainToClassify.getId(), importDomain.stream().findFirst().get().getId());
   }
 
   @Test

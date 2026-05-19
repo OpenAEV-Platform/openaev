@@ -1,18 +1,18 @@
 package io.openaev.database.repository;
 
 import static io.openaev.database.model.DnsResolution.DNS_RESOLUTION_TYPE;
+import static io.openaev.database.model.FileDrop.FILE_DROP_TYPE;
 
 import io.openaev.database.model.Inject;
 import io.openaev.database.raw.RawInject;
 import io.openaev.database.raw.RawInjectIndexing;
-import io.openaev.utils.Constants;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.Param;
@@ -69,7 +69,7 @@ public interface InjectRepository
 
   @Query(
       value =
-          "SELECT f.inject_id, f.inject_title, f.inject_scenario, f.inject_exercise, f.inject_created_at, f.inject_updated_at, f.inject_injector_contract, ic.injector_contract_updated_at, ins.tracking_sent_date, "
+          "SELECT f.inject_id, f.inject_title, f.inject_scenario, f.inject_exercise, f.inject_created_at, f.inject_updated_at,f.tenant_id, f.inject_injector_contract, ic.injector_contract_updated_at, ins.tracking_sent_date, "
               + "array_union_agg(ic.injector_contract_platforms) FILTER ( WHERE ic.injector_contract_platforms IS NOT NULL ) as inject_platforms, "
               + "array_agg(icap.attack_pattern_id) FILTER ( WHERE icap.attack_pattern_id IS NOT NULL ) as inject_attack_patterns, "
               + "array_agg(ap.phase_id) FILTER ( WHERE ap.phase_id IS NOT NULL ) as inject_kill_chain_phases, "
@@ -112,16 +112,15 @@ public interface InjectRepository
               + "    WHERE sub_ic.injector_contract_id = inject_children.inject_injector_contract "
               + "      AND sub_ic.injector_contract_updated_at > :from "
               + ")"
-              + "GROUP BY f.inject_id, f.inject_updated_at, ic.injector_contract_updated_at, ins.tracking_sent_date ORDER BY GREATEST(f.inject_updated_at, ic.injector_contract_updated_at) ASC LIMIT "
-              + Constants.INDEXING_RECORD_SET_SIZE
-              + ";",
+              + "GROUP BY f.inject_id, f.inject_updated_at, ic.injector_contract_updated_at, ins.tracking_sent_date ORDER BY GREATEST(f.inject_updated_at, ic.injector_contract_updated_at) ASC LIMIT :limit;",
       nativeQuery = true)
-  List<RawInjectIndexing> findForIndexing(@Param("from") Instant from);
+  List<RawInjectIndexing> findForIndexing(@Param("from") Instant from, @Param("limit") int limit);
 
   @Query(
       value =
-          "select i.* from injects i where i.inject_injector_contract = '49229430-b5b5-431f-ba5b-f36f599b0233'"
-              + " and i.inject_content like :challengeId",
+          "select i.*, i.tenant_id as tenantId from injects i where i.inject_injector_contract = '49229430-b5b5-431f-ba5b-f36f599b0233'"
+              + " and i.inject_content like :challengeId"
+              + " and i.tenant_id = :#{#tenantContext.currentTenant}",
       nativeQuery = true)
   List<Inject> findAllForChallengeId(@Param("challengeId") String challengeId);
 
@@ -148,8 +147,8 @@ public interface InjectRepository
       value =
           "insert into injects (inject_id, inject_title, inject_description, inject_country, inject_city,"
               + "inject_injector_contract, inject_all_teams, inject_enabled, inject_exercise, "
-              + "inject_depends_duration, inject_content) "
-              + "values (:id, :title, :description, :country, :city, :contract, :allTeams, :enabled, :exercise, :dependsDuration, :content)",
+              + "inject_depends_duration, inject_content, tenant_id) "
+              + "values (:id, :title, :description, :country, :city, :contract, :allTeams, :enabled, :exercise, :dependsDuration, :content, :#{#tenantContext.currentTenant})",
       nativeQuery = true)
   void importSaveForExercise(
       @Param("id") String id,
@@ -169,8 +168,8 @@ public interface InjectRepository
       value =
           "insert into injects (inject_id, inject_title, inject_description, inject_country, inject_city,"
               + "inject_injector_contract, inject_all_teams, inject_enabled, inject_scenario, "
-              + "inject_depends_duration, inject_content) "
-              + "values (:id, :title, :description, :country, :city, :contract, :allTeams, :enabled, :scenario, :dependsDuration, :content)",
+              + "inject_depends_duration, inject_content, tenant_id) "
+              + "values (:id, :title, :description, :country, :city, :contract, :allTeams, :enabled, :scenario, :dependsDuration, :content, :#{#tenantContext.currentTenant})",
       nativeQuery = true)
   void importSaveForScenario(
       @Param("id") String id,
@@ -190,8 +189,8 @@ public interface InjectRepository
       value =
           "insert into injects (inject_id, inject_title, inject_description, inject_country, inject_city,"
               + "inject_injector_contract, inject_all_teams, inject_enabled, "
-              + "inject_depends_duration, inject_content) "
-              + "values (:id, :title, :description, :country, :city, :contract, :allTeams, :enabled, :dependsDuration, :content)",
+              + "inject_depends_duration, inject_content, tenant_id) "
+              + "values (:id, :title, :description, :country, :city, :contract, :allTeams, :enabled, :dependsDuration, :content, :#{#tenantContext.currentTenant})",
       nativeQuery = true)
   void importSaveStandAlone(
       @Param("id") String id,
@@ -229,33 +228,6 @@ public interface InjectRepository
   @Override
   @Query("select count(distinct i) from Inject i where i.createdAt > :creationDate")
   long globalCount(@Param("creationDate") Instant creationDate);
-
-  @Query(
-      value =
-          "select icap.attack_pattern_id, count(distinct i) as countInjects from injects i "
-              + "join injectors_contracts_attack_patterns icap ON icap.injector_contract_id = i.inject_injector_contract "
-              + "join exercises e ON e.exercise_id = i.inject_exercise "
-              + "join injects_statuses injectStatus ON injectStatus.status_inject = i.inject_id "
-              + "where i.inject_created_at > :creationDate and i.inject_exercise is not null and e.exercise_start_date is not null and icap.injector_contract_id is not null and injectStatus.status_name = 'SUCCESS'"
-              + "group by icap.attack_pattern_id order by countInjects DESC LIMIT 5",
-      nativeQuery = true)
-  List<Object[]> globalCountGroupByAttackPatternInExercise(
-      @Param("creationDate") Instant creationDate);
-
-  @Query(
-      value =
-          "select icap.attack_pattern_id, count(distinct i) as countInjects from injects i "
-              + "join injectors_contracts_attack_patterns icap ON icap.injector_contract_id = i.inject_injector_contract "
-              + "join exercises e on e.exercise_id = i.inject_exercise "
-              + "inner join grants ON grants.grant_resource = e.exercise_id AND grants.grant_resource_type = 'SIMULATION' "
-              + "inner join groups ON grants.grant_group = groups.group_id "
-              + "inner join users_groups ON groups.group_id = users_groups.group_id "
-              + "join injects_statuses injectStatus ON injectStatus.status_inject = i.inject_id "
-              + "where users_groups.user_id = :userId and i.inject_created_at > :creationDate and i.inject_exercise is not null and e.exercise_start_date is not null and icap.injector_contract_id is not null and injectStatus.status_name = 'SUCCESS'"
-              + "group by icap.attack_pattern_id order by countInjects DESC LIMIT 5",
-      nativeQuery = true)
-  List<Object[]> userCountGroupByAttackPatternInExercise(
-      @Param("userId") String userId, @Param("creationDate") Instant creationDate);
 
   @Query(
       value =
@@ -350,22 +322,6 @@ public interface InjectRepository
   Set<RawInject> findRawInjectTeams(
       @Param("ids") Collection<String> ids, @Param("teamId") String teamId);
 
-  @Query(
-      value =
-          "SELECT org.*, "
-              + "array_agg(DISTINCT org_tags.tag_id) FILTER (WHERE org_tags.tag_id IS NOT NULL) AS organization_tags, "
-              + "array_agg(DISTINCT injects.inject_id) FILTER (WHERE injects.inject_id IS NOT NULL) AS organization_injects, "
-              + "coalesce(array_length(array_agg(DISTINCT injects.inject_id) FILTER (WHERE injects.inject_id IS NOT NULL), 1), 0) AS organization_injects_number "
-              + "FROM organizations org "
-              + "LEFT JOIN organizations_tags org_tags ON org.organization_id = org_tags.organization_id "
-              + "LEFT JOIN users ON users.user_organization = org.organization_id "
-              + "LEFT JOIN users_teams ON users.user_id = users_teams.user_id "
-              + "LEFT JOIN injects_teams ON injects_teams.team_id = users_teams.team_id "
-              + "LEFT JOIN injects ON injects.inject_id = injects_teams.inject_id OR injects.inject_all_teams "
-              + "GROUP BY org.organization_id",
-      nativeQuery = true)
-  List<RawInject> rawAll();
-
   // -- TEAM --
 
   @Modifying
@@ -397,6 +353,7 @@ public interface InjectRepository
     FROM injects i
     INNER JOIN findings f ON f.finding_inject_id = i.inject_id
     WHERE (:title IS NULL OR LOWER(i.inject_title) LIKE LOWER(CONCAT('%', COALESCE(:title, ''), '%')))
+      AND i.tenant_id = :#{#tenantContext.currentTenant}
       ORDER BY i.inject_created_at DESC;
     """,
       nativeQuery = true)
@@ -412,6 +369,7 @@ public interface InjectRepository
     LEFT JOIN scenarios_exercises se ON se.exercise_id = i.inject_exercise
     WHERE (i.inject_exercise = :sourceId OR se.scenario_id = :sourceId OR fa.asset_id = :sourceId)
       AND (:title IS NULL OR LOWER(i.inject_title) LIKE LOWER(CONCAT('%', COALESCE(:title, ''), '%')))
+      AND i.tenant_id = :#{#tenantContext.currentTenant}
       ORDER BY i.inject_created_at DESC;
     """,
       nativeQuery = true)
@@ -455,6 +413,20 @@ public interface InjectRepository
       nativeQuery = true)
   void deleteAllInjectsWithDnsResolutionContractsByScenarioId(
       @Param("scenarioId") String scenarioId);
+
+  @Modifying
+  @Query(
+      value =
+          "DELETE FROM injects i "
+              + "USING injectors_contracts ic, payloads p "
+              + "WHERE i.inject_injector_contract = ic.injector_contract_id "
+              + "AND ic.injector_contract_payload = p.payload_id "
+              + "AND p.payload_type = '"
+              + FILE_DROP_TYPE
+              + "' "
+              + "AND i.inject_scenario = :scenarioId",
+      nativeQuery = true)
+  void deleteAllInjectsWithFileDropContractsByScenarioId(@Param("scenarioId") String scenarioId);
 
   @Modifying
   @Query(

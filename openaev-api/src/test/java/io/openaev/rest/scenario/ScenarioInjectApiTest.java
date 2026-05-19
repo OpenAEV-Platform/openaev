@@ -24,18 +24,15 @@ import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.fixtures.*;
+import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.fixtures.composers.AttackPatternComposer;
-import io.openaev.utils.fixtures.composers.DomainComposer;
 import io.openaev.utils.fixtures.composers.InjectorContractComposer;
 import io.openaev.utils.fixtures.composers.PayloadComposer;
 import io.openaev.utils.fixtures.files.AttackPatternFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.servlet.ServletException;
 import jakarta.transaction.Transactional;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import org.json.JSONArray;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -68,6 +65,13 @@ class ScenarioInjectApiTest extends IntegrationTest {
   @Autowired private AssetGroupService assetGroupService;
   @Autowired private EndpointService endpointService;
   @Autowired private ScenarioService scenarioService;
+  @Autowired private InjectComposer injectComposer;
+  @Autowired private ScenarioComposer scenarioComposer;
+  @Autowired private TeamComposer teamComposer;
+  @Autowired private TagComposer tagComposer;
+  @Autowired private EndpointComposer endpointComposer;
+  @Autowired private AssetGroupComposer assetGroupComposer;
+  @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private EmailInjectorIntegrationFactory emailInjectorIntegrationFactory;
   @Autowired private ManualInjectorIntegrationFactory manualInjectorIntegrationFactory;
 
@@ -245,18 +249,17 @@ class ScenarioInjectApiTest extends IntegrationTest {
         AttackPattern attackPattern,
         Endpoint.PLATFORM_TYPE[] platforms,
         Payload.PAYLOAD_EXECUTION_ARCH architecture) {
-      Set<Domain> domains =
-          domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
       InjectorContractComposer.Composer newInjectorContractComposer =
           injectorContractComposer
               .forInjectorContract(
                   InjectorContractFixture.createInjectorContractWithPlatforms(platforms))
+              .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()).persist())
               .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
               .withAttackPattern(attackPatternComposer.forAttackPattern(attackPattern))
               .withPayload(
                   payloadComposer.forPayload(
                       PayloadFixture.createDefaultCommandWithPlatformsAndArchitecture(
-                          platforms, architecture, domains)))
+                          platforms, architecture)))
               .persist();
       injectorContractWrapperComposers.add(newInjectorContractComposer);
       return newInjectorContractComposer.get();
@@ -504,6 +507,235 @@ class ScenarioInjectApiTest extends IntegrationTest {
       JSONArray jsonArray = new JSONArray(response);
       assertEquals(2, jsonArray.length());
       assertEquals(2, injects.size());
+    }
+
+    @DisplayName("Retrieve injects simple list for scenario with asset")
+    @Test
+    @Transactional
+    @WithMockUser(isAdmin = true)
+    void retrieveInjectSimpleForScenarioTestWithAsset() throws Exception {
+      // -- PREPARE --
+      ScenarioComposer.Composer composer =
+          scenarioComposer
+              .forScenario(ScenarioFixture.createDefaultCrisisScenario())
+              .withInject(
+                  injectComposer
+                      .forInject(InjectFixture.getDefaultInject())
+                      .withTeam(teamComposer.forTeam(TeamFixture.getDefaultTeam()))
+                      .withExercise(
+                          exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()))
+                      .withTag(tagComposer.forTag(TagFixture.getTagWithText("test")))
+                      .withEndpoint(endpointComposer.forEndpoint(EndpointFixture.createEndpoint())))
+              .persist();
+
+      // -- EXECUTE --
+      String response =
+          mvc.perform(
+                  get(SCENARIO_URI + "/" + composer.get().getId() + "/injects/simple")
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -- ASSERT --
+      assertNotNull(response);
+      assertEquals(composer.get().getId(), JsonPath.read(response, "$[0].inject_scenario"));
+
+      // -- CLEAN --
+      composer.delete();
+    }
+
+    @DisplayName("Retrieve injects simple list for scenario with asset group")
+    @Test
+    @Transactional
+    @WithMockUser(isAdmin = true)
+    @Order(value = 13)
+    void retrieveInjectSimpleForScenarioTestWithAssetGroup() throws Exception {
+      // -- PREPARE --
+      ScenarioComposer.Composer composer =
+          scenarioComposer
+              .forScenario(ScenarioFixture.createDefaultCrisisScenario())
+              .withInject(
+                  injectComposer
+                      .forInject(InjectFixture.getDefaultInject())
+                      .withTeam(teamComposer.forTeam(TeamFixture.getDefaultTeam()))
+                      .withExercise(
+                          exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()))
+                      .withTag(tagComposer.forTag(TagFixture.getTagWithText("test")))
+                      .withAssetGroup(
+                          assetGroupComposer.forAssetGroup(
+                              AssetGroupFixture.createDefaultAssetGroup("test"))))
+              .persist();
+
+      // -- EXECUTE --
+      String response =
+          mvc.perform(
+                  get(SCENARIO_URI + "/" + composer.get().getId() + "/injects/simple")
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -- ASSERT --
+      assertNotNull(response);
+      assertEquals(composer.get().getId(), JsonPath.read(response, "$[0].inject_scenario"));
+
+      // -- CLEAN --
+      composer.delete();
+    }
+  }
+
+  @Nested
+  @DisplayName("Inject check")
+  @WithMockUser(isAdmin = true)
+  class ScenarioInjectsCheck {
+    @DisplayName(
+        "createInjectForScenario: should return InjectOutput with inject_id and inject_ready")
+    @Test
+    @Order(1)
+    @WithMockUser(isAdmin = true)
+    void createInjectForScenario_shouldReturnInjectOutputWithChecks() throws Exception {
+      // -- PREPARE --
+      InjectInput input = new InjectInput();
+      input.setTitle("Test inject");
+      input.setInjectorContract(EMAIL_DEFAULT);
+      input.setDependsDuration(0L);
+
+      // -- EXECUTE --
+      String response =
+          mvc.perform(
+                  post(SCENARIO_URI + "/" + SCENARIO.getId() + "/injects")
+                      .with(csrf())
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -- ASSERT --
+      assertNotNull(response);
+      SCENARIO_INJECT_ID = JsonPath.read(response, "$.inject_id");
+      assertNotNull(SCENARIO_INJECT_ID);
+      assertTrue(
+          response.contains("inject_ready"),
+          "The response must include the inject_ready field from InjectOutput.");
+    }
+
+    @DisplayName(
+        "createInjectForScenario: inject_ready should reflect missing content when contract is set")
+    @Test
+    @Order(2)
+    @WithMockUser(isAdmin = true)
+    void createInjectForScenario_shouldReturnChecksReflectingInjectState() throws Exception {
+      // -- PREPARE --
+      InjectInput input = new InjectInput();
+      input.setTitle("Inject with missing content");
+      input.setInjectorContract(EMAIL_DEFAULT);
+      input.setDependsDuration(0L);
+
+      // -- EXECUTE --
+      String response =
+          mvc.perform(
+                  post(SCENARIO_URI + "/" + SCENARIO.getId() + "/injects")
+                      .with(csrf())
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -- ASSERT --
+      assertNotNull(JsonPath.read(response, "$.inject_id"));
+      Object checks = JsonPath.read(response, "$.inject_ready");
+      assertNotNull(checks, "inject_ready must not be null.");
+    }
+
+    @DisplayName(
+        "updateInjectForScenario: should return InjectOutput with updated title and inject_ready")
+    @Test
+    @Order(3)
+    @WithMockUser(isAdmin = true)
+    void updateInjectForScenario_shouldReturnInjectOutputWithChecks() throws Exception {
+      // -- PREPARE --
+      Inject inject = injectRepository.findById(SCENARIO_INJECT_ID).orElseThrow();
+      InjectInput input = new InjectInput();
+      String newTitle = "Updated inject title";
+      input.setTitle(newTitle);
+      input.setInjectorContract(
+          inject.getInjectorContract().map(InjectorContract::getId).orElse(null));
+      input.setDependsDuration(inject.getDependsDuration());
+
+      // -- EXECUTE --
+      String response =
+          mvc.perform(
+                  put(SCENARIO_URI + "/" + SCENARIO.getId() + "/injects/" + SCENARIO_INJECT_ID)
+                      .with(csrf())
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -- ASSERT --
+      assertNotNull(response);
+      assertEquals(newTitle, JsonPath.read(response, "$.inject_title"));
+      assertTrue(
+          response.contains("inject_ready"),
+          "The response must contain inject_ready, indicating that it is an InjectOutput.");
+      String returnedId = JsonPath.read(response, "$.inject_id");
+      assertEquals(
+          SCENARIO_INJECT_ID,
+          returnedId,
+          "Checks must be performed on the persisted inject, not on an intermediate instance.");
+    }
+
+    // -------------------------------------------------------------------------
+    // duplicateInjectForScenario
+    // -------------------------------------------------------------------------
+
+    @DisplayName(
+        "duplicateInjectForScenario: should return InjectOutput with new inject_id and inject_ready")
+    @Test
+    @Order(4)
+    @WithMockUser(isAdmin = true)
+    void duplicateInjectForScenario_shouldReturnInjectOutputWithChecks() throws Exception {
+      // -- EXECUTE --
+      String response =
+          mvc.perform(
+                  post(SCENARIO_URI + "/" + SCENARIO.getId() + "/injects/" + SCENARIO_INJECT_ID)
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -- ASSERT --
+      assertNotNull(response);
+      String duplicatedInjectId = JsonPath.read(response, "$.inject_id");
+
+      assertNotEquals(
+          SCENARIO_INJECT_ID,
+          duplicatedInjectId,
+          "The duplicated inject must have a new identifier.");
+
+      assertTrue(
+          response.contains("inject_ready"), "The duplication response must include inject_ready.");
+
+      assertTrue(injectRepository.existsById(duplicatedInjectId));
+      String duplicatedTitle = JsonPath.read(response, "$.inject_title");
+      assertTrue(
+          duplicatedTitle.contains("duplicate"),
+          "The title of the duplicated inject must contain the word “duplicate”.");
     }
   }
 }

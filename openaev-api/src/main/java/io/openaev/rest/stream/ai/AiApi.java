@@ -4,7 +4,7 @@ import static io.openaev.rest.stream.ai.AiPrompt.generatePrompt;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.rest.helper.RestBehavior;
 import jakarta.validation.Valid;
 import java.net.URI;
@@ -95,7 +95,7 @@ public class AiApi extends RestBehavior {
   }
 
   @PostMapping(path = "/api/ai/fix_spelling", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public ResponseEntity<Flux<AiResult>> aiFixSpelling(
       @Valid @RequestBody final AiGenericTextInput aiGenericTextInput)
       throws JsonProcessingException {
@@ -121,7 +121,7 @@ public class AiApi extends RestBehavior {
   }
 
   @PostMapping(path = "/api/ai/make_shorter", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public ResponseEntity<Flux<AiResult>> aiMakeShorter(
       @Valid @RequestBody final AiGenericTextInput aiGenericTextInput)
       throws JsonProcessingException {
@@ -147,7 +147,7 @@ public class AiApi extends RestBehavior {
   }
 
   @PostMapping(path = "/api/ai/make_longer", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public ResponseEntity<Flux<AiResult>> aiMakeLonger(
       @Valid @RequestBody final AiGenericTextInput aiGenericTextInput)
       throws JsonProcessingException {
@@ -174,7 +174,7 @@ public class AiApi extends RestBehavior {
   }
 
   @PostMapping(path = "/api/ai/change_tone", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public ResponseEntity<Flux<AiResult>> aiChangeTone(
       @Valid @RequestBody final AiGenericTextInput aiGenericTextInput)
       throws JsonProcessingException {
@@ -202,7 +202,7 @@ public class AiApi extends RestBehavior {
   }
 
   @PostMapping(path = "/api/ai/summarize", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public ResponseEntity<Flux<AiResult>> aiSummarize(
       @Valid @RequestBody final AiGenericTextInput aiGenericTextInput)
       throws JsonProcessingException {
@@ -227,7 +227,7 @@ public class AiApi extends RestBehavior {
   }
 
   @PostMapping(path = "/api/ai/explain", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public ResponseEntity<Flux<AiResult>> aiExplain(
       @Valid @RequestBody final AiGenericTextInput aiGenericTextInput)
       throws JsonProcessingException {
@@ -250,7 +250,7 @@ public class AiApi extends RestBehavior {
   }
 
   @PostMapping(path = "/api/ai/generate_message", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public ResponseEntity<Flux<AiResult>> aiGenerateMessage(
       @Valid @RequestBody final AiMessageInput aiMessageInput) throws JsonProcessingException {
     if (!aiConfig.isEnabled()) {
@@ -289,7 +289,7 @@ public class AiApi extends RestBehavior {
   }
 
   @PostMapping(path = "/api/ai/generate_subject", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public ResponseEntity<Flux<AiResult>> aiGenerateSubject(
       @Valid @RequestBody final AiMessageInput aiMessageInput) throws JsonProcessingException {
     if (!aiConfig.isEnabled()) {
@@ -325,7 +325,7 @@ public class AiApi extends RestBehavior {
   }
 
   @PostMapping(path = "/api/ai/generate_media", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public ResponseEntity<Flux<AiResult>> aiGenerateMedia(
       @Valid @RequestBody final AiMediaInput aiMediaInput) throws JsonProcessingException {
     if (!aiConfig.isEnabled()) {

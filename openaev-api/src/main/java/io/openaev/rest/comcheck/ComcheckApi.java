@@ -1,9 +1,10 @@
 package io.openaev.rest.comcheck;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
+import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 import static java.time.Instant.now;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ComcheckRepository;
 import io.openaev.database.repository.ComcheckStatusRepository;
@@ -47,7 +48,7 @@ public class ComcheckApi extends RestBehavior {
   }
 
   @GetMapping("/api/comcheck/{comcheckStatusId}")
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   @Transactional(rollbackOn = Exception.class)
   public ComcheckStatus checkValidation(@PathVariable String comcheckStatusId) {
     ComcheckStatus comcheckStatus =
@@ -70,8 +71,11 @@ public class ComcheckApi extends RestBehavior {
     return status;
   }
 
-  @DeleteMapping("/api/exercises/{exerciseId}/comchecks/{comcheckId}")
-  @RBAC(
+  @DeleteMapping({
+    "/api/exercises/{exerciseId}/comchecks/{comcheckId}",
+    TENANT_EXERCISE_URI + "/{exerciseId}/comchecks/{comcheckId}"
+  })
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
@@ -80,8 +84,11 @@ public class ComcheckApi extends RestBehavior {
     comcheckRepository.deleteById(comcheckId);
   }
 
-  @PostMapping("/api/exercises/{exerciseId}/comchecks")
-  @RBAC(
+  @PostMapping({
+    "/api/exercises/{exerciseId}/comchecks",
+    TENANT_EXERCISE_URI + "/{exerciseId}/comchecks"
+  })
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)

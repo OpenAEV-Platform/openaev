@@ -1,6 +1,8 @@
 package io.openaev.rest.collector;
 
-import io.openaev.aop.RBAC;
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.ResourceType;
@@ -21,6 +23,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
+import java.io.InputStream;
 import java.time.Instant;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -32,14 +35,15 @@ import org.springframework.web.multipart.MultipartFile;
 @RequiredArgsConstructor
 public class CollectorApi extends RestBehavior {
   public static final String COLLECTOR_URI = "/api/collectors";
+  private static final String TENANT_COLLECTOR_URI = TENANT_PREFIX + "/collectors";
   private final CollectorService collectorService;
   private final CollectorRepository collectorRepository;
   private final SecurityPlatformRepository securityPlatformRepository;
 
   private final FileService fileService;
 
-  @GetMapping(COLLECTOR_URI)
-  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.COLLECTOR)
+  @GetMapping({COLLECTOR_URI, TENANT_COLLECTOR_URI})
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.COLLECTOR)
   @Operation(
       summary = "Retrieve collectors",
       description = "Retrieve all collectors and pending collectors if includeNext is true")
@@ -79,8 +83,8 @@ public class CollectorApi extends RestBehavior {
     return collectorRepository.save(collector);
   }
 
-  @GetMapping(COLLECTOR_URI + "/{collectorId}")
-  @RBAC(
+  @GetMapping({COLLECTOR_URI + "/{collectorId}", TENANT_COLLECTOR_URI + "/{collectorId}"})
+  @AccessControl(
       resourceId = "#collectorId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.COLLECTOR)
@@ -88,8 +92,11 @@ public class CollectorApi extends RestBehavior {
     return collectorService.collector(collectorId);
   }
 
-  @GetMapping(COLLECTOR_URI + "/{collectorId}/related-ids")
-  @RBAC(
+  @GetMapping({
+    COLLECTOR_URI + "/{collectorId}/related-ids",
+    TENANT_COLLECTOR_URI + "/{collectorId}/related-ids"
+  })
+  @AccessControl(
       resourceId = "#collectorId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.COLLECTOR)
@@ -98,8 +105,8 @@ public class CollectorApi extends RestBehavior {
     return collectorService.getCollectorRelationsId(collectorId);
   }
 
-  @PutMapping(COLLECTOR_URI + "/{collectorId}")
-  @RBAC(
+  @PutMapping({COLLECTOR_URI + "/{collectorId}", TENANT_COLLECTOR_URI + "/{collectorId}"})
+  @AccessControl(
       resourceId = "#collectorId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.COLLECTOR)
@@ -117,53 +124,27 @@ public class CollectorApi extends RestBehavior {
   }
 
   @PostMapping(
-      value = COLLECTOR_URI,
+      value = {COLLECTOR_URI, TENANT_COLLECTOR_URI},
       produces = {MediaType.APPLICATION_JSON_VALUE},
       consumes = {MediaType.APPLICATION_JSON_VALUE, MediaType.MULTIPART_FORM_DATA_VALUE})
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.COLLECTOR)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.COLLECTOR)
   @Transactional(rollbackOn = Exception.class)
   public Collector registerCollector(
       @Valid @RequestPart("input") CollectorCreateInput input,
       @RequestPart("icon") Optional<MultipartFile> file) {
     try {
-      // Upload icon
-      if (file.isPresent() && "image/png".equals(file.get().getContentType())) {
-        fileService.uploadFile(
-            FileService.COLLECTORS_IMAGES_BASE_PATH + input.getType() + ".png", file.get());
-      }
-      // We need to support upsert for registration
-      Collector collector = collectorRepository.findById(input.getId()).orElse(null);
-      if (collector == null) {
-        Collector collectorChecking = collectorRepository.findByType(input.getType()).orElse(null);
-        if (collectorChecking != null) {
-          throw new Exception(
-              "The collector "
-                  + input.getType()
-                  + " already exists with a different ID, please delete it or contact your administrator.");
-        }
-      }
-      if (collector != null) {
-        return updateCollector(
-            collector,
-            input.getType(),
-            input.getName(),
-            input.getPeriod(),
-            collector.getLastExecution(),
-            input.getSecurityPlatform());
-      } else {
-        // save the injector
-        Collector newCollector = new Collector();
-        newCollector.setId(input.getId());
-        newCollector.setExternal(true);
-        newCollector.setName(input.getName());
-        newCollector.setType(input.getType());
-        newCollector.setPeriod(input.getPeriod());
-        if (input.getSecurityPlatform() != null) {
-          newCollector.setSecurityPlatform(
-              securityPlatformRepository.findById(input.getSecurityPlatform()).orElseThrow());
-        }
-        return collectorRepository.save(newCollector);
-      }
+      InputStream iconStream =
+          file.isPresent() && "image/png".equals(file.get().getContentType())
+              ? file.get().getInputStream()
+              : null;
+      return collectorService.register(
+          input.getId(),
+          input.getType(),
+          input.getName(),
+          true,
+          input.getPeriod(),
+          input.getSecurityPlatform(),
+          iconStream);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

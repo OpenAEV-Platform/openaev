@@ -27,7 +27,7 @@ import {
   Typography,
 } from '@mui/material';
 import { SelectGroup } from 'mdi-material-ui';
-import { Component, type ComponentType } from 'react';
+import { Component, type ComponentType, type JSX } from 'react';
 import { connect } from 'react-redux';
 
 import { fetchAssetGroups } from '../../../actions/asset_groups/assetgroup-action';
@@ -59,6 +59,7 @@ type ToolBarOwnProps = {
   handleBulkDelete?: (actions?: ToolBarActionInput[]) => void;
   info?: string;
   toolTasks?: ToolBarTask[];
+  customAction?: JSX.Element;
   showExport?: boolean;
   showUpdate?: boolean;
   showBulkTest?: boolean;
@@ -491,6 +492,7 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
       canManage = false,
       info,
       toolTasks = [],
+      customAction,
       showExport,
       showUpdate,
       showBulkTest,
@@ -572,6 +574,7 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
               </Typography>
             </Box>
           )}
+          {customAction && customAction}
           {canExport && (
             <Tooltip title={t('Export')}>
               <span>

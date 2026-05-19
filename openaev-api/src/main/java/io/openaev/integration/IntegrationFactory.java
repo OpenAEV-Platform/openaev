@@ -27,7 +27,7 @@ public abstract class IntegrationFactory {
 
   @Transactional(rollbackFor = Exception.class)
   public void initialise() throws Exception {
-    String className = this.getClass().getCanonicalName();
+    String className = this.getClassName();
     if (catalogConnectorService.findByFactoryClassName(className).isEmpty()) {
       insertCatalogEntry();
     }
@@ -58,7 +58,7 @@ public abstract class IntegrationFactory {
   @Transactional
   public List<ConnectorInstance> findRelatedInstances() {
     return connectorInstanceService.connectorInstances().stream()
-        .filter(ci -> this.getClass().getCanonicalName().equals(ci.getClassName()))
+        .filter(ci -> this.getClassName().equals(ci.getClassName()))
         .map(ci -> (ConnectorInstance) ci)
         .toList();
   }

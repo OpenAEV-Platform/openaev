@@ -28,7 +28,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 @TestInstance(PER_CLASS)
 @Transactional
-@WithMockUser(withCapabilities = {Capability.ACCESS_PLATFORM_SETTINGS})
+@WithMockUser(withCapabilities = {Capability.ACCESS_TENANT_SETTINGS})
 @DisplayName("Catalog Connector Api Integration Tests")
 public class CatalogConnectorApiTest extends IntegrationTest {
 
@@ -128,38 +128,5 @@ public class CatalogConnectorApiTest extends IntegrationTest {
         .inPath("[*].catalog_connector_title")
         .isArray()
         .containsExactlyInAnyOrderElementsOf(List.of("Collector1", "Collector2"));
-  }
-
-  @Test
-  @DisplayName("Should retrieve all undeployed catalog connector")
-  void should_retrieveAllUndeployedCatalogConnector() throws Exception {
-    // Arrange
-    catalogConnectorComposer
-        .forCatalogConnector(createDefaultCatalogConnectorManagedByXtmComposer("Collector1"))
-        .persist();
-    catalogConnectorComposer
-        .forCatalogConnector(createDefaultCatalogConnectorManagedByXtmComposer("Collector2"))
-        .withConnectorInstance(
-            connectorInstanceComposer.forConnectorInstance(
-                ConnectorInstanceFixture.createMigratedInstance()))
-        .persist();
-
-    // Act
-    String response =
-        mvc.perform(
-                get(CATALOG_CONNECTOR_URI + "/undeployed")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
-            .andExpect(status().is2xxSuccessful())
-            .andReturn()
-            .getResponse()
-            .getContentAsString();
-
-    // Assert
-    assertThatJson(response).isArray().size().isEqualTo(1);
-    assertThatJson(response)
-        .inPath("[*].catalog_connector_title")
-        .isArray()
-        .containsExactlyInAnyOrderElementsOf(List.of("Collector1"));
   }
 }

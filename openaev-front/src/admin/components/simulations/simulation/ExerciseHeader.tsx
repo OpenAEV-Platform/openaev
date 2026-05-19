@@ -1,19 +1,21 @@
 import { CancelOutlined, PauseOutlined, PlayArrowOutlined, RestartAltOutlined } from '@mui/icons-material';
 import { Button, Dialog, DialogActions, DialogContent, DialogContentText, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import { updateExerciseStatus } from '../../../../actions/Exercise';
+import type { WorkflowConfigurationHelper } from '../../../../actions/chaining/workflow-helper';
+import { searchExerciseHealthchecks, updateExerciseStatus } from '../../../../actions/Exercise';
 import { type ExercisesHelper } from '../../../../actions/exercises/exercise-helper';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
-import { type Exercise, type Exercise as ExerciseType } from '../../../../utils/api-types';
+import { type Exercise, type Exercise as ExerciseType, type HealthCheck } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useSimulationPermissions from '../../../../utils/permissions/useSimulationPermissions';
 import { truncate } from '../../../../utils/String';
+import { isFeatureEnabled } from '../../../../utils/utils';
 import ExercisePopover, { type ExerciseActionPopover } from './ExercisePopover';
 import ExerciseStatus from './ExerciseStatus';
 
@@ -29,12 +31,13 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
-const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoading }: {
+const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoading, isScopeMissing }: {
   exerciseId: Exercise['exercise_id'];
   exerciseStatus: Exercise['exercise_status'];
   exerciseName: Exercise['exercise_name'];
   onLoading: (loading: boolean) => void;
   isLoading: boolean;
+  isScopeMissing: boolean;
 }) => {
   // Standard hooks
   const { t } = useFormatter();
@@ -56,20 +59,26 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoadin
       case 'SCHEDULED': {
         if (permissions.canLaunch) {
           return (
-            <Button
-              style={{
-                marginRight: 10,
-                lineHeight: 'initial',
-              }}
-              startIcon={<PlayArrowOutlined />}
-              variant="contained"
-              size="small"
-              color="primary"
-              onClick={() => setOpenChangeStatus('RUNNING')}
-              disabled={isLoading}
+            <Tooltip
+              title={isScopeMissing ? t('A Chaining Simulation requires a defined scope.') : ''}
             >
-              {t('Start now')}
-            </Button>
+              <span style={{ display: 'inline-flex' }}>
+                <Button
+                  style={{
+                    marginRight: 10,
+                    lineHeight: 'initial',
+                  }}
+                  startIcon={<PlayArrowOutlined />}
+                  variant="contained"
+                  size="small"
+                  color="primary"
+                  onClick={() => setOpenChangeStatus('RUNNING')}
+                  disabled={isLoading || isScopeMissing}
+                >
+                  {t('Start now')}
+                </Button>
+              </span>
+            </Tooltip>
           );
         }
         return (<div />);
@@ -216,7 +225,32 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
     return { exercise: helper.getExercise(exerciseId) };
   });
 
-  const actions: ExerciseActionPopover[] = ['Update', 'Duplicate', 'Export', 'Delete', 'Access reports'];
+  const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
+  const exerciseWorkflowId = exercise.exercise_workflow_id as string | undefined;
+  const isSimulationChaining = isChainingFeatureEnabled && !!exerciseWorkflowId;
+
+  const { workflowConfiguration } = useHelper(
+    (helper: WorkflowConfigurationHelper) => ({
+      workflowConfiguration: exerciseWorkflowId
+        ? helper.getWorkflowConfiguration(exerciseWorkflowId)
+        : undefined,
+    }),
+  );
+
+  const [healthchecks, setHealthchecks] = useState<HealthCheck[]>([]);
+
+  const isScopeMissing = isSimulationChaining
+    && healthchecks.some((hc: HealthCheck) => hc.type === ('SCOPE_DEFINITION' as HealthCheck['type']) && hc.detail === 'EMPTY');
+
+  useEffect(() => {
+    if (isChainingFeatureEnabled && exerciseWorkflowId) {
+      searchExerciseHealthchecks(exerciseId).then((result: { data: HealthCheck[] }) => setHealthchecks(result.data));
+    }
+  }, [exerciseId, exercise, isChainingFeatureEnabled, workflowConfiguration]);
+
+  const actions: ExerciseActionPopover[] = isSimulationChaining
+    ? ['Update', 'Delete', 'Access reports']
+    : ['Update', 'Duplicate', 'Export', 'Delete', 'Access reports'];
 
   return (
     <>
@@ -241,6 +275,7 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
           exerciseName={exercise.exercise_name}
           onLoading={onLoading}
           isLoading={isLoading}
+          isScopeMissing={isScopeMissing}
         />
         <ExercisePopover
           exercise={exercise}

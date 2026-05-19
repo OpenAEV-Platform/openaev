@@ -7,7 +7,7 @@ import static java.time.Instant.now;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.model.Action;
@@ -134,7 +134,8 @@ public class StreamApi extends RestBehavior {
 
   /** Create a flux for current user & session */
   @GetMapping(path = "/api/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-  @RBAC(skipRBAC = true) // TODO RBAC check must be done manually for every event in this method
+  @AccessControl(
+      skipRBAC = true) // TODO RBAC check must be done manually for every event in this method
   public ResponseEntity<Flux<Object>> streamFlux() {
     String sessionId = RequestContextHolder.currentRequestAttributes().getSessionId();
     // Build the database event flux.

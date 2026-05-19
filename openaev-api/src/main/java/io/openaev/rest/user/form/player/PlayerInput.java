@@ -2,6 +2,7 @@ package io.openaev.rest.user.form.player;
 
 import static io.openaev.config.AppConfig.EMAIL_FORMAT;
 import static io.openaev.config.AppConfig.PHONE_FORMAT;
+import static io.openaev.config.AppConfig.PHONE_REGEXP;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.Email;
@@ -40,11 +41,11 @@ public class PlayerInput {
   private List<String> teamIds = new ArrayList<>();
 
   @JsonProperty("user_phone")
-  @Pattern(regexp = "^\\+[\\d\\s\\-.()]+$", message = PHONE_FORMAT)
+  @Pattern(regexp = PHONE_REGEXP, message = PHONE_FORMAT)
   private String phone;
 
   @JsonProperty("user_phone2")
-  @Pattern(regexp = "^\\+[\\d\\s\\-.()]+$", message = PHONE_FORMAT)
+  @Pattern(regexp = PHONE_REGEXP, message = PHONE_FORMAT)
   private String phone2;
 
   @JsonProperty("user_pgp_key")

@@ -83,14 +83,14 @@ public class Variable implements Base {
   @JoinColumn(name = "variable_exercise")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("variable_exercise")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Exercise exercise;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "variable_scenario")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("variable_scenario")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Scenario scenario;
 
   // -- AUDIT --

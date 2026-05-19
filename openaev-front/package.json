@@ -22,7 +22,7 @@
     "check-ts": "tsc",
     "generate-types-from-api": "swagger-typescript-api generate --no-client --path=${API_URL:-http://localhost:8080}/api-docs --output=src/utils --name=api-types.d.ts --sort-types",
     "test": "vitest run --coverage",
-    "test:e2e": "yarn playwright test --workers=1 --retries=2",
+    "test:e2e": "yarn playwright test",
     "test:e2e:ui": "yarn playwright test --ui --workers=1",
     "test:e2e:coverage": "E2E_COVERAGE=true yarn playwright test && yarn show-report-e2e",
     "generate-test-e2e": "yarn playwright codegen http://localhost:3001/",
@@ -38,6 +38,7 @@
     "@ckeditor/ckeditor5-react": "11.1.2",
     "@emotion/react": "11.14.0",
     "@emotion/styled": "11.14.1",
+    "@filigran/chatbot": "3.2.0",
     "@fontsource/geologica": "5.2.8",
     "@fontsource/ibm-plex-sans": "5.2.8",
     "@hello-pangea/dnd": "18.0.1",
@@ -67,6 +68,7 @@
     "html-to-image": "1.11.13",
     "http-proxy-middleware": "3.0.5",
     "immutable": "5.1.5",
+    "ipaddr.js": "^2.2.0",
     "js-file-download": "0.4.12",
     "mdi-material-ui": "7.9.4",
     "moment": "2.30.1",
@@ -99,7 +101,7 @@
     "tss-react": "4.9.20",
     "usehooks-ts": "3.1.1",
     "uuid": "14.0.0",
-    "zod": "3.25.76",
+    "zod": "4.3.6",
     "zustand": "5.0.13"
   },
   "devDependencies": {

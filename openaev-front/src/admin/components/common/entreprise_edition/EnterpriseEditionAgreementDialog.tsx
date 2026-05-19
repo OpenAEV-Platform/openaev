@@ -10,7 +10,7 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 */
 
-import { Alert, Button, Link, TextField } from '@mui/material';
+import { Alert, Button, TextField } from '@mui/material';
 import { useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -79,28 +79,28 @@ const EnterpriseEditionAgreementDialog = () => {
           <p>
             {t('To obtain a license, please {contact}', {
               contact: (
-                <Link
+                <a
                   href="https://filigran.io/contact/"
                   target="_blank"
                   style={{ textDecoration: 'none' }}
                   rel="noreferrer"
                 >
                   {t('reach out to the Filigran team')}
-                </Link>
+                </a>
               ),
             })}
           </p>
           <p>
             {t('You just need to try ? Get right now {url}.', {
               url: (
-                <Link
+                <a
                   href="https://filigran.io/enterprise-editions-trial/"
                   target="_blank"
                   style={{ textDecoration: 'none' }}
                   rel="noreferrer"
                 >
                   {t('your trial license online')}
-                </Link>
+                </a>
               ),
             })}
           </p>

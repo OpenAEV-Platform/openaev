@@ -61,7 +61,6 @@ const Players = () => {
   // Query param
   const [searchParams] = useSearchParams();
   const [search] = searchParams.getAll('search');
-  const [searchId] = searchParams.getAll('id');
 
   // Headers
   const headers: Header[] = useMemo(() => [
@@ -179,8 +178,6 @@ const Players = () => {
                 secondaryAction={(
                   <PlayerPopover
                     user={player}
-                    openEditOnInit={player.user_id === searchId}
-                    onUpdate={result => setPlayers(players.map(p => (p.user_id !== result.user_id ? p : result)))}
                     onDelete={result => setPlayers(players.filter(p => (p.user_id !== result)))}
                   />
                 )}

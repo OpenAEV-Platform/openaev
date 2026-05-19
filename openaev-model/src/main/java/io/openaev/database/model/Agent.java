@@ -7,6 +7,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.helper.AgentHelper;
 import io.openaev.helper.MonoIdSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -18,13 +19,15 @@ import java.util.Objects;
 import java.util.UUID;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.Filter;
 
 @Getter
 @Setter
 @Entity
 @Table(name = "agents")
-@EntityListeners(ModelBaseListener.class)
-public class Agent implements Base {
+@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+public class Agent implements TenantBase {
 
   public static final String ADMIN_SYSTEM_WINDOWS = "nt authority\\system";
   public static final String ADMIN_SYSTEM_UNIX = "root";
@@ -55,7 +58,7 @@ public class Agent implements Base {
   @JoinColumn(name = "agent_asset")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("agent_asset")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   @NotNull
   private Asset asset;
 
@@ -84,7 +87,7 @@ public class Agent implements Base {
   @JoinColumn(name = "agent_executor")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("agent_executor")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Executor executor;
 
   @Queryable(filterable = true, sortable = true)
@@ -97,7 +100,7 @@ public class Agent implements Base {
   @JsonSerialize(using = MonoIdSerializer.class)
   @JoinColumn(name = "agent_parent")
   @JsonProperty("agent_parent")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Agent parent;
 
   /** Used for Caldera only */
@@ -105,7 +108,7 @@ public class Agent implements Base {
   @JsonSerialize(using = MonoIdSerializer.class)
   @JoinColumn(name = "agent_inject")
   @JsonProperty("agent_inject")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Inject inject;
 
   @JsonProperty("agent_active")
@@ -143,6 +146,12 @@ public class Agent implements Base {
   @Getter(onMethod_ = @JsonIgnore)
   @Transient
   private final ResourceType resourceType = ResourceType.AGENT;
+
+  // Ignore json and not null
+  @ManyToOne
+  @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
+  @JsonIgnore
+  private Tenant tenant;
 
   @Override
   public int hashCode() {

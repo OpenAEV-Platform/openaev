@@ -1,28 +1,34 @@
 package io.openaev.rest.document;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
+import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.injectors.challenge.ChallengeContract.CHALLENGE_PUBLISH;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.database.model.Article;
-import io.openaev.database.model.Document;
-import io.openaev.database.model.Inject;
+import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
-import io.openaev.database.repository.ChallengeRepository;
-import io.openaev.database.repository.DocumentRepository;
+import io.openaev.database.repository.*;
 import io.openaev.injectors.challenge.model.ChallengeContent;
+import io.openaev.rest.document.form.DocumentCreateInput;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.FileService;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.commons.io.FilenameUtils;
 import org.springframework.stereotype.Service;
 
 @RequiredArgsConstructor
@@ -34,6 +40,9 @@ public class DocumentService {
 
   private final DocumentRepository documentRepository;
   private final ChallengeRepository challengeRepository;
+  private final ExerciseRepository exerciseRepository;
+  private final ScenarioRepository scenarioRepository;
+  private final TagRepository tagRepository;
   private final FileService fileService;
 
   // -- CRUD --
@@ -42,6 +51,106 @@ public class DocumentService {
     return documentRepository
         .findById(documentId)
         .orElseThrow(() -> new ElementNotFoundException("Document not found"));
+  }
+
+  /**
+   * Upsert a document
+   *
+   * @param fileName of the document to upsert
+   * @param fileIS Input Stream of the document to upsert
+   * @param fileSize Size of the document to upsert
+   * @param fileContentType Content Type of the document to upsert
+   * @param input documents informations for his creation
+   * @return the upserted Document
+   * @throws Exception when an upload issue occur
+   */
+  public Document upsert(
+      String fileName,
+      InputStream fileIS,
+      long fileSize,
+      String fileContentType,
+      DocumentCreateInput input)
+      throws Exception {
+    byte[] content = fileIS.readAllBytes();
+    String extension = FilenameUtils.getExtension(fileName);
+    String fileTarget = DigestUtils.md5Hex(new ByteArrayInputStream(content)) + "." + extension;
+    Optional<Document> targetDocument = documentRepository.findByTarget(fileTarget);
+    // Document already exists by hash
+    if (targetDocument.isPresent()) {
+      Document document = targetDocument.get();
+      // Compute exercises
+      if (!document.getExercises().isEmpty()) {
+        Set<Exercise> exercises = new HashSet<>(document.getExercises());
+        List<Exercise> inputExercises =
+            fromIterable(exerciseRepository.findAllById(input.getExerciseIds()));
+        exercises.addAll(inputExercises);
+        document.setExercises(exercises);
+      }
+      // Compute scenarios
+      if (!document.getScenarios().isEmpty()) {
+        Set<Scenario> scenarios = new HashSet<>(document.getScenarios());
+        List<Scenario> inputScenarios =
+            fromIterable(scenarioRepository.findAllById(input.getScenarioIds()));
+        scenarios.addAll(inputScenarios);
+        document.setScenarios(scenarios);
+      }
+      // Compute tags
+      Set<Tag> tags = new HashSet<>(document.getTags());
+      List<Tag> inputTags = fromIterable(tagRepository.findAllById(input.getTagIds()));
+      tags.addAll(inputTags);
+      document.setTags(tags);
+      return save(document);
+    } else {
+      Optional<Document> existingDocument = documentRepository.findByName(fileName);
+      if (existingDocument.isPresent()) {
+        Document document = existingDocument.get();
+        // Update doc
+        fileService.uploadFile(
+            fileTarget, new ByteArrayInputStream(content), fileSize, fileContentType);
+        document.setDescription(input.getDescription());
+
+        // Compute exercises
+        if (!document.getExercises().isEmpty()) {
+          Set<Exercise> exercises = new HashSet<>(document.getExercises());
+          List<Exercise> inputExercises =
+              fromIterable(exerciseRepository.findAllById(input.getExerciseIds()));
+          exercises.addAll(inputExercises);
+          document.setExercises(exercises);
+        }
+        // Compute scenarios
+        if (!document.getScenarios().isEmpty()) {
+          Set<Scenario> scenarios = new HashSet<>(document.getScenarios());
+          List<Scenario> inputScenarios =
+              fromIterable(scenarioRepository.findAllById(input.getScenarioIds()));
+          scenarios.addAll(inputScenarios);
+          document.setScenarios(scenarios);
+        }
+        // Compute tags
+        Set<Tag> tags = new HashSet<>(document.getTags());
+        List<Tag> inputTags = fromIterable(tagRepository.findAllById(input.getTagIds()));
+        tags.addAll(inputTags);
+        document.setTags(tags);
+        return save(document);
+      } else {
+        fileService.uploadFile(
+            fileTarget, new ByteArrayInputStream(content), fileSize, fileContentType);
+        Document document = new Document();
+        document.setTarget(fileTarget);
+        document.setName(fileName);
+        document.setDescription(input.getDescription());
+        if (!input.getExerciseIds().isEmpty()) {
+          document.setExercises(
+              iterableToSet(exerciseRepository.findAllById(input.getExerciseIds())));
+        }
+        if (!input.getScenarioIds().isEmpty()) {
+          document.setScenarios(
+              iterableToSet(scenarioRepository.findAllById(input.getScenarioIds())));
+        }
+        document.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
+        document.setType(fileContentType);
+        return save(document);
+      }
+    }
   }
 
   public List<Document> getPlayerDocuments(List<Article> articles, List<Inject> injects) {
@@ -132,5 +241,17 @@ public class DocumentService {
 
   public List<RawDocument> documentsForPayload(@NotBlank String payloadId) {
     return this.documentRepository.rawAllDocumentsByPayloadId(payloadId);
+  }
+
+  public List<Document> findAllDistinctOnInjectsByScenarioId(@NotBlank String scenarioId) {
+    return this.documentRepository.findAllDistinctOnInjectsByScenarioId(scenarioId);
+  }
+
+  public boolean documentExists(String documentId) {
+    return this.documentRepository.existsById(documentId);
+  }
+
+  public Document save(Document document) {
+    return documentRepository.save(document);
   }
 }

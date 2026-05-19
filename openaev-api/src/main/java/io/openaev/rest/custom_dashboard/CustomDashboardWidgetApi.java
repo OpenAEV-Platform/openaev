@@ -1,8 +1,9 @@
 package io.openaev.rest.custom_dashboard;
 
 import static io.openaev.rest.custom_dashboard.CustomDashboardApi.CUSTOM_DASHBOARDS_URI;
+import static io.openaev.rest.custom_dashboard.CustomDashboardApi.TENANT_CUSTOM_DASHBOARDS_URI;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Widget;
@@ -18,17 +19,25 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping(CustomDashboardWidgetApi.CUSTOM_DASHBOARDS_WIDGET_URI)
+@RequestMapping({
+  CustomDashboardWidgetApi.CUSTOM_DASHBOARDS_WIDGET_URI,
+  CustomDashboardWidgetApi.TENANT_CUSTOM_DASHBOARDS_WIDGET_URI
+})
 @RequiredArgsConstructor
 public class CustomDashboardWidgetApi extends RestBehavior {
 
   public static final String CUSTOM_DASHBOARDS_WIDGET_URI = CUSTOM_DASHBOARDS_URI + "/{id}/widgets";
+  public static final String TENANT_CUSTOM_DASHBOARDS_WIDGET_URI =
+      TENANT_CUSTOM_DASHBOARDS_URI + "/{id}/widgets";
   private final WidgetService widgetService;
 
   // -- CRUD --
 
   @PostMapping
-  @RBAC(resourceId = "#id", actionPerformed = Action.WRITE, resourceType = ResourceType.DASHBOARD)
+  @AccessControl(
+      resourceId = "#id",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.DASHBOARD)
   public ResponseEntity<Widget> createWidget(
       @PathVariable @NotBlank final String id,
       @RequestBody @Valid @NotNull final WidgetInput input) {
@@ -36,20 +45,29 @@ public class CustomDashboardWidgetApi extends RestBehavior {
   }
 
   @GetMapping
-  @RBAC(resourceId = "#id", actionPerformed = Action.READ, resourceType = ResourceType.DASHBOARD)
+  @AccessControl(
+      resourceId = "#id",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.DASHBOARD)
   public ResponseEntity<List<Widget>> widgets(@PathVariable @NotBlank final String id) {
     return ResponseEntity.ok(this.widgetService.widgets(id));
   }
 
   @GetMapping("/{widgetId}")
-  @RBAC(resourceId = "#id", actionPerformed = Action.READ, resourceType = ResourceType.DASHBOARD)
+  @AccessControl(
+      resourceId = "#id",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.DASHBOARD)
   public ResponseEntity<Widget> widget(
       @PathVariable @NotBlank final String id, @PathVariable @NotBlank final String widgetId) {
     return ResponseEntity.ok(this.widgetService.widget(id, widgetId));
   }
 
   @PutMapping("/{widgetId}")
-  @RBAC(resourceId = "#id", actionPerformed = Action.WRITE, resourceType = ResourceType.DASHBOARD)
+  @AccessControl(
+      resourceId = "#id",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.DASHBOARD)
   public ResponseEntity<Widget> updateWidget(
       @PathVariable @NotBlank final String id,
       @PathVariable @NotBlank final String widgetId,
@@ -60,7 +78,10 @@ public class CustomDashboardWidgetApi extends RestBehavior {
   }
 
   @PutMapping("/{widgetId}/layout")
-  @RBAC(resourceId = "#id", actionPerformed = Action.WRITE, resourceType = ResourceType.DASHBOARD)
+  @AccessControl(
+      resourceId = "#id",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.DASHBOARD)
   public ResponseEntity<Widget> updateWidgetLayout(
       @PathVariable @NotBlank final String id,
       @PathVariable @NotBlank final String widgetId,
@@ -71,7 +92,10 @@ public class CustomDashboardWidgetApi extends RestBehavior {
   }
 
   @DeleteMapping("/{widgetId}")
-  @RBAC(resourceId = "#id", actionPerformed = Action.WRITE, resourceType = ResourceType.DASHBOARD)
+  @AccessControl(
+      resourceId = "#id",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.DASHBOARD)
   public ResponseEntity<Void> deleteWidget(
       @PathVariable @NotBlank final String id, @PathVariable @NotBlank final String widgetId) {
     this.widgetService.deleteWidget(id, widgetId);

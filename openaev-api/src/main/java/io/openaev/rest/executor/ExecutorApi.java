@@ -1,10 +1,12 @@
 package io.openaev.rest.executor;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.service.EndpointService.SERVICE;
 import static io.openaev.utils.SecurityUtils.validateJFrogUri;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ExecutorRepository;
 import io.openaev.database.repository.TokenRepository;
@@ -34,6 +36,7 @@ import java.io.InputStream;
 import java.time.Instant;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
@@ -41,12 +44,17 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequiredArgsConstructor
+@Slf4j
 public class ExecutorApi extends RestBehavior {
 
   public static final String EXECUTOR_URI = "/api/executors";
+  private static final String AGENT_URI = "/api/agent";
+  private static final String TENANT_EXECUTOR_URI = TENANT_PREFIX + "/executors";
+  private static final String TENANT_AGENT_URI = TENANT_PREFIX + "/agent";
 
   @Value("${info.app.version:unknown}")
   String version;
@@ -66,8 +74,8 @@ public class ExecutorApi extends RestBehavior {
 
   @Resource protected ObjectMapper mapper;
 
-  @GetMapping(EXECUTOR_URI)
-  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
+  @GetMapping({EXECUTOR_URI, TENANT_EXECUTOR_URI})
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
   @Operation(
       summary = "Retrieve executors",
       description = "Retrieve all executors and pending executors if includeNext is true")
@@ -87,17 +95,28 @@ public class ExecutorApi extends RestBehavior {
     return executorService.executorsOutput(includeNext);
   }
 
-  @GetMapping(EXECUTOR_URI + "/{executorId}")
-  @RBAC(
+  @GetMapping({EXECUTOR_URI + "/{executorId}", TENANT_EXECUTOR_URI + "/{executorId}"})
+  @AccessControl(
       resourceId = "#collectorId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.ASSET)
   public Executor getExecutor(@PathVariable String executorId) {
-    return executorService.executor(executorId);
+    try {
+      return executorService.executor(executorId);
+    } catch (ElementNotFoundException e) {
+      log.warn(
+          "Executor with id {} not found - This may be because the executor has never been started yet",
+          executorId);
+      throw new ResponseStatusException(
+          org.springframework.http.HttpStatus.NOT_FOUND, "Executor not found");
+    }
   }
 
-  @GetMapping(EXECUTOR_URI + "/{executorId}/related-ids")
-  @RBAC(
+  @GetMapping({
+    EXECUTOR_URI + "/{executorId}/related-ids",
+    TENANT_EXECUTOR_URI + "/{executorId}/related-ids"
+  })
+  @AccessControl(
       resourceId = "#executorId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.ASSET)
@@ -114,8 +133,8 @@ public class ExecutorApi extends RestBehavior {
     return executorRepository.save(executor);
   }
 
-  @PutMapping(EXECUTOR_URI + "/{executorId}")
-  @RBAC(
+  @PutMapping({EXECUTOR_URI + "/{executorId}", TENANT_EXECUTOR_URI + "/{executorId}"})
+  @AccessControl(
       resourceId = "#executorId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.ASSET)
@@ -128,10 +147,10 @@ public class ExecutorApi extends RestBehavior {
   }
 
   @PostMapping(
-      value = EXECUTOR_URI,
+      value = {EXECUTOR_URI, TENANT_EXECUTOR_URI},
       produces = {MediaType.APPLICATION_JSON_VALUE},
       consumes = {MediaType.APPLICATION_JSON_VALUE, MediaType.MULTIPART_FORM_DATA_VALUE})
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.ASSET)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.ASSET)
   @Transactional(rollbackOn = Exception.class)
   public Executor registerExecutor(
       @Valid @RequestPart("input") ExecutorCreateInput input,
@@ -152,7 +171,10 @@ public class ExecutorApi extends RestBehavior {
       // We need to support upsert for registration
       Executor executor = executorRepository.findById(input.getId()).orElse(null);
       if (executor == null) {
-        Executor executorChecking = executorRepository.findByType(input.getType()).orElse(null);
+        Executor executorChecking =
+            executorRepository
+                .findByTypeAndTenantId(input.getType(), TenantContext.getCurrentTenant())
+                .orElse(null);
         if (executorChecking != null) {
           throw new Exception(
               "The executor "
@@ -189,9 +211,12 @@ public class ExecutorApi extends RestBehavior {
             description = "Invalid platform or architecture specified."),
       })
   @GetMapping(
-      value = "/api/agent/executable/openaev/{platform}/{architecture}",
+      value = {
+        AGENT_URI + "/executable/openaev/{platform}/{architecture}",
+        TENANT_AGENT_URI + "/executable/openaev/{platform}/{architecture}"
+      },
       produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public @ResponseBody ResponseEntity<byte[]> getOpenAevAgentExecutable(
       @Parameter(
               description =
@@ -252,9 +277,12 @@ public class ExecutorApi extends RestBehavior {
             description = "Invalid platform or architecture specified."),
       })
   @GetMapping(
-      value = "/api/agent/package/openaev/{platform}/{architecture}/{installationMode}",
+      value = {
+        AGENT_URI + "/package/openaev/{platform}/{architecture}/{installationMode}",
+        TENANT_AGENT_URI + "/package/openaev/{platform}/{architecture}/{installationMode}"
+      },
       produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public @ResponseBody ResponseEntity<byte[]> getOpenAevAgentPackage(
       @Parameter(
               description =
@@ -330,8 +358,12 @@ public class ExecutorApi extends RestBehavior {
         @ApiResponse(responseCode = "400", description = "Invalid platform specified."),
         @ApiResponse(responseCode = "404", description = "Token not found."),
       })
-  @GetMapping(value = "/api/agent/installer/openaev/{platform}/{installationMode}/{token}")
-  @RBAC(skipRBAC = true)
+  @GetMapping(
+      value = {
+        AGENT_URI + "/installer/openaev/{platform}/{installationMode}/{token}",
+        TENANT_AGENT_URI + "/installer/openaev/{platform}/{installationMode}/{token}"
+      })
+  @AccessControl(skipRBAC = true)
   public @ResponseBody ResponseEntity<String> getOpenAevAgentInstaller(
       @Parameter(
               description =
@@ -366,7 +398,8 @@ public class ExecutorApi extends RestBehavior {
             resolvedToken.getValue(),
             resolvedInstallationMode,
             installationDir,
-            serviceName);
+            serviceName,
+            TenantContext.getCurrentTenant());
     return ResponseEntity.ok().contentType(MediaType.TEXT_PLAIN).body(installCommand);
   }
 }

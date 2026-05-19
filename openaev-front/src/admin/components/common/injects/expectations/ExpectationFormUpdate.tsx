@@ -130,21 +130,21 @@ const ExpectationFormUpdate: FunctionComponent<Props> = ({
           type="number"
           label={t('Days')}
           style={{ width: '20%' }}
-          inputProps={register('expiration_time_days')}
+          slotProps={{ htmlInput: { ...register('expiration_time_days', { valueAsNumber: true }) } }}
         />
         <TextField
           variant="standard"
           type="number"
           label={t('Hours')}
           style={{ width: '20%' }}
-          inputProps={register('expiration_time_hours')}
+          slotProps={{ htmlInput: { ...register('expiration_time_hours', { valueAsNumber: true }) } }}
         />
         <TextField
           variant="standard"
           type="number"
           label={t('Minutes')}
           style={{ width: '20%' }}
-          inputProps={register('expiration_time_minutes')}
+          slotProps={{ htmlInput: { ...register('expiration_time_minutes', { valueAsNumber: true }) } }}
         />
       </div>
       <div style={{ marginTop: 20 }}>
@@ -161,7 +161,13 @@ const ExpectationFormUpdate: FunctionComponent<Props> = ({
         helperText={
           errors.expectation_score && errors.expectation_score?.message
         }
-        inputProps={register('expectation_score')}
+        slotProps={{
+          htmlInput: {
+            ...register('expectation_score', { valueAsNumber: true }),
+            min: 0,
+            max: 100,
+          },
+        }}
       />
       <ExpectationGroupField isTechnicalExpectation={isTechnicalExpectation(getValues().expectation_type)} control={control} />
       <div className={classes.buttons}>

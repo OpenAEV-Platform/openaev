@@ -1,5 +1,7 @@
 package io.openaev.integration.impl.executors.crowdstrike;
 
+import static java.util.Optional.ofNullable;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.cache.LicenseCacheManager;
@@ -7,7 +9,7 @@ import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Executor;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.crowdstrike.client.CrowdStrikeExecutorClient;
 import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
@@ -56,11 +58,10 @@ public class CrowdStrikeExecutorIntegration extends Integration {
   private final AgentService agentService;
   private final AssetGroupService assetGroupService;
   private final ExecutorService executorService;
-  private final Ee eeService;
+  private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
   private final ThreadPoolTaskScheduler taskScheduler;
   private final ConnectorInstanceService connectorInstanceService;
-  private final ConnectorInstance connectorInstance;
   private final HttpClientFactory httpClientFactory;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
 
@@ -71,7 +72,7 @@ public class CrowdStrikeExecutorIntegration extends Integration {
       AgentService agentService,
       AssetGroupService assetGroupService,
       ExecutorService executorService,
-      Ee eeService,
+      EnterpriseEditionService enterpriseEditionService,
       LicenseCacheManager licenseCacheManager,
       ComponentRequestEngine componentRequestEngine,
       ThreadPoolTaskScheduler taskScheduler,
@@ -83,10 +84,9 @@ public class CrowdStrikeExecutorIntegration extends Integration {
     this.agentService = agentService;
     this.assetGroupService = assetGroupService;
     this.executorService = executorService;
-    this.eeService = eeService;
+    this.enterpriseEditionService = enterpriseEditionService;
     this.licenseCacheManager = licenseCacheManager;
     this.connectorInstanceService = connectorInstanceService;
-    this.connectorInstance = connectorInstance;
     this.httpClientFactory = httpClientFactory;
     this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
 
@@ -102,15 +102,25 @@ public class CrowdStrikeExecutorIntegration extends Integration {
 
   @Override
   protected void innerStart() throws Exception {
+    String instanceId = getConnectorInstance().getId();
     String executorId =
         connectorInstanceService.getConnectorInstanceConfigurationsByIdAndKey(
-            connectorInstance.getId(), ConnectorType.EXECUTOR.getIdKeyName());
+            instanceId, ConnectorType.EXECUTOR.getIdKeyName());
+    String executorName =
+        ofNullable(
+                connectorInstanceService.getConnectorInstanceConfigurationsByIdAndKey(
+                    getConnectorInstance().getId(), "EXECUTOR_NAME"))
+            .orElseThrow(
+                () ->
+                    new ExecutorException(
+                        "EXECUTOR_NAME configuration is required for the Executor",
+                        getConnectorInstance().getId()));
 
     Executor executor =
         executorService.register(
             executorId,
             CROWDSTRIKE_EXECUTOR_TYPE,
-            CROWDSTRIKE_EXECUTOR_NAME,
+            executorName,
             CROWDSTRIKE_EXECUTOR_DOCUMENTATION_LINK,
             CROWDSTRIKE_EXECUTOR_BACKGROUND_COLOR,
             getClass().getResourceAsStream("/img/icon-crowdstrike.png"),
@@ -124,13 +134,13 @@ public class CrowdStrikeExecutorIntegration extends Integration {
     client = new CrowdStrikeExecutorClient(config, httpClientFactory);
     crowdStrikeExecutorContextService =
         new CrowdStrikeExecutorContextService(
-            config, client, eeService, licenseCacheManager, executorService);
+            config, client, enterpriseEditionService, licenseCacheManager, executorService);
     crowdStrikeExecutorService =
         new CrowdStrikeExecutorService(
             executor, client, config, endpointService, agentService, assetGroupService);
     crowdStrikeGarbageCollectorService =
         new CrowdStrikeGarbageCollectorService(
-            config, crowdStrikeExecutorContextService, agentService);
+            config, crowdStrikeExecutorContextService, agentService, executorId);
 
     timers.add(
         taskScheduler.scheduleAtFixedRate(

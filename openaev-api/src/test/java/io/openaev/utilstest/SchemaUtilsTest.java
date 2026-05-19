@@ -5,6 +5,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import io.openaev.IntegrationTest;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.model.Filters;
+import io.openaev.database.model.InjectorContract;
 import io.openaev.schema.PropertySchema;
 import io.openaev.schema.SchemaUtils;
 import jakarta.transaction.Transactional;
@@ -141,5 +142,19 @@ public class SchemaUtilsTest extends IntegrationTest {
     PropertySchema stringAttribute =
         propertySchemas.stream().filter(ps -> ps.getName().equals("getOptions")).findFirst().get();
     assertThat(stringAttribute.getAvailableValues()).isEqualTo(expectedAvailableValues);
+  }
+
+  @Test
+  @DisplayName("InjectorContract schema exposes payload status as a filterable enum")
+  public void injectorContractSchema_ExposesPayloadStatusFilter() throws ClassNotFoundException {
+    PropertySchema payloadStatusProperty =
+        SchemaUtils.schemaWithSubtypes(InjectorContract.class).stream()
+            .filter(ps -> "injector_contract_payload_status".equals(ps.getJsonName()))
+            .findFirst()
+            .orElseThrow();
+
+    assertThat(payloadStatusProperty.isFilterable()).isTrue();
+    assertThat(payloadStatusProperty.getAvailableValues())
+        .isEqualTo(List.of("UNVERIFIED", "VERIFIED", "DEPRECATED"));
   }
 }

@@ -64,16 +64,13 @@ public class InjectTargetSearchTest extends IntegrationTest {
   }
 
   private InjectComposer.Composer getInjectWrapper() {
-    Set<Domain> domains =
-        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
-
     return injectComposer
         .forInject(InjectFixture.getInjectWithoutContract())
         .withInjectorContract(
             injectContractComposer
                 .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
-                .withPayload(
-                    payloadComposer.forPayload(PayloadFixture.createDefaultCommand(domains))));
+                .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
+                .withPayload(payloadComposer.forPayload(PayloadFixture.createDefaultCommand())));
   }
 
   private AssetGroupComposer.Composer getAssetGroupWrapperWithFilter(Filters.Filter dynamicFilter) {
@@ -86,16 +83,13 @@ public class InjectTargetSearchTest extends IntegrationTest {
   }
 
   private InjectComposer.Composer getInjectWithAllTeams() {
-    Set<Domain> domains =
-        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
-
     return injectComposer
         .forInject(InjectFixture.getInjectWithAllTeams())
         .withInjectorContract(
             injectContractComposer
                 .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
-                .withPayload(
-                    payloadComposer.forPayload(PayloadFixture.createDefaultCommand(domains))));
+                .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
+                .withPayload(payloadComposer.forPayload(PayloadFixture.createDefaultCommand())));
   }
 
   private ExerciseComposer.Composer getExerciseComposerWithName() {
@@ -192,7 +186,9 @@ public class InjectTargetSearchTest extends IntegrationTest {
 
         List<FilterUtilsJpa.Option> expected = List.of();
 
-        assertThatJson(response).isEqualTo(mapper.writeValueAsString(expected));
+        assertThatJson(response)
+            .when(Option.IGNORING_ARRAY_ORDER)
+            .isEqualTo(mapper.writeValueAsString(expected));
       }
 
       @Test
@@ -1421,7 +1417,9 @@ public class InjectTargetSearchTest extends IntegrationTest {
                 new FilterUtilsJpa.Option(ep1Wrapper.get().getId(), ep1Wrapper.get().getName()),
                 new FilterUtilsJpa.Option(ep2Wrapper.get().getId(), ep2Wrapper.get().getName()));
 
-        assertThatJson(response).isEqualTo(mapper.writeValueAsString(expected));
+        assertThatJson(response)
+            .when(net.javacrumbs.jsonunit.core.Option.IGNORING_ARRAY_ORDER)
+            .isEqualTo(mapper.writeValueAsString(expected));
       }
 
       @Test

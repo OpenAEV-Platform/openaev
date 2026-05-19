@@ -6,7 +6,7 @@ import { makeStyles } from 'tss-react/mui';
 import type { AttackPatternHelper } from '../../../../../../actions/attack_patterns/attackpattern-helper';
 import type { KillChainPhaseHelper } from '../../../../../../actions/kill_chain_phases/killchainphase-helper';
 import { useHelper } from '../../../../../../store';
-import type { AttackPattern, KillChainPhase } from '../../../../../../utils/api-types';
+import type { AttackPattern, KillChainPhase, StructuralHistogramWidget } from '../../../../../../utils/api-types';
 import { sortAttackPattern } from '../../../../../../utils/attack_patterns/attack_patterns';
 import { CustomDashboardContext } from '../../CustomDashboardContext';
 import AttackPatternBox from './AttackPatternBox';
@@ -45,11 +45,12 @@ interface AttackPatternStats {
 
 const KillChainPhaseColumn: FunctionComponent<{
   widgetId: string;
+  widgetConfig: StructuralHistogramWidget;
   killChainPhase: KillChainPhase;
   showCoveredOnly: boolean;
   resolvedDataSuccess: ResolvedTTPData[];
   resolvedDataFailure: ResolvedTTPData[];
-}> = ({ widgetId, killChainPhase, showCoveredOnly, resolvedDataSuccess, resolvedDataFailure }) => {
+}> = ({ widgetId, widgetConfig, killChainPhase, showCoveredOnly, resolvedDataSuccess, resolvedDataFailure }) => {
   // Standard hooks
   const { classes } = useStyles();
   const theme = useTheme();
@@ -111,7 +112,7 @@ const KillChainPhaseColumn: FunctionComponent<{
   const onAttackPatternBoxClick = useCallback((stat: AttackPatternStats) => {
     openWidgetDataDrawer({
       widgetId,
-      filter_values: [stat.attackPattern.attack_pattern_id, ...stat.successKeys, ...stat.failureKeys],
+      filter_values_map: { [widgetConfig.field]: [stat.attackPattern.attack_pattern_id, ...stat.successKeys, ...stat.failureKeys] },
       series_index: 0,
     });
   }, [openWidgetDataDrawer, widgetId]);

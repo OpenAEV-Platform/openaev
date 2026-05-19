@@ -7,6 +7,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.helper.MonoIdSerializer;
 import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.helper.MultiIdSetSerializer;
@@ -23,6 +24,7 @@ import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
@@ -30,11 +32,12 @@ import org.hibernate.annotations.UuidGenerator;
 @Getter
 @Entity
 @Table(name = "teams")
-@EntityListeners(ModelBaseListener.class)
+@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 @NamedEntityGraphs({
   @NamedEntityGraph(name = "Team.tags", attributeNodes = @NamedAttributeNode("tags"))
 })
-public class Team implements Base {
+public class Team implements TenantBase {
 
   @Id
   @Column(name = "team_id")
@@ -73,7 +76,13 @@ public class Team implements Base {
   @UpdateTimestamp
   private Instant updatedAt = now();
 
-  @ArraySchema(schema = @Schema(description = "IDs of the tags of the team", type = "string"))
+  @ManyToOne
+  @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
+  @JsonIgnore
+  private Tenant tenant;
+
+  @ArraySchema(
+      schema = @Schema(description = "IDs of the tags of the team", implementation = String.class))
   @Queryable(filterable = true, dynamicValues = true, path = "tags.id")
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
@@ -91,7 +100,8 @@ public class Team implements Base {
   @Schema(description = "Organization of the team", type = "string")
   private Organization organization;
 
-  @ArraySchema(schema = @Schema(description = "IDs of the users of the team", type = "string"))
+  @ArraySchema(
+      schema = @Schema(description = "IDs of the users of the team", implementation = String.class))
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "users_teams",
@@ -102,7 +112,10 @@ public class Team implements Base {
   private List<User> users = new ArrayList<>();
 
   @ArraySchema(
-      schema = @Schema(description = "IDs of the simulations linked to the team", type = "string"))
+      schema =
+          @Schema(
+              description = "IDs of the simulations linked to the team",
+              implementation = String.class))
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "exercises_teams",
@@ -113,7 +126,10 @@ public class Team implements Base {
   private List<Exercise> exercises = new ArrayList<>();
 
   @ArraySchema(
-      schema = @Schema(description = "IDs of the scenarios linked to the team", type = "string"))
+      schema =
+          @Schema(
+              description = "IDs of the scenarios linked to the team",
+              implementation = String.class))
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "scenarios_teams",
@@ -123,7 +139,7 @@ public class Team implements Base {
   @JsonProperty("team_scenarios")
   private List<Scenario> scenarios = new ArrayList<>();
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "injects_teams",
@@ -147,7 +163,7 @@ public class Team implements Base {
       schema =
           @Schema(
               description = "List of 3-tuple linking simulation IDs and user IDs to this team ID",
-              type = "string"))
+              implementation = String.class))
   @OneToMany(
       mappedBy = "team",
       fetch = FetchType.LAZY,
@@ -168,7 +184,7 @@ public class Team implements Base {
       schema =
           @Schema(
               description = "List of inject IDs from all simulations of the team",
-              type = "string"))
+              implementation = String.class))
   @JsonProperty("team_exercise_injects")
   @JsonSerialize(using = MultiIdListSerializer.class)
   public List<Inject> getExercisesInjects() {
@@ -190,7 +206,7 @@ public class Team implements Base {
       schema =
           @Schema(
               description = "List of inject IDs from all scenarios of the team",
-              type = "string"))
+              implementation = String.class))
   @JsonProperty("team_scenario_injects")
   @JsonSerialize(using = MultiIdListSerializer.class)
   public List<Inject> getScenariosInjects() {
@@ -210,7 +226,9 @@ public class Team implements Base {
 
   @ArraySchema(
       schema =
-          @Schema(description = "List of expectations id linked to this team", type = "string"))
+          @Schema(
+              description = "List of expectations id linked to this team",
+              implementation = String.class))
   @OneToMany(mappedBy = "team", fetch = FetchType.LAZY)
   @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("team_inject_expectations")

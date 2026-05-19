@@ -59,7 +59,7 @@ public class ChallengeFlag implements Base {
   @JsonSerialize(using = MonoIdSerializer.class)
   @JoinColumn(name = "flag_challenge")
   @JsonProperty("flag_challenge")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Challenge challenge;
 
   @Override

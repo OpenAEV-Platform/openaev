@@ -36,37 +36,36 @@ public class ConnectorInstanceLogService {
    * @param rawLogLines the set of raw log lines to transform
    * @return the formatted log string with lines separated by newlines
    */
-  public String transformRawLogsLineToLog(Set<String> rawLogLines) {
+  public Set<String> transformRawLogsLineToLog(Set<String> rawLogLines) {
     return rawLogLines.stream()
         .map(line -> line.replaceAll("^,", ""))
         .map(String::trim)
         .filter(line -> !line.isEmpty())
-        .collect(Collectors.joining("\n"));
+        .collect(Collectors.toSet());
   }
 
   /**
    * Creates a new log entry for a connector instance and maintains log limit.
    *
    * @param connectorInstance the connector instance to log for
-   * @param rawLog the log content to store
-   * @return the saved log entry
+   * @param rawLogs the log content to store
    * @throws IllegalArgumentException if rawLog is empty
    */
   @Transactional
-  public ConnectorInstanceLog pushLogByConnectorInstance(
-      ConnectorInstancePersisted connectorInstance, String rawLog) throws IllegalArgumentException {
-    if (rawLog.isEmpty()) {
-      return null;
+  public void pushLogByConnectorInstance(
+      ConnectorInstancePersisted connectorInstance, Set<String> rawLogs)
+      throws IllegalArgumentException {
+    if (rawLogs.isEmpty()) {
+      return;
+    }
+    for (String log : rawLogs) {
+      ConnectorInstanceLog logEntry = new ConnectorInstanceLog();
+      logEntry.setConnectorInstance(connectorInstance);
+      logEntry.setLog(log);
+      connectorInstanceLogRepository.save(logEntry);
     }
 
-    ConnectorInstanceLog logEntry = new ConnectorInstanceLog();
-    logEntry.setConnectorInstance(connectorInstance);
-    logEntry.setLog(rawLog);
-    ConnectorInstanceLog saved = connectorInstanceLogRepository.save(logEntry);
-
     cleanupExcessLogs(connectorInstance.getId());
-
-    return saved;
   }
 
   /**

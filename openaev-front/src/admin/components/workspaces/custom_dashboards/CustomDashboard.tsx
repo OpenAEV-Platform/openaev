@@ -12,7 +12,7 @@ import {
   widgetToEntitiesRuntime,
 } from '../../../../actions/dashboards/dashboard-action';
 import { useFormatter } from '../../../../components/i18n';
-import type { CustomDashboard, WidgetToEntitiesInput } from '../../../../utils/api-types';
+import type { CustomDashboard, Pagination, WidgetToEntitiesInput } from '../../../../utils/api-types';
 import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import CustomDashboardEditHeader from './CustomDashboardEditHeader';
@@ -31,7 +31,7 @@ const CustomDashboard = () => {
     fetchAverage: (widgetId: string, params: Record<string, string | undefined>) => average(widgetId, params),
     fetchCount: (widgetId: string, params: Record<string, string | undefined>) => count(widgetId, params),
     fetchSeries: (widgetId: string, params: Record<string, string | undefined>) => series(widgetId, params),
-    fetchEntities: (widgetId: string, params: Record<string, string | undefined>) => entities(widgetId, params),
+    fetchEntities: (widgetId: string, params: Record<string, string | undefined>, pagination?: Pagination) => entities(widgetId, params, pagination),
     fetchEntitiesRuntime: (widgetId: string, input: WidgetToEntitiesInput) => widgetToEntitiesRuntime(widgetId, input),
     fetchAttackPaths: (widgetId: string, params: Record<string, string | undefined>) => attackPaths(widgetId, params),
   }), [customDashboardId]);

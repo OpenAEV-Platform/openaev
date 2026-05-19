@@ -20,7 +20,7 @@ import io.openaev.database.model.Tag;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.ScenarioRepository;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.integration.Manager;
 import io.openaev.integration.impl.injectors.challenge.ChallengeInjectorIntegrationFactory;
 import io.openaev.integration.impl.injectors.channel.ChannelInjectorIntegrationFactory;
@@ -39,9 +39,9 @@ import java.util.*;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
@@ -70,6 +70,7 @@ class InjectImportTest extends IntegrationTest {
   @Autowired private ChallengeComposer challengeComposer;
   @Autowired private DocumentComposer documentComposer;
   @Autowired private CollectorComposer collectorComposer;
+  @Autowired private CollectorTypeComposer collectorTypeComposer;
   @Autowired private FileService fileService;
   @Autowired private ExerciseRepository exerciseRepository;
   @Autowired private TeamComposer teamComposer;
@@ -84,7 +85,7 @@ class InjectImportTest extends IntegrationTest {
   @Autowired private InjectRepository injectRepository;
   @Autowired private ArticleService articleService;
   @Autowired private InjectorFixture injectorFixture;
-  @MockBean private Ee eeService;
+  @MockitoBean private EnterpriseEditionService enterpriseEditionService;
   @Autowired private ChannelInjectorIntegrationFactory channelInjectorIntegrationFactory;
   @Autowired private ChallengeInjectorIntegrationFactory challengeInjectorIntegrationFactory;
 
@@ -190,36 +191,36 @@ class InjectImportTest extends IntegrationTest {
                 injectorContractComposer
                     .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
                     .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+                    .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
+                    .withTag(tagComposer.forTag(TagFixture.getTagWithText("secret payload tag")))
                     .withPayload(
                         payloadComposer
                             .forPayload(PayloadFixture.createDefaultCommand())
-                            .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
-                            .withTag(
-                                tagComposer.forTag(TagFixture.getTagWithText("secret payload tag")))
                             .withDetectionRemediation(
                                 detectionRemediationComposer
                                     .forDetectionRemediation(createDetectionRemediation())
-                                    .withCollector(collectorComposer.forCollector(collector)))))
+                                    .withCollectorType(
+                                        collectorTypeComposer.forCollectorType(
+                                            CollectorTypeFixture.createCollectorType(
+                                                collector.getType()))))))
             .withTag(tagComposer.forTag(TagFixture.getTagWithText("inject with payload tag"))),
         injectComposer
             .forInject(InjectFixture.getDefaultInject())
             .withInjectorContract(
                 injectorContractComposer
                     .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+                    .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                     .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+                    .withTag(tagComposer.forTag(TagFixture.getTagWithText("secret file drop tag")))
                     .withPayload(
                         payloadComposer
                             .forPayload(PayloadFixture.createDefaultFileDrop())
-                            .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                             .withFileDrop(
                                 documentComposer
                                     .forDocument(
                                         DocumentFixture.getDocument(
                                             FileFixture.getBadCoffeeFileContent()))
-                                    .withInMemoryFile(FileFixture.getBadCoffeeFileContent()))
-                            .withTag(
-                                tagComposer.forTag(
-                                    TagFixture.getTagWithText("secret file drop tag")))))
+                                    .withInMemoryFile(FileFixture.getBadCoffeeFileContent()))))
             .withTag(
                 tagComposer.forTag(TagFixture.getTagWithText("filedrop inject with payload tag"))),
         injectComposer
@@ -227,20 +228,20 @@ class InjectImportTest extends IntegrationTest {
             .withInjectorContract(
                 injectorContractComposer
                     .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+                    .withTag(
+                        tagComposer.forTag(
+                            TagFixture.getTagWithText("secret executable payload tag")))
                     .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+                    .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                     .withPayload(
                         payloadComposer
                             .forPayload(PayloadFixture.createDefaultExecutable())
-                            .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                             .withExecutable(
                                 documentComposer
                                     .forDocument(
                                         DocumentFixture.getDocument(
                                             FileFixture.getBeadFileContent()))
-                                    .withInMemoryFile(FileFixture.getBeadFileContent()))
-                            .withTag(
-                                tagComposer.forTag(
-                                    TagFixture.getTagWithText("secret executable payload tag")))))
+                                    .withInMemoryFile(FileFixture.getBeadFileContent()))))
             .withTag(
                 tagComposer.forTag(
                     TagFixture.getTagWithText("executable inject with payload tag"))));
@@ -638,7 +639,7 @@ class InjectImportTest extends IntegrationTest {
       public void allPayloadsHaveBeenRecreated() throws Exception {
 
         // If We want to include detection remediations we need to have a licence
-        when(eeService.isEnterpriseLicenseInactive(any())).thenReturn(false);
+        when(enterpriseEditionService.isEnterpriseLicenseInactive(any())).thenReturn(false);
 
         byte[] exportData =
             getExportDataThenDelete(getInjectFromExerciseWrappers(), true, true, true);
@@ -1008,7 +1009,7 @@ class InjectImportTest extends IntegrationTest {
       public void allPayloadsHaveBeenRecreated() throws Exception {
 
         // If We want to include detection remediations we need to have a licence
-        when(eeService.isEnterpriseLicenseInactive(any())).thenReturn(false);
+        when(enterpriseEditionService.isEnterpriseLicenseInactive(any())).thenReturn(false);
 
         byte[] exportData =
             getExportDataThenDelete(getInjectFromScenarioWrappers(), true, true, true);
@@ -1270,7 +1271,7 @@ class InjectImportTest extends IntegrationTest {
       public void allPayloadsHaveBeenRecreated() throws Exception {
 
         // If We want to include detection remediations we need to have a licence
-        when(eeService.isEnterpriseLicenseInactive(any())).thenReturn(false);
+        when(enterpriseEditionService.isEnterpriseLicenseInactive(any())).thenReturn(false);
 
         byte[] exportData =
             getExportDataThenDelete(getInjectFromScenarioWrappers(), true, true, true);

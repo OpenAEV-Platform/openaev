@@ -12,6 +12,7 @@ import { useFormatter } from '../../../components/i18n';
 import { type ExerciseSimple, type SearchPaginationInput } from '../../../utils/api-types';
 import { Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+import { isFeatureEnabled } from '../../../utils/utils';
 import ImportUploaderExercise from './ImportUploaderExercise';
 import ExerciseCreation from './simulation/ExerciseCreation';
 import ExercisePopover from './simulation/ExercisePopover';
@@ -23,7 +24,7 @@ const Simulations = () => {
 
   const [loading, setLoading] = useState<boolean>(true);
   const [exercises, setExercises] = useState<ExerciseSimple[]>([]);
-
+  const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
   // Filters
   const availableFilterNames = [
     'exercise_kill_chain_phases',
@@ -35,7 +36,10 @@ const Simulations = () => {
     'exercise_updated_at',
   ];
 
-  const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage('simulations', buildSearchPagination({ sorts: initSorting('exercise_updated_at', 'DESC') }));
+  const {
+    queryableHelpers,
+    searchPaginationInput,
+  } = useQueryableWithLocalStorage('simulations', buildSearchPagination({ sorts: initSorting('exercise_updated_at', 'DESC') }));
 
   // Export
   const exportProps = {
@@ -51,15 +55,18 @@ const Simulations = () => {
     exportFileName: `${t('Simulations')}.csv`,
   };
 
-  const secondaryAction = (exercise: ExerciseSimple) => (
-    <ExercisePopover
-      // @ts-expect-error: should pass Exercise model IF we have update as action
-      exercise={exercise}
-      actions={['Duplicate', 'Export', 'Delete']}
-      onDelete={result => setExercises(exercises.filter(e => (e.exercise_id !== result)))}
-      inList
-    />
-  );
+  const secondaryAction = (exercise: ExerciseSimple) => {
+    const isChaining = isChainingFeatureEnabled && !!(exercise as unknown as Record<string, unknown>).exercise_workflow_id;
+    return (
+      <ExercisePopover
+        // @ts-expect-error: should pass Exercise model IF we have update as action
+        exercise={exercise}
+        actions={isChaining ? ['Delete'] : ['Duplicate', 'Export', 'Delete']}
+        onDelete={result => setExercises(exercises.filter(e => (e.exercise_id !== result)))}
+        inList
+      />
+    );
+  };
 
   const search = (input: SearchPaginationInput) => {
     setLoading(true);
@@ -86,7 +93,10 @@ const Simulations = () => {
         queryableHelpers={queryableHelpers}
         topBarButtons={(
           <ToggleButtonGroup value="fake" exclusive>
-            <ExportButton totalElements={queryableHelpers.paginationHelpers.getTotalElements()} exportProps={exportProps} />
+            <ExportButton
+              totalElements={queryableHelpers.paginationHelpers.getTotalElements()}
+              exportProps={exportProps}
+            />
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
               <ImportUploaderExercise />
             </Can>

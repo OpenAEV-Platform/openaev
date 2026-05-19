@@ -37,7 +37,7 @@ const NumberWidget: FunctionComponent<Props> = ({ widgetId, data }) => {
   const onClick = useCallback(() => {
     openWidgetDataDrawer({
       widgetId,
-      filter_values: [],
+      filter_values_map: {},
       series_index: 0,
     });
   }, [openWidgetDataDrawer, widgetId]);

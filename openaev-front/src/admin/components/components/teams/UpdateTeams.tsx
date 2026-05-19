@@ -112,7 +112,7 @@ const UpdateTeams: FunctionComponent<Props> = ({ addedTeamIds }) => {
       >
         <DialogTitle>{t('Update teams')}</DialogTitle>
         <DialogContent>
-          <Box sx={{ marginTop: 2 }}>
+          <Box sx={{ marginTop: 2 }} data-testid="select-team-list">
             <SelectList
               values={teamValues}
               selectedValues={selectedTeamValues}

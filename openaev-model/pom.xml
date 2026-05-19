@@ -16,6 +16,7 @@
     <properties>
         <elasticsearch.version>8.19.14</elasticsearch.version>
         <opensearch.version>3.8.0</opensearch.version>
+        <amqp-client.version>5.29.0</amqp-client.version>
     </properties>
 
     <dependencies>
@@ -62,9 +63,26 @@
             <artifactId>minio</artifactId>
             <version>${minio.version}</version>
         </dependency>
+        <!-- okhttp3 is used by minio 8.6 client but was removed from Spring boot 3.5 -->
+        <dependency>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>okhttp</artifactId>
+            <version>${minio.okhttp3.version}</version>
+        </dependency>
+        <!-- Gson is used in some of our code but was removed from Spring boot 3.5 -->
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>${gson.version}</version>
+        </dependency>
         <dependency>
             <groupId>jakarta.validation</groupId>
             <artifactId>jakarta.validation-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.rabbitmq</groupId>
+            <artifactId>amqp-client</artifactId>
+            <version>${amqp-client.version}</version>
         </dependency>
         <dependency>
             <groupId>commons-validator</groupId>

@@ -3,6 +3,7 @@ package io.openaev.rest.inject.form;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.Inject;
+import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
@@ -27,6 +28,9 @@ public class DirectInjectInput {
   @JsonProperty("inject_injector_contract")
   private String injectorContract;
 
+  @JsonProperty("inject_injector")
+  private String injectorId;
+
   @JsonProperty("inject_content")
   private ObjectNode content;
 
@@ -36,12 +40,14 @@ public class DirectInjectInput {
   @JsonProperty("inject_documents")
   private List<InjectDocumentInput> documents = new ArrayList<>();
 
-  public Inject toInject(@NotNull final InjectorContract injectorContract) {
+  public Inject toInject(
+      @NotNull final InjectorContract injectorContract, @NotNull final Injector injector) {
     Inject inject = new Inject();
     inject.setTitle(getTitle());
     inject.setDescription(getDescription());
     inject.setContent(getContent());
     inject.setInjectorContract(injectorContract);
+    inject.setInjector(injector);
     return inject;
   }
 }

@@ -12,12 +12,14 @@ import io.openaev.IntegrationTest;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.exercise.service.PauseExerciseService;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.service.chaining.StepService;
+import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.ResultUtils;
@@ -44,10 +46,10 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ExerciseServiceIntegrationTest extends IntegrationTest {
 
-  @Mock Ee eeService;
+  @Mock EnterpriseEditionService enterpriseEditionService;
   @Mock InjectDuplicateService injectDuplicateService;
   @Mock VariableService variableService;
-
+  @Mock private PreviewFeatureService previewFeatureService;
   @Autowired private TeamService teamService;
   @Autowired private TagRuleService tagRuleService;
   @Autowired private DocumentService documentService;
@@ -68,28 +70,36 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
   @Autowired private AssetGroupRepository assetGroupRepository;
   @Autowired private InjectExpectationRepository injectExpectationRepository;
   @Autowired private UserRepository userRepository;
+  @Autowired private PauseRepository pauseRepository;
   @Autowired private InjectRepository injectRepository;
-  @Autowired private ExerciseTeamUserRepository exerciseTeamUserRepository;
   @Autowired private LessonsCategoryRepository lessonsCategoryRepository;
+  @Autowired private LessonsQuestionRepository lessonsQuestionRepository;
+  @Autowired private LessonsAnswerRepository lessonsAnswerRepository;
+  @Autowired private ExerciseTeamUserRepository exerciseTeamUserRepository;
   @Autowired private LicenseCacheManager licenseCacheManager;
   @Autowired private InjectExpectationMapper injectExpectationMapper;
   @Autowired private ScenarioRecurrenceService scenarioRecurrenceService;
   @Autowired private InjectorContractFixture injectorContractFixture;
+  @Autowired private InjectStatusRepository injectStatusRepository;
   @Autowired private LessonsService lessonsService;
   @Autowired private FileService fileService;
   @Autowired private PauseExerciseService pauseExerciseService;
+
+  @Autowired private WorkflowService workflowService;
+  @Autowired private io.openaev.healthcheck.utils.HealthCheckUtils healthCheckUtils;
 
   private static String USER_ID;
   private static String TEAM_ID;
   private static String INJECT_ID;
 
   @InjectMocks private ExerciseService exerciseService;
+  @Autowired private StepService stepService;
 
   @BeforeEach
   void setUp() {
     exerciseService =
         new ExerciseService(
-            eeService,
+            enterpriseEditionService,
             injectDuplicateService,
             teamService,
             variableService,
@@ -109,16 +119,24 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
             injectExpectationRepository,
             articleRepository,
             exerciseRepository,
+            injectStatusRepository,
+            pauseRepository,
+            lessonsQuestionRepository,
             teamRepository,
             userRepository,
             exerciseTeamUserRepository,
             injectRepository,
+            lessonsAnswerRepository,
             lessonsCategoryRepository,
+            lessonsService,
             injectExpectationMapper,
             scenarioRecurrenceService,
+            workflowService,
+            previewFeatureService,
             pauseExerciseService,
             fileService,
-            lessonsService);
+            stepService,
+            healthCheckUtils);
   }
 
   @AfterAll

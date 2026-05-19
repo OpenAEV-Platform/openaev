@@ -77,14 +77,27 @@ const UpdateInject: React.FC<Props> = ({
   const { inject }: { inject: InjectStore } = useHelper((helper: InjectHelper) => ({ inject: helper.getInject(injectId) }));
   const contractPayload = inject?.inject_injector_contract?.injector_contract_payload;
   const injectorContract = inject?.inject_injector_contract;
+  const injectorNamesMap = injectorContract?.injector_contract_injector_names ?? {};
   const [documentsMap, setDocumentsMap] = useState<Record<string, Document> | null>(null);
+
+  // Resolve the displayed injector name from the selected injector (or first available)
+  const [selectedInjectorName, setSelectedInjectorName] = useState<string>('');
+  useEffect(() => {
+    const currentInjectorId = inject?.inject_injector;
+    if (currentInjectorId && injectorNamesMap[currentInjectorId]) {
+      setSelectedInjectorName(injectorNamesMap[currentInjectorId]);
+    } else {
+      const firstValue = Object.values(injectorNamesMap)[0];
+      setSelectedInjectorName(firstValue ?? '');
+    }
+  }, [inject?.inject_injector, injectorContract]);
 
   useDataLoader(() => {
     setIsInjectLoading(true);
     dispatch(fetchInject(injectId)).then(() => {
       const payloadId = inject?.inject_injector_contract?.injector_contract_payload?.payload_id;
       if (payloadId) {
-        setAvailableTabs(['Inject details', 'Payload info', 'Logical chains']);
+        setAvailableTabs(['Inject details', 'Action info', 'Logical chains']);
       }
       setIsInjectLoading(false);
     });
@@ -94,7 +107,7 @@ const UpdateInject: React.FC<Props> = ({
   const handleTabChange = (_: SyntheticEvent, newValue: string) => {
     setActiveTab(newValue);
 
-    if (newValue === 'Payload info' && !documentsMap) {
+    if (newValue === 'Action info' && !documentsMap) {
       fetchDocumentsPayloadByInject(injectId, contractPayload?.payload_id)
         .then(documents => setDocumentsMap(arrayToRecord<Document, 'document_id'>(documents, 'document_id')));
     }
@@ -114,7 +127,7 @@ const UpdateInject: React.FC<Props> = ({
     if (injectorContract?.injector_contract_needs_executor) {
       return t('TTP Unknown');
     }
-    return injectorContract?.injector_contract_injector_type_name ? t(injectorContract?.injector_contract_injector_type_name) : '';
+    return selectedInjectorName ? t(selectedInjectorName) : '';
   };
 
   const injectFormContent = (
@@ -197,17 +210,22 @@ const UpdateInject: React.FC<Props> = ({
               articlesFromExerciseOrScenario={articlesFromExerciseOrScenario}
               uriVariable={uriVariable}
               variablesFromExerciseOrScenario={variablesFromExerciseOrScenario}
+              injectorNames={injectorNamesMap}
+              onInjectorChange={(_id, name) => setSelectedInjectorName(name)}
             />
           )}
         </TabPanel>
 
-        {/* Payload info */}
+        {/* Action info */}
         {contractPayload && !isAtomic && (
-          <TabPanel value="Payload info" keepMounted className={classes.tabPanel}>
+          <TabPanel value="Action info" keepMounted className={classes.tabPanel}>
             {!isInjectLoading && (
               <PayloadComponent
                 documentsMap={documentsMap}
                 selectedPayload={contractPayload}
+                attackPatternIds={inject?.inject_injector_contract.injector_contract_attack_patterns ?? []}
+                domains={inject?.inject_injector_contract.injector_contract_domains ?? []}
+                tagIds={inject?.inject_injector_contract.injector_contract_tags ?? []}
               />
             )}
           </TabPanel>

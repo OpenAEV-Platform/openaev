@@ -2,6 +2,7 @@ package io.openaev.database.model;
 
 import static io.openaev.database.model.Grant.GRANT_TYPE.OBSERVER;
 import static io.openaev.database.model.Grant.GRANT_TYPE.PLANNER;
+import static io.openaev.helper.MailHelper.*;
 import static io.openaev.helper.UserHelper.getUsersByType;
 import static java.time.Instant.now;
 import static java.util.Optional.ofNullable;
@@ -12,6 +13,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
 import io.openaev.database.model.Scenario.SEVERITY;
 import io.openaev.helper.InjectStatisticsHelper;
@@ -19,28 +21,29 @@ import io.openaev.helper.MonoIdSerializer;
 import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.helper.MultiIdSetSerializer;
 import io.openaev.helper.MultiModelSerializer;
-import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Table;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.SQLRestriction;
-import org.hibernate.annotations.UpdateTimestamp;
-import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.annotations.*;
 
 @Setter
 @Entity
 @Table(name = "exercises")
-@EntityListeners(ModelBaseListener.class)
+@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 @Grantable(Grant.GRANT_RESOURCE_TYPE.SIMULATION)
-public class Exercise implements GrantableBase {
+public class Exercise implements GrantableBase, TenantBase {
 
   @Getter
   @Id
@@ -129,6 +132,16 @@ public class Exercise implements GrantableBase {
   @NotBlank
   private String from;
 
+  @Pattern(regexp = FROM_NAME_PATTERN, message = FROM_NAME_PATTERN_MESSAGE)
+  @Size(max = FROM_NAME_MAX_LENGTH, message = FROM_NAME_SIZE_MESSAGE)
+  @Column(name = "exercise_mail_from_name")
+  @JsonProperty("exercise_mail_from_name")
+  private String fromName;
+
+  public String getFromName() {
+    return resolveFromName(fromName, from);
+  }
+
   @Getter
   @ElementCollection(fetch = FetchType.EAGER)
   @CollectionTable(
@@ -143,7 +156,7 @@ public class Exercise implements GrantableBase {
   @JoinColumn(name = "exercise_logo_dark")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("exercise_logo_dark")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Document logoDark;
 
   @Getter
@@ -151,13 +164,19 @@ public class Exercise implements GrantableBase {
   @JoinColumn(name = "exercise_logo_light")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("exercise_logo_light")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Document logoLight;
 
   @Getter
   @Column(name = "exercise_lessons_anonymized")
   @JsonProperty("exercise_lessons_anonymized")
   private boolean lessonsAnonymized = false;
+
+  @ManyToOne
+  @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
+  @JsonIgnore
+  @Getter
+  private Tenant tenant;
 
   // -- SCENARIO --
 
@@ -170,7 +189,7 @@ public class Exercise implements GrantableBase {
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("exercise_scenario")
   @Queryable(filterable = true, dynamicValues = true)
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   @Setter(NONE)
   private Scenario scenario;
 
@@ -211,7 +230,7 @@ public class Exercise implements GrantableBase {
   @JoinColumn(name = "exercise_custom_dashboard")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("exercise_custom_dashboard")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private CustomDashboard customDashboard;
 
   @Getter
@@ -226,8 +245,8 @@ public class Exercise implements GrantableBase {
   @JsonIgnore
   private List<Grant> grants = new ArrayList<>();
 
-  @ArraySchema(schema = @Schema(type = "string"))
-  @OneToMany(mappedBy = "exercise", fetch = FetchType.LAZY)
+  @Schema(implementation = String[].class)
+  @OneToMany(mappedBy = "exercise", cascade = CascadeType.REMOVE, fetch = FetchType.LAZY)
   @JsonProperty("exercise_injects")
   @JsonSerialize(using = MultiIdListSerializer.class)
   private List<Inject> injects = new ArrayList<>();
@@ -235,7 +254,8 @@ public class Exercise implements GrantableBase {
   // UpdatedAt now used to sync with linked object
   public void setInjects(List<Inject> injects) {
     this.updatedAt = now();
-    this.injects = injects;
+    this.injects.clear();
+    this.injects.addAll(injects);
   }
 
   @Getter
@@ -246,7 +266,7 @@ public class Exercise implements GrantableBase {
       inverseJoinColumns = @JoinColumn(name = "team_id"))
   @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("exercise_teams")
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   private List<Team> teams = new ArrayList<>();
 
   // UpdatedAt now used to sync with linked object
@@ -275,14 +295,14 @@ public class Exercise implements GrantableBase {
   @JsonIgnore
   private List<Log> logs = new ArrayList<>();
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @Getter
   @OneToMany(mappedBy = "exercise", fetch = FetchType.LAZY)
   @JsonProperty("exercise_pauses")
   @JsonSerialize(using = MultiIdListSerializer.class)
   private List<Pause> pauses = new ArrayList<>();
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @Getter
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
@@ -300,7 +320,7 @@ public class Exercise implements GrantableBase {
     this.tags = tags;
   }
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @Getter
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
@@ -311,21 +331,21 @@ public class Exercise implements GrantableBase {
   @JsonProperty("exercise_documents")
   private List<Document> documents = new ArrayList<>();
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @Getter
   @OneToMany(mappedBy = "exercise", fetch = FetchType.LAZY)
   @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("exercise_articles")
   private List<Article> articles = new ArrayList<>();
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @Getter
   @OneToMany(mappedBy = "exercise", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
   @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("exercise_lessons_categories")
   private List<LessonsCategory> lessonsCategories = new ArrayList<>();
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @Getter
   @OneToMany(mappedBy = "exercise", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
   @JsonSerialize(using = MultiIdListSerializer.class)
@@ -352,14 +372,14 @@ public class Exercise implements GrantableBase {
         .count();
   }
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @JsonProperty("exercise_planners")
   @JsonSerialize(using = MultiIdListSerializer.class)
   public List<User> getPlanners() {
     return getUsersByType(this.getGrants(), PLANNER);
   }
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @JsonProperty("exercise_observers")
   @JsonSerialize(using = MultiIdListSerializer.class)
   public List<User> getObservers() {
@@ -392,7 +412,7 @@ public class Exercise implements GrantableBase {
     return getTeamUsers().stream().map(ExerciseTeamUser::getUser).distinct().count();
   }
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @JsonProperty("exercise_users")
   @JsonSerialize(using = MultiIdListSerializer.class)
   public List<User> getUsers() {

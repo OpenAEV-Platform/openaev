@@ -19,11 +19,6 @@ public interface InjectStatusRepository
   @NotNull
   Optional<InjectStatus> findById(@NotNull String id);
 
-  @Query(
-      value =
-          "select c from InjectStatus c where c.name = 'PENDING' and c.inject.injectorContract.injector.type = :injectType")
-  List<InjectStatus> pendingForInjectType(@Param("injectType") String injectType);
-
   Optional<InjectStatus> findByInjectId(@NotNull String injectId);
 
   List<InjectStatus> findAllByInjectIdIn(Collection<String> injectIds);

@@ -9,22 +9,20 @@ import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteri
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.Team;
 import io.openaev.database.model.User;
-import io.openaev.database.raw.RawTeam;
+import io.openaev.database.raw.RawTeamIndexing;
 import io.openaev.database.repository.TeamRepository;
-import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.utils.CopyObjectListUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Tuple;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
+import jakarta.validation.constraints.NotNull;
 import java.util.Comparator;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.function.TriFunction;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -35,23 +33,31 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class TeamService {
 
-  @PersistenceContext private EntityManager entityManager;
-
-  private final UserRepository userRepository;
+  private final EntityManager entityManager;
   private final TeamRepository teamRepository;
 
-  private final UserService userService;
-
+  /**
+   * Fetch teams corresponding to given IDs
+   *
+   * @param teamIds list of team IDs to fetch
+   * @return the found teams as TeamOutput
+   */
   public List<TeamOutput> getTeams(@NotNull List<String> teamIds) {
-    List<RawTeam> rawTeams =
+    List<RawTeamIndexing> rawTeams =
         teamRepository.rawTeamByIds(teamIds).stream()
-            .sorted(Comparator.comparing(RawTeam::getTeam_name))
+            .sorted(Comparator.comparing(RawTeamIndexing::getTeam_name))
             .toList();
     return rawTeams.stream()
         .map(rt -> TeamOutput.builder().id(rt.getTeam_id()).name(rt.getTeam_name()).build())
         .toList();
   }
 
+  /**
+   * Duplicate a contextual team
+   *
+   * @param teamToCopy the team to copy
+   * @return the copied team, not persisted
+   */
   public Team copyContextualTeam(Team teamToCopy) {
     Team newTeam = new Team();
     newTeam.setName(teamToCopy.getName());
@@ -63,6 +69,13 @@ public class TeamService {
     return newTeam;
   }
 
+  /**
+   * Fetch a list of teams with a paginated result
+   *
+   * @param searchPaginationInput pagination criteria
+   * @param teamSpecification team search criteria
+   * @return list of found teams
+   */
   public Page<TeamOutput> teamPagination(
       @NotNull SearchPaginationInput searchPaginationInput,
       @NotNull final Specification<Team> teamSpecification) {
@@ -80,6 +93,15 @@ public class TeamService {
     return buildPaginationCriteriaBuilder(teamsFunction, searchPaginationInput, Team.class);
   }
 
+  /**
+   * Generate the page result for a pagination search
+   *
+   * @param specification criteria for the team search with pagination
+   * @param specificationCount criteria for the count of the whole corresponding search, without
+   *     pagination
+   * @param pageable JPA pageable criteria
+   * @return page of matching teams plus total count of corresponding teams
+   */
   private Page<TeamOutput> paginate(
       Specification<Team> specification,
       Specification<Team> specificationCount,
@@ -118,7 +140,25 @@ public class TeamService {
     return new PageImpl<>(teams, pageable, total);
   }
 
+  /**
+   * Fetch a list of teams matching some criteria
+   *
+   * @param specification criteria to fetch matching teams
+   * @return teams found, as TeamOutput
+   */
   public List<TeamOutput> find(Specification<Team> specification) {
+    CriteriaQuery<Tuple> cq = getTupleCriteriaQuery(specification);
+    TypedQuery<Tuple> query = entityManager.createQuery(cq);
+    return execution(query);
+  }
+
+  /**
+   * Generate a criteria builder from a specification
+   *
+   * @param specification criteria for team search
+   * @return the built criteria builder
+   */
+  private CriteriaQuery<Tuple> getTupleCriteriaQuery(Specification<Team> specification) {
     CriteriaBuilder cb = this.entityManager.getCriteriaBuilder();
 
     CriteriaQuery<Tuple> cq = cb.createTupleQuery();
@@ -131,8 +171,16 @@ public class TeamService {
         cq.where(predicate);
       }
     }
+    return cq;
+  }
 
-    TypedQuery<Tuple> query = entityManager.createQuery(cq);
-    return execution(query);
+  /**
+   * Fetch teams corresponding to given IDs
+   *
+   * @param teamIds list of team IDs to fetch
+   * @return the found teams
+   */
+  public List<Team> getTeamsByIds(List<String> teamIds) {
+    return teamRepository.findAllById(teamIds);
   }
 }

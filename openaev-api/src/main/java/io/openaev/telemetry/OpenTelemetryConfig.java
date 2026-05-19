@@ -20,6 +20,7 @@ import io.opentelemetry.sdk.resources.ResourceBuilder;
 import io.opentelemetry.semconv.ServerAttributes;
 import io.opentelemetry.semconv.ServiceAttributes;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
@@ -35,7 +36,6 @@ import java.util.Arrays;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Profile;
@@ -149,9 +149,13 @@ public class OpenTelemetryConfig {
 
   private Resource buildResource() {
     Setting instanceId =
-        this.settingRepository.findByKey(PLATFORM_INSTANCE.key()).orElse(new Setting());
+        this.settingRepository
+            .findByKeyAndTenantIsNull(PLATFORM_INSTANCE.key())
+            .orElse(new Setting());
     Setting instanceCreationDate =
-        this.settingRepository.findByKey(PLATFORM_INSTANCE_CREATION.key()).orElse(new Setting());
+        this.settingRepository
+            .findByKeyAndTenantIsNull(PLATFORM_INSTANCE_CREATION.key())
+            .orElse(new Setting());
     LocalDateTime creationDate = LocalDateTime.now();
     if (instanceCreationDate.getValue() != null) {
       creationDate = LocalDateTime.parse(instanceCreationDate.getValue(), CREATION_DATE_FORMATTER);

@@ -3,7 +3,7 @@ import { List, ListItem, ListItemIcon, ListItemSecondaryAction, ListItemText } f
 import { useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import { searchTags } from '../../../../actions/Tag';
+import { searchTags } from '../../../../actions/tags/tag-action';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import PaginationComponent from '../../../../components/common/pagination/PaginationComponent';
 import SortHeadersComponent from '../../../../components/common/pagination/SortHeadersComponent';
@@ -151,7 +151,7 @@ const Tags = () => {
             </ListItem>
           ))}
         </List>
-        <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
+        <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
           <CreateTag
             onCreate={result => setTags([result, ...tags])}
           />

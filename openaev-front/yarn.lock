@@ -1668,6 +1668,18 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@filigran/chatbot@npm:3.2.0":
+  version: 3.2.0
+  resolution: "@filigran/chatbot@npm:3.2.0"
+  peerDependencies:
+    react: ">=18"
+    react-dom: ">=18"
+    react-markdown: ">=10"
+    remark-gfm: ">=4"
+  checksum: 10c0/0ed5321990c5c33ec15c7419103918abd038d9c1b44f66556c10c2865a1b2ebd8649667f5beee98c8b06bf92d788c8e3f859e5e5c86cc7fc8480a61e13d20acb
+  languageName: node
+  linkType: hard
+
 "@fontsource/geologica@npm:5.2.8":
   version: 5.2.8
   resolution: "@fontsource/geologica@npm:5.2.8"
@@ -7352,6 +7364,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"ipaddr.js@npm:^2.2.0":
+  version: 2.4.0
+  resolution: "ipaddr.js@npm:2.4.0"
+  checksum: 10c0/47c2f17677b40054ca50a09e1228cf818c0d02d4474c2e0e29232c6668b3c4d51a3cfc19d1e17897d7baf4d933b3111d6bdf5cfbe55ab184165469a75f2bf177
+  languageName: node
+  linkType: hard
+
 "is-alphabetical@npm:^2.0.0":
   version: 2.0.1
   resolution: "is-alphabetical@npm:2.0.1"
@@ -9470,6 +9489,7 @@ __metadata:
     "@emotion/styled": "npm:11.14.1"
     "@eslint/js": "npm:9.39.4"
     "@faker-js/faker": "npm:10.4.0"
+    "@filigran/chatbot": "npm:3.2.0"
     "@fontsource/geologica": "npm:5.2.8"
     "@fontsource/ibm-plex-sans": "npm:5.2.8"
     "@hello-pangea/dnd": "npm:18.0.1"
@@ -9531,6 +9551,7 @@ __metadata:
     http-proxy-middleware: "npm:3.0.5"
     i18n-auto-translation: "npm:2.2.3"
     immutable: "npm:5.1.5"
+    ipaddr.js: "npm:^2.2.0"
     js-file-download: "npm:0.4.12"
     mdi-material-ui: "npm:7.9.4"
     moment: "npm:2.30.1"
@@ -9570,7 +9591,7 @@ __metadata:
     uuid: "npm:14.0.0"
     vite: "npm:8.0.11"
     vitest: "npm:4.1.5"
-    zod: "npm:3.25.76"
+    zod: "npm:4.3.6"
     zustand: "npm:5.0.13"
   languageName: unknown
   linkType: soft
@@ -12817,10 +12838,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"zod@npm:3.25.76":
-  version: 3.25.76
-  resolution: "zod@npm:3.25.76"
-  checksum: 10c0/5718ec35e3c40b600316c5b4c5e4976f7fee68151bc8f8d90ec18a469be9571f072e1bbaace10f1e85cf8892ea12d90821b200e980ab46916a6166a4260a983c
+"zod@npm:4.3.6":
+  version: 4.3.6
+  resolution: "zod@npm:4.3.6"
+  checksum: 10c0/860d25a81ab41d33aa25f8d0d07b091a04acb426e605f396227a796e9e800c44723ed96d0f53a512b57be3d1520f45bf69c0cb3b378a232a00787a2609625307
   languageName: node
   linkType: hard
 

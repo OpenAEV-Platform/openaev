@@ -1,8 +1,5 @@
 package io.openaev.service.stix;
 
-import static io.openaev.utils.SecurityCoverageUtils.extractAndValidateCoverage;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.Scenario;
 import io.openaev.opencti.errors.ConnectorError;
 import io.openaev.service.stix.error.BundleValidationError;
@@ -11,6 +8,7 @@ import io.openaev.stix.objects.ObjectBase;
 import io.openaev.stix.objects.constants.CommonProperties;
 import io.openaev.stix.parsing.Parser;
 import io.openaev.stix.parsing.ParsingException;
+import io.openaev.utils.SecurityCoverageUtils;
 import java.io.IOException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,8 +19,8 @@ import org.springframework.stereotype.Service;
 @Service
 public class StixService {
   private final Parser stixParser;
-  private final ObjectMapper objectMapper;
   private final SecurityCoverageService securityCoverageService;
+  private final SecurityCoverageUtils securityCoverageUtils;
 
   /**
    * Generate or update a Scenario from Stix bundle
@@ -39,7 +37,7 @@ public class StixService {
 
   private Scenario processSecurityCoverage(Bundle bundle)
       throws BundleValidationError, ParsingException, ConnectorError, IOException {
-    ObjectBase securityCoverageObj = extractAndValidateCoverage(bundle);
+    ObjectBase securityCoverageObj = securityCoverageUtils.extractAndValidateCoverage(bundle);
     String securityCoverageStixId =
         securityCoverageObj.getRequiredProperty(CommonProperties.ID.toString());
 

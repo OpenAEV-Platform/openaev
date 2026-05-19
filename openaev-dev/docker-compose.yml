@@ -1,4 +1,10 @@
 services:
+
+  # ===========================================================================
+  #  MANDATORY SERVICES — Required to run OpenAEV locally
+  #  Start with: podman compose up -d openaev-dev-pgsql openaev-dev-minio openaev-dev-elasticsearch openaev-dev-rabbitmq
+  # ===========================================================================
+
   # Development PostgreSQL database (persistent storage)
   openaev-dev-pgsql:
     container_name: openaev-dev-pgsql
@@ -12,22 +18,6 @@ services:
     restart: unless-stopped
     volumes:
       - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d openaev"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-  # Test PostgreSQL database (ephemeral - no volume for clean test runs)
-  openaev-test-pgsql:
-    container_name: openaev-test-pgsql
-    image: postgres:17-alpine
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: openaev
-    ports:
-      - "5433:5432"
-    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d openaev"]
       interval: 10s
@@ -67,56 +57,6 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-  # Caldera adversary simulation platform
-  # See caldera.yml for configuration (update credentials before production use)
-  openaev-dev-caldera:
-    container_name: openaev-dev-caldera
-    image: openbas/caldera-server:5.1.0
-    restart: unless-stopped
-    ports:
-      - "8888:8888"
-    environment:
-      CALDERA_URL: http://localhost:8888
-    volumes:
-      - type: bind
-        source: ./caldera.yml
-        target: /usr/src/app/conf/local.yml
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8888"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-#  openaev-pyroscope:
-#    container_name: openaev-pyroscope
-#    image: grafana/pyroscope:latest
-#    restart: unless-stopped
-#    ports:
-#      - "4040:4040"
-#  openaev-telemetry-otlp:
-#    container_name: openaev-telemetry-otlp
-#    image: otel/opentelemetry-collector-contrib:0.119.0
-#    restart: unless-stopped
-#    volumes:
-#      - "./otlp-config.yaml:/etc/config/otlp-config.yaml"
-#      - "./telemetry.json:/telemetry.json"
-#    command:
-#      - '--config=/etc/config/otlp-config.yaml'
-#    ports:
-#      - "1010:1010"
-  # pgAdmin - PostgreSQL management UI
-  # Default credentials: see PGADMIN_USER/PGADMIN_PASSWORD in .env
-  openaev-dev-pgadmin:
-    image: dpage/pgadmin4
-    container_name: openaev-dev-pgadmin
-    restart: unless-stopped
-    ports:
-      - "5050:80"
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_USER}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
-    depends_on:
-      openaev-dev-pgsql:
-        condition: service_healthy
   # Development Elasticsearch (persistent storage)
   openaev-dev-elasticsearch:
     container_name: openaev-dev-elasticsearch
@@ -147,6 +87,45 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+
+  # ===========================================================================
+  #  OPTIONAL SERVICES — For testing, tooling, or alternative engines
+  #  These are NOT required for day-to-day backend/frontend development.
+  # ===========================================================================
+
+  # Test PostgreSQL database (ephemeral - no volume for clean test runs)
+  openaev-test-pgsql:
+    container_name: openaev-test-pgsql
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: openaev
+    ports:
+      - "5433:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER}", "-d", "openaev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  # Test MinIO object storage (S3-compatible)
+  openaev-test-minio:
+    container_name: openaev-test-minio
+    image: minio/minio:RELEASE.2025-06-13T11-33-47Z
+    ports:
+      - "11000:9000"
+      - "11001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    restart: unless-stopped
   # Development OpenSearch (alternative to Elasticsearch, persistent storage)
   # NOTE: OpenSearch and Elasticsearch both use port 9200 by default internally.
   # OpenSearch is mapped to external port 9202 to avoid conflicts.
@@ -205,6 +184,20 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+  # pgAdmin - PostgreSQL management UI
+  # Default credentials: see PGADMIN_USER/PGADMIN_PASSWORD in .env
+  openaev-dev-pgadmin:
+    image: dpage/pgadmin4
+    container_name: openaev-dev-pgadmin
+    restart: unless-stopped
+    ports:
+      - "5050:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_USER}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+    depends_on:
+      openaev-dev-pgsql:
+        condition: service_healthy
   # Kibana - Elasticsearch UI for development
   openaev-dev-kibana:
     container_name: openaev-dev-kibana
@@ -229,6 +222,7 @@ services:
     depends_on:
       openaev-test-elasticsearch:
         condition: service_healthy
+  # RSA key generator & XTM Composer (needed only for injector integration testing)
   rsa-key-generator:
     container_name: rsa-key-generator
     image: alpine/openssl:3.5.6
@@ -270,6 +264,29 @@ services:
       openaev-dev-rabbitmq:
         condition: service_healthy
     restart: always
+  # Pyroscope — continuous profiling (optional, for performance debugging)
+  # Uncomment to enable. UI available at http://localhost:4040
+#  openaev-pyroscope:
+#    container_name: openaev-pyroscope
+#    image: grafana/pyroscope:latest
+#    restart: unless-stopped
+#    ports:
+#      - "4040:4040"
+
+  # OpenTelemetry Collector (optional, for telemetry/tracing)
+  # Uncomment to enable. Requires otlp-config.yaml and telemetry.json
+#  openaev-telemetry-otlp:
+#    container_name: openaev-telemetry-otlp
+#    image: otel/opentelemetry-collector-contrib:0.119.0
+#    restart: unless-stopped
+#    volumes:
+#      - "./otlp-config.yaml:/etc/config/otlp-config.yaml"
+#      - "./telemetry.json:/telemetry.json"
+#    command:
+#      - '--config=/etc/config/otlp-config.yaml'
+#    ports:
+#      - "1010:1010"
+
 volumes:
   esdata:
     driver: local

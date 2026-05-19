@@ -1,15 +1,46 @@
-import { DashboardOutlined, DescriptionOutlined, DevicesOtherOutlined, DnsOutlined, Groups3Outlined, GroupsOutlined, HubOutlined, InsertChartOutlined, MovieFilterOutlined, OnlinePredictionOutlined, PersonOutlined, RocketLaunchOutlined, RowingOutlined, SchoolOutlined, SettingsOutlined, SmartButtonOutlined, SubscriptionsOutlined, TerminalOutlined, Widgets } from '@mui/icons-material';
-import { Binoculars, NewspaperVariantMultipleOutline, PostOutline, SecurityNetwork, SelectGroup, Target } from 'mdi-material-ui';
+import {
+  DashboardOutlined,
+  DescriptionOutlined,
+  DevicesOtherOutlined,
+  DnsOutlined,
+  Groups3Outlined,
+  GroupsOutlined,
+  HubOutlined,
+  InsertChartOutlined,
+  LayersOutlined,
+  MovieFilterOutlined,
+  OnlinePredictionOutlined,
+  PersonOutlined,
+  RocketLaunchOutlined,
+  RowingOutlined,
+  SchoolOutlined,
+  SmartButtonOutlined,
+  TerminalOutlined,
+  Widgets,
+} from '@mui/icons-material';
+import {
+  Binoculars,
+  NewspaperVariantMultipleOutline,
+  PostOutline,
+  SecurityNetwork,
+  SelectGroup,
+  Target,
+} from 'mdi-material-ui';
 import { useContext } from 'react';
 
 import LeftMenu from '../../../components/common/menu/leftmenu/LeftMenu';
+import { type LeftMenuEntries } from '../../../components/common/menu/leftmenu/leftmenu-model';
 import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+import { isFeatureEnabled } from '../../../utils/utils';
 import { GETTING_STARTED_URI } from '../getting_started/GettingStartedRoutes';
+import settingsEntries from './config/settings.config';
+import TenantSwitcher from './LeftBarTenantSwitcher';
 
 const LeftBar = () => {
   const ability = useContext(AbilityContext);
-  const entries = [
+  const isMultiTenancyEnabled = isFeatureEnabled('MULTI_TENANCY');
+  const entries: LeftMenuEntries[] = [
     {
       userRight: true,
       items: [
@@ -59,6 +90,12 @@ const LeftBar = () => {
     {
       userRight: true,
       items: [
+        {
+          path: `/admin/threat-arsenal`,
+          icon: () => (<LayersOutlined />),
+          label: 'Threat Arsenal',
+          userRight: true,
+        },
         {
           path: `/admin/assets`,
           icon: () => (<DnsOutlined />),
@@ -149,91 +186,48 @@ const LeftBar = () => {
       userRight: true,
       items: [
         {
-          path: `/admin/payloads`,
-          icon: () => (<SubscriptionsOutlined />),
-          label: 'Payloads',
-          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PAYLOADS),
-        },
-        {
           path: `/admin/integrations`,
           icon: () => (<DnsOutlined />),
           label: 'Integrations',
           href: 'integrations',
-          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
+          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS),
           subItems: [
             {
               link: '/admin/integrations/catalog',
               label: 'Catalog',
               icon: () => (<Widgets fontSize="small" />),
-              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
+              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS),
             },
             {
               link: '/admin/integrations/injectors',
               label: 'Injectors',
               icon: () => (<SmartButtonOutlined fontSize="small" />),
-              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
+              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS),
             },
             {
               link: '/admin/integrations/collectors',
               label: 'Collectors',
               icon: () => (<OnlinePredictionOutlined fontSize="small" />),
-              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
+              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS),
             },
             {
               link: '/admin/integrations/executors',
               label: 'Executors',
               icon: () => (<TerminalOutlined fontSize="small" />),
-              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
-            },
-          ],
-        },
-      ],
-    },
-    {
-      userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
-      items: [
-        {
-          path: `/admin/settings`,
-          icon: () => (<SettingsOutlined />),
-          label: 'Settings',
-          href: 'settings',
-          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
-          subItems: [
-            {
-              link: '/admin/settings/parameters',
-              label: 'Parameters',
-              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
-            },
-            {
-              link: '/admin/settings/security',
-              label: 'Security',
-              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
-            },
-            {
-              link: '/admin/settings/asset_rules',
-              label: 'Customization',
-              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
-            },
-            {
-              link: '/admin/settings/taxonomies',
-              label: 'Taxonomies',
-              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
-            },
-            {
-              link: '/admin/settings/data_ingestion',
-              label: 'Data ingestion',
-              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
-            },
-            {
-              link: '/admin/settings/experience',
-              label: 'Filigran Experience',
-              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS),
+              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS),
             },
           ],
         },
       ],
     },
   ];
+  const settingsItems = settingsEntries(ability);
+  entries.push(
+    {
+      userRight: settingsItems.some(item => item.userRight),
+      items: settingsItems,
+    },
+  );
   const bottomEntries = [
     {
       userRight: true,
@@ -248,7 +242,13 @@ const LeftBar = () => {
     },
   ];
   return (
-    <LeftMenu entries={entries} bottomEntries={bottomEntries} />
+    <LeftMenu
+      entries={entries}
+      bottomEntries={bottomEntries}
+      headerElement={isMultiTenancyEnabled
+        ? (navOpen: boolean) => <TenantSwitcher navOpen={navOpen} />
+        : undefined}
+    />
   );
 };
 

@@ -3,7 +3,7 @@ package io.openaev.service;
 import static io.openaev.database.model.Grant.GRANT_RESOURCE_TYPE.SIMULATION;
 import static io.openaev.database.model.Grant.GRANT_TYPE.PLANNER;
 import static io.openaev.utils.fixtures.GrantFixture.getGrant;
-import static io.openaev.utils.fixtures.GroupFixture.createGroup;
+import static io.openaev.utils.fixtures.TenantGroupFixture.getGroup;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -103,7 +103,7 @@ class GrantServiceTest {
   @Test
   void given_validParameters_should_createGrantSuccessfully() {
     // -- ARRANGE --
-    Group group = createGroup();
+    Group group = getGroup();
 
     // -- ACT --
     grantService.createGrant(PLANNER, group, RESOURCE_ID, SIMULATION);
@@ -121,7 +121,7 @@ class GrantServiceTest {
   void given_multipleSourceGrants_should_duplicateAllGrantsWithNewResourceId() {
     // -- ARRANGE --
     String targetResourceId = "new-resource-id";
-    Group group = createGroup();
+    Group group = getGroup();
     Grant sourceGrant1 = getGrant(RESOURCE_ID, SIMULATION, Grant.GRANT_TYPE.OBSERVER, group);
     Grant sourceGrant2 = getGrant(RESOURCE_ID, SIMULATION, PLANNER, group);
     when(grantRepository.save(any(Grant.class))).thenAnswer(inv -> inv.getArgument(0));

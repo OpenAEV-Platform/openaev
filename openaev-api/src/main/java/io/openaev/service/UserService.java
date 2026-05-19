@@ -2,30 +2,44 @@ package io.openaev.service;
 
 import static io.openaev.database.model.User.ROLE_ADMIN;
 import static io.openaev.database.model.User.ROLE_USER;
-import static io.openaev.helper.DatabaseHelper.updateRelation;
-import static io.openaev.helper.StreamHelper.iterableToSet;
+import static io.openaev.utils.pagination.CriteriaBuilderPagination.paginate;
+import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 import static java.time.Instant.now;
 
+import io.openaev.api.users.dto.UserInput;
+import io.openaev.api.users.dto.UserOutput;
 import io.openaev.config.DefaultOpenAEVPrincipal;
 import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.config.SessionHelper;
 import io.openaev.config.SessionManager;
-import io.openaev.database.model.Group;
-import io.openaev.database.model.Token;
-import io.openaev.database.model.User;
-import io.openaev.database.repository.*;
+import io.openaev.config.cache.TenantMembershipCacheManager;
+import io.openaev.database.model.*;
+import io.openaev.database.repository.GroupRepository;
+import io.openaev.database.repository.TagRepository;
+import io.openaev.database.repository.TenantRepository;
+import io.openaev.database.repository.TokenRepository;
+import io.openaev.database.repository.UserRepository;
 import io.openaev.database.specification.GroupSpecification;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.InputValidationException;
 import io.openaev.rest.user.form.login.ResetUserInput;
 import io.openaev.rest.user.form.user.ChangePasswordInput;
-import io.openaev.rest.user.form.user.CreateUserInput;
-import io.openaev.rest.user.form.user.UpdateUserInput;
 import io.openaev.utils.RandomUtils;
+import io.openaev.utils.ReferenceResolver;
+import io.openaev.utils.pagination.SearchPaginationInput;
+import io.openaev.utils.users.UserQueryHelper;
 import jakarta.annotation.Resource;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityNotFoundException;
+import jakarta.persistence.PersistenceContext;
+import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.collections4.map.PassiveExpiringMap;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +47,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
@@ -42,6 +58,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
 /**
@@ -51,12 +69,10 @@ import org.springframework.util.StringUtils;
  * management. Admin users are cached for performance optimization.
  *
  * @see io.openaev.database.model.User
- * @see io.openaev.database.model.Token
  */
 @Service
 @RequiredArgsConstructor
 public class UserService {
-  @Resource private SessionManager sessionManager;
 
   @Value("${openbas.admin.email:${openaev.admin.email:#{null}}}")
   private String adminEmail;
@@ -68,47 +84,24 @@ public class UserService {
   private final Argon2PasswordEncoder passwordEncoder =
       Argon2PasswordEncoder.defaultsForSpringSecurity_v5_8();
 
-  private UserRepository userRepository;
-  private TokenRepository tokenRepository;
-  private TagRepository tagRepository;
-  private GroupRepository groupRepository;
-  private OrganizationRepository organizationRepository;
-  private CacheManager cacheManager;
+  @Resource private SessionManager sessionManager;
+  @PersistenceContext private EntityManager entityManager;
+
+  private final UserRepository userRepository;
+  private final TagRepository tagRepository;
+  private final GroupRepository groupRepository;
+  private final TokenRepository tokenRepository;
+  private final TenantRepository tenantRepository;
+  private final ReferenceResolver referenceResolver;
+  private final CacheManager cacheManager;
   private MailingService mailingService;
   private final RandomUtils randomUtils;
+  private final TenantMembershipCacheManager tenantMembershipCacheManager;
 
   /** Cache for admin users to improve lookup performance. */
   private Cache adminCache;
 
-  @Autowired
-  public void setOrganizationRepository(OrganizationRepository organizationRepository) {
-    this.organizationRepository = organizationRepository;
-  }
-
-  @Autowired
-  public void setCacheManager(CacheManager cacheManager) {
-    this.cacheManager = cacheManager;
-  }
-
-  @Autowired
-  public void setTagRepository(TagRepository tagRepository) {
-    this.tagRepository = tagRepository;
-  }
-
-  @Autowired
-  public void setGroupRepository(GroupRepository groupRepository) {
-    this.groupRepository = groupRepository;
-  }
-
-  @Autowired
-  public void setUserRepository(UserRepository userRepository) {
-    this.userRepository = userRepository;
-  }
-
-  @Autowired
-  public void setTokenRepository(TokenRepository tokenRepository) {
-    this.tokenRepository = tokenRepository;
-  }
+  // -- COUNT --
 
   @Autowired
   public void setMailingService(@Lazy MailingService mailingService) {
@@ -124,7 +117,162 @@ public class UserService {
     return userRepository.globalCount();
   }
 
-  // region users
+  // -- CREATE --
+
+  @Transactional(rollbackFor = Exception.class)
+  public User createUser(UserInput input) {
+    if (!StringUtils.hasLength(input.plainPassword())) {
+      throw new IllegalArgumentException("Password is required when creating a user");
+    }
+    if (userRepository.findByEmailIgnoreCase(input.email()).isPresent()) {
+      throw new DataIntegrityViolationException(
+          "User with email " + input.email() + " already exists");
+    }
+    User user = new User();
+    user.setUpdateAttributes(input);
+    user.setTags(referenceResolver.resolve(input.tagIds(), Tag.class, tagRepository::countByIdIn));
+    user.setOrganization(referenceResolver.resolve(input.organizationId(), Organization.class));
+    user.setTenants(
+        new ArrayList<>(
+            referenceResolver.resolve(
+                input.tenantIds(), Tenant.class, tenantRepository::countByIdIn)));
+    if (!CollectionUtils.isEmpty(input.tenantIds())) {
+      tenantMembershipCacheManager.evictForUser(user.getId(), input.tenantIds());
+    }
+    return createUser(user, input.plainPassword(), UUID.randomUUID().toString());
+  }
+
+  /** Creates a user for internal/technical purposes (SSO login, connector provisioning). */
+  @Transactional(rollbackFor = Exception.class)
+  public User createInternalUser(
+      String email, String firstname, String lastname, boolean isAdmin, String token) {
+    if (userRepository.findByEmailIgnoreCase(email).isPresent()) {
+      throw new DataIntegrityViolationException("User with email " + email + " already exists");
+    }
+    User user = new User();
+    user.setEmail(email);
+    user.setFirstname(firstname);
+    user.setLastname(lastname);
+    user.setAdmin(isAdmin);
+    return createUser(user, null, token);
+  }
+
+  private User createUser(User user, String password, String token) {
+    if (StringUtils.hasLength(password)) {
+      user.setPassword(this.encodeUserPassword(password));
+    }
+    List<Group> assignableGroups =
+        groupRepository.findAll(GroupSpecification.defaultUserAssignablePlatform());
+    user.setGroups(assignableGroups);
+    User savedUser = userRepository.save(user);
+    this.createUserToken(savedUser, token);
+    return savedUser;
+  }
+
+  // -- READ --
+
+  /** Returns a user by ID (platform scope, no tenant filtering). */
+  @Transactional(readOnly = true)
+  public User user(@NotBlank final String userId) {
+    return userRepository
+        .findById(userId)
+        .orElseThrow(() -> new ElementNotFoundException("User not found with id: " + userId));
+  }
+
+  /** Finds users by IDs (platform scope, no tenant filtering). */
+  @Transactional(readOnly = true)
+  public List<User> find(@NotNull final List<String> userIds) {
+    if (userIds.isEmpty()) {
+      return List.of();
+    }
+    return userRepository.findAllById(userIds);
+  }
+
+  // -- SEARCH --
+
+  /** Searches users with pagination (platform scope, no tenant filtering). */
+  @Transactional(readOnly = true)
+  public Page<UserOutput> search(SearchPaginationInput searchPaginationInput) {
+    CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+    return buildPaginationCriteriaBuilder(
+        (spec, specCount, pageable) ->
+            paginate(
+                entityManager,
+                User.class,
+                spec,
+                specCount,
+                pageable,
+                (cq, root) -> UserQueryHelper.select(cb, cq, root),
+                UserQueryHelper::executionWithTenants),
+        searchPaginationInput,
+        User.class);
+  }
+
+  // -- UPDATE --
+
+  @Transactional(rollbackFor = Exception.class)
+  public User updateUser(String userId, UserInput input) {
+    User existing = user(userId);
+    // Capture old tenant IDs before update for cache eviction
+    List<String> oldTenantIds =
+        existing.getTenants() != null
+            ? existing.getTenants().stream().map(Tenant::getId).toList()
+            : List.of();
+    existing.setUpdateAttributes(input);
+    existing.setTags(
+        referenceResolver.resolve(input.tagIds(), Tag.class, tagRepository::countByIdIn));
+    existing.setOrganization(referenceResolver.resolve(input.organizationId(), Organization.class));
+    existing.setTenants(
+        new ArrayList<>(
+            referenceResolver.resolve(
+                input.tenantIds(), Tenant.class, tenantRepository::countByIdIn)));
+    if (StringUtils.hasLength(input.plainPassword())) {
+      existing.setPassword(this.encodeUserPassword(input.plainPassword()));
+    }
+    User savedUser = userRepository.save(existing);
+    // Evict cache for old tenants (removed memberships) and new tenants (added memberships)
+    List<String> newTenantIds = input.tenantIds() != null ? input.tenantIds() : List.of();
+    List<String> allAffectedTenants = new ArrayList<>(oldTenantIds);
+    allAffectedTenants.addAll(newTenantIds);
+    tenantMembershipCacheManager.evictForUser(userId, allAffectedTenants);
+    sessionManager.refreshUserSessions(savedUser);
+    return savedUser;
+  }
+
+  /**
+   * Saves a user entity directly. For internal/technical use only (SSO provisioning, connector
+   * management, group mapping).
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public User saveUser(User user) {
+    User savedUser = userRepository.save(user);
+    sessionManager.refreshUserSessions(savedUser);
+    return savedUser;
+  }
+
+  /** Resolves an organization reference from its ID (or null if blank). */
+  public Organization resolveOrganization(String organizationId) {
+    return referenceResolver.resolve(organizationId, Organization.class);
+  }
+
+  /** Resolves tag references from their IDs. */
+  public java.util.Set<Tag> resolveTags(List<String> tagIds) {
+    return referenceResolver.resolve(tagIds, Tag.class, tagRepository::countByIdIn);
+  }
+
+  // -- DELETE --
+
+  @Transactional(rollbackFor = Exception.class)
+  public void delete(String userId) {
+    User existing = user(userId);
+    if (existing == null) {
+      throw new EntityNotFoundException("User not found: " + userId);
+    }
+    sessionManager.invalidateUserSession(userId);
+    userRepository.deleteByIdNative(userId);
+  }
+
+  // -- AUTH --
 
   /**
    * Creates a reset token for the specified user; also sends an email with the created token
@@ -283,113 +431,10 @@ public class UserService {
     return tokenRepository.save(token);
   }
 
-  /**
-   * Saves an updated user entity.
-   *
-   * @param user the user to update
-   * @return the saved user
-   */
-  public User updateUser(User user) {
-    return userRepository.save(user);
-  }
-
-  /**
-   * Creates a new user from input data.
-   *
-   * <p>Handles password encoding, tag assignment, organization linking, and automatic group
-   * assignment. Also creates an API token for the new user.
-   *
-   * @param input the user creation input
-   * @param status the initial user status
-   * @return the created user
-   */
-  public User createUser(CreateUserInput input, int status) {
-    User user = new User();
-    user.setUpdateAttributes(input);
-    user.setStatus((short) status);
-    if (StringUtils.hasLength(input.getPassword())) {
-      user.setPassword(encodeUserPassword(input.getPassword()));
-    }
-    user.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
-    user.setOrganization(
-        updateRelation(input.getOrganizationId(), user.getOrganization(), organizationRepository));
-    // Find automatic groups to assign
-    List<Group> assignableGroups =
-        groupRepository.findAll(GroupSpecification.defaultUserAssignable());
-    user.setGroups(assignableGroups);
-    // Save the user
-    User savedUser = userRepository.save(user);
-    createUserToken(savedUser, input.getToken());
-    return savedUser;
-  }
-
-  /**
-   * Updates a user by ID with the provided input.
-   *
-   * @param userId the ID of the user to update
-   * @param input the update data
-   * @return the updated user
-   * @throws ElementNotFoundException if the user is not found
-   */
-  public User updateUser(String userId, UpdateUserInput input) {
-    User user = userRepository.findById(userId).orElseThrow(ElementNotFoundException::new);
-    return this.updateUser(user, input);
-  }
-
-  /**
-   * Updates a user entity with the provided input.
-   *
-   * <p>Refreshes any active sessions for the user after update.
-   *
-   * @param user the user entity to update
-   * @param input the update data
-   * @return the updated user
-   */
-  public User updateUser(User user, UpdateUserInput input) {
-    user.setUpdateAttributes(input);
-    user.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
-    user.setOrganization(
-        updateRelation(input.getOrganizationId(), user.getOrganization(), organizationRepository));
-    User savedUser = userRepository.save(user);
-    sessionManager.refreshUserSessions(savedUser);
-    return savedUser;
-  }
-
   public Optional<User> findByToken(@NotBlank final String token) {
     return this.userRepository.findByToken(token);
   }
 
-  /**
-   * Retrieves a user by ID.
-   *
-   * @param userId the user ID
-   * @return the user
-   * @throws ElementNotFoundException if not found
-   */
-  public User user(@NotBlank final String userId) {
-    return this.userRepository
-        .findById(userId)
-        .orElseThrow(() -> new ElementNotFoundException("User not found with id: " + userId));
-  }
-
-  /**
-   * Retrieves all users.
-   *
-   * @return list of all users
-   */
-  public List<User> users() {
-    return this.userRepository.findAll();
-  }
-
-  /**
-   * Retrieves the currently authenticated user.
-   *
-   * <p>Admin users are cached for performance. The cache is used if available, otherwise a database
-   * lookup is performed.
-   *
-   * @return the current user
-   * @throws ElementNotFoundException if the current user is not found
-   */
   public User currentUser() {
     User user;
     // If we don't have the cache, we get it
@@ -422,8 +467,6 @@ public class UserService {
     return user;
   }
 
-  // endregion
-
   /**
    * Builds a Spring Security authentication token for a user.
    *
@@ -447,12 +490,6 @@ public class UserService {
     return new PreAuthenticatedAuthenticationToken(principal, "", roles);
   }
 
-  /**
-   * Finds a user by email address (case-insensitive).
-   *
-   * @param email the email to search for
-   * @return an Optional containing the user if found
-   */
   public Optional<User> findByEmailIgnoreCase(String email) {
     return userRepository.findByEmailIgnoreCase(email);
   }

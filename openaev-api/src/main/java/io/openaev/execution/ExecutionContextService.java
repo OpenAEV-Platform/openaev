@@ -34,7 +34,8 @@ public class ExecutionContextService {
     if (injection.getExercise() != null) {
       String exerciseId = injection.getExercise().getId();
       String queryParams = "?user=" + user.getId() + "&inject=" + injection.getId();
-      String baseUrl = this.openAEVCOnfig.getBaseUrl();
+      String baseUrl =
+          this.openAEVCOnfig.getBaseUrl() + "/" + injection.getExercise().getTenant().getId();
       executionContext.put(PLAYER_URI, baseUrl + "/private/" + exerciseId + queryParams);
       executionContext.put(CHALLENGES_URI, baseUrl + "/challenges/" + exerciseId + queryParams);
       executionContext.put(SCOREBOARD_URI, baseUrl + "/scoreboard/" + exerciseId + queryParams);

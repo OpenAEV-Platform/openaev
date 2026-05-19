@@ -6,7 +6,7 @@ import { connect } from 'react-redux';
 import { withStyles } from 'tss-react/mui';
 
 import { storeHelper } from '../actions/Schema';
-import { addTag } from '../actions/Tag';
+import { addTag } from '../actions/tags/tag-action';
 import TagForm from '../admin/components/settings/tags/TagForm';
 import { Can } from '../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../utils/permissions/types';
@@ -109,7 +109,7 @@ class TagFieldComponent extends Component {
           )}
           classes={{ clearIndicator: classes.autoCompleteIndicator }}
         />
-        <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
+        <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
           <Dialog
             open={this.state.tagCreation}
             onClose={this.handleCloseTagCreation.bind(this)}

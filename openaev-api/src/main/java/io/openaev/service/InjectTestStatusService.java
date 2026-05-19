@@ -4,6 +4,7 @@ import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import io.openaev.database.model.*;
+import io.openaev.database.repository.ConnectorInstanceRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectTestStatusRepository;
 import io.openaev.database.repository.UserRepository;
@@ -40,6 +41,7 @@ public class InjectTestStatusService {
   private final InjectTestStatusRepository injectTestStatusRepository;
   private final InjectStatusMapper injectStatusMapper;
   private final ManagerFactory managerFactory;
+  private final ConnectorInstanceRepository connectorInstanceRepository;
 
   @Autowired
   public void setContext(ApplicationContext context) {
@@ -121,14 +123,27 @@ public class InjectTestStatusService {
     ExecutionContext userInjectContext =
         this.executionContextService.executionContext(user, inject, "Direct test");
 
-    String injectorType =
-        inject
-            .getInjectorContract()
-            .map(contract -> contract.getInjector().getType())
-            .orElseThrow(() -> new EntityNotFoundException("Injector contract not found"));
-
-    io.openaev.executors.Injector executor =
-        managerFactory.getManager().requestInjectorExecutorByType(injectorType);
+    Injector injector;
+    if (inject.getInjector() != null) {
+      injector = inject.getInjector();
+    } else {
+      injector =
+          inject
+              .getInjectorContract()
+              .map(contract -> contract.getFirstInjector())
+              .orElseThrow(() -> new EntityNotFoundException("Injector contract not found"));
+    }
+    io.openaev.executors.Injector executor;
+    ConnectorInstancePersisted connectorInstancePersisted =
+        connectorInstanceRepository.findById(injector.getId()).orElse(null);
+    if (connectorInstancePersisted == null) {
+      executor = managerFactory.getManager().requestInjectorExecutorByType(injector.getType());
+    } else {
+      executor =
+          managerFactory
+              .getManager()
+              .requestForInstance(connectorInstancePersisted, io.openaev.executors.Injector.class);
+    }
 
     ExecutableInject injection =
         new ExecutableInject(

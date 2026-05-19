@@ -11,6 +11,7 @@ import io.openaev.database.repository.InjectRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.form.InjectUpdateActivationInput;
+import io.openaev.rest.inject.output.InjectOutput;
 import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.fixtures.composers.InjectComposer;
@@ -100,7 +101,7 @@ class ScenarioInjectServiceTest extends IntegrationTest {
       input.setDependsDuration(0L);
 
       // -- ACT --
-      Inject result =
+      InjectOutput result =
           scenarioInjectService.updateInjectForScenario(
               scenarioA.getId(), injectInA.getId(), input);
 

@@ -1,5 +1,5 @@
 import { MoreVert } from '@mui/icons-material';
-import { IconButton, Menu, MenuItem, ToggleButton } from '@mui/material';
+import { IconButton, Menu, MenuItem, ToggleButton, Tooltip } from '@mui/material';
 import { type CSSProperties, type Dispatch, type FunctionComponent, type SetStateAction, useState } from 'react';
 
 import { useFormatter } from '../i18n';
@@ -8,6 +8,7 @@ export interface PopoverEntry {
   label: string;
   action: () => void | Dispatch<SetStateAction<boolean>>;
   disabled?: boolean;
+  disabledMessage?: string;
   userRight: boolean;
 }
 
@@ -76,7 +77,7 @@ const ButtonPopover: FunctionComponent<Props> = ({
         onClose={() => setAnchorEl(null)}
       >
         {entries.filter(entry => entry.userRight).map((entry) => {
-          return (
+          const menuItem = (
             <MenuItem
               key={entry.label}
               disabled={entry.disabled}
@@ -88,6 +89,14 @@ const ButtonPopover: FunctionComponent<Props> = ({
               {t(entry.label)}
             </MenuItem>
           );
+          if (entry.disabled && entry.disabledMessage) {
+            return (
+              <Tooltip key={entry.label} title={t(entry.disabledMessage)}>
+                <span>{menuItem}</span>
+              </Tooltip>
+            );
+          }
+          return menuItem;
         })}
       </Menu>
     </>

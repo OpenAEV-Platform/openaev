@@ -14,6 +14,13 @@ public class TagFixture {
     return tag;
   }
 
+  public static Tag getTagNoId() {
+    Tag tag = new Tag();
+    tag.setName(TAG_NAME);
+    tag.setColor("#FFFFFF");
+    return tag;
+  }
+
   public static Tag getTagWithText(String text) {
     Tag tag = new Tag();
     tag.setName(text);

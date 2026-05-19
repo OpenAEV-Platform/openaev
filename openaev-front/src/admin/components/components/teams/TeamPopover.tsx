@@ -2,7 +2,8 @@ import { Button, Dialog as MuiDialog, DialogActions, DialogContent, DialogConten
 import { type FunctionComponent, useContext, useState } from 'react';
 
 import { type ExercisesHelper } from '../../../../actions/exercises/exercise-helper';
-import { type OrganizationHelper, type TagHelper } from '../../../../actions/helper';
+import { type OrganizationHelper } from '../../../../actions/helper';
+import { type TagHelper } from '../../../../actions/tags/tag-helper';
 import { type TeamInputForm } from '../../../../actions/teams/Team';
 import { deleteTeam, updateTeam } from '../../../../actions/teams/team-actions';
 import { type TeamsHelper } from '../../../../actions/teams/team-helper';

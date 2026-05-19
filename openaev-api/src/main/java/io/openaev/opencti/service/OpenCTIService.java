@@ -8,15 +8,24 @@ import io.openaev.database.model.*;
 import io.openaev.opencti.client.OpenCTIClient;
 import io.openaev.opencti.client.mutations.*;
 import io.openaev.opencti.client.response.Response;
+import io.openaev.opencti.client.response.ResponseFile;
 import io.openaev.opencti.client.response.fields.Error;
 import io.openaev.opencti.config.OpenCTIConfig;
 import io.openaev.opencti.connectors.ConnectorBase;
 import io.openaev.opencti.connectors.service.PrivilegeService;
 import io.openaev.opencti.errors.ConnectorError;
+import io.openaev.rest.document.DocumentService;
+import io.openaev.rest.document.form.DocumentCreateInput;
+import io.openaev.rest.tag.TagService;
+import io.openaev.rest.tag.form.TagCreateInput;
 import io.openaev.stix.objects.Bundle;
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +40,8 @@ public class OpenCTIService {
   private final OpenCTIClient openCTIClient;
   private final ObjectMapper mapper;
   private final PrivilegeService privilegeService;
+  private final TagService tagService;
+  private final DocumentService documentService;
 
   public QueryTypeFields.ResponsePayload queryTypeFields(ConnectorBase connector, String typeName)
       throws IOException, ConnectorError {
@@ -262,5 +273,54 @@ public class OpenCTIService {
     } else {
       execution.addTrace(getNewErrorTrace("Fail to POST", ExecutionTraceAction.COMPLETE));
     }
+  }
+
+  /**
+   * Download and save file from OpenCTI
+   *
+   * @param uri of the file
+   * @param name of the file to download
+   * @param mimeType of the file to download
+   * @return the document created from downloaded file
+   */
+  public Document downloadAndSaveFile(String uri, String name, String mimeType) {
+    try {
+      ResponseFile octiResponseFile = downloadFile(uri);
+
+      if (octiResponseFile != null) {
+        Tag openCtiTag = getOpenCTITag();
+        DocumentCreateInput documentCreateInput = new DocumentCreateInput();
+        documentCreateInput.setDescription(name);
+        if (openCtiTag != null) {
+          documentCreateInput.setTagIds(new ArrayList<>(Set.of(openCtiTag.getId())));
+        }
+
+        return documentService.upsert(
+            name,
+            octiResponseFile.getInputStream(),
+            octiResponseFile.getSize(),
+            mimeType,
+            documentCreateInput);
+      }
+    } catch (Exception e) {
+      log.error(
+          String.format(
+              "Error while upserting document from OpenCTI file (uri=%s, name=%s, mimeType=%s)",
+              uri, name, mimeType),
+          e);
+    }
+    return null;
+  }
+
+  private ResponseFile downloadFile(String uri) throws IOException {
+    return openCTIClient.download(
+        classicOpenCTIConfig.getFormattedUrl() + URLEncoder.encode(uri, StandardCharsets.UTF_8),
+        classicOpenCTIConfig.getToken());
+  }
+
+  private Tag getOpenCTITag() {
+    TagCreateInput tagCreateInput = new TagCreateInput();
+    tagCreateInput.setName(Tag.OPENCTI_TAG_NAME);
+    return tagService.upsertTag(tagCreateInput);
   }
 }

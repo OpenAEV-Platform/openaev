@@ -5,7 +5,7 @@ import static io.openaev.utils.StringUtils.isValidRegex;
 import io.openaev.database.model.ContractOutputElement;
 import io.openaev.rest.exception.BadRequestException;
 import jakarta.validation.constraints.NotBlank;
-import org.jetbrains.annotations.NotNull;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.beans.BeanUtils;
 
 public class ContractOutputElementUtils {

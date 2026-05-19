@@ -1,6 +1,6 @@
 package io.openaev.api.custom_dashboard;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.ResourceType;
@@ -24,7 +24,10 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 @RestController
-@RequestMapping(CustomDashboardApi.CUSTOM_DASHBOARDS_URI)
+@RequestMapping({
+  CustomDashboardApi.CUSTOM_DASHBOARDS_URI,
+  CustomDashboardApi.TENANT_CUSTOM_DASHBOARDS_URI
+})
 @RequiredArgsConstructor
 public class CustomDashboardApiImporter extends RestBehavior {
 
@@ -38,7 +41,7 @@ public class CustomDashboardApiImporter extends RestBehavior {
       consumes = MediaType.MULTIPART_FORM_DATA_VALUE,
       produces = MediaType.APPLICATION_JSON_VALUE)
   @Transactional
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.DASHBOARD)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.DASHBOARD)
   public ResponseEntity<JsonApiDocument<ResourceObject>> importJson(
       @RequestPart("file") @NotNull MultipartFile file) throws IOException {
     return ResponseEntity.ok(

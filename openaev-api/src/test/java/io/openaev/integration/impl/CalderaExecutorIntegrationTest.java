@@ -2,17 +2,19 @@ package io.openaev.integration.impl;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.integration.impl.executors.caldera.CalderaExecutorIntegration.CALDERA_EXECUTOR_NAME;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CatalogConnectorRepository;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.caldera.client.CalderaExecutorClient;
 import io.openaev.executors.caldera.config.CalderaExecutorConfig;
+import io.openaev.executors.exception.ExecutorException;
 import io.openaev.integration.ComponentRequest;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
@@ -50,7 +52,7 @@ public class CalderaExecutorIntegrationTest {
   @Autowired private AgentService agentService;
   @Autowired private AssetGroupService assetGroupService;
   @Autowired private ExecutorService executorService;
-  @Autowired private Ee eeService;
+  @Autowired private EnterpriseEditionService enterpriseEditionService;
   @Autowired private LicenseCacheManager licenseCacheManager;
   @Autowired private ComponentRequestEngine componentRequestEngine;
   @Autowired private ThreadPoolTaskScheduler taskScheduler;
@@ -186,5 +188,101 @@ public class CalderaExecutorIntegrationTest {
 
     Integration integration = integrationFactory.spawn(new ConnectorInstanceInMemory());
     assertThat(FieldUtils.computeAllFieldValues(integration).get("encryptionService")).isNull();
+  }
+
+  @Test
+  @DisplayName(
+      "When spawning an integration with a null configuration builder, should throw ExecutorException")
+  public void whenSpawnWithNullConfigBuilder_should_throwExecutorException() throws Exception {
+    IntegrationFactory integrationFactory = getFactory();
+    integrationFactory.initialise();
+
+    List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
+    List<ConnectorInstancePersisted> instances =
+        connectorInstanceService.findAllByCatalogConnector(connectors.getFirst());
+    ConnectorInstancePersisted instance = instances.getFirst();
+
+    // Act & Assert — passing null baseIntegrationConfigurationBuilder causes refresh() to fail
+    assertThatThrownBy(
+            () ->
+                new CalderaExecutorIntegration(
+                    instance,
+                    connectorInstanceService,
+                    endpointService,
+                    agentService,
+                    executorService,
+                    componentRequestEngine,
+                    platformSettingsService,
+                    injectorService,
+                    taskScheduler,
+                    null,
+                    httpClientFactory))
+        .isInstanceOf(ExecutorException.class)
+        .hasMessageContaining("Error during initialization of the Executor");
+  }
+
+  @Test
+  @DisplayName(
+      "When integration is stopped and requested status is starting but innerStart fails, initialise should throw and status should remain stopped")
+  public void whenStoppedAndStartingRequested_innerStartFails_should_remainStopped()
+      throws Exception {
+    // Arrange
+    IntegrationFactory integrationFactory = getFactory();
+    integrationFactory.initialise();
+
+    List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
+    ConnectorInstancePersisted instance =
+        connectorInstanceService.findAllByCatalogConnector(connectors.getFirst()).getFirst();
+
+    instance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.starting);
+    connectorInstanceService.save(instance);
+
+    Integration integration = integrationFactory.spawn(instance);
+    assertThat(integration.getCurrentStatus())
+        .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
+
+    // Act & Assert — innerStart() fails because Caldera server is not available
+    assertThatThrownBy(integration::initialise).isInstanceOf(RuntimeException.class);
+
+    // Status should remain stopped since start() did not complete
+    assertThat(integration.getCurrentStatus())
+        .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
+  }
+
+  @Test
+  @DisplayName(
+      "When integration failed to start and stopping is requested, initialise should be a no-op (already stopped)")
+  public void whenFailedStartAndStoppingRequested_initialise_should_remainStopped()
+      throws Exception {
+    // Arrange — attempt to start but it fails
+    IntegrationFactory integrationFactory = getFactory();
+    integrationFactory.initialise();
+
+    List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
+    ConnectorInstancePersisted instance =
+        connectorInstanceService.findAllByCatalogConnector(connectors.getFirst()).getFirst();
+
+    instance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.starting);
+    connectorInstanceService.save(instance);
+
+    Integration integration = integrationFactory.spawn(instance);
+    try {
+      integration.initialise();
+    } catch (Exception ignored) {
+      // Expected: innerStart fails because no Caldera server
+    }
+    assertThat(integration.getCurrentStatus())
+        .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
+
+    // Arrange — now request stopping (already stopped)
+    instance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
+    connectorInstanceService.save(instance);
+
+    // Act — should not throw, the stop on already-stopped is a no-op
+    integration.initialise();
+
+    // Assert
+    assertThat(integration.getCurrentStatus())
+        .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
   }
 }

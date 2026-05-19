@@ -17,6 +17,8 @@ export interface RightMenuEntry {
   icon: () => ReactElement;
   label: string;
   number?: number;
+  chip?: ReactElement;
+  onClick?: () => void;
 }
 
 const RightMenu: FunctionComponent<{ entries: RightMenuEntry[] }> = ({ entries }) => {
@@ -49,8 +51,14 @@ const RightMenu: FunctionComponent<{ entries: RightMenuEntry[] }> = ({ entries }
             <MenuItem
               key={idx}
               component={Link}
-              to={entry.path}
+              to={entry.onClick ? '#' : entry.path}
               selected={isCurrentTab}
+              onClick={entry.onClick
+                ? (e: React.MouseEvent) => {
+                    e.preventDefault();
+                    entry.onClick?.();
+                  }
+                : undefined}
               sx={{
                 paddingTop: theme.spacing(1),
                 paddingBottom: theme.spacing(1),
@@ -60,6 +68,7 @@ const RightMenu: FunctionComponent<{ entries: RightMenuEntry[] }> = ({ entries }
                 {entry.icon()}
               </ListItemIcon>
               <ListItemText primary={isNotEmptyField(entry.number) ? `${t(entry.label)} (${entry.number})` : t(entry.label)} />
+              {entry.chip && <>{entry.chip}</>}
             </MenuItem>
           );
         })}

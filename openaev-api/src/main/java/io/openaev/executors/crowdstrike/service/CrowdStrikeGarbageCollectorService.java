@@ -3,7 +3,6 @@ package io.openaev.executors.crowdstrike.service;
 import static io.openaev.executors.ExecutorHelper.UNIX_CLEAN_PAYLOADS_COMMAND;
 import static io.openaev.executors.ExecutorHelper.WINDOWS_CLEAN_PAYLOADS_COMMAND;
 import static io.openaev.executors.utils.ExecutorUtils.getAgentsFromOS;
-import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_TYPE;
 
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.Endpoint;
@@ -22,19 +21,22 @@ public class CrowdStrikeGarbageCollectorService implements Runnable {
   private final CrowdStrikeExecutorConfig config;
   private final CrowdStrikeExecutorContextService crowdStrikeExecutorContextService;
   private final AgentService agentService;
+  private final String executorId;
 
   public CrowdStrikeGarbageCollectorService(
       CrowdStrikeExecutorConfig config,
       CrowdStrikeExecutorContextService crowdStrikeExecutorContextService,
-      AgentService agentService) {
+      AgentService agentService,
+      String executorId) {
     this.config = config;
     this.crowdStrikeExecutorContextService = crowdStrikeExecutorContextService;
     this.agentService = agentService;
+    this.executorId = executorId;
   }
 
   @Override
   public void run() {
-    List<Agent> agents = this.agentService.getAgentsByExecutorType(CROWDSTRIKE_EXECUTOR_TYPE);
+    List<Agent> agents = this.agentService.getAgentsByExecutorId(executorId);
     if (!agents.isEmpty()) {
       List<CrowdStrikeAction> actions = new ArrayList<>();
       log.info("Running CrowdStrike executor garbage collector on " + agents.size() + " agents");

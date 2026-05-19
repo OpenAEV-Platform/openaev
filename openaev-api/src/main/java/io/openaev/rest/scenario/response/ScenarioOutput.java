@@ -80,6 +80,10 @@ public class ScenarioOutput {
   @Schema(description = "From value of the scenario")
   private String from;
 
+  @JsonProperty("scenario_mail_from_name")
+  @Schema(description = "Sender display name of the scenario")
+  private String fromName;
+
   @JsonProperty("scenario_created_at")
   @NotNull
   @Schema(description = "Creation date of the scenario")
@@ -129,4 +133,8 @@ public class ScenarioOutput {
   @JsonProperty("scenario_all_users_number")
   @Schema(description = "Total number of users of the scenario")
   private long scenarioAllUsersNumber;
+
+  @JsonProperty("scenario_workflow_id")
+  @Schema(description = "Workflow ID associated with the scenario")
+  private String workflowId;
 }

@@ -1,33 +1,33 @@
 package io.openaev.database.model;
 
 import static java.time.Instant.now;
-import static java.util.stream.StreamSupport.stream;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.helper.MultiIdSetSerializer;
-import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.*;
-import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UuidGenerator;
 
 @Getter
 @Setter
 @Entity
 @Table(name = "organizations")
-@EntityListeners(ModelBaseListener.class)
-public class Organization implements Base {
+@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+public class Organization implements TenantBase {
 
   @Id
   @Column(name = "organization_id")
@@ -66,7 +66,7 @@ public class Organization implements Base {
   @Transient
   private final ResourceType resourceType = ResourceType.ORGANIZATION;
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "organizations_tags",
@@ -76,26 +76,15 @@ public class Organization implements Base {
   @JsonProperty("organization_tags")
   private Set<Tag> tags = new HashSet<>();
 
+  @ManyToOne
+  @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
+  @JsonIgnore
+  private Tenant tenant;
+
   // region transient
   private transient List<Inject> injects = new ArrayList<>();
 
-  public void resolveInjects(Iterable<Inject> injects) {
-    this.injects =
-        stream(injects.spliterator(), false)
-            .filter(
-                inject ->
-                    inject.isAllTeams()
-                        || inject.getTeams().stream()
-                            .anyMatch(
-                                team ->
-                                    getUsers().stream()
-                                        .flatMap(user -> user.getTeams().stream())
-                                        .toList()
-                                        .contains(team)))
-            .collect(Collectors.toList());
-  }
-
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @JsonProperty("organization_injects")
   @JsonSerialize(using = MultiIdListSerializer.class)
   public List<Inject> getOrganizationInject() {

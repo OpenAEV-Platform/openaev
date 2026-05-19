@@ -1,10 +1,16 @@
 package io.openaev.service;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.database.model.Exercise;
 import io.openaev.database.model.RuleAttribute;
+import io.openaev.database.model.Scenario;
+import io.openaev.database.repository.ExerciseRepository;
+import io.openaev.database.repository.ScenarioRepository;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.utils.InjectImportUtils;
 import io.openaev.utils.mockMapper.MockMapperUtils;
 import java.text.SimpleDateFormat;
@@ -15,11 +21,20 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.Temporal;
 import java.util.Date;
 import java.util.Map;
-import org.apache.poi.ss.usermodel.*;
+import java.util.Optional;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.web.multipart.MultipartFile;
 
-class InjectImportServiceTest {
+@ExtendWith(MockitoExtension.class)
+public class InjectImportServiceTest {
   private Row row;
   private Cell cell;
   private ObjectNode json;
@@ -298,5 +313,136 @@ class InjectImportServiceTest {
 
     // -- ASSERT --
     assertNull(result);
+  }
+
+  // ====================================================================
+  // Nested tests for InjectImportService service methods (mocked deps)
+  // ====================================================================
+
+  @Nested
+  class ImportConvenience {
+
+    @Mock private ScenarioRepository scenarioRepository;
+    @Mock private ExerciseRepository exerciseRepository;
+    @Mock private ImportService importService;
+
+    private InjectImportService injectImportService;
+
+    @BeforeEach
+    void init() {
+      org.mockito.MockitoAnnotations.openMocks(this);
+      injectImportService =
+          new InjectImportService(
+              null,
+              null,
+              null,
+              null,
+              null,
+              exerciseRepository,
+              scenarioRepository,
+              importService,
+              null,
+              null);
+    }
+
+    @Test
+    void shouldDelegateToImportService_forScenario() throws Exception {
+      // -------- Prepare --------
+      Scenario scenario = new Scenario();
+      scenario.setId("sc-1");
+      when(scenarioRepository.findById("sc-1")).thenReturn(Optional.of(scenario));
+
+      MultipartFile file = mock(MultipartFile.class);
+
+      // -------- Act --------
+      injectImportService.importInjectsForScenario(file, "sc-1");
+
+      // -------- Assert --------
+      verify(importService).handleFileImport(file, null, scenario);
+    }
+
+    @Test
+    void shouldDelegateToImportService_forSimulation() throws Exception {
+      // -------- Prepare --------
+      Exercise exercise = new Exercise();
+      exercise.setId("ex-1");
+      when(exerciseRepository.findById("ex-1")).thenReturn(Optional.of(exercise));
+
+      MultipartFile file = mock(MultipartFile.class);
+
+      // -------- Act --------
+      injectImportService.importInjectsForSimulation(file, "ex-1");
+
+      // -------- Assert --------
+      verify(importService).handleFileImport(file, exercise, null);
+    }
+
+    @Test
+    void shouldDelegateToImportService_forAtomicTestings() throws Exception {
+      // -------- Prepare --------
+      MultipartFile file = mock(MultipartFile.class);
+
+      // -------- Act --------
+      injectImportService.importInjectsForAtomicTestings(file);
+
+      // -------- Assert --------
+      verify(importService).handleFileImport(file, null, null);
+    }
+
+    @Test
+    void shouldThrowElementNotFound_whenScenarioMissing() {
+      // -------- Prepare --------
+      when(scenarioRepository.findById("missing")).thenReturn(Optional.empty());
+      MultipartFile file = mock(MultipartFile.class);
+
+      // -------- Act / Assert --------
+      assertThrows(
+          ElementNotFoundException.class,
+          () -> injectImportService.importInjectsForScenario(file, "missing"));
+    }
+
+    @Test
+    void shouldThrowElementNotFound_whenExerciseMissing() {
+      // -------- Prepare --------
+      when(exerciseRepository.findById("missing")).thenReturn(Optional.empty());
+      MultipartFile file = mock(MultipartFile.class);
+
+      // -------- Act / Assert --------
+      assertThrows(
+          ElementNotFoundException.class,
+          () -> injectImportService.importInjectsForSimulation(file, "missing"));
+    }
+  }
+
+  @Nested
+  class StoreXlsFile {
+
+    @Test
+    void shouldGenerateUniqueImportId() throws Exception {
+      // -------- Prepare --------
+      InjectImportService service =
+          new InjectImportService(null, null, null, null, null, null, null, null, null, null);
+      MultipartFile file = mock(MultipartFile.class);
+      Workbook wb = new XSSFWorkbook();
+      wb.createSheet("Sheet1");
+      wb.createSheet("Sheet2");
+      java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
+      wb.write(bos);
+      wb.close();
+      byte[] content = bos.toByteArray();
+      when(file.getInputStream()).thenReturn(new java.io.ByteArrayInputStream(content));
+      when(file.getBytes()).thenReturn(content);
+      when(file.getOriginalFilename()).thenReturn("test.xlsx");
+
+      // -------- Act --------
+      io.openaev.rest.scenario.response.ImportPostSummary result =
+          service.storeXlsFileForImport(file);
+
+      // -------- Assert --------
+      assertNotNull(result.getImportId());
+      assertEquals(2, result.getAvailableSheets().size());
+      assertTrue(result.getAvailableSheets().contains("Sheet1"));
+      assertTrue(result.getAvailableSheets().contains("Sheet2"));
+    }
   }
 }

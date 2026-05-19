@@ -14,4 +14,11 @@ public class ConnectorIds {
 
   @JsonProperty("catalog_connector_id")
   private String catalogConnectorId;
+
+  @JsonProperty("connector_registered")
+  @Schema(
+      description =
+          "Whether the connector entity is registered in the database. "
+              + "False when a connector instance has been deployed but the connector has not yet started.")
+  private boolean connectorRegistered;
 }

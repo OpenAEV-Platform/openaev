@@ -10,9 +10,6 @@ export const document = new schema.Entity(
 );
 export const arrayOfDocuments = new schema.Array(document);
 
-export const tag = new schema.Entity('tags', {}, { idAttribute: 'tag_id' });
-export const arrayOfTags = new schema.Array(tag);
-
 export const injectorContract = new schema.Entity(
   'injector_contracts',
   {},
@@ -31,6 +28,18 @@ export const platformParameters = new schema.Entity(
   'platformParameters',
   {},
   { idAttribute: () => 'parameters' },
+);
+
+export const tenantSettings = new schema.Entity(
+  'tenantSettings',
+  {},
+  { idAttribute: () => 'settings' },
+);
+
+export const tenantXtmHubRegistration = new schema.Entity(
+  'tenantXtmHubRegistrations',
+  {},
+  { idAttribute: 'tenant_xtmhub_registration_id' },
 );
 
 export const token = new schema.Entity(
@@ -253,13 +262,6 @@ export const executor = new schema.Entity(
 );
 export const arrayOfExecutors = new schema.Array(executor);
 
-export const payload = new schema.Entity(
-  'payloads',
-  {},
-  { idAttribute: 'payload_id' },
-);
-export const arrayOfPayloads = new schema.Array(payload);
-
 export const mitigation = new schema.Entity(
   'mitigations',
   {},
@@ -283,9 +285,10 @@ export const storeHelper = state => ({
     t => t.get('token_user') === me(state)?.get('user_id'),
   ),
   getUserLang: () => {
+    const tenantParams = state.referential.getIn(['entities', 'tenantSettings', 'settings']);
     const publicParams = state.referential.getIn(['entities', 'publicPlatformParameters', 'parameters']);
     const privateParams = state.referential.getIn(['entities', 'platformParameters', 'parameters']);
-    const rawPlatformLang = (privateParams ?? publicParams)?.get('platform_lang') ?? 'auto';
+    const rawPlatformLang = tenantParams?.get('platform_lang') || (privateParams ?? publicParams)?.get('platform_lang') || 'auto';
     const rawUserLang = me(state)?.get('user_lang') ?? 'auto';
     const platformLang = rawPlatformLang !== 'auto' ? rawPlatformLang : locale;
     const userLang = rawUserLang !== 'auto' ? rawUserLang : platformLang;
@@ -389,9 +392,17 @@ export const storeHelper = state => ({
     const privateParams = state.referential.getIn(['entities', 'platformParameters', 'parameters']) || Map({});
     return publicParams.merge(privateParams);
   },
+  getTenantSettings: () => {
+    return state.referential.getIn(['entities', 'tenantSettings', 'settings']) || Map({});
+  },
   getPlatformName: () => {
+    const tenantParams = state.referential.getIn(['entities', 'tenantSettings', 'settings']);
     const privateParams = state.referential.getIn(['entities', 'platformParameters', 'parameters']);
-    return privateParams?.get('platform_name') || 'OpenAEV - Open Adversarial Exposure Validation Platform';
+    return tenantParams?.get('platform_name') || privateParams?.get('platform_name') || 'OpenAEV - Open Adversarial Exposure Validation Platform';
+  },
+  getXtmHubRegistration: () => {
+    const registrations = entities('tenantXtmHubRegistrations', state);
+    return registrations.first() ?? null;
   },
   // kill chain phases
   getKillChainPhase: id => entity(id, 'killchainphases', state),
@@ -494,7 +505,13 @@ export const storeHelper = state => ({
   getDomains: () => entities('domains', state),
   // catalog
   getCatalogConnectors: () => entities('catalog_connectors', state),
-  getUnDeployedCatalogConnectors: () => entities('catalog_connectors', state).filter(c => c.get('instance_deployed_count') === 0),
   getCatalogConnector: id => entity(id, 'catalog_connectors', state),
   getConnectorInstance: id => entity(id, 'connectorinstances', state),
+  // capabilities
+  getPlatformCapabilities: () => entities('platform_capabilities', state),
+  getPlatformCapabilitiesMap: () => maps('platform_capabilities', state),
+  getTenantCapabilities: () => entities('tenant_capabilities', state),
+  getTenantCapabilitiesMap: () => maps('tenant_capabilities', state),
+  // workflow configurations
+  getWorkflowConfiguration: id => entity(id, 'workflowconfigurations', state),
 });

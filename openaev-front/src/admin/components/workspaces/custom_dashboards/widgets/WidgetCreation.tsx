@@ -3,9 +3,9 @@ import { type FunctionComponent, useContext, useState } from 'react';
 import { createCustomDashboardWidget } from '../../../../../actions/custom_dashboards/customdashboardwidget-action';
 import ButtonCreate from '../../../../../components/common/ButtonCreate';
 import { type Widget } from '../../../../../utils/api-types';
+import { type WidgetInputWithoutLayout } from '../../../../../utils/api-types-custom';
 import { CustomDashboardContext } from '../CustomDashboardContext';
 import WidgetForm from './configuration/WidgetForm';
-import { type WidgetInputWithoutLayout } from './WidgetUtils';
 
 const COL_WIDTH = 30;
 

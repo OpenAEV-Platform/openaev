@@ -3,7 +3,6 @@ package io.openaev.service.stix;
 import static io.openaev.helper.CryptoHelper.md5Hex;
 import static io.openaev.rest.payload.service.PayloadService.DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY;
 import static io.openaev.stix.objects.constants.CommonProperties.MODIFIED;
-import static io.openaev.utils.SecurityCoverageUtils.extractObjectReferences;
 import static io.openaev.utils.constants.StixConstants.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -40,6 +39,7 @@ import io.openaev.stix.types.Boolean;
 import io.openaev.stix.types.Dictionary;
 import io.openaev.utils.InjectExpectationResultUtils;
 import io.openaev.utils.ResultUtils;
+import io.openaev.utils.SecurityCoverageUtils;
 import io.openaev.utils.StringUtils;
 import io.openaev.utils.time.TimeUtils;
 import jakarta.annotation.Resource;
@@ -47,6 +47,7 @@ import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.List;
@@ -83,6 +84,8 @@ public class SecurityCoverageService {
 
   // FIXME: don't access the connector directly when we deal with multiple origins
   private final SecurityCoverageConnector connector;
+
+  private final SecurityCoverageUtils securityCoverageUtils;
 
   /**
    * Creates or updates a security coverage and the associated scenario, and updates the
@@ -179,15 +182,21 @@ public class SecurityCoverageService {
 
     // Extract Attack Patterns
     securityCoverage.setAttackPatternRefs(
-        extractObjectReferences(bundle.findByType(ObjectTypes.ATTACK_PATTERN)));
+        securityCoverageUtils.extractObjectReferences(
+            bundle.findByType(ObjectTypes.ATTACK_PATTERN)));
 
     // Extract vulnerabilities
     securityCoverage.setVulnerabilitiesRefs(
-        extractObjectReferences(bundle.findByType(ObjectTypes.VULNERABILITY)));
+        securityCoverageUtils.extractObjectReferences(
+            bundle.findByType(ObjectTypes.VULNERABILITY)));
 
     // Extract indicators
     securityCoverage.setIndicatorsRefs(
-        extractObjectReferences(bundle.findByType(ObjectTypes.INDICATOR)));
+        securityCoverageUtils.extractObjectReferences(bundle.findByType(ObjectTypes.INDICATOR)));
+
+    // Extract artifacts
+    securityCoverage.setArtifactsRefs(
+        securityCoverageUtils.extractObjectReferences(bundle.findByType(ObjectTypes.ARTIFACT)));
 
     // Default Fields
     String scheduling = stixCoverageObj.getOptionalProperty(STIX_PERIODICITY, "");
@@ -396,7 +405,12 @@ public class SecurityCoverageService {
     if (scenario.getRecurrence() == null) {
       // schedule first start in 2 minutes
       // so that it is picked up soon after setting it up
-      Instant start = Instant.now().plus(2, ChronoUnit.MINUTES);
+      Instant start =
+          Instant.now()
+              .plus(2, ChronoUnit.MINUTES)
+              .atZone(ZoneId.of("UTC"))
+              .truncatedTo(ChronoUnit.SECONDS)
+              .toInstant();
       if (!StringUtils.isBlank(securityCoverage.getScheduling())) {
         scenario.setRecurrenceStart(start);
         scenario.setRecurrence(securityCoverage.getScheduling());
@@ -453,6 +467,13 @@ public class SecurityCoverageService {
     Optional<Timestamp> sroStopTime =
         exerciseService.getLatestValidityDate(simulation).map(Timestamp::new);
 
+    sroStartTime.ifPresent(
+        instant -> coverage.setProperty(ExtendedProperties.VALID_FROM.toString(), instant));
+    sroStartTime.ifPresent(
+        instant -> coverage.setProperty(ExtendedProperties.LAST_RESULT.toString(), instant));
+    sroStopTime.ifPresent(
+        instant -> coverage.setProperty(ExtendedProperties.VALID_TO.toString(), instant));
+
     // Process coverage refs by stix object: attack patterns
     processCoverageRefs(
         simulation.getSecurityCoverage().getAttackPatternRefs(),
@@ -482,6 +503,18 @@ public class SecurityCoverageService {
           simulation.getSecurityCoverage().getIndicatorsRefs(),
           simulation,
           this::getDnsIndicatorCoverage,
+          coverage.getId(),
+          sroStartTime,
+          sroStopTime,
+          objects);
+    }
+
+    if (simulation.getSecurityCoverage().getArtifactsRefs() != null
+        && !simulation.getSecurityCoverage().getArtifactsRefs().isEmpty()) {
+      processCoverageRefs(
+          simulation.getSecurityCoverage().getArtifactsRefs(),
+          simulation,
+          this::getArtifactCoverage,
           coverage.getId(),
           sroStartTime,
           sroStopTime,
@@ -528,13 +561,13 @@ public class SecurityCoverageService {
   private void processCoverageRefs(
       Set<StixRefToExternalRef> refs,
       Exercise simulation,
-      BiFunction<String, Exercise, BaseType<?>> coverageFunction,
+      BiFunction<List<String>, Exercise, BaseType<?>> coverageFunction,
       Identifier coverageId,
       Optional<Timestamp> sroStartTime,
       Optional<Timestamp> sroStopTime,
       List<ObjectBase> objects) {
     for (StixRefToExternalRef stixRef : refs) {
-      BaseType<?> coverageResult = coverageFunction.apply(stixRef.getExternalRef(), simulation);
+      BaseType<?> coverageResult = coverageFunction.apply(stixRef.getExternalRefs(), simulation);
       boolean covered = !((List<?>) coverageResult.getValue()).isEmpty();
 
       RelationshipObject sro =
@@ -575,11 +608,11 @@ public class SecurityCoverageService {
     return computeCoverageFromInjects(simulation.getInjects(), securityPlatform);
   }
 
-  private BaseType<?> getVulnerabilityCoverage(String externalRef, Exercise simulation) {
+  private BaseType<?> getVulnerabilityCoverage(List<String> externalRefs, Exercise simulation) {
     return getCoverage(
-        externalRef,
+        externalRefs,
         simulation,
-        id -> vulnerabilityService.getVulnerabilitiesByExternalIds(Set.of(id)),
+        ids -> vulnerabilityService.getVulnerabilitiesByExternalIds(new HashSet<>(ids)),
         inject -> {
           if (inject.getInjectorContract().isPresent()) {
             return inject.getInjectorContract().get().getVulnerabilities();
@@ -589,11 +622,11 @@ public class SecurityCoverageService {
         Vulnerability::getId);
   }
 
-  private BaseType<?> getAttackPatternCoverage(String externalRef, Exercise simulation) {
+  private BaseType<?> getAttackPatternCoverage(List<String> externalRefs, Exercise simulation) {
     return getCoverage(
-        externalRef,
+        externalRefs,
         simulation,
-        id -> attackPatternService.getAttackPatternsByExternalIds(Set.of(id)),
+        ids -> attackPatternService.getAttackPatternsByExternalIds(new HashSet<>(ids)),
         inject -> {
           if (inject.getInjectorContract().isPresent()) {
             return inject.getInjectorContract().get().getAttackPatterns();
@@ -603,21 +636,40 @@ public class SecurityCoverageService {
         AttackPattern::getId);
   }
 
-  private BaseType<?> getDnsIndicatorCoverage(String externalRef, Exercise simulation) {
+  private BaseType<?> getDnsIndicatorCoverage(List<String> externalRefs, Exercise simulation) {
     return getCoverage(
-        externalRef,
+        externalRefs,
         simulation,
-        hostname ->
+        hostnames ->
             simulation.getInjects().stream()
                 .filter(
                     inject ->
                         inject.getContent().has(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY)
-                            && hostname.equals(
-                                inject
+                            && hostnames.contains(
+                                (inject
                                     .getContent()
                                     .get(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY)
-                                    .textValue()))
-                .collect(Collectors.toList()),
+                                    .textValue())))
+                .toList(),
+        inject ->
+            Optional.ofNullable(inject)
+                .map(Collections::singletonList)
+                .orElse(Collections.emptyList()),
+        Inject::getId);
+  }
+
+  private BaseType<?> getArtifactCoverage(List<String> externalRefs, Exercise simulation) {
+    return getCoverage(
+        externalRefs,
+        simulation,
+        documentIds ->
+            simulation.getInjects().stream()
+                .filter(
+                    inject ->
+                        inject.getPayload().isPresent()
+                            && inject.getPayload().get() instanceof FileDrop fileDrop
+                            && documentIds.contains(fileDrop.getFileDropFile().getId()))
+                .toList(),
         inject ->
             Optional.ofNullable(inject)
                 .map(Collections::singletonList)
@@ -626,13 +678,13 @@ public class SecurityCoverageService {
   }
 
   private <T> BaseType<?> getCoverage(
-      String externalRef,
+      List<String> externalRefs,
       Exercise simulation,
-      Function<String, Collection<T>> entityFetcher,
+      Function<List<String>, Collection<T>> entityFetcher,
       Function<Inject, Collection<T>> contractExtractor,
       Function<T, String> idExtractor) {
     // fetch entity
-    Optional<T> entity = entityFetcher.apply(externalRef).stream().findFirst();
+    Optional<T> entity = entityFetcher.apply(externalRefs).stream().findFirst();
     if (entity.isEmpty()) {
       return uncovered();
     }

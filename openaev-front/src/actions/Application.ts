@@ -3,7 +3,8 @@ import { type Dispatch } from 'redux';
 
 import * as Constants from '../constants/ActionTypes';
 import { getReferential, postReferential, putReferential, simpleCall, simplePostCall } from '../utils/Action';
-import type { PolicyInput, SettingsEnterpriseEditionUpdateInput, SettingsPlatformWhitemarkUpdateInput, SettingsUpdateInput, ThemeInput, User } from '../utils/api-types';
+import type { PolicyInput, SettingsEnterpriseEditionUpdateInput, SettingsPlatformWhitemarkUpdateInput, User } from '../utils/api-types';
+import { extractTenantFromUrl } from '../utils/url-helper';
 import * as schema from './Schema';
 
 interface ResetValues {
@@ -15,20 +16,13 @@ interface LoginData {
   login: string;
   password?: string;
   lang?: string;
+  tenantId?: string;
 }
 
 type AppDispatch = Dispatch;
 
 export const fetchPlatformParameters = () => (dispatch: AppDispatch) => {
   return getReferential(schema.platformParameters, '/api/settings')(dispatch);
-};
-
-export const updatePlatformParameters = (data: SettingsUpdateInput) => (dispatch: AppDispatch) => {
-  return putReferential(
-    schema.platformParameters,
-    '/api/settings',
-    data,
-  )(dispatch);
 };
 
 export const updatePlatformPolicies = (data: PolicyInput) => (dispatch: AppDispatch) => {
@@ -51,22 +45,6 @@ export const updatePlatformWhitemarkParameters = (data: SettingsPlatformWhitemar
   return putReferential(
     schema.platformParameters,
     '/api/settings/platform_whitemark',
-    data,
-  )(dispatch);
-};
-
-export const updatePlatformLightParameters = (data: ThemeInput) => (dispatch: AppDispatch) => {
-  return putReferential(
-    schema.platformParameters,
-    '/api/settings/theme/light',
-    data,
-  )(dispatch);
-};
-
-export const updatePlatformDarkParameters = (data: ThemeInput) => (dispatch: AppDispatch) => {
-  return putReferential(
-    schema.platformParameters,
-    '/api/settings/theme/dark',
     data,
   )(dispatch);
 };
@@ -108,6 +86,7 @@ export const askToken = (username: string, password: string) => (dispatch: AppDi
   const data: LoginData = {
     login: username,
     password,
+    tenantId: extractTenantFromUrl() ?? undefined,
   };
   const ref = postReferential(schema.user, '/api/login', data)(dispatch);
   return ref.then((finalData: Record<string, unknown>) => {

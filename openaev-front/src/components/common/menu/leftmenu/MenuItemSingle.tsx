@@ -19,8 +19,9 @@ const MenuItemSingle: FunctionComponent<Props> = ({ navOpen, item }) => {
   const leftMenuStyle = useLeftMenuStyle();
 
   const isCurrentTab = location.pathname === item.path;
+
   return (
-    <StyledTooltip title={!navOpen && t(item.label)} placement="right">
+    <StyledTooltip title={t(item.label)} placement="right">
       <MenuItem
         aria-label={t(item.label)}
         component={Link}

@@ -130,6 +130,11 @@ public class SecurityCoverage implements Base {
   @JsonProperty("security_coverage_indicators_refs")
   private Set<StixRefToExternalRef> indicatorsRefs = new HashSet<>();
 
+  @Type(JsonType.class)
+  @Column(name = "security_coverage_artifacts_refs", columnDefinition = "jsonb")
+  @JsonProperty("security_coverage_artifacts_refs")
+  private Set<StixRefToExternalRef> artifactsRefs = new HashSet<>();
+
   @OneToOne
   @JoinColumn(name = "security_coverage_scenario")
   @JsonIgnore

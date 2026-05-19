@@ -2,12 +2,13 @@ package io.openaev.service.detection_remediation;
 
 import io.openaev.api.detection_remediation.dto.PayloadInput;
 import io.openaev.database.model.AttackPattern;
-import io.openaev.database.model.Collector;
+import io.openaev.database.model.CollectorType;
 import io.openaev.database.model.DetectionRemediation;
 import io.openaev.database.model.Payload;
+import io.openaev.database.repository.CollectorTypeRepository;
 import io.openaev.database.repository.DetectionRemediationRepository;
 import io.openaev.rest.attack_pattern.service.AttackPatternService;
-import io.openaev.rest.collector.service.CollectorService;
+import io.openaev.rest.exception.ElementNotFoundException;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,7 +22,7 @@ public class DetectionRemediationService {
   private final AttackPatternService attackPatternService;
 
   private final DetectionRemediationRepository detectionRemediationRepository;
-  private final CollectorService collectorService;
+  private final CollectorTypeRepository collectorTypeRepository;
 
   public String getRulesDetectionRemediationAI(PayloadInput input, String collector) {
 
@@ -41,8 +42,12 @@ public class DetectionRemediationService {
   }
 
   public DetectionRemediation createDetectionRemediation(Payload payload, String collectorType) {
-    Collector collector = collectorService.collectorByType(collectorType);
-    return DetectionRemediation.builder().payload(payload).collector(collector).build();
+    CollectorType type =
+        collectorTypeRepository
+            .findByName(collectorType)
+            .orElseThrow(
+                () -> new ElementNotFoundException("Collector type not found: " + collectorType));
+    return DetectionRemediation.builder().payload(payload).collectorType(type).build();
   }
 
   public DetectionRemediation saveDetectionRemediationRulesByAI(
@@ -54,14 +59,17 @@ public class DetectionRemediationService {
   }
 
   public DetectionRemediation getOrCreateDetectionRemediationWithAIRulesByCollector(
-      List<DetectionRemediation> detectionRemediations, Payload payload, String collectorType) {
+      List<DetectionRemediation> detectionRemediations,
+      Payload payload,
+      String collectorType,
+      List<AttackPattern> attackPatterns) {
     // GET or Create Detection remediation linked to selected payload and EDR/SIEM
     DetectionRemediation detectionRemediation =
         this.getOrCreateDetectionRemediationByCollector(
             collectorType, detectionRemediations, payload);
 
     // GET AI rules from webservice
-    DetectionRemediationRequest request = new DetectionRemediationRequest(payload);
+    DetectionRemediationRequest request = new DetectionRemediationRequest(payload, attackPatterns);
     DetectionRemediationAIResponse rules =
         detectionRemediationAIService.callRemediationDetectionAIWebservice(request, collectorType);
 
@@ -72,7 +80,7 @@ public class DetectionRemediationService {
       String collectorType, List<DetectionRemediation> detectionRemediations, Payload payload) {
     DetectionRemediation detectionRemediation =
         detectionRemediations.stream()
-            .filter(remediation -> remediation.getCollector().getType().equals(collectorType))
+            .filter(remediation -> remediation.getCollectorType().getName().equals(collectorType))
             .findFirst()
             .orElse(null);
 

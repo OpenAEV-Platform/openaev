@@ -1,5 +1,8 @@
 package io.openaev.rest.settings.response;
 
+import static io.openaev.helper.MailHelper.resolveFromName;
+import static lombok.AccessLevel.NONE;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.ee.License;
 import io.swagger.v3.oas.annotations.ExternalDocumentation;
@@ -33,18 +36,6 @@ public class PlatformSettings extends PublicPlatformSettings {
   @JsonProperty("platform_agent_url")
   @Schema(description = "Agent URL of the platform")
   private String platformAgentUrl;
-
-  @JsonProperty("platform_home_dashboard")
-  @Schema(description = "Default home dashboard of the platform")
-  private String platformHomeDashboard;
-
-  @JsonProperty("platform_scenario_dashboard")
-  @Schema(description = "Default scenario dashboard of the platform")
-  private String platformScenarioDashboard;
-
-  @JsonProperty("platform_simulation_dashboard")
-  @Schema(description = "Default simulation dashboard of the platform")
-  private String platformSimulationDashboard;
 
   @JsonProperty("map_tile_server_light")
   @Schema(description = "URL of the server containing the map tile with light theme")
@@ -89,6 +80,18 @@ public class PlatformSettings extends PublicPlatformSettings {
   @JsonProperty("analytics_engine_version")
   @Schema(description = "Current version of analytics engine")
   private String analyticsEngineVersion;
+
+  @JsonProperty("platform_xtm_one_configured")
+  @Schema(description = "True if XTM One is configured (url and token set)")
+  private Boolean xtmOneConfigured;
+
+  @JsonProperty("platform_xtm_one_url")
+  @Schema(description = "XTM One platform URL")
+  private String xtmOneUrl;
+
+  @JsonProperty("platform_xtm_one_web_token")
+  @Schema(description = "XTM One public chat web token for the embedded agent")
+  private String xtmOneWebToken;
 
   @JsonProperty("platform_ai_enabled")
   @Schema(description = "True if AI is enabled for the platform")
@@ -157,6 +160,15 @@ public class PlatformSettings extends PublicPlatformSettings {
   @Schema(description = "Sender mail to use by default for injects")
   private String defaultMailer;
 
+  @Getter(NONE)
+  @JsonProperty("default_mailer_name")
+  @Schema(description = "Sender display name to use by default for injects")
+  private String defaultMailerName;
+
+  public String getDefaultMailerName() {
+    return resolveFromName(defaultMailerName, defaultMailer);
+  }
+
   @JsonProperty("default_reply_to")
   @Schema(description = "Reply to mail to use by default for injects")
   private String defaultReplyTo;
@@ -173,30 +185,6 @@ public class PlatformSettings extends PublicPlatformSettings {
   @JsonProperty("xtm_hub_reachable")
   @Schema(description = "True if xtmhub backend is reachable")
   private Boolean xtmHubReachable;
-
-  @JsonProperty("xtm_hub_token")
-  @Schema(description = "XTM Hub token")
-  private String xtmHubToken;
-
-  @JsonProperty("xtm_hub_registration_status")
-  @Schema(description = "XTM Hub registration status")
-  private String xtmHubRegistrationStatus;
-
-  @JsonProperty("xtm_hub_registration_date")
-  @Schema(description = "XTM Hub registration date")
-  private String xtmHubRegistrationDate;
-
-  @JsonProperty("xtm_hub_registration_user_id")
-  @Schema(description = "XTM Hub registration user id")
-  private String xtmHubRegistrationUserId;
-
-  @JsonProperty("xtm_hub_registration_user_name")
-  @Schema(description = "XTM Hub registration user name")
-  private String xtmHubRegistrationUserName;
-
-  @JsonProperty("xtm_hub_last_connectivity_check")
-  @Schema(description = "XTM Hub last connectivity check")
-  private String xtmHubLastConnectivityCheck;
 
   @JsonProperty("xtm_hub_should_send_connectivity_email")
   @Schema(description = "XTM Hub should send connectivity email")

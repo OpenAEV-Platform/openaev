@@ -6,7 +6,9 @@ import io.openaev.database.repository.InjectRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.form.InjectUpdateActivationInput;
+import io.openaev.rest.inject.output.InjectOutput;
 import io.openaev.service.scenario.ScenarioService;
+import io.openaev.utils.mapper.InjectMapper;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +25,7 @@ public class ScenarioInjectService {
   private final ScenarioService scenarioService;
   private final InjectService injectService;
   private final InjectRepository injectRepository;
+  private final InjectMapper injectMapper;
 
   // -- READ --
 
@@ -40,7 +43,7 @@ public class ScenarioInjectService {
   // -- UPDATE --
 
   /** Updates an inject that belongs to the given scenario. */
-  public Inject updateInjectForScenario(
+  public InjectOutput updateInjectForScenario(
       @NotBlank final String scenarioId,
       @NotBlank final String injectId,
       @NotNull InjectInput input) {
@@ -64,7 +67,8 @@ public class ScenarioInjectService {
               }
             });
     this.scenarioService.updateScenario(scenario);
-    return injectRepository.save(inject);
+    Inject persistedInject = injectRepository.save(inject);
+    return injectMapper.toInjectOutput(persistedInject, injectService.runChecks(persistedInject));
   }
 
   /** Toggles the activation of an inject that belongs to the given scenario. */

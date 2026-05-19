@@ -14,6 +14,7 @@ import { useFormatter } from '../../../../components/i18n';
 import { type RawPaginationImportMapper, type SearchPaginationInput } from '../../../../utils/api-types';
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { SETTINGS_LABEL } from '../../nav/config/settings.config';
 import DataIngestionMenu from '../DataIngestionMenu';
 import ImportUploaderMapper from './ImportUploaderMapper';
 import XlsMapperCreation from './xls_mapper/XlsMapperCreation';
@@ -73,7 +74,7 @@ const XlsMappers = () => {
       <div style={{ flexGrow: 1 }}>
         <Breadcrumbs
           variant="list"
-          elements={[{ label: t('Settings') }, { label: t('Data ingestion') }, {
+          elements={[{ label: t(SETTINGS_LABEL) }, { label: t('Data ingestion') }, {
             label: t('XLS mappers'),
             current: true,
           }]}
@@ -83,7 +84,7 @@ const XlsMappers = () => {
           searchPaginationInput={searchPaginationInput}
           setContent={setMappers}
         >
-          <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
+          <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
             <ImportUploaderMapper />
           </Can>
         </PaginationComponent>
@@ -146,7 +147,7 @@ const XlsMappers = () => {
           }
           {!mappers ? (<Empty message={t('No data available')} />) : null}
         </List>
-        <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
+        <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
           <XlsMapperCreation onCreate={result => setMappers([result, ...mappers])} />
         </Can>
       </div>

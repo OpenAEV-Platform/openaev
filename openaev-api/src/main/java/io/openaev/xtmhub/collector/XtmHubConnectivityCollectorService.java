@@ -11,6 +11,6 @@ public class XtmHubConnectivityCollectorService implements Runnable {
 
   @Override
   public void run() {
-    xtmHubService.refreshConnectivity();
+    xtmHubService.refreshConnectivityAllTenants();
   }
 }

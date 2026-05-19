@@ -16,16 +16,18 @@ import static io.openaev.utils.mapper.InjectStatusMapper.toExecutionTracesOutput
 import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 import static java.time.Instant.now;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
+import io.openaev.database.raw.RawInject;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.InjectSpecification;
 import io.openaev.database.specification.SpecificationUtils;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
@@ -45,10 +47,14 @@ import io.openaev.rest.inject.form.*;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import io.openaev.rest.injector_contract.InjectorContractService;
+import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
+import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
+import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;
 import io.openaev.rest.security.SecurityExpression;
 import io.openaev.rest.security.SecurityExpressionHandler;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.*;
+import io.openaev.service.threat_arsenal.ThreatArsenalService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.JpaUtils;
@@ -62,6 +68,7 @@ import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Subquery;
 import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.*;
 import java.util.function.BiFunction;
@@ -74,9 +81,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Triple;
 import org.hibernate.Hibernate;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.AccessDeniedException;
@@ -94,7 +101,7 @@ public class InjectService {
   private final AssetService assetService;
   private final AssetGroupService assetGroupService;
   private final CollectorService collectorService;
-  private final Ee eeService;
+  private final EnterpriseEditionService enterpriseEditionService;
   private final EndpointService endpointService;
   private final InjectRepository injectRepository;
   private final InjectDocumentRepository injectDocumentRepository;
@@ -115,6 +122,8 @@ public class InjectService {
   private final ImapService imapService;
   private final HealthCheckUtils healthCheckUtils;
   private final InjectorContractContentUtils injectorContractContentUtils;
+  private final InjectUtils injectUtils;
+  private final ThreatArsenalService threatArsenalService;
 
   private InjectStatusService injectStatusService;
 
@@ -125,6 +134,8 @@ public class InjectService {
 
   private final LicenseCacheManager licenseCacheManager;
   @Resource protected ObjectMapper mapper;
+
+  private static final int INJECTOR_CONTRACT_PAGE_SIZE = 100;
 
   private SecurityExpression getAmbientSecurityExpression() {
     return ((SecurityExpressionHandler) methodSecurityExpressionHandler).getSecurityExpression();
@@ -159,8 +170,14 @@ public class InjectService {
 
     InjectorContract injectorContract =
         this.injectorContractService.injectorContract(input.getInjectorContract());
+
+    if (injectorContract.getConvertedContent() == null) {
+      injectorContract.setConvertedContent(convertContent(injectorContract.getContent()));
+    }
+
     // Get common attributes
-    Inject inject = input.toInject(injectorContract);
+    Injector injector = injectUtils.resolveInjector(input.getInjectorId(), injectorContract);
+    Inject inject = input.toInject(injectorContract, injector);
     inject.setUser(this.userService.currentUser());
     inject.setTeams(fromIterable(teamRepository.findAllById(input.getTeams())));
     inject.setAssets(fromIterable(assetService.assets(input.getAssets())));
@@ -241,6 +258,19 @@ public class InjectService {
   }
 
   /**
+   * Find an inject or return null value
+   *
+   * @param injectId inject ID to search
+   * @return the inject found or null if none matched the ID
+   */
+  public Inject findInjectOrNull(@NotBlank final String injectId) {
+    if (injectId == null) {
+      return null;
+    }
+    return this.injectRepository.findById(injectId).orElse(null);
+  }
+
+  /**
    * Builds an Inject object based on the provided InjectorContract, title, description and enabled
    *
    * @param injectorContract the InjectorContract associated with the Inject
@@ -255,6 +285,7 @@ public class InjectService {
     inject.setTitle(title);
     inject.setDescription(description);
     inject.setInjectorContract(injectorContract);
+    inject.setInjector(injectUtils.resolveInjector(null, injectorContract));
     inject.setDependsDuration(0L);
     inject.setEnabled(enabled);
     inject.setContent(
@@ -407,11 +438,11 @@ public class InjectService {
   }
 
   public void throwIfInjectNotLaunchable(Inject inject) {
-    if (eeService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
+    if (enterpriseEditionService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
       return;
     }
     List<Agent> agents = this.getAgentsByInject(inject);
-    List<String> eeExecutors = eeService.detectEEExecutors(agents);
+    List<String> eeExecutors = enterpriseEditionService.detectEEExecutors(agents);
 
     if (!eeExecutors.isEmpty()) {
       throw new LicenseRestrictionException(
@@ -664,7 +695,16 @@ public class InjectService {
       @NotBlank final String injectId, @jakarta.validation.constraints.NotNull InjectInput input) {
     Inject inject =
         this.injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
+    // Managing case where input.dependsDuration is null, as the field is marked as NotNull
+    if (input.getDependsDuration() == null) {
+      input.setDependsDuration(inject.getDependsDuration());
+    }
     inject.setUpdateAttributes(input);
+
+    // Resolve injector explicitly (BeanUtils cannot copy String → Injector)
+    if (StringUtils.isNotBlank(input.getInjectorId())) {
+      inject.setInjector(injectUtils.resolveInjector(input.getInjectorId(), null));
+    }
 
     // Set dependencies
     if (input.getDependsOn() != null) {
@@ -1202,7 +1242,8 @@ public class InjectService {
         .filter(
             inject ->
                 inject.getPayload().isEmpty()
-                    || !(inject.getPayload().get() instanceof DnsResolution))
+                    || (!(inject.getPayload().get() instanceof DnsResolution)
+                        && !(inject.getPayload().get() instanceof FileDrop)))
         .map(inject -> inject.getInjectorContract().map(ic -> Map.entry(inject, ic)))
         .flatMap(Optional::stream)
         // Only keep attack patterns that specify both platform and architecture.
@@ -1327,6 +1368,7 @@ public class InjectService {
             inject, this.getAgentsAndAgentlessAssetsByInject(inject)));
     healthChecks.addAll(healthCheckUtils.runCollectorChecks(inject, collectors));
     healthChecks.addAll(healthCheckUtils.runAllInjectorChecks(inject, injectors));
+    healthChecks.addAll(healthCheckUtils.runContentChecks(inject));
 
     return healthChecks;
   }
@@ -1343,5 +1385,113 @@ public class InjectService {
     Set<String> assetIds =
         extractAssetIdsFromInjectExpectationsResults(allInjectExpectationsStream);
     return assetService.securityPlatformsByIds(assetIds);
+  }
+
+  /**
+   * Create an inject
+   *
+   * @param inject the inject to save
+   * @return the saved inject
+   */
+  public Inject createInject(Inject inject) {
+    return injectRepository.save(inject);
+  }
+
+  /**
+   * Delete a list of teams from a simulation
+   *
+   * @param simulationId the ID of the simulation
+   * @param teamIds list of team IDs to delete from the simulation
+   */
+  public void removeTeamsForSimulation(String simulationId, final List<String> teamIds) {
+    injectRepository.removeTeamsForExercise(simulationId, teamIds);
+  }
+
+  /**
+   * Find a list of Inject in the Raw format
+   *
+   * @param ids IDs of the inject to fetch
+   * @return the list of matching injects in Raw format
+   */
+  public List<RawInject> findRawByIds(List<String> ids) {
+    return injectRepository.findRawByIds(ids);
+  }
+
+  /**
+   * Create all injects from a contract research
+   *
+   * @param exercise to link injects on
+   * @param scenarios to link injects on
+   * @param input to retrieve all Injector Contracts
+   * @param locale to set default inject label
+   */
+  public void createInjectsFromInjectorContractInput(
+      Exercise exercise,
+      List<Scenario> scenarios,
+      InjectorContractSearchPaginationInput input,
+      String locale) {
+
+    if (scenarios.isEmpty()) {
+      return;
+    }
+
+    input.setSize(INJECTOR_CONTRACT_PAGE_SIZE);
+    int pageNumber = 0;
+    Page<? extends InjectorContractBaseOutput> page;
+
+    do {
+      page = fetchInjectorContractsPage(input, pageNumber);
+      List<InjectInput> injectInputs = toInjectInputs(page.getContent(), locale);
+      if (!injectInputs.isEmpty()) {
+        scenarios.forEach(scenario -> createAndSaveInjectList(exercise, scenario, injectInputs));
+      }
+      pageNumber++;
+    } while (page.hasNext());
+  }
+
+  private Page<? extends InjectorContractBaseOutput> fetchInjectorContractsPage(
+      InjectorContractSearchPaginationInput input, int pageNumber) {
+    input.setPage(pageNumber);
+    return threatArsenalService.searchInjectorContracts(
+        InjectorContractService.OutputMode.FULL, input);
+  }
+
+  private List<InjectInput> toInjectInputs(
+      List<? extends InjectorContractBaseOutput> contractOutputs, String locale) {
+
+    return contractOutputs.stream()
+        .map(this::asFullOutput)
+        .map(fullOutput -> createDefaultInjectInput(fullOutput, locale))
+        .toList();
+  }
+
+  private InjectorContractFullOutput asFullOutput(InjectorContractBaseOutput output) {
+    if (output instanceof InjectorContractFullOutput fullOutput) {
+      return fullOutput;
+    }
+    throw new IllegalStateException(
+        "Expected InjectorContractFullOutput but got " + output.getClass().getSimpleName());
+  }
+
+  private InjectInput createDefaultInjectInput(
+      InjectorContractFullOutput injectorContractFullOutput, String locale) {
+    InjectInput injectInput = new InjectInput();
+    injectInput.setTitle(
+        injectorContractFullOutput.getLabels().containsKey(locale)
+            ? injectorContractFullOutput.getLabels().get(locale)
+            : injectorContractFullOutput.getLabels().get("en"));
+    injectInput.setDependsDuration(0L);
+    injectInput.setInjectorContract(injectorContractFullOutput.getId());
+    injectInput.setContent(convertContent(injectorContractFullOutput.getContent()));
+    return injectInput;
+  }
+
+  private ObjectNode convertContent(String content) {
+    try {
+      return (ObjectNode) mapper.readTree(content);
+    } catch (JsonProcessingException e) {
+      log.warn("Invalid JSON in inject content", e);
+    }
+    return null;
   }
 }

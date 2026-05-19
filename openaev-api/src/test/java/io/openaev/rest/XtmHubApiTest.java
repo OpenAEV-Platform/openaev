@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -15,9 +16,12 @@ import io.openaev.IntegrationTest;
 import io.openaev.api.xtmhub.XtmHubApi;
 import io.openaev.api.xtmhub.XtmHubContactUsInput;
 import io.openaev.api.xtmhub.XtmHubRegisterInput;
-import io.openaev.rest.settings.response.PlatformSettings;
-import io.openaev.service.PlatformSettingsService;
+import io.openaev.database.model.Tenant;
+import io.openaev.database.model.TenantXtmHubRegistration;
+import io.openaev.database.repository.TenantXtmHubRegistrationRepository;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utilstest.DefaultTenantExtension;
 import io.openaev.xtmhub.XtmHubClient;
 import io.openaev.xtmhub.XtmHubRegistrationStatus;
 import org.junit.jupiter.api.DisplayName;
@@ -27,20 +31,21 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
 @Transactional
 @AutoConfigureMockMvc
-@ExtendWith(MockitoExtension.class)
+@ExtendWith({MockitoExtension.class, DefaultTenantExtension.class})
 @DisplayName("XTM Hub API tests")
 public class XtmHubApiTest extends IntegrationTest {
-  @Autowired private MockMvc mvc;
 
-  @Autowired private PlatformSettingsService platformSettingsService;
+  @Autowired private MockMvc mvc;
+  @Autowired private TenantXtmHubRegistrationRepository tenantXtmHubRegistrationRepository;
+  @Autowired private TenantIsolationTestHelper tenantIsolationTestHelper;
 
   @Test
   @WithMockUser(isAdmin = true)
@@ -61,76 +66,137 @@ public class XtmHubApiTest extends IntegrationTest {
             .getResponse()
             .getContentAsString();
 
-    String responseToken = JsonPath.read(response, "$.xtm_hub_token");
-    String responseStatus = JsonPath.read(response, "$.xtm_hub_registration_status");
-    String responseUserId = JsonPath.read(response, "$.xtm_hub_registration_user_id");
-    String responseUserName = JsonPath.read(response, "$.xtm_hub_registration_user_name");
-    String responseRegistrationDate = JsonPath.read(response, "$.xtm_hub_registration_date");
-    String responseLastConnectivityCheck =
-        JsonPath.read(response, "$.xtm_hub_last_connectivity_check");
-    String responseShouldSendConnectivityEmail =
-        JsonPath.read(response, "$.xtm_hub_should_send_connectivity_email");
-    assertEquals(responseToken, token);
-    assertEquals(responseStatus, XtmHubRegistrationStatus.REGISTERED.label);
-    assertEquals(responseUserId, testUserHolder.get().getId());
-    assertEquals(responseUserName, testUserHolder.get().getName());
-    assertNotNull(responseRegistrationDate);
-    assertNotNull(responseLastConnectivityCheck);
-    assertEquals(responseShouldSendConnectivityEmail, "true");
+    assertNotNull(JsonPath.read(response, "$.tenant_xtmhub_registration_id"));
+    assertEquals(token, (String) JsonPath.read(response, "$.tenant_xtmhub_registration_token"));
+    assertEquals(
+        XtmHubRegistrationStatus.REGISTERED.name(),
+        (String) JsonPath.read(response, "$.tenant_xtmhub_registration_status"));
+    assertEquals(
+        testUserHolder.get().getId(),
+        (String) JsonPath.read(response, "$.tenant_xtmhub_registration_user_id"));
+    assertEquals(
+        testUserHolder.get().getName(),
+        (String) JsonPath.read(response, "$.tenant_xtmhub_registration_user_name"));
+    assertNotNull(JsonPath.read(response, "$.tenant_xtmhub_registration_date"));
+    assertNotNull(JsonPath.read(response, "$.tenant_xtmhub_registration_last_connectivity_check"));
 
-    PlatformSettings settings = platformSettingsService.findSettings();
-    assertEquals(settings.getXtmHubToken(), token);
-    assertEquals(settings.getXtmHubRegistrationStatus(), XtmHubRegistrationStatus.REGISTERED.label);
-    assertEquals(settings.getXtmHubRegistrationUserId(), testUserHolder.get().getId());
-    assertEquals(settings.getXtmHubRegistrationUserName(), testUserHolder.get().getName());
-    assertNotNull(settings.getXtmHubRegistrationDate());
-    assertNotNull(responseLastConnectivityCheck);
-    assertEquals(responseShouldSendConnectivityEmail, "true");
+    // Verify the entity was actually persisted in the database for the correct tenant
+    TenantXtmHubRegistration saved =
+        tenantXtmHubRegistrationRepository
+            .findByTenantId(Tenant.DEFAULT_TENANT_UUID)
+            .orElseThrow(() -> new AssertionError("No TenantXtmHubRegistration found in database"));
+    assertEquals(token, saved.getToken());
+    assertEquals(XtmHubRegistrationStatus.REGISTERED, saved.getRegistrationStatus());
+    assertEquals(testUserHolder.get().getId(), saved.getRegistrationUserId());
+    assertEquals(testUserHolder.get().getName(), saved.getRegistrationUserName());
+    assertNotNull(saved.getRegistrationDate());
+    assertNotNull(saved.getLastConnectivityCheck());
   }
 
   @Test
   @WithMockUser(isAdmin = true)
   @DisplayName("Should delete registration data")
   public void whenUnregisterDeleteRegistrationData() throws Exception {
+    // Setup: register first so there is something to delete
+    XtmHubRegisterInput registerInput = new XtmHubRegisterInput();
+    registerInput.setToken("token-to-delete");
+    mvc.perform(
+            put(XtmHubApi.XTMHUB_URI + "/register")
+                .with(csrf())
+                .content(asJsonString(registerInput))
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().is2xxSuccessful());
+    assertTrue(
+        tenantXtmHubRegistrationRepository.findByTenantId(Tenant.DEFAULT_TENANT_UUID).isPresent(),
+        "Registration should exist before unregister");
+
+    // When
+    mvc.perform(
+            put(XtmHubApi.XTMHUB_URI + "/unregister")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON))
+        .andExpect(status().is2xxSuccessful());
+
+    // Then: entity must be gone
+    assertFalse(
+        tenantXtmHubRegistrationRepository.findByTenantId(Tenant.DEFAULT_TENANT_UUID).isPresent(),
+        "Registration should have been deleted after unregister");
+  }
+
+  @Test
+  @WithMockUser(isAdmin = true)
+  @DisplayName("Should return registration data when registered")
+  public void whenGetRegistrationAndRegistered_ShouldReturnRegistration() throws Exception {
+    // Setup: register first
+    XtmHubRegisterInput registerInput = new XtmHubRegisterInput();
+    registerInput.setToken("token-get");
+    mvc.perform(
+            put(XtmHubApi.XTMHUB_URI + "/register")
+                .content(asJsonString(registerInput))
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().is2xxSuccessful());
+
+    // When
     String response =
-        mvc.perform(
-                put(XtmHubApi.XTMHUB_URI + "/unregister")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON)
-                    .with(csrf()))
-            .andExpect(status().is2xxSuccessful())
+        mvc.perform(get(XtmHubApi.XTMHUB_URI + "/registration").accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().isOk())
             .andReturn()
             .getResponse()
             .getContentAsString();
 
-    String responseToken = JsonPath.read(response, "$.xtm_hub_token");
-    String responseStatus = JsonPath.read(response, "$.xtm_hub_registration_status");
-    String responseUserId = JsonPath.read(response, "$.xtm_hub_registration_user_id");
-    String responseUserName = JsonPath.read(response, "$.xtm_hub_registration_user_name");
-    String responseRegistrationDate = JsonPath.read(response, "$.xtm_hub_registration_date");
-    String responseLastConnectivityCheck =
-        JsonPath.read(response, "$.xtm_hub_last_connectivity_check");
-    String responseShouldSendConnectivityEmail =
-        JsonPath.read(response, "$.xtm_hub_should_send_connectivity_email");
-    assertNull(responseToken);
-    assertNull(responseStatus);
-    assertNull(responseUserId);
-    assertNull(responseUserName);
-    assertNull(responseRegistrationDate);
-    assertNull(responseLastConnectivityCheck);
-    assertNull(responseShouldSendConnectivityEmail);
-
-    PlatformSettings settings = platformSettingsService.findSettings();
-    assertNull(settings.getXtmHubToken());
-    assertNull(settings.getXtmHubRegistrationStatus());
-    assertNull(settings.getXtmHubRegistrationUserId());
-    assertNull(settings.getXtmHubRegistrationUserName());
-    assertNull(settings.getXtmHubRegistrationDate());
-    assertNull(settings.getXtmHubLastConnectivityCheck());
-    assertNull(settings.getXtmHubShouldSendConnectivityEmail());
+    // Then
+    assertNotNull(JsonPath.read(response, "$.tenant_xtmhub_registration_id"));
+    assertEquals(
+        "token-get", (String) JsonPath.read(response, "$.tenant_xtmhub_registration_token"));
+    assertEquals(
+        XtmHubRegistrationStatus.REGISTERED.name(),
+        (String) JsonPath.read(response, "$.tenant_xtmhub_registration_status"));
   }
 
-  @MockBean private XtmHubClient xtmHubClient;
+  @Test
+  @WithMockUser(isAdmin = true)
+  @DisplayName("Should return 204 when not registered")
+  public void whenGetRegistrationAndNotRegistered_ShouldReturn204() throws Exception {
+    mvc.perform(get(XtmHubApi.XTMHUB_URI + "/registration").accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isNoContent());
+  }
+
+  @Test
+  @WithMockUser(isAdmin = true)
+  @DisplayName("Should scope registration to the correct tenant and not leak to other tenants")
+  public void whenRegisterForCustomTenant_ShouldSaveForThatTenantOnlyAndIsolateFromOthers()
+      throws Exception {
+    // Setup: create a second tenant and switch context to it
+    Tenant customTenant = tenantIsolationTestHelper.createTenantWithCurrentUser("Custom Tenant");
+    tenantIsolationTestHelper.switchToTenant(customTenant.getId(), entityManager);
+
+    XtmHubRegisterInput input = new XtmHubRegisterInput();
+    input.setToken("custom-tenant-token");
+
+    // When: register under the custom tenant
+    mvc.perform(
+            put(XtmHubApi.XTMHUB_URI + "/register")
+                .with(csrf())
+                .content(asJsonString(input))
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().is2xxSuccessful());
+
+    // Then: registration exists for the custom tenant
+    assertTrue(
+        tenantXtmHubRegistrationRepository.findByTenantId(customTenant.getId()).isPresent(),
+        "Registration should exist for the custom tenant");
+
+    // And: registration does NOT leak into the default tenant
+    assertFalse(
+        tenantXtmHubRegistrationRepository.findByTenantId(Tenant.DEFAULT_TENANT_UUID).isPresent(),
+        "Registration should not be visible under the default tenant");
+  }
+
+  @MockitoBean private XtmHubClient xtmHubClient;
 
   @Test
   @WithMockUser()
@@ -139,6 +205,14 @@ public class XtmHubApiTest extends IntegrationTest {
     String message = "I would like to get more information about your services";
     XtmHubContactUsInput input = new XtmHubContactUsInput();
     input.setMessage(message);
+
+    Tenant defaultTenant = entityManager.find(Tenant.class, Tenant.DEFAULT_TENANT_UUID);
+    TenantXtmHubRegistration registration = new TenantXtmHubRegistration();
+    registration.setToken("contact-us-token");
+    registration.setRegistrationStatus(XtmHubRegistrationStatus.REGISTERED);
+    registration.setTenant(defaultTenant);
+    tenantXtmHubRegistrationRepository.save(registration);
+    entityManager.flush();
 
     when(xtmHubClient.contactUs(any(), any(), any())).thenReturn(true);
 

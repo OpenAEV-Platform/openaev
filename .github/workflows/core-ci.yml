@@ -47,6 +47,8 @@ jobs:
   quality-gates:
     uses: ./.github/workflows/_quality-gates.yml
     secrets: inherit
+    with:
+      is-pr: ${{ github.event_name == 'pull_request' }}
 
   backend-package:
     name: "📦 Backend Package (glibc)"

@@ -4,7 +4,7 @@ import static io.openaev.engine.EsUtils.buildRestrictions;
 import static org.springframework.util.CollectionUtils.isEmpty;
 import static org.springframework.util.StringUtils.hasText;
 
-import io.openaev.database.raw.RawSimulation;
+import io.openaev.database.raw.RawSimulationIndexing;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.engine.Handler;
 import java.time.Instant;
@@ -20,9 +20,10 @@ public class SimulationHandler implements Handler<EsSimulation> {
   private final ExerciseRepository simulationRepository;
 
   @Override
-  public List<EsSimulation> fetch(Instant from) {
+  public List<EsSimulation> fetch(Instant from, int limit) {
     Instant queryFrom = from != null ? from : Instant.ofEpochMilli(0);
-    List<RawSimulation> forIndexing = simulationRepository.findForIndexing(queryFrom);
+    List<RawSimulationIndexing> forIndexing =
+        simulationRepository.findForIndexing(queryFrom, limit);
     return forIndexing.stream()
         .map(
             simulation -> {
@@ -38,6 +39,7 @@ public class SimulationHandler implements Handler<EsSimulation> {
               esSimulation.setBase_representative(simulation.getExercise_name());
               esSimulation.setBase_restrictions(
                   buildRestrictions(simulation.getExercise_id(), simulation.getScenario_id()));
+              esSimulation.setBase_tenant_side(simulation.getTenant_id());
               // Specific
               esSimulation.setBase_platforms_side_denormalized(simulation.getExercise_platforms());
               // Dependencies (see base_dependencies in EsBase)

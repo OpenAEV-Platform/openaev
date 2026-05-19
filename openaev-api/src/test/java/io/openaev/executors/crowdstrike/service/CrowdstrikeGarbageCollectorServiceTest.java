@@ -1,6 +1,5 @@
 package io.openaev.executors.crowdstrike.service;
 
-import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_TYPE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -12,29 +11,37 @@ import io.openaev.service.AgentService;
 import io.openaev.utils.fixtures.AgentFixture;
 import io.openaev.utils.fixtures.EndpointFixture;
 import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 public class CrowdstrikeGarbageCollectorServiceTest {
 
+  private static final String EXECUTOR_ID = "test-executor-id";
+
   @Mock private AgentService agentService;
   @Mock private CrowdStrikeExecutorContextService crowdStrikeExecutorContextService;
   @Mock private CrowdStrikeExecutorConfig config;
 
-  @InjectMocks private CrowdStrikeGarbageCollectorService crowdStrikeGarbageCollectorService;
+  private CrowdStrikeGarbageCollectorService crowdStrikeGarbageCollectorService;
+
+  @BeforeEach
+  void setUp() {
+    crowdStrikeGarbageCollectorService =
+        new CrowdStrikeGarbageCollectorService(
+            config, crowdStrikeExecutorContextService, agentService, EXECUTOR_ID);
+  }
 
   @Test
   void test_run_garbageCollector_withCrowdstrikeAgents() {
     // Init datas
     Agent agent = AgentFixture.createDefaultAgentService();
     agent.setAsset(EndpointFixture.createEndpoint());
-    when(agentService.getAgentsByExecutorType(CROWDSTRIKE_EXECUTOR_TYPE))
-        .thenReturn(List.of(agent));
+    when(agentService.getAgentsByExecutorId(EXECUTOR_ID)).thenReturn(List.of(agent));
     when(config.getWindowsScriptName()).thenReturn("test script");
     // Run method to test
     crowdStrikeGarbageCollectorService.run();

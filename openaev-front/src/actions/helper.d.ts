@@ -1,14 +1,13 @@
 import {
   type Challenge,
   type Document,
-  type Domain,
   type Exercise,
   type Organization,
   type PlatformSettings,
   type Scenario,
   type ScenarioChallengesReader,
-  type SimulationChallengesReader,
-  type Tag,
+  type SimulationChallengesReader, type TenantSettingsOutput,
+  type TenantXtmHubRegistration,
   type Token,
   type User,
 } from '../utils/api-types';
@@ -24,22 +23,16 @@ export interface OrganizationHelper {
   getOrganizationsMap: () => Record<string, Organization>;
 }
 
-export interface TagHelper {
-  getTag: (tagId: Tag['tag_id']) => Tag;
-  getTags: () => Tag[];
-  getTagsMap: () => Record<string, Tag>;
-}
-
-export interface DomainHelper { getDomains: () => Domain[] }
-
 export interface LoggedHelper {
   // TODO type logged object
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   logged: () => any;
   getMe: () => User;
   getPlatformSettings: () => PlatformSettings;
+  getTenantSettings: () => TenantSettingsOutput;
   getPlatformName: () => string;
   getUserLang: () => string;
+  getXtmHubRegistration: () => TenantXtmHubRegistration | null;
 }
 
 export interface ChallengeHelper {

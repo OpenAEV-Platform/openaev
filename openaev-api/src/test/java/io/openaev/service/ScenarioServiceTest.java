@@ -5,24 +5,34 @@ import static io.openaev.utils.fixtures.InjectFixture.getInjectForEmailContract;
 import static io.openaev.utils.fixtures.TeamFixture.getTeam;
 import static io.openaev.utils.fixtures.UserFixture.getUser;
 import static java.time.Instant.now;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
+import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.when;
 
 import io.openaev.IntegrationTest;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
-import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
+import io.openaev.rest.custom_dashboard.CustomDashboardService;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.injector_contract.InjectorContractService;
+import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
+import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
-import io.openaev.utils.TargetType;
 import io.openaev.utils.fixtures.*;
+import io.openaev.utils.fixtures.composers.ExerciseComposer;
+import io.openaev.utils.fixtures.composers.InjectComposer;
+import io.openaev.utils.fixtures.composers.ScenarioComposer;
+import io.openaev.utils.fixtures.composers.SecurityCoverageComposer;
 import io.openaev.utils.mapper.ExerciseMapper;
 import io.openaev.utils.mapper.ScenarioMapper;
 import io.openaev.utilstest.RabbitMQTestListener;
@@ -43,17 +53,24 @@ import org.springframework.transaction.annotation.Transactional;
 class ScenarioServiceTest extends IntegrationTest {
 
   @Autowired ScenarioRepository scenarioRepository;
+  @Autowired private ExerciseRepository exerciseRepository;
+  @Autowired private SecurityCoverageRepository securityCoverageRepository;
   @Autowired private TeamRepository teamRepository;
   @Autowired private UserRepository userRepository;
   @Autowired private DocumentRepository documentRepository;
   @Autowired private ScenarioTeamUserRepository scenarioTeamUserRepository;
   @Autowired private ArticleRepository articleRepository;
-  @Mock ScenarioRepository mockScenarioRepository;
   @Autowired InjectRepository injectRepository;
   @Autowired private LessonsCategoryRepository lessonsCategoryRepository;
+  @Autowired private TagRepository tagRepository;
   @Autowired private HealthCheckUtils healthCheckUtils;
 
-  @Mock Ee eeService;
+  @Autowired private ScenarioComposer scenarioComposer;
+  @Autowired private InjectComposer injectComposer;
+  @Autowired private ExerciseComposer exerciseComposer;
+  @Autowired private SecurityCoverageComposer securityCoverageComposer;
+
+  @Mock EnterpriseEditionService enterpriseEditionService;
   @Mock VariableService variableService;
   @Mock ChallengeService challengeService;
   @Autowired private TeamService teamService;
@@ -62,8 +79,14 @@ class ScenarioServiceTest extends IntegrationTest {
   @Mock private InjectService injectService;
   @Mock private TagRuleService tagRuleService;
   @Mock private UserService userService;
+  @Mock private TenantSettingsService tenantSettingsService;
+  @Mock private CustomDashboardService customDashboardService;
+  @Mock private InjectorContractService injectorContractService;
   @InjectMocks private ScenarioService scenarioService;
   @Autowired private ScenarioMapper scenarioMapper;
+
+  @Mock private WorkflowService workflowService;
+  @Autowired private PreviewFeatureService previewFeatureService;
 
   @Mock private LicenseCacheManager licenseCacheManager;
   @Autowired private ExerciseMapper exerciseMapper;
@@ -87,7 +110,7 @@ class ScenarioServiceTest extends IntegrationTest {
             exerciseMapper,
             actionMetricCollector,
             licenseCacheManager,
-            eeService,
+            enterpriseEditionService,
             variableService,
             challengeService,
             teamService,
@@ -96,37 +119,15 @@ class ScenarioServiceTest extends IntegrationTest {
             tagRuleService,
             injectService,
             userService,
+            tenantSettingsService,
+            customDashboardService,
+            injectorContractService,
             injectRepository,
             lessonsCategoryRepository,
+            tagRepository,
             healthCheckUtils,
-            scenarioMapper);
-  }
-
-  void setUpWithMockRepository() {
-    scenarioService =
-        new ScenarioService(
-            mockScenarioRepository,
-            teamRepository,
-            userRepository,
-            documentRepository,
-            scenarioTeamUserRepository,
-            articleRepository,
-            exerciseMapper,
-            actionMetricCollector,
-            licenseCacheManager,
-            eeService,
-            variableService,
-            challengeService,
-            teamService,
-            fileService,
-            injectDuplicateService,
-            tagRuleService,
-            injectService,
-            userService,
-            injectRepository,
-            lessonsCategoryRepository,
-            healthCheckUtils,
-            scenarioMapper);
+            scenarioMapper,
+            workflowService);
   }
 
   @AfterAll
@@ -134,6 +135,71 @@ class ScenarioServiceTest extends IntegrationTest {
     this.userRepository.deleteById(USER_ID);
     this.teamRepository.deleteById(TEAM_ID);
     this.injectRepository.deleteById(INJECT_ID);
+  }
+
+  @DisplayName("Should delete injects at the same time as the scenario itself")
+  @Test
+  @Transactional
+  public void shouldDeleteInjectsAtTheSameTImeAsTheScenarioItself() {
+    InjectComposer.Composer injectWrapper =
+        injectComposer.forInject(InjectFixture.getDefaultInject());
+    Scenario scenario =
+        scenarioComposer
+            .forScenario(ScenarioFixture.createDefaultIncidentResponseScenario())
+            .withInject(injectWrapper)
+            .persist()
+            .get();
+    entityManager.flush();
+    entityManager.clear();
+
+    String scenarioId = scenario.getId();
+
+    scenarioService.deleteScenario(scenarioId);
+    entityManager.flush();
+    entityManager.clear();
+
+    assertThat(injectRepository.findById(injectWrapper.get().getId())).isEmpty();
+    assertThatThrownBy(() -> scenarioService.getScenarioById(scenarioId))
+        .isInstanceOf(ElementNotFoundException.class);
+  }
+
+  @DisplayName(
+      "Should null references from Security Coverage and Simulations when scenario deleted")
+  @Test
+  @Transactional
+  public void shouldNullReferencesFromSecurityCoverageAndSimulationsWhenScenarioDeleted() {
+    ExerciseComposer.Composer simulationWrapper =
+        exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise());
+    ScenarioComposer.Composer scenarioWrapper =
+        scenarioComposer
+            .forScenario(ScenarioFixture.createDefaultIncidentResponseScenario())
+            .withInject(injectComposer.forInject(InjectFixture.getDefaultInject()))
+            .withSimulation(simulationWrapper);
+    SecurityCoverageComposer.Composer securityCoverageWrapper =
+        securityCoverageComposer
+            .forSecurityCoverage(SecurityCoverageFixture.createDefaultSecurityCoverage())
+            .withScenario(scenarioWrapper)
+            .persist();
+    entityManager.flush();
+    entityManager.clear();
+
+    String scenarioId = scenarioWrapper.get().getId();
+
+    scenarioService.deleteScenario(scenarioId);
+    entityManager.flush();
+    entityManager.clear();
+
+    assertThatThrownBy(() -> scenarioService.getScenarioById(scenarioId))
+        .isInstanceOf(ElementNotFoundException.class);
+
+    assertThat(exerciseRepository.findById(simulationWrapper.get().getId()))
+        .isPresent()
+        .get()
+        .satisfies(securityCoverage -> assertThat(securityCoverage.getScenario()).isNull());
+    assertThat(securityCoverageRepository.findById(securityCoverageWrapper.get().getId()))
+        .isPresent()
+        .get()
+        .satisfies(securityCoverage -> assertThat(securityCoverage.getScenario()).isNull());
   }
 
   @DisplayName("Should create new contextual teams during scenario duplication")
@@ -227,94 +293,6 @@ class ScenarioServiceTest extends IntegrationTest {
   }
 
   @Test
-  public void testUpdateScenario_WITH_applyRule_true() {
-    setUpWithMockRepository();
-    AssetGroup assetGroup1 = getAssetGroup("assetgroup1");
-    AssetGroup assetGroup2 = getAssetGroup("assetgroup2");
-    Tag tag1 = TagFixture.getTag("Tag1");
-    Tag tag2 = TagFixture.getTag("Tag2");
-    Tag tag3 = TagFixture.getTag("Tag3");
-    Inject inject1 = new Inject();
-    inject1.setId("1");
-    Inject inject2 = new Inject();
-    inject1.setId("2");
-    Scenario scenario = ScenarioFixture.getScenario(null, Set.of(inject1, inject2));
-    scenario.setTags(Set.of(tag1, tag2));
-    Set<Tag> currentTags = Set.of(tag2, tag3);
-    List<AssetGroup> assetGroupsToAdd = List.of(assetGroup1, assetGroup2);
-
-    when(tagRuleService.getAssetGroupsFromTagIds(List.of(tag1.getId())))
-        .thenReturn(assetGroupsToAdd);
-    when(mockScenarioRepository.save(scenario)).thenReturn(scenario);
-    when(injectService.canApplyTargetType(any(), eq(TargetType.ASSETS_GROUPS))).thenReturn(true);
-
-    scenarioService.updateScenario(scenario, currentTags, true);
-
-    scenario
-        .getInjects()
-        .forEach(
-            inject ->
-                verify(injectService)
-                    .applyDefaultAssetGroupsToInject(inject.getId(), assetGroupsToAdd));
-    verify(mockScenarioRepository).save(scenario);
-  }
-
-  @Test
-  public void testUpdateScenario_WITH_applyRule_true_and_manual_inject() {
-    setUpWithMockRepository();
-    AssetGroup assetGroup1 = getAssetGroup("assetgroup1");
-    AssetGroup assetGroup2 = getAssetGroup("assetgroup2");
-    Tag tag1 = TagFixture.getTag("Tag1");
-    Tag tag2 = TagFixture.getTag("Tag2");
-    Tag tag3 = TagFixture.getTag("Tag3");
-    Inject inject1 = new Inject();
-    inject1.setId("1");
-    Inject inject2 = new Inject();
-    inject1.setId("2");
-    Scenario scenario = ScenarioFixture.getScenario(null, Set.of(inject1, inject2));
-    scenario.setTags(Set.of(tag1, tag2));
-    Set<Tag> currentTags = Set.of(tag2, tag3);
-    List<AssetGroup> assetGroupsToAdd = List.of(assetGroup1, assetGroup2);
-
-    when(tagRuleService.getAssetGroupsFromTagIds(List.of(tag1.getId())))
-        .thenReturn(assetGroupsToAdd);
-    when(mockScenarioRepository.save(scenario)).thenReturn(scenario);
-    when(injectService.canApplyTargetType(any(), eq(TargetType.ASSETS_GROUPS))).thenReturn(false);
-
-    scenarioService.updateScenario(scenario, currentTags, true);
-
-    verify(injectService, never()).applyDefaultAssetGroupsToInject(any(), any());
-    verify(mockScenarioRepository).save(scenario);
-  }
-
-  @Test
-  public void testUpdateScenario_WITH_applyRule_false() {
-    setUpWithMockRepository();
-    AssetGroup assetGroup1 = getAssetGroup("assetgroup1");
-    AssetGroup assetGroup2 = getAssetGroup("assetgroup2");
-    Tag tag1 = TagFixture.getTag("Tag1");
-    Tag tag2 = TagFixture.getTag("Tag2");
-    Tag tag3 = TagFixture.getTag("Tag3");
-    Inject inject1 = new Inject();
-    inject1.setId("1");
-    Inject inject2 = new Inject();
-    inject1.setId("2");
-    Scenario scenario = ScenarioFixture.getScenario(null, Set.of(inject1, inject2));
-    scenario.setTags(Set.of(tag1, tag2));
-    Set<Tag> currentTags = Set.of(tag2, tag3);
-    List<AssetGroup> assetGroupsToAdd = List.of(assetGroup1, assetGroup2);
-
-    when(tagRuleService.getAssetGroupsFromTagIds(List.of(tag1.getId())))
-        .thenReturn(assetGroupsToAdd);
-    when(mockScenarioRepository.save(scenario)).thenReturn(scenario);
-    when(injectService.canApplyTargetType(any(), eq(TargetType.ASSETS_GROUPS))).thenReturn(true);
-
-    scenarioService.updateScenario(scenario, currentTags, false);
-
-    verify(injectService, never()).applyDefaultAssetGroupsToInject(any(), any());
-  }
-
-  @Test
   public void testRunChecksWhenScenarioIsNull() {
     List<HealthCheck> healthchecks = scenarioService.runChecks(null);
 
@@ -350,7 +328,7 @@ class ScenarioServiceTest extends IntegrationTest {
         healthchecks.stream()
             .filter(hc -> HealthCheck.Type.SMTP.equals(hc.getType()))
             .findFirst()
-            .orElse(new HealthCheck(null, null, null, null));
+            .orElse(new HealthCheck(null, null, null, now()));
     assertEquals(HealthCheck.Type.SMTP, healthCheckToVerify.getType());
     assertEquals(HealthCheck.Detail.SERVICE_UNAVAILABLE, healthCheckToVerify.getDetail());
     assertEquals(HealthCheck.Status.ERROR, healthCheckToVerify.getStatus());
@@ -385,7 +363,7 @@ class ScenarioServiceTest extends IntegrationTest {
         healthchecks.stream()
             .filter(hc -> HealthCheck.Type.IMAP.equals(hc.getType()))
             .findFirst()
-            .orElse(new HealthCheck(null, null, null, null));
+            .orElse(new HealthCheck(null, null, null, now()));
     assertEquals(HealthCheck.Type.IMAP, healthCheckToVerify.getType());
     assertEquals(HealthCheck.Detail.SERVICE_UNAVAILABLE, healthCheckToVerify.getDetail());
     assertEquals(HealthCheck.Status.WARNING, healthCheckToVerify.getStatus());
@@ -419,7 +397,7 @@ class ScenarioServiceTest extends IntegrationTest {
         healthchecks.stream()
             .filter(hc -> HealthCheck.Type.AGENT_OR_EXECUTOR.equals(hc.getType()))
             .findFirst()
-            .orElse(new HealthCheck(null, null, null, null));
+            .orElse(new HealthCheck(null, null, null, now()));
     assertEquals(HealthCheck.Type.AGENT_OR_EXECUTOR, healthCheckToVerify.getType());
     assertEquals(HealthCheck.Detail.EMPTY, healthCheckToVerify.getDetail());
     assertEquals(HealthCheck.Status.ERROR, healthCheckToVerify.getStatus());
@@ -453,7 +431,7 @@ class ScenarioServiceTest extends IntegrationTest {
         healthchecks.stream()
             .filter(hc -> HealthCheck.Type.SECURITY_SYSTEM_COLLECTOR.equals(hc.getType()))
             .findFirst()
-            .orElse(new HealthCheck(null, null, null, null));
+            .orElse(new HealthCheck(null, null, null, now()));
     assertEquals(HealthCheck.Type.SECURITY_SYSTEM_COLLECTOR, healthCheckToVerify.getType());
     assertEquals(HealthCheck.Detail.EMPTY, healthCheckToVerify.getDetail());
     assertEquals(HealthCheck.Status.ERROR, healthCheckToVerify.getStatus());
@@ -487,7 +465,7 @@ class ScenarioServiceTest extends IntegrationTest {
         healthchecks.stream()
             .filter(hc -> HealthCheck.Type.INJECT.equals(hc.getType()))
             .findFirst()
-            .orElse(new HealthCheck(null, null, null, null));
+            .orElse(new HealthCheck(null, null, null, now()));
     assertEquals(HealthCheck.Type.INJECT, healthCheckToVerify.getType());
     assertEquals(HealthCheck.Detail.NOT_READY, healthCheckToVerify.getDetail());
     assertEquals(HealthCheck.Status.WARNING, healthCheckToVerify.getStatus());
@@ -529,9 +507,11 @@ class ScenarioServiceTest extends IntegrationTest {
           ExternalServiceDependency.SMTP, ExternalServiceDependency.IMAP
         });
     InjectorContract injectorContract = InjectorContractFixture.createDefaultInjectorContract();
-    injectorContract.setInjector(injector);
+    injectorContract.getInjectors().clear();
+    injectorContract.addInjector(injector);
 
     Inject inject = InjectFixture.createInject(injectorContract, "test");
+    inject.setInjector(injector);
     scenario.setInjects(new HashSet<>(List.of(inject)));
     this.scenarioRepository.save(scenario);
 
@@ -548,15 +528,9 @@ class ScenarioServiceTest extends IntegrationTest {
         healthchecks.stream()
             .filter(hc -> HealthCheck.Type.TEAMS.equals(hc.getType()))
             .findFirst()
-            .orElse(new HealthCheck(null, null, null, null));
+            .orElse(new HealthCheck(null, null, null, now()));
     assertEquals(HealthCheck.Type.TEAMS, healthCheckToVerify.getType());
     assertEquals(HealthCheck.Detail.EMPTY, healthCheckToVerify.getDetail());
     assertEquals(HealthCheck.Status.WARNING, healthCheckToVerify.getStatus());
-  }
-
-  private AssetGroup getAssetGroup(String name) {
-    AssetGroup assetGroup = AssetGroupFixture.createDefaultAssetGroup(name);
-    assetGroup.setId(name);
-    return assetGroup;
   }
 }

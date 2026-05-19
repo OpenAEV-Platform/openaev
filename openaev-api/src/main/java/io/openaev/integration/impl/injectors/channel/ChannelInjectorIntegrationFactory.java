@@ -55,7 +55,7 @@ public class ChannelInjectorIntegrationFactory extends IntegrationFactory {
 
   @Override
   protected final String getClassName() {
-    return this.getClass().getCanonicalName();
+    return ChannelInjectorIntegrationFactory.class.getCanonicalName();
   }
 
   @Override

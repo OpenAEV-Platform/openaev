@@ -4,7 +4,7 @@ import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.openaev.database.model.*;
+import io.openaev.database.model.Agent;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
@@ -44,6 +44,9 @@ public class AgentOutput {
           "Indicates whether the endpoint is active. "
               + "The endpoint is considered active if it was seen in the last 3 minutes.")
   @JsonProperty("agent_active")
+  // Fixes a bug due to a new version of jackson and lombok
+  // cf: https://github.com/projectlombok/lombok/issues/3978
+  @Getter(onMethod_ = @JsonProperty("agent_active"))
   private boolean isActive;
 
   @Schema(description = "Instant when agent was last seen")

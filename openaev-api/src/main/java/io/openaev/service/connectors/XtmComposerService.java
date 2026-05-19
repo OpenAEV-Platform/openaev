@@ -34,7 +34,19 @@ public class XtmComposerService {
       ConnectorInstancePersisted instance) {
     return XtmComposerInstanceOutput.builder()
         .id(instance.getId())
-        .name(instance.getCatalogConnector().getTitle())
+        .name(
+            instance.getConfigurations().stream()
+                .filter(
+                    connectorInstanceConfiguration ->
+                        (instance.getCatalogConnector().getContainerType().getIdKeyName())
+                            .equals(connectorInstanceConfiguration.getKey()))
+                .findFirst()
+                .map(
+                    connectorInstanceConfiguration ->
+                        instance.getCatalogConnector().getTitle()
+                            + "-"
+                            + connectorInstanceConfiguration.getValue().asText())
+                .orElse(instance.getCatalogConnector().getTitle()))
         .currentStatus(instance.getCurrentStatus())
         .requestedStatus(instance.getRequestedStatus())
         .image(
@@ -141,7 +153,8 @@ public class XtmComposerService {
    */
   public void throwIfInvalidXtmComposerId(String xtmComposerId) throws BadRequestException {
     Map<String, Setting> xtmComposerInformation = this.getXtmComposerSettings();
-    if (!xtmComposerId.equals(xtmComposerInformation.get(XTM_COMPOSER_ID.key()).getValue())) {
+    Setting composerIdSetting = xtmComposerInformation.get(XTM_COMPOSER_ID.key());
+    if (composerIdSetting == null || !xtmComposerId.equals(composerIdSetting.getValue())) {
       throw new BadRequestException("Invalid xtm-composer identifier");
     }
   }

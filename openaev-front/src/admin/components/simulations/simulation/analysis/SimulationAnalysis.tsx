@@ -11,7 +11,7 @@ import type { ExercisesHelper } from '../../../../../actions/exercises/exercise-
 import { useHelper } from '../../../../../store';
 import {
   type CustomDashboard,
-  type Exercise,
+  type Exercise, type Pagination,
   type WidgetToEntitiesInput,
 } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
@@ -78,7 +78,7 @@ const SimulationAnalysis = () => {
     fetchAverage: (widgetId: string, params: Record<string, string | undefined>) => averageBySimulation(exerciseId, widgetId, params),
     fetchSeries: (widgetId: string, params: Record<string, string | undefined>) => seriesBySimulation(exerciseId, widgetId, params),
     fetchEntitiesRuntime: (widgetId: string, input: WidgetToEntitiesInput) => widgetToEntitiesBySimulation(exerciseId, widgetId, input),
-    fetchEntities: (widgetId: string, params: Record<string, string | undefined>) => entitiesBySimulation(exerciseId, widgetId, params),
+    fetchEntities: (widgetId: string, params: Record<string, string | undefined>, pagination?: Pagination) => entitiesBySimulation(exerciseId, widgetId, params, pagination),
     fetchAttackPaths: (widgetId: string, params: Record<string, string | undefined>) => attackPathsBySimulation(exerciseId, widgetId, params),
   };
 

@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.injectors.challenge.model.ChallengeContent;
 import io.openaev.rest.atomic_testing.form.AtomicTestingInput;
@@ -87,6 +88,7 @@ public class InjectFixture {
     inject.setAssets(List.of(asset));
     inject.setEnabled(true);
     inject.setDependsDuration(0L);
+    inject.setTenant(new Tenant(TenantContext.getCurrentTenant()));
     return inject;
   }
 

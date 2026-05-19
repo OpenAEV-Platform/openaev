@@ -1,7 +1,7 @@
 package io.openaev.helper;
 
 import io.openaev.database.model.InjectExpectation.EXPECTATION_STATUS;
-import org.jetbrains.annotations.Nullable;
+import jakarta.annotation.Nullable;
 
 /**
  * Helper class for inject expectation calculations and status determination.

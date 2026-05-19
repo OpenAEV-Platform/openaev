@@ -81,6 +81,9 @@ public class EngineConfig {
 
     /** Default SSL certificate verification setting. */
     public static final boolean REJECT_UNAUTHORIZED = true;
+
+    /** Default maximum number of records fetched per indexing batch. */
+    public static final int INDEXING_BATCH_SIZE = 500;
   }
 
   private String engineSelector = Defaults.ENGINE_SELECTOR;
@@ -116,4 +119,6 @@ public class EngineConfig {
   private String password;
 
   private boolean rejectUnauthorized = Defaults.REJECT_UNAUTHORIZED;
+
+  private int indexingBatchSize = Defaults.INDEXING_BATCH_SIZE;
 }

@@ -1,8 +1,10 @@
 package io.openaev.database.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.database.audit.TenantBaseListener;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -13,14 +15,16 @@ import java.util.Objects;
 import java.util.UUID;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
 @Data
 @Entity
 @Table(name = "import_mappers")
-@EntityListeners(ModelBaseListener.class)
-public class ImportMapper implements Base {
+@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+public class ImportMapper implements TenantBase {
 
   @Id
   @Column(name = "mapper_id")
@@ -45,6 +49,11 @@ public class ImportMapper implements Base {
   @JoinColumn(name = "importer_mapper_id", nullable = false)
   @JsonProperty("import_mapper_inject_importers")
   private List<InjectImporter> injectImporters = new ArrayList<>();
+
+  @ManyToOne
+  @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
+  @JsonIgnore
+  private Tenant tenant;
 
   @CreationTimestamp
   @Column(name = "mapper_created_at")

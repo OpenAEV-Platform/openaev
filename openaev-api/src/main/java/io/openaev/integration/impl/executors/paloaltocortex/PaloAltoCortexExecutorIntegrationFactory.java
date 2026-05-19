@@ -7,17 +7,14 @@ import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.paloaltocortex.config.PaloAltoCortexExecutorConfig;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
 import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
-import io.openaev.service.AgentService;
-import io.openaev.service.AssetGroupService;
-import io.openaev.service.EndpointService;
-import io.openaev.service.FileService;
+import io.openaev.service.*;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import java.util.List;
@@ -36,7 +33,7 @@ public class PaloAltoCortexExecutorIntegrationFactory extends IntegrationFactory
   private final AgentService agentService;
   private final EndpointService endpointService;
   private final AssetGroupService assetGroupService;
-  private final Ee enterpriseEditionService;
+  private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
   private final ThreadPoolTaskScheduler taskScheduler;
   private final FileService fileService;
@@ -52,7 +49,7 @@ public class PaloAltoCortexExecutorIntegrationFactory extends IntegrationFactory
       AgentService agentService,
       EndpointService endpointService,
       AssetGroupService assetGroupService,
-      Ee enterpriseEditionService,
+      EnterpriseEditionService enterpriseEditionService,
       LicenseCacheManager licenseCacheManager,
       ThreadPoolTaskScheduler taskScheduler,
       FileService fileService,
