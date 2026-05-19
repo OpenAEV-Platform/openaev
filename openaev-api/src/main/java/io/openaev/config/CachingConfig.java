@@ -26,7 +26,8 @@ public class CachingConfig {
      * everytime helps for the RBAC
      */
     CaffeineCacheManager cacheManager =
-        new CaffeineCacheManager("license", "global", "adminUsers", "tenantMembership", "auditChildResource");
+        new CaffeineCacheManager(
+            "license", "global", "adminUsers", "tenantMembership", "auditChildResource");
 
     cacheManager.setCaffeine(
         Caffeine.newBuilder().expireAfterWrite(Duration.ofDays(1)).maximumSize(100));
