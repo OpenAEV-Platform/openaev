@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.config.SessionHelper;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.User;
 import io.openaev.engine.EngineService;
@@ -372,6 +373,9 @@ public class LogService {
     doc.setEventStatus(eventStatus);
     doc.setEventAccess(eventAccess);
     doc.setEventScope(eventScope);
+
+    // Tenant context
+    doc.setTenantId(TenantContext.getCurrentTenant());
 
     // User context
     doc.setUserId(resolveUserId());
