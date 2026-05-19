@@ -56,7 +56,7 @@ developers.
 ## Releases download
 
 The releases are available on the [Github releases page](https://github.com/OpenAEV-Platform/openaev/releases). You can
-also access the [rolling release package](https://releases.openaev.io) generated from the master branch of the
+also access the [rolling release package](https://releases.openaev.io) generated from the main branch of the
 repository.
 
 ## Installation
