@@ -444,6 +444,40 @@ describe('useTenant', () => {
     });
   });
 
+  // -- ERROR HANDLING --
+
+  describe('Error handling', () => {
+    it('given_fetchUserTenantsRejects_should_setEmptyTenantsAndNotStayLoading', async () => {
+      // Arrange — fetchUserTenants returns a 500 error
+      mockFetchUserTenants.mockRejectedValue({ status: 500, message: 'Internal error' });
+      const useTenant = await importUseTenant();
+
+      // Act
+      const { result } = renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
+
+      // Assert — userTenants should be [] (not undefined), so the app doesn't hang on Loader
+      await waitFor(() => {
+        expect(result.current.userTenants).toEqual([]);
+      });
+      expect(result.current.currentUserTenant).toBeNull();
+    });
+
+    it('given_fetchUserTenantsNetworkError_should_setEmptyTenantsAndNotStayLoading', async () => {
+      // Arrange — fetchUserTenants throws a network error
+      mockFetchUserTenants.mockRejectedValue(new Error('Network Error'));
+      const useTenant = await importUseTenant();
+
+      // Act
+      const { result } = renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
+
+      // Assert
+      await waitFor(() => {
+        expect(result.current.userTenants).toEqual([]);
+      });
+      expect(result.current.currentUserTenant).toBeNull();
+    });
+  });
+
   // -- RETURN VALUE SHAPE --
 
   describe('Return value', () => {
