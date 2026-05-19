@@ -224,6 +224,7 @@ public class AccessControlAuditLogger {
         logUUID);
   }
 
+  @Async("accessControlAuditLoggerExecutor")
   public void prepareLogFailure() {
     if (stw) {
       // TODO AUDIT: implements the stop the world

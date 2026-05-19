@@ -55,7 +55,12 @@ public class AccessControlAuditLogAspect {
       // If openaev.generic-logs.service.enabled is true, log the request and its body input.
       /*if (accessControlAuditLogger.isGenericLoggingEnabled()) {
         // Capture the input DTO for create/update/status_change
-        inputNode = getInputNode(joinPoint, eventScope);
+        try {
+          inputNode = getInputNode(joinPoint, eventScope);
+        } catch (Exception e) {
+          log.warn("[AUDIT] Audit logging failed (non-blocking): {}", e.getMessage(), e);
+          //TODO AUDIT: Do we only want to log this to log var or do we want to call the correspondent LogService?
+        }
 
         accessControlAuditLogger.auditRequest(eventScope, inputNode, logUUID);
       }*/
@@ -63,13 +68,14 @@ public class AccessControlAuditLogAspect {
       return joinPoint.proceed();
     }
 
-    ResourceType resourceType;
-    String resourceId;
-    String sourceId;
-    ResourceType entityType;
-    String entityId;
-    String entityName;
-    JsonNode entitySnapshot;
+    ResourceType resourceType = null;
+    String resourceId = null;
+    String sourceId = null;
+    ResourceType entityType = null;
+    String entityId = null;
+    String entityName = null;
+    JsonNode entitySnapshot = null;
+    boolean status = true;
 
     try {
       // -- Pre-execution:get child-resource --
@@ -86,10 +92,14 @@ public class AccessControlAuditLogAspect {
       // Capture the input DTO for create/update/status_change
       inputNode = getInputNode(joinPoint, eventScope);
     } catch (Exception e) {
-      log.error("[AUDIT] Failed to detect resource: {}", e.getMessage());
-      // TODO AUDIT: figure it out whjat to do here. We should call the STW and also log something.
+      status = false;
 
-      return joinPoint.proceed();
+      accessControlAuditLogger.prepareLogFailure();
+
+      // Still log the audit event, then continue
+      log.warn("[AUDIT] Audit logging failed (non-blocking): {}", e.getMessage(), e);
+      // TODO AUDIT: Do we only want to log this to log var or do we want to call the correspondent
+      // LogService?
     }
 
     // Execute the business operation
@@ -120,19 +130,20 @@ public class AccessControlAuditLogAspect {
       throw ex;
     }
 
-    accessControlAuditLogger.auditEvent(
-        eventScope,
-        eventStatus,
-        resourceType,
-        resourceId,
-        sourceId,
-        entityType,
-        entityId,
-        entityName,
-        entitySnapshot,
-        inputNode,
-        result,
-        logUUID);
+    if (status)
+      accessControlAuditLogger.auditEvent(
+          eventScope,
+          eventStatus,
+          resourceType,
+          resourceId,
+          sourceId,
+          entityType,
+          entityId,
+          entityName,
+          entitySnapshot,
+          inputNode,
+          result,
+          logUUID);
 
     return result;
   }
