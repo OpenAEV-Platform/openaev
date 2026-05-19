@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 public class ObjectDiffUtils {
 
   private final ObjectMapper objectMapper;
+  private final ObjectNormalizationUtils objectNormalizationUtils;
 
   public record DiffResult(JsonNode newValues, JsonNode oldValues) {}
 
@@ -22,58 +23,132 @@ public class ObjectDiffUtils {
    * but the old snapshot has a full object, the object is flattened to its ID for comparison.
    */
   public DiffResult computeDiff(JsonNode oldSnapshot, JsonNode newInput) {
-    // TODO AUDIT: add depth level and other controllers
+    return computeDiff(oldSnapshot, newInput, "default");
+  }
 
+  public DiffResult computeDiff(JsonNode oldSnapshot, JsonNode newInput, String entityType) {
+    JsonNode normalizedOld = objectNormalizationUtils.normalize(oldSnapshot, entityType);
+    JsonNode normalizedNew = objectNormalizationUtils.normalize(newInput, entityType);
+
+    if (ObjectNormalizationUtils.isEffectivelyEmpty(normalizedNew)) {
+      return new DiffResult(null, null);
+    }
+
+    if (!normalizedNew.isObject()) {
+      if (ObjectNormalizationUtils.isEffectivelyEmpty(normalizedOld)
+          || !semanticEquals(normalizedOld, normalizedNew, 0)) {
+        return new DiffResult(normalizedNew, normalizedOld);
+      }
+      return new DiffResult(null, null);
+    }
+
+    ObjectNode oldObject =
+        normalizedOld != null && normalizedOld.isObject()
+            ? (ObjectNode) normalizedOld
+            : objectMapper.createObjectNode();
+    return computeDiff(oldObject, (ObjectNode) normalizedNew, 0);
+  }
+
+  private DiffResult computeDiff(ObjectNode oldSnapshot, ObjectNode newInput, int depth) {
     ObjectNode changedNew = objectMapper.createObjectNode();
     ObjectNode changedOld = objectMapper.createObjectNode();
+
+    if (depth >= ObjectNormalizationPolicy.DEPTH_LEVEL) {
+      return new DiffResult(null, null);
+    }
 
     for (Map.Entry<String, JsonNode> entry : newInput.properties()) {
       String fieldName = entry.getKey();
       JsonNode newValue = entry.getValue();
       JsonNode oldValue = oldSnapshot.get(fieldName);
-
-      // Skip null input values — in REST convention, null means "not provided" (the service
-      // ignores it), not "clear this field". Including them causes false positives for
-      // server-managed fields (e.g. inject_injector, resolved from the contract server-side).
-      if (newValue == null || newValue.isNull()) {
+      if (shouldSkipField(fieldName, newValue)) {
         continue;
       }
 
-      // Skip DTO metadata fields that are never actual entity attributes
-      if (ObjectNormalizationUtils.DIFF_SKIP_FIELDS.contains(fieldName)) {
+      if (handleRelationField(changedNew, changedOld, fieldName, oldValue, newValue)) {
         continue;
       }
 
-      // Handle JPA relation fields: input sends a scalar ID, old snapshot has a full object.
-      // Flatten the old object to its ID for comparison and storage.
-      if (oldValue != null && oldValue.isObject() && !newValue.isObject()) {
-        JsonNode oldId = extractIdFromRelation(oldValue);
-        if (oldId != null) {
-          if (oldId.equals(newValue)) {
-            continue; // Same ID — field didn't change
-          }
-          // Different ID — record the flattened old value
-          changedNew.set(fieldName, newValue);
-          changedOld.set(fieldName, oldId);
-          continue;
-        }
+      if (handleNestedObjectField(changedNew, changedOld, fieldName, oldValue, newValue, depth)) {
+        continue;
       }
 
-      // Standard comparison for non-relation fields — uses semantic equality that normalises
-      // numeric types (100 == 100.0), treats null ≈ empty arrays, and recurses into nested
-      // objects/arrays so that insignificant serialisation differences are ignored.
-      if (oldValue == null || !semanticEquals(oldValue, newValue)) {
-        changedNew.set(fieldName, newValue);
-        if (oldValue != null) {
-          changedOld.set(fieldName, oldValue);
-        }
-      }
+      handlePrimitiveOrCollectionField(
+          changedNew, changedOld, fieldName, oldValue, newValue, depth);
     }
 
     if (changedNew.isEmpty()) {
       return new DiffResult(null, null);
     }
     return new DiffResult(changedNew, changedOld.isEmpty() ? null : changedOld);
+  }
+
+  private static boolean shouldSkipField(String fieldName, JsonNode newValue) {
+    // Null input means "not provided" in this diff flow.
+    if (newValue == null || newValue.isNull()) {
+      return true;
+    }
+    // DTO metadata fields are not entity attributes.
+    return ObjectNormalizationPolicy.DIFF_SKIP_FIELDS.contains(fieldName);
+  }
+
+  private static boolean handleRelationField(
+      ObjectNode changedNew,
+      ObjectNode changedOld,
+      String fieldName,
+      JsonNode oldValue,
+      JsonNode newValue) {
+    if (oldValue == null || !oldValue.isObject() || newValue.isObject()) {
+      return false;
+    }
+
+    JsonNode oldId = extractIdFromRelation(oldValue);
+    if (oldId == null) {
+      return false;
+    }
+    if (oldId.equals(newValue)) {
+      return true;
+    }
+
+    changedNew.set(fieldName, newValue);
+    changedOld.set(fieldName, oldId);
+    return true;
+  }
+
+  private boolean handleNestedObjectField(
+      ObjectNode changedNew,
+      ObjectNode changedOld,
+      String fieldName,
+      JsonNode oldValue,
+      JsonNode newValue,
+      int depth) {
+    if (oldValue == null || !oldValue.isObject() || !newValue.isObject()) {
+      return false;
+    }
+
+    DiffResult nested = computeDiff((ObjectNode) oldValue, (ObjectNode) newValue, depth + 1);
+    if (nested.newValues() != null) {
+      changedNew.set(fieldName, nested.newValues());
+      if (nested.oldValues() != null) {
+        changedOld.set(fieldName, nested.oldValues());
+      }
+    }
+    return true;
+  }
+
+  private static void handlePrimitiveOrCollectionField(
+      ObjectNode changedNew,
+      ObjectNode changedOld,
+      String fieldName,
+      JsonNode oldValue,
+      JsonNode newValue,
+      int depth) {
+    if (oldValue == null || !semanticEquals(oldValue, newValue, depth)) {
+      changedNew.set(fieldName, newValue);
+      if (oldValue != null) {
+        changedOld.set(fieldName, oldValue);
+      }
+    }
   }
 
   /**
@@ -89,7 +164,12 @@ public class ObjectDiffUtils {
    *   <li>Recurses into objects and arrays applying the same rules at every nesting level.
    * </ul>
    */
-  private static boolean semanticEquals(JsonNode a, JsonNode b) {
+  private static boolean semanticEquals(JsonNode a, JsonNode b, int depth) {
+    // At max depth treat containers as equal to avoid false positives on unprocessed subtrees
+    if (depth >= ObjectNormalizationPolicy.DEPTH_LEVEL) {
+      return true;
+    }
+
     // Normalise null/missing nodes
     boolean aEmpty = ObjectNormalizationUtils.isEffectivelyEmpty(a);
     boolean bEmpty = ObjectNormalizationUtils.isEffectivelyEmpty(b);
@@ -111,7 +191,7 @@ public class ObjectDiffUtils {
       ObjectNode objB = (ObjectNode) b;
       // Check all fields in A exist and match in B
       for (var entry : objA.properties()) {
-        if (!semanticEquals(entry.getValue(), objB.get(entry.getKey()))) {
+        if (!semanticEquals(entry.getValue(), objB.get(entry.getKey()), depth + 1)) {
           return false;
         }
       }
@@ -133,7 +213,7 @@ public class ObjectDiffUtils {
         return false;
       }
       for (int i = 0; i < arrA.size(); i++) {
-        if (!semanticEquals(arrA.get(i), arrB.get(i))) {
+        if (!semanticEquals(arrA.get(i), arrB.get(i), depth + 1)) {
           return false;
         }
       }
