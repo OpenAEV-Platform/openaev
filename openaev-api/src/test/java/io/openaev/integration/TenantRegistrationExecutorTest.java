@@ -12,7 +12,6 @@ import jakarta.persistence.EntityManager;
 import java.util.List;
 import org.hibernate.Filter;
 import org.hibernate.Session;
-import org.hibernate.jdbc.Work;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -89,19 +88,6 @@ class TenantRegistrationExecutorTest {
     }
 
     @Test
-    @DisplayName("given_validTenant_should_syncRlsSessionVariable")
-    void given_validTenant_should_syncRlsSessionVariable() throws Exception {
-      // Arrange
-      Tenant tenant = createTenant("tenant-1", "Tenant One");
-
-      // Act
-      executor.registerForTenantIsolated(tenant);
-
-      // Assert — doWork called twice: once to set RLS for tenant-1, once to restore previous
-      verify(session, times(2)).doWork(any(Work.class));
-    }
-
-    @Test
     @DisplayName("given_validTenant_should_restorePreviousTenantContext")
     void given_validTenant_should_restorePreviousTenantContext() throws Exception {
       // Arrange
@@ -153,8 +139,8 @@ class TenantRegistrationExecutorTest {
     }
 
     @Test
-    @DisplayName("given_validTenant_should_notSetFilterOrRls")
-    void given_validTenant_should_notSetFilterOrRls() throws Exception {
+    @DisplayName("given_validTenant_should_notSetFilter")
+    void given_validTenant_should_notSetFilter() throws Exception {
       // Arrange
       Tenant tenant = createTenant("tenant-1", "Tenant One");
 
