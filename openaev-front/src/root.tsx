@@ -84,7 +84,14 @@ const Root = () => {
   // (e.g. first visit at "/", or right after login), hard-redirect to
   // the tenant-prefixed URL so BrowserRouter picks up the correct basename.
   if (!extractTenantFromUrl()) {
-    const tenantId = currentUserTenant?.tenant_id ?? DEFAULT_TENANT_UUID;
+    // Wait for fetchUserTenants (useTenant) before deciding which tenant to use.
+    if (userTenants === undefined) {
+      return <Loader />;
+    }
+
+    const tenantId = currentUserTenant?.tenant_id
+      ?? userTenants[0]?.tenant_id
+      ?? DEFAULT_TENANT_UUID;
     window.location.href = buildTenantUrl(tenantId);
     return <Loader />;
   }
