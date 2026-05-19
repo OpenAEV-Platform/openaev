@@ -33,10 +33,7 @@ public class MeApiTest extends IntegrationTest {
       // No specific setup needed — uses the mock user from @WithMockUser
 
       // -------- Act & Assert --------
-      mvc.perform(
-              get(MeApi.ME_URI)
-                  .accept(MediaType.APPLICATION_JSON)
-                  .with(csrf()))
+      mvc.perform(get(MeApi.ME_URI).accept(MediaType.APPLICATION_JSON).with(csrf()))
           .andExpect(status().isOk())
           .andExpect(jsonPath("$.user_id").isNotEmpty())
           .andExpect(jsonPath("$.user_email").isNotEmpty());
@@ -55,10 +52,7 @@ public class MeApiTest extends IntegrationTest {
       // No specific setup needed — uses the mock user from @WithMockUser
 
       // -------- Act & Assert --------
-      mvc.perform(
-              get(MeApi.ME_URI + "/tenants")
-                  .accept(MediaType.APPLICATION_JSON)
-                  .with(csrf()))
+      mvc.perform(get(MeApi.ME_URI + "/tenants").accept(MediaType.APPLICATION_JSON).with(csrf()))
           .andExpect(status().isOk())
           .andExpect(jsonPath("$").isArray());
     }
@@ -76,10 +70,7 @@ public class MeApiTest extends IntegrationTest {
       // No specific setup needed — uses the mock user from @WithMockUser
 
       // -------- Act & Assert --------
-      mvc.perform(
-              get(MeApi.ME_URI + "/tokens")
-                  .accept(MediaType.APPLICATION_JSON)
-                  .with(csrf()))
+      mvc.perform(get(MeApi.ME_URI + "/tokens").accept(MediaType.APPLICATION_JSON).with(csrf()))
           .andExpect(status().isOk())
           .andExpect(jsonPath("$").isArray());
     }
@@ -97,10 +88,7 @@ public class MeApiTest extends IntegrationTest {
       // No specific setup needed — uses the mock user from @WithMockUser
 
       // -------- Act & Assert --------
-      mvc.perform(
-              get("/api/logout")
-                  .accept(MediaType.APPLICATION_JSON)
-                  .with(csrf()))
+      mvc.perform(get("/api/logout").accept(MediaType.APPLICATION_JSON).with(csrf()))
           .andExpect(status().isOk());
     }
   }
