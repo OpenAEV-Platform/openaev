@@ -29,7 +29,14 @@ public class MeApiTest extends IntegrationTest {
     @Test
     @DisplayName("Should return current user info")
     void given_authenticatedUser_should_returnUserInfo() throws Exception {
-      mvc.perform(get(MeApi.ME_URI).accept(MediaType.APPLICATION_JSON).with(csrf()))
+      // -------- Arrange --------
+      // No specific setup needed — uses the mock user from @WithMockUser
+
+      // -------- Act & Assert --------
+      mvc.perform(
+              get(MeApi.ME_URI)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().isOk())
           .andExpect(jsonPath("$.user_id").isNotEmpty())
           .andExpect(jsonPath("$.user_email").isNotEmpty());
@@ -44,7 +51,14 @@ public class MeApiTest extends IntegrationTest {
     @Test
     @DisplayName("Should return list of tenants for current user")
     void given_authenticatedUser_should_returnTenantList() throws Exception {
-      mvc.perform(get(MeApi.ME_URI + "/tenants").accept(MediaType.APPLICATION_JSON).with(csrf()))
+      // -------- Arrange --------
+      // No specific setup needed — uses the mock user from @WithMockUser
+
+      // -------- Act & Assert --------
+      mvc.perform(
+              get(MeApi.ME_URI + "/tenants")
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().isOk())
           .andExpect(jsonPath("$").isArray());
     }
@@ -58,7 +72,14 @@ public class MeApiTest extends IntegrationTest {
     @Test
     @DisplayName("Should return list of tokens for current user")
     void given_authenticatedUser_should_returnTokenList() throws Exception {
-      mvc.perform(get(MeApi.ME_URI + "/tokens").accept(MediaType.APPLICATION_JSON).with(csrf()))
+      // -------- Arrange --------
+      // No specific setup needed — uses the mock user from @WithMockUser
+
+      // -------- Act & Assert --------
+      mvc.perform(
+              get(MeApi.ME_URI + "/tokens")
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().isOk())
           .andExpect(jsonPath("$").isArray());
     }
@@ -72,7 +93,14 @@ public class MeApiTest extends IntegrationTest {
     @Test
     @DisplayName("Should return 200 OK")
     void given_authenticatedUser_should_logoutSuccessfully() throws Exception {
-      mvc.perform(get("/api/logout").accept(MediaType.APPLICATION_JSON).with(csrf()))
+      // -------- Arrange --------
+      // No specific setup needed — uses the mock user from @WithMockUser
+
+      // -------- Act & Assert --------
+      mvc.perform(
+              get("/api/logout")
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().isOk());
     }
   }
