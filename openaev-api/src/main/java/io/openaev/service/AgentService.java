@@ -24,22 +24,18 @@ public class AgentService {
 
   private final AgentRepository agentRepository;
 
-  public Optional<Agent> getAgentForAnAsset(
+  public Optional<Agent> getAgentForAnAssetByExecutorId(
       String assetId,
       String user,
       Agent.DEPLOYMENT_MODE deploymentMode,
       Agent.PRIVILEGE privilege,
-      String executor) {
-    return agentRepository.findByAssetExecutorUserDeploymentAndPrivilege(
-        assetId, user, deploymentMode.name(), privilege.name(), executor);
+      String executorId) {
+    return agentRepository.findByAssetExecutorIdUserDeploymentAndPrivilege(
+        assetId, user, deploymentMode.name(), privilege.name(), executorId);
   }
 
-  public List<Agent> getAgentsForExecution() {
-    return agentRepository.findForExecution();
-  }
-
-  public List<Agent> getAgentsByExecutorType(String executor) {
-    return agentRepository.findByExecutorType(executor);
+  public List<Agent> getAgentsByExecutorId(String executorId) {
+    return agentRepository.findByExecutorId(executorId);
   }
 
   public Agent createOrUpdateAgent(@NotNull final Agent agent) {
@@ -65,10 +61,11 @@ public class AgentService {
     this.agentRepository.deleteByAgentId(agentId);
   }
 
-  public List<Agent> findByExternalReference(String externalReference) {
-    return agentRepository.findByExternalReference(externalReference);
+  public List<Agent> findByExternalReference(String externalReference, String tenantId) {
+    return agentRepository.findByExternalReferenceAndTenantId(externalReference, tenantId);
   }
 
+  // TODO multi-tenancy: Manage all datas for telemetry or datas per tenant ?
   public Tuple getAgentMetrics(Iterable<Executor> agentExecutors) {
     CriteriaBuilder cb = entityManager.getCriteriaBuilder();
     CriteriaQuery<Tuple> cq = cb.createQuery(Tuple.class);

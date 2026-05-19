@@ -2,6 +2,7 @@ package io.openaev.database.model;
 
 import static io.openaev.database.model.Grant.GRANT_TYPE.OBSERVER;
 import static io.openaev.database.model.Grant.GRANT_TYPE.PLANNER;
+import static io.openaev.helper.MailHelper.*;
 import static io.openaev.helper.UserHelper.getUsersByType;
 import static java.time.Instant.now;
 import static lombok.AccessLevel.NONE;
@@ -9,15 +10,16 @@ import static lombok.AccessLevel.NONE;
 import com.fasterxml.jackson.annotation.*;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
+import io.openaev.annotation.OnDeleteAction;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
 import io.openaev.helper.InjectStatisticsHelper;
 import io.openaev.helper.MonoIdSerializer;
 import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.helper.MultiIdSetSerializer;
 import io.openaev.helper.MultiModelSerializer;
-import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.persistence.CascadeType;
@@ -25,6 +27,8 @@ import jakarta.persistence.Table;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import java.time.Instant;
 import java.util.*;
 import lombok.Data;
@@ -65,14 +69,15 @@ import org.hibernate.annotations.*;
 @Data
 @Entity
 @Table(name = "scenarios")
-@EntityListeners(ModelBaseListener.class)
+@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 @NamedEntityGraphs({
   @NamedEntityGraph(
       name = "Scenario.tags-injects",
       attributeNodes = {@NamedAttributeNode("tags"), @NamedAttributeNode("injects")})
 })
 @Grantable(Grant.GRANT_RESOURCE_TYPE.SCENARIO)
-public class Scenario implements GrantableBase {
+public class Scenario extends ModelBehaviour implements GrantableBase, TenantBase {
 
   /** Status of scenario recurrence scheduling. */
   public enum RECURRENCE_STATUS {
@@ -179,6 +184,9 @@ public class Scenario implements GrantableBase {
   @OneToOne(mappedBy = "scenario")
   @JsonProperty("scenario_security_coverage")
   @JsonIgnore
+  @io.openaev.annotation.OnDelete(
+      action = OnDeleteAction.SET_REFERENCE_NULL,
+      fieldName = "scenario")
   private SecurityCoverage securityCoverage;
 
   // -- RECURRENCE --
@@ -212,6 +220,17 @@ public class Scenario implements GrantableBase {
   @NotBlank
   private String from;
 
+  @Getter(NONE)
+  @Pattern(regexp = FROM_NAME_PATTERN, message = FROM_NAME_PATTERN_MESSAGE)
+  @Size(max = FROM_NAME_MAX_LENGTH, message = FROM_NAME_SIZE_MESSAGE)
+  @Column(name = "scenario_mail_from_name")
+  @JsonProperty("scenario_mail_from_name")
+  private String fromName;
+
+  public String getFromName() {
+    return resolveFromName(fromName, from);
+  }
+
   @ElementCollection(fetch = FetchType.EAGER)
   @CollectionTable(
       name = "scenario_mails_reply_to",
@@ -242,7 +261,7 @@ public class Scenario implements GrantableBase {
   @JoinColumn(name = "scenario_custom_dashboard")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("scenario_custom_dashboard")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private CustomDashboard customDashboard;
 
   @Getter
@@ -257,8 +276,8 @@ public class Scenario implements GrantableBase {
   @JsonIgnore
   private List<Grant> grants = new ArrayList<>();
 
-  @ArraySchema(schema = @Schema(type = "string"))
-  @OneToMany(mappedBy = "scenario", fetch = FetchType.LAZY)
+  @Schema(implementation = String[].class)
+  @OneToMany(mappedBy = "scenario", cascade = CascadeType.REMOVE, fetch = FetchType.LAZY)
   @JsonProperty("scenario_injects")
   @JsonSerialize(using = MultiIdListSerializer.class)
   @Getter(NONE)
@@ -267,10 +286,11 @@ public class Scenario implements GrantableBase {
   // UpdatedAt now used to sync with linked object
   public void setInjects(Set<Inject> injects) {
     this.updatedAt = now();
-    this.injects = injects;
+    this.injects.clear();
+    this.injects.addAll(injects);
   }
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "scenarios_teams",
@@ -299,7 +319,7 @@ public class Scenario implements GrantableBase {
   @JsonIgnore
   private List<Objective> objectives = new ArrayList<>();
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "scenarios_tags",
@@ -316,7 +336,7 @@ public class Scenario implements GrantableBase {
     this.tags = tags;
   }
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "scenarios_documents",
@@ -326,13 +346,13 @@ public class Scenario implements GrantableBase {
   @JsonProperty("scenario_documents")
   private List<Document> documents = new ArrayList<>();
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @OneToMany(mappedBy = "scenario", fetch = FetchType.LAZY)
   @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("scenario_articles")
   private List<Article> articles = new ArrayList<>();
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @OneToMany(mappedBy = "scenario", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
   @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("scenario_lessons_categories")
@@ -343,8 +363,11 @@ public class Scenario implements GrantableBase {
   @JsonIgnore
   public List<Variable> variables = new ArrayList<>();
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @OneToMany(fetch = FetchType.LAZY)
+  @io.openaev.annotation.OnDelete(
+      action = OnDeleteAction.SET_REFERENCE_NULL,
+      fieldName = "scenario")
   @JoinTable(
       name = "scenarios_exercises",
       joinColumns = @JoinColumn(name = "scenario_id"),
@@ -369,6 +392,13 @@ public class Scenario implements GrantableBase {
   @JsonProperty("scenario_lessons_anonymized")
   private boolean lessonsAnonymized = false;
 
+  // -- TENANT --
+
+  @ManyToOne
+  @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
+  @JsonIgnore
+  private Tenant tenant;
+
   @Getter(onMethod_ = @JsonIgnore)
   @Transient
   private final ResourceType resourceType = ResourceType.SCENARIO;
@@ -387,14 +417,14 @@ public class Scenario implements GrantableBase {
 
   // -- SECURITY --
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @JsonProperty("scenario_planners")
   @JsonSerialize(using = MultiIdListSerializer.class)
   public List<User> getPlanners() {
     return getUsersByType(this.getGrants(), PLANNER);
   }
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @JsonProperty("scenario_observers")
   @JsonSerialize(using = MultiIdListSerializer.class)
   public List<User> getObservers() {
@@ -418,7 +448,7 @@ public class Scenario implements GrantableBase {
     return getTeamUsers().stream().map(ScenarioTeamUser::getUser).distinct().count();
   }
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @JsonProperty("scenario_users")
   @JsonSerialize(using = MultiIdListSerializer.class)
   public List<User> getUsers() {

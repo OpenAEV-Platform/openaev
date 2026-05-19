@@ -1,6 +1,7 @@
 package io.openaev.rest.user;
 
 import static io.openaev.database.criteria.GenericCriteria.countQuery;
+import static io.openaev.database.specification.UserSpecification.inTenant;
 import static io.openaev.helper.DatabaseHelper.updateRelation;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
@@ -10,16 +11,15 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteri
 import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilder;
 import static java.time.Instant.now;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.Team;
 import io.openaev.database.model.User;
-import io.openaev.database.repository.OrganizationRepository;
-import io.openaev.database.repository.TagRepository;
-import io.openaev.database.repository.TeamRepository;
-import io.openaev.database.repository.UserRepository;
+import io.openaev.database.repository.*;
 import io.openaev.rest.user.form.player.PlayerInput;
 import io.openaev.rest.user.form.player.PlayerOutput;
 import io.openaev.service.UserService;
+import io.openaev.service.tenants.TenantUserService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -27,6 +27,7 @@ import jakarta.persistence.Tuple;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -34,7 +35,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.function.TriFunction;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -50,16 +50,20 @@ public class PlayerService {
   private final TagRepository tagRepository;
   private final TeamRepository teamRepository;
   private final OrganizationRepository organizationRepository;
+  private final TenantUserService tenantUserService;
   @PersistenceContext private EntityManager entityManager;
 
   private final UserRepository userRepository;
   private final UserService userService;
 
   public Page<PlayerOutput> playerPagination(@NotNull SearchPaginationInput searchPaginationInput) {
+    Specification<User> tenantSpec = inTenant(TenantContext.getCurrentTenant());
     TriFunction<Specification<User>, Specification<User>, Pageable, Page<PlayerOutput>>
         playersFunction;
-    User currentUser = userService.currentUser();
-    playersFunction = this::paginate;
+    playersFunction =
+        (specification, specificationCount, pageable) ->
+            this.paginate(
+                tenantSpec.and(specification), tenantSpec.and(specificationCount), pageable);
     return buildPaginationCriteriaBuilder(playersFunction, searchPaginationInput, User.class);
   }
 
@@ -103,6 +107,18 @@ public class PlayerService {
     return new PageImpl<>(players, pageable, total);
   }
 
+  public User createPlayer(@Valid @RequestBody PlayerInput input) {
+    User user = new User();
+    user.setUpdateAttributes(input);
+    user.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
+    user.setOrganization(
+        updateRelation(input.getOrganizationId(), user.getOrganization(), organizationRepository));
+    User savedUser = userRepository.save(user);
+    userService.createUserToken(savedUser);
+    tenantUserService.attachToTenant(savedUser.getId(), TenantContext.getCurrentTenant());
+    return savedUser;
+  }
+
   public User upsertPlayer(@Valid @RequestBody PlayerInput input) {
     Optional<User> user = userRepository.findByEmailIgnoreCase(input.getEmail());
     if (user.isPresent()) {
@@ -131,6 +147,7 @@ public class PlayerService {
             updateRelation(
                 input.getOrganizationId(), existingUser.getOrganization(), organizationRepository));
       }
+      tenantUserService.attachToTenant(existingUser.getId(), TenantContext.getCurrentTenant());
       return userRepository.save(existingUser);
     } else {
       User newUser = new User();
@@ -142,6 +159,7 @@ public class PlayerService {
       newUser.setTeams(fromIterable(teamRepository.findAllById(input.getTeamIds())));
       User savedUser = userRepository.save(newUser);
       userService.createUserToken(savedUser);
+      tenantUserService.attachToTenant(savedUser.getId(), TenantContext.getCurrentTenant());
       return savedUser;
     }
   }

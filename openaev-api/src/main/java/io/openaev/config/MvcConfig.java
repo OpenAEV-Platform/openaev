@@ -2,9 +2,9 @@ package io.openaev.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.Resource;
+import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.concurrent.Executors;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.converter.ByteArrayHttpMessageConverter;
@@ -14,6 +14,7 @@ import org.springframework.http.converter.json.MappingJackson2HttpMessageConvert
 import org.springframework.scheduling.concurrent.ConcurrentTaskExecutor;
 import org.springframework.web.servlet.config.annotation.AsyncSupportConfigurer;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.springframework.web.servlet.resource.EncodedResourceResolver;
@@ -26,6 +27,12 @@ public class MvcConfig implements WebMvcConfigurer {
   private static final int CACHE_PERIOD = 3600;
 
   @Resource private ObjectMapper objectMapper;
+  @Resource private TenantInterceptor tenantInterceptor;
+
+  @Override
+  public void addInterceptors(InterceptorRegistry registry) {
+    registry.addInterceptor(tenantInterceptor).addPathPatterns("/api/tenants/**");
+  }
 
   @Bean
   public MappingJackson2HttpMessageConverter customJackson2HttpMessageConverter() {
@@ -45,6 +52,7 @@ public class MvcConfig implements WebMvcConfigurer {
   @Override
   public void configureAsyncSupport(AsyncSupportConfigurer configurer) {
     configurer.setTaskExecutor(getTaskExecutor());
+    configurer.setDefaultTimeout(900_000);
   }
 
   @Bean

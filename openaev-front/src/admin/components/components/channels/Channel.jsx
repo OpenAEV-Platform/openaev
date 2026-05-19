@@ -11,6 +11,7 @@ import { useHelper } from '../../../../store';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { buildTenantApiPath } from '../../../../utils/url-helper';
 import ChannelAddLogo from './ChannelAddLogo';
 import ChannelOverviewMicroblogging from './ChannelOverviewMicroblogging';
 import ChannelOverviewNewspaper from './ChannelOverviewNewspaper';
@@ -96,7 +97,7 @@ const Channel = () => {
                 </Typography>
                 {logoDark ? (
                   <img
-                    src={`/api/images/channels/id/${channelId}/dark`}
+                    src={buildTenantApiPath(`/api/images/channels/id/${channelId}/dark`)}
                     style={{
                       maxHeight: 200,
                       maxWidth: 200,
@@ -123,7 +124,7 @@ const Channel = () => {
                 </Typography>
                 {logoLight ? (
                   <img
-                    src={`/api/images/channels/id/${channelId}/light`}
+                    src={buildTenantApiPath(`/api/images/channels/id/${channelId}/light`)}
                     style={{
                       maxHeight: 200,
                       maxWidth: 200,

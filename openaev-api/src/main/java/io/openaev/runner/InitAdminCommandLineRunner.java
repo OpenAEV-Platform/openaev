@@ -1,5 +1,6 @@
 package io.openaev.runner;
 
+import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static io.openaev.database.model.Token.ADMIN_TOKEN_UUID;
 import static io.openaev.database.model.User.ADMIN_FIRSTNAME;
 import static io.openaev.database.model.User.ADMIN_LASTNAME;
@@ -10,12 +11,13 @@ import io.openaev.database.model.Token;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.TokenRepository;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.service.tenants.TenantUserService;
+import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.validator.routines.EmailValidator;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
@@ -36,14 +38,16 @@ public class InitAdminCommandLineRunner implements CommandLineRunner {
   private String adminToken;
 
   private final UserRepository userRepository;
-
   private final TokenRepository tokenRepository;
+  private final TenantUserService tenantUserService;
 
   public InitAdminCommandLineRunner(
       @NotNull final UserRepository userRepository,
-      @NotNull final TokenRepository tokenRepository) {
+      @NotNull final TokenRepository tokenRepository,
+      @NotNull final TenantUserService tenantUserService) {
     this.userRepository = userRepository;
     this.tokenRepository = tokenRepository;
+    this.tenantUserService = tenantUserService;
   }
 
   @Override
@@ -80,6 +84,7 @@ public class InitAdminCommandLineRunner implements CommandLineRunner {
 
     this.userRepository.createAdmin(
         ADMIN_UUID, ADMIN_FIRSTNAME, ADMIN_LASTNAME, this.adminEmail, encodedPassword());
+    tenantUserService.attachToTenant(ADMIN_UUID, DEFAULT_TENANT_UUID);
     return this.userRepository.findById(ADMIN_UUID).orElseThrow();
   }
 

@@ -2,12 +2,15 @@ import { Button } from '@mui/material';
 import type React from 'react';
 import { useCallback, useMemo, useState } from 'react';
 
+import type { LoggedHelper } from '../../../../../actions/helper';
 import { registerPlatform, unregisterPlatform } from '../../../../../actions/xtmhub/xtmhub-actions';
 import { useFormatter } from '../../../../../components/i18n';
+import { useHelper } from '../../../../../store';
 import { isDemoInstance, MESSAGING$, XTM_HUB_DEFAULT_URL } from '../../../../../utils/Environment';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useAuth from '../../../../../utils/hooks/useAuth';
 import useExternalTab from '../../../../../utils/hooks/useExternalTab';
+import { getCurrentTenantId } from '../../../../../utils/url-helper';
 import GradientButton from '../../../common/GradientButton';
 import XtmHubConfirmationDialog from './XtmHubConfirmationDialog';
 import XtmHubProcessDialog from './XtmHubProcessDialog';
@@ -30,7 +33,8 @@ const XtmHubTab: React.FC = () => {
   const { t } = useFormatter();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
-  const { settings } = useAuth();
+  const { settings, currentUserTenant } = useAuth();
+  const registration = useHelper((helper: LoggedHelper) => helper.getXtmHubRegistration());
   const isEnterpriseEdition = settings.platform_license?.license_is_validated === true;
   const isDemoMode = isDemoInstance(settings);
   const registrationHubUrl = settings?.xtm_hub_url ?? XTM_HUB_DEFAULT_URL;
@@ -42,20 +46,29 @@ const XtmHubTab: React.FC = () => {
     null,
   );
 
-  const isRegistered = settings.xtm_hub_registration_status === 'registered';
-  const platformInformation = {
-    platform_url: window.location.origin,
-    platform_title: settings?.platform_name ?? 'OpenAEV Platform',
+  const isRegistered = registration?.tenant_xtmhub_registration_status === 'REGISTERED';
+  const platformIdentifiers = {
+    tenant_id: getCurrentTenantId(),
     platform_id: settings?.platform_id ?? '',
+  };
+  const platformInformation = {
+    ...platformIdentifiers,
+    // platform_url should not end with / to avoid issues with one click deploy
+    platform_url: `${window.location.origin}/${platformIdentifiers.tenant_id}`,
+    platform_title: settings?.platform_name ?? 'OpenAEV Platform',
     platform_contract: isEnterpriseEdition ? 'EE' : 'CE',
     platform_version: settings?.platform_version ?? '',
+    tenant_name: currentUserTenant?.tenant_name ?? '',
   };
+  const queryPlatformIdentifiers = new URLSearchParams(
+    platformIdentifiers,
+  ).toString();
   const queryPlatformInformation = new URLSearchParams(
     platformInformation,
   ).toString();
 
   const registrationUrl = `${registrationHubUrl}/redirect/register-openaev?${queryPlatformInformation}`;
-  const unregistrationUrl = `${registrationHubUrl}/redirect/unregister-openaev?platform_id=${settings?.platform_id ?? ''}`;
+  const unregistrationUrl = `${registrationHubUrl}/redirect/unregister-openaev?${queryPlatformIdentifiers}`;
 
   const handleClosingTab = () => {
     setProcessStep(ProcessSteps.CANCELED);
@@ -76,7 +89,7 @@ const XtmHubTab: React.FC = () => {
   };
 
   const handleUnregistration = () => {
-    dispatch(unregisterPlatform()).then(
+    dispatch(unregisterPlatform(registration?.tenant_xtmhub_registration_id ?? '')).then(
       () => {
         setIsDialogOpen(false);
         setShowConfirmation(false);

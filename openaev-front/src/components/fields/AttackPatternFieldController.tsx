@@ -94,7 +94,7 @@ const AttackPatternFieldController = ({ name, label, hideAddButton = false, requ
   );
 
   const openCreate = () => {
-    if (ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS)) {
+    if (ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS)) {
       handleOpenAttackPatternCreation();
     }
   };
@@ -128,7 +128,7 @@ const AttackPatternFieldController = ({ name, label, hideAddButton = false, requ
                       ...params.InputProps,
                       endAdornment: (
                         <>
-                          {ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS) && !hideAddButton && (
+                          {ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS) && !hideAddButton && (
                             <IconButton
                               style={{
                                 position: 'absolute',
@@ -164,7 +164,7 @@ const AttackPatternFieldController = ({ name, label, hideAddButton = false, requ
             )}
             classes={{ clearIndicator: classes.autoCompleteIndicator }}
           />
-          <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
+          <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
             <Dialog
               open={attackPatternCreation}
               onClose={handleCloseAttackPatternCreation}

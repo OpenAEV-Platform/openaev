@@ -2,7 +2,7 @@ package io.openaev.engine.model.securityplatform;
 
 import static io.openaev.engine.EsUtils.buildRestrictions;
 
-import io.openaev.database.raw.RawAsset;
+import io.openaev.database.raw.RawAssetIndexing;
 import io.openaev.database.repository.SecurityPlatformRepository;
 import io.openaev.engine.Handler;
 import java.time.Instant;
@@ -17,9 +17,10 @@ public class SecurityPlatformHandler implements Handler<EsSecurityPlatform> {
   private final SecurityPlatformRepository securityPlatformRepository;
 
   @Override
-  public List<EsSecurityPlatform> fetch(Instant from) {
+  public List<EsSecurityPlatform> fetch(Instant from, int limit) {
     Instant queryFrom = from != null ? from : Instant.ofEpochMilli(0);
-    List<RawAsset> forIndexing = securityPlatformRepository.findForIndexing(queryFrom);
+    List<RawAssetIndexing> forIndexing =
+        securityPlatformRepository.findForIndexing(queryFrom, limit);
     return forIndexing.stream()
         .map(
             securityPlatform -> {
@@ -30,6 +31,7 @@ public class SecurityPlatformHandler implements Handler<EsSecurityPlatform> {
               esSecurityPlatform.setBase_created_at(securityPlatform.getAsset_created_at());
               esSecurityPlatform.setBase_updated_at(securityPlatform.getAsset_updated_at());
               esSecurityPlatform.setBase_representative(securityPlatform.getAsset_name());
+              esSecurityPlatform.setBase_tenant_side(securityPlatform.getTenant_id());
               esSecurityPlatform.setBase_restrictions(
                   buildRestrictions(securityPlatform.getAsset_id()));
               // Specific

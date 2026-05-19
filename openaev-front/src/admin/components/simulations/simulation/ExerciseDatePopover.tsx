@@ -5,11 +5,11 @@ import { type FunctionComponent, useState } from 'react';
 import { updateExerciseStartDate } from '../../../../actions/Exercise';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
-import { type Exercise } from '../../../../utils/api-types';
+import { type Exercise, type SimulationDetails } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import ExerciseDateForm from './ExerciseDateForm';
 
-interface Props { exercise: Exercise }
+interface Props { exercise: SimulationDetails }
 
 const ExerciseDatePopover: FunctionComponent<Props> = ({ exercise }) => {
   const [openEdit, setOpenEdit] = useState(false);

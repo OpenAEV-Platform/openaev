@@ -44,7 +44,7 @@ public class InjectSpecification {
   public static Specification<Inject> fromScenarioOrSimulation(String scenarioOrSimulationId) {
     if (StringUtils.isBlank(scenarioOrSimulationId)) {
       // Return an empty specification
-      return Specification.where(null);
+      return Specification.unrestricted();
     }
     return fromSimulation(scenarioOrSimulationId).or(fromScenario(scenarioOrSimulationId));
   }
@@ -76,7 +76,8 @@ public class InjectSpecification {
   }
 
   public static Specification<Inject> forAtomicTesting() {
-    return Specification.where(isAtomicTesting())
+    return Specification.<Inject>unrestricted()
+        .and(isAtomicTesting())
         .and((root, query, cb) -> cb.equal(root.get("status").get("name"), ExecutionStatus.QUEUING))
         .and(
             (root, query, cb) ->
@@ -103,7 +104,8 @@ public class InjectSpecification {
   // -- CONTRACT --
 
   public static Specification<Inject> fromContract(@NotBlank final String contract) {
-    return (root, query, cb) -> cb.equal(root.get("injectorContract").get("id"), contract);
+    return (root, query, cb) ->
+        cb.equal(root.get("injectorContract").get("compositeId").get("id"), contract);
   }
 
   // -- TEST --
@@ -112,8 +114,12 @@ public class InjectSpecification {
       new HashSet<>(Arrays.asList("openaev_email", "openaev_ovh_sms"));
 
   public static Specification<Inject> testable() {
-    return (root, query, cb) ->
-        root.get("injectorContract").get("injector").get("type").in(VALID_TESTABLE_TYPES);
+    return (root, query, cb) -> {
+      if (query != null) {
+        query.distinct(true);
+      }
+      return root.join("injectorContract").join("injectors").get("type").in(VALID_TESTABLE_TYPES);
+    };
   }
 
   public static Specification<Inject> isAtomicTesting() {

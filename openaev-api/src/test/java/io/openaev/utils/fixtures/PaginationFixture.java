@@ -10,7 +10,7 @@ import org.springframework.data.domain.PageImpl;
 
 public class PaginationFixture {
 
-  public static SearchPaginationInput.SearchPaginationInputBuilder getDefault() {
+  public static SearchPaginationInput.SearchPaginationInputBuilder<?, ?> getDefault() {
     return SearchPaginationInput.builder().page(0).size(10);
   }
 
@@ -19,6 +19,10 @@ public class PaginationFixture {
     si.setPage(0);
     si.setSize(10);
     return si;
+  }
+
+  public static SearchPaginationInput simpleTextSearch(String textSearch) {
+    return getDefault().textSearch(textSearch).size(100).build();
   }
 
   public static SearchPaginationInput simpleSearchWithAndOperator(

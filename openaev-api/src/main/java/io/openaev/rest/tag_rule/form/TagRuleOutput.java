@@ -25,6 +25,9 @@ public class TagRuleOutput {
   @Schema(description = "Name of the tag associated with the tag rule")
   private String tagName;
 
+  // Fixes a bug due to a new version of jackson and lombok
+  // cf: https://github.com/projectlombok/lombok/issues/3978
+  @Getter(onMethod_ = @JsonProperty("tag_rule_protected"))
   @NotBlank(message = MANDATORY_MESSAGE)
   @JsonProperty("tag_rule_protected")
   @Schema(

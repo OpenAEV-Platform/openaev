@@ -11,6 +11,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import lombok.Data;
+import lombok.Getter;
 
 @Data
 public class ContractOutputElementInput {
@@ -18,6 +19,9 @@ public class ContractOutputElementInput {
   @JsonProperty("contract_output_element_id")
   private String id;
 
+  // Fixes a bug due to a new version of jackson and lombok
+  // cf: https://github.com/projectlombok/lombok/issues/3978
+  @Getter(onMethod_ = @JsonProperty("contract_output_element_is_finding"))
   @JsonProperty("contract_output_element_is_finding")
   @Schema(
       description =

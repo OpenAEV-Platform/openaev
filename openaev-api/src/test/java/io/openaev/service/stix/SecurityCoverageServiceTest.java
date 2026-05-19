@@ -24,6 +24,7 @@ import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.fixtures.files.AttackPatternFixture;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -557,6 +558,8 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
       "When all attack patterns are covered and half of expectations are successful, bundle is correct")
   public void whenAllAttackPatternsAreCoveredAndHalfOfAllExpectationsAreSuccessful_bundleIsCorrect()
       throws ParsingException, JsonProcessingException {
+    Instant simulationStartTime = Instant.parse("2024-09-23T14:09:43Z");
+    Instant nextSimulationStartTime = Instant.parse("2024-09-24T14:09:43Z");
     AttackPatternComposer.Composer ap1 =
         attackPatternComposer.forAttackPattern(
             AttackPatternFixture.createAttackPatternsWithExternalId("T1234"));
@@ -578,6 +581,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
     // create exercise cover all TTPs
     ExerciseComposer.Composer exerciseWrapper =
         createExerciseWrapperWithInjectsForDomainObjects(Map.of(ap1, true, ap2, true), Map.of());
+    exerciseWrapper.get().setStart(simulationStartTime);
     exerciseWrapper.get().setStatus(ExerciseStatus.FINISHED);
 
     // expectation results
@@ -629,10 +633,12 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
               exp.setScore(0.0);
             });
 
-    scenarioComposer
-        .forScenario(ScenarioFixture.createDefaultCrisisScenario())
-        .withSimulation(exerciseWrapper)
-        .persist();
+    ScenarioComposer.Composer scenarioWrapper =
+        scenarioComposer.forScenario(ScenarioFixture.createDefaultCrisisScenario());
+    scenarioWrapper.get().setRecurrence("P1D");
+    scenarioWrapper.get().setRecurrenceStart(simulationStartTime);
+    scenarioWrapper.get().setRecurrenceEnd(simulationStartTime.plus(30, ChronoUnit.DAYS));
+    scenarioWrapper.withSimulation(exerciseWrapper).persist();
 
     entityManager.flush();
     entityManager.refresh(exerciseWrapper.get());
@@ -652,7 +658,12 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
     List<Inject> generatedInjects = injectComposer.generatedItems;
 
     DomainObject expectedAssessmentWithCoverage =
-        getExpectedMainSecurityCoverage(generatedCoverage, generatedInjects);
+        addPropertiesToDomainObject(
+            getExpectedMainSecurityCoverage(generatedCoverage, generatedInjects),
+            Map.of(
+                ExtendedProperties.VALID_FROM.toString(), new Timestamp(simulationStartTime),
+                ExtendedProperties.LAST_RESULT.toString(), new Timestamp(simulationStartTime),
+                ExtendedProperties.VALID_TO.toString(), new Timestamp(nextSimulationStartTime)));
 
     // main assessment is completed with coverage
     assertThatJson(
@@ -689,6 +700,10 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                   expectedAssessmentWithCoverage.getId(),
                   RelationshipObject.Properties.TARGET_REF.toString(),
                   platformSdo.getId(),
+                  RelationshipObject.Properties.START_TIME.toString(),
+                  new Timestamp(simulationStartTime),
+                  RelationshipObject.Properties.STOP_TIME.toString(),
+                  new Timestamp(nextSimulationStartTime),
                   ExtendedProperties.COVERED.toString(),
                   new io.openaev.stix.types.Boolean(true),
                   ExtendedProperties.COVERAGE.toString(),
@@ -737,6 +752,10 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                   expectedAssessmentWithCoverage.getId(),
                   RelationshipObject.Properties.TARGET_REF.toString(),
                   new Identifier(stixRef.getStixRef()),
+                  RelationshipObject.Properties.START_TIME.toString(),
+                  new Timestamp(simulationStartTime),
+                  RelationshipObject.Properties.STOP_TIME.toString(),
+                  new Timestamp(nextSimulationStartTime),
                   ExtendedProperties.COVERED.toString(),
                   new io.openaev.stix.types.Boolean(true),
                   ExtendedProperties.COVERAGE.toString(),
@@ -745,11 +764,11 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                           new Complex<>(
                               new CoverageResult(
                                   "PREVENTION",
-                                  stixRef.getExternalRef().equals("T1234") ? 100.0 : 0.0)),
+                                  stixRef.getExternalRefs().contains("T1234") ? 100.0 : 0.0)),
                           new Complex<>(
                               new CoverageResult(
                                   "DETECTION",
-                                  stixRef.getExternalRef().equals("T1234") ? 100.0 : 0.0))))));
+                                  stixRef.getExternalRefs().contains("T1234") ? 100.0 : 0.0))))));
       assertThatJson(actualSro.toStix(mapper))
           .whenIgnoringPaths(CommonProperties.ID.toString())
           .isEqualTo(expectedSro.toStix(mapper));

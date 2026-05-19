@@ -261,7 +261,7 @@ class PlayerApiTest extends IntegrationTest {
   private PlayerInput buildPlayerInput() {
     Organization organization =
         organizationRepository.save(OrganizationFixture.createOrganization());
-    Tag tag = tagRepository.save(TagFixture.getTag());
+    Tag tag = tagRepository.save(TagFixture.getTagNoId());
     PlayerInput player = PlayerFixture.createPlayerInput();
     player.setOrganizationId(organization.getId());
     player.setTagIds(List.of(tag.getId()));

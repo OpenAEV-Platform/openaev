@@ -2,12 +2,12 @@ package io.openaev.utils.mapper;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
-import io.openaev.helper.InjectModelHelper;
+import io.openaev.healthcheck.dto.HealthCheck;
+import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.rest.atomic_testing.form.*;
 import io.openaev.rest.document.form.RelatedEntityOutput;
 import io.openaev.rest.inject.output.InjectOutput;
 import io.openaev.rest.inject.output.InjectSimple;
-import io.openaev.rest.payload.output.PayloadSimple;
 import io.openaev.utils.InjectExpectationResultUtils;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.TargetType;
@@ -30,8 +30,10 @@ import org.springframework.stereotype.Component;
 public class InjectMapper {
 
   private final InjectStatusMapper injectStatusMapper;
+  private final PayloadMapper payloadMapper;
   private final InjectExpectationMapper injectExpectationMapper;
   private final InjectUtils injectUtils;
+  private final HealthCheckUtils healthCheckUtils;
 
   /**
    * Converts an inject to a result overview output containing full execution details.
@@ -52,12 +54,21 @@ public class InjectMapper {
             .map(Document::getId)
             .toList();
 
+    // Use primary (top-level) expectations for score computation.
+    // When no primary expectations match (e.g. only agent-level expectations exist),
+    // fall back to all expectations to avoid losing scores in buildFallbackResults.
+    List<InjectExpectation> primaryExpectations = injectUtils.getPrimaryExpectations(inject);
+    List<InjectExpectation> expectationsForScoring =
+        primaryExpectations.isEmpty()
+            ? new ArrayList<>(inject.getExpectations())
+            : primaryExpectations;
+
     return InjectResultOverviewOutput.builder()
         .id(inject.getId())
         .title(inject.getTitle())
         .description(inject.getDescription())
         .content(inject.getContent())
-        .type(injectorContract.map(contract -> contract.getInjector().getType()).orElse(null))
+        .type(inject.getType())
         .tagIds(inject.getTags().stream().map(Tag::getId).toList())
         .documentIds(documentIds)
         .injectorContract(toInjectorContractOutput(injectorContract))
@@ -68,9 +79,9 @@ public class InjectMapper {
         .expectationResultByTypes(
             injectExpectationMapper.extractExpectationResults(
                 inject.getContent(),
-                injectUtils.getPrimaryExpectations(inject),
+                expectationsForScoring,
                 InjectExpectationResultUtils::getScores))
-        .isReady(inject.isReady())
+        .isReady(healthCheckUtils.runContentChecks(inject).isEmpty())
         .updatedAt(inject.getUpdatedAt())
         .build();
   }
@@ -124,24 +135,13 @@ public class InjectMapper {
                     .content(contract.getContent())
                     .convertedContent(contract.getConvertedContent())
                     .platforms(contract.getPlatforms())
-                    .payload(toPayloadSimple(Optional.ofNullable(contract.getPayload())))
-                    .labels(contract.getLabels())
-                    .build())
-        .orElse(null);
-  }
-
-  private PayloadSimple toPayloadSimple(Optional<Payload> payload) {
-    return payload
-        .map(
-            payloadToSimple ->
-                PayloadSimple.builder()
-                    .id(payloadToSimple.getId())
-                    .type(payloadToSimple.getType())
-                    .collectorType(payloadToSimple.getCollectorType())
                     .domains(
-                        payloadToSimple.getDomains().stream()
+                        contract.getDomains().stream()
                             .map(Domain::getId)
-                            .toArray(String[]::new))
+                            .collect(Collectors.toList()))
+                    .payload(
+                        payloadMapper.toPayloadSimple(Optional.ofNullable(contract.getPayload())))
+                    .labels(contract.getLabels())
                     .build())
         .orElse(null);
   }
@@ -226,9 +226,8 @@ public class InjectMapper {
    * @param title the inject title
    * @param enabled whether the inject is enabled
    * @param content the inject content as JSON
-   * @param allTeams whether all teams are targeted
-   * @param exerciseId the parent exercise ID
-   * @param scenarioId the parent scenario ID
+   * @param exercise the parent exercise ID
+   * @param scenario the parent scenario ID
    * @param dependsDuration the duration dependency
    * @param injectorContract the injector contract
    * @param tags array of tag IDs
@@ -236,7 +235,8 @@ public class InjectMapper {
    * @param assets array of asset IDs
    * @param assetGroups array of asset group IDs
    * @param injectType the inject type identifier
-   * @param injectDependency the inject dependency if any
+   * @param injectDependencies the inject dependencies if any
+   * @param healthchecks the inject healthchecks
    * @return the assembled inject output DTO
    */
   public InjectOutput toInjectOutput(
@@ -244,45 +244,57 @@ public class InjectMapper {
       String title,
       boolean enabled,
       ObjectNode content,
-      boolean allTeams,
-      String exerciseId,
-      String scenarioId,
+      Exercise exercise,
+      Scenario scenario,
+      List<InjectDependency> dependsOn,
       Long dependsDuration,
       InjectorContract injectorContract,
-      String[] tags,
-      String[] teams,
-      String[] assets,
-      String[] assetGroups,
+      Set<Tag> tags,
+      List<Team> teams,
+      List<Asset> assets,
+      List<AssetGroup> assetGroups,
       String injectType,
-      InjectDependency injectDependency) {
+      List<InjectDependency> injectDependencies,
+      List<HealthCheck> healthchecks) {
     InjectOutput injectOutput = new InjectOutput();
     injectOutput.setId(id);
     injectOutput.setTitle(title);
     injectOutput.setEnabled(enabled);
-    injectOutput.setExercise(exerciseId);
-    injectOutput.setScenario(scenarioId);
+    injectOutput.setContent(content);
+    injectOutput.setExercise(exercise);
+    injectOutput.setScenario(scenario);
+    injectOutput.setDependsOn(dependsOn);
     injectOutput.setDependsDuration(dependsDuration);
     injectOutput.setInjectorContract(injectorContract);
-    injectOutput.setTags(tags != null ? new HashSet<>(Arrays.asList(tags)) : new HashSet<>());
-    injectOutput.setTeams(
-        teams != null ? new ArrayList<>(Arrays.asList(teams)) : new ArrayList<>());
-    injectOutput.setAssets(
-        assets != null ? new ArrayList<>(Arrays.asList(assets)) : new ArrayList<>());
-    injectOutput.setAssetGroups(
-        assetGroups != null ? new ArrayList<>(Arrays.asList(assetGroups)) : new ArrayList<>());
-    injectOutput.setReady(
-        InjectModelHelper.isReady(
-            injectorContract,
-            content,
-            allTeams,
-            injectOutput.getTeams(),
-            injectOutput.getAssets(),
-            injectOutput.getAssetGroups()));
+    injectOutput.setTags(tags);
+    injectOutput.setTeams(teams);
+    injectOutput.setAssets(assets);
+    injectOutput.setAssetGroups(assetGroups);
     injectOutput.setInjectType(injectType);
-    injectOutput.setContent(content);
-    if (injectDependency != null) {
-      injectOutput.setDependsOn(List.of(injectDependency));
-    }
+    injectOutput.setHealthchecks(healthchecks);
+    injectOutput.setDependsOn(injectDependencies);
     return injectOutput;
+  }
+
+  public InjectOutput toInjectOutput(Inject inject, List<HealthCheck> healthchecks) {
+    InjectorContract injectorContract = inject.getInjectorContract().orElse(null);
+    String type = inject.getType();
+    return toInjectOutput(
+        inject.getId(),
+        inject.getTitle(),
+        inject.isEnabled(),
+        inject.getContent(),
+        inject.getExercise(),
+        inject.getScenario(),
+        inject.getDependsOn(),
+        inject.getDependsDuration(),
+        injectorContract,
+        inject.getTags(),
+        inject.getTeams(),
+        inject.getAssets(),
+        inject.getAssetGroups(),
+        type,
+        inject.getDependsOn(),
+        healthchecks);
   }
 }

@@ -5,20 +5,24 @@ import NotFound from './components/NotFound';
 import RedirectManager from './components/RedirectManager';
 import Root from './root';
 import { store } from './store';
-import { APP_BASE_PATH } from './utils/Environment';
+import { computeTenantBasename } from './utils/url-helper';
 
-const App = () => (
-  <Provider store={store}>
-    <BrowserRouter basename={APP_BASE_PATH}>
-      <RedirectManager>
-        <Routes>
-          <Route path="/*" element={<Root />} />
-          {/* Not found */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </RedirectManager>
-    </BrowserRouter>
-  </Provider>
-);
+const basename = computeTenantBasename();
+
+const App = () => {
+  return (
+    <Provider store={store}>
+      <BrowserRouter key={basename} basename={basename}>
+        <RedirectManager>
+          <Routes>
+            <Route path="/*" element={<Root />} />
+            {/* Not found */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </RedirectManager>
+      </BrowserRouter>
+    </Provider>
+  );
+};
 
 export default App;

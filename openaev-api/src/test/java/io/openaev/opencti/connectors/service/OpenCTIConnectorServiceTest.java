@@ -20,16 +20,16 @@ import io.openaev.utils.fixtures.opencti.ResponseFixture;
 import io.openaev.utils.fixtures.opencti.TestBeanConnector;
 import io.openaev.utils.fixtures.opencti.TestBeanConnectorShouldRegister;
 import io.openaev.utils.mockConfig.WithMockSecurityCoverageConnectorConfig;
+import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
-import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
@@ -39,7 +39,7 @@ import org.springframework.transaction.annotation.Transactional;
     token = "68949a7b-c1c2-4649-b3de-7db804ba02bb")
 public class OpenCTIConnectorServiceTest extends IntegrationTest {
 
-  @MockBean private OpenCTIClient mockOpenCTIClient;
+  @MockitoBean private OpenCTIClient mockOpenCTIClient;
   @Autowired OpenCTIConnectorService openCTIConnectorService;
 
   private Optional<ConnectorBase> getInstanceOfTestBeanConnector() {

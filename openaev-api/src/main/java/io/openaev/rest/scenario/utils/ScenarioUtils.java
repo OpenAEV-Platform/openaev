@@ -7,9 +7,9 @@ import io.openaev.database.model.Filters;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.specification.ScenarioSpecification;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.validation.constraints.NotNull;
 import java.util.Optional;
 import java.util.function.UnaryOperator;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.data.jpa.domain.Specification;
 
 public class ScenarioUtils {

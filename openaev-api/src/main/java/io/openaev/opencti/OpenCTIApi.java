@@ -1,7 +1,7 @@
 package io.openaev.opencti;
 
+import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.aop.RBAC;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.exercise.form.ExerciseSimple;
@@ -41,7 +41,7 @@ public class OpenCTIApi {
       })
   @LogExecutionTime
   @GetMapping(OPENCTI_URI + "/exercises/latest/{externalReferenceId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#externalReferenceId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)

@@ -6,10 +6,10 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.helper.MultiIdSetSerializer;
 import io.openaev.helper.MultiModelSerializer;
-import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -20,6 +20,7 @@ import java.util.*;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
@@ -27,8 +28,9 @@ import org.hibernate.annotations.UuidGenerator;
 @Setter
 @Entity
 @Table(name = "challenges")
-@EntityListeners(ModelBaseListener.class)
-public class Challenge implements Base {
+@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+public class Challenge implements TenantBase {
 
   @Id
   @Column(name = "challenge_id")
@@ -78,7 +80,7 @@ public class Challenge implements Base {
   @NotEmpty
   private List<ChallengeFlag> flags = new ArrayList<>();
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "challenges_tags",
@@ -88,7 +90,7 @@ public class Challenge implements Base {
   @JsonProperty("challenge_tags")
   private Set<Tag> tags = new HashSet<>();
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "challenges_documents",
@@ -97,6 +99,11 @@ public class Challenge implements Base {
   @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("challenge_documents")
   private List<Document> documents = new ArrayList<>();
+
+  @ManyToOne
+  @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
+  @JsonIgnore
+  private Tenant tenant;
 
   @Transient private List<String> exerciseIds = new ArrayList<>();
 

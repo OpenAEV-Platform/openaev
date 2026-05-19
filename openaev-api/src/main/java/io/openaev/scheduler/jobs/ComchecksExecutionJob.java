@@ -20,7 +20,6 @@ import io.openaev.execution.ExecutionContext;
 import io.openaev.execution.ExecutionContextService;
 import io.openaev.injectors.email.EmailContract;
 import io.openaev.integration.ManagerFactory;
-import jakarta.annotation.Resource;
 import jakarta.transaction.Transactional;
 import java.time.Instant;
 import java.util.List;
@@ -39,7 +38,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @RequiredArgsConstructor
 public class ComchecksExecutionJob implements Job {
-  @Resource private OpenAEVConfig openAEVConfig;
+  private final OpenAEVConfig openAEVConfig;
   private final ApplicationContext context;
   private final ComcheckRepository comcheckRepository;
   private final ComcheckStatusRepository comcheckStatusRepository;
@@ -49,12 +48,14 @@ public class ComchecksExecutionJob implements Job {
 
   private final ManagerFactory managerFactory;
 
-  @Resource private ObjectMapper mapper;
+  private final ObjectMapper mapper;
 
   private Inject buildComcheckEmail(Comcheck comCheck) {
     Inject emailInject = new Inject();
-    emailInject.setInjectorContract(
-        injectorContractRepository.findById(EmailContract.EMAIL_DEFAULT).orElseThrow());
+    InjectorContract contract =
+        injectorContractRepository.findById(EmailContract.EMAIL_DEFAULT).orElseThrow();
+    emailInject.setInjectorContract(contract);
+    emailInject.setInjector(contract.getFirstInjector());
     emailInject.setExercise(comCheck.getExercise());
     ObjectNode content = mapper.createObjectNode();
     content.set("subject", mapper.convertValue(comCheck.getSubject(), JsonNode.class));

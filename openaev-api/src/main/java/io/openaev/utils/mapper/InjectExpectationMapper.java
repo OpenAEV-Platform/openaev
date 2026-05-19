@@ -12,7 +12,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectExpectation;
-import io.openaev.database.raw.RawInjectExpectation;
+import io.openaev.database.raw.RawInjectExpectationIndexing;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.expectation.ExpectationType;
 import io.openaev.rest.inject.form.InjectExpectationResultsByAttackPattern;
@@ -122,6 +122,12 @@ public class InjectExpectationMapper {
             injects.stream()
                 .map(
                     inject -> {
+                      // Use primary expectations, fall back to all expectations when primary is
+                      // empty (e.g. only agent-level expectations exist) to compute real scores
+                      List<InjectExpectation> primary = injectUtils.getPrimaryExpectations(inject);
+                      List<InjectExpectation> expectations =
+                          primary.isEmpty() ? new ArrayList<>(inject.getExpectations()) : primary;
+
                       InjectExpectationResultsByAttackPattern.InjectExpectationResultsByType
                           result =
                               new InjectExpectationResultsByAttackPattern
@@ -131,7 +137,7 @@ public class InjectExpectationMapper {
                       result.setResults(
                           extractExpectationResults(
                               inject.getContent(),
-                              injectUtils.getPrimaryExpectations(inject),
+                              expectations,
                               InjectExpectationResultUtils::getScores));
                       return result;
                     })
@@ -148,7 +154,7 @@ public class InjectExpectationMapper {
    * @return List of ExpectationResultsByType
    */
   public List<ExpectationResultsByType> extractExpectationResultByTypesFromRaw(
-      Set<String> injectIds, List<RawInjectExpectation> expectations) {
+      Set<String> injectIds, List<RawInjectExpectationIndexing> expectations) {
 
     if (expectations != null && !expectations.isEmpty()) {
       return getExpectationResultByTypes(

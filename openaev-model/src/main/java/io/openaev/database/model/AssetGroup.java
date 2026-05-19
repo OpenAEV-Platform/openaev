@@ -10,10 +10,10 @@ import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.openaev.annotation.ControlledUuidGeneration;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.model.Filters.FilterGroup;
 import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.helper.MultiIdSetSerializer;
-import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -23,19 +23,21 @@ import java.util.*;
 import lombok.Data;
 import lombok.Getter;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UpdateTimestamp;
 
 @Data
 @Entity
 @Table(name = "asset_groups")
-@EntityListeners(ModelBaseListener.class)
+@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 @NamedEntityGraphs({
   @NamedEntityGraph(
       name = "AssetGroup.tags-assets",
       attributeNodes = {@NamedAttributeNode("tags"), @NamedAttributeNode("assets")})
 })
-public class AssetGroup implements Base {
+public class AssetGroup implements TenantBase {
   @Id
   @ControlledUuidGeneration
   @Column(name = "asset_group_id")
@@ -58,6 +60,11 @@ public class AssetGroup implements Base {
   @JsonProperty("asset_group_external_reference")
   private String externalReference;
 
+  @ManyToOne
+  @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
+  @JsonIgnore
+  private Tenant tenant;
+
   // -- ASSET --
 
   @Type(JsonType.class)
@@ -66,7 +73,7 @@ public class AssetGroup implements Base {
   @NotNull
   private FilterGroup dynamicFilter = FilterGroup.defaultFilterGroup();
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "asset_groups_assets",
@@ -78,19 +85,19 @@ public class AssetGroup implements Base {
 
   @Getter(NONE)
   @Transient
-  @JsonProperty("asset_group_dynamic_assets")
   private List<Asset> dynamicAssets = new ArrayList<>();
 
   // Getter is Mandatory when we use @Transient annotation
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @JsonSerialize(using = MultiIdListSerializer.class)
+  @JsonProperty("asset_group_dynamic_assets")
   public List<Asset> getDynamicAssets() {
     return this.dynamicAssets;
   }
 
   // -- TAG --
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "asset_groups_tags",
@@ -103,7 +110,7 @@ public class AssetGroup implements Base {
 
   // -- INJECT --
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "injects_asset_groups",

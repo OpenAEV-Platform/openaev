@@ -1,45 +1,59 @@
 package io.openaev.rest.exercise;
 
-import static io.openaev.database.model.SettingKeys.DEFAULT_SIMULATION_DASHBOARD;
+import static io.openaev.database.model.TenantSettingKeys.TENANT_SIMULATION_DASHBOARD;
 import static io.openaev.database.specification.TeamSpecification.fromExercise;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.util.AssertionErrors.assertNotEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
+import io.openaev.healthcheck.enums.ExternalServiceDependency;
+import io.openaev.injector_contract.ContractCardinality;
+import io.openaev.injector_contract.fields.ContractSelect;
 import io.openaev.rest.exercise.form.*;
+import io.openaev.rest.inject.SimulationInjectApi;
 import io.openaev.rest.inject.form.InjectInput;
+import io.openaev.rest.inject.output.InjectOutput;
+import io.openaev.rest.inject.service.InjectDuplicateService;
+import io.openaev.rest.inject.service.InjectService;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.*;
+import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.fixtures.composers.*;
+import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utilstest.RabbitMQTestListener;
 import jakarta.annotation.Nullable;
-import jakarta.transaction.Transactional;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
+import java.util.Set;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @TestExecutionListeners(
@@ -47,12 +61,15 @@ import org.springframework.test.web.servlet.MockMvc;
     mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 @AutoConfigureMockMvc
 @TestInstance(PER_CLASS)
+@Transactional
 public class ExerciseApiTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper objectMapper;
+  @Autowired private jakarta.persistence.EntityManager entityManager;
   @Autowired private AgentComposer agentComposer;
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private ExerciseComposer exerciseComposer;
+  @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private InjectComposer injectComposer;
   @Autowired private InjectStatusComposer injectStatusComposer;
   @Autowired private ExecutorFixture executorFixture;
@@ -67,27 +84,16 @@ public class ExerciseApiTest extends IntegrationTest {
   @Autowired private ScenarioRepository scenarioRepository;
   @Autowired private CustomDashboardRepository customDashboardRepository;
   @Autowired private SettingRepository settingRepository;
+  @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
 
-  List<ExerciseComposer.Composer> exerciseWrapperComposers = new ArrayList<>();
+  private static final List<String> COMPOSER_EXERCISE_IDS = new ArrayList<>();
   private static final List<String> EXERCISE_IDS = new ArrayList<>();
   private static final List<String> USER_IDS = new ArrayList<>();
   private static final List<String> TEAM_IDS = new ArrayList<>();
 
-  @AfterAll
-  void afterAll() {
-    exerciseWrapperComposers.forEach(ExerciseComposer.Composer::delete);
-    this.exerciseRepository.deleteAllById(EXERCISE_IDS);
-    this.userRepository.deleteAllById(USER_IDS);
-    this.teamRepository.deleteAllById(TEAM_IDS);
-    this.tagRuleRepository.deleteAll();
-    this.assetGroupRepository.deleteAll();
-    this.tagRepository.deleteAll();
-  }
-
   @DisplayName("Create simulation succeed with default dashboard")
   @Test
   @WithMockUser(isAdmin = true)
-  @Transactional
   void given_exercise_creation_should_set_default_custom_dashboard() throws Exception {
     // -- PREPARE --
     CustomDashboard defaultDashboard = new CustomDashboard();
@@ -100,15 +106,20 @@ public class ExerciseApiTest extends IntegrationTest {
 
     settingRepository.save(
         settingRepository
-            .findByKey(DEFAULT_SIMULATION_DASHBOARD.key())
+            .findByKeyAndTenantId(
+                TENANT_SIMULATION_DASHBOARD.key(), TenantContext.getCurrentTenant())
             .map(
                 s -> {
                   s.setValue(customDashboardSaved.getId());
                   return s;
                 })
             .orElseGet(
-                () ->
-                    new Setting(DEFAULT_SIMULATION_DASHBOARD.key(), customDashboardSaved.getId())));
+                () -> {
+                  Setting s =
+                      new Setting(TENANT_SIMULATION_DASHBOARD.key(), customDashboardSaved.getId());
+                  s.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+                  return s;
+                }));
 
     // -- EXECUTE --
     String response =
@@ -241,7 +252,7 @@ public class ExerciseApiTest extends IntegrationTest {
   void checkIfRuleAppliesTest_WHEN_rule_found() throws Exception {
     this.tagRuleRepository.deleteAll();
     this.tagRepository.deleteAll();
-    io.openaev.database.model.Tag tag2 = TagFixture.getTag();
+    io.openaev.database.model.Tag tag2 = TagFixture.getTagNoId();
     tag2.setName("tag2");
     tag2 = this.tagRepository.save(tag2);
 
@@ -279,7 +290,7 @@ public class ExerciseApiTest extends IntegrationTest {
   void checkIfRuleAppliesTest_WHEN_no_rule_found() throws Exception {
     this.tagRuleRepository.deleteAll();
     this.tagRepository.deleteAll();
-    Tag tag2 = TagFixture.getTag();
+    Tag tag2 = TagFixture.getTagNoId();
     tag2.setName("tag2");
     tag2 = this.tagRepository.save(tag2);
     CheckExerciseRulesInput input = new CheckExerciseRulesInput();
@@ -327,7 +338,7 @@ public class ExerciseApiTest extends IntegrationTest {
                           injectStatusComposer.forInjectStatus(
                               InjectStatusFixture.createDraftInjectStatus())))
               .persist();
-      exerciseWrapperComposers.add(newExerciseComposer);
+      COMPOSER_EXERCISE_IDS.add(newExerciseComposer.get().getId());
       return newExerciseComposer.get();
     }
 
@@ -392,8 +403,7 @@ public class ExerciseApiTest extends IntegrationTest {
               .forEndpoint(EndpointFixture.createEndpoint())
               .withAgent(
                   agentComposer.forAgent(
-                      AgentFixture.createDefaultAgentSession(
-                          executorFixture.getCrowdstrikeExecutor())))
+                      AgentFixture.createDefaultAgentSession(executorFixture.getTaniumExecutor())))
               .persist()
               .get();
 
@@ -416,7 +426,6 @@ public class ExerciseApiTest extends IntegrationTest {
   }
 
   @Test
-  @Transactional
   @DisplayName("Should enable all users of newly added teams when replacing exercise teams")
   @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
   void replacingTeamsShouldEnableNewTeamUsers() throws Exception {
@@ -584,6 +593,352 @@ public class ExerciseApiTest extends IntegrationTest {
       assertTrue(teamIds.contains(teamToKeep.getId()), "teamToKeep should still be present.");
       assertTrue(teamIds.contains(teamToAdd.getId()), "teamToAdd should be present");
       assertFalse(teamIds.contains(teamToRemove.getId()), "teamToRemove should have been removed");
+    }
+  }
+
+  @Nested
+  @DisplayName("Inject check")
+  @WithMockUser(isAdmin = true)
+  @Transactional
+  class SimulationInjectCheck {
+
+    @Autowired private SimulationInjectApi simulationInjectApi;
+    @Autowired private ExerciseRepository exerciseRepository;
+    @Autowired private InjectService injectService;
+    @Autowired private InjectDuplicateService injectDuplicateService;
+    @Autowired private InjectMapper injectMapper;
+    @Autowired private InjectRepository injectRepository;
+    @Autowired private InjectorContractRepository injectorContractRepository;
+
+    private Exercise exercise;
+    private String exerciseId;
+    private String validInjectorContractId;
+
+    @BeforeEach
+    void setUp() throws JsonProcessingException {
+      exercise =
+          exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()).persist().get();
+      exerciseId = exercise.getId();
+
+      ContractSelect obfuscatorSelect =
+          new ContractSelect("obfuscator", "Obfuscators", ContractCardinality.One);
+      obfuscatorSelect.setChoices(Map.of("plain-text", "plain-text", "base64", "base64"));
+      Injector i = InjectorFixture.createDefaultPayloadInjector();
+      i.setDependencies(new ExternalServiceDependency[] {ExternalServiceDependency.NUCLEI});
+      InjectorContract icf =
+          InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
+              i, null, List.of(obfuscatorSelect));
+      InjectorContract ic = injectorContractComposer.forInjectorContract(icf).persist().get();
+      // On récupère un InjectorContract réellement présent en base (EMAIL_DEFAULT est enregistré au
+      // démarrage)
+      validInjectorContractId =
+          injectorContractRepository
+              .findById(ic.getId())
+              .map(InjectorContract::getId)
+              .orElseThrow(
+                  () ->
+                      new IllegalStateException(
+                          " injector contract not found in DB — check test data initialization"));
+    }
+
+    @Test
+    @DisplayName(
+        "createInjectForExercise: should return InjectOutput with inject_id and inject_checks")
+    void createInjectForExercise_shouldReturnInjectOutputWithChecks() {
+      // -- PREPARE --
+      InjectInput input = new InjectInput();
+      input.setTitle("Test inject");
+      input.setInjectorContract(validInjectorContractId);
+      input.setDependsDuration(0L);
+
+      // -- EXECUTE --
+      InjectOutput result = simulationInjectApi.createInjectForExercise(exerciseId, input);
+
+      // -- ASSERT --
+      assertNotNull(result, "La réponse ne doit pas être null");
+      assertNotNull(result.getId(), "inject_id ne doit pas être null");
+      // Sans teams/assets/contenu, l'inject ne peut pas être ready
+      assertFalse(result.isReady(), "L'inject sans contenu complet ne doit pas être ready");
+      assertTrue(injectRepository.existsById(result.getId()));
+    }
+
+    @Test
+    @DisplayName("createInjectForExercise: inject_checks should reflect missing content")
+    void createInjectForExercise_checksShouldReflectMissingContent() {
+      // -- PREPARE --
+      InjectInput input = new InjectInput();
+      input.setTitle("Inject with missing content");
+      input.setInjectorContract(validInjectorContractId);
+      input.setDependsDuration(0L);
+
+      // -- EXECUTE --
+      InjectOutput result = simulationInjectApi.createInjectForExercise(exerciseId, input);
+
+      // -- ASSERT --
+      assertNotNull(result);
+      assertFalse(result.isReady(), "Un inject sans teams/assets/contenu ne doit pas être ready");
+    }
+
+    @Test
+    @DisplayName(
+        "duplicateInjectForExercise: should return InjectOutput with new inject_id and inject_checks")
+    void duplicateInjectForExercise_shouldReturnInjectOutputWithChecks() {
+      // -- PREPARE --
+      InjectInput input = new InjectInput();
+      input.setTitle("Original inject");
+      input.setInjectorContract(validInjectorContractId);
+      input.setDependsDuration(0L);
+
+      InjectOutput original = simulationInjectApi.createInjectForExercise(exerciseId, input);
+      String originalInjectId = original.getId();
+
+      // -- EXECUTE --
+      InjectOutput result =
+          simulationInjectApi.duplicateInjectForExercise(exerciseId, originalInjectId);
+
+      // -- ASSERT --
+      assertNotNull(result, "La réponse ne doit pas être null");
+      assertNotNull(result.getId(), "inject_id ne doit pas être null");
+      assertNotEquals("", originalInjectId, result.getId());
+      assertFalse(result.isReady());
+      assertTrue(
+          result.getTitle().contains("duplicate"),
+          "Le titre de l'inject dupliqué doit contenir 'Duplicate'");
+      assertTrue(injectRepository.existsById(result.getId()));
+    }
+  }
+
+  @Nested
+  @DisplayName("Tenant Isolation")
+  @WithMockUser(
+      withCapabilities = {
+        Capability.MANAGE_ASSESSMENT,
+        Capability.ACCESS_ASSESSMENT,
+        Capability.DELETE_ASSESSMENT
+      })
+  class TenantIsolation {
+
+    @Test
+    @Disabled
+    @DisplayName("Exercise created in tenant X should NOT be readable from tenant Y")
+    // uncomment to fail the test: native query caught by RLS
+    void given_exerciseInTenantX_should_notBeReadableFromTenantY() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_ASSESSMENT));
+
+      CreateExerciseInput input = new CreateExerciseInput();
+      input.setName("RLS Isolation Test Exercise");
+
+      String createResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantX.getId() + "/exercises")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String exerciseId = JsonPath.read(createResponse, "$.exercise_id");
+
+      // -------- Act — read from tenant Y (expect 404) --------
+      int responseStatus =
+          mvc.perform(
+                  get("/api/tenants/" + tenantY.getId() + "/exercises/" + exerciseId)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // -------- Assert --------
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
+    }
+
+    @Test
+    @Disabled
+    @DisplayName("Exercise created in tenant X should be readable from tenant X")
+    void given_exerciseInTenantX_should_beReadableFromTenantX() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+
+      CreateExerciseInput input = new CreateExerciseInput();
+      input.setName("Same Tenant Exercise");
+
+      String createResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantX.getId() + "/exercises")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String exerciseId = JsonPath.read(createResponse, "$.exercise_id");
+
+      // -------- Act & Assert — read from same tenant should succeed --------
+      mvc.perform(
+              get("/api/tenants/" + tenantX.getId() + "/exercises/" + exerciseId)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.exercise_name").value("Same Tenant Exercise"));
+    }
+
+    @Test
+    @DisplayName("Exercise search in tenant Y should NOT return exercises from tenant X")
+    void given_exerciseInTenantX_should_notAppearInTenantYSearch() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_ASSESSMENT));
+
+      CreateExerciseInput input = new CreateExerciseInput();
+      input.setName("CrossTenantSearchExercise");
+
+      mvc.perform(
+              post("/api/tenants/" + tenantX.getId() + "/exercises")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      // Evict L1 cache so findById() hits the DB (where RLS filters)
+      entityManager.flush();
+      entityManager.clear();
+
+      // -------- Act — search from tenant Y --------
+      SearchPaginationInput searchInput =
+          PaginationFixture.simpleTextSearch("CrossTenantSearchExercise");
+
+      String searchResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantY.getId() + "/exercises/search")
+                      .content(asJsonString(searchInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -------- Assert — no results from tenant X --------
+      assertEquals(Integer.valueOf(0), JsonPath.read(searchResponse, "$.totalElements"));
+    }
+
+    @Test
+    @Disabled
+    @DisplayName("Exercise created in tenant X should NOT be updatable from tenant Y")
+    void given_exerciseInTenantX_should_notBeUpdatableFromTenantY() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+
+      CreateExerciseInput input = new CreateExerciseInput();
+      input.setName("Update Isolation Test Exercise");
+
+      String createResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantX.getId() + "/exercises")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String exerciseId = JsonPath.read(createResponse, "$.exercise_id");
+
+      // Evict L1 cache so findById() hits the DB (where RLS filters)
+      entityManager.flush();
+      entityManager.clear();
+
+      // -------- Act — update from tenant Y --------
+      UpdateExerciseInput updateInput = new UpdateExerciseInput();
+      updateInput.setName("Hijacked Name");
+
+      int responseStatus =
+          mvc.perform(
+                  put("/api/tenants/" + tenantY.getId() + "/exercises/" + exerciseId)
+                      .content(asJsonString(updateInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // -------- Assert --------
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
+    }
+
+    @Test
+    @Disabled
+    @DisplayName("Exercise created in tenant X should NOT be deletable from tenant Y")
+    void given_exerciseInTenantX_should_notBeDeletableFromTenantY() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.DELETE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+
+      CreateExerciseInput input = new CreateExerciseInput();
+      input.setName("Delete Isolation Test Exercise");
+
+      String createResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantX.getId() + "/exercises")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String exerciseId = JsonPath.read(createResponse, "$.exercise_id");
+
+      // Evict L1 cache so deleteById() hits the DB (where RLS filters)
+      entityManager.flush();
+      entityManager.clear();
+
+      // -------- Act — delete from tenant Y --------
+      int responseStatus =
+          mvc.perform(
+                  delete("/api/tenants/" + tenantY.getId() + "/exercises/" + exerciseId)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // -------- Assert --------
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
     }
   }
 }

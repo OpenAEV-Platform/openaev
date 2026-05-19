@@ -1,5 +1,6 @@
 import { fetchEventSource } from '@microsoft/fetch-event-source';
 
+import { ensureCsrf, getCsrfToken } from '../network';
 import { buildUri } from '../utils/Action';
 
 /**
@@ -10,14 +11,18 @@ import { buildUri } from '../utils/Action';
  */
 export const askAI = async (uri, input, eventCallback) => {
   let aiContent = '';
+  await ensureCsrf();
+  const csrfToken = getCsrfToken();
+  const headers = {
+    'Accept': 'text/event-stream',
+    'Content-Type': 'application/json',
+    ...(csrfToken ? { 'X-XSRF-TOKEN': csrfToken } : {}),
+  };
   return new Promise((resolve, reject) => {
     fetchEventSource(buildUri(`/api${uri}`), {
       method: 'POST',
       body: JSON.stringify(input),
-      headers: {
-        'Accept': 'text/event-stream',
-        'Content-Type': 'application/json',
-      },
+      headers,
       onmessage(event) {
         const data = JSON.parse(event.data);
         aiContent += data.chunk_content;

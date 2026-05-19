@@ -1,11 +1,12 @@
 package io.openaev.rest.exercise.form;
 
 import static io.openaev.config.AppConfig.*;
+import static io.openaev.helper.MailHelper.*;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.annotation.Nullable;
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.util.ArrayList;
 import java.util.List;
@@ -47,9 +48,10 @@ public class ExerciseInput {
   @JsonProperty("exercise_tags")
   private List<String> tagIds = new ArrayList<>();
 
-  @Email(message = EMAIL_FORMAT)
-  @JsonProperty("exercise_mail_from")
-  private String from;
+  @Pattern(regexp = FROM_NAME_PATTERN, message = FROM_NAME_PATTERN_MESSAGE)
+  @Size(max = FROM_NAME_MAX_LENGTH, message = FROM_NAME_SIZE_MESSAGE)
+  @JsonProperty("exercise_mail_from_name")
+  private String fromName;
 
   @JsonProperty("exercise_mails_reply_to")
   private List<String> replyTos;
@@ -59,4 +61,8 @@ public class ExerciseInput {
 
   @JsonProperty("exercise_message_footer")
   private String footer;
+
+  /** Indicate if this simulation will use the chaining engine or the legacy one */
+  @JsonProperty("exercise_is_chaining")
+  private Boolean isChaining = false;
 }

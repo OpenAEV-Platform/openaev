@@ -2,13 +2,14 @@ package io.openaev.rest.document;
 
 import static io.openaev.config.OpenAEVAnonymous.ANONYMOUS;
 import static io.openaev.config.SessionHelper.currentUser;
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.utils.mapper.DocumentMapper.toDocumentRelationsOutput;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
+import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.aop.RBAC;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
 import io.openaev.database.raw.RawPaginationDocument;
@@ -56,6 +57,24 @@ import org.springframework.web.multipart.MultipartFile;
 public class DocumentApi extends RestBehavior {
 
   public static final String DOCUMENT_API = "/api/documents";
+  private static final String TENANT_DOCUMENT_API = TENANT_PREFIX + "/documents";
+  private static final String IMAGES_API = "/api/images";
+  private static final String TENANT_IMAGES_API = TENANT_PREFIX + "/images";
+  private static final String INJECTOR_IMAGES_API = IMAGES_API + "/injectors";
+  private static final String TENANT_INJECTOR_IMAGES_API = TENANT_IMAGES_API + "/injectors";
+  private static final String COLLECTOR_IMAGES_API = IMAGES_API + "/collectors";
+  private static final String TENANT_COLLECTOR_IMAGES_API = TENANT_IMAGES_API + "/collectors";
+  private static final String SECURITY_PLATFORM_IMAGES_API = IMAGES_API + "/security_platforms";
+  private static final String TENANT_SECURITY_PLATFORM_IMAGES_API =
+      TENANT_IMAGES_API + "/security_platforms";
+  private static final String CHANNEL_IMAGES_API = IMAGES_API + "/channels";
+  private static final String TENANT_CHANNEL_IMAGES_API = TENANT_IMAGES_API + "/channels";
+  private static final String EXECUTOR_IMAGES_API = IMAGES_API + "/executors";
+  private static final String TENANT_EXECUTOR_IMAGES_API = TENANT_IMAGES_API + "/executors";
+  private static final String PLAYER_DOCUMENTS_API = "/api/player/{exerciseOrScenarioId}/documents";
+  private static final String TENANT_PLAYER_DOCUMENTS_API =
+      TENANT_PREFIX + "/player/{exerciseOrScenarioId}/documents";
+
   private final TagRepository tagRepository;
   private final DocumentRepository documentRepository;
   private final ExerciseRepository exerciseRepository;
@@ -70,8 +89,8 @@ public class DocumentApi extends RestBehavior {
   private final InjectService injectService;
   private final ChannelService channelService;
 
-  @PostMapping(DOCUMENT_API)
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.DOCUMENT)
+  @PostMapping({DOCUMENT_API, TENANT_DOCUMENT_API})
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.DOCUMENT)
   @Transactional(rollbackOn = Exception.class)
   public Document uploadDocument(
       @Valid @RequestPart("input") DocumentCreateInput input,
@@ -103,7 +122,7 @@ public class DocumentApi extends RestBehavior {
       List<Tag> inputTags = fromIterable(tagRepository.findAllById(input.getTagIds()));
       tags.addAll(inputTags);
       document.setTags(tags);
-      return documentRepository.save(document);
+      return documentService.save(document);
     } else {
       fileService.uploadFile(fileTarget, file);
       Document document = new Document();
@@ -120,105 +139,33 @@ public class DocumentApi extends RestBehavior {
       }
       document.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
       document.setType(file.getContentType());
-      return documentRepository.save(document);
+      return documentService.save(document);
     }
   }
 
-  @PostMapping(DOCUMENT_API + "/upsert")
-  @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.DOCUMENT)
+  @PostMapping({DOCUMENT_API + "/upsert", TENANT_DOCUMENT_API + "/upsert"})
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.DOCUMENT)
   @Transactional(rollbackOn = Exception.class)
   public Document upsertDocument(
       @Valid @RequestPart("input") DocumentCreateInput input,
       @RequestPart("file") MultipartFile file)
       throws Exception {
-    String extension = FilenameUtils.getExtension(file.getOriginalFilename());
-    String fileTarget = DigestUtils.md5Hex(file.getInputStream()) + "." + extension;
-    Optional<Document> targetDocument = documentRepository.findByTarget(fileTarget);
-    // Document already exists by hash
-    if (targetDocument.isPresent()) {
-      Document document = targetDocument.get();
-      // Compute exercises
-      if (!document.getExercises().isEmpty()) {
-        Set<Exercise> exercises = new HashSet<>(document.getExercises());
-        List<Exercise> inputExercises =
-            fromIterable(exerciseRepository.findAllById(input.getExerciseIds()));
-        exercises.addAll(inputExercises);
-        document.setExercises(exercises);
-      }
-      // Compute scenarios
-      if (!document.getScenarios().isEmpty()) {
-        Set<Scenario> scenarios = new HashSet<>(document.getScenarios());
-        List<Scenario> inputScenarios =
-            fromIterable(scenarioRepository.findAllById(input.getScenarioIds()));
-        scenarios.addAll(inputScenarios);
-        document.setScenarios(scenarios);
-      }
-      // Compute tags
-      Set<Tag> tags = new HashSet<>(document.getTags());
-      List<Tag> inputTags = fromIterable(tagRepository.findAllById(input.getTagIds()));
-      tags.addAll(inputTags);
-      document.setTags(tags);
-      return documentRepository.save(document);
-    } else {
-      Optional<Document> existingDocument =
-          documentRepository.findByName(file.getOriginalFilename());
-      if (existingDocument.isPresent()) {
-        Document document = existingDocument.get();
-        // Update doc
-        fileService.uploadFile(fileTarget, file);
-        document.setDescription(input.getDescription());
-
-        // Compute exercises
-        if (!document.getExercises().isEmpty()) {
-          Set<Exercise> exercises = new HashSet<>(document.getExercises());
-          List<Exercise> inputExercises =
-              fromIterable(exerciseRepository.findAllById(input.getExerciseIds()));
-          exercises.addAll(inputExercises);
-          document.setExercises(exercises);
-        }
-        // Compute scenarios
-        if (!document.getScenarios().isEmpty()) {
-          Set<Scenario> scenarios = new HashSet<>(document.getScenarios());
-          List<Scenario> inputScenarios =
-              fromIterable(scenarioRepository.findAllById(input.getScenarioIds()));
-          scenarios.addAll(inputScenarios);
-          document.setScenarios(scenarios);
-        }
-        // Compute tags
-        Set<Tag> tags = new HashSet<>(document.getTags());
-        List<Tag> inputTags = fromIterable(tagRepository.findAllById(input.getTagIds()));
-        tags.addAll(inputTags);
-        document.setTags(tags);
-        return documentRepository.save(document);
-      } else {
-        fileService.uploadFile(fileTarget, file);
-        Document document = new Document();
-        document.setTarget(fileTarget);
-        document.setName(file.getOriginalFilename());
-        document.setDescription(input.getDescription());
-        if (!input.getExerciseIds().isEmpty()) {
-          document.setExercises(
-              iterableToSet(exerciseRepository.findAllById(input.getExerciseIds())));
-        }
-        if (!input.getScenarioIds().isEmpty()) {
-          document.setScenarios(
-              iterableToSet(scenarioRepository.findAllById(input.getScenarioIds())));
-        }
-        document.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
-        document.setType(file.getContentType());
-        return documentRepository.save(document);
-      }
-    }
+    return documentService.upsert(
+        file.getOriginalFilename(),
+        file.getInputStream(),
+        file.getSize(),
+        file.getContentType(),
+        input);
   }
 
-  @GetMapping("/api/documents")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.DOCUMENT)
+  @GetMapping({DOCUMENT_API, TENANT_DOCUMENT_API})
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DOCUMENT)
   public List<RawDocument> documents() {
     return documentRepository.rawAllDocuments();
   }
 
-  @PostMapping(DOCUMENT_API + "/search")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.DOCUMENT)
+  @PostMapping({DOCUMENT_API + "/search", TENANT_DOCUMENT_API + "/search"})
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DOCUMENT)
   public Page<RawPaginationDocument> searchDocuments(
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     List<Document> securityPlatformLogos = securityPlatformRepository.securityPlatformLogo();
@@ -236,8 +183,8 @@ public class DocumentApi extends RestBehavior {
             });
   }
 
-  @GetMapping(DOCUMENT_API + "/{documentId}")
-  @RBAC(
+  @GetMapping({DOCUMENT_API + "/{documentId}", TENANT_DOCUMENT_API + "/{documentId}"})
+  @AccessControl(
       resourceId = "#documentId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DOCUMENT)
@@ -247,8 +194,8 @@ public class DocumentApi extends RestBehavior {
         .orElseThrow(() -> new ElementNotFoundException("Document not found"));
   }
 
-  @GetMapping(DOCUMENT_API + "/{documentId}/tags")
-  @RBAC(
+  @GetMapping({DOCUMENT_API + "/{documentId}/tags", TENANT_DOCUMENT_API + "/{documentId}/tags"})
+  @AccessControl(
       resourceId = "#documentId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DOCUMENT)
@@ -260,8 +207,8 @@ public class DocumentApi extends RestBehavior {
     return document.getTags();
   }
 
-  @PutMapping(DOCUMENT_API + "/{documentId}/tags")
-  @RBAC(
+  @PutMapping({DOCUMENT_API + "/{documentId}/tags", TENANT_DOCUMENT_API + "/{documentId}/tags"})
+  @AccessControl(
       resourceId = "#documentId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.DOCUMENT)
@@ -272,12 +219,12 @@ public class DocumentApi extends RestBehavior {
             .findById(documentId)
             .orElseThrow(() -> new ElementNotFoundException("Document not found"));
     document.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
-    return documentRepository.save(document);
+    return documentService.save(document);
   }
 
   @Transactional(rollbackOn = Exception.class)
-  @PutMapping(DOCUMENT_API + "/{documentId}")
-  @RBAC(
+  @PutMapping({DOCUMENT_API + "/{documentId}", TENANT_DOCUMENT_API + "/{documentId}"})
+  @AccessControl(
       resourceId = "#documentId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.DOCUMENT)
@@ -335,11 +282,11 @@ public class DocumentApi extends RestBehavior {
         scenario -> injectService.cleanInjectsDocScenario(scenario.getId(), documentId));
 
     // Save and return
-    return documentRepository.save(document);
+    return documentService.save(document);
   }
 
-  @GetMapping(DOCUMENT_API + "/{documentId}/file")
-  @RBAC(
+  @GetMapping({DOCUMENT_API + "/{documentId}/file", TENANT_DOCUMENT_API + "/{documentId}/file"})
+  @AccessControl(
       resourceId = "#documentId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DOCUMENT)
@@ -360,8 +307,13 @@ public class DocumentApi extends RestBehavior {
     }
   }
 
-  @GetMapping(value = "/api/images/injectors/{injectorType}", produces = MediaType.IMAGE_PNG_VALUE)
-  @RBAC(skipRBAC = true)
+  @GetMapping(
+      value = {
+        INJECTOR_IMAGES_API + "/{injectorType}",
+        TENANT_INJECTOR_IMAGES_API + "/{injectorType}"
+      },
+      produces = MediaType.IMAGE_PNG_VALUE)
+  @AccessControl(skipRBAC = true)
   public @ResponseBody ResponseEntity<byte[]> getInjectorImage(@PathVariable String injectorType)
       throws IOException {
     Optional<InputStream> fileStream = fileService.getInjectorImage(injectorType);
@@ -373,8 +325,13 @@ public class DocumentApi extends RestBehavior {
     return null;
   }
 
-  @GetMapping(value = "/api/images/injectors/id/{injectorId}", produces = MediaType.IMAGE_PNG_VALUE)
-  @RBAC(skipRBAC = true)
+  @GetMapping(
+      value = {
+        INJECTOR_IMAGES_API + "/id/{injectorId}",
+        TENANT_INJECTOR_IMAGES_API + "/id/{injectorId}"
+      },
+      produces = MediaType.IMAGE_PNG_VALUE)
+  @AccessControl(skipRBAC = true)
   public @ResponseBody ResponseEntity<byte[]> getInjectorImageFromId(
       @PathVariable String injectorId) throws IOException {
     Injector injector =
@@ -391,9 +348,12 @@ public class DocumentApi extends RestBehavior {
   }
 
   @GetMapping(
-      value = "/api/images/collectors/{collectorType}",
+      value = {
+        COLLECTOR_IMAGES_API + "/{collectorType}",
+        TENANT_COLLECTOR_IMAGES_API + "/{collectorType}"
+      },
       produces = MediaType.IMAGE_PNG_VALUE)
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public @ResponseBody ResponseEntity<byte[]> getCollectorImage(@PathVariable String collectorType)
       throws IOException {
     Optional<InputStream> fileStream = fileService.getCollectorImage(collectorType);
@@ -420,9 +380,12 @@ public class DocumentApi extends RestBehavior {
   }
 
   @GetMapping(
-      value = "/api/images/collectors/id/{collectorId}",
+      value = {
+        COLLECTOR_IMAGES_API + "/id/{collectorId}",
+        TENANT_COLLECTOR_IMAGES_API + "/id/{collectorId}"
+      },
       produces = MediaType.IMAGE_PNG_VALUE)
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public @ResponseBody ResponseEntity<byte[]> getCollectorImageFromId(
       @PathVariable String collectorId) throws IOException {
     Collector collector =
@@ -438,8 +401,12 @@ public class DocumentApi extends RestBehavior {
     return null;
   }
 
-  @GetMapping(value = "/api/images/security_platforms/id/{assetId}/{theme}")
-  @RBAC(skipRBAC = true)
+  @GetMapping(
+      value = {
+        SECURITY_PLATFORM_IMAGES_API + "/id/{assetId}/{theme}",
+        TENANT_SECURITY_PLATFORM_IMAGES_API + "/id/{assetId}/{theme}"
+      })
+  @AccessControl(skipRBAC = true)
   public void getSecurityPlatformImageFromId(
       @PathVariable String assetId, @PathVariable String theme, HttpServletResponse response)
       throws IOException {
@@ -456,8 +423,12 @@ public class DocumentApi extends RestBehavior {
     }
   }
 
-  @GetMapping(value = "/api/images/channels/id/{channelId}/{theme}")
-  @RBAC(
+  @GetMapping(
+      value = {
+        CHANNEL_IMAGES_API + "/id/{channelId}/{theme}",
+        TENANT_CHANNEL_IMAGES_API + "/id/{channelId}/{theme}"
+      })
+  @AccessControl(
       resourceId = "#channelId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.CHANNEL)
@@ -482,9 +453,12 @@ public class DocumentApi extends RestBehavior {
   }
 
   @GetMapping(
-      value = "/api/images/executors/icons/{executorId}",
+      value = {
+        EXECUTOR_IMAGES_API + "/icons/{executorId}",
+        TENANT_EXECUTOR_IMAGES_API + "/icons/{executorId}"
+      },
       produces = MediaType.IMAGE_PNG_VALUE)
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public @ResponseBody ResponseEntity<byte[]> getExecutorIconImage(@PathVariable String executorId)
       throws IOException {
     Optional<InputStream> fileStream = fileService.getExecutorIconImage(executorId);
@@ -497,9 +471,12 @@ public class DocumentApi extends RestBehavior {
   }
 
   @GetMapping(
-      value = "/api/images/executors/banners/{executorId}",
+      value = {
+        EXECUTOR_IMAGES_API + "/banners/{executorId}",
+        TENANT_EXECUTOR_IMAGES_API + "/banners/{executorId}"
+      },
       produces = MediaType.IMAGE_PNG_VALUE)
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public @ResponseBody ResponseEntity<byte[]> getExecutorBannerImage(
       @PathVariable String executorId) throws IOException {
     Optional<InputStream> fileStream = fileService.getExecutorBannerImage(executorId);
@@ -525,8 +502,11 @@ public class DocumentApi extends RestBehavior {
 
   @LogExecutionTime
   @Operation(summary = "Fetch the entities related to this document id")
-  @GetMapping(DOCUMENT_API + "/{documentId}/relations")
-  @RBAC(
+  @GetMapping({
+    DOCUMENT_API + "/{documentId}/relations",
+    TENANT_DOCUMENT_API + "/{documentId}/relations"
+  })
+  @AccessControl(
       resourceId = "#documentId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DOCUMENT)
@@ -535,8 +515,8 @@ public class DocumentApi extends RestBehavior {
   }
 
   @Transactional(rollbackOn = Exception.class)
-  @DeleteMapping(DOCUMENT_API + "/{documentId}")
-  @RBAC(
+  @DeleteMapping({DOCUMENT_API + "/{documentId}", TENANT_DOCUMENT_API + "/{documentId}"})
+  @AccessControl(
       resourceId = "#documentId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.DOCUMENT)
@@ -545,8 +525,8 @@ public class DocumentApi extends RestBehavior {
   }
 
   // -- EXERCISE & SENARIO--
-  @GetMapping("/api/player/{exerciseOrScenarioId}/documents")
-  @RBAC(skipRBAC = true)
+  @GetMapping({PLAYER_DOCUMENTS_API, TENANT_PLAYER_DOCUMENTS_API})
+  @AccessControl(skipRBAC = true)
   public List<Document> playerDocuments(
       @PathVariable String exerciseOrScenarioId, @RequestParam Optional<String> userId) {
     Optional<Exercise> exerciseOpt = this.exerciseRepository.findById(exerciseOrScenarioId);
@@ -574,8 +554,11 @@ public class DocumentApi extends RestBehavior {
     }
   }
 
-  @GetMapping("/api/player/{exerciseOrScenarioId}/documents/{documentId}/file")
-  @RBAC(skipRBAC = true)
+  @GetMapping({
+    PLAYER_DOCUMENTS_API + "/{documentId}/file",
+    TENANT_PLAYER_DOCUMENTS_API + "/{documentId}/file"
+  })
+  @AccessControl(skipRBAC = true)
   public void downloadPlayerDocument(
       @PathVariable String exerciseOrScenarioId,
       @PathVariable String documentId,

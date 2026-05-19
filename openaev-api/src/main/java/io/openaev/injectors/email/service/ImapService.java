@@ -270,7 +270,7 @@ public class ImapService extends ExternalServiceBase {
 
   private void synchronizeBox(Folder inbox, Boolean isSent) throws Exception {
     String inboxKey = username + "-imap-" + inbox.getName();
-    Optional<Setting> state = this.getSettingRepository().findByKey(inboxKey);
+    Optional<Setting> state = this.getSettingRepository().findByKeyAndTenantIsNull(inboxKey);
     Setting currentState = state.orElse(null);
     if (currentState == null) {
       currentState = this.getSettingRepository().save(new Setting(inboxKey, "0"));
@@ -338,6 +338,7 @@ public class ImapService extends ExternalServiceBase {
         } catch (MessagingException e) {
           log.warn(e.getMessage());
           this.saveServiceState(IMAP_SETTINGS_KEY, false);
+          return;
         }
       }
       syncFolders();

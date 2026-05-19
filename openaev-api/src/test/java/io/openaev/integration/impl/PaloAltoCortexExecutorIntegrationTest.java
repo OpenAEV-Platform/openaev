@@ -1,24 +1,28 @@
 package io.openaev.integration.impl;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.cache.LicenseCacheManager;
-import io.openaev.database.model.CatalogConnector;
-import io.openaev.database.model.ConnectorInstanceInMemory;
+import io.openaev.database.model.*;
 import io.openaev.database.repository.CatalogConnectorRepository;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorService;
+import io.openaev.executors.exception.ExecutorException;
 import io.openaev.executors.paloaltocortex.client.PaloAltoCortexExecutorClient;
+import io.openaev.executors.paloaltocortex.config.PaloAltoCortexExecutorConfig;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
 import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
+import io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration;
 import io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegrationFactory;
 import io.openaev.service.*;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.service.connector_instances.EncryptionFactory;
 import io.openaev.utils.reflection.FieldUtils;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.List;
@@ -42,7 +46,7 @@ public class PaloAltoCortexExecutorIntegrationTest {
   @Autowired private AgentService agentService;
   @Autowired private AssetGroupService assetGroupService;
   @Autowired private ExecutorService executorService;
-  @Autowired private Ee enterpriseEditionService;
+  @Autowired private EnterpriseEditionService enterpriseEditionService;
   @Autowired private LicenseCacheManager licenseCacheManager;
   @Autowired private ComponentRequestEngine componentRequestEngine;
   @Autowired private ThreadPoolTaskScheduler taskScheduler;
@@ -52,6 +56,7 @@ public class PaloAltoCortexExecutorIntegrationTest {
   @Autowired private HttpClientFactory httpClientFactory;
   @Autowired private BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
   @Autowired private PreviewFeatureService previewFeatureService;
+  @Autowired private EncryptionFactory encryptionFactory;
 
   @Autowired private FileService fileService;
 
@@ -70,6 +75,24 @@ public class PaloAltoCortexExecutorIntegrationTest {
         fileService,
         baseIntegrationConfigurationBuilder,
         httpClientFactory);
+  }
+
+  /**
+   * PaloAlto has no ConfigurationMigration, so we manually create a persisted instance with the
+   * default configuration set attached to the catalog connector.
+   */
+  private ConnectorInstancePersisted createInstanceForCatalog(CatalogConnector catalogConnector) {
+    ConnectorInstancePersisted instance = new ConnectorInstancePersisted();
+    instance.setCatalogConnector(catalogConnector);
+    instance.setCurrentStatus(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
+    instance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
+    instance.setSource(ConnectorInstancePersisted.SOURCE.CATALOG_DEPLOYMENT);
+    PaloAltoCortexExecutorConfig config =
+        baseIntegrationConfigurationBuilder.build(PaloAltoCortexExecutorConfig.class);
+    instance.setConfigurations(
+        config.toInstanceConfigurationSet(
+            instance, encryptionFactory.getEncryptionService(catalogConnector)));
+    return (ConnectorInstancePersisted) connectorInstanceService.save(instance);
   }
 
   @Test
@@ -111,5 +134,93 @@ public class PaloAltoCortexExecutorIntegrationTest {
     AssertionsForClassTypes.assertThat(
             FieldUtils.computeAllFieldValues(integration).get("encryptionService"))
         .isNull();
+  }
+
+  @Test
+  @DisplayName(
+      "When spawning an integration with a null configuration builder, should throw ExecutorException")
+  public void whenSpawnWithNullConfigBuilder_should_throwExecutorException() throws Exception {
+    IntegrationFactory integrationFactory = getFactory();
+    integrationFactory.initialise();
+
+    List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
+    ConnectorInstancePersisted instance = createInstanceForCatalog(connectors.getFirst());
+
+    // Act & Assert — passing null baseIntegrationConfigurationBuilder causes refresh() to fail
+    assertThatThrownBy(
+            () ->
+                new PaloAltoCortexExecutorIntegration(
+                    instance,
+                    connectorInstanceService,
+                    endpointService,
+                    agentService,
+                    assetGroupService,
+                    enterpriseEditionService,
+                    licenseCacheManager,
+                    componentRequestEngine,
+                    executorService,
+                    taskScheduler,
+                    null,
+                    httpClientFactory))
+        .isInstanceOf(ExecutorException.class)
+        .hasMessageContaining("Error during initialization of the Executor");
+  }
+
+  @Test
+  @DisplayName(
+      "When integration is stopped and requested status is starting, initialise should start it")
+  public void whenStoppedAndStartingRequested_initialise_should_startIntegration()
+      throws Exception {
+    // Arrange
+    IntegrationFactory integrationFactory = getFactory();
+    integrationFactory.initialise();
+
+    List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
+    ConnectorInstancePersisted instance = createInstanceForCatalog(connectors.getFirst());
+
+    instance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.starting);
+    connectorInstanceService.save(instance);
+
+    Integration integration = integrationFactory.spawn(instance);
+    assertThat(integration.getCurrentStatus())
+        .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
+
+    // Act
+    integration.initialise();
+
+    // Assert
+    assertThat(integration.getCurrentStatus())
+        .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.started);
+  }
+
+  @Test
+  @DisplayName(
+      "When integration is started and requested status is stopping, initialise should stop it")
+  public void whenStartedAndStoppingRequested_initialise_should_stopIntegration() throws Exception {
+    // Arrange — start the integration first
+    IntegrationFactory integrationFactory = getFactory();
+    integrationFactory.initialise();
+
+    List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
+    ConnectorInstancePersisted instance = createInstanceForCatalog(connectors.getFirst());
+
+    instance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.starting);
+    connectorInstanceService.save(instance);
+
+    Integration integration = integrationFactory.spawn(instance);
+    integration.initialise();
+    assertThat(integration.getCurrentStatus())
+        .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.started);
+
+    // Arrange — now request stopping
+    instance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
+    connectorInstanceService.save(instance);
+
+    // Act
+    integration.initialise();
+
+    // Assert
+    assertThat(integration.getCurrentStatus())
+        .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
   }
 }

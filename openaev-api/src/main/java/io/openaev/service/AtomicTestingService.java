@@ -21,17 +21,18 @@ import io.openaev.rest.atomic_testing.form.*;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
+import io.openaev.utils.InjectUtils;
 import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.mapper.PayloadMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
 import jakarta.persistence.criteria.Join;
 import jakarta.transaction.Transactional;
+import jakarta.validation.constraints.NotNull;
 import java.util.*;
 import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -61,6 +62,7 @@ public class AtomicTestingService {
   private final InjectService injectService;
   private final GrantService grantService;
   private final InjectDocumentRepository injectDocumentRepository;
+  private final InjectUtils injectUtils;
 
   // -- CRUD --
 
@@ -104,6 +106,7 @@ public class AtomicTestingService {
     injectToSave.setTitle(input.getTitle());
     injectToSave.setContent(finalContent);
     injectToSave.setInjectorContract(injectorContract);
+    injectToSave.setInjector(injectUtils.resolveInjector(input.getInjectorId(), injectorContract));
     injectToSave.setAllTeams(input.isAllTeams());
     injectToSave.setDescription(input.getDescription());
     injectToSave.setDependsDuration(0L);
@@ -256,7 +259,8 @@ public class AtomicTestingService {
     User currentUser = userService.currentUser();
 
     Specification<Inject> customSpec =
-        Specification.where(InjectSpecification.isAtomicTesting())
+        Specification.<Inject>unrestricted()
+            .and(InjectSpecification.isAtomicTesting())
             .and(
                 SpecificationUtils.hasGrantAccess(
                     currentUser.getId(),

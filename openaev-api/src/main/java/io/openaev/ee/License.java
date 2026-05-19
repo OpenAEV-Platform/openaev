@@ -25,9 +25,15 @@ import lombok.Setter;
 public class License {
 
   @JsonProperty("license_is_enterprise")
+  // Fixes a bug due to a new version of jackson and lombok
+  // cf: https://github.com/projectlombok/lombok/issues/3978
+  @Getter(onMethod_ = @JsonProperty("license_is_enterprise"))
   private boolean isLicenseEnterprise = false;
 
   @JsonProperty("license_is_valid_cert")
+  // Fixes a bug due to a new version of jackson and lombok
+  // cf: https://github.com/projectlombok/lombok/issues/3978
+  @Getter(onMethod_ = @JsonProperty("license_is_valid_cert"))
   private boolean isValidCert = false;
 
   @JsonProperty("license_type")
@@ -37,6 +43,9 @@ public class License {
   private String creator;
 
   @JsonProperty("license_is_valid_product")
+  // Fixes a bug due to a new version of jackson and lombok
+  // cf: https://github.com/projectlombok/lombok/issues/3978
+  @Getter(onMethod_ = @JsonProperty("license_is_valid_product"))
   private boolean isValidProduct = false;
 
   @JsonProperty("license_customer")
@@ -46,12 +55,21 @@ public class License {
   private String platform;
 
   @JsonProperty("license_is_platform_match")
+  // Fixes a bug due to a new version of jackson and lombok
+  // cf: https://github.com/projectlombok/lombok/issues/3978
+  @Getter(onMethod_ = @JsonProperty("license_is_platform_match"))
   private boolean isPlatformMatch = false;
 
   @JsonProperty("license_is_global")
+  // Fixes a bug due to a new version of jackson and lombok
+  // cf: https://github.com/projectlombok/lombok/issues/3978
+  @Getter(onMethod_ = @JsonProperty("license_is_global"))
   private boolean isGlobalLicense = false;
 
   @JsonProperty("license_is_expired")
+  // Fixes a bug due to a new version of jackson and lombok
+  // cf: https://github.com/projectlombok/lombok/issues/3978
+  @Getter(onMethod_ = @JsonProperty("license_is_expired"))
   private boolean isLicenseExpired = true;
 
   @JsonProperty("license_start_date")
@@ -61,12 +79,21 @@ public class License {
   private Instant expirationDate;
 
   @JsonProperty("license_is_prevention")
+  // Fixes a bug due to a new version of jackson and lombok
+  // cf: https://github.com/projectlombok/lombok/issues/3978
+  @Getter(onMethod_ = @JsonProperty("license_is_prevention"))
   private boolean isLicensePrevention;
 
   @JsonProperty("license_is_validated")
+  // Fixes a bug due to a new version of jackson and lombok
+  // cf: https://github.com/projectlombok/lombok/issues/3978
+  @Getter(onMethod_ = @JsonProperty("license_is_validated"))
   private boolean isLicenseValidated = false;
 
   @JsonProperty("license_is_by_configuration")
+  // Fixes a bug due to a new version of jackson and lombok
+  // cf: https://github.com/projectlombok/lombok/issues/3978
+  @Getter(onMethod_ = @JsonProperty("license_is_by_configuration"))
   private boolean isLicenseByConfiguration = false;
 
   @JsonProperty("license_is_extra_expiration")

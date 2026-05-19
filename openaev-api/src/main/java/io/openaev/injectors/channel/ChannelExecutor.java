@@ -25,7 +25,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import org.springframework.beans.factory.annotation.Value;
 
 public class ChannelExecutor extends Injector {
 
@@ -47,15 +46,15 @@ public class ChannelExecutor extends Injector {
     this.injectExpectationService = injectExpectationService;
   }
 
-  @Value("${openaev.mail.imap.enabled}")
-  private boolean imapEnabled;
-
-  private String buildArticleUri(ExecutionContext executionContext, Article article) {
+  private String buildArticleUri(
+      ExecutionContext executionContext, Article article, String tenantId) {
     String userId = executionContext.getUser().getId();
     String channelId = article.getChannel().getId();
     String exerciseId = article.getExercise().getId();
     String queryOptions = "article=" + article.getId() + "&user=" + userId;
     return this.context.getOpenAEVConfig().getBaseUrl()
+        + "/"
+        + tenantId
         + "/channels/"
         + exerciseId
         + "/"
@@ -93,6 +92,7 @@ public class ChannelExecutor extends Injector {
         // Send the publication message.
         if (content.isEmailing()) {
           String from = exercise.getFrom();
+          String fromName = exercise.getFromName();
           List<String> replyTos = exercise.getReplyTos();
           List<ExecutionContext> users = injection.getUsers();
           List<Document> documents =
@@ -101,7 +101,8 @@ public class ChannelExecutor extends Injector {
                   .map(InjectDocument::getDocument)
                   .toList();
           List<DataAttachment> attachments = resolveAttachments(execution, injection, documents);
-          String message = content.buildMessage(injection, imapEnabled);
+          String message =
+              content.buildMessage(injection, this.context.getOpenAEVConfig().getBaseUrl());
           boolean encrypted = content.isEncrypted();
           users.forEach(
               userInjectContext -> {
@@ -114,7 +115,10 @@ public class ChannelExecutor extends Injector {
                                   new ArticleVariable(
                                       article.getId(),
                                       article.getName(),
-                                      buildArticleUri(userInjectContext, article)))
+                                      buildArticleUri(
+                                          userInjectContext,
+                                          article,
+                                          exercise.getTenant().getId())))
                           .toList();
                   userInjectContext.put(VARIABLE_ARTICLES, articleVariables);
                   // Send the email.
@@ -122,6 +126,7 @@ public class ChannelExecutor extends Injector {
                       execution,
                       List.of(userInjectContext),
                       from,
+                      fromName,
                       replyTos,
                       content.getInReplyTo(),
                       encrypted,

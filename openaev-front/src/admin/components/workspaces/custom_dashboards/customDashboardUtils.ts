@@ -1,14 +1,15 @@
-import { type CustomDashboard, type PlatformSettings } from '../../../../utils/api-types';
+import { type TenantSettingsOutput, type TenantSettingsUpdateInput } from '../../../../utils/api-types';
+import type CustomDashboard from './CustomDashboard';
 import { type CustomDashboardFormType } from './CustomDashboardForm';
 
 const updateDefaultDashboardsInParameters = (
   customDashboardId: CustomDashboard['custom_dashboard_id'],
   data: CustomDashboardFormType,
-  settings: PlatformSettings,
-  updatePlatformParameters: (data: PlatformSettings) => void,
+  tenantSettings: TenantSettingsOutput,
+  updateSettings: (data: TenantSettingsUpdateInput) => void,
 ) => {
   let defaultDashboardsChanged = false;
-  let updatedSettings = {} as Partial<PlatformSettings>;
+  const updatedSettings: Partial<TenantSettingsUpdateInput> = {};
 
   const getDefaultDashboardId = (isChecked: boolean, currentDefault = '') => {
     if (isChecked) return customDashboardId;
@@ -29,26 +30,28 @@ const updateDefaultDashboardsInParameters = (
       formKey: 'is_default_simulation_dashboard',
     },
   ] as {
-    settingsKey: keyof PlatformSettings;
+    settingsKey: keyof TenantSettingsUpdateInput;
     formKey: keyof CustomDashboardFormType;
   }[];
 
   dashboardConfigs.forEach(({ settingsKey, formKey }) => {
-    const currentDefault = settings[settingsKey] as string;
+    const currentDefault = tenantSettings[settingsKey] as string ?? '';
     const newDefault = getDefaultDashboardId(data[formKey] as boolean, currentDefault);
 
     if (currentDefault !== newDefault) {
       defaultDashboardsChanged = true;
-      updatedSettings = {
-        ...updatedSettings,
-        [settingsKey]: newDefault,
-      };
+      updatedSettings[settingsKey] = newDefault;
     }
   });
 
   if (defaultDashboardsChanged) {
-    updatePlatformParameters({
-      ...settings,
+    updateSettings({
+      platform_name: tenantSettings.platform_name,
+      platform_theme: tenantSettings.platform_theme,
+      platform_lang: tenantSettings.platform_lang,
+      platform_home_dashboard: tenantSettings.platform_home_dashboard,
+      platform_scenario_dashboard: tenantSettings.platform_scenario_dashboard,
+      platform_simulation_dashboard: tenantSettings.platform_simulation_dashboard,
       ...updatedSettings,
     });
   }

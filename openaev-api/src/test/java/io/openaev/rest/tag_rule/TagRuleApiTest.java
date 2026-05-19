@@ -22,7 +22,7 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.List;
 import java.util.Map;
-import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,12 +30,14 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @TestExecutionListeners(
     value = {RabbitMQTestListener.class},
     mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 @TestInstance(PER_CLASS)
+@Transactional
 public class TagRuleApiTest extends IntegrationTest {
 
   public static final String TAG_RULE_URI = "/api/tag-rules";
@@ -46,11 +48,12 @@ public class TagRuleApiTest extends IntegrationTest {
   @Autowired private TagRepository tagRepository;
   @Autowired private TagRuleRepository tagRuleRepository;
 
-  @AfterEach
-  void afterEach() {
+  private List<TagRule> defaultRules;
+
+  @BeforeEach
+  public void setup() {
+    // We remove any tagrule existing by default
     tagRuleRepository.deleteAll();
-    tagRepository.deleteAll();
-    assetGroupRepository.deleteAll();
   }
 
   @Test
@@ -81,8 +84,8 @@ public class TagRuleApiTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   void deleteTagRule() throws Exception {
     String assetGroupName = "assetGroupName";
-    String tagId = "tagName";
-    TagRule expected = createTagRule(tagId, List.of(assetGroupName));
+    String tagName = "tagName";
+    TagRule expected = createTagRule(tagName, List.of(assetGroupName));
     mvc.perform(
             delete(TAG_RULE_URI + "/" + expected.getId())
                 .accept(MediaType.APPLICATION_JSON)
@@ -311,7 +314,6 @@ public class TagRuleApiTest extends IntegrationTest {
 
   private TagRule createTagRule(String tagName, List<String> assetGroupNames) {
     TagRule tagRule = new TagRule();
-    tagRule.setId(tagName);
     tagRule.setTag(createTag(tagName));
     assetGroupNames.forEach(
         assetGroupName -> tagRule.getAssetGroups().add(createAssetGroup(assetGroupName)));

@@ -10,10 +10,10 @@ import static io.openaev.rest.expectation.ExpectationApi.EXPECTATIONS_URI;
 import static io.openaev.rest.expectation.ExpectationApi.INJECTS_EXPECTATIONS_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.ExpectationFixture.*;
-import static io.openaev.utils.fixtures.ExpectationFixture.getExpectationUpdateInput;
 import static io.openaev.utils.fixtures.InjectExpectationFixture.getInjectExpectationUpdateInput;
 import static java.util.Collections.emptyList;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -41,6 +41,7 @@ import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.mockUser.WithMockUser;
+import jakarta.persistence.EntityManager;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Map;
@@ -50,6 +51,7 @@ import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
 class ExpectationApiTest extends IntegrationTest {
@@ -59,11 +61,13 @@ class ExpectationApiTest extends IntegrationTest {
   private static final String INJECTOR_TYPE = "openaev_implant";
 
   @Autowired private MockMvc mvc;
+  @Autowired private EntityManager em;
   @Autowired private AssetGroupRepository assetGroupRepository;
   @Autowired private EndpointRepository endpointRepository;
   @Autowired private AgentRepository agentRepository;
   @Autowired private InjectRepository injectRepository;
   @Autowired private InjectorRepository injectorRepository;
+  @Autowired private CollectorTypeRepository collectorTypeRepository;
   @Autowired private CollectorRepository collectorRepository;
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private InjectExpectationRepository injectExpectationRepository;
@@ -92,8 +96,10 @@ class ExpectationApiTest extends IntegrationTest {
         injectorRepository.save(
             InjectorFixture.createInjector(
                 OPENAEV_INJECTOR_ID, OPENAEV_INJECTOR_NAME, INJECTOR_TYPE));
-    injectorContract.setInjector(savedInjector);
+    injectorContract.addInjector(savedInjector);
     savedInjectorContract = injectorContractRepository.save(injectorContract);
+    savedInjector.getContracts().add(savedInjectorContract);
+    injectorRepository.save(savedInjector);
 
     // -- Targets --
     savedEndpoint = endpointRepository.save(EndpointFixture.createEndpoint());
@@ -111,17 +117,25 @@ class ExpectationApiTest extends IntegrationTest {
                 savedInjectorContract, INJECTION_NAME, savedAssetGroup));
 
     // -- Collector --
+    CollectorType collectorType1 = new CollectorType(UUID.randomUUID().toString());
+    CollectorType collectorType2 = new CollectorType(UUID.randomUUID().toString());
+
+    collectorTypeRepository.save(collectorType1);
+    collectorTypeRepository.save(collectorType2);
+
     Collector collector = new Collector();
     collector.setId(UUID.randomUUID().toString());
     collector.setName("collector-name");
-    collector.setType(UUID.randomUUID().toString());
+    collector.setType(collectorType1.getName());
+    collector.setCollectorType(collectorType1);
     collector.setExternal(true);
     savedCollector = collectorRepository.save(collector);
 
     Collector collector2 = new Collector();
     collector2.setId(UUID.randomUUID().toString());
     collector2.setName("collector-2-name");
-    collector2.setType(UUID.randomUUID().toString());
+    collector2.setType(collectorType2.getName());
+    collector2.setCollectorType(collectorType2);
     collector2.setExternal(true);
     savedCollector2 = collectorRepository.save(collector2);
   }
@@ -830,6 +844,7 @@ class ExpectationApiTest extends IntegrationTest {
   @Nested
   @WithMockUser(isAdmin = true)
   @DisplayName("Get available InjectExpectations for injects")
+  @Transactional
   class AvailableInjectExpectationsForInjects {
 
     @Test
@@ -841,21 +856,23 @@ class ExpectationApiTest extends IntegrationTest {
                   challengeInjectorIntegrationFactory,
                   openaevInjectorIntegrationFactory))
           .monitorIntegrations();
+      em.flush();
+      em.clear();
       List<InjectorContract> injectorContracts =
           StreamHelper.fromIterable(injectorContractRepository.findAll());
       InjectorContract mailInjectorContract =
           injectorContracts.stream()
-              .filter(ic -> ic.getInjector().getType().equals(EmailContract.TYPE))
+              .filter(ic -> ic.getFirstInjector().getType().equals(EmailContract.TYPE))
               .toList()
               .getFirst();
       InjectorContract challengeInjectorContract =
           injectorContracts.stream()
-              .filter(ic -> ic.getInjector().getType().equals(ChallengeContract.TYPE))
+              .filter(ic -> ic.getFirstInjector().getType().equals(ChallengeContract.TYPE))
               .toList()
               .getFirst();
       InjectorContract implantInjectorContract =
           injectorContracts.stream()
-              .filter(ic -> ic.getInjector().getType().equals(OpenAEVImplantContract.TYPE))
+              .filter(ic -> ic.getFirstInjector().getType().equals(OpenAEVImplantContract.TYPE))
               .toList()
               .getFirst();
 

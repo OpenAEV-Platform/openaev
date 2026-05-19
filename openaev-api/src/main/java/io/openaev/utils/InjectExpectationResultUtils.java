@@ -3,7 +3,7 @@ package io.openaev.utils;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.openaev.database.model.InjectExpectation;
 import io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE;
-import io.openaev.database.raw.RawInjectExpectation;
+import io.openaev.database.raw.RawInjectExpectationIndexing;
 import io.openaev.expectation.ExpectationType;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
@@ -40,7 +40,7 @@ public class InjectExpectationResultUtils {
    * <p>Uses the provided score extraction function to calculate normalized scores for each
    * expectation type category (Prevention, Detection, Vulnerability, Human Response).
    *
-   * @param <T> the type of expectation objects (InjectExpectation or RawInjectExpectation)
+   * @param <T> the type of expectation objects (InjectExpectation or RawInjectExpectationIndexing)
    * @param expectations the list of expectations to process
    * @param getScores function to extract normalized scores for given expectation types
    * @return a list of expectation results grouped by type with aggregated scores
@@ -111,7 +111,7 @@ public class InjectExpectationResultUtils {
    * @return a list of normalized score values
    */
   public static List<Double> getScoresFromRaw(
-      List<EXPECTATION_TYPE> types, List<RawInjectExpectation> expectations) {
+      List<EXPECTATION_TYPE> types, List<RawInjectExpectationIndexing> expectations) {
     return expectations.stream()
         .filter(e -> types.contains(EXPECTATION_TYPE.valueOf(e.getInject_expectation_type())))
         .map(

@@ -1,8 +1,9 @@
 package io.openaev.rest.exercise;
 
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
+import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.ImportMapper;
@@ -36,8 +37,11 @@ public class ExerciseImportApi extends RestBehavior {
   private final ImportMapperRepository importMapperRepository;
   private final ExerciseService exerciseService;
 
-  @PostMapping(EXERCISE_URI + "/{exerciseId}/xls/{importId}/dry")
-  @RBAC(
+  @PostMapping({
+    EXERCISE_URI + "/{exerciseId}/xls/{importId}/dry",
+    TENANT_EXERCISE_URI + "/{exerciseId}/xls/{importId}/dry"
+  })
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
@@ -63,8 +67,11 @@ public class ExerciseImportApi extends RestBehavior {
         exercise, importMapper, importId, input.getName(), input.getTimezoneOffset(), false);
   }
 
-  @PostMapping(EXERCISE_URI + "/{exerciseId}/xls/{importId}/import")
-  @RBAC(
+  @PostMapping({
+    EXERCISE_URI + "/{exerciseId}/xls/{importId}/import",
+    TENANT_EXERCISE_URI + "/{exerciseId}/xls/{importId}/import"
+  })
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
@@ -98,9 +105,12 @@ public class ExerciseImportApi extends RestBehavior {
   }
 
   @PostMapping(
-      path = EXERCISE_URI + "/{simulationId}/injects/import",
+      path = {
+        EXERCISE_URI + "/{simulationId}/injects/import",
+        TENANT_EXERCISE_URI + "/{simulationId}/injects/import"
+      },
       consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
-  @RBAC(
+  @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)

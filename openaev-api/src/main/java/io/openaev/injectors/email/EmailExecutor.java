@@ -18,15 +18,11 @@ import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
-import org.springframework.beans.factory.annotation.Value;
 
 public class EmailExecutor extends Injector {
 
   private final EmailService emailService;
   private final InjectExpectationService injectExpectationService;
-
-  @Value("${openaev.mail.imap.enabled}")
-  private boolean imapEnabled;
 
   public EmailExecutor(
       InjectorContext injectorContext,
@@ -41,6 +37,7 @@ public class EmailExecutor extends Injector {
       Execution execution,
       List<ExecutionContext> users,
       String from,
+      String fromName,
       List<String> replyTos,
       String inReplyTo,
       String subject,
@@ -48,7 +45,7 @@ public class EmailExecutor extends Injector {
       List<DataAttachment> attachments) {
     try {
       emailService.sendEmail(
-          execution, users, from, replyTos, inReplyTo, subject, message, attachments);
+          execution, users, from, fromName, replyTos, inReplyTo, subject, message, attachments);
     } catch (Exception e) {
       execution.addTrace(getNewErrorTrace(e.getMessage(), ExecutionTraceAction.COMPLETE));
     }
@@ -58,6 +55,7 @@ public class EmailExecutor extends Injector {
       Execution execution,
       List<ExecutionContext> users,
       String from,
+      String fromName,
       List<String> replyTos,
       String inReplyTo,
       boolean mustBeEncrypted,
@@ -71,6 +69,7 @@ public class EmailExecutor extends Injector {
                 execution,
                 List.of(user),
                 from,
+                fromName,
                 replyTos,
                 inReplyTo,
                 mustBeEncrypted,
@@ -97,7 +96,7 @@ public class EmailExecutor extends Injector {
     List<DataAttachment> attachments = resolveAttachments(execution, injection, documents);
     String inReplyTo = content.getInReplyTo();
     String subject = content.getSubject();
-    String message = content.buildMessage(injection, this.imapEnabled);
+    String message = content.buildMessage(injection, this.context.getOpenAEVConfig().getBaseUrl());
     boolean mustBeEncrypted = content.isEncrypted();
     // Resolve the attachments only once
     List<ExecutionContext> users = injection.getUsers();
@@ -107,6 +106,10 @@ public class EmailExecutor extends Injector {
     Exercise exercise = injection.getInjection().getExercise();
     String from =
         exercise != null ? exercise.getFrom() : this.context.getOpenAEVConfig().getDefaultMailer();
+    String fromName =
+        exercise != null
+            ? exercise.getFromName()
+            : this.context.getOpenAEVConfig().getDefaultMailerName();
     List<String> replyTos =
         exercise != null
             ? exercise.getReplyTos()
@@ -117,12 +120,14 @@ public class EmailExecutor extends Injector {
         .map(InjectorContract::getId)
         .orElseThrow(() -> new UnsupportedOperationException("Inject does not have a contract"))) {
       case EMAIL_GLOBAL ->
-          sendMulti(execution, users, from, replyTos, inReplyTo, subject, message, attachments);
+          sendMulti(
+              execution, users, from, fromName, replyTos, inReplyTo, subject, message, attachments);
       default ->
           sendSingle(
               execution,
               users,
               from,
+              fromName,
               replyTos,
               inReplyTo,
               mustBeEncrypted,

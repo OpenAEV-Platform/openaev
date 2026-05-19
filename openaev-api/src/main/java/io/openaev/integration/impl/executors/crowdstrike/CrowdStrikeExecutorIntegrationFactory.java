@@ -7,7 +7,7 @@ import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
 import io.openaev.integration.ComponentRequestEngine;
@@ -35,7 +35,7 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
   private final AgentService agentService;
   private final AssetGroupService assetGroupService;
   private final ExecutorService executorService;
-  private final Ee eeService;
+  private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
   private final ComponentRequestEngine componentRequestEngine;
   private final ThreadPoolTaskScheduler taskScheduler;
@@ -52,7 +52,7 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
       AgentService agentService,
       AssetGroupService assetGroupService,
       ExecutorService executorService,
-      Ee eeService,
+      EnterpriseEditionService enterpriseEditionService,
       LicenseCacheManager licenseCacheManager,
       ComponentRequestEngine componentRequestEngine,
       ThreadPoolTaskScheduler taskScheduler,
@@ -65,7 +65,7 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
     this.agentService = agentService;
     this.assetGroupService = assetGroupService;
     this.executorService = executorService;
-    this.eeService = eeService;
+    this.enterpriseEditionService = enterpriseEditionService;
     this.licenseCacheManager = licenseCacheManager;
     this.componentRequestEngine = componentRequestEngine;
     this.taskScheduler = taskScheduler;
@@ -78,7 +78,7 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
 
   @Override
   protected final String getClassName() {
-    return this.getClass().getCanonicalName();
+    return CrowdStrikeExecutorIntegrationFactory.class.getCanonicalName();
   }
 
   @Override
@@ -122,7 +122,7 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
         agentService,
         assetGroupService,
         executorService,
-        eeService,
+        enterpriseEditionService,
         licenseCacheManager,
         componentRequestEngine,
         taskScheduler,

@@ -70,7 +70,7 @@ public class OpenCTIContract extends Contractor {
             createCaseInstance,
             List.of(Endpoint.PLATFORM_TYPE.Service),
             false,
-            new HashSet<>(Collections.singletonList(PresetDomain.TOCLASSIFY)));
+            new HashSet<>(Collections.singletonList(PresetDomain.getToClassify())));
     createCase.addVariable(documentUriVariable);
     List<ContractElement> createReportInstance =
         contractBuilder()
@@ -87,7 +87,7 @@ public class OpenCTIContract extends Contractor {
             createReportInstance,
             List.of(Endpoint.PLATFORM_TYPE.Service),
             false,
-            new HashSet<>(Collections.singletonList(PresetDomain.TOCLASSIFY)));
+            new HashSet<>(Collections.singletonList(PresetDomain.getToClassify())));
     createReport.addVariable(documentUriVariable);
     return List.of(createCase, createReport);
   }

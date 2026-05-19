@@ -5,7 +5,7 @@ import io.openaev.annotation.Indexable;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Scenario;
-import io.openaev.engine.model.EsBase;
+import io.openaev.engine.model.tenant.EsTenantBase;
 import java.util.Set;
 import lombok.Getter;
 import lombok.Setter;
@@ -13,7 +13,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Indexable(index = "scenario", label = "Scenario")
-public class EsScenario extends EsBase {
+public class EsScenario extends EsTenantBase {
   /* Every attribute must be uniq, so prefixed with the entity type! */
   /* Except relationships, they should have same name on every model! */
 

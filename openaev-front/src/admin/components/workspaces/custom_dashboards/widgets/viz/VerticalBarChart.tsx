@@ -39,9 +39,13 @@ const VerticalBarChart: FunctionComponent<Props> = ({ widgetId, widgetConfig, se
     dataPointIndex: number;
   }) => {
     const dataPoint = series[config.seriesIndex].data[config.dataPointIndex] as SerieData;
+    const filterKey = widgetConfig.widget_configuration_type === 'temporal-histogram'
+      ? 'date'
+      : (widgetConfig as StructuralHistogramWidget).field;
+
     openWidgetDataDrawer({
       widgetId,
-      filter_values: [dataPoint?.meta ?? ''],
+      filter_values_map: { [filterKey]: [dataPoint?.meta ?? ''] },
       series_index: config.seriesIndex,
     });
   }, [series, openWidgetDataDrawer, widgetId]);

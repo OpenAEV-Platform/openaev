@@ -7,7 +7,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.helper.MultiIdSetSerializer;
 import io.openaev.jsonapi.InnerRelationship;
-import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -17,6 +16,7 @@ import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 import lombok.Data;
+import lombok.Getter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
@@ -40,6 +40,9 @@ public class ContractOutputElement implements Base {
   @JsonIgnore
   private OutputParser outputParser;
 
+  // Fixes a bug due to a new version of jackson and lombok
+  // cf: https://github.com/projectlombok/lombok/issues/3978
+  @Getter(onMethod_ = @JsonProperty("contract_output_element_is_finding"))
   @Column(name = "contract_output_element_is_finding")
   @JsonProperty("contract_output_element_is_finding")
   @NotNull
@@ -75,7 +78,7 @@ public class ContractOutputElement implements Base {
   @NotNull
   private ContractOutputType type;
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "contract_output_elements_tags",

@@ -28,7 +28,6 @@ interface Props {
 }
 
 const FilterAutocomplete: FunctionComponent<Props> = ({
-  filterGroup,
   options,
   helpers,
   setPristine,
@@ -50,14 +49,10 @@ const FilterAutocomplete: FunctionComponent<Props> = ({
     helpers.handleClearAllFilters();
   };
 
-  const computeOptions = () => {
-    return options.filter(o => !filterGroup?.filters?.map(f => f.key).includes(o.id));
-  };
-
   return (
     <div className={classes.container}>
       <MuiAutocomplete
-        options={computeOptions()}
+        options={options}
         sx={{ width: domains ? '95%' : 200 }}
         value={null}
         onChange={(_, selectOptionValue) => {

@@ -1,7 +1,7 @@
 import { AttachmentOutlined } from '@mui/icons-material';
 import { Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type CSSProperties, Fragment, type FunctionComponent } from 'react';
+import { type CSSProperties, Fragment, type FunctionComponent, useMemo } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { type AttackPatternHelper } from '../../../actions/attack_patterns/attackpattern-helper';
@@ -16,7 +16,7 @@ import {
   type AttackPattern,
   type Command,
   type DnsResolution,
-  type Document,
+  type Document, type Domain,
   type Executable,
   type FileDrop,
   type Payload as PayloadType,
@@ -24,6 +24,7 @@ import {
   type PayloadPrerequisite,
 } from '../../../utils/api-types';
 import { emptyFilled } from '../../../utils/String';
+import { isFeatureEnabled } from '../../../utils/utils';
 import DocumentType from '../components/documents/DocumentType';
 
 const useStyles = makeStyles()(theme => ({
@@ -71,13 +72,17 @@ const inlineStyles: Record<string, CSSProperties> = {
 interface Props {
   selectedPayload: PayloadType | null;
   documentsMap: Record<string, Document> | null;
+  attackPatternIds: string[];
+  domains: Domain[] | string[];
+  tagIds: string[];
 }
 
-const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documentsMap }) => {
+const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documentsMap, attackPatternIds, domains, tagIds }) => {
   // Standard hooks
   const { classes } = useStyles();
   const { t } = useFormatter();
   const theme = useTheme();
+  const isChainingEnabled = isFeatureEnabled('INJECT_CHAINING');
 
   const { attackPatternsMap }: { attackPatternsMap: ReturnType<AttackPatternHelper['getAttackPatternsMap']> } = useHelper((helper: AttackPatternHelper) => ({ attackPatternsMap: helper.getAttackPatternsMap() }));
   const getAttackCommand = (payload: PayloadType | null): string => {
@@ -103,6 +108,12 @@ const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documents
     }
     return argument.default_value;
   };
+
+  const attackPatterns = useMemo(() => {
+    return attackPatternIds
+      .map(id => attackPatternsMap[id])
+      .filter(Boolean) as AttackPattern[];
+  }, [attackPatternsMap, attackPatternIds]);
 
   return (
     <div className={classes.payloadContainer}>
@@ -136,10 +147,10 @@ const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documents
           >
             {t('Attack patterns')}
           </Typography>
-
-          {selectedPayload?.payload_attack_patterns && selectedPayload?.payload_attack_patterns.length === 0 ? '-' : selectedPayload?.payload_attack_patterns?.map((attackPatternId: string) => attackPatternsMap?.[attackPatternId]).map((attackPattern: AttackPattern) => (
-            <AttackPatternChip key={attackPattern.attack_pattern_id} attackPattern={attackPattern}></AttackPatternChip>
-          ))}
+          {attackPatterns.length === 0 ? '-'
+            : attackPatterns?.map(a => (
+                <AttackPatternChip key={a.attack_pattern_id} attackPattern={a}></AttackPatternChip>
+              ))}
         </div>
 
         <div>
@@ -181,7 +192,7 @@ const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documents
           </Typography>
           <ItemTags
             variant="reduced-view"
-            tags={selectedPayload?.payload_tags}
+            tags={tagIds}
           />
         </div>
         <div>
@@ -194,7 +205,7 @@ const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documents
           {selectedPayload && (
             <ItemDomains
               variant="list"
-              domains={selectedPayload?.payload_domains}
+              domains={domains}
             />
           )}
         </div>
@@ -318,9 +329,10 @@ const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documents
                         fontWeight: 'bold',
                       }}
                       >
-                        <TableCell width="30%">{t('Type')}</TableCell>
-                        <TableCell width="30%">{t('Key')}</TableCell>
-                        <TableCell width="30%">{t('Default value')}</TableCell>
+                        <TableCell>{t('Type')}</TableCell>
+                        {isChainingEnabled && <TableCell>{t('Subtype')}</TableCell>}
+                        <TableCell>{t('Key')}</TableCell>
+                        <TableCell>{t('Default value')}</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -331,6 +343,7 @@ const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documents
                               <TableCell>
                                 {argument.type}
                               </TableCell>
+                              {isChainingEnabled && <TableCell>{argument.subtype ?? '-'}</TableCell>}
                               <TableCell>
                                 {argument.key}
                               </TableCell>

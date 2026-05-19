@@ -3,9 +3,10 @@ package io.openaev.rest.team;
 import static io.openaev.database.specification.TeamSpecification.contextual;
 import static io.openaev.database.specification.TeamSpecification.fromExercise;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
+import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 
+import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.aop.RBAC;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Team;
@@ -29,8 +30,11 @@ public class ExerciseTeamApi extends RestBehavior {
   private final TeamService teamService;
 
   @LogExecutionTime
-  @PostMapping(EXERCISE_URI + "/{exerciseId}/teams/search")
-  @RBAC(
+  @PostMapping({
+    EXERCISE_URI + "/{exerciseId}/teams/search",
+    TENANT_EXERCISE_URI + "/{exerciseId}/teams/search"
+  })
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)

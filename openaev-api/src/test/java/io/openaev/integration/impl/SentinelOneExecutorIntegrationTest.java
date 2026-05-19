@@ -2,15 +2,17 @@ package io.openaev.integration.impl;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_NAME;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CatalogConnectorRepository;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.ExecutorService;
+import io.openaev.executors.exception.ExecutorException;
 import io.openaev.executors.sentinelone.client.SentinelOneExecutorClient;
 import io.openaev.executors.sentinelone.config.SentinelOneExecutorConfig;
 import io.openaev.integration.ComponentRequest;
@@ -21,10 +23,7 @@ import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
 import io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration;
 import io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegrationFactory;
 import io.openaev.integration.migration.SentinelOneExecutorConfigurationMigration;
-import io.openaev.service.AgentService;
-import io.openaev.service.AssetGroupService;
-import io.openaev.service.EndpointService;
-import io.openaev.service.FileService;
+import io.openaev.service.*;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connector_instances.EncryptionFactory;
@@ -52,7 +51,7 @@ public class SentinelOneExecutorIntegrationTest {
   @Autowired private AgentService agentService;
   @Autowired private AssetGroupService assetGroupService;
   @Autowired private ExecutorService executorService;
-  @Autowired private Ee eeService;
+  @Autowired private EnterpriseEditionService enterpriseEditionService;
   @Autowired private LicenseCacheManager licenseCacheManager;
   @Autowired private ComponentRequestEngine componentRequestEngine;
   @Autowired private ThreadPoolTaskScheduler taskScheduler;
@@ -63,6 +62,7 @@ public class SentinelOneExecutorIntegrationTest {
   @Autowired private EncryptionFactory encryptionFactory;
   @Autowired private HttpClientFactory httpClientFactory;
   @Autowired private BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
+  @Autowired private PreviewFeatureService previewFeatureService;
 
   @Autowired
   private SentinelOneExecutorConfigurationMigration sentinelOneExecutorConfigurationMigration;
@@ -79,7 +79,7 @@ public class SentinelOneExecutorIntegrationTest {
         agentService,
         endpointService,
         assetGroupService,
-        eeService,
+        enterpriseEditionService,
         licenseCacheManager,
         taskScheduler,
         fileService,
@@ -190,5 +190,97 @@ public class SentinelOneExecutorIntegrationTest {
     AssertionsForClassTypes.assertThat(
             FieldUtils.computeAllFieldValues(integration).get("encryptionService"))
         .isNull();
+  }
+
+  @Test
+  @DisplayName(
+      "When spawning an integration with a null configuration builder, should throw ExecutorException")
+  public void whenSpawnWithNullConfigBuilder_should_throwExecutorException() throws Exception {
+    IntegrationFactory integrationFactory = getFactory();
+    integrationFactory.initialise();
+
+    List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
+    List<ConnectorInstancePersisted> instances =
+        connectorInstanceService.findAllByCatalogConnector(connectors.getFirst());
+    ConnectorInstancePersisted instance = instances.getFirst();
+
+    // Act & Assert — passing null baseIntegrationConfigurationBuilder causes refresh() to fail
+    assertThatThrownBy(
+            () ->
+                new SentinelOneExecutorIntegration(
+                    instance,
+                    connectorInstanceService,
+                    endpointService,
+                    agentService,
+                    assetGroupService,
+                    enterpriseEditionService,
+                    licenseCacheManager,
+                    componentRequestEngine,
+                    executorService,
+                    taskScheduler,
+                    null,
+                    httpClientFactory))
+        .isInstanceOf(ExecutorException.class)
+        .hasMessageContaining("Error during initialization of the Executor");
+  }
+
+  @Test
+  @DisplayName(
+      "When integration is stopped and requested status is starting, initialise should start it")
+  public void whenStoppedAndStartingRequested_initialise_should_startIntegration()
+      throws Exception {
+    // Arrange
+    IntegrationFactory integrationFactory = getFactory();
+    integrationFactory.initialise();
+
+    List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
+    ConnectorInstancePersisted instance =
+        connectorInstanceService.findAllByCatalogConnector(connectors.getFirst()).getFirst();
+
+    instance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.starting);
+    connectorInstanceService.save(instance);
+
+    Integration integration = integrationFactory.spawn(instance);
+    assertThat(integration.getCurrentStatus())
+        .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
+
+    // Act
+    integration.initialise();
+
+    // Assert
+    assertThat(integration.getCurrentStatus())
+        .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.started);
+  }
+
+  @Test
+  @DisplayName(
+      "When integration is started and requested status is stopping, initialise should stop it")
+  public void whenStartedAndStoppingRequested_initialise_should_stopIntegration() throws Exception {
+    // Arrange — start the integration first
+    IntegrationFactory integrationFactory = getFactory();
+    integrationFactory.initialise();
+
+    List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
+    ConnectorInstancePersisted instance =
+        connectorInstanceService.findAllByCatalogConnector(connectors.getFirst()).getFirst();
+
+    instance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.starting);
+    connectorInstanceService.save(instance);
+
+    Integration integration = integrationFactory.spawn(instance);
+    integration.initialise();
+    assertThat(integration.getCurrentStatus())
+        .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.started);
+
+    // Arrange — now request stopping
+    instance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
+    connectorInstanceService.save(instance);
+
+    // Act
+    integration.initialise();
+
+    // Assert
+    assertThat(integration.getCurrentStatus())
+        .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
   }
 }

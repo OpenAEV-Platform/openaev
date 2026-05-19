@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.database.audit.TenantBaseListener;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import java.util.ArrayList;
@@ -14,13 +15,15 @@ import java.util.Objects;
 import java.util.Set;
 import lombok.Data;
 import lombok.Getter;
+import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UuidGenerator;
 
 @Data
 @Entity
 @Table(name = "tag_rules")
-@EntityListeners(ModelBaseListener.class)
-public class TagRule implements Base {
+@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+public class TagRule implements TenantBase {
   public static Set<String> RESERVED_TAG_NAMES =
       Set.of(
           OPENCTI_TAG_NAME,
@@ -56,6 +59,11 @@ public class TagRule implements Base {
   @Queryable(filterable = true, sortable = true, path = "assetGroups.name")
   @JsonProperty("tag_rule_asset_groups")
   private List<AssetGroup> assetGroups = new ArrayList<>();
+
+  @ManyToOne
+  @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
+  @JsonIgnore
+  private Tenant tenant;
 
   @Getter(onMethod_ = @JsonIgnore)
   @Transient

@@ -55,7 +55,7 @@ const EndpointForm: FunctionComponent<Props> = ({
         asset_description: z.string().optional(),
         asset_tags: z.string().array().optional(),
         endpoint_hostname: z.string().optional(),
-        endpoint_ips: z.string().ip({ message: t('Invalid IP addresses') }).array().optional(),
+        endpoint_ips: z.union([z.ipv4({ message: t('Invalid IP addresses') }), z.ipv6({ message: t('Invalid IP addresses') })]).array().optional(),
         endpoint_mac_addresses: z
           .string()
           .regex(regexMacAddress,

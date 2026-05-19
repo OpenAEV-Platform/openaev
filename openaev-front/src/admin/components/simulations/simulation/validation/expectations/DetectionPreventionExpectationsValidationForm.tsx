@@ -77,7 +77,7 @@ const DetectionPreventionExpectationsValidationForm: FunctionComponent<FormProps
       expectation_score: number;
       security_platform: string;
     }>().with({
-      expectation_score: z.coerce.number(),
+      expectation_score: z.number({ error: t('Score must be a valid number') }).min(0, { message: t('Should be superior or equal to 0') }).max(100, { message: t('Should be inferior or equal to 100') }).int(t('Score must be a whole number')),
       security_platform: z.string().min(1, { message: t('Should not be empty') }),
     })),
     defaultValues: {
@@ -130,8 +130,8 @@ const DetectionPreventionExpectationsValidationForm: FunctionComponent<FormProps
         label={t('Score')}
         type="number"
         error={!!errors.expectation_score}
-        helperText={errors.expectation_score && errors.expectation_score?.message ? errors.expectation_score?.message : `${t('Expected score:')} ${expectation.inject_expectation_expected_score}`}
-        inputProps={register('expectation_score')}
+        helperText={errors.expectation_score?.message ?? `${t('Expected score:')} ${expectation.inject_expectation_expected_score}`}
+        slotProps={{ htmlInput: { ...register('expectation_score', { valueAsNumber: true }) } }}
       />
 
       <div className={classes.buttons}>

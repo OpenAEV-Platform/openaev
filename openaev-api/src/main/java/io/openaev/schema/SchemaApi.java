@@ -2,7 +2,7 @@ package io.openaev.schema;
 
 import static io.openaev.schema.SchemaUtils.isValidClassName;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.engine.EngineContext;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.schema.model.PropertySchemaDTO;
@@ -22,7 +22,7 @@ public class SchemaApi extends RestBehavior {
   private final EngineContext engineContext;
 
   @PostMapping("/api/schemas/{className}")
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public List<PropertySchemaDTO> schemas(
       @PathVariable @NotNull final String className,
       @RequestParam final boolean filterableOnly,
@@ -46,7 +46,7 @@ public class SchemaApi extends RestBehavior {
   }
 
   @GetMapping("/api/engine/schemas")
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public Set<PropertySchemaDTO> engineSchemas(
       @RequestParam(name = "classNames", required = false) List<String> classNames) {
     return engineContext.getModels().stream()

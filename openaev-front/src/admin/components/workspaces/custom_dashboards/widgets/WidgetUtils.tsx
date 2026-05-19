@@ -1,28 +1,33 @@
 import { AccountTree, List, TableChart, VerifiedUser } from '@mui/icons-material';
 import { AlignHorizontalLeft, ChartBar, ChartDonut, ChartLine, Counter } from 'mdi-material-ui';
 
+import { generateFilterId } from '../../../../../components/common/queryable/filter/FilterUtils';
 import {
-  type CustomDashboardParameters, type DateHistogramWidget, type EsAttackPath, type EsAvgs, type EsBase, type EsCountInterval, type EsSeries,
+  type CustomDashboardParameters,
+  type EsAttackPath,
+  type EsAvgs,
+  type EsCountInterval, type EsEntities,
+  type EsSeries,
   type Exercise,
   type Filter,
   type FilterGroup,
-  type InjectExpectation, type Series, type StructuralHistogramWidget,
+  type InjectExpectation,
+  type Series,
   type Widget,
-  type WidgetInput,
 } from '../../../../../utils/api-types';
 import { createGroupOption, type GroupOption } from '../../../../../utils/Option';
 
-export type WidgetInputWithoutLayout = Omit<WidgetInput, 'widget_layout'>;
 export type StepType = ('type' | 'series' | 'parameters');
 export const steps: StepType[] = ['type', 'series', 'parameters'];
 export const lastStepIndex = steps.length - 1;
 const defaultSteps: StepType[] = ['type', 'series', 'parameters'];
-const defaultModes: (DateHistogramWidget['mode'] | StructuralHistogramWidget['mode'])[] = ['structural', 'temporal'];
+export type WidgetMode = 'temporal' | 'structural';
+const defaultModes: WidgetMode[] = ['structural', 'temporal'];
 
 export const widgetVisualizationTypes: {
   category: Widget['widget_type'];
   seriesLimit: number;
-  modes?: DateHistogramWidget['mode'][] | StructuralHistogramWidget['mode'][];
+  modes?: WidgetMode[];
   fields?: string[];
   steps?: StepType[];
   limit?: boolean;
@@ -67,6 +72,7 @@ export const widgetVisualizationTypes: {
   {
     category: 'list',
     seriesLimit: 1,
+    limit: false,
   },
   {
     category: 'number',
@@ -103,7 +109,7 @@ export const getCurrentSeriesLimit = (type: Widget['widget_type']) => {
   return widgetVisualizationTypes.find(widget => widget.category === type)?.seriesLimit ?? 0;
 };
 
-export const getAvailableModes = (type: Widget['widget_type']) => {
+export const getAvailableModes = (type: Widget['widget_type']): WidgetMode[] => {
   return widgetVisualizationTypes.find(widget => widget.category === type)?.modes ?? defaultModes;
 };
 
@@ -178,30 +184,35 @@ export const getDefaultValuesForType = (
 
 // -- MATRIX MITRE --
 const entityFilter: Filter = {
+  id: generateFilterId(),
   key: BASE_ENTITY_FILTER_KEY,
   mode: 'and',
   operator: 'eq',
   values: ['expectation-inject'],
 };
 const statusSuccessFilter: Filter = {
+  id: generateFilterId(),
   key: 'inject_expectation_status',
   mode: 'and',
   operator: 'eq',
   values: ['SUCCESS'],
 };
 const statusFailedFilter: Filter = {
+  id: generateFilterId(),
   key: 'inject_expectation_status',
   mode: 'and',
   operator: 'eq',
   values: ['FAILED'],
 };
 const typeFilter: (injectExpectationType: InjectExpectation['inject_expectation_type']) => Filter = injectExpectationType => ({
+  id: generateFilterId(),
   key: 'inject_expectation_type',
   mode: 'and',
   operator: 'eq',
   values: [injectExpectationType],
 });
 const simulationFilter: (simulationId: Exercise['exercise_id']) => Filter = simulationId => ({
+  id: generateFilterId(),
   key: 'base_simulation_side',
   mode: 'and',
   operator: 'eq',
@@ -259,6 +270,7 @@ export const updateSimulationFilterOnSeries = (series: Series[], simulationId?: 
 
 // -- SECURITY DOMAINS WIDGET --
 export const domainsEntityFilter: Filter = {
+  id: generateFilterId(),
   key: BASE_ENTITY_FILTER_KEY,
   mode: 'or',
   operator: 'eq',
@@ -282,7 +294,7 @@ export type WidgetVizData
   }
   | {
     type: WidgetVizDataType.ENTITIES;
-    data: EsBase[];
+    data: EsEntities;
   }
   | {
     type: WidgetVizDataType.ATTACK_PATHS;

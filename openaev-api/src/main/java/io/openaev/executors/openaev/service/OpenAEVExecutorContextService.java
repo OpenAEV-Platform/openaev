@@ -1,6 +1,7 @@
 package io.openaev.executors.openaev.service;
 
 import static io.openaev.executors.ExecutorHelper.replaceArgs;
+import static io.openaev.integration.impl.executors.openaev.OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_NAME;
 
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AssetAgentJobRepository;
@@ -11,9 +12,11 @@ import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
 
 @Slf4j
 @RequiredArgsConstructor
+@Service(OPENAEV_EXECUTOR_NAME)
 public class OpenAEVExecutorContextService extends ExecutorContextService {
 
   private final AssetAgentJobRepository assetAgentJobRepository;
@@ -23,18 +26,22 @@ public class OpenAEVExecutorContextService extends ExecutorContextService {
       String agentId,
       Endpoint.PLATFORM_TYPE platform,
       Endpoint.PLATFORM_ARCH arch) {
-    Injector injector =
-        inject
-            .getInjectorContract()
-            .map(InjectorContract::getInjector)
-            .orElseThrow(
-                () -> new UnsupportedOperationException("Inject does not have a contract"));
+    Injector injector = inject.getInjector();
+    if (injector == null) {
+      // Fallback for legacy injects without inject_injector populated
+      injector =
+          inject
+              .getInjectorContract()
+              .map(InjectorContract::getFirstInjector)
+              .orElseThrow(
+                  () -> new UnsupportedOperationException("Inject does not have a contract"));
+    }
 
     return switch (platform) {
       case Windows, Linux, MacOS -> {
         String executorCommandKey = platform.name() + "." + arch.name();
         String cmd = injector.getExecutorCommands().get(executorCommandKey);
-        yield replaceArgs(platform, cmd, inject.getId(), agentId);
+        yield replaceArgs(platform, cmd, inject.getId(), agentId, inject.getTenant().getId());
       }
       default -> throw new RuntimeException("Unsupported platform: " + platform);
     };
@@ -53,6 +60,7 @@ public class OpenAEVExecutorContextService extends ExecutorContextService {
     assetAgentJob.setCommand(computeCommand(inject, agent.getId(), platform, arch));
     assetAgentJob.setAgent(agent);
     assetAgentJob.setInject(inject);
+    assetAgentJob.setTenant(inject.getTenant());
     assetAgentJobRepository.save(assetAgentJob);
   }
 

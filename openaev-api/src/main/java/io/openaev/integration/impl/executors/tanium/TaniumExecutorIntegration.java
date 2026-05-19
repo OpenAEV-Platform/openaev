@@ -1,5 +1,7 @@
 package io.openaev.integration.impl.executors.tanium;
 
+import static java.util.Optional.ofNullable;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.cache.LicenseCacheManager;
@@ -7,7 +9,7 @@ import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Executor;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.exception.ExecutorException;
 import io.openaev.executors.tanium.client.TaniumExecutorClient;
@@ -52,11 +54,10 @@ public class TaniumExecutorIntegration extends Integration {
   private final EndpointService endpointService;
   private final AssetGroupService assetGroupService;
   private final ExecutorService executorService;
-  private final Ee eeService;
+  private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
   private final ThreadPoolTaskScheduler taskScheduler;
   private final ConnectorInstanceService connectorInstanceService;
-  private final ConnectorInstance connectorInstance;
   private final HttpClientFactory httpClientFactory;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
 
@@ -68,7 +69,7 @@ public class TaniumExecutorIntegration extends Integration {
       EndpointService endpointService,
       AgentService agentService,
       AssetGroupService assetGroupService,
-      Ee eeService,
+      EnterpriseEditionService enterpriseEditionService,
       LicenseCacheManager licenseCacheManager,
       ComponentRequestEngine componentRequestEngine,
       ExecutorService executorService,
@@ -79,12 +80,11 @@ public class TaniumExecutorIntegration extends Integration {
     this.endpointService = endpointService;
     this.agentService = agentService;
     this.assetGroupService = assetGroupService;
-    this.eeService = eeService;
+    this.enterpriseEditionService = enterpriseEditionService;
     this.licenseCacheManager = licenseCacheManager;
     this.executorService = executorService;
     this.taskScheduler = taskScheduler;
     this.connectorInstanceService = connectorInstanceService;
-    this.connectorInstance = connectorInstance;
     this.httpClientFactory = httpClientFactory;
     this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
 
@@ -102,13 +102,22 @@ public class TaniumExecutorIntegration extends Integration {
   protected void innerStart() throws Exception {
     String executorId =
         connectorInstanceService.getConnectorInstanceConfigurationsByIdAndKey(
-            connectorInstance.getId(), ConnectorType.EXECUTOR.getIdKeyName());
+            getConnectorInstance().getId(), ConnectorType.EXECUTOR.getIdKeyName());
+    String executorName =
+        ofNullable(
+                connectorInstanceService.getConnectorInstanceConfigurationsByIdAndKey(
+                    getConnectorInstance().getId(), "EXECUTOR_NAME"))
+            .orElseThrow(
+                () ->
+                    new ExecutorException(
+                        "EXECUTOR_NAME configuration is required for the Executor",
+                        getConnectorInstance().getId()));
 
     Executor executor =
         executorService.register(
             executorId,
             TANIUM_EXECUTOR_TYPE,
-            TANIUM_EXECUTOR_NAME,
+            executorName,
             TANIUM_EXECUTOR_DOCUMENTATION_LINK,
             TANIUM_EXECUTOR_BACKGROUND_COLOR,
             getClass().getResourceAsStream("/img/icon-tanium.png"),
@@ -122,12 +131,13 @@ public class TaniumExecutorIntegration extends Integration {
     client = new TaniumExecutorClient(config, httpClientFactory);
     taniumExecutorContextService =
         new TaniumExecutorContextService(
-            eeService, licenseCacheManager, config, client, executorService);
+            enterpriseEditionService, licenseCacheManager, config, client, executorService);
     taniumExecutorService =
         new TaniumExecutorService(
             executor, client, config, endpointService, agentService, assetGroupService);
     taniumGarbageCollectorService =
-        new TaniumGarbageCollectorService(config, taniumExecutorContextService, agentService);
+        new TaniumGarbageCollectorService(
+            config, taniumExecutorContextService, agentService, executorId);
 
     timers.add(
         taskScheduler.scheduleAtFixedRate(

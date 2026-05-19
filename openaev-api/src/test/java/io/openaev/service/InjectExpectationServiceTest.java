@@ -18,13 +18,16 @@ import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.utils.ExpectationUtils;
 import io.openaev.utils.fixtures.*;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -75,7 +78,7 @@ class InjectExpectationServiceTest {
     Payload payload = PayloadFixture.createDefaultCommand();
     payload.setOutputParsers(outputParser != null ? Set.of(outputParser) : Set.of());
     InjectorContract contract =
-        InjectorContractFixture.createPayloadInjectorContract(injector, payload);
+        InjectorContractFixture.createPayloadInjectorContractWithDefaultDomain(injector, payload);
     inject.setInjectorContract(contract);
   }
 
@@ -363,6 +366,63 @@ class InjectExpectationServiceTest {
       verify(injectExpectationService, times(2))
           .updateInjectExpectation(any(), any(InjectExpectationUpdateInput.class));
       verify(injectExpectationRepository, times(1)).saveAll(any());
+    }
+  }
+
+  // ========================================================================
+  // findDistinctInjectIdsByInjectExpectationIds Tests
+  // ========================================================================
+  @Nested
+  @DisplayName("findDistinctInjectIdsByInjectExpectationIds")
+  class FindDistinctInjectIdsByInjectExpectationIdsTests {
+
+    @Captor private ArgumentCaptor<Set<String>> expectationIdsCaptor;
+
+    private static Stream<Arguments> testCases() {
+      String expectationId1 = UUID.randomUUID().toString();
+      String expectationId2 = UUID.randomUUID().toString();
+      String expectationId3 = UUID.randomUUID().toString();
+
+      String injectId1 = UUID.randomUUID().toString();
+      String injectId2 = UUID.randomUUID().toString();
+
+      return Stream.of(
+          Arguments.of(
+              "multiple expectation IDs returning multiple inject IDs",
+              Set.of(expectationId1, expectationId2, expectationId3),
+              Set.of(injectId1, injectId2)),
+          Arguments.of(
+              "multiple expectation IDs returning single inject ID",
+              Set.of(expectationId1, expectationId2),
+              Set.of(injectId1)),
+          Arguments.of("single expectation ID", Set.of(expectationId1), Set.of(injectId1)),
+          Arguments.of("empty expectation IDs", Collections.emptySet(), Collections.emptySet()),
+          Arguments.of(
+              "expectation IDs with no matching injects",
+              Set.of(expectationId1, expectationId2),
+              Collections.emptySet()));
+    }
+
+    @ParameterizedTest(name = "should handle {0}")
+    @MethodSource("testCases")
+    void shouldReturnDistinctInjectIds(
+        String name, Set<String> expectationIds, Set<String> expectedInjectIds) {
+      // Prepare
+      when(injectExpectationRepository.findDistinctInjectIdsByInjectExpectationIds(expectationIds))
+          .thenReturn(expectedInjectIds);
+
+      // Act
+      Set<String> result =
+          injectExpectationService.findDistinctInjectIdsByInjectExpectationIds(expectationIds);
+
+      // Assert
+      verify(injectExpectationRepository)
+          .findDistinctInjectIdsByInjectExpectationIds(expectationIdsCaptor.capture());
+      assertEquals(expectationIds, expectationIdsCaptor.getValue());
+      assertNotNull(result);
+      assertEquals(expectedInjectIds.size(), result.size());
+      assertEquals(expectedInjectIds, result);
+      verifyNoMoreInteractions(injectExpectationRepository);
     }
   }
 }

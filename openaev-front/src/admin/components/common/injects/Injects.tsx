@@ -15,6 +15,7 @@ import PaginationComponentV2 from '../../../../components/common/queryable/pagin
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
 import SortHeadersComponentV2 from '../../../../components/common/queryable/sort/SortHeadersComponentV2';
 import { useQueryableWithLocalStorage } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
+import CustomTooltip from '../../../../components/CustomTooltip';
 import { useFormatter } from '../../../../components/i18n';
 import ItemBoolean from '../../../../components/ItemBoolean';
 import ItemDomains from '../../../../components/ItemDomains';
@@ -47,7 +48,7 @@ import InjectPopover from './InjectPopover';
 import InjectsListButtons from './InjectsListButtons';
 import UpdateInject from './UpdateInject';
 
-const useStyles = makeStyles()(() => ({
+const useStyles = makeStyles()(theme => ({
   disabled: {
     opacity: 0.38,
     pointerEvents: 'none',
@@ -55,25 +56,25 @@ const useStyles = makeStyles()(() => ({
   duration: {
     fontSize: 12,
     lineHeight: '12px',
-    height: 20,
+    height: theme.spacing(2.5),
     float: 'left',
-    marginRight: 7,
-    borderRadius: 4,
+    marginRight: theme.spacing(1),
+    borderRadius: theme.shape.borderRadius,
     width: 180,
     backgroundColor: 'rgba(0, 177, 255, 0.08)',
     color: '#00b1ff',
     border: '1px solid #00b1ff',
   },
   itemHead: { textTransform: 'uppercase' },
-  item: { height: 50 },
+  item: { height: theme.spacing(6.25) },
   bodyItems: { display: 'flex' },
   bodyItem: {
-    height: 20,
+    height: theme.spacing(2.5),
     fontSize: 13,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
-    paddingRight: 10,
+    paddingRight: theme.spacing(1.25),
   },
 }));
 
@@ -142,7 +143,7 @@ const Injects: FunctionComponent<Props> = ({
     {
       field: 'inject_contract_domains',
       label: t('Domains'),
-      isSortable: true,
+      isSortable: false,
       value: (inject: InjectOutputType, _: InjectorContractConverted['convertedContent']) => {
         return inject.inject_contract_domains?.length
           ? (
@@ -197,20 +198,25 @@ const Injects: FunctionComponent<Props> = ({
       isSortable: false,
       value: (inject: InjectOutputType, _: InjectorContractConverted['convertedContent']) => {
         let injectStatus;
+        let injectTooltip = '';
         if (!inject.inject_enabled) {
           injectStatus = t('Disabled');
         } else if (!inject.inject_ready) {
           injectStatus = t('Missing content');
+          injectTooltip = inject.inject_healthchecks
+            ? `${t('Missing content')} : ${inject.inject_healthchecks.filter(healthcheck => 'MANDATORY_CONTENT' === healthcheck.detail)
+              .map(healthcheck => t(`healthcheck.description.${healthcheck.type}.${healthcheck.detail}`))
+              .join(', ')}`
+            : '';
         } else {
           injectStatus = t('Enabled');
         }
         return (
           <ItemBoolean
-            status={inject.inject_ready
-              ? inject.inject_enabled : false}
+            status={inject.inject_ready ? inject.inject_enabled : false}
             label={injectStatus}
             variant="inList"
-            tooltip={injectStatus}
+            tooltip={injectTooltip}
           />
         );
       },
@@ -520,7 +526,7 @@ const Injects: FunctionComponent<Props> = ({
       const contentDisposition = result.headers['content-disposition'];
       const match = contentDisposition.match(/filename\s*=\s*(.*)/i);
       const filename = match[1];
-      download(result.data, filename, result.headers['content-type']);
+      download(result.data, filename, result.headers['content-type']?.toString());
     }).finally(() => {
       setIsBulkLoading(false);
     });
@@ -568,12 +574,12 @@ const Injects: FunctionComponent<Props> = ({
         </div>
       )}
       {viewModeContext === 'list' && (
-        <List>
+        <List data-testid="injects-list-section">
           <ListItem
             classes={{ root: classes.itemHead }}
             divider={false}
-            style={{ paddingTop: 0 }}
-            secondaryAction={<>&nbsp;</>}
+            style={{ ...(numberOfSelectedElements > 0 ? { backgroundColor: 'rgb(15, 30, 56)' } : {}) }}
+            {...(numberOfSelectedElements === 0 ? { secondaryAction: <>&nbsp;</> } : {})}
           >
             <ListItemIcon style={{ minWidth: 40 }}>
               <Checkbox
@@ -584,97 +590,122 @@ const Injects: FunctionComponent<Props> = ({
                 disabled={typeof handleToggleSelectAll !== 'function'}
               />
             </ListItemIcon>
-
-            <ListItemIcon />
-            <ListItemText
-              primary={(
-                <SortHeadersComponentV2
-                  headers={headers}
-                  inlineStylesHeaders={inlineStyles}
-                  sortHelpers={queryableHelpers.sortHelpers}
+            {
+              numberOfSelectedElements > 0 ? (
+                <ListItemText
+                  primary={(
+                    <ToolBar
+                      numberOfSelectedElements={numberOfSelectedElements}
+                      handleClearSelectedElements={handleClearSelectedElements}
+                      teamsFromExerciseOrScenario={teams}
+                      handleUpdate={massUpdateInjects}
+                      handleBulkDelete={bulkDeleteInjects}
+                      handleBulkTest={massTestInjects}
+                      handleExport={handleExport}
+                      canManage={permissions.canManage}
+                    />
+                  )}
                 />
-              )}
-            />
+              ) : (
+                <>
+                  <ListItemIcon />
+                  <ListItemText
+                    primary={(
+                      <SortHeadersComponentV2
+                        headers={headers}
+                        inlineStylesHeaders={inlineStyles}
+                        sortHelpers={queryableHelpers.sortHelpers}
+                      />
+                    )}
+                  />
+                </>
+              )
+            }
+
           </ListItem>
           {loading
             ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} />
             : injects.map((inject: InjectOutputType, index) => {
                 const injectContract = inject.inject_injector_contract?.convertedContent;
                 return (
-                  <ListItem
+                  <CustomTooltip
                     key={inject.inject_id}
-                    divider
-                    secondaryAction={(
-                      <InjectPopover
-                        inject={inject}
-                        canBeTested
-                        setSelectedInjectId={setSelectedInjectId}
-                        isDisabled={!injectContract}
-                        isUpdateDisabled={!inject.inject_enabled}
-                        onCreate={onCreate}
-                        onUpdate={onUpdate}
-                        onDelete={onDelete}
-                      />
-                    )}
-                    disablePadding
+                    title={!injectContract || !inject.inject_enabled ? t('No match found in OpenAEV') : ''}
                   >
-                    <ListItemButton
-                      onClick={() => {
-                        if (injectContract) {
-                          setSelectedInjectId(inject.inject_id);
-                        }
-                      }}
+                    <ListItem
+                      divider
+                      secondaryAction={(
+                        <InjectPopover
+                          inject={inject}
+                          canBeTested
+                          setSelectedInjectId={setSelectedInjectId}
+                          isDisabled={!injectContract}
+                          isUpdateDisabled={!inject.inject_enabled}
+                          onCreate={onCreate}
+                          onUpdate={onUpdate}
+                          onDelete={onDelete}
+                        />
+                      )}
+                      disablePadding
                     >
-
-                      <ListItemIcon
-                        style={{ minWidth: 40 }}
-                        onClick={event => (event.shiftKey
-                          ? onRowShiftClick(index, inject, event)
-                          : onToggleEntity(inject, event))}
+                      <ListItemButton
+                        onClick={() => {
+                          if (injectContract) {
+                            setSelectedInjectId(inject.inject_id);
+                          }
+                        }}
                       >
-                        <Checkbox
-                          edge="start"
-                          checked={
-                            (selectAll && !(inject.inject_id
-                              in (deSelectedElements || {})))
-                              || inject.inject_id in (selectedElements || {})
-                          }
-                          disableRipple
-                        />
-                      </ListItemIcon>
-                      <ListItemIcon style={{ paddingTop: 5 }}>
-                        <InjectIcon
-                          isPayload={isNotEmptyField(inject.inject_injector_contract?.injector_contract_payload)}
-                          type={
-                            inject.inject_injector_contract?.injector_contract_payload
-                              ? inject.inject_injector_contract?.injector_contract_payload?.payload_collector_type
-                              || inject.inject_injector_contract?.injector_contract_payload?.payload_type
-                              : inject.inject_type
-                          }
-                          disabled={!injectContract || !inject.inject_enabled}
-                        />
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={(
-                          <div className={(!injectContract
-                            || !inject.inject_enabled) ? classes.disabled : ''}
-                          >
-                            <div className={classes.bodyItems}>
-                              {headers.map(header => (
-                                <div
-                                  key={header.field}
-                                  className={classes.bodyItem}
-                                  style={inlineStyles[header.field]}
-                                >
-                                  {header.value(inject, injectContract)}
-                                </div>
-                              ))}
+
+                        <ListItemIcon
+                          style={{ minWidth: 40 }}
+                          onClick={event => (event.shiftKey
+                            ? onRowShiftClick(index, inject, event)
+                            : onToggleEntity(inject, event))}
+                        >
+                          <Checkbox
+                            edge="start"
+                            checked={
+                              (selectAll && !(inject.inject_id
+                                in (deSelectedElements || {})))
+                                || inject.inject_id in (selectedElements || {})
+                            }
+                            disableRipple
+                          />
+                        </ListItemIcon>
+                        <ListItemIcon style={{ paddingTop: 5 }}>
+                          <InjectIcon
+                            isPayload={isNotEmptyField(inject.inject_injector_contract?.injector_contract_payload)}
+                            type={
+                              inject.inject_injector_contract?.injector_contract_payload
+                                ? inject.inject_injector_contract?.injector_contract_payload?.payload_collector_type
+                                || inject.inject_injector_contract?.injector_contract_payload?.payload_type
+                                : inject.inject_type
+                            }
+                            disabled={!injectContract || !inject.inject_enabled}
+                          />
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={(
+                            <div className={(!injectContract
+                              || !inject.inject_enabled) ? classes.disabled : ''}
+                            >
+                              <div className={classes.bodyItems}>
+                                {headers.map(header => (
+                                  <div
+                                    key={header.field}
+                                    className={classes.bodyItem}
+                                    style={inlineStyles[header.field]}
+                                  >
+                                    {header.value(inject, injectContract)}
+                                  </div>
+                                ))}
+                              </div>
                             </div>
-                          </div>
-                        )}
-                      />
-                    </ListItemButton>
-                  </ListItem>
+                          )}
+                        />
+                      </ListItemButton>
+                    </ListItem>
+                  </CustomTooltip>
                 );
               })}
         </List>
@@ -703,25 +734,6 @@ const Injects: FunctionComponent<Props> = ({
             />
           )}
 
-          {
-            numberOfSelectedElements > 0 && (
-              <ToolBar
-                numberOfSelectedElements={numberOfSelectedElements}
-                totalNumberOfElements={queryableHelpers.paginationHelpers.getTotalElements()}
-                selectedElements={selectedElements}
-                deSelectedElements={deSelectedElements}
-                selectAll={selectAll}
-                handleClearSelectedElements={handleClearSelectedElements}
-                teamsFromExerciseOrScenario={teams}
-                id={contextId}
-                handleUpdate={massUpdateInjects}
-                handleBulkDelete={bulkDeleteInjects}
-                handleBulkTest={massTestInjects}
-                handleExport={handleExport}
-                canManage={permissions.canManage}
-              />
-            )
-          }
           {openCreateDrawer
             && (
               <CreateInject
@@ -737,7 +749,6 @@ const Injects: FunctionComponent<Props> = ({
               />
             )}
         </>
-
       </>
     </>
   );

@@ -24,7 +24,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import org.springframework.beans.factory.annotation.Value;
 
 public class ChallengeExecutor extends Injector {
 
@@ -43,15 +42,14 @@ public class ChallengeExecutor extends Injector {
     this.injectExpectationService = injectExpectationService;
   }
 
-  @Value("${openaev.mail.imap.enabled}")
-  private boolean imapEnabled;
-
   private String buildChallengeUri(
       ExecutionContext executionContext, Exercise exercise, Challenge challenge) {
     String userId = executionContext.getUser().getId();
     String challengeId = challenge.getId();
     String exerciseId = exercise.getId();
     return this.context.getOpenAEVConfig().getBaseUrl()
+        + "/"
+        + exercise.getTenant().getId()
         + "/challenges/"
         + exerciseId
         + "?user="
@@ -88,6 +86,7 @@ public class ChallengeExecutor extends Injector {
         // Send the publication message.
         Exercise exercise = injection.getInjection().getExercise();
         String from = exercise.getFrom();
+        String fromName = exercise.getFromName();
         List<String> replyTos = exercise.getReplyTos();
         List<ExecutionContext> users = injection.getUsers();
         List<Document> documents =
@@ -96,7 +95,8 @@ public class ChallengeExecutor extends Injector {
                 .map(InjectDocument::getDocument)
                 .toList();
         List<DataAttachment> attachments = resolveAttachments(execution, injection, documents);
-        String message = content.buildMessage(injection, imapEnabled);
+        String message =
+            content.buildMessage(injection, this.context.getOpenAEVConfig().getBaseUrl());
         boolean encrypted = content.isEncrypted();
         users.forEach(
             userInjectContext -> {
@@ -117,6 +117,7 @@ public class ChallengeExecutor extends Injector {
                     execution,
                     List.of(userInjectContext),
                     from,
+                    fromName,
                     replyTos,
                     content.getInReplyTo(),
                     encrypted,

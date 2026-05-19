@@ -41,7 +41,7 @@ export const findEndpoints = (endpointIds: string[]) => {
 };
 
 export const fetchEndpoint = (endpointId: string) => (dispatch: Dispatch) => {
-  const uri = `/api/endpoints/${endpointId}`;
+  const uri = `${ENDPOINT_URI}/${endpointId}`;
   return getReferential(endpoint, uri)(dispatch);
 };
 
@@ -66,8 +66,8 @@ export const searchEndpointLinkedToFindingsAsOption = (searchText: string = '', 
   return simpleCall(`${ENDPOINT_URI}/findings/options`, { params });
 };
 
-export const importEndpoints = (file: FormData, targetType: string) => {
-  return simplePostCall(`/api/mappers/import/csv?targetType=` + targetType, file);
+export const importEndpoints = (file: FormData, csvType: string) => {
+  return simplePostCall(`/api/mappers/import/csv?csvType=` + csvType, file);
 };
 
 // -- SIMULATIONS --

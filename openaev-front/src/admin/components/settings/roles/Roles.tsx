@@ -1,86 +1,72 @@
-import { useState } from 'react';
-import { useSearchParams } from 'react-router';
-import { makeStyles } from 'tss-react/mui';
+import { Box, Tab, Tabs } from '@mui/material';
+import { useContext, useState } from 'react';
 
-import { searchRoles } from '../../../../actions/roles/roles-actions';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
-import { initSorting } from '../../../../components/common/queryable/Page';
-import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
-import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
-import { useQueryableWithLocalStorage } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useFormatter } from '../../../../components/i18n';
-import type { RoleOutput, SearchPaginationInput } from '../../../../utils/api-types';
-import { Can } from '../../../../utils/permissions/permissionsContext';
+import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
+import NoEnterpriseEdition from '../../../../utils/permissions/NoEnterpriseEdition';
+import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { isFeatureEnabled } from '../../../../utils/utils';
+import EEChip from '../../common/entreprise_edition/EEChip';
+import { SETTINGS_LABEL } from '../../nav/config/settings.config';
 import SecurityMenu from '../SecurityMenu';
-import CreateRole from './CreateRole';
-import RolePopover from './RolePopover';
-import RolesList from './RolesList';
-
-const useStyles = makeStyles()(() => ({
-  itemHead: { textTransform: 'uppercase' },
-  item: { height: 50 },
-  container: { display: 'flex' },
-  bodyItems: { flexGrow: 1 },
-}));
+import PlatformRolesTab from './platform_roles/PlatformRolesTab';
+import TenantRolesTab from './tenant_roles/TenantRolesTab';
 
 const Roles = () => {
-  const { classes } = useStyles();
   const { t } = useFormatter();
-  // Query param
-  const [searchParams] = useSearchParams();
-  const [search] = searchParams.getAll('search');
-
-  const [roles, setRoles] = useState<RoleOutput[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-
-  const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage('role', buildSearchPagination({
-    sorts: initSorting('role_name', 'ASC'),
-    textSearch: search,
-  }));
-
-  const secondaryAction = (role: RoleOutput) => (
-    <RolePopover
-      onDelete={result => setRoles(roles.filter(r => (r.role_id !== result)))}
-      onUpdate={result => setRoles(roles.map(r => (r.role_id !== result.role_id ? r : result)))}
-      role={{ ...role }}
-    />
-  );
-
-  const searchRolesToLoad = (input: SearchPaginationInput) => {
-    setLoading(true);
-    return searchRoles(input).finally(() => {
-      setLoading(false);
-    });
+  const ability = useContext(AbilityContext);
+  const { isValidated: isEnterpriseEdition, openDialog } = useEnterpriseEdition();
+  const canAccessTenant = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS);
+  const canAccessPlatform = ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_USERS_GROUPS_AND_ROLES) && isFeatureEnabled('MULTI_TENANCY');
+  const defaultTab = canAccessTenant ? 'tenant' : 'platform';
+  const [currentTab, setCurrentTab] = useState(() => localStorage.getItem('settings_roles_tab') ?? defaultTab);
+  const handleTabChange = (val: string) => {
+    if (val === 'platform' && !isEnterpriseEdition) {
+      openDialog();
+      return;
+    }
+    localStorage.setItem('settings_roles_tab', val);
+    setCurrentTab(val);
   };
 
   return (
-    <div className={classes.container}>
-      <div className={classes.bodyItems}>
+    <div style={{ display: 'flex' }}>
+      <div style={{ flexGrow: 1 }}>
         <Breadcrumbs
           variant="list"
-          elements={[{ label: t('Settings') }, { label: t('Security') }, {
+          elements={[{ label: t(SETTINGS_LABEL) }, { label: t('Security') }, {
             label: t('Roles'),
             current: true,
           }]}
         />
-        <PaginationComponentV2
-          fetch={searchRolesToLoad}
-          searchPaginationInput={searchPaginationInput}
-          setContent={setRoles}
-          entityPrefix="role"
-          queryableHelpers={queryableHelpers}
-          disablePagination
-          disableFilters
-        />
-        <RolesList roles={roles} queryableHelpers={queryableHelpers} loading={loading} secondaryAction={secondaryAction} />
-        <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
-          <CreateRole onCreate={(result: RoleOutput) => setRoles([...roles, result])} />
-        </Can>
-
+        <Box sx={{
+          borderBottom: 1,
+          borderColor: 'divider',
+          marginBottom: 2,
+        }}
+        >
+          <Tabs
+            value={currentTab}
+            onChange={(_, val) => handleTabChange(val)}
+          >
+            {canAccessTenant && <Tab label="Tenant" value="tenant" />}
+            {canAccessPlatform && (
+              <Tab
+                label={t('Platform')}
+                value="platform"
+                icon={!isEnterpriseEdition ? <EEChip clickable /> : undefined}
+                iconPosition="end"
+                sx={{ gap: 1 }}
+              />
+            )}
+          </Tabs>
+        </Box>
+        {currentTab === 'tenant' && canAccessTenant && <TenantRolesTab />}
+        {currentTab === 'platform' && canAccessPlatform && (isEnterpriseEdition ? <PlatformRolesTab /> : <NoEnterpriseEdition />)}
       </div>
       <SecurityMenu />
-
     </div>
   );
 };

@@ -5,6 +5,7 @@ import { type FunctionComponent } from 'react';
 
 import CustomTooltip from '../../../../components/CustomTooltip';
 import { useFormatter } from '../../../../components/i18n';
+import { buildTenantApiPath } from '../../../../utils/url-helper';
 
 interface Props {
   type: string | undefined;
@@ -34,7 +35,7 @@ const InjectIcon: FunctionComponent<Props> = ({
 
   const iconSelector = (type: string, isPayload: boolean, variant: string, fontSize: string, done: boolean, disabled: boolean) => {
     const style = {
-      marginTop: variant === 'list' ? theme.spacing(1) : 0,
+      marginTop: variant === 'list' ? theme.spacing(0.5) : 0,
       padding: variant === 'timeline' ? 1 : 0,
       width: fontSize === 'small' || variant === 'inline' ? 20 : 24,
       height: fontSize === 'small' || variant === 'inline' ? 20 : 24,
@@ -50,7 +51,7 @@ const InjectIcon: FunctionComponent<Props> = ({
     if (isPayload) {
       if (type.startsWith('openaev_')) {
         return (
-          <img onClick={onClick} src={`/api/images/collectors/${type}`} alt={type} style={style} />
+          <img onClick={onClick} src={buildTenantApiPath(`/api/images/collectors/${type}`)} alt={type} style={style} />
         );
       }
       switch (type) {
@@ -70,7 +71,7 @@ const InjectIcon: FunctionComponent<Props> = ({
     }
     return (
       <img
-        src={`/api/images/injectors/${type}`}
+        src={buildTenantApiPath(`/api/images/injectors/${type}`)}
         onClick={onClick}
         alt={type}
         style={style}

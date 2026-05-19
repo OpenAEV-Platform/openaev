@@ -422,7 +422,7 @@ export type onBarClickFunction = (event: Event, config: {
 interface HorizontalBarsChartOptions {
   theme: Theme;
   adjustTicks?: boolean;
-  xFormatter?: ((val: number) => string | string[]) | null;
+  xFormatter?: ((val: string) => string | string[]) | null;
   yFormatter?: ((val: string) => string) | null;
   distributed?: boolean;
   stacked?: boolean;
@@ -493,7 +493,7 @@ export const horizontalBarsChartOptions = ({
   xaxis: {
     categories: categories ?? [],
     labels: {
-      formatter: (value: number) => (xFormatter ? xFormatter(value) : value.toString()),
+      formatter: (value: string) => (xFormatter ? xFormatter(value) : value),
       style: { fontFamily: '"IBM Plex Sans", sans-serif' },
     },
     axisBorder: { show: false },

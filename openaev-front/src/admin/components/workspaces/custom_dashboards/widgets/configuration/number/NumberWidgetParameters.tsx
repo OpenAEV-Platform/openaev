@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { type Control, Controller, type UseFormSetValue, useWatch } from 'react-hook-form';
 
 import type { Widget } from '../../../../../../../utils/api-types';
-import { type WidgetInputWithoutLayout } from '../../WidgetUtils';
+import { type WidgetInputWithoutLayout } from '../../../../../../../utils/api-types-custom';
 import WidgetConfigDateAttributeController from '../common/WidgetConfigDateAttributeController';
 import WidgetConfigTimeRangeController from '../common/WidgetConfigTimeRangeController';
 

@@ -1,13 +1,13 @@
 import { Typography } from '@mui/material';
-import { useContext, useEffect, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 
 import Drawer from '../../../../../components/common/Drawer';
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
 import {
-  type EsBase,
-  type ListConfiguration,
+  type EsEntities,
+  type ListConfiguration, type Pagination,
   type WidgetToEntitiesInput,
 } from '../../../../../utils/api-types';
 import { CustomDashboardContext } from '../CustomDashboardContext';
@@ -22,37 +22,56 @@ const WidgetDataDrawer = () => {
   const [searchParams] = useSearchParams();
   const widgetId = searchParams.get('widget_id');
   const seriesIndex = searchParams.get('series_index');
-  const filterValues = searchParams.get('filter_values');
+
+  const filterValues = useMemo(() => {
+    return Object.fromEntries(
+      searchParams.entries()
+        .filter(([key]) => !['widget_id', 'series_index'].includes(key))
+        .map(([key, value]) => [key, value.split(',')]),
+    );
+  }, [searchParams]);
 
   const [open, setOpen] = useState(false);
-  const [listDatas, setListDatas] = useState<EsBase[]>([]);
+  const [paginatedEntities, setPaginatedEntities] = useState<EsEntities>();
   const [listConfig, setListConfig] = useState<ListConfiguration | null | undefined>(null);
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true); // full widget loader
+  const [contentLoading, setContentLoading] = useState(false);
 
-  useEffect(() => {
-    if (!customDashboard || !widgetId || filterValues == null || !seriesIndex) {
-      setOpen(false);
-      return;
-    }
-    setLoading(true);
-    setOpen(true);
-
+  const fetchEntitiesAtRuntime = useCallback(async (currentWidgetId: string, pagination?: Pagination) => {
     const params: Record<string, string> = Object.fromEntries(
       Object.entries(customDashboardParameters).map(([key, val]) => [key, val.value]),
     );
-    fetchEntitiesRuntime(widgetId, {
-      filter_values: filterValues.split(','),
+    return fetchEntitiesRuntime(currentWidgetId, {
+      filter_values_map: filterValues,
       series_index: Number(seriesIndex),
       parameters: params,
+      pagination,
     }).then(({ data }) => {
-      setListDatas(data.es_entities ?? []);
+      setPaginatedEntities(data.es_entities);
       setListConfig(data.list_configuration);
-      setLoading(false);
     }).catch(() => {
       setListConfig(null);
-      setLoading(false);
     });
+  }, [widgetId, filterValues]);
+
+  useEffect(() => {
+    if (!customDashboard || !widgetId || filterValues == null) {
+      setOpen(false);
+      return;
+    }
+    setInitialLoading(true);
+    setOpen(true);
+    fetchEntitiesAtRuntime(widgetId).then(() => setInitialLoading(false));
   }, [widgetId, filterValues, seriesIndex]);
+
+  const onPaginationChange = (pagination: Pagination) => {
+    if (!widgetId) {
+      setOpen(false);
+      return;
+    }
+    setContentLoading(true);
+    fetchEntitiesAtRuntime(widgetId, pagination).then(() => setContentLoading(false));
+  };
 
   return (
     <Drawer
@@ -61,9 +80,20 @@ const WidgetDataDrawer = () => {
       title={t('Display list')}
     >
       <>
-        {loading && <Loader variant="inElement" /> }
-        {(!loading && listConfig == null) && <Typography align="center" variant="subtitle1">{t('No data to display')}</Typography>}
-        {(!loading && listConfig != null) && <ListWidget widgetConfig={listConfig} elements={listDatas} />}
+        {initialLoading && <Loader variant="inElement" /> }
+        {(!initialLoading && listConfig == null) && <Typography align="center" variant="subtitle1">{t('No data to display')}</Typography>}
+        {(!initialLoading && listConfig != null && paginatedEntities != null)
+          && (
+            <ListWidget
+              widgetConfig={listConfig}
+              elements={paginatedEntities.es_datas}
+              currentPageNumber={paginatedEntities.page_number}
+              elementsPerPage={paginatedEntities.page_size}
+              totalElements={paginatedEntities.total}
+              onPaginationChange={onPaginationChange}
+              contentLoading={contentLoading}
+            />
+          )}
       </>
     </Drawer>
   );

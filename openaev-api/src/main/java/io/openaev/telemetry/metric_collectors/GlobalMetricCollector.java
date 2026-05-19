@@ -1,7 +1,8 @@
 package io.openaev.telemetry.metric_collectors;
 
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.service.UserService;
+import io.openaev.service.tenants.TenantService;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -11,7 +12,8 @@ import org.springframework.stereotype.Service;
 public class GlobalMetricCollector {
   private final MetricRegistry metricRegistry;
   private final UserService userService;
-  private final Ee eeService;
+  private final EnterpriseEditionService enterpriseEditionService;
+  private final TenantService tenantService;
 
   @PostConstruct
   public void init() {
@@ -21,9 +23,13 @@ public class GlobalMetricCollector {
         "enterprise Edition is activated",
         this::isEnterpriseEdition,
         "boolean");
+    metricRegistry.registerGauge(
+        "active_tenants_count",
+        "Number of active instance tenants",
+        tenantService::countActiveTenants);
   }
 
   private long isEnterpriseEdition() {
-    return eeService.getEnterpriseEditionInfo().isLicenseValidated() ? 1 : 0;
+    return enterpriseEditionService.getEnterpriseEditionInfo().isLicenseValidated() ? 1 : 0;
   }
 }

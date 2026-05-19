@@ -8,8 +8,8 @@ import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.helper.MultiModelSerializer;
-import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.annotation.Nullable;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import java.util.*;
@@ -22,8 +22,8 @@ import org.hibernate.annotations.FetchMode;
 @Getter
 @Entity
 @Table(name = "groups")
-@EntityListeners(ModelBaseListener.class)
-public class Group implements Base {
+@EntityListeners({ModelBaseListener.class})
+public class Group implements DualScopeBase {
 
   @Id
   @ControlledUuidGeneration
@@ -38,11 +38,11 @@ public class Group implements Base {
   @NotBlank
   private String name;
 
+  @Queryable(searchable = true)
   @Column(name = "group_description")
   @JsonProperty("group_description")
   private String description;
 
-  @Queryable(sortable = true)
   @Column(name = "group_default_user_assign")
   @JsonProperty("group_default_user_assign")
   private boolean defaultUserAssignation;
@@ -57,7 +57,7 @@ public class Group implements Base {
   @Fetch(value = FetchMode.SUBSELECT)
   private List<Grant> grants = new ArrayList<>();
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.EAGER)
   @JoinTable(
       name = "users_groups",
@@ -68,7 +68,7 @@ public class Group implements Base {
   @Fetch(value = FetchMode.SUBSELECT)
   private List<User> users = new ArrayList<>();
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.EAGER)
   @JoinTable(
       name = "groups_roles",
@@ -78,11 +78,15 @@ public class Group implements Base {
   @JsonProperty("group_roles")
   private List<Role> roles = new ArrayList<>();
 
+  @ManyToOne
+  @JoinColumn(name = "tenant_id", updatable = false)
+  @JsonIgnore
+  @Nullable
+  private Tenant tenant;
+
   @Getter(onMethod_ = @JsonIgnore)
   @Transient
   private final ResourceType resourceType = ResourceType.USER_GROUP;
-
-  // endregion
 
   @Override
   public boolean isUserHasAccess(User user) {

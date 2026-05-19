@@ -1,7 +1,7 @@
 package io.openaev.opencti.connectors.service;
 
-import static org.assertj.core.api.AssertionsForClassTypes.*;
-import static org.mockito.Mockito.*;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
+import static org.mockito.Mockito.reset;
 
 import io.openaev.IntegrationTest;
 import io.openaev.opencti.client.OpenCTIClient;
@@ -15,14 +15,14 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
 @WithMockSecurityCoverageConnectorConfig // null config
 public class OpenCTIConnectorServiceConfigDisabledTest extends IntegrationTest {
 
-  @MockBean private OpenCTIClient mockOpenCTIClient;
+  @MockitoBean private OpenCTIClient mockOpenCTIClient;
   @Autowired OpenCTIConnectorService openCTIConnectorService;
 
   @BeforeEach

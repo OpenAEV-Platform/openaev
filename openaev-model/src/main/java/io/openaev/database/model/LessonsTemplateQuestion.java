@@ -31,7 +31,7 @@ public class LessonsTemplateQuestion implements Base {
   @JoinColumn(name = "lessons_template_question_category")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("lessons_template_question_category")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private LessonsTemplateCategory category;
 
   @Column(name = "lessons_template_question_created_at")

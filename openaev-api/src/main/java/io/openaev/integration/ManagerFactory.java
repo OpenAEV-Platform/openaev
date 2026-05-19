@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class ManagerFactory {
   private final List<IntegrationFactory> factories;
+
   private volatile Manager manager = null;
 
   @Transactional

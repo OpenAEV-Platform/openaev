@@ -22,6 +22,7 @@ import com.opencsv.bean.StatefulBeanToCsv;
 import com.opencsv.bean.StatefulBeanToCsvBuilder;
 import com.opencsv.exceptions.CsvDataTypeMismatchException;
 import com.opencsv.exceptions.CsvRequiredFieldEmptyException;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.EndpointRepository;
 import io.openaev.database.repository.ImportMapperRepository;
@@ -30,6 +31,7 @@ import io.openaev.helper.ObjectMapperHelper;
 import io.openaev.rest.asset.endpoint.form.EndpointExportImport;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.injector_contract.form.InjectorContractExport;
 import io.openaev.rest.mapper.export.MapperExportMixins;
 import io.openaev.rest.mapper.form.*;
 import io.openaev.rest.tag.TagService;
@@ -37,12 +39,14 @@ import io.openaev.rest.tag.form.TagCreateInput;
 import io.openaev.rest.tag.form.TagExportImport;
 import io.openaev.service.utils.CustomColumnPositionStrategy;
 import io.openaev.utils.CopyObjectListUtils;
-import io.openaev.utils.TargetType;
+import io.openaev.utils.CsvType;
+import io.openaev.utils.ThreatArsenalFilterUtils;
 import io.openaev.utils.constants.Constants;
 import io.openaev.utils.mapper.EndpointMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
@@ -56,7 +60,6 @@ import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -73,6 +76,9 @@ public class MapperService {
 
   private final TagService tagService;
   private final ObjectMapper objectMapper;
+
+  private static final String CSV_EMPTY_VALUE = "-";
+  private static final String CSV_LIST_SEPARATOR = ", ";
 
   /**
    * Create and save an ImportMapper object from a MapperAddInput one
@@ -196,7 +202,14 @@ public class MapperService {
    * @return The map of injector contracts by ids
    */
   private Map<String, InjectorContract> getMapOfInjectorContracts(List<String> ids) {
-    return stream(injectorContractRepository.findAllById(ids).spliterator(), false)
+    return stream(
+            injectorContractRepository
+                .findAllById(
+                    ids.stream()
+                        .map(s -> new InjectorContractId(s, TenantContext.getCurrentTenant()))
+                        .toList())
+                .spliterator(),
+            false)
         .collect(Collectors.toMap(InjectorContract::getId, Function.identity()));
   }
 
@@ -321,30 +334,76 @@ public class MapperService {
   /**
    * Export CSV with options and return the file
    *
-   * @param targetType used to know which entity list we want to export
+   * @param CsvType used to know which entity list we want to export
    * @param input used to know which filter we want to apply to get the entity list to export
    * @param response used to return the file
    */
   public void exportMappersCsv(
-      TargetType targetType, SearchPaginationInput input, HttpServletResponse response) {
-    switch (targetType) {
-      case ENDPOINTS:
-        try {
-          List<EndpointExportImport> endpointsToExport = getEndpointsToExport(input);
-          String dateNow = DateTimeFormatter.ofPattern("yyyyMMddHHmm").format(LocalDateTime.now());
-          exportCsv(
-              response,
-              "Endpoints" + dateNow + ".csv",
-              endpointsToExport,
-              EndpointExportImport.class);
-        } catch (Exception e) {
-          throw new RuntimeException("Error during export CSV", e);
-        }
-        break;
-      default:
-        throw new BadRequestException(
-            "Target type " + targetType + " for CSV export is not supported");
+      CsvType csvType, SearchPaginationInput input, HttpServletResponse response) {
+    CsvExportConfig<?> exportConfig = resolveCsvExportConfig(csvType);
+    exportMappersCsv(exportConfig, input, response);
+  }
+
+  private CsvExportConfig<?> resolveCsvExportConfig(CsvType csvType) {
+    return switch (csvType) {
+      case ENDPOINTS ->
+          new CsvExportConfig<>(
+              "Endpoints", EndpointExportImport.class, this::getEndpointsToExport);
+      case INJECTOR_CONTRACTS ->
+          new CsvExportConfig<>(
+              "InjectorContracts",
+              InjectorContractExport.class,
+              this::getInjectorContractsToExport);
+      default ->
+          throw new BadRequestException("CSV type " + csvType + " for CSV export is not supported");
+    };
+  }
+
+  private <T> void exportMappersCsv(
+      CsvExportConfig<T> exportConfig, SearchPaginationInput input, HttpServletResponse response) {
+    try {
+      exportCsv(
+          response,
+          buildExportCsvFilename(exportConfig.filenamePrefix()),
+          exportConfig.exporter().export(input),
+          exportConfig.exportClass());
+    } catch (Exception e) {
+      throw new RuntimeException("Error during export CSV", e);
     }
+  }
+
+  private String buildExportCsvFilename(String filenamePrefix) {
+    String dateNow = DateTimeFormatter.ofPattern("yyyyMMddHHmm").format(LocalDateTime.now());
+    return filenamePrefix + dateNow + ".csv";
+  }
+
+  private record CsvExportConfig<T>(
+      String filenamePrefix, Class<T> exportClass, CsvExporter<T> exporter) {}
+
+  @FunctionalInterface
+  private interface CsvExporter<T> {
+    List<T> export(SearchPaginationInput input) throws Exception;
+  }
+
+  private static <T> void exportCsv(
+      HttpServletResponse response, String filename, List<T> exports, Class<T> exportClass)
+      throws IOException, CsvDataTypeMismatchException, CsvRequiredFieldEmptyException {
+
+    response.setContentType("text/csv");
+    response.setHeader("Content-Disposition", "attachment; filename=" + filename);
+    response.setStatus(HttpServletResponse.SC_OK);
+
+    CustomColumnPositionStrategy<T> columns = new CustomColumnPositionStrategy<>();
+    columns.setType(exportClass);
+
+    StatefulBeanToCsv<T> writer =
+        new StatefulBeanToCsvBuilder<T>(response.getWriter())
+            .withQuotechar(DEFAULT_QUOTE_CHARACTER)
+            .withSeparator(DEFAULT_SEPARATOR)
+            .withMappingStrategy(columns)
+            .build();
+
+    writer.write(exports);
   }
 
   private List<EndpointExportImport> getEndpointsToExport(SearchPaginationInput input)
@@ -374,21 +433,104 @@ public class MapperService {
     return exports;
   }
 
-  private static <T> void exportCsv(
-      HttpServletResponse response, String filename, List<T> exports, Class<T> exportClass)
-      throws IOException, CsvDataTypeMismatchException, CsvRequiredFieldEmptyException {
-    response.setContentType("text/csv");
-    response.setHeader("Content-Disposition", "attachment; filename=" + filename);
-    response.setStatus(HttpServletResponse.SC_OK);
-    CustomColumnPositionStrategy<T> columns = new CustomColumnPositionStrategy();
-    columns.setType(exportClass);
-    StatefulBeanToCsv<T> writer =
-        new StatefulBeanToCsvBuilder<T>(response.getWriter())
-            .withQuotechar(DEFAULT_QUOTE_CHARACTER)
-            .withSeparator(DEFAULT_SEPARATOR)
-            .withMappingStrategy(columns)
-            .build();
-    writer.write(exports);
+  private List<InjectorContractExport> getInjectorContractsToExport(SearchPaginationInput input) {
+    SearchPaginationInput translated = ThreatArsenalFilterUtils.translateSearchInput(input);
+    Specification<InjectorContract> filterSpecifications =
+        computeFilterGroupJpa(translated.getFilterGroup());
+    filterSpecifications = filterSpecifications.and(computeSearchJpa(translated.getTextSearch()));
+
+    return injectorContractRepository.findAll(filterSpecifications).stream()
+        .map(this::toInjectorContractExport)
+        .toList();
+  }
+
+  private InjectorContractExport toInjectorContractExport(InjectorContract injectorContract) {
+    Payload payload = injectorContract.getPayload();
+
+    InjectorContractExport injectorContractExport = new InjectorContractExport();
+    injectorContractExport.setType(resolveContractType(injectorContract, payload));
+    injectorContractExport.setName(resolveContractName(injectorContract));
+    injectorContractExport.setDomains(
+        joinValues(injectorContract.getDomains().stream().map(Domain::getName).sorted().toList()));
+    injectorContractExport.setPlatforms(
+        joinValues(
+            Arrays.stream(injectorContract.getPlatforms()).map(Enum::name).sorted().toList()));
+    injectorContractExport.setStatus(
+        payload != null ? toCsvValue(payload.getStatus()) : CSV_EMPTY_VALUE);
+    injectorContractExport.setTags(
+        joinValues(injectorContract.getTags().stream().map(Tag::getName).sorted().toList()));
+    injectorContractExport.setDescription(
+        payload != null ? toCsvValue(payload.getDescription()) : CSV_EMPTY_VALUE);
+    injectorContractExport.setSource(
+        payload != null ? toCsvValue(payload.getSource()) : CSV_EMPTY_VALUE);
+    injectorContractExport.setAttackPattern(
+        joinValues(
+            injectorContract.getAttackPatterns().stream()
+                .map(AttackPattern::getName)
+                .sorted()
+                .toList()));
+    injectorContractExport.setOrigin(payload == null ? "injector" : "payload");
+    injectorContractExport.setUpdatedAt(toCsvValue(injectorContract.getUpdatedAt()));
+    injectorContractExport.setCreatedAt(
+        payload != null
+            ? toCsvValue(payload.getCreatedAt())
+            : toCsvValue(injectorContract.getCreatedAt()));
+
+    return injectorContractExport;
+  }
+
+  private String resolveContractType(InjectorContract injectorContract, Payload payload) {
+    if (payload != null) {
+      if (payload.getCollectorTypeValue() != null && !payload.getCollectorTypeValue().isBlank()) {
+        return payload.getCollectorTypeValue();
+      }
+      if (payload.getType() != null && !payload.getType().isBlank()) {
+        return payload.getType();
+      }
+    }
+
+    return injectorContract.getInjectorType() != null
+        ? toCsvValue(injectorContract.getInjectorType())
+        : CSV_EMPTY_VALUE;
+  }
+
+  private String resolveContractName(InjectorContract injectorContract) {
+    Map<String, String> labels = injectorContract.getLabels();
+    if (labels == null || labels.isEmpty()) {
+      return CSV_EMPTY_VALUE;
+    }
+
+    String englishLabel = labels.get("en");
+    if (englishLabel != null && !englishLabel.isBlank()) {
+      return englishLabel;
+    }
+
+    return labels.entrySet().stream()
+        .sorted(Map.Entry.comparingByKey())
+        .map(Map.Entry::getValue)
+        .filter(value -> value != null && !value.isBlank())
+        .findFirst()
+        .orElse(CSV_EMPTY_VALUE);
+  }
+
+  private String joinValues(List<String> values) {
+    String joinedValues =
+        values.stream()
+            .filter(value -> value != null && !value.isBlank())
+            .collect(Collectors.joining(CSV_LIST_SEPARATOR));
+    return joinedValues.isBlank() ? CSV_EMPTY_VALUE : joinedValues;
+  }
+
+  private String toCsvValue(Enum<?> value) {
+    return value == null ? CSV_EMPTY_VALUE : value.name();
+  }
+
+  private String toCsvValue(Instant value) {
+    return value == null ? CSV_EMPTY_VALUE : value.toString();
+  }
+
+  private String toCsvValue(String value) {
+    return value == null || value.isBlank() ? CSV_EMPTY_VALUE : value;
   }
 
   /**
@@ -398,7 +540,7 @@ public class MapperService {
    * @param targetType entity to know which columns format we use for the import
    * @throws Exception exception if problem during the import
    */
-  public void importMappersCsv(MultipartFile file, TargetType targetType) throws Exception {
+  public void importMappersCsv(MultipartFile file, CsvType csvType) throws Exception {
     File tempFile = createTempFile("openaev-import-" + now().getEpochSecond(), ".csv");
     FileUtils.copyInputStreamToFile(file.getInputStream(), tempFile);
 
@@ -415,7 +557,7 @@ public class MapperService {
               .withCSVParser(csvParser)
               .build();
 
-      switch (targetType) {
+      switch (csvType) {
         case ENDPOINTS:
           try {
             importEndpointsCsv(setEndpointsColumnMapping(), csvReader);
@@ -425,7 +567,7 @@ public class MapperService {
           break;
         default:
           throw new BadRequestException(
-              "Target type " + targetType + " for CSV export is not supported");
+              "CsvType type " + csvType + " for CSV export is not supported");
       }
     } finally {
       tempFile.delete();

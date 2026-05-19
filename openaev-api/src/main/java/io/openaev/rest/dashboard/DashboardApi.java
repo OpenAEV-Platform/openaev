@@ -1,18 +1,18 @@
 package io.openaev.rest.dashboard;
 
-import io.openaev.aop.RBAC;
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
-import io.openaev.engine.model.EsBase;
 import io.openaev.engine.model.EsSearch;
-import io.openaev.engine.query.EsAttackPath;
-import io.openaev.engine.query.EsAvgs;
-import io.openaev.engine.query.EsCountInterval;
-import io.openaev.engine.query.EsSeries;
-import io.openaev.rest.dashboard.model.WidgetToEntitiesInput;
-import io.openaev.rest.dashboard.model.WidgetToEntitiesOutput;
+import io.openaev.engine.query.*;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.utils.es.EntitiesPaginationInput;
+import io.openaev.utils.es.WidgetToEntitiesInput;
+import io.openaev.utils.es.WidgetToEntitiesOutput;
 import jakarta.validation.Valid;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -21,14 +21,16 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
+@RequestMapping({DashboardApi.DASHBOARD_URI, DashboardApi.TENANT_DASHBOARD_URI})
 public class DashboardApi extends RestBehavior {
 
   public static final String DASHBOARD_URI = "/api/dashboards";
+  public static final String TENANT_DASHBOARD_URI = TENANT_PREFIX + "/dashboards";
 
   private final DashboardService dashboardService;
 
-  @PostMapping(DASHBOARD_URI + "/count/{widgetId}")
-  @RBAC(
+  @PostMapping("/count/{widgetId}")
+  @AccessControl(
       resourceId = "#widgetId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DASHBOARD)
@@ -38,8 +40,8 @@ public class DashboardApi extends RestBehavior {
     return this.dashboardService.count(widgetId, parameters);
   }
 
-  @PostMapping(DASHBOARD_URI + "/average/{widgetId}")
-  @RBAC(
+  @PostMapping("/average/{widgetId}")
+  @AccessControl(
       resourceId = "#widgetId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DASHBOARD)
@@ -49,8 +51,8 @@ public class DashboardApi extends RestBehavior {
     return this.dashboardService.average(widgetId, parameters);
   }
 
-  @PostMapping(DASHBOARD_URI + "/series/{widgetId}")
-  @RBAC(
+  @PostMapping("/series/{widgetId}")
+  @AccessControl(
       resourceId = "#widgetId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DASHBOARD)
@@ -60,19 +62,22 @@ public class DashboardApi extends RestBehavior {
     return this.dashboardService.series(widgetId, parameters);
   }
 
-  @PostMapping(DASHBOARD_URI + "/entities/{widgetId}")
-  @RBAC(
+  @PostMapping("/entities/{widgetId}")
+  @AccessControl(
       resourceId = "#widgetId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DASHBOARD)
-  public List<EsBase> entities(
+  public EsEntities entities(
       @PathVariable final String widgetId,
-      @RequestBody(required = false) Map<String, String> parameters) {
-    return this.dashboardService.entities(widgetId, parameters);
+      @RequestBody(required = false) EntitiesPaginationInput input) {
+    return this.dashboardService.entities(
+        widgetId,
+        input == null ? new HashMap<>() : input.getParameters(),
+        input == null ? null : input.getPagination());
   }
 
-  @PostMapping(DASHBOARD_URI + "/entities-runtime/{widgetId}")
-  @RBAC(
+  @PostMapping("/entities-runtime/{widgetId}")
+  @AccessControl(
       resourceId = "#widgetId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DASHBOARD)
@@ -81,8 +86,8 @@ public class DashboardApi extends RestBehavior {
     return this.dashboardService.widgetToEntitiesRuntime(widgetId, input);
   }
 
-  @PostMapping(DASHBOARD_URI + "/attack-paths/{widgetId}")
-  @RBAC(
+  @PostMapping("/attack-paths/{widgetId}")
+  @AccessControl(
       resourceId = "#widgetId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DASHBOARD)
@@ -93,8 +98,8 @@ public class DashboardApi extends RestBehavior {
     return this.dashboardService.attackPaths(widgetId, parameters);
   }
 
-  @GetMapping(DASHBOARD_URI + "/search/{search}")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.DASHBOARD)
+  @GetMapping("/search/{search}")
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DASHBOARD)
   public List<EsSearch> search(@PathVariable final String search) {
     return this.dashboardService.search(search);
   }

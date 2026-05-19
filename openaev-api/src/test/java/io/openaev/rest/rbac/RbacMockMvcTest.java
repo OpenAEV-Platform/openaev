@@ -8,16 +8,16 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 
 import io.openaev.IntegrationTest;
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.*;
 import io.openaev.service.PermissionService;
 import io.openaev.utils.fixtures.GrantFixture;
-import io.openaev.utils.fixtures.GroupFixture;
-import io.openaev.utils.fixtures.RoleFixture;
+import io.openaev.utils.fixtures.TenantGroupFixture;
+import io.openaev.utils.fixtures.TenantRoleFixture;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.fixtures.composers.GrantComposer;
-import io.openaev.utils.fixtures.composers.GroupComposer;
-import io.openaev.utils.fixtures.composers.RoleComposer;
+import io.openaev.utils.fixtures.composers.TenantGroupComposer;
+import io.openaev.utils.fixtures.composers.TenantRoleComposer;
 import io.openaev.utils.fixtures.composers.UserComposer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -26,10 +26,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.*;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -48,9 +44,9 @@ public class RbacMockMvcTest extends IntegrationTest {
 
   @Autowired private RbacEndpointScanner rbacEndpointScanner;
 
-  @Autowired private GroupComposer groupComposer;
+  @Autowired private TenantGroupComposer tenantGroupComposer;
 
-  @Autowired private RoleComposer roleComposer;
+  @Autowired private TenantRoleComposer tenantRoleComposer;
 
   @Autowired private GrantComposer grantComposer;
 
@@ -84,8 +80,8 @@ public class RbacMockMvcTest extends IntegrationTest {
   @AfterEach
   void afterEach() {
     userComposer.reset();
-    groupComposer.reset();
-    roleComposer.reset();
+    tenantGroupComposer.reset();
+    tenantRoleComposer.reset();
     grantComposer.reset();
   }
 
@@ -104,7 +100,8 @@ public class RbacMockMvcTest extends IntegrationTest {
     // Arrange
     MockHttpServletRequestBuilder request = createRequestBuilder(endpoint);
     Authentication auth =
-        createAuthenticationForScenario(endpoint.getRbac(), endpointTestScenario, endpoint);
+        createAuthenticationForScenario(
+            endpoint.getAccessControl(), endpointTestScenario, endpoint);
     SecurityContextHolder.getContext().setAuthentication(auth);
 
     // Act
@@ -112,7 +109,7 @@ public class RbacMockMvcTest extends IntegrationTest {
       var result = mockMvc.perform(request).andReturn().getResponse();
 
       // Assert
-      if (endpointTestScenario.shouldBeAllowed(endpoint.getRbac())) {
+      if (endpointTestScenario.shouldBeAllowed(endpoint.getAccessControl())) {
         assertNotEquals(401, result.getStatus());
         assertNotEquals(403, result.getStatus());
       } else {
@@ -158,41 +155,45 @@ public class RbacMockMvcTest extends IntegrationTest {
 
   // -- Auth creation --
   private Authentication createAuthenticationForScenario(
-      RBAC rbac, EndpointTestScenarios scenario, EndpointInfo endpointInfo) {
+      AccessControl accessControl, EndpointTestScenarios scenario, EndpointInfo endpointInfo) {
     // For unprotected endpoints and open resources, always return admin (we don't really care about
     // the user permissions in this case)
-    if (rbac.skipRBAC()
-        || PermissionService.isOpenResource(rbac.resourceType(), rbac.actionPerformed())) {
+    if (accessControl.skipRBAC()
+        || PermissionService.isOpenResource(
+            accessControl.resourceType(), accessControl.actionPerformed())) {
       return buildAuthenticationForAdmin();
     }
     return switch (scenario) {
       case ADMIN -> buildAuthenticationForAdmin();
-      case GROUP_WITH_BYPASS -> buildAuthForRoleWithCapability(Capability.BYPASS, false, rbac);
+      case GROUP_WITH_BYPASS ->
+          buildAuthForRoleWithCapability(Capability.BYPASS, false, accessControl);
       case GROUP_NO_ROLE, GROUP_ROLE_NO_CAPABILITY ->
-          buildAuthForRoleWithCapability(null, false, rbac);
-      case RESOURCE_GRANT_ONLY -> buildAuthForGrantOnly(rbac);
+          buildAuthForRoleWithCapability(null, false, accessControl);
+      case RESOURCE_GRANT_ONLY -> buildAuthForGrantOnly(accessControl);
       case RESOURCE_ROLE_MATCH, NO_RESOURCE_ROLE_MATCH -> {
         Capability capa;
-        if (ResourceType.INJECT.equals(rbac.resourceType())) {
+        if (ResourceType.INJECT.equals(accessControl.resourceType())) {
           // INJECT corresponds either to ATOMIC_TESTING, SIMULATION or SCENARIO capa
           if (endpointInfo.getPath().startsWith("/api/atomic-testings/")
               || endpointInfo.getPath().contains("/atomic-testing/")) {
-            capa = Capability.of(ResourceType.ATOMIC_TESTING, rbac.actionPerformed()).get();
+            capa =
+                Capability.of(ResourceType.ATOMIC_TESTING, accessControl.actionPerformed()).get();
           } else if (endpointInfo.getPath().startsWith("/api/exercises/")) {
-            capa = Capability.of(ResourceType.SIMULATION, rbac.actionPerformed()).get();
+            capa = Capability.of(ResourceType.SIMULATION, accessControl.actionPerformed()).get();
           } else if (endpointInfo.getPath().startsWith("/api/scenarios/")) {
-            capa = Capability.of(ResourceType.SCENARIO, rbac.actionPerformed()).get();
+            capa = Capability.of(ResourceType.SCENARIO, accessControl.actionPerformed()).get();
           } else if (endpointInfo.getPath().startsWith("/api/findings/")) {
-            capa = Capability.of(ResourceType.FINDING, rbac.actionPerformed()).get();
+            capa = Capability.of(ResourceType.FINDING, accessControl.actionPerformed()).get();
           } else {
-            capa = Capability.of(rbac.resourceType(), rbac.actionPerformed()).get();
+            capa =
+                Capability.of(accessControl.resourceType(), accessControl.actionPerformed()).get();
           }
-        } else if (ResourceType.SIMULATION_OR_SCENARIO.equals(rbac.resourceType())) {
-          capa = Capability.of(ResourceType.SIMULATION, rbac.actionPerformed()).get();
+        } else if (ResourceType.SIMULATION_OR_SCENARIO.equals(accessControl.resourceType())) {
+          capa = Capability.of(ResourceType.SIMULATION, accessControl.actionPerformed()).get();
         } else {
-          capa = Capability.of(rbac.resourceType(), rbac.actionPerformed()).get();
+          capa = Capability.of(accessControl.resourceType(), accessControl.actionPerformed()).get();
         }
-        yield buildAuthForRoleWithCapability(capa, false, rbac);
+        yield buildAuthForRoleWithCapability(capa, false, accessControl);
       }
     };
   }
@@ -205,15 +206,15 @@ public class RbacMockMvcTest extends IntegrationTest {
   }
 
   private Authentication buildAuthForRoleWithCapability(
-      Capability capability, boolean addGrant, RBAC rbac) {
-    Group group = GroupFixture.createGroup();
+      Capability capability, boolean addGrant, AccessControl accessControl) {
+    Group group = TenantGroupFixture.getGroup();
 
     Set<Capability> capabilities = capability == null ? Set.of() : Set.of(capability);
 
-    GroupComposer.Composer groupComposed =
-        groupComposer
+    TenantGroupComposer.Composer groupComposed =
+        tenantGroupComposer
             .forGroup(group)
-            .withRole(roleComposer.forRole(RoleFixture.getRole(capabilities)));
+            .withRole(tenantRoleComposer.forRole(TenantRoleFixture.getRole(capabilities)));
 
     User user =
         userComposer
@@ -223,26 +224,30 @@ public class RbacMockMvcTest extends IntegrationTest {
             .get();
 
     // Optionally add a grant
-    if (addGrant && rbac != null && rbac.resourceId() != null && !rbac.resourceId().isBlank()) {
+    if (addGrant
+        && accessControl != null
+        && accessControl.resourceId() != null
+        && !accessControl.resourceId().isBlank()) {
       Grant.GRANT_RESOURCE_TYPE grantResourceType =
-          Grant.GRANT_RESOURCE_TYPE.fromRbacResourceType(rbac.resourceType());
-      Grant.GRANT_TYPE grantType = Grant.GRANT_TYPE.fromRbacAction(rbac.actionPerformed());
-      GrantFixture.getGrant(rbac.resourceId(), grantResourceType, grantType, group);
+          Grant.GRANT_RESOURCE_TYPE.fromRbacResourceType(accessControl.resourceType());
+      Grant.GRANT_TYPE grantType = Grant.GRANT_TYPE.fromRbacAction(accessControl.actionPerformed());
+      GrantFixture.getGrant(accessControl.resourceId(), grantResourceType, grantType, group);
     }
 
     return buildAuthenticationToken(user);
   }
 
-  private Authentication buildAuthForGrantOnly(RBAC rbac) {
-    Group group = GroupFixture.createGroup();
+  private Authentication buildAuthForGrantOnly(AccessControl accessControl) {
+    Group group = TenantGroupFixture.getGroup();
 
-    GroupComposer.Composer groupComposed = groupComposer.forGroup(group); // no roles
+    TenantGroupComposer.Composer groupComposed = tenantGroupComposer.forGroup(group); // no roles
 
     // Add a grant matching the resourceId in the annotation
     Grant.GRANT_RESOURCE_TYPE grantResourceType =
-        Grant.GRANT_RESOURCE_TYPE.fromRbacResourceType(rbac.resourceType());
-    Grant.GRANT_TYPE grantType = Grant.GRANT_TYPE.fromRbacAction(rbac.actionPerformed());
-    Grant grant = GrantFixture.getGrant(rbac.resourceId(), grantResourceType, grantType, group);
+        Grant.GRANT_RESOURCE_TYPE.fromRbacResourceType(accessControl.resourceType());
+    Grant.GRANT_TYPE grantType = Grant.GRANT_TYPE.fromRbacAction(accessControl.actionPerformed());
+    Grant grant =
+        GrantFixture.getGrant(accessControl.resourceId(), grantResourceType, grantType, group);
     groupComposed.withGrant(grantComposer.forGrant(grant));
 
     User user =
@@ -255,8 +260,8 @@ public class RbacMockMvcTest extends IntegrationTest {
     return buildAuthenticationToken(user);
   }
 
-  private String extractResourceId(RBAC rbac) {
-    String raw = rbac.resourceId();
+  private String extractResourceId(AccessControl accessControl) {
+    String raw = accessControl.resourceId();
     if (raw == null || raw.isBlank()) return "dummy-resource-id"; // fallback
 
     // Dummy SpEL resolution for tests
@@ -273,9 +278,10 @@ public class RbacMockMvcTest extends IntegrationTest {
   }
 
   private static List<EndpointTestScenarios> validScenariosFor(EndpointInfo endpoint) {
-    RBAC rbac = endpoint.getRbac();
+    AccessControl accessControl = endpoint.getAccessControl();
 
-    boolean hasResourceId = rbac.resourceId() != null && !rbac.resourceId().isBlank();
+    boolean hasResourceId =
+        accessControl.resourceId() != null && !accessControl.resourceId().isBlank();
 
     List<EndpointTestScenarios> scenarios =
         new ArrayList<>(

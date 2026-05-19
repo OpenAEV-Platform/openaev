@@ -27,7 +27,8 @@ public interface CustomDashboardRepository
       value =
           " SELECT cd.custom_dashboard_id, "
               + "cd.custom_dashboard_name "
-              + "FROM custom_dashboards cd;",
+              + "FROM custom_dashboards cd "
+              + "WHERE cd.tenant_id = :#{#tenantContext.currentTenant};",
       nativeQuery = true)
   List<RawCustomDashboard> rawAll();
 
@@ -45,6 +46,7 @@ public interface CustomDashboardRepository
       nativeQuery = true)
   Optional<CustomDashboard> findByResourceId(String resourceId);
 
+  // TODO multi-tenancy: add tenant_id on parameters?
   @Query(
       """
   SELECT d FROM CustomDashboard d

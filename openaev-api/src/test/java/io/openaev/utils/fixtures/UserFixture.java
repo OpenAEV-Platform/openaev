@@ -1,5 +1,6 @@
 package io.openaev.utils.fixtures;
 
+import io.openaev.api.users.dto.UserInput;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.User;
 import io.openaev.rest.user.form.login.LoginUserInput;
@@ -70,6 +71,27 @@ public class UserFixture {
     return getUser(firstName, lastName, email, true);
   }
 
+  public static UserInput getUserInput(String email, String firstName, String lastName) {
+    return new UserInput(
+        email, firstName, lastName, RAW_PASSWORD, null, null, null, null, null, false, null);
+  }
+
+  public static UserInput getUserInput(String email) {
+    return getUserInput(email, "Firstname", "Lastname");
+  }
+
+  public static UserInput getUserInputWithPasswordAndPhone(
+      String email, String firstName, String lastName, String password, String phone) {
+    return new UserInput(
+        email, firstName, lastName, password, null, phone, null, null, null, false, null);
+  }
+
+  public static UserInput getUserInputWithPgpKey(
+      String email, String firstName, String lastName, String pgpKey) {
+    return new UserInput(
+        email, firstName, lastName, null, pgpKey, null, null, null, null, false, null);
+  }
+
   public static User getSavedUser() {
     User user = getUser();
     user.setId("saved-user-id");
@@ -77,8 +99,12 @@ public class UserFixture {
   }
 
   public static ResetUserInput getResetUserInput() {
+    return getResetUserInput(EMAIL);
+  }
+
+  public static ResetUserInput getResetUserInput(String email) {
     ResetUserInput resetUserInput = new ResetUserInput();
-    resetUserInput.setLogin(EMAIL);
+    resetUserInput.setLogin(email);
 
     return resetUserInput;
   }

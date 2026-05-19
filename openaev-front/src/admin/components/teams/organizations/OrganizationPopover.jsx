@@ -84,7 +84,7 @@ class OrganizationPopoverComponent extends Component {
     )(organization);
     return (
       <div>
-        <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
+        <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
           <IconButton
             onClick={this.handlePopoverOpen.bind(this)}
             aria-haspopup="true"

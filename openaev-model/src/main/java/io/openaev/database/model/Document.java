@@ -5,8 +5,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.helper.MultiIdSetSerializer;
-import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -15,13 +15,15 @@ import java.util.Objects;
 import java.util.Set;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UuidGenerator;
 
 @Setter
 @Getter
 @Entity
 @Table(name = "documents")
-@EntityListeners(ModelBaseListener.class)
+@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 @NamedEntityGraphs({
   @NamedEntityGraph(
       name = "Document.tags-scenarios-exercises",
@@ -31,7 +33,7 @@ import org.hibernate.annotations.UuidGenerator;
         @NamedAttributeNode("exercises")
       })
 })
-public class Document implements Base {
+public class Document implements TenantBase {
 
   @Id
   @Column(name = "document_id")
@@ -62,7 +64,7 @@ public class Document implements Base {
   @NotBlank
   private String type;
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "documents_tags",
@@ -73,7 +75,7 @@ public class Document implements Base {
   @Queryable(sortable = true)
   private Set<Tag> tags = new HashSet<>();
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "exercises_documents",
@@ -83,7 +85,7 @@ public class Document implements Base {
   @JsonProperty("document_exercises")
   private Set<Exercise> exercises = new HashSet<>();
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "scenarios_documents",
@@ -108,6 +110,11 @@ public class Document implements Base {
       inverseJoinColumns = @JoinColumn(name = "challenge_id"))
   @JsonIgnore
   private Set<Challenge> challenges = new HashSet<>();
+
+  @ManyToOne
+  @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
+  @JsonIgnore
+  private Tenant tenant;
 
   @OneToMany(mappedBy = "document", fetch = FetchType.LAZY)
   @JsonIgnore

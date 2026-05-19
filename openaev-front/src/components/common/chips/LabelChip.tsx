@@ -25,7 +25,6 @@ const LabelChip: FunctionComponent<Props> = ({
   color,
   size = 80,
 }) => {
-  // Standard hooks
   const { t } = useFormatter();
   const { classes } = useStyles();
   const theme = useTheme();

@@ -54,7 +54,12 @@ interface FormProps {
   isDisabled?: boolean;
 }
 
-const ManualExpectationsValidationForm: FunctionComponent<FormProps> = ({ expectation, onUpdate, withSummary = true, isDisabled }) => {
+const ManualExpectationsValidationForm: FunctionComponent<FormProps> = ({
+  expectation,
+  onUpdate,
+  withSummary = true,
+  isDisabled,
+}) => {
   const { classes } = useStyles();
   const { t } = useFormatter();
   const theme = useTheme();
@@ -93,7 +98,7 @@ const ManualExpectationsValidationForm: FunctionComponent<FormProps> = ({ expect
     formState: { errors, isSubmitting },
   } = useForm<{ expectation_score: number }>({
     mode: 'onTouched',
-    resolver: zodResolver(zodImplement<{ expectation_score: number }>().with({ expectation_score: z.coerce.number() })),
+    resolver: zodResolver(zodImplement<{ expectation_score: number }>().with({ expectation_score: z.number({ error: t('Score must be a valid number') }).min(0, t('Score must be greater than 0')).max(100, t('Score must be less than or equal to 100')).int(t('Score must be a whole number')) })),
     defaultValues: { expectation_score: expectation.inject_expectation_score ?? expectation.inject_expectation_expected_score ?? 0 },
   });
   useEffect(() => {
@@ -102,7 +107,7 @@ const ManualExpectationsValidationForm: FunctionComponent<FormProps> = ({ expect
 
   const targetLabel = (expectationToProcess: InjectExpectationsStore) => {
     if (expectationToProcess.inject_expectation_user && usersMap[expectationToProcess.inject_expectation_user]) {
-      return truncate(resolveUserName(usersMap[expectationToProcess.inject_expectation_user]), 22);
+      return truncate(resolveUserName(usersMap[expectationToProcess.inject_expectation_user]), 40);
     }
     if (expectationToProcess.inject_expectation_team) {
       return teamsMap[expectationToProcess.inject_expectation_team]?.team_name;
@@ -120,7 +125,13 @@ const ManualExpectationsValidationForm: FunctionComponent<FormProps> = ({ expect
             label={t(computeLabel(expectation.inject_expectation_status))}
           />
         )}
-        {withSummary && (<Typography variant="h3">{expectation.inject_expectation_user ? t('Player') : t('Team')}</Typography>)}
+        {withSummary && (
+          <Typography
+            variant="h3"
+          >
+            {expectation.inject_expectation_user ? t('Player') : t('Team')}
+          </Typography>
+        )}
         {withSummary && targetLabel(expectation)}
         <Grid container spacing={3} className={withSummary ? classes.marginTop_2 : classes.scoreAcc}>
           <Grid size={{ xs: 6 }}>
@@ -131,10 +142,10 @@ const ManualExpectationsValidationForm: FunctionComponent<FormProps> = ({ expect
               type="number"
               error={!!errors.expectation_score}
               disabled={isDisabled}
-              helperText={errors.expectation_score && errors.expectation_score?.message ? errors.expectation_score?.message : `${t('Expected score:')} ${expectation.inject_expectation_expected_score}`}
-              {...register('expectation_score')}
-              InputProps={{
-                inputProps: {
+              helperText={errors.expectation_score?.message ?? `${t('Expected score:')} ${expectation.inject_expectation_expected_score}`}
+              slotProps={{
+                htmlInput: {
+                  ...register('expectation_score', { valueAsNumber: true }),
                   min: 0,
                   max: 100,
                 },

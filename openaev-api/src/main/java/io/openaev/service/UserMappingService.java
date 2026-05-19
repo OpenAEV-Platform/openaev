@@ -5,8 +5,10 @@ import static io.openaev.config.security.SecurityService.OPENAEV_PROVIDER_PATH_P
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.Group;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.GroupRepository;
+import io.openaev.database.repository.TenantRepository;
 import io.openaev.sso.GroupMapping;
 import jakarta.validation.constraints.NotBlank;
 import java.io.IOException;
@@ -29,6 +31,7 @@ import org.springframework.stereotype.Service;
 public class UserMappingService {
 
   private final GroupRepository groupRepository;
+  private final TenantRepository tenantRepository;
   private final Environment env;
   public static final String ROLES_PATH_SUFFIX = "roles_path";
   public static final String GROUPS_PATH_SUFFIX = "groups_path";
@@ -64,6 +67,7 @@ public class UserMappingService {
               log.error("Did not create new group");
             }
           }
+          attachTenantFromGroupMapping(mapping, user);
         } else {
           log.error(String.format("No corresponding group found for group %s", role));
         }
@@ -86,12 +90,33 @@ public class UserMappingService {
   private static List<GroupMapping> safeParseMappings(String json) {
     ObjectMapper mapper = new ObjectMapper();
     try {
-      return mapper.readValue(json, new TypeReference<List<GroupMapping>>() {});
+      return mapper.readValue(json, new TypeReference<>() {});
     } catch (IOException e) {
       // Log and return empty list instead of throwing
-      System.err.println("Failed to parse mappings: " + e.getMessage());
+      log.error("Failed to parse group mappings: {}", e.getMessage(), e);
       return List.of();
     }
+  }
+
+  /**
+   * Attaches the user to the tenant configured in the group mapping, if any. Skips if tenantId is
+   * not set, the user is already attached, or the tenant is not found.
+   */
+  private void attachTenantFromGroupMapping(GroupMapping mapping, User user) {
+    String tenantId = mapping.getTenantId();
+    if (tenantId == null || tenantId.isBlank()) {
+      return;
+    }
+    boolean alreadyAttached = user.getTenants().stream().anyMatch(t -> t.getId().equals(tenantId));
+    if (alreadyAttached) {
+      return;
+    }
+    if (!tenantRepository.existsById(tenantId)) {
+      log.warn("Group mapping tenant ID '{}' configured but not found in database", tenantId);
+      return;
+    }
+    Tenant tenant = tenantRepository.getReferenceById(tenantId);
+    user.getTenants().add(tenant);
   }
 
   /**

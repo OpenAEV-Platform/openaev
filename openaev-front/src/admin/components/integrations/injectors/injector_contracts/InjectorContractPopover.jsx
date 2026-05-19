@@ -8,13 +8,19 @@ import { deleteInjectorContract, updateInjectorContract, updateInjectorContractM
 import Drawer from '../../../../../components/common/Drawer';
 import Transition from '../../../../../components/common/Transition';
 import { useFormatter } from '../../../../../components/i18n';
+import { useHelper } from '../../../../../store.ts';
 import { attackPatternOptions } from '../../../../../utils/Option';
 import { Can } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import InjectorContractCustomForm from './InjectorContractCustomForm';
 import InjectorContractForm from './InjectorContractForm';
 
-const InjectorContractPopover = ({ injectorContract, killChainPhasesMap, attackPatternsMap, onUpdate, isPayloadInjector }) => {
+const InjectorContractPopover = ({ injectorContract, onUpdate, canDelete = true, canEditCustomForm = true }) => {
+  const { attackPatternsMap, killChainPhasesMap } = useHelper(helper => ({
+    attackPatternsMap: helper.getAttackPatternsMap(),
+    killChainPhasesMap: helper.getKillChainPhasesMap(),
+  }));
+
   const [openDelete, setOpenDelete] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
@@ -31,25 +37,12 @@ const InjectorContractPopover = ({ injectorContract, killChainPhasesMap, attackP
   };
   const handleCloseEdit = () => setOpenEdit(false);
 
-  const onSubmitEditMapping = (data) => {
-    const {
-      injector_contract_attack_patterns,
-      injector_contract_domains,
-      ...restData
-    } = data;
-
+  const onSubmitInjectorContractEdit = (data) => {
     const inputValues = {
-      ...restData,
       contract_attack_patterns_ids:
-        injector_contract_attack_patterns?.map(p => p.id),
-      contract_domains: injector_contract_domains.map(d => d.domain_id
-        ? d.domain_id
-        : {
-            domain_id: d.domain_id,
-            domain_name: d.domain_name,
-            domain_color: d.domain_color,
-          },
-      ),
+          data.injector_contract_attack_patterns?.map(p => p.id),
+      contract_domains: data.injector_contract_domains.map(d => d.domain_id ? d.domain_id : d),
+      contract_tags_ids: data.injector_contract_tags,
     };
 
     return dispatch(
@@ -65,7 +58,7 @@ const InjectorContractPopover = ({ injectorContract, killChainPhasesMap, attackP
     });
   };
 
-  const onSubmitEdit = (data, fields) => {
+  const onSubmitInjectorCustomFormEdit = (data, fields) => {
     const injectorContractContent = JSON.parse(injectorContract.injector_contract_content);
     const newInjectorContractContent = {
       ...injectorContractContent,
@@ -122,17 +115,19 @@ const InjectorContractPopover = ({ injectorContract, killChainPhasesMap, attackP
       injector_contract_name: injectorContract.injector_contract_labels.en,
       injector_contract_attack_patterns: injectorContractAttackPatterns,
       injector_contract_domains: injectorContract.injector_contract_domains,
+      injector_contract_tags: injectorContract.injector_contract_tags ?? [],
     };
   } else {
     initialValues = {
       injector_contract_attack_patterns: injectorContractAttackPatterns,
       injector_contract_domains: injectorContract.injector_contract_domains,
+      injector_contract_tags: injectorContract.injector_contract_tags ?? [],
     };
   }
 
   return (
     <>
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
+      <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
         <IconButton color="primary" onClick={handlePopoverOpen} aria-haspopup="true" size="large">
           <MoreVert />
         </IconButton>
@@ -143,7 +138,14 @@ const InjectorContractPopover = ({ injectorContract, killChainPhasesMap, attackP
         onClose={handlePopoverClose}
       >
         <MenuItem onClick={handleOpenEdit}>{t('Update')}</MenuItem>
-        <MenuItem onClick={handleOpenDelete} disabled={!injectorContract.injector_contract_custom}>{t('Delete')}</MenuItem>
+        {canDelete && (
+          <MenuItem
+            onClick={handleOpenDelete}
+            disabled={!injectorContract.injector_contract_custom}
+          >
+            {t('Delete')}
+          </MenuItem>
+        )}
       </Menu>
       <Dialog
         open={openDelete}
@@ -168,22 +170,20 @@ const InjectorContractPopover = ({ injectorContract, killChainPhasesMap, attackP
         handleClose={handleCloseEdit}
         title={t('Update the injector contract')}
       >
-        {injectorContract.injector_contract_custom ? (
+        {canEditCustomForm && injectorContract.injector_contract_custom ? (
           <InjectorContractCustomForm
             initialValues={initialValues}
             editing
-            onSubmit={onSubmitEdit}
+            onSubmit={onSubmitInjectorCustomFormEdit}
             handleClose={handleCloseEdit}
             contractTemplate={injectorContract}
-            isPayloadInjector={isPayloadInjector}
           />
         ) : (
           <InjectorContractForm
             initialValues={initialValues}
             editing
-            onSubmit={onSubmitEditMapping}
+            onSubmit={onSubmitInjectorContractEdit}
             handleClose={handleCloseEdit}
-            isPayloadInjector={isPayloadInjector}
           />
         )}
       </Drawer>

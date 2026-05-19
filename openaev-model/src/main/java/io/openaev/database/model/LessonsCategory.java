@@ -7,7 +7,6 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.helper.MonoIdSerializer;
 import io.openaev.helper.MultiIdListSerializer;
-import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -39,14 +38,14 @@ public class LessonsCategory implements Base {
   @JoinColumn(name = "lessons_category_exercise")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("lessons_category_exercise")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Exercise exercise;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "lessons_category_scenario")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("lessons_category_scenario")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Scenario scenario;
 
   @Column(name = "lessons_category_created_at")
@@ -79,13 +78,13 @@ public class LessonsCategory implements Base {
       inverseJoinColumns = @JoinColumn(name = "team_id"))
   @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("lessons_category_teams")
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   private List<Team> teams = new ArrayList<>();
 
   @OneToMany(mappedBy = "category", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
   @JsonProperty("lessons_category_questions")
   @JsonSerialize(using = MultiIdListSerializer.class)
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   private List<LessonsQuestion> questions = new ArrayList<>();
 
   // region transient

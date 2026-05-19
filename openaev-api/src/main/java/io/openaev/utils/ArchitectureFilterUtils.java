@@ -5,8 +5,8 @@ import static java.util.Optional.ofNullable;
 import io.openaev.database.model.Filters;
 import io.openaev.database.model.Payload;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.validation.constraints.NotNull;
 import java.util.Optional;
-import org.jetbrains.annotations.NotNull;
 
 /**
  * Utility class for handling architecture-related search filters.
@@ -64,6 +64,7 @@ public class ArchitectureFilterUtils {
           if (payloadFilter.getValues().contains(Payload.PAYLOAD_EXECUTION_ARCH.x86_64.name())
               || payloadFilter.getValues().contains(Payload.PAYLOAD_EXECUTION_ARCH.arm64.name())) {
             payloadFilter.getValues().add(ALL_ARCHITECTURES);
+            payloadFilter.setMode(Filters.FilterMode.or);
           }
         });
 

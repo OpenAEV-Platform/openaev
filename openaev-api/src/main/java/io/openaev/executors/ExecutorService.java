@@ -4,6 +4,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.service.FileService.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Executor;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
@@ -134,7 +135,7 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
    * @return an Optional containing the executor if found, empty otherwise
    */
   public Optional<Executor> executorByType(String type) {
-    return this.executorRepository.findByType(type);
+    return this.executorRepository.findByTypeAndTenantId(type, TenantContext.getCurrentTenant());
   }
 
   @Transactional
@@ -163,14 +164,6 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
 
     Executor executor = executorRepository.findById(id).orElse(null);
     if (executor == null) {
-      Executor executorChecking = executorRepository.findByType(type).orElse(null);
-      if (executorChecking != null) {
-        throw new Exception(
-            "The executor "
-                + type
-                + " already exists with a different ID, please delete it or contact your administrator.");
-      }
-
       executor = new Executor();
       executor.setId(id);
     }
@@ -181,8 +174,7 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
     executor.setBackgroundColor(backgroundColor);
     executor.setPlatforms(platforms);
 
-    executorRepository.save(executor);
-    return executor;
+    return executorRepository.save(executor);
   }
 
   @Transactional

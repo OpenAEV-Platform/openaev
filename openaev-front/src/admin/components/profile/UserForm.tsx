@@ -30,7 +30,7 @@ const UserForm: FunctionComponent<UserFormProps> = ({
     mode: 'onTouched',
     resolver: zodResolver(
       zodImplement<UpdateProfileInput>().with({
-        user_email: z.string().email(t('Should be a valid email address')),
+        user_email: z.email(t('Should be a valid email address')),
         user_firstname: z.string().min(1, { message: t('Should not be empty') }),
         user_lastname: z.string().min(1, { message: t('Should not be empty') }),
         user_organization: z.string().optional(),

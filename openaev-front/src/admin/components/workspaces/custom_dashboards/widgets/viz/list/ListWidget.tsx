@@ -5,21 +5,23 @@ import {
   ListItem as MuiListItem,
   ListItemButton,
   ListItemIcon,
-  ListItemText,
+  ListItemText, TablePagination,
 } from '@mui/material';
-import { memo, useCallback, useMemo } from 'react';
+import { type ChangeEvent, memo, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { type AttackPatternHelper } from '../../../../../../../actions/attack_patterns/attackpattern-helper';
-import { initSorting } from '../../../../../../../components/common/queryable/Page';
-import { buildSearchPagination } from '../../../../../../../components/common/queryable/QueryableUtils';
-import SortHeadersComponentV2 from '../../../../../../../components/common/queryable/sort/SortHeadersComponentV2';
+import { ROWS_PER_PAGE_OPTIONS } from '../../../../../../../components/common/queryable/pagination/usePaginationState';
 import useBodyItemsStyles from '../../../../../../../components/common/queryable/style/style';
-import { useQueryableWithLocalStorage } from '../../../../../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useFormatter } from '../../../../../../../components/i18n';
+import Loader from '../../../../../../../components/Loader';
 import { useHelper } from '../../../../../../../store';
-import { type AttackPattern, type EsBase, type ListConfiguration } from '../../../../../../../utils/api-types';
+import {
+  type AttackPattern,
+  type EsBase,
+  type ListConfiguration, type Pagination,
+} from '../../../../../../../utils/api-types';
 import buildStyles from './elements/ColumnStyles';
 import DefaultElementStyles from './elements/DefaultElementStyles';
 import EndpointElementStyles from './elements/EndpointElementStyles';
@@ -30,9 +32,6 @@ const useStyles = makeStyles()(() => ({
   itemHead: { textTransform: 'uppercase' },
   item: { height: 50 },
 }));
-
-// Memoize the initial search pagination to avoid recreation
-const INITIAL_SEARCH_PAGINATION = buildSearchPagination({ sorts: initSorting('') });
 
 // Empty secondary action component to avoid recreation
 const EmptySecondaryAction = memo(() => <>&nbsp;</>);
@@ -106,9 +105,22 @@ ListWidgetItem.displayName = 'ListWidgetItem';
 type Props = {
   widgetConfig: ListConfiguration;
   elements: EsBase[];
+  currentPageNumber: number;
+  elementsPerPage: number;
+  totalElements: number;
+  onPaginationChange: (paginationInput: Pagination) => void;
+  contentLoading?: boolean;
 };
 
-const ListWidget = ({ widgetConfig, elements }: Props) => {
+const ListWidget = ({
+  widgetConfig,
+  elements,
+  currentPageNumber,
+  elementsPerPage,
+  totalElements,
+  onPaginationChange,
+  contentLoading = false,
+}: Props) => {
   const { classes } = useStyles();
   const { t } = useFormatter();
   const bodyItemsStyles = useBodyItemsStyles();
@@ -116,18 +128,23 @@ const ListWidget = ({ widgetConfig, elements }: Props) => {
 
   const { attackPatterns } = useHelper((helper: AttackPatternHelper) => ({ attackPatterns: helper.getAttackPatterns() }));
 
+  const handleChangePage = (_: unknown, newPage: number) => {
+    onPaginationChange({
+      page: newPage,
+      size: elementsPerPage,
+    });
+  };
+
+  const handleChangeRowsPerPage = (event: ChangeEvent<HTMLInputElement>) => {
+    const newRowsPerPage = parseInt(event.target.value, 10);
+    onPaginationChange({
+      page: currentPageNumber,
+      size: newRowsPerPage,
+    });
+  };
+
   // Memoize columns array
   const columns = useMemo(() => widgetConfig.columns ?? [], [widgetConfig.columns]);
-
-  // Memoize headers
-  const headersFromColumns = useMemo(
-    () => columns.map(col => ({
-      field: col,
-      label: col,
-      isSortable: false,
-    })),
-    [columns],
-  );
 
   // Memoize column styles based on entity type
   const columnStyles = useMemo(() => {
@@ -144,8 +161,6 @@ const ListWidget = ({ widgetConfig, elements }: Props) => {
     }
   }, [columns, elements]);
 
-  const { queryableHelpers } = useQueryableWithLocalStorage('list-widget', INITIAL_SEARCH_PAGINATION);
-
   const onListItemClick = useCallback((element: EsBase): void => {
     const handler = navigationHandlers[element.base_entity];
     handler?.(element, navigate);
@@ -161,6 +176,19 @@ const ListWidget = ({ widgetConfig, elements }: Props) => {
       overflow: 'auto',
     }}
     >
+      {elements.length > 0
+        && (
+          <TablePagination
+            component="div"
+            rowsPerPageOptions={ROWS_PER_PAGE_OPTIONS}
+            count={totalElements}
+            page={currentPageNumber}
+            onPageChange={handleChangePage}
+            rowsPerPage={elementsPerPage}
+            onRowsPerPageChange={handleChangeRowsPerPage}
+          />
+        )}
+
       <MuiList>
         <MuiListItem
           classes={{ root: classes.itemHead }}
@@ -168,18 +196,10 @@ const ListWidget = ({ widgetConfig, elements }: Props) => {
           secondaryAction={<EmptySecondaryAction />}
         >
           <ListItemIcon />
-          <ListItemText
-            primary={(
-              <SortHeadersComponentV2
-                headers={headersFromColumns}
-                inlineStylesHeaders={columnStyles}
-                sortHelpers={queryableHelpers.sortHelpers}
-              />
-            )}
-          />
         </MuiListItem>
-        {elements.length === 0 && <div style={{ textAlign: 'center' }}>{t('No data to display')}</div>}
-        {elements.map(element => (
+        {contentLoading && <Loader variant="inElement" />}
+        {!contentLoading && elements.length === 0 && <div style={{ textAlign: 'center' }}>{t('No data to display')}</div>}
+        {!contentLoading && elements.map(element => (
           <ListWidgetItem
             key={element.base_id}
             element={element}

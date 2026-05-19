@@ -2,6 +2,7 @@ package io.openaev.executors.crowdstrike.service;
 
 import static io.openaev.utils.time.TimeUtils.toInstant;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.openaev.database.model.*;
 import io.openaev.executors.crowdstrike.client.CrowdStrikeExecutorClient;
 import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
@@ -10,7 +11,6 @@ import io.openaev.executors.crowdstrike.model.CrowdStrikeHostGroup;
 import io.openaev.executors.crowdstrike.model.CrowdstrikeError;
 import io.openaev.executors.crowdstrike.model.ResourcesGroups;
 import io.openaev.executors.model.AgentRegisterInput;
-import io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
@@ -28,8 +28,7 @@ public class CrowdStrikeExecutorService implements Runnable {
   private final EndpointService endpointService;
   private final AgentService agentService;
   private final AssetGroupService assetGroupService;
-
-  private Executor executor = null;
+  private Executor executor;
 
   public static Endpoint.PLATFORM_TYPE toPlatform(@NotBlank final String platform) {
     return switch (platform) {
@@ -65,44 +64,51 @@ public class CrowdStrikeExecutorService implements Runnable {
 
   @Override
   public void run() {
-    log.info("Running CrowdStrike executor endpoints gathering...");
-    List<String> hostGroups = Stream.of(this.config.getHostGroup().split(",")).distinct().toList();
-    ResourcesGroups crowdStrikeResourceGroup;
-    CrowdStrikeHostGroup crowdStrikeHostGroup;
-    for (String hostGroup : hostGroups) {
-      crowdStrikeResourceGroup = this.client.hostGroup(hostGroup);
-      if (crowdStrikeResourceGroup.getErrors() != null
-          && !crowdStrikeResourceGroup.getErrors().isEmpty()) {
-        logErrors(crowdStrikeResourceGroup.getErrors(), hostGroup);
-        continue;
-      }
-      List<CrowdStrikeDevice> devices = this.client.devices(hostGroup);
-      if (!devices.isEmpty()) {
-        Optional<AssetGroup> existingAssetGroup =
-            assetGroupService.findByExternalReference(hostGroup);
-        AssetGroup assetGroup;
-        if (existingAssetGroup.isPresent()) {
-          assetGroup = existingAssetGroup.get();
-        } else {
-          assetGroup = new AssetGroup();
-          assetGroup.setExternalReference(hostGroup);
+    try {
+      log.info(
+          "Running CrowdStrike executor endpoints gathering... executorId={}, hostGroup={}",
+          this.executor.getId(),
+          this.config.getHostGroup());
+      List<String> hostGroups =
+          Stream.of(this.config.getHostGroup().split(",")).distinct().toList();
+      ResourcesGroups crowdStrikeResourceGroup;
+      CrowdStrikeHostGroup crowdStrikeHostGroup;
+      for (String hostGroup : hostGroups) {
+        crowdStrikeResourceGroup = this.client.hostGroup(hostGroup);
+        if (crowdStrikeResourceGroup.getErrors() != null
+            && !crowdStrikeResourceGroup.getErrors().isEmpty()) {
+          logErrors(crowdStrikeResourceGroup.getErrors(), hostGroup);
+          continue;
         }
-        crowdStrikeHostGroup = crowdStrikeResourceGroup.getResources().getFirst();
-        assetGroup.setName(crowdStrikeHostGroup.getName());
-        assetGroup.setDescription(crowdStrikeHostGroup.getDescription());
-        log.info(
-            "CrowdStrike executor provisioning based on "
-                + devices.size()
-                + " assets for the host group "
-                + assetGroup.getName());
-        List<Agent> agents =
-            endpointService.syncAgentsEndpoints(
-                toAgentEndpoint(devices),
-                agentService.getAgentsByExecutorType(
-                    CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_TYPE));
-        assetGroup.setAssets(agents.stream().map(Agent::getAsset).toList());
-        assetGroupService.createOrUpdateAssetGroupWithoutDynamicAssets(assetGroup);
+        List<CrowdStrikeDevice> devices = this.client.devices(hostGroup);
+        if (!devices.isEmpty()) {
+          Optional<AssetGroup> existingAssetGroup =
+              assetGroupService.findByExternalReference(hostGroup, executor.getTenant().getId());
+          AssetGroup assetGroup;
+          if (existingAssetGroup.isPresent()) {
+            assetGroup = existingAssetGroup.get();
+          } else {
+            assetGroup = new AssetGroup();
+            assetGroup.setExternalReference(hostGroup);
+            assetGroup.setTenant(executor.getTenant());
+          }
+          crowdStrikeHostGroup = crowdStrikeResourceGroup.getResources().getFirst();
+          assetGroup.setName(crowdStrikeHostGroup.getName());
+          assetGroup.setDescription(crowdStrikeHostGroup.getDescription());
+          log.info(
+              "CrowdStrike executor provisioning based on "
+                  + devices.size()
+                  + " assets for the host group "
+                  + assetGroup.getName());
+          List<Agent> agents =
+              endpointService.syncAgentsEndpoints(
+                  toAgentEndpoint(devices), agentService.getAgentsByExecutorId(executor.getId()));
+          assetGroup.setAssets(agents.stream().map(Agent::getAsset).toList());
+          assetGroupService.createOrUpdateAssetGroupWithoutDynamicAssets(assetGroup);
+        }
       }
+    } catch (Exception e) {
+      log.error(e.getMessage(), e);
     }
   }
 
@@ -159,5 +165,10 @@ public class CrowdStrikeExecutorService implements Runnable {
               return input;
             })
         .collect(Collectors.toList());
+  }
+
+  @VisibleForTesting
+  protected void setExecutor(Executor executor) {
+    this.executor = executor;
   }
 }

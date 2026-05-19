@@ -18,6 +18,7 @@ import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { type SearchPaginationInput, type SecurityPlatform } from '../../../../utils/api-types';
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { buildTenantApiPath } from '../../../../utils/url-helper';
 import { isNotEmptyField } from '../../../../utils/utils';
 import SecurityPlatformCreation from './SecurityPlatformCreation';
 import SecurityPlatformPopover from './SecurityPlatformPopover';
@@ -161,7 +162,7 @@ const SecurityPlatforms = () => {
                 >
                   <ListItemIcon>
                     <img
-                      src={`/api/images/security_platforms/id/${securityPlatform.asset_id}/${theme.palette.mode}?${Date.now()}`}
+                      src={buildTenantApiPath(`/api/images/security_platforms/id/${securityPlatform.asset_id}/${theme.palette.mode}?${Date.now()}`)}
                       alt={securityPlatform.asset_name}
                       style={{
                         width: 25,

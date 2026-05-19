@@ -4,7 +4,6 @@ import static io.openaev.database.model.ExecutionStatus.EXECUTING;
 import static io.openaev.utils.InjectionUtils.isInInjectableRange;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.asset.QueueService;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Injector;
 import io.openaev.database.repository.InjectStatusRepository;
@@ -14,7 +13,7 @@ import io.openaev.execution.ExecutableInjectDTOMapper;
 import io.openaev.execution.ExecutionExecutorService;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.inject.service.InjectStatusService;
-import io.openaev.service.InjectorService;
+import io.openaev.service.RabbitmqService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import jakarta.annotation.Resource;
@@ -23,7 +22,6 @@ import java.time.Instant;
 import java.util.concurrent.TimeoutException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 
@@ -39,7 +37,7 @@ public class Executor {
   private final InjectStatusRepository injectStatusRepository;
   private final InjectorRepository injectorRepository;
 
-  private final QueueService queueService;
+  private final RabbitmqService rabbitmqService;
   private final ActionMetricCollector actionMetricCollector;
   private final ManagerFactory managerFactory;
 
@@ -51,9 +49,6 @@ public class Executor {
   public static final String CMD = "cmd";
   public static final String PSH = "psh";
 
-  @Qualifier("coreInjectorService")
-  private final InjectorService injectorService;
-
   private InjectStatus executeExternal(ExecutableInject executableInject, Injector injector)
       throws IOException, TimeoutException {
     Inject inject = executableInject.getInjection().getInject();
@@ -63,7 +58,7 @@ public class Executor {
     InjectStatus injectStatus =
         this.injectStatusRepository.findByInjectId(inject.getId()).orElseThrow();
 
-    queueService.publish(injectorService.getOriginInjectorType(injector.getType()), jsonInject);
+    rabbitmqService.publish(injector.getId(), jsonInject);
     injectStatus.addInfoTrace(
         "The inject has been published and is now waiting to be consumed.",
         ExecutionTraceAction.EXECUTION);
@@ -93,18 +88,23 @@ public class Executor {
             .orElseThrow(
                 () -> new UnsupportedOperationException("Inject does not have a contract"));
 
-    // Telemetry
-    actionMetricCollector.addInjectPlayedCount(injectorContract.getInjector().getType());
+    // Resolve the injector instance from the inject entity directly
+    Injector injector = inject.getInjector();
+    if (injector == null) {
+      // Fallback for legacy injects that may not have the field populated
+      injector =
+          injectorRepository
+              .findByTypeAndTenantId(inject.getType(), inject.getTenant().getId())
+              .orElseThrow(
+                  () ->
+                      new IllegalStateException(
+                          "Injector not found for type: "
+                              + injectorContract.getFirstInjector().getType()));
+    }
 
-    // Depending on injector type (internal or external) execution must be done differently
-    Injector injector =
-        injectorRepository
-            .findByType(injectorContract.getInjector().getType())
-            .orElseThrow(
-                () ->
-                    new IllegalStateException(
-                        "Injector not found for type: "
-                            + injectorContract.getInjector().getType()));
+    // Telemetry - We shouldn't have multiple injector type per executable inject but if it happens,
+    // we might as well cover that case
+    actionMetricCollector.addInjectPlayedCount(injector.getType());
 
     boolean hasStartedConnectorInstanceForInjector =
         this.connectorInstanceService.hasStartedConnectorInstanceForInjector(injector.getId());

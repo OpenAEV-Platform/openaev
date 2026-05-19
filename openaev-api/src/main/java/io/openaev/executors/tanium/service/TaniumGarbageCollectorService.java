@@ -8,7 +8,6 @@ import io.openaev.database.model.Agent;
 import io.openaev.database.model.Endpoint;
 import io.openaev.executors.tanium.config.TaniumExecutorConfig;
 import io.openaev.executors.tanium.model.TaniumAction;
-import io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration;
 import io.openaev.service.AgentService;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -21,20 +20,23 @@ public class TaniumGarbageCollectorService implements Runnable {
   private final TaniumExecutorConfig config;
   private final TaniumExecutorContextService taniumExecutorContextService;
   private final AgentService agentService;
+  private final String executorId;
 
   public TaniumGarbageCollectorService(
       TaniumExecutorConfig config,
       TaniumExecutorContextService taniumExecutorContextService,
-      AgentService agentService) {
+      AgentService agentService,
+      String executorId) {
     this.config = config;
     this.taniumExecutorContextService = taniumExecutorContextService;
     this.agentService = agentService;
+    this.executorId = executorId;
   }
 
   @Override
   public void run() {
     List<io.openaev.database.model.Agent> agents =
-        this.agentService.getAgentsByExecutorType(TaniumExecutorIntegration.TANIUM_EXECUTOR_TYPE);
+        this.agentService.getAgentsByExecutorId(executorId);
     if (!agents.isEmpty()) {
       log.info("Running Tanium executor garbage collector on " + agents.size() + " agents");
       List<TaniumAction> actions = new ArrayList<>();

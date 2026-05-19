@@ -176,6 +176,9 @@ public class ExerciseApiStatusTest extends IntegrationTest {
     FINISHED_EXERCISE.setInjects(new ArrayList<>(List.of(inject5)));
     FINISHED_EXERCISE.setPauses(new ArrayList<>(List.of(pause)));
     FINISHED_EXERCISE.setLessonsCategories(new ArrayList<>(List.of(lessonsCategory)));
+
+    entityManager.flush();
+    entityManager.clear();
   }
 
   @DisplayName("Start an exercise manually")

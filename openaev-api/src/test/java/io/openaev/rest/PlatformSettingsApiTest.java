@@ -1,6 +1,7 @@
 package io.openaev.rest;
 
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -80,7 +81,7 @@ class PlatformSettingsApiTest extends IntegrationTest {
 
       // -- ACT --
       ResultActions result =
-          mvc.perform(get("/api/settings/public").accept(MediaType.APPLICATION_JSON));
+          mvc.perform(get("/api/settings/public").with(csrf()).accept(MediaType.APPLICATION_JSON));
 
       // -- ASSERT --
       result.andExpect(status().isOk());
@@ -94,7 +95,7 @@ class PlatformSettingsApiTest extends IntegrationTest {
 
       // -- ACT --
       ResultActions result =
-          mvc.perform(get("/api/settings/public").accept(MediaType.APPLICATION_JSON));
+          mvc.perform(get("/api/settings/public").with(csrf()).accept(MediaType.APPLICATION_JSON));
 
       // -- ASSERT --
       result.andExpect(status().isOk());
@@ -112,7 +113,7 @@ class PlatformSettingsApiTest extends IntegrationTest {
       // -- ARRANGE --
 
       // -- ACT --
-      mvc.perform(get("/api/settings").accept(MediaType.APPLICATION_JSON))
+      mvc.perform(get("/api/settings").with(csrf()).accept(MediaType.APPLICATION_JSON))
           // -- ASSERT --
           .andExpect(status().isUnauthorized());
     }

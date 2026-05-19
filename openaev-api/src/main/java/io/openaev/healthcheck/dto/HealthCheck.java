@@ -4,13 +4,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
+import lombok.extern.slf4j.Slf4j;
 
-@Getter
-@Setter
+@Data
 @AllArgsConstructor
+@Slf4j
 public class HealthCheck {
 
   public enum Status {
@@ -22,17 +21,47 @@ public class HealthCheck {
     SERVICE_UNAVAILABLE,
     NOT_READY,
     EMPTY,
+    MANDATORY_CONTENT,
   }
 
   public enum Type {
-    SMTP,
-    IMAP,
-    AGENT_OR_EXECUTOR,
-    SECURITY_SYSTEM_COLLECTOR,
-    INJECT,
-    TEAMS,
-    NMAP,
-    NUCLEI,
+    SMTP("smtp"),
+    IMAP("imap"),
+    AGENT_OR_EXECUTOR("agent_or_executor"),
+    SECURITY_SYSTEM_COLLECTOR("security_system_collector"),
+    INJECT("inject"),
+    TEAMS("teams"),
+    NMAP("nmap"),
+    NUCLEI("nuclei"),
+    INJECTOR_CONTRACT("injector_contract"),
+    ASSETS("assets"),
+    ASSET_GROUPS("asset_groups"),
+    SUBJECT("subject"),
+    BODY("body"),
+    OPTIONAL_ARGS("optional_args"),
+    MESSAGE("message"),
+    SCOPE_DEFINITION("scope_definition"),
+    UNKNOWN("unknown");
+
+    private final String value;
+
+    public String getValue() {
+      return value;
+    }
+
+    Type(String value) {
+      this.value = value;
+    }
+
+    public static Type fromValue(String value) {
+      for (Type type : Type.values()) {
+        if (type.value.equalsIgnoreCase(value)) {
+          return type;
+        }
+      }
+      log.warn(String.format("Unknown HealthCheck Type: %s", value));
+      return UNKNOWN;
+    }
   }
 
   @Schema(description = "Type of the check, could be a service, an attribute, etc")

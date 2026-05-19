@@ -52,7 +52,7 @@ public class OpenaevInjectorIntegration extends IntegrationInMemory {
   private String dlUri(OpenAEVConfig openAEVConfig, String platform, String arch) {
     return "\""
         + openAEVConfig.getBaseUrlForAgent()
-        + "/api/implant/openaev/"
+        + "/api/tenants/#{tenant}/implant/openaev/"
         + platform
         + "/"
         + arch
@@ -63,7 +63,7 @@ public class OpenaevInjectorIntegration extends IntegrationInMemory {
   private String dlVar(OpenAEVConfig openAEVConfig, String platform, String arch) {
     return "$url=\""
         + openAEVConfig.getBaseUrl()
-        + "/api/implant/openaev/"
+        + "/api/tenants/#{tenant}/implant/openaev/"
         + platform
         + "/"
         + arch
@@ -205,7 +205,7 @@ public class OpenaevInjectorIntegration extends IntegrationInMemory {
             + ";$wc=New-Object System.Net.WebClient;$data=$wc.DownloadData($url);[io.file]::WriteAllBytes($filename,$data) | Out-Null;Remove-NetFirewallRule -DisplayName \"Allow OpenAEV Inbound\";New-NetFirewallRule -DisplayName \"Allow OpenAEV Inbound\" -Direction Inbound -Program \"$location\\$filename\" -Action Allow | Out-Null;Remove-NetFirewallRule -DisplayName \"Allow OpenAEV Outbound\";New-NetFirewallRule -DisplayName \"Allow OpenAEV Outbound\" -Direction Outbound -Program \"$location\\$filename\" -Action Allow | Out-Null;"
             + "$taskName = 'OpenAEV-Inject-#{inject}-Agent-#{agent}';"
             + "$taskDescription = 'OpenAEV EDR validation task - inject #{inject} - agent #{agent} - safe to ignore - will self-delete after execution';"
-            + "$implantArgs = '--uri ' + $server + ' --token ' + $token + ' --unsecured-certificate ' + $unsecured_certificate + ' --with-proxy ' + $with_proxy + ' --agent-id #{agent} --inject-id #{inject}';"
+            + "$implantArgs = '--uri ' + $server + ' --token ' + $token + ' --unsecured-certificate ' + $unsecured_certificate + ' --with-proxy ' + $with_proxy + ' --agent-id #{agent} --inject-id #{inject} --tenant-id #{tenant}';"
             + "$action = New-ScheduledTaskAction -Execute \"$location\\$filename\" -Argument $implantArgs;"
             + "$principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest;"
             + "$settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Hours 0);"
@@ -250,7 +250,7 @@ public class OpenaevInjectorIntegration extends IntegrationInMemory {
             + vars.maxSizeVar()
             + ";"
             + dlVar(cfg, "windows", arch.name())
-            + ";$wc=New-Object System.Net.WebClient;$data=$wc.DownloadData($url);[io.file]::WriteAllBytes($filename,$data) | Out-Null;Remove-NetFirewallRule -DisplayName \"Allow OpenAEV Inbound\";New-NetFirewallRule -DisplayName \"Allow OpenAEV Inbound\" -Direction Inbound -Program \"$location\\$filename\" -Action Allow | Out-Null;Remove-NetFirewallRule -DisplayName \"Allow OpenAEV Outbound\";New-NetFirewallRule -DisplayName \"Allow OpenAEV Outbound\" -Direction Outbound -Program \"$location\\$filename\" -Action Allow | Out-Null;Start-Process -FilePath \"$location\\$filename\" -ArgumentList \"--uri $server --token $token --unsecured-certificate $unsecured_certificate --with-proxy $with_proxy --agent-id #{agent} --inject-id #{inject}\" -WindowStyle hidden;");
+            + ";$wc=New-Object System.Net.WebClient;$data=$wc.DownloadData($url);[io.file]::WriteAllBytes($filename,$data) | Out-Null;Remove-NetFirewallRule -DisplayName \"Allow OpenAEV Inbound\";New-NetFirewallRule -DisplayName \"Allow OpenAEV Inbound\" -Direction Inbound -Program \"$location\\$filename\" -Action Allow | Out-Null;Remove-NetFirewallRule -DisplayName \"Allow OpenAEV Outbound\";New-NetFirewallRule -DisplayName \"Allow OpenAEV Outbound\" -Direction Outbound -Program \"$location\\$filename\" -Action Allow | Out-Null;Start-Process -FilePath \"$location\\$filename\" -ArgumentList \"--uri $server --token $token --unsecured-certificate $unsecured_certificate --with-proxy $with_proxy --agent-id #{agent} --inject-id #{inject} --tenant-id #{tenant}\" -WindowStyle hidden;");
   }
 
   /**
@@ -280,7 +280,7 @@ public class OpenaevInjectorIntegration extends IntegrationInMemory {
             + vars.maxSizeVar()
             + ";curl -s -X GET "
             + dlUri(cfg, "linux", arch.name())
-            + " > $location/$filename;chmod +x $location/$filename;$location/$filename --uri $server --token $token --unsecured-certificate $unsecured_certificate --with-proxy $with_proxy --agent-id #{agent} --inject-id #{inject} &");
+            + " > $location/$filename;chmod +x $location/$filename;$location/$filename --uri $server --token $token --unsecured-certificate $unsecured_certificate --with-proxy $with_proxy --agent-id #{agent} --inject-id #{inject} --tenant-id #{tenant} &");
   }
 
   /**
@@ -312,6 +312,6 @@ public class OpenaevInjectorIntegration extends IntegrationInMemory {
             + vars.maxSizeVar()
             + ";curl -s -X GET "
             + dlUri(cfg, "macos", arch.name())
-            + " > $location/$filename;chmod +x $location/$filename;$location/$filename --uri $server --token $token --unsecured-certificate $unsecured_certificate --with-proxy $with_proxy --agent-id #{agent} --inject-id #{inject} &");
+            + " > $location/$filename;chmod +x $location/$filename;$location/$filename --uri $server --token $token --unsecured-certificate $unsecured_certificate --with-proxy $with_proxy --agent-id #{agent} --inject-id #{inject} --tenant-id #{tenant} &");
   }
 }

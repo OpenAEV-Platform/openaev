@@ -1,8 +1,6 @@
 import { delReferential, getReferential, postReferential, putReferential, simplePostCall } from '../utils/Action';
 import * as schema from './Schema';
 
-export const fetchGroups = () => dispatch => getReferential(schema.arrayOfGroups, '/api/groups')(dispatch);
-
 export const fetchGroup = groupId => dispatch => getReferential(schema.group, `/api/groups/${groupId}`)(dispatch);
 
 export const searchGroups = (paginationInput) => {

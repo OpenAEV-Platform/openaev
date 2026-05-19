@@ -18,6 +18,9 @@ public class ConnectorInstanceHealthInput {
   @JsonProperty("connector_instance_started_at")
   private Instant startedAt;
 
+  // Fixes a bug due to a new version of jackson and lombok
+  // cf: https://github.com/projectlombok/lombok/issues/3978
+  @Getter(onMethod_ = @JsonProperty("connector_instance_is_in_reboot_loop"))
   @Schema(description = "The connector instance id")
   @JsonProperty("connector_instance_is_in_reboot_loop")
   private boolean isInRebootLoop;

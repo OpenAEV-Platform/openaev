@@ -1,7 +1,9 @@
 package io.openaev.rest.notification_rule;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+
+import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.aop.RBAC;
 import io.openaev.aop.UserRoleDescription;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
@@ -36,6 +38,7 @@ import org.springframework.web.bind.annotation.*;
 public class NotificationRuleApi {
 
   public static final String NOTIFICATION_RULE_URI = "/api/notification-rules";
+  public static final String TENANT_NOTIFICATION_RULE_URI = TENANT_PREFIX + "/notification-rules";
 
   private final NotificationRuleService notificationRuleService;
   private final UserService userService;
@@ -52,8 +55,11 @@ public class NotificationRuleApi {
   }
 
   @LogExecutionTime
-  @GetMapping(NOTIFICATION_RULE_URI + "/{notificationRuleId}")
-  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.NOTIFICATION_RULE)
+  @GetMapping({
+    NOTIFICATION_RULE_URI + "/{notificationRuleId}",
+    TENANT_NOTIFICATION_RULE_URI + "/{notificationRuleId}"
+  })
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.NOTIFICATION_RULE)
   @Operation(description = "Get NotificationRule by Id", summary = "Get NotificationRule")
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The NotificationRule")})
   public NotificationRuleOutput findNotificationRule(
@@ -66,8 +72,11 @@ public class NotificationRuleApi {
   }
 
   @LogExecutionTime
-  @GetMapping(NOTIFICATION_RULE_URI + "/resource/{resourceId}")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.NOTIFICATION_RULE)
+  @GetMapping({
+    NOTIFICATION_RULE_URI + "/resource/{resourceId}",
+    TENANT_NOTIFICATION_RULE_URI + "/resource/{resourceId}"
+  })
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.NOTIFICATION_RULE)
   @Operation(
       description = "Get NotificationRule by resource id for the current user",
       summary = "Get NotificationRule by resource id")
@@ -85,8 +94,8 @@ public class NotificationRuleApi {
   }
 
   @LogExecutionTime
-  @GetMapping(NOTIFICATION_RULE_URI)
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.NOTIFICATION_RULE)
+  @GetMapping({NOTIFICATION_RULE_URI, TENANT_NOTIFICATION_RULE_URI})
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.NOTIFICATION_RULE)
   @Operation(description = "Get All NotificationRules", summary = "Get NotificationRules")
   @ApiResponses(
       value = {
@@ -99,8 +108,11 @@ public class NotificationRuleApi {
   }
 
   @LogExecutionTime
-  @DeleteMapping(NOTIFICATION_RULE_URI + "/{notificationRuleId}")
-  @RBAC(
+  @DeleteMapping({
+    NOTIFICATION_RULE_URI + "/{notificationRuleId}",
+    TENANT_NOTIFICATION_RULE_URI + "/{notificationRuleId}"
+  })
+  @AccessControl(
       resourceId = "#notificationRuleId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.NOTIFICATION_RULE)
@@ -118,8 +130,8 @@ public class NotificationRuleApi {
   }
 
   @LogExecutionTime
-  @PostMapping(NOTIFICATION_RULE_URI)
-  @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.NOTIFICATION_RULE)
+  @PostMapping({NOTIFICATION_RULE_URI, TENANT_NOTIFICATION_RULE_URI})
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.NOTIFICATION_RULE)
   @Transactional(rollbackFor = Exception.class)
   @Operation(summary = "Create NotificationRule", description = "Create a NotificationRule")
   @ApiResponses(
@@ -135,8 +147,11 @@ public class NotificationRuleApi {
   }
 
   @LogExecutionTime
-  @PutMapping(NOTIFICATION_RULE_URI + "/{notificationRuleId}")
-  @RBAC(
+  @PutMapping({
+    NOTIFICATION_RULE_URI + "/{notificationRuleId}",
+    TENANT_NOTIFICATION_RULE_URI + "/{notificationRuleId}"
+  })
+  @AccessControl(
       resourceId = "#notificationRuleId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.NOTIFICATION_RULE)
@@ -156,8 +171,8 @@ public class NotificationRuleApi {
   }
 
   @LogExecutionTime
-  @PostMapping(NOTIFICATION_RULE_URI + "/search")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.NOTIFICATION_RULE)
+  @PostMapping({NOTIFICATION_RULE_URI + "/search", TENANT_NOTIFICATION_RULE_URI + "/search"})
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.NOTIFICATION_RULE)
   @Operation(
       description = "Search NotificationRules corresponding to search criteria",
       summary = "Search NotificationRules")

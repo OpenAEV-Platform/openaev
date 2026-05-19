@@ -30,7 +30,7 @@ const MenuItemSub: FunctionComponent<Props> = ({
   const { navOpen, selectedMenu, anchors } = state;
   const { handleSelectedMenuOpen, handleSelectedMenuClose } = helpers;
 
-  const renderMenuItem = ({ label, link, exact, icon }: LeftMenuSubItem) => {
+  const renderMenuItem = ({ label, link, exact, icon, chip }: LeftMenuSubItem) => {
     const isCurrentTab = location.pathname === link;
     return (
       <MenuItem
@@ -41,7 +41,9 @@ const MenuItemSub: FunctionComponent<Props> = ({
         selected={exact ? isCurrentTab : location.pathname.includes(link)}
         dense
         sx={{ paddingLeft: navOpen ? '20px' : undefined }}
-        onClick={!navOpen ? handleSelectedMenuClose : undefined}
+        onClick={() => {
+          if (!navOpen) handleSelectedMenuClose();
+        }}
       >
         {icon && (
           <ListItemIcon style={{ ...leftMenuStyle.listItemIcon }}>
@@ -61,6 +63,7 @@ const MenuItemSub: FunctionComponent<Props> = ({
             },
           }}
         />
+        {chip}
       </MenuItem>
     );
   };

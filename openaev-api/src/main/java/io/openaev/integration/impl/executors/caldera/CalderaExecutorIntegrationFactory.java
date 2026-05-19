@@ -75,7 +75,7 @@ public class CalderaExecutorIntegrationFactory extends IntegrationFactory {
 
   @Override
   protected final String getClassName() {
-    return this.getClass().getCanonicalName();
+    return CalderaExecutorIntegrationFactory.class.getCanonicalName();
   }
 
   @Override

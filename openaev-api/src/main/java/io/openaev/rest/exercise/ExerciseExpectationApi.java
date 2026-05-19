@@ -1,7 +1,9 @@
 package io.openaev.rest.exercise;
 
+import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
+
+import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.aop.RBAC;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.InjectExpectation;
 import io.openaev.database.model.ResourceType;
@@ -21,8 +23,11 @@ public class ExerciseExpectationApi extends RestBehavior {
   private final ExerciseExpectationService exerciseExpectationService;
 
   @LogExecutionTime
-  @GetMapping(value = "/api/exercises/{exerciseId}/expectations")
-  @RBAC(
+  @GetMapping({
+    "/api/exercises/{exerciseId}/expectations",
+    TENANT_EXERCISE_URI + "/{exerciseId}/expectations"
+  })
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)

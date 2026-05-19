@@ -60,7 +60,7 @@ public class CatalogConnectorConfiguration implements Base {
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "connector_configuration_catalog_id", nullable = false)
   @JsonIgnore
-  @Schema(description = "Catalog connector")
+  @Schema(description = "Catalog connector", implementation = String.class)
   @NotNull
   @JsonSerialize(using = MonoIdSerializer.class)
   private CatalogConnector catalogConnector;

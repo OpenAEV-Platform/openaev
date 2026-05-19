@@ -13,6 +13,9 @@ const useLeftMenuStyle: () => {
       paddingLeft: theme.spacing(1),
       fontWeight: theme.typography.h2.fontWeight,
       fontSize: 14,
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap',
     },
   });
 };

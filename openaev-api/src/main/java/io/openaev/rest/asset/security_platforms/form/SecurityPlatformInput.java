@@ -19,10 +19,10 @@ public class SecurityPlatformInput extends AssetInput {
   private SecurityPlatform.SECURITY_PLATFORM_TYPE securityPlatformType;
 
   @JsonProperty("security_platform_logo_light")
-  @Schema(nullable = true)
+  @Schema(types = {"string", "null"})
   private String logoLight;
 
   @JsonProperty("security_platform_logo_dark")
-  @Schema(nullable = true)
+  @Schema(types = {"string", "null"})
   private String logoDark;
 }

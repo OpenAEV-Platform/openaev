@@ -1,14 +1,18 @@
-import { fetchPlatformParameters, updatePlatformParameters } from '../../actions/Application';
+import { fetchPlatformParameters } from '../../actions/Application';
 import type { LoggedHelper } from '../../actions/helper';
 import {
-  fetchHomeDashboard, homeDashboardAttackPaths,
-  homeDashboardAverage,
-  homeDashboardCount, homeDashboardEntities,
-  homeDashboardSeries,
-  homeWidgetToEntitiesRuntime,
-} from '../../actions/settings/settings-action';
+  fetchTenantHomeDashboard,
+  fetchTenantSettings,
+  tenantHomeDashboardAttackPaths,
+  tenantHomeDashboardAverage,
+  tenantHomeDashboardCount,
+  tenantHomeDashboardEntities,
+  tenantHomeDashboardSeries,
+  tenantHomeWidgetToEntitiesRuntime,
+  updateTenantSettings,
+} from '../../actions/settings/tenant-settings-action';
 import { useHelper } from '../../store';
-import type { PlatformSettings } from '../../utils/api-types';
+import { type TenantSettingsOutput } from '../../utils/api-types';
 import { useAppDispatch } from '../../utils/hooks';
 import useDataLoader from '../../utils/hooks/useDataLoader';
 import { Can } from '../../utils/permissions/permissionsContext';
@@ -19,29 +23,31 @@ import SelectDashboardButton from './workspaces/custom_dashboards/SelectDashboar
 
 const Home = () => {
   const dispatch = useAppDispatch();
-  const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
+  const { tenantSettings }: { tenantSettings: TenantSettingsOutput } = useHelper((helper: LoggedHelper) => ({ tenantSettings: helper.getTenantSettings() }));
 
   useDataLoader(() => {
     dispatch(fetchPlatformParameters());
+    dispatch(fetchTenantSettings());
   });
 
-  const handleSelectNewDashboard = (dashboardId: string) => {
-    dispatch(updatePlatformParameters({
-      ...settings,
+  const handleSelectNewDashboard = async (dashboardId: string) => {
+    await updateTenantSettings({
+      ...tenantSettings,
       platform_home_dashboard: dashboardId,
-    }));
+    });
+    dispatch(fetchTenantSettings());
   };
 
   const configuration = {
-    customDashboardId: settings.platform_home_dashboard,
+    customDashboardId: tenantSettings.platform_home_dashboard,
     paramLocalStorageKey: 'custom-dashboard-home',
-    fetchCustomDashboard: fetchHomeDashboard,
-    fetchCount: homeDashboardCount,
-    fetchAverage: homeDashboardAverage,
-    fetchSeries: homeDashboardSeries,
-    fetchEntities: homeDashboardEntities,
-    fetchEntitiesRuntime: homeWidgetToEntitiesRuntime,
-    fetchAttackPaths: homeDashboardAttackPaths,
+    fetchCustomDashboard: fetchTenantHomeDashboard,
+    fetchCount: tenantHomeDashboardCount,
+    fetchAverage: tenantHomeDashboardAverage,
+    fetchSeries: tenantHomeDashboardSeries,
+    fetchEntities: tenantHomeDashboardEntities,
+    fetchEntitiesRuntime: tenantHomeWidgetToEntitiesRuntime,
+    fetchAttackPaths: tenantHomeDashboardAttackPaths,
   };
 
   return (
@@ -50,7 +56,7 @@ const Home = () => {
       noDashboardSlot={(
         <NoDashboardComponent
           actionComponent={(
-            <Can I={ACTIONS.ACCESS} a={SUBJECTS.PLATFORM_SETTINGS}>
+            <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
               <SelectDashboardButton
                 variant="text"
                 handleApplyChange={handleSelectNewDashboard}

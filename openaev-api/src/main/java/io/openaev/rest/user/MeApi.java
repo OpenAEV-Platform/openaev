@@ -4,7 +4,9 @@ import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.database.specification.TokenSpecification.fromUser;
 import static io.openaev.helper.DatabaseHelper.updateRelation;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
+import io.openaev.api.tenants.TenantMapper;
+import io.openaev.api.tenants.TenantOutput;
 import io.openaev.config.SessionManager;
 import io.openaev.database.model.Token;
 import io.openaev.database.model.User;
@@ -19,64 +21,45 @@ import io.openaev.rest.user.form.me.UpdateProfileInput;
 import io.openaev.rest.user.form.user.RenewTokenInput;
 import io.openaev.rest.user.form.user.UpdateUserInfoInput;
 import io.openaev.service.UserService;
-import jakarta.annotation.Resource;
+import io.openaev.service.tenants.TenantService;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
+@RequiredArgsConstructor
 public class MeApi extends RestBehavior {
 
   public static final String ME_URI = "/api/me";
 
-  @Resource private SessionManager sessionManager;
-
-  private OrganizationRepository organizationRepository;
-  private TokenRepository tokenRepository;
-  private UserRepository userRepository;
-  private UserService userService;
-
-  @Autowired
-  public void setOrganizationRepository(OrganizationRepository organizationRepository) {
-    this.organizationRepository = organizationRepository;
-  }
-
-  @Autowired
-  public void setUserService(UserService userService) {
-    this.userService = userService;
-  }
-
-  @Autowired
-  public void setUserRepository(UserRepository userRepository) {
-    this.userRepository = userRepository;
-  }
-
-  @Autowired
-  public void setTokenRepository(TokenRepository tokenRepository) {
-    this.tokenRepository = tokenRepository;
-  }
+  private final SessionManager sessionManager;
+  private final OrganizationRepository organizationRepository;
+  private final TokenRepository tokenRepository;
+  private final UserRepository userRepository;
+  private final UserService userService;
+  private final TenantService tenantService;
 
   @GetMapping("/api/logout")
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public ResponseEntity<Object> logout() {
     return ResponseEntity.ok().build();
   }
 
-  @GetMapping("/api/me")
-  @RBAC(skipRBAC = true)
+  @GetMapping(ME_URI)
+  @AccessControl(skipRBAC = true)
   public User me() {
     return userRepository
         .findById(currentUser().getId())
         .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
   }
 
-  @PutMapping("/api/me/profile")
-  @RBAC(skipRBAC = true)
+  @PutMapping(ME_URI + "/profile")
+  @AccessControl(skipRBAC = true)
   public User updateProfile(@Valid @RequestBody UpdateProfileInput input) {
     User user =
         userRepository
@@ -90,8 +73,8 @@ public class MeApi extends RestBehavior {
     return savedUser;
   }
 
-  @PutMapping("/api/me/information")
-  @RBAC(skipRBAC = true)
+  @PutMapping(ME_URI + "/information")
+  @AccessControl(skipRBAC = true)
   public User updateInformation(@Valid @RequestBody UpdateUserInfoInput input) {
     User user =
         userRepository
@@ -103,8 +86,8 @@ public class MeApi extends RestBehavior {
     return savedUser;
   }
 
-  @PutMapping("/api/me/password")
-  @RBAC(skipRBAC = true)
+  @PutMapping(ME_URI + "/password")
+  @AccessControl(skipRBAC = true)
   public User updatePassword(@Valid @RequestBody UpdateMePasswordInput input)
       throws InputValidationException {
     User user =
@@ -119,11 +102,10 @@ public class MeApi extends RestBehavior {
     }
   }
 
-  @PostMapping("/api/me/token/refresh")
-  @RBAC(skipRBAC = true)
+  @PostMapping(ME_URI + "/token/refresh")
+  @AccessControl(skipRBAC = true)
   @Transactional(rollbackOn = Exception.class)
-  public Token renewToken(@Valid @RequestBody RenewTokenInput input)
-      throws InputValidationException {
+  public Token renewToken(@Valid @RequestBody RenewTokenInput input) {
     User user =
         userRepository
             .findById(currentUser().getId())
@@ -137,8 +119,16 @@ public class MeApi extends RestBehavior {
     return tokenRepository.save(token);
   }
 
-  @GetMapping("/api/me/tokens")
-  @RBAC(skipRBAC = true)
+  @GetMapping(ME_URI + "/tenants")
+  @AccessControl(skipRBAC = true)
+  public List<TenantOutput> myTenants() {
+    return tenantService.findTenantsByUserId(currentUser().getId()).stream()
+        .map(TenantMapper::toOutput)
+        .toList();
+  }
+
+  @GetMapping(ME_URI + "/tokens")
+  @AccessControl(skipRBAC = true)
   public List<Token> tokens() {
     return tokenRepository.findAll(fromUser(currentUser().getId()));
   }

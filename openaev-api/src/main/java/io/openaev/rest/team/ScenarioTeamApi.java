@@ -2,8 +2,9 @@ package io.openaev.rest.team;
 
 import static io.openaev.database.specification.TeamSpecification.*;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
+import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Team;
@@ -26,8 +27,11 @@ public class ScenarioTeamApi extends RestBehavior {
 
   private final TeamService teamService;
 
-  @PostMapping(SCENARIO_URI + "/{scenarioId}/teams/search")
-  @RBAC(
+  @PostMapping({
+    SCENARIO_URI + "/{scenarioId}/teams/search",
+    TENANT_SCENARIO_URI + "/{scenarioId}/teams/search"
+  })
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)

@@ -3,12 +3,11 @@ package io.openaev.database.repository;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.raw.RawExerciseSimple;
 import io.openaev.database.raw.RawScenario;
-import io.openaev.database.raw.RawScenarioSimple;
-import io.openaev.utils.Constants;
+import io.openaev.database.raw.RawScenarioSimpleIndexing;
+import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -47,7 +46,7 @@ public interface ScenarioRepository
   @Query(
       value =
           "WITH scenario_data AS ("
-              + "SELECT s.scenario_id, s.scenario_name, s.scenario_recurrence, s.scenario_created_at, "
+              + "SELECT s.scenario_id, s.scenario_name, s.scenario_recurrence, s.scenario_created_at,s.tenant_id, "
               + "GREATEST(s.scenario_updated_at, max(inj.inject_updated_at), max(ic.injector_contract_updated_at)) as scenario_injects_updated_at, "
               + "array_agg(DISTINCT st.tag_id) FILTER (WHERE st.tag_id IS NOT NULL) as scenario_tags, "
               + "array_agg(DISTINCT ste.team_id) FILTER (WHERE ste.team_id IS NOT NULL) as scenario_teams, "
@@ -65,11 +64,10 @@ public interface ScenarioRepository
               + ") "
               + "SELECT * FROM scenario_data sd "
               + "WHERE sd.scenario_injects_updated_at > :from "
-              + "ORDER BY sd.scenario_injects_updated_at ASC LIMIT "
-              + Constants.INDEXING_RECORD_SET_SIZE
-              + ";",
+              + "ORDER BY sd.scenario_injects_updated_at ASC LIMIT :limit;",
       nativeQuery = true)
-  List<RawScenarioSimple> findForIndexing(@Param("from") Instant from);
+  List<RawScenarioSimpleIndexing> findForIndexing(
+      @Param("from") Instant from, @Param("limit") int limit);
 
   @Query(
       value =
@@ -89,7 +87,7 @@ public interface ScenarioRepository
               + "LEFT JOIN scenarios s ON se.scenario_id = s.scenario_id "
               + "LEFT JOIN exercises_tags et ON et.exercise_id = ex.exercise_id "
               + "LEFT JOIN injects_expectations ie ON ex.exercise_id = ie.exercise_id "
-              + "WHERE s.scenario_external_reference = :externalReference "
+              + "WHERE s.scenario_external_reference = :externalReference AND s.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY ex.exercise_id ;",
       nativeQuery = true)
   List<RawExerciseSimple> rawAllByExternalReference(
@@ -111,26 +109,16 @@ public interface ScenarioRepository
 
   @Query(
       value =
-          "SELECT scenario_category, COUNT(*) AS category_count "
-              + "FROM scenarios "
-              + "GROUP BY scenario_category "
-              + "ORDER BY category_count DESC "
-              + "LIMIT :limit",
-      nativeQuery = true)
-  List<Object[]> findTopCategories(@Param("limit") @NotNull final int limit);
-
-  @Query(
-      value =
           "SELECT sce.scenario_id, sce.scenario_name, sce.scenario_subtitle, array_agg(sct.tag_id) FILTER (WHERE sct.tag_id IS NOT NULL) as scenario_tags "
               + "FROM scenarios sce "
               + "LEFT JOIN scenarios_tags sct ON sct.scenario_id = sce.scenario_id "
               + "INNER JOIN grants ON grants.grant_resource = sce.scenario_id AND grants.grant_resource_type = 'SCENARIO' "
               + "INNER JOIN groups ON grants.grant_group = groups.group_id "
               + "INNER JOIN users_groups ON groups.group_id = users_groups.group_id "
-              + "WHERE users_groups.user_id = :userId "
+              + "WHERE users_groups.user_id = :userId AND sce.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY sce.scenario_id",
       nativeQuery = true)
-  List<RawScenarioSimple> rawAllGranted(@Param("userId") String userId);
+  List<RawScenarioSimpleIndexing> rawAllGranted(@Param("userId") String userId);
 
   @Query(
       value =
@@ -144,7 +132,7 @@ public interface ScenarioRepository
               + "AND sce.scenario_id IN :scenarioIds "
               + "GROUP BY sce.scenario_id",
       nativeQuery = true)
-  List<RawScenarioSimple> rawGrantedByScenarioIds(
+  List<RawScenarioSimpleIndexing> rawGrantedByScenarioIds(
       @Param("userId") String userId, @Param("scenarioIds") List<String> scenarioIds);
 
   @Query(
@@ -152,9 +140,10 @@ public interface ScenarioRepository
           "SELECT sce.scenario_id, sce.scenario_name, sce.scenario_subtitle, array_agg(sct.tag_id) FILTER (WHERE sct.tag_id IS NOT NULL) as scenario_tags "
               + "FROM scenarios sce "
               + "LEFT JOIN scenarios_tags sct ON sct.scenario_id = sce.scenario_id "
+              + "WHERE sce.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY sce.scenario_id",
       nativeQuery = true)
-  List<RawScenarioSimple> rawAll();
+  List<RawScenarioSimpleIndexing> rawAll();
 
   @Query(
       value =
@@ -164,7 +153,7 @@ public interface ScenarioRepository
               + "WHERE sce.scenario_id IN :scenarioIds "
               + "GROUP BY sce.scenario_id",
       nativeQuery = true)
-  List<RawScenarioSimple> rawByScenarioIds(@Param("scenarioIds") List<String> scenarioIds);
+  List<RawScenarioSimpleIndexing> rawByScenarioIds(@Param("scenarioIds") List<String> scenarioIds);
 
   @Query(
       value =
@@ -226,7 +215,8 @@ public interface ScenarioRepository
               + "       kc.scenario_kill_chain_phases, "
               + "       pf.scenario_platforms, "
               + "       tg.scenario_tags, "
-              + "       su.scenario_teams_users "
+              + "       su.scenario_teams_users, "
+              + "       w.workflow_id AS scenario_workflow_id "
               + "FROM scenarios s "
               + "LEFT JOIN all_users au ON au.scenario_id = s.scenario_id "
               + "LEFT JOIN scenario_users su ON su.scenario_id = s.scenario_id "
@@ -234,6 +224,7 @@ public interface ScenarioRepository
               + "LEFT JOIN kill_chain kc ON kc.scenario_id = s.scenario_id "
               + "LEFT JOIN platforms pf ON pf.scenario_id = s.scenario_id "
               + "LEFT JOIN tags tg ON tg.scenario_id = s.scenario_id "
+              + "LEFT JOIN workflows w ON w.workflow_scenario_id = s.scenario_id "
               + "WHERE s.scenario_id = :scenarioId",
       nativeQuery = true)
   RawScenario getScenarioById(@Param("scenarioId") final String scenarioId);
@@ -241,7 +232,7 @@ public interface ScenarioRepository
   // -- CATEGORY --
 
   @Query(
-      "SELECT DISTINCT s.category FROM Scenario s WHERE LOWER(s.category) LIKE LOWER(CONCAT('%', :searchTerm, '%'))")
+      "SELECT DISTINCT s.category FROM Scenario s WHERE LOWER(s.category) LIKE LOWER(CONCAT('%', :searchTerm, '%')) AND s.tenant.id = :#{#tenantContext.currentTenant}")
   List<String> findDistinctCategoriesBySearchTerm(
       @Param("searchTerm") final String searchTerm, Pageable pageable);
 

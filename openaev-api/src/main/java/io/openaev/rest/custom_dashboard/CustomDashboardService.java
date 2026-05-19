@@ -1,40 +1,40 @@
 package io.openaev.rest.custom_dashboard;
 
 import static io.openaev.database.model.CustomDashboardParameters.CustomDashboardParameterType.*;
+import static io.openaev.database.model.TenantSettingKeys.TENANT_HOME_DASHBOARD;
 import static io.openaev.database.specification.CustomDashboardSpecification.byName;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.Setting;
-import io.openaev.database.model.SettingKeys;
+import io.openaev.database.model.TenantSettingKeys;
 import io.openaev.database.model.Widget;
 import io.openaev.database.raw.RawCustomDashboard;
 import io.openaev.database.repository.CustomDashboardRepository;
-import io.openaev.engine.model.EsBase;
-import io.openaev.engine.query.EsAttackPath;
-import io.openaev.engine.query.EsAvgs;
-import io.openaev.engine.query.EsCountInterval;
-import io.openaev.engine.query.EsSeries;
+import io.openaev.engine.query.*;
 import io.openaev.rest.custom_dashboard.form.CustomDashboardOutput;
 import io.openaev.rest.dashboard.DashboardService;
-import io.openaev.rest.dashboard.model.WidgetToEntitiesInput;
-import io.openaev.rest.dashboard.model.WidgetToEntitiesOutput;
 import io.openaev.rest.exception.BadRequestException;
-import io.openaev.service.PlatformSettingsService;
+import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.utils.FilterUtilsJpa;
+import io.openaev.utils.es.EntitiesPaginationInput;
+import io.openaev.utils.es.WidgetToEntitiesInput;
+import io.openaev.utils.es.WidgetToEntitiesOutput;
 import io.openaev.utils.mapper.CustomDashboardMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.annotation.Nullable;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.access.AccessDeniedException;
@@ -47,7 +47,7 @@ public class CustomDashboardService {
 
   private final CustomDashboardRepository customDashboardRepository;
   private final CustomDashboardMapper customDashboardMapper;
-  private final PlatformSettingsService platformSettingsService;
+  private final TenantSettingsService tenantSettingsService;
   private final DashboardService dashboardService;
 
   // -- CRUD --
@@ -150,16 +150,22 @@ public class CustomDashboardService {
    *     the default home dashboard
    */
   @Transactional
-  public void deleteCustomDashboard(@NotNull final String id) {
+  public void deleteCustomDashboard(@NotBlank final String tenantId, @NotNull final String id) {
+    // Prevent deletion if used as home dashboard
     String defaultHomeDashboardId =
-        this.platformSettingsService
-            .setting(SettingKeys.DEFAULT_HOME_DASHBOARD.key())
+        this.tenantSettingsService
+            .findSetting(tenantId, TENANT_HOME_DASHBOARD.key())
             .map(Setting::getValue)
             .orElse(null);
     if (defaultHomeDashboardId != null && defaultHomeDashboardId.equals(id)) {
       throw new BadRequestException("Default home custom dashboard can not be deleted");
     }
-    this.platformSettingsService.clearDefaultPlatformDashboardIfMatch(id);
+    // Clear scenario/simulation defaults if they reference this dashboard
+    this.tenantSettingsService.clearSettingIfMatch(
+        tenantId, TenantSettingKeys.TENANT_SCENARIO_DASHBOARD.key(), id);
+    this.tenantSettingsService.clearSettingIfMatch(
+        tenantId, TenantSettingKeys.TENANT_SIMULATION_DASHBOARD.key(), id);
+
     if (!this.customDashboardRepository.existsById(id)) {
       throw new EntityNotFoundException("Custom dashboard not found with id: " + id);
     }
@@ -223,10 +229,6 @@ public class CustomDashboardService {
                     "Custom dashboard associated to resource: " + resourceId + " not found"));
   }
 
-  public Optional<CustomDashboard> findHomeDashboard() {
-    return customDashboardRepository.findHomeDashboard();
-  }
-
   /**
    * Verify if a widget is part of a dashboard associated to a resource
    *
@@ -243,18 +245,6 @@ public class CustomDashboardService {
       return true;
     }
     return false;
-  }
-
-  /**
-   * Verify if a widget is part of a the home dashboard
-   *
-   * @param widgetId
-   * @return
-   */
-  public boolean isWidgetInHomeDashboard(@NotBlank final String widgetId) {
-    return findHomeDashboard()
-        .map(d -> d.getWidgets().stream().anyMatch(w -> widgetId.equals(w.getId())))
-        .orElse(false);
   }
 
   public EsCountInterval dashboardCountOnResourceId(
@@ -290,15 +280,18 @@ public class CustomDashboardService {
     return this.dashboardService.series(widgetId, parameters);
   }
 
-  public List<EsBase> dashboardEntitiesOnResourceId(
+  public EsEntities dashboardEntitiesOnResourceId(
       @NotBlank final String resourceId,
       @NotBlank final String widgetId,
-      final Map<String, String> parameters) {
+      @Nullable final EntitiesPaginationInput input) {
     // verify that the widget is in the resource dashboard
     if (!isWidgetInResourceDashboard(resourceId, widgetId)) {
       throw new AccessDeniedException("Access denied");
     }
-    return this.dashboardService.entities(widgetId, parameters);
+    return this.dashboardService.entities(
+        widgetId,
+        input == null ? new HashMap<>() : input.getParameters(),
+        input == null ? null : input.getPagination());
   }
 
   public WidgetToEntitiesOutput widgetToEntitiesRuntimeOnResourceId(
@@ -322,62 +315,5 @@ public class CustomDashboardService {
       throw new AccessDeniedException("Access denied");
     }
     return this.dashboardService.attackPaths(widgetId, parameters);
-  }
-
-  public EsCountInterval homeDashboardCount(
-      @NotBlank final String widgetId, final Map<String, String> parameters) {
-
-    // verify that the widget is in the home  dashboard
-    if (!isWidgetInHomeDashboard(widgetId)) {
-      throw new AccessDeniedException("Access denied");
-    }
-    return dashboardService.count(widgetId, parameters);
-  }
-
-  public EsAvgs homeDashboardAverage(
-      @NotBlank final String widgetId, final Map<String, String> parameters) {
-
-    // verify that the widget is in the home  dashboard
-    if (!isWidgetInHomeDashboard(widgetId)) {
-      throw new AccessDeniedException("Access denied");
-    }
-    return dashboardService.average(widgetId, parameters);
-  }
-
-  public List<EsSeries> homeDashboardSeries(
-      @NotBlank final String widgetId, final Map<String, String> parameters) {
-    // verify that the widget is in the home  dashboard
-    if (!isWidgetInHomeDashboard(widgetId)) {
-      throw new AccessDeniedException("Access denied");
-    }
-    return dashboardService.series(widgetId, parameters);
-  }
-
-  public List<EsBase> homeDashboardEntities(
-      @NotBlank final String widgetId, final Map<String, String> parameters) {
-    // verify that the widget is in the home  dashboard
-    if (!isWidgetInHomeDashboard(widgetId)) {
-      throw new AccessDeniedException("Access denied");
-    }
-    return dashboardService.entities(widgetId, parameters);
-  }
-
-  public WidgetToEntitiesOutput homeWidgetToEntitiesRuntimeOnResourceId(
-      @NotBlank final String widgetId, @NotBlank WidgetToEntitiesInput input) {
-    // verify that the widget is in the resource dashboard
-    if (!isWidgetInHomeDashboard(widgetId)) {
-      throw new AccessDeniedException("Access denied");
-    }
-    return this.dashboardService.widgetToEntitiesRuntime(widgetId, input);
-  }
-
-  public List<EsAttackPath> homeDashboardAttackPaths(
-      @NotBlank final String widgetId, final Map<String, String> parameters)
-      throws ExecutionException, InterruptedException {
-    // verify that the widget is in the home  dashboard
-    if (!isWidgetInHomeDashboard(widgetId)) {
-      throw new AccessDeniedException("Access denied");
-    }
-    return dashboardService.attackPaths(widgetId, parameters);
   }
 }

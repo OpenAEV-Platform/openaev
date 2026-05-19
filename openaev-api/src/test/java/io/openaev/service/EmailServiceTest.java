@@ -1,7 +1,8 @@
 package io.openaev.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Execution;
@@ -18,12 +19,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @ExtendWith(MockitoExtension.class)
 class EmailServiceTest extends IntegrationTest {
 
-  @MockBean private SmtpService smtpService;
+  @MockitoBean private SmtpService smtpService;
 
   @Autowired private EmailService emailService;
 
@@ -40,6 +41,7 @@ class EmailServiceTest extends IntegrationTest {
         execution,
         List.of(userContext),
         "user@openaev.io",
+        null,
         List.of("user-reply-to@openaev.io"),
         null,
         false,

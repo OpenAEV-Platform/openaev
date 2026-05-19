@@ -2,15 +2,16 @@ package io.openaev.rest.inject.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.aop.WorkflowUpdateEvent;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.ExecutionStatus;
 import io.openaev.database.model.Inject;
 import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.rest.helper.queue.BatchQueueService;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionCallback;
+import io.openaev.service.queue.BatchQueueService;
 import jakarta.annotation.Resource;
 import jakarta.transaction.Transactional;
 import java.io.IOException;
@@ -55,6 +56,7 @@ public class BatchingInjectStatusService {
    */
   @LogExecutionTime
   @Transactional(Transactional.TxType.REQUIRES_NEW)
+  @WorkflowUpdateEvent(injectIds = "#injectExecutionCallbacks.![injectId]")
   public List<InjectExecutionCallback> handleInjectExecutionCallback(
       List<InjectExecutionCallback> injectExecutionCallbacks) {
 

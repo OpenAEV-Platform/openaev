@@ -8,12 +8,13 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.helper.MonoIdSerializer;
 import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.helper.MultiIdSetSerializer;
-import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
+import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -21,16 +22,14 @@ import java.util.*;
 import java.util.stream.Collectors;
 import lombok.Data;
 import lombok.Getter;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.Type;
-import org.hibernate.annotations.UpdateTimestamp;
-import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.annotations.*;
 
 @Data
 @Entity
 @Table(name = "findings")
-@EntityListeners(ModelBaseListener.class)
-public class Finding implements Base {
+@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+public class Finding implements TenantBase {
 
   @Id
   @Column(name = "finding_id", updatable = false, nullable = false)
@@ -70,7 +69,7 @@ public class Finding implements Base {
   @JsonProperty("finding_name")
   protected String name;
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "findings_tags",
@@ -81,13 +80,20 @@ public class Finding implements Base {
   @Queryable(filterable = true, dynamicValues = true, path = "tags.id")
   private Set<Tag> tags = new HashSet<>();
 
+  @ManyToOne
+  @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
+  @JsonIgnore
+  // The tenant here must be set automatically with the inject tenant when the finding is created by
+  // the inject
+  private Tenant tenant;
+
   // -- RELATION --
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "finding_inject_id")
   @JsonProperty("finding_inject_id")
   @JsonSerialize(using = MonoIdSerializer.class)
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   @Queryable(filterable = true, dynamicValues = true, sortable = true, path = "inject.id")
   private Inject inject;
 
@@ -108,7 +114,7 @@ public class Finding implements Base {
   private Instant updateDate = now();
 
   // Relation
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "findings_assets",
@@ -125,7 +131,7 @@ public class Finding implements Base {
     this.assets = assets;
   }
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "findings_teams",
@@ -135,7 +141,7 @@ public class Finding implements Base {
   @JsonProperty("finding_teams")
   private List<Team> teams = new ArrayList<>();
 
-  @ArraySchema(schema = @Schema(type = "string"))
+  @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "findings_users",

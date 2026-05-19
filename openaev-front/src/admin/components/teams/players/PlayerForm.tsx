@@ -11,7 +11,7 @@ import OrganizationField from '../../../../components/OrganizationField';
 import TagField from '../../../../components/TagField';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import { schemaValidator } from '../../../../utils/Zod';
+import { PHONE_REGEX, schemaValidator } from '../../../../utils/Zod';
 import { type PlayerInputForm } from './Player';
 
 interface PlayerFormProps {
@@ -32,11 +32,11 @@ const PlayerForm: FunctionComponent<PlayerFormProps> = ({
   const ability = useContext(AbilityContext);
 
   const playerFormSchemaValidation = z.object({
-    user_email: z.string().email(t('Should be a valid email address')),
+    user_email: z.email(t('Should be a valid email address')),
     user_phone: z
       .string()
       .regex(
-        /^\+[\d\s\-.()]+$/,
+        PHONE_REGEX,
         t('The country code and mobile phone number provided is invalid. Please provide a valid number'),
       )
       .optional()
@@ -44,7 +44,7 @@ const PlayerForm: FunctionComponent<PlayerFormProps> = ({
     user_phone2: z
       .string()
       .regex(
-        /^\+[\d\s\-.()]+$/,
+        PHONE_REGEX,
         t('The country code and mobile phone number provided is invalid. Please provide a valid number'),
       )
       .optional()
@@ -89,7 +89,7 @@ const PlayerForm: FunctionComponent<PlayerFormProps> = ({
             name="user_organization"
             values={values}
             setFieldValue={form.mutators.setValue}
-            userRight={ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS)}
+            userRight={ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS)}
           />
           <CountryField
             name="user_country"

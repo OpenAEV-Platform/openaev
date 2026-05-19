@@ -1,16 +1,20 @@
 package io.openaev.rest.payload;
 
-import io.openaev.aop.RBAC;
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
+import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.payload.form.*;
+import io.openaev.rest.payload.output.PayloadOutput;
 import io.openaev.rest.payload.service.*;
-import io.openaev.service.ImportService;
+import io.openaev.utils.mapper.PayloadMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -28,79 +32,99 @@ import org.springframework.web.bind.annotation.*;
 public class PayloadApi extends RestBehavior {
 
   public static final String PAYLOAD_URI = "/api/payloads";
+  public static final String TENANT_PAYLOAD_URI = TENANT_PREFIX + "/payloads";
 
-  private final ImportService importService;
   private final PayloadRepository payloadRepository;
+  private final InjectorContractRepository injectorContractRepository;
   private final PayloadService payloadService;
   private final PayloadCreationService payloadCreationService;
   private final PayloadUpdateService payloadUpdateService;
   private final PayloadUpsertService payloadUpsertService;
   private final DocumentService documentService;
   private final CollectorService collectorsService;
+  private final PayloadMapper payloadMapper;
 
-  @PostMapping(PAYLOAD_URI + "/search")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.PAYLOAD)
+  @PostMapping({PAYLOAD_URI + "/search", TENANT_PAYLOAD_URI + "/search"})
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.PAYLOAD)
   public Page<Payload> payloads(
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return this.payloadService.searchPayloads(searchPaginationInput);
   }
 
-  @GetMapping(PAYLOAD_URI + "/{payloadId}")
-  @RBAC(
+  @GetMapping({PAYLOAD_URI + "/{payloadId}", TENANT_PAYLOAD_URI + "/{payloadId}"})
+  @AccessControl(
       resourceId = "#payloadId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.PAYLOAD)
-  public Payload payload(@PathVariable String payloadId) {
-    return payloadRepository.findById(payloadId).orElseThrow(ElementNotFoundException::new);
+  public PayloadOutput payload(@PathVariable String payloadId) {
+    PayloadService.PayloadWithRelatedEntities payloadWithRelatedEntities =
+        payloadService.findPayloadWithRelatedEntities(payloadId);
+    return payloadMapper.toPayloadOutput(
+        payloadWithRelatedEntities.payload(),
+        payloadWithRelatedEntities.attackPatternIds(),
+        payloadWithRelatedEntities.domainIds(),
+        payloadWithRelatedEntities.tagIds());
   }
 
-  @PostMapping(PAYLOAD_URI)
-  @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.PAYLOAD)
+  @PostMapping({PAYLOAD_URI, TENANT_PAYLOAD_URI})
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PAYLOAD)
   @Transactional(rollbackOn = Exception.class)
-  public Payload createPayload(@Valid @RequestBody PayloadCreateInput input) {
-    return this.payloadCreationService.createPayload(input);
+  public PayloadOutput createPayload(@Valid @RequestBody PayloadCreateInput input) {
+    PayloadCreationService.PayloadInjectorContractCreationResult result =
+        this.payloadCreationService.createPayload(input);
+    return payloadService.convertPayloadInjectorContractCreationToPayloadOutput(result);
   }
 
-  @PutMapping(PAYLOAD_URI + "/{payloadId}")
-  @RBAC(
+  @PutMapping({PAYLOAD_URI + "/{payloadId}", TENANT_PAYLOAD_URI + "/{payloadId}"})
+  @AccessControl(
       resourceId = "#payloadId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.PAYLOAD)
   @Transactional(rollbackOn = Exception.class)
-  public Payload updatePayload(
+  public PayloadOutput updatePayload(
       @NotBlank @PathVariable final String payloadId,
       @Valid @RequestBody PayloadUpdateInput input) {
-    return this.payloadUpdateService.updatePayload(payloadId, input);
+    PayloadCreationService.PayloadInjectorContractCreationResult result =
+        this.payloadUpdateService.updatePayload(payloadId, input);
+    return payloadService.convertPayloadInjectorContractCreationToPayloadOutput(result);
   }
 
-  @PostMapping(PAYLOAD_URI + "/{payloadId}/duplicate")
-  @RBAC(
+  @PostMapping({
+    PAYLOAD_URI + "/{payloadId}/duplicate",
+    TENANT_PAYLOAD_URI + "/{payloadId}/duplicate"
+  })
+  @AccessControl(
       resourceId = "#payloadId",
       actionPerformed = Action.DUPLICATE,
       resourceType = ResourceType.PAYLOAD)
   @Transactional(rollbackOn = Exception.class)
-  public Payload duplicatePayload(@NotBlank @PathVariable final String payloadId) {
-    return this.payloadService.duplicate(payloadId);
+  public PayloadOutput duplicatePayload(@NotBlank @PathVariable final String payloadId) {
+    PayloadCreationService.PayloadInjectorContractCreationResult result =
+        this.payloadService.duplicate(payloadId);
+    return payloadService.convertPayloadInjectorContractCreationToPayloadOutput(result);
   }
 
-  @PostMapping(PAYLOAD_URI + "/upsert")
-  @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.PAYLOAD)
+  @PostMapping({PAYLOAD_URI + "/upsert", TENANT_PAYLOAD_URI + "/upsert"})
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PAYLOAD)
   @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
   public Payload upsertPayload(@Valid @RequestBody PayloadUpsertInput input) {
     return this.payloadUpsertService.upsertPayload(input);
   }
 
-  @DeleteMapping(PAYLOAD_URI + "/{payloadId}")
-  @RBAC(
+  @DeleteMapping({PAYLOAD_URI + "/{payloadId}", TENANT_PAYLOAD_URI + "/{payloadId}"})
+  @AccessControl(
       resourceId = "#payloadId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.PAYLOAD)
   public void deletePayload(@PathVariable String payloadId) {
+    payloadRepository
+        .findById(payloadId)
+        .orElseThrow(() -> new ElementNotFoundException("Payload not found: " + payloadId));
     payloadRepository.deleteById(payloadId);
   }
 
-  @PostMapping(PAYLOAD_URI + "/deprecate")
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.PAYLOAD)
+  @PostMapping({PAYLOAD_URI + "/deprecate", TENANT_PAYLOAD_URI + "/deprecate"})
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PAYLOAD)
   @Transactional(rollbackOn = Exception.class)
   public void deprecateNonProcessedPayloadsByCollector(
       @Valid @RequestBody PayloadsDeprecateInput input) {
@@ -108,8 +132,11 @@ public class PayloadApi extends RestBehavior {
         input.collectorId(), input.processedPayloadExternalIds());
   }
 
-  @GetMapping(PAYLOAD_URI + "/{payloadId}/documents")
-  @RBAC(
+  @GetMapping({
+    PAYLOAD_URI + "/{payloadId}/documents",
+    TENANT_PAYLOAD_URI + "/{payloadId}/documents"
+  })
+  @AccessControl(
       resourceId = "#payloadId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.PAYLOAD)
@@ -122,8 +149,11 @@ public class PayloadApi extends RestBehavior {
     return documentService.documentsForPayload(payloadId);
   }
 
-  @GetMapping(PAYLOAD_URI + "/{payloadId}/collectors")
-  @RBAC(
+  @GetMapping({
+    PAYLOAD_URI + "/{payloadId}/collectors",
+    TENANT_PAYLOAD_URI + "/{payloadId}/collectors"
+  })
+  @AccessControl(
       resourceId = "#payloadId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.PAYLOAD)

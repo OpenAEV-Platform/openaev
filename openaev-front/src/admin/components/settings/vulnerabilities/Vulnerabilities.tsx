@@ -20,6 +20,7 @@ import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { type SearchPaginationInput, type VulnerabilitySimple } from '../../../../utils/api-types';
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { SETTINGS_LABEL } from '../../nav/config/settings.config';
 import TaxonomiesMenu from '../TaxonomiesMenu';
 import CreateVulnerability from './CreateVulnerability';
 import VulnerabilityDetail from './VulnerabilityDetail';
@@ -89,7 +90,7 @@ const Vulnerabilities = () => {
       <div style={{ flexGrow: 1 }}>
         <Breadcrumbs
           variant="list"
-          elements={[{ label: t('Settings') }, { label: t('Taxonomies') }, {
+          elements={[{ label: t(SETTINGS_LABEL) }, { label: t('Taxonomies') }, {
             label: t('Vulnerabilities'),
             current: true,
           }]}
@@ -161,7 +162,7 @@ const Vulnerabilities = () => {
             </ListItem>
           ))}
         </List>
-        <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
+        <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
           <CreateVulnerability
             onCreate={(result: VulnerabilitySimple) => setVulnerabilities([result, ...vulnerabilities])}
           />

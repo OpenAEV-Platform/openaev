@@ -2,10 +2,11 @@ package io.openaev.rest.scenario;
 
 import static io.openaev.database.specification.ExerciseSpecification.fromScenario;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
+import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 
+import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.aop.RBAC;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Base;
 import io.openaev.database.model.Exercise;
@@ -32,8 +33,11 @@ public class ScenarioSimulationApi {
   private final ExerciseService exerciseService;
 
   @LogExecutionTime
-  @GetMapping(SCENARIO_URI + "/{scenarioId}/exercises")
-  @RBAC(
+  @GetMapping({
+    SCENARIO_URI + "/{scenarioId}/exercises",
+    TENANT_SCENARIO_URI + "/{scenarioId}/exercises"
+  })
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
@@ -43,8 +47,11 @@ public class ScenarioSimulationApi {
   }
 
   @LogExecutionTime
-  @PostMapping(SCENARIO_URI + "/{scenarioId}/exercises/search")
-  @RBAC(
+  @PostMapping({
+    SCENARIO_URI + "/{scenarioId}/exercises/search",
+    TENANT_SCENARIO_URI + "/{scenarioId}/exercises/search"
+  })
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
@@ -68,7 +75,10 @@ public class ScenarioSimulationApi {
 
   // -- OPTION --
 
-  @GetMapping(SCENARIO_URI + "/{scenarioId}/simulations/options")
+  @GetMapping({
+    SCENARIO_URI + "/{scenarioId}/simulations/options",
+    TENANT_SCENARIO_URI + "/{scenarioId}/simulations/options"
+  })
   public List<FilterUtilsJpa.Option> optionsByName(
       @PathVariable @NotBlank final String scenarioId,
       @RequestParam(required = false) final String searchText) {

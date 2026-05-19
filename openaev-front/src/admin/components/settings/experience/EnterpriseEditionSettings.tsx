@@ -49,12 +49,12 @@ const EnterpriseEditionSettings: React.FC = () => {
               {t('Enterprise Edition')}
             </Typography>
             {!isEnterpriseEditionByConfig && !isEnterpriseEdition && (
-              <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
+              <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
                 <EnterpriseEditionButton />
               </Can>
             )}
             {!isEnterpriseEditionByConfig && isEnterpriseEdition && (
-              <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
+              <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
                 <Button
                   size="small"
                   variant="outlined"
@@ -198,7 +198,7 @@ const EnterpriseEditionSettings: React.FC = () => {
               {t('Enterprise Edition')}
             </Typography>
             {!isEnterpriseEditionActivated && (
-              <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
+              <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
                 <EnterpriseEditionButton />
               </Can>
             )}

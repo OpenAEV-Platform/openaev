@@ -105,7 +105,8 @@ public class EsAttackPathService {
     config.setTimeRange(CustomDashboardTimeRange.ALL_TIME);
 
     return esService
-        .entities(user, new ListRuntime(config, parameters, definitionParameters))
+        .entities(user, new ListRuntime(config, parameters, definitionParameters, null))
+        .getEsDatas()
         .stream()
         .filter(EsInject.class::isInstance)
         .map(EsInject.class::cast)

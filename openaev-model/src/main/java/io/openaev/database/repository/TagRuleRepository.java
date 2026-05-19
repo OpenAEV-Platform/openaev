@@ -1,9 +1,9 @@
 package io.openaev.database.repository;
 
 import io.openaev.database.model.TagRule;
+import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Optional;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
@@ -23,6 +23,8 @@ public interface TagRuleRepository
   @Query("select tr from TagRule tr where tr.tag.id IN :tagids")
   List<TagRule> findByTags(@Param("tagids") List<String> tagIds);
 
-  @Query("select tr from TagRule tr " + "where tr.tag.name IN :tagnames")
+  @Query(
+      "select tr from TagRule tr "
+          + "where tr.tag.name IN :tagnames AND tr.tenant.id = :#{#tenantContext.currentTenant}")
   List<TagRule> findByTagNames(@Param("tagnames") List<String> tagNames);
 }

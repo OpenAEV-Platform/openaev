@@ -169,7 +169,7 @@ public class InjectExpectation implements Base, Cloneable {
   @JoinColumn(name = "exercise_id")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("inject_expectation_exercise")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Exercise exercise;
 
   @Setter
@@ -177,7 +177,7 @@ public class InjectExpectation implements Base, Cloneable {
   @JoinColumn(name = "inject_id")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("inject_expectation_inject")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Inject inject;
 
   @Setter
@@ -185,7 +185,7 @@ public class InjectExpectation implements Base, Cloneable {
   @JoinColumn(name = "user_id")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("inject_expectation_user")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private User user;
 
   @Setter
@@ -193,7 +193,7 @@ public class InjectExpectation implements Base, Cloneable {
   @JoinColumn(name = "team_id")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("inject_expectation_team")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Team team;
 
   @Setter
@@ -201,7 +201,7 @@ public class InjectExpectation implements Base, Cloneable {
   @JoinColumn(name = "agent_id")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("inject_expectation_agent")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Agent agent;
 
   @Setter
@@ -209,7 +209,7 @@ public class InjectExpectation implements Base, Cloneable {
   @JoinColumn(name = "asset_id")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("inject_expectation_asset")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Asset asset;
 
   @Setter
@@ -217,7 +217,7 @@ public class InjectExpectation implements Base, Cloneable {
   @JoinColumn(name = "asset_group_id")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("inject_expectation_asset_group")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private AssetGroup assetGroup;
 
   // endregion
@@ -226,14 +226,14 @@ public class InjectExpectation implements Base, Cloneable {
   @JoinColumn(name = "article_id")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("inject_expectation_article")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Article article;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "challenge_id")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("inject_expectation_challenge")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Challenge challenge;
 
   @OneToMany(

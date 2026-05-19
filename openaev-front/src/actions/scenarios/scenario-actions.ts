@@ -6,7 +6,7 @@ import {
   postReferential,
   putReferential,
   simpleCall,
-  simplePostCall,
+  simplePostCall, simplePutCall,
 } from '../../utils/Action';
 import {
   type GetScenariosInput,
@@ -16,8 +16,8 @@ import {
   type LessonsCategoryUpdateInput,
   type LessonsInput,
   type LessonsQuestionCreateInput,
-  type LessonsQuestionUpdateInput,
-  type Scenario,
+  type LessonsQuestionUpdateInput, type Pagination,
+  type Scenario, type ScenarioAndInjectorContractsInputs, type ScenarioIdsAndInjectorContractsInputs,
   type ScenarioInput,
   type ScenarioRecurrenceInput,
   type ScenarioTeamPlayersEnableInput,
@@ -34,6 +34,16 @@ export const SCENARIO_URI = '/api/scenarios';
 
 export const addScenario = (data: ScenarioInput) => (dispatch: Dispatch) => {
   return postReferential(scenario, SCENARIO_URI, data)(dispatch);
+};
+
+export const addScenarioWithInjectorContracts = (data: ScenarioAndInjectorContractsInputs) => {
+  const uri = `${SCENARIO_URI}/with-injector-contracts`;
+  return simplePostCall(uri, data);
+};
+
+export const updateScenariosWithInjectorContracts = (data: ScenarioIdsAndInjectorContractsInputs) => {
+  const uri = `${SCENARIO_URI}/with-injector-contracts`;
+  return simplePutCall(uri, data);
 };
 
 export const fetchScenarios = () => (dispatch: Dispatch) => {
@@ -282,8 +292,11 @@ export const seriesByScenario = (scenarioId: string, widgetId: string, parameter
   return simplePostCall(`/api/scenarios/${scenarioId}/dashboard/series/${widgetId}`, parameters);
 };
 
-export const entitiesByScenario = (scenarioId: string, widgetId: string, parameters: Record<string, string | undefined>) => {
-  return simplePostCall(`/api/scenarios/${scenarioId}/dashboard/entities/${widgetId}`, parameters);
+export const entitiesByScenario = (scenarioId: string, widgetId: string, parameters: Record<string, string | undefined>, pagination?: Pagination) => {
+  return simplePostCall(`/api/scenarios/${scenarioId}/dashboard/entities/${widgetId}`, {
+    parameters,
+    pagination,
+  });
 };
 
 export const widgetToEntitiesByByScenario = (scenarioId: string, widgetId: string, input: WidgetToEntitiesInput) => {

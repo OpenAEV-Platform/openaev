@@ -136,8 +136,8 @@ const InjectorContracts = () => {
       mode: 'and',
       filters: [
         {
-          key: 'injector_contract_injector',
-          operator: 'eq',
+          key: 'injector_contract_injectors',
+          operator: 'contains',
           values: [injectorId],
         }],
     },
@@ -285,10 +285,7 @@ const InjectorContracts = () => {
             <ListItemSecondaryAction>
               <InjectorContractPopover
                 injectorContract={injectorContract}
-                killChainPhasesMap={killChainPhasesMap}
-                attackPatternsMap={attackPatternsMap}
                 onUpdate={result => setInjectorContracts(injectorContracts.map(ic => (ic.injector_contract_id !== result.injector_contract_id ? ic : result)))}
-                isPayloadInjector={injector.injector_payloads}
               />
             </ListItemSecondaryAction>
           </ListItem>

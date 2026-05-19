@@ -40,7 +40,7 @@ public class Pause implements Base {
   @JoinColumn(name = "pause_exercise")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("pause_exercise")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Exercise exercise;
 
   public Optional<Long> getDuration() {

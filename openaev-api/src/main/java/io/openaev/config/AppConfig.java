@@ -10,7 +10,10 @@ import io.swagger.v3.oas.models.info.License;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import jakarta.annotation.Resource;
+import org.springdoc.core.converters.models.SortObject;
+import org.springdoc.core.utils.SpringDocUtils;
 import org.springframework.context.annotation.Bean;
+import org.springframework.data.domain.Sort;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.stereotype.Component;
@@ -23,6 +26,20 @@ import org.springframework.web.client.RestTemplate;
 @EnableTransactionManagement
 public class AppConfig {
 
+  static {
+    /*
+     * Spring Data's Sort type is a Streamable and does not map directly to an OpenAPI array in OpenAPI 3.1 while it did so in OpenaAPI 3.0
+     * To preserve the existing API contract, we override the schema generation
+     *
+     * References:
+     * - StackOverflow discussion on custom type handling in Springdoc:
+     *   https://stackoverflow.com/questions/74091899/how-to-define-custom-handling-for-a-response-class-in-spring-doc
+     * - Stack overflow example with a Pageable objext, similar to Sort:
+     *   https://stackoverflow.com/questions/60058976/open-api-3-how-to-read-spring-boot-pagination-properties
+     */
+    SpringDocUtils.getConfig().replaceWithClass(Sort.class, SortObject.class);
+  }
+
   // Validations
   public static final String EMPTY_MESSAGE = "This list cannot be empty.";
   public static final String MANDATORY_MESSAGE = "This value should not be blank.";
@@ -30,6 +47,7 @@ public class AppConfig {
   public static final String EMAIL_FORMAT = "This field must be a valid email.";
   public static final String PHONE_FORMAT =
       "This field must start with '+' character and country identifier.";
+  public static final String PHONE_REGEXP = "^$|^\\+[\\d\\s\\-.()]+$";
   public static final String MAX_255_MESSAGE = "This field must be 255 characters or less.";
 
   @Resource private OpenAEVConfig openAEVConfig;

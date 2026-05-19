@@ -6,11 +6,33 @@ import org.springframework.data.jpa.domain.Specification;
 
 public class GroupSpecification {
 
+  private GroupSpecification() {}
+
   public static Specification<Group> defaultUserAssignable() {
     return (root, query, cb) -> cb.equal(root.get("defaultUserAssignation"), true);
   }
 
+  public static Specification<Group> defaultUserAssignablePlatform() {
+    return defaultUserAssignable().and(platformScope());
+  }
+
+  public static Specification<Group> defaultUserAssignableTenant(String tenantId) {
+    return defaultUserAssignable().and(tenantScope(tenantId));
+  }
+
   public static Specification<Group> fromName(@NotBlank final String name) {
     return (root, query, cb) -> cb.equal(root.get("name"), name);
+  }
+
+  // -- TENANT --
+
+  public static Specification<Group> tenantScope(String tenantId) {
+    return (root, query, cb) -> cb.equal(root.get("tenant").get("id"), tenantId);
+  }
+
+  // -- PLATFORM --
+
+  public static Specification<Group> platformScope() {
+    return (root, query, cb) -> cb.isNull(root.get("tenant"));
   }
 }

@@ -13,6 +13,10 @@ name: "Quality Gates"
 on:
   workflow_call:
     inputs:
+      is-pr:
+        description: "Whether this run is triggered by a pull request (true/false)."
+        type: boolean
+        default: false
       upload-codecov:
         description: "Upload coverage reports to Codecov and save artifacts"
         type: boolean
@@ -96,7 +100,7 @@ jobs:
       SPRING_DATASOURCE_USERNAME: openaev
       SPRING_DATASOURCE_PASSWORD: openaev
       MINIO_ENDPOINT: localhost
-      MINIO_PORT: 9000
+      MINIO_PORT: 11000
       ENGINE_URL: http://localhost:9200
       OPENBAS_RABBITMQ_HOSTNAME: localhost
       GH_TOKEN: ${{ github.token }}
@@ -118,7 +122,7 @@ jobs:
       SPRING_DATASOURCE_USERNAME: openaev
       SPRING_DATASOURCE_PASSWORD: openaev
       MINIO_ENDPOINT: localhost
-      MINIO_PORT: 9000
+      MINIO_PORT: 11000
       MINIO_ACCESS_KEY: minioadmin
       MINIO_ACCESS_SECRET: minioadmin
       ENGINE_URL: http://localhost:9200
@@ -133,6 +137,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/e2e-tests
+        with:
+          is-pr: ${{ inputs.is-pr }}
 
   codecov:
     name: "📊 Coverage Merge & Upload"

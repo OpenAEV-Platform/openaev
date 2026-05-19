@@ -89,7 +89,7 @@ public class ChallengeContract extends Contractor {
             publishInstance,
             List.of(Endpoint.PLATFORM_TYPE.Internal),
             false,
-            Set.of(PresetDomain.EMAIL_INFILTRATION, PresetDomain.TABLETOP));
+            Set.of(PresetDomain.getEmailInfiltration(), PresetDomain.getTabletop()));
     publishChallenge.setAtomicTesting(false);
     return List.of(publishChallenge);
   }

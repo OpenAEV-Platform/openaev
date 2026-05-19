@@ -6,7 +6,6 @@ import static io.openaev.database.model.Payload.PAYLOAD_SOURCE.MANUAL;
 import static io.openaev.database.model.Payload.PAYLOAD_STATUS.VERIFIED;
 
 import io.openaev.database.model.*;
-import io.openaev.injector_contract.fields.ContractFieldType;
 import jakarta.annotation.Nullable;
 import java.util.*;
 
@@ -18,12 +17,10 @@ public class PayloadFixture {
   public static final String COMMAND_PAYLOAD_NAME = "command payload";
 
   private static void initializeDefaultPayload(
-      final Payload payload, final Endpoint.PLATFORM_TYPE[] platforms, Set<Domain> domains) {
+      final Payload payload, final Endpoint.PLATFORM_TYPE[] platforms) {
     payload.setPlatforms(platforms);
     payload.setSource(MANUAL);
     payload.setStatus(VERIFIED);
-    payload.setAttackPatterns(Collections.emptyList());
-    payload.setDomains(domains);
   }
 
   public static Command createCommand(
@@ -31,15 +28,6 @@ public class PayloadFixture {
       String commandLine,
       @Nullable List<PayloadPrerequisite> prerequisites,
       @Nullable String cleanupCmd) {
-    return createCommand(executor, commandLine, prerequisites, cleanupCmd, new HashSet<>());
-  }
-
-  public static Command createCommand(
-      String executor,
-      String commandLine,
-      @Nullable List<PayloadPrerequisite> prerequisites,
-      @Nullable String cleanupCmd,
-      Set<Domain> domains) {
     Command command = new Command(UUID.randomUUID().toString(), COMMAND_TYPE, COMMAND_PAYLOAD_NAME);
     command.setContent(commandLine);
     command.setExecutor(executor);
@@ -50,18 +38,12 @@ public class PayloadFixture {
       command.setCleanupCommand(cleanupCmd);
       command.setCleanupExecutor(executor);
     }
-    initializeDefaultPayload(command, WINDOWS_PLATFORM, domains);
-    command.setDomains(domains);
-    command.setAttackPatterns(Collections.emptyList());
+    initializeDefaultPayload(command, WINDOWS_PLATFORM);
     return command;
   }
 
   public static Payload createDefaultCommand() {
-    return createDefaultCommand(new HashSet<>());
-  }
-
-  public static Payload createDefaultCommand(Set<Domain> domains) {
-    return createCommand("PowerShell", "cd ..", null, null, domains);
+    return createCommand("PowerShell", "cd ..", null, null);
   }
 
   public static DetectionRemediation createDetectionRemediation() {
@@ -71,112 +53,102 @@ public class PayloadFixture {
   }
 
   public static Payload createDefaultCommandWithPlatformsAndArchitecture(
-      Endpoint.PLATFORM_TYPE[] platforms,
-      Payload.PAYLOAD_EXECUTION_ARCH architecture,
-      Set<Domain> domains) {
-    Payload command = createDefaultCommand(domains);
+      Endpoint.PLATFORM_TYPE[] platforms, Payload.PAYLOAD_EXECUTION_ARCH architecture) {
+    Payload command = createDefaultCommand();
     command.setPlatforms(platforms);
     command.setExecutionArch(architecture);
     return command;
   }
 
-  public static Payload createDefaultCommandWithAttackPatternAndArguments(
-      List<AttackPattern> attackPatterns, List<PayloadArgument> arguments, Set<Domain> domains) {
-    Payload command = createDefaultCommand(domains);
+  public static Payload createDefaultCommandWithArguments(List<PayloadArgument> arguments) {
+    Payload command = createDefaultCommand();
     command.setPlatforms(LINUX_PLATFORM);
     command.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES);
-    command.setAttackPatterns(attackPatterns);
     command.setArguments(arguments);
     return command;
   }
 
-  public static Payload createDefaultDnsResolution(Set<Domain> domains) {
+  public static Payload createDefaultDnsResolution() {
     final DnsResolution dnsResolution =
         new DnsResolution("dns-resolution-id", DNS_RESOLUTION_TYPE, "dns resolution payload");
     dnsResolution.setHostname("localhost");
-    initializeDefaultPayload(dnsResolution, LINUX_PLATFORM, domains);
+    initializeDefaultPayload(dnsResolution, LINUX_PLATFORM);
     return dnsResolution;
   }
 
-  public static Payload createDefaultDnsResolutionWithAttackPatternAndArguments(
-      List<AttackPattern> attackPatterns, List<PayloadArgument> arguments, Set<Domain> domains) {
+  public static Payload createDefaultDnsResolutionWithArguments(List<PayloadArgument> arguments) {
 
     final DnsResolution dnsResolution =
         new DnsResolution("dns-resolution-id", DNS_RESOLUTION_TYPE, "dns resolution payload");
     dnsResolution.setHostname("localhost");
-    initializeDefaultPayload(dnsResolution, LINUX_PLATFORM, domains);
+    initializeDefaultPayload(dnsResolution, LINUX_PLATFORM);
     dnsResolution.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.arm64);
-    dnsResolution.setAttackPatterns(attackPatterns);
     dnsResolution.setArguments(arguments);
-    dnsResolution.setDomains(domains);
 
     return dnsResolution;
   }
 
-  public static Payload createDefaultExecutable(Document document, Set<Domain> domains) {
+  public static Payload createDefaultExecutable(Document document) {
     final Executable executable =
         new Executable("executable-id", Executable.EXECUTABLE_TYPE, "executable payload");
     executable.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.arm64);
     executable.setExecutableFile(document);
-    initializeDefaultPayload(executable, MACOS_PLATFORM, domains);
+    initializeDefaultPayload(executable, MACOS_PLATFORM);
     return executable;
   }
 
   public static Payload createDefaultExecutable() {
-    return createDefaultExecutable(new HashSet<>());
-  }
-
-  public static Payload createDefaultExecutable(Set<Domain> domains) {
     final Executable executable =
         new Executable("executable-id", Executable.EXECUTABLE_TYPE, "executable payload");
     executable.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.arm64);
-    initializeDefaultPayload(executable, MACOS_PLATFORM, domains);
+    initializeDefaultPayload(executable, MACOS_PLATFORM);
     return executable;
   }
 
-  public static Payload createDefaultExecutableWithAttackPatternAndArguments(
-      List<AttackPattern> attackPatterns, List<PayloadArgument> arguments, Set<Domain> domains) {
+  public static Payload createDefaultExecutableWithArguments(List<PayloadArgument> arguments) {
     final Executable executable =
         new Executable("executable-id", Executable.EXECUTABLE_TYPE, "executable payload");
     executable.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.arm64);
-    initializeDefaultPayload(executable, MACOS_PLATFORM, domains);
-    executable.setAttackPatterns(attackPatterns);
+    initializeDefaultPayload(executable, MACOS_PLATFORM);
     executable.setArguments(arguments);
-    executable.setDomains(domains);
     return executable;
   }
 
   public static Payload createDefaultFileDrop() {
-    return createDefaultFileDrop(new HashSet<>());
-  }
-
-  public static Payload createDefaultFileDrop(Set<Domain> domains) {
     final FileDrop filedrop =
         new FileDrop("filedrop-id", Executable.EXECUTABLE_TYPE, "filedrop payload");
     filedrop.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.arm64);
-    initializeDefaultPayload(filedrop, MACOS_PLATFORM, domains);
+    initializeDefaultPayload(filedrop, MACOS_PLATFORM);
     return filedrop;
   }
 
-  public static Payload createDefaultFileDropWithAttackPatternAndArguments(
-      List<AttackPattern> attackPatterns, List<PayloadArgument> arguments, Set<Domain> domains) {
+  public static Payload createDefaultFileDropWithArguments(List<PayloadArgument> arguments) {
     final FileDrop filedrop =
         new FileDrop("filedrop-id", Executable.EXECUTABLE_TYPE, "filedrop payload");
     filedrop.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.arm64);
-    initializeDefaultPayload(filedrop, MACOS_PLATFORM, domains);
-    filedrop.setAttackPatterns(attackPatterns);
+    initializeDefaultPayload(filedrop, MACOS_PLATFORM);
     filedrop.setArguments(arguments);
-    filedrop.setDomains(domains);
     return filedrop;
   }
 
   public static PayloadArgument createPayloadArgument(
-      String key, ContractFieldType type, String defaultValue, String separator) {
+      String key, ArgumentType type, String defaultValue, String separator) {
     PayloadArgument payloadArgument = new PayloadArgument();
     payloadArgument.setKey(key);
-    payloadArgument.setType(type.label);
+    payloadArgument.setType(type);
     payloadArgument.setDefaultValue(defaultValue);
     payloadArgument.setSeparator(separator);
+    return payloadArgument;
+  }
+
+  public static PayloadArgument createPayloadArgument(
+      String key,
+      ArgumentType type,
+      String defaultValue,
+      String separator,
+      ArgumentSubType subtype) {
+    PayloadArgument payloadArgument = createPayloadArgument(key, type, defaultValue, separator);
+    payloadArgument.setSubtype(subtype);
     return payloadArgument;
   }
 }

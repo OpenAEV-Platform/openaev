@@ -8,6 +8,7 @@ import jakarta.validation.constraints.NotNull;
 import java.util.Collection;
 import java.util.List;
 import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Data
@@ -31,6 +32,9 @@ public class PropertySchemaDTO {
   private String entity;
 
   @JsonProperty("schema_property_type_array")
+  // Fixes a bug due to a new version of jackson and lombok
+  // cf: https://github.com/projectlombok/lombok/issues/3978
+  @Getter(onMethod_ = @JsonProperty("schema_property_type_array"))
   private boolean isArray;
 
   @JsonProperty("schema_property_values")

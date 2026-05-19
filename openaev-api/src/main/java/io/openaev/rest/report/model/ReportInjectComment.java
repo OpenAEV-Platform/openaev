@@ -22,7 +22,7 @@ public class ReportInjectComment {
   @JsonIgnore // Ignore Inject object in JSON
   @JsonSerialize(using = MonoIdSerializer.class)
   @NotNull
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Inject inject;
 
   @ManyToOne(fetch = FetchType.LAZY)
@@ -31,7 +31,7 @@ public class ReportInjectComment {
   @JsonIgnore // Ignore Inject object in JSON
   @JsonSerialize(using = MonoIdSerializer.class)
   @NotNull
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Report report;
 
   @Column(name = "comment")
@@ -39,11 +39,13 @@ public class ReportInjectComment {
   private String comment;
 
   @JsonProperty("inject_id")
+  @Schema(description = "ID of the inject")
   public String getInjectId() {
     return inject != null ? inject.getId() : null; // Customize serialization to return ID
   }
 
   @JsonProperty("report_id")
+  @Schema(description = "ID of the report")
   public String getReportId() {
     return report != null ? report.getId() : null; // Customize serialization to return ID
   }

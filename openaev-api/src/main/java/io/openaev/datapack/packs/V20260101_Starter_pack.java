@@ -1,5 +1,6 @@
 package io.openaev.datapack.packs;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.SettingRepository;
 import io.openaev.datapack.DataPack;
@@ -9,7 +10,6 @@ import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.rest.custom_dashboard.CustomDashboardService;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.*;
-import jakarta.validation.constraints.NotBlank;
 import java.util.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -43,7 +43,6 @@ public class V20260101_Starter_pack extends DataPack {
 
   private static final class Config {
     static final String STARTER_PACK_KEY = "starterpack";
-    static final String STARTER_PACK_SETTING_VALUE = "StarterPack creation process completed";
     static final String SCENARIOS_FOLDER_NAME = "scenarios";
     static final String DASHBOARDS_FOLDER_NAME = "dashboards";
     static final String DEFAULT_FILE_DASHBOARD_HOME = "default_home";
@@ -53,9 +52,10 @@ public class V20260101_Starter_pack extends DataPack {
 
   private static final Map<String, String> DASHBOARD_PREFIX_TO_SETTING_KEY =
       Map.of(
-          Config.DEFAULT_FILE_DASHBOARD_HOME, SettingKeys.DEFAULT_HOME_DASHBOARD.key(),
-          Config.DEFAULT_FILE_DASHBOARD_SCENARIO, SettingKeys.DEFAULT_SCENARIO_DASHBOARD.key(),
-          Config.DEFAULT_FILE_DASHBOARD_SIMULATION, SettingKeys.DEFAULT_SIMULATION_DASHBOARD.key());
+          Config.DEFAULT_FILE_DASHBOARD_HOME, TenantSettingKeys.TENANT_HOME_DASHBOARD.key(),
+          Config.DEFAULT_FILE_DASHBOARD_SCENARIO, TenantSettingKeys.TENANT_SCENARIO_DASHBOARD.key(),
+          Config.DEFAULT_FILE_DASHBOARD_SIMULATION,
+              TenantSettingKeys.TENANT_SIMULATION_DASHBOARD.key());
 
   private static final class HoneyScanMeEndpoint {
 
@@ -86,20 +86,17 @@ public class V20260101_Starter_pack extends DataPack {
 
   private final ResourcePatternResolver resolver;
 
-  private boolean hasError = false;
-  private String errorMessage = null;
-
   @Override
-  protected void doProcess() {
+  protected boolean doProcess() {
     // early break for when the starter pack was already run
     if (!isStarterPackEnabled) {
       log.info("Starter pack is disabled by configuration");
-      return;
+      return false;
     }
 
-    if (this.settingRepository.findByKey(Config.STARTER_PACK_KEY).isPresent()) {
+    if (this.settingRepository.findByKeyAndTenantIsNull(Config.STARTER_PACK_KEY).isPresent()) {
       log.info("Starter pack already initialized");
-      return;
+      return true;
     }
 
     // unconditionally run this code
@@ -131,11 +128,11 @@ public class V20260101_Starter_pack extends DataPack {
 
       this.importScenariosFromResources(honeyScanMeEndpoint, allEndpointAssetGroup);
       this.importDashboardsFromResources();
+      return true;
     } catch (Exception e) {
-      recordError("Unexpected error during StarterPack initialization.", e);
+      log.error("Unexpected error during DataPack 20260101 initialization.", e);
+      return false;
     }
-
-    this.createSetting();
   }
 
   private Endpoint createHoneyScanMeAgentlessEndpoint(List<String> tags) {
@@ -179,7 +176,7 @@ public class V20260101_Starter_pack extends DataPack {
                     "Successfully imported StarterPack scenario file : {}",
                     resourceToAdd.getFilename());
               } catch (Exception e) {
-                recordError(
+                log.error(
                     "Failed to import StarterPack scenario file : " + resourceToAdd.getFilename(),
                     e);
               }
@@ -205,7 +202,7 @@ public class V20260101_Starter_pack extends DataPack {
                     "Successfully imported StarterPack dashboard file : {}",
                     resourceToAdd.getFilename());
               } catch (Exception e) {
-                recordError(
+                log.error(
                     "Failed to import StarterPack dashboard file : " + resourceToAdd.getFilename(),
                     e);
               }
@@ -219,7 +216,7 @@ public class V20260101_Starter_pack extends DataPack {
                   "classpath:" + Config.STARTER_PACK_KEY + "/" + folderName + "/*.zip"))
           .toList();
     } catch (Exception e) {
-      recordError(
+      log.error(
           "Failed to import StarterPack files from resource folder "
               + Config.STARTER_PACK_KEY
               + "/"
@@ -227,12 +224,6 @@ public class V20260101_Starter_pack extends DataPack {
           e);
       return Collections.emptyList();
     }
-  }
-
-  private void recordError(@NotBlank final String message, Throwable cause) {
-    this.hasError = true;
-    this.errorMessage = message;
-    log.error(message, cause);
   }
 
   private void setDefaultDashboard(String filename, String dashboardId) {
@@ -244,21 +235,19 @@ public class V20260101_Starter_pack extends DataPack {
             .orElse(null);
 
     if (settingKey != null) {
+      String tenantId = TenantContext.getCurrentTenant();
+      Tenant tenant = new Tenant(tenantId);
       Setting defaultDashboardSetting =
-          settingRepository.findByKey(settingKey).orElse(new Setting(settingKey, null));
+          settingRepository
+              .findByKeyAndTenantId(settingKey, tenantId)
+              .orElseGet(
+                  () -> {
+                    Setting s = new Setting(settingKey, null);
+                    s.setTenant(tenant);
+                    return s;
+                  });
       defaultDashboardSetting.setValue(dashboardId);
       settingRepository.save(defaultDashboardSetting);
     }
-  }
-
-  private void createSetting() {
-    Setting setting = new Setting();
-    setting.setKey(Config.STARTER_PACK_KEY);
-    if (hasError) {
-      setting.setValue(this.errorMessage);
-    } else {
-      setting.setValue(Config.STARTER_PACK_SETTING_VALUE);
-    }
-    this.settingRepository.save(setting);
   }
 }

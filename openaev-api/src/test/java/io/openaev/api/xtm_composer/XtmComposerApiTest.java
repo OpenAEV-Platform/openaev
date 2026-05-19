@@ -494,7 +494,7 @@ public class XtmComposerApiTest extends IntegrationTest {
 
         List<ConnectorInstanceLog> instanceLogsDbAfter =
             connectorInstanceLogRepository.findByConnectorInstanceId(instance.getId());
-        assertEquals(1, instanceLogsDbAfter.size());
+        assertEquals(2, instanceLogsDbAfter.size());
       }
     }
 

@@ -1,12 +1,12 @@
 package io.openaev.database.repository;
 
 import io.openaev.database.model.Tag;
-import io.openaev.database.raw.RawTag;
-import io.openaev.utils.Constants;
+import io.openaev.database.raw.RawTagIndexing;
+import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
-import org.jetbrains.annotations.NotNull;
+import java.util.Set;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
@@ -15,6 +15,8 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface TagRepository extends CrudRepository<Tag, String>, JpaSpecificationExecutor<Tag> {
+
+  long countByIdIn(Set<String> ids);
 
   @NotNull
   Optional<Tag> findById(@NotNull String id);
@@ -28,11 +30,9 @@ public interface TagRepository extends CrudRepository<Tag, String>, JpaSpecifica
   @Query(
       value =
           "SELECT t.tag_id, t.tag_name, t.tag_color, "
-              + "t.tag_created_at, t.tag_updated_at "
+              + "t.tag_created_at, t.tag_updated_at, t.tenant_id "
               + "FROM tags t "
-              + "WHERE t.tag_updated_at > :from ORDER BY t.tag_updated_at LIMIT "
-              + Constants.INDEXING_RECORD_SET_SIZE
-              + ";",
+              + "WHERE t.tag_updated_at > :from ORDER BY t.tag_updated_at LIMIT :limit;",
       nativeQuery = true)
-  List<RawTag> findForIndexing(@Param("from") Instant from);
+  List<RawTagIndexing> findForIndexing(@Param("from") Instant from, @Param("limit") int limit);
 }

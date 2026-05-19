@@ -9,20 +9,17 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.payload.form.PayloadCreateInput;
 import io.openaev.rest.payload.form.PayloadUpdateInput;
 import io.openaev.rest.payload.form.PayloadUpsertInput;
 import io.openaev.rest.payload.output_parser.OutputParserService;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
+import jakarta.validation.constraints.NotNull;
+import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Component;
 
@@ -31,7 +28,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class PayloadUtils {
 
-  private final Ee eeService;
+  private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
   private final OutputParserService outputParserService;
   private final DetectionRemediationUtils detectionRemediationUtils;
@@ -78,7 +75,10 @@ public class PayloadUtils {
     List<PayloadArgument> arguments = new ArrayList<>();
     for (JsonNode argumentNode : safeArray(payloadNode, "payload_arguments")) {
       PayloadArgument argument = new PayloadArgument();
-      argument.setType(argumentNode.get("type").textValue());
+      argument.setType(ArgumentType.fromLabel(argumentNode.get("type").textValue()));
+      if (argumentNode.hasNonNull("subtype")) {
+        argument.setSubtype(ArgumentSubType.fromLabel(argumentNode.get("subtype").textValue()));
+      }
       argument.setKey(argumentNode.get("key").textValue());
       argument.setDefaultValue(argumentNode.get("default_value").textValue());
       argument.setDescription(argumentNode.get("description").textValue());
@@ -105,8 +105,6 @@ public class PayloadUtils {
       payloadCreateInput.setCleanupCommand(payloadNode.get("payload_cleanup_command").textValue());
     }
 
-    // TODO: tag
-    payloadCreateInput.setTagIds(new ArrayList<>());
     return payloadCreateInput;
   }
 
@@ -134,7 +132,6 @@ public class PayloadUtils {
         "grants");
     duplicate.setId(null);
     duplicate.setName(duplicateString(origin.getName()));
-    duplicate.setAttackPatterns(new ArrayList<>(origin.getAttackPatterns()));
     duplicate.setExternalId(null);
     duplicate.setArguments(
         Optional.ofNullable(origin.getArguments()).map(ArrayList::new).orElseGet(ArrayList::new));
@@ -142,14 +139,12 @@ public class PayloadUtils {
         Optional.ofNullable(origin.getPrerequisites())
             .map(ArrayList::new)
             .orElseGet(ArrayList::new));
-    duplicate.setTags(new HashSet<>(origin.getTags()));
-    duplicate.setDomains(new HashSet<>(origin.getDomains()));
-    duplicate.setCollector(null);
+    duplicate.setCollectorType(null);
     duplicate.setSource(Payload.PAYLOAD_SOURCE.MANUAL);
     duplicate.setStatus(Payload.PAYLOAD_STATUS.UNVERIFIED);
     outputParserService.copyOutputParsersFromEntity(origin.getOutputParsers(), duplicate);
 
-    if (eeService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
+    if (enterpriseEditionService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
       detectionRemediationUtils.copy(origin.getDetectionRemediations(), duplicate, false);
     }
 

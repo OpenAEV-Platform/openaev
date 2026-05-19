@@ -2,7 +2,9 @@ package io.openaev.utils;
 
 import static io.openaev.utils.constants.StixConstants.*;
 
+import io.openaev.database.model.Document;
 import io.openaev.database.model.StixRefToExternalRef;
+import io.openaev.opencti.service.OpenCTIService;
 import io.openaev.service.stix.error.BundleValidationError;
 import io.openaev.stix.objects.Bundle;
 import io.openaev.stix.objects.ObjectBase;
@@ -10,8 +12,12 @@ import io.openaev.stix.objects.constants.CommonProperties;
 import io.openaev.stix.objects.constants.ExtendedProperties;
 import io.openaev.stix.objects.constants.ObjectTypes;
 import io.openaev.stix.types.Dictionary;
+import io.openaev.utils.constants.StixConstants;
 import java.util.*;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 
 /**
  * Utility class for processing security coverage data from STIX bundles.
@@ -22,16 +28,16 @@ import java.util.stream.Collectors;
  * <p>Security coverage objects represent the mapping between security controls and attack
  * techniques, used for evaluating defensive capabilities.
  *
- * <p>This is a utility class and cannot be instantiated.
- *
  * @see io.openaev.stix.objects.Bundle
  * @see io.openaev.database.model.StixRefToExternalRef
  */
+@Slf4j
+@Component
+@RequiredArgsConstructor
 public class SecurityCoverageUtils {
 
   private static final String DOMAIN_NAME = "Domain-Name";
-
-  private SecurityCoverageUtils() {}
+  private final OpenCTIService openCtiService;
 
   /**
    * Extracts and validates the {@code x-security-coverage} object from a STIX bundle.
@@ -43,7 +49,7 @@ public class SecurityCoverageUtils {
    * @return the extracted {@code x-security-coverage} object
    * @throws BundleValidationError if the bundle does not contain exactly one such object
    */
-  public static ObjectBase extractAndValidateCoverage(Bundle bundle) throws BundleValidationError {
+  public ObjectBase extractAndValidateCoverage(Bundle bundle) throws BundleValidationError {
     List<ObjectBase> coverages = bundle.findByType(ObjectTypes.SECURITY_COVERAGE);
     if (coverages.size() != 1) {
       throw new BundleValidationError("STIX bundle must contain exactly one security-coverage");
@@ -60,47 +66,58 @@ public class SecurityCoverageUtils {
    * @param objects the list of STIX objects to scan
    * @return a set of {@link StixRefToExternalRef} mappings between STIX and MITRE IDs
    */
-  public static Set<StixRefToExternalRef> extractObjectReferences(List<ObjectBase> objects) {
+  public Set<StixRefToExternalRef> extractObjectReferences(List<ObjectBase> objects) {
     Set<StixRefToExternalRef> stixToRef = new HashSet<>();
 
     for (ObjectBase obj : objects) {
       String stixType = (String) obj.getProperty(STIX_TYPE).getValue();
-      String refId = null;
 
       if (ObjectTypes.ATTACK_PATTERN.toString().equals(stixType)) {
         if (obj.hasExtension(ExtendedProperties.MITRE_EXTENSION_DEFINITION)) {
           Dictionary extensionObj =
               (Dictionary) obj.getExtension(ExtendedProperties.MITRE_EXTENSION_DEFINITION);
           if (extensionObj.has(CommonProperties.ID.toString())) {
-            refId = (String) extensionObj.get(CommonProperties.ID.toString()).getValue();
+            manageAndAddStixRefToExternalRefs(
+                stixToRef,
+                obj,
+                new ArrayList<>(
+                    Collections.singleton(
+                        (String) extensionObj.get(CommonProperties.ID.toString()).getValue())));
+            continue;
           }
         }
       }
 
-      boolean isIndicator = false;
-      if (ObjectTypes.INDICATOR.toString().equals(stixType)) {
-        if (obj.hasExtension(ExtendedProperties.OPENCTI_EXTENSION_DEFINITION)) {
-          Dictionary extensionObj =
-              (Dictionary) obj.getExtension(ExtendedProperties.OPENCTI_EXTENSION_DEFINITION);
-          List<Dictionary> observables =
-              obj.getExtensionObservables(ExtendedProperties.OPENCTI_EXTENSION_DEFINITION);
-          if (extensionObj.has(CommonProperties.ID.toString()) && hasDomainNameType(observables)) {
-            refId = getDomainNameValue(observables);
-          }
-          isIndicator = true;
+      if (ObjectTypes.INDICATOR.toString().equals(stixType)
+          && obj.hasExtension(ExtendedProperties.OPENCTI_EXTENSION_DEFINITION)) {
+        Dictionary extensionObj =
+            (Dictionary) obj.getExtension(ExtendedProperties.OPENCTI_EXTENSION_DEFINITION);
+        List<Dictionary> observables =
+            obj.getExtensionObservables(ExtendedProperties.OPENCTI_EXTENSION_DEFINITION);
+        if (extensionObj.has(CommonProperties.ID.toString()) && hasDomainNameType(observables)) {
+          manageAndAddStixRefToExternalRefs(
+              stixToRef,
+              obj,
+              new ArrayList<>(Collections.singleton(getDomainNameValue(observables))));
         }
+        continue;
       }
 
-      if (obj.hasProperty(STIX_NAME) && StringUtils.isBlank(refId) && !isIndicator) {
-        refId = (String) obj.getProperty(STIX_NAME).getValue();
+      if (ObjectTypes.ARTIFACT.toString().equals(stixType)
+          && obj.hasExtension(ExtendedProperties.OPENCTI_EXTENSION_DEFINITION)) {
+        Dictionary extensionObj =
+            (Dictionary) obj.getExtension(ExtendedProperties.OPENCTI_EXTENSION_DEFINITION);
+        Object filesValue = extensionObj.get(StixConstants.FILES);
+        if (extensionObj.has(StixConstants.FILES)
+            && filesValue instanceof io.openaev.stix.types.List<?> filesList) {
+          List<String> documentIds =
+              getAllDocumentIdsFromFiles((io.openaev.stix.types.List<Dictionary>) filesList);
+          manageAndAddStixRefToExternalRefs(stixToRef, obj, documentIds);
+        }
+        continue;
       }
 
-      if (!StringUtils.isBlank(refId)) {
-        String stixId = (String) obj.getProperty(CommonProperties.ID).getValue();
-        if (stixId != null) {
-          stixToRef.add(new StixRefToExternalRef(stixId, refId));
-        }
-      }
+      manageAndAddStixRefToExternalRefs(stixToRef, obj, null);
     }
 
     return stixToRef;
@@ -115,13 +132,28 @@ public class SecurityCoverageUtils {
    * @param objectRefs the set of STIX-to-external reference mappings
    * @return a set of external reference IDs
    */
-  public static Set<String> getExternalIds(Set<StixRefToExternalRef> objectRefs) {
+  public Set<String> getExternalIds(Set<StixRefToExternalRef> objectRefs) {
     return objectRefs.stream()
-        .map(StixRefToExternalRef::getExternalRef)
+        .flatMap(ref -> ref.getExternalRefs().stream())
         .collect(Collectors.toSet());
   }
 
-  private static boolean hasDomainNameType(List<Dictionary> observables) {
+  private void manageAndAddStixRefToExternalRefs(
+      Set<StixRefToExternalRef> stixToRef, ObjectBase obj, List<String> refIds) {
+    if (obj.hasProperty(STIX_NAME) && (refIds == null || refIds.isEmpty())) {
+      refIds =
+          new ArrayList<>(Collections.singleton((String) obj.getProperty(STIX_NAME).getValue()));
+    }
+
+    if (refIds != null && !refIds.isEmpty()) {
+      String stixId = (String) obj.getProperty(CommonProperties.ID).getValue();
+      if (stixId != null) {
+        stixToRef.add(new StixRefToExternalRef(stixId, refIds));
+      }
+    }
+  }
+
+  private boolean hasDomainNameType(List<Dictionary> observables) {
     if (observables == null || observables.isEmpty()) {
       return false;
     }
@@ -132,7 +164,7 @@ public class SecurityCoverageUtils {
                 DOMAIN_NAME.equals(observable.get(CommonProperties.TYPE.toString()).getValue()));
   }
 
-  private static String getDomainNameValue(List<Dictionary> observables) {
+  private String getDomainNameValue(List<Dictionary> observables) {
     if (!hasDomainNameType(observables)) {
       return null;
     }
@@ -147,5 +179,28 @@ public class SecurityCoverageUtils {
     return domainName != null
         ? (String) domainName.get(CommonProperties.VALUE.toString()).getValue()
         : null;
+  }
+
+  private List<String> getAllDocumentIdsFromFiles(
+      io.openaev.stix.types.List<Dictionary> filesList) {
+    return filesList.getValue().stream()
+        .filter(
+            file ->
+                file.has(CommonProperties.NAME.toString())
+                    && file.has(CommonProperties.URI.toString())
+                    && file.has(CommonProperties.MIME_TYPE.toString()))
+        .map(
+            file -> {
+              Document document =
+                  openCtiService.downloadAndSaveFile(
+                      (String) file.get(CommonProperties.URI.toString()).getValue(),
+                      (String) file.get(CommonProperties.NAME.toString()).getValue(),
+                      (String) file.get(CommonProperties.MIME_TYPE.toString()).getValue());
+              return document != null
+                  ? document.getId()
+                  : (String) file.get(CommonProperties.NAME.toString()).getValue();
+            })
+        .filter(Objects::nonNull)
+        .toList();
   }
 }

@@ -6,7 +6,7 @@ import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCorte
 
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
-import io.openaev.ee.Ee;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.ExecutorHelper;
 import io.openaev.executors.ExecutorService;
@@ -35,7 +35,7 @@ public class PaloAltoCortexExecutorContextService extends ExecutorContextService
 
   private final PaloAltoCortexExecutorConfig config;
   private final PaloAltoCortexExecutorClient client;
-  private final Ee enterpriseEditionService;
+  private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
   private final ExecutorService executorService;
 
@@ -62,15 +62,19 @@ public class PaloAltoCortexExecutorContextService extends ExecutorContextService
     paloAltoCortexAgents.forEach(
         agent -> agent.setAsset((Asset) Hibernate.unproxy(agent.getAsset())));
 
-    Injector injector =
-        inject
-            .getInjectorContract()
-            .map(InjectorContract::getInjector)
-            .orElseThrow(
-                () -> new UnsupportedOperationException("Inject does not have a contract"));
-
     paloAltoCortexAgents =
         executorService.manageWithoutPlatformAgents(paloAltoCortexAgents, injectStatus);
+
+    Injector injector = inject.getInjector();
+    if (injector == null) {
+      // Fallback for legacy injects without inject_injector populated
+      injector =
+          inject
+              .getInjectorContract()
+              .map(InjectorContract::getFirstInjector)
+              .orElseThrow(
+                  () -> new UnsupportedOperationException("Inject does not have a contract"));
+    }
 
     List<PaloAltoCortexAction> actions = new ArrayList<>();
     // Set implant script for each agent
@@ -78,18 +82,18 @@ public class PaloAltoCortexExecutorContextService extends ExecutorContextService
         getWindowsActions(
             getAgentsFromOS(paloAltoCortexAgents, Endpoint.PLATFORM_TYPE.Windows),
             injector,
-            inject.getId()));
+            inject));
     actions.addAll(
         getUnixActions(
             getAgentsFromOS(paloAltoCortexAgents, Endpoint.PLATFORM_TYPE.Linux),
             injector,
-            inject.getId(),
+            inject,
             Endpoint.PLATFORM_TYPE.Linux));
     actions.addAll(
         getUnixActions(
             getAgentsFromOS(paloAltoCortexAgents, Endpoint.PLATFORM_TYPE.MacOS),
             injector,
-            inject.getId(),
+            inject,
             Endpoint.PLATFORM_TYPE.MacOS));
     // Launch payloads with Palo Alto Cortex API
     executeActions(actions);
@@ -123,7 +127,7 @@ public class PaloAltoCortexExecutorContextService extends ExecutorContextService
   }
 
   private List<PaloAltoCortexAction> getWindowsActions(
-      List<Agent> agents, Injector injector, String injectId) {
+      List<Agent> agents, Injector injector, Inject inject) {
     List<PaloAltoCortexAction> actions = new ArrayList<>();
     for (Agent agent : agents) {
       PaloAltoCortexAction actionWindows = new PaloAltoCortexAction();
@@ -153,7 +157,13 @@ public class PaloAltoCortexExecutorContextService extends ExecutorContextService
                   Endpoint.PLATFORM_ARCH.x86_64.name(),
                   ARCH_VARIABLE
                       + "`"); // Specific for Windows to escape the ? right after in the URL
-      command = replaceArgs(Endpoint.PLATFORM_TYPE.Windows, command, injectId, agent.getId());
+      command =
+          replaceArgs(
+              Endpoint.PLATFORM_TYPE.Windows,
+              command,
+              inject.getId(),
+              agent.getId(),
+              inject.getTenant().getId());
       command =
           command.replaceFirst(
               "\\$?x=.+location=.+;\\[Environment]::CurrentDirectory",
@@ -172,7 +182,7 @@ public class PaloAltoCortexExecutorContextService extends ExecutorContextService
   }
 
   private List<PaloAltoCortexAction> getUnixActions(
-      List<Agent> agents, Injector injector, String injectId, Endpoint.PLATFORM_TYPE platform) {
+      List<Agent> agents, Injector injector, Inject inject, Endpoint.PLATFORM_TYPE platform) {
     List<PaloAltoCortexAction> actions = new ArrayList<>();
     for (Agent agent : agents) {
       PaloAltoCortexAction actionUnix = new PaloAltoCortexAction();
@@ -192,7 +202,8 @@ public class PaloAltoCortexExecutorContextService extends ExecutorContextService
       // - UNIX_ARCH: Cortex doesn't know the endpoint architecture so we include it to get the
       // architecture before downloading the implant and we replace the default x86_64 put before
       command = UNIX_ARCH + command.replace(Endpoint.PLATFORM_ARCH.x86_64.name(), ARCH_VARIABLE);
-      command = replaceArgs(platform, command, injectId, agent.getId());
+      command =
+          replaceArgs(platform, command, inject.getId(), agent.getId(), inject.getTenant().getId());
       command =
           command.replaceFirst(
               "\\$?x=.+location=.+;filename=", Matcher.quoteReplacement(implantLocation));

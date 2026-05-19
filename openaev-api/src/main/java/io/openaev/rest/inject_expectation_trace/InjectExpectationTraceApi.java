@@ -1,7 +1,9 @@
 package io.openaev.rest.inject_expectation_trace;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+
+import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.aop.RBAC;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.InjectExpectationTrace;
@@ -26,11 +28,16 @@ import org.springframework.web.bind.annotation.*;
 
 @RequiredArgsConstructor
 @RestController
-@RequestMapping(InjectExpectationTraceApi.INJECT_EXPECTATION_TRACES_URI)
+@RequestMapping({
+  InjectExpectationTraceApi.INJECT_EXPECTATION_TRACES_URI,
+  InjectExpectationTraceApi.TENANT_INJECT_EXPECTATION_TRACES_URI
+})
 @Slf4j
 public class InjectExpectationTraceApi extends RestBehavior {
 
   public static final String INJECT_EXPECTATION_TRACES_URI = "/api/inject-expectations-traces";
+  public static final String TENANT_INJECT_EXPECTATION_TRACES_URI =
+      TENANT_PREFIX + "/inject-expectations-traces";
 
   private final InjectExpectationTraceService injectExpectationTraceService;
   private final InjectExpectationTraceRepository injectExpectationTraceRepository;
@@ -47,7 +54,7 @@ public class InjectExpectationTraceApi extends RestBehavior {
               + INJECT_EXPECTATION_TRACES_URI
               + "/bulk")
   @PostMapping()
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION)
   public InjectExpectationTrace createInjectExpectationTraceForCollector(
       @Valid @RequestBody InjectExpectationTraceInput input) {
 
@@ -83,7 +90,7 @@ public class InjectExpectationTraceApi extends RestBehavior {
       })
   @LogExecutionTime
   @PostMapping("/bulk")
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION)
   public void bulkInsertInjectExpectationTraceForCollector(
       @Valid @RequestBody @NotNull InjectExpectationTraceBulkInsertInput inputs) {
     if (inputs.getExpectationTraces().isEmpty()) {
@@ -95,7 +102,7 @@ public class InjectExpectationTraceApi extends RestBehavior {
 
   @Operation(summary = "Get inject expectation traces from collector")
   @GetMapping()
-  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   public List<InjectExpectationTrace> getInjectExpectationTracesFromCollector(
       @RequestParam String injectExpectationId, @RequestParam String sourceId) {
     try {
@@ -112,7 +119,7 @@ public class InjectExpectationTraceApi extends RestBehavior {
 
   @Operation(summary = "Get inject expectation traces' count")
   @GetMapping("/count")
-  @RBAC(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   public long getAlertLinksNumber(
       @RequestParam String injectExpectationId,
       @RequestParam String sourceId,

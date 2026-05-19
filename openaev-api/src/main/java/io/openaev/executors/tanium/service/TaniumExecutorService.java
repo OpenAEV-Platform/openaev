@@ -2,6 +2,7 @@ package io.openaev.executors.tanium.service;
 
 import static io.openaev.utils.time.TimeUtils.toInstant;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.openaev.database.model.*;
 import io.openaev.executors.model.AgentRegisterInput;
 import io.openaev.executors.tanium.client.TaniumExecutorClient;
@@ -9,7 +10,6 @@ import io.openaev.executors.tanium.config.TaniumExecutorConfig;
 import io.openaev.executors.tanium.model.NodeEndpoint;
 import io.openaev.executors.tanium.model.TaniumComputerGroup;
 import io.openaev.executors.tanium.model.TaniumEndpoint;
-import io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
@@ -27,8 +27,7 @@ public class TaniumExecutorService implements Runnable {
   private final EndpointService endpointService;
   private final AgentService agentService;
   private final AssetGroupService assetGroupService;
-
-  private Executor executor = null;
+  private Executor executor;
 
   public static Endpoint.PLATFORM_TYPE toPlatform(@NotBlank final String platform) {
     return switch (platform) {
@@ -73,13 +72,15 @@ public class TaniumExecutorService implements Runnable {
       List<NodeEndpoint> nodeEndpoints = this.client.endpoints(computerGroupId);
       if (!nodeEndpoints.isEmpty()) {
         Optional<AssetGroup> existingAssetGroup =
-            assetGroupService.findByExternalReference(computerGroupId);
+            assetGroupService.findByExternalReference(
+                computerGroupId, executor.getTenant().getId());
         AssetGroup assetGroup;
         if (existingAssetGroup.isPresent()) {
           assetGroup = existingAssetGroup.get();
         } else {
           assetGroup = new AssetGroup();
           assetGroup.setExternalReference(computerGroupId);
+          assetGroup.setTenant(executor.getTenant());
         }
         assetGroup.setName(computerGroup.getName());
         log.info(
@@ -90,8 +91,7 @@ public class TaniumExecutorService implements Runnable {
         List<Agent> agents =
             endpointService.syncAgentsEndpoints(
                 toAgentEndpoint(nodeEndpoints),
-                agentService.getAgentsByExecutorType(
-                    TaniumExecutorIntegration.TANIUM_EXECUTOR_TYPE));
+                agentService.getAgentsByExecutorId(executor.getId()));
         assetGroup.setAssets(agents.stream().map(Agent::getAsset).toList());
         assetGroupService.createOrUpdateAssetGroupWithoutDynamicAssets(assetGroup);
       }
@@ -125,5 +125,10 @@ public class TaniumExecutorService implements Runnable {
               return input;
             })
         .collect(Collectors.toList());
+  }
+
+  @VisibleForTesting
+  protected void setExecutor(Executor executor) {
+    this.executor = executor;
   }
 }

@@ -1,7 +1,9 @@
 package io.openaev.rest.atomic_testing;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+
+import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.aop.RBAC;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.InjectExpectation;
@@ -30,11 +32,12 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 @RestController
-@RequestMapping(AtomicTestingApi.ATOMIC_TESTING_URI)
+@RequestMapping({AtomicTestingApi.ATOMIC_TESTING_URI, AtomicTestingApi.TENANT_ATOMIC_TESTING_URI})
 @RequiredArgsConstructor
 public class AtomicTestingApi extends RestBehavior {
 
   public static final String ATOMIC_TESTING_URI = "/api/atomic-testings";
+  public static final String TENANT_ATOMIC_TESTING_URI = TENANT_PREFIX + "/atomic-testings";
 
   private final AtomicTestingService atomicTestingService;
   private final InjectExpectationService injectExpectationService;
@@ -43,7 +46,7 @@ public class AtomicTestingApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping("/search")
-  @RBAC(actionPerformed = Action.SEARCH, resourceType = ResourceType.ATOMIC_TESTING)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ATOMIC_TESTING)
   @Transactional(readOnly = true)
   public Page<InjectResultOutput> findAllAtomicTestings(
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
@@ -54,20 +57,26 @@ public class AtomicTestingApi extends RestBehavior {
   // simulation and AT
   @LogExecutionTime
   @GetMapping("/{injectId}")
-  @RBAC(resourceId = "#injectId", actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
+  @AccessControl(
+      resourceId = "#injectId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.INJECT)
   public InjectResultOverviewOutput findAtomicTesting(@PathVariable String injectId) {
     return atomicTestingService.findById(injectId);
   }
 
   @LogExecutionTime
   @GetMapping("/{injectId}/payload")
-  @RBAC(resourceId = "#injectId", actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
+  @AccessControl(
+      resourceId = "#injectId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.INJECT)
   public StatusPayloadOutput findAtomicTestingPayload(@PathVariable String injectId) {
     return atomicTestingService.findPayloadOutputByInjectId(injectId);
   }
 
   @PostMapping()
-  @RBAC(actionPerformed = Action.CREATE, resourceType = ResourceType.ATOMIC_TESTING)
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ATOMIC_TESTING)
   @Transactional(rollbackFor = Exception.class)
   public InjectResultOverviewOutput createAtomicTesting(
       @Valid @RequestBody AtomicTestingInput input) {
@@ -75,7 +84,7 @@ public class AtomicTestingApi extends RestBehavior {
   }
 
   @PutMapping("/{injectId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
@@ -87,7 +96,7 @@ public class AtomicTestingApi extends RestBehavior {
   }
 
   @DeleteMapping("/{injectId}")
-  @RBAC(
+  @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.INJECT)
@@ -96,7 +105,7 @@ public class AtomicTestingApi extends RestBehavior {
   }
 
   @PostMapping("/{atomicTestingId}/duplicate")
-  @RBAC(
+  @AccessControl(
       resourceId = "#atomicTestingId",
       actionPerformed = Action.DUPLICATE,
       resourceType = ResourceType.ATOMIC_TESTING)
@@ -106,7 +115,7 @@ public class AtomicTestingApi extends RestBehavior {
   }
 
   @PostMapping("/{atomicTestingId}/launch")
-  @RBAC(
+  @AccessControl(
       resourceId = "#atomicTestingId",
       actionPerformed = Action.LAUNCH,
       resourceType = ResourceType.INJECT)
@@ -116,7 +125,7 @@ public class AtomicTestingApi extends RestBehavior {
   }
 
   @PostMapping("/{atomicTestingId}/relaunch")
-  @RBAC(
+  @AccessControl(
       resourceId = "#atomicTestingId",
       actionPerformed = Action.LAUNCH,
       resourceType = ResourceType.INJECT)
@@ -126,7 +135,10 @@ public class AtomicTestingApi extends RestBehavior {
   }
 
   @GetMapping("/{injectId}/target_results/{targetId}/types/{targetType}")
-  @RBAC(resourceId = "#injectId", actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
+  @AccessControl(
+      resourceId = "#injectId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.INJECT)
   public List<InjectExpectation> findTargetResult(
       @PathVariable String injectId,
       @PathVariable String targetId,
@@ -137,7 +149,10 @@ public class AtomicTestingApi extends RestBehavior {
   }
 
   @GetMapping("/{injectId}/target_results/{targetId}/asset_with_agents")
-  @RBAC(resourceId = "#injectId", actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
+  @AccessControl(
+      resourceId = "#injectId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.INJECT)
   @Operation(
       summary = "Get the agents injects expectations from an inject, asset and expectation type")
   @ApiResponses(
@@ -173,7 +188,10 @@ public class AtomicTestingApi extends RestBehavior {
         @ApiResponse(responseCode = "400", description = "An invalid target type was specified")
       })
   @GetMapping("/{injectId}/target_results/{targetId}/types/{targetType}/merged")
-  @RBAC(resourceId = "#injectId", actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
+  @AccessControl(
+      resourceId = "#injectId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.INJECT)
   public List<InjectExpectation> findTargetResultMerged(
       @PathVariable String injectId,
       @PathVariable String targetId,
@@ -186,7 +204,7 @@ public class AtomicTestingApi extends RestBehavior {
   }
 
   @PutMapping("/{injectId}/tags")
-  @RBAC(
+  @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
@@ -198,7 +216,10 @@ public class AtomicTestingApi extends RestBehavior {
   }
 
   @GetMapping("/{injectId}/collectors")
-  @RBAC(resourceId = "#injectId", actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
+  @AccessControl(
+      resourceId = "#injectId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.INJECT)
   @Operation(summary = "Get the Collectors used in an atomic testing remediation")
   @ApiResponses(
       value = {
@@ -213,7 +234,7 @@ public class AtomicTestingApi extends RestBehavior {
   @PostMapping(
       path = "/import",
       consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
-  @RBAC(actionPerformed = Action.WRITE, resourceType = ResourceType.ATOMIC_TESTING)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.ATOMIC_TESTING)
   public void atomicTestingImport(
       @RequestPart("file") MultipartFile file, HttpServletResponse response) throws Exception {
     if (file == null || file.isEmpty()) {

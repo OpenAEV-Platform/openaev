@@ -3,8 +3,9 @@ package io.openaev.rest.channel;
 import static io.openaev.injectors.channel.ChannelContract.CHANNEL_PUBLISH;
 import static io.openaev.rest.channel.ChannelHelper.enrichArticleWithVirtualPublication;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
+import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Article;
 import io.openaev.database.model.Inject;
@@ -30,8 +31,11 @@ public class ExerciseArticleApi extends RestBehavior {
   private final InjectRepository injectRepository;
   private final ArticleRepository articleRepository;
 
-  @GetMapping(EXERCISE_URI + "/{exerciseId}/articles")
-  @RBAC(
+  @GetMapping({
+    EXERCISE_URI + "/{exerciseId}/articles",
+    TENANT_EXERCISE_URI + "/{exerciseId}/articles"
+  })
+  @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)

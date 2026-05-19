@@ -6,6 +6,7 @@ import static io.openaev.config.SessionHelper.currentUser;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Inject;
+import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.UserRepository;
@@ -40,10 +41,12 @@ public class MailingService {
     emailContent.setBody(body);
 
     Inject inject = new Inject();
-    inject.setInjectorContract(
+    InjectorContract emailContract =
         this.injectorContractRepository
             .findById(EmailContract.EMAIL_DEFAULT)
-            .orElseThrow(ElementNotFoundException::new));
+            .orElseThrow(ElementNotFoundException::new);
+    inject.setInjectorContract(emailContract);
+    inject.setInjector(emailContract.getFirstInjector());
 
     inject
         .getInjectorContract()
@@ -75,7 +78,7 @@ public class MailingService {
               io.openaev.executors.Injector executor =
                   managerFactory
                       .getManager()
-                      .requestInjectorExecutorByType(injectorContract.getInjector().getType());
+                      .requestInjectorExecutorByType(injectorContract.getFirstInjector().getType());
               executor.executeInjection(injection);
             });
   }

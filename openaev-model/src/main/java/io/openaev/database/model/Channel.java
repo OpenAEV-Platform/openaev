@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.helper.MonoIdSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -17,14 +18,16 @@ import java.util.List;
 import java.util.Objects;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UuidGenerator;
 
 @Getter
 @Setter
 @Entity
 @Table(name = "channels")
-@EntityListeners(ModelBaseListener.class)
-public class Channel implements Base {
+@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+public class Channel implements TenantBase {
 
   @Id
   @Column(name = "channel_id")
@@ -80,15 +83,20 @@ public class Channel implements Base {
   @JoinColumn(name = "channel_logo_dark")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("channel_logo_dark")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Document logoDark;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "channel_logo_light")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("channel_logo_light")
-  @Schema(type = "string")
+  @Schema(implementation = String.class)
   private Document logoLight;
+
+  @ManyToOne
+  @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
+  @JsonIgnore
+  private Tenant tenant;
 
   @Getter(onMethod_ = @JsonIgnore)
   @Transient

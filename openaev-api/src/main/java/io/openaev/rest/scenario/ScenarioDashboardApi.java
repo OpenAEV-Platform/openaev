@@ -1,19 +1,17 @@
 package io.openaev.rest.scenario;
 
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
+import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.ResourceType;
-import io.openaev.engine.model.EsBase;
-import io.openaev.engine.query.EsAttackPath;
-import io.openaev.engine.query.EsAvgs;
-import io.openaev.engine.query.EsCountInterval;
-import io.openaev.engine.query.EsSeries;
+import io.openaev.engine.query.*;
 import io.openaev.rest.custom_dashboard.CustomDashboardService;
-import io.openaev.rest.dashboard.model.WidgetToEntitiesInput;
-import io.openaev.rest.dashboard.model.WidgetToEntitiesOutput;
+import io.openaev.utils.es.EntitiesPaginationInput;
+import io.openaev.utils.es.WidgetToEntitiesInput;
+import io.openaev.utils.es.WidgetToEntitiesOutput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -37,8 +35,11 @@ public class ScenarioDashboardApi {
         @ApiResponse(responseCode = "200", description = "The dashboard"),
         @ApiResponse(responseCode = "404", description = "The Scenario doesn't exist")
       })
-  @GetMapping(SCENARIO_URI + "/{scenarioId}/dashboard")
-  @RBAC(
+  @GetMapping({
+    SCENARIO_URI + "/{scenarioId}/dashboard",
+    TENANT_SCENARIO_URI + "/{scenarioId}/dashboard"
+  })
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
@@ -47,8 +48,11 @@ public class ScenarioDashboardApi {
         this.customDashboardService.findCustomDashboardByResourceId(scenarioId));
   }
 
-  @PostMapping(SCENARIO_URI + "/{scenarioId}/dashboard/count/{widgetId}")
-  @RBAC(
+  @PostMapping({
+    SCENARIO_URI + "/{scenarioId}/dashboard/count/{widgetId}",
+    TENANT_SCENARIO_URI + "/{scenarioId}/dashboard/count/{widgetId}"
+  })
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
@@ -59,8 +63,11 @@ public class ScenarioDashboardApi {
     return this.customDashboardService.dashboardCountOnResourceId(scenarioId, widgetId, parameters);
   }
 
-  @PostMapping(SCENARIO_URI + "/{scenarioId}/dashboard/average/{widgetId}")
-  @RBAC(
+  @PostMapping({
+    SCENARIO_URI + "/{scenarioId}/dashboard/average/{widgetId}",
+    TENANT_SCENARIO_URI + "/{scenarioId}/dashboard/average/{widgetId}"
+  })
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
@@ -72,8 +79,11 @@ public class ScenarioDashboardApi {
         scenarioId, widgetId, parameters);
   }
 
-  @PostMapping(SCENARIO_URI + "/{scenarioId}/dashboard/series/{widgetId}")
-  @RBAC(
+  @PostMapping({
+    SCENARIO_URI + "/{scenarioId}/dashboard/series/{widgetId}",
+    TENANT_SCENARIO_URI + "/{scenarioId}/dashboard/series/{widgetId}"
+  })
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
@@ -85,34 +95,42 @@ public class ScenarioDashboardApi {
         scenarioId, widgetId, parameters);
   }
 
-  @PostMapping(SCENARIO_URI + "/{scenarioId}/dashboard/entities/{widgetId}")
-  @RBAC(
+  @PostMapping({
+    SCENARIO_URI + "/{scenarioId}/dashboard/entities/{widgetId}",
+    TENANT_SCENARIO_URI + "/{scenarioId}/dashboard/entities/{widgetId}"
+  })
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
-  public List<EsBase> dashboardEntities(
+  public EsEntities dashboardEntities(
       @PathVariable final String scenarioId,
       @PathVariable final String widgetId,
-      @RequestBody(required = false) Map<String, String> parameters) {
-    return this.customDashboardService.dashboardEntitiesOnResourceId(
-        scenarioId, widgetId, parameters);
+      @RequestBody EntitiesPaginationInput input) {
+    return this.customDashboardService.dashboardEntitiesOnResourceId(scenarioId, widgetId, input);
   }
 
-  @PostMapping(SCENARIO_URI + "/{scenarioId}/dashboard/entities-runtime/{widgetId}")
-  @RBAC(
+  @PostMapping({
+    SCENARIO_URI + "/{scenarioId}/dashboard/entities-runtime/{widgetId}",
+    TENANT_SCENARIO_URI + "/{scenarioId}/dashboard/entities-runtime/{widgetId}"
+  })
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
   public WidgetToEntitiesOutput widgetToEntitiesRuntime(
       @PathVariable final String scenarioId,
       @PathVariable final String widgetId,
-      @Valid @RequestBody WidgetToEntitiesInput input) {
+      @Valid @RequestBody(required = false) WidgetToEntitiesInput input) {
     return this.customDashboardService.widgetToEntitiesRuntimeOnResourceId(
         scenarioId, widgetId, input);
   }
 
-  @PostMapping(SCENARIO_URI + "/{scenarioId}/dashboard/attack-paths/{widgetId}")
-  @RBAC(
+  @PostMapping({
+    SCENARIO_URI + "/{scenarioId}/dashboard/attack-paths/{widgetId}",
+    TENANT_SCENARIO_URI + "/{scenarioId}/dashboard/attack-paths/{widgetId}"
+  })
+  @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)

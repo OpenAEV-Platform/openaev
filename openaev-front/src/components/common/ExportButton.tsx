@@ -2,8 +2,8 @@ import { FileDownloadOutlined } from '@mui/icons-material';
 import { ToggleButton, Tooltip } from '@mui/material';
 import { CSVLink } from 'react-csv';
 
-import { type TagHelper } from '../../actions/helper';
 import { exportCsvMapper } from '../../actions/mapper/mapper-actions';
+import { type TagHelper } from '../../actions/tags/tag-helper';
 import { useHelper } from '../../store';
 import { type SearchPaginationInput } from '../../utils/api-types';
 import { exportData } from '../../utils/Environment';
@@ -14,7 +14,7 @@ export interface ExportProps<T> {
   exportType: string;
   exportKeys: string[];
   exportData: T[];
-  exportFileName: string;
+  exportFileName?: string;
   searchPaginationInput?: SearchPaginationInput;
 }
 
@@ -42,7 +42,10 @@ const ExportButton = <T extends object>({ totalElements, exportProps }: Props<T>
 
   if (totalElements > 0) {
     // TODO update all Front exports by Back API exports
-    if (exportProps.exportType === 'ENDPOINTS') {
+    if (
+      exportProps.exportType === 'ENDPOINTS'
+      || exportProps.exportType === 'INJECTOR_CONTRACTS'
+    ) {
       return (
         <ToggleButton value="export" aria-label="export" size="small" onClick={exportCsvMapperAction}>
           <Tooltip title={t('Export this list')}>
