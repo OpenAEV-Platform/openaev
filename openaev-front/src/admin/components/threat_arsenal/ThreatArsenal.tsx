@@ -75,7 +75,7 @@ const ThreatArsenal = () => {
   const { classes } = useStyles();
   const ability = useContext(AbilityContext);
 
-  const canRunAnAction = ability.can(ACTIONS.CREATE, SUBJECTS.ASSESSMENT);
+  const canRunAnAction = ability.can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT);
 
   const [selectedThreatArsenalAction, setSelectedThreatArsenalAction] = useState<ThreatArsenalAction | null>(null);
   const [isRunTestDrawerOpened, setRunTestDrawerOpened] = useState<boolean>(false);

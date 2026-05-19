@@ -145,6 +145,11 @@ public interface InjectorContractRepository
   @Query("DELETE FROM InjectorContract ic WHERE ic.compositeId.id = :id")
   void deleteById(@Param("id") @NotNull String id);
 
+  @Query(
+      "SELECT CASE WHEN COUNT(ic) > 0 THEN true ELSE false END "
+          + "FROM InjectorContract ic WHERE ic.compositeId.id = :id AND ic.payload IS NOT NULL")
+  boolean existsByIdAndPayloadIsNotNull(@Param("id") String id);
+
   @Modifying
   @Query("DELETE FROM InjectorContract ic WHERE ic.compositeId.id IN :ids")
   void deleteAllById(@Param("ids") @NotNull List<String> ids);

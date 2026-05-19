@@ -314,11 +314,9 @@ public class ThreatArsenalService {
    * @throws ElementNotFoundException if the injector contract is not payload-based
    */
   public void delete(String actionId) {
-    InjectorContract injectorContract = injectorContractService.injectorContract(actionId);
-    if (injectorContract.getPayload() == null) {
+    if (!injectorContractService.isPayloadBased(actionId)) {
       throw new ElementNotFoundException("Only payload-based actions can be deleted.");
     }
-
-    this.injectorContractService.deleteInjectorContract(injectorContract);
+    this.injectorContractService.deleteInjectorContractById(actionId);
   }
 }

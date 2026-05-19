@@ -424,6 +424,25 @@ public class InjectorContractService implements DependenciesManager {
   }
 
   /**
+   * Checks whether the given injector contract is payload-based without loading the full entity.
+   *
+   * @param injectorContractId the contract ID to check
+   * @return true if the contract exists and has a non-null payload
+   */
+  public boolean isPayloadBased(String injectorContractId) {
+    return this.injectorContractRepository.existsByIdAndPayloadIsNotNull(injectorContractId);
+  }
+
+  /**
+   * Deletes an injector contract by its ID using a direct DELETE query (no entity loading).
+   *
+   * @param injectorContractId the contract ID to delete
+   */
+  public void deleteInjectorContractById(String injectorContractId) {
+    this.injectorContractRepository.deleteById(injectorContractId);
+  }
+
+  /**
    * Checks if an injector contract supports a specific target type.
    *
    * <p>Analyzes the contract's field definitions to determine which target types are supported.

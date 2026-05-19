@@ -170,11 +170,6 @@ const UpdateInject: React.FC<Props> = ({
     />
 
   );
-  // console.log('!inject.inject_enabled', !inject.inject_enabled);
-  // console.log('!injectorContractContent', !injectorContractContent);
-  // console.log('permissions.readOnly', permissions.readOnly);
-  // console.log('inherited_context', inherited_context);
-  // console.log('ability.cannot(ACTIONS.MANAGE, SUBJECTS.RESOURCE, injectId))', ability.cannot(ACTIONS.MANAGE, SUBJECTS.RESOURCE, injectId));
   return (
     <Drawer
       open={open}
