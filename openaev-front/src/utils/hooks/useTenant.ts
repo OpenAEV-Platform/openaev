@@ -72,25 +72,32 @@ const useTenant = (me: User | undefined, logged: unknown) => {
   const loadUserTenants = useCallback(async (newCurrentTenantId?: string) => {
     if (!me) return;
 
-    const response = await fetchUserTenants();
-    const tenants: TenantOutput[] = response.data;
+    try {
+      const response = await fetchUserTenants();
+      const tenants: TenantOutput[] = response.data;
 
-    if (tenants && tenants.length > 0) {
-      setUserTenants(tenants);
+      if (tenants && tenants.length > 0) {
+        setUserTenants(tenants);
 
-      // If a preferred tenant is requested, switch to it
-      if (newCurrentTenantId && navigateToTenant(newCurrentTenantId, tenants)) {
-        return;
+        // If a preferred tenant is requested, switch to it
+        if (newCurrentTenantId && navigateToTenant(newCurrentTenantId, tenants)) {
+          return;
+        }
+        // Resolve tenant from URL (per-tab, multi-tab safe).
+        // Falls back to the first tenant in the list (post-login / public pages).
+        const urlTenantId = extractTenantFromUrl();
+        if (urlTenantId && navigateToTenant(urlTenantId, tenants)) {
+          return;
+        }
+        // URL tenant not found in user's tenant list — redirect to first valid tenant
+        navigateToTenant(tenants[0].tenant_id, tenants);
+      } else {
+        setUserTenants([]);
+        setTenant(null);
       }
-      // Resolve tenant from URL (per-tab, multi-tab safe).
-      // Falls back to the first tenant in the list (post-login / public pages).
-      const urlTenantId = extractTenantFromUrl();
-      if (urlTenantId && navigateToTenant(urlTenantId, tenants)) {
-        return;
-      }
-      // URL tenant not found in user's tenant list — redirect to first valid tenant
-      navigateToTenant(tenants[0].tenant_id, tenants);
-    } else {
+    } catch {
+      // If tenant fetch fails (network error, 500, etc.), set empty list
+      // so the app doesn't stay stuck on a loading spinner indefinitely.
       setUserTenants([]);
       setTenant(null);
     }
