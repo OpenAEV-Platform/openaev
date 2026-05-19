@@ -12,6 +12,8 @@ import io.openaev.service.UserService;
 import io.openaev.service.xtm_auth.XtmAuthKeyService;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Date;
@@ -24,6 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.client5.http.classic.methods.HttpGet;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
 import org.apache.hc.client5.http.config.RequestConfig;
+import org.apache.hc.client5.http.entity.mime.MultipartEntityBuilder;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.core5.http.ClassicHttpResponse;
 import org.apache.hc.core5.http.ContentType;
@@ -34,6 +37,7 @@ import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.apache.hc.core5.util.Timeout;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 @Component
@@ -245,6 +249,52 @@ public class XtmOneClient {
           });
     } catch (Exception e) {
       log.warn("[XTM One] Create session error: ", e);
+    }
+    return null;
+  }
+
+  @SuppressWarnings("unchecked")
+  public String uploadChatFile(String conversationId, MultipartFile file) {
+    if (!config.isConfigured()) {
+      return null;
+    }
+    try (CloseableHttpClient httpClient = httpClientFactory.httpClientCustom()) {
+      String jwt = issueJwtForCurrentUser();
+      String encodedConversationId = URLEncoder.encode(conversationId, StandardCharsets.UTF_8);
+      HttpPost httpPost =
+          new HttpPost(
+              config.getUrl()
+                  + "/api/v1/chat/conversations/"
+                  + conversationId
+                  + "/upload?create_message=false");
+      addChatHeaders(httpPost, jwt);
+      httpPost.setEntity(
+          MultipartEntityBuilder.create()
+              .addBinaryBody(
+                  "file",
+                  file.getInputStream(),
+                  ContentType.APPLICATION_OCTET_STREAM,
+                  file.getOriginalFilename())
+              .build());
+      httpPost.setConfig(RequestConfig.custom().setResponseTimeout(Timeout.ofMinutes(2)).build());
+
+      return httpClient.execute(
+          httpPost,
+          response -> {
+            if (response.getCode() == 200) {
+              Map<String, Object> result =
+                  objectMapper.readValue(EntityUtils.toString(response.getEntity()), Map.class);
+              Object fileId = result.get("file_id");
+              return fileId != null ? fileId.toString() : null;
+            }
+            log.warn(
+                "[XTM One] Upload file failed: HTTP {}, filename={}",
+                response.getCode(),
+                file.getOriginalFilename());
+            return null;
+          });
+    } catch (Exception e) {
+      log.warn("[XTM One] Upload file error, filename={}", file.getOriginalFilename(), e);
     }
     return null;
   }

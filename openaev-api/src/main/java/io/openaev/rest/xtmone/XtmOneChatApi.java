@@ -9,6 +9,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.xtmone.XtmOneClient;
 import io.openaev.xtmone.XtmOneConfig;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +19,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.multipart.MultipartHttpServletRequest;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 @Slf4j
@@ -101,5 +105,37 @@ public class XtmOneChatApi extends RestBehavior {
         .header("Cache-Control", "no-cache")
         .header("X-Accel-Buffering", "no")
         .body(responseBody);
+  }
+
+  @PostMapping(path = XTM_ONE_URI + "/chat/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+  public ResponseEntity<Map<String, Object>> uploadFiles(
+      @RequestParam("conversation_id") String conversationId, MultipartHttpServletRequest request) {
+    if (!config.isConfigured()) {
+      return ResponseEntity.badRequest().build();
+    }
+    if (conversationId.isBlank()) {
+      return ResponseEntity.badRequest().build();
+    }
+    List<MultipartFile> requestedFiles =
+        request.getMultiFileMap().values().stream()
+            .flatMap(List::stream)
+            .filter(file -> file != null && !file.isEmpty())
+            .toList();
+    if (requestedFiles.isEmpty()) {
+      return ResponseEntity.badRequest().build();
+    }
+
+    List<String> fileIds = new ArrayList<>();
+    for (MultipartFile file : requestedFiles) {
+      String fileId = client.uploadChatFile(conversationId, file);
+      if (fileId != null && !fileId.isBlank()) {
+        fileIds.add(fileId);
+      }
+    }
+
+    if (fileIds.isEmpty()) {
+      return ResponseEntity.internalServerError().build();
+    }
+    return ResponseEntity.ok(Map.of("file_ids", fileIds));
   }
 }

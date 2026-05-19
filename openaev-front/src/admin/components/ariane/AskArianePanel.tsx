@@ -151,8 +151,10 @@ const AskArianePanel: React.FC<AskArianePanelProps> = ({
         agents: '/agents',
         messages: '/messages',
         sessions: '/sessions',
+        upload: '/upload',
       }}
       user={{ firstName }}
+      disableFileManagement={false}
       t={t}
       accentColor={accentColor}
       logoIcon={logoIcon}
