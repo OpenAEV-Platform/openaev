@@ -449,7 +449,10 @@ describe('useTenant', () => {
   describe('Error handling', () => {
     it('given_fetchUserTenantsRejects_should_setEmptyTenantsAndNotStayLoading', async () => {
       // Arrange — fetchUserTenants returns a 500 error
-      mockFetchUserTenants.mockRejectedValue({ status: 500, message: 'Internal error' });
+      mockFetchUserTenants.mockRejectedValue({
+        status: 500,
+        message: 'Internal error',
+      });
       const useTenant = await importUseTenant();
 
       // Act
