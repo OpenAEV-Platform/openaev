@@ -38,24 +38,26 @@ public class ThreadPoolTaskLoggerConfig {
 
     executor.setTaskDecorator(
         runnable -> {
-          // CAPTURE REQUEST HEADERS AND IP (PARENT THREAD)
+          // CAPTURE REQUEST HEADERS AND IP, REQUEST URI and BODY (PARENT THREAD)
           var requestAttributes = RequestContextHolder.getRequestAttributes();
           HttpServletRequest request =
               requestAttributes instanceof ServletRequestAttributes attrs
                   ? attrs.getRequest()
                   : null;
           Map<String, String> headers;
-          String remoteAddress;
-          String method;
+          String remoteAddress, method, requestUri, queryString, fullUrl;
 
           if (request != null) {
             headers = HttpReqRespUtils.extractHeaders(request);
             remoteAddress = request.getRemoteAddr();
             method = request.getMethod();
+
+            requestUri = request.getRequestURI();
+            queryString = request.getQueryString();
+            fullUrl = queryString == null ? requestUri : requestUri + "?" + queryString;
           } else {
             headers = null;
-            remoteAddress = null;
-            method = null;
+            remoteAddress = method = requestUri = queryString = fullUrl = null;
           }
 
           // CAPTURE LOGs CONTEXT
@@ -78,9 +80,9 @@ public class ThreadPoolTaskLoggerConfig {
           return () -> {
             try {
               // STORE HEADERS AND REMOTE ADDRESS
-              ThreadRequestContextHolder.setHeaders(headers);
-              ThreadRequestContextHolder.setRemoteAddress(remoteAddress);
-              ThreadRequestContextHolder.setMethod(method);
+              ThreadRequestContextHolder.setRequestContextData(
+                  new ThreadRequestContextHolder.RequestContextData(
+                      headers, remoteAddress, method, requestUri, queryString, fullUrl));
 
               // RESTORE MDC
               if (mdcContext != null) {
@@ -114,6 +116,14 @@ public class ThreadPoolTaskLoggerConfig {
 
   public class ThreadRequestContextHolder {
 
+    public record RequestContextData(
+        Map<String, String> headers,
+        String remoteAddress,
+        String method,
+        String uri,
+        String queryString,
+        String url) {}
+
     private static final ThreadLocal<Map<String, Object>> CONTEXT = new ThreadLocal<>();
 
     public static void set(String name, Object value) {
@@ -137,28 +147,12 @@ public class ThreadPoolTaskLoggerConfig {
       return ctx.get(name);
     }
 
-    public static void setHeaders(Map<String, String> headers) {
-      set("HEADERS", headers);
+    public static void setRequestContextData(RequestContextData data) {
+      set("RequestContextData", data);
     }
 
-    public static Map<String, String> getHeaders() {
-      return (Map<String, String>) get("HEADERS");
-    }
-
-    public static void setRemoteAddress(String remoteAddress) {
-      set("REMOTE_ADDR", remoteAddress);
-    }
-
-    public static String getRemoteAddress() {
-      return (String) get("REMOTE_ADDR");
-    }
-
-    public static void setMethod(String method) {
-      set("METHOD", method);
-    }
-
-    public static String getMethod() {
-      return (String) get("METHOD");
+    public static RequestContextData getRequestContextData() {
+      return get("RequestContextData") instanceof RequestContextData data ? data : null;
     }
 
     public static void clear() {

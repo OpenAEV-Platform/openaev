@@ -67,7 +67,9 @@ public class HttpReqRespUtils {
       return request.getRemoteAddr();
     }
 
-    String remoteAddress = ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.getRemoteAddress();
+    ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.RequestContextData requestContextData =
+        ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.getRequestContextData();
+    String remoteAddress = requestContextData != null ? requestContextData.remoteAddress() : null;
 
     if (remoteAddress != null) {
       return remoteAddress;
@@ -130,7 +132,10 @@ public class HttpReqRespUtils {
       // In this case returns the headers saved in the thread context
     }
 
-    return ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.getHeaders();
+    ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.RequestContextData requestContextData =
+        ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.getRequestContextData();
+
+    return requestContextData != null ? requestContextData.headers() : null;
   }
 
   public static String extractMethod(HttpServletRequest request) {
@@ -147,7 +152,10 @@ public class HttpReqRespUtils {
     }
 
     if (method == null) {
-      method = ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.getMethod();
+      ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.RequestContextData requestContextData =
+          ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.getRequestContextData();
+
+      method = requestContextData != null ? requestContextData.method() : null;
     }
 
     return method;
