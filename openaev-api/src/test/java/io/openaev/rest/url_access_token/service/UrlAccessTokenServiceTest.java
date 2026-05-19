@@ -176,7 +176,8 @@ class UrlAccessTokenServiceTest {
     }
 
     @Test
-    void given_validTokenWithDifferentUser_should_stillReturnTokenBecauseUserScopeIsNotValidatedHere() {
+    void
+        given_validTokenWithDifferentUser_should_stillReturnTokenBecauseUserScopeIsNotValidatedHere() {
       // Arrange
       UrlAccessToken token = buildValidToken("exercise-1", "user-1");
       when(urlAccessTokenRepository.findByTokenHash(anyString())).thenReturn(Optional.of(token));

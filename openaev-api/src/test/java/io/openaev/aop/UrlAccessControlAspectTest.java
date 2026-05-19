@@ -239,8 +239,7 @@ class UrlAccessControlAspectTest {
       when(joinPoint.proceed(args)).thenReturn("response");
 
       UrlAccessToken token = mockToken("resolved-user-id");
-      when(urlAccessTokenService.validateToken("valid-token", "exercise-42"))
-          .thenReturn(token);
+      when(urlAccessTokenService.validateToken("valid-token", "exercise-42")).thenReturn(token);
 
       // -- Act --
       Object result = aspect.validateUrlAccess(joinPoint);
@@ -268,8 +267,7 @@ class UrlAccessControlAspectTest {
       when(joinPoint.getArgs()).thenReturn(new Object[] {"exercise-1", Optional.empty()});
 
       UrlAccessToken token = mockToken("injected-user-id");
-      when(urlAccessTokenService.validateToken("valid-token", "exercise-1"))
-          .thenReturn(token);
+      when(urlAccessTokenService.validateToken("valid-token", "exercise-1")).thenReturn(token);
 
       ArgumentCaptor<Object[]> argsCaptor = ArgumentCaptor.forClass(Object[].class);
       when(joinPoint.proceed(argsCaptor.capture())).thenReturn("injected");

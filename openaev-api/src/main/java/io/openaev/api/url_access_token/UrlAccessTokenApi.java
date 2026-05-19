@@ -3,8 +3,6 @@ package io.openaev.api.url_access_token;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.config.OpenAEVConfig;
-import io.openaev.database.model.Action;
-import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.UrlAccessToken;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;

@@ -106,8 +106,7 @@ public class UrlAccessTokenService {
    * @return the matching persisted token when valid
    */
   @Transactional(readOnly = true)
-  public UrlAccessToken validateToken(
-      @NotBlank final String rawToken, final String exerciseId) {
+  public UrlAccessToken validateToken(@NotBlank final String rawToken, final String exerciseId) {
     return validateTokenInternal(rawToken, exerciseId);
   }
 
