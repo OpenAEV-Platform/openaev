@@ -1,4 +1,4 @@
-package io.openaev.utils.object;
+package io.openaev.utils;
 
 import com.sun.management.OperatingSystemMXBean;
 import java.lang.management.ManagementFactory;
@@ -11,6 +11,7 @@ public class SystemLoadGuardUtils {
 
   private final MemoryMXBean memoryMxBean = ManagementFactory.getMemoryMXBean();
 
+  /** Returns true when current JVM heap usage is above the configured threshold. */
   public boolean isHeapUsageHigh(double maxHeapUsageRatio) {
     MemoryUsage heap = memoryMxBean.getHeapMemoryUsage();
     long max = heap.getMax();
@@ -21,6 +22,7 @@ public class SystemLoadGuardUtils {
     return ratio >= maxHeapUsageRatio;
   }
 
+  /** Returns true when current process CPU load is above the configured threshold. */
   public boolean isProcessCpuLoadHigh(double maxProcessCpuLoad) {
     java.lang.management.OperatingSystemMXBean osBean =
         ManagementFactory.getOperatingSystemMXBean();

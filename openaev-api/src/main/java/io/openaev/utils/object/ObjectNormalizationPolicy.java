@@ -47,6 +47,9 @@ public class ObjectNormalizationPolicy {
   @Value("${openaev.audit.normalization.skip-on-high-load:true}")
   private boolean skipOnHighLoad;
 
+  @Value("${openaev.audit.normalization.skip-all:false}")
+  private boolean skipAllNormalization;
+
   @Value("${openaev.audit.normalization.max-process-cpu-load:0.90}")
   private double maxProcessCpuLoad;
 
@@ -67,6 +70,10 @@ public class ObjectNormalizationPolicy {
 
   public boolean skipOnHighLoad() {
     return skipOnHighLoad;
+  }
+
+  public boolean skipAllNormalization() {
+    return skipAllNormalization;
   }
 
   public double maxProcessCpuLoad() {
