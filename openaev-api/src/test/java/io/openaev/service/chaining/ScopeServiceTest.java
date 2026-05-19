@@ -92,8 +92,7 @@ class ScopeServiceTest {
         .thenReturn(
             List.of(
                 denylistRule(ScopeRuleValueType.ASSET_ID, "asset-1"),
-                denylistRule(ScopeRuleValueType.IP, "10.0.0.1"),
-                denylistRule(ScopeRuleValueType.DOMAIN, "host.example.com")));
+                denylistRule(ScopeRuleValueType.IP, "10.0.0.1")));
 
     List<Asset> result = scopeService.getValidAssets(WORKFLOW_ID);
 

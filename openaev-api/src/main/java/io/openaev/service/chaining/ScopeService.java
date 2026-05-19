@@ -111,14 +111,6 @@ public class ScopeService {
                 .filter(endpoint -> endpointMatchesSubnet(endpoint, rule.getRuleValue()))
                 .map(Asset::getId)
                 .forEach(deniedAssetIds::add);
-
-        case DOMAIN ->
-            candidates.stream()
-                .filter(asset -> asset instanceof Endpoint)
-                .map(asset -> (Endpoint) asset)
-                .filter(endpoint -> rule.getRuleValue().equalsIgnoreCase(endpoint.getHostname()))
-                .map(Asset::getId)
-                .forEach(deniedAssetIds::add);
       }
     }
     return deniedAssetIds;
