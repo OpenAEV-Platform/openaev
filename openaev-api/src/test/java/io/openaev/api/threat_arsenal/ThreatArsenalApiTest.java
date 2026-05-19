@@ -51,8 +51,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ThreatArsenalApiTest extends IntegrationTest {
 
   private static final String THREAT_ARSENAL_URI = "/api/threat_arsenals";
-  private static final String TENANT_THREAT_ARSENAL_URI =
-      "/api/tenants/{tenantId}/threat_arsenals";
+  private static final String TENANT_THREAT_ARSENAL_URI = "/api/tenants/{tenantId}/threat_arsenals";
   private static Document EXECUTABLE_FILE;
 
   @Autowired private MockMvc mvc;
@@ -1159,10 +1158,10 @@ public class ThreatArsenalApiTest extends IntegrationTest {
       String response =
           mvc.perform(
                   get(tenantUri(
-                      TENANT_THREAT_ARSENAL_URI
-                          + "/"
-                          + nonPayloadContract.getId()
-                          + "/collectors"))
+                          TENANT_THREAT_ARSENAL_URI
+                              + "/"
+                              + nonPayloadContract.getId()
+                              + "/collectors"))
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON))
               .andExpect(status().is2xxSuccessful())
