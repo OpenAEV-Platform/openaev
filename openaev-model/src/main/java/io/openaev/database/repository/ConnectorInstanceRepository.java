@@ -15,10 +15,11 @@ public interface ConnectorInstanceRepository
         JpaSpecificationExecutor<ConnectorInstancePersisted> {
 
   @Query(
-      value = "SELECT DISTINCT ci.* FROM connector_instances ci "
-          + "JOIN catalog_connectors cc ON ci.connector_instance_catalog_id = cc.catalog_connector_id "
-          + "WHERE cc.catalog_connector_container_image IS NOT NULL "
-          + "AND cc.catalog_connector_manager_supported = TRUE ",
+      value =
+          "SELECT DISTINCT ci.* FROM connector_instances ci "
+              + "JOIN catalog_connectors cc ON ci.connector_instance_catalog_id = cc.catalog_connector_id "
+              + "WHERE cc.catalog_connector_container_image IS NOT NULL "
+              + "AND cc.catalog_connector_manager_supported = TRUE ",
       nativeQuery = true)
   List<ConnectorInstancePersisted> findAllManagedByXtmComposerAndConfiguration();
 
