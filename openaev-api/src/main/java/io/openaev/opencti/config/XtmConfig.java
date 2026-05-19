@@ -40,7 +40,7 @@ public class XtmConfig {
     }
 
     if (hasLegacyConfig) {
-      normalized.putIfAbsent(Tenant.DEFAULT_TENANT_UUID, legacyConfig);
+      normalized.put(Tenant.DEFAULT_TENANT_UUID, legacyConfig);
     }
 
     return normalized;
