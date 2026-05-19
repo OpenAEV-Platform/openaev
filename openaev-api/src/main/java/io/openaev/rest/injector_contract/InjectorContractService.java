@@ -193,7 +193,6 @@ public class InjectorContractService implements DependenciesManager {
 
   public Iterable<RawInjectorsContracts> getAllRawInjectContracts() {
     User currentUser = userService.currentUser();
-    String tenantId = TenantContext.getCurrentTenant();
     if (currentUser.isAdminOrBypass()
         || currentUser.getCapabilities().contains(Capability.ACCESS_PAYLOADS)) {
       return injectorContractRepository.getAllRawInjectorsContracts();
@@ -816,7 +815,7 @@ public class InjectorContractService implements DependenciesManager {
     try {
       for (String injectorContractId : listDefaultInjectorContract) {
         InjectorContractId compositeId =
-            new InjectorContractId(injectorContractId, TenantContext.getCurrentTenant());
+            new InjectorContractId(injectorContractId, Tenant.DEFAULT_TENANT_UUID);
         InjectorContract source = entityManager.find(InjectorContract.class, compositeId);
         if (source == null) {
           continue; // contract does not exist for the current tenant — skip

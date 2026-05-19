@@ -14,8 +14,8 @@ public class XtmConfig {
   private Map<String, Object> opencti = new HashMap<>();
 
   /**
-   * Supports both property styles:
-   * openaev.xtm.opencti.{tenantId}.* (new) and openaev.xtm.opencti.* (legacy).
+   * Supports both property styles: openaev.xtm.opencti.{tenantId}.* (new) and openaev.xtm.opencti.*
+   * (legacy).
    */
   public Map<String, OpenCTIConfig> getOpencti() {
     if (opencti == null || opencti.isEmpty()) {

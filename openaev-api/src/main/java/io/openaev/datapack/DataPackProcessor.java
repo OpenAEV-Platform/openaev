@@ -7,6 +7,7 @@ import io.openaev.helper.StreamHelper;
 import io.openaev.multitenancy.DependenciesManager;
 import io.openaev.multitenancy.DependenciesManagerException;
 import io.openaev.rest.domain.DomainService;
+import io.openaev.rest.injector_contract.InjectorContractService;
 import jakarta.annotation.PostConstruct;
 import java.util.Comparator;
 import java.util.List;
@@ -67,6 +68,6 @@ public class DataPackProcessor implements DependenciesManager {
   @Override
   public List<Class<? extends DependenciesManager>> getPrerequisite() {
     // We want to process datapack after all the default domain are created for the tenant
-    return List.of(DomainService.class);
+    return List.of(DomainService.class, InjectorContractService.class);
   }
 }
