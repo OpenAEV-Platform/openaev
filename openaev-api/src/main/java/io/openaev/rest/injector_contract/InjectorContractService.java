@@ -659,7 +659,7 @@ public class InjectorContractService implements DependenciesManager {
         injectorContractRoot.get("platforms").alias("injector_contract_platforms"),
         ctx.payloadJoin().get("type").alias("payload_type"),
         ctx.payloadCollectorTypeJoin().get("name").alias("collector_type"),
-        ctx.injectorJoin().get("type").alias("injector_contract_injector_type"),
+        cb.least(ctx.injectorJoin().<String>get("type")).alias("injector_contract_injector_type"),
         ctx.tagsIdsExpression().alias("injector_contract_tags"),
         ctx.injectorContractDomainsIdsExpression().alias("injector_contract_domains"),
         ctx.payloadJoin().get("status").alias("payload_status"),
@@ -667,9 +667,7 @@ public class InjectorContractService implements DependenciesManager {
         ctx.attackPatternIdsExpression().alias("injector_contract_attack_patterns"),
         injectorContractRoot.get("updatedAt").alias("injector_contract_updated_at"));
 
-    List<Expression<?>> groupBy = new ArrayList<>(getCommonGroupBy(injectorContractRoot, ctx));
-    groupBy.add(ctx.injectorJoin().get("type"));
-    cq.groupBy(groupBy);
+    cq.groupBy(getCommonGroupBy(injectorContractRoot, ctx));
   }
 
   private void selectForInjectorContractThreatArsenalContent(
