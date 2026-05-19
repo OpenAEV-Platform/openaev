@@ -819,7 +819,7 @@ public class InjectorContractService implements DependenciesManager {
     try {
       for (String injectorContractId : listDefaultInjectorContract) {
         InjectorContractId compositeId =
-            new InjectorContractId(injectorContractId, TenantContext.getCurrentTenant());
+            new InjectorContractId(injectorContractId, Tenant.DEFAULT_TENANT_UUID);
         InjectorContract source = entityManager.find(InjectorContract.class, compositeId);
         if (source == null) {
           continue; // contract does not exist for the current tenant — skip
