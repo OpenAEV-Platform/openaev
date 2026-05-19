@@ -267,7 +267,7 @@ const ThreatArsenalActionPopover = ({
       <Drawer
         open={openEdit}
         handleClose={handleCloseEdit}
-        title={t('Update the action')}
+        title={`${t('Update the action :')} ${name}`}
       >
         <>
           {fetchedAction && !!payloadId && (

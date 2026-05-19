@@ -2220,7 +2220,7 @@
   "Update simulation start date and time": "Actualizar fecha y hora de inicio de la simulación",
   "Update teams": "Actualizar equipos",
   "Update Tenant": "Actualizar tenant",
-  "Update the action": "Actualizar la acción",
+  "Update the action :": "Actualizar la acción :",
   "Update the asset group": "Actualizar el grupo de activos",
   "Update the asset rule": "Actualizar la regla de activos",
   "Update the atomic testing": "Actualizar las pruebas atómicas",

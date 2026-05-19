@@ -308,17 +308,18 @@ const ThreatArsenal = () => {
                         onDuplicate={(result: ThreatArsenalAction) => setThreatArsenalActions([result, ...threatArsenalActions])}
                         onDelete={() => setThreatArsenalActions(threatArsenalActions.filter(a => a.injector_contract_id !== action.injector_contract_id))}
                         // Disable update for:
-                        // - Actions not created by the user (no payload attached)
                         // - Actions coming from a collector
-                        disableUpdate={action.action_payload && action.action_payload?.payload_collector_type !== null}
-                        // Disable delete for actions not created by the user (no payload attached)
-                        disableDuplicate={action.action_payload == null}
-                        // Disable JSON export for action not created by the user (no payload attached)
-                        disableJsonExport={action.action_payload == null}
+                        // - Actions coming from a dummy injector
+                        disableUpdate={(action.action_payload && action.action_payload?.payload_collector_type !== null) || (action.action_injector_type ?? '').endsWith('_dummy')}
+                        // Disable delete for actions not created by the user (no payload attached) or actions coming from a dummy injector
+                        disableDuplicate={action.action_payload == null || (action.action_injector_type ?? '').endsWith('_dummy')}
+                        // Disable JSON export for action not created by the user (no payload attached) or actions coming from a dummy injector
+                        disableJsonExport={action.action_payload == null || (action.action_injector_type ?? '').endsWith('_dummy')}
                         // Disable delete for:
                         // - Actions not created by the user (no payload attached)
                         // - Actions coming from a collector, unless they are deprecated
-                        disableDelete={action.action_payload == null || (action.action_payload.payload_collector_type !== null && action.action_payload?.payload_status !== 'DEPRECATED')}
+                        // - Actions coming from a dummy injector
+                        disableDelete={action.action_payload == null || (action.action_payload.payload_collector_type !== null && action.action_payload?.payload_status !== 'DEPRECATED') || (action.action_injector_type ?? '').endsWith('_dummy')}
                       />
                     )}
                     disablePadding
