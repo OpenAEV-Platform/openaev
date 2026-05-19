@@ -8,6 +8,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -15,12 +17,10 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.Tenant;
-import io.openaev.database.model.User;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.attack_pattern.form.AttackPatternCreateInput;
 import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.service.UserService;
 import io.openaev.utils.SecurityCoverageUtils;
 import io.openaev.xtmone.XtmOneClient;
 import io.openaev.xtmone.XtmOneConfig;
@@ -52,25 +52,12 @@ class AttackPatternServiceTest {
   @Mock private XtmOneConfig xtmOneConfig;
   @Mock private XtmOneClient xtmOneClient;
   @Mock private XtmOneService xtmOneService;
-  @Mock private UserService userService;
 
   @InjectMocks private AttackPatternService attackPatternService;
 
   @BeforeEach
   void beforeEach() {
     attackPatternService.mapper = new ObjectMapper();
-  }
-
-  /**
-   * Build a stub {@link User} that satisfies the per-user JWT minting performed by the XTM One
-   * branch of {@code searchAttackPatternWithTTPAIWebservice} (no DB reads required because {@code
-   * userService} is mocked).
-   */
-  private static User stubUser() {
-    User user = new User();
-    user.setId("user-id");
-    user.setEmail("tester@openaev.local");
-    return user;
   }
 
   @DisplayName("given_noFilesAndBlankText_should_throwIllegalArgumentException")
@@ -130,7 +117,9 @@ class AttackPatternServiceTest {
     when(env.getProperty("ttp.extraction.ai.webservice.url")).thenReturn("http://localhost/api");
     when(enterpriseEditionService.getEnterpriseEditionLicensePem()).thenReturn("pem-content");
 
-    String responseBody = "[[{\"text\":\"chunk\",\"predictions\":{\"T1003\":0.9,\"T1059\":0.8}}]]";
+    String responseBody =
+        "{\"ttp.detect.txt\":[{\"text\":\"chunk\",\"predictions\":{\"T1003\":0.9,\"T1059\":0.8}}],"
+            + "\"form_text_input\":[{\"text\":\"extract this\",\"predictions\":{}}]}";
     when(restTemplate.postForEntity(anyString(), any(), any()))
         .thenReturn(ResponseEntity.ok(responseBody));
 
@@ -154,20 +143,19 @@ class AttackPatternServiceTest {
     assertTrue(ids.contains("internal-2"));
   }
 
-  @DisplayName("given_xtmOneConfigured_should_routeThroughXtmOneAndUnwrapCopilotEnvelope")
+  @DisplayName("given_xtmOneConfigured_should_parseStrictServiceOutput")
   @Test
-  void given_xtmOneConfigured_should_routeThroughXtmOneAndUnwrapCopilotEnvelope() {
-    // Arrange — XTM One configured + cti.ttp_harvester agent registered with the requested slug
+  void given_xtmOneConfigured_should_parseStrictServiceOutput() {
+    // Arrange — XTM One configured + strict documented output format
     when(xtmOneConfig.isConfigured()).thenReturn(true);
-    when(userService.currentUser()).thenReturn(stubUser());
-    when(xtmOneClient.issueAuthenticationJwt(anyString(), anyString(), anyString()))
-        .thenReturn("user-jwt");
-    // Copilot envelope: {"files": [{"extraction": {"input": [{"predictions": {...}}]}}]}
-    String copilotEnvelope =
-        "{\"files\":[{\"extraction\":{\"input\":[{\"text\":\"chunk\","
-            + "\"predictions\":{\"T1003\":0.9}}]}}]}";
-    when(xtmOneClient.callAgentSync(anyString(), anyString(), any()))
-        .thenReturn(copilotEnvelope);
+    String serviceOutput =
+        "{"
+            + "\"ttp.detect.txt\":[{\"text\":\"chunk\",\"predictions\":{\"T1003\":0.9}}],"
+            + "\"form_text_input\":[{\"text\":\"Please analyze the attached file.\",\"predictions\":{}}]"
+            + "}";
+    when(xtmOneClient.callAgentSync(
+            eq("filigran-ttp-extractor"), eq("Analyze this attack"), isNull()))
+        .thenReturn(serviceOutput);
 
     AttackPattern ap = new AttackPattern();
     ap.setId("internal-xtm-1");
@@ -185,22 +173,19 @@ class AttackPatternServiceTest {
     assertTrue(ids.contains("internal-xtm-1"));
     // Per-user JWT path: callAgentSync(jwt, slug, content, files) — never the service-level
     // overload, which would attribute the request to the generic "system" user.
-    verify(xtmOneClient).callAgentSync(anyString(), anyString(), any());
+    verify(xtmOneClient)
+        .callAgentSync(eq("filigran-ttp-extractor"), eq("Analyze this attack"), isNull());
     // Legacy path must not be exercised when XTM One is configured
     verify(restTemplate, never()).postForEntity(anyString(), any(), any());
   }
 
-  @DisplayName("given_xtmOneConfiguredAndNoCatalogYet_should_fallbackToDefaultSlugAndStillExtract")
+  @DisplayName("given_xtmOneConfiguredAndExplicitSlug_should_extractWithoutDefaulting")
   @Test
-  void given_xtmOneConfiguredAndNoCatalogYet_should_fallbackToDefaultSlugAndStillExtract() {
-    // Arrange — XTM One configured but the registration catalog hasn't populated yet
+  void given_xtmOneConfiguredAndExplicitSlug_should_extractWithoutDefaulting() {
+    // Arrange — caller provides the slug explicitly
     when(xtmOneConfig.isConfigured()).thenReturn(true);
-    when(userService.currentUser()).thenReturn(stubUser());
-    when(xtmOneClient.issueAuthenticationJwt(anyString(), anyString(), anyString()))
-        .thenReturn("user-jwt");
-    // Native (already-unwrapped) response shape
     String nativeResponse = "{\"input.txt\":[{\"predictions\":{\"T1059\":0.7}}]}";
-    when(xtmOneClient.callAgentSync(anyString(), anyString(), any()))
+    when(xtmOneClient.callAgentSync(eq("cti-ttp-harvester-filigran-ia"), eq("context"), isNull()))
         .thenReturn(nativeResponse);
 
     AttackPattern ap = new AttackPattern();
@@ -211,23 +196,23 @@ class AttackPatternServiceTest {
 
     // Act
     List<String> ids =
-        attackPatternService.searchAttackPatternWithTTPAIWebservice(List.of(), "context", null);
+        attackPatternService.searchAttackPatternWithTTPAIWebservice(
+            List.of(), "context", "cti-ttp-harvester-filigran-ia");
 
-    // Assert — caller's null slug falls back to the default; ids resolved through repository
+    // Assert
     assertEquals(1, ids.size());
     assertTrue(ids.contains("internal-xtm-2"));
-    verify(xtmOneClient).callAgentSync(anyString(), anyString(), any());
+    verify(xtmOneClient)
+        .callAgentSync(eq("cti-ttp-harvester-filigran-ia"), eq("context"), isNull());
   }
 
-  @DisplayName("given_xtmOneCallFails_should_throwServiceUnavailable")
+  @DisplayName("given_xtmOneCallFailsWithExplicitSlug_should_throwServiceUnavailable")
   @Test
-  void given_xtmOneCallFails_should_throwServiceUnavailable() {
+  void given_xtmOneCallFailsWithExplicitSlug_should_throwServiceUnavailable() {
     // Arrange
     when(xtmOneConfig.isConfigured()).thenReturn(true);
-    when(userService.currentUser()).thenReturn(stubUser());
-    when(xtmOneClient.issueAuthenticationJwt(anyString(), anyString(), anyString()))
-        .thenReturn("user-jwt");
-    when(xtmOneClient.callAgentSync(anyString(), anyString(), any())).thenReturn(null);
+    when(xtmOneClient.callAgentSync(eq("cti-ttp-harvester-filigran-ia"), eq("context"), isNull()))
+        .thenReturn(null);
 
     // Act / Assert
     org.springframework.web.server.ResponseStatusException ex =
@@ -235,9 +220,8 @@ class AttackPatternServiceTest {
             org.springframework.web.server.ResponseStatusException.class,
             () ->
                 attackPatternService.searchAttackPatternWithTTPAIWebservice(
-                    List.of(), "context", null));
+                    List.of(), "context", "cti-ttp-harvester-filigran-ia"));
     assertEquals(503, ex.getStatusCode().value());
-    // Generic message — must NOT propagate raw upstream details
     assertTrue(ex.getReason() == null || !ex.getReason().contains("@"));
   }
 

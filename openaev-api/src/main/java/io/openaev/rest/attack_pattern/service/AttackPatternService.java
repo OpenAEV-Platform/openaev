@@ -9,14 +9,11 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.KillChainPhaseRepository;
 import io.openaev.ee.EnterpriseEditionService;
-import io.openaev.rest.attack_pattern.form.AnalysisResultFromTTPExtractionAIWebserviceOutput;
 import io.openaev.rest.attack_pattern.form.AttackPatternCreateInput;
 import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.service.UserService;
 import io.openaev.utils.SecurityCoverageUtils;
 import io.openaev.xtmone.XtmOneClient;
 import io.openaev.xtmone.XtmOneConfig;
-import io.openaev.xtmone.XtmOneService;
 import jakarta.annotation.Resource;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -53,11 +50,6 @@ public class AttackPatternService {
    */
   private static final long AI_UPLOAD_MAX_BYTES_PER_FILE = 5L * 1024 * 1024;
 
-  /** Intent the TTP extraction flow uses to route to the right XTM One agent. */
-  public static final String TTP_EXTRACTOR_INTENT = "cti.ttp_harvester";
-
-  public static final String TTP_EXTRACTOR_SLUG = "cti-ttp-harvester-filigran-ia";
-
   @Resource protected ObjectMapper mapper;
 
   private final Environment env;
@@ -68,8 +60,6 @@ public class AttackPatternService {
   private final SecurityCoverageUtils securityCoverageUtils;
   private final XtmOneConfig xtmOneConfig;
   private final XtmOneClient xtmOneClient;
-  private final XtmOneService xtmOneService;
-  private final UserService userService;
 
   /**
    * Call the TTP Extraction AI Webservice to analyze files and text input.
@@ -148,20 +138,28 @@ public class AttackPatternService {
    */
   private Set<String> extractExternalAttackPatternIdsFromResponse(String responseBody)
       throws IOException {
-    JsonNode fileOrTextJsonArray = mapper.readTree(responseBody);
+    JsonNode root = mapper.readTree(responseBody);
     Set<String> externalAttackPatternIds = new HashSet<>();
 
-    // For each (file or text_input) key-value pair in the JSON root
-    for (JsonNode fileOrText : fileOrTextJsonArray) {
-      for (JsonNode chunk : fileOrText) {
-        AnalysisResultFromTTPExtractionAIWebserviceOutput result =
-            mapper.convertValue(chunk, AnalysisResultFromTTPExtractionAIWebserviceOutput.class);
-
-        if (result.getPredictions() != null) {
-          externalAttackPatternIds.addAll(result.getPredictions().keySet());
-        }
-      }
+    if (root == null || !root.isObject()) {
+      return externalAttackPatternIds;
     }
+
+    root.fields()
+        .forEachRemaining(
+            entry -> {
+              JsonNode chunks = entry.getValue();
+              if (chunks == null || !chunks.isArray()) {
+                return;
+              }
+              chunks.forEach(
+                  chunk -> {
+                    JsonNode predictions = chunk.get("predictions");
+                    if (predictions != null && predictions.isObject()) {
+                      predictions.fieldNames().forEachRemaining(externalAttackPatternIds::add);
+                    }
+                  });
+            });
     return externalAttackPatternIds;
   }
 
@@ -258,8 +256,7 @@ public class AttackPatternService {
    *
    * @param files List of files to be analyzed, maximum 5 files.
    * @param text Text input to be analyzed.
-   * @param agentSlug Optional XTM One agent slug to use; when null/blank falls back to the default
-   *     TTP extractor agent (only relevant when XTM One is configured).
+   * @param agentSlug XTM One agent slug to use when XTM One is configured.
    * @return List of attack pattern IDs found in the analysis.
    */
   public List<String> searchAttackPatternWithTTPAIWebservice(

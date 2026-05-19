@@ -1,7 +1,5 @@
 package io.openaev.xtmone;
 
-import static io.openaev.rest.attack_pattern.service.AttackPatternService.TTP_EXTRACTOR_INTENT;
-
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.service.PlatformSettingsService;
@@ -37,7 +35,7 @@ public class XtmOneService {
           Map.of("name", "explain", "description", "Explain content in simple terms"),
           Map.of(
               "name",
-              TTP_EXTRACTOR_INTENT,
+              "cti.ttp_harvester",
               "description",
               "Extract MITRE ATT&CK TTPs from documents and text"),
           Map.of(
