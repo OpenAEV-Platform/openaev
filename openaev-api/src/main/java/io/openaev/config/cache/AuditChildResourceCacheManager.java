@@ -20,9 +20,9 @@ import org.springframework.stereotype.Service;
  *
  * <ol>
  *   <li><b>Method→ResourceType cache</b>: an in-memory map keyed by the endpoint method signature.
- *       Since a given endpoint always works on the same child {@link ResourceType} (e.g.
- *       {@code updateInject()} always touches {@code INJECT}), this structural fact is cached
- *       permanently — it never becomes stale. This lets us skip the full {@link
+ *       Since a given endpoint always works on the same child {@link ResourceType} (e.g. {@code
+ *       updateInject()} always touches {@code INJECT}), this structural fact is cached permanently
+ *       — it never becomes stale. This lets us skip the full {@link
  *       ResourceManagerUtils#ENTITY_CLASS_MAP} scan on every subsequent call and go directly to the
  *       known type.
  *   <li><b>Per-request result cache</b>: a Caffeine-backed Spring cache keyed by {@code
@@ -38,10 +38,11 @@ public class AuditChildResourceCacheManager {
   private final ResourceManagerUtils resourceManagerUtils;
 
   /**
-   * Structural cache: endpoint method signature → child ResourceType. This mapping never changes
-   * at runtime (an endpoint always targets the same entity type), so no TTL or eviction needed.
+   * Structural cache: endpoint method signature → child ResourceType. This mapping never changes at
+   * runtime (an endpoint always targets the same entity type), so no TTL or eviction needed.
    */
-  private final ConcurrentMap<String, ResourceType> methodChildTypeCache = new ConcurrentHashMap<>();
+  private final ConcurrentMap<String, ResourceType> methodChildTypeCache =
+      new ConcurrentHashMap<>();
 
   /**
    * Resolves and caches the child resource for the given endpoint/resource context. The {@code
@@ -62,7 +63,7 @@ public class AuditChildResourceCacheManager {
       String parentResourceId,
       String[] pathVariableValues) {
 
-    //TODO AUDIT: cache not working bc  parentResourceId == paramValue
+    // TODO AUDIT: cache not working bc  parentResourceId == paramValue
 
     log.warn("pathVariableValues {}", pathVariableValues);
     log.warn("parentResourceId {}", parentResourceId);
@@ -71,7 +72,13 @@ public class AuditChildResourceCacheManager {
         continue;
       }
 
-      System.out.println("methodSignature " + methodSignature + "; paramValue " + paramValue + "; parentResourceId " + parentResourceId);
+      log.warn(
+          "methodSignature "
+              + methodSignature
+              + "; paramValue "
+              + paramValue
+              + "; parentResourceId "
+              + parentResourceId);
       log.warn("methodSignature {}", methodSignature);
       log.warn("paramValue {}", paramValue);
       ChildResourceInfo childInfo = resolveByKnownTypeFirst(methodSignature, paramValue);
@@ -111,7 +118,8 @@ public class AuditChildResourceCacheManager {
     }
 
     // Full scan: try every ResourceType until one returns a snapshot
-    for (Map.Entry<ResourceType, Class<?>> entry : ResourceManagerUtils.ENTITY_CLASS_MAP.entrySet()) {
+    for (Map.Entry<ResourceType, Class<?>> entry :
+        ResourceManagerUtils.ENTITY_CLASS_MAP.entrySet()) {
       ChildResourceInfo childInfo = getChildResourceInfo(entry.getKey(), resourceId);
       if (childInfo != null) {
         // Cache the winning ResourceType so future calls skip this scan

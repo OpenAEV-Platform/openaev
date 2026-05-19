@@ -12,8 +12,6 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -23,7 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class LogApi extends RestBehavior {
 
-  private static final Logger logger = LoggerFactory.getLogger(LogApi.class);
+  // private static final Logger logger = LoggerFactory.getLogger(LogApi.class);
 
   private final LogService logService;
 
@@ -72,7 +70,9 @@ public class LogApi extends RestBehavior {
       return new ResponseEntity<>(invalidLevel, HttpStatus.BAD_REQUEST);
     }*/
 
-    if (!WARNING.getName().equals(level) && !INFO.getName().equals(level) && !SEVERE.getName().equals(level)) {
+    if (!WARNING.getName().equals(level)
+        && !INFO.getName().equals(level)
+        && !SEVERE.getName().equals(level)) {
       String invalidLevel = "Invalid level: " + level;
       return new ResponseEntity<>(invalidLevel, HttpStatus.BAD_REQUEST);
     }

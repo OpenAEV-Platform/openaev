@@ -25,93 +25,93 @@ import lombok.Setter;
 @Indexable(index = "audit-log", label = "Audit Log")
 public class LogEvent {
 
-    // -- Document identity --
+  // -- Document identity --
 
-    /** Unique document identifier (UUID). */
-    private String id;
+  /** Unique document identifier (UUID). */
+  private String id;
 
-    /** Fixed discriminator value: always {@code "Activity"}. */
-    @JsonProperty("entity_type")
-    private String entityType = "Activity";
+  /** Fixed discriminator value: always {@code "Activity"}. */
+  @JsonProperty("entity_type")
+  private String entityType = "Activity";
 
-    /** Document creation timestamp (immutable). */
-    @JsonProperty("created_at")
-    private Instant createdAt;
+  /** Document creation timestamp (immutable). */
+  @JsonProperty("created_at")
+  private Instant createdAt;
 
-    // -- Event envelope --
+  // -- Event envelope --
 
-    /** High-level event category: {@code "mutation"} or {@code "authentication"}. */
-    @JsonProperty("event_type")
-    private String eventType;
+  /** High-level event category: {@code "mutation"} or {@code "authentication"}. */
+  @JsonProperty("event_type")
+  private String eventType;
 
-    /** Outcome: {@code "success"} or {@code "error"}. */
-    @JsonProperty("event_status")
-    private String eventStatus;
+  /** Outcome: {@code "success"} or {@code "error"}. */
+  @JsonProperty("event_status")
+  private String eventStatus;
 
-    /** Access classification: {@code "administration"} or {@code "extended"}. */
-    @JsonProperty("event_access")
-    private String eventAccess;
+  /** Access classification: {@code "administration"} or {@code "extended"}. */
+  @JsonProperty("event_access")
+  private String eventAccess;
 
-    /**
-     * Specific action: {@code "create"}, {@code "update"}, {@code "delete"}, {@code "duplicate"},
-     * {@code "status_change"}, {@code "login"}, {@code "logout"}, {@code "unauthorized"}.
-     */
-    @JsonProperty("event_scope")
-    private String eventScope;
+  /**
+   * Specific action: {@code "create"}, {@code "update"}, {@code "delete"}, {@code "duplicate"},
+   * {@code "status_change"}, {@code "login"}, {@code "logout"}, {@code "unauthorized"}.
+   */
+  @JsonProperty("event_scope")
+  private String eventScope;
 
-    // -- Actor --
+  // -- Actor --
 
-    /** ID of the user who performed the action (nullable for anonymous). */
-    @JsonProperty("user_id")
-    private String userId;
+  /** ID of the user who performed the action (nullable for anonymous). */
+  @JsonProperty("user_id")
+  private String userId;
 
-    /** Tenant context (nullable until multi-tenancy is fully rolled out). */
-    @JsonProperty("tenant_id")
-    private String tenantId;
+  /** Tenant context (nullable until multi-tenancy is fully rolled out). */
+  @JsonProperty("tenant_id")
+  private String tenantId;
 
-    /** Nested user metadata (email, IP, user-agent). */
-    @JsonProperty("user_metadata")
-    private UserMetadata userMetadata;
+  /** Nested user metadata (email, IP, user-agent). */
+  @JsonProperty("user_metadata")
+  private UserMetadata userMetadata;
 
-    // -- Timing --
+  // -- Timing --
 
-    /** Event timestamp (when the action occurred). */
-    private Instant timestamp;
+  /** Event timestamp (when the action occurred). */
+  private Instant timestamp;
 
-    // -- Payload --
+  // -- Payload --
 
-    /**
-     * Free-form contextual data. Mapped as {@code dynamic: true} in ES so arbitrary keys are
-     * accepted. Typical keys: {@code resource_type}, {@code resource_id}, {@code resource_name},
-     * {@code message}, {@code input}, {@code old_value}, {@code parent_id}, {@code source_entity_id},
-     * {@code provider}, {@code reason}.
-     */
-    @JsonProperty("context_data")
-    private Map<String, Object> contextData;
+  /**
+   * Free-form contextual data. Mapped as {@code dynamic: true} in ES so arbitrary keys are
+   * accepted. Typical keys: {@code resource_type}, {@code resource_id}, {@code resource_name},
+   * {@code message}, {@code input}, {@code old_value}, {@code parent_id}, {@code source_entity_id},
+   * {@code provider}, {@code reason}.
+   */
+  @JsonProperty("context_data")
+  private Map<String, Object> contextData;
 
-    // -- Nested objects --
+  // -- Nested objects --
 
-    /** User metadata: request-level information about the actor. */
-    @Getter
-    @Setter
-    @JsonAutoDetect(
-            getterVisibility = JsonAutoDetect.Visibility.NONE,
-            fieldVisibility = JsonAutoDetect.Visibility.ANY)
-    public static class UserMetadata {
+  /** User metadata: request-level information about the actor. */
+  @Getter
+  @Setter
+  @JsonAutoDetect(
+      getterVisibility = JsonAutoDetect.Visibility.NONE,
+      fieldVisibility = JsonAutoDetect.Visibility.ANY)
+  public static class UserMetadata {
 
-        /** Denormalized email address of the actor. */
-        @JsonProperty("user_email")
-        private String userEmail;
+    /** Denormalized email address of the actor. */
+    @JsonProperty("user_email")
+    private String userEmail;
 
-        /** Raw User-Agent header from the HTTP request. */
-        @JsonProperty("user_agent")
-        private String userAgent;
+    /** Raw User-Agent header from the HTTP request. */
+    @JsonProperty("user_agent")
+    private String userAgent;
 
-        /** Value of the X-Forwarded-For header (first entry = original client). */
-        @JsonProperty("x_forwarded_for")
-        private String xForwardedFor;
+    /** Value of the X-Forwarded-For header (first entry = original client). */
+    @JsonProperty("x_forwarded_for")
+    private String xForwardedFor;
 
-        /** Resolved remote IP address (remoteAddr or X-Real-IP). */
-        private String ip;
-    }
+    /** Resolved remote IP address (remoteAddr or X-Real-IP). */
+    private String ip;
+  }
 }

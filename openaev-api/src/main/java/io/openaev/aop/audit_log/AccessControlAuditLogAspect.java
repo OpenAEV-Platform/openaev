@@ -2,37 +2,24 @@ package io.openaev.aop.audit_log;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.AccessControlAspect;
 import io.openaev.database.model.Action;
-import io.openaev.database.model.Base;
 import io.openaev.database.model.ResourceType;
 import io.openaev.service.LogService;
-import io.openaev.utils.ResourceManagerUtils;
 import io.openaev.utils.log.LogUtils;
-import jakarta.servlet.http.HttpServletRequest;
+import java.lang.annotation.Annotation;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.context.request.RequestContextHolder;
-
-import java.lang.annotation.Annotation;
-import java.util.Collection;
-import java.util.List;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.logging.Level;
-
-import static java.util.logging.Level.INFO;
 
 /**
  * AOP aspect that intercepts {@link AccessControl}-annotated controller methods to produce audit
@@ -50,118 +37,119 @@ import static java.util.logging.Level.INFO;
 @Slf4j
 public class AccessControlAuditLogAspect {
 
+  private final AuditRequestValidator auditRequestValidator;
+  private final AuditResourceDetector auditResourceDetector;
+  private final AccessControlAuditLogger accessControlAuditLogger;
 
-    private final AuditRequestValidator auditRequestValidator;
-    private final AuditResourceDetector auditResourceDetector;
-    private final AccessControlAuditLogger accessControlAuditLogger;
+  private final ObjectMapper objectMapper;
 
-    private final ObjectMapper objectMapper;
+  @Around("@annotation(accessControl)")
+  public Object auditAround(ProceedingJoinPoint joinPoint, AccessControl accessControl)
+      throws Throwable {
+    Action action = accessControl.actionPerformed();
+    String logUUID = UUID.randomUUID().toString();
 
-    @Around("@annotation(accessControl)")
-    public Object auditAround(ProceedingJoinPoint joinPoint, AccessControl accessControl)
-            throws Throwable {
-        Action action = accessControl.actionPerformed();
-        String logUUID = UUID.randomUUID().toString();
+    if (!auditRequestValidator.valid(action)) {
+      // TODO AUDIT: in the future, if openaev.all-logs.enabled is true, call the logService method
+      // to log the request and its body input.
 
-        if (!auditRequestValidator.valid(action)) {
-            //TODO AUDIT: in the future, if openaev.all-logs.enabled is true, call the logService method to log the request and its body input.
-
-            return joinPoint.proceed();
-        }
-
-        String eventScope = LogUtils.getEventScope(action);
-
-        // -- Pre-execution:get child-resource --
-        AuditResourceDetector.AuditResourceInfo resourceInfo = auditResourceDetector.detectResourceBeforeExecution(joinPoint, accessControl, eventScope);
-        ResourceType resourceType = resourceInfo.resourceType();
-        String resourceId = resourceInfo.resourceId();
-        String sourceId = resourceInfo.sourceId();
-        ResourceType entityType = resourceInfo.entityType();
-        String entityId = resourceInfo.entityId();
-        String entityName = resourceInfo.entityName();
-        JsonNode entitySnapshot = resourceInfo.entitySnapshot();
-
-        // Capture the input DTO for create/update/status_change
-        JsonNode inputNode = getInputNode(joinPoint, eventScope);
-
-        // Execute the business operation
-        Object result;
-        String eventStatus;
-
-        try {
-            result = joinPoint.proceed();
-            eventStatus = "success";
-        } catch (Throwable ex) {
-            eventStatus = "error";
-
-            accessControlAuditLogger.prepareLogFailure();
-
-            // Still log the audit event, then re-throw - async
-            accessControlAuditLogger.logMutationEvent(
-                    eventScope,
-                    eventStatus,
-                    resourceType,
-                    resourceId,
-                    inputNode,
-                    null,
-                    entityName,
-                    null,
-                    sourceId,
-                    logUUID
-            );
-
-            throw ex;
-        }
-
-        accessControlAuditLogger.auditEvent(
-                eventScope,
-                eventStatus,
-                resourceType,
-                resourceId,
-                sourceId,
-                entityType,
-                entityId,
-                entityName,
-                entitySnapshot,
-                inputNode,
-                result,
-                logUUID
-        );
-
-        return result;
+      return joinPoint.proceed();
     }
+
+    String eventScope = LogUtils.getEventScope(action);
+
+    // -- Pre-execution:get child-resource --
+    AuditResourceDetector.AuditResourceInfo resourceInfo =
+        auditResourceDetector.detectResourceBeforeExecution(joinPoint, accessControl, eventScope);
+    ResourceType resourceType = resourceInfo.resourceType();
+    String resourceId = resourceInfo.resourceId();
+    String sourceId = resourceInfo.sourceId();
+    ResourceType entityType = resourceInfo.entityType();
+    String entityId = resourceInfo.entityId();
+    String entityName = resourceInfo.entityName();
+    JsonNode entitySnapshot = resourceInfo.entitySnapshot();
 
     // Capture the input DTO for create/update/status_change
-    private JsonNode getInputNode(ProceedingJoinPoint joinPoint, String eventScope) {
-        JsonNode inputNode = null;
+    JsonNode inputNode = getInputNode(joinPoint, eventScope);
 
-        if ("create".equals(eventScope) || "update".equals(eventScope) || "status_change".equals(eventScope)) {
-            Object requestBody = findRequestBody(joinPoint);
+    // Execute the business operation
+    Object result;
+    String eventStatus;
 
-            if (requestBody != null) {
-                inputNode = objectMapper.valueToTree(requestBody);
-            }
-        }
+    try {
+      result = joinPoint.proceed();
+      eventStatus = "success";
+    } catch (Throwable ex) {
+      eventStatus = "error";
 
-        return inputNode;
+      accessControlAuditLogger.prepareLogFailure();
+
+      // Still log the audit event, then re-throw - async
+      accessControlAuditLogger.logMutationEvent(
+          eventScope,
+          eventStatus,
+          resourceType,
+          resourceId,
+          inputNode,
+          null,
+          entityName,
+          null,
+          sourceId,
+          logUUID);
+
+      throw ex;
     }
 
-    /** Finds the first method argument annotated with {@code @RequestBody}. */
-    private Object findRequestBody(ProceedingJoinPoint joinPoint) {
-        try {
-            MethodSignature signature = (MethodSignature) joinPoint.getSignature();
-            Annotation[][] paramAnnotations = signature.getMethod().getParameterAnnotations();
-            Object[] args = joinPoint.getArgs();
-            for (int i = 0; i < paramAnnotations.length; i++) {
-                for (Annotation ann : paramAnnotations[i]) {
-                    if (ann instanceof RequestBody) {
-                        return args[i];
-                    }
-                }
-            }
-        } catch (Exception e) {
-            log.debug("[AUDIT] Failed to find @RequestBody argument: {}", e.getMessage());
-        }
-        return null;
+    accessControlAuditLogger.auditEvent(
+        eventScope,
+        eventStatus,
+        resourceType,
+        resourceId,
+        sourceId,
+        entityType,
+        entityId,
+        entityName,
+        entitySnapshot,
+        inputNode,
+        result,
+        logUUID);
+
+    return result;
+  }
+
+  // Capture the input DTO for create/update/status_change
+  private JsonNode getInputNode(ProceedingJoinPoint joinPoint, String eventScope) {
+    JsonNode inputNode = null;
+
+    if ("create".equals(eventScope)
+        || "update".equals(eventScope)
+        || "status_change".equals(eventScope)) {
+      Object requestBody = findRequestBody(joinPoint);
+
+      if (requestBody != null) {
+        inputNode = objectMapper.valueToTree(requestBody);
+      }
     }
+
+    return inputNode;
+  }
+
+  /** Finds the first method argument annotated with {@code @RequestBody}. */
+  private Object findRequestBody(ProceedingJoinPoint joinPoint) {
+    try {
+      MethodSignature signature = (MethodSignature) joinPoint.getSignature();
+      Annotation[][] paramAnnotations = signature.getMethod().getParameterAnnotations();
+      Object[] args = joinPoint.getArgs();
+      for (int i = 0; i < paramAnnotations.length; i++) {
+        for (Annotation ann : paramAnnotations[i]) {
+          if (ann instanceof RequestBody) {
+            return args[i];
+          }
+        }
+      }
+    } catch (Exception e) {
+      log.debug("[AUDIT] Failed to find @RequestBody argument: {}", e.getMessage());
+    }
+    return null;
+  }
 }

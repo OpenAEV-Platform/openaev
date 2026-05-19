@@ -5,9 +5,8 @@ import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.log.form.LogDetailsInput;
 import io.openaev.utils.ResourceManagerUtils;
-import org.slf4j.Logger;
-
 import java.util.logging.Level;
+import org.slf4j.Logger;
 
 /**
  * Utility class for log message formatting and construction.
@@ -19,13 +18,15 @@ import java.util.logging.Level;
  */
 public class LogUtils {
 
+  private static final String EVENT_ACCESS_ADMINISTRATION = "administration";
+  private static final String EVENT_ACCESS_EXTENDED = "extended";
+
   private LogUtils() {}
 
   public static void log(Logger logger, String message, Level level) {
     if (level == null) {
       logger.info(message);
-    }
-    else if (level == Level.SEVERE) {
+    } else if (level == Level.SEVERE) {
       logger.error(message);
     } else if (level == Level.WARNING) {
       logger.warn(message);
@@ -48,7 +49,7 @@ public class LogUtils {
         resolvedLevel = Level.INFO;
       } else if (Level.SEVERE.getName().equalsIgnoreCase(strLevel)) {
         resolvedLevel = Level.SEVERE;
-      }else if (Level.FINE.getName().equalsIgnoreCase(strLevel)) {
+      } else if (Level.FINE.getName().equalsIgnoreCase(strLevel)) {
         resolvedLevel = Level.FINE;
       }
     } else if (level instanceof Level logLevel) {
@@ -86,19 +87,20 @@ public class LogUtils {
    *   <li>Scenario recurrence update: input has {@code scenario_recurrence} fields
    * </ul>
    */
-  public static String buildStatusChangeMessage(JsonNode input, String entityTypeName, String displayName) {
+  public static String buildStatusChangeMessage(
+      JsonNode input, String entityTypeName, String displayName) {
     if (input == null) {
       return "changes status of " + entityTypeName + " `" + displayName + "`";
     }
     if (input.has("exercise_status")) {
       String newStatus = input.get("exercise_status").asText().toLowerCase();
       return "changes status of "
-              + entityTypeName
-              + " `"
-              + displayName
-              + "` to `"
-              + newStatus
-              + "`";
+          + entityTypeName
+          + " `"
+          + displayName
+          + "` to `"
+          + newStatus
+          + "`";
     }
     if (input.has("action") && "launch".equals(input.get("action").asText())) {
       return "launches " + entityTypeName + " `" + displayName + "`";
@@ -138,10 +140,10 @@ public class LogUtils {
 
   public static String getEventAccess(ResourceType resourceType) {
     boolean isAdmin = ResourceManagerUtils.ADMINISTRATION_RESOURCE_TYPES.contains(resourceType);
-    return isAdmin ? "administration" : "extended";
+    return isAdmin ? EVENT_ACCESS_ADMINISTRATION : EVENT_ACCESS_EXTENDED;
   }
 
   public static String getAuthEventAccess() {
-    return "administration";
+    return EVENT_ACCESS_ADMINISTRATION;
   }
 }

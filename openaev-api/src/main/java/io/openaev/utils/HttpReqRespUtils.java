@@ -2,12 +2,11 @@ package io.openaev.utils;
 
 import io.openaev.config.ThreadPoolTaskLoggerConfig;
 import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
-
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 /**
  * Utility class for HTTP request and response operations.
@@ -125,9 +124,10 @@ public class HttpReqRespUtils {
 
         return headers;
       }
-      //else if no headers, the returns the headers saved in the thread context
-    } catch(IllegalStateException e) {
-      //It means the request object has been recycled and is no longer associated with this facade. In this case returns the headers saved in the thread context
+      // else if no headers, the returns the headers saved in the thread context
+    } catch (IllegalStateException e) {
+      // It means the request object has been recycled and is no longer associated with this facade.
+      // In this case returns the headers saved in the thread context
     }
 
     return ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.getHeaders();
@@ -140,9 +140,10 @@ public class HttpReqRespUtils {
       if (request != null) {
         method = request.getMethod();
       }
-      //else if no method, the returns the method saved in the thread context
+      // else if no method, the returns the method saved in the thread context
     } catch (IllegalStateException e) {
-      //It means the request object has been recycled and is no longer associated with this facade. In this case returns the method saved in the thread context
+      // It means the request object has been recycled and is no longer associated with this facade.
+      // In this case returns the method saved in the thread context
     }
 
     if (method == null) {
@@ -152,9 +153,10 @@ public class HttpReqRespUtils {
     return method;
   }
 
-    public static HttpServletRequest getCurrentRequest() {
+  public static HttpServletRequest getCurrentRequest() {
     try {
-      ServletRequestAttributes attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+      ServletRequestAttributes attrs =
+          (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
       return attrs != null ? attrs.getRequest() : null;
     } catch (Exception e) {
       return null;
