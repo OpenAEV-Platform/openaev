@@ -63,19 +63,34 @@ public class AccessControlAuditLogAspect {
       return joinPoint.proceed();
     }
 
-    // -- Pre-execution:get child-resource --
-    AuditResourceDetector.AuditResourceInfo resourceInfo =
-        auditResourceDetector.detectResourceBeforeExecution(joinPoint, accessControl, eventScope);
-    ResourceType resourceType = resourceInfo.resourceType();
-    String resourceId = resourceInfo.resourceId();
-    String sourceId = resourceInfo.sourceId();
-    ResourceType entityType = resourceInfo.entityType();
-    String entityId = resourceInfo.entityId();
-    String entityName = resourceInfo.entityName();
-    JsonNode entitySnapshot = resourceInfo.entitySnapshot();
+    ResourceType resourceType;
+    String resourceId;
+    String sourceId;
+    ResourceType entityType;
+    String entityId;
+    String entityName;
+    JsonNode entitySnapshot;
 
-    // Capture the input DTO for create/update/status_change
-    inputNode = getInputNode(joinPoint, eventScope);
+    try {
+      // -- Pre-execution:get child-resource --
+      AuditResourceDetector.AuditResourceInfo resourceInfo =
+          auditResourceDetector.detectResourceBeforeExecution(joinPoint, accessControl, eventScope);
+      resourceType = resourceInfo.resourceType();
+      resourceId = resourceInfo.resourceId();
+      sourceId = resourceInfo.sourceId();
+      entityType = resourceInfo.entityType();
+      entityId = resourceInfo.entityId();
+      entityName = resourceInfo.entityName();
+      entitySnapshot = resourceInfo.entitySnapshot();
+
+      // Capture the input DTO for create/update/status_change
+      inputNode = getInputNode(joinPoint, eventScope);
+    } catch (Exception e) {
+      log.error("[AUDIT] Failed to detect resource: {}", e.getMessage());
+      // TODO AUDIT: figure it out whjat to do here. We should call the STW and also log something.
+
+      return joinPoint.proceed();
+    }
 
     // Execute the business operation
     Object result;
