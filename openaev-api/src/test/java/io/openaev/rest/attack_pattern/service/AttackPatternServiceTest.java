@@ -166,7 +166,7 @@ class AttackPatternServiceTest {
     String copilotEnvelope =
         "{\"files\":[{\"extraction\":{\"input\":[{\"text\":\"chunk\","
             + "\"predictions\":{\"T1003\":0.9}}]}}]}";
-    when(xtmOneClient.callAgentSync(anyString(), anyString(), anyString(), any()))
+    when(xtmOneClient.callAgentSync(anyString(), anyString(), any()))
         .thenReturn(copilotEnvelope);
 
     AttackPattern ap = new AttackPattern();
@@ -185,8 +185,7 @@ class AttackPatternServiceTest {
     assertTrue(ids.contains("internal-xtm-1"));
     // Per-user JWT path: callAgentSync(jwt, slug, content, files) — never the service-level
     // overload, which would attribute the request to the generic "system" user.
-    verify(xtmOneClient).callAgentSync(anyString(), anyString(), anyString(), any());
-    verify(xtmOneClient, never()).callAgentSyncAsService(anyString(), anyString(), any());
+    verify(xtmOneClient).callAgentSync(anyString(), anyString(), any());
     // Legacy path must not be exercised when XTM One is configured
     verify(restTemplate, never()).postForEntity(anyString(), any(), any());
   }
@@ -201,7 +200,7 @@ class AttackPatternServiceTest {
         .thenReturn("user-jwt");
     // Native (already-unwrapped) response shape
     String nativeResponse = "{\"input.txt\":[{\"predictions\":{\"T1059\":0.7}}]}";
-    when(xtmOneClient.callAgentSync(anyString(), anyString(), anyString(), any()))
+    when(xtmOneClient.callAgentSync(anyString(), anyString(), any()))
         .thenReturn(nativeResponse);
 
     AttackPattern ap = new AttackPattern();
@@ -217,7 +216,7 @@ class AttackPatternServiceTest {
     // Assert — caller's null slug falls back to the default; ids resolved through repository
     assertEquals(1, ids.size());
     assertTrue(ids.contains("internal-xtm-2"));
-    verify(xtmOneClient).callAgentSync(anyString(), anyString(), anyString(), any());
+    verify(xtmOneClient).callAgentSync(anyString(), anyString(), any());
   }
 
   @DisplayName("given_xtmOneCallFails_should_throwServiceUnavailable")
@@ -228,7 +227,7 @@ class AttackPatternServiceTest {
     when(userService.currentUser()).thenReturn(stubUser());
     when(xtmOneClient.issueAuthenticationJwt(anyString(), anyString(), anyString()))
         .thenReturn("user-jwt");
-    when(xtmOneClient.callAgentSync(anyString(), anyString(), anyString(), any())).thenReturn(null);
+    when(xtmOneClient.callAgentSync(anyString(), anyString(), any())).thenReturn(null);
 
     // Act / Assert
     org.springframework.web.server.ResponseStatusException ex =
@@ -259,8 +258,7 @@ class AttackPatternServiceTest {
                     List.of(huge), "context", null));
     assertEquals(413, ex.getStatusCode().value());
     // No XTM One / legacy call should happen if validation rejects the upload
-    verify(xtmOneClient, never()).callAgentSync(anyString(), anyString(), anyString(), any());
-    verify(xtmOneClient, never()).callAgentSyncAsService(anyString(), anyString(), any());
+    verify(xtmOneClient, never()).callAgentSync(anyString(), anyString(), any());
     verify(restTemplate, never()).postForEntity(anyString(), any(), any());
   }
 
