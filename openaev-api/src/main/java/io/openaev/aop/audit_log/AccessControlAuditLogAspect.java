@@ -37,7 +37,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 @Slf4j
 public class AccessControlAuditLogAspect {
 
-  private final AuditRequestValidator auditRequestValidator;
   private final AuditResourceDetector auditResourceDetector;
   private final AccessControlAuditLogger accessControlAuditLogger;
 
@@ -46,17 +45,23 @@ public class AccessControlAuditLogAspect {
   @Around("@annotation(accessControl)")
   public Object auditAround(ProceedingJoinPoint joinPoint, AccessControl accessControl)
       throws Throwable {
-    Action action = accessControl.actionPerformed();
     String logUUID = UUID.randomUUID().toString();
+    Action action = accessControl.actionPerformed();
+    String eventScope = LogUtils.getEventScope(action);
+    JsonNode inputNode = null;
 
-    if (!auditRequestValidator.valid(action)) {
-      // TODO AUDIT: in the future, if openaev.all-logs.enabled is true, call the logService method
-      // to log the request and its body input.
+    if (!accessControlAuditLogger.isAuditLoggingEnabled()
+        || !accessControlAuditLogger.isAuditLoggingValid(action)) {
+      // If openaev.generic-logs.service.enabled is true, log the request and its body input.
+      /*if (accessControlAuditLogger.isGenericLoggingEnabled()) {
+        // Capture the input DTO for create/update/status_change
+        inputNode = getInputNode(joinPoint, eventScope);
+
+        accessControlAuditLogger.auditRequest(eventScope, inputNode, logUUID);
+      }*/
 
       return joinPoint.proceed();
     }
-
-    String eventScope = LogUtils.getEventScope(action);
 
     // -- Pre-execution:get child-resource --
     AuditResourceDetector.AuditResourceInfo resourceInfo =
@@ -70,7 +75,7 @@ public class AccessControlAuditLogAspect {
     JsonNode entitySnapshot = resourceInfo.entitySnapshot();
 
     // Capture the input DTO for create/update/status_change
-    JsonNode inputNode = getInputNode(joinPoint, eventScope);
+    inputNode = getInputNode(joinPoint, eventScope);
 
     // Execute the business operation
     Object result;
