@@ -24,7 +24,10 @@ interface Props {
   onSubmit: SubmitHandler<ThreatArsenalActionCreateCustomInput>;
   handleClose: () => void;
   editing: boolean;
-  initialValues?: Partial<ThreatArsenalActionCreateCustomInput> & { action_id?: string };
+  initialValues?: Partial<ThreatArsenalActionCreateCustomInput> & {
+    action_id?: string;
+    payload_id?: string;
+  };
 }
 
 const ThreatArsenalActionForm = ({
