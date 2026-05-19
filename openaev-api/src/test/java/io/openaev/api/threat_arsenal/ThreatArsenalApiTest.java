@@ -51,6 +51,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class ThreatArsenalApiTest extends IntegrationTest {
 
   private static final String THREAT_ARSENAL_URI = "/api/threat_arsenals";
+  private static final String TENANT_THREAT_ARSENAL_URI =
+      "/api/tenants/{tenantId}/threat_arsenals";
   private static Document EXECUTABLE_FILE;
 
   @Autowired private MockMvc mvc;
@@ -1037,7 +1039,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
 
       // Act & Assert
       mvc.perform(
-              delete(THREAT_ARSENAL_URI + "/" + nonPayloadContract.getId())
+              delete(tenantUri(TENANT_THREAT_ARSENAL_URI + "/" + nonPayloadContract.getId()))
                   .with(csrf())
                   .contentType(MediaType.APPLICATION_JSON))
           .andExpect(status().isNotFound())
@@ -1055,7 +1057,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
 
       String createResponse =
           mvc.perform(
-                  post(THREAT_ARSENAL_URI)
+                  post(tenantUri(TENANT_THREAT_ARSENAL_URI))
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(asJsonString(createInput)))
@@ -1071,7 +1073,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
       entityManager.clear();
 
       mvc.perform(
-              delete(THREAT_ARSENAL_URI + "/" + originalActionId)
+              delete(tenantUri(TENANT_THREAT_ARSENAL_URI + "/" + originalActionId))
                   .with(csrf())
                   .contentType(MediaType.APPLICATION_JSON))
           .andExpect(status().is2xxSuccessful());
@@ -1098,7 +1100,8 @@ public class ThreatArsenalApiTest extends IntegrationTest {
 
       // Act & Assert
       mvc.perform(
-              get(THREAT_ARSENAL_URI + "/" + nonPayloadContract.getId() + "/collectors")
+              get(tenantUri(
+                      TENANT_THREAT_ARSENAL_URI + "/" + nonPayloadContract.getId() + "/collectors"))
                   .with(csrf())
                   .contentType(MediaType.APPLICATION_JSON))
           .andExpect(status().isNotFound())
@@ -1155,7 +1158,11 @@ public class ThreatArsenalApiTest extends IntegrationTest {
 
       String response =
           mvc.perform(
-                  get(THREAT_ARSENAL_URI + "/" + nonPayloadContract.getId() + "/collectors")
+                  get(tenantUri(
+                      TENANT_THREAT_ARSENAL_URI
+                          + "/"
+                          + nonPayloadContract.getId()
+                          + "/collectors"))
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON))
               .andExpect(status().is2xxSuccessful())
