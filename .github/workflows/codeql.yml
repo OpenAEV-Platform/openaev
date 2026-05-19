@@ -13,7 +13,7 @@ name: "CodeQL"
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ main ]
   schedule:
     - cron: '44 23 * * 5'
 
