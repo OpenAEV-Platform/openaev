@@ -19,9 +19,7 @@ class XtmConfigTest {
       // Arrange
       XtmConfig xtmConfig = new XtmConfig();
       xtmConfig.setOpencti(
-          Map.of(
-              "tenant-a",
-              Map.of("enable", true, "url", "http://tenant-a", "token", "token-a")));
+          Map.of("tenant-a", Map.of("enable", true, "url", "http://tenant-a", "token", "token-a")));
 
       // Act
       Map<String, OpenCTIConfig> opencti = xtmConfig.getOpencti();
@@ -57,4 +55,3 @@ class XtmConfigTest {
     }
   }
 }
-
