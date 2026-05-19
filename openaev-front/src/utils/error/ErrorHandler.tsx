@@ -13,6 +13,9 @@ const ErrorHandler = () => {
     setNotifyErrorHandler((error: Error) => {
       if (error.status === 401 || error.status === 404) return;
 
+      // Ignore generic CSRF 403s (already retried by the axios interceptor)
+      if (error.status === 403 && (!error.message || error.message === 'Forbidden')) return;
+
       if (error.status === 403 && error.message === 'LICENSE_RESTRICTION') {
         const messages = error?.errors?.children?.message?.errors;
         setEEFeatureDetectedInfo(Array.isArray(messages) ? messages.join(', ') : '');
