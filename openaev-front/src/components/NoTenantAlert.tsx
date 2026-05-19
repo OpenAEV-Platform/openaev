@@ -8,8 +8,7 @@ import { useFormatter } from './i18n';
 const NoTenantAlert = () => {
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const theme = useTheme() as any;
+  const theme = useTheme();
 
   const handleLogout = async () => {
     await dispatch(logout());
