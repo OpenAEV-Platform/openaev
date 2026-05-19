@@ -67,7 +67,7 @@ Primary CI runs on every push:
 ### GitHub Actions
 
 - **test-feature-branch.yml**: Docker image build (Alpine Linux)
-- **codeql.yml**: Security scanning (weekly + master push)
+- **codeql.yml**: Security scanning (weekly + main push)
 - **pr-title-check-worker.yml**: Conventional Commits validation
 
 ## Project Structure
