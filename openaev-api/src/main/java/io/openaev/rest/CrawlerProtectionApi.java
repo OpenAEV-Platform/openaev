@@ -1,6 +1,6 @@
 package io.openaev.rest;
 
-import io.openaev.aop.RBAC;
+import io.openaev.aop.AccessControl;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -45,7 +45,7 @@ public class CrawlerProtectionApi {
 
   // -- robots.txt: disallow all crawlers on every path
   @GetMapping(path = "/robots.txt", produces = MediaType.TEXT_PLAIN_VALUE)
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public ResponseEntity<String> robotsTxt() {
     return ResponseEntity.ok()
         .cacheControl(CacheControl.maxAge(java.time.Duration.ofDays(1)).cachePublic())
@@ -54,7 +54,7 @@ public class CrawlerProtectionApi {
 
   // -- sitemap.xml: return an empty sitemap to discourage indexing
   @GetMapping(path = "/sitemap.xml", produces = MediaType.APPLICATION_XML_VALUE)
-  @RBAC(skipRBAC = true)
+  @AccessControl(skipRBAC = true)
   public ResponseEntity<String> sitemapXml() {
     return ResponseEntity.ok()
         .cacheControl(CacheControl.maxAge(java.time.Duration.ofDays(1)).cachePublic())
