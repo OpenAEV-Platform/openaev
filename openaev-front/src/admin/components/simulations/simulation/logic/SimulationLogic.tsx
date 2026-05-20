@@ -8,7 +8,7 @@ import Logic from '../../../chaining/logic/Logic';
 const SimulationLogic = () => {
   const { exerciseId } = useParams() as { exerciseId: Exercise['exercise_id'] };
   const { exercise } = useHelper((helper: ExercisesHelper) => ({ exercise: helper.getExercise(exerciseId) }));
-  return <Logic workflowId={exercise?.exercise_workflow_id} />;
+  return <Logic workflowId={exercise?.exercise_workflow_id} context="simulation" />;
 };
 
 export default SimulationLogic;
