@@ -107,10 +107,10 @@ class WorkflowTimeoutServiceTest {
       // Act
       workflowTimeoutService.forceCompleteWorkflow(workflowRun);
 
-      // Assert — all three active injects completed with SUCCESS
-      assertEquals(ExecutionStatus.SUCCESS, queuingInject.getStatus().get().getName());
-      assertEquals(ExecutionStatus.SUCCESS, executingInject.getStatus().get().getName());
-      assertEquals(ExecutionStatus.SUCCESS, pendingInject.getStatus().get().getName());
+      // Assert — all three active injects completed with ERROR
+      assertEquals(ExecutionStatus.ERROR, queuingInject.getStatus().get().getName());
+      assertEquals(ExecutionStatus.ERROR, executingInject.getStatus().get().getName());
+      assertEquals(ExecutionStatus.ERROR, pendingInject.getStatus().get().getName());
       verify(injectStatusService).save(queuingInject.getStatus().get());
       verify(injectStatusService).save(executingInject.getStatus().get());
       verify(injectStatusService).save(pendingInject.getStatus().get());
@@ -196,6 +196,7 @@ class WorkflowTimeoutServiceTest {
     Inject inject = new Inject();
     inject.setId(UUID.randomUUID().toString());
     InjectStatus injectStatus = new InjectStatus();
+    injectStatus.setId(UUID.randomUUID().toString());
     injectStatus.setName(status);
     inject.setStatus(injectStatus);
     return inject;
