@@ -65,7 +65,6 @@ public class AccessControlAuditLogAspect {
             inputNode = getInputNode(joinPoint, eventScope);
           } catch (Exception ex) {
             log.warn("[AUDIT] Audit logging failed (non-blocking): {}", ex.getMessage(), ex);
-            //TODO AUDIT: Do we only want to log this to log var or do we want to call the correspondent LogService?
           }
 
           String eventScope = LogUtils.getEventScope(action);
@@ -113,19 +112,17 @@ public class AccessControlAuditLogAspect {
       } catch (Throwable ex) {
         eventStatus = "error";
 
-        accessControlAuditLogger
-            .logMutationEvent(
-                eventScope,
-                eventStatus,
-                resourceType,
-                resourceId,
-                inputNode,
-                null,
-                entityName,
-                null,
-                sourceId,
-                logUUID)
-            .thenRun(accessControlAuditLogger::prepareLogFailure);
+        accessControlAuditLogger.logMutationEvent(
+            eventScope,
+            eventStatus,
+            resourceType,
+            resourceId,
+            inputNode,
+            null,
+            entityName,
+            null,
+            sourceId,
+            logUUID);
 
         throw ex;
       }
@@ -150,8 +147,6 @@ public class AccessControlAuditLogAspect {
       // TODO AUDIT: Do we only want to log this to log var or do we want to call the
       // correspondent
       // LogService?
-
-      accessControlAuditLogger.prepareLogFailure();
     }
 
     return result;
