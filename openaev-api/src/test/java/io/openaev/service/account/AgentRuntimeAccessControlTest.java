@@ -308,7 +308,8 @@ class AgentRuntimeAccessControlTest extends IntegrationTest {
       // Act & Assert
       mvc.perform(
               post(ENDPOINT_URI + "/search")
-                  .content("{\"filterGroup\":{\"mode\":\"and\",\"filters\":[]},\"size\":10,\"page\":0}")
+                  .content(
+                      "{\"filterGroup\":{\"mode\":\"and\",\"filters\":[]},\"size\":10,\"page\":0}")
                   .contentType(MediaType.APPLICATION_JSON)
                   .accept(MediaType.APPLICATION_JSON)
                   .with(csrf()))
@@ -322,7 +323,8 @@ class AgentRuntimeAccessControlTest extends IntegrationTest {
       // Act & Assert
       mvc.perform(
               post(ENDPOINT_URI + "/agentless")
-                  .content("{\"endpoint_name\":\"test\",\"endpoint_platform\":\"Windows\",\"endpoint_arch\":\"x86_64\",\"endpoint_ips\":[\"1.2.3.4\"]}")
+                  .content(
+                      "{\"endpoint_name\":\"test\",\"endpoint_platform\":\"Windows\",\"endpoint_arch\":\"x86_64\",\"endpoint_ips\":[\"1.2.3.4\"]}")
                   .contentType(MediaType.APPLICATION_JSON)
                   .accept(MediaType.APPLICATION_JSON)
                   .with(csrf()))
