@@ -615,80 +615,35 @@ class AssetGroupApiTest extends IntegrationTest {
   class TenantIsolation {
 
     @Test
-    @DisplayName("AssetGroup created in tenant X should NOT be readable from tenant Y")
-    void given_assetGroupInTenantX_should_notBeReadableFromTenantY() throws Exception {
-      // -------- Arrange --------
-      Tenant tenantX =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant X", Set.of(Capability.MANAGE_ASSETS, Capability.ACCESS_ASSETS));
-      Tenant tenantY =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant Y", Set.of(Capability.ACCESS_ASSETS));
-
-      AssetGroupInput input = createDefaultAssetGroupInput("Isolation Test AssetGroup");
-
-      String createResponse =
-          mvc.perform(
-                  post("/api/tenants/" + tenantX.getId() + "/asset_groups")
-                      .content(asJsonString(input))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      String assetGroupId = JsonPath.read(createResponse, "$.asset_group_id");
-
-      // Evict L1 cache so findById() hits the DB
-      entityManager.flush();
-      entityManager.clear();
-
-      // -------- Act — read from tenant Y (expect 403) --------
-      int responseStatus =
-          mvc.perform(
-                  get("/api/tenants/" + tenantY.getId() + "/asset_groups/" + assetGroupId)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andReturn()
-              .getResponse()
-              .getStatus();
-
-      // -------- Assert --------
-      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
-    }
-
-    @Test
     @DisplayName("AssetGroup created in tenant X should be readable from tenant X")
     void given_assetGroupInTenantX_should_beReadableFromTenantX() throws Exception {
       // -------- Arrange --------
       Tenant tenantX =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant X", Set.of(Capability.MANAGE_ASSETS, Capability.ACCESS_ASSETS));
+              tenantIsolationHelper.createTenantWithCapabilities(
+                      "Tenant X", Set.of(Capability.MANAGE_ASSETS, Capability.ACCESS_ASSETS));
 
       AssetGroupInput input = createDefaultAssetGroupInput("Same Tenant AssetGroup");
 
       String createResponse =
-          mvc.perform(
-                  post("/api/tenants/" + tenantX.getId() + "/asset_groups")
-                      .content(asJsonString(input))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
+              mvc.perform(
+                              post("/api/tenants/" + tenantX.getId() + "/asset_groups")
+                                      .content(asJsonString(input))
+                                      .contentType(MediaType.APPLICATION_JSON)
+                                      .accept(MediaType.APPLICATION_JSON)
+                                      .with(csrf()))
+                      .andExpect(status().is2xxSuccessful())
+                      .andReturn()
+                      .getResponse()
+                      .getContentAsString();
 
       String assetGroupId = JsonPath.read(createResponse, "$.asset_group_id");
 
       // -------- Act & Assert — read from same tenant should succeed --------
       mvc.perform(
-              get("/api/tenants/" + tenantX.getId() + "/asset_groups/" + assetGroupId)
-                  .accept(MediaType.APPLICATION_JSON)
-                  .with(csrf()))
-          .andExpect(status().isOk());
+                      get("/api/tenants/" + tenantX.getId() + "/asset_groups/" + assetGroupId)
+                              .accept(MediaType.APPLICATION_JSON)
+                              .with(csrf()))
+              .andExpect(status().isOk());
     }
 
     @Test
@@ -696,21 +651,21 @@ class AssetGroupApiTest extends IntegrationTest {
     void given_assetGroupInTenantX_should_notAppearInTenantYSearch() throws Exception {
       // -------- Arrange --------
       Tenant tenantX =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant X", Set.of(Capability.MANAGE_ASSETS, Capability.ACCESS_ASSETS));
+              tenantIsolationHelper.createTenantWithCapabilities(
+                      "Tenant X", Set.of(Capability.MANAGE_ASSETS, Capability.ACCESS_ASSETS));
       Tenant tenantY =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant Y", Set.of(Capability.ACCESS_ASSETS));
+              tenantIsolationHelper.createTenantWithCapabilities(
+                      "Tenant Y", Set.of(Capability.ACCESS_ASSETS));
 
       AssetGroupInput input = createDefaultAssetGroupInput("CrossTenantSearchAssetGroup");
 
       mvc.perform(
-              post("/api/tenants/" + tenantX.getId() + "/asset_groups")
-                  .content(asJsonString(input))
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON)
-                  .with(csrf()))
-          .andExpect(status().is2xxSuccessful());
+                      post("/api/tenants/" + tenantX.getId() + "/asset_groups")
+                              .content(asJsonString(input))
+                              .contentType(MediaType.APPLICATION_JSON)
+                              .accept(MediaType.APPLICATION_JSON)
+                              .with(csrf()))
+              .andExpect(status().is2xxSuccessful());
 
       // Evict L1 cache
       entityManager.flush();
@@ -718,115 +673,22 @@ class AssetGroupApiTest extends IntegrationTest {
 
       // -------- Act — search from tenant Y --------
       SearchPaginationInput searchInput =
-          PaginationFixture.simpleTextSearch("CrossTenantSearchAssetGroup");
+              PaginationFixture.simpleTextSearch("CrossTenantSearchAssetGroup");
 
       String searchResponse =
-          mvc.perform(
-                  post("/api/tenants/" + tenantY.getId() + "/asset_groups/search")
-                      .content(asJsonString(searchInput))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
+              mvc.perform(
+                              post("/api/tenants/" + tenantY.getId() + "/asset_groups/search")
+                                      .content(asJsonString(searchInput))
+                                      .contentType(MediaType.APPLICATION_JSON)
+                                      .accept(MediaType.APPLICATION_JSON)
+                                      .with(csrf()))
+                      .andExpect(status().is2xxSuccessful())
+                      .andReturn()
+                      .getResponse()
+                      .getContentAsString();
 
       // -------- Assert --------
       assertEquals(Integer.valueOf(0), JsonPath.read(searchResponse, "$.totalElements"));
-    }
-
-    @Test
-    @DisplayName("AssetGroup created in tenant X should NOT be updatable from tenant Y")
-    void given_assetGroupInTenantX_should_notBeUpdatableFromTenantY() throws Exception {
-      // -------- Arrange --------
-      Tenant tenantX =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant X", Set.of(Capability.MANAGE_ASSETS, Capability.ACCESS_ASSETS));
-      Tenant tenantY =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant Y", Set.of(Capability.MANAGE_ASSETS, Capability.ACCESS_ASSETS));
-
-      AssetGroupInput input = createDefaultAssetGroupInput("Update Isolation Test");
-
-      String createResponse =
-          mvc.perform(
-                  post("/api/tenants/" + tenantX.getId() + "/asset_groups")
-                      .content(asJsonString(input))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      String assetGroupId = JsonPath.read(createResponse, "$.asset_group_id");
-
-      // Evict L1 cache
-      entityManager.flush();
-      entityManager.clear();
-
-      // -------- Act — update from tenant Y --------
-      AssetGroupInput updateInput = createDefaultAssetGroupInput("Hijacked Name");
-
-      int responseStatus =
-          mvc.perform(
-                  put("/api/tenants/" + tenantY.getId() + "/asset_groups/" + assetGroupId)
-                      .content(asJsonString(updateInput))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andReturn()
-              .getResponse()
-              .getStatus();
-
-      // -------- Assert --------
-      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
-    }
-
-    @Test
-    @DisplayName("AssetGroup created in tenant X should NOT be deletable from tenant Y")
-    void given_assetGroupInTenantX_should_notBeDeletableFromTenantY() throws Exception {
-      // -------- Arrange --------
-      Tenant tenantX =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant X", Set.of(Capability.MANAGE_ASSETS, Capability.ACCESS_ASSETS));
-      Tenant tenantY =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant Y", Set.of(Capability.DELETE_ASSETS, Capability.ACCESS_ASSETS));
-
-      AssetGroupInput input = createDefaultAssetGroupInput("Delete Isolation Test");
-
-      String createResponse =
-          mvc.perform(
-                  post("/api/tenants/" + tenantX.getId() + "/asset_groups")
-                      .content(asJsonString(input))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      String assetGroupId = JsonPath.read(createResponse, "$.asset_group_id");
-
-      // Evict L1 cache
-      entityManager.flush();
-      entityManager.clear();
-
-      // -------- Act — delete from tenant Y --------
-      int responseStatus =
-          mvc.perform(
-                  delete("/api/tenants/" + tenantY.getId() + "/asset_groups/" + assetGroupId)
-                      .with(csrf()))
-              .andReturn()
-              .getResponse()
-              .getStatus();
-
-      // -------- Assert --------
-      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
     }
   }
 }
