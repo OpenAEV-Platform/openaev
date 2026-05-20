@@ -221,7 +221,8 @@ public class WorkflowStateService {
           values.stream()
               .filter(
                   val ->
-                      rootConditions.stream().anyMatch(root -> matchesAnyLeafCondition(val, root)))
+                      rootConditions.stream()
+                          .anyMatch(root -> conditionUtils.matchesAnyLeafCondition(val, root)))
               .toList();
       if (!matchingValues.isEmpty()) {
         valuesToPropagate.put(keyTypeName, matchingValues);
@@ -230,28 +231,7 @@ public class WorkflowStateService {
     return valuesToPropagate;
   }
 
-  /**
-   * Checks whether a value matches any leaf condition in the condition tree, ignoring AND/OR
-   * logical grouping. This is used for propagation (deciding which values are relevant to an
-   * event), not for full evaluation (deciding if the event is fully satisfied).
-   *
-   * @param value the value to check
-   * @param node the condition tree node to inspect
-   * @return {@code true} if the value satisfies at least one leaf condition in the tree
-   */
-  private boolean matchesAnyLeafCondition(String value, Condition node) {
-    if (node == null) {
-      return false;
-    }
-    // For logical operator nodes (AND/OR), recurse into children looking for any matching leaf
-    if (node.getType() == ConditionType.AND || node.getType() == ConditionType.OR) {
-      return node.getConditionChildren() != null
-          && node.getConditionChildren().stream()
-              .anyMatch(child -> matchesAnyLeafCondition(value, child));
-    }
-    // For leaf nodes, delegate to the existing leaf evaluator
-    return conditionUtils.evaluateLeafCondition(value, node);
-  }
+
 
   /**
    * Parses structured output fields and adds their values to the state entries.

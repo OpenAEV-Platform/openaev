@@ -18,7 +18,7 @@ public class ConditionUtils {
    * @return {@code true} if the condition type is MAPPER
    */
   public boolean isMapperCondition(Condition condition) {
-    return condition.getType() != null && condition.getType() == ConditionType.MAPPER;
+    return condition.getType() != null && ConditionType.MAPPER.equals(condition.getType());
   }
 
   /**
@@ -104,6 +104,30 @@ public class ConditionUtils {
       default:
         return true;
     }
+  }
+
+
+  /**
+   * Checks whether a value matches any leaf condition in the condition tree, ignoring AND/OR
+   * logical grouping. This is used for propagation (deciding which values are relevant to an
+   * event), not for full evaluation (deciding if the event is fully satisfied).
+   *
+   * @param value the value to check
+   * @param node the condition tree node to inspect
+   * @return {@code true} if the value satisfies at least one leaf condition in the tree
+   */
+  public boolean matchesAnyLeafCondition(String value, Condition node) {
+    if (node == null) {
+      return false;
+    }
+    // For logical operator nodes (AND/OR), recurse into children looking for any matching leaf
+    if (node.getType() == ConditionType.AND || node.getType() == ConditionType.OR) {
+      return node.getConditionChildren() != null
+          && node.getConditionChildren().stream()
+              .anyMatch(child -> matchesAnyLeafCondition(value, child));
+    }
+    // For leaf nodes, delegate to the existing leaf evaluator
+    return evaluateLeafCondition(value, node);
   }
 
   private static boolean handleNumericComparison(
