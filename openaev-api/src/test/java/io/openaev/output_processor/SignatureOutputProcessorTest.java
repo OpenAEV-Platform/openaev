@@ -54,8 +54,6 @@ class SignatureOutputProcessorTest {
     assertDoesNotThrow(
         () ->
             processor.process(
-                executionProcessingContext,
-                contractOutputContext,
-                objectMapper.readTree("{}")));
+                executionProcessingContext, contractOutputContext, objectMapper.readTree("{}")));
   }
 }
