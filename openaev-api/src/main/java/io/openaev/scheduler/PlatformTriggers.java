@@ -140,6 +140,20 @@ public class PlatformTriggers {
 
   @Bean
   @Profile("!test")
+  @Conditional(InjectChainingCondition.class)
+  public Trigger workflowTimeoutTrigger() {
+    SimpleScheduleBuilder every30Seconds =
+        simpleSchedule().withIntervalInSeconds(30).repeatForever();
+
+    return newTrigger()
+        .forJob(this.platformJobs.workflowTimeoutJobDetail())
+        .withIdentity("WorkflowTimeoutJob")
+        .withSchedule(every30Seconds)
+        .build();
+  }
+
+  @Bean
+  @Profile("!test")
   public Trigger tenantPurgeTrigger() {
     return newTrigger()
         .forJob(this.platformJobs.tenantPurgeJobDetail())
