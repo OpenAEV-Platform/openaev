@@ -175,7 +175,7 @@ public class ThreatArsenalService {
     Payload payload = injectorContract.getPayload();
     if (payload == null) {
       throw new ElementNotFoundException(
-          "Only injector contract based on payload can be duplicated.");
+          "Only payload-based injector contracts can provide collectors for action remediation.");
     }
 
     return collectorService.collectorsForPayload(payload.getId());

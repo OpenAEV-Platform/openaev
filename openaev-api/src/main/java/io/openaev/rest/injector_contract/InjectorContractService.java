@@ -439,7 +439,8 @@ public class InjectorContractService implements DependenciesManager {
    * @param injectorContractId the contract ID to delete
    */
   public void deleteInjectorContractById(String injectorContractId) {
-    this.injectorContractRepository.deleteById(injectorContractId);
+    this.injectorContractRepository.deleteById(
+        new InjectorContractId(injectorContractId, TenantContext.getCurrentTenant()));
   }
 
   /**

@@ -141,10 +141,6 @@ public interface InjectorContractRepository
       nativeQuery = true)
   Optional<RawPayloadRelatedIds> findRelatedIdsByPayloadId(@Param("payloadId") String payloadId);
 
-  @Modifying
-  @Query("DELETE FROM InjectorContract ic WHERE ic.compositeId.id = :id")
-  void deleteById(@Param("id") @NotNull String id);
-
   @Query(
       "SELECT CASE WHEN COUNT(ic) > 0 THEN true ELSE false END "
           + "FROM InjectorContract ic WHERE ic.compositeId.id = :id AND ic.payload IS NOT NULL")
