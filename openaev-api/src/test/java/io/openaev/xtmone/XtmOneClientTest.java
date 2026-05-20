@@ -63,6 +63,22 @@ class XtmOneClientTest {
     void given_returns200WithAgents_should_returnList() throws Exception {
       // -- ARRANGE --
       configureClient();
+      when(objectMapper.convertValue(any(), eq(ChatbotAgentOutput.class)))
+          .thenAnswer(
+              invocation -> {
+                Object source = invocation.getArgument(0);
+                if (!(source instanceof Map<?, ?> map)) {
+                  return null;
+                }
+                String id = map.get("agent_id") != null ? map.get("agent_id").toString() : null;
+                String name = map.get("agent_name") != null ? map.get("agent_name").toString() : null;
+                String slug = map.get("agent_slug") != null ? map.get("agent_slug").toString() : null;
+                String description =
+                    map.get("agent_description") != null
+                        ? map.get("agent_description").toString()
+                        : null;
+                return new ChatbotAgentOutput(id, name, slug, description);
+              });
       List<Map<String, Object>> catalog =
           List.of(
               Map.of(
