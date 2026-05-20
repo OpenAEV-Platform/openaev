@@ -26,33 +26,33 @@ public class XtmOneService {
               "name",
               "global.assistant",
               "description",
-              "General-purpose assistant for adversary emulation"),
-          Map.of("name", "summarize", "description", "Summarize content or findings"),
-          Map.of("name", "make.it.shorter", "description", "Shorten or condense content"),
-          Map.of("name", "make.it.longer", "description", "Expand or elaborate content"),
-          Map.of("name", "fix.spelling", "description", "Fix spelling and grammar"),
-          Map.of("name", "change.tone", "description", "Change tone of content"),
-          Map.of("name", "explain", "description", "Explain content in simple terms"),
+              "General-purpose assistant"),
+          Map.of("name", "global.summarize", "description", "Summarize content"),
+          Map.of("name", "global.make_it_shorter", "description", "Shorten / summarize content"),
+          Map.of("name", "global.make_it_longer", "description", "Expand / elaborate content"),
+          Map.of("name", "global.fix_spelling", "description", "Fix spelling and grammar"),
+          Map.of("name", "global.change_tone", "description", "Change the tone of content"),
+          Map.of("name", "global.explain", "description", "Explain content in simple terms"),
           Map.of(
               "name",
               "cti.ttp_harvester",
               "description",
-              "Extract MITRE ATT&CK TTPs from documents and text"),
+              "Extract TTPs (Tactics, Techniques and Procedures) from documents"),
           Map.of(
               "name",
-              "detection.generate",
+              "aev.detection_rules_generator",
               "description",
-              "Generate detection and remediation rules for security collectors"),
+              "Generate detection rules from malware behavior"),
           Map.of(
               "name",
-              "generate.message",
+              "aev.message_generator",
               "description",
-              "Generate email messages for adversary emulation injects"),
+              "Generate messages for adversary emulation exercises"),
           Map.of(
               "name",
-              "generate.media",
+              "aev.media_article_generator",
               "description",
-              "Generate media articles for adversary emulation scenarios"));
+              "Generate media articles for adversary emulation"));
 
   /**
    * Register this platform with XTM One. Called on every connectivity tick (the /register endpoint

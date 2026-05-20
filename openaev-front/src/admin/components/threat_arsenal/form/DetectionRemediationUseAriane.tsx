@@ -51,7 +51,7 @@ const DetectionRemediationUseAriane = ({
   useEffect(() => {
     if (!xtmOneConfigured) return;
     setLoadingAgents(true);
-    fetchAgentsForIntent('detection.generate')
+    fetchAgentsForIntent('aev.detection_rules_generator')
       .then((agents) => {
         setAgentOptions(agents);
         if (agents.length > 0) setSelectedAgent(agents[0]);
