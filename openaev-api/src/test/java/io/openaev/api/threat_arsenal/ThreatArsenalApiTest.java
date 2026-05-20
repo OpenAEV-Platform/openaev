@@ -1108,7 +1108,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
               content()
                   .string(
                       containsString(
-                          "Only injector contract based on payload can be duplicated.")));
+                          "Only payload-based injector contracts can provide collectors for action remediation.")));
     }
 
     @Test
