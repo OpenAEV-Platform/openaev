@@ -167,7 +167,8 @@ export interface AggregatedFindingOutput {
     | "vulnerability"
     | "account_with_password_not_required"
     | "asreproastable_account"
-    | "kerberoastable_account";
+    | "kerberoastable_account"
+    | "signature";
   /**
    * Finding Value
    * @minLength 1
@@ -1490,7 +1491,8 @@ export interface ContractOutputElement {
     | "vulnerability"
     | "account_with_password_not_required"
     | "asreproastable_account"
-    | "kerberoastable_account";
+    | "kerberoastable_account"
+    | "signature";
   /** @format date-time */
   contract_output_element_updated_at: string;
   listened?: boolean;
@@ -1543,7 +1545,8 @@ export interface ContractOutputElementInput {
     | "vulnerability"
     | "account_with_password_not_required"
     | "asreproastable_account"
-    | "kerberoastable_account";
+    | "kerberoastable_account"
+    | "signature";
 }
 
 /** Represents the rules for parsing the output of an execution. */
@@ -1592,7 +1595,8 @@ export interface ContractOutputElementSimple {
     | "vulnerability"
     | "account_with_password_not_required"
     | "asreproastable_account"
-    | "kerberoastable_account";
+    | "kerberoastable_account"
+    | "signature";
 }
 
 export interface CreateConnectorInstanceInput {
@@ -3345,7 +3349,8 @@ export interface Finding {
     | "vulnerability"
     | "account_with_password_not_required"
     | "asreproastable_account"
-    | "kerberoastable_account";
+    | "kerberoastable_account"
+    | "signature";
   /** @format date-time */
   finding_updated_at: string;
   finding_users?: string[];
@@ -3379,7 +3384,8 @@ export interface FindingInput {
     | "vulnerability"
     | "account_with_password_not_required"
     | "asreproastable_account"
-    | "kerberoastable_account";
+    | "kerberoastable_account"
+    | "signature";
   /** @minLength 1 */
   finding_value: string;
 }
@@ -6803,7 +6809,8 @@ export interface RelatedFindingOutput {
     | "vulnerability"
     | "account_with_password_not_required"
     | "asreproastable_account"
-    | "kerberoastable_account";
+    | "kerberoastable_account"
+    | "signature";
   /**
    * Finding Value
    * @minLength 1
