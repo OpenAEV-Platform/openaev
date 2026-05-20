@@ -74,22 +74,17 @@ public class ExecutionTraceRepositoryHelper {
    * @throws org.springframework.dao.DataAccessException if the database insert fails
    */
   public String saveExecutionTrace(ExecutionTrace executionTrace) {
-    String injectStatusId = null;
-    if (executionTrace.getInjectStatus() != null) {
-      injectStatusId = executionTrace.getInjectStatus().getId();
-    }
-    String injectTestStatusId = null;
-    if (executionTrace.getInjectTestStatus() != null) {
-      injectTestStatusId = executionTrace.getInjectTestStatus().getId();
-    }
-    String agentId = null;
-    if (executionTrace.getAgent() != null) {
-      agentId = executionTrace.getAgent().getId();
-    }
-    String structuredOutputAsText = null;
-    if (executionTrace.getStructuredOutput() != null) {
-      structuredOutputAsText = executionTrace.getStructuredOutput().asText();
-    }
+    String injectStatusId =
+        executionTrace.getInjectStatus() != null ? executionTrace.getInjectStatus().getId() : null;
+    String injectTestStatusId =
+        executionTrace.getInjectTestStatus() != null
+            ? executionTrace.getInjectTestStatus().getId()
+            : null;
+    String agentId = executionTrace.getAgent() != null ? executionTrace.getAgent().getId() : null;
+    String structuredOutputAsText =
+        executionTrace.getStructuredOutput() != null
+            ? executionTrace.getStructuredOutput().asText()
+            : null;
     String id = UUID.randomUUID().toString();
 
     // JdbcTemplate.execute(PreparedStatementCreator, PreparedStatementCallback) is used here
