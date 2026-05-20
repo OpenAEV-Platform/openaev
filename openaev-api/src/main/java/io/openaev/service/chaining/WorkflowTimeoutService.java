@@ -4,6 +4,7 @@ import io.openaev.database.model.*;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
+import io.openaev.utils.ExecutionTraceUtils;
 import java.time.Instant;
 import java.util.List;
 import java.util.Set;
@@ -90,9 +91,8 @@ public class WorkflowTimeoutService {
       if (inject.getStatus().isPresent()
           && ACTIVE_INJECT_STATUSES.contains(inject.getStatus().get().getName())) {
         InjectStatus status = inject.getStatus().get();
-        status.addInfoTrace(
-            "Inject stopped due to simulation timeout.", ExecutionTraceAction.COMPLETE);
-        status.setName(ExecutionStatus.SUCCESS);
+        ExecutionTraceUtils.addSimulationTimeoutTrace(status);
+        status.setName(ExecutionStatus.ERROR);
         status.setTrackingEndDate(Instant.now());
         injectStatusService.save(status);
         stoppedCount++;

@@ -73,11 +73,11 @@ class WorkflowTimeoutServiceTest {
       inOrder.verify(simulationService).saveSimulation(simulation);
 
       // Assert — active inject status was set to SUCCESS with info trace
-      assertEquals(ExecutionStatus.SUCCESS, activeInject.getStatus().get().getName());
+      assertEquals(ExecutionStatus.ERROR, activeInject.getStatus().get().getName());
       assertNotNull(activeInject.getStatus().get().getTrackingEndDate());
       assertEquals(1, activeInject.getStatus().get().getTraces().size());
       ExecutionTrace trace = activeInject.getStatus().get().getTraces().get(0);
-      assertEquals(ExecutionTraceStatus.INFO, trace.getStatus());
+      assertEquals(ExecutionTraceStatus.TIMEOUT, trace.getStatus());
       assertEquals(ExecutionTraceAction.COMPLETE, trace.getAction());
       assertEquals("Inject stopped due to simulation timeout.", trace.getMessage());
 
