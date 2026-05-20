@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.config.SessionHelper;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.User;
 import io.openaev.engine.EngineService;
@@ -79,6 +80,14 @@ public class LogService {
   }
 
   // -- Public API --
+
+  public boolean isEnabled(AuditLogType logType) {
+    return logType == AuditLogType.AUDIT
+        ? auditLogsEnabled && previewFeatureService.isFeatureEnabled(PreviewFeature.AUDIT_LOG)
+        : (logType == AuditLogType.GENERIC
+            ? genericLogsEnabled
+            : genericLogsEnabled || auditLogsEnabled);
+  }
 
   /**
    * Logs a mutation (create/update/delete/duplicate/status_change) audit event but only if the
@@ -267,6 +276,23 @@ public class LogService {
     return false;
   }
 
+  public boolean logRequestEvent(
+      String url, JsonNode body, Object logLevel, AuditLogType logType, String logUUID) {
+    try {
+      if (!isEnabled(logType)) {
+        return true;
+      }
+
+      LogEvent doc = buildBaseRequestLog(url, body, logUUID);
+
+      return emit(doc, logLevel, logType);
+    } catch (Exception e) {
+      log.warn("[{}] Failed to log request event: {}", logType.name(), e.getMessage(), e);
+    }
+
+    return false;
+  }
+
   public boolean logEvent(LogEvent doc, Object logLevel, AuditLogType logType, String logUUID) {
     try {
       if (!isEnabled(logType)) {
@@ -304,13 +330,7 @@ public class LogService {
   }
 
   // -- Internal helpers --
-
-  private boolean isEnabled(AuditLogType logType) {
-    return logType == AuditLogType.AUDIT
-        ? auditLogsEnabled && previewFeatureService.isFeatureEnabled(PreviewFeature.AUDIT_LOG)
-        : genericLogsEnabled || auditLogsEnabled;
-  }
-
+  
   private ObjectDiffUtils.DiffResult diffObjects(
       String eventScope, JsonNode entitySnapshot, JsonNode inputNode) {
     // For updates: compute diff between old and new values
@@ -376,6 +396,39 @@ public class LogService {
     doc.setEventStatus(eventStatus);
     doc.setEventAccess(eventAccess);
     doc.setEventScope(eventScope);
+
+    // Tenant context
+    doc.setTenantId(TenantContext.getCurrentTenant());
+
+    // User context
+    doc.setUserId(resolveUserId());
+    populateUserMetadata(doc);
+
+    return doc;
+  }
+
+  private LogEvent buildBaseRequestLog(String url, JsonNode body, String logUUID) {
+    Instant now = Instant.now();
+
+    if (logUUID == null) {
+      logUUID = UUID.randomUUID().toString();
+    }
+
+    LogEvent doc = new LogEvent();
+    doc.setId(logUUID);
+    doc.setCreatedAt(now);
+    doc.setTimestamp(now);
+
+    // Request context
+    Map<String, Object> requestData = new LinkedHashMap<>();
+    requestData.put("url", url);
+    if (body != null) {
+      requestData.put("body", body);
+    }
+    doc.setRequestData(requestData);
+
+    // Tenant context
+    doc.setTenantId(TenantContext.getCurrentTenant());
 
     // User context
     doc.setUserId(resolveUserId());

@@ -89,6 +89,9 @@ public class LogEvent {
   @JsonProperty("context_data")
   private Map<String, Object> contextData;
 
+  @JsonProperty("request_data")
+  private Map<String, Object> requestData;
+
   // -- Nested objects --
 
   /** User metadata: request-level information about the actor. */

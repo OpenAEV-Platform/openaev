@@ -39,7 +39,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 @Slf4j
 public class AccessControlAuditLogAspect {
 
-  private final AuditRequestValidator auditRequestValidator;
   private final AuditResourceDetector auditResourceDetector;
   private final AccessControlAuditLogger accessControlAuditLogger;
   private final PreviewFeatureService previewFeatureService;
@@ -50,31 +49,68 @@ public class AccessControlAuditLogAspect {
   public Object auditAround(ProceedingJoinPoint joinPoint, AccessControl accessControl)
       throws Throwable {
     Action action = accessControl.actionPerformed();
-    String logUUID = UUID.randomUUID().toString();
 
-    if (!auditRequestValidator.valid(action)
+    if (!accessControlAuditLogger.isAuditLoggingEnabled()
+        || !accessControlAuditLogger.isAuditLoggingValid(action)
         || !previewFeatureService.isFeatureEnabled(PreviewFeature.AUDIT_LOG)) {
-      // TODO AUDIT: in the future, if openaev.all-logs.enabled is true, call the logService method
-      // to log the request and its body input.
+      // If openaev.generic-logs.service.enabled is true, log the request and its body input.
+      /*if (accessControlAuditLogger.isGenericLoggingEnabled()) {
+        // Capture the input DTO for create/update/status_change
+        JsonNode inputNode = null;
+
+        try {
+          inputNode = getInputNode(joinPoint, eventScope);
+        } catch (Exception e) {
+          log.warn("[AUDIT] Audit logging failed (non-blocking): {}", e.getMessage(), e);
+          //TODO AUDIT: Do we only want to log this to log var or do we want to call the correspondent LogService?
+        }
+
+        String eventScope = LogUtils.getEventScope(action);
+        String logUUID = UUID.randomUUID().toString();
+
+        accessControlAuditLogger.auditRequest(eventScope, inputNode, logUUID);
+      }*/
 
       return joinPoint.proceed();
     }
 
     String eventScope = LogUtils.getEventScope(action);
+    String logUUID = UUID.randomUUID().toString();
 
-    // -- Pre-execution:get child-resource --
-    AuditResourceDetector.AuditResourceInfo resourceInfo =
-        auditResourceDetector.detectResourceBeforeExecution(joinPoint, accessControl, eventScope);
-    ResourceType resourceType = resourceInfo.resourceType();
-    String resourceId = resourceInfo.resourceId();
-    String sourceId = resourceInfo.sourceId();
-    ResourceType entityType = resourceInfo.entityType();
-    String entityId = resourceInfo.entityId();
-    String entityName = resourceInfo.entityName();
-    JsonNode entitySnapshot = resourceInfo.entitySnapshot();
+    ResourceType resourceType = null;
+    String resourceId = null;
+    String sourceId = null;
+    ResourceType entityType = null;
+    String entityId = null;
+    String entityName = null;
+    JsonNode entitySnapshot = null;
+    JsonNode inputNode = null;
+    boolean status = true;
 
-    // Capture the input DTO for create/update/status_change
-    JsonNode inputNode = getInputNode(joinPoint, eventScope);
+    try {
+      // -- Pre-execution:get child-resource --
+      AuditResourceDetector.AuditResourceInfo resourceInfo =
+          auditResourceDetector.detectResourceBeforeExecution(joinPoint, accessControl, eventScope);
+      resourceType = resourceInfo.resourceType();
+      resourceId = resourceInfo.resourceId();
+      sourceId = resourceInfo.sourceId();
+      entityType = resourceInfo.entityType();
+      entityId = resourceInfo.entityId();
+      entityName = resourceInfo.entityName();
+      entitySnapshot = resourceInfo.entitySnapshot();
+
+      // Capture the input DTO for create/update/status_change
+      inputNode = getInputNode(joinPoint, eventScope);
+    } catch (Exception e) {
+      status = false;
+
+      accessControlAuditLogger.prepareLogFailure();
+
+      // Still log the audit event, then continue
+      log.warn("[AUDIT] Audit logging failed (non-blocking): {}", e.getMessage(), e);
+      // TODO AUDIT: Do we only want to log this to log var or do we want to call the correspondent
+      // LogService?
+    }
 
     // Execute the business operation
     Object result;
@@ -104,19 +140,20 @@ public class AccessControlAuditLogAspect {
       throw ex;
     }
 
-    accessControlAuditLogger.auditEvent(
-        eventScope,
-        eventStatus,
-        resourceType,
-        resourceId,
-        sourceId,
-        entityType,
-        entityId,
-        entityName,
-        entitySnapshot,
-        inputNode,
-        result,
-        logUUID);
+    if (status)
+      accessControlAuditLogger.auditEvent(
+          eventScope,
+          eventStatus,
+          resourceType,
+          resourceId,
+          sourceId,
+          entityType,
+          entityId,
+          entityName,
+          entitySnapshot,
+          inputNode,
+          result,
+          logUUID);
 
     return result;
   }
