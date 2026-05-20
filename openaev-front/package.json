@@ -150,7 +150,7 @@
     "vitest": "4.1.6"
   },
   "resolutions": {
-    "@types/react": "19.2.15",
+    "@types/react": "19.2.14",
     "form-data": "4.0.5",
     "html-to-image": "patch:html-to-image@1.11.13#./patches/html-to-image.patch",
     "react-apexcharts": "patch:react-apexcharts@1.7.0#./patches/react-apexcharts.patch"
