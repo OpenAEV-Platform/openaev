@@ -34,7 +34,6 @@ import io.openaev.injector_contract.fields.*;
 import io.openaev.injector_contract.fields.ContractElement;
 import io.openaev.injector_contract.fields.ContractSelect;
 import io.openaev.injector_contract.fields.ContractTargetedAsset;
-import io.openaev.integration.Manager;
 import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
 import io.openaev.integration.impl.injectors.manual.ManualInjectorIntegrationFactory;
 import io.openaev.rest.domain.enums.PresetDomain;
@@ -61,8 +60,7 @@ public class InjectorContractFixture {
       return injectorContract.get();
     }
     try {
-      Manager manager = new Manager(List.of(emailInjectorIntegrationFactory));
-      manager.monitorIntegrations();
+      emailInjectorIntegrationFactory.registerConnectorForTenant();
       return injectorContractRepository.findById(EMAIL_DEFAULT).orElseThrow();
     } catch (Exception e) {
       throw new RuntimeException(e);
@@ -75,8 +73,7 @@ public class InjectorContractFixture {
       return injectorContract.get();
     }
     try {
-      Manager manager = new Manager(List.of(emailInjectorIntegrationFactory));
-      manager.monitorIntegrations();
+      emailInjectorIntegrationFactory.registerConnectorForTenant();
       return injectorContractRepository.findById(EMAIL_GLOBAL).orElseThrow();
     } catch (Exception e) {
       throw new RuntimeException(e);
@@ -405,8 +402,7 @@ public class InjectorContractFixture {
       return injectorContract.get();
     }
     try {
-      Manager manager = new Manager(List.of(manualInjectorIntegrationFactory));
-      manager.monitorIntegrations();
+      manualInjectorIntegrationFactory.registerConnectorForTenant();
       return injectorContractRepository.findById(MANUAL_DEFAULT).orElseThrow();
     } catch (Exception e) {
       throw new RuntimeException(e);

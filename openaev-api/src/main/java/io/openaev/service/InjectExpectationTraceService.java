@@ -2,6 +2,7 @@ package io.openaev.service;
 
 import static io.openaev.service.InjectExpectationService.COLLECTOR;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.InjectExpectation;
 import io.openaev.database.model.InjectExpectationTrace;
@@ -61,7 +62,8 @@ public class InjectExpectationTraceService {
     // Start by getting the collector. We can take the first one since they are all the same
     Collector collector =
         collectorRepository
-            .findById(injectExpectationTraces.getFirst().getSourceId())
+            .findByIdAndTenantId(
+                injectExpectationTraces.getFirst().getSourceId(), TenantContext.getCurrentTenant())
             .orElseThrow(() -> new ElementNotFoundException("Collector not found"));
     Map<SimpleRawExpectationTrace, InjectExpectationTrace> traces = new HashMap<>();
     injectExpectationTraces.forEach(
