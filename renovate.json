@@ -104,7 +104,7 @@
       "description": "@types/react 19.2.15 is quarantined on npm. Skip it.",
       "matchDatasources": ["npm"],
       "matchPackageNames": ["@types/react"],
-      "allowedVersions": "!=19.2.15",
+      "allowedVersions": "!/^19\\.2\\.15$/",
       "enabled": true
     },
     {
