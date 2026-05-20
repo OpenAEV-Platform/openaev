@@ -87,7 +87,6 @@ class ExecutionTraceRepositoryHelperTest extends IntegrationTest {
     helper.updateInjectStatus(injectStatus.getId(), "SUCCESS", endDate);
 
     // Assert
-    entityManager.flush();
     entityManager.clear();
 
     Optional<InjectStatus> updated = injectStatusRepository.findById(injectStatus.getId());
@@ -107,7 +106,6 @@ class ExecutionTraceRepositoryHelperTest extends IntegrationTest {
     helper.updateInjectUpdateDate(inject.getId(), newTimestamp);
 
     // Assert
-    entityManager.flush();
     entityManager.clear();
 
     Optional<Inject> updated = injectRepository.findById(inject.getId());
