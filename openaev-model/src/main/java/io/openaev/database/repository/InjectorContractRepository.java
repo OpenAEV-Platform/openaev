@@ -184,13 +184,15 @@ public interface InjectorContractRepository
       value =
           """
           INSERT INTO injectors_injector_contracts (injector_id, injector_contract_id, tenant_id)
-          SELECT i.injector_id, :contractId, i.tenant_id
+          SELECT i.injector_id, :contractId, ic_ref.tenant_id
           FROM injectors i
+          JOIN injectors_contracts ic_ref ON ic_ref.injector_contract_id = :contractId AND ic_ref.tenant_id = i.tenant_id
           WHERE i.injector_id IN (:injectorIds)
           AND NOT EXISTS (
             SELECT 1 FROM injectors_injector_contracts ic
             WHERE ic.injector_id = i.injector_id
             AND ic.injector_contract_id = :contractId
+            AND ic.tenant_id = i.tenant_id
           )
         """,
       nativeQuery = true)

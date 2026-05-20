@@ -29,7 +29,6 @@ import io.openaev.database.model.PayloadArgument;
 import io.openaev.database.model.PayloadPrerequisite;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.PayloadRepository;
-import io.openaev.integration.Manager;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
 import io.openaev.jsonapi.JsonApiDocument;
 import io.openaev.jsonapi.Relationship;
@@ -69,7 +68,7 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
 
   @BeforeEach
   void beforeEach() throws Exception {
-    new Manager(List.of(openaevInjectorIntegrationFactory)).monitorIntegrations();
+    openaevInjectorIntegrationFactory.registerConnectorForTenant();
     domainComposer.reset();
     injectorContractComposer.reset();
   }

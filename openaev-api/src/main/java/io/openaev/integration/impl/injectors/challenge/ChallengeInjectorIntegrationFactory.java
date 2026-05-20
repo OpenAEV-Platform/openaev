@@ -6,11 +6,13 @@ import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.database.repository.ChallengeRepository;
 import io.openaev.executors.InjectorContext;
+import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.injectors.challenge.ChallengeContract;
 import io.openaev.injectors.email.service.EmailService;
+import io.openaev.integration.BuiltinIntegrationFactory;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
-import io.openaev.integration.IntegrationFactory;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
@@ -20,7 +22,7 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 
 @Service
-public class ChallengeInjectorIntegrationFactory extends IntegrationFactory {
+public class ChallengeInjectorIntegrationFactory extends BuiltinIntegrationFactory {
 
   private final ChallengeContract challengeContract;
   private final InjectorContext injectorContext;
@@ -96,5 +98,23 @@ public class ChallengeInjectorIntegrationFactory extends IntegrationFactory {
         injectorService,
         injectExpectationService,
         challengeRepository);
+  }
+
+  @Override
+  public void registerConnectorForTenant() throws Exception {
+    try {
+      injectorService.injector(ChallengeInjectorIntegration.CHALLENGE_INJECTOR_ID);
+    } catch (ElementNotFoundException e) {
+      injectorService.registerBuiltinInjector(
+          ChallengeInjectorIntegration.CHALLENGE_INJECTOR_ID,
+          ChallengeInjectorIntegration.CHALLENGE_INJECTOR_NAME,
+          challengeContract,
+          false,
+          "capture-the-flag",
+          null,
+          null,
+          false,
+          List.of(ExternalServiceDependency.SMTP, ExternalServiceDependency.IMAP));
+    }
   }
 }

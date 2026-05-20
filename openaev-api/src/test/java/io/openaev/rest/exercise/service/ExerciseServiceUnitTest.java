@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.ee.EnterpriseEditionService;
@@ -40,6 +41,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -368,18 +370,24 @@ class ExerciseServiceUnitTest {
 
     @Test
     void shouldReturnExerciseWhenFound() {
-      when(exerciseRepository.findById("id")).thenReturn(Optional.of(exercise));
+      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
+        tc.when(TenantContext::getCurrentTenant).thenReturn(null);
+        when(exerciseRepository.findById("id")).thenReturn(Optional.of(exercise));
 
-      Exercise result = mockedExerciseService.findById("id");
+        Exercise result = mockedExerciseService.findById("id");
 
-      assertEquals(exercise, result);
+        assertEquals(exercise, result);
+      }
     }
 
     @Test
     void shouldThrowWhenNotFound() {
-      when(exerciseRepository.findById("id")).thenReturn(Optional.empty());
+      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
+        tc.when(TenantContext::getCurrentTenant).thenReturn(null);
+        when(exerciseRepository.findById("id")).thenReturn(Optional.empty());
 
-      assertThrows(ElementNotFoundException.class, () -> mockedExerciseService.findById("id"));
+        assertThrows(ElementNotFoundException.class, () -> mockedExerciseService.findById("id"));
+      }
     }
   }
 

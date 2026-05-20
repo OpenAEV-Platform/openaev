@@ -49,6 +49,8 @@ public interface InjectRepository
   @NotNull
   Optional<Inject> findWithStatusById(@NotNull String id);
 
+  Optional<Inject> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
+
   // -- SIMULATION --
 
   List<Inject> findByExerciseId(@NotNull String exerciseId);

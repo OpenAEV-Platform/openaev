@@ -248,6 +248,8 @@ class TenantServiceTest extends IntegrationTest {
     // -- ARRANGE --
     String userId = testUserHolder.get().getId();
     tenantService.create(getTenant("Tenant Alpha"));
+    entityManager.flush();
+    entityManager.clear();
     tenantService.create(getTenant("Tenant Beta"));
     // Tenant Gamma is NOT created by this user
     tenantComposer.forTenant(getTenant("Tenant Gamma")).persist();
