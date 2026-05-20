@@ -10,7 +10,7 @@ import {
   Tooltip,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type CSSProperties, useContext, useMemo, useState } from 'react';
+import { type CSSProperties, useMemo, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import type { DomainHelper } from '../../../actions/domains/domain-helper';
@@ -36,7 +36,7 @@ import {
   type ThreatArsenalAction,
 } from '../../../utils/api-types';
 import useEntityToggle from '../../../utils/hooks/useEntityToggle';
-import { AbilityContext, Can } from '../../../utils/permissions/permissionsContext';
+import { Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import IconBar from '../common/domains/IconBar';
 import useDomainIconFilter from '../common/domains/useDomainIconFilter';
@@ -73,9 +73,6 @@ const ThreatArsenal = () => {
   const { t, tPick, nsdt } = useFormatter();
   const theme = useTheme();
   const { classes } = useStyles();
-  const ability = useContext(AbilityContext);
-
-  const canRunAnAction = ability.can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT);
 
   const [selectedThreatArsenalAction, setSelectedThreatArsenalAction] = useState<ThreatArsenalAction | null>(null);
   const [isRunTestDrawerOpened, setRunTestDrawerOpened] = useState<boolean>(false);
