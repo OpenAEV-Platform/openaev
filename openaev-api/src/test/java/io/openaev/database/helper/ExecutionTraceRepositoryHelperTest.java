@@ -51,12 +51,12 @@ class ExecutionTraceRepositoryHelperTest extends IntegrationTest {
 
     ExecutionTrace trace = createDefaultExecutionTrace(List.of("asset-1", "asset-2"));
     trace.setInjectStatus(injectStatus);
+    entityManager.flush();
 
     // Act
     String id = helper.saveExecutionTrace(trace);
 
     // Assert
-    entityManager.flush();
     entityManager.clear();
 
     Optional<ExecutionTrace> persisted = executionTraceRepository.findById(id);
@@ -82,6 +82,7 @@ class ExecutionTraceRepositoryHelperTest extends IntegrationTest {
 
     InjectStatus injectStatus = inject.getStatus().orElseThrow();
     Instant endDate = Instant.now();
+    entityManager.flush();
 
     // Act
     helper.updateInjectStatus(injectStatus.getId(), "SUCCESS", endDate);
@@ -101,6 +102,7 @@ class ExecutionTraceRepositoryHelperTest extends IntegrationTest {
     // Arrange
     Inject inject = injectComposer.forInject(InjectFixture.getDefaultInject()).persist().get();
     Instant newTimestamp = Instant.now();
+    entityManager.flush();
 
     // Act
     helper.updateInjectUpdateDate(inject.getId(), newTimestamp);
