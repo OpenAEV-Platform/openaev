@@ -100,23 +100,18 @@ public enum Capability {
       EnumSet.of(CapabilityScope.TENANT),
       pair(ResourceType.ASSET, Action.READ),
       pair(ResourceType.ASSET_GROUP, Action.READ),
-      pair(ResourceType.JOB, Action.READ),
       pair(ResourceType.ASSET, Action.SEARCH),
-      pair(ResourceType.ASSET_GROUP, Action.SEARCH),
-      pair(ResourceType.JOB, Action.SEARCH)),
+      pair(ResourceType.ASSET_GROUP, Action.SEARCH)),
   MANAGE_ASSETS(
       ACCESS_ASSETS,
       pair(ResourceType.ASSET, Action.WRITE),
       pair(ResourceType.ASSET_GROUP, Action.WRITE),
-      pair(ResourceType.JOB, Action.WRITE),
       pair(ResourceType.ASSET, Action.CREATE),
-      pair(ResourceType.ASSET_GROUP, Action.CREATE),
-      pair(ResourceType.JOB, Action.CREATE)),
+      pair(ResourceType.ASSET_GROUP, Action.CREATE)),
   DELETE_ASSETS(
       MANAGE_ASSETS,
       pair(ResourceType.ASSET, Action.DELETE),
-      pair(ResourceType.ASSET_GROUP, Action.DELETE),
-      pair(ResourceType.JOB, Action.DELETE)),
+      pair(ResourceType.ASSET_GROUP, Action.DELETE)),
 
   // Payloads
   ACCESS_PAYLOADS(
@@ -370,7 +365,18 @@ public enum Capability {
       true,
       true,
       EnumSet.of(CapabilityScope.TENANT),
-      pair(ResourceType.STIX_BUNDLE, Action.PROCESS));
+      pair(ResourceType.STIX_BUNDLE, Action.PROCESS)),
+
+  AGENT_RUNTIME_ACCESS(
+      null,
+      CapabilityGroup.SERVICE,
+      true,
+      true,
+      EnumSet.of(CapabilityScope.TENANT),
+      pair(ResourceType.JOB, Action.READ),
+      pair(ResourceType.JOB, Action.WRITE),
+      pair(ResourceType.AGENT, Action.CREATE)
+      );
 
   private record ResourceTypeActionPair(ResourceType resource, Action action) {}
 
