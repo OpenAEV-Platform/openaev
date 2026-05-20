@@ -87,6 +87,7 @@ public class UserQueryHelper {
                             i ->
                                 new UserOutput.UserTenantOutput(
                                     tenantIds[i], i < tenantNames.length ? tenantNames[i] : null))
+                        .distinct()
                         .toList();
               }
               return new UserOutput(

@@ -14,7 +14,6 @@ import io.openaev.security.TokenAuthenticationFilter;
 import io.openaev.service.UserMappingService;
 import io.openaev.service.user_events.UserEventService;
 import jakarta.annotation.Resource;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -256,9 +255,8 @@ public class AppSecurityConfig {
   private RequestMatcher bearerWithoutCookiesMatcher() {
     return request -> {
       String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
-      Cookie[] cookies = request.getCookies();
       boolean hasBearer = authorization != null && authorization.startsWith("Bearer ");
-      boolean hasCookies = cookies != null && cookies.length > 0;
+      boolean hasCookies = request.getCookies() != null && request.getCookies().length > 0;
       return hasBearer && !hasCookies;
     };
   }

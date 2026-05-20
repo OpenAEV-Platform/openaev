@@ -9,7 +9,6 @@ import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
-import io.openaev.integration.Manager;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
 import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.utils.constants.Constants;
@@ -111,7 +110,7 @@ class V1_DataImporterTest extends IntegrationTest {
   @Test
   @Transactional
   void testScenario_with_attackpattern() throws Exception {
-    new Manager(List.of(openaevInjectorIntegrationFactory)).monitorIntegrations();
+    openaevInjectorIntegrationFactory.registerConnectorForTenant();
     MockitoAnnotations.openMocks(this);
     ObjectMapper mapper = new ObjectMapper();
     String jsonContent =
@@ -146,7 +145,7 @@ class V1_DataImporterTest extends IntegrationTest {
     payloadRepository.deleteAll();
     entityManager.flush();
     entityManager.clear();
-    new Manager(List.of(openaevInjectorIntegrationFactory)).monitorIntegrations();
+    openaevInjectorIntegrationFactory.registerConnectorForTenant();
 
     this.importer.importData(
         this.importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);

@@ -67,7 +67,7 @@ runs:
     - name: Set up Node.js 22.11
       uses: actions/setup-node@v6
       with:
-        node-version: "22.11.0"
+        node-version: "22.22.3"
     - name: Install corepack
       run: npm install -g corepack
       shell: bash
@@ -182,11 +182,6 @@ runs:
 
         echo "✅ All services ready"
 
-    - name: Bootstrap PostgreSQL roles for RLS
-      shell: bash
-      run: |
-        docker exec pgsql psql -U openaev -d openaev -c "CREATE ROLE openaev_app NOLOGIN NOSUPERUSER;"
-        echo "✅ openaev_app role created"
 
     - name: Start application
       run: java -jar openaev-api/target/openaev-api.jar &

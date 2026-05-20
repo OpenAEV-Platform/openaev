@@ -2,12 +2,22 @@ package io.openaev.utils;
 
 import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.TenantContext;
+import io.openaev.database.model.Capability;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.model.User;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.multitenancy.DependenciesManagerException;
 import io.openaev.service.tenants.TenantService;
+import io.openaev.utils.fixtures.TenantGroupFixture;
+import io.openaev.utils.fixtures.TenantRoleFixture;
+import io.openaev.utils.fixtures.composers.TenantGroupComposer;
+import io.openaev.utils.fixtures.composers.TenantRoleComposer;
+import io.openaev.utils.fixtures.tenants.TenantComposer;
+import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.TestUserHolder;
 import jakarta.persistence.EntityManager;
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.hibernate.Session;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,6 +47,10 @@ public class TenantIsolationTestHelper {
   @Autowired private TenantRepository tenantRepository;
   @Autowired private TenantMembershipCacheManager tenantMembershipCacheManager;
   @Autowired private TestUserHolder testUserHolder;
+  @Autowired private TenantRoleComposer tenantRoleComposer;
+  @Autowired private TenantGroupComposer tenantGroupComposer;
+  @Autowired private EntityManager entityManager;
+  @Autowired private TenantComposer tenantComposer;
 
   /**
    * Creates a tenant and attaches the current mock user to it.
@@ -57,6 +71,39 @@ public class TenantIsolationTestHelper {
   }
 
   /**
+   * Creates a tenant, attaches the current mock user, and grants them specific capabilities.
+   *
+   * <p>This sets up a full Role → Group → User chain in the new tenant so that the {@code
+   * AccessControlAspect} finds real capabilities without requiring {@code isAdmin = true}.
+   *
+   * @param name the tenant name
+   * @param capabilities the capabilities to grant to the current user in this tenant
+   * @return the persisted {@link Tenant}
+   */
+  @Transactional
+  public Tenant createTenantWithCapabilities(String name, Set<Capability> capabilities)
+      throws DependenciesManagerException {
+    Tenant tenant = createTenantWithCurrentUser(name);
+    User user = testUserHolder.get();
+
+    // Create a role with the requested capabilities using fixture + composer
+    TenantRoleComposer.Composer roleComposer =
+        tenantRoleComposer.forRole(TenantRoleFixture.getRole(capabilities));
+
+    // Create a group in the new tenant, assign the role and the user using fixture + composer
+    var group = TenantGroupFixture.getGroup();
+    group.setUsers(List.of(user));
+    tenantGroupComposer.forGroup(group).withRole(roleComposer).persist();
+
+    // Flush to DB and clear persistence context so that subsequent user loads
+    // (e.g., userService.currentUser()) see the new group/role/capabilities
+    entityManager.flush();
+    entityManager.clear();
+
+    return tenant;
+  }
+
+  /**
    * Creates a tenant via the service layer.
    *
    * <p>Note: uses service layer directly because {@code POST /api/tenants} requires Enterprise
@@ -66,28 +113,13 @@ public class TenantIsolationTestHelper {
    * @return the persisted {@link Tenant}
    */
   public Tenant createTenant(String name) throws DependenciesManagerException {
-    Tenant tenant = new Tenant();
-    tenant.setName(name + "-" + UUID.randomUUID().toString().substring(0, 8));
+    Tenant tenant =
+        TenantFixture.getTenant(name + "-" + UUID.randomUUID().toString().substring(0, 8));
     return tenantService.create(tenant);
   }
 
   /**
-   * Adds the current mock user to the given tenant via the repository.
-   *
-   * @param tenant the tenant to add the user to
-   */
-  @Transactional
-  public void addCurrentUserToTenant(Tenant tenant) {
-    String userId = testUserHolder.get().getId();
-    tenantRepository.addUserToTenant(userId, tenant.getId());
-    tenantMembershipCacheManager.evict(userId, tenant.getId());
-  }
-
-  /**
-   * Switches the current tenant context and configures the DB connection for RLS enforcement.
-   *
-   * <p>Applies {@code SET ROLE openaev_app} so that the connection uses a non-superuser role
-   * subject to RLS policies.
+   * Switches the current tenant context and enables the Hibernate tenant filter.
    *
    * @param tenantId the tenant ID to switch to
    * @param entityManager the current {@link EntityManager}
@@ -97,21 +129,6 @@ public class TenantIsolationTestHelper {
     entityManager.clear();
     TenantContext.setCurrentTenant(tenantId);
     Session session = entityManager.unwrap(Session.class);
-    session.doWork(
-        connection -> {
-          try (var stmt = connection.createStatement()) {
-            stmt.execute("SET ROLE openaev_app");
-          }
-          try (var stmt =
-              connection.prepareStatement("SELECT set_config('app.current_tenant', ?, false)")) {
-            stmt.setString(1, tenantId);
-            stmt.execute();
-          }
-        });
-  }
-
-  /** Clears the current tenant context. */
-  public void clearTenantContext() {
-    TenantContext.setCurrentTenant(null);
+    session.enableFilter("tenantFilter").setParameter("tenantId", tenantId);
   }
 }

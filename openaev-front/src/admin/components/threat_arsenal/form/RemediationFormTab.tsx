@@ -4,7 +4,10 @@ import { Controller, useFormContext } from 'react-hook-form';
 
 import { postDetectionRemediationAIRulesByPayload } from '../../../../actions/detection-remediation/detectionremediation-action';
 import CKEditor from '../../../../components/CKEditor';
+import { callDetectionRemediationAgent } from '../../../../utils/ai/agentApi';
 import { type Collector, type PayloadInput } from '../../../../utils/api-types';
+import { MESSAGING$ } from '../../../../utils/Environment';
+import useAI from '../../../../utils/hooks/useAI';
 import { isNotEmptyField } from '../../../../utils/utils';
 import {
   type DetectionRemediationForm,
@@ -22,79 +25,125 @@ interface RemediationFormTabProps { activeTab: Collector }
 
 const RemediationFormTab = ({ activeTab }: RemediationFormTabProps) => {
   const { control, watch, setValue, getValues, formState: { isValid, defaultValues } } = useFormContext();
+  const { xtmOneConfigured } = useAI();
 
   const { snapshot, setSnapshot } = useSnapshotRemediation();
   const editorRef = useRef<ClassicEditor | null>(null);
   const fieldName = 'remediations.' + activeTab.collector_type;
 
-  const onClickUseAriane = async () => {
+  const setLoadingSnapshot = (collectorType: string, isLoading: boolean) => {
+    setSnapshot((prev) => {
+      const map = new Map(prev || []);
+      map.set(collectorType, {
+        ...map.get(collectorType) || {},
+        isLoading,
+        AIRules: getValues(fieldName).content,
+      } as SnapshotEditionRemediationType);
+      return map;
+    });
+  };
+
+  const applyRulesToEditor = (rules: string) => {
+    const editor = editorRef.current;
+    const current = getValues(fieldName);
+    const updated = {
+      ...current,
+      author_rule: 'AI',
+    };
+    setValue(fieldName, updated);
+
+    if (!editor) {
+      // Editor is not mounted yet (e.g. user triggered AI before CKEditor finished initialising):
+      // clear the loading flag so the UI doesn't stay stuck in `isLoading: true`.
+      setLoadingSnapshot(activeTab.collector_type, false);
+      return;
+    }
+
+    typeChar(
+      editor,
+      rules,
+      (value: string) => {
+        const current = getValues(fieldName);
+        const updated = {
+          ...current,
+          content: value,
+          author_rule: 'AI',
+        };
+        setValue(fieldName, updated);
+      },
+    )
+      .catch(() => undefined)
+      .finally(() => {
+        setTimeout(() => setLoadingSnapshot(activeTab.collector_type, false), 10);
+      });
+  };
+
+  const onClickUseArianeViaXtmOne = async (agentSlug?: string) => {
     const payloadInput: Partial<PayloadInput> = payloadFormToPayloadInputForAI(getValues());
 
     setSnapshot((prev) => {
-      let prevEdited = prev;
-      if (!prevEdited) prevEdited = new Map<string, SnapshotEditionRemediationType>();
+      const next = new Map(prev ?? []);
+      const snapshot: SnapshotEditionRemediationType = {
+        ...next.get(activeTab.collector_type) ?? {},
+        trackedFields: structuredClone(getValues(trackedFields)),
+        isLoading: true,
+      };
+      next.set(activeTab.collector_type, snapshot as SnapshotEditionRemediationType);
+      return next;
+    });
 
+    if (!agentSlug) {
+      MESSAGING$.notifyError('AI service is unavailable. No agent selected for detection generation.');
+      setLoadingSnapshot(activeTab.collector_type, false);
+      return;
+    }
+
+    try {
+      // Build prompt with payload context for the remediation agent chain
+      const prompt = `Generate ${activeTab.collector_type} detection rules for the following payload:\n\n`
+        + `${JSON.stringify(payloadInput, null, 2)}`;
+
+      const result = await callDetectionRemediationAgent(
+        agentSlug,
+        prompt,
+        activeTab.collector_type,
+      );
+      if (result.status === 'success' && result.content) {
+        applyRulesToEditor(result.content);
+      } else {
+        setLoadingSnapshot(activeTab.collector_type, false);
+      }
+    } catch {
+      MESSAGING$.notifyError('AI service is unavailable.');
+      setLoadingSnapshot(activeTab.collector_type, false);
+    }
+  };
+
+  const onClickUseArianeLegacy = async () => {
+    const payloadInput: Partial<PayloadInput> = payloadFormToPayloadInputForAI(getValues());
+
+    setSnapshot((prev) => {
+      const next = new Map(prev ?? []);
       const currentValue = structuredClone(getValues(trackedFields));
       const snapshot: SnapshotEditionRemediationType = {
-        ...prevEdited.get(activeTab.collector_type) ?? {},
+        ...next.get(activeTab.collector_type) ?? {},
         trackedFields: currentValue,
         isLoading: true,
       };
-      prevEdited.set(activeTab.collector_type, snapshot as SnapshotEditionRemediationType);
-      return prevEdited;
+      next.set(activeTab.collector_type, snapshot as SnapshotEditionRemediationType);
+      return next;
     });
 
     return postDetectionRemediationAIRulesByPayload(activeTab.collector_type, payloadInput).then((value) => {
-      const editor = editorRef.current;
-      const current = getValues(fieldName);
-      const updated = {
-        ...current,
-        author_rule: 'AI',
-      };
-      setValue(fieldName, updated);
-
-      if (editor) {
-        typeChar(
-          editor,
-          value.data.rules,
-          (value: string) => {
-            const current = getValues(fieldName);
-            const updated = {
-              ...current,
-              content: value,
-              author_rule: 'AI',
-            };
-            setValue(fieldName, updated);
-          },
-        ).then(() => {
-          setTimeout(() => {
-            setSnapshot((prev) => {
-              const map = new Map(prev || []);
-
-              map.set(activeTab.collector_type, {
-                ...map.get(activeTab.collector_type) || {},
-                isLoading: false,
-                AIRules: getValues(fieldName).content,
-              } as SnapshotEditionRemediationType);
-
-              return map;
-            });
-          }, 10);
-        });
-      }
+      applyRulesToEditor(value.data.rules);
     }).finally(() => {
-      setSnapshot((prev) => {
-        const map = new Map(prev || []);
-
-        map.set(activeTab.collector_type, {
-          ...map.get(activeTab.collector_type) || {},
-          isLoading: false,
-          AIRules: getValues(fieldName).content,
-        } as SnapshotEditionRemediationType);
-        return map;
-      });
+      setLoadingSnapshot(activeTab.collector_type, false);
     });
   };
+
+  const onClickUseAriane = xtmOneConfigured
+    ? (agentSlug?: string) => onClickUseArianeViaXtmOne(agentSlug)
+    : () => onClickUseArianeLegacy();
 
   function initSnap() {
     const formValues: DetectionRemediationForm = getValues(fieldName);

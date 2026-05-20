@@ -10,6 +10,7 @@ const useBodyItemsStyles: () => {
   return ({
     bodyItems: {
       display: 'flex',
+      alignItems: 'center',
       flexWrap: 'nowrap',
       maxWidth: '100%',
     },

@@ -1,6 +1,8 @@
 package io.openaev.rest.xtm_auth;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -22,11 +24,14 @@ public record JwkOutput(
   /** Converts a JJWT {@code Jwk} (which implements {@code Map<String, Object>}) to this DTO. */
   @SuppressWarnings("unchecked")
   public static JwkOutput from(Map<String, Object> jwkMap) {
+    Object ops = jwkMap.get("key_ops");
+    List<String> keyOpsList =
+        ops instanceof Collection<?> ? new ArrayList<>((Collection<String>) ops) : null;
     return new JwkOutput(
         (String) jwkMap.get("kty"),
         (String) jwkMap.get("crv"),
         (String) jwkMap.get("x"),
         (String) jwkMap.get("kid"),
-        (List<String>) jwkMap.get("key_ops"));
+        keyOpsList);
   }
 }

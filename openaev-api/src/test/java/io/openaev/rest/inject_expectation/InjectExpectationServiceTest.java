@@ -1,8 +1,6 @@
 package io.openaev.rest.inject_expectation;
 
 import static io.openaev.expectation.ExpectationPropertiesConfig.DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME;
-import static io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegration.OPENAEV_INJECTOR_ID;
-import static io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegration.OPENAEV_INJECTOR_NAME;
 import static io.openaev.utils.fixtures.ExpectationFixture.createDetectionExpectations;
 import static io.openaev.utils.fixtures.ExpectationFixture.createPreventionExpectations;
 import static java.util.Collections.emptyList;
@@ -17,7 +15,6 @@ import io.openaev.model.Expectation;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
-import jakarta.persistence.EntityManager;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.*;
@@ -30,14 +27,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 class InjectExpectationServiceTest extends IntegrationTest {
 
   private static final String INJECTION_NAME = "AMSI Bypass - AMSI InitFailed";
-  private static final String INJECTOR_TYPE = "openaev_implant";
 
   // Saved entities for test setup
   @Autowired private InjectComposer injectComposer;
   @Autowired private InjectExpectationComposer injectExpectationComposer;
   @Autowired private AgentComposer agentComposer;
   @Autowired private EndpointComposer endpointComposer;
-  @Autowired private EntityManager entityManager;
+  @Autowired private InjectorFixture injectorFixture;
 
   @Autowired private InjectExpectationRepository injectExpectationRepository;
   @Autowired private InjectorContractRepository injectorContractRepository;
@@ -58,14 +54,13 @@ class InjectExpectationServiceTest extends IntegrationTest {
   void beforeAll() throws JsonProcessingException {
     InjectorContract injectorContract =
         InjectorContractFixture.createInjectorContract(Map.of("en", INJECTION_NAME));
-    savedInjector =
-        injectorRepository.save(
-            InjectorFixture.createInjector(
-                OPENAEV_INJECTOR_ID, OPENAEV_INJECTOR_NAME, INJECTOR_TYPE));
+
+    savedInjector = injectorFixture.getWellKnownOaevImplantInjector();
     injectorContract.addInjector(savedInjector);
 
     savedInjectorContract = injectorContractRepository.save(injectorContract);
     savedInjector.getContracts().add(savedInjectorContract);
+    savedInjector.setNewEntity(false);
     injectorRepository.save(savedInjector);
     savedAsset = assetRepository.save(AssetFixture.createDefaultAsset("asset name"));
     collectorComposer.forCollector(CollectorFixture.createDefaultCollector("FAKE")).persist();

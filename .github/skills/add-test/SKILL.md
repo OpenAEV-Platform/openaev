@@ -86,5 +86,11 @@ mvn test -pl openaev-api -Dtest="{Feature}ApiTest"
 mvn jacoco:check
 ```
 
+## Sub-Skills
+
+| Sub-Skill | Use when... |
+|---|---|
+| [TENANT_ISOLATION.md](TENANT_ISOLATION.md) | Adding tenant isolation tests (`@Nested TenantIsolation`) to verify cross-tenant data doesn't leak |
+
 
 

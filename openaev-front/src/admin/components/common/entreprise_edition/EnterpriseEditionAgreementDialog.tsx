@@ -4,13 +4,13 @@ This file is part of the OpenAEV Enterprise Edition ("EE") and is
 licensed under the OpenAEV Enterprise Edition License (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
-https://github.com/OpenAEV-Platform/openaev/blob/master/LICENSE
+https://github.com/OpenAEV-Platform/openaev/blob/main/LICENSE
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 */
 
-import { Alert, Button, Link, TextField } from '@mui/material';
+import { Alert, Button, TextField } from '@mui/material';
 import { useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -79,28 +79,28 @@ const EnterpriseEditionAgreementDialog = () => {
           <p>
             {t('To obtain a license, please {contact}', {
               contact: (
-                <Link
+                <a
                   href="https://filigran.io/contact/"
                   target="_blank"
                   style={{ textDecoration: 'none' }}
                   rel="noreferrer"
                 >
                   {t('reach out to the Filigran team')}
-                </Link>
+                </a>
               ),
             })}
           </p>
           <p>
             {t('You just need to try ? Get right now {url}.', {
               url: (
-                <Link
+                <a
                   href="https://filigran.io/enterprise-editions-trial/"
                   target="_blank"
                   style={{ textDecoration: 'none' }}
                   rel="noreferrer"
                 >
                   {t('your trial license online')}
-                </Link>
+                </a>
               ),
             })}
           </p>
@@ -119,7 +119,7 @@ const EnterpriseEditionAgreementDialog = () => {
           {t('By enabling the OpenAEV Enterprise Edition, you (and your organization) agrees')}
                     &nbsp;
           <a
-            href="https://github.com/OpenAEV-Platform/openaev/blob/master/LICENSE"
+            href="https://github.com/OpenAEV-Platform/openaev/blob/main/LICENSE"
             target="_blank"
             rel="noreferrer"
           >

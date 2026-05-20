@@ -138,6 +138,7 @@ export const getCurrentTenantId = (): string => {
  */
 const TENANT_EXEMPT_PREFIXES = [
   '/api/me',
+  '/api/ai',
   '/api/login',
   '/api/auth',
   '/api/reset',

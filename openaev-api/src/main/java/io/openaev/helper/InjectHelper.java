@@ -121,6 +121,7 @@ public class InjectHelper {
    * @return list of pending injects scheduled within the threshold
    */
   public List<Inject> getAllPendingInjectsWithThresholdMinutes(int thresholdMinutes) {
+
     return this.injectRepository.findAll(
         InjectSpecification.pendingInjectWithThresholdMinutes(thresholdMinutes));
   }
@@ -153,6 +154,7 @@ public class InjectHelper {
    */
   @Transactional
   public List<ExecutableInject> getInjectsToRun() {
+
     // Get injects
     List<Inject> injects = this.injectRepository.findAll(InjectSpecification.executable());
     Stream<ExecutableInject> executableInjects =

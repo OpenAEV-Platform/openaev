@@ -80,15 +80,6 @@ const Root = () => {
     );
   }
 
-  // When the user is authenticated but the URL has no tenant prefix
-  // (e.g. first visit at "/", or right after login), hard-redirect to
-  // the tenant-prefixed URL so BrowserRouter picks up the correct basename.
-  if (!extractTenantFromUrl()) {
-    const tenantId = currentUserTenant?.tenant_id ?? DEFAULT_TENANT_UUID;
-    window.location.href = buildTenantUrl(tenantId);
-    return <Loader />;
-  }
-
   // When the user is authenticated but has no tenant assigned,
   // show a blocking message asking them to contact their administrator.
   const hasNoTenant = userTenants !== undefined && userTenants.length === 0 && !me.user_admin;
@@ -103,6 +94,22 @@ const Root = () => {
         </ConnectedIntlProvider>
       </StyledEngineProvider>
     );
+  }
+
+  // When the user is authenticated but the URL has no tenant prefix
+  // (e.g. first visit at "/", or right after login), hard-redirect to
+  // the tenant-prefixed URL so BrowserRouter picks up the correct basename.
+  if (!extractTenantFromUrl()) {
+    // Wait for fetchUserTenants (useTenant) before deciding which tenant to use.
+    if (userTenants === undefined) {
+      return <Loader />;
+    }
+
+    const tenantId = currentUserTenant?.tenant_id
+      ?? userTenants[0]?.tenant_id
+      ?? DEFAULT_TENANT_UUID;
+    window.location.href = buildTenantUrl(tenantId);
+    return <Loader />;
   }
 
   return (

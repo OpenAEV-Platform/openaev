@@ -38,6 +38,19 @@ export interface Agent {
   listened?: boolean;
 }
 
+export interface AgentCallInput {
+  /** @minLength 1 */
+  agent_slug: string;
+  /** @minLength 1 */
+  content: string;
+}
+
+export interface AgentCallOutput {
+  content?: string;
+  error?: string;
+  status?: string;
+}
+
 export interface AgentExecutorOutput {
   /** Agent executor id */
   executor_id?: string;
@@ -1023,6 +1036,13 @@ export interface ChannelUpdateLogoInput {
   channel_logo_light?: string;
 }
 
+export interface ChatbotAgentOutput {
+  description?: string;
+  id?: string;
+  name?: string;
+  slug?: string;
+}
+
 export interface CheckExerciseRulesInput {
   /** List of tag that will be applied to the simulation */
   new_tags?: string[];
@@ -1851,6 +1871,14 @@ export interface DetectionRemediation {
 
 export interface DetectionRemediationAIOutput {
   rules?: string;
+}
+
+export interface DetectionRemediationCallInput {
+  agent_slug?: string;
+  /** @minLength 1 */
+  collector_type: string;
+  /** @minLength 1 */
+  content: string;
 }
 
 /** Health check response of the detection/remediation service. */

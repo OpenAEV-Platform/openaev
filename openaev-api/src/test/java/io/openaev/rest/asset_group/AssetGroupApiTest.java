@@ -14,29 +14,29 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
+import io.openaev.database.model.Tag;
 import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.rest.asset_group.form.AssetGroupInput;
 import io.openaev.rest.exercise.service.ExerciseService;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.ExerciseFixture;
+import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.fixtures.TagFixture;
 import io.openaev.utils.fixtures.composers.AssetGroupComposer;
 import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
-import jakarta.servlet.ServletException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Stream;
 import org.json.JSONArray;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -59,6 +59,7 @@ class AssetGroupApiTest extends IntegrationTest {
   @Autowired private EntityManager entityManager;
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private AssetGroupComposer assetGroupComposer;
+  @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
 
   @DisplayName(
       "Given valid AssetGroupInput, should create and get assetGroup without dynamic filter successfully")
@@ -252,22 +253,19 @@ class AssetGroupApiTest extends IntegrationTest {
       "Given valid AssetGroupInput for a nonexistent assetGroup, should return 404 Not Found")
   @Test
   @WithMockUser(isAdmin = true)
-  void given_validAssetGroupInputForNonexistentAssetGroup_should_returnNotFound() {
+  void given_validAssetGroupInputForNonexistentAssetGroup_should_returnNotFound() throws Exception {
     // --PREPARE--
-    AssetGroup input = createDefaultAssetGroup("Asset group");
+    AssetGroupInput input = createDefaultAssetGroupInput("Asset group updated");
     String nonexistentAssetGroupId = "nonexistent-id";
-    input.setName("Asset group updated");
 
-    // --EXECUTE--
-    assertThrows(
-        ServletException.class,
-        () ->
-            mvc.perform(
-                put(ASSET_GROUP_URI + "/" + nonexistentAssetGroupId)
-                    .content(asJsonString(input))
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON)
-                    .with(csrf())));
+    // --EXECUTE & ASSERT--
+    mvc.perform(
+            put(ASSET_GROUP_URI + "/" + nonexistentAssetGroupId)
+                .content(asJsonString(input))
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().isNotFound());
   }
 
   @DisplayName("Given existing assetGroup, should delete assetGroup successfully")
@@ -606,6 +604,89 @@ class AssetGroupApiTest extends IntegrationTest {
               List.of("win-host"),
               List.of("windowsX86", "windowsArm")),
           Arguments.of("endpoint_ips", "contains", List.of("10.0.1"), List.of("linuxX86")));
+    }
+  }
+
+  @Nested
+  @DisplayName("Tenant Isolation")
+  @WithMockUser
+  class TenantIsolation {
+
+    @Test
+    @DisplayName("AssetGroup created in tenant X should be readable from tenant X")
+    void given_assetGroupInTenantX_should_beReadableFromTenantX() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_ASSETS, Capability.ACCESS_ASSETS));
+
+      AssetGroupInput input = createDefaultAssetGroupInput("Same Tenant AssetGroup");
+
+      String createResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantX.getId() + "/asset_groups")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String assetGroupId = JsonPath.read(createResponse, "$.asset_group_id");
+
+      // -------- Act & Assert — read from same tenant should succeed --------
+      mvc.perform(
+              get("/api/tenants/" + tenantX.getId() + "/asset_groups/" + assetGroupId)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("AssetGroup search in tenant Y should NOT return asset groups from tenant X")
+    void given_assetGroupInTenantX_should_notAppearInTenantYSearch() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_ASSETS, Capability.ACCESS_ASSETS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_ASSETS));
+
+      AssetGroupInput input = createDefaultAssetGroupInput("CrossTenantSearchAssetGroup");
+
+      mvc.perform(
+              post("/api/tenants/" + tenantX.getId() + "/asset_groups")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      // Evict L1 cache
+      entityManager.flush();
+      entityManager.clear();
+
+      // -------- Act — search from tenant Y --------
+      SearchPaginationInput searchInput =
+          PaginationFixture.simpleTextSearch("CrossTenantSearchAssetGroup");
+
+      String searchResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantY.getId() + "/asset_groups/search")
+                      .content(asJsonString(searchInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -------- Assert --------
+      assertEquals(Integer.valueOf(0), JsonPath.read(searchResponse, "$.totalElements"));
     }
   }
 }

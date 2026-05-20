@@ -35,7 +35,7 @@ const InjectIcon: FunctionComponent<Props> = ({
 
   const iconSelector = (type: string, isPayload: boolean, variant: string, fontSize: string, done: boolean, disabled: boolean) => {
     const style = {
-      marginTop: variant === 'list' ? theme.spacing(1) : 0,
+      marginTop: variant === 'list' ? theme.spacing(0.5) : 0,
       padding: variant === 'timeline' ? 1 : 0,
       width: fontSize === 'small' || variant === 'inline' ? 20 : 24,
       height: fontSize === 'small' || variant === 'inline' ? 20 : 24,

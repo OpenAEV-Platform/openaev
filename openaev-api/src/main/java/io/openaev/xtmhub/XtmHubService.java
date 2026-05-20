@@ -1,6 +1,5 @@
 package io.openaev.xtmhub;
 
-import io.openaev.aop.BypassRls;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantXtmHubRegistration;
@@ -108,7 +107,6 @@ public class XtmHubService {
     return updateRegistrationStatus(registration.get(), checkResult);
   }
 
-  @BypassRls
   public void refreshConnectivityAllTenants() {
     PlatformSettings settings = platformSettingsService.findSettings();
 

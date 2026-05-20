@@ -45,16 +45,21 @@ public class AccessControlAspect {
   @Before("@annotation(accessControl)")
   public void methodRBACVerification(JoinPoint joinPoint, AccessControl accessControl)
       throws AuthenticationException {
-    if (accessControl.skipRBAC()) {
-      // If RBAC is disabled, skip the verification
-      return;
-    }
-
+    // Enterprise Edition gating runs BEFORE the skipRBAC early return so that endpoints which
+    // intentionally bypass RBAC (e.g. AI proxy endpoints scoped by configuration rather than per
+    // resource) can still declare `@AccessControl(skipRBAC = true, isEnterpriseEdition = true)`
+    // and have the aspect actually enforce the EE license check.
     if (accessControl.isEnterpriseEdition()) {
       if (enterpriseEditionService.isEnterpriseLicenseInactive(
           licenseCacheManager.getEnterpriseEditionInfo())) {
         throw new EnterpriseEditionException("Enterprise Edition license required");
       }
+    }
+
+    if (accessControl.skipRBAC()) {
+      // If RBAC is disabled, skip the per-resource permission verification (EE gate above still
+      // applies when requested).
+      return;
     }
 
     MethodSignature signature = (MethodSignature) joinPoint.getSignature();

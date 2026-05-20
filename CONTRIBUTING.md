@@ -31,7 +31,7 @@ Now that the platform has been released, our goal for future releases is two-fol
 
 ## Code of Conduct
 
-OpenAEV has adopted a Code of Conduct that we expect project participants to adhere to. Please read the [full text](https://github.com/OpenAEV-Platform/openaev/blob/master/CODE_OF_CONDUCT.md) so that you can understand which actions will and will not be tolerated.
+OpenAEV has adopted a Code of Conduct that we expect project participants to adhere to. Please read the [full text](https://github.com/OpenAEV-Platform/openaev/blob/main/CODE_OF_CONDUCT.md) so that you can understand which actions will and will not be tolerated.
 
 
 ## How can you contribute?

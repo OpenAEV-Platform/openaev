@@ -36,7 +36,7 @@ public class ReferenceResolver {
 
   /** Resolves ID into JPA proxy references after validating existence. */
   public <T> T resolve(String id, Class<T> entityClass) {
-    if (id == null) return null;
+    if (!StringUtils.hasText(id)) return null;
     return entityManager.getReference(entityClass, id);
   }
 }

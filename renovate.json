@@ -73,6 +73,20 @@
       "commitMessagePrefix": "[backend] chore(deps):"
     },
     {
+      "description": "apexcharts >= 5 uses a commercial license (not MIT). Block major updates.",
+      "matchDatasources": ["npm"],
+      "matchPackageNames": ["apexcharts"],
+      "allowedVersions": "<5",
+      "enabled": true
+    },
+    {
+      "description": "react-apexcharts >= 1.8.0 depends on apexcharts >= 5 (commercial license). Block updates.",
+      "matchDatasources": ["npm"],
+      "matchPackageNames": ["react-apexcharts"],
+      "allowedVersions": "<1.8.0",
+      "enabled": true
+    },
+    {
       "matchPackageNames": [
         "react-apexcharts"
       ],

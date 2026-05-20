@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.InjectSpecification;
@@ -66,24 +67,40 @@ public class AtomicTestingService {
 
   // -- CRUD --
 
-  public InjectResultOverviewOutput findById(String injectId) {
-    Optional<Inject> inject = injectRepository.findWithStatusById(injectId);
+  private Inject findInject(String injectId) {
+    String tenantId = TenantContext.getCurrentTenant();
+    return (tenantId != null)
+        ? injectRepository
+            .findByIdAndTenantId(injectId, tenantId)
+            .orElseThrow(ElementNotFoundException::new)
+        : injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
+  }
 
-    if (inject.isPresent()) {
+  public InjectResultOverviewOutput findById(String injectId) {
+    String tenantId = TenantContext.getCurrentTenant();
+    Optional<Inject> injectOpt =
+        (tenantId != null)
+            ? injectRepository.findByIdAndTenantId(injectId, tenantId)
+            : injectRepository.findWithStatusById(injectId);
+
+    if (injectOpt.isPresent()) {
+      Inject inject = injectOpt.get();
       List<AssetGroup> computedAssetGroup =
-          inject.get().getAssetGroups().stream()
-              .map(assetGroupService::computeDynamicAssets)
-              .toList();
-      inject.get().getAssetGroups().clear();
-      inject.get().getAssetGroups().addAll(computedAssetGroup);
+          inject.getAssetGroups().stream().map(assetGroupService::computeDynamicAssets).toList();
+      inject.getAssetGroups().clear();
+      inject.getAssetGroups().addAll(computedAssetGroup);
     }
-    return inject
+    return injectOpt
         .map(injectMapper::toInjectResultOverviewOutput)
         .orElseThrow(ElementNotFoundException::new);
   }
 
   public StatusPayloadOutput findPayloadOutputByInjectId(String injectId) {
-    Optional<Inject> inject = injectRepository.findById(injectId);
+    String tenantId = TenantContext.getCurrentTenant();
+    Optional<Inject> inject =
+        (tenantId != null)
+            ? injectRepository.findByIdAndTenantId(injectId, tenantId)
+            : injectRepository.findById(injectId);
     return payloadMapper.getStatusPayloadOutputFromInject(inject);
   }
 
@@ -91,7 +108,7 @@ public class AtomicTestingService {
   public InjectResultOverviewOutput createOrUpdate(AtomicTestingInput input, String injectId) {
     Inject injectToSave = new Inject();
     if (injectId != null) {
-      injectToSave = injectRepository.findById(injectId).orElseThrow();
+      injectToSave = findInject(injectId);
     }
 
     InjectorContract injectorContract =
@@ -207,7 +224,7 @@ public class AtomicTestingService {
   public InjectResultOverviewOutput updateAtomicTestingTags(
       String injectId, AtomicTestingUpdateTagsInput input) {
 
-    Inject inject = injectRepository.findById(injectId).orElseThrow();
+    Inject inject = findInject(injectId);
     inject.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
 
     Inject saved = injectRepository.save(inject);
@@ -215,22 +232,27 @@ public class AtomicTestingService {
   }
 
   public void deleteAtomicTesting(String injectId) {
+    // Verify the inject exists and belongs to the current tenant before deleting
+    findInject(injectId);
     injectService.delete(injectId);
   }
 
   // -- ACTIONS --
 
   public InjectResultOverviewOutput duplicate(String id) {
+    findInject(id);
     this.actionMetricCollector.addAtomicTestingCreatedCount();
     return injectService.duplicate(id);
   }
 
   public InjectResultOverviewOutput launch(String id) {
+    findInject(id);
     return injectService.launch(id);
   }
 
   @Transactional
   public InjectResultOverviewOutput relaunch(String id) {
+    findInject(id);
     // Relaunching an atomic testing is considered as creating a new one.
     // Therefore, any grants created on the current atomic testing will have to be updated with the
     // new ID

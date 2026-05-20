@@ -2,7 +2,6 @@ package io.openaev.utilstest;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import io.openaev.config.EngineConfig;
-import io.openaev.context.TenantContext;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -39,8 +38,6 @@ public class DatabaseSnapshotManager {
       if (snapshotCreated) return;
 
       try {
-        // Bypass RLS so that TenantAwareDataSourceConfig issues RESET ROLE on each connection
-        TenantContext.setRlsBypass();
 
         List<String> tables =
             jdbcTemplate.queryForList(
@@ -57,8 +54,6 @@ public class DatabaseSnapshotManager {
 
       } catch (Exception e) {
         log.error("Failed to create startup snapshot: {}", e.getMessage(), e);
-      } finally {
-        TenantContext.clearRlsBypass();
       }
     }
   }
@@ -78,11 +73,7 @@ public class DatabaseSnapshotManager {
 
       cleanElasticsearchIndices();
 
-      // Bypass RLS so that TenantAwareDataSourceConfig issues RESET ROLE on each connection,
-      // allowing cross-tenant deletes and inserts during restore.
-      TenantContext.setRlsBypass();
-
-      // Deactivate FK for now — session_replication_role requires superuser (RESET ROLE)
+      // Deactivate FK for now
       jdbcTemplate.execute("SET session_replication_role = 'replica';");
 
       // Empty tables
@@ -106,8 +97,6 @@ public class DatabaseSnapshotManager {
 
     } catch (Exception e) {
       throw new RuntimeException("Error restoring startup state", e);
-    } finally {
-      TenantContext.clearRlsBypass();
     }
   }
 
