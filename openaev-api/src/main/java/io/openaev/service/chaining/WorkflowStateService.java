@@ -231,8 +231,6 @@ public class WorkflowStateService {
     return valuesToPropagate;
   }
 
-
-
   /**
    * Parses structured output fields and adds their values to the state entries.
    *

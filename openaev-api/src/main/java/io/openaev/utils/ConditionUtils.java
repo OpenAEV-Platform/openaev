@@ -106,7 +106,6 @@ public class ConditionUtils {
     }
   }
 
-
   /**
    * Checks whether a value matches any leaf condition in the condition tree, ignoring AND/OR
    * logical grouping. This is used for propagation (deciding which values are relevant to an
