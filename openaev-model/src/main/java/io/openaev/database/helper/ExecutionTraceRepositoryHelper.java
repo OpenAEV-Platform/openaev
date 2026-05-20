@@ -5,6 +5,7 @@ import java.sql.PreparedStatement;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.UUID;
+import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -14,12 +15,6 @@ import org.springframework.stereotype.Repository;
  * <p>This helper provides optimized JDBC-based operations for performance-critical database
  * updates, bypassing JPA overhead when direct SQL execution is more efficient. It is particularly
  * useful for high-volume operations during inject execution tracking.
- *
- * <p><strong>Important:</strong> This class uses {@link JdbcTemplate} instead of raw {@code
- * DataSource.getConnection()} to ensure all SQL operations participate in the current Spring
- * {@code @Transactional} context. Using raw connections would open independent JDBC connections
- * outside the JPA transaction, causing deadlocks under concurrent access (e.g., multiple agent
- * callbacks in a multi-pod Kubernetes deployment).
  *
  * <p>Operations include:
  *
@@ -32,13 +27,10 @@ import org.springframework.stereotype.Repository;
  * @see ExecutionTrace
  */
 @Repository
+@RequiredArgsConstructor
 public class ExecutionTraceRepositoryHelper {
 
   private final JdbcTemplate jdbcTemplate;
-
-  public ExecutionTraceRepositoryHelper(JdbcTemplate jdbcTemplate) {
-    this.jdbcTemplate = jdbcTemplate;
-  }
 
   /** SQL statement for inserting a new execution trace record. */
   private static final String INSERT_EXECUTION_TRACE =
@@ -64,11 +56,6 @@ public class ExecutionTraceRepositoryHelper {
    * <p>This method bypasses JPA to directly insert the execution trace record, which is more
    * efficient for high-volume insert operations during inject execution.
    *
-   * <p>Uses {@link JdbcTemplate} which internally calls {@code DataSourceUtils.getConnection()},
-   * ensuring the SQL executes on the same JDBC connection as the enclosing {@code @Transactional}
-   * method. This prevents deadlocks that occurred when raw {@code DataSource.getConnection()} was
-   * used, which opened a separate connection outside the transaction boundary.
-   *
    * @param executionTrace the execution trace to save
    * @return the generated UUID of the newly created trace
    * @throws org.springframework.dao.DataAccessException if the database insert fails
@@ -87,10 +74,6 @@ public class ExecutionTraceRepositoryHelper {
             : null;
     String id = UUID.randomUUID().toString();
 
-    // JdbcTemplate.execute(PreparedStatementCreator, PreparedStatementCallback) is used here
-    // instead of jdbcTemplate.update() because we need access to the raw Connection to call
-    // createArrayOf() for the PostgreSQL text[] column (execution_context_identifiers).
-    // JdbcTemplate ensures this Connection is the one bound to the current Spring transaction.
     jdbcTemplate.execute(
         INSERT_EXECUTION_TRACE,
         (PreparedStatement ps) -> {
