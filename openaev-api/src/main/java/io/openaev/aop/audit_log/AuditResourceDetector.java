@@ -51,7 +51,7 @@ public class AuditResourceDetector {
     // Must happen BEFORE proceed() so we can snapshot the child before it's modified/deleted.
     ChildResourceInfo childInfo = null;
     if ("update".equals(eventScope)) {
-      //TODO AUDIT: this line is not doing anything. We need to find a better logic.
+      // TODO AUDIT: this line is not doing anything. We need to find a better logic.
       childInfo = detectChildResource(joinPoint, resourceType, resourceId);
     }
 

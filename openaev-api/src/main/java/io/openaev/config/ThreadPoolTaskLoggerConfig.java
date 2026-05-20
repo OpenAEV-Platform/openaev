@@ -45,19 +45,17 @@ public class ThreadPoolTaskLoggerConfig {
                   ? attrs.getRequest()
                   : null;
           Map<String, String> headers;
-          String remoteAddress, method, requestUri, queryString, fullUrl;
+          String remoteAddress, method, url;
 
           if (request != null) {
             headers = HttpReqRespUtils.extractHeaders(request);
             remoteAddress = request.getRemoteAddr();
             method = request.getMethod();
 
-            requestUri = request.getRequestURI();
-            queryString = request.getQueryString();
-            fullUrl = queryString == null ? requestUri : requestUri + "?" + queryString;
+            url = request.getRequestURL().toString();
           } else {
             headers = null;
-            remoteAddress = method = requestUri = queryString = fullUrl = null;
+            remoteAddress = method = url = null;
           }
 
           // CAPTURE LOGs CONTEXT
@@ -82,7 +80,7 @@ public class ThreadPoolTaskLoggerConfig {
               // STORE HEADERS AND REMOTE ADDRESS
               ThreadRequestContextHolder.setRequestContextData(
                   new ThreadRequestContextHolder.RequestContextData(
-                      headers, remoteAddress, method, requestUri, queryString, fullUrl));
+                      headers, remoteAddress, method, url));
 
               // RESTORE MDC
               if (mdcContext != null) {
@@ -117,12 +115,7 @@ public class ThreadPoolTaskLoggerConfig {
   public static class ThreadRequestContextHolder {
 
     public record RequestContextData(
-        Map<String, String> headers,
-        String remoteAddress,
-        String method,
-        String uri,
-        String queryString,
-        String url) {}
+        Map<String, String> headers, String remoteAddress, String method, String url) {}
 
     private static final ThreadLocal<Map<String, Object>> CONTEXT = new ThreadLocal<>();
 

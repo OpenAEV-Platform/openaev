@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.config.SessionHelper;
+import io.openaev.config.ThreadPoolTaskLoggerConfig;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.User;
@@ -278,13 +279,13 @@ public class LogService {
   }
 
   public boolean logRequestEvent(
-      String url, JsonNode body, Object logLevel, AuditLogType logType, String logUUID) {
+      JsonNode body, Object logLevel, AuditLogType logType, String logUUID) {
     try {
       if (!isEnabled(logType)) {
         return true;
       }
 
-      LogEvent doc = buildBaseRequestLog(url, body, logUUID);
+      LogEvent doc = buildBaseRequestLog(body, logUUID);
 
       return emit(doc, logLevel, logType);
     } catch (Exception e) {
@@ -398,6 +399,16 @@ public class LogService {
     doc.setEventAccess(eventAccess);
     doc.setEventScope(eventScope);
 
+    // Request context
+    Map<String, Object> requestData = new LinkedHashMap<>();
+
+    ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.RequestContextData requestContextData =
+        ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.getRequestContextData();
+    String url = requestContextData != null ? requestContextData.url() : null;
+
+    requestData.put("url", url);
+    doc.setRequestData(requestData);
+
     // Tenant context
     doc.setTenantId(TenantContext.getCurrentTenant());
 
@@ -408,7 +419,7 @@ public class LogService {
     return doc;
   }
 
-  private LogEvent buildBaseRequestLog(String url, JsonNode body, String logUUID) {
+  private LogEvent buildBaseRequestLog(JsonNode body, String logUUID) {
     Instant now = Instant.now();
 
     if (logUUID == null) {
@@ -422,6 +433,11 @@ public class LogService {
 
     // Request context
     Map<String, Object> requestData = new LinkedHashMap<>();
+
+    ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.RequestContextData requestContextData =
+        ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.getRequestContextData();
+    String url = requestContextData != null ? requestContextData.url() : null;
+
     requestData.put("url", url);
     if (body != null) {
       requestData.put("body", body);

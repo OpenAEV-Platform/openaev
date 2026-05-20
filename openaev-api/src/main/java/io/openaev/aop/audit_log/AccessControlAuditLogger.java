@@ -3,7 +3,6 @@ package io.openaev.aop.audit_log;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.AccessControlAspect;
-import io.openaev.config.ThreadPoolTaskLoggerConfig;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Base;
 import io.openaev.database.model.ResourceType;
@@ -41,7 +40,7 @@ public class AccessControlAuditLogger {
   @Value("${openaev.audit-logs.stop-the-world:false}")
   private boolean stw;
 
-  private ApplicationContext context;
+  private final ApplicationContext context;
 
   private final ResourceManagerUtils resourceManagerUtils;
   private final AuditRequestValidator auditRequestValidator;
@@ -63,14 +62,10 @@ public class AccessControlAuditLogger {
   @Async("accessControlAuditLoggerExecutor")
   public CompletableFuture<Boolean> auditRequest(String eventScope, JsonNode body, String logUUID) {
     boolean status = false;
-    ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.RequestContextData requestContextData =
-        ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.getRequestContextData();
-    String url = requestContextData != null ? requestContextData.url() : null;
 
     try {
       status =
-          logService.logRequestEvent(
-              url, body, Level.WARNING, LogService.AuditLogType.GENERIC, logUUID);
+          logService.logRequestEvent(body, Level.WARNING, LogService.AuditLogType.GENERIC, logUUID);
 
     } catch (Exception e) {
       log.warn("[AUDIT] Generic logging failed (non-blocking): {}", e.getMessage(), e);
