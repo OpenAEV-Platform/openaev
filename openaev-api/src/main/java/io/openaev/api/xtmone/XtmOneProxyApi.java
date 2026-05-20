@@ -5,11 +5,9 @@ import io.openaev.aop.LogExecutionTime;
 import io.openaev.api.xtmone.dto.AgentCallInput;
 import io.openaev.api.xtmone.dto.AgentCallOutput;
 import io.openaev.api.xtmone.dto.ChatbotAgentOutput;
-import io.openaev.api.xtmone.dto.DetectionRemediationCallInput;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.xtmone.XtmOneClient;
 import io.openaev.xtmone.XtmOneConfig;
-import io.openaev.xtmone.XtmOneFormattingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -33,7 +31,7 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
  * Proxy endpoints for programmatic XTM One agent calls from the OpenAEV frontend. These complement
  * the chatbot panel endpoints in {@link io.openaev.rest.xtmone.XtmOneChatApi} by providing
  * intent-based agent resolution, plus non-streaming and streaming agent calls (used by
- * TextFieldAskAI, TTP extraction, detection / remediation generation).
+ * TextFieldAskAI and generic chatbot interactions).
  */
 @Slf4j
 @RestController
@@ -46,7 +44,6 @@ public class XtmOneProxyApi extends RestBehavior {
 
   private final XtmOneConfig config;
   private final XtmOneClient client;
-  private final XtmOneFormattingService formattingService;
 
   // -- READ --
 
@@ -87,31 +84,6 @@ public class XtmOneProxyApi extends RestBehavior {
           .body(AgentCallOutput.error("Agent call failed"));
     }
     return ResponseEntity.ok(AgentCallOutput.success(result));
-  }
-
-  @PostMapping("/agent/detection-remediation")
-  @LogExecutionTime
-  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
-  @Operation(
-      summary = "Detection / remediation agent call",
-      description =
-          "Invokes the XTM One detection.generate agent and applies the server-side formatter for"
-              + " the given collector type so the frontend receives editor-ready content. The slug"
-              + " supplied by the client is validated against the detection.generate intent"
-              + " catalog before forwarding.")
-  public ResponseEntity<AgentCallOutput> postDetectionRemediationCall(
-      @Valid @RequestBody DetectionRemediationCallInput input) {
-    if (!config.isConfigured()) {
-      return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-          .body(AgentCallOutput.error("XTM One is not configured"));
-    }
-    String raw = client.callAgentSync(input.agentSlug(), input.content(), null);
-    if (raw == null) {
-      return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-          .body(AgentCallOutput.error("Agent call failed"));
-    }
-    String formatted = formattingService.formatRemediationRules(raw, input.collectorType());
-    return ResponseEntity.ok(AgentCallOutput.success(formatted));
   }
 
   @PostMapping(value = "/agent/stream", produces = "text/event-stream")

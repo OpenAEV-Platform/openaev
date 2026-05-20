@@ -185,11 +185,15 @@ const AtomicTestingRemediations = () => {
     }, 10);
   }
 
-  async function onClickUseAriane() {
+  async function onClickUseAriane(agentSlug?: string) {
     updateSnapshot(tabs, activeTab, true);
     setTyping(true);
     const collectorType = tabs[activeTab].collector_type;
-    return postDetectionRemediationAIRulesByInject(injectId, tabs[activeTab].collector_type).then((value) => {
+    return postDetectionRemediationAIRulesByInject(
+      injectId,
+      tabs[activeTab].collector_type,
+      agentSlug,
+    ).then((value) => {
       updateSnapshotNewRemediation(tabs, collectorType, value.data.detection_remediation_values, true);
       addOrUpdateRemediation(value.data);
     }).finally(() => {

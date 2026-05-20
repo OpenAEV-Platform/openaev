@@ -10,24 +10,25 @@ export interface DetectionRemediationForm {
 
 // eslint-disable-next-line import/prefer-default-export
 export const payloadFormToPayloadInputForAI = (data: FieldValues): Partial<PayloadInput> => {
+  console.log(data);
   return {
-    payload_type: data.payload_type,
-    payload_name: data.payload_name,
-    payload_platforms: data.payload_platforms,
-    payload_description: data.payload_description,
+    payload_type: data.action_type,
+    payload_name: data.action_name,
+    payload_platforms: data.action_platforms,
+    payload_description: data.action_description,
     command_content: data.command_content,
-    payload_execution_arch: data.payload_execution_arch,
-    payload_expectations: data.payload_expectations ?? ['PREVENTION', 'DETECTION'],
+    payload_execution_arch: data.action_execution_arch,
+    payload_expectations: data.action_expectations ?? ['PREVENTION', 'DETECTION'],
     executable_file: data.executable_file,
     file_drop_file: data.file_drop_file,
     dns_resolution_hostname: data.dns_resolution_hostname,
-    payload_arguments: data.payload_arguments,
-    payload_prerequisites: data.payload_prerequisites,
-    payload_cleanup_executor: data.payload_cleanup_executor === null ? '' : data.payload_cleanup_executor,
-    payload_cleanup_command: data.payload_cleanup_command === null ? '' : data.payload_cleanup_command,
-    payload_tags: data.payload_tags,
-    payload_attack_patterns: data.payload_attack_patterns,
-    payload_output_parsers: data.payload_output_parsers,
+    payload_arguments: data.action_arguments,
+    payload_prerequisites: data.action_prerequisites,
+    payload_cleanup_executor: data.action_cleanup_executor === null ? '' : data.action_cleanup_executor,
+    payload_cleanup_command: data.action_cleanup_command === null ? '' : data.action_cleanup_command,
+    payload_tags: data.action_tags,
+    payload_attack_patterns: data.action_attack_patterns,
+    payload_output_parsers: data.action_output_parsers,
     payload_detection_remediations: (Object.entries(data.remediations) as [string, DetectionRemediationForm][]).filter(value => value[1])
       .map(([key, remediation]) => ({
         detection_remediation_collector: key,
