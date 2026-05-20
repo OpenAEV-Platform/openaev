@@ -57,7 +57,7 @@ class StepServiceTest {
 
   @BeforeEach
   void setUp() {
-    queueChainingJob = new QueueChainingJob(stepDelayQueueService, stepService);
+    queueChainingJob = new QueueChainingJob(stepDelayQueueService, stepService, workflowService);
     workflow = mock(Workflow.class);
   }
 
