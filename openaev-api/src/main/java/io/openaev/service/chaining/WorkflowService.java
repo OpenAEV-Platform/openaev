@@ -34,6 +34,7 @@ public class WorkflowService {
   private final StepService stepService;
   private final PreviewFeatureService previewFeatureService;
   private final WorkflowStateService workflowStateService;
+  private final StepDelayQueueService stepDelayQueueService;
 
   private final WorkflowRepository workflowRepository;
   private final WorkflowScopeRuleRepository workflowScopeRuleRepository;
@@ -433,7 +434,8 @@ public class WorkflowService {
     if (workflows.isEmpty()) {
       return Optional.empty();
     }
-    return Optional.ofNullable(workflows.get(0));
+    return Optional.ofNullable(workflows.getFirst());
+
   }
 
   /**
@@ -761,7 +763,7 @@ public class WorkflowService {
 
     // Sync global state and define next steps to be executed
     workflowStateService.syncState(GSON.toJsonTree(scopeData), fieldTypeMap, workflowRun);
-    stepService.evaluateWorkflowProgress(workflowRun);
+    this.evaluateWorkflowProgress(workflowRun);
 
     saveWorkflowRun(workflowRun);
   }
@@ -775,5 +777,86 @@ public class WorkflowService {
             Collectors.groupingBy(
                 rule -> rule.getValueType().getContractOutputType(),
                 Collectors.mapping(WorkflowScopeRule::getRuleValue, Collectors.toList())));
+  }
+
+  // -- Timeout --
+
+  /**
+   * Checks if a workflow has ended by reading the current status from the database.
+   *
+   * @param workflowId the workflow ID to check
+   * @return true if the workflow status is END, false otherwise or if not found
+   */
+  @Transactional(readOnly = true)
+  public boolean isWorkflowEnded(String workflowId) {
+    return workflowRepository.existsByIdAndStatus(workflowId, WorkflowStatus.END);
+  }
+
+  /**
+   * Finds all RUN workflows whose timeout has expired.
+   *
+   * @return list of expired workflows
+   */
+  public List<Workflow> findAllExpiredRunWorkflows() {
+    return workflowRepository.findAllExpiredRunWorkflows();
+  }
+
+  /**
+   * Sets the workflow status to END and persists it.
+   *
+   * @param workflowRun the running workflow to end
+   */
+  public void endWorkflow(Workflow workflowRun) {
+    workflowRun.setStatus(WorkflowStatus.END);
+    workflowRepository.save(workflowRun);
+  }
+
+  /**
+   * Evaluates workflow progress by checking all step templates for valid conditions and creating
+   * READY steps. Sets workflow to END if no steps are ready and no delayed steps remain.
+   *
+   * @param workflowRun the running workflow to evaluate
+   * @return the updated workflow (may have status END)
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public Workflow evaluateWorkflowProgress(Workflow workflowRun) throws ChainingException {
+    String workflowTemplateId = workflowRun.getWorkflowTemplate().getId();
+
+    // Guard: ignore if workflow run has already ended (e.g. timeout).
+    if (this.isWorkflowEnded(workflowRun.getId())) {
+      log.info("Ignoring evalution because workflow run {} has ended.", workflowRun.getId());
+      return workflowRun;
+    }
+
+    // Get all step template
+    List<Step> stepsTemplate = stepService.findAllStepTemplateByWorkflow(workflowTemplateId);
+
+    if (stepsTemplate.isEmpty()) {
+      log.info(
+          "No step template for workflow template {}. End running {}",
+          workflowTemplateId,
+          workflowRun.getId());
+      workflowRun.setStatus(WorkflowStatus.END);
+      return workflowRun;
+    }
+
+    // At least one template generated one or more ready execution steps.
+    boolean hasReadySteps = false;
+
+    for (Step step : stepsTemplate) {
+      List<Step> stepReadys = stepService.createReadySteps(step, workflowRun, null);
+      if (!stepReadys.isEmpty()) {
+        hasReadySteps = true;
+        stepService.enqueueReadySteps(stepReadys, workflowRun);
+      }
+    }
+
+    // If none step TEMPLATE with valid conditions && no step template delayed update workflow with
+    // status END
+    if (!hasReadySteps && stepDelayQueueService.findAllByWorkflowRun(workflowRun).isEmpty()) {
+      workflowRun.setStatus(WorkflowStatus.END);
+    }
+
+    return workflowRun;
   }
 }

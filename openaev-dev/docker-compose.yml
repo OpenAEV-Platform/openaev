@@ -45,7 +45,7 @@ services:
   # RabbitMQ message queue with management UI (default credentials: guest/guest)
   openaev-dev-rabbitmq:
     container_name: openaev-dev-rabbitmq
-    image: rabbitmq:4.2-management
+    image: rabbitmq:4.3-management
     restart: unless-stopped
     volumes:
       - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
@@ -132,7 +132,7 @@ services:
   # You typically only need to run one search engine at a time.
   openaev-dev-opensearch:
     container_name: openaev-dev-opensearch
-    image: opensearchproject/opensearch:3.5.0
+    image: opensearchproject/opensearch:3.6.0
     volumes:
       - osdata:/usr/share/opensearch/data
       - ossnapshots:/usr/share/opensearch/snapshots

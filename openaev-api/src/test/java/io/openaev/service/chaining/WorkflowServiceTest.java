@@ -14,7 +14,10 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.telemetry.metric_collectors.ScopeMetricCollector;
 import io.openaev.utils.fixtures.WorkflowFixture;
-import java.util.*;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -39,6 +42,7 @@ class WorkflowServiceTest {
   @Mock private ScopeVariableRepository scopeVariableRepository;
   @Mock private PreviewFeatureService previewFeatureService;
   @Mock private StepService stepService;
+  @Mock private StepDelayQueueService stepDelayQueueService;
   @Mock private WorkflowStateService workflowStateService;
   @Mock private ScopeMetricCollector scopeMetricCollector;
 
@@ -464,7 +468,7 @@ class WorkflowServiceTest {
       workflowService.startWorkflowBySimulationId(simulationId);
 
       verify(workflowStateService).syncState(any(), any(), eq(run));
-      verify(stepService).evaluateWorkflowProgress(run);
+      verify(stepService).findAllStepTemplateByWorkflow("template");
     }
 
     @Test
@@ -502,7 +506,7 @@ class WorkflowServiceTest {
 
       verify(stepService).copyStepTemplate(scenarioTemplate, simulationTemplate);
       verify(workflowStateService).syncState(any(), any(), eq(run));
-      verify(stepService).evaluateWorkflowProgress(run);
+      verify(stepService).findAllStepTemplateByWorkflow("simulation-template");
     }
   }
 
@@ -692,6 +696,7 @@ class WorkflowServiceTest {
               stepService,
               previewFeatureService,
               workflowStateService,
+              stepDelayQueueService,
               workflowRepository,
               workflowScopeRuleRepository,
               scopeVariableRepository,

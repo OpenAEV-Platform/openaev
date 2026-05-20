@@ -120,6 +120,11 @@ public final class ExpectationResultBuilder {
       @NotNull final InjectExpectation injectExpectation,
       @NotNull final ExpectationUpdateInput input,
       @NotNull final String resultMsg) {
+    // Ensure results list is mutable (JSON deserialization may produce an immutable list)
+    if (!(injectExpectation.getResults() instanceof java.util.ArrayList)) {
+      injectExpectation.setResults(new java.util.ArrayList<>(injectExpectation.getResults()));
+    }
+
     InjectExpectationResult existing =
         findResultBySourceId(injectExpectation.getResults(), input.getSourceId());
     if (existing != null) {
@@ -147,6 +152,11 @@ public final class ExpectationResultBuilder {
       @NotNull final Collector collector) {
     final double score =
         InjectExpectationUtils.computeScore(injectExpectation, input.getIsSuccess());
+
+    // Ensure results list is mutable (JSON deserialization may produce an immutable list)
+    if (!(injectExpectation.getResults() instanceof java.util.ArrayList)) {
+      injectExpectation.setResults(new java.util.ArrayList<>(injectExpectation.getResults()));
+    }
 
     InjectExpectationResult existing =
         findResultBySourceId(injectExpectation.getResults(), collector.getId());

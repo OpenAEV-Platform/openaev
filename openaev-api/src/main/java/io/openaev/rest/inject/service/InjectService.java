@@ -330,6 +330,16 @@ public class InjectService {
   }
 
   /**
+   * Find all injects belonging to the given simulation.
+   *
+   * @param simulationId the simulation ID
+   * @return the list of injects for this simulation
+   */
+  public List<Inject> findBySimulationId(String simulationId) {
+    return injectRepository.findByExerciseId(simulationId);
+  }
+
+  /**
    * Save all injects given as params
    *
    * @param injects the injects to save

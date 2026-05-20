@@ -9,6 +9,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Service for managing delayed execution of workflow steps using a delay queue.
@@ -73,5 +74,24 @@ public class StepDelayQueueService {
    */
   public synchronized List<StepDelayQueue> popNextToProcess() {
     return stepDelayQueueRepository.popNextPerWorkflowRun();
+  }
+
+  /**
+   * Deletes all delay queue entries for the given workflow run.
+   *
+   * @param workflowRun the workflow run whose delay entries should be removed
+   */
+  @Transactional
+  public void deleteAllByWorkflowRun(Workflow workflowRun) {
+    stepDelayQueueRepository.deleteAllByWorkflowRun(workflowRun);
+  }
+
+  /**
+   * Find all step delayed for a given workflow
+   *
+   * @return list of steps
+   */
+  public List<StepDelayQueue> findAllByWorkflowRun(Workflow workflowRun) {
+    return stepDelayQueueRepository.findAllByWorkflowRun(workflowRun);
   }
 }
