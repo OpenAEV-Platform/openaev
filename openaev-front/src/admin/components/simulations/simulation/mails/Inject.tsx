@@ -24,10 +24,19 @@ import AnimationMenu from '../AnimationMenu';
 import CommunicationItem from './Communication';
 import CommunicationForm from './CommunicationForm';
 
-const useStyles = makeStyles()(() => ({
+const useStyles = makeStyles()((theme) => ({
   container: {
     margin: '0 0 50px 0',
     padding: '0 200px 0 0',
+  },
+  section: {
+    marginTop: 0,
+  },
+  mailsSection: {
+    marginTop: theme.spacing(5),
+  },
+  replyAction: {
+    marginBottom: theme.spacing(2.5),
   },
   paper: {
     position: 'relative',
@@ -182,7 +191,7 @@ const InjectComponent: FunctionComponent = () => {
     <div className={classes.container}>
       <AnimationMenu exerciseId={exerciseId} />
       <Grid container={true} spacing={3}>
-        <Grid size={6} style={{ marginTop: -10 }}>
+        <Grid size={6} className={classes.section}>
           <Typography variant="h4">{t('Inject context')}</Typography>
           <Paper variant="outlined" classes={{ root: classes.paper }}>
             <Grid container={true} spacing={3}>
@@ -206,7 +215,7 @@ const InjectComponent: FunctionComponent = () => {
           </Paper>
         </Grid>
 
-        <Grid size={6} style={{ marginTop: -10 }}>
+        <Grid size={6} className={classes.section}>
           <Typography variant="h4">{t('Inject details')}</Typography>
           <Paper variant="outlined" classes={{ root: classes.paper }}>
             <Grid container={true} spacing={3}>
@@ -231,7 +240,7 @@ const InjectComponent: FunctionComponent = () => {
 
       <br />
 
-      <div style={{ marginTop: 40 }}>
+      <div className={classes.mailsSection}>
         <Typography variant="h4" style={{ float: 'left' }}>{t('Mails')}</Typography>
         <div className="clearfix" />
         {topics.map((topic) => {
@@ -266,7 +275,7 @@ const InjectComponent: FunctionComponent = () => {
                 >
                   <Button
                     variant="outlined"
-                    style={{ marginBottom: 20 }}
+                    className={classes.replyAction}
                     startIcon={<ReplyOutlined />}
                     onClick={() => handleOpenReply(topic.communication_id)}
                   >
