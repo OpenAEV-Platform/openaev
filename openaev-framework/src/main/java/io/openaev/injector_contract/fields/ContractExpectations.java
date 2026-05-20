@@ -28,14 +28,17 @@ public class ContractExpectations extends ContractCardinalityElement {
   List<Expectation> availableExpectations;
 
   /**
-   * Creates a new expectations field with predefined expectations.
+   * Creates a new expectations field with predefined and available expectations.
    *
-   * @param expectations the default expectations to include
+   * @param predefinedExpectations the default expectations to include
+   * @param availableExpectations the full list of selectable expectations
    */
-  private ContractExpectations(@NotNull final List<Expectation> expectations) {
+  private ContractExpectations(
+      @NotNull final List<Expectation> predefinedExpectations,
+      @NotNull final List<Expectation> availableExpectations) {
     super(CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS, "Expectations", Multiple);
-    this.predefinedExpectations = expectations;
-    this.availableExpectations = expectations;
+    this.predefinedExpectations = new ArrayList<>(predefinedExpectations);
+    this.availableExpectations = new ArrayList<>(availableExpectations);
   }
 
   /**
@@ -44,7 +47,7 @@ public class ContractExpectations extends ContractCardinalityElement {
    * @return a configured ContractExpectations instance
    */
   public static ContractExpectations expectationsField() {
-    return new ContractExpectations(List.of());
+    return new ContractExpectations(List.of(), List.of());
   }
 
   /**
@@ -55,7 +58,7 @@ public class ContractExpectations extends ContractCardinalityElement {
    */
   public static ContractExpectations expectationsField(
       @NotEmpty final List<Expectation> expectations) {
-    return new ContractExpectations(expectations);
+    return new ContractExpectations(expectations, expectations);
   }
 
   /**
@@ -70,9 +73,7 @@ public class ContractExpectations extends ContractCardinalityElement {
    */
   public static ContractExpectations expectationsField(
       final List<Expectation> predefined, final List<Expectation> available) {
-    ContractExpectations field = new ContractExpectations(predefined);
-    field.availableExpectations = new ArrayList<>(available);
-    return field;
+    return new ContractExpectations(predefined, available);
   }
 
   @Override
