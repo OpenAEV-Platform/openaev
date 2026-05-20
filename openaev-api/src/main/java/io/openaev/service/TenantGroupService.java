@@ -107,6 +107,10 @@ public class TenantGroupService {
     return groupRepository.findById(id);
   }
 
+  public List<Group> findAllByTenantId(@NotBlank final String id) {
+    return groupRepository.findAllByTenantId(id);
+  }
+
   // -- UPDATE --
 
   public Group updateGroupRoles(@NotBlank final String groupId, GroupUpdateRolesInput input) {
