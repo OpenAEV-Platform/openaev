@@ -9,7 +9,7 @@ import { tenant } from './tenant-schema';
 // -- CREATE --
 
 export const addTenant = (data: TenantInput) => (dispatch: Dispatch) => {
-  return postReferential(tenant, TENANT_URI, data)(dispatch);
+  return postReferential(tenant, TENANT_URI, data, undefined, false)(dispatch);
 };
 
 // -- SEARCH --

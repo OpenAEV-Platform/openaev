@@ -11,7 +11,9 @@ import { useAppDispatch } from '../../../../../utils/hooks';
 import useAuth from '../../../../../utils/hooks/useAuth';
 import TenantForm from './TenantForm';
 
-interface Props { onCreate: (result: TenantOutput) => void }
+interface Props {
+  onCreate: (result: TenantOutput) => void;
+}
 
 const TenantCreate: FunctionComponent<Props> = ({ onCreate }) => {
   const { t } = useFormatter();
@@ -24,6 +26,9 @@ const TenantCreate: FunctionComponent<Props> = ({ onCreate }) => {
   const handleSubmit = useCallback(
     async (data: TenantInput) => {
       setLoading(true);
+      // Close the drawer immediately so the user isn't blocked
+      handleClose();
+
       try {
         const result = await dispatch(addTenant(data));
 
@@ -34,7 +39,6 @@ const TenantCreate: FunctionComponent<Props> = ({ onCreate }) => {
         const createdTenant = result.entities.tenants[result.result];
         onCreate(createdTenant);
         await reloadUserTenants(createdTenant.tenant_id);
-        handleClose();
 
         return result;
       } finally {

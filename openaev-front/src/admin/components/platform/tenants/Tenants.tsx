@@ -1,6 +1,6 @@
 import { HomeWorkOutlined } from '@mui/icons-material';
 import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import PaginatedList from '../../../../components/common/list/PaginatedList';
@@ -25,6 +25,7 @@ import {
   TENANT_INLINE_STYLES,
   TENANT_SORTS,
 } from './tenants.queryable';
+import {MESSAGING$} from "../../../../utils/Environment";
 
 const Tenants = () => {
   // Standard hooks
@@ -46,6 +47,11 @@ const Tenants = () => {
     searchPaginationInput,
   } = useQueryableWithLocalStorage(LOCAL_STORAGE_KEY_TENANT, buildSearchPagination({ sorts: TENANT_SORTS }));
   const headers = useMemo(() => getTenantHeaders(t), [t]);
+
+  const handleTenantCreated = useCallback((tenant: TenantOutput) => {
+    addTenant(tenant);
+    MESSAGING$.notifySuccess(t('The tenant has been successfully created.'));
+  }, [addTenant, t]);
 
   return (
     <div style={{ display: 'flex' }}>
@@ -112,7 +118,7 @@ const Tenants = () => {
               )}
         </List>
         <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANTS}>
-          <TenantCreate onCreate={addTenant} />
+          <TenantCreate onCreate={handleTenantCreated} />
         </Can>
       </div>
       <SecurityMenu />
