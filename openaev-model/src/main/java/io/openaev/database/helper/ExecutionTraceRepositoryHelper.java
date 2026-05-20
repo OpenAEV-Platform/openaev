@@ -110,8 +110,7 @@ public class ExecutionTraceRepositoryHelper {
           ps.setTimestamp(9, Timestamp.from(executionTrace.getTime()));
           ps.setArray(
               10,
-              ps.getConnection()
-                  .createArrayOf("text", executionTrace.getIdentifiers().toArray()));
+              ps.getConnection().createArrayOf("text", executionTrace.getIdentifiers().toArray()));
           ps.setTimestamp(11, Timestamp.from(executionTrace.getCreationDate()));
           ps.setTimestamp(12, Timestamp.from(executionTrace.getUpdateDate()));
           return ps.executeUpdate();

@@ -7,9 +7,6 @@ import static org.mockito.Mockito.*;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
-import java.sql.Array;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
@@ -79,7 +76,8 @@ class ExecutionTraceRepositoryHelperTest {
       assertFalse(id.isBlank(), "Generated ID should not be blank");
 
       // Verify JdbcTemplate.execute was called (not raw DataSource.getConnection)
-      verify(jdbcTemplate).execute(contains("INSERT INTO execution_traces"), any(PreparedStatementCallback.class));
+      verify(jdbcTemplate)
+          .execute(contains("INSERT INTO execution_traces"), any(PreparedStatementCallback.class));
     }
 
     @Test
@@ -111,7 +109,8 @@ class ExecutionTraceRepositoryHelperTest {
 
       // Then
       assertNotNull(id);
-      verify(jdbcTemplate).execute(contains("INSERT INTO execution_traces"), any(PreparedStatementCallback.class));
+      verify(jdbcTemplate)
+          .execute(contains("INSERT INTO execution_traces"), any(PreparedStatementCallback.class));
     }
 
     @Test
@@ -162,8 +161,7 @@ class ExecutionTraceRepositoryHelperTest {
 
       // Then
       ArgumentCaptor<Object[]> argsCaptor = ArgumentCaptor.forClass(Object[].class);
-      verify(jdbcTemplate)
-          .update(contains("UPDATE injects_statuses"), argsCaptor.capture());
+      verify(jdbcTemplate).update(contains("UPDATE injects_statuses"), argsCaptor.capture());
 
       Object[] args = argsCaptor.getValue();
       assertEquals("SUCCESS", args[0]);
@@ -179,8 +177,7 @@ class ExecutionTraceRepositoryHelperTest {
 
       // Then
       ArgumentCaptor<Object[]> argsCaptor = ArgumentCaptor.forClass(Object[].class);
-      verify(jdbcTemplate)
-          .update(contains("UPDATE injects_statuses"), argsCaptor.capture());
+      verify(jdbcTemplate).update(contains("UPDATE injects_statuses"), argsCaptor.capture());
 
       Object[] args = argsCaptor.getValue();
       assertEquals("PENDING", args[0]);
