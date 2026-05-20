@@ -5,7 +5,6 @@ import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.AssetGroupFixture.*;
 import static io.openaev.utils.fixtures.InjectFixture.getDefaultInject;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -42,7 +41,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -619,31 +617,31 @@ class AssetGroupApiTest extends IntegrationTest {
     void given_assetGroupInTenantX_should_beReadableFromTenantX() throws Exception {
       // -------- Arrange --------
       Tenant tenantX =
-              tenantIsolationHelper.createTenantWithCapabilities(
-                      "Tenant X", Set.of(Capability.MANAGE_ASSETS, Capability.ACCESS_ASSETS));
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_ASSETS, Capability.ACCESS_ASSETS));
 
       AssetGroupInput input = createDefaultAssetGroupInput("Same Tenant AssetGroup");
 
       String createResponse =
-              mvc.perform(
-                              post("/api/tenants/" + tenantX.getId() + "/asset_groups")
-                                      .content(asJsonString(input))
-                                      .contentType(MediaType.APPLICATION_JSON)
-                                      .accept(MediaType.APPLICATION_JSON)
-                                      .with(csrf()))
-                      .andExpect(status().is2xxSuccessful())
-                      .andReturn()
-                      .getResponse()
-                      .getContentAsString();
+          mvc.perform(
+                  post("/api/tenants/" + tenantX.getId() + "/asset_groups")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
 
       String assetGroupId = JsonPath.read(createResponse, "$.asset_group_id");
 
       // -------- Act & Assert — read from same tenant should succeed --------
       mvc.perform(
-                      get("/api/tenants/" + tenantX.getId() + "/asset_groups/" + assetGroupId)
-                              .accept(MediaType.APPLICATION_JSON)
-                              .with(csrf()))
-              .andExpect(status().isOk());
+              get("/api/tenants/" + tenantX.getId() + "/asset_groups/" + assetGroupId)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk());
     }
 
     @Test
@@ -651,21 +649,21 @@ class AssetGroupApiTest extends IntegrationTest {
     void given_assetGroupInTenantX_should_notAppearInTenantYSearch() throws Exception {
       // -------- Arrange --------
       Tenant tenantX =
-              tenantIsolationHelper.createTenantWithCapabilities(
-                      "Tenant X", Set.of(Capability.MANAGE_ASSETS, Capability.ACCESS_ASSETS));
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_ASSETS, Capability.ACCESS_ASSETS));
       Tenant tenantY =
-              tenantIsolationHelper.createTenantWithCapabilities(
-                      "Tenant Y", Set.of(Capability.ACCESS_ASSETS));
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_ASSETS));
 
       AssetGroupInput input = createDefaultAssetGroupInput("CrossTenantSearchAssetGroup");
 
       mvc.perform(
-                      post("/api/tenants/" + tenantX.getId() + "/asset_groups")
-                              .content(asJsonString(input))
-                              .contentType(MediaType.APPLICATION_JSON)
-                              .accept(MediaType.APPLICATION_JSON)
-                              .with(csrf()))
-              .andExpect(status().is2xxSuccessful());
+              post("/api/tenants/" + tenantX.getId() + "/asset_groups")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
 
       // Evict L1 cache
       entityManager.flush();
@@ -673,19 +671,19 @@ class AssetGroupApiTest extends IntegrationTest {
 
       // -------- Act — search from tenant Y --------
       SearchPaginationInput searchInput =
-              PaginationFixture.simpleTextSearch("CrossTenantSearchAssetGroup");
+          PaginationFixture.simpleTextSearch("CrossTenantSearchAssetGroup");
 
       String searchResponse =
-              mvc.perform(
-                              post("/api/tenants/" + tenantY.getId() + "/asset_groups/search")
-                                      .content(asJsonString(searchInput))
-                                      .contentType(MediaType.APPLICATION_JSON)
-                                      .accept(MediaType.APPLICATION_JSON)
-                                      .with(csrf()))
-                      .andExpect(status().is2xxSuccessful())
-                      .andReturn()
-                      .getResponse()
-                      .getContentAsString();
+          mvc.perform(
+                  post("/api/tenants/" + tenantY.getId() + "/asset_groups/search")
+                      .content(asJsonString(searchInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
 
       // -------- Assert --------
       assertEquals(Integer.valueOf(0), JsonPath.read(searchResponse, "$.totalElements"));

@@ -90,8 +90,7 @@ public class AssetGroupService {
     return this.assetGroupRepository
         .findById(assetGroupId)
         .map(this::computeDynamicAssets)
-        .orElseThrow(
-            () -> new ElementNotFoundException("Asset group not found: " + assetGroupId));
+        .orElseThrow(() -> new ElementNotFoundException("Asset group not found: " + assetGroupId));
   }
 
   public Optional<AssetGroup> findByExternalReference(String externalReference, String tenantId) {
