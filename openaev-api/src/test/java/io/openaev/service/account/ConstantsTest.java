@@ -33,4 +33,3 @@ class ConstantsTest {
     assertThat(Constants.SERVICE_GROUP_DESCRIPTION).isNotBlank();
   }
 }
-

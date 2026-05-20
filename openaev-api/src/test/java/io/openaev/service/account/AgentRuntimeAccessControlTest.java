@@ -4,6 +4,7 @@ import static io.openaev.rest.asset.endpoint.EndpointApi.ENDPOINT_URI;
 import static io.openaev.rest.inject.InjectApi.INJECT_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.EndpointFixture.createWindowsEndpointRegisterInput;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
@@ -11,10 +12,8 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import jakarta.servlet.ServletException;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Endpoint;
@@ -28,7 +27,7 @@ import io.openaev.service.EndpointService;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.mockUser.WithMockUser;
-
+import jakarta.servlet.ServletException;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -148,9 +147,7 @@ class AgentRuntimeAccessControlTest extends IntegrationTest {
     @WithMockUser(withCapabilities = {Capability.MANAGE_ASSETS})
     void given_manageAssetsOnly_should_forbidCleanupJob() throws Exception {
       // Act & Assert
-      mvc.perform(
-              delete(ENDPOINT_URI + "/jobs/" + FAKE_JOB_ID)
-                  .with(csrf()))
+      mvc.perform(delete(ENDPOINT_URI + "/jobs/" + FAKE_JOB_ID).with(csrf()))
           .andExpect(status().isForbidden());
     }
 
@@ -159,9 +156,7 @@ class AgentRuntimeAccessControlTest extends IntegrationTest {
     @WithMockUser(withCapabilities = {Capability.AGENT_RUNTIME_ACCESS})
     void given_agentRuntimeAccess_should_allowCleanupJob() throws Exception {
       // Act & Assert — job doesn't exist but RBAC passes (no error = 200 from deleteById)
-      mvc.perform(
-              delete(ENDPOINT_URI + "/jobs/" + FAKE_JOB_ID)
-                  .with(csrf()))
+      mvc.perform(delete(ENDPOINT_URI + "/jobs/" + FAKE_JOB_ID).with(csrf()))
           .andExpect(status().is2xxSuccessful());
     }
   }
@@ -312,9 +307,7 @@ class AgentRuntimeAccessControlTest extends IntegrationTest {
       inject = injectRepository.save(inject);
 
       // Act & Assert — user has no grant on the exercise, so should be forbidden
-      mvc.perform(
-              get(INJECT_URI + "/" + inject.getId())
-                  .accept(MediaType.APPLICATION_JSON))
+      mvc.perform(get(INJECT_URI + "/" + inject.getId()).accept(MediaType.APPLICATION_JSON))
           .andExpect(status().isForbidden());
     }
 
@@ -332,5 +325,4 @@ class AgentRuntimeAccessControlTest extends IntegrationTest {
           .andExpect(status().is4xxClientError());
     }
   }
-
 }
