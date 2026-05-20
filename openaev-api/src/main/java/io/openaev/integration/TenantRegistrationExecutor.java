@@ -48,7 +48,7 @@ public class TenantRegistrationExecutor {
 
   /**
    * Registers built-in connectors in the CURRENT transaction. Assumes the caller has already set up
-   * TenantContext, Hibernate filter, and RLS (e.g. TenantService.create()).
+   * TenantContext, Hibernate filter
    */
   @Transactional(rollbackFor = Exception.class)
   public void registerForTenant(Tenant tenant) throws DependenciesManagerException {

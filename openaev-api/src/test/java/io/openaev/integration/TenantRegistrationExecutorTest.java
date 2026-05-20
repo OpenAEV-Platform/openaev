@@ -51,7 +51,7 @@ class TenantRegistrationExecutorTest {
   }
 
   @Nested
-  @DisplayName("Isolated registration (startup path — REQUIRES_NEW)")
+  @DisplayName("Isolated registration")
   class IsolatedRegistration {
 
     @BeforeEach
