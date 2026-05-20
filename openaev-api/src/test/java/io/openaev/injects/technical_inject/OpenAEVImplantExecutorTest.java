@@ -12,9 +12,9 @@ import io.openaev.collectors.utils.CollectorsUtils;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.execution.ExecutableInject;
-import io.openaev.injectors.openaev.OpenAEVImplantContract;
+import io.openaev.executors.InjectorContext;
+import io.openaev.injectors.openaev.OpenAEVImplantExecutor;
 import io.openaev.injectors.openaev.model.OpenAEVImplantInjectContent;
-import io.openaev.integration.Manager;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
 import io.openaev.model.inject.form.Expectation;
 import io.openaev.utils.fixtures.*;
@@ -40,6 +40,10 @@ import org.springframework.test.context.TestExecutionListeners;
 public class OpenAEVImplantExecutorTest extends IntegrationTest {
   @Autowired private OpenaevInjectorIntegrationFactory openaevInjectorIntegrationFactory;
   @Autowired private InjectExpectationRepository injectExpectationRepository;
+  @Autowired private InjectorContext injectorContext;
+  @Autowired private io.openaev.service.AssetGroupService assetGroupService;
+  @Autowired private io.openaev.service.InjectExpectationService injectExpectationService;
+  @Autowired private io.openaev.rest.inject.service.InjectService injectService;
 
   @Autowired private InjectComposer injectComposer;
   @Autowired private AssetGroupComposer assetGroupComposer;
@@ -123,10 +127,10 @@ public class OpenAEVImplantExecutorTest extends IntegrationTest {
     expectation.setScore(100.0);
     expectation.setExpectationGroup(false);
 
-    Manager manager = new Manager(List.of(openaevInjectorIntegrationFactory));
-    manager.monitorIntegrations();
+    openaevInjectorIntegrationFactory.registerConnectorForTenant();
     io.openaev.executors.Injector openAEVImplantExecutor =
-        manager.requestInjectorExecutorByType(OpenAEVImplantContract.TYPE);
+        new OpenAEVImplantExecutor(
+            injectorContext, assetGroupService, injectExpectationService, injectService);
 
     Inject inject = createTechnicalInjectHelper(List.of(expectation));
     Injection injection = mock(Injection.class);

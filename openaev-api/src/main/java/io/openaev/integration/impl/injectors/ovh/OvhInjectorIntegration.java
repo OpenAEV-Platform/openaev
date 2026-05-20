@@ -2,7 +2,6 @@ package io.openaev.integration.impl.injectors.ovh;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.database.model.ConnectorInstance;
-import io.openaev.database.model.ConnectorType;
 import io.openaev.executors.InjectorContext;
 import io.openaev.executors.exception.ExecutorException;
 import io.openaev.injectors.ovh.OvhSmsContract;
@@ -17,7 +16,6 @@ import io.openaev.service.InjectExpectationService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import java.lang.reflect.InvocationTargetException;
-import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -68,20 +66,6 @@ public class OvhInjectorIntegration extends Integration {
 
   @Override
   protected void innerStart() throws Exception {
-    String injectorId =
-        connectorInstanceService.getConnectorInstanceConfigurationsByIdAndKey(
-            connectorInstance.getId(), ConnectorType.INJECTOR.getIdKeyName());
-
-    injectorService.registerBuiltinInjector(
-        injectorId,
-        OVH_SMS_INJECTOR_NAME,
-        ovhSmsContract,
-        true,
-        "communication",
-        null,
-        null,
-        false,
-        List.of());
     OvhSmsService ovhSmsService = new OvhSmsService(injectorContext.getMapper(), this.config);
     this.ovhSmsExecutor =
         new OvhSmsExecutor(injectorContext, ovhSmsService, injectExpectationService);

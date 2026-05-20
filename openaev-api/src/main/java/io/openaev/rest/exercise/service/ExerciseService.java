@@ -21,6 +21,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawExerciseSimple;
 import io.openaev.database.raw.RawInjectExpectationIndexing;
@@ -514,10 +515,17 @@ public class ExerciseService {
    * @throws ElementNotFoundException if no simulation matches the given ID
    */
   public Exercise findById(String simulationId) {
-    return exerciseRepository
-        .findById(simulationId)
-        .orElseThrow(
-            () -> new ElementNotFoundException("Simulation not found with ID: " + simulationId));
+    String tenantId = TenantContext.getCurrentTenant();
+    return (tenantId != null)
+        ? exerciseRepository
+            .findByIdAndTenantId(simulationId, tenantId)
+            .orElseThrow(
+                () -> new ElementNotFoundException("Simulation not found with ID: " + simulationId))
+        : exerciseRepository
+            .findById(simulationId)
+            .orElseThrow(
+                () ->
+                    new ElementNotFoundException("Simulation not found with ID: " + simulationId));
   }
 
   /**

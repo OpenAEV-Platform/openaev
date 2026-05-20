@@ -2,7 +2,6 @@ package io.openaev.integration.impl.injectors.opencti;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.database.model.ConnectorInstance;
-import io.openaev.database.model.ConnectorType;
 import io.openaev.executors.InjectorContext;
 import io.openaev.executors.exception.ExecutorException;
 import io.openaev.injectors.opencti.OpenCTIContract;
@@ -69,20 +68,6 @@ public class OpenCTIInjectorIntegration extends Integration {
 
   @Override
   protected void innerStart() throws Exception {
-    String injectorId =
-        connectorInstanceService.getConnectorInstanceConfigurationsByIdAndKey(
-            connectorInstance.getId(), ConnectorType.INJECTOR.getIdKeyName());
-
-    injectorService.registerBuiltinInjector(
-        injectorId,
-        OPENCTI_INJECTOR_NAME,
-        openCTIContract,
-        true,
-        "incident-response",
-        null,
-        null,
-        false,
-        new ArrayList<>());
     this.openCTIExecutor =
         new OpenCTIExecutor(injectorContext, openCTIService, injectExpectationService);
   }

@@ -74,6 +74,9 @@ public class AtomicTestingApiTest extends IntegrationTest {
     INJECT_STATUS = injectStatusRepository.save(injectStatus);
 
     DOCUMENT = documentRepository.save(DocumentFixture.getDocumentJpeg());
+
+    entityManager.flush();
+    entityManager.clear();
   }
 
   private InjectComposer.Composer getAtomicTestingWrapper(
@@ -914,10 +917,12 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
     private Inject createInjectInTenant(Tenant tenant) {
       tenantIsolationHelper.switchToTenant(tenant.getId(), entityManager);
-      Inject inject = injectComposer.forInject(InjectFixture.getDefaultInject()).persist().get();
+      Inject inject = InjectFixture.getDefaultInject();
+      inject.setTenant(tenant);
+      Inject persisted = injectComposer.forInject(inject).persist().get();
       entityManager.flush();
       entityManager.clear();
-      return inject;
+      return persisted;
     }
 
     @Test
@@ -993,15 +998,22 @@ public class AtomicTestingApiTest extends IntegrationTest {
     }
 
     @Test
-    @Disabled
     @DisplayName("AtomicTesting created in tenant X should NOT be deletable from tenant Y")
     void given_atomicTestingInTenantX_should_notBeDeletableFromTenantY() throws Exception {
       Tenant tenantX =
           tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+              "Tenant X",
+              Set.of(
+                  Capability.MANAGE_ASSESSMENT,
+                  Capability.ACCESS_ASSESSMENT,
+                  Capability.DELETE_ASSESSMENT));
       Tenant tenantY =
           tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant Y", Set.of(Capability.DELETE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+              "Tenant Y",
+              Set.of(
+                  Capability.MANAGE_ASSESSMENT,
+                  Capability.ACCESS_ASSESSMENT,
+                  Capability.DELETE_ASSESSMENT));
 
       Inject inject = createInjectInTenant(tenantX);
 
