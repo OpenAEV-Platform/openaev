@@ -33,10 +33,19 @@ const AtomicTestingTabs = ({ injectResultOverview }: Props) => {
     setEEFeatureDetectedInfo,
   } = useEnterpriseEdition();
 
-  let tabValue = location.pathname;
-  if (location.pathname.includes(`/admin/atomic_testings/${injectResultOverview.inject_id}/detail`)) {
-    tabValue = `/admin/atomic_testings/${injectResultOverview.inject_id}/detail`;
+  const basePath = `/admin/atomic_testings/${injectResultOverview.inject_id}`;
+  let tabValue: string | false = false;
+  if (location.pathname === basePath || location.pathname === `${basePath}/`) {
+    tabValue = basePath;
+  } else if (location.pathname.startsWith(`${basePath}/`)) {
+    // Extract sub-path (e.g., "/detail", "/findings") and build full tab value
+    tabValue = location.pathname;
   }
+
+  // If tabValue doesn't match the current inject (e.g. stale URL during navigation), default to overview
+  if (tabValue === false) {
+    tabValue = basePath;
+}
 
   const handleRemediationClick = (event: React.SyntheticEvent) => {
     event.preventDefault();
