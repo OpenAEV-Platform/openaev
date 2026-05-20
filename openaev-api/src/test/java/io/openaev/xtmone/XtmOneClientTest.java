@@ -63,9 +63,23 @@ class XtmOneClientTest {
     void given_returns200WithAgents_should_returnList() throws Exception {
       // -- ARRANGE --
       configureClient();
-      List<Map<String, Object>> expectedAgents =
-          List.of(Map.of("id", "agent-1", "name", "Agent 1"));
-      mockHttpResponse(expectedAgents);
+      List<Map<String, Object>> catalog =
+          List.of(
+              Map.of(
+                  "intent",
+                  "global.assistant",
+                  "agents",
+                  List.of(
+                      Map.of(
+                          "agent_id",
+                          "agent-1",
+                          "agent_name",
+                          "Agent 1",
+                          "agent_slug",
+                          "agent-1",
+                          "agent_description",
+                          "Agent 1 description"))));
+      mockHttpResponse(catalog);
 
       // -- ACT --
       List<ChatbotAgentOutput> result = xtmOneClient.listChatAgents("intent");

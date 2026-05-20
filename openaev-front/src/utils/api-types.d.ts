@@ -1873,14 +1873,6 @@ export interface DetectionRemediationAIOutput {
   rules?: string;
 }
 
-export interface DetectionRemediationCallInput {
-  agent_slug?: string;
-  /** @minLength 1 */
-  collector_type: string;
-  /** @minLength 1 */
-  content: string;
-}
-
 /** Health check response of the detection/remediation service. */
 export interface DetectionRemediationHealthResponse {
   /**
@@ -5944,6 +5936,7 @@ export type PayloadCreateInput = BasePayloadCreateInput &
   );
 
 export interface PayloadInput {
+  agent_slug?: string;
   command_content?: string | null;
   command_executor?: string | null;
   dns_resolution_hostname?: string;
@@ -6418,8 +6411,6 @@ export interface PlatformSettings {
   platform_xtm_one_configured?: boolean;
   /** XTM One platform URL */
   platform_xtm_one_url?: string;
-  /** XTM One public chat web token for the embedded agent */
-  platform_xtm_one_web_token?: string;
   /** Current version of the PostgreSQL */
   postgre_version?: string;
   /** Current version of RabbitMQ */
