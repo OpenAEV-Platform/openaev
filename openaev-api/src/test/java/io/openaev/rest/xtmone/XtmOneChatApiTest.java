@@ -62,8 +62,8 @@ class XtmOneChatApiTest extends IntegrationTest {
           .thenReturn("fake-jwt");
       List<ChatbotAgentOutput> agents =
           List.of(
-              new ChatbotAgentOutput("id", "Test Agent", "test-agent", "Test Agent"),
-              new ChatbotAgentOutput("id", "Another Agent", "agent-2", "another-agent"));
+              new ChatbotAgentOutput("agent-1", "Test Agent", "test-agent", "Test Agent"),
+              new ChatbotAgentOutput("agent-2", "Another Agent", "agent-2", "another-agent"));
       when(xtmOneClient.listChatAgents(anyString())).thenReturn(agents);
 
       // -- ACT & ASSERT --

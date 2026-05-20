@@ -10,7 +10,6 @@ export interface DetectionRemediationForm {
 
 // eslint-disable-next-line import/prefer-default-export
 export const payloadFormToPayloadInputForAI = (data: FieldValues): Partial<PayloadInput> => {
-  console.log(data);
   return {
     payload_type: data.action_type,
     payload_name: data.action_name,
