@@ -47,8 +47,6 @@ export interface DocumentHelper {
   getDocumentsMap: () => Record<string, Document>;
 }
 
-export interface MeTokensHelper { getMeTokens: () => Token[] }
-
 export interface SimulationChallengesReaderHelper { getSimulationChallengesReader: (exerciseId: SimulationChallengesReader['exercise_id']) => SimulationChallengesReader }
 
 export interface ScenarioChallengesReaderHelper { getScenarioChallengesReader: (scenarioId: SimulationChallengesReader['scenario_id']) => ScenarioChallengesReader }

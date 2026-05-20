@@ -226,6 +226,9 @@ public class ServiceAccountPrivilegeServiceTest {
   @DisplayName("Should return user when service account exists for tenant")
   void shouldReturnUserWhenServiceAccountExistsForTenant() {
     // prepare
+    Token token = new Token();
+    token.setValue("test-token-value");
+    mockUser.setTokens(new ArrayList<>(List.of(token)));
     when(userService.findByEmailIgnoreCase(SERVICE_EMAIL)).thenReturn(Optional.of(mockUser));
 
     // act

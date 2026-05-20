@@ -57,4 +57,15 @@ public class ExecutorHelper {
         .replace("#{agent}", agentId)
         .replace("#{tenant}", tenantId);
   }
+
+  // todo remove : 1/2 Workaround to remove after all executor tested
+  public static String replaceArgs(
+      PLATFORM_TYPE platformType,
+      String command,
+      String injectId,
+      String agentId,
+      String tenantId,
+      String token) {
+    return replaceArgs(platformType, command, injectId, agentId, tenantId).replace("$token", token);
+  }
 }

@@ -64,10 +64,23 @@ public class ServiceAccountPrivilegeService {
     }
   }
 
+  @Transactional(readOnly = true)
   public Optional<User> getUserServiceAccountByTenant(String tenantId) {
     String email = SERVICE_EMAIL_PATTERN.formatted(tenantId);
 
-    return userService.findByEmailIgnoreCase(email);
+    return userService.findByEmailIgnoreCase(email).stream()
+        .filter(user -> user.getTokens().size() == 1)
+        .findFirst();
+  }
+
+  @Transactional(readOnly = true)
+  public String getTokenUserServiceAccountByTenant(String tenantId) {
+
+    return getUserServiceAccountByTenant(tenantId)
+        .map(User::getTokens)
+        .filter(tokens -> tokens.size() == 1)
+        .map(tokens -> tokens.getFirst().getValue())
+        .orElseThrow(() -> new UnsupportedOperationException("Invalid token"));
   }
 
   private Role createWellKnownRole(String tenantId) {
