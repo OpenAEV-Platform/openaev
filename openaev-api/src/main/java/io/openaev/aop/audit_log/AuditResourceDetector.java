@@ -96,9 +96,9 @@ public class AuditResourceDetector {
       MethodSignature signature = (MethodSignature) joinPoint.getSignature();
       String[] paramNames = signature.getParameterNames();
       Object[] args = joinPoint.getArgs();
-      log.warn("signature {}", signature);
-      log.warn("paramNames {}", paramNames);
-      log.warn("args {}", args);
+      log.info("signature {}", signature);
+      log.info("paramNames {}", (Object) paramNames);
+      log.info("args {}", (Object) args);
 
       EvaluationContext ctx = SimpleEvaluationContext.forReadOnlyDataBinding().build();
       if (paramNames != null) {
@@ -106,10 +106,10 @@ public class AuditResourceDetector {
           ctx.setVariable(paramNames[i], args[i]);
         }
       }
-      log.warn("ctx {}", ctx);
-      log.warn("accessControl.resourceId {}", accessControl.resourceId());
+      log.info("accessControl.resourceId {}", accessControl.resourceId());
 
       Object value = parser.parseExpression(accessControl.resourceId()).getValue(ctx);
+      log.info("value {}", value);
       return value != null ? value.toString() : "";
     } catch (Exception e) {
       log.warn("[AUDIT] Failed to resolve resourceId SpEL: {}", e.getMessage(), e);
@@ -134,11 +134,11 @@ public class AuditResourceDetector {
       String methodSignature = sig.toLongString();
       String[] pathVariableValues = extractPathVariableValues(sig, joinPoint.getArgs());
 
-      log.warn("start detectChildResource");
+      log.info("start detectChildResource");
       ChildResourceInfo childInfo =
           auditChildResourceCacheManager.resolveChildResource(
               methodSignature, resourceType, parentResourceId, pathVariableValues);
-      log.warn("detectChildResource {}", childInfo);
+      log.info("detectChildResource {}", childInfo);
 
       // TODO AUDIT: childInfo is always null and cache not working bc  parentResourceId ==
       // paramValue

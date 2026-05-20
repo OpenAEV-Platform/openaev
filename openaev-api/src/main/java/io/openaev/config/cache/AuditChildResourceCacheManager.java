@@ -65,24 +65,17 @@ public class AuditChildResourceCacheManager {
 
     // TODO AUDIT: cache not working bc  parentResourceId == paramValue
 
-    log.warn("pathVariableValues {}", pathVariableValues);
-    log.warn("parentResourceId {}", parentResourceId);
+    log.info("pathVariableValues {}", (Object) pathVariableValues);
+    log.info("parentResourceId {}", parentResourceId);
     for (String paramValue : pathVariableValues) {
       if (paramValue == null || paramValue.equals(parentResourceId)) {
         continue;
       }
 
-      log.warn(
-          "methodSignature "
-              + methodSignature
-              + "; paramValue "
-              + paramValue
-              + "; parentResourceId "
-              + parentResourceId);
-      log.warn("methodSignature {}", methodSignature);
-      log.warn("paramValue {}", paramValue);
+      log.info("methodSignature {}", methodSignature);
+      log.info("paramValue {}", paramValue);
       ChildResourceInfo childInfo = resolveByKnownTypeFirst(methodSignature, paramValue);
-      log.warn("childInfo {}", childInfo);
+      log.info("childInfo {}", childInfo);
 
       if (childInfo != null) {
         return childInfo;

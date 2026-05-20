@@ -48,46 +48,48 @@ public class AccessControlAuditLogAspect {
   @Around("@annotation(accessControl)")
   public Object auditAround(ProceedingJoinPoint joinPoint, AccessControl accessControl)
       throws Throwable {
-    Action action = accessControl.actionPerformed();
-
-    if (!accessControlAuditLogger.isAuditLoggingEnabled()
-        || !accessControlAuditLogger.isAuditLoggingValid(action)
-        || !previewFeatureService.isFeatureEnabled(PreviewFeature.AUDIT_LOG)) {
-      // If openaev.generic-logs.service.enabled is true, log the request and its body input.
-      /*if (accessControlAuditLogger.isGenericLoggingEnabled()) {
-        // Capture the input DTO for create/update/status_change
-        JsonNode inputNode = null;
-
-        try {
-          inputNode = getInputNode(joinPoint, eventScope);
-        } catch (Exception e) {
-          log.warn("[AUDIT] Audit logging failed (non-blocking): {}", e.getMessage(), e);
-          //TODO AUDIT: Do we only want to log this to log var or do we want to call the correspondent LogService?
-        }
-
-        String eventScope = LogUtils.getEventScope(action);
-        String logUUID = UUID.randomUUID().toString();
-
-        accessControlAuditLogger.auditRequest(eventScope, inputNode, logUUID);
-      }*/
-
-      return joinPoint.proceed();
-    }
-
-    String eventScope = LogUtils.getEventScope(action);
-    String logUUID = UUID.randomUUID().toString();
-
-    ResourceType resourceType = null;
-    String resourceId = null;
-    String sourceId = null;
-    ResourceType entityType = null;
-    String entityId = null;
-    String entityName = null;
-    JsonNode entitySnapshot = null;
-    JsonNode inputNode = null;
-    boolean status = true;
+    Object result = null;
 
     try {
+      Action action = accessControl.actionPerformed();
+
+      if (!accessControlAuditLogger.isAuditLoggingEnabled()
+          || !accessControlAuditLogger.isAuditLoggingValid(action)
+          || !previewFeatureService.isFeatureEnabled(PreviewFeature.AUDIT_LOG)) {
+        // If openaev.generic-logs.service.enabled is true, log the request and its body input.
+        /*if (accessControlAuditLogger.isGenericLoggingEnabled()) {
+          // Capture the input DTO for create/update/status_change
+          JsonNode inputNode = null;
+
+          try {
+            inputNode = getInputNode(joinPoint, eventScope);
+          } catch (Exception ex) {
+            log.warn("[AUDIT] Audit logging failed (non-blocking): {}", ex.getMessage(), ex);
+            //TODO AUDIT: Do we only want to log this to log var or do we want to call the correspondent LogService?
+          }
+
+          String eventScope = LogUtils.getEventScope(action);
+          String logUUID = UUID.randomUUID().toString();
+
+          accessControlAuditLogger.auditRequest(eventScope, inputNode, logUUID);
+        }*/
+
+        return joinPoint.proceed();
+      }
+
+      String eventScope = LogUtils.getEventScope(action);
+      String logUUID = UUID.randomUUID().toString();
+
+      ResourceType resourceType = null;
+      String resourceId = null;
+      String sourceId = null;
+      ResourceType entityType = null;
+      String entityId = null;
+      String entityName = null;
+      JsonNode entitySnapshot = null;
+      JsonNode inputNode = null;
+      boolean status = true;
+
       // -- Pre-execution:get child-resource --
       AuditResourceDetector.AuditResourceInfo resourceInfo =
           auditResourceDetector.detectResourceBeforeExecution(joinPoint, accessControl, eventScope);
@@ -101,46 +103,34 @@ public class AccessControlAuditLogAspect {
 
       // Capture the input DTO for create/update/status_change
       inputNode = getInputNode(joinPoint, eventScope);
-    } catch (Exception e) {
-      status = false;
 
-      // Still log the audit event, then continue
-      log.warn("[AUDIT] Audit logging failed (non-blocking): {}", e.getMessage(), e);
-      // TODO AUDIT: Do we only want to log this to log var or do we want to call the correspondent
-      // LogService?
+      // Execute the business operation
+      String eventStatus;
 
-      accessControlAuditLogger.prepareLogFailure();
-    }
-
-    // Execute the business operation
-    Object result;
-    String eventStatus;
-
-    try {
-      result = joinPoint.proceed();
-      eventStatus = "success";
-    } catch (Throwable ex) {
-      eventStatus = "error";
-
-      accessControlAuditLogger
-          .logMutationEvent(
-              eventScope,
-              eventStatus,
-              resourceType,
-              resourceId,
-              inputNode,
-              null,
-              entityName,
-              null,
-              sourceId,
-              logUUID)
-          .thenRun(accessControlAuditLogger::prepareLogFailure);
-
-      throw ex;
-    }
-
-    if (status) {
       try {
+        result = joinPoint.proceed();
+        eventStatus = "success";
+      } catch (Throwable ex) {
+        eventStatus = "error";
+
+        accessControlAuditLogger
+            .logMutationEvent(
+                eventScope,
+                eventStatus,
+                resourceType,
+                resourceId,
+                inputNode,
+                null,
+                entityName,
+                null,
+                sourceId,
+                logUUID)
+            .thenRun(accessControlAuditLogger::prepareLogFailure);
+
+        throw ex;
+      }
+
+      if (status)
         accessControlAuditLogger.auditEvent(
             eventScope,
             eventStatus,
@@ -154,15 +144,14 @@ public class AccessControlAuditLogAspect {
             inputNode,
             result,
             logUUID);
-      } catch (Exception e) {
-        // Still log the audit event, then continue
-        log.warn("[AUDIT] Audit logging failed (non-blocking): {}", e.getMessage(), e);
-        // TODO AUDIT: Do we only want to log this to log var or do we want to call the
-        // correspondent
-        // LogService?
+    } catch (Exception e) {
+      // Still log the audit event, then continue
+      log.warn("[AUDIT] Audit logging failed (non-blocking): {}", e.getMessage(), e);
+      // TODO AUDIT: Do we only want to log this to log var or do we want to call the
+      // correspondent
+      // LogService?
 
-        accessControlAuditLogger.prepareLogFailure();
-      }
+      accessControlAuditLogger.prepareLogFailure();
     }
 
     return result;
