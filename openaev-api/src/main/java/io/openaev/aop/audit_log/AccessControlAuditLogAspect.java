@@ -6,7 +6,9 @@ import io.openaev.aop.AccessControl;
 import io.openaev.aop.AccessControlAspect;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.LogService;
+import io.openaev.service.PreviewFeatureService;
 import io.openaev.utils.log.LogUtils;
 import java.lang.annotation.Annotation;
 import java.util.UUID;
@@ -39,6 +41,7 @@ public class AccessControlAuditLogAspect {
 
   private final AuditResourceDetector auditResourceDetector;
   private final AccessControlAuditLogger accessControlAuditLogger;
+  private final PreviewFeatureService previewFeatureService;
 
   private final ObjectMapper objectMapper;
 
@@ -48,7 +51,8 @@ public class AccessControlAuditLogAspect {
     Action action = accessControl.actionPerformed();
 
     if (!accessControlAuditLogger.isAuditLoggingEnabled()
-        || !accessControlAuditLogger.isAuditLoggingValid(action)) {
+        || !accessControlAuditLogger.isAuditLoggingValid(action)
+        || !previewFeatureService.isFeatureEnabled(PreviewFeature.AUDIT_LOG)) {
       // If openaev.generic-logs.service.enabled is true, log the request and its body input.
       /*if (accessControlAuditLogger.isGenericLoggingEnabled()) {
         // Capture the input DTO for create/update/status_change

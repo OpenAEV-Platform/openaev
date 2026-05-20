@@ -10,6 +10,7 @@ import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.User;
 import io.openaev.engine.EngineService;
 import io.openaev.engine.model.log.LogEvent;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.utils.HttpReqRespUtils;
 import io.openaev.utils.log.LogUtils;
 import io.openaev.utils.log.dispatcher.AuditLogTransportDispatcherUtils;
@@ -45,6 +46,7 @@ public class LogService {
   }
 
   private final GenericLogTransportDispatcherUtils genericLogTransportDispatcherUtils;
+  private final PreviewFeatureService previewFeatureService;
 
   private final AuditLogTransportDispatcherUtils auditLogTransportDispatcherUtils;
 
@@ -66,20 +68,22 @@ public class LogService {
       GenericLogTransportDispatcherUtils genericLogTransportDispatcherUtils,
       AuditLogTransportDispatcherUtils auditLogTransportDispatcherUtils,
       ObjectNormalizationUtils objectNormalizationUtils,
-      ObjectDiffUtils objectDiffUtils) {
+      ObjectDiffUtils objectDiffUtils,
+      PreviewFeatureService previewFeatureService) {
     this.userService = userService;
     this.objectMapper = engineService.getObjectMapper();
     this.genericLogTransportDispatcherUtils = genericLogTransportDispatcherUtils;
     this.auditLogTransportDispatcherUtils = auditLogTransportDispatcherUtils;
     this.objectNormalizationUtils = objectNormalizationUtils;
     this.objectDiffUtils = objectDiffUtils;
+    this.previewFeatureService = previewFeatureService;
   }
 
   // -- Public API --
 
   public boolean isEnabled(AuditLogType logType) {
     return logType == AuditLogType.AUDIT
-        ? auditLogsEnabled
+        ? auditLogsEnabled && previewFeatureService.isFeatureEnabled(PreviewFeature.AUDIT_LOG)
         : (logType == AuditLogType.GENERIC
             ? genericLogsEnabled
             : genericLogsEnabled || auditLogsEnabled);
@@ -326,7 +330,7 @@ public class LogService {
   }
 
   // -- Internal helpers --
-
+  
   private ObjectDiffUtils.DiffResult diffObjects(
       String eventScope, JsonNode entitySnapshot, JsonNode inputNode) {
     // For updates: compute diff between old and new values
