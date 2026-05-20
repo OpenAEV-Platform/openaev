@@ -719,9 +719,7 @@ public class ExerciseApiTest extends IntegrationTest {
   class TenantIsolation {
 
     @Test
-    @Disabled
     @DisplayName("Exercise created in tenant X should NOT be readable from tenant Y")
-    // uncomment to fail the test: native query caught by RLS
     void given_exerciseInTenantX_should_notBeReadableFromTenantY() throws Exception {
       // -------- Arrange --------
       Tenant tenantX =
@@ -732,7 +730,7 @@ public class ExerciseApiTest extends IntegrationTest {
               "Tenant Y", Set.of(Capability.ACCESS_ASSESSMENT));
 
       CreateExerciseInput input = new CreateExerciseInput();
-      input.setName("RLS Isolation Test Exercise");
+      input.setName("Isolation Test Exercise");
 
       String createResponse =
           mvc.perform(
@@ -763,7 +761,6 @@ public class ExerciseApiTest extends IntegrationTest {
     }
 
     @Test
-    @Disabled
     @DisplayName("Exercise created in tenant X should be readable from tenant X")
     void given_exerciseInTenantX_should_beReadableFromTenantX() throws Exception {
       // -------- Arrange --------
@@ -819,7 +816,7 @@ public class ExerciseApiTest extends IntegrationTest {
                   .with(csrf()))
           .andExpect(status().is2xxSuccessful());
 
-      // Evict L1 cache so findById() hits the DB (where RLS filters)
+      // Evict L1 cache so findById() hits the DB
       entityManager.flush();
       entityManager.clear();
 
@@ -844,7 +841,6 @@ public class ExerciseApiTest extends IntegrationTest {
     }
 
     @Test
-    @Disabled
     @DisplayName("Exercise created in tenant X should NOT be updatable from tenant Y")
     void given_exerciseInTenantX_should_notBeUpdatableFromTenantY() throws Exception {
       // -------- Arrange --------
@@ -872,7 +868,7 @@ public class ExerciseApiTest extends IntegrationTest {
 
       String exerciseId = JsonPath.read(createResponse, "$.exercise_id");
 
-      // Evict L1 cache so findById() hits the DB (where RLS filters)
+      // Evict L1 cache so findById() hits the DB
       entityManager.flush();
       entityManager.clear();
 
@@ -896,7 +892,6 @@ public class ExerciseApiTest extends IntegrationTest {
     }
 
     @Test
-    @Disabled
     @DisplayName("Exercise created in tenant X should NOT be deletable from tenant Y")
     void given_exerciseInTenantX_should_notBeDeletableFromTenantY() throws Exception {
       // -------- Arrange --------
@@ -924,7 +919,7 @@ public class ExerciseApiTest extends IntegrationTest {
 
       String exerciseId = JsonPath.read(createResponse, "$.exercise_id");
 
-      // Evict L1 cache so deleteById() hits the DB (where RLS filters)
+      // Evict L1 cache so deleteById() hits the DB
       entityManager.flush();
       entityManager.clear();
 
