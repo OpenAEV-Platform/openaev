@@ -45,16 +45,15 @@ public class AccessControlAuditLogAspect {
   @Around("@annotation(accessControl)")
   public Object auditAround(ProceedingJoinPoint joinPoint, AccessControl accessControl)
       throws Throwable {
-    String logUUID = UUID.randomUUID().toString();
     Action action = accessControl.actionPerformed();
-    String eventScope = LogUtils.getEventScope(action);
-    JsonNode inputNode = null;
 
     if (!accessControlAuditLogger.isAuditLoggingEnabled()
         || !accessControlAuditLogger.isAuditLoggingValid(action)) {
       // If openaev.generic-logs.service.enabled is true, log the request and its body input.
       /*if (accessControlAuditLogger.isGenericLoggingEnabled()) {
         // Capture the input DTO for create/update/status_change
+        JsonNode inputNode = null;
+
         try {
           inputNode = getInputNode(joinPoint, eventScope);
         } catch (Exception e) {
@@ -62,11 +61,17 @@ public class AccessControlAuditLogAspect {
           //TODO AUDIT: Do we only want to log this to log var or do we want to call the correspondent LogService?
         }
 
+        String eventScope = LogUtils.getEventScope(action);
+        String logUUID = UUID.randomUUID().toString();
+
         accessControlAuditLogger.auditRequest(eventScope, inputNode, logUUID);
       }*/
 
       return joinPoint.proceed();
     }
+
+    String eventScope = LogUtils.getEventScope(action);
+    String logUUID = UUID.randomUUID().toString();
 
     ResourceType resourceType = null;
     String resourceId = null;
@@ -75,6 +80,7 @@ public class AccessControlAuditLogAspect {
     String entityId = null;
     String entityName = null;
     JsonNode entitySnapshot = null;
+    JsonNode inputNode = null;
     boolean status = true;
 
     try {
