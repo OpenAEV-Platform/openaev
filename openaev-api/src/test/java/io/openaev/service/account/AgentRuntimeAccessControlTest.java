@@ -289,6 +289,48 @@ class AgentRuntimeAccessControlTest extends IntegrationTest {
   }
 
   @Nested
+  @DisplayName("AGENT_RUNTIME_ACCESS should NOT have access to asset-management endpoints")
+  class NoAccessToAssetManagement {
+
+    @Test
+    @DisplayName("should be forbidden to list endpoints")
+    @WithMockUser(withCapabilities = {Capability.AGENT_RUNTIME_ACCESS})
+    void given_agentRuntimeAccess_should_forbidListEndpoints() throws Exception {
+      // Act & Assert
+      mvc.perform(get(ENDPOINT_URI).accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("should be forbidden to search endpoints")
+    @WithMockUser(withCapabilities = {Capability.AGENT_RUNTIME_ACCESS})
+    void given_agentRuntimeAccess_should_forbidSearchEndpoints() throws Exception {
+      // Act & Assert
+      mvc.perform(
+              post(ENDPOINT_URI + "/search")
+                  .content("{\"filterGroup\":{\"mode\":\"and\",\"filters\":[]},\"size\":10,\"page\":0}")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("should be forbidden to create an agentless endpoint")
+    @WithMockUser(withCapabilities = {Capability.AGENT_RUNTIME_ACCESS})
+    void given_agentRuntimeAccess_should_forbidCreateEndpoint() throws Exception {
+      // Act & Assert
+      mvc.perform(
+              post(ENDPOINT_URI + "/agentless")
+                  .content("{\"endpoint_name\":\"test\",\"endpoint_platform\":\"Windows\",\"endpoint_arch\":\"x86_64\",\"endpoint_ips\":[\"1.2.3.4\"]}")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is4xxClientError());
+    }
+  }
+
+  @Nested
   @DisplayName("AGENT_RUNTIME_ACCESS should NOT have access to ResourceType.INJECT")
   class NoAccessToInject {
 
