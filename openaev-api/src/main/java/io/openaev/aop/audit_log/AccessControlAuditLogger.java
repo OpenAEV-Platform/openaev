@@ -19,6 +19,8 @@ import java.util.logging.Level;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.SpringApplication;
+import org.springframework.context.ApplicationContext;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
@@ -38,6 +40,8 @@ public class AccessControlAuditLogger {
 
   @Value("${openaev.audit-logs.stop-the-world:false}")
   private boolean stw;
+
+  private ApplicationContext context;
 
   private final ResourceManagerUtils resourceManagerUtils;
   private final AuditRequestValidator auditRequestValidator;
@@ -227,7 +231,10 @@ public class AccessControlAuditLogger {
   @Async("accessControlAuditLoggerExecutor")
   public void prepareLogFailure() {
     if (stw) {
-      // TODO AUDIT: implements the stop the world
+      log.error("[AUDIT] Stop-the-world triggered — shutting down application.");
+
+      int exitCode = SpringApplication.exit(context, () -> 1);
+      System.exit(exitCode);
     } else {
       log.warn("[AUDIT] Audit logging failed, but continuing without blocking the operation.");
     }

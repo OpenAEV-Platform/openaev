@@ -330,7 +330,7 @@ public class LogService {
   }
 
   // -- Internal helpers --
-  
+
   private ObjectDiffUtils.DiffResult diffObjects(
       String eventScope, JsonNode entitySnapshot, JsonNode inputNode) {
     // For updates: compute diff between old and new values
