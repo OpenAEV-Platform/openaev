@@ -19,7 +19,6 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -109,7 +108,6 @@ public class ThreatArsenalApi {
 
   @PostMapping({THREAT_ARSENAL_URL, TENANT_THREAT_ARSENAL_URL})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.THREAT_ARSENAL)
-  @Transactional(rollbackOn = Exception.class)
   public ThreatArsenalAction createAction(
       @Valid @RequestBody ThreatArsenalActionCreateInput input) {
     return threatArsenalService.create(input);
@@ -120,7 +118,6 @@ public class ThreatArsenalApi {
       resourceId = "#actionId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.THREAT_ARSENAL)
-  @Transactional(rollbackOn = Exception.class)
   public ThreatArsenalAction updateAction(
       @NotBlank @PathVariable final String actionId,
       @Valid @RequestBody ThreatArsenalActionUpdateInput input) {
@@ -135,7 +132,6 @@ public class ThreatArsenalApi {
       resourceId = "#actionId",
       actionPerformed = Action.DUPLICATE,
       resourceType = ResourceType.THREAT_ARSENAL)
-  @Transactional(rollbackOn = Exception.class)
   public ThreatArsenalAction duplicateAction(@NotBlank @PathVariable final String actionId) {
     return threatArsenalService.duplicate(actionId);
   }

@@ -31,6 +31,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @RequiredArgsConstructor
 @Service
@@ -189,6 +190,7 @@ public class ThreatArsenalService {
    * @param actionInput the creation input containing the new action values
    * @return the created threat arsenal action
    */
+  @Transactional(rollbackFor = Exception.class)
   public ThreatArsenalAction create(ThreatArsenalActionCreateInput actionInput) {
     PayloadCreateInput payloadCreateInput =
         convertActionCreateInputToPayloadCreateInput(actionInput);
@@ -208,6 +210,7 @@ public class ThreatArsenalService {
    * @param actionInput the update input containing the new action values
    * @return the updated threat arsenal action
    */
+  @Transactional(rollbackFor = Exception.class)
   public ThreatArsenalAction update(String actionId, ThreatArsenalActionUpdateInput actionInput) {
     // resolve the payload ID from the injector contract
     InjectorContract injectorContract = injectorContractService.injectorContract(actionId);
@@ -267,6 +270,7 @@ public class ThreatArsenalService {
    * @param actionId the ID of the action to duplicate
    * @return the newly created threat arsenal action copy
    */
+  @Transactional(rollbackFor = Exception.class)
   public ThreatArsenalAction duplicate(String actionId) {
     // resolve the payload ID from the injector contract
     InjectorContract injectorContract = injectorContractService.injectorContract(actionId);
@@ -313,6 +317,7 @@ public class ThreatArsenalService {
    * @param actionId the ID of the action to delete — equals the injector contract ID
    * @throws ElementNotFoundException if the injector contract is not payload-based
    */
+  @Transactional(rollbackFor = Exception.class)
   public void delete(String actionId) {
     if (!injectorContractService.isPayloadBased(actionId)) {
       throw new ElementNotFoundException("Only payload-based actions can be deleted.");
