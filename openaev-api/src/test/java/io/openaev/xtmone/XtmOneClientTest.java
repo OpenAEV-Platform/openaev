@@ -71,8 +71,10 @@ class XtmOneClientTest {
                   return null;
                 }
                 String id = map.get("agent_id") != null ? map.get("agent_id").toString() : null;
-                String name = map.get("agent_name") != null ? map.get("agent_name").toString() : null;
-                String slug = map.get("agent_slug") != null ? map.get("agent_slug").toString() : null;
+                String name =
+                    map.get("agent_name") != null ? map.get("agent_name").toString() : null;
+                String slug =
+                    map.get("agent_slug") != null ? map.get("agent_slug").toString() : null;
                 String description =
                     map.get("agent_description") != null
                         ? map.get("agent_description").toString()
