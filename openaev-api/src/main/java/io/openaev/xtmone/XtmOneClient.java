@@ -75,7 +75,7 @@ public class XtmOneClient {
         .compact();
   }
 
-  private String issueJwtForCurrentUser() {
+  String issueJwtForCurrentUser() {
     User user = userService.currentUser();
     return issueAuthenticationJwt(
         user.getId(), user.getName() != null ? user.getName() : user.getEmail(), user.getEmail());

@@ -27,6 +27,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -39,7 +40,7 @@ class XtmOneClientTest {
   @Mock private ObjectMapper objectMapper;
   @Mock private CloseableHttpClient httpClient;
 
-  @InjectMocks private XtmOneClient xtmOneClient;
+  @Spy @InjectMocks private XtmOneClient xtmOneClient;
 
   @Nested
   @DisplayName("listChatAgents")
@@ -140,6 +141,7 @@ class XtmOneClientTest {
       when(config.isConfigured()).thenReturn(true);
       when(config.getUrl()).thenReturn("http://localhost:8080");
       when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
+      doReturn("fake-jwt").when(xtmOneClient).issueJwtForCurrentUser();
     }
 
     @SuppressWarnings("unchecked")
