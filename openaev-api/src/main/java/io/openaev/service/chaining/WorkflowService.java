@@ -435,7 +435,6 @@ public class WorkflowService {
       return Optional.empty();
     }
     return Optional.ofNullable(workflows.getFirst());
-
   }
 
   /**

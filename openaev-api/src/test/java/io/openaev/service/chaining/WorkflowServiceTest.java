@@ -904,6 +904,7 @@ class WorkflowServiceTest {
               stepService,
               previewFeatureService,
               workflowStateService,
+              stepDelayQueueService,
               workflowRepository,
               workflowScopeRuleRepository,
               scopeVariableRepository,
