@@ -45,7 +45,7 @@ const AtomicTestingTabs = ({ injectResultOverview }: Props) => {
   // If tabValue doesn't match the current inject (e.g. stale URL during navigation), default to overview
   if (tabValue === false) {
     tabValue = basePath;
-}
+  }
 
   const handleRemediationClick = (event: React.SyntheticEvent) => {
     event.preventDefault();
