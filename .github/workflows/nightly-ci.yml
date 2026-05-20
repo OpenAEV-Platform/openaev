@@ -57,7 +57,7 @@ jobs:
           --health-cmd "pg_isready -U openaev" --health-interval 10s
           --health-timeout 5s --health-retries 5
       elasticsearch:
-        image: docker.elastic.co/elasticsearch/elasticsearch:8.18.3
+        image: docker.elastic.co/elasticsearch/elasticsearch:9.4.1
         ports:
           - 9200:9200
         env:

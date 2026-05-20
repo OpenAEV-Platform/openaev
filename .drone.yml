@@ -218,7 +218,7 @@ services:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
   - name: elastic
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.18.3
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.4.1
     environment:
       discovery.type: single-node
       xpack.security.enabled: false
