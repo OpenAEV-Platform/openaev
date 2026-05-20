@@ -104,12 +104,12 @@ public class AccessControlAuditLogAspect {
     } catch (Exception e) {
       status = false;
 
-      accessControlAuditLogger.prepareLogFailure();
-
       // Still log the audit event, then continue
       log.warn("[AUDIT] Audit logging failed (non-blocking): {}", e.getMessage(), e);
       // TODO AUDIT: Do we only want to log this to log var or do we want to call the correspondent
       // LogService?
+
+      accessControlAuditLogger.prepareLogFailure();
     }
 
     // Execute the business operation
@@ -122,38 +122,48 @@ public class AccessControlAuditLogAspect {
     } catch (Throwable ex) {
       eventStatus = "error";
 
-      accessControlAuditLogger.prepareLogFailure();
-
-      // Still log the audit event, then re-throw - async
-      accessControlAuditLogger.logMutationEvent(
-          eventScope,
-          eventStatus,
-          resourceType,
-          resourceId,
-          inputNode,
-          null,
-          entityName,
-          null,
-          sourceId,
-          logUUID);
+      accessControlAuditLogger
+          .logMutationEvent(
+              eventScope,
+              eventStatus,
+              resourceType,
+              resourceId,
+              inputNode,
+              null,
+              entityName,
+              null,
+              sourceId,
+              logUUID)
+          .thenRun(accessControlAuditLogger::prepareLogFailure);
 
       throw ex;
     }
 
-    if (status)
-      accessControlAuditLogger.auditEvent(
-          eventScope,
-          eventStatus,
-          resourceType,
-          resourceId,
-          sourceId,
-          entityType,
-          entityId,
-          entityName,
-          entitySnapshot,
-          inputNode,
-          result,
-          logUUID);
+    if (status) {
+      try {
+        accessControlAuditLogger.auditEvent(
+            eventScope,
+            eventStatus,
+            resourceType,
+            resourceId,
+            sourceId,
+            entityType,
+            entityId,
+            entityName,
+            entitySnapshot,
+            inputNode,
+            result,
+            logUUID);
+      } catch (Exception e) {
+        // Still log the audit event, then continue
+        log.warn("[AUDIT] Audit logging failed (non-blocking): {}", e.getMessage(), e);
+        // TODO AUDIT: Do we only want to log this to log var or do we want to call the
+        // correspondent
+        // LogService?
+
+        accessControlAuditLogger.prepareLogFailure();
+      }
+    }
 
     return result;
   }
