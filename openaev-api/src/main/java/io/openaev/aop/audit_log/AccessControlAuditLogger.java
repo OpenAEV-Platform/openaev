@@ -235,6 +235,8 @@ public class AccessControlAuditLogger {
 
       int exitCode = SpringApplication.exit(context, () -> 1);
       System.exit(exitCode);
+
+      // TODO AUDIT: this is not working and app is still running.
     } else {
       log.warn("[AUDIT] Audit logging failed, but continuing without blocking the operation.");
     }

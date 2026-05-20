@@ -54,9 +54,10 @@ public class LogService {
   private final ObjectDiffUtils objectDiffUtils;
 
   /**
-   * ObjectMapper reused from the search engine driver — guarantees identical serialization between
-   * the log appender and the ES/OS transport. Resolved lazily from {@link EngineService} because
-   * the engine bean may not be available at construction time.
+   * ObjectMapper reused from the search engine driver to keep serialization consistent between
+   * audit logging and ES/OS transport.
+   *
+   * <p>Resolved at construction time from {@link EngineService}.
    */
   private final ObjectMapper objectMapper;
 

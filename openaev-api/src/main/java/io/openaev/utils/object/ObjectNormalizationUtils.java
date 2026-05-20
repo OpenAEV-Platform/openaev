@@ -89,7 +89,9 @@ public class ObjectNormalizationUtils {
       String serializedNode, int originalSize, String entityType, int maxSizeBytes) {
     ObjectNode truncated = objectMapper.createObjectNode();
     int previewLimit =
-        Math.clamp(objectNormalizationPolicy.truncationPreviewBytes(), 0, serializedNode.length());
+        Math.max(
+            0,
+            Math.min(objectNormalizationPolicy.truncationPreviewBytes(), serializedNode.length()));
 
     truncated.put("truncated", true);
     truncated.put("entity_type", objectNormalizationPolicy.normalizeEntityType(entityType));

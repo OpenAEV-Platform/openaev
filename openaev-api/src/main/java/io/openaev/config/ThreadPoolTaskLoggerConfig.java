@@ -114,7 +114,7 @@ public class ThreadPoolTaskLoggerConfig {
     return executor;
   }
 
-  public class ThreadRequestContextHolder {
+  public static class ThreadRequestContextHolder {
 
     public record RequestContextData(
         Map<String, String> headers,
