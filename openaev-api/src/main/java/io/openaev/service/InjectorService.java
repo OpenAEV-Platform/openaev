@@ -27,7 +27,6 @@ import io.openaev.service.exception.InjectorRegistrationException;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import io.openaev.utils.mapper.InjectorMapper;
 import jakarta.persistence.EntityManager;
-import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotBlank;
 import java.io.InputStream;
 import java.time.Instant;
@@ -38,6 +37,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 @Slf4j
@@ -360,7 +360,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
    * @param dependencies external service dependencies
    * @throws InjectorRegistrationException if registration fails due to conflicts or errors
    */
-  @Transactional
+  @Transactional(rollbackFor = Exception.class)
   public void registerBuiltinInjector(
       String id,
       String name,
