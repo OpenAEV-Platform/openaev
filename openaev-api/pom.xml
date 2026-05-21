@@ -14,6 +14,8 @@
     <description>OpenAEV api</description>
 
     <properties>
+        <surefire.excludedGroups>performance</surefire.excludedGroups>
+        <surefire.groups/>
         <bcpg-jdk18on.version>1.84</bcpg-jdk18on.version>
         <commons-collections4.version>4.5.0</commons-collections4.version>
         <commons-email.version>1.5</commons-email.version>
@@ -298,7 +300,8 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
-                    <excludedGroups>performance</excludedGroups>
+                    <excludedGroups>${surefire.excludedGroups}</excludedGroups>
+                    <groups>${surefire.groups}</groups>
                 </configuration>
             </plugin>
             <plugin>

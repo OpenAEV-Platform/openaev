@@ -134,10 +134,34 @@ public class TeamService {
     // -- EXECUTION --
     List<TeamOutput> teams = execution(query);
 
-    // -- Count Query --
-    Long total = countQuery(cb, this.entityManager, Team.class, specificationCount);
+    // -- Count Query (skip on subsequent pages if result page is full) --
+    long total;
+    if (teams.size() < pageable.getPageSize()) {
+      // Last page or only page: exact total = offset + actual results
+      total = pageable.getOffset() + teams.size();
+    } else if (pageable.getPageNumber() == 0) {
+      // First full page: compute exact count (frontend will cache it)
+      total = countQuery(cb, this.entityManager, Team.class, specificationCount);
+    } else {
+      // Subsequent full pages: use a fast estimated count to avoid expensive COUNT(*)
+      total = estimateCount();
+    }
 
     return new PageImpl<>(teams, pageable, total);
+  }
+
+  /**
+   * Get a fast estimated count of the teams table from PostgreSQL statistics. This avoids an
+   * expensive full COUNT(*) query on subsequent pages where the frontend already has the exact total
+   * from the first page request.
+   */
+  private long estimateCount() {
+    Number estimate =
+        (Number)
+            entityManager
+                .createNativeQuery("SELECT reltuples FROM pg_class WHERE relname = 'teams'")
+                .getSingleResult();
+    return Math.max(estimate.longValue(), 0);
   }
 
   /**

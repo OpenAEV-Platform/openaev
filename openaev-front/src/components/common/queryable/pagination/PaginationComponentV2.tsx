@@ -112,7 +112,11 @@ const PaginationComponentV2 = <T extends object>({
     fetch(searchPaginationInput).then((result: { data: Page<T> }) => {
       const { data } = result;
       setContent(data.content);
-      queryableHelpers.paginationHelpers.handleChangeTotalElements(data.totalElements);
+      // Only update total count on page 0 (exact count) to avoid overwriting
+      // with backend estimates on subsequent pages
+      if (data.pageable.pageNumber === 0) {
+        queryableHelpers.paginationHelpers.handleChangeTotalElements(data.totalElements);
+      }
       if (data.totalPages <= data.pageable.pageNumber) {
         queryableHelpers.paginationHelpers.handleChangePage(0);
       }
