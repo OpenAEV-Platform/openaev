@@ -86,6 +86,15 @@ public class Collector extends BaseConnectorEntity implements TenantBase {
   @JsonIgnore
   private Tenant tenant;
 
+  // Read-only mapping of tenant_id for use in @JoinColumnsOrFormulas joins.
+  // Since V5_07, collectors has a composite PK (collector_id, tenant_id).
+  // This field ensures that any future FK referencing collectors can use
+  // the @JoinFormula(value = "tenant_id") pattern without modification.
+  // insertable=false, updatable=false avoids conflict with the @ManyToOne Tenant above.
+  @Column(name = "tenant_id", insertable = false, updatable = false)
+  @JsonIgnore
+  private String tenantId;
+
   @Getter(onMethod_ = @JsonIgnore)
   @Transient
   private final ResourceType resourceType = ResourceType.COLLECTOR;
