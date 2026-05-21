@@ -23,7 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class PrivilegeService {
 
-  private static final String CONNECTOR_EMAIL_PATTERN = "connector-%s@openaev.invalid";
+  public static final String CONNECTOR_EMAIL_PATTERN = "connector-%s@openaev.invalid";
   private static final String CONNECTOR_LASTNAME = "OpenCTI Connector";
 
   private final RoleService roleService;
@@ -79,7 +79,7 @@ public class PrivilegeService {
     if (processStixRole.isEmpty()) {
       processStixRole =
           Optional.of(
-              roleService.createRole(
+              roleService.createRoleInternal(
                   PROCESS_STIX_ROLE_ID,
                   PROCESS_STIX_ROLE_NAME,
                   PROCESS_STIX_ROLE_DESCRIPTION,
@@ -87,7 +87,7 @@ public class PrivilegeService {
     } else {
       processStixRole =
           Optional.of(
-              roleService.updateRole(
+              roleService.updateRoleInternal(
                   PROCESS_STIX_ROLE_ID,
                   PROCESS_STIX_ROLE_NAME,
                   PROCESS_STIX_ROLE_DESCRIPTION,
