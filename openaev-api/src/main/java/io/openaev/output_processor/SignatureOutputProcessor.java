@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 public class SignatureOutputProcessor extends AbstractOutputProcessor {
 
   protected SignatureOutputProcessor() {
-    super(ContractOutputType.Signature, ContractOutputTechnicalType.Object, List.of());
+    super(ContractOutputType.ExpectationSignature, ContractOutputTechnicalType.Object, List.of());
   }
 
   @Override

@@ -168,7 +168,7 @@ export interface AggregatedFindingOutput {
     | "account_with_password_not_required"
     | "asreproastable_account"
     | "kerberoastable_account"
-    | "signature";
+    | "expectation_signature";
   /**
    * Finding Value
    * @minLength 1
@@ -1492,7 +1492,7 @@ export interface ContractOutputElement {
     | "account_with_password_not_required"
     | "asreproastable_account"
     | "kerberoastable_account"
-    | "signature";
+    | "expectation_signature";
   /** @format date-time */
   contract_output_element_updated_at: string;
   listened?: boolean;
@@ -1546,7 +1546,7 @@ export interface ContractOutputElementInput {
     | "account_with_password_not_required"
     | "asreproastable_account"
     | "kerberoastable_account"
-    | "signature";
+    | "expectation_signature";
 }
 
 /** Represents the rules for parsing the output of an execution. */
@@ -1596,7 +1596,7 @@ export interface ContractOutputElementSimple {
     | "account_with_password_not_required"
     | "asreproastable_account"
     | "kerberoastable_account"
-    | "signature";
+    | "expectation_signature";
 }
 
 export interface CreateConnectorInstanceInput {
@@ -3350,7 +3350,7 @@ export interface Finding {
     | "account_with_password_not_required"
     | "asreproastable_account"
     | "kerberoastable_account"
-    | "signature";
+    | "expectation_signature";
   /** @format date-time */
   finding_updated_at: string;
   finding_users?: string[];
@@ -3385,7 +3385,7 @@ export interface FindingInput {
     | "account_with_password_not_required"
     | "asreproastable_account"
     | "kerberoastable_account"
-    | "signature";
+    | "expectation_signature";
   /** @minLength 1 */
   finding_value: string;
 }
@@ -6810,7 +6810,7 @@ export interface RelatedFindingOutput {
     | "account_with_password_not_required"
     | "asreproastable_account"
     | "kerberoastable_account"
-    | "signature";
+    | "expectation_signature";
   /**
    * Finding Value
    * @minLength 1

@@ -23,7 +23,7 @@ class SignatureOutputProcessorTest {
   @Test
   @DisplayName("Should expose Signature type")
   void shouldExposeSignatureType() {
-    assertEquals(ContractOutputType.Signature, processor.getType());
+    assertEquals(ContractOutputType.ExpectationSignature, processor.getType());
   }
 
   @Test

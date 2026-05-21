@@ -19,7 +19,7 @@ enum ContractOutputElementType {
   text = 'Text',
   username = 'Username',
   vulnerability = 'Vulnerability',
-  signature = 'Signature',
+  expectation_signature = 'expectation_signature',
 }
 
 export const CONTRACT_OUTPUT_ELEMENT_TYPE_KEYS = Object.keys(

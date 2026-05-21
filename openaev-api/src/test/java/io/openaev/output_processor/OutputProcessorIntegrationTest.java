@@ -38,7 +38,7 @@ class OutputProcessorIntegrationTest extends IntegrationTest {
     assertThat(registry.getProcessor(ContractOutputType.CVE).get())
         .isInstanceOf(CVEOutputProcessor.class);
 
-    assertThat(registry.getProcessor(ContractOutputType.Signature).get())
+    assertThat(registry.getProcessor(ContractOutputType.ExpectationSignature).get())
         .isInstanceOf(SignatureOutputProcessor.class);
   }
 
