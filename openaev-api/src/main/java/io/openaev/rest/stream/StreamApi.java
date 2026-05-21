@@ -9,9 +9,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.aop.AccessControl;
 import io.openaev.config.OpenAEVPrincipal;
+import io.openaev.context.TenantContext;
 import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
+import io.openaev.database.model.TenantBase;
 import io.openaev.database.model.User;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.PermissionService;
@@ -97,37 +99,51 @@ public class StreamApi extends RestBehavior {
           // FIXME find a way to cache user
           // -> close session when user se login
 
-          FluxSink<Object> fluxSink = tupleFlux.getT2();
-          if (!permissionService.hasPermission(
-              user,
-              Optional.empty(),
-              event.getInstance().getId(),
-              event.getInstance().getResourceType(),
-              Action.READ)) {
-            // If user as no visibility, we can send a "delete" userEvent with only the internal
-            // id
-            // TODO -> rethink this logic -> do we need to send DELETE events
-            try {
-              String propertyId =
-                  event
-                      .getInstance()
-                      .getClass()
-                      .getDeclaredField("id")
-                      .getAnnotation(JsonProperty.class)
-                      .value();
-              ObjectNode deleteNode = mapper.createObjectNode();
-              deleteNode.set(
-                  propertyId, mapper.convertValue(event.getInstance().getId(), JsonNode.class));
-              BaseEvent userEvent = event.clone();
-              userEvent.setInstanceData(deleteNode);
-              userEvent.setType(DATA_DELETE);
-              sendStreamEvent(fluxSink, userEvent);
-            } catch (Exception e) {
-              String simpleName = event.getInstance().getClass().getSimpleName();
-              log.warn(String.format("Class %s can't be streamed", simpleName), e);
+          // Set the tenant context for permission checks on the async thread.
+          // Without this, TenantContext defaults to DEFAULT_TENANT_UUID, causing
+          // tenant-scoped capabilities to be invisible and incorrect DELETE events
+          // to be sent for entities on non-default tenants.
+          String entityTenantId = null;
+          if (event.getInstance() instanceof TenantBase tenantEntity) {
+            entityTenantId = tenantEntity.getTenant().getId();
+            TenantContext.setCurrentTenant(entityTenantId);
+          }
+
+          try {
+            FluxSink<Object> fluxSink = tupleFlux.getT2();
+            if (!permissionService.hasPermission(
+                user,
+                Optional.empty(),
+                event.getInstance().getId(),
+                event.getInstance().getResourceType(),
+                Action.READ)) {
+                try {
+                String propertyId =
+                    event
+                        .getInstance()
+                        .getClass()
+                        .getDeclaredField("id")
+                        .getAnnotation(JsonProperty.class)
+                        .value();
+                ObjectNode deleteNode = mapper.createObjectNode();
+                deleteNode.set(
+                    propertyId, mapper.convertValue(event.getInstance().getId(), JsonNode.class));
+                BaseEvent userEvent = event.clone();
+                userEvent.setInstanceData(deleteNode);
+                userEvent.setType(DATA_DELETE);
+                sendStreamEvent(fluxSink, userEvent);
+              } catch (Exception e) {
+                String simpleName = event.getInstance().getClass().getSimpleName();
+                log.warn(String.format("Class %s can't be streamed", simpleName), e);
+              }
+            } else {
+              sendStreamEvent(fluxSink, event);
             }
-          } else {
-            sendStreamEvent(fluxSink, event);
+          } finally {
+            // Reset tenant context to avoid leaking into other consumers in the loop
+            if (entityTenantId != null) {
+              TenantContext.clearCurrentTenant();
+            }
           }
         });
   }

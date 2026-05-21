@@ -193,7 +193,7 @@ const UpdateInject: React.FC<Props> = ({
         {/* Inject details */}
         <TabPanel value="Inject details" keepMounted className={classes.tabPanel}>
           {injectFormContent}
-          {!isInjectLoading && inject && (
+          {!isInjectLoading && (
             <InjectForm
               handleClose={handleClose}
               disabled={

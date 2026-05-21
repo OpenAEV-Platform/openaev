@@ -1,6 +1,6 @@
 import { type Dispatch } from 'redux';
 
-import { delReferential, getReferential, postReferential, putReferential, simpleCall, simplePostCall } from '../utils/Action';
+import { delReferential, getReferential, postReferential, putReferential, simpleCall, simplePostCall, simplePutCall } from '../utils/Action';
 import type {
   CreateExerciseInput,
   Exercise,
@@ -87,11 +87,10 @@ export const updateExerciseTags = (exerciseId: string, data: ExerciseUpdateTagsI
   data,
 )(dispatch);
 
-export const updateExerciseStatus = (exerciseId: string, status: ExerciseUpdateStatusInput) => (dispatch: AppDispatch) => putReferential(
-  schema.exercise,
+export const updateExerciseStatus = (exerciseId: string, status: ExerciseUpdateStatusInput) => (dispatch: AppDispatch) => simplePutCall(
   `/api/exercises/${exerciseId}/status`,
   status,
-)(dispatch);
+).then(() => getReferential(schema.exercise, `/api/exercises/${exerciseId}`)(dispatch));
 
 export const updateInjectExpectation = (injectExpectationId: string, data: ExpectationUpdateInput) => (dispatch: AppDispatch) => putReferential(
   schema.injectexpectation,
