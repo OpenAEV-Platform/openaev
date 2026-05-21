@@ -151,43 +151,6 @@ public class AuditResourceDetector {
     }
   }
 
-  /*public ChildResourceInfo detectChildResource(ProceedingJoinPoint joinPoint, ResourceType resourceType, String parentResourceId) {
-      try {
-          MethodSignature sig = (MethodSignature) joinPoint.getSignature();
-          Annotation[][] paramAnnotations = sig.getMethod().getParameterAnnotations();
-          Object[] args = joinPoint.getArgs();
-
-          for (int i = 0; i < paramAnnotations.length; i++) {
-              for (Annotation ann : paramAnnotations[i]) {
-                  if (ann instanceof PathVariable) {
-                      String paramValue = args[i] != null ? args[i].toString() : null;
-
-                      if (paramValue != null && !paramValue.equals(parentResourceId)) {
-                          JsonNode snapshot = resourceManagerUtils.snapshotResourceEntity(resourceType, paramValue);
-
-                          if (snapshot != null) {
-                              return new ChildResourceInfo(resourceType, paramValue, snapshot);
-                          }
-
-                          // Non-parent path variable — try to find the entity
-                          ChildResourceInfo childInfo = null;
-
-                          for (Map.Entry<ResourceType, Class<?>> entry : ResourceManagerUtils.ENTITY_CLASS_MAP.entrySet()) {
-                              childInfo = getChildResourceInfo(entry.getKey(), paramValue, false);
-
-                              if (childInfo != null)
-                                  return childInfo;
-                          }
-                      }
-                  }
-              }
-          }
-      } catch (Exception e) {
-          log.warn("[AUDIT] Failed to detect child resource: {}", e.getMessage(), e);
-      }
-      return null;
-  }*/
-
   /** Extracts all {@code @PathVariable} argument values from the join point. */
   private String[] extractPathVariableValues(MethodSignature sig, Object[] args) {
     Annotation[][] paramAnnotations = sig.getMethod().getParameterAnnotations();

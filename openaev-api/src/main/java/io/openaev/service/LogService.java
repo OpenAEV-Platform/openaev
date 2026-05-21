@@ -24,6 +24,7 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -33,6 +34,7 @@ import org.springframework.stereotype.Service;
  */
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class LogService {
 
   @Value("${openaev.generic-logs.service.enabled:false}")
@@ -53,33 +55,9 @@ public class LogService {
 
   private final ObjectNormalizationUtils objectNormalizationUtils;
   private final ObjectDiffUtils objectDiffUtils;
-
-  /**
-   * ObjectMapper reused from the search engine driver to keep serialization consistent between
-   * audit logging and ES/OS transport.
-   *
-   * <p>Resolved at construction time from {@link EngineService}.
-   */
-  private final ObjectMapper objectMapper;
+  private final EngineService engineService;
 
   private final UserService userService;
-
-  public LogService(
-      UserService userService,
-      EngineService engineService,
-      GenericLogTransportDispatcherUtils genericLogTransportDispatcherUtils,
-      AuditLogTransportDispatcherUtils auditLogTransportDispatcherUtils,
-      ObjectNormalizationUtils objectNormalizationUtils,
-      ObjectDiffUtils objectDiffUtils,
-      PreviewFeatureService previewFeatureService) {
-    this.userService = userService;
-    this.objectMapper = engineService.getObjectMapper();
-    this.genericLogTransportDispatcherUtils = genericLogTransportDispatcherUtils;
-    this.auditLogTransportDispatcherUtils = auditLogTransportDispatcherUtils;
-    this.objectNormalizationUtils = objectNormalizationUtils;
-    this.objectDiffUtils = objectDiffUtils;
-    this.previewFeatureService = previewFeatureService;
-  }
 
   // -- Public API --
 
@@ -212,13 +190,13 @@ public class LogService {
       if (input != null) {
         input = objectNormalizationUtils.normalize(input);
         input = ObjectRedactionUtils.redact(input, entityTypeName);
-        ctx.put("input", objectMapper.convertValue(input, Map.class));
+        ctx.put("input", objectMapper().convertValue(input, Map.class));
       }
 
       if (oldValue != null) {
         oldValue = objectNormalizationUtils.normalize(oldValue);
         oldValue = ObjectRedactionUtils.redact(oldValue, entityTypeName);
-        ctx.put("old_value", objectMapper.convertValue(oldValue, Map.class));
+        ctx.put("old_value", objectMapper().convertValue(oldValue, Map.class));
       }
 
       ctx.put("message", message);
@@ -369,7 +347,7 @@ public class LogService {
         diffNewValues = inputNode;
       } else {
         // No request body (e.g. POST /scenarios/{id}/exercise/running)
-        ObjectNode syntheticInput = objectMapper.createObjectNode();
+        ObjectNode syntheticInput = objectMapper().createObjectNode();
         syntheticInput.put("action", "launch");
         diffNewValues = syntheticInput;
       }
@@ -501,6 +479,7 @@ public class LogService {
       String xff = HttpReqRespUtils.extractHeader(headers, "X-Forwarded-For");
       if (xff != null && !xff.isEmpty()) {
         meta.setXForwardedFor(xff);
+        hasData = true;
       }
 
       String ip = HttpReqRespUtils.getClientIpAddressIfServletRequestExist();
@@ -539,7 +518,7 @@ public class LogService {
     }
 
     try {
-      String json = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(doc);
+      String json = objectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(doc);
       String message = "[LOG] json doc: " + json;
 
       return genericLogTransportDispatcherUtils.dispatch(message, logLevel);
@@ -555,5 +534,13 @@ public class LogService {
       return auditLogTransportDispatcherUtils.dispatch(message, logLevel);
     }
     return genericLogTransportDispatcherUtils.dispatch(message, logLevel);
+  }
+
+  /**
+   * Reuses the ObjectMapper from the search engine driver so audit serialization stays identical to
+   * ES/OS transport serialization.
+   */
+  private ObjectMapper objectMapper() {
+    return engineService.getObjectMapper();
   }
 }
