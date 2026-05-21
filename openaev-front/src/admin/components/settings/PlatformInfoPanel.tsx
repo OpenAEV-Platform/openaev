@@ -5,6 +5,7 @@ import { useFormatter } from '../../../components/i18n';
 import ItemBoolean from '../../../components/ItemBoolean';
 import ItemCopy from '../../../components/ItemCopy';
 import type { PlatformSettings } from '../../../utils/api-types';
+import useAI from '../../../utils/hooks/useAI';
 
 interface PlatformInfoPanelProps {
   settings: PlatformSettings;
@@ -14,12 +15,13 @@ interface PlatformInfoPanelProps {
 
 const PlatformInfoPanel = ({ settings, topContent, bottomContent }: PlatformInfoPanelProps) => {
   const { t } = useFormatter();
+  const { enabled: aiEnabled, xtmOneConfigured } = useAI();
   const isEnterpriseEditionValid = settings.platform_license?.license_is_validated;
 
   const editionLabel = isEnterpriseEditionValid ? t('Enterprise') : t('Community');
 
   const resolveAiLabel = () => {
-    if (settings.platform_ai_enabled === false) {
+    if (!aiEnabled) {
       return t('Disabled');
     }
     if (settings.platform_ai_has_token) {
@@ -63,15 +65,17 @@ const PlatformInfoPanel = ({ settings, topContent, bottomContent }: PlatformInfo
           <ListItemText primary={t('Edition')} />
           <ItemBoolean variant="large" neutralLabel={editionLabel} status={null} />
         </ListItem>
-        <ListItem divider={!!bottomContent}>
-          <ListItemText primary={t('AI Powered')} />
-          <ItemBoolean
-            variant="large"
-            label={aiLabel}
-            status={(settings.platform_ai_enabled !== false) && (settings.platform_ai_has_token)}
-            tooltip={aiTooltip}
-          />
-        </ListItem>
+        {!xtmOneConfigured && (
+          <ListItem divider={!!bottomContent}>
+            <ListItemText primary={t('AI Powered')} />
+            <ItemBoolean
+              variant="large"
+              label={aiLabel}
+              status={aiEnabled && settings.platform_ai_has_token}
+              tooltip={aiTooltip}
+            />
+          </ListItem>
+        )}
         {bottomContent}
       </List>
     </Paper>
