@@ -1,34 +1,35 @@
 import { useState } from 'react';
 
-import { searchPayloads } from '../../../../../../../actions/payloads/payload-actions';
+import { searchThreatArsenalActions } from '../../../../../../../actions/threat_arsenals/threatArsenal-actions';
 import { initSorting } from '../../../../../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../../../../../components/common/queryable/QueryableUtils';
 import { useQueryableWithLocalStorage } from '../../../../../../../components/common/queryable/useQueryableWithLocalStorage';
-import type { Payload, SearchPaginationInput } from '../../../../../../../utils/api-types';
+import type { SearchPaginationInput, ThreatArsenalAction } from '../../../../../../../utils/api-types';
 import TableData from '../ui/TableData';
-import usePayloadGrant from './usePayloadGrant';
+import useThreatArsenalGrant from './useThreatArsenalGrant';
 
 interface GroupManagePayloadGrantsProps {
   groupId: string;
   onGrantChange: () => void;
 }
 
-const GroupManagePayloadGrants = ({ groupId, onGrantChange }: GroupManagePayloadGrantsProps) => {
-  const { configs } = usePayloadGrant({
+const GroupManageThreatArsenalGrants = ({ groupId, onGrantChange }: GroupManagePayloadGrantsProps) => {
+  const { configs } = useThreatArsenalGrant({
     groupId,
     onGrantChange,
   });
-  const [payloads, setPayloads] = useState<Payload[]>([]);
+
+  const [threatArsenalActions, setThreatArsenalActions] = useState<ThreatArsenalAction[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
   const {
     queryableHelpers,
     searchPaginationInput,
-  } = useQueryableWithLocalStorage(`group-${groupId}-payloads`, buildSearchPagination({ sorts: initSorting('payload_updated_at', 'DESC') }));
+  } = useQueryableWithLocalStorage(`group-${groupId}-threat-arsenal`, buildSearchPagination({ sorts: initSorting('injector_contract_updated_at', 'DESC') }));
   const search = (input: SearchPaginationInput) => {
     setLoading(true);
-    return searchPayloads(input).finally(() => setLoading(false));
+    return searchThreatArsenalActions(input).finally(() => setLoading(false));
   };
 
   return (
@@ -36,13 +37,13 @@ const GroupManagePayloadGrants = ({ groupId, onGrantChange }: GroupManagePayload
       <PaginationComponentV2
         fetch={search}
         searchPaginationInput={searchPaginationInput}
-        setContent={setPayloads}
+        setContent={setThreatArsenalActions}
         entityPrefix="payload"
         queryableHelpers={queryableHelpers}
         disableFilters
       />
       <TableData
-        datas={payloads}
+        datas={threatArsenalActions}
         configs={configs}
         loading={loading}
       />
@@ -50,4 +51,4 @@ const GroupManagePayloadGrants = ({ groupId, onGrantChange }: GroupManagePayload
   );
 };
 
-export default GroupManagePayloadGrants;
+export default GroupManageThreatArsenalGrants;

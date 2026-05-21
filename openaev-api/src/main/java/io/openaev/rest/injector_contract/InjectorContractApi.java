@@ -147,7 +147,7 @@ public class InjectorContractApi extends RestBehavior {
   }
 
   /**
-   * Updates the attack pattern and vulnerability mappings for a contract.
+   * Updates the attack pattern tags and domains mappings for a contract.
    *
    * @param injectorContractId the contract ID to update
    * @param input the mapping update data
@@ -164,7 +164,8 @@ public class InjectorContractApi extends RestBehavior {
   public InjectorContract updateInjectorContractMapping(
       @PathVariable String injectorContractId,
       @Valid @RequestBody InjectorContractUpdateMappingInput input) {
-    return injectorContractService.updateAttackPatternMappings(injectorContractId, input);
+    return injectorContractService.updateInjectorContractTTPDomainsAndTags(
+        injectorContractId, input);
   }
 
   /**

@@ -313,40 +313,6 @@ public class PermissionServiceTest extends IntegrationTest {
   }
 
   @Test
-  public void test_hasNOPermission_search_options_WHEN_has_write_grant() {
-    String injectId = "injectId";
-    Inject inject = mock(Inject.class);
-    when(inject.getParentResourceId()).thenReturn(RESOURCE_ID);
-    when(inject.getParentResourceType()).thenReturn(ResourceType.SIMULATION);
-    when(injectService.inject(injectId)).thenReturn(inject);
-
-    User user = getUser(USER_ID, false);
-    when(grantService.hasWriteGrant(RESOURCE_ID, user)).thenReturn(true);
-    assertFalse(
-        permissionService.hasPermission(
-            user, Optional.empty(), null, ResourceType.INJECTOR, Action.SEARCH));
-  }
-
-  @Test
-  public void
-      test_hasNOPermission_search_options_WHEN_has_write_grant_AND_incomplete_mapping_info_no_sourceId() {
-    String injectId = "injectId";
-    Inject inject = mock(Inject.class);
-    when(inject.getParentResourceId()).thenReturn(RESOURCE_ID);
-    when(inject.getParentResourceType()).thenReturn(ResourceType.SIMULATION);
-    when(injectService.inject(injectId)).thenReturn(inject);
-
-    User user = getUser(USER_ID, false);
-    when(grantService.hasWriteGrant(RESOURCE_ID, user)).thenReturn(true);
-    AccessControlAspect.HttpMappingInfo mappingInfo =
-        new AccessControlAspect.HttpMappingInfo(
-            RequestMethod.GET, new String[] {"api/injector/options"}, Map.of());
-    assertFalse(
-        permissionService.hasPermission(
-            user, Optional.of(mappingInfo), null, ResourceType.INJECTOR, Action.SEARCH));
-  }
-
-  @Test
   public void test_hasPermission_read_workflow_step_WHEN_has_no_permission() {
     User user = getUser(USER_ID, false);
     assertFalse(

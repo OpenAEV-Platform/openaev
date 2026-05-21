@@ -3448,6 +3448,7 @@ export interface Grant {
     | "SCENARIO"
     | "SIMULATION"
     | "ATOMIC_TESTING"
+    | "THREAT_ARSENAL"
     | "PAYLOAD"
     | "UNKNOWN";
   listened?: boolean;
@@ -3473,6 +3474,7 @@ export interface GroupGrantInput {
     | "SCENARIO"
     | "SIMULATION"
     | "ATOMIC_TESTING"
+    | "THREAT_ARSENAL"
     | "PAYLOAD"
     | "UNKNOWN";
 }
@@ -4493,7 +4495,6 @@ export interface InjectorContractUpdateMappingInput {
   contract_domains: string[];
   /** Set list of tags ids */
   contract_tags_ids?: string[];
-  contract_vulnerability_ids?: string[];
 }
 
 export interface InjectorCreateInput {
@@ -6254,6 +6255,9 @@ export interface PlatformRoleInput {
     | "ACCESS_PAYLOADS"
     | "MANAGE_PAYLOADS"
     | "DELETE_PAYLOADS"
+    | "ACCESS_THREAT_ARSENALS"
+    | "MANAGE_THREAT_ARSENALS"
+    | "DELETE_THREAT_ARSENALS"
     | "ACCESS_DASHBOARDS"
     | "MANAGE_DASHBOARDS"
     | "DELETE_DASHBOARDS"
@@ -6929,6 +6933,9 @@ export interface RoleInput {
     | "ACCESS_PAYLOADS"
     | "MANAGE_PAYLOADS"
     | "DELETE_PAYLOADS"
+    | "ACCESS_THREAT_ARSENALS"
+    | "MANAGE_THREAT_ARSENALS"
+    | "DELETE_THREAT_ARSENALS"
     | "ACCESS_DASHBOARDS"
     | "MANAGE_DASHBOARDS"
     | "DELETE_DASHBOARDS"
@@ -8189,8 +8196,8 @@ export interface ThreatArsenalActionUpdateInput {
   action_detection_remediations?: DetectionRemediationInput[];
   /** Update list of domains */
   action_domains: string[];
-  action_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
-  action_expectations: (
+  action_execution_arch?: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
+  action_expectations?: (
     | "TEXT"
     | "DOCUMENT"
     | "ARTICLE"
@@ -8402,6 +8409,9 @@ export interface User {
     | "ACCESS_PAYLOADS"
     | "MANAGE_PAYLOADS"
     | "DELETE_PAYLOADS"
+    | "ACCESS_THREAT_ARSENALS"
+    | "MANAGE_THREAT_ARSENALS"
+    | "DELETE_THREAT_ARSENALS"
     | "ACCESS_DASHBOARDS"
     | "MANAGE_DASHBOARDS"
     | "DELETE_DASHBOARDS"
