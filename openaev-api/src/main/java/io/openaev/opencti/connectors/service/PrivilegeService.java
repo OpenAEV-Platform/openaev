@@ -100,17 +100,17 @@ public class PrivilegeService {
     Optional<Role> processStixRole = roleService.findById(roleId);
     if (processStixRole.isEmpty()) {
       return roleService.createRoleInternal(
-                  roleId,
-                  PROCESS_STIX_ROLE_NAME,
-                  PROCESS_STIX_ROLE_DESCRIPTION,
-                  PROCESS_STIX_ROLE_CAPABILITIES,
-                  tenantId);
+          roleId,
+          PROCESS_STIX_ROLE_NAME,
+          PROCESS_STIX_ROLE_DESCRIPTION,
+          PROCESS_STIX_ROLE_CAPABILITIES,
+          tenantId);
     } else {
       return roleService.updateRoleInternal(
-                  roleId,
-                  PROCESS_STIX_ROLE_NAME,
-                  PROCESS_STIX_ROLE_DESCRIPTION,
-                  PROCESS_STIX_ROLE_CAPABILITIES);
+          roleId,
+          PROCESS_STIX_ROLE_NAME,
+          PROCESS_STIX_ROLE_DESCRIPTION,
+          PROCESS_STIX_ROLE_CAPABILITIES);
     }
   }
 
