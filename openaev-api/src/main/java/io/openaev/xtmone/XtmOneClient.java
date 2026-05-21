@@ -119,7 +119,7 @@ public class XtmOneClient {
     if (!config.isConfigured()) {
       return null;
     }
-    try (CloseableHttpClient httpClient = httpClientFactory.httpClientCustom()) {
+    try (CloseableHttpClient httpClient = httpClientFactory.httpClientNoRetry()) {
       Map<String, Object> body = new HashMap<>();
       body.put("platform_identifier", platformIdentifier);
       body.put("platform_url", platformUrl);
@@ -161,7 +161,7 @@ public class XtmOneClient {
       throw new ResponseStatusException(
           HttpStatus.SERVICE_UNAVAILABLE, "[XTM One] Service is not configured");
     }
-    try (CloseableHttpClient httpClient = httpClientFactory.httpClientCustom()) {
+    try (CloseableHttpClient httpClient = httpClientFactory.httpClientNoRetry()) {
       String jwt = issueJwtForCurrentUser();
       HttpGet httpGet =
           chatGetBuilder(INTENTS_CATALOG_AGENTS_PATH + "?vertical=aev&intent=" + intentName, jwt);
@@ -228,7 +228,7 @@ public class XtmOneClient {
     if (!config.isConfigured()) {
       return null;
     }
-    try (CloseableHttpClient httpClient = httpClientFactory.httpClientCustom()) {
+    try (CloseableHttpClient httpClient = httpClientFactory.httpClientNoRetry()) {
       String jwt = issueJwtForCurrentUser();
       Map<String, Object> body = new HashMap<>();
       if (agentSlug != null) body.put("agent_slug", agentSlug);
@@ -315,7 +315,7 @@ public class XtmOneClient {
       log.warn("[XTM One] Chat message skipped: not configured");
       return;
     }
-    try (CloseableHttpClient httpClient = httpClientFactory.httpClientCustom()) {
+    try (CloseableHttpClient httpClient = httpClientFactory.httpClientNoRetry()) {
       String jwt = issueJwtForCurrentUser();
       Map<String, Object> body = new HashMap<>();
       body.put("content", content);
@@ -374,7 +374,7 @@ public class XtmOneClient {
       log.warn("[XTM One] callAgentSync skipped: not configured");
       return null;
     }
-    try (CloseableHttpClient httpClient = httpClientFactory.httpClientCustom()) {
+    try (CloseableHttpClient httpClient = httpClientFactory.httpClientNoRetry()) {
       String jwt = issueJwtForCurrentUser();
       Map<String, Object> body = new HashMap<>();
       body.put("content", content);
