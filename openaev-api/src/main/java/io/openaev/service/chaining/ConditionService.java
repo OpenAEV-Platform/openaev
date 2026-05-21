@@ -18,6 +18,7 @@ import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -471,7 +472,7 @@ public class ConditionService {
 
     if (!filterConditions.isEmpty()) {
       if (!evaluateFilterConditions(filterConditions, workflowRun, nextStepTemplateToExecute)) {
-        log.info(
+        log.debug(
             "[Chaining] Filter conditions not satisfied for step template {}",
             nextStepTemplateToExecute.getId());
         return Collections.emptyList();
@@ -508,7 +509,7 @@ public class ConditionService {
     for (Condition condition : dependOnConditions) {
       String dependentStepTemplateId = condition.getValue();
       if (dependentStepTemplateId == null || dependentStepTemplateId.isBlank()) {
-        log.info("DEPEND_ON condition has no step template ID value: {}", condition.getId());
+        log.error("DEPEND_ON condition has no step template ID value: {}", condition.getId());
         return false;
       }
 
@@ -551,22 +552,21 @@ public class ConditionService {
   private boolean evaluateFilterConditions(
       List<Condition> filterConditions, Workflow workflowRun, Step stepTemplate) {
 
-    // Lazy-loaded state entries
-    WorkflowStateEntries[] globalEntries = {null};
-    WorkflowStateEntries[] localEntries = {null};
+    Supplier<WorkflowContext> contextSupplier =
+        new Supplier<>() {
+          private WorkflowContext cached;
 
-    // Supplier to lazy-load context on first need
-    Runnable ensureStateLoaded =
-        () -> {
-          if (globalEntries[0] == null || localEntries[0] == null) {
-            WorkflowContext context = fetchWorkflowContext(workflowRun, stepTemplate);
-            globalEntries[0] = context.globalEntries();
-            localEntries[0] = context.localEntries();
+          @Override
+          public WorkflowContext get() {
+            if (cached == null) {
+              cached = fetchWorkflowContext(workflowRun, stepTemplate);
+            }
+            return cached;
           }
         };
 
     for (Condition filterCondition : filterConditions) {
-      if (!isFilterTreeSatisfied(filterCondition, globalEntries, localEntries, ensureStateLoaded)) {
+      if (!isFilterTreeSatisfied(filterCondition, contextSupplier)) {
         log.info(
             "[Chaining] Filter tree NOT satisfied: rootId={}, rootType={}, rootKeyType={}, childrenCount={}",
             filterCondition.getId(),
@@ -590,16 +590,11 @@ public class ConditionService {
    * against the leaf's target value.
    *
    * @param condition the condition node to evaluate (may be AND/OR or a leaf)
-   * @param globalEntries lazy-loaded global state (array wrapper for mutation)
-   * @param localEntries lazy-loaded local state (array wrapper for mutation)
-   * @param ensureStateLoaded callback to load state entries on demand
+   * @param contextSupplier lazy supplier for the workflow context (loaded on first leaf access)
    * @return {@code true} if the condition tree is satisfied
    */
   private boolean isFilterTreeSatisfied(
-      Condition condition,
-      WorkflowStateEntries[] globalEntries,
-      WorkflowStateEntries[] localEntries,
-      Runnable ensureStateLoaded) {
+      Condition condition, Supplier<WorkflowContext> contextSupplier) {
 
     if (condition == null) {
       return true;
@@ -611,9 +606,7 @@ public class ConditionService {
         return true;
       }
       return condition.getConditionChildren().stream()
-          .allMatch(
-              child ->
-                  isFilterTreeSatisfied(child, globalEntries, localEntries, ensureStateLoaded));
+          .allMatch(child -> isFilterTreeSatisfied(child, contextSupplier));
     }
 
     // OR node: at least one child must be satisfied
@@ -622,16 +615,14 @@ public class ConditionService {
         return false;
       }
       return condition.getConditionChildren().stream()
-          .anyMatch(
-              child ->
-                  isFilterTreeSatisfied(child, globalEntries, localEntries, ensureStateLoaded));
+          .anyMatch(child -> isFilterTreeSatisfied(child, contextSupplier));
     }
 
-    // Leaf node: ensure state is loaded, resolve values, then evaluate.
+    // Leaf node: load context, resolve values, then evaluate.
     // A leaf is satisfied if ANY value from the resolved pool matches the condition.
-    ensureStateLoaded.run();
+    WorkflowContext context = contextSupplier.get();
     List<String> valuesToCheck =
-        resolveAllFilterValues(condition, globalEntries[0], localEntries[0]);
+        resolveAllFilterValues(condition, context.globalEntries(), context.localEntries());
 
     boolean result =
         valuesToCheck.stream()
@@ -922,12 +913,14 @@ public class ConditionService {
     WorkflowState localState =
         workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun);
 
-    WorkflowStateEntries localEntries = deserializeEntries(localState.getEntries());
+    WorkflowStateEntries emptyEntries =
+        new WorkflowStateEntries(
+            new ArrayList<>(), new ArrayList<>(), new HashSet<>(), new HashSet<>());
+
+    WorkflowStateEntries localEntries =
+        localState != null ? deserializeEntries(localState.getEntries()) : emptyEntries;
     WorkflowStateEntries globalEntries =
-        globalState != null
-            ? deserializeEntries(globalState.getEntries())
-            : new WorkflowStateEntries(
-                new ArrayList<>(), new ArrayList<>(), new HashSet<>(), new HashSet<>());
+        globalState != null ? deserializeEntries(globalState.getEntries()) : emptyEntries;
 
     return new WorkflowContext(localState, localEntries, globalEntries);
   }
@@ -939,6 +932,9 @@ public class ConditionService {
 
   /** Syncs the POJO back to the entity and saves it. */
   private void saveLocalState(WorkflowContext context) {
+    if (context.localStateEntity() == null) {
+      return;
+    }
     String json = gson.toJson(context.localEntries());
     context.localStateEntity().setEntries(json);
     workflowStateService.save(context.localStateEntity());

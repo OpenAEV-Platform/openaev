@@ -305,15 +305,16 @@ public class InjectExecutionStep implements ActionStep {
       for (Map<String, JsonElement> entry : output) {
         if (entry.containsKey("parsed")) {
           JsonObject parsed = entry.get("parsed").getAsJsonObject();
-          if (parsed.has("_children")) {
-            JsonObject children = parsed.getAsJsonObject("_children");
 
-            for (String key : children.keySet()) {
-              JsonArray valuesArray = children.getAsJsonObject(key).getAsJsonArray("_children");
-              for (JsonElement item : valuesArray) {
-                String val = item.getAsJsonObject().get("_value").getAsString();
-                // SyncState keys are usually Uppercase (e.g., "IP")
-                result.computeIfAbsent(key, k -> new ArrayList<>()).add(val);
+          for (String key : parsed.keySet()) {
+            JsonElement element = parsed.get(key);
+            if (element == null || !element.isJsonArray()) {
+              continue;
+            }
+            JsonArray valuesArray = element.getAsJsonArray();
+            for (JsonElement item : valuesArray) {
+              if (item.isJsonPrimitive()) {
+                result.computeIfAbsent(key, k -> new ArrayList<>()).add(item.getAsString());
               }
             }
           }
@@ -729,7 +730,7 @@ public class InjectExecutionStep implements ActionStep {
       if (trace.getStructuredOutput() != null) {
         log.info(
             "[Chaining] Trace has structuredOutput: {}", trace.getStructuredOutput().toString());
-        map.put("parsed", gson.toJsonTree(trace.getStructuredOutput()));
+        map.put("parsed", JsonParser.parseString(trace.getStructuredOutput().toString()));
       } else {
         log.info("[Chaining] Trace has NO structuredOutput, message: {}", trace.getMessage());
         try {

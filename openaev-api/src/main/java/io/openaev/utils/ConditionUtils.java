@@ -116,7 +116,7 @@ public class ConditionUtils {
    * @return {@code true} if the value satisfies at least one leaf condition in the tree
    */
   public boolean matchesAnyLeafCondition(String value, Condition node) {
-    if (node == null) {
+    if (node == null || node.getType() == null) {
       return false;
     }
     // For logical operator nodes (AND/OR), recurse into children looking for any matching leaf

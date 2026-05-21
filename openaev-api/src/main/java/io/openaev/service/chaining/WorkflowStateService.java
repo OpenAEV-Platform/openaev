@@ -168,6 +168,13 @@ public class WorkflowStateService {
 
     // Load or build the local state for this step template and add the values
     WorkflowState localState = loadOrBuildLocalState(stepTemplate, workflowRun);
+    if (localState == null) {
+      log.error(
+          "Failed to load or build local state for step template {} in workflow run {}",
+          stepTemplate.getId(),
+          workflowRun.getId());
+      return;
+    }
     WorkflowStateEntries localEntries =
         gson.fromJson(localState.getEntries(), WorkflowStateEntries.class);
 
