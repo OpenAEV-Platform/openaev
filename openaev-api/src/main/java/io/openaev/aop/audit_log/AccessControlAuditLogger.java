@@ -87,7 +87,7 @@ public class AccessControlAuditLogger {
               output,
               signatureNode,
               Level.WARNING,
-              LogService.AuditLogType.GENERIC,
+              LogService.AuditLogType.AUDIT,
               logUUID);
 
     } catch (Exception e) {
