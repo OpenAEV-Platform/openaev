@@ -12,8 +12,12 @@ import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.database.repository.WorkflowScopeRuleRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.PreviewFeatureService;
+import io.openaev.telemetry.metric_collectors.ScopeMetricCollector;
 import io.openaev.utils.fixtures.WorkflowFixture;
-import java.util.*;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -38,7 +42,9 @@ class WorkflowServiceTest {
   @Mock private ScopeVariableRepository scopeVariableRepository;
   @Mock private PreviewFeatureService previewFeatureService;
   @Mock private StepService stepService;
+  @Mock private StepDelayQueueService stepDelayQueueService;
   @Mock private WorkflowStateService workflowStateService;
+  @Mock private ScopeMetricCollector scopeMetricCollector;
 
   @InjectMocks private WorkflowService workflowService;
 
@@ -462,7 +468,7 @@ class WorkflowServiceTest {
       workflowService.startWorkflowBySimulationId(simulationId);
 
       verify(workflowStateService).syncState(any(), any(), eq(run));
-      verify(stepService).evaluateWorkflowProgress(run);
+      verify(stepService).findAllStepTemplateByWorkflow("template");
     }
 
     @Test
@@ -500,7 +506,7 @@ class WorkflowServiceTest {
 
       verify(stepService).copyStepTemplate(scenarioTemplate, simulationTemplate);
       verify(workflowStateService).syncState(any(), any(), eq(run));
-      verify(stepService).evaluateWorkflowProgress(run);
+      verify(stepService).findAllStepTemplateByWorkflow("simulation-template");
     }
   }
 
@@ -689,10 +695,12 @@ class WorkflowServiceTest {
           new WorkflowService(
               stepService,
               previewFeatureService,
+              workflowStateService,
+              stepDelayQueueService,
               workflowRepository,
               workflowScopeRuleRepository,
               scopeVariableRepository,
-              workflowStateService);
+              scopeMetricCollector);
     }
 
     private Workflow buildTemplate() {
@@ -877,6 +885,179 @@ class WorkflowServiceTest {
       assertEquals(ArgumentType.Text, copiedVar.getType());
       assertEquals("production", copiedVar.getValue());
       assertSame(run, copiedVar.getWorkflow());
+    }
+  }
+
+  // ========================================================================
+  // Scope Metrics Tests
+  // ========================================================================
+  @Nested
+  @DisplayName("updateWorkflowConfiguration – scope metrics")
+  class ScopeMetricsTests {
+
+    private WorkflowService service;
+
+    @BeforeEach
+    void setUp() {
+      service =
+          new WorkflowService(
+              stepService,
+              previewFeatureService,
+              workflowStateService,
+              stepDelayQueueService,
+              workflowRepository,
+              workflowScopeRuleRepository,
+              scopeVariableRepository,
+              scopeMetricCollector);
+    }
+
+    private Workflow buildTemplate() {
+      String workflowId = UUID.randomUUID().toString();
+      Workflow workflow =
+          Workflow.builder().id(workflowId).status(WorkflowStatus.TEMPLATE).version(0).build();
+      when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
+          .thenReturn(Optional.of(workflow));
+      lenient()
+          .when(workflowRepository.save(any(Workflow.class)))
+          .thenAnswer(i -> i.getArgument(0));
+      return workflow;
+    }
+
+    @Test
+    @DisplayName("should record metrics for new scope rules")
+    void given_newScopeRules_should_trackMetrics() {
+      // Arrange
+      Workflow workflow = buildTemplate();
+      WorkflowConfigurationInput input =
+          WorkflowConfigurationInput.builder()
+              .workflowScopeRules(WorkflowFixture.getDefaultWorkflowScopeRuleInputList())
+              .build();
+
+      // Act
+      service.updateWorkflowConfiguration(workflow.getId(), input);
+
+      // Assert — creation metrics recorded per mode
+      verify(scopeMetricCollector).recordScopeCreated("ALLOWLIST", 3);
+      verify(scopeMetricCollector).recordScopeCreated("DENYLIST", 2);
+
+      // Assert — entry-added metrics recorded per type|source
+      verify(scopeMetricCollector).recordEntryAdded("IP", "MANUAL", 1);
+      verify(scopeMetricCollector).recordEntryAdded("DOMAIN", "MANUAL", 1);
+      verify(scopeMetricCollector).recordEntryAdded("ASSET_ID", "ASSET", 1);
+      verify(scopeMetricCollector).recordEntryAdded("IP_SUBNET", "MANUAL", 1);
+      verify(scopeMetricCollector).recordEntryAdded("ASSET_GROUP_ID", "ASSET_GROUP", 1);
+
+      // Assert — usage recorded only for CSV/MANUAL, not ASSET/ASSET_GROUP
+      verify(scopeMetricCollector).recordUsage(workflow.getId(), "MANUAL");
+      verify(scopeMetricCollector, never()).recordUsage(anyString(), eq("ASSET"));
+      verify(scopeMetricCollector, never()).recordUsage(anyString(), eq("ASSET_GROUP"));
+    }
+
+    @Test
+    @DisplayName("should not record metrics when only existing rules are retained")
+    void given_retainedExistingRules_should_notTrackMetrics() {
+      // Arrange
+      Workflow workflow = buildTemplate();
+
+      // First call: add new rules
+      WorkflowConfigurationInput initialInput =
+          WorkflowConfigurationInput.builder()
+              .workflowScopeRules(
+                  List.of(
+                      WorkflowScopeRuleInput.builder()
+                          .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+                          .ruleSource(ScopeRuleSource.MANUAL)
+                          .ruleValue("10.0.0.1")
+                          .build()))
+              .build();
+      service.updateWorkflowConfiguration(workflow.getId(), initialInput);
+      workflow.getWorkflowScopeRules().getFirst().setId(UUID.randomUUID().toString());
+      reset(scopeMetricCollector);
+
+      // Second call: same rules (now have IDs) — no new rules
+      WorkflowScopeRule existingRule = workflow.getWorkflowScopeRules().getFirst();
+      WorkflowScopeRuleInput retainedInput =
+          WorkflowScopeRuleInput.builder()
+              .id(existingRule.getId())
+              .selectedMode(existingRule.getSelectedMode())
+              .ruleSource(existingRule.getRuleSource())
+              .ruleValue(existingRule.getRuleValue())
+              .build();
+      WorkflowConfigurationInput secondInput =
+          WorkflowConfigurationInput.builder().workflowScopeRules(List.of(retainedInput)).build();
+
+      // Act
+      service.updateWorkflowConfiguration(workflow.getId(), secondInput);
+
+      // Assert — no metric calls since no new (ID-less) rules were added
+      verifyNoInteractions(scopeMetricCollector);
+    }
+
+    @Test
+    @DisplayName("should record metrics only for new rules when mixed with existing ones")
+    void given_mixOfNewAndExistingRules_should_trackOnlyNewRules() {
+      // Arrange
+      Workflow workflow = buildTemplate();
+
+      // First call: seed one existing rule
+      WorkflowConfigurationInput initialInput =
+          WorkflowConfigurationInput.builder()
+              .workflowScopeRules(
+                  List.of(
+                      WorkflowScopeRuleInput.builder()
+                          .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+                          .ruleSource(ScopeRuleSource.MANUAL)
+                          .ruleValue("10.0.0.1")
+                          .build()))
+              .build();
+      service.updateWorkflowConfiguration(workflow.getId(), initialInput);
+      workflow.getWorkflowScopeRules().getFirst().setId(UUID.randomUUID().toString());
+      reset(scopeMetricCollector);
+
+      // Second call: retain existing + add one new CSV rule
+      WorkflowScopeRule existingRule = workflow.getWorkflowScopeRules().getFirst();
+      WorkflowScopeRuleInput retainedInput =
+          WorkflowScopeRuleInput.builder()
+              .id(existingRule.getId())
+              .selectedMode(existingRule.getSelectedMode())
+              .ruleSource(existingRule.getRuleSource())
+              .ruleValue(existingRule.getRuleValue())
+              .build();
+      WorkflowScopeRuleInput newCsvRule =
+          WorkflowScopeRuleInput.builder()
+              .selectedMode(ScopeRuleSelectedMode.DENYLIST)
+              .ruleSource(ScopeRuleSource.CSV)
+              .ruleValue("evil.example.com")
+              .build();
+      WorkflowConfigurationInput secondInput =
+          WorkflowConfigurationInput.builder()
+              .workflowScopeRules(List.of(retainedInput, newCsvRule))
+              .build();
+
+      // Act
+      service.updateWorkflowConfiguration(workflow.getId(), secondInput);
+
+      // Assert — metrics only for the one new CSV rule
+      verify(scopeMetricCollector).recordScopeCreated(ScopeRuleSelectedMode.DENYLIST.name(), 1);
+      verify(scopeMetricCollector)
+          .recordEntryAdded(ScopeRuleValueType.DOMAIN.name(), ScopeRuleSource.CSV.name(), 1);
+      verify(scopeMetricCollector).recordUsage(workflow.getId(), ScopeRuleSource.CSV.name());
+      verifyNoMoreInteractions(scopeMetricCollector);
+    }
+
+    @Test
+    @DisplayName("should not record metrics when no scope rules are provided")
+    void given_noScopeRules_should_notTrackMetrics() {
+      // Arrange
+      Workflow workflow = buildTemplate();
+      WorkflowConfigurationInput input =
+          WorkflowConfigurationInput.builder().workflowScopeRules(List.of()).build();
+
+      // Act
+      service.updateWorkflowConfiguration(workflow.getId(), input);
+
+      // Assert
+      verifyNoInteractions(scopeMetricCollector);
     }
   }
 }

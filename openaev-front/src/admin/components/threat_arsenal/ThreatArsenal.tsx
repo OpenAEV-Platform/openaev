@@ -232,8 +232,8 @@ const ThreatArsenal = () => {
         <ListItem
           classes={{ root: classes.itemHead }}
           divider={false}
-          style={{ paddingTop: 0 }}
-          secondaryAction={<>&nbsp;</>}
+          style={{ ...(numberOfSelectedElements > 0 ? { backgroundColor: 'rgb(15, 30, 56)' } : {}) }}
+          {...(numberOfSelectedElements === 0 ? { secondaryAction: <>&nbsp;</> } : {})}
         >
           <ListItemIcon style={{ minWidth: 40 }}>
             <Checkbox
@@ -244,17 +244,42 @@ const ThreatArsenal = () => {
               disabled={typeof handleToggleSelectAll !== 'function'}
             />
           </ListItemIcon>
-
-          <ListItemIcon />
-          <ListItemText
-            primary={(
-              <SortHeadersComponentV2
-                headers={headers}
-                inlineStylesHeaders={inlineStyles}
-                sortHelpers={queryableHelpers.sortHelpers}
+          {numberOfSelectedElements > 0 ? (
+            <ListItemText
+              primary={(
+                <ToolBar
+                  numberOfSelectedElements={numberOfSelectedElements}
+                  handleClearSelectedElements={handleClearSelectedElements}
+                  teamsFromExerciseOrScenario={[]}
+                  customAction={(
+                    <Tooltip title={t('Run a test')}>
+                      <IconButton
+                        aria-label="run-a-test"
+                        onClick={() => setRunTestDrawerOpened(true)}
+                        color="primary"
+                        size="small"
+                      >
+                        <MovieFilterOutlined fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                />
+              )}
+            />
+          ) : (
+            <>
+              <ListItemIcon />
+              <ListItemText
+                primary={(
+                  <SortHeadersComponentV2
+                    headers={headers}
+                    inlineStylesHeaders={inlineStyles}
+                    sortHelpers={queryableHelpers.sortHelpers}
+                  />
+                )}
               />
-            )}
-          />
+            </>
+          )}
         </ListItem>
         {loading
           ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} />
@@ -371,27 +396,7 @@ const ThreatArsenal = () => {
           onClose={() => setRunTestDrawerOpened(false)}
         />
       )}
-      {
-        numberOfSelectedElements > 0 && (
-          <ToolBar
-            numberOfSelectedElements={numberOfSelectedElements}
-            handleClearSelectedElements={handleClearSelectedElements}
-            teamsFromExerciseOrScenario={[]}
-            customAction={(
-              <Tooltip title={t('Run a test')}>
-                <IconButton
-                  aria-label="run-a-test"
-                  onClick={() => setRunTestDrawerOpened(true)}
-                  color="primary"
-                  size="small"
-                >
-                  <MovieFilterOutlined fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            )}
-          />
-        )
-      }
+
     </Stack>
   );
 };
