@@ -3,6 +3,7 @@ package io.openaev.service.account;
 import static io.openaev.service.account.Constants.*;
 import static io.openaev.service.account.ServiceAccountPrivilegeService.SERVICE_EMAIL_PATTERN;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
@@ -267,6 +268,91 @@ public class ServiceAccountPrivilegeServiceTest {
 
     // assert
     assertThat(result).isEmpty();
+  }
+
+  @Test
+  @DisplayName("Should return empty when service account user has no token")
+  void shouldReturnEmptyWhenServiceAccountUserHasNoToken() {
+    // prepare
+    mockUser.setTokens(new ArrayList<>());
+    when(userService.findByEmailIgnoreCase(SERVICE_EMAIL)).thenReturn(Optional.of(mockUser));
+
+    // act
+    Optional<User> result = privilegeService.getUserServiceAccountByTenant(TENANT_ID);
+
+    // assert
+    assertThat(result).isEmpty();
+  }
+
+  @Test
+  @DisplayName("Should return empty when service account user has more than one token")
+  void shouldReturnEmptyWhenServiceAccountUserHasMultipleTokens() {
+    // prepare
+    mockUser.setTokens(new ArrayList<>(List.of(new Token(), new Token())));
+    when(userService.findByEmailIgnoreCase(SERVICE_EMAIL)).thenReturn(Optional.of(mockUser));
+
+    // act
+    Optional<User> result = privilegeService.getUserServiceAccountByTenant(TENANT_ID);
+
+    // assert
+    assertThat(result).isEmpty();
+  }
+
+  // region getTokenUserServiceAccountByTenant
+
+  @Test
+  @DisplayName("Should return token value when service account has a single token")
+  void shouldReturnTokenValueWhenServiceAccountHasSingleToken() {
+    // prepare
+    Token token = new Token();
+    token.setValue("test-token-value");
+    mockUser.setTokens(new ArrayList<>(List.of(token)));
+    when(userService.findByEmailIgnoreCase(SERVICE_EMAIL)).thenReturn(Optional.of(mockUser));
+
+    // act
+    String result = privilegeService.getTokenUserServiceAccountByTenant(TENANT_ID);
+
+    // assert
+    assertThat(result).isEqualTo("test-token-value");
+  }
+
+  @Test
+  @DisplayName("Should throw UnsupportedOperationException when no service account exists")
+  void shouldThrowWhenNoServiceAccountExistsForToken() {
+    // prepare
+    when(userService.findByEmailIgnoreCase(SERVICE_EMAIL)).thenReturn(Optional.empty());
+
+    // act & assert
+    assertThatThrownBy(() -> privilegeService.getTokenUserServiceAccountByTenant(TENANT_ID))
+        .isInstanceOf(UnsupportedOperationException.class)
+        .hasMessage("Invalid token");
+  }
+
+  @Test
+  @DisplayName("Should throw UnsupportedOperationException when service account has no token")
+  void shouldThrowWhenServiceAccountHasNoToken() {
+    // prepare
+    mockUser.setTokens(new ArrayList<>());
+    when(userService.findByEmailIgnoreCase(SERVICE_EMAIL)).thenReturn(Optional.of(mockUser));
+
+    // act & assert
+    assertThatThrownBy(() -> privilegeService.getTokenUserServiceAccountByTenant(TENANT_ID))
+        .isInstanceOf(UnsupportedOperationException.class)
+        .hasMessage("Invalid token");
+  }
+
+  @Test
+  @DisplayName(
+      "Should throw UnsupportedOperationException when service account has multiple tokens")
+  void shouldThrowWhenServiceAccountHasMultipleTokens() {
+    // prepare
+    mockUser.setTokens(new ArrayList<>(List.of(new Token(), new Token())));
+    when(userService.findByEmailIgnoreCase(SERVICE_EMAIL)).thenReturn(Optional.of(mockUser));
+
+    // act & assert
+    assertThatThrownBy(() -> privilegeService.getTokenUserServiceAccountByTenant(TENANT_ID))
+        .isInstanceOf(UnsupportedOperationException.class)
+        .hasMessage("Invalid token");
   }
 
   // endregion
