@@ -107,37 +107,49 @@ public class StreamApi extends RestBehavior {
           // FIXME find a way to cache user
           // -> close session when user se login
 
-          FluxSink<Object> fluxSink = consumer.fluxSink();
-          if (!permissionService.hasPermission(
-              user,
-              Optional.empty(),
-              event.getInstance().getId(),
-              event.getInstance().getResourceType(),
-              Action.READ)) {
-            // If user as no visibility, we can send a "delete" userEvent with only the internal
-            // id
-            // TODO -> rethink this logic -> do we need to send DELETE events
-            try {
-              String propertyId =
-                  event
-                      .getInstance()
-                      .getClass()
-                      .getDeclaredField("id")
-                      .getAnnotation(JsonProperty.class)
-                      .value();
-              ObjectNode deleteNode = mapper.createObjectNode();
-              deleteNode.set(
-                  propertyId, mapper.convertValue(event.getInstance().getId(), JsonNode.class));
-              BaseEvent userEvent = event.clone();
-              userEvent.setInstanceData(deleteNode);
-              userEvent.setType(DATA_DELETE);
-              sendStreamEvent(fluxSink, userEvent);
-            } catch (Exception e) {
-              String simpleName = event.getInstance().getClass().getSimpleName();
-              log.warn(String.format("Class %s can't be streamed", simpleName), e);
+          // Set the tenant context for permission checks on the async thread.
+          // Without this, TenantContext defaults to DEFAULT_TENANT_UUID, causing
+          // tenant-scoped capabilities to be invisible and incorrect DELETE events
+          // to be sent for entities on non-default tenants.
+          if (consumer.tenantId() != null && !consumer.tenantId().isBlank()) {
+            TenantContext.setCurrentTenant(consumer.tenantId());
+          }
+
+          try {
+            FluxSink<Object> fluxSink = consumer.fluxSink();
+            if (!permissionService.hasPermission(
+                user,
+                Optional.empty(),
+                event.getInstance().getId(),
+                event.getInstance().getResourceType(),
+                Action.READ)) {
+              try {
+                String propertyId =
+                    event
+                        .getInstance()
+                        .getClass()
+                        .getDeclaredField("id")
+                        .getAnnotation(JsonProperty.class)
+                        .value();
+                ObjectNode deleteNode = mapper.createObjectNode();
+                deleteNode.set(
+                    propertyId, mapper.convertValue(event.getInstance().getId(), JsonNode.class));
+                BaseEvent userEvent = event.clone();
+                userEvent.setInstanceData(deleteNode);
+                userEvent.setType(DATA_DELETE);
+                sendStreamEvent(fluxSink, userEvent);
+              } catch (Exception e) {
+                String simpleName = event.getInstance().getClass().getSimpleName();
+                log.warn(String.format("Class %s can't be streamed", simpleName), e);
+              }
+            } else {
+              sendStreamEvent(fluxSink, event);
             }
-          } else {
-            sendStreamEvent(fluxSink, event);
+          } finally {
+            // Reset tenant context to avoid leaking into other consumers in the loop
+            if (consumer.tenantId() != null && !consumer.tenantId().isBlank()) {
+              TenantContext.clearCurrentTenant();
+            }
           }
         });
   }
