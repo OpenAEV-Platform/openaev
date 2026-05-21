@@ -93,7 +93,9 @@ public class ServiceAccountPrivilegeService {
             .filter(group -> group.getName().equals(SERVICE_GROUP_NAME))
             .reduce(
                 (a, b) -> {
-                  throw new UnsupportedOperationException("Invalid group");
+                  throw new UnsupportedOperationException(
+                      "Duplicate service group '%s' found for tenant '%s' (conflicting group IDs: %s, %s)"
+                          .formatted(SERVICE_GROUP_NAME, tenantId, a.getId(), b.getId()));
                 });
 
     TenantGroupCreateInput input = new TenantGroupCreateInput();
