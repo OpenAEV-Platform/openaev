@@ -86,13 +86,21 @@ public class Injector extends BaseConnectorEntity implements TenantBase {
   @JsonProperty("injector_dependencies")
   private ExternalServiceDependency[] dependencies;
 
+  // Since V5_07, injectors has a composite PK (injector_id, tenant_id).
+  // The join table injectors_injector_contracts has a composite FK
+  // (injector_id, tenant_id) → injectors(injector_id, tenant_id).
+  // Both sides of the @JoinTable must reflect this composite key to avoid
+  // a cartesian product across tenants when loading contracts.
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "injectors_injector_contracts",
-      joinColumns = @JoinColumn(name = "injector_id", referencedColumnName = "injector_id"),
+      joinColumns = {
+        @JoinColumn(name = "injector_id", referencedColumnName = "injector_id"),
+        @JoinColumn(name = "tenant_id", referencedColumnName = "tenant_id")
+      },
       inverseJoinColumns = {
         @JoinColumn(name = "injector_contract_id", referencedColumnName = "injector_contract_id"),
-        @JoinColumn(name = "tenant_id", referencedColumnName = "tenant_id")
+        @JoinColumn(name = "tenant_id", referencedColumnName = "tenant_id", insertable = false, updatable = false)
       })
   @JsonIgnore
   private Set<InjectorContract> contracts = new HashSet<>();
@@ -101,14 +109,6 @@ public class Injector extends BaseConnectorEntity implements TenantBase {
   @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
   @JsonIgnore
   private Tenant tenant;
-
-  /**
-   * Read-only mapping of the physical tenant_id column. Needed so that Hibernate can resolve {@code
-   * referencedColumnName = "tenant_id"} in {@code @JoinFormula} from Inject → Injector.
-   */
-  @Column(name = "tenant_id", insertable = false, updatable = false)
-  @JsonIgnore
-  private String tenantId;
 
   @Getter(onMethod_ = @JsonIgnore)
   @Transient
