@@ -51,12 +51,20 @@ import ThreatArsenalInformationDrawer from './ThreatArsenalInformationDrawer';
 
 const useStyles = makeStyles()(theme => ({
   itemHead: { textTransform: 'uppercase' },
-  bodyItems: { display: 'flex' },
+  bodyItems: { display: 'flex', alignItems: 'center' },
   bodyItem: {
     fontSize: theme.typography.body2.fontSize,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
+  },
+  nameCell: {
+    display: 'block',
+    width: '100%',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+		paddingRight: theme.spacing(1),
   },
 }));
 
@@ -108,7 +116,7 @@ const ThreatArsenal = () => {
       isSortable: true,
       value: (action: ThreatArsenalAction) => (
         <Tooltip title={tPick(action.action_labels)}>
-          <span>{tPick(action.action_labels)}</span>
+          <span className={classes.nameCell}>{tPick(action.action_labels)}</span>
         </Tooltip>
       ),
     },
@@ -340,7 +348,7 @@ const ThreatArsenal = () => {
                         />
                       </ListItemIcon>
 
-                      <ListItemIcon style={{ minWidth: 56 }}>
+                      <ListItemIcon style={{ minWidth: 56, paddingTop: 0 }}>
                         <InjectIcon
                           type={
                             action.action_payload != null
