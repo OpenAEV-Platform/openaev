@@ -39,7 +39,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 @Slf4j
 public class AccessControlAuditLogAspect {
 
-  private final AuditResourceDetector auditResourceDetector;
   private final AccessControlAuditLogger accessControlAuditLogger;
   private final PreviewFeatureService previewFeatureService;
 
@@ -48,6 +47,8 @@ public class AccessControlAuditLogAspect {
   @Around("@annotation(accessControl)")
   public Object auditAround(ProceedingJoinPoint joinPoint, AccessControl accessControl)
       throws Throwable {
+    Object result = null;
+
     try {
       Action action = accessControl.actionPerformed();
 
@@ -57,26 +58,15 @@ public class AccessControlAuditLogAspect {
         return joinPoint.proceed();
       }
 
-      String eventScope = LogUtils.getEventScope(action);
       String logUUID = UUID.randomUUID().toString();
-
-      // -- Pre-execution:get child-resource --
-      AuditResourceDetector.AuditResourceInfo resourceInfo =
-          auditResourceDetector.detectResourceBeforeExecution(joinPoint, accessControl, eventScope);
-      ResourceType resourceType = resourceInfo.resourceType();
-      String resourceId = resourceInfo.resourceId();
-      String sourceId = resourceInfo.sourceId();
-      ResourceType entityType = resourceInfo.entityType();
-      String entityId = resourceInfo.entityId();
-      String entityName = resourceInfo.entityName();
-      JsonNode entitySnapshot = resourceInfo.entitySnapshot();
+      ResourceType resourceType = accessControl.resourceType();
 
       // Capture the input DTO for create/update/status_change
+      String eventScope = LogUtils.getEventScope(action);
       JsonNode inputNode = getInputNode(joinPoint, eventScope);
 
       // Execute the business operation
       String eventStatus;
-      Object result = null;
 
       try {
         result = joinPoint.proceed();
@@ -84,34 +74,16 @@ public class AccessControlAuditLogAspect {
       } catch (Throwable ex) {
         eventStatus = "error";
 
-        accessControlAuditLogger.logMutationEvent(
-            eventScope,
-            eventStatus,
-            resourceType,
-            resourceId,
-            inputNode,
-            null,
-            entityName,
-            null,
-            sourceId,
-            logUUID);
+        JsonNode resultNode = getOutputNode(result);
+        accessControlAuditLogger.logRequestEvent(
+            eventScope, eventStatus, resourceType, inputNode, resultNode, logUUID);
 
         throw ex;
       }
 
-      accessControlAuditLogger.auditEvent(
-          eventScope,
-          eventStatus,
-          resourceType,
-          resourceId,
-          sourceId,
-          entityType,
-          entityId,
-          entityName,
-          entitySnapshot,
-          inputNode,
-          result,
-          logUUID);
+      JsonNode resultNode = getOutputNode(result);
+      accessControlAuditLogger.logRequestEvent(
+          eventScope, eventStatus, resourceType, inputNode, resultNode, logUUID);
     } catch (Exception e) {
       // Still log the audit event, then continue
       log.warn("[AUDIT] Audit logging failed (non-blocking): {}", e.getMessage(), e);
@@ -138,6 +110,16 @@ public class AccessControlAuditLogAspect {
     }
 
     return inputNode;
+  }
+
+  private JsonNode getOutputNode(Object output) {
+    try {
+      return output != null ? objectMapper.valueToTree(output) : null;
+    } catch (Exception e) {
+      log.warn("[AUDIT] Failed to serialize output: {}", e.getMessage(), e);
+    }
+
+    return null;
   }
 
   /** Finds the first method argument annotated with {@code @RequestBody}. */

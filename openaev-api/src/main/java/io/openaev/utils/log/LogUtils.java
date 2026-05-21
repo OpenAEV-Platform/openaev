@@ -146,4 +146,8 @@ public class LogUtils {
   public static String getAuthEventAccess() {
     return EVENT_ACCESS_ADMINISTRATION;
   }
+
+  public static String getDefaultEventAccess() {
+    return EVENT_ACCESS_EXTENDED;
+  }
 }

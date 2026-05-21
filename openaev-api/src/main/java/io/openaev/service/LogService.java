@@ -13,6 +13,7 @@ import io.openaev.engine.EngineService;
 import io.openaev.engine.model.log.LogEvent;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.utils.HttpReqRespUtils;
+import io.openaev.utils.ResourceManagerUtils;
 import io.openaev.utils.log.LogUtils;
 import io.openaev.utils.log.dispatcher.AuditLogTransportDispatcherUtils;
 import io.openaev.utils.log.dispatcher.GenericLogTransportDispatcherUtils;
@@ -257,13 +258,50 @@ public class LogService {
   }
 
   public boolean logRequestEvent(
-      JsonNode body, Object logLevel, AuditLogType logType, String logUUID) {
+      String eventScope,
+      String eventStatus,
+      ResourceType resourceType,
+      JsonNode input,
+      JsonNode output,
+      Object logLevel,
+      AuditLogType logType,
+      String logUUID) {
     try {
       if (!isEnabled(logType)) {
         return true;
       }
 
-      LogEvent doc = buildBaseRequestLog(body, logUUID);
+      String entityTypeName = formatResourceType(resourceType);
+      String displayName = ResourceManagerUtils.extractNameFromSnapshot(input);
+      String message;
+
+      if ("status_change".equals(eventScope)) {
+        message = LogUtils.buildStatusChangeMessage(input, entityTypeName, displayName);
+      } else {
+        message = eventScope + "s " + entityTypeName + " `" + displayName + "`";
+      }
+
+      String eventAccess = LogUtils.getDefaultEventAccess();
+      LogEvent doc = buildBaseAuditLog("mutation", eventStatus, eventAccess, eventScope, logUUID);
+      Map<String, Object> ctx = new LinkedHashMap<>();
+
+      ctx.put("entity_type", entityTypeName);
+
+      if (input != null) {
+        // Redacted input
+        input = objectNormalizationUtils.normalize(input);
+        input = ObjectRedactionUtils.redact(input, null);
+        ctx.put("input", objectMapper().convertValue(input, Map.class));
+      }
+
+      if (output != null) {
+        output = objectNormalizationUtils.normalize(output);
+        output = ObjectRedactionUtils.redact(output, entityTypeName);
+        ctx.put("output", objectMapper().convertValue(output, Map.class));
+      }
+
+      ctx.put("message", message);
+      doc.setContextData(ctx);
 
       return emit(doc, logLevel, logType);
     } catch (Exception e) {
@@ -385,41 +423,6 @@ public class LogService {
     String url = requestContextData != null ? requestContextData.url() : null;
 
     requestData.put("url", url);
-    doc.setRequestData(requestData);
-
-    // Tenant context
-    doc.setTenantId(TenantContext.getCurrentTenant());
-
-    // User context
-    doc.setUserId(resolveUserId());
-    populateUserMetadata(doc);
-
-    return doc;
-  }
-
-  private LogEvent buildBaseRequestLog(JsonNode body, String logUUID) {
-    Instant now = Instant.now();
-
-    if (logUUID == null) {
-      logUUID = UUID.randomUUID().toString();
-    }
-
-    LogEvent doc = new LogEvent();
-    doc.setId(logUUID);
-    doc.setCreatedAt(now);
-    doc.setTimestamp(now);
-
-    // Request context
-    Map<String, Object> requestData = new LinkedHashMap<>();
-
-    ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.RequestContextData requestContextData =
-        ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.getRequestContextData();
-    String url = requestContextData != null ? requestContextData.url() : null;
-
-    requestData.put("url", url);
-    if (body != null) {
-      requestData.put("body", body);
-    }
     doc.setRequestData(requestData);
 
     // Tenant context
