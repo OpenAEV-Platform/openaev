@@ -72,54 +72,36 @@ public class ServiceAccountPrivilegeService {
   }
 
   private Role createWellKnownRole(String tenantId) {
-    List<Role> processRoles = roleService.findAll(tenantId);
-    Optional<Role> existing =
-        processRoles.stream().filter(role -> role.getName().equals(SERVICE_ROLE_NAME)).findFirst();
+    String id = getUUIDFromName(SERVICE_ROLE_ID, tenantId);
 
-    if (existing.isEmpty()) {
+    Optional<Role> role = roleService.findById(id);
+    if (role.isEmpty()) {
       return roleService.createRoleInternal(
-          null, SERVICE_ROLE_NAME, SERVICE_ROLE_DESCRIPTION, SERVICE_ROLE_CAPABILITIES, tenantId);
+          id, SERVICE_ROLE_NAME, SERVICE_ROLE_DESCRIPTION, SERVICE_ROLE_CAPABILITIES, tenantId);
     }
     // Re-converge the existing role toward the description / capability set in case it
     // has drifted (manual edit, partial migration, etc.). The reserved-name guards prevent users
     // from doing this through the public API, so we must do it ourselves.
     return roleService.updateRoleInternal(
-        existing.get().getId(),
-        SERVICE_ROLE_NAME,
-        SERVICE_ROLE_DESCRIPTION,
-        SERVICE_ROLE_CAPABILITIES);
+        role.get().getId(), SERVICE_ROLE_NAME, SERVICE_ROLE_DESCRIPTION, SERVICE_ROLE_CAPABILITIES);
   }
 
   private Group createWellKnownGroupWithRole(Role role, String tenantId) {
-    List<Group> processGroups = tenantGroupService.findAllByTenantId(tenantId);
+    String groupId = getUUIDFromName(SERVICE_GROUP_ID, tenantId);
 
-    Optional<Group> groupByTenant =
-        processGroups.stream()
-            .filter(group -> group.getName().equals(SERVICE_GROUP_NAME))
-            .reduce(
-                (a, b) -> {
-                  throw new UnsupportedOperationException(
-                      "Duplicate service group '%s' found for tenant '%s' (conflicting group IDs: %s, %s)"
-                          .formatted(SERVICE_GROUP_NAME, tenantId, a.getId(), b.getId()));
-                });
+    Optional<Group> group = tenantGroupService.findById(groupId);
 
     TenantGroupCreateInput input = new TenantGroupCreateInput();
     input.setName(SERVICE_GROUP_NAME);
     input.setDescription(SERVICE_GROUP_DESCRIPTION);
     input.setDefaultUserAssignation(false);
 
-    Optional<Group> processGroup =
-        groupByTenant
-            .map(
-                group ->
-                    tenantGroupService.updateGroupInfoWithRoles(
-                        group, input, new ArrayList<>(List.of(role))))
-            .or(
-                () ->
-                    Optional.of(
-                        tenantGroupService.createGroupWithRole(
-                            null, input, new ArrayList<>(List.of(role)), tenantId)));
-    return processGroup.get();
+    List<Role> roles = new ArrayList<>(List.of(role));
+    if (group.isPresent()) {
+      return tenantGroupService.updateGroupInfoWithRoles(group.get(), input, roles);
+    } else {
+      return tenantGroupService.createGroupWithRole(groupId, input, roles, tenantId);
+    }
   }
 
   private String getNewTokenAgent() {
@@ -132,5 +114,9 @@ public class ServiceAccountPrivilegeService {
     user.setEmail(email);
     user.setAdmin(false);
     user.setGroups(new ArrayList<>(List.of(group)));
+  }
+
+  private String getUUIDFromName(String name, String tenantId) {
+    return UUID.nameUUIDFromBytes((UUID.fromString(name) + ":" + tenantId).getBytes()).toString();
   }
 }

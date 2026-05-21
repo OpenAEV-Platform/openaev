@@ -58,14 +58,12 @@ public class RoleService {
    * validation.
    */
   public Role createRoleInternal(
-      String id,
+      @NotBlank final String id,
       @NotBlank final String roleName,
       @NotBlank final String roleDescription,
       @NotNull final Set<Capability> capabilities,
       String tenantId) {
     Capability.validateForTenantRole(capabilities);
-
-    if (id == null) id = UUID.randomUUID().toString();
 
     Role role = new Role();
     role.setId(id);
