@@ -11,9 +11,7 @@ import { useAppDispatch } from '../../../../../utils/hooks';
 import useAuth from '../../../../../utils/hooks/useAuth';
 import TenantForm from './TenantForm';
 
-interface Props {
-  onCreate: (result: TenantOutput) => void;
-}
+interface Props { onCreate: (result: TenantOutput) => void }
 
 const TenantCreate: FunctionComponent<Props> = ({ onCreate }) => {
   const { t } = useFormatter();

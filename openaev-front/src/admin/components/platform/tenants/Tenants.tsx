@@ -11,6 +11,7 @@ import { useQueryableWithLocalStorage } from '../../../../components/common/quer
 import { useFormatter } from '../../../../components/i18n';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { type TenantOutput } from '../../../../utils/api-types';
+import { MESSAGING$ } from '../../../../utils/Environment';
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import SecurityMenu from '../../settings/SecurityMenu';
@@ -25,7 +26,6 @@ import {
   TENANT_INLINE_STYLES,
   TENANT_SORTS,
 } from './tenants.queryable';
-import {MESSAGING$} from "../../../../utils/Environment";
 
 const Tenants = () => {
   // Standard hooks
