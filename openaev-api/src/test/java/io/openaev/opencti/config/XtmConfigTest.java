@@ -3,6 +3,7 @@ package io.openaev.opencti.config;
 import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -18,6 +19,7 @@ class XtmConfigTest {
     void given_tenantScopedProperties_should_keepTenantScopedConfiguration() {
       // Arrange
       XtmConfig xtmConfig = new XtmConfig();
+      xtmConfig.mapper = new ObjectMapper();
       xtmConfig.setOpencti(
           Map.of("tenant-a", Map.of("enable", true, "url", "http://tenant-a", "token", "token-a")));
 
@@ -35,12 +37,13 @@ class XtmConfigTest {
     void given_legacyPropertiesWithoutTenant_should_fallbackToDefaultTenantConfiguration() {
       // Arrange
       XtmConfig xtmConfig = new XtmConfig();
+      xtmConfig.mapper = new ObjectMapper();
       xtmConfig.setOpencti(
           Map.of(
               "enable", "true",
               "url", "http://legacy-opencti",
               "token", "legacy-token",
-              "api_url", "http://legacy-opencti/graphql"));
+              "api-url", "http://legacy-opencti/graphql"));
 
       // Act
       Map<String, OpenCTIConfig> opencti = xtmConfig.getOpencti();
