@@ -11,6 +11,7 @@ import { isNotEmptyField } from '../../../../utils/utils';
 import EEChip from '../../common/entreprise_edition/EEChip';
 import EETooltip from '../../common/entreprise_edition/EETooltip';
 import Loader from '../../payloads/Loader';
+import FiligranAiCguDialog from '../../ariane/FiligranAiCguDialog';
 import useIsEligibleArianeCollector from '../hook/useIsEligibleArianeCollector';
 import useIsEligibleArianePayloadType from '../hook/useIsEligibleArianePayloadType';
 import { useSnapshotRemediation } from '../utils/useSnapshotRemediation';
@@ -37,8 +38,15 @@ const DetectionRemediationUseAriane = ({
     openDialog: openEnterpriseEditionDialog,
     setEEFeatureDetectedInfo,
   } = useEnterpriseEdition();
-  const { enabled, configured, xtmOneConfigured } = useAI();
+  const { enabled, isCguPending, configured, xtmOneConfigured } = useAI();
+
+  // Hide entirely when AI is explicitly disabled
+  if (enabled === false) {
+    return null;
+  }
+
   const isAvailable = isEnterpriseEdition && enabled && (configured || xtmOneConfigured);
+  const [openValidateTermsOfUse, setOpenValidateTermsOfUse] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [agentOptions, setAgentOptions] = useState<AgentOption[]>([]);
@@ -70,6 +78,10 @@ const DetectionRemediationUseAriane = ({
       openEnterpriseEditionDialog();
       return;
     }
+    if (isCguPending) {
+      setOpenValidateTermsOfUse(true);
+      return;
+    }
     if (xtmOneConfigured) {
       runOnSubmit(selectedAgent?.slug);
       return;
@@ -91,7 +103,7 @@ const DetectionRemediationUseAriane = ({
     btnLabel = btnLabel + t(' is only available for empty content');
   }
 
-  const disabled = !isEligibleArianeCollector || !isAvailable || hasContent || !isValidForm || !isEligibleArianePayload;
+  const disabled = !isEligibleArianeCollector || (!isAvailable && !isCguPending) || hasContent || !isValidForm || !isEligibleArianePayload;
 
   const isLoading = loading || snapshot?.get(collectorType)?.isLoading;
 
@@ -184,6 +196,12 @@ const DetectionRemediationUseAriane = ({
           {renderAction()}
         </span>
       </EETooltip>
+      {openValidateTermsOfUse && (
+        <FiligranAiCguDialog
+          open={openValidateTermsOfUse}
+          onClose={() => setOpenValidateTermsOfUse(false)}
+        />
+      )}
     </div>
   );
 };

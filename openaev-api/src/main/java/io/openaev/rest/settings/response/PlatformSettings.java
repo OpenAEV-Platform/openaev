@@ -89,9 +89,9 @@ public class PlatformSettings extends PublicPlatformSettings {
   @Schema(description = "XTM One platform URL")
   private String xtmOneUrl;
 
-  @JsonProperty("platform_ai_enabled")
-  @Schema(description = "True if AI is enabled for the platform")
-  private Boolean aiEnabled;
+  @JsonProperty("filigran_chatbot_ai_cgu_status")
+  @Schema(description = "Chatbot AI CGU acceptance status: pending, enabled, or disabled")
+  private String chatbotAiCguStatus;
 
   @JsonProperty("platform_ai_has_token")
   @Schema(description = "True if we have an AI token")

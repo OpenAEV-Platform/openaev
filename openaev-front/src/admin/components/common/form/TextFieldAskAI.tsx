@@ -71,6 +71,12 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
   const { t } = useFormatter();
   const { isValidated: isEnterpriseEdition } = useEnterpriseEdition();
   const { enabled, configured, xtmOneConfigured } = useAI();
+
+  // Hide entirely when AI is explicitly disabled
+  if (enabled === false) {
+    return null;
+  }
+
   const useXtmOne = xtmOneConfigured === true;
   const [content, setContent] = useState('');
   const [agentMode, setAgentMode] = useState<AgentMode | null>(null);

@@ -19,7 +19,7 @@ const PlatformInfoPanel = ({ settings, topContent, bottomContent }: PlatformInfo
   const editionLabel = isEnterpriseEditionValid ? t('Enterprise') : t('Community');
 
   const resolveAiLabel = () => {
-    if (!settings.platform_ai_enabled) {
+    if (settings.platform_ai_enabled === false) {
       return t('Disabled');
     }
     if (settings.platform_ai_has_token) {
@@ -68,7 +68,7 @@ const PlatformInfoPanel = ({ settings, topContent, bottomContent }: PlatformInfo
           <ItemBoolean
             variant="large"
             label={aiLabel}
-            status={(settings.platform_ai_enabled) && (settings.platform_ai_has_token)}
+            status={(settings.platform_ai_enabled !== false) && (settings.platform_ai_has_token)}
             tooltip={aiTooltip}
           />
         </ListItem>
