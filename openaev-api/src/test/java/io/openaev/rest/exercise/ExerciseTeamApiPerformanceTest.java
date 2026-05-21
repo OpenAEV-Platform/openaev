@@ -35,8 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 @DisplayName("Exercise Team Search - Performance")
 public class ExerciseTeamApiPerformanceTest extends IntegrationTest {
 
-  private static final Logger log =
-      LoggerFactory.getLogger(ExerciseTeamApiPerformanceTest.class);
+  private static final Logger log = LoggerFactory.getLogger(ExerciseTeamApiPerformanceTest.class);
 
   private static final long MAX_RESPONSE_TIME_MS = 3000;
 
@@ -68,7 +67,10 @@ public class ExerciseTeamApiPerformanceTest extends IntegrationTest {
       long startNanos = System.nanoTime();
 
       mvc.perform(
-              post(EXERCISE_URI + "/" + savedExercise.getId() + "/teams/search?contextualOnly=false")
+              post(EXERCISE_URI
+                      + "/"
+                      + savedExercise.getId()
+                      + "/teams/search?contextualOnly=false")
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(asJsonString(searchPaginationInput))
                   .with(csrf()))
@@ -77,8 +79,7 @@ public class ExerciseTeamApiPerformanceTest extends IntegrationTest {
       long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
 
       // -- Assert --
-      log.info(
-          "PERF | teams={} | contextualOnly=false | responseTime={}ms", teamCount, elapsedMs);
+      log.info("PERF | teams={} | contextualOnly=false | responseTime={}ms", teamCount, elapsedMs);
 
       Assertions.assertTrue(
           elapsedMs < MAX_RESPONSE_TIME_MS,
@@ -92,7 +93,8 @@ public class ExerciseTeamApiPerformanceTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   class SearchContextualTeams {
 
-    @ParameterizedTest(name = "given {0} teams in exercise, response time should be under threshold")
+    @ParameterizedTest(
+        name = "given {0} teams in exercise, response time should be under threshold")
     @ValueSource(ints = {100, 1000, 3000, 10000})
     void given_N_exercise_teams_should_respond_within_threshold(int teamCount) throws Exception {
       // -- Arrange --
@@ -119,8 +121,7 @@ public class ExerciseTeamApiPerformanceTest extends IntegrationTest {
       long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
 
       // -- Assert --
-      log.info(
-          "PERF | teams={} | contextualOnly=true | responseTime={}ms", teamCount, elapsedMs);
+      log.info("PERF | teams={} | contextualOnly=true | responseTime={}ms", teamCount, elapsedMs);
 
       Assertions.assertTrue(
           elapsedMs < MAX_RESPONSE_TIME_MS,
@@ -139,4 +140,3 @@ public class ExerciseTeamApiPerformanceTest extends IntegrationTest {
     return teams;
   }
 }
-

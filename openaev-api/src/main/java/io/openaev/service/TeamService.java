@@ -152,8 +152,8 @@ public class TeamService {
 
   /**
    * Get a fast estimated count of the teams table from PostgreSQL statistics. This avoids an
-   * expensive full COUNT(*) query on subsequent pages where the frontend already has the exact total
-   * from the first page request.
+   * expensive full COUNT(*) query on subsequent pages where the frontend already has the exact
+   * total from the first page request.
    */
   private long estimateCount() {
     Number estimate =

@@ -15,4 +15,3 @@ public class V5_09__Add_index_teams_contextual extends BaseJavaMigration {
         .execute("CREATE INDEX IF NOT EXISTS idx_teams_contextual ON teams (team_contextual);");
   }
 }
-
