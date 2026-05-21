@@ -73,16 +73,21 @@ public class ServiceAccountPrivilegeService {
 
   private Role createWellKnownRole(String tenantId) {
     List<Role> processRoles = roleService.findAll(tenantId);
-    Optional<Role> processRole =
+    Optional<Role> existing =
         processRoles.stream().filter(role -> role.getName().equals(SERVICE_ROLE_NAME)).findFirst();
 
-    if (processRole.isEmpty()) {
-      processRole =
-          Optional.of(
-              roleService.createRole(
-                  null, SERVICE_ROLE_NAME, SERVICE_ROLE_DESCRIPTION, SERVICE_ROLE_CAPABILITIES));
+    if (existing.isEmpty()) {
+      return roleService.createRoleInternal(
+          null, SERVICE_ROLE_NAME, SERVICE_ROLE_DESCRIPTION, SERVICE_ROLE_CAPABILITIES);
     }
-    return processRole.get();
+    // Re-converge the existing role toward the description / capability set in case it
+    // has drifted (manual edit, partial migration, etc.). The reserved-name guards prevent users
+    // from doing this through the public API, so we must do it ourselves.
+    return roleService.updateRoleInternal(
+        existing.get().getId(),
+        SERVICE_ROLE_NAME,
+        SERVICE_ROLE_DESCRIPTION,
+        SERVICE_ROLE_CAPABILITIES);
   }
 
   private Group createWellKnownGroupWithRole(Role role, String tenantId) {
