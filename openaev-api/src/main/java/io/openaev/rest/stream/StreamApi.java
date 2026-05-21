@@ -1,6 +1,7 @@
 package io.openaev.rest.stream;
 
 import static io.openaev.config.SessionHelper.currentUser;
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.database.audit.ModelBaseListener.DATA_DELETE;
 import static java.time.Instant.now;
 
@@ -9,9 +10,13 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.aop.AccessControl;
 import io.openaev.config.OpenAEVPrincipal;
+import io.openaev.context.TenantContext;
 import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.model.Action;
+import io.openaev.database.model.DualScopeBase;
 import io.openaev.database.model.ResourceType;
+import io.openaev.database.model.Tenant;
+import io.openaev.database.model.TenantBase;
 import io.openaev.database.model.User;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.PermissionService;
@@ -37,8 +42,6 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.context.request.RequestContextHolder;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
-import reactor.util.function.Tuple2;
-import reactor.util.function.Tuples;
 
 @RestController
 @Slf4j
@@ -47,12 +50,15 @@ public class StreamApi extends RestBehavior {
   public static final String EVENT_TYPE_MESSAGE = "message";
   public static final String EVENT_TYPE_PING = "ping";
   public static final String X_ACCEL_BUFFERING = "X-Accel-Buffering";
-  private final Map<String, Tuple2<OpenAEVPrincipal, FluxSink<Object>>> consumers = new HashMap<>();
+  private final Map<String, StreamConsumer> consumers = new HashMap<>();
 
   private final PermissionService permissionService;
   private final UserService userService;
 
   private Instant lastUpdate = Instant.now();
+
+  private record StreamConsumer(
+      OpenAEVPrincipal principal, String tenantId, FluxSink<Object> fluxSink) {}
 
   public StreamApi(PermissionService permissionService, UserService userService) {
     this.permissionService = permissionService;
@@ -84,7 +90,7 @@ public class StreamApi extends RestBehavior {
           "There are currently {} users connected to the stream. The id of the users connected : {}",
           consumers.size(),
           consumers.values().stream()
-              .map(Tuple2::getT1)
+              .map(StreamConsumer::principal)
               .map(OpenAEVPrincipal::getId)
               .collect(Collectors.joining(", ")));
 
@@ -92,48 +98,81 @@ public class StreamApi extends RestBehavior {
     }
 
     consumers.forEach(
-        (key, tupleFlux) -> {
-          User user = userService.user(tupleFlux.getT1().getId());
+        (key, consumer) -> {
+          if (!isVisibleForTenant(event, consumer.tenantId())) {
+            return;
+          }
+
+          User user = userService.user(consumer.principal().getId());
           // FIXME find a way to cache user
           // -> close session when user se login
 
-          FluxSink<Object> fluxSink = tupleFlux.getT2();
-          if (!permissionService.hasPermission(
-              user,
-              Optional.empty(),
-              event.getInstance().getId(),
-              event.getInstance().getResourceType(),
-              Action.READ)) {
-            // If user as no visibility, we can send a "delete" userEvent with only the internal
-            // id
-            // TODO -> rethink this logic -> do we need to send DELETE events
-            try {
-              String propertyId =
-                  event
-                      .getInstance()
-                      .getClass()
-                      .getDeclaredField("id")
-                      .getAnnotation(JsonProperty.class)
-                      .value();
-              ObjectNode deleteNode = mapper.createObjectNode();
-              deleteNode.set(
-                  propertyId, mapper.convertValue(event.getInstance().getId(), JsonNode.class));
-              BaseEvent userEvent = event.clone();
-              userEvent.setInstanceData(deleteNode);
-              userEvent.setType(DATA_DELETE);
-              sendStreamEvent(fluxSink, userEvent);
-            } catch (Exception e) {
-              String simpleName = event.getInstance().getClass().getSimpleName();
-              log.warn(String.format("Class %s can't be streamed", simpleName), e);
+          // Set the tenant context for permission checks on the async thread.
+          // Without this, TenantContext defaults to DEFAULT_TENANT_UUID, causing
+          // tenant-scoped capabilities to be invisible and incorrect DELETE events
+          // to be sent for entities on non-default tenants.
+          if (consumer.tenantId() != null && !consumer.tenantId().isBlank()) {
+            TenantContext.setCurrentTenant(consumer.tenantId());
+          }
+
+          try {
+            FluxSink<Object> fluxSink = consumer.fluxSink();
+            if (!permissionService.hasPermission(
+                user,
+                Optional.empty(),
+                event.getInstance().getId(),
+                event.getInstance().getResourceType(),
+                Action.READ)) {
+              try {
+                String propertyId =
+                    event
+                        .getInstance()
+                        .getClass()
+                        .getDeclaredField("id")
+                        .getAnnotation(JsonProperty.class)
+                        .value();
+                ObjectNode deleteNode = mapper.createObjectNode();
+                deleteNode.set(
+                    propertyId, mapper.convertValue(event.getInstance().getId(), JsonNode.class));
+                BaseEvent userEvent = event.clone();
+                userEvent.setInstanceData(deleteNode);
+                userEvent.setType(DATA_DELETE);
+                sendStreamEvent(fluxSink, userEvent);
+              } catch (Exception e) {
+                String simpleName = event.getInstance().getClass().getSimpleName();
+                log.warn(String.format("Class %s can't be streamed", simpleName), e);
+              }
+            } else {
+              sendStreamEvent(fluxSink, event);
             }
-          } else {
-            sendStreamEvent(fluxSink, event);
+          } finally {
+            // Reset tenant context to avoid leaking into other consumers in the loop
+            if (consumer.tenantId() != null && !consumer.tenantId().isBlank()) {
+              TenantContext.clearCurrentTenant();
+            }
           }
         });
   }
 
+  private boolean isVisibleForTenant(BaseEvent event, String consumerTenantId) {
+    // Keep legacy behavior for /api/stream consumers (no explicit tenant in the URL).
+    if (consumerTenantId == null || consumerTenantId.isBlank()) {
+      return true;
+    }
+    if (event.getInstance() instanceof TenantBase tenantScoped) {
+      return consumerTenantId.equals(tenantScoped.getTenant().getId());
+    }
+    if (event.getInstance() instanceof DualScopeBase dualScope) {
+      Tenant tenant = dualScope.getTenant();
+      return tenant != null && consumerTenantId.equals(tenant.getId());
+    }
+    return true;
+  }
+
   /** Create a flux for current user & session */
-  @GetMapping(path = "/api/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+  @GetMapping(
+      path = {"/api/stream", TENANT_PREFIX + "/stream"},
+      produces = MediaType.TEXT_EVENT_STREAM_VALUE)
   @AccessControl(
       skipRBAC = true) // TODO RBAC check must be done manually for every event in this method
   public ResponseEntity<Flux<Object>> streamFlux() {
@@ -142,7 +181,10 @@ public class StreamApi extends RestBehavior {
     Flux<Object> dataFlux =
         Flux.create(
                 fluxSinkConsumer ->
-                    consumers.put(sessionId, Tuples.of(currentUser(), fluxSinkConsumer)))
+                    consumers.put(
+                        sessionId,
+                        new StreamConsumer(
+                            currentUser(), TenantContext.getCurrentTenant(), fluxSinkConsumer)))
             .doAfterTerminate(() -> consumers.remove(sessionId));
     // Build the health check flux.
     Flux<Object> ping =
