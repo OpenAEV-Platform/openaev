@@ -263,6 +263,7 @@ public class LogService {
       ResourceType resourceType,
       JsonNode input,
       JsonNode output,
+      JsonNode signatureNode,
       Object logLevel,
       AuditLogType logType,
       String logUUID) {
@@ -299,6 +300,8 @@ public class LogService {
         output = ObjectRedactionUtils.redact(output, entityTypeName);
         ctx.put("output", objectMapper().convertValue(output, Map.class));
       }
+
+      doc.getRequestData().put("signature", signatureNode);
 
       ctx.put("message", message);
       doc.setContextData(ctx);

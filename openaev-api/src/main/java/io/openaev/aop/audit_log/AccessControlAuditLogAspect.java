@@ -2,6 +2,7 @@ package io.openaev.aop.audit_log;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.AccessControlAspect;
 import io.openaev.database.model.Action;
@@ -64,6 +65,7 @@ public class AccessControlAuditLogAspect {
       // Capture the input DTO for create/update/status_change
       String eventScope = LogUtils.getEventScope(action);
       JsonNode inputNode = getInputNode(joinPoint, eventScope);
+      JsonNode signatureNode = getMethodSignature(joinPoint, inputNode);
 
       // Execute the business operation
       String eventStatus;
@@ -75,15 +77,18 @@ public class AccessControlAuditLogAspect {
         eventStatus = "error";
 
         JsonNode resultNode = getOutputNode(result);
-        accessControlAuditLogger.logRequestEvent(
-            eventScope, eventStatus, resourceType, inputNode, resultNode, logUUID);
+        JsonNode errorNode = buildErrorNode(resultNode, ex);
+
+        accessControlAuditLogger.logAccessControlEvent(
+            eventScope, eventStatus, resourceType, inputNode, errorNode, signatureNode, logUUID);
 
         throw ex;
       }
 
       JsonNode resultNode = getOutputNode(result);
-      accessControlAuditLogger.logRequestEvent(
-          eventScope, eventStatus, resourceType, inputNode, resultNode, logUUID);
+
+      accessControlAuditLogger.logAccessControlEvent(
+          eventScope, eventStatus, resourceType, inputNode, resultNode, signatureNode, logUUID);
     } catch (Exception e) {
       // Still log the audit event, then continue
       log.warn("[AUDIT] Audit logging failed (non-blocking): {}", e.getMessage(), e);
@@ -122,6 +127,22 @@ public class AccessControlAuditLogAspect {
     return null;
   }
 
+  /**
+   * Wraps the (optional) partial result and the thrown exception into a single {@link JsonNode} so
+   * the error context is captured in one audit field.
+   */
+  private JsonNode buildErrorNode(JsonNode resultNode, Throwable ex) {
+    com.fasterxml.jackson.databind.node.ObjectNode errorNode = objectMapper.createObjectNode();
+    if (resultNode != null) {
+      errorNode.set("result", resultNode);
+    }
+    errorNode.put("exception_type", ex.getClass().getName());
+    if (ex.getMessage() != null) {
+      errorNode.put("exception_message", ex.getMessage());
+    }
+    return errorNode;
+  }
+
   /** Finds the first method argument annotated with {@code @RequestBody}. */
   private Object findRequestBody(ProceedingJoinPoint joinPoint) {
     try {
@@ -137,6 +158,43 @@ public class AccessControlAuditLogAspect {
       }
     } catch (Exception e) {
       log.debug("[AUDIT] Failed to find @RequestBody argument: {}", e.getMessage());
+    }
+    return null;
+  }
+
+  /** Builds a JsonNode with the method signature and its parameter names mapped to their values. */
+  private JsonNode getMethodSignature(ProceedingJoinPoint joinPoint, JsonNode inputNode) {
+    try {
+      MethodSignature signature = (MethodSignature) joinPoint.getSignature();
+      String[] paramNames = signature.getParameterNames();
+      Object[] args = joinPoint.getArgs();
+
+      ObjectNode node = objectMapper.createObjectNode();
+      node.put("method", signature.getDeclaringTypeName() + "." + signature.getName());
+
+      ObjectNode params = objectMapper.createObjectNode();
+      if (paramNames != null) {
+        for (int i = 0; i < paramNames.length; i++) {
+          Object value = i < args.length ? args[i] : null;
+          // Skip the parameter that was already captured as inputNode
+          if (value != null
+              && inputNode != null
+              && objectMapper.valueToTree(value).equals(inputNode)) {
+            params.put(paramNames[i], "@RequestBody");
+            continue;
+          }
+
+          try {
+            params.set(paramNames[i], objectMapper.valueToTree(value));
+          } catch (Exception ex) {
+            params.put(paramNames[i], value != null ? value.toString() : "null");
+          }
+        }
+      }
+      node.set("parameters", params);
+      return node;
+    } catch (Exception e) {
+      log.warn("[AUDIT] Failed to build method signature node: {}", e.getMessage(), e);
     }
     return null;
   }

@@ -67,12 +67,13 @@ public class AccessControlAuditLogger {
   }
 
   @Async("accessControlAuditLoggerExecutor")
-  public CompletableFuture<Boolean> logRequestEvent(
+  public CompletableFuture<Boolean> logAccessControlEvent(
       String eventScope,
       String eventStatus,
       ResourceType resourceType,
       JsonNode input,
       JsonNode output,
+      JsonNode signatureNode,
       String logUUID) {
     boolean status = false;
 
@@ -84,6 +85,7 @@ public class AccessControlAuditLogger {
               resourceType,
               input,
               output,
+              signatureNode,
               Level.WARNING,
               LogService.AuditLogType.GENERIC,
               logUUID);
