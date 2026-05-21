@@ -6287,6 +6287,7 @@ export interface PlatformRoleInput {
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_STIX_BUNDLE"
+    | "AGENT_RUNTIME_ACCESS"
   )[];
   platform_role_description?: string;
   /** @minLength 1 */
@@ -6961,6 +6962,7 @@ export interface RoleInput {
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_STIX_BUNDLE"
+    | "AGENT_RUNTIME_ACCESS"
   )[];
   role_description?: string;
   /** @minLength 1 */
@@ -8433,6 +8435,7 @@ export interface User {
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_STIX_BUNDLE"
+    | "AGENT_RUNTIME_ACCESS"
   )[];
   /** City of the user */
   user_city?: string;
