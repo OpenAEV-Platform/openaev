@@ -13,8 +13,6 @@ public enum ConditionType {
   LTE,
   IN,
   NIN,
-  AFTER,
-  BEFORE,
   MAPPER,
   DEPEND_ON
 }
