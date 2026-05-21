@@ -31,10 +31,13 @@ public class HttpClientFactory {
           PoolingHttpClientConnectionManagerBuilder.create()
               .setTlsSocketStrategy(tlsStrategy)
               .build();
-      return HttpClients.custom().setConnectionManager(cm).build();
+      // Disable automatic retries so the client does not honor server-provided
+      // Retry-After (e.g. on HTTP 429) by sleeping for the full delay before retrying,
+      // which would otherwise make synchronous calls appear stuck for hours.
+      return HttpClients.custom().setConnectionManager(cm).disableAutomaticRetries().build();
     } catch (Exception e) {
       log.error("Unable to load the custom ssl context", e);
-      return HttpClients.createDefault();
+      return HttpClients.custom().disableAutomaticRetries().build();
     }
   }
 }

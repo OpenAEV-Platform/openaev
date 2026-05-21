@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.multipart.MultipartHttpServletRequest;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 @Slf4j
@@ -89,6 +90,19 @@ public class XtmOneChatApi extends RestBehavior {
                     outputStream.flush();
                   }
                 });
+          } catch (ResponseStatusException e) {
+            String detail =
+                e.getReason() != null && !e.getReason().isBlank()
+                    ? e.getReason()
+                    : "Unable to connect to the AI assistant. Please try again.";
+            String errorContent =
+                e.getStatusCode().value() == 429
+                    ? "⚠️ **Quota exceeded** — " + detail
+                    : "⚠️ **Error** — " + detail;
+            outputStream.write(
+                ("data: {\"type\":\"error\",\"content\":\"" + errorContent + "\"}\n\n")
+                    .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            outputStream.flush();
           } catch (Exception e) {
             log.warn("[XTM One Chat] Stream error, agent={}.", agentSlug, e);
             outputStream.write(

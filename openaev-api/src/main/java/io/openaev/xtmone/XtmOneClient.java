@@ -334,17 +334,20 @@ public class XtmOneClient {
                 streamConsumer.accept(stream);
               }
             } else {
-              log.warn(
-                  "[XTM One] Chat message failed: HTTP {}, agent={}",
-                  response.getCode(),
-                  agentSlug);
+              throw mapUpstreamError(response);
             }
             return null;
           });
+    } catch (ResponseStatusException e) {
+      throw e;
     } catch (java.net.SocketTimeoutException e) {
       log.warn("[XTM One] Chat message timed out, agent={}", agentSlug, e);
+      throw new ResponseStatusException(
+          HttpStatus.GATEWAY_TIMEOUT, "[XTM One] Chat message timed out", e);
     } catch (Exception e) {
       log.warn("[XTM One] Chat message error, agent={}.", agentSlug, e);
+      throw new ResponseStatusException(
+          HttpStatus.SERVICE_UNAVAILABLE, "[XTM One] Chat message failed", e);
     }
   }
 
@@ -389,20 +392,19 @@ public class XtmOneClient {
           httpPost,
           response -> {
             if (response.getCode() != 200) {
-              log.warn(
-                  "[XTM One] callAgentSync failed: HTTP {}, agent={}",
-                  response.getCode(),
-                  agentSlug);
-              return null;
+              throw mapUpstreamError(response);
             }
             // Read the SSE stream and collect content
             String raw = EntityUtils.toString(response.getEntity());
             return extractContentFromSse(raw);
           });
+    } catch (ResponseStatusException e) {
+      throw e;
     } catch (Exception e) {
       log.warn("[XTM One] callAgentSync error, agent={}.", agentSlug, e);
+      throw new ResponseStatusException(
+          HttpStatus.SERVICE_UNAVAILABLE, "[XTM One] Agent call failed", e);
     }
-    return null;
   }
 
   /**
@@ -412,6 +414,7 @@ public class XtmOneClient {
   private String extractContentFromSse(String sseBody) {
     StringBuilder accumulated = new StringBuilder();
     String doneContent = null;
+    String errorContent = null;
     for (String line : sseBody.split("\n")) {
       String trimmed = line.trim();
       if (!trimmed.startsWith("data: ")) continue;
@@ -423,11 +426,40 @@ public class XtmOneClient {
           accumulated.append(c);
         } else if ("done".equals(type)) {
           doneContent = c;
+        } else if ("error".equals(type)) {
+          errorContent = c;
         }
       } catch (Exception ignored) {
         // skip malformed SSE lines
       }
     }
+    if (errorContent != null && !errorContent.isBlank()) {
+      throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, errorContent);
+    }
     return doneContent != null ? doneContent : accumulated.toString();
+  }
+
+  /**
+   * Maps an upstream non-200 HTTP response to a {@link ResponseStatusException}, extracting the
+   * server-provided {@code detail} when available. Only 429 is special-cased; everything else maps
+   * to {@code SERVICE_UNAVAILABLE}.
+   */
+  private ResponseStatusException mapUpstreamError(ClassicHttpResponse response) {
+    int code = response.getCode();
+    String detail = readUpstreamDetail(response);
+    HttpStatus status = code == 429 ? HttpStatus.TOO_MANY_REQUESTS : HttpStatus.SERVICE_UNAVAILABLE;
+    String reason = detail.isBlank() ? "[XTM One] HTTP " + code : detail;
+    return new ResponseStatusException(status, reason);
+  }
+
+  private String readUpstreamDetail(ClassicHttpResponse response) {
+    try {
+      if (response.getEntity() == null) return "";
+      String body = EntityUtils.toString(response.getEntity());
+      JsonNode json = objectMapper.readTree(body);
+      return json.hasNonNull("detail") ? json.get("detail").asText() : body;
+    } catch (Exception ignored) {
+      return "";
+    }
   }
 }

@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 /**
@@ -128,6 +129,19 @@ public class XtmOneProxyApi extends RestBehavior {
                     outputStream.flush();
                   }
                 });
+          } catch (ResponseStatusException e) {
+            String detail =
+                e.getReason() != null && !e.getReason().isBlank()
+                    ? e.getReason()
+                    : "Unable to connect to the AI assistant.";
+            String errorContent =
+                e.getStatusCode().value() == HttpStatus.TOO_MANY_REQUESTS.value()
+                    ? "⚠️ **Quota exceeded** — " + detail
+                    : "⚠️ **Error** — " + detail;
+            outputStream.write(
+                ("data: {\"type\":\"error\",\"content\":\"" + errorContent + "\"}\n\n")
+                    .getBytes(StandardCharsets.UTF_8));
+            outputStream.flush();
           } catch (Exception e) {
             log.warn("[XTM One Proxy] Stream error, agent={}.", validatedSlug, e);
             outputStream.write(
