@@ -6,8 +6,8 @@ import jakarta.validation.constraints.NotBlank;
 
 /**
  * Request body for the XTM One detection-remediation proxy endpoint. {@code agentSlug} is optional:
- * when null/blank the service falls back to the first enabled {@code aev.detection_rules_generator} agent in
- * the discovered catalog.
+ * when null/blank the service falls back to the first enabled {@code aev.detection_rules_generator}
+ * agent in the discovered catalog.
  */
 public record DetectionRemediationCallInput(
     @JsonProperty("agent_slug") @Nullable String agentSlug,

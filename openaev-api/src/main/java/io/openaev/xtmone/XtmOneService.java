@@ -22,11 +22,7 @@ public class XtmOneService {
 
   private static final List<Map<String, String>> DEFAULT_INTENTS =
       List.of(
-          Map.of(
-              "name",
-              "global.assistant",
-              "description",
-              "General-purpose assistant"),
+          Map.of("name", "global.assistant", "description", "General-purpose assistant"),
           Map.of("name", "global.summarize", "description", "Summarize content"),
           Map.of("name", "global.make_it_shorter", "description", "Shorten / summarize content"),
           Map.of("name", "global.make_it_longer", "description", "Expand / elaborate content"),
