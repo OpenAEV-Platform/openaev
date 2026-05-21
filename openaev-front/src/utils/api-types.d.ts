@@ -167,7 +167,8 @@ export interface AggregatedFindingOutput {
     | "vulnerability"
     | "account_with_password_not_required"
     | "asreproastable_account"
-    | "kerberoastable_account";
+    | "kerberoastable_account"
+    | "expectation_signature";
   /**
    * Finding Value
    * @minLength 1
@@ -1490,7 +1491,8 @@ export interface ContractOutputElement {
     | "vulnerability"
     | "account_with_password_not_required"
     | "asreproastable_account"
-    | "kerberoastable_account";
+    | "kerberoastable_account"
+    | "expectation_signature";
   /** @format date-time */
   contract_output_element_updated_at: string;
   listened?: boolean;
@@ -1543,7 +1545,8 @@ export interface ContractOutputElementInput {
     | "vulnerability"
     | "account_with_password_not_required"
     | "asreproastable_account"
-    | "kerberoastable_account";
+    | "kerberoastable_account"
+    | "expectation_signature";
 }
 
 /** Represents the rules for parsing the output of an execution. */
@@ -1592,7 +1595,8 @@ export interface ContractOutputElementSimple {
     | "vulnerability"
     | "account_with_password_not_required"
     | "asreproastable_account"
-    | "kerberoastable_account";
+    | "kerberoastable_account"
+    | "expectation_signature";
 }
 
 export interface CreateConnectorInstanceInput {
@@ -3345,7 +3349,8 @@ export interface Finding {
     | "vulnerability"
     | "account_with_password_not_required"
     | "asreproastable_account"
-    | "kerberoastable_account";
+    | "kerberoastable_account"
+    | "expectation_signature";
   /** @format date-time */
   finding_updated_at: string;
   finding_users?: string[];
@@ -3379,7 +3384,8 @@ export interface FindingInput {
     | "vulnerability"
     | "account_with_password_not_required"
     | "asreproastable_account"
-    | "kerberoastable_account";
+    | "kerberoastable_account"
+    | "expectation_signature";
   /** @minLength 1 */
   finding_value: string;
 }
@@ -3442,6 +3448,7 @@ export interface Grant {
     | "SCENARIO"
     | "SIMULATION"
     | "ATOMIC_TESTING"
+    | "THREAT_ARSENAL"
     | "PAYLOAD"
     | "UNKNOWN";
   listened?: boolean;
@@ -3467,6 +3474,7 @@ export interface GroupGrantInput {
     | "SCENARIO"
     | "SIMULATION"
     | "ATOMIC_TESTING"
+    | "THREAT_ARSENAL"
     | "PAYLOAD"
     | "UNKNOWN";
 }
@@ -4487,7 +4495,6 @@ export interface InjectorContractUpdateMappingInput {
   contract_domains: string[];
   /** Set list of tags ids */
   contract_tags_ids?: string[];
-  contract_vulnerability_ids?: string[];
 }
 
 export interface InjectorCreateInput {
@@ -6248,6 +6255,9 @@ export interface PlatformRoleInput {
     | "ACCESS_PAYLOADS"
     | "MANAGE_PAYLOADS"
     | "DELETE_PAYLOADS"
+    | "ACCESS_THREAT_ARSENALS"
+    | "MANAGE_THREAT_ARSENALS"
+    | "DELETE_THREAT_ARSENALS"
     | "ACCESS_DASHBOARDS"
     | "MANAGE_DASHBOARDS"
     | "DELETE_DASHBOARDS"
@@ -6437,10 +6447,6 @@ export interface PlatformSettings {
   xtm_hub_should_send_connectivity_email?: string;
   /** Url of XTM Hub */
   xtm_hub_url?: string;
-  /** True if connection with OpenCTI is enabled */
-  xtm_opencti_enable?: boolean;
-  /** Url of OpenCTI */
-  xtm_opencti_url?: string;
 }
 
 export interface PlayerInput {
@@ -6808,7 +6814,8 @@ export interface RelatedFindingOutput {
     | "vulnerability"
     | "account_with_password_not_required"
     | "asreproastable_account"
-    | "kerberoastable_account";
+    | "kerberoastable_account"
+    | "expectation_signature";
   /**
    * Finding Value
    * @minLength 1
@@ -6926,6 +6933,9 @@ export interface RoleInput {
     | "ACCESS_PAYLOADS"
     | "MANAGE_PAYLOADS"
     | "DELETE_PAYLOADS"
+    | "ACCESS_THREAT_ARSENALS"
+    | "MANAGE_THREAT_ARSENALS"
+    | "DELETE_THREAT_ARSENALS"
     | "ACCESS_DASHBOARDS"
     | "MANAGE_DASHBOARDS"
     | "DELETE_DASHBOARDS"
@@ -7950,6 +7960,8 @@ export interface TenantSettingsOutput {
   platform_simulation_dashboard?: string;
   /** @minLength 1 */
   platform_theme: string;
+  xtm_opencti_enable?: boolean;
+  xtm_opencti_url?: string;
 }
 
 export interface TenantSettingsUpdateInput {
@@ -8184,8 +8196,8 @@ export interface ThreatArsenalActionUpdateInput {
   action_detection_remediations?: DetectionRemediationInput[];
   /** Update list of domains */
   action_domains: string[];
-  action_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
-  action_expectations: (
+  action_execution_arch?: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
+  action_expectations?: (
     | "TEXT"
     | "DOCUMENT"
     | "ARTICLE"
@@ -8397,6 +8409,9 @@ export interface User {
     | "ACCESS_PAYLOADS"
     | "MANAGE_PAYLOADS"
     | "DELETE_PAYLOADS"
+    | "ACCESS_THREAT_ARSENALS"
+    | "MANAGE_THREAT_ARSENALS"
+    | "DELETE_THREAT_ARSENALS"
     | "ACCESS_DASHBOARDS"
     | "MANAGE_DASHBOARDS"
     | "DELETE_DASHBOARDS"

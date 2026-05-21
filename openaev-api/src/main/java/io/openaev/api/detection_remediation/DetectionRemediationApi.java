@@ -79,7 +79,7 @@ public class DetectionRemediationApi {
     TENANT_DETECTION_REMEDIATION_URI + "/rules/{collectorType}"
   })
   @LogExecutionTime
-  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PAYLOAD)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.THREAT_ARSENAL)
   public ResponseEntity<DetectionRemediationAIOutput> postRuleDetectionRemediation(
       @PathVariable @NotBlank final String collectorType, @Valid @RequestBody PayloadInput input) {
     if (input.getType().equals(FileDrop.FILE_DROP_TYPE)
@@ -143,7 +143,7 @@ public class DetectionRemediationApi {
             description = "Collector not found with type {collectorType}")
       })
   @LogExecutionTime
-  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PAYLOAD)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.THREAT_ARSENAL)
   @PostMapping({
     DETECTION_REMEDIATION_URI + "/rules/inject/{injectId}/collector/{collectorType}",
     TENANT_DETECTION_REMEDIATION_URI + "/rules/inject/{injectId}/collector/{collectorType}"

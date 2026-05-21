@@ -14,7 +14,10 @@ import { type CSSProperties, useMemo, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import type { DomainHelper } from '../../../actions/domains/domain-helper';
-import { searchThreatArsenalActions } from '../../../actions/threat_arsenals/threatArsenal-actions';
+import {
+  exportThreatArsenalCsvMapper,
+  searchThreatArsenalActions,
+} from '../../../actions/threat_arsenals/threatArsenal-actions';
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import ExportButton from '../../../components/common/ExportButton';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
@@ -39,7 +42,6 @@ import IconBar from '../common/domains/IconBar';
 import useDomainIconFilter from '../common/domains/useDomainIconFilter';
 import InjectIcon from '../common/injects/InjectIcon';
 import ToolBar from '../common/ToolBar';
-import InjectorContractPopover from '../integrations/injectors/injector_contracts/InjectorContractPopover';
 import PayloadStatusComponent from '../payloads/PayloadStatusComponent';
 import ThreatArsenalRunTestDrawer from './bulk/ThreatArsenalRunTestDrawer';
 import CreateThreatArsenalAction from './CreateThreatArsenalAction';
@@ -193,7 +195,7 @@ const ThreatArsenal = () => {
   ];
 
   const exportProps = {
-    exportType: 'INJECTOR_CONTRACTS',
+    exportType: 'THREAT_ARSENAL_ACTIONS',
     exportKeys: [],
     exportData: threatArsenalActions,
     searchPaginationInput,
@@ -219,8 +221,12 @@ const ThreatArsenal = () => {
         queryableHelpers={queryableHelpers}
         topBarButtons={(
           <ToggleButtonGroup value="fake" exclusive>
-            <ExportButton totalElements={queryableHelpers.paginationHelpers.getTotalElements()} exportProps={exportProps} />
-            <Can I={ACTIONS.MANAGE} a={SUBJECTS.PAYLOADS}>
+            <ExportButton
+              totalElements={queryableHelpers.paginationHelpers.getTotalElements()}
+              exportProps={exportProps}
+              exportCsvMapperFunction={exportThreatArsenalCsvMapper}
+            />
+            <Can I={ACTIONS.MANAGE} a={SUBJECTS.THREAT_ARSENALS}>
               <ImportUploaderThreatArsenal
                 onImport={results => setThreatArsenalActions(prev => [...results, ...prev])}
               />
@@ -289,34 +295,29 @@ const ThreatArsenal = () => {
                   <ListItem
                     key={action.injector_contract_id}
                     divider
-                    secondaryAction={(action.action_payload != null
-                      ? (
-                          <ThreatArsenalActionPopover
-                            actionId={action.injector_contract_id}
-                            payloadId={action.action_payload.payload_id ?? ''}
-                            name={tPick(action.action_labels)}
-                            onUpdate={(result: ThreatArsenalAction) =>
-                              setThreatArsenalActions(threatArsenalActions.map(a => a.injector_contract_id === action.injector_contract_id ? result : a))}
-                            onDuplicate={(result: ThreatArsenalAction) => setThreatArsenalActions([result, ...threatArsenalActions])}
-                            onDelete={() => setThreatArsenalActions(threatArsenalActions.filter(a => a.injector_contract_id !== action.injector_contract_id))}
-                            disableUpdate={action.action_payload.payload_collector_type !== null}
-                            disableDelete={action.action_payload.payload_collector_type !== null && action.action_payload?.payload_status !== 'DEPRECATED'}
-                          />
-                        )
-                      : (
-                          <InjectorContractPopover
-                            injectorContract={{
-                              injector_contract_id: action.injector_contract_id,
-                              injector_contract_attack_patterns: action.action_attack_patterns_ids,
-                              injector_contract_domains: action.action_domains_ids,
-                              injector_contract_tags: action.action_tags_ids,
-                            }}
-                            canDelete={false}
-                            canEditCustomForm={false}
-                            onUpdate={(result: ThreatArsenalAction) =>
-                              setThreatArsenalActions(threatArsenalActions.map(ic => (ic.injector_contract_id !== result.injector_contract_id ? ic : result)))}
-                          />
-                        )
+                    secondaryAction={(
+                      <ThreatArsenalActionPopover
+                        actionId={action.injector_contract_id}
+                        payloadId={action.action_payload?.payload_id ?? ''}
+                        name={tPick(action.action_labels)}
+                        onUpdate={(result: ThreatArsenalAction) =>
+                          setThreatArsenalActions(threatArsenalActions.map(a => a.injector_contract_id === action.injector_contract_id ? result : a))}
+                        onDuplicate={(result: ThreatArsenalAction) => setThreatArsenalActions([result, ...threatArsenalActions])}
+                        onDelete={() => setThreatArsenalActions(threatArsenalActions.filter(a => a.injector_contract_id !== action.injector_contract_id))}
+                        // Disable update for:
+                        // - Actions coming from a collector
+                        // - Actions coming from a dummy injector
+                        disableUpdate={(action.action_payload && action.action_payload?.payload_collector_type !== null) || (action.action_injector_type ?? '').endsWith('_dummy')}
+                        // Disable delete for actions not created by the user (no payload attached) or actions coming from a dummy injector
+                        disableDuplicate={action.action_payload == null || (action.action_injector_type ?? '').endsWith('_dummy')}
+                        // Disable JSON export for action not created by the user (no payload attached) or actions coming from a dummy injector
+                        disableJsonExport={action.action_payload == null || (action.action_injector_type ?? '').endsWith('_dummy')}
+                        // Disable delete for:
+                        // - Actions not created by the user (no payload attached)
+                        // - Actions coming from a collector, unless they are deprecated
+                        // - Actions coming from a dummy injector
+                        disableDelete={action.action_payload == null || (action.action_payload.payload_collector_type !== null && action.action_payload?.payload_status !== 'DEPRECATED') || (action.action_injector_type ?? '').endsWith('_dummy')}
+                      />
                     )}
                     disablePadding
                   >
@@ -371,7 +372,7 @@ const ThreatArsenal = () => {
               );
             })}
       </List>
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.PAYLOADS}>
+      <Can I={ACTIONS.MANAGE} a={SUBJECTS.THREAT_ARSENALS}>
         <CreateThreatArsenalAction
           onCreate={(result: ThreatArsenalAction) => {
             setThreatArsenalActions([result, ...threatArsenalActions]);
@@ -396,7 +397,6 @@ const ThreatArsenal = () => {
           onClose={() => setRunTestDrawerOpened(false)}
         />
       )}
-
     </Stack>
   );
 };

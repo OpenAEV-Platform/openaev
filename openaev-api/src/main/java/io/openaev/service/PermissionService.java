@@ -32,19 +32,16 @@ public class PermissionService {
           ResourceType.DOMAIN,
           ResourceType.KILL_CHAIN_PHASE,
           ResourceType.ORGANIZATION,
-          // INJECTOR_CONTRACT is present here AND in the RESOURCES_USING_PARENT_PERMISSION list
-          // because it's a resource that's fully OPEN except if it's linked to a payload.
-          // In the code, w check parent permission before checking open resources, so if the IC is
-          // linked to a payload, the resource type will change to PAYLOAD and the permission will
-          // be checked against that payload.
-          ResourceType.INJECTOR_CONTRACT); // TODO review open apis see issue/3789
+          // INJECTOR is open for READ/SEARCH because multiple views (e.g. threat arsenal)
+          // need to list injectors for filtering, and injector names are not sensitive.
+          ResourceType.INJECTOR);
 
   private static final EnumSet<ResourceType> RESOURCES_MANAGED_BY_GRANTS =
       EnumSet.of(
           ResourceType.SCENARIO,
           ResourceType.SIMULATION,
           ResourceType.SIMULATION_OR_SCENARIO,
-          ResourceType.PAYLOAD,
+          ResourceType.THREAT_ARSENAL,
           ResourceType.ATOMIC_TESTING);
 
   private static final EnumSet<ResourceType> RESOURCES_USING_PARENT_PERMISSION =
@@ -221,11 +218,7 @@ public class PermissionService {
       Action parentAction = Action.READ; // FIXME permission should be linked to userid
       return new Target(notificationRule.getResourceId(), ResourceType.SCENARIO, parentAction);
     } else if (resourceType == ResourceType.INJECTOR_CONTRACT) {
-      InjectorContract ic = injectorContractService.injectorContract(resourceId);
-      if (ic.getPayload() != null) {
-        return new Target(ic.getPayload().getId(), ResourceType.PAYLOAD, action);
-      }
-      return new Target(ic.getId(), ResourceType.INJECTOR_CONTRACT, action);
+      return new Target(resourceId, ResourceType.THREAT_ARSENAL, action);
     } else if (resourceType == ResourceType.OBJECTIVE) {
       Objective objective =
           objectiveRepository
