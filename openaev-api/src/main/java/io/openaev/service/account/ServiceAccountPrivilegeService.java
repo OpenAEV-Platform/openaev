@@ -78,7 +78,7 @@ public class ServiceAccountPrivilegeService {
 
     if (existing.isEmpty()) {
       return roleService.createRoleInternal(
-          null, SERVICE_ROLE_NAME, SERVICE_ROLE_DESCRIPTION, SERVICE_ROLE_CAPABILITIES);
+          null, SERVICE_ROLE_NAME, SERVICE_ROLE_DESCRIPTION, SERVICE_ROLE_CAPABILITIES, tenantId);
     }
     // Re-converge the existing role toward the description / capability set in case it
     // has drifted (manual edit, partial migration, etc.). The reserved-name guards prevent users
@@ -118,7 +118,7 @@ public class ServiceAccountPrivilegeService {
                 () ->
                     Optional.of(
                         tenantGroupService.createGroupWithRole(
-                            null, input, new ArrayList<>(List.of(role)))));
+                            null, input, new ArrayList<>(List.of(role)), tenantId)));
     return processGroup.get();
   }
 

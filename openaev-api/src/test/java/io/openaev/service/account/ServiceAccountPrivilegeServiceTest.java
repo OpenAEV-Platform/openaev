@@ -134,7 +134,7 @@ public class ServiceAccountPrivilegeServiceTest {
     // prepare
     when(roleService.findAll(TENANT_ID)).thenReturn(List.of(mockRole));
     when(tenantGroupService.findAllByTenantId(TENANT_ID)).thenReturn(List.of());
-    when(tenantGroupService.createGroupWithRole(any(), any(), any())).thenReturn(mockGroup);
+    when(tenantGroupService.createGroupWithRole(any(), any(), any(), any())).thenReturn(mockGroup);
     when(userService.findByEmailIgnoreCase(SERVICE_EMAIL)).thenReturn(Optional.empty());
     when(userService.createInternalUser(any(), any(), any(), anyBoolean(), any()))
         .thenReturn(mockUser);
@@ -145,7 +145,7 @@ public class ServiceAccountPrivilegeServiceTest {
     privilegeService.ensurePrivilegedUserExists(TENANT_ID);
 
     // assert
-    verify(tenantGroupService).createGroupWithRole(isNull(), any(), any());
+    verify(tenantGroupService).createGroupWithRole(isNull(), any(), any(), any());
     verify(tenantGroupService, never()).updateGroupInfoWithRoles(any(), any(), any());
   }
 
@@ -167,7 +167,7 @@ public class ServiceAccountPrivilegeServiceTest {
 
     // assert
     verify(tenantGroupService).updateGroupInfoWithRoles(eq(mockGroup), any(), any());
-    verify(tenantGroupService, never()).createGroupWithRole(any(), any(), any());
+    verify(tenantGroupService, never()).createGroupWithRole(any(), any(), any(), any());
   }
 
   @Test
@@ -197,7 +197,7 @@ public class ServiceAccountPrivilegeServiceTest {
   void shouldCreateNewRoleWhenNoExistingRoleFound() {
     // prepare
     when(roleService.findAll(TENANT_ID)).thenReturn(List.of());
-    when(roleService.createRoleInternal(any(), any(), any(), any())).thenReturn(mockRole);
+    when(roleService.createRoleInternal(any(), any(), any(), any(), any())).thenReturn(mockRole);
     when(tenantGroupService.findAllByTenantId(TENANT_ID)).thenReturn(List.of(mockGroup));
     when(tenantGroupService.updateGroupInfoWithRoles(any(), any(), any())).thenReturn(mockGroup);
     when(userService.findByEmailIgnoreCase(SERVICE_EMAIL)).thenReturn(Optional.empty());
@@ -213,7 +213,8 @@ public class ServiceAccountPrivilegeServiceTest {
             isNull(),
             eq(SERVICE_ROLE_NAME),
             eq(SERVICE_ROLE_DESCRIPTION),
-            eq(SERVICE_ROLE_CAPABILITIES));
+            eq(SERVICE_ROLE_CAPABILITIES),
+            eq(TENANT_ID));
   }
 
   @Test
@@ -233,7 +234,7 @@ public class ServiceAccountPrivilegeServiceTest {
     privilegeService.ensurePrivilegedUserExists(TENANT_ID);
 
     // assert
-    verify(roleService, never()).createRoleInternal(any(), any(), any(), any());
+    verify(roleService, never()).createRoleInternal(any(), any(), any(), any(), any());
   }
 
   @Test

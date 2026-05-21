@@ -47,9 +47,10 @@ public class RoleService {
       @NotBlank final String id,
       @NotBlank final String roleName,
       @NotBlank final String roleDescription,
-      @NotNull final Set<Capability> capabilities) {
+      @NotNull final Set<Capability> capabilities,
+      String tenantId) {
     ReservedNameValidator.validateRoleName(roleName);
-    return createRoleInternal(id, roleName, roleDescription, capabilities);
+    return createRoleInternal(id, roleName, roleDescription, capabilities, tenantId);
   }
 
   /**
