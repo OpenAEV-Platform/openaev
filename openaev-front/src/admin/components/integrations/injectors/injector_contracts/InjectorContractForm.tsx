@@ -92,7 +92,7 @@ const InjectorContractForm = ({
           cancelLabel={t('Cancel')}
           disabled={!isDirty}
           submitting={isSubmitting}
-          style={{ flexDirection: 'row-reverse' }}
+          style={{ flexDirection: 'row', justifyContent: 'flex-end' }}
         />
       </form>
     </FormProvider>
