@@ -48,44 +48,22 @@ public class AccessControlAuditLogAspect {
   @Around("@annotation(accessControl)")
   public Object auditAround(ProceedingJoinPoint joinPoint, AccessControl accessControl)
       throws Throwable {
-    Object result = null;
-
     try {
       Action action = accessControl.actionPerformed();
 
       if (!accessControlAuditLogger.isAuditLoggingEnabled()
           || !accessControlAuditLogger.isAuditLoggingValid(action)
           || !previewFeatureService.isFeatureEnabled(PreviewFeature.AUDIT_LOG)) {
-        // If openaev.generic-logs.service.enabled is true, log the request and its body input.
-        /*if (accessControlAuditLogger.isGenericLoggingEnabled()) {
-          // Capture the input DTO for create/update/status_change
-          JsonNode inputNode = null;
-
-          try {
-            inputNode = getInputNode(joinPoint, eventScope);
-          } catch (Exception ex) {
-            log.warn("[AUDIT] Audit logging failed (non-blocking): {}", ex.getMessage(), ex);
-          }
-
-          String eventScope = LogUtils.getEventScope(action);
-          String logUUID = UUID.randomUUID().toString();
-
-          accessControlAuditLogger.auditRequest(eventScope, inputNode, logUUID);
-        }*/
-
         return joinPoint.proceed();
       }
 
       String eventScope = LogUtils.getEventScope(action);
       String logUUID = UUID.randomUUID().toString();
 
-      ResourceType resourceType = null;
-      boolean status = true;
-
       // -- Pre-execution:get child-resource --
       AuditResourceDetector.AuditResourceInfo resourceInfo =
           auditResourceDetector.detectResourceBeforeExecution(joinPoint, accessControl, eventScope);
-      resourceType = resourceInfo.resourceType();
+      ResourceType resourceType = resourceInfo.resourceType();
       String resourceId = resourceInfo.resourceId();
       String sourceId = resourceInfo.sourceId();
       ResourceType entityType = resourceInfo.entityType();
@@ -98,6 +76,7 @@ public class AccessControlAuditLogAspect {
 
       // Execute the business operation
       String eventStatus;
+      Object result = null;
 
       try {
         result = joinPoint.proceed();
@@ -120,20 +99,19 @@ public class AccessControlAuditLogAspect {
         throw ex;
       }
 
-      if (status)
-        accessControlAuditLogger.auditEvent(
-            eventScope,
-            eventStatus,
-            resourceType,
-            resourceId,
-            sourceId,
-            entityType,
-            entityId,
-            entityName,
-            entitySnapshot,
-            inputNode,
-            result,
-            logUUID);
+      accessControlAuditLogger.auditEvent(
+          eventScope,
+          eventStatus,
+          resourceType,
+          resourceId,
+          sourceId,
+          entityType,
+          entityId,
+          entityName,
+          entitySnapshot,
+          inputNode,
+          result,
+          logUUID);
     } catch (Exception e) {
       // Still log the audit event, then continue
       log.warn("[AUDIT] Audit logging failed (non-blocking): {}", e.getMessage(), e);
