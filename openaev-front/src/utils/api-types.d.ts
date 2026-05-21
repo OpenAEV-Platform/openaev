@@ -6354,6 +6354,8 @@ export interface PlatformSettings {
    * @format int64
    */
   expectation_vulnerability_expiration_time: number;
+  /** Chatbot AI CGU acceptance status: pending, enabled, or disabled */
+  filigran_chatbot_ai_cgu_status?: string;
   /** IMAP Service availability */
   imap_service_available?: string;
   /** Current version of Java */
@@ -6364,14 +6366,14 @@ export interface PlatformSettings {
   map_tile_server_light?: string;
   /** Agent URL of the platform */
   platform_agent_url?: string;
+  /** True if AI is enabled for the platform */
+  platform_ai_enabled?: boolean;
   /** True if we have an AI token */
   platform_ai_has_token?: boolean;
   /** Chosen model of AI */
   platform_ai_model?: string;
   /** Type of AI (mistralai or openai) */
   platform_ai_type?: string;
-  /** Chatbot AI CGU acceptance status: pending, enabled, or disabled */
-  filigran_chatbot_ai_cgu_status?: 'pending' | 'enabled' | 'disabled';
   /** Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL) */
   platform_banner_by_level?: Record<string, string[]>;
   /** Base URL of the platform */
@@ -7397,6 +7399,20 @@ export interface SecurityPlatformUpsertInput {
 export interface Series {
   filter?: FilterGroup;
   name?: string;
+}
+
+export interface SettingsAiEnabledUpdateInput {
+  /** Whether AI (Insight, NLQ) is enabled for the platform */
+  enabled: boolean;
+}
+
+export interface SettingsChatbotAiCguUpdateInput {
+  /**
+   * Chatbot AI CGU acceptance status: pending, enabled, or disabled
+   * @minLength 1
+   * @pattern pending|enabled|disabled
+   */
+  status: string;
 }
 
 export interface SettingsEnterpriseEditionUpdateInput {
