@@ -102,6 +102,14 @@ public class Injector extends BaseConnectorEntity implements TenantBase {
   @JsonIgnore
   private Tenant tenant;
 
+  /**
+   * Read-only mapping of the physical tenant_id column. Needed so that Hibernate can resolve {@code
+   * referencedColumnName = "tenant_id"} in {@code @JoinFormula} from Inject → Injector.
+   */
+  @Column(name = "tenant_id", insertable = false, updatable = false)
+  @JsonIgnore
+  private String tenantId;
+
   @Getter(onMethod_ = @JsonIgnore)
   @Transient
   private final ResourceType resourceType = ResourceType.INJECTOR;
