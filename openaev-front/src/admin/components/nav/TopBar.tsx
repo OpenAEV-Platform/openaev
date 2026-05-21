@@ -110,6 +110,7 @@ const TopBar: FunctionComponent = () => {
       dispatch(fetchXtmHubRegistration());
     }
   }, []);
+  const tenantSettings = useHelper((helper: LoggedHelper) => helper.getTenantSettings());
   const registration = useHelper((helper: LoggedHelper) => helper.getXtmHubRegistration());
   const isRegistered = registration?.tenant_xtmhub_registration_status === 'REGISTERED';
   const shouldXtmHubRedirectToSite = isRegistered || !isXTMHubAccessible || !ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS);
@@ -303,15 +304,15 @@ const TopBar: FunctionComponent = () => {
                       </Tooltip>
                     </Grid>
                     <Grid size={6}>
-                      <Tooltip title={settings.xtm_opencti_enable && settings.xtm_opencti_url ? t('Platform connected') : t('Get OpenCTI now')}>
+                      <Tooltip title={tenantSettings.xtm_opencti_enable && tenantSettings.xtm_opencti_url ? t('Platform connected') : t('Get OpenCTI now')}>
                         <a
                           className={classes.xtmItem}
-                          href={settings.xtm_opencti_enable && settings.xtm_opencti_url ? settings.xtm_opencti_url : 'https://filigran.io'}
+                          href={tenantSettings.xtm_opencti_enable && tenantSettings.xtm_opencti_url ? tenantSettings.xtm_opencti_url : 'https://filigran.io'}
                           target="_blank"
                           rel="noreferrer"
                           onClick={handleCloseXtm}
                         >
-                          <Badge variant="dot" color={settings.xtm_opencti_enable && settings.xtm_opencti_url ? 'success' : 'warning'}>
+                          <Badge variant="dot" color={tenantSettings.xtm_opencti_enable && tenantSettings.xtm_opencti_url ? 'success' : 'warning'}>
                             <img style={{ width: 40 }} src={theme.palette.mode === 'dark' ? octiDark : octiLight} alt="OCTI" />
                           </Badge>
                           <div className={classes.product}>{t('OpenCTI')}</div>

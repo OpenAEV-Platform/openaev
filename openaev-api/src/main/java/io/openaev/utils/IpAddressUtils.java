@@ -5,6 +5,7 @@ import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.regex.Pattern;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Utility class providing IP address validation helpers for the OpenAEV platform.
@@ -14,6 +15,7 @@ import java.util.regex.Pattern;
  *
  * <p>This is a utility class and cannot be instantiated.
  */
+@Slf4j
 public class IpAddressUtils {
 
   private IpAddressUtils() {}
@@ -108,6 +110,49 @@ public class IpAddressUtils {
           && prefixLength <= 128
           && InetAddress.getByName(addressPart) instanceof Inet6Address;
     } catch (NumberFormatException | UnknownHostException e) {
+      return false;
+    }
+  }
+
+  /**
+   * Returns {@code true} if {@code ip} falls within the CIDR {@code subnet}.
+   *
+   * <p>Supports both IPv4 (e.g. {@code 192.168.1.0/24}) and IPv6 (e.g. {@code 2001:db8::/32}).
+   * Returns {@code false} when the address families differ or parsing fails.
+   *
+   * @param ip the IP address to test
+   * @param cidr the CIDR subnet to test against
+   */
+  public static boolean isIpInSubnet(String ip, String cidr) {
+    try {
+      int slashIndex = cidr.lastIndexOf('/');
+      String subnetAddress = cidr.substring(0, slashIndex);
+      int prefixLength = Integer.parseInt(cidr.substring(slashIndex + 1));
+
+      byte[] ipBytes = InetAddress.getByName(ip).getAddress();
+      byte[] subnetBytes = InetAddress.getByName(subnetAddress).getAddress();
+
+      if (ipBytes.length != subnetBytes.length) {
+        return false; // IPv4 vs IPv6 mismatch
+      }
+
+      int fullBytes = prefixLength / 8;
+      int remainingBits = prefixLength % 8;
+
+      for (int i = 0; i < fullBytes; i++) {
+        if (ipBytes[i] != subnetBytes[i]) {
+          return false;
+        }
+      }
+      if (remainingBits > 0) {
+        int mask = 0xFF & (0xFF << (8 - remainingBits));
+        if ((ipBytes[fullBytes] & mask) != (subnetBytes[fullBytes] & mask)) {
+          return false;
+        }
+      }
+      return true;
+    } catch (Exception e) {
+      log.warn("Failed to evaluate IP {} against subnet {}: {}", ip, cidr, e.getMessage());
       return false;
     }
   }

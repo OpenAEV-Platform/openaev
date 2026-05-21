@@ -106,4 +106,12 @@ public class PlatformJobDefinitions {
         .storeDurably()
         .build();
   }
+
+  @Bean
+  public JobDetail workflowTimeoutJobDetail() {
+    return JobBuilder.newJob(WorkflowTimeoutJob.class)
+        .withIdentity("WorkflowTimeoutJob")
+        .storeDurably()
+        .build();
+  }
 }
