@@ -12,6 +12,7 @@ import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
+import io.openaev.telemetry.metric_collectors.ScopeMetricCollector;
 import io.openaev.utils.IpAddressUtils;
 import jakarta.validation.constraints.NotBlank;
 import java.util.*;
@@ -32,12 +33,14 @@ public class WorkflowService {
 
   private final StepService stepService;
   private final PreviewFeatureService previewFeatureService;
+  private final WorkflowStateService workflowStateService;
   private final StepDelayQueueService stepDelayQueueService;
 
   private final WorkflowRepository workflowRepository;
   private final WorkflowScopeRuleRepository workflowScopeRuleRepository;
   private final ScopeVariableRepository scopeVariableRepository;
-  private final WorkflowStateService workflowStateService;
+
+  private final ScopeMetricCollector scopeMetricCollector;
 
   // -- READ --
 
@@ -424,10 +427,13 @@ public class WorkflowService {
       throws ChainingException {
     List<Workflow> workflows =
         this.workflowRepository.findByScenario_IdAndStatus(scenarioId, WorkflowStatus.TEMPLATE);
-    if (workflows.size() > 1)
+    if (workflows.size() > 1) {
       throw new ChainingException(
           "Error Model DB - Many Workflow TEMPLATE for the same scenario ID : " + scenarioId);
-    if (workflows.isEmpty()) return Optional.empty();
+    }
+    if (workflows.isEmpty()) {
+      return Optional.empty();
+    }
     return Optional.ofNullable(workflows.getFirst());
   }
 
@@ -507,25 +513,74 @@ public class WorkflowService {
 
     boolean changed = existing.removeIf(r -> !inputIds.contains(r.getId()));
 
-    Set<String> processedIds = new HashSet<>();
+    // Build new rules from inputs without an ID
+    List<WorkflowScopeRule> newRules =
+        deduplicated.stream()
+            .filter(r -> r.getId() == null)
+            .map(r -> buildScopeRule(r, workflow))
+            .toList();
 
+    if (!newRules.isEmpty()) {
+      existing.addAll(newRules);
+      changed = true;
+
+      trackScopeMetrics(workflow, newRules);
+    }
+
+    // Update existing rules that have changed
+    Set<String> processedIds = new HashSet<>();
     for (WorkflowScopeRuleInput ruleInput : deduplicated) {
       String ruleId = ruleInput.getId();
-      if (ruleId == null) {
-        existing.add(buildScopeRule(ruleInput, workflow));
-        changed = true;
-      } else {
-        if (!processedIds.contains(ruleId)) {
-          WorkflowScopeRule existingRule = existingById.get(ruleId);
-          if (existingRule != null && hasRuleChanged(existingRule, ruleInput)) {
-            updateScopeRule(existingRule, ruleInput);
-            changed = true;
-          }
-          processedIds.add(ruleId);
+      if (ruleId != null && processedIds.add(ruleId)) {
+        WorkflowScopeRule existingRule = existingById.get(ruleId);
+        if (existingRule != null && hasRuleChanged(existingRule, ruleInput)) {
+          updateScopeRule(existingRule, ruleInput);
+          changed = true;
         }
       }
     }
+
     return changed;
+  }
+
+  /**
+   * Tracks metrics related to scope rules added in a workflow configuration, including the volume
+   * of new rules by mode/type/source and the usage of CSV vs Manual sources.
+   */
+  private void trackScopeMetrics(Workflow workflow, List<WorkflowScopeRule> newRules) {
+    if (CollectionUtils.isEmpty(newRules)) return;
+
+    Map<String, Integer> modeCounts = new HashMap<>();
+    Map<String, Integer> typeSourceCounts = new HashMap<>();
+    Set<String> uniqueSources = new HashSet<>();
+
+    for (WorkflowScopeRule rule : newRules) {
+      String mode = rule.getSelectedMode().name();
+      String typeSourceKey = rule.getValueType().name() + "|" + rule.getRuleSource().name();
+      String source = rule.getRuleSource().name();
+
+      modeCounts.merge(mode, 1, Integer::sum);
+      typeSourceCounts.merge(typeSourceKey, 1, Integer::sum);
+      uniqueSources.add(source);
+    }
+
+    // KPI. Record Creation Patterns (Allowlist/Denylist)
+    modeCounts.forEach(scopeMetricCollector::recordScopeCreated);
+
+    // KPI. Record Type and Source Patterns (e.g. DOMAIN|CSV, IP|Manual)
+    typeSourceCounts.forEach(
+        (key, count) -> {
+          String[] parts = key.split("\\|");
+          scopeMetricCollector.recordEntryAdded(parts[0], parts[1], count);
+        });
+
+    // KPI. Record Source Usage (CSV vs Manual only — ignore asset-based sources)
+    uniqueSources.stream()
+        .filter(
+            source ->
+                ScopeRuleSource.CSV.name().equals(source)
+                    || ScopeRuleSource.MANUAL.name().equals(source))
+        .forEach(source -> scopeMetricCollector.recordUsage(workflow.getId(), source));
   }
 
   /**
@@ -609,7 +664,9 @@ public class WorkflowService {
       throws ChainingException {
 
     Optional<Workflow> oldWorkflowOpt = findWorkflowTemplateByScenarioId(scenarioIdFrom);
-    if (oldWorkflowOpt.isEmpty()) return null;
+    if (oldWorkflowOpt.isEmpty()) {
+      return null;
+    }
     Workflow oldWorkflowTemplateScenario = oldWorkflowOpt.get();
 
     Workflow newWorkflowTemplateScenario =
@@ -628,7 +685,9 @@ public class WorkflowService {
       @NotBlank String simulationIdFrom, @NotBlank Exercise simulationTo) {
 
     Optional<Workflow> oldWorkflowOpt = findWorkflowTemplateBySimulationId(simulationIdFrom);
-    if (oldWorkflowOpt.isEmpty()) return null;
+    if (oldWorkflowOpt.isEmpty()) {
+      return null;
+    }
     Workflow oldWorkflowTemplateSimulation = oldWorkflowOpt.get();
 
     Workflow newWorkflowTemplateScenario =
@@ -642,8 +701,9 @@ public class WorkflowService {
    * @throws ChainingException when the feature flag is disabled
    */
   public void isPreviewFeatureChainingEnable() throws ChainingException {
-    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING))
+    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)) {
       throw new ChainingException("Feature chaining is not enabled");
+    }
   }
 
   /**

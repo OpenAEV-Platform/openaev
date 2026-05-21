@@ -292,7 +292,13 @@ const ScopeForm: FunctionComponent<ScopeFormProps> = ({
   const handleUploadCsv = useCallback(
     async (_formData: FormData, file: File) => {
       const content = await file.text();
-      const result = parseScopeRulesCsv(content);
+      let result: ReturnType<typeof parseScopeRulesCsv>;
+      try {
+        result = parseScopeRulesCsv(content);
+      } catch {
+        MESSAGING$.notifyError(t('CSV import failed'));
+        return;
+      }
 
       if (result.valid.length > 0) {
         const existingKeys = new Set(
