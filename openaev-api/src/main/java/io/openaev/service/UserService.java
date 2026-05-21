@@ -407,6 +407,12 @@ public class UserService {
     return passwordEncoder.encode(password);
   }
 
+  /** Returns true if the given user has at least one API token. */
+  @Transactional(readOnly = true)
+  public boolean userHasToken(String userId) {
+    return tokenRepository.existsByUserId(userId);
+  }
+
   /**
    * Creates a new API token for a user with a random value.
    *

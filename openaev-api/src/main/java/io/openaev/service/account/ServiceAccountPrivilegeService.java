@@ -39,9 +39,10 @@ public class ServiceAccountPrivilegeService {
     Optional<User> existingEmailUser = userService.findByEmailIgnoreCase(email);
 
     if (existingEmailUser.isPresent()) {
-      if (existingEmailUser.get().getTokens() == null) {
+      User user = existingEmailUser.get();
+      // user.tokens collection is lazy, check in db.
+      if (!userService.userHasToken(user.getId())) {
         // Email-matched user exists but has no token — reuse and attach token
-        User user = existingEmailUser.get();
         log.warn(
             "User with email {} already exists, but no token found. Reusing existing user.",
             user.getEmail());

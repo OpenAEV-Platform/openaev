@@ -111,6 +111,7 @@ public class ServiceAccountPrivilegeServiceTest {
     when(tenantGroupService.findAllByTenantId(TENANT_ID)).thenReturn(List.of(mockGroup));
     when(tenantGroupService.updateGroupInfoWithRoles(any(), any(), any())).thenReturn(mockGroup);
     when(userService.findByEmailIgnoreCase(SERVICE_EMAIL)).thenReturn(Optional.of(mockUser));
+    when(userService.userHasToken(any())).thenReturn(true);
 
     // act
     privilegeService.ensurePrivilegedUserExists(TENANT_ID);
