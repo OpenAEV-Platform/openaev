@@ -38,19 +38,6 @@ export interface Agent {
   listened?: boolean;
 }
 
-export interface AgentCallInput {
-  /** @minLength 1 */
-  agent_slug: string;
-  /** @minLength 1 */
-  content: string;
-}
-
-export interface AgentCallOutput {
-  content?: string;
-  error?: string;
-  status?: string;
-}
-
 export interface AgentExecutorOutput {
   /** Agent executor id */
   executor_id?: string;
@@ -167,8 +154,7 @@ export interface AggregatedFindingOutput {
     | "vulnerability"
     | "account_with_password_not_required"
     | "asreproastable_account"
-    | "kerberoastable_account"
-    | "expectation_signature";
+    | "kerberoastable_account";
   /**
    * Finding Value
    * @minLength 1
@@ -1037,13 +1023,6 @@ export interface ChannelUpdateLogoInput {
   channel_logo_light?: string;
 }
 
-export interface ChatbotAgentOutput {
-  description?: string;
-  id?: string;
-  name?: string;
-  slug?: string;
-}
-
 export interface CheckExerciseRulesInput {
   /** List of tag that will be applied to the simulation */
   new_tags?: string[];
@@ -1491,8 +1470,7 @@ export interface ContractOutputElement {
     | "vulnerability"
     | "account_with_password_not_required"
     | "asreproastable_account"
-    | "kerberoastable_account"
-    | "expectation_signature";
+    | "kerberoastable_account";
   /** @format date-time */
   contract_output_element_updated_at: string;
   listened?: boolean;
@@ -1545,8 +1523,7 @@ export interface ContractOutputElementInput {
     | "vulnerability"
     | "account_with_password_not_required"
     | "asreproastable_account"
-    | "kerberoastable_account"
-    | "expectation_signature";
+    | "kerberoastable_account";
 }
 
 /** Represents the rules for parsing the output of an execution. */
@@ -1595,8 +1572,7 @@ export interface ContractOutputElementSimple {
     | "vulnerability"
     | "account_with_password_not_required"
     | "asreproastable_account"
-    | "kerberoastable_account"
-    | "expectation_signature";
+    | "kerberoastable_account";
 }
 
 export interface CreateConnectorInstanceInput {
@@ -1875,14 +1851,6 @@ export interface DetectionRemediation {
 
 export interface DetectionRemediationAIOutput {
   rules?: string;
-}
-
-export interface DetectionRemediationCallInput {
-  agent_slug?: string;
-  /** @minLength 1 */
-  collector_type: string;
-  /** @minLength 1 */
-  content: string;
 }
 
 /** Health check response of the detection/remediation service. */
@@ -3349,8 +3317,7 @@ export interface Finding {
     | "vulnerability"
     | "account_with_password_not_required"
     | "asreproastable_account"
-    | "kerberoastable_account"
-    | "expectation_signature";
+    | "kerberoastable_account";
   /** @format date-time */
   finding_updated_at: string;
   finding_users?: string[];
@@ -3384,8 +3351,7 @@ export interface FindingInput {
     | "vulnerability"
     | "account_with_password_not_required"
     | "asreproastable_account"
-    | "kerberoastable_account"
-    | "expectation_signature";
+    | "kerberoastable_account";
   /** @minLength 1 */
   finding_value: string;
 }
@@ -3448,7 +3414,6 @@ export interface Grant {
     | "SCENARIO"
     | "SIMULATION"
     | "ATOMIC_TESTING"
-    | "THREAT_ARSENAL"
     | "PAYLOAD"
     | "UNKNOWN";
   listened?: boolean;
@@ -3474,7 +3439,6 @@ export interface GroupGrantInput {
     | "SCENARIO"
     | "SIMULATION"
     | "ATOMIC_TESTING"
-    | "THREAT_ARSENAL"
     | "PAYLOAD"
     | "UNKNOWN";
 }
@@ -4495,6 +4459,7 @@ export interface InjectorContractUpdateMappingInput {
   contract_domains: string[];
   /** Set list of tags ids */
   contract_tags_ids?: string[];
+  contract_vulnerability_ids?: string[];
 }
 
 export interface InjectorCreateInput {
@@ -6255,9 +6220,6 @@ export interface PlatformRoleInput {
     | "ACCESS_PAYLOADS"
     | "MANAGE_PAYLOADS"
     | "DELETE_PAYLOADS"
-    | "ACCESS_THREAT_ARSENALS"
-    | "MANAGE_THREAT_ARSENALS"
-    | "DELETE_THREAT_ARSENALS"
     | "ACCESS_DASHBOARDS"
     | "MANAGE_DASHBOARDS"
     | "DELETE_DASHBOARDS"
@@ -6291,7 +6253,6 @@ export interface PlatformRoleInput {
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_STIX_BUNDLE"
-    | "AGENT_RUNTIME_ACCESS"
   )[];
   platform_role_description?: string;
   /** @minLength 1 */
@@ -6334,6 +6295,7 @@ export interface PlatformSettings {
     | "MULTI_TENANCY"
     | "OPENAEV_TRIALS_XTMHUB"
     | "INJECT_CHAINING"
+    | "AUDIT_LOG"
   )[];
   /** True if the Tanium Executor is enabled */
   executor_tanium_enable?: boolean;
@@ -6447,6 +6409,10 @@ export interface PlatformSettings {
   xtm_hub_should_send_connectivity_email?: string;
   /** Url of XTM Hub */
   xtm_hub_url?: string;
+  /** True if connection with OpenCTI is enabled */
+  xtm_opencti_enable?: boolean;
+  /** Url of OpenCTI */
+  xtm_opencti_url?: string;
 }
 
 export interface PlayerInput {
@@ -6606,6 +6572,7 @@ export interface PublicPlatformSettings {
     | "MULTI_TENANCY"
     | "OPENAEV_TRIALS_XTMHUB"
     | "INJECT_CHAINING"
+    | "AUDIT_LOG"
   )[];
   /** Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL) */
   platform_banner_by_level?: Record<string, string[]>;
@@ -6814,8 +6781,7 @@ export interface RelatedFindingOutput {
     | "vulnerability"
     | "account_with_password_not_required"
     | "asreproastable_account"
-    | "kerberoastable_account"
-    | "expectation_signature";
+    | "kerberoastable_account";
   /**
    * Finding Value
    * @minLength 1
@@ -6933,9 +6899,6 @@ export interface RoleInput {
     | "ACCESS_PAYLOADS"
     | "MANAGE_PAYLOADS"
     | "DELETE_PAYLOADS"
-    | "ACCESS_THREAT_ARSENALS"
-    | "MANAGE_THREAT_ARSENALS"
-    | "DELETE_THREAT_ARSENALS"
     | "ACCESS_DASHBOARDS"
     | "MANAGE_DASHBOARDS"
     | "DELETE_DASHBOARDS"
@@ -6969,7 +6932,6 @@ export interface RoleInput {
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_STIX_BUNDLE"
-    | "AGENT_RUNTIME_ACCESS"
   )[];
   role_description?: string;
   /** @minLength 1 */
@@ -7960,8 +7922,6 @@ export interface TenantSettingsOutput {
   platform_simulation_dashboard?: string;
   /** @minLength 1 */
   platform_theme: string;
-  xtm_opencti_enable?: boolean;
-  xtm_opencti_url?: string;
 }
 
 export interface TenantSettingsUpdateInput {
@@ -8196,8 +8156,8 @@ export interface ThreatArsenalActionUpdateInput {
   action_detection_remediations?: DetectionRemediationInput[];
   /** Update list of domains */
   action_domains: string[];
-  action_execution_arch?: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
-  action_expectations?: (
+  action_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
+  action_expectations: (
     | "TEXT"
     | "DOCUMENT"
     | "ARTICLE"
@@ -8409,9 +8369,6 @@ export interface User {
     | "ACCESS_PAYLOADS"
     | "MANAGE_PAYLOADS"
     | "DELETE_PAYLOADS"
-    | "ACCESS_THREAT_ARSENALS"
-    | "MANAGE_THREAT_ARSENALS"
-    | "DELETE_THREAT_ARSENALS"
     | "ACCESS_DASHBOARDS"
     | "MANAGE_DASHBOARDS"
     | "DELETE_DASHBOARDS"
@@ -8445,7 +8402,6 @@ export interface User {
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_STIX_BUNDLE"
-    | "AGENT_RUNTIME_ACCESS"
   )[];
   /** City of the user */
   user_city?: string;
