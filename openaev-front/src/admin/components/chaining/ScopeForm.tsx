@@ -2,7 +2,15 @@ import { DevicesOtherOutlined } from '@mui/icons-material';
 import { Box, Button, Tab, Tabs, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { SelectGroup } from 'mdi-material-ui';
-import { type FunctionComponent, type SyntheticEvent, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import {
+  type FunctionComponent,
+  type SyntheticEvent,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 
 import { findAssetGroups, searchAssetGroups } from '../../../actions/asset_groups/assetgroup-action';
 import { findEndpoints, searchEndpoints } from '../../../actions/assets/endpoint-actions';
@@ -71,11 +79,11 @@ const ScopeForm: FunctionComponent<ScopeFormProps> = ({
   const dispatch = useAppDispatch();
   const ability = useContext(AbilityContext);
 
-  const listLabel = mode === 'ALLOWLIST' ? t('Allowlisted') : t('Denylisted');
-  const addLabel = mode === 'ALLOWLIST' ? t('Add asset to your allowlist') : t('Add asset to your denylist');
-
   // Tab state
   const [currentTab, setCurrentTab] = useState<string>('assets');
+
+  const listLabel = mode === 'ALLOWLIST' ? t('Allowlisted') : t('Denylisted');
+  const addLabel = mode === 'ALLOWLIST' ? t('Add asset and asset groups to your allowlist') : t('Add asset and asset groups to your denylist');
 
   // -- Selected values (inventory) --
   const [selectedEndpoints, setSelectedEndpoints] = useState<EndpointOutput[]>([]);

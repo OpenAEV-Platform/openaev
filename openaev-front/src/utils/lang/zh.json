@@ -63,6 +63,8 @@
   "Add": "添加",
   "Add a new vulnerability": "添加新的漏洞",
   "Add a result": "添加结果",
+  "Add asset and asset groups to your allowlist": "在允许列表中添加资产和资产组",
+  "Add asset and asset groups to your denylist": "在拒绝列表中添加资产和资产组",
   "Add asset groups": "添加资产组",
   "Add asset groups in this inject": "添加资产组到注入",
   "Add asset to your allowlist": "将资产添加到您的允许列表",
