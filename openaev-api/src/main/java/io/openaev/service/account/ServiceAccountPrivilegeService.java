@@ -23,7 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Slf4j
 public class ServiceAccountPrivilegeService {
-  static final String SERVICE_EMAIL_PATTERN = "service-%s@openaev.invalid";
+  public static final String SERVICE_EMAIL_PATTERN = "service-%s@openaev.invalid";
   private static final String SERVICE_FIRSTNAME = "discrete";
   private final RoleService roleService;
   private final TenantGroupService tenantGroupService;
