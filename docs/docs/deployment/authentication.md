@@ -89,3 +89,63 @@ OPENAEV_PROVIDER_{registrationId}_ROLES_ADMIN=
 ```
 
 However, if you intend to manage administrative roles within the OpenAEV platform itself, there's no need to provide these variables.
+
+## Breakglass local account with SSO enabled
+
+### Why you need a breakglass account
+
+When you configure OpenAEV to use an external identity provider (OpenID Connect or SAML2) as the sole authentication method, your platform becomes dependent on that provider's availability. If the identity provider experiences an outage, a misconfiguration, or a certificate expiry, **all users — including administrators — will be locked out** of the platform.
+
+A **breakglass account** (also known as an emergency access account) is a local administrator account that remains available even when SSO is down. It is a critical component of any production deployment that relies on federated authentication.
+
+!!! warning "Security best practice"
+
+    The breakglass account should **only** be used in emergency situations when the SSO provider is unavailable. It should not be used for day-to-day operations.
+
+### How it works
+
+OpenAEV supports running **multiple authentication methods simultaneously**. The three authentication flags ([Local users](#local-users), [OpenID](#openid), [SAML2](#saml2)) are independent of each other.
+
+When `openaev.auth-local-enable` is set to `true` **alongside** your SSO provider, the login page will display **both** the local login form (username/password) and the SSO button(s). This allows the built-in admin account to authenticate locally even if the external identity provider is unreachable.
+
+### Configuration
+
+To set up a breakglass account alongside SSO, keep local authentication enabled while configuring your SSO provider.
+
+#### Step 1: Keep local authentication enabled
+
+Make sure the [local authentication](#local-users) flag remains `true` (this is the default):
+
+```yaml
+OPENAEV_AUTH-LOCAL-ENABLE=true
+```
+
+#### Step 2: Configure a strong admin account
+
+Set a strong, unique password for the built-in admin account. This is the account defined at platform initialization:
+
+```yaml
+OPENAEV_ADMIN_EMAIL=admin@mycompany.com
+OPENAEV_ADMIN_PASSWORD=<a-very-strong-and-unique-password>
+OPENAEV_ADMIN_TOKEN=<a-valid-uuidv4-token>
+```
+
+#### Step 3: Enable your SSO provider
+
+Configure your SSO provider by following the appropriate section:
+
+- [OpenID Connect](#openid) — for OAuth2/OIDC providers (Auth0, Keycloak, Azure AD, GitHub, etc.)
+- [SAML2](#saml2) — for SAML-based identity providers (Microsoft ADFS, Okta, etc.)
+
+!!! tip "Reminder"
+
+    Make sure to set `OPENAEV_AUTH-OPENID-ENABLE=true` or `OPENAEV_AUTH-SAML2-ENABLE=true` depending on your provider, **in addition to** the local authentication flag configured in Step 1.
+
+### Login page behavior
+
+When both local authentication and an SSO provider are enabled, the login page displays:
+
+1. **The local login form** — username and password fields at the top
+2. **SSO button(s)** — one button per configured OpenID or SAML2 provider below the form
+
+Regular users authenticate via the SSO button. The breakglass admin uses the local form only when the SSO provider is unavailable.
