@@ -34,29 +34,6 @@ export const fetchAgentsForIntent = async (intent: string): Promise<AgentOption[
   }
 };
 
-export const callAgent = async (agentSlug: string, content: string): Promise<AgentResponse> => {
-  try {
-    const { data } = await api().post('/api/chatbot/agent', {
-      agent_slug: agentSlug,
-      content,
-    });
-    return {
-      content: data.content ?? '',
-      status: data.status ?? 'success',
-      error: data.error,
-      code: data.code,
-    };
-  } catch (err: unknown) {
-    const status = (err as { status?: number })?.status;
-    return {
-      content: '',
-      status: 'error',
-      error: `Agent call failed: ${status ?? 'unknown'}`,
-      code: status,
-    };
-  }
-};
-
 /**
  * Stream an agent call via SSE. Calls `onChunk` with accumulated content
  * as each text chunk arrives. Returns the final AgentResponse.

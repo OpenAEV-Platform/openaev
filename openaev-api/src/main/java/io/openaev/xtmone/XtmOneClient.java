@@ -163,8 +163,11 @@ public class XtmOneClient {
     }
     try (CloseableHttpClient httpClient = httpClientFactory.httpClientNoRetry()) {
       String jwt = issueJwtForCurrentUser();
+      String encodedIntentName =
+          intentName != null ? URLEncoder.encode(intentName, StandardCharsets.UTF_8) : "";
       HttpGet httpGet =
-          chatGetBuilder(INTENTS_CATALOG_AGENTS_PATH + "?vertical=aev&intent=" + intentName, jwt);
+          chatGetBuilder(
+              INTENTS_CATALOG_AGENTS_PATH + "?vertical=aev&intent=" + encodedIntentName, jwt);
       httpGet.setConfig(
           RequestConfig.custom()
               .setResponseTimeout(Timeout.ofSeconds(AGENT_LIST_TIMEOUT_SECONDS))
@@ -196,6 +199,13 @@ public class XtmOneClient {
                     .filter(item -> item.get("agents") instanceof List<?>)
                     .flatMap(item -> ((List<?>) item.get("agents")).stream())
                     .map(agent -> objectMapper.convertValue(agent, ChatbotAgentOutput.class))
+                    .filter(java.util.Objects::nonNull)
+                    .filter(
+                        a ->
+                            a.id() != null
+                                && !a.id().isBlank()
+                                && a.slug() != null
+                                && !a.slug().isBlank())
                     .toList();
 
         if (agents.isEmpty()) {
@@ -265,7 +275,7 @@ public class XtmOneClient {
           new HttpPost(
               config.getUrl()
                   + "/api/v1/chat/conversations/"
-                  + conversationId
+                  + encodedConversationId
                   + "/upload?create_message=false");
       addChatHeaders(httpPost, jwt);
       httpPost.setEntity(

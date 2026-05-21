@@ -1,11 +1,6 @@
 package io.openaev.rest.xtmone;
 
-import static io.openaev.config.SessionHelper.currentUser;
-
 import io.openaev.api.xtmone.dto.ChatbotAgentOutput;
-import io.openaev.database.model.User;
-import io.openaev.database.repository.UserRepository;
-import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.xtmone.XtmOneClient;
 import io.openaev.xtmone.XtmOneConfig;
@@ -34,13 +29,6 @@ public class XtmOneChatApi extends RestBehavior {
   private static final String XTM_ONE_URI = "/api/xtmone";
   private final XtmOneClient client;
   private final XtmOneConfig config;
-  private final UserRepository userRepository;
-
-  private User resolveCurrentUser() {
-    return userRepository
-        .findById(currentUser().getId())
-        .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
-  }
 
   @GetMapping(XTM_ONE_URI + "/chat/agents")
   public ResponseEntity<List<ChatbotAgentOutput>> listAgents() {
