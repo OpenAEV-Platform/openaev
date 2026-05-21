@@ -8,9 +8,8 @@ import static org.assertj.core.api.Assertions.*;
 
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.CapabilityScope;
-import java.util.List;
-
 import io.openaev.service.account.Constants;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
