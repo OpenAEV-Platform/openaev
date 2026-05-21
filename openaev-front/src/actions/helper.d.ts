@@ -8,7 +8,6 @@ import {
   type ScenarioChallengesReader,
   type SimulationChallengesReader, type TenantSettingsOutput,
   type TenantXtmHubRegistration,
-  type Token,
   type User,
 } from '../utils/api-types';
 
