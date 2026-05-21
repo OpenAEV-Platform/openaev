@@ -127,19 +127,32 @@ const ScopeRules = ({ workflowConfiguration, onUpdate }: ScopeRulesProps) => {
   const handleCloseDrawer = () => setDrawerOpen(false);
 
   const handleSubmitScope = () => {
-    // Build new rules for the current drawer mode
+    // Build a lookup of existing rule IDs by source+value so we can preserve them
+    const existingRulesForMode = (workflowConfiguration?.workflow_scope_rules ?? [])
+      .filter(r => r.workflow_scope_rule_selected_mode === drawerMode);
+    const existingIdMap = new Map<string, string>();
+    for (const r of existingRulesForMode) {
+      if (r.workflow_scope_rule_id && r.workflow_scope_rule_source && r.workflow_scope_rule_value) {
+        existingIdMap.set(`${r.workflow_scope_rule_source}:${r.workflow_scope_rule_value}`, r.workflow_scope_rule_id);
+      }
+    }
+
+    // Build new rules for the current drawer mode, preserving IDs for existing rules
     const newRulesForMode: WorkflowScopeRuleInput[] = [
       ...selectedEndpointIds.map(id => ({
+        workflow_scope_rule_id: existingIdMap.get(`ASSET:${id}`),
         workflow_scope_rule_selected_mode: drawerMode,
         workflow_scope_rule_source: 'ASSET' as const,
         workflow_scope_rule_value: id,
       })),
       ...selectedAssetGroupIds.map(id => ({
+        workflow_scope_rule_id: existingIdMap.get(`ASSET_GROUP:${id}`),
         workflow_scope_rule_selected_mode: drawerMode,
         workflow_scope_rule_source: 'ASSET_GROUP' as const,
         workflow_scope_rule_value: id,
       })),
       ...selectedCustomRules.map(rule => ({
+        workflow_scope_rule_id: existingIdMap.get(`${rule.source}:${rule.value}`),
         workflow_scope_rule_selected_mode: drawerMode,
         workflow_scope_rule_source: rule.source,
         workflow_scope_rule_value: rule.value,
