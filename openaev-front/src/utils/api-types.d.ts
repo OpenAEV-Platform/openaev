@@ -6366,8 +6366,6 @@ export interface PlatformSettings {
   map_tile_server_light?: string;
   /** Agent URL of the platform */
   platform_agent_url?: string;
-  /** True if AI is enabled for the platform */
-  platform_ai_enabled?: boolean;
   /** True if we have an AI token */
   platform_ai_has_token?: boolean;
   /** Chosen model of AI */
@@ -7399,11 +7397,6 @@ export interface SecurityPlatformUpsertInput {
 export interface Series {
   filter?: FilterGroup;
   name?: string;
-}
-
-export interface SettingsAiEnabledUpdateInput {
-  /** Whether AI (Insight, NLQ) is enabled for the platform */
-  enabled: boolean;
 }
 
 export interface SettingsChatbotAiCguUpdateInput {
