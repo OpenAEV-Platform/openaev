@@ -17,6 +17,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.group.form.GroupGrantInput;
 import io.openaev.rest.group.form.GroupUpdateRolesInput;
 import io.openaev.rest.group.form.GroupUpdateUsersInput;
+import io.openaev.service.account.ReservedNameValidator;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -44,13 +45,15 @@ public class TenantGroupService {
   // -- CREATE --
 
   public Group createGroup(TenantGroupCreateInput input) {
+    ReservedNameValidator.validateGroupName(input.getName());
     return groupRepository.save(createGroupInner(UUID.randomUUID().toString(), input));
   }
 
   public Group createGroupWithRole(
-      @NotBlank final String id, TenantGroupCreateInput input, List<Role> roles) {
+      @NotBlank final String id, TenantGroupCreateInput input, List<Role> roles, String tenantId) {
     Group group = createGroupInner(id, input);
     group.setRoles(roles);
+    group.setTenant(new Tenant(tenantId));
     return groupRepository.save(group);
   }
 
@@ -62,7 +65,7 @@ public class TenantGroupService {
         groupRepository
             .findByIdAndTenantId(groupId, tenantId)
             .orElseThrow(ElementNotFoundException::new);
-
+    ReservedNameValidator.validateGroupName(group.getName());
     Grant grant = new Grant();
     grant.setName(input.getName());
     grant.setGroup(group);
@@ -115,10 +118,12 @@ public class TenantGroupService {
 
   public Group updateGroupRoles(@NotBlank final String groupId, GroupUpdateRolesInput input) {
     String tenantId = TenantContext.getCurrentTenant();
-    return this.updateGroupRoles(
+    Group group =
         groupRepository
             .findByIdAndTenantId(groupId, tenantId)
-            .orElseThrow(() -> new ElementNotFoundException("Group not found with id: " + groupId)),
+            .orElseThrow(() -> new ElementNotFoundException("Group not found with id: " + groupId));
+    ReservedNameValidator.validateGroupName(group.getName());
+    List<Role> roles =
         input.getRoleIds().stream()
             .map(
                 id ->
@@ -126,7 +131,10 @@ public class TenantGroupService {
                         .findById(id)
                         .orElseThrow(
                             () -> new ElementNotFoundException("Role not found with id: " + id)))
-            .collect(toList()));
+            .collect(toList());
+
+    roles.forEach(role -> ReservedNameValidator.validateRoleName(role.getName()));
+    return this.updateGroupRoles(group, roles);
   }
 
   public Group updateGroupRoles(@NotBlank final Group group, List<Role> roles) {
@@ -140,11 +148,15 @@ public class TenantGroupService {
   }
 
   public Group updateGroup(String groupId, TenantGroupCreateInput input) {
+    // Check if new name is reserved
+    ReservedNameValidator.validateGroupName(input.getName());
     String tenantId = TenantContext.getCurrentTenant();
     Group group =
         groupRepository
             .findByIdAndTenantId(groupId, tenantId)
             .orElseThrow(ElementNotFoundException::new);
+    // Check if previews name is reserved
+    ReservedNameValidator.validateGroupName(group.getName());
     return this.updateGroup(group, input);
   }
 
@@ -155,7 +167,9 @@ public class TenantGroupService {
         groupRepository
             .findByIdAndTenantId(groupId, tenantId)
             .orElseThrow(ElementNotFoundException::new);
+    ReservedNameValidator.validateGroupName(group.getName());
     List<User> users = userRepository.findAllByIdInAndTenantId(input.getUserIds(), tenantId);
+    users.forEach(user -> ReservedNameValidator.validateUserEmailPattern(user.getEmail()));
     if (users.size() != input.getUserIds().size()) {
       throw new ElementNotFoundException("One or more users not found in the current tenant");
     }
@@ -176,6 +190,8 @@ public class TenantGroupService {
         groupRepository
             .findByIdAndTenantId(groupId, tenantId)
             .orElseThrow(() -> new ElementNotFoundException("Group not found with id: " + groupId));
+
+    ReservedNameValidator.validateGroupName(group.getName());
     groupRepository.delete(group);
   }
 
@@ -186,6 +202,7 @@ public class TenantGroupService {
         groupRepository
             .findByIdAndTenantId(groupId, tenantId)
             .orElseThrow(ElementNotFoundException::new);
+    ReservedNameValidator.validateGroupName(group.getName());
     Grant grant =
         group.getGrants().stream()
             .filter(g -> grantId.equals(g.getId()))

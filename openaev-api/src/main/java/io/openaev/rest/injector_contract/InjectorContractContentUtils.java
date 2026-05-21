@@ -6,6 +6,7 @@ import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTEN
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_NOT_DYNAMIC;
 import static io.openaev.database.model.InjectorContract.DEFAULT_VALUE_FIELD;
 import static io.openaev.database.model.InjectorContract.PREDEFINED_EXPECTATIONS;
+import static io.openaev.utils.mapper.InjectExpectationMapper.NODE_EXPECTATION_TYPE;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -156,9 +157,14 @@ public class InjectorContractContentUtils {
     for (JsonNode field : fieldsNode) {
       String key = field.get(CONTRACT_ELEMENT_CONTENT_KEY).asText();
       if (CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS.equals(key)) {
-        predefinedExpectations.add(
-            InjectExpectation.EXPECTATION_TYPE.valueOf(
-                field.get(PREDEFINED_EXPECTATIONS).asText()));
+        JsonNode predefined = field.get(PREDEFINED_EXPECTATIONS);
+        if (predefined != null && predefined.isArray()) {
+          for (JsonNode expectation : predefined) {
+            predefinedExpectations.add(
+                InjectExpectation.EXPECTATION_TYPE.valueOf(
+                    expectation.get(NODE_EXPECTATION_TYPE).asText()));
+          }
+        }
       }
     }
     return predefinedExpectations.toArray(new InjectExpectation.EXPECTATION_TYPE[0]);

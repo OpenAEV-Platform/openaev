@@ -24,6 +24,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.InputValidationException;
 import io.openaev.rest.user.form.login.ResetUserInput;
 import io.openaev.rest.user.form.user.ChangePasswordInput;
+import io.openaev.service.account.ReservedNameValidator;
 import io.openaev.utils.RandomUtils;
 import io.openaev.utils.ReferenceResolver;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -124,6 +125,7 @@ public class UserService {
     if (!StringUtils.hasLength(input.plainPassword())) {
       throw new IllegalArgumentException("Password is required when creating a user");
     }
+    ReservedNameValidator.validateUserEmailPattern(input.email());
     if (userRepository.findByEmailIgnoreCase(input.email()).isPresent()) {
       throw new DataIntegrityViolationException(
           "User with email " + input.email() + " already exists");
@@ -212,7 +214,11 @@ public class UserService {
 
   @Transactional(rollbackFor = Exception.class)
   public User updateUser(String userId, UserInput input) {
+    // Check if new email is reserved
+    ReservedNameValidator.validateUserEmailPattern(input.email());
     User existing = user(userId);
+    // Check if previews email is reserved
+    ReservedNameValidator.validateUserEmailPattern(existing.getEmail());
     // Capture old tenant IDs before update for cache eviction
     List<String> oldTenantIds =
         existing.getTenants() != null
@@ -265,6 +271,7 @@ public class UserService {
   @Transactional(rollbackFor = Exception.class)
   public void delete(String userId) {
     User existing = user(userId);
+    ReservedNameValidator.validateUserEmailPattern(existing.getEmail());
     if (existing == null) {
       throw new EntityNotFoundException("User not found: " + userId);
     }
@@ -407,6 +414,12 @@ public class UserService {
     return passwordEncoder.encode(password);
   }
 
+  /** Returns true if the given user has at least one API token. */
+  @Transactional(readOnly = true)
+  public boolean userHasToken(String userId) {
+    return tokenRepository.existsByUserId(userId);
+  }
+
   /**
    * Creates a new API token for a user with a random value.
    *
@@ -429,6 +442,11 @@ public class UserService {
     token.setCreated(now());
     token.setValue(discreteToken);
     return tokenRepository.save(token);
+  }
+
+  public Optional<User> findByTokenAndTenantId(
+      @NotBlank final String token, @NotBlank final String tenantId) {
+    return this.userRepository.findByTokenAndTenantId(token, tenantId);
   }
 
   public Optional<User> findByToken(@NotBlank final String token) {

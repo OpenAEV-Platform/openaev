@@ -11,6 +11,7 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.RoleRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.service.account.ReservedNameValidator;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -39,21 +40,43 @@ public class RoleService {
       @NotBlank final String roleName,
       @NotBlank final String roleDescription,
       @NotNull final Set<Capability> capabilities) {
-    return createRole(UUID.randomUUID().toString(), roleName, roleDescription, capabilities);
+    return createRole(UUID.randomUUID().toString(), roleName, roleDescription, capabilities, null);
   }
 
   public Role createRole(
       @NotBlank final String id,
       @NotBlank final String roleName,
       @NotBlank final String roleDescription,
-      @NotNull final Set<Capability> capabilities) {
+      @NotNull final Set<Capability> capabilities,
+      String tenantId) {
+    ReservedNameValidator.validateRoleName(roleName);
+    return createRoleInternal(id, roleName, roleDescription, capabilities, tenantId);
+  }
+
+  /**
+   * Internal method for system-managed roles (e.g. service accounts). Bypasses reserved name
+   * validation.
+   */
+  public Role createRoleInternal(
+      String id,
+      @NotBlank final String roleName,
+      @NotBlank final String roleDescription,
+      @NotNull final Set<Capability> capabilities,
+      String tenantId) {
     Capability.validateForTenantRole(capabilities);
+
+    if (id == null) id = UUID.randomUUID().toString();
+
     Role role = new Role();
     role.setId(id);
     role.setName(roleName);
     role.setDescription(roleDescription);
     role.setCapabilities(Capability.resolveWithParents(capabilities));
-    role.setTenant(entityManager.getReference(Tenant.class, TenantContext.getCurrentTenant()));
+    if (tenantId != null) {
+      role.setTenant(new Tenant(tenantId));
+    } else {
+      role.setTenant(entityManager.getReference(Tenant.class, TenantContext.getCurrentTenant()));
+    }
     return roleRepository.save(role);
   }
 
@@ -94,12 +117,24 @@ public class RoleService {
       @NotBlank final String roleName,
       @NotBlank final String roleDescription,
       @NotNull final Set<Capability> capabilities) {
+
+    ReservedNameValidator.validateRoleName(roleName);
+    return updateRoleInternal(roleId, roleName, roleDescription, capabilities);
+  }
+
+  /** Internal method for system-managed roles. Bypasses reserved name validation. */
+  public Role updateRoleInternal(
+      @NotBlank final String roleId,
+      @NotBlank final String roleName,
+      @NotBlank final String roleDescription,
+      @NotNull final Set<Capability> capabilities) {
     Capability.validateForTenantRole(capabilities);
     String tenantId = TenantContext.getCurrentTenant();
     Role role =
         roleRepository
             .findByIdAndTenantId(roleId, tenantId)
             .orElseThrow(() -> new ElementNotFoundException("Role not found with id: " + roleId));
+    ReservedNameValidator.validateRoleName(role.getName());
     role.setUpdatedAt(Instant.now());
     role.setName(roleName);
     role.setDescription(roleDescription);
@@ -115,7 +150,7 @@ public class RoleService {
         roleRepository
             .findByIdAndTenantId(roleId, tenantId)
             .orElseThrow(() -> new ElementNotFoundException("Role not found with id: " + roleId));
-
+    ReservedNameValidator.validateRoleName(role.getName());
     List<Group> groups = groupRepository.findAllByRoles(role);
     for (Group g : groups) {
       g.getRoles().remove(role);

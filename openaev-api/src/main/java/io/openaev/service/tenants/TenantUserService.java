@@ -23,6 +23,7 @@ import io.openaev.database.specification.UserSpecification;
 import io.openaev.multitenancy.DependenciesManager;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.UserService;
+import io.openaev.service.account.ReservedNameValidator;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.users.UserQueryHelper;
 import jakarta.persistence.EntityManager;
@@ -134,6 +135,7 @@ public class TenantUserService implements DependenciesManager {
    * memberships or admin status — those are platform-level operations.
    */
   public UserOutput update(@NotBlank String userId, UserInput input) {
+    ReservedNameValidator.validateUserEmailPattern(input.email());
     Specification<User> spec = inTenant(tenantId()).and(UserSpecification.byId(userId));
     User existing =
         userRepository
@@ -155,6 +157,8 @@ public class TenantUserService implements DependenciesManager {
 
   /** Detaches a user from the current tenant without deleting the user. */
   public void detach(String userId) {
+    User user = userService.user(userId);
+    ReservedNameValidator.validateUserEmailPattern(user.getEmail());
     tenantRepository.removeUserFromTenant(userId, tenantId());
     tenantMembershipCacheManager.evict(userId, tenantId());
   }

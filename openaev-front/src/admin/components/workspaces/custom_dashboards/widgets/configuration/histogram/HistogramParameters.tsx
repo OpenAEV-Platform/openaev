@@ -28,6 +28,10 @@ const HistogramParameters = ({ widgetType, control, setValue }: Props) => {
     control,
     name: 'widget_config.mode',
   });
+  const widgetConfigurationType = useWatch({
+    control,
+    name: 'widget_config.widget_configuration_type',
+  });
   const widgetTimeRange = useWatch({
     control,
     name: 'widget_config.time_range',
@@ -44,7 +48,7 @@ const HistogramParameters = ({ widgetType, control, setValue }: Props) => {
     control,
     name: 'widget_config.end',
   });
-  const entities = series.map(v => getBaseEntities(v.filter)).flat();
+  const entities = series.flatMap(v => getBaseEntities(v.filter));
 
   const { setError, clearErrors } = useFormContext();
 
@@ -73,27 +77,36 @@ const HistogramParameters = ({ widgetType, control, setValue }: Props) => {
   // -- HANDLE MODE --
   const availableModes = getAvailableModes(widgetType);
 
-  useEffect(() => {
-    if (availableModes.length === 1) {
-      setValue('widget_config.mode', availableModes[0]); // If only one mode is available, hide the field and set it automatically
-    }
-  }, []);
-
-  const hasLimit = getLimit(widgetType);
-
-  // -- HANDLE widget config type --
-  useEffect(() => {
-    switch (mode) {
-      case 'structural':
-        setValue('widget_config.widget_configuration_type', 'structural-histogram');
-        break;
+  const setModeAndConfigType = (newMode: string) => {
+    setValue('widget_config.mode', newMode as 'temporal' | 'structural');
+    switch (newMode) {
       case 'temporal':
         setValue('widget_config.widget_configuration_type', 'temporal-histogram');
         break;
+      case 'structural':
       default:
         setValue('widget_config.widget_configuration_type', 'structural-histogram');
     }
-  }, [mode]);
+  };
+
+  useEffect(() => {
+    const expectedConfigType = mode === 'temporal' ? 'temporal-histogram' : 'structural-histogram';
+
+    // Auto-set only when mode is hidden (single-mode widgets).
+    if (availableModes.length === 1 && (!mode || !availableModes.includes(mode))) {
+      const defaultMode = availableModes[0];
+      setValue('widget_config.mode', defaultMode);
+      setValue('widget_config.widget_configuration_type', defaultMode === 'temporal' ? 'temporal-histogram' : 'structural-histogram');
+      return;
+    }
+
+    // Keep discriminator in sync when user explicitly selected a valid mode.
+    if (mode && availableModes.includes(mode) && widgetConfigurationType !== expectedConfigType) {
+      setValue('widget_config.widget_configuration_type', expectedConfigType);
+    }
+  }, [availableModes, mode, setValue, widgetConfigurationType]);
+
+  const hasLimit = getLimit(widgetType);
 
   // -- HANDLE FIELDS --
   const [fieldOptions, setFieldOptions] = useState<GroupOption[]>([]);
@@ -146,7 +159,7 @@ const HistogramParameters = ({ widgetType, control, setValue }: Props) => {
                 value={field.value ?? ''}
                 error={!!fieldState.error}
                 helperText={fieldState.error?.message}
-                onChange={e => field.onChange(e.target.value)}
+                onChange={e => setModeAndConfigType(e.target.value)}
                 required
               >
                 {availableModes.map(mode => <MenuItem key={mode} value={mode}>{t(mode)}</MenuItem>)}

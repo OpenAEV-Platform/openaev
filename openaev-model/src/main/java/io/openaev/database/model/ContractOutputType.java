@@ -66,7 +66,10 @@ public enum ContractOutputType {
 
   @Hidden
   @JsonProperty("asset")
-  Asset("asset");
+  Asset("asset"),
+
+  @JsonProperty("expectation_signature")
+  ExpectationSignature("expectation_signature ");
 
   private final String label;
 

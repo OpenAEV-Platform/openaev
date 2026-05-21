@@ -13,6 +13,8 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantSettingKeys;
 import io.openaev.database.model.Theme;
 import io.openaev.database.repository.SettingRepository;
+import io.openaev.opencti.config.OpenCTIConfig;
+import io.openaev.opencti.config.XtmConfig;
 import io.openaev.rest.settings.form.TenantSettingsUpdateInput;
 import io.openaev.rest.settings.form.ThemeInput;
 import io.openaev.rest.settings.response.TenantSettingsOutput;
@@ -41,13 +43,15 @@ public class TenantSettingsService {
     return openAEVConfig.getBaseUrl() + "/" + tenantId;
   }
 
+  private final XtmConfig xtmConfig;
+
   // -- READ --
 
   /** Return all tenant-scoped settings for the given tenant, with platform fallback. */
   @Transactional(readOnly = true)
   public TenantSettingsOutput findSettings(@NotBlank String tenantId) {
     Map<String, Setting> tenantSettings = loadTenantSettings(tenantId);
-    return buildTenantSettings(tenantSettings);
+    return buildTenantSettings(tenantSettings, tenantId);
   }
 
   /** Find a single setting by key for the given tenant. */
@@ -128,7 +132,10 @@ public class TenantSettingsService {
         .collect(Collectors.toMap(Setting::getKey, Function.identity()));
   }
 
-  private TenantSettingsOutput buildTenantSettings(Map<String, Setting> tenantSettings) {
+  private TenantSettingsOutput buildTenantSettings(
+      Map<String, Setting> tenantSettings, String tenantId) {
+    OpenCTIConfig openctiConfig =
+        Optional.ofNullable(xtmConfig.getOpencti()).map(m -> m.get(tenantId)).orElse(null);
     return new TenantSettingsOutput(
         resolveValue(tenantSettings, PLATFORM_NAME),
         resolveValue(tenantSettings, DEFAULT_THEME),
@@ -137,7 +144,9 @@ public class TenantSettingsService {
         resolveValue(tenantSettings, TENANT_SCENARIO_DASHBOARD),
         resolveValue(tenantSettings, TENANT_SIMULATION_DASHBOARD),
         createThemeFromSettings(tenantSettings, THEME_TYPE_DARK),
-        createThemeFromSettings(tenantSettings, THEME_TYPE_LIGHT));
+        createThemeFromSettings(tenantSettings, THEME_TYPE_LIGHT),
+        Boolean.TRUE.equals(openctiConfig != null ? openctiConfig.getEnable() : null),
+        openctiConfig != null ? openctiConfig.getUrl() : null);
   }
 
   private String resolveValue(Map<String, Setting> tenantSettings, TenantSettingKeys key) {
