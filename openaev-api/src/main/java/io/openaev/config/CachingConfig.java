@@ -26,8 +26,7 @@ public class CachingConfig {
      * everytime helps for the RBAC
      */
     CaffeineCacheManager cacheManager =
-        new CaffeineCacheManager(
-            "license", "global", "adminUsers", "tenantMembership", "auditChildResource");
+        new CaffeineCacheManager("license", "global", "adminUsers", "tenantMembership");
 
     cacheManager.setCaffeine(
         Caffeine.newBuilder().expireAfterWrite(Duration.ofDays(1)).maximumSize(100));
@@ -35,11 +34,6 @@ public class CachingConfig {
     // Tenant membership cache: short TTL, higher capacity (keyed by userId:tenantId)
     cacheManager.registerCustomCache(
         "tenantMembership",
-        Caffeine.newBuilder().expireAfterWrite(Duration.ofMinutes(5)).maximumSize(10_000).build());
-
-    // Audit child resource cache: short TTL, avoids repeated type/resource discovery scans
-    cacheManager.registerCustomCache(
-        "auditChildResource",
         Caffeine.newBuilder().expireAfterWrite(Duration.ofMinutes(5)).maximumSize(10_000).build());
 
     return cacheManager;
