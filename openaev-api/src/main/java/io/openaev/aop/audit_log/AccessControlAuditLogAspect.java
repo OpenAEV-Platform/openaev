@@ -80,28 +80,21 @@ public class AccessControlAuditLogAspect {
       String logUUID = UUID.randomUUID().toString();
 
       ResourceType resourceType = null;
-      String resourceId = null;
-      String sourceId = null;
-      ResourceType entityType = null;
-      String entityId = null;
-      String entityName = null;
-      JsonNode entitySnapshot = null;
-      JsonNode inputNode = null;
       boolean status = true;
 
       // -- Pre-execution:get child-resource --
       AuditResourceDetector.AuditResourceInfo resourceInfo =
           auditResourceDetector.detectResourceBeforeExecution(joinPoint, accessControl, eventScope);
       resourceType = resourceInfo.resourceType();
-      resourceId = resourceInfo.resourceId();
-      sourceId = resourceInfo.sourceId();
-      entityType = resourceInfo.entityType();
-      entityId = resourceInfo.entityId();
-      entityName = resourceInfo.entityName();
-      entitySnapshot = resourceInfo.entitySnapshot();
+      String resourceId = resourceInfo.resourceId();
+      String sourceId = resourceInfo.sourceId();
+      ResourceType entityType = resourceInfo.entityType();
+      String entityId = resourceInfo.entityId();
+      String entityName = resourceInfo.entityName();
+      JsonNode entitySnapshot = resourceInfo.entitySnapshot();
 
       // Capture the input DTO for create/update/status_change
-      inputNode = getInputNode(joinPoint, eventScope);
+      JsonNode inputNode = getInputNode(joinPoint, eventScope);
 
       // Execute the business operation
       String eventStatus;
