@@ -172,7 +172,7 @@ class XtmOneClientTest {
     private void configureClient() {
       when(config.isConfigured()).thenReturn(true);
       when(config.getUrl()).thenReturn("http://localhost:8080");
-      when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
+      when(httpClientFactory.httpClientNoRetry()).thenReturn(httpClient);
       doReturn("fake-jwt").when(xtmOneClient).issueJwtForCurrentUser();
     }
 

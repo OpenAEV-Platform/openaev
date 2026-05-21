@@ -27,7 +27,6 @@ const AskArianeButton = () => {
 
   const chatbotCguStatus = settings.filigran_chatbot_ai_cgu_status;
   const isCguPending = chatbotCguStatus === 'pending' || chatbotCguStatus === undefined;
-  const isChatbotEnabled = isEnterpriseEdition && chatbotCguStatus === 'enabled';
 
   // Hide if chatbot has been explicitly disabled
   if (chatbotCguStatus === 'disabled') {

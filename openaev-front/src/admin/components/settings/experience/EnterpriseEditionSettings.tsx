@@ -41,7 +41,6 @@ const EnterpriseEditionSettings: React.FC = () => {
     }
   };
 
-
   return (
     <>
       {isEnterpriseEditionActivated && (

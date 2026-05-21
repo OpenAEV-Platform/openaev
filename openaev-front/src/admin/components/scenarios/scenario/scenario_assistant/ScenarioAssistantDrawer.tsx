@@ -19,6 +19,7 @@ import useAI from '../../../../../utils/hooks/useAI';
 import useEnterpriseEdition from '../../../../../utils/hooks/useEnterpriseEdition';
 import { AbilityContext, Can } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
+import FiligranAiCguDialog from '../../../ariane/FiligranAiCguDialog';
 import AssetGroupPopover from '../../../assets/asset_groups/AssetGroupPopover';
 import AssetGroupsList from '../../../assets/asset_groups/AssetGroupsList';
 import EndpointPopover from '../../../assets/endpoints/EndpointPopover';
@@ -27,7 +28,6 @@ import EEChip from '../../../common/entreprise_edition/EEChip';
 import InjectAddAssetGroups from '../../../simulations/simulation/injects/asset_groups/InjectAddAssetGroups';
 import InjectAddEndpoints from '../../../simulations/simulation/injects/endpoints/InjectAddEndpoints';
 import AttackPatternAIAssistantDialog from '././AttackPatternAIAssistantDialog';
-import FiligranAiCguDialog from '../../../ariane/FiligranAiCguDialog';
 import SelectTTPsDrawer from './SelectTTPsDrawer';
 
 const useStyles = makeStyles()(theme => ({
