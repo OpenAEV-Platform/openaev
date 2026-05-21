@@ -101,13 +101,6 @@
       "commitMessageSuffix": "(html-to-image has a yarn patch)"
     },
     {
-      "description": "@types/react 19.2.15 is quarantined on npm. Skip it.",
-      "matchDatasources": ["npm"],
-      "matchPackageNames": ["@types/react"],
-      "allowedVersions": "!/^19\\.2\\.15$/",
-      "enabled": true
-    },
-    {
       "groupName": "devDependencies (non-major)",
       "groupSlug": "dev-dependencies-non-major",
       "description": "Batch auto merge and batch on sunday morning, non-major update of dev dependencies once a week (Sunday 03:00)",
