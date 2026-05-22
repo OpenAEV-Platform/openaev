@@ -21,8 +21,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class LogApi extends RestBehavior {
 
-  // private static final Logger logger = LoggerFactory.getLogger(LogApi.class);
-
   private final LogService logService;
 
   public LogApi(LogService logService) {
@@ -57,18 +55,6 @@ public class LogApi extends RestBehavior {
     String message = buildLogMessage(logDetailsInput, level);
 
     logService.logMessage(message, level, LogService.AuditLogType.GENERIC, null);
-
-    /*if (WARNING.getName().equals(level)) {
-      logger.warn(buildLogMessage(logDetailsInput, level));
-    } else if (INFO.getName().equals(level)) {
-      logger.info(buildLogMessage(logDetailsInput, level));
-    } else if (SEVERE.getName().equals(level)) {
-      logger.error(buildLogMessage(logDetailsInput, level));
-    } else {
-      String invalidLevel = "Invalid level: " + level;
-      logger.error(invalidLevel);
-      return new ResponseEntity<>(invalidLevel, HttpStatus.BAD_REQUEST);
-    }*/
 
     if (!WARNING.getName().equals(level)
         && !INFO.getName().equals(level)

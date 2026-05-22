@@ -2,6 +2,7 @@ package io.openaev.utils.log.transport;
 
 import io.openaev.utils.log.LogUtils;
 import java.util.logging.Level;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class GenericFileLogTransportUtils implements GenericLogTransportUtils {
 
+  @Getter
   @Value("${openaev.generic-logs.file.enabled:false}")
   private boolean enabled;
 
@@ -20,10 +22,6 @@ public class GenericFileLogTransportUtils implements GenericLogTransportUtils {
    * suppressed by the root or io.openaev log level settings.
    */
   private static final Logger log = LoggerFactory.getLogger("LOG");
-
-  public boolean isEnabled() {
-    return enabled;
-  }
 
   public boolean send(String message, Object level) {
     try {

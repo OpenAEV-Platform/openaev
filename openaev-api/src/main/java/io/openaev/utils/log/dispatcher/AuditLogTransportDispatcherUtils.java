@@ -10,13 +10,13 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class AuditLogTransportDispatcherUtils {
-  private final List<AuditLogTransportUtils> beans;
+  private final List<AuditLogTransportUtils> transports;
 
   public boolean dispatch(LogEvent event, Object level) {
     List<CompletableFuture<Boolean>> futures =
-        beans.stream()
+        transports.stream()
             .filter(AuditLogTransportUtils::isEnabled)
-            .map(bean -> bean.send(event, level))
+            .map(transport -> transport.send(event, level))
             .toList();
 
     CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
@@ -29,9 +29,9 @@ public class AuditLogTransportDispatcherUtils {
 
   public boolean dispatch(String message, Object level) {
     List<CompletableFuture<Boolean>> futures =
-        beans.stream()
+        transports.stream()
             .filter(AuditLogTransportUtils::isEnabled)
-            .map(bean -> bean.send(message, level))
+            .map(transport -> transport.send(message, level))
             .toList();
 
     CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();

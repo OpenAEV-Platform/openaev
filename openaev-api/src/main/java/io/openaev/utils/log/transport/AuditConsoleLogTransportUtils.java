@@ -5,6 +5,7 @@ import io.openaev.engine.model.log.LogEvent;
 import io.openaev.utils.log.LogUtils;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,14 +17,11 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class AuditConsoleLogTransportUtils implements AuditLogTransportUtils {
 
+  @Getter
   @Value("${openaev.audit-logs.console.enabled:false}")
   private boolean enabled;
 
   private final ObjectMapper objectMapper;
-
-  public boolean isEnabled() {
-    return enabled;
-  }
 
   @Async
   public CompletableFuture<Boolean> send(LogEvent event, Object level) {

@@ -6,6 +6,7 @@ import io.openaev.engine.model.log.LogEvent;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -27,6 +28,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class AuditESLogTransportUtils implements AuditLogTransportUtils {
 
+  @Getter
   @Value("${openaev.audit-logs.opensearch.enabled:false}")
   private boolean enabled;
 
@@ -34,10 +36,6 @@ public class AuditESLogTransportUtils implements AuditLogTransportUtils {
 
   private final EngineService engineService;
   private final EngineConfig engineConfig;
-
-  public boolean isEnabled() {
-    return enabled;
-  }
 
   /**
    * Asynchronously indexes a fully-populated audit log document into the search engine.

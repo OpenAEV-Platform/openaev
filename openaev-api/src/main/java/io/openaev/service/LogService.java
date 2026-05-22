@@ -2,7 +2,6 @@ package io.openaev.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.config.SessionHelper;
 import io.openaev.config.ThreadPoolTaskLoggerConfig;
@@ -17,7 +16,6 @@ import io.openaev.utils.ResourceManagerUtils;
 import io.openaev.utils.log.LogUtils;
 import io.openaev.utils.log.dispatcher.AuditLogTransportDispatcherUtils;
 import io.openaev.utils.log.dispatcher.GenericLogTransportDispatcherUtils;
-import io.openaev.utils.object.ObjectDiffUtils;
 import io.openaev.utils.object.ObjectNormalizationUtils;
 import io.openaev.utils.object.ObjectRedactionUtils;
 import jakarta.servlet.http.HttpServletRequest;
@@ -55,7 +53,6 @@ public class LogService {
   private final AuditLogTransportDispatcherUtils auditLogTransportDispatcherUtils;
 
   private final ObjectNormalizationUtils objectNormalizationUtils;
-  private final ObjectDiffUtils objectDiffUtils;
   private final EngineService engineService;
 
   private final UserService userService;
@@ -70,146 +67,7 @@ public class LogService {
             : genericLogsEnabled || auditLogsEnabled);
   }
 
-  /**
-   * Logs a mutation (create/update/delete/duplicate/status_change) audit event but only if the
-   * snapshots are different.
-   *
-   * @param eventScope "create", "update", "delete", "duplicate", or "status_change"
-   * @param eventStatus "success" or "error"
-   * @param resourceType the resource type from the {@code @AccessControl} annotation
-   * @param entityId the resolved entity ID (may be empty for creates before persist)
-   * @param newSnapshot the serialized input DTO (for create/update); null for delete/duplicate
-   * @param oldSnapshot the serialized previous values (for update); null for
-   *     create/delete/duplicate
-   * @param entityName human-readable entity name for the message (e.g. scenario name)
-   * @param parentId the parent entity ID when a child is created within a parent; null otherwise
-   * @param sourceId the source entity ID for duplicate events; null for other event types
-   */
-  public boolean logMutationEventIfDifferentSnapshots(
-      String eventScope,
-      String eventStatus,
-      ResourceType resourceType,
-      String entityId,
-      JsonNode newSnapshot,
-      JsonNode oldSnapshot,
-      String entityName,
-      String parentId,
-      String sourceId,
-      Object logLevel,
-      AuditLogType logType,
-      String logUUID) {
-    if (!isEnabled(logType)) {
-      return true;
-    }
 
-    // For updates: compute diff between old and new values
-    ObjectDiffUtils.DiffResult diffResult = diffObjects(eventScope, oldSnapshot, newSnapshot);
-
-    // Only log if there are differences, this is, if no meaningful changes detected — skip the
-    // audit event (no-op update)
-    if (diffResult != null) {
-      JsonNode diffNewValues = diffResult.newValues();
-      JsonNode diffOldValues = diffResult.oldValues();
-
-      return logMutationEvent(
-          eventScope,
-          eventStatus,
-          resourceType,
-          entityId,
-          diffNewValues,
-          diffOldValues,
-          entityName,
-          parentId,
-          sourceId,
-          logLevel,
-          logType,
-          logUUID);
-    }
-
-    return true;
-  }
-
-  /**
-   * Logs a mutation (create/update/delete/duplicate/status_change) audit event.
-   *
-   * @param eventScope "create", "update", "delete", "duplicate", or "status_change"
-   * @param eventStatus "success" or "error"
-   * @param resourceType the resource type from the {@code @AccessControl} annotation
-   * @param entityId the resolved entity ID (may be empty for creates before persist)
-   * @param input the serialized input DTO (for create/update); null for delete/duplicate
-   * @param oldValue the serialized previous values (for update); null for create/delete/duplicate
-   * @param entityName human-readable entity name for the message (e.g. scenario name)
-   * @param parentId the parent entity ID when a child is created within a parent; null otherwise
-   * @param sourceId the source entity ID for duplicate events; null for other event types
-   */
-  public boolean logMutationEvent(
-      String eventScope,
-      String eventStatus,
-      ResourceType resourceType,
-      String entityId,
-      JsonNode input,
-      JsonNode oldValue,
-      String entityName,
-      String parentId,
-      String sourceId,
-      Object logLevel,
-      AuditLogType logType,
-      String logUUID) {
-    if (!isEnabled(logType)) {
-      return true;
-    }
-
-    try {
-      String entityTypeName = formatResourceType(resourceType);
-      String eventAccess = LogUtils.getEventAccess(resourceType);
-
-      String displayName = entityName != null ? entityName : entityId;
-      String message;
-
-      if ("status_change".equals(eventScope)) {
-        message = LogUtils.buildStatusChangeMessage(input, entityTypeName, displayName);
-      } else {
-        message = eventScope + "s " + entityTypeName + " `" + displayName + "`";
-      }
-
-      LogEvent doc = buildBaseAuditLog("mutation", eventStatus, eventAccess, eventScope, logUUID);
-
-      // -- context_data (LinkedHashMap preserves insertion order) --
-      Map<String, Object> ctx = new LinkedHashMap<>();
-      if (entityId != null && !entityId.isEmpty()) {
-        ctx.put("id", entityId);
-      }
-      ctx.put("entity_type", entityTypeName);
-      if (parentId != null && !parentId.isEmpty()) {
-        ctx.put("parent_id", parentId);
-      }
-      if (sourceId != null && !sourceId.isEmpty()) {
-        ctx.put("source_entity_id", sourceId);
-      }
-
-      // Redacted input + old_value
-      if (input != null) {
-        input = objectNormalizationUtils.normalize(input);
-        input = ObjectRedactionUtils.redact(input, entityTypeName);
-        ctx.put("input", objectMapper().convertValue(input, Map.class));
-      }
-
-      if (oldValue != null) {
-        oldValue = objectNormalizationUtils.normalize(oldValue);
-        oldValue = ObjectRedactionUtils.redact(oldValue, entityTypeName);
-        ctx.put("old_value", objectMapper().convertValue(oldValue, Map.class));
-      }
-
-      ctx.put("message", message);
-      doc.setContextData(ctx);
-
-      return emit(doc, logLevel, logType);
-    } catch (Exception e) {
-      log.warn("[{}] Failed to log mutation event: {}", logType.name(), e.getMessage(), e);
-    }
-
-    return false;
-  }
 
   /**
    * Logs an authentication audit event.
@@ -351,53 +209,6 @@ public class LogService {
   }
 
   // -- Internal helpers --
-
-  private ObjectDiffUtils.DiffResult diffObjects(
-      String eventScope, JsonNode entitySnapshot, JsonNode inputNode) {
-    // For updates: compute diff between old and new values
-    JsonNode diffNewValues = null;
-    JsonNode diffOldValues = null;
-
-    if ("update".equals(eventScope)) {
-      if (entitySnapshot != null && inputNode != null) {
-        ObjectDiffUtils.DiffResult diff = objectDiffUtils.computeDiff(entitySnapshot, inputNode);
-        diffNewValues = diff.newValues();
-        diffOldValues = diff.oldValues();
-
-        if (diffNewValues == null || diffNewValues.isEmpty()) {
-          // No meaningful changes detected — skip the audit event (no-op update)
-          return null;
-        }
-      } else if (inputNode != null) {
-        // No old snapshot available — log input as-is (without diff computation)
-        diffNewValues = objectNormalizationUtils.normalize(inputNode);
-      }
-    } else if ("status_change".equals(eventScope)) {
-      // For status changes with a request body (exercise status, scenario recurrence):
-      // reuse the diff engine to extract only the changed fields and their old values.
-      // For instant launch (no request body): synthesize a minimal input, no old_value.
-      if (entitySnapshot != null && inputNode != null) {
-        ObjectDiffUtils.DiffResult diff = objectDiffUtils.computeDiff(entitySnapshot, inputNode);
-        diffNewValues = diff.newValues();
-        diffOldValues = diff.oldValues();
-
-        if (diffNewValues == null) {
-          diffNewValues = inputNode;
-        }
-      } else if (inputNode != null) {
-        diffNewValues = inputNode;
-      } else {
-        // No request body (e.g. POST /scenarios/{id}/exercise/running)
-        ObjectNode syntheticInput = objectMapper().createObjectNode();
-        syntheticInput.put("action", "launch");
-        diffNewValues = syntheticInput;
-      }
-    } else if ("create".equals(eventScope) && inputNode != null) {
-      diffNewValues = objectNormalizationUtils.normalize(inputNode);
-    }
-
-    return new ObjectDiffUtils.DiffResult(diffNewValues, diffOldValues);
-  }
 
   /** Builds the common part of an {@link LogEvent} with all envelope and user fields populated. */
   private LogEvent buildBaseAuditLog(

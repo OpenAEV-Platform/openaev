@@ -5,6 +5,7 @@ import io.openaev.engine.model.log.LogEvent;
 import io.openaev.utils.log.LogUtils;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class AuditFileLogTransportUtils implements AuditLogTransportUtils {
 
+  @Getter
   @Value("${openaev.audit-logs.file.enabled:false}")
   private boolean enabled;
 
@@ -26,10 +28,6 @@ public class AuditFileLogTransportUtils implements AuditLogTransportUtils {
   private static final Logger log = LoggerFactory.getLogger("AUDIT_LOG");
 
   private final ObjectMapper objectMapper;
-
-  public boolean isEnabled() {
-    return enabled;
-  }
 
   @Async
   public CompletableFuture<Boolean> send(LogEvent event, Object level) {

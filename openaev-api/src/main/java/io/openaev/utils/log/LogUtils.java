@@ -139,8 +139,9 @@ public class LogUtils {
   }
 
   public static String getEventAccess(ResourceType resourceType) {
-    boolean isAdmin = ResourceManagerUtils.ADMINISTRATION_RESOURCE_TYPES.contains(resourceType);
-    return isAdmin ? EVENT_ACCESS_ADMINISTRATION : EVENT_ACCESS_EXTENDED;
+    return ResourceManagerUtils.ADMINISTRATION_RESOURCE_TYPES.contains(resourceType)
+        ? EVENT_ACCESS_ADMINISTRATION
+        : EVENT_ACCESS_EXTENDED;
   }
 
   public static String getAuthEventAccess() {

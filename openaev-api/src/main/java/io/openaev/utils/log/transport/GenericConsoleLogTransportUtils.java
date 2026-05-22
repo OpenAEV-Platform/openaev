@@ -2,6 +2,7 @@ package io.openaev.utils.log.transport;
 
 import io.openaev.utils.log.LogUtils;
 import java.util.logging.Level;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -12,12 +13,9 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class GenericConsoleLogTransportUtils implements GenericLogTransportUtils {
 
+  @Getter
   @Value("${openaev.generic-logs.console.enabled:false}")
   private boolean enabled;
-
-  public boolean isEnabled() {
-    return enabled;
-  }
 
   public boolean send(String message, Object level) {
     try {

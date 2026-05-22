@@ -8,13 +8,13 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class GenericLogTransportDispatcherUtils {
-  private final List<GenericLogTransportUtils> beans;
+  private final List<GenericLogTransportUtils> transports;
 
   public boolean dispatch(String message, Object level) {
     boolean status = true;
 
-    for (GenericLogTransportUtils bean : beans) {
-      if (bean.isEnabled() && !bean.send(message, level)) {
+    for (GenericLogTransportUtils transport : transports) {
+      if (transport.isEnabled() && !transport.send(message, level)) {
         status = false;
       }
     }
