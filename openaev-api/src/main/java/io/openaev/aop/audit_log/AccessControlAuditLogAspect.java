@@ -49,60 +49,87 @@ public class AccessControlAuditLogAspect {
   public Object auditAround(ProceedingJoinPoint joinPoint, AccessControl accessControl)
       throws Throwable {
     Object result = null;
+    boolean isActive = false;
+    Action action = null;
 
-    Action action = accessControl.actionPerformed();
+    try {
+      action = accessControl.actionPerformed();
+      isActive =
+          accessControlAuditLogger.isAuditLoggingEnabled()
+              && accessControlAuditLogger.isAuditLoggingValid(action)
+              && previewFeatureService.isFeatureEnabled(PreviewFeature.AUDIT_LOG);
+    } catch (Exception ex) {
+      log.warn("Error during audit logging", ex);
+    }
 
-    if (!accessControlAuditLogger.isAuditLoggingEnabled()
-        || !accessControlAuditLogger.isAuditLoggingValid(action)
-        || !previewFeatureService.isFeatureEnabled(PreviewFeature.AUDIT_LOG)) {
+    if (!isActive) {
       return joinPoint.proceed();
     }
 
-    String logUUID = UUID.randomUUID().toString();
-    ResourceType resourceType = accessControl.resourceType();
-
-    // Capture the input DTO for create/update/status_change
-    String eventScope = LogUtils.getEventScope(action);
-    JsonNode inputNode = getInputNode(joinPoint, eventScope);
-    JsonNode signatureNode = getMethodSignature(joinPoint, inputNode);
-
-    // Execute the business operation
-    String eventStatus;
-
-    java.util.function.BiConsumer<Boolean, Throwable> logCompletion =
-        (success, throwable) -> {
-          if (throwable != null || (success != null && !success)) {
-            log.warn(
-                "[AUDIT] Failed to log access control event for {}.{}", resourceType, eventScope);
-            if (throwable != null) {
-              log.warn("Error during audit logging", throwable);
-            }
-          }
-        };
+    String logUUID = null;
+    ResourceType resourceType = null;
+    String eventScope = null;
+    JsonNode inputNode = null;
+    JsonNode signatureNode = null;
+    java.util.function.BiConsumer<Boolean, Throwable> logCompletion = null;
 
     try {
-      result = joinPoint.proceed();
-      eventStatus = "success";
+      logUUID = UUID.randomUUID().toString();
+      resourceType = accessControl.resourceType();
+
+      // Capture the input DTO for create/update/status_change
+      eventScope = LogUtils.getEventScope(action);
+      inputNode = getInputNode(joinPoint, eventScope);
+      signatureNode = getMethodSignature(joinPoint, inputNode);
+
+      final ResourceType finalResourceType = resourceType;
+      final String finalEventScope = eventScope;
+
+      logCompletion =
+          (success, throwable) -> {
+            if (throwable != null || (success != null && !success)) {
+              log.warn(
+                  "[AUDIT] Failed to log access control event for {}.{}",
+                  finalResourceType,
+                  finalEventScope);
+              if (throwable != null) {
+                log.warn("Error during audit logging", throwable);
+              }
+            }
+          };
     } catch (Throwable ex) {
-      eventStatus = "error";
+      log.warn("Error during audit logging", ex);
+    }
 
-      JsonNode resultNode = getOutputNode(result);
-      JsonNode errorNode = buildErrorNode(resultNode, ex);
+    // Execute the business operation
+    try {
+      result = joinPoint.proceed();
+    } catch (Throwable ex) {
+      try {
+        JsonNode resultNode = getOutputNode(result);
+        JsonNode errorNode = buildErrorNode(resultNode, ex);
 
-      accessControlAuditLogger
-          .logAccessControlEvent(
-              eventScope, eventStatus, resourceType, inputNode, errorNode, signatureNode, logUUID)
-          .whenComplete(logCompletion);
+        accessControlAuditLogger
+            .logAccessControlEvent(
+                eventScope, "error", resourceType, inputNode, errorNode, signatureNode, logUUID)
+            .whenComplete(logCompletion);
+      } catch (Exception e) {
+        log.warn("Error during audit logging", e);
+      }
 
       throw ex;
     }
 
-    JsonNode resultNode = getOutputNode(result);
+    try {
+      JsonNode resultNode = getOutputNode(result);
 
-    accessControlAuditLogger
-        .logAccessControlEvent(
-            eventScope, eventStatus, resourceType, inputNode, resultNode, signatureNode, logUUID)
-        .whenComplete(logCompletion);
+      accessControlAuditLogger
+          .logAccessControlEvent(
+              eventScope, "success", resourceType, inputNode, resultNode, signatureNode, logUUID)
+          .whenComplete(logCompletion);
+    } catch (Exception ex) {
+      log.warn("Error during audit logging", ex);
+    }
 
     return result;
   }
