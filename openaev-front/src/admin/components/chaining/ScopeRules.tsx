@@ -212,6 +212,7 @@ const ScopeRules = ({ workflowConfiguration, onUpdate }: ScopeRulesProps) => {
   return (
     <Box sx={{
       display: 'grid',
+      gridTemplateRows: 'min-content 1fr',
       gap: theme.spacing(1),
     }}
     >
@@ -221,6 +222,7 @@ const ScopeRules = ({ workflowConfiguration, onUpdate }: ScopeRulesProps) => {
           display: 'flex',
           alignItems: 'center',
           gap: theme.spacing(1),
+          m: 0,
         }}
       >
         {t('Scope')}

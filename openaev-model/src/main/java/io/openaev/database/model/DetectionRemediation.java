@@ -1,10 +1,12 @@
 package io.openaev.database.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.helper.CollectorTypeNameSerializer;
+import io.openaev.helper.MonoIdDeserializerHelper;
 import io.openaev.helper.MonoIdSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -46,6 +48,7 @@ public class DetectionRemediation implements Base {
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "detection_remediation_payload_id")
   @JsonSerialize(using = MonoIdSerializer.class)
+  @JsonDeserialize(using = MonoIdDeserializerHelper.class)
   @JsonProperty("detection_remediation_payload_id")
   @Schema(implementation = String.class)
   @NotNull

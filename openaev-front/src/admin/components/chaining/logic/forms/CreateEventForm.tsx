@@ -1,5 +1,15 @@
 import { AddOutlined, DeleteOutline } from '@mui/icons-material';
-import { Button, Divider, FormControl, IconButton, InputLabel, MenuItem, Select, TextField, Typography } from '@mui/material';
+import {
+  Button,
+  Divider,
+  FormControl,
+  IconButton,
+  InputLabel,
+  MenuItem,
+  Select,
+  TextField,
+  Typography,
+} from '@mui/material';
 import { type FunctionComponent, useState } from 'react';
 
 import { useFormatter } from '../../../../../components/i18n';
@@ -154,8 +164,6 @@ const CreateEventForm: FunctionComponent<Props> = ({ onSubmit, handleClose }) =>
               <MenuItem value="LTE">{t('LTE')}</MenuItem>
               <MenuItem value="IN">{t('IN')}</MenuItem>
               <MenuItem value="NIN">{t('NIN')}</MenuItem>
-              <MenuItem value="AFTER">{t('AFTER')}</MenuItem>
-              <MenuItem value="BEFORE">{t('BEFORE')}</MenuItem>
               <MenuItem value="DEPEND_ON">{t('DEPEND_ON')}</MenuItem>
             </Select>
           </FormControl>

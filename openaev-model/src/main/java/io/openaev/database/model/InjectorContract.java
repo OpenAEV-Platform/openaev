@@ -175,7 +175,7 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
   }
 
   @Queryable(filterable = true)
-  @OneToOne(fetch = FetchType.EAGER)
+  @OneToOne(fetch = FetchType.EAGER, cascade = CascadeType.REMOVE, orphanRemoval = true)
   @JoinColumn(name = "injector_contract_payload")
   @JsonProperty("injector_contract_payload")
   private Payload payload;

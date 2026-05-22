@@ -4,7 +4,7 @@ import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
 
 import { type AttackPatternHelper } from '../../../actions/attack_patterns/attackpattern-helper';
 import type { DocumentHelper } from '../../../actions/helper';
-import { fetchPayload } from '../../../actions/payloads/payload-actions';
+import { fetchThreatArsenalAction } from '../../../actions/threat_arsenals/threatArsenal-actions';
 import AttackPatternChip from '../../../components/AttackPatternChip';
 import Drawer from '../../../components/common/Drawer';
 import { useFormatter } from '../../../components/i18n';
@@ -14,10 +14,41 @@ import PlatformIcon from '../../../components/PlatformIcon';
 import { useHelper } from '../../../store';
 import {
   type AttackPattern,
-  type Payload, type ThreatArsenalAction,
+  type Payload,
+  type ThreatArsenalAction,
+  type ThreatArsenalActionFullOutput,
 } from '../../../utils/api-types';
 import InjectIcon from '../common/injects/InjectIcon';
 import PayloadComponent from '../payloads/PayloadComponent';
+
+const toPayload = (action: ThreatArsenalActionFullOutput): Payload => {
+  return {
+    payload_id: action.action_id,
+    payload_name: action.action_labels?.en ?? Object.values(action.action_labels ?? {})[0] ?? '',
+    payload_created_at: action.action_created_at,
+    payload_updated_at: action.action_updated_at,
+    payload_description: action.action_description,
+    payload_execution_arch: action.action_execution_arch,
+    payload_platforms: action.action_platforms ?? [],
+    payload_source: action.action_source,
+    payload_status: action.action_status,
+    payload_type: action.action_type,
+    payload_external_id: action.action_external_id,
+    payload_arguments: action.action_arguments,
+    payload_cleanup_command: action.action_cleanup_command,
+    payload_cleanup_executor: action.action_cleanup_executor,
+    payload_collector_type: action.action_collector_type,
+    payload_detection_remediations: action.action_detection_remediations,
+    payload_expectations: action.action_expectations,
+    payload_output_parsers: action.action_output_parsers,
+    payload_prerequisites: action.action_prerequisites,
+    command_content: action.command_content,
+    command_executor: action.command_executor,
+    dns_resolution_hostname: action.dns_resolution_hostname,
+    executable_file: action.executable_file,
+    file_drop_file: action.file_drop_file,
+  } as Payload;
+};
 
 interface Props {
   open: boolean;
@@ -52,8 +83,8 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
       return;
     }
     setLoading(true);
-    fetchPayload(threatArsenalAction!.action_payload!.payload_id!).then((result) => {
-      setSelectedPayload((result.data ?? result) as Payload);
+    fetchThreatArsenalAction(threatArsenalAction.injector_contract_id).then((result) => {
+      setSelectedPayload(toPayload(result.data as ThreatArsenalActionFullOutput));
       setLoading(false);
     });
   }, [open, threatArsenalAction]);

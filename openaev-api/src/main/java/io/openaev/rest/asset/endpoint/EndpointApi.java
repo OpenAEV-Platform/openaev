@@ -68,7 +68,7 @@ public class EndpointApi extends RestBehavior {
   }
 
   @PostMapping({ENDPOINT_URI + "/register", TENANT_ENDPOINT_URI + "/register"})
-  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ASSET)
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.AGENT)
   @Transactional(rollbackFor = Exception.class)
   public Endpoint upsertEndpoint(@Valid @RequestBody final EndpointRegisterInput input)
       throws IOException {
@@ -78,7 +78,7 @@ public class EndpointApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping({ENDPOINT_URI + "/jobs", TENANT_ENDPOINT_URI + "/jobs"})
-  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.JOB)
   @Transactional(rollbackFor = Exception.class)
   public List<AssetAgentJob> getEndpointJobs(@RequestBody final EndpointRegisterInput input) {
     List<AssetAgentJob> jobs = this.endpointService.getEndpointJobs(input);
