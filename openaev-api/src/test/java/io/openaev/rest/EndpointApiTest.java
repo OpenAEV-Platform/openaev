@@ -640,7 +640,7 @@ class EndpointApiTest extends IntegrationTest {
         assertThatJson(response)
             .inPath("$.asset_agents[0].agent_id")
             .asString()
-            .as("Agent should reference the executor from tenant A, not tenant B")
+            .as("Returned agent_id should match tenant A's agent and not a cross-tenant agent")
             .isEqualTo(agentA.getId());
       }
 
