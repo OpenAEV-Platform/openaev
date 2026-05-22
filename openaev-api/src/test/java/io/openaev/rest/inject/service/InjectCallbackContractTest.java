@@ -12,6 +12,7 @@ import io.openaev.rest.inject.form.InjectExecutionCallback;
 import io.openaev.rest.inject.form.InjectExecutionInput;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.queue.BatchQueueService;
+import jakarta.persistence.EntityManager;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -53,6 +54,7 @@ class InjectCallbackContractTest {
   @Mock private InjectorExecutionProcessingHandler injectorExecutionProcessingHandler;
   @Mock private StructuredOutputUtils structuredOutputUtils;
   @Mock private BatchQueueService<InjectExecutionCallback> injectTraceQueueService;
+  @Mock private EntityManager entityManager;
 
   private InjectExecutionService injectExecutionService;
   private BatchingInjectStatusService batchingService;
@@ -89,7 +91,11 @@ class InjectCallbackContractTest {
     // Can't use @InjectMocks: batchingService needs the spy, not a plain mock
     batchingService =
         new BatchingInjectStatusService(
-            injectRepository, agentRepository, structuredOutputUtils, injectExecutionService);
+            injectRepository,
+            agentRepository,
+            structuredOutputUtils,
+            injectExecutionService,
+            entityManager);
     batchingService.setInjectTraceQueueService(injectTraceQueueService);
   }
 
