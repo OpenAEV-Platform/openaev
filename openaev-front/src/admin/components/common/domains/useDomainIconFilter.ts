@@ -67,7 +67,7 @@ const useDomainIconFilter = ({
       key: domainFilterKey,
       operator: 'eq',
       values: nextSelectedDomains,
-      mode: 'or',
+      mode: 'and',
     });
   }, [domainFilterKey, filterHelpers, searchPaginationInput?.filterGroup?.filters]);
 
