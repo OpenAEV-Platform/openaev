@@ -109,7 +109,11 @@ public class MinioDriver {
             CopyObjectArgs.builder()
                 .bucket(bucket)
                 .object(newObjectName)
-                .source(CopySource.builder().bucket(bucket).object(objectName).build())
+                .source(
+                    CopySource.builder()
+                        .bucket(bucket)
+                        .object(objectName.startsWith("/") ? objectName.substring(1) : objectName)
+                        .build())
                 .build());
 
       } catch (Exception e) {
