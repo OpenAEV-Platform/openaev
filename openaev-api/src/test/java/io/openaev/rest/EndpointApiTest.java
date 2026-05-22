@@ -3,6 +3,7 @@ package io.openaev.rest;
 import static io.openaev.rest.asset.endpoint.EndpointApi.ENDPOINT_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.AgentFixture.createAgent;
+import static io.openaev.utils.fixtures.AgentFixture.createDefaultAgentService;
 import static io.openaev.utils.fixtures.AssetGroupFixture.createAssetGroupWithAssets;
 import static io.openaev.utils.fixtures.AssetGroupFixture.createDefaultAssetGroup;
 import static io.openaev.utils.fixtures.EndpointFixture.*;
@@ -29,10 +30,13 @@ import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.service.EndpointService;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.ExecutorFixture;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.PaginationFixture;
+import io.openaev.utils.fixtures.composers.AgentComposer;
+import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.fixtures.composers.ExecutorComposer;
 import io.openaev.utils.mapper.EndpointMapper;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -63,6 +67,9 @@ class EndpointApiTest extends IntegrationTest {
   @Autowired private ExerciseService exerciseService;
   @Autowired private ExecutorComposer executorComposer;
   @Autowired private ExecutorFixture executorFixture;
+  @Autowired private TenantIsolationTestHelper tenantHelper;
+  @Autowired private EndpointComposer endpointComposer;
+  @Autowired private AgentComposer agentComposer;
 
   @MockitoSpyBean private EndpointService endpointService;
   @Autowired private AssetGroupRepository assetGroupRepository;
@@ -571,5 +578,75 @@ class EndpointApiTest extends IntegrationTest {
     filter.setOperator(Filters.FilterOperator.eq);
     filter.setValues(values);
     return filter;
+  }
+
+  @Nested
+  @DisplayName("Tenant Isolation")
+  @WithMockUser(isAdmin = true)
+  class TenantIsolation {
+
+    @Nested
+    class AgentExecutorJoin {
+
+      @Test
+      @DisplayName(
+          "Given same executor type in two tenants, endpoint API should return agent without duplicates")
+      void givenSameExecutorInTwoTenants_endpointShouldReturnAgentWithoutDuplicates()
+          throws Exception {
+        // -- Arrange --
+        String tenantA = TenantContext.getCurrentTenant();
+
+        ExecutorComposer.Composer executorComposerA =
+            executorComposer.forExecutor(executorFixture.getDefaultExecutor());
+        Executor executorA = executorComposerA.get();
+
+        Endpoint endpointA = EndpointFixture.createEndpoint("Endpoint-TenantA");
+        AgentComposer.Composer agentComposerA =
+            agentComposer.forAgent(createDefaultAgentService()).withExecutor(executorComposerA);
+        EndpointComposer.Composer endpointComposerA =
+            endpointComposer.forEndpoint(endpointA).withAgent(agentComposerA);
+        endpointComposerA.persist();
+
+        // Flush and clear to avoid "Tenant is immutable" when creating tenant B
+        entityManager.flush();
+        entityManager.clear();
+
+        // Create tenant B with the same executor ID to reproduce the cross-tenant join bug
+        Tenant tenantB = tenantHelper.createTenantWithCurrentUser("TenantB-CompositeKey");
+        tenantHelper.switchToTenant(tenantB.getId(), entityManager);
+
+        Executor executorB = executorFixture.createDefaultExecutor("OpenAEV-B");
+        executorB.setId(executorA.getId());
+        executorComposer.forExecutor(executorB).persist().get();
+
+        // Switch back to tenant A
+        tenantHelper.switchToTenant(tenantA, entityManager);
+
+        // -- Act --
+        String response =
+            mvc.perform(
+                    get(ENDPOINT_URI + "/" + endpointA.getId())
+                        .accept(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
+                .andExpect(status().is2xxSuccessful())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        // -- Assert --
+        assertThatJson(response)
+            .inPath("$.asset_agents")
+            .isArray()
+            .as(
+                "Endpoint should have exactly 1 agent — not duplicated by cross-tenant executor join")
+            .hasSize(1);
+
+        assertThatJson(response)
+            .inPath("$.asset_agents[0].agent_executor.executor_id")
+            .asString()
+            .as("Returned agent_id should match tenant A's agent and not a cross-tenant agent")
+            .isEqualTo(executorA.getId());
+      }
+    }
   }
 }
