@@ -29,7 +29,6 @@ import io.openaev.service.chaining.WorkflowService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.ExecutionTraceUtils;
 import jakarta.annotation.PostConstruct;
-import jakarta.persistence.EntityManager;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -42,7 +41,6 @@ import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.hibernate.Session;
 import org.quartz.DisallowConcurrentExecution;
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;
@@ -78,6 +76,7 @@ public class InjectsExecutionJob implements Job {
   private final io.openaev.executors.Executor executor;
   private final ActionMetricCollector actionMetricCollector;
   private final NotificationEventService notificationEventService;
+  private final SecurityCoverageSendJobService securityCoverageSendJobService;
 
   private final PreviewFeatureService previewFeatureService;
 
@@ -141,7 +140,7 @@ public class InjectsExecutionJob implements Job {
                 .toList());
 
     // maybe trigger stix coverage background job
-    need asecurityCoverageSendJobService.createOrUpdateCoverageSendJobForSimulationsIfReady(
+    securityCoverageSendJobService.createOrUpdateCoverageSendJobForSimulationsIfReady(
         exercisesFinished);
 
     // send notification
