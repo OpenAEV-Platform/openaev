@@ -136,9 +136,8 @@ public class RestBehavior {
     bag.setMessage(ex.getMessage());
 
     if (ex.getCause() instanceof Exception) {
-      bag.setError( ex.getCause().getMessage() );
-    }
-    else {
+      bag.setError(ex.getCause().getMessage());
+    } else {
       bag.setError("Resource still linked to other components.");
     }
     return bag;

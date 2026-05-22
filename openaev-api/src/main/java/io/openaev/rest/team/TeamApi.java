@@ -196,11 +196,14 @@ public class TeamApi extends RestBehavior {
       resourceType = ResourceType.TEAM)
   @ApiResponses(value = {@ApiResponse(responseCode = "200")})
   @Operation(description = "Delete an existing team", summary = "Delete team")
-  public void deleteTeam(@PathVariable @Schema(description = "ID of the team") String teamId) throws ResourceInUseException {
+  public void deleteTeam(@PathVariable @Schema(description = "ID of the team") String teamId)
+      throws ResourceInUseException {
     try {
       teamRepository.deleteById(teamId);
     } catch (InvalidDataAccessApiUsageException | TransientObjectException ex) {
-      throw new ResourceInUseException("Cannot delete this team because it is still in use. Please remove its dependencies first.", ex);
+      throw new ResourceInUseException(
+          "Cannot delete this team because it is still in use. Please remove its dependencies first.",
+          ex);
     }
   }
 
