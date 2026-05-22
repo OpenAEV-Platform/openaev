@@ -207,33 +207,13 @@ public class InjectorApi extends RestBehavior {
     if (implantBinaryOrigin.equals("local")) { // if we want the local binaries
       filename = "openaev-implant-" + version + (resolvedPlatform.equals("windows") ? ".exe" : "");
       in = getClass().getResourceAsStream("/implants" + resourcePath + filename);
-      // Report error trace when the binary is not found in resources.
-      // This commonly happens in dev builds where implant binaries are not packaged.
-      if (in == null) {
-        String errorMessage =
-            "Implant binary not found in resources: /implants%s%s (origin=%s, version=%s)"
-                .formatted(resourcePath, filename, implantBinaryOrigin, version);
-        log.error(errorMessage);
-        this.injectStatusService.setImplantErrorTrace(injectId, agentId, errorMessage);
-        throw new ElementNotFoundException(
-            "Implant binary not available for %s/%s".formatted(resolvedPlatform, resolvedArch));
-      }
-    } else if (implantBinaryOrigin.equals("repository")) {
+    } else if (implantBinaryOrigin.equals(
+        "repository")) { // if we want a specific version from artifactory
       filename =
           "openaev-implant-"
               + implantBinaryVersion
               + (resolvedPlatform.equals("windows") ? ".exe" : "");
-      try {
-        in = new BufferedInputStream(validateJFrogUri(resourcePath, filename).toURL().openStream());
-      } catch (IOException e) {
-        // Report error trace when the binary cannot be downloaded from the repository.
-        String errorMessage =
-            "Failed to download implant binary from repository: %s%s (version=%s). Error: %s"
-                .formatted(resourcePath, filename, implantBinaryVersion, e.getMessage());
-        log.error(errorMessage, e);
-        this.injectStatusService.setImplantErrorTrace(injectId, agentId, errorMessage);
-        throw e;
-      }
+      in = new BufferedInputStream(validateJFrogUri(resourcePath, filename).toURL().openStream());
     }
 
     if (in != null) {
@@ -244,13 +224,6 @@ public class InjectorApi extends RestBehavior {
           .contentType(MediaType.APPLICATION_OCTET_STREAM)
           .body(IOUtils.toByteArray(in));
     }
-
-    // Unsupported origin — report and throw
-    String errorMessage =
-        "Unsupported implant binary origin: '%s' for %s/%s"
-            .formatted(implantBinaryOrigin, resolvedPlatform, resolvedArch);
-    log.error(errorMessage);
-    this.injectStatusService.setImplantErrorTrace(injectId, agentId, errorMessage);
     throw new UnsupportedOperationException(
         "Implant " + resolvedPlatform + " executable not supported");
   }
