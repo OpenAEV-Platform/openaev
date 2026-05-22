@@ -63,6 +63,8 @@
   "Add": "Добавить",
   "Add a new vulnerability": "Добавить новую уязвимость",
   "Add a result": "Добавить результат",
+  "Add asset and asset groups to your allowlist": "Добавьте активы и группы активов в свой список разрешений",
+  "Add asset and asset groups to your denylist": "Добавьте активы и группы активов в ваш denylist",
   "Add asset groups": "Добавить группы активов",
   "Add asset groups in this inject": "Добавьте группы активов в этом инжекторе",
   "Add asset to your allowlist": "Добавьте актив в свой список разрешений",

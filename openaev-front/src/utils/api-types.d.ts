@@ -1306,8 +1306,6 @@ export interface ConditionCreateInput {
     | "LTE"
     | "IN"
     | "NIN"
-    | "AFTER"
-    | "BEFORE"
     | "MAPPER"
     | "DEPEND_ON";
   /** Value to be compared */

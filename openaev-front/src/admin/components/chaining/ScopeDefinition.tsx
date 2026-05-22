@@ -88,9 +88,8 @@ const ScopeDefinition = ({ workflowId }: ScopeDefinitionProps) => {
     >
       <div style={{
         display: 'grid',
-        gap: theme.spacing(2),
+        gap: theme.spacing(3),
         gridTemplateColumns: '1fr 1fr',
-
       }}
       >
         <ScopeRules workflowConfiguration={workflowConfiguration} onUpdate={handleUpdate} />
@@ -98,7 +97,7 @@ const ScopeDefinition = ({ workflowId }: ScopeDefinitionProps) => {
       </div>
       <div style={{
         display: 'grid',
-        gap: theme.spacing(2),
+        gap: theme.spacing(3),
         gridTemplateColumns: '1fr 1fr',
       }}
       >
