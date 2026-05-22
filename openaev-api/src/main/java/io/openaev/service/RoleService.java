@@ -117,6 +117,10 @@ public class RoleService {
       @NotNull final Set<Capability> capabilities) {
 
     ReservedNameValidator.validateRoleName(roleName);
+    roleRepository
+        .findById(roleId)
+        .ifPresent(existing -> ReservedNameValidator.validateRoleName(existing.getName()));
+
     return updateRoleInternal(roleId, roleName, roleDescription, capabilities);
   }
 
@@ -132,7 +136,6 @@ public class RoleService {
         roleRepository
             .findByIdAndTenantId(roleId, tenantId)
             .orElseThrow(() -> new ElementNotFoundException("Role not found with id: " + roleId));
-    ReservedNameValidator.validateRoleName(role.getName());
     role.setUpdatedAt(Instant.now());
     role.setName(roleName);
     role.setDescription(roleDescription);

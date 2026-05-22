@@ -14,11 +14,14 @@ import io.openaev.database.model.Capability;
 import io.openaev.database.model.Role;
 import io.openaev.database.repository.RoleRepository;
 import io.openaev.opencti.connectors.Constants;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.role.form.RoleInput;
+import io.openaev.service.RoleService;
 import io.openaev.utils.fixtures.TenantRoleFixture;
 import io.openaev.utils.fixtures.composers.TenantRoleComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.Set;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -27,6 +30,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @TestInstance(PER_CLASS)
 @Transactional
@@ -38,6 +44,7 @@ public class TenantRoleReservedNameApiTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private RoleRepository roleRepository;
   @Autowired private TenantRoleComposer tenantRoleComposer;
+  @Autowired private RoleService roleService;
 
   private static final String SERVICE_ROLE_NAME =
       io.openaev.service.account.Constants.SERVICE_ROLE_NAME;
@@ -206,6 +213,56 @@ public class TenantRoleReservedNameApiTest extends IntegrationTest {
       assertTrue(status == 400, "Expected 400 but got " + status);
       // The reserved role must still exist
       assertTrue(roleRepository.findById(reserved.getId()).isPresent());
+    }
+  }
+
+  @Nested
+  @DisplayName("Internal service path (system-managed roles)")
+  class InternalServicePath {
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
+    @DisplayName(
+        "given_existing_role_has_reserved_name_should_allow_update via updateRoleInternal")
+    void given_existingReservedRole_should_allowUpdate_viaInternal() {
+      // -------- Arrange --------
+      Role reserved =
+          tenantRoleComposer
+              .forRole(
+                  TenantRoleFixture.getRole(SERVICE_ROLE_NAME, Set.of(Capability.ACCESS_ASSETS)))
+              .persist()
+              .get();
+
+      // -------- Act --------
+      Role updated =
+          roleService.updateRoleInternal(
+              reserved.getId(),
+              SERVICE_ROLE_NAME,
+              "re-converged description",
+              Set.of(Capability.AGENT_RUNTIME_ACCESS));
+
+      // -------- Assert --------
+      assertThat(updated.getName()).isEqualTo(SERVICE_ROLE_NAME);
+      assertThat(updated.getDescription()).isEqualTo("re-converged description");
+      assertThat(updated.getCapabilities()).contains(Capability.AGENT_RUNTIME_ACCESS);
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
+    @DisplayName("given_unknown_role_id_should_throw_ElementNotFoundException")
+    void given_unknownRoleId_should_throw_ElementNotFoundException() {
+      // -------- Arrange --------
+      String unknownId = UUID.randomUUID().toString();
+
+      // -------- Act & Assert --------
+      assertThatThrownBy(
+              () ->
+                  roleService.updateRoleInternal(
+                      unknownId,
+                      "any-name",
+                      "any-desc",
+                      Set.of(Capability.AGENT_RUNTIME_ACCESS)))
+          .isInstanceOf(ElementNotFoundException.class);
     }
   }
 }
