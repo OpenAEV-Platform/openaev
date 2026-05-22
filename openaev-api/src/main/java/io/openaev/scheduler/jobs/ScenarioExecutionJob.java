@@ -42,7 +42,7 @@ public class ScenarioExecutionJob implements Job {
   @Transactional(rollbackFor = Exception.class)
   @LogExecutionTime
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
-    // Disable tenant filter — called from InjectsExecutionJob which runs cross-tenant
+      // Disable tenant filter — this job runs cross-tenant
     entityManager.unwrap(Session.class).disableFilter("tenantFilter");
     createExercisesFromScenarios();
     cleanOutdatedRecurringScenario();
