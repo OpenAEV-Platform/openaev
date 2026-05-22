@@ -50,53 +50,59 @@ public class AccessControlAuditLogAspect {
       throws Throwable {
     Object result = null;
 
+    Action action = accessControl.actionPerformed();
+
+    if (!accessControlAuditLogger.isAuditLoggingEnabled()
+        || !accessControlAuditLogger.isAuditLoggingValid(action)
+        || !previewFeatureService.isFeatureEnabled(PreviewFeature.AUDIT_LOG)) {
+      return joinPoint.proceed();
+    }
+
+    String logUUID = UUID.randomUUID().toString();
+    ResourceType resourceType = accessControl.resourceType();
+
+    // Capture the input DTO for create/update/status_change
+    String eventScope = LogUtils.getEventScope(action);
+    JsonNode inputNode = getInputNode(joinPoint, eventScope);
+    JsonNode signatureNode = getMethodSignature(joinPoint, inputNode);
+
+    // Execute the business operation
+    String eventStatus;
+
+    java.util.function.BiConsumer<Boolean, Throwable> logCompletion =
+        (success, throwable) -> {
+          if (throwable != null || (success != null && !success)) {
+            log.warn(
+                "[AUDIT] Failed to log access control event for {}.{}", resourceType, eventScope);
+            if (throwable != null) {
+              log.warn("Error during audit logging", throwable);
+            }
+          }
+        };
+
     try {
-      Action action = accessControl.actionPerformed();
-
-      if (!accessControlAuditLogger.isAuditLoggingEnabled()
-          || !accessControlAuditLogger.isAuditLoggingValid(action)
-          || !previewFeatureService.isFeatureEnabled(PreviewFeature.AUDIT_LOG)) {
-        return joinPoint.proceed();
-      }
-
-      String logUUID = UUID.randomUUID().toString();
-      ResourceType resourceType = accessControl.resourceType();
-
-      // Capture the input DTO for create/update/status_change
-      String eventScope = LogUtils.getEventScope(action);
-      JsonNode inputNode = getInputNode(joinPoint, eventScope);
-      JsonNode signatureNode = getMethodSignature(joinPoint, inputNode);
-
-      // Execute the business operation
-      String eventStatus;
-
-      try {
-        result = joinPoint.proceed();
-        eventStatus = "success";
-      } catch (Throwable ex) {
-        eventStatus = "error";
-
-        JsonNode resultNode = getOutputNode(result);
-        JsonNode errorNode = buildErrorNode(resultNode, ex);
-
-        accessControlAuditLogger.logAccessControlEvent(
-            eventScope, eventStatus, resourceType, inputNode, errorNode, signatureNode, logUUID);
-
-        throw ex;
-      }
+      result = joinPoint.proceed();
+      eventStatus = "success";
+    } catch (Throwable ex) {
+      eventStatus = "error";
 
       JsonNode resultNode = getOutputNode(result);
+      JsonNode errorNode = buildErrorNode(resultNode, ex);
 
-      accessControlAuditLogger.logAccessControlEvent(
-          eventScope, eventStatus, resourceType, inputNode, resultNode, signatureNode, logUUID);
-    } catch (Exception e) {
-      // Still log the audit event, then continue
-      log.warn("[AUDIT] Audit logging failed (non-blocking): {}", e.getMessage(), e);
-      // TODO AUDIT: Do we only want to log this to log var or do we want to call the
-      // correspondent
-      // LogService?
-      throw e;
+      accessControlAuditLogger
+          .logAccessControlEvent(
+              eventScope, eventStatus, resourceType, inputNode, errorNode, signatureNode, logUUID)
+          .whenComplete(logCompletion);
+
+      throw ex;
     }
+
+    JsonNode resultNode = getOutputNode(result);
+
+    accessControlAuditLogger
+        .logAccessControlEvent(
+            eventScope, eventStatus, resourceType, inputNode, resultNode, signatureNode, logUUID)
+        .whenComplete(logCompletion);
 
     return result;
   }
