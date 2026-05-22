@@ -102,6 +102,11 @@ public class Injector extends BaseConnectorEntity implements TenantBase {
   @JsonIgnore
   private Tenant tenant;
 
+  // Read-only mapping so Hibernate registers the logical column name "tenant_id" in this table
+  @Column(name = "tenant_id", insertable = false, updatable = false)
+  @JsonIgnore
+  private String tenantId;
+
   @Getter(onMethod_ = @JsonIgnore)
   @Transient
   private final ResourceType resourceType = ResourceType.INJECTOR;
