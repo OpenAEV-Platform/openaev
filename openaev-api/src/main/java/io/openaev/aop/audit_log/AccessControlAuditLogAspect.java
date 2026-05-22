@@ -21,6 +21,10 @@ import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
+import org.springframework.expression.EvaluationContext;
+import org.springframework.expression.ExpressionParser;
+import org.springframework.expression.spel.standard.SpelExpressionParser;
+import org.springframework.expression.spel.support.SimpleEvaluationContext;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.RequestBody;
 
@@ -44,6 +48,7 @@ public class AccessControlAuditLogAspect {
   private final PreviewFeatureService previewFeatureService;
 
   private final ObjectMapper objectMapper;
+  private final ExpressionParser parser = new SpelExpressionParser();
 
   @Around("@annotation(accessControl)")
   public Object auditAround(ProceedingJoinPoint joinPoint, AccessControl accessControl)
@@ -68,6 +73,7 @@ public class AccessControlAuditLogAspect {
 
     String logUUID = null;
     ResourceType resourceType = null;
+    String resourceId = null;
     String eventScope = null;
     JsonNode inputNode = null;
     JsonNode signatureNode = null;
@@ -76,6 +82,7 @@ public class AccessControlAuditLogAspect {
     try {
       logUUID = UUID.randomUUID().toString();
       resourceType = accessControl.resourceType();
+      resourceId = resolveResourceId(joinPoint, accessControl);
 
       // Capture the input DTO for create/update/status_change
       eventScope = LogUtils.getEventScope(action);
@@ -111,7 +118,14 @@ public class AccessControlAuditLogAspect {
 
         accessControlAuditLogger
             .logAccessControlEvent(
-                eventScope, "error", resourceType, inputNode, errorNode, signatureNode, logUUID)
+                eventScope,
+                "error",
+                resourceType,
+                resourceId,
+                inputNode,
+                errorNode,
+                signatureNode,
+                logUUID)
             .whenComplete(logCompletion);
       } catch (Exception e) {
         log.warn("Error during audit logging", e);
@@ -125,7 +139,14 @@ public class AccessControlAuditLogAspect {
 
       accessControlAuditLogger
           .logAccessControlEvent(
-              eventScope, "success", resourceType, inputNode, resultNode, signatureNode, logUUID)
+              eventScope,
+              "success",
+              resourceType,
+              resourceId,
+              inputNode,
+              resultNode,
+              signatureNode,
+              logUUID)
           .whenComplete(logCompletion);
     } catch (Exception ex) {
       log.warn("Error during audit logging", ex);
@@ -231,5 +252,30 @@ public class AccessControlAuditLogAspect {
       log.warn("[AUDIT] Failed to build method signature node: {}", e.getMessage(), e);
     }
     return null;
+  }
+
+  /** Resolves the resource ID from the annotation's SpEL expression. */
+  public String resolveResourceId(ProceedingJoinPoint joinPoint, AccessControl accessControl) {
+    if (accessControl.resourceId().isEmpty()) {
+      return "";
+    }
+    try {
+      MethodSignature signature = (MethodSignature) joinPoint.getSignature();
+      String[] paramNames = signature.getParameterNames();
+      Object[] args = joinPoint.getArgs();
+
+      EvaluationContext ctx = SimpleEvaluationContext.forReadOnlyDataBinding().build();
+      if (paramNames != null) {
+        for (int i = 0; i < paramNames.length; i++) {
+          ctx.setVariable(paramNames[i], args[i]);
+        }
+      }
+
+      Object value = parser.parseExpression(accessControl.resourceId()).getValue(ctx);
+      return value != null ? value.toString() : "";
+    } catch (Exception e) {
+      log.warn("[AUDIT] Failed to resolve resourceId SpEL: {}", e.getMessage(), e);
+      return "";
+    }
   }
 }

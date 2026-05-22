@@ -21,6 +21,7 @@ import io.openaev.utils.object.ObjectRedactionUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -66,8 +67,6 @@ public class LogService {
             ? genericLogsEnabled
             : genericLogsEnabled || auditLogsEnabled);
   }
-
-
 
   /**
    * Logs an authentication audit event.
@@ -119,6 +118,7 @@ public class LogService {
       String eventScope,
       String eventStatus,
       ResourceType resourceType,
+      String resourceId,
       JsonNode input,
       JsonNode output,
       JsonNode signatureNode,
@@ -132,6 +132,7 @@ public class LogService {
 
       String entityTypeName = formatResourceType(resourceType);
       String displayName = ResourceManagerUtils.extractNameFromSnapshot(input);
+      displayName = displayName != null ? displayName : resourceId;
       String message;
 
       if ("status_change".equals(eventScope)) {
@@ -150,13 +151,13 @@ public class LogService {
         // Redacted input
         input = objectNormalizationUtils.normalize(input);
         input = ObjectRedactionUtils.redact(input, null);
-        ctx.put("input", objectMapper().convertValue(input, Map.class));
+        ctx.put("input", toContextValue(input));
       }
 
       if (output != null) {
         output = objectNormalizationUtils.normalize(output);
         output = ObjectRedactionUtils.redact(output, entityTypeName);
-        ctx.put("output", objectMapper().convertValue(output, Map.class));
+        ctx.put("output", toContextValue(output));
       }
 
       doc.getRequestData().put("signature", signatureNode);
@@ -359,5 +360,30 @@ public class LogService {
    */
   private ObjectMapper objectMapper() {
     return engineService.getObjectMapper();
+  }
+
+  /** Converts JsonNode payloads to a JSON-compatible Java value while preserving shape. */
+  private Object toContextValue(JsonNode node) {
+    if (node == null || node.isNull()) {
+      return null;
+    }
+
+    ObjectMapper mapper = objectMapper();
+    if (node.isObject()) {
+      return mapper.convertValue(node, Map.class);
+    }
+    if (node.isArray()) {
+      return mapper.convertValue(node, List.class);
+    }
+    if (node.isBoolean()) {
+      return node.booleanValue();
+    }
+    if (node.isNumber()) {
+      return node.numberValue();
+    }
+    if (node.isTextual()) {
+      return node.textValue();
+    }
+    return mapper.convertValue(node, Object.class);
   }
 }
