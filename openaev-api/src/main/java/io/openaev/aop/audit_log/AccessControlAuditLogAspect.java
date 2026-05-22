@@ -95,6 +95,7 @@ public class AccessControlAuditLogAspect {
       // TODO AUDIT: Do we only want to log this to log var or do we want to call the
       // correspondent
       // LogService?
+      throw e;
     }
 
     return result;
