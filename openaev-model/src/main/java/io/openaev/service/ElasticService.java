@@ -780,7 +780,6 @@ public class ElasticService implements EngineService {
     Map<String, String> parameters = runtime.getParameters();
     Map<String, CustomDashboardParameters> definitionParameters = runtime.getDefinitionParameters();
     return runtime.getWidget().getSeries().stream()
-        .parallel()
         .map(c -> termHistogram(user, runtime.getWidget(), c, parameters, definitionParameters))
         .toList();
   }

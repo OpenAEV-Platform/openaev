@@ -39,6 +39,10 @@ public class CollectorComposer extends ComposerBase<Collector> {
               .persist()
               .get();
       collector.setCollectorType(collectorType);
+      // If a collector with this ID already exists, mark as not new to trigger merge (UPDATE)
+      collectorRepository
+          .findById(collector.getId())
+          .ifPresent(existing -> collector.setNewEntity(false));
       collectorRepository.save(this.collector);
       return this;
     }

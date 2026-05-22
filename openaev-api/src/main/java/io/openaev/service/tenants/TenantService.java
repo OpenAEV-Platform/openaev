@@ -50,8 +50,6 @@ public class TenantService {
     // (domains, roles, etc.) is scoped to the new tenant via Hibernate filter.
     String newTenantId = createdTenant.getId();
     TenantContext.setCurrentTenant(newTenantId);
-    org.hibernate.Session session = entityManager.unwrap(org.hibernate.Session.class);
-    session.enableFilter("tenantFilter").setParameter("tenantId", newTenantId);
 
     for (DependenciesManager dependency : sortByPrerequisites(dependencies)) {
       dependency.createDependencyForTenant(createdTenant);

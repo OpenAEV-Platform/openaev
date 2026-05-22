@@ -2,9 +2,11 @@ package io.openaev.rest.scenario;
 
 import static io.openaev.database.model.TenantSettingKeys.TENANT_SCENARIO_DASHBOARD;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
+import static io.openaev.service.UserService.buildAuthenticationToken;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -32,12 +34,11 @@ import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.annotation.Nullable;
 import jakarta.transaction.Transactional;
 import java.time.Instant;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.Authentication;
 import org.springframework.test.web.servlet.MockMvc;
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
@@ -52,6 +53,10 @@ public class ScenarioApiTest extends IntegrationTest {
   @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private ExecutorFixture executorFixture;
   @Autowired private InjectorContractFixture injectorContractFixture;
+  @Autowired private TenantGroupComposer tenantGroupComposer;
+  @Autowired private TenantRoleComposer tenantRoleComposer;
+  @Autowired private GrantComposer grantComposer;
+  @Autowired private UserComposer userComposer;
 
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper objectMapper;
@@ -75,6 +80,10 @@ public class ScenarioApiTest extends IntegrationTest {
     injectComposer.reset();
     injectStatusComposer.reset();
     scenarioComposer.reset();
+    userComposer.reset();
+    grantComposer.reset();
+    tenantGroupComposer.reset();
+    tenantRoleComposer.reset();
   }
 
   private Scenario getScenario(@Nullable Scenario scenario, @Nullable Executor executor) {
@@ -548,9 +557,11 @@ public class ScenarioApiTest extends IntegrationTest {
 
   @DisplayName("Create scenario with injector contracts")
   @Test
-  @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
   void given_validInput_should_createScenarioWithInjectorContracts() throws Exception {
     // -- PREPARE --
+    User testUser = createUserWithManageAssessmentRoleAndGrantOnEmailInjectorContract();
+    Authentication auth = buildAuthenticationToken(testUser);
+
     ScenarioInput scenarioInput = new ScenarioInput();
     scenarioInput.setName("Scenario with injector contracts");
     scenarioInput.setFromName("no-reply@openaev.io");
@@ -568,6 +579,7 @@ public class ScenarioApiTest extends IntegrationTest {
         this.mvc
             .perform(
                 post(SCENARIO_URI + "/with-injector-contracts")
+                    .with(authentication(auth))
                     .with(csrf())
                     .content(asJsonString(input))
                     .contentType(MediaType.APPLICATION_JSON)
@@ -586,9 +598,12 @@ public class ScenarioApiTest extends IntegrationTest {
 
   @DisplayName("Update scenarios with injector contracts")
   @Test
-  @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
   void given_existingScenarios_should_updateScenariosWithInjectorContracts() throws Exception {
     // -- PREPARE --
+    // Create test user with assessment role and granted on email injectorContract
+    User testUser = createUserWithManageAssessmentRoleAndGrantOnEmailInjectorContract();
+    Authentication auth = buildAuthenticationToken(testUser);
+
     Scenario scenarioA =
         scenarioComposer.forScenario(ScenarioFixture.createDefaultCrisisScenario()).persist().get();
     Scenario scenarioB =
@@ -610,6 +625,7 @@ public class ScenarioApiTest extends IntegrationTest {
         this.mvc
             .perform(
                 put(SCENARIO_URI + "/with-injector-contracts")
+                    .with(authentication(auth))
                     .with(csrf())
                     .content(asJsonString(input))
                     .contentType(MediaType.APPLICATION_JSON)
@@ -625,6 +641,29 @@ public class ScenarioApiTest extends IntegrationTest {
     assertTrue(returnedScenarioIds.contains(scenarioB.getId()));
     assertFalse(injectRepository.findByScenarioId(scenarioA.getId()).isEmpty());
     assertFalse(injectRepository.findByScenarioId(scenarioB.getId()).isEmpty());
+  }
+
+  private User createUserWithManageAssessmentRoleAndGrantOnEmailInjectorContract() {
+    Grant grant = new Grant();
+    grant.setGrantResourceType(Grant.GRANT_RESOURCE_TYPE.THREAT_ARSENAL);
+    grant.setName(Grant.GRANT_TYPE.OBSERVER);
+    grant.setResourceId(injectorContractFixture.getWellKnownSingleEmailContract().getId());
+
+    TenantGroupComposer.Composer threatArsenalGroup =
+        tenantGroupComposer
+            .forGroup(TenantGroupFixture.getGroup())
+            .withRole(
+                tenantRoleComposer.forRole(
+                    TenantRoleFixture.getRole(new HashSet<>(Set.of(Capability.MANAGE_ASSESSMENT)))))
+            .withGrant(grantComposer.forGrant(grant));
+
+    return userComposer
+        .forUser(
+            UserFixture.getUser(
+                "AccessThreatArsenals", "User", UUID.randomUUID() + "@unittests.invalid"))
+        .withGroup(threatArsenalGroup)
+        .persist()
+        .get();
   }
 
   private InjectorContractSearchPaginationInput createInjectorContractSearchPaginationInput() {

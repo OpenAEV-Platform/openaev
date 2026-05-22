@@ -195,11 +195,10 @@ public class InjectorContractService implements DependenciesManager {
     User currentUser = userService.currentUser();
     String tenantId = TenantContext.getCurrentTenant();
     if (currentUser.isAdminOrBypass()
-        || currentUser.getCapabilities().contains(Capability.ACCESS_PAYLOADS)) {
+        || currentUser.getCapabilities().contains(Capability.ACCESS_THREAT_ARSENALS)) {
       return injectorContractRepository.getAllRawInjectorsContracts();
     }
-    return injectorContractRepository.getAllRawInjectorsContractsWithoutPayloadOrGranted(
-        currentUser.getId());
+    return injectorContractRepository.getAllRawInjectorsContractsGranted(currentUser.getId());
   }
 
   /**
@@ -365,25 +364,27 @@ public class InjectorContractService implements DependenciesManager {
   }
 
   /**
-   * Updates the attack pattern and vulnerability mappings for a contract.
+   * Updates the attack patterns, domains and tags mappings for a contract.
    *
    * @param injectorContractId the contract ID to update
    * @param input the mapping update input
    * @return the updated injector contract
    * @throws ElementNotFoundException if not found
    */
-  public InjectorContract updateAttackPatternMappings(
+  public InjectorContract updateInjectorContractTTPDomainsAndTags(
       String injectorContractId, InjectorContractUpdateMappingInput input) {
     InjectorContract injectorContract =
         injectorContractRepository
             .findByIdOrExternalId(injectorContractId, injectorContractId)
             .orElseThrow(ElementNotFoundException::new);
+    return updateInjectorContractTTPDomainsAndTags(injectorContract, input);
+  }
+
+  public InjectorContract updateInjectorContractTTPDomainsAndTags(
+      InjectorContract injectorContract, InjectorContractUpdateMappingInput input) {
     injectorContract.setAttackPatterns(
         attackPatternService.findAllByInternalIdsThrowIfMissing(
             new HashSet<>(input.getAttackPatternsIds())));
-    injectorContract.setVulnerabilities(
-        vulnerabilityService.findAllByIdsOrThrowIfMissing(
-            new HashSet<>(input.getVulnerabilityIds())));
     injectorContract.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
     injectorContract.setDomains(iterableToSet(domainService.findAllById(input.getDomainIds())));
     injectorContract.setUpdatedAt(Instant.now());
@@ -391,13 +392,16 @@ public class InjectorContractService implements DependenciesManager {
   }
 
   /**
-   * Deletes a custom injector contract.
+   * Deletes an injector contract.
    *
-   * <p>Only custom contracts (user-created) can be deleted. Built-in contracts cannot be removed.
+   * <p>Only custom contracts (user-created) or payload-based contracts can be deleted. Built-in,
+   * non-payload contracts cannot be removed. When a payload-based contract is deleted, the
+   * associated {@link Payload} is automatically removed via JPA cascade ({@code
+   * CascadeType.REMOVE}).
    *
    * @param injectorContractId the contract ID to delete
    * @throws ElementNotFoundException if not found
-   * @throws IllegalArgumentException if the contract is not custom
+   * @throws IllegalArgumentException if the contract is neither custom nor payload-based
    */
   public void deleteInjectorContract(final String injectorContractId) {
     InjectorContract injectorContract =
@@ -411,9 +415,32 @@ public class InjectorContractService implements DependenciesManager {
       throw new IllegalArgumentException(
           "This injector contract can't be removed because is not a custom one: "
               + injectorContractId);
-    } else {
-      this.injectorContractRepository.deleteById(injectorContract.getId());
     }
+    deleteInjectorContract(injectorContract);
+  }
+
+  public void deleteInjectorContract(InjectorContract injectorContract) {
+    this.injectorContractRepository.delete(injectorContract);
+  }
+
+  /**
+   * Checks whether the given injector contract is payload-based without loading the full entity.
+   *
+   * @param injectorContractId the contract ID to check
+   * @return true if the contract exists and has a non-null payload
+   */
+  public boolean isPayloadBased(String injectorContractId) {
+    return this.injectorContractRepository.existsByIdAndPayloadIsNotNull(injectorContractId);
+  }
+
+  /**
+   * Deletes an injector contract by its ID using a direct DELETE query (no entity loading).
+   *
+   * @param injectorContractId the contract ID to delete
+   */
+  public void deleteInjectorContractById(String injectorContractId) {
+    this.injectorContractRepository.deleteById(
+        new InjectorContractId(injectorContractId, TenantContext.getCurrentTenant()));
   }
 
   /**
@@ -659,7 +686,7 @@ public class InjectorContractService implements DependenciesManager {
         injectorContractRoot.get("platforms").alias("injector_contract_platforms"),
         ctx.payloadJoin().get("type").alias("payload_type"),
         ctx.payloadCollectorTypeJoin().get("name").alias("collector_type"),
-        ctx.injectorJoin().get("type").alias("injector_contract_injector_type"),
+        cb.least(ctx.injectorJoin().<String>get("type")).alias("injector_contract_injector_type"),
         ctx.tagsIdsExpression().alias("injector_contract_tags"),
         ctx.injectorContractDomainsIdsExpression().alias("injector_contract_domains"),
         ctx.payloadJoin().get("status").alias("payload_status"),
@@ -688,7 +715,10 @@ public class InjectorContractService implements DependenciesManager {
         injectorContractRoot.get("platforms").alias("injector_contract_platforms"),
         injectorContractRoot.get("content").alias("injector_contract_content"));
 
-    cq.groupBy(getCommonGroupBy(injectorContractRoot, ctx));
+    List<Expression<?>> groupBy = new ArrayList<>(getCommonGroupBy(injectorContractRoot, ctx));
+    groupBy.add(ctx.injectorJoin().get("type"));
+    groupBy.add(ctx.injectorJoin().get("name"));
+    cq.groupBy(groupBy);
   }
 
   private ThreatArsenalAction mapThreatArsenal(Tuple tuple) {
@@ -792,8 +822,14 @@ public class InjectorContractService implements DependenciesManager {
 
     Specification<InjectorContract> filterSpec = computeFilterGroupJpa(input.getFilterGroup());
     Specification<InjectorContract> searchSpec = computeSearchJpa(input.getTextSearch());
+    Specification<InjectorContract> accessSpec =
+        InjectorContractSpecification.hasAccessToInjectorContract(userService.currentUser());
+
     Specification<InjectorContract> baseSpec =
-        Specification.<InjectorContract>unrestricted().and(filterSpec).and(searchSpec);
+        Specification.<InjectorContract>unrestricted()
+            .and(filterSpec)
+            .and(searchSpec)
+            .and(accessSpec);
 
     CriteriaQuery<InjectorContractDomainCountOutput> qDirect =
         cb.createQuery(InjectorContractDomainCountOutput.class);
@@ -816,7 +852,7 @@ public class InjectorContractService implements DependenciesManager {
     try {
       for (String injectorContractId : listDefaultInjectorContract) {
         InjectorContractId compositeId =
-            new InjectorContractId(injectorContractId, TenantContext.getCurrentTenant());
+            new InjectorContractId(injectorContractId, Tenant.DEFAULT_TENANT_UUID);
         InjectorContract source = entityManager.find(InjectorContract.class, compositeId);
         if (source == null) {
           continue; // contract does not exist for the current tenant — skip

@@ -66,7 +66,8 @@ public class SecurityCoverageUtils {
    * @param objects the list of STIX objects to scan
    * @return a set of {@link StixRefToExternalRef} mappings between STIX and MITRE IDs
    */
-  public Set<StixRefToExternalRef> extractObjectReferences(List<ObjectBase> objects) {
+  public Set<StixRefToExternalRef> extractObjectReferences(
+      List<ObjectBase> objects, final String tenantId) {
     Set<StixRefToExternalRef> stixToRef = new HashSet<>();
 
     for (ObjectBase obj : objects) {
@@ -111,7 +112,8 @@ public class SecurityCoverageUtils {
         if (extensionObj.has(StixConstants.FILES)
             && filesValue instanceof io.openaev.stix.types.List<?> filesList) {
           List<String> documentIds =
-              getAllDocumentIdsFromFiles((io.openaev.stix.types.List<Dictionary>) filesList);
+              getAllDocumentIdsFromFiles(
+                  (io.openaev.stix.types.List<Dictionary>) filesList, tenantId);
           manageAndAddStixRefToExternalRefs(stixToRef, obj, documentIds);
         }
         continue;
@@ -182,7 +184,7 @@ public class SecurityCoverageUtils {
   }
 
   private List<String> getAllDocumentIdsFromFiles(
-      io.openaev.stix.types.List<Dictionary> filesList) {
+      io.openaev.stix.types.List<Dictionary> filesList, final String tenantId) {
     return filesList.getValue().stream()
         .filter(
             file ->
@@ -195,7 +197,8 @@ public class SecurityCoverageUtils {
                   openCtiService.downloadAndSaveFile(
                       (String) file.get(CommonProperties.URI.toString()).getValue(),
                       (String) file.get(CommonProperties.NAME.toString()).getValue(),
-                      (String) file.get(CommonProperties.MIME_TYPE.toString()).getValue());
+                      (String) file.get(CommonProperties.MIME_TYPE.toString()).getValue(),
+                      tenantId);
               return document != null
                   ? document.getId()
                   : (String) file.get(CommonProperties.NAME.toString()).getValue();
