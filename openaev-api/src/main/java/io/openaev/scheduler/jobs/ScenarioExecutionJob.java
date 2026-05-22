@@ -2,7 +2,7 @@ package io.openaev.scheduler.jobs;
 
 import static io.openaev.database.specification.ExerciseSpecification.recurringInstanceNotStarted;
 
-import io.openaev.aop.CrossTenantJob;
+import io.openaev.aop.CrossTenant;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Exercise;
@@ -27,7 +27,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 @Component
-@CrossTenantJob
+@CrossTenant
 @RequiredArgsConstructor
 @DisallowConcurrentExecution
 public class ScenarioExecutionJob implements Job {

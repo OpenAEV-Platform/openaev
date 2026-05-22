@@ -7,6 +7,7 @@ import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.groupingBy;
 
 import com.google.common.annotations.VisibleForTesting;
+import io.openaev.aop.CrossTenant;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ExerciseRepository;
@@ -56,6 +57,7 @@ import org.springframework.expression.spel.support.SimpleEvaluationContext;
 import org.springframework.stereotype.Component;
 
 @Component
+@CrossTenant
 @DisallowConcurrentExecution
 @RequiredArgsConstructor
 @Slf4j
