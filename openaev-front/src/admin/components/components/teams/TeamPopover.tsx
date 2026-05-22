@@ -99,15 +99,19 @@ const TeamPopover: FunctionComponent<TeamPopoverProps> = ({
 
   const handleCloseDelete = () => setOpenDelete(false);
 
-  const submitDelete = () => {
+  const submitDelete = (resetLoading?: () => void) => { // Optional parameter
     dispatch(deleteTeam(team.team_id)).then(
-      () => {
-        if (onDelete) {
-          onDelete(team.team_id);
-        }
-        handleCloseDelete();
-      },
-    );
+        () => {
+          if (onDelete) {
+            onDelete(team.team_id);
+          }
+          handleCloseDelete();
+          resetLoading?.(); // Call it if provided (safe with optional chaining)
+        },
+    ).catch(() => {
+      handleCloseDelete();
+      resetLoading?.(); // Call it if provided
+    });
   };
 
   // Remove

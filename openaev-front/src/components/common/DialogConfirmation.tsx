@@ -9,7 +9,7 @@ import Transition from './Transition';
 interface DialogConfirmationProps {
   open: boolean;
   handleClose: () => void;
-  handleSubmit: (() => void) | (() => Promise<void>) | null | undefined;
+  handleSubmit: ((resetLoading?: () => void) => void | Promise<void>) | null | undefined; // Updated: Callback is now optional
   text: string;
   submitLabel: string;
   richContent?: React.ReactNode;
@@ -27,8 +27,10 @@ const DialogConfirmation: FunctionComponent<DialogConfirmationProps> = ({
   const [loading, setLoading] = useState(false);
 
   const handleLoadingAndSubmit = () => {
-    setLoading(true);
-    if (handleSubmit) handleSubmit();
+    if (handleSubmit) {
+      setLoading(true);
+      handleSubmit(() => setLoading(false));
+    }
   };
 
   return (

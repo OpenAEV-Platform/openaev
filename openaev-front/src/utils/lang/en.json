@@ -297,6 +297,7 @@
   "Can't be tested": "Can't be tested",
   "Cancel": "Cancel",
   "Canceled": "Canceled",
+  "Cannot delete this team because it is still in use. Please remove its dependencies first.": "Cannot delete this team because it is still in use. Please remove its dependencies first.",
   "capture-the-flag": "Capture The Flag",
   "Catalog": "Catalog",
   "Categories and questions": "Categories and questions",
