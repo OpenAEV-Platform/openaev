@@ -5,7 +5,6 @@ import { useState } from 'react';
 import { fetchExecutors } from '../../../actions/executors/executor-action';
 import { type ExecutorHelper } from '../../../actions/executors/executor-helper';
 import { type LoggedHelper } from '../../../actions/helper';
-import { meTokens } from '../../../actions/users/User';
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import Transition from '../../../components/common/Transition';
 import { useFormatter } from '../../../components/i18n';
@@ -41,7 +40,6 @@ const Executors = () => {
   }));
   useDataLoader(() => {
     dispatch(fetchExecutors());
-    dispatch(meTokens());
   });
 
   const order = {

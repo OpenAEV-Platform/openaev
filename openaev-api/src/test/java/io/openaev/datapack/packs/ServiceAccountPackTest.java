@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
 
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
@@ -16,7 +17,6 @@ import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
-import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,8 +31,6 @@ public class ServiceAccountPackTest extends IntegrationTest {
   @Autowired private ServiceAccountPrivilegeService privilegeService;
   @Autowired private UserService userService;
   @Autowired private EntityManager entityManager;
-
-  @Mock private ServiceAccountPrivilegeService mockPrivilegeService;
 
   @Test
   @DisplayName("Should create service account when processing pack")
@@ -90,7 +88,10 @@ public class ServiceAccountPackTest extends IntegrationTest {
   @Test
   @DisplayName("Should return false and not mark datapack when privilege service throws")
   void given_privilegeServiceFailure_should_returnFalse() {
-    // Arrange
+    // Arrange — local mock; we don't need to replace the Spring bean since the datapack
+    // takes the privilege service as a constructor argument.
+    ServiceAccountPrivilegeService mockPrivilegeService =
+        mock(ServiceAccountPrivilegeService.class);
     doThrow(new RuntimeException("DB error"))
         .when(mockPrivilegeService)
         .ensurePrivilegedUserExists(anyString());

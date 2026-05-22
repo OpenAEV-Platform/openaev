@@ -1,6 +1,8 @@
 package io.openaev.rest.role;
 
 import static io.openaev.utils.JsonTestUtils.asJsonString;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -30,9 +32,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @TestInstance(PER_CLASS)
 @Transactional
@@ -222,8 +221,7 @@ public class TenantRoleReservedNameApiTest extends IntegrationTest {
 
     @Test
     @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
-    @DisplayName(
-        "given_existing_role_has_reserved_name_should_allow_update via updateRoleInternal")
+    @DisplayName("given_existing_role_has_reserved_name_should_allow_update via updateRoleInternal")
     void given_existingReservedRole_should_allowUpdate_viaInternal() {
       // -------- Arrange --------
       Role reserved =
@@ -258,10 +256,7 @@ public class TenantRoleReservedNameApiTest extends IntegrationTest {
       assertThatThrownBy(
               () ->
                   roleService.updateRoleInternal(
-                      unknownId,
-                      "any-name",
-                      "any-desc",
-                      Set.of(Capability.AGENT_RUNTIME_ACCESS)))
+                      unknownId, "any-name", "any-desc", Set.of(Capability.AGENT_RUNTIME_ACCESS)))
           .isInstanceOf(ElementNotFoundException.class);
     }
   }

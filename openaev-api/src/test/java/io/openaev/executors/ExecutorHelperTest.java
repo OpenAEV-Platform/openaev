@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
-import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -44,10 +43,6 @@ class ExecutorHelperTest {
   @Test
   @DisplayName("Should replace token placeholder for Linux platform")
   void shouldReplaceTokenForLinux() {
-    System.out.println(UUID.randomUUID().toString());
-    System.out.println(UUID.randomUUID().toString());
-    System.out.println(UUID.randomUUID().toString());
-    System.out.println(UUID.randomUUID().toString());
     // prepare
     String command = "echo $token #{tenant}";
 

@@ -66,6 +66,7 @@ public class ExecutorHelper {
       String agentId,
       String tenantId,
       String token) {
+    if (token == null) throw new IllegalArgumentException("token must not be null.");
     return replaceArgs(platformType, command, injectId, agentId, tenantId).replace("$token", token);
   }
 }
