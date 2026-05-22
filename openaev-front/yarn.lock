@@ -9916,7 +9916,7 @@ __metadata:
     react-final-form-arrays: "npm:4.0.0"
     react-grid-layout: "npm:2.2.3"
     react-hook-form: "npm:7.75.0"
-    react-intl: "npm:10.1.7"
+    react-intl: "npm:10.1.8"
     react-markdown: "npm:10.1.0"
     react-redux: "npm:9.2.0"
     react-router: "npm:7.15.1"
@@ -10557,9 +10557,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-intl@npm:10.1.7":
-  version: 10.1.7
-  resolution: "react-intl@npm:10.1.7"
+"react-intl@npm:10.1.8":
+  version: 10.1.8
+  resolution: "react-intl@npm:10.1.8"
   dependencies:
     "@formatjs/icu-messageformat-parser": "npm:3.5.9"
     "@formatjs/intl": "npm:4.1.11"
@@ -10567,7 +10567,7 @@ __metadata:
   peerDependencies:
     "@types/react": 19
     react: 19
-  checksum: 10c0/128a3b9600dc86ac1f27eef0e94d8df088a1b7670769518b871e23b9e808edcc96b9e359563213fe2c0496e88df7d5c98a7df3fc0f8cf5a767a51fb09fada881
+  checksum: 10c0/c67c98a528dabf82fcc08c53809c8217b056b21b060880579497553fa8bb9169d9159ff98cf801a19235d471c3e6189b9956854b4cb97d9d8f8e7f54d521d518
   languageName: node
   linkType: hard
 
