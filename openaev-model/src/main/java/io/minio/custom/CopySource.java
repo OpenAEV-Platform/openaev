@@ -4,9 +4,9 @@ import com.google.common.collect.Multimap;
 import io.minio.ObjectConditionalReadArgs;
 
 /**
- * Cloned class to work around a MinIO limitation with handling copy
- * of paths with leading slash when interacting with actual AWS S3 buckets.
- * It overrides a single method to restore a non escaped path as copy source.
+ * Cloned class to work around a MinIO limitation with handling copy of paths with leading slash
+ * when interacting with actual AWS S3 buckets. It overrides a single method to restore a non
+ * escaped path as copy source.
  */
 public class CopySource extends io.minio.CopySource {
   public CopySource() {
@@ -35,7 +35,9 @@ public class CopySource extends io.minio.CopySource {
     Multimap<String, String> minioHeaders = super.genCopyHeaders();
 
     // restore the original copy path with bucket name prefix
-    minioHeaders.put("x-amz-copy-source", "/" + bucketName + "/" + objectName);
+    String copySourceHeader = "x-amz-copy-source";
+    minioHeaders.removeAll(copySourceHeader);
+    minioHeaders.put(copySourceHeader, "/" + bucketName + "/" + objectName);
     return minioHeaders;
   }
 }
