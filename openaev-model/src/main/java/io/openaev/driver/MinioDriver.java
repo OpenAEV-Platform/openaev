@@ -2,12 +2,12 @@ package io.openaev.driver;
 
 import io.minio.*;
 import io.minio.credentials.*;
-import io.minio.custom.CopySource;
 import io.minio.messages.Item;
 import io.openaev.config.MinioConfig;
 import io.openaev.config.S3Config;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.TenantRepository;
+import io.openaev.minio.CopySource;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;

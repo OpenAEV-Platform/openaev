@@ -1,7 +1,8 @@
-package io.minio.custom;
+package io.openaev.minio;
 
 import com.google.common.collect.Multimap;
 import io.minio.ObjectConditionalReadArgs;
+import io.minio.S3Escaper;
 
 /**
  * Cloned class to work around a MinIO limitation with handling copy of paths with leading slash
@@ -37,7 +38,9 @@ public class CopySource extends io.minio.CopySource {
     // restore the original copy path with bucket name prefix
     String copySourceHeader = "x-amz-copy-source";
     minioHeaders.removeAll(copySourceHeader);
-    minioHeaders.put(copySourceHeader, "/" + bucketName + "/" + objectName);
+    minioHeaders.put(
+        copySourceHeader,
+        S3Escaper.encodePath("/" + bucketName + "/") + S3Escaper.encodePath(objectName));
     return minioHeaders;
   }
 }
