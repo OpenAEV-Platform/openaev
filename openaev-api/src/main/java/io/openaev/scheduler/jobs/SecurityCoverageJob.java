@@ -41,9 +41,6 @@ public class SecurityCoverageJob implements Job {
     List<SecurityCoverageSendJob> successfulJobs = new ArrayList<>();
     for (SecurityCoverageSendJob securityCoverageSendJob : jobs) {
       try {
-        // send bundle
-        Bundle resultBundle =
-            securityCoverageService.createBundleFromSendJobs(List.of(securityCoverageSendJob));
         String tenantId =
             ofNullable(securityCoverageSendJob.getSimulation())
                 .map(Exercise::getTenant)
@@ -51,6 +48,9 @@ public class SecurityCoverageJob implements Job {
                 .orElseThrow(() -> new IllegalStateException("Simulation or tenant not found"));
         // Set tenant context for downstream Hibernate filters and audit
         TenantContext.setCurrentTenant(tenantId);
+        // send bundle
+        Bundle resultBundle =
+            securityCoverageService.createBundleFromSendJobs(List.of(securityCoverageSendJob));
         openCTIConnectorService.pushSecurityCoverageStixBundle(resultBundle, tenantId);
         successfulJobs.add(securityCoverageSendJob);
       } catch (Exception e) {
