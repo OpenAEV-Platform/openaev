@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
+import org.hibernate.Session;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Named;
@@ -29,6 +30,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.test.util.ReflectionTestUtils;
 
 /**
  * Contract tests that verify the sync path ({@link
@@ -55,6 +57,7 @@ class InjectCallbackContractTest {
   @Mock private StructuredOutputUtils structuredOutputUtils;
   @Mock private BatchQueueService<InjectExecutionCallback> injectTraceQueueService;
   @Mock private EntityManager entityManager;
+  @Mock private Session session;
 
   private InjectExecutionService injectExecutionService;
   private BatchingInjectStatusService batchingService;
@@ -97,6 +100,9 @@ class InjectCallbackContractTest {
             injectExecutionService,
             entityManager);
     batchingService.setInjectTraceQueueService(injectTraceQueueService);
+
+    ReflectionTestUtils.setField(batchingService, "entityManager", entityManager);
+    when(entityManager.unwrap(Session.class)).thenReturn(session);
   }
 
   private CallbackInvoker syncInvoker() {
