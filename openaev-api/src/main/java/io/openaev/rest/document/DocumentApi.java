@@ -10,7 +10,6 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.context.TenantContext;
 import io.openaev.aop.UrlAccessControl;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
