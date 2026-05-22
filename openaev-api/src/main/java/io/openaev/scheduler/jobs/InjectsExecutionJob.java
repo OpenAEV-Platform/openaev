@@ -78,8 +78,6 @@ public class InjectsExecutionJob implements Job {
   private final io.openaev.executors.Executor executor;
   private final ActionMetricCollector actionMetricCollector;
   private final NotificationEventService notificationEventService;
-  private final SecurityCoverageSendJobService securityCoverageSendJobService;
-  private final EntityManager entityManager;
 
   private final PreviewFeatureService previewFeatureService;
 
@@ -106,8 +104,6 @@ public class InjectsExecutionJob implements Job {
   }
 
   public void handleAutoStartExercises() {
-    // Disable tenant filter — called from InjectsExecutionJob which runs cross-tenant
-    entityManager.unwrap(Session.class).disableFilter("tenantFilter");
     List<Exercise> exercises = exerciseRepository.findAllShouldBeInRunningState(now());
     if (exercises.isEmpty()) {
       return;
@@ -145,7 +141,7 @@ public class InjectsExecutionJob implements Job {
                 .toList());
 
     // maybe trigger stix coverage background job
-    securityCoverageSendJobService.createOrUpdateCoverageSendJobForSimulationsIfReady(
+    need asecurityCoverageSendJobService.createOrUpdateCoverageSendJobForSimulationsIfReady(
         exercisesFinished);
 
     // send notification
@@ -452,8 +448,6 @@ public class InjectsExecutionJob implements Job {
   }
 
   private void handleInjectExpectationCollectStatus() {
-    // Disable tenant filter — called from InjectsExecutionJob which runs cross-tenant
-    entityManager.unwrap(Session.class).disableFilter("tenantFilter");
     List<Inject> injects = injectService.getExecutedAndNotFinished();
     if (injects.isEmpty()) {
       return;

@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 public class TenantContext implements EvaluationContextExtension {
 
   private static final ThreadLocal<String> CURRENT_TENANT = new ThreadLocal<>();
+  private static final ThreadLocal<Boolean> CROSS_TENANT = ThreadLocal.withInitial(() -> false);
 
   public static String getCurrentTenant() {
     String tenant = CURRENT_TENANT.get();
@@ -28,6 +29,24 @@ public class TenantContext implements EvaluationContextExtension {
 
   public static void clearCurrentTenant() {
     CURRENT_TENANT.remove();
+  }
+
+  /**
+   * Mark the current thread as running in cross-tenant mode. When active, the Hibernate tenant
+   * filter will NOT be enabled, allowing queries to span all tenants.
+   */
+  public static void enableCrossTenant() {
+    CROSS_TENANT.set(true);
+  }
+
+  /** Clear cross-tenant mode. Should be called in a finally block. */
+  public static void disableCrossTenant() {
+    CROSS_TENANT.remove();
+  }
+
+  /** Returns {@code true} if the current thread is in cross-tenant mode. */
+  public static boolean isCrossTenant() {
+    return CROSS_TENANT.get();
   }
 
   @Override

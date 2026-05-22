@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Before;
 import org.hibernate.Session;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 /**
@@ -18,6 +19,7 @@ import org.springframework.stereotype.Component;
 @Aspect
 @Component
 @RequiredArgsConstructor
+@Order(2)
 public class HibernateFilterTransactionAspect {
 
   private final EntityManager entityManager;
@@ -26,6 +28,10 @@ public class HibernateFilterTransactionAspect {
       "@annotation(org.springframework.transaction.annotation.Transactional) || "
           + "@annotation(jakarta.transaction.Transactional)")
   public void enableFilters() {
+    // Skip tenant filter for cross-tenant jobs (e.g. schedulers operating on all tenants)
+    if (TenantContext.isCrossTenant()) {
+      return;
+    }
     String tenantId = TenantContext.getCurrentTenant();
     Session session = entityManager.unwrap(Session.class);
 
