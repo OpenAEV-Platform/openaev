@@ -31,6 +31,7 @@ import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.*;
 import io.openaev.service.chaining.ConditionService;
+import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowStateService;
 import io.openaev.utils.ConditionUtils;
@@ -79,6 +80,7 @@ public class InjectExecutionStep implements ActionStep {
   private final AssetGroupService assetGroupService;
   private final ConditionService conditionService;
   private final WorkflowStateService workflowStateService;
+  private final ScopeService scopeService;
 
   private final InjectorContractRepository injectorContractRepository;
 
@@ -303,15 +305,16 @@ public class InjectExecutionStep implements ActionStep {
       for (Map<String, JsonElement> entry : output) {
         if (entry.containsKey("parsed")) {
           JsonObject parsed = entry.get("parsed").getAsJsonObject();
-          if (parsed.has("_children")) {
-            JsonObject children = parsed.getAsJsonObject("_children");
 
-            for (String key : children.keySet()) {
-              JsonArray valuesArray = children.getAsJsonObject(key).getAsJsonArray("_children");
-              for (JsonElement item : valuesArray) {
-                String val = item.getAsJsonObject().get("_value").getAsString();
-                // SyncState keys are usually Uppercase (e.g., "IP")
-                result.computeIfAbsent(key, k -> new ArrayList<>()).add(val);
+          for (String key : parsed.keySet()) {
+            JsonElement element = parsed.get(key);
+            if (element == null || !element.isJsonArray()) {
+              continue;
+            }
+            JsonArray valuesArray = element.getAsJsonArray();
+            for (JsonElement item : valuesArray) {
+              if (item.isJsonPrimitive()) {
+                result.computeIfAbsent(key, k -> new ArrayList<>()).add(item.getAsString());
               }
             }
           }
@@ -521,19 +524,6 @@ public class InjectExecutionStep implements ActionStep {
     StepsCreateInput.StepInput stepCreateInput = new StepsCreateInput.StepInput();
     stepCreateInput.setDataStep(input);
     stepCreateInput.setStepAction(StepActionClass.INJECT_EXECUTION);
-
-    if (input.getDependsDuration() != 0) {
-      ConditionCreateInput conditionCreateInput =
-          ConditionCreateInput.builder()
-              .temporaryId("0")
-              .type(ConditionType.AFTER)
-              .key(null)
-              .keyType(null)
-              .mappingType(null)
-              .value(String.valueOf(input.getDependsDuration()))
-              .build();
-      stepCreateInput.setConditions(List.of(conditionCreateInput));
-    }
     // TODO DEPEND ON
 
     return stepCreateInput;
@@ -577,6 +567,12 @@ public class InjectExecutionStep implements ActionStep {
     try {
       // GET INJECT FROM JSON
       Inject inject = om.readValue(step.getData(), Inject.class);
+
+      // Ensure dependsDuration has a default value — it is a legacy scheduling field
+      // that may not be present in the serialized step data but has a @NotNull constraint.
+      if (inject.getDependsDuration() == null) {
+        inject.setDependsDuration(0L);
+      }
 
       ObjectMapper mapper = new ObjectMapper();
       JsonNode root = mapper.readTree(step.getData());
@@ -635,6 +631,8 @@ public class InjectExecutionStep implements ActionStep {
       // Modify payload arguments with inputs from step
       ObjectNode updatedContent = updateContentWithInputs(step, injectorContract.getContent());
       inject.setContent(updatedContent);
+
+      inject.setAssets(scopeService.getValidAssets(step.getWorkflow().getId()));
 
       return inject;
 
@@ -732,7 +730,7 @@ public class InjectExecutionStep implements ActionStep {
       if (trace.getStructuredOutput() != null) {
         log.info(
             "[Chaining] Trace has structuredOutput: {}", trace.getStructuredOutput().toString());
-        map.put("parsed", gson.toJsonTree(trace.getStructuredOutput()));
+        map.put("parsed", JsonParser.parseString(trace.getStructuredOutput().toString()));
       } else {
         log.info("[Chaining] Trace has NO structuredOutput, message: {}", trace.getMessage());
         try {

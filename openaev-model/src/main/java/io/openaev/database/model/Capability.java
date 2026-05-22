@@ -100,37 +100,52 @@ public enum Capability {
       EnumSet.of(CapabilityScope.TENANT),
       pair(ResourceType.ASSET, Action.READ),
       pair(ResourceType.ASSET_GROUP, Action.READ),
-      pair(ResourceType.JOB, Action.READ),
       pair(ResourceType.ASSET, Action.SEARCH),
-      pair(ResourceType.ASSET_GROUP, Action.SEARCH),
-      pair(ResourceType.JOB, Action.SEARCH)),
+      pair(ResourceType.ASSET_GROUP, Action.SEARCH)),
   MANAGE_ASSETS(
       ACCESS_ASSETS,
       pair(ResourceType.ASSET, Action.WRITE),
       pair(ResourceType.ASSET_GROUP, Action.WRITE),
-      pair(ResourceType.JOB, Action.WRITE),
       pair(ResourceType.ASSET, Action.CREATE),
-      pair(ResourceType.ASSET_GROUP, Action.CREATE),
-      pair(ResourceType.JOB, Action.CREATE)),
+      pair(ResourceType.ASSET_GROUP, Action.CREATE)),
   DELETE_ASSETS(
       MANAGE_ASSETS,
       pair(ResourceType.ASSET, Action.DELETE),
-      pair(ResourceType.ASSET_GROUP, Action.DELETE),
-      pair(ResourceType.JOB, Action.DELETE)),
+      pair(ResourceType.ASSET_GROUP, Action.DELETE)),
 
-  // Payloads
+  // Payloads -- PAYLOAD CAPABILITIES ARE DEPRECATED
+  @Deprecated(
+      since = "Remove after closing https://github.com/OpenAEV-Platform/client-python/issues/211")
   ACCESS_PAYLOADS(
       null,
-      CapabilityGroup.PAYLOADS,
-      EnumSet.of(CapabilityScope.TENANT),
+      CapabilityGroup.THREAT_ARSENALS,
+      Set.of(),
       pair(ResourceType.PAYLOAD, Action.READ),
       pair(ResourceType.PAYLOAD, Action.SEARCH)),
+  @Deprecated(
+      since = "Remove after closing https://github.com/OpenAEV-Platform/client-python/issues/211")
   MANAGE_PAYLOADS(
       ACCESS_PAYLOADS,
       pair(ResourceType.PAYLOAD, Action.WRITE),
       pair(ResourceType.PAYLOAD, Action.CREATE),
       pair(ResourceType.PAYLOAD, Action.DUPLICATE)),
+  @Deprecated(
+      since = "Remove after closing https://github.com/OpenAEV-Platform/client-python/issues/211")
   DELETE_PAYLOADS(MANAGE_PAYLOADS, pair(ResourceType.PAYLOAD, Action.DELETE)),
+
+  // Threat Arsenal —
+  ACCESS_THREAT_ARSENALS(
+      null,
+      CapabilityGroup.THREAT_ARSENALS,
+      EnumSet.of(CapabilityScope.TENANT),
+      pair(ResourceType.THREAT_ARSENAL, Action.READ),
+      pair(ResourceType.THREAT_ARSENAL, Action.SEARCH)),
+  MANAGE_THREAT_ARSENALS(
+      ACCESS_THREAT_ARSENALS,
+      pair(ResourceType.THREAT_ARSENAL, Action.WRITE),
+      pair(ResourceType.THREAT_ARSENAL, Action.CREATE),
+      pair(ResourceType.THREAT_ARSENAL, Action.DUPLICATE)),
+  DELETE_THREAT_ARSENALS(MANAGE_THREAT_ARSENALS, pair(ResourceType.THREAT_ARSENAL, Action.DELETE)),
 
   // Dashboards
   ACCESS_DASHBOARDS(
@@ -370,7 +385,17 @@ public enum Capability {
       true,
       true,
       EnumSet.of(CapabilityScope.TENANT),
-      pair(ResourceType.STIX_BUNDLE, Action.PROCESS));
+      pair(ResourceType.STIX_BUNDLE, Action.PROCESS)),
+
+  AGENT_RUNTIME_ACCESS(
+      null,
+      CapabilityGroup.SERVICE,
+      true,
+      true,
+      EnumSet.of(CapabilityScope.TENANT),
+      pair(ResourceType.JOB, Action.READ),
+      pair(ResourceType.JOB, Action.WRITE),
+      pair(ResourceType.AGENT, Action.CREATE));
 
   private record ResourceTypeActionPair(ResourceType resource, Action action) {}
 

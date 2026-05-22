@@ -1,8 +1,6 @@
 import { Checkbox } from '@mui/material';
-import { useEffect } from 'react';
 
 import { addGrant, deleteGrant } from '../../../../../../../actions/Grant';
-import { fetchGroup } from '../../../../../../../actions/Group';
 import { type GroupHelper } from '../../../../../../../actions/group/group-helper';
 import { useFormatter } from '../../../../../../../components/i18n';
 import { useHelper } from '../../../../../../../store';
@@ -20,16 +18,6 @@ const useAtomicTestingGrant = ({ groupId, onGrantChange }: AtomicTestingGrantsPr
   const dispatch = useAppDispatch();
   const group = useHelper((helper: GroupHelper) => helper.getGroup(groupId));
 
-  useEffect(() => {
-    dispatch(fetchGroup(groupId));
-  }, [dispatch, groupId]);
-
-  useEffect(() => {
-    if (group) {
-      onGrantChange();
-    }
-  }, [group, onGrantChange]);
-
   const handleGrant = (injectId: string, grantId: string | null, grantName: GroupGrantInput['grant_name'], checked: boolean) => {
     if (!group) {
       return;
@@ -41,9 +29,9 @@ const useAtomicTestingGrant = ({ groupId, onGrantChange }: AtomicTestingGrantsPr
         grant_resource: injectId,
         grant_resource_type: 'ATOMIC_TESTING',
       };
-      dispatch(addGrant(group.group_id, data));
+      dispatch(addGrant(group.group_id, data)).then(onGrantChange);
     } else {
-      dispatch(deleteGrant(group.group_id, grantId));
+      dispatch(deleteGrant(group.group_id, grantId)).then(onGrantChange);
     }
   };
 

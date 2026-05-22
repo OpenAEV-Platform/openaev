@@ -25,6 +25,8 @@ public interface ExerciseRepository
   @NotNull
   Optional<Exercise> findById(@NotNull String id);
 
+  Optional<Exercise> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
+
   @Query(value = "select e from Exercise e where e.status = 'SCHEDULED' and e.start <= :start")
   List<Exercise> findAllShouldBeInRunningState(@Param("start") Instant start);
 
@@ -209,6 +211,7 @@ public interface ExerciseRepository
               + "LEFT JOIN injects inj ON ex.exercise_id = inj.inject_exercise "
               + "LEFT JOIN workflows w ON w.workflow_simulation_id = ex.exercise_id AND w.workflow_status = 'TEMPLATE' "
               + "WHERE ex.exercise_id = :exerciseId "
+              + "AND ex.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY ex.exercise_id ;",
       nativeQuery = true)
   RawSimulationIndexing rawDetailsById(@Param("exerciseId") String exerciseId);

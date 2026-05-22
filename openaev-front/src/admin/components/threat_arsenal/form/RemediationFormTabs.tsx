@@ -4,7 +4,7 @@ import { type SyntheticEvent, useContext, useEffect, useState } from 'react';
 
 import { fetchCollectors } from '../../../../actions/Collector';
 import type { CollectorHelper } from '../../../../actions/collectors/collector-helper';
-import { fetchCollectorsForPayload } from '../../../../actions/payloads/payload-actions';
+import { fetchCollectorsForActionRemediation } from '../../../../actions/threat_arsenals/threatArsenal-actions';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
 import { COLLECTOR_LIST } from '../../../../constants/Entities';
@@ -44,7 +44,7 @@ const RemediationFormTabs = ({ actionId }: RemediationFormTabsProps) => {
       });
     } else if (actionId) {
       setLoading(true);
-      dispatch(fetchCollectorsForPayload(actionId)).finally(() => {
+      dispatch(fetchCollectorsForActionRemediation(actionId)).finally(() => {
         setLoading(false);
       });
     }

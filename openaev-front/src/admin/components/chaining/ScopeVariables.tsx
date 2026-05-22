@@ -1,5 +1,6 @@
 import { Add, DeleteOutlined } from '@mui/icons-material';
 import {
+  Box,
   Chip,
   IconButton,
   Paper,
@@ -10,7 +11,12 @@ import { useTheme } from '@mui/material/styles';
 import { useState } from 'react';
 
 import { useFormatter } from '../../../components/i18n';
-import { type ScopeVariableInput, type ScopeVariableOutput, type WorkflowConfigurationInput, type WorkflowConfigurationOutput } from '../../../utils/api-types';
+import {
+  type ScopeVariableInput,
+  type ScopeVariableOutput,
+  type WorkflowConfigurationInput,
+  type WorkflowConfigurationOutput,
+} from '../../../utils/api-types';
 import ScopeVariableCreateDialog from './ScopeVariableCreateDialog';
 
 interface ScopeVariablesProps {
@@ -48,24 +54,32 @@ const ScopeVariables = ({ workflowConfiguration, onUpdate }: ScopeVariablesProps
   };
 
   return (
-    <div style={{
+    <Box sx={{
       display: 'grid',
       gridTemplateRows: 'min-content 1fr',
       gap: theme.spacing(1),
     }}
     >
       {/* Header */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-      }}
+      <Typography
+        variant="h4"
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          m: 0,
+        }}
       >
-        <Typography variant="h4">{t('Variables')}</Typography>
-        <IconButton color="primary" size="small" onClick={() => setOpen(true)} aria-label={t('Add variable')}>
+        {t('Variables')}
+        <IconButton
+          color="primary"
+          size="small"
+          onClick={() => setOpen(true)}
+          aria-label={t('Add variable')}
+        >
           <Add fontSize="small" />
         </IconButton>
-      </div>
+      </Typography>
 
       {/* List */}
       <Paper variant="outlined" sx={{ p: theme.spacing(2) }}>
@@ -162,7 +176,7 @@ const ScopeVariables = ({ workflowConfiguration, onUpdate }: ScopeVariablesProps
         onClose={() => setOpen(false)}
         onSubmit={handleCreate}
       />
-    </div>
+    </Box>
   );
 };
 

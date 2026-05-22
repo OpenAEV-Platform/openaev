@@ -3,7 +3,6 @@ package io.openaev.integration.impl.injectors.channel;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.repository.ArticleRepository;
 import io.openaev.executors.InjectorContext;
-import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.injectors.channel.ChannelContract;
 import io.openaev.injectors.channel.ChannelExecutor;
 import io.openaev.injectors.email.service.EmailService;
@@ -13,10 +12,9 @@ import io.openaev.integration.QualifiedComponent;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
-import java.util.List;
 
 public class ChannelInjectorIntegration extends IntegrationInMemory {
-  private static final String CHANNEL_INJECTOR_NAME = "Media pressure";
+  static final String CHANNEL_INJECTOR_NAME = "Media pressure";
   public static final String CHANNEL_INJECTOR_ID = "8d932e36-353c-48fa-ba6f-86cb7b02ed19";
 
   private final ChannelContract channelContract;
@@ -51,16 +49,6 @@ public class ChannelInjectorIntegration extends IntegrationInMemory {
 
   @Override
   protected void innerStart() throws Exception {
-    injectorService.registerBuiltinInjector(
-        CHANNEL_INJECTOR_ID,
-        CHANNEL_INJECTOR_NAME,
-        this.channelContract,
-        false,
-        "media-pressure",
-        null,
-        null,
-        false,
-        List.of(ExternalServiceDependency.SMTP, ExternalServiceDependency.SMTP));
     this.channelExecutor =
         new ChannelExecutor(
             injectorContext,
