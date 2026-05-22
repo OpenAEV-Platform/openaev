@@ -10,7 +10,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
@@ -27,9 +26,6 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 @Slf4j
 public class AccessControlAuditLogger {
-
-  @Value("${openaev.audit-logs.stop-the-world:false}")
-  private boolean stw;
 
   private final AuditRequestValidator auditRequestValidator;
 
