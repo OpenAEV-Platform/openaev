@@ -16,6 +16,8 @@ import io.openaev.service.queue.BatchQueueService;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
+
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -35,6 +37,7 @@ class BatchingInjectStatusServiceTest {
   @Mock private AgentRepository agentRepository;
   @Mock private StructuredOutputUtils structuredOutputUtils;
   @Mock private InjectExecutionService injectExecutionService;
+  @Mock private EntityManager entityManager;
 
   @Mock private BatchQueueService<InjectExecutionCallback> injectTraceQueueService;
 
