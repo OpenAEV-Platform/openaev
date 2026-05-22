@@ -2,6 +2,7 @@ package io.openaev.driver;
 
 import io.minio.*;
 import io.minio.credentials.*;
+import io.minio.custom.CopySource;
 import io.minio.messages.Item;
 import io.openaev.config.MinioConfig;
 import io.openaev.config.S3Config;
@@ -95,40 +96,18 @@ public class MinioDriver {
 
       log.info("Migrating file '{}' to '{}'", objectName, newObjectName);
 
-      // debug stuff
-      try {
-        minioClient.getObject(GetObjectArgs.builder().bucket(bucket).object(objectName).build());
-      } catch (Exception e) {
-        log.error("GET {} FAILED", objectName, e);
-        // do nothing
-      }
-
       // Copy to new path under default tenant
-      try {
-        minioClient.copyObject(
-            CopyObjectArgs.builder()
-                .bucket(bucket)
-                .object(newObjectName)
-                .source(
-                    CopySource.builder()
-                        .bucket(bucket)
-                        .object(objectName.startsWith("/") ? objectName.substring(1) : objectName)
-                        .build())
-                .build());
 
-      } catch (Exception e) {
-        log.error("COPY {} to {} FAILED", objectName, newObjectName, e);
-        throw e;
-      }
+      minioClient.copyObject(
+          CopyObjectArgs.builder()
+              .bucket(bucket)
+              .object(newObjectName)
+              .source(CopySource.customBuilder().bucket(bucket).object(objectName).build())
+              .build());
 
       // Remove original
-      try {
-        minioClient.removeObject(
-            RemoveObjectArgs.builder().bucket(bucket).object(objectName).build());
-      } catch (Exception e) {
-        log.error("REMOVE {} FAILED", objectName, e);
-        throw e;
-      }
+      minioClient.removeObject(
+          RemoveObjectArgs.builder().bucket(bucket).object(objectName).build());
     }
   }
 }
