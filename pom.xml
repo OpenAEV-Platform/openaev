@@ -31,6 +31,10 @@
         <jacoco-plugin.version>0.8.14</jacoco-plugin.version>
         <pyroscope.version>2.5.2</pyroscope.version>
         <spring-security-crypto.version>6.5.10</spring-security-crypto.version>
+        <bouncycastle.version>1.84</bouncycastle.version>
+        <netty.version>4.1.133.Final</netty.version>
+        <commons-lang3.version>3.20.0</commons-lang3.version>
+        <tools-jackson-core.version>3.1.3</tools-jackson-core.version>
     </properties>
 
     <distributionManagement>
@@ -66,26 +70,26 @@
             <dependency>
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-lang3</artifactId>
-                <version>3.20.0</version> <!-- Force version for lack of update in commons-collections4 -->
+                <version>${commons-lang3.version}</version> <!-- Force version for lack of update in commons-collections4 -->
             </dependency>
             <dependency>
                 <groupId>io.netty</groupId>
                 <artifactId>netty-bom</artifactId>
-                <version>4.1.133.Final</version>
+                <version>${netty.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
             <dependency>
                 <groupId>org.bouncycastle</groupId>
                 <artifactId>bc-jdk18on-bom</artifactId>
-                <version>1.84</version>
+                <version>${bouncycastle.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
             <dependency>
                 <groupId>tools.jackson.core</groupId>
                 <artifactId>jackson-core</artifactId>
-                <version>3.1.3</version>
+                <version>${tools-jackson-core.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
