@@ -28,6 +28,7 @@ import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.rest.asset.endpoint.form.EndpointOutput;
 import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.service.account.ServiceAccountPrivilegeService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.mapper.EndpointMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -87,8 +88,7 @@ public class EndpointService {
 
   private final EndpointMapper endpointMapper;
 
-  @Value("${openbas.admin.token:${openaev.admin.token:#{null}}}")
-  private String adminToken;
+  private final ServiceAccountPrivilegeService privilegeService;
 
   @Value("${info.app.version:unknown}")
   String version;
@@ -777,6 +777,9 @@ public class EndpointService {
       String serviceNameOrPrefix,
       String tenantId)
       throws IOException {
+    // FIND TOKEN BY TENANT
+    String token =
+        privilegeService.getTokenUserServiceAccountByTenant(TenantContext.getCurrentTenant());
     String upgradeName = OPENAEV_AGENT_UPGRADE;
     if (installationMode != null && !installationMode.equals(SERVICE)) {
       upgradeName = upgradeName.concat("-").concat(installationMode);
@@ -785,7 +788,7 @@ public class EndpointService {
     serviceNameOrPrefix =
         generateServiceNameOrPrefix(platform, installationMode, serviceNameOrPrefix);
     return getFileOrDownloadFromJfrog(
-        platform, upgradeName, adminToken, installationDir, serviceNameOrPrefix, tenantId);
+        platform, upgradeName, token, installationDir, serviceNameOrPrefix, tenantId);
   }
 
   public List<Endpoint> endpointsForScenario(String scenarioId) {
