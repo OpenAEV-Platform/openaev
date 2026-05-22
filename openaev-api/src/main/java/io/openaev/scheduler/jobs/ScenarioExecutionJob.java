@@ -3,13 +3,14 @@ package io.openaev.scheduler.jobs;
 import static io.openaev.database.specification.ExerciseSpecification.recurringInstanceNotStarted;
 
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.service.ScenarioToExerciseService;
-import io.openaev.service.period.CronService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
 import io.openaev.service.scenario.ScenarioService;
+import jakarta.persistence.EntityManager;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -18,6 +19,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.Session;
 import org.quartz.DisallowConcurrentExecution;
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;
@@ -34,12 +36,14 @@ public class ScenarioExecutionJob implements Job {
   private final ScenarioRecurrenceService scenarioRecurrenceService;
   private final ExerciseRepository exerciseRepository;
   private final ScenarioToExerciseService scenarioToExerciseService;
-  private final CronService cronService;
+  private final EntityManager entityManager;
 
   @Override
   @Transactional(rollbackFor = Exception.class)
   @LogExecutionTime
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
+    // Disable tenant filter — called from InjectsExecutionJob which runs cross-tenant
+    entityManager.unwrap(Session.class).disableFilter("tenantFilter");
     createExercisesFromScenarios();
     cleanOutdatedRecurringScenario();
   }
@@ -78,11 +82,17 @@ public class ScenarioExecutionJob implements Job {
         .filter(scenario -> !alreadyExistIds.contains(scenario.getId()))
         // Create simulation with start date provided by cron
         .forEach(
-            scenario ->
+            scenario -> {
+              try {
+                TenantContext.setCurrentTenant(scenario.getTenant().getId());
                 this.scenarioToExerciseService.toExercise(
                     scenario,
                     scenarioRecurrenceService.getNextExecutionTime(scenario, now).orElse(now),
-                    false));
+                    false);
+              } finally {
+                TenantContext.clearCurrentTenant();
+              }
+            });
   }
 
   private void cleanOutdatedRecurringScenario() {
