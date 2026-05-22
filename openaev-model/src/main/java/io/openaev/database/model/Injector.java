@@ -100,7 +100,11 @@ public class Injector extends BaseConnectorEntity implements TenantBase {
       },
       inverseJoinColumns = {
         @JoinColumn(name = "injector_contract_id", referencedColumnName = "injector_contract_id"),
-        @JoinColumn(name = "tenant_id", referencedColumnName = "tenant_id", insertable = false, updatable = false)
+        @JoinColumn(
+            name = "tenant_id",
+            referencedColumnName = "tenant_id",
+            insertable = false,
+            updatable = false)
       })
   @JsonIgnore
   private Set<InjectorContract> contracts = new HashSet<>();

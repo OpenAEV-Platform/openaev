@@ -29,6 +29,7 @@ import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.service.EndpointService;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.ExecutorFixture;
 import io.openaev.utils.fixtures.ExerciseFixture;
@@ -63,6 +64,7 @@ class EndpointApiTest extends IntegrationTest {
   @Autowired private ExerciseService exerciseService;
   @Autowired private ExecutorComposer executorComposer;
   @Autowired private ExecutorFixture executorFixture;
+  @Autowired private TenantIsolationTestHelper tenantHelper;
 
   @MockitoSpyBean private EndpointService endpointService;
   @Autowired private AssetGroupRepository assetGroupRepository;
@@ -571,5 +573,106 @@ class EndpointApiTest extends IntegrationTest {
     filter.setOperator(Filters.FilterOperator.eq);
     filter.setValues(values);
     return filter;
+  }
+
+  @Nested
+  @DisplayName("Composite key tenant isolation — Agent → Executor")
+  @WithMockUser(isAdmin = true)
+  class TenantIsolation {
+
+    @Nested
+    @DisplayName("Agent → Executor join")
+    class AgentExecutorJoin {
+
+      @Test
+      @DisplayName(
+          "Given same executor type in two tenants, endpoint API should return agent without duplicates")
+      void givenSameExecutorInTwoTenants_endpointShouldReturnAgentWithoutDuplicates()
+          throws Exception {
+        // -- Arrange --
+        String tenantA = TenantContext.getCurrentTenant();
+
+        Executor executorA =
+            executorComposer.forExecutor(executorFixture.getDefaultExecutor()).get();
+
+        Endpoint endpointA = endpointRepository.save(createEndpoint("Endpoint-TenantA"));
+        Agent agentA = createAgent(endpointA, "ext-ref-A");
+        agentA.setExecutor(executorA);
+        agentA.setTenant(new Tenant(tenantA));
+        endpointA.setAgents(List.of(agentA));
+        endpointRepository.save(endpointA);
+
+        // Create tenant B with the same executor type
+        Tenant tenantB = tenantHelper.createTenantWithCurrentUser("TenantB-CompositeKey");
+        tenantHelper.switchToTenant(tenantB.getId(), entityManager);
+
+        executorComposer
+            .forExecutor(executorFixture.createDefaultExecutor("OpenAEV-B"))
+            .persist()
+            .get();
+
+        // Switch back to tenant A
+        tenantHelper.switchToTenant(tenantA, entityManager);
+
+        // -- Act --
+        String response =
+            mvc.perform(
+                    get(ENDPOINT_URI + "/" + endpointA.getId())
+                        .accept(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
+                .andExpect(status().is2xxSuccessful())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        // -- Assert --
+        assertThatJson(response)
+            .inPath("$.asset_agents")
+            .isArray()
+            .as(
+                "Endpoint should have exactly 1 agent — not duplicated by cross-tenant executor join")
+            .hasSize(1);
+
+        assertThatJson(response)
+            .inPath("$.asset_agents[0].agent_executor")
+            .asString()
+            .as("Agent should reference the executor from tenant A, not tenant B")
+            .isEqualTo(executorA.getId());
+      }
+
+      @Test
+      @DisplayName(
+          "Given agents in different tenants with same executor ID, each tenant sees only its own agents")
+      void givenAgentsInDifferentTenants_eachTenantSeesOnlyItsOwn() throws Exception {
+        // -- Arrange --
+        String tenantA = TenantContext.getCurrentTenant();
+        Executor executorA =
+            executorComposer.forExecutor(executorFixture.getDefaultExecutor()).get();
+
+        Endpoint endpointA = endpointRepository.save(createEndpoint("Endpoint-IsolationA"));
+        Agent agentA = createAgent(endpointA, "ext-ref-isolation-A");
+        agentA.setExecutor(executorA);
+        agentA.setTenant(new Tenant(tenantA));
+        endpointA.setAgents(List.of(agentA));
+        endpointRepository.save(endpointA);
+
+        entityManager.flush();
+        entityManager.clear();
+
+        // -- Act --
+        String responseA =
+            mvc.perform(
+                    get(ENDPOINT_URI + "/" + endpointA.getId())
+                        .accept(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
+                .andExpect(status().is2xxSuccessful())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        // -- Assert --
+        assertThatJson(responseA).inPath("$.asset_agents").isArray().hasSize(1);
+      }
+    }
   }
 }
