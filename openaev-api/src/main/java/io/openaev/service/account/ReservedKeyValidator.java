@@ -8,7 +8,6 @@ import static io.openaev.service.account.ServiceAccountPrivilegeService.SERVICE_
 import io.openaev.context.TenantContext;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.AbstractPrivilegeService;
-
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -20,11 +19,11 @@ import java.util.regex.Pattern;
 public final class ReservedKeyValidator {
 
   private ReservedKeyValidator() {}
+
   private static final Set<String> RESERVED_GROUP_ID =
       Set.of(SERVICE_GROUP_ID, PROCESS_STIX_GROUP_ID);
 
-  private static final Set<String> RESERVED_ROLE_ID =
-      Set.of(SERVICE_ROLE_ID, PROCESS_STIX_ROLE_ID);
+  private static final Set<String> RESERVED_ROLE_ID = Set.of(SERVICE_ROLE_ID, PROCESS_STIX_ROLE_ID);
 
   /**
    * Compiled regexes derived from the service email patterns. The patterns contain a {@code %s}
@@ -41,24 +40,29 @@ public final class ReservedKeyValidator {
 
   /** Throws BadRequestException if the group id is reserved for system use. */
   public static void validateGroupId(String uuid) {
-    List<String> idsReserved = RESERVED_GROUP_ID.stream()
-        .map(id->AbstractPrivilegeService.getUUIDFromName(id, TenantContext.getCurrentTenant() ))
-        .toList();
+    List<String> idsReserved =
+        RESERVED_GROUP_ID.stream()
+            .map(
+                id ->
+                    AbstractPrivilegeService.getUUIDFromName(id, TenantContext.getCurrentTenant()))
+            .toList();
 
     if (uuid != null && idsReserved.contains(uuid)) {
-      throw new BadRequestException(
-          "The group is reserved for system use and cannot be used.");
+      throw new BadRequestException("The group is reserved for system use and cannot be used.");
     }
   }
+
   /** Throws BadRequestException if the group id is reserved for system use. */
   public static void validateRoleId(String uuid) {
-    List<String> idsReserved = RESERVED_ROLE_ID.stream()
-        .map(id->AbstractPrivilegeService.getUUIDFromName(id, TenantContext.getCurrentTenant() ))
-        .toList();
+    List<String> idsReserved =
+        RESERVED_ROLE_ID.stream()
+            .map(
+                id ->
+                    AbstractPrivilegeService.getUUIDFromName(id, TenantContext.getCurrentTenant()))
+            .toList();
 
     if (uuid != null && idsReserved.contains(uuid)) {
-      throw new BadRequestException(
-          "The role is reserved for system use and cannot be used.");
+      throw new BadRequestException("The role is reserved for system use and cannot be used.");
     }
   }
 
