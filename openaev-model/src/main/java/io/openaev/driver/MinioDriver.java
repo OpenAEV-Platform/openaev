@@ -95,17 +95,36 @@ public class MinioDriver {
 
       log.info("Migrating file '{}' to '{}'", objectName, newObjectName);
 
+      // debug stuff
+      try {
+        minioClient.getObject(GetObjectArgs.builder().bucket(bucket).object(objectName).build());
+      } catch (Exception e) {
+        log.error("GET {} FAILED", objectName, e);
+        // do nothing
+      }
+
       // Copy to new path under default tenant
-      minioClient.copyObject(
-          CopyObjectArgs.builder()
-              .bucket(bucket)
-              .object(newObjectName)
-              .source(CopySource.builder().bucket(bucket).object(objectName).build())
-              .build());
+      try {
+        minioClient.copyObject(
+            CopyObjectArgs.builder()
+                .bucket(bucket)
+                .object(newObjectName)
+                .source(CopySource.builder().bucket(bucket).object(objectName).build())
+                .build());
+
+      } catch (Exception e) {
+        log.error("COPY {} to {} FAILED", objectName, newObjectName, e);
+        throw e;
+      }
 
       // Remove original
-      minioClient.removeObject(
-          RemoveObjectArgs.builder().bucket(bucket).object(objectName).build());
+      try {
+        minioClient.removeObject(
+            RemoveObjectArgs.builder().bucket(bucket).object(objectName).build());
+      } catch (Exception e) {
+        log.error("REMOVE {} FAILED", objectName, e);
+        throw e;
+      }
     }
   }
 }
