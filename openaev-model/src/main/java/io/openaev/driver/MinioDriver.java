@@ -71,8 +71,6 @@ public class MinioDriver {
    * tenant isolation.
    */
   private void moveDefaultTenantFiles(MinioClient minioClient, String bucket) throws Exception {
-    String defaultTenantPrefix = Tenant.DEFAULT_TENANT_UUID + "/";
-
     Set<String> tenants =
         tenantRepository.findAll().stream()
             .map(tenant -> tenant.getId() + "/")
@@ -90,7 +88,10 @@ public class MinioDriver {
         continue;
       }
 
-      String newObjectName = defaultTenantPrefix + objectName;
+      String newObjectName =
+          objectName.startsWith("/")
+              ? Tenant.DEFAULT_TENANT_UUID + objectName
+              : Tenant.DEFAULT_TENANT_UUID + "/" + objectName;
 
       log.info("Migrating file '{}' to '{}'", objectName, newObjectName);
 
