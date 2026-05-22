@@ -5,7 +5,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V5_09__Add_index_teams_contextual extends BaseJavaMigration {
+public class V5_10__Add_index_teams_contextual extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
