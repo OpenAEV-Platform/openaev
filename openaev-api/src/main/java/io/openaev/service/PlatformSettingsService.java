@@ -297,11 +297,18 @@ public class PlatformSettingsService {
     platformSettings.setPlatformVersion(openAEVConfig.getVersion());
     platformSettings.setXtmOneConfigured(xtmOneConfig.isConfigured());
     platformSettings.setXtmOneUrl(xtmOneConfig.getUrl());
-    platformSettings.setXtmOneWebToken(xtmOneConfig.getEffectiveWebToken());
-    platformSettings.setAiEnabled(aiConfig.isEnabled());
+
     platformSettings.setAiHasToken(StringUtils.hasText(aiConfig.getToken()));
     platformSettings.setAiType(aiConfig.getType());
     platformSettings.setAiModel(aiConfig.getModel());
+    // Chatbot AI CGU status: empty = "pending" (never validated), otherwise stored as-is
+    String cguStatusValue =
+        getValueFromMapOfSettings(dbSettings, FILIGRAN_CHATBOT_AI_CGU_STATUS.key());
+    if (cguStatusValue != null && !cguStatusValue.isEmpty()) {
+      platformSettings.setChatbotAiCguStatus(cguStatusValue);
+    } else {
+      platformSettings.setChatbotAiCguStatus("pending");
+    }
     platformSettings.setExecutorTaniumEnable(false);
     platformSettings.setTelemetryManagerEnable(true);
 
@@ -413,6 +420,15 @@ public class PlatformSettingsService {
     List<Setting> settingsToSave = new ArrayList<>();
     settingsToSave.add(
         resolveFromMap(dbSettings, PLATFORM_WHITEMARK.key(), input.getPlatformWhitemark()));
+    settingRepository.saveAll(settingsToSave);
+    return findSettings();
+  }
+
+  public PlatformSettings updateChatbotAiCguStatus(SettingsChatbotAiCguUpdateInput input) {
+    Map<String, Setting> dbSettings = mapOfSettings(this.settingRepository.findAllByTenantIsNull());
+    List<Setting> settingsToSave = new ArrayList<>();
+    settingsToSave.add(
+        resolveFromMap(dbSettings, FILIGRAN_CHATBOT_AI_CGU_STATUS.key(), input.getStatus()));
     settingRepository.saveAll(settingsToSave);
     return findSettings();
   }

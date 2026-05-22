@@ -1875,14 +1875,6 @@ export interface DetectionRemediationAIOutput {
   rules?: string;
 }
 
-export interface DetectionRemediationCallInput {
-  agent_slug?: string;
-  /** @minLength 1 */
-  collector_type: string;
-  /** @minLength 1 */
-  content: string;
-}
-
 /** Health check response of the detection/remediation service. */
 export interface DetectionRemediationHealthResponse {
   /**
@@ -5949,6 +5941,7 @@ export type PayloadCreateInput = BasePayloadCreateInput &
   );
 
 export interface PayloadInput {
+  agent_slug?: string;
   command_content?: string | null;
   command_executor?: string | null;
   dns_resolution_hostname?: string;
@@ -6370,6 +6363,8 @@ export interface PlatformSettings {
    * @format int64
    */
   expectation_vulnerability_expiration_time: number;
+  /** Chatbot AI CGU acceptance status: pending, enabled, or disabled */
+  filigran_chatbot_ai_cgu_status?: string;
   /** IMAP Service availability */
   imap_service_available?: string;
   /** Current version of Java */
@@ -6380,8 +6375,6 @@ export interface PlatformSettings {
   map_tile_server_light?: string;
   /** Agent URL of the platform */
   platform_agent_url?: string;
-  /** True if AI is enabled for the platform */
-  platform_ai_enabled?: boolean;
   /** True if we have an AI token */
   platform_ai_has_token?: boolean;
   /** Chosen model of AI */
@@ -6427,8 +6420,6 @@ export interface PlatformSettings {
   platform_xtm_one_configured?: boolean;
   /** XTM One platform URL */
   platform_xtm_one_url?: string;
-  /** XTM One public chat web token for the embedded agent */
-  platform_xtm_one_web_token?: string;
   /** Current version of the PostgreSQL */
   postgre_version?: string;
   /** Current version of RabbitMQ */
@@ -7416,6 +7407,15 @@ export interface SecurityPlatformUpsertInput {
 export interface Series {
   filter?: FilterGroup;
   name?: string;
+}
+
+export interface SettingsChatbotAiCguUpdateInput {
+  /**
+   * Chatbot AI CGU acceptance status: pending, enabled, or disabled
+   * @minLength 1
+   * @pattern pending|enabled|disabled
+   */
+  status: string;
 }
 
 export interface SettingsEnterpriseEditionUpdateInput {
