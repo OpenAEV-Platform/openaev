@@ -3,6 +3,7 @@ package io.openaev.rest;
 import static io.openaev.rest.asset.endpoint.EndpointApi.ENDPOINT_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.AgentFixture.createAgent;
+import static io.openaev.utils.fixtures.AgentFixture.createDefaultAgentService;
 import static io.openaev.utils.fixtures.AssetGroupFixture.createAssetGroupWithAssets;
 import static io.openaev.utils.fixtures.AssetGroupFixture.createDefaultAssetGroup;
 import static io.openaev.utils.fixtures.EndpointFixture.*;
@@ -34,6 +35,8 @@ import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.ExecutorFixture;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.PaginationFixture;
+import io.openaev.utils.fixtures.composers.AgentComposer;
+import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.fixtures.composers.ExecutorComposer;
 import io.openaev.utils.mapper.EndpointMapper;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -65,6 +68,8 @@ class EndpointApiTest extends IntegrationTest {
   @Autowired private ExecutorComposer executorComposer;
   @Autowired private ExecutorFixture executorFixture;
   @Autowired private TenantIsolationTestHelper tenantHelper;
+  @Autowired private EndpointComposer endpointComposer;
+  @Autowired private AgentComposer agentComposer;
 
   @MockitoSpyBean private EndpointService endpointService;
   @Autowired private AssetGroupRepository assetGroupRepository;
@@ -576,12 +581,11 @@ class EndpointApiTest extends IntegrationTest {
   }
 
   @Nested
-  @DisplayName("Composite key tenant isolation — Agent → Executor")
+  @DisplayName("Tenant Isolation")
   @WithMockUser(isAdmin = true)
   class TenantIsolation {
 
     @Nested
-    @DisplayName("Agent → Executor join")
     class AgentExecutorJoin {
 
       @Test
@@ -592,15 +596,16 @@ class EndpointApiTest extends IntegrationTest {
         // -- Arrange --
         String tenantA = TenantContext.getCurrentTenant();
 
-        Executor executorA =
-            executorComposer.forExecutor(executorFixture.getDefaultExecutor()).get();
+        ExecutorComposer.Composer executorComposerA =
+            executorComposer.forExecutor(executorFixture.getDefaultExecutor());
+        Executor executorA = executorComposerA.get();
 
-        Endpoint endpointA = endpointRepository.save(createEndpoint("Endpoint-TenantA"));
-        Agent agentA = createAgent(endpointA, "ext-ref-A");
-        agentA.setExecutor(executorA);
-        agentA.setTenant(new Tenant(tenantA));
-        endpointA.setAgents(new ArrayList<>(List.of(agentA)));
-        endpointRepository.save(endpointA);
+        Endpoint endpointA = EndpointFixture.createEndpoint("Endpoint-TenantA");
+        AgentComposer.Composer agentComposerA =
+            agentComposer.forAgent(createDefaultAgentService()).withExecutor(executorComposerA);
+        EndpointComposer.Composer endpointComposerA =
+            endpointComposer.forEndpoint(endpointA).withAgent(agentComposerA);
+        endpointComposerA.persist();
 
         // Flush and clear to avoid "Tenant is immutable" when creating tenant B
         entityManager.flush();
@@ -637,44 +642,10 @@ class EndpointApiTest extends IntegrationTest {
             .hasSize(1);
 
         assertThatJson(response)
-            .inPath("$.asset_agents[0].agent_id")
+            .inPath("$.asset_agents[0].agent_executor.executor_id")
             .asString()
             .as("Returned agent_id should match tenant A's agent and not a cross-tenant agent")
-            .isEqualTo(agentA.getId());
-      }
-
-      @Test
-      @DisplayName(
-          "Given agents in different tenants with same executor ID, each tenant sees only its own agents")
-      void givenAgentsInDifferentTenants_eachTenantSeesOnlyItsOwn() throws Exception {
-        // -- Arrange --
-        String tenantA = TenantContext.getCurrentTenant();
-        Executor executorA =
-            executorComposer.forExecutor(executorFixture.getDefaultExecutor()).get();
-
-        Endpoint endpointA = endpointRepository.save(createEndpoint("Endpoint-IsolationA"));
-        Agent agentA = createAgent(endpointA, "ext-ref-isolation-A");
-        agentA.setExecutor(executorA);
-        agentA.setTenant(new Tenant(tenantA));
-        endpointA.setAgents(new ArrayList<>(List.of(agentA)));
-        endpointRepository.save(endpointA);
-
-        entityManager.flush();
-        entityManager.clear();
-
-        // -- Act --
-        String responseA =
-            mvc.perform(
-                    get(ENDPOINT_URI + "/" + endpointA.getId())
-                        .accept(MediaType.APPLICATION_JSON)
-                        .with(csrf()))
-                .andExpect(status().is2xxSuccessful())
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
-
-        // -- Assert --
-        assertThatJson(responseA).inPath("$.asset_agents").isArray().hasSize(1);
+            .isEqualTo(executorA.getId());
       }
     }
   }

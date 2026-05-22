@@ -599,7 +599,7 @@ public class InjectorApiTest extends IntegrationTest {
   }
 
   @Nested
-  @DisplayName("Tenant isolation — composite key joins")
+  @DisplayName("Tenant Isolation")
   @WithMockUser(isAdmin = true)
   class TenantIsolation {
 
@@ -610,17 +610,12 @@ public class InjectorApiTest extends IntegrationTest {
       // -- Arrange --
       String tenantA = TenantContext.getCurrentTenant();
 
-      Injector injectorA = createInjector("shared-injector-id", "Email Injector", "email");
-      injectorA.setTenant(new Tenant(tenantA));
-      injectorA = injectorRepository.save(injectorA);
+      // TenantBaseListener auto-sets tenant from TenantContext
+      Injector injectorA = getInjector("Email Injector");
 
-      Inject injectA = new Inject();
-      injectA.setTitle("Inject-TenantA");
-      injectA.setEnabled(true);
-      injectA.setDependsDuration(0L);
+      Inject injectA = InjectFixture.getDefaultInject();
       injectA.setInjector(injectorA);
-      injectA.setTenant(new Tenant(tenantA));
-      injectA = injectRepository.save(injectA);
+      injectComposer.forInject(injectA).persist();
 
       em.flush();
       em.clear();
@@ -629,9 +624,8 @@ public class InjectorApiTest extends IntegrationTest {
       Tenant tenantB = tenantHelper.createTenantWithCurrentUser("TenantB-Injector");
       tenantHelper.switchToTenant(tenantB.getId(), em);
 
-      Injector injectorB = createInjector("shared-injector-id", "Email Injector", "email");
-      injectorB.setTenant(new Tenant(tenantB.getId()));
-      injectorRepository.save(injectorB);
+      // TenantBaseListener auto-sets tenant B from TenantContext
+      getInjector("Email Injector");
 
       // Switch back to tenant A and reload the inject
       tenantHelper.switchToTenant(tenantA, em);
