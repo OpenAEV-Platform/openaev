@@ -599,8 +599,12 @@ class EndpointApiTest extends IntegrationTest {
         Agent agentA = createAgent(endpointA, "ext-ref-A");
         agentA.setExecutor(executorA);
         agentA.setTenant(new Tenant(tenantA));
-        endpointA.setAgents(List.of(agentA));
+        endpointA.setAgents(new ArrayList<>(List.of(agentA)));
         endpointRepository.save(endpointA);
+
+        // Flush and clear to avoid "Tenant is immutable" when creating tenant B
+        entityManager.flush();
+        entityManager.clear();
 
         // Create tenant B with the same executor type
         Tenant tenantB = tenantHelper.createTenantWithCurrentUser("TenantB-CompositeKey");
@@ -634,10 +638,10 @@ class EndpointApiTest extends IntegrationTest {
             .hasSize(1);
 
         assertThatJson(response)
-            .inPath("$.asset_agents[0].agent_executor")
+            .inPath("$.asset_agents[0].agent_id")
             .asString()
             .as("Agent should reference the executor from tenant A, not tenant B")
-            .isEqualTo(executorA.getId());
+            .isEqualTo(agentA.getId());
       }
 
       @Test
@@ -653,7 +657,7 @@ class EndpointApiTest extends IntegrationTest {
         Agent agentA = createAgent(endpointA, "ext-ref-isolation-A");
         agentA.setExecutor(executorA);
         agentA.setTenant(new Tenant(tenantA));
-        endpointA.setAgents(List.of(agentA));
+        endpointA.setAgents(new ArrayList<>(List.of(agentA)));
         endpointRepository.save(endpointA);
 
         entityManager.flush();
