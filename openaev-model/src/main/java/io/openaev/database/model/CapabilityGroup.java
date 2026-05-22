@@ -5,7 +5,7 @@ public enum CapabilityGroup {
   SUPERUSER,
   ASSESSMENT,
   TARGETS,
-  PAYLOADS,
+  THREAT_ARSENALS,
   DASHBOARDS,
   FINDINGS,
   CONTENT,
@@ -14,4 +14,5 @@ public enum CapabilityGroup {
   TENANT_SETTINGS,
   PLATFORM_USERS_GROUPS_AND_ROLES,
   STIX,
+  SERVICE
 }
