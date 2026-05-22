@@ -606,14 +606,13 @@ class EndpointApiTest extends IntegrationTest {
         entityManager.flush();
         entityManager.clear();
 
-        // Create tenant B with the same executor type
+        // Create tenant B with the same executor ID to reproduce the cross-tenant join bug
         Tenant tenantB = tenantHelper.createTenantWithCurrentUser("TenantB-CompositeKey");
         tenantHelper.switchToTenant(tenantB.getId(), entityManager);
 
-        executorComposer
-            .forExecutor(executorFixture.createDefaultExecutor("OpenAEV-B"))
-            .persist()
-            .get();
+        Executor executorB = executorFixture.createDefaultExecutor("OpenAEV-B");
+        executorB.setId(executorA.getId());
+        executorComposer.forExecutor(executorB).persist().get();
 
         // Switch back to tenant A
         tenantHelper.switchToTenant(tenantA, entityManager);
