@@ -19,7 +19,7 @@ export const buildEmptyFilter = (key: string, operator: Filter['operator']): Fil
   return {
     id: generateFilterId(),
     key,
-    mode: 'or' as Filter['mode'],
+    mode: 'and' as Filter['mode'],
     values: [],
     operator,
   };
@@ -29,7 +29,7 @@ export const buildFilter = (key: string, values: string[], operator: Filter['ope
   return {
     id: generateFilterId(),
     key,
-    mode: 'or' as Filter['mode'],
+    mode: 'and' as Filter['mode'],
     values,
     operator,
   };
