@@ -599,7 +599,7 @@ class EndpointApiTest extends IntegrationTest {
         Agent agentA = createAgent(endpointA, "ext-ref-A");
         agentA.setExecutor(executorA);
         agentA.setTenant(new Tenant(tenantA));
-        endpointA.setAgents(List.of(agentA));
+        endpointA.setAgents(new ArrayList<>(List.of(agentA)));
         endpointRepository.save(endpointA);
 
         // Create tenant B with the same executor type
@@ -653,7 +653,7 @@ class EndpointApiTest extends IntegrationTest {
         Agent agentA = createAgent(endpointA, "ext-ref-isolation-A");
         agentA.setExecutor(executorA);
         agentA.setTenant(new Tenant(tenantA));
-        endpointA.setAgents(List.of(agentA));
+        endpointA.setAgents(new ArrayList<>(List.of(agentA)));
         endpointRepository.save(endpointA);
 
         entityManager.flush();
