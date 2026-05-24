@@ -7,9 +7,7 @@ import io.openaev.aop.AccessControl;
 import io.openaev.aop.AccessControlAspect;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
-import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.LogService;
-import io.openaev.service.PreviewFeatureService;
 import io.openaev.utils.log.LogUtils;
 import java.lang.annotation.Annotation;
 import java.util.UUID;
@@ -45,7 +43,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 public class AccessControlAuditLogAspect {
 
   private final AccessControlAuditLogger accessControlAuditLogger;
-  private final PreviewFeatureService previewFeatureService;
 
   private final ObjectMapper objectMapper;
   private final ExpressionParser parser = new SpelExpressionParser();
@@ -61,8 +58,7 @@ public class AccessControlAuditLogAspect {
       action = accessControl.actionPerformed();
       isActive =
           accessControlAuditLogger.isAuditLoggingEnabled()
-              && accessControlAuditLogger.isAuditLoggingValid(action)
-              && previewFeatureService.isFeatureEnabled(PreviewFeature.AUDIT_LOG);
+              && accessControlAuditLogger.isAuditLoggingValid(action);
     } catch (Exception ex) {
       log.warn("Error during audit logging", ex);
     }
