@@ -1,6 +1,5 @@
 package io.openaev.driver;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -74,24 +73,11 @@ public class OpenSearchDriver {
    * #getObjectMapper()} so that other components (e.g. audit log service) can reuse the exact same
    * serialization settings.
    */
-  private final ObjectMapper engineObjectMapper = createEngineObjectMapper();
+  private final ObjectMapper engineObjectMapper = EngineObjectMapperFactory.create();
 
   /** Returns the ObjectMapper used by the OpenSearch client for document serialization. */
   public ObjectMapper getObjectMapper() {
     return engineObjectMapper;
-  }
-
-  /**
-   * Creates the ObjectMapper shared by the OpenSearch client and any component that needs to
-   * serialize documents consistently with the search engine.
-   */
-  static ObjectMapper createEngineObjectMapper() {
-    ObjectMapper mapper = new ObjectMapper();
-    mapper.registerModule(new JavaTimeModule());
-    mapper.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
-    mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-    mapper.setSerializationInclusion(JsonInclude.Include.ALWAYS);
-    return mapper;
   }
 
   /**
