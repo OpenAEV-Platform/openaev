@@ -8,6 +8,7 @@ import io.openaev.config.OpenAEVAnonymous;
 import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.config.SessionHelper;
 import io.openaev.config.ThreadPoolTaskLoggerConfig;
+import io.openaev.config.audit_log.AuditLogProperties;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.EventType;
@@ -45,6 +46,8 @@ public class LogService {
 
   @Value("${openaev.audit-logs.service.enabled:false}")
   private boolean auditLogsEnabled;
+
+  private final AuditLogProperties auditLogProperties;
 
   private final PreviewFeatureService previewFeatureService;
 
