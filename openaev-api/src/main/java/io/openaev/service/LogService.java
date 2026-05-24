@@ -15,7 +15,6 @@ import io.openaev.utils.HttpReqRespUtils;
 import io.openaev.utils.ResourceManagerUtils;
 import io.openaev.utils.log.LogUtils;
 import io.openaev.utils.log.dispatcher.AuditLogTransportDispatcherUtils;
-import io.openaev.utils.log.dispatcher.GenericLogTransportDispatcherUtils;
 import io.openaev.utils.object.ObjectNormalizationUtils;
 import io.openaev.utils.object.ObjectRedactionUtils;
 import jakarta.servlet.http.HttpServletRequest;
@@ -37,18 +36,9 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class LogService {
 
-  @Value("${openaev.generic-logs.service.enabled:false}")
-  private boolean genericLogsEnabled;
-
   @Value("${openaev.audit-logs.service.enabled:false}")
   private boolean auditLogsEnabled;
 
-  public enum AuditLogType {
-    GENERIC,
-    AUDIT
-  }
-
-  private final GenericLogTransportDispatcherUtils genericLogTransportDispatcherUtils;
   private final PreviewFeatureService previewFeatureService;
 
   private final AuditLogTransportDispatcherUtils auditLogTransportDispatcherUtils;
@@ -60,12 +50,11 @@ public class LogService {
 
   // -- Public API --
 
-  public boolean isEnabled(AuditLogType logType) {
-    return logType == AuditLogType.AUDIT
-        ? auditLogsEnabled && previewFeatureService.isFeatureEnabled(PreviewFeature.AUDIT_LOG)
-        : (logType == AuditLogType.GENERIC
-            ? genericLogsEnabled
-            : genericLogsEnabled || auditLogsEnabled);
+  /**
+   * Returns {@code true} if audit logging is globally enabled and the preview feature is active.
+   */
+  public boolean isEnabled() {
+    return auditLogsEnabled && previewFeatureService.isFeatureEnabled(PreviewFeature.AUDIT_LOG);
   }
 
   /**
@@ -82,9 +71,8 @@ public class LogService {
       String provider,
       String reason,
       Object logLevel,
-      AuditLogType logType,
       String logUUID) {
-    if (!isEnabled(logType)) {
+    if (!isEnabled()) {
       return true;
     }
 
@@ -106,9 +94,9 @@ public class LogService {
       ctx.put("message", message);
       doc.setContextData(ctx);
 
-      return emit(doc, logLevel, logType);
+      return emit(doc, logLevel);
     } catch (Exception e) {
-      log.warn("[{}] Failed to log auth event: {}", logType.name(), e.getMessage(), e);
+      log.warn("[AUDIT] Failed to log auth event: {}", e.getMessage(), e);
     }
 
     return false;
@@ -123,10 +111,9 @@ public class LogService {
       JsonNode output,
       JsonNode signatureNode,
       Object logLevel,
-      AuditLogType logType,
       String logUUID) {
     try {
-      if (!isEnabled(logType)) {
+      if (!isEnabled()) {
         return true;
       }
 
@@ -165,45 +152,9 @@ public class LogService {
       ctx.put("message", message);
       doc.setContextData(ctx);
 
-      return emit(doc, logLevel, logType);
+      return emit(doc, logLevel);
     } catch (Exception e) {
-      log.warn("[{}] Failed to log request event: {}", logType.name(), e.getMessage(), e);
-    }
-
-    return false;
-  }
-
-  public boolean logEvent(LogEvent doc, Object logLevel, AuditLogType logType, String logUUID) {
-    try {
-      if (!isEnabled(logType)) {
-        return true;
-      }
-
-      if (logUUID != null) {
-        doc.setId(logUUID);
-      }
-
-      return emit(doc, logLevel, logType);
-    } catch (Exception e) {
-      log.warn("[{}] Failed to log event: {}", logType.name(), e.getMessage(), e);
-    }
-
-    return false;
-  }
-
-  public boolean logMessage(String message, Object logLevel, AuditLogType logType, String logUUID) {
-    try {
-      if (!isEnabled(logType)) {
-        return true;
-      }
-
-      if (logUUID != null) {
-        message = "[log_id: " + logUUID + "] " + message;
-      }
-
-      return emit(message, logLevel, logType);
-    } catch (Exception e) {
-      log.warn("[{}] Failed to log message: {}", logType.name(), e.getMessage(), e);
+      log.warn("[AUDIT] Failed to log request event: {}", e.getMessage(), e);
     }
 
     return false;
@@ -330,36 +281,8 @@ public class LogService {
   }
 
   /** Serializes the audit log to the console and forwards to the search engine if enabled. */
-  private boolean emit(LogEvent doc, Object logLevel, AuditLogType logType) {
-    if (AuditLogType.AUDIT == logType) {
-      return auditLogTransportDispatcherUtils.dispatch(doc, logLevel);
-    }
-
-    try {
-      String json = objectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(doc);
-      String message = "[LOG] json doc: " + json;
-
-      return genericLogTransportDispatcherUtils.dispatch(message, logLevel);
-    } catch (Exception e) {
-      log.warn("[LOG] Failed to serialize event: {}", e.getMessage(), e);
-    }
-
-    return false;
-  }
-
-  private boolean emit(String message, Object logLevel, AuditLogType logType) {
-    if (AuditLogType.AUDIT == logType) {
-      return auditLogTransportDispatcherUtils.dispatch(message, logLevel);
-    }
-    return genericLogTransportDispatcherUtils.dispatch(message, logLevel);
-  }
-
-  /**
-   * Reuses the ObjectMapper from the search engine driver so audit serialization stays identical to
-   * ES/OS transport serialization.
-   */
-  private ObjectMapper objectMapper() {
-    return engineService.getObjectMapper();
+  private boolean emit(LogEvent doc, Object logLevel) {
+    return auditLogTransportDispatcherUtils.dispatch(doc, logLevel);
   }
 
   /** Converts JsonNode payloads to a JSON-compatible Java value while preserving shape. */
@@ -368,7 +291,7 @@ public class LogService {
       return null;
     }
 
-    ObjectMapper mapper = objectMapper();
+    ObjectMapper mapper = engineService.getObjectMapper();
     if (node.isObject()) {
       return mapper.convertValue(node, Map.class);
     }

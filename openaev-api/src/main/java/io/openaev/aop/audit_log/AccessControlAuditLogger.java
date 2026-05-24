@@ -32,7 +32,7 @@ public class AccessControlAuditLogger {
   private final LogService logService;
 
   public boolean isAuditLoggingEnabled() {
-    return logService.isEnabled(LogService.AuditLogType.AUDIT);
+    return logService.isEnabled();
   }
 
   public boolean isAuditLoggingValid(Action action) {
@@ -48,13 +48,7 @@ public class AccessControlAuditLogger {
     try {
       status =
           logService.logAuthEvent(
-              eventScope,
-              eventStatus,
-              provider,
-              reason,
-              Level.WARNING,
-              LogService.AuditLogType.AUDIT,
-              logUUID);
+              eventScope, eventStatus, provider, reason, Level.WARNING, logUUID);
     } catch (Exception e) {
       log.warn("[AUDIT] Audit auth logging failed (non-blocking): {}", e.getMessage(), e);
     }
@@ -85,11 +79,10 @@ public class AccessControlAuditLogger {
               output,
               signatureNode,
               Level.WARNING,
-              LogService.AuditLogType.AUDIT,
               logUUID);
 
     } catch (Exception e) {
-      log.warn("[AUDIT] Generic logging failed (non-blocking): {}", e.getMessage(), e);
+      log.warn("[AUDIT] Audit logging failed (non-blocking): {}", e.getMessage(), e);
     }
 
     return CompletableFuture.completedFuture(status);
