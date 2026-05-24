@@ -35,6 +35,11 @@ public class OpenAEVSaml2User
   }
 
   @Override
+  public String getEmail() {
+    return user.getEmail();
+  }
+
+  @Override
   public Collection<? extends GrantedAuthority> getAuthorities() {
     return roles;
   }

@@ -13,13 +13,19 @@ public class DefaultOpenAEVPrincipal implements OpenAEVPrincipal, Serializable {
   @Serial private static final long serialVersionUID = 1L;
 
   private final String id;
+  private final String email;
   private final List<SimpleGrantedAuthority> authorities;
   private final boolean admin;
   private final String lang;
 
   public DefaultOpenAEVPrincipal(
-      String id, Collection<? extends GrantedAuthority> authorities, boolean admin, String lang) {
+      String id,
+      String email,
+      Collection<? extends GrantedAuthority> authorities,
+      boolean admin,
+      String lang) {
     this.id = id;
+    this.email = email;
     this.authorities = new ArrayList<>();
     for (GrantedAuthority auth : authorities) {
       this.authorities.add(new SimpleGrantedAuthority(auth.getAuthority()));
@@ -31,6 +37,11 @@ public class DefaultOpenAEVPrincipal implements OpenAEVPrincipal, Serializable {
   @Override
   public String getId() {
     return id;
+  }
+
+  @Override
+  public String getEmail() {
+    return email;
   }
 
   @Override

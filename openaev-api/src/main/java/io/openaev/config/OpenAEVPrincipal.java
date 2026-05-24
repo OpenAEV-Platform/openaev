@@ -7,6 +7,8 @@ import org.springframework.security.core.GrantedAuthority;
 public interface OpenAEVPrincipal extends Serializable {
   String getId();
 
+  String getEmail();
+
   Collection<? extends GrantedAuthority> getAuthorities();
 
   boolean isAdmin();

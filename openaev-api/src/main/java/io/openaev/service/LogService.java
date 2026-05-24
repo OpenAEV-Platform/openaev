@@ -7,7 +7,6 @@ import io.openaev.config.SessionHelper;
 import io.openaev.config.ThreadPoolTaskLoggerConfig;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.ResourceType;
-import io.openaev.database.model.User;
 import io.openaev.engine.EngineService;
 import io.openaev.engine.model.log.LogEvent;
 import io.openaev.rest.settings.PreviewFeature;
@@ -55,8 +54,6 @@ public class LogService {
 
   private final ObjectNormalizationUtils objectNormalizationUtils;
   private final EngineService engineService;
-
-  private final UserService userService;
 
   // -- Public API --
 
@@ -268,19 +265,16 @@ public class LogService {
     LogEvent.UserMetadata meta = new LogEvent.UserMetadata();
     boolean hasData = false;
 
-    // User email — denormalized for display
+    // User email — extracted from SecurityContext (no DB hit)
     try {
-      String userId = doc.getUserId();
-      if (userId != null) {
-        User user = userService.user(userId);
-        if (user != null && user.getEmail() != null) {
-          String email = ObjectRedactionUtils.hash(user.getEmail());
-          meta.setUserEmail(email);
-          hasData = true;
-        }
+      OpenAEVPrincipal principal = SessionHelper.currentUser();
+      if (principal != null && principal.getEmail() != null) {
+        String email = ObjectRedactionUtils.hash(principal.getEmail());
+        meta.setUserEmail(email);
+        hasData = true;
       }
     } catch (Exception e) {
-      // User not found or not in a request context — skip email
+      // Not in a request context — skip email
     }
 
     // HTTP request headers

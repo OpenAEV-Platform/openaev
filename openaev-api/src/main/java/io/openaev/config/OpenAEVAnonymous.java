@@ -18,6 +18,11 @@ public class OpenAEVAnonymous implements OpenAEVPrincipal, Serializable {
   }
 
   @Override
+  public String getEmail() {
+    return ANONYMOUS;
+  }
+
+  @Override
   public boolean isAdmin() {
     return false;
   }

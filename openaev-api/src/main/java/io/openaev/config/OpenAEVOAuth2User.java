@@ -38,6 +38,11 @@ public class OpenAEVOAuth2User implements OpenAEVPrincipal, OAuth2User, Serializ
   }
 
   @Override
+  public String getEmail() {
+    return this.user.getEmail();
+  }
+
+  @Override
   public Collection<? extends GrantedAuthority> getAuthorities() {
     List<SimpleGrantedAuthority> roles = new ArrayList<>();
     roles.add(new SimpleGrantedAuthority(ROLE_USER));

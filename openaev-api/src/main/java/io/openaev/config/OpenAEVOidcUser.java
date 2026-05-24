@@ -31,6 +31,11 @@ public class OpenAEVOidcUser implements OpenAEVPrincipal, OidcUser, Serializable
   }
 
   @Override
+  public String getEmail() {
+    return user.getEmail();
+  }
+
+  @Override
   public boolean isAdmin() {
     return user.isAdmin();
   }

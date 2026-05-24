@@ -490,7 +490,8 @@ public class UserService {
     }
 
     OpenAEVPrincipal principal =
-        new DefaultOpenAEVPrincipal(user.getId(), roles, user.isAdmin(), user.getLang());
+        new DefaultOpenAEVPrincipal(
+            user.getId(), user.getEmail(), roles, user.isAdmin(), user.getLang());
 
     return new PreAuthenticatedAuthenticationToken(principal, "", roles);
   }
