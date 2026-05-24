@@ -1121,6 +1121,11 @@ public class OpenSearchService implements EngineService {
     driver.cleanUpIndex(model, openSearchClient);
   }
 
+  @Override
+  public ObjectMapper getObjectMapper() {
+    return driver.getObjectMapper();
+  }
+
   // endregion
 
   /**
