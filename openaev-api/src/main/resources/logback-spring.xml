@@ -24,10 +24,18 @@
             </encoder>
         </appender>
 
-        <!-- Audit log: console + file, independent of root level -->
+        <!-- Async wrapper — decouples file I/O from the calling thread -->
+        <appender name="ASYNC_AUDIT_FILE" class="ch.qos.logback.classic.AsyncAppender">
+            <queueSize>1024</queueSize>
+            <discardingThreshold>0</discardingThreshold>
+            <neverBlock>true</neverBlock>
+            <appender-ref ref="AUDIT_FILE" />
+        </appender>
+
+        <!-- Audit log: console + async file, independent of root level -->
         <logger name="AUDIT_LOG" level="INFO" additivity="false">
             <appender-ref ref="STDOUT" />
-            <appender-ref ref="AUDIT_FILE" />
+            <appender-ref ref="ASYNC_AUDIT_FILE" />
         </logger>
 
         <root>
@@ -55,10 +63,18 @@
             </encoder>
         </appender>
 
-        <!-- Audit log: console (JSON) + file (JSON), independent of root level -->
+        <!-- Async wrapper — decouples file I/O from the calling thread -->
+        <appender name="ASYNC_AUDIT_FILE" class="ch.qos.logback.classic.AsyncAppender">
+            <queueSize>1024</queueSize>
+            <discardingThreshold>0</discardingThreshold>
+            <neverBlock>true</neverBlock>
+            <appender-ref ref="AUDIT_FILE" />
+        </appender>
+
+        <!-- Audit log: console (JSON) + async file (JSON), independent of root level -->
         <logger name="AUDIT_LOG" level="INFO" additivity="false">
             <appender-ref ref="jsonEncoder" />
-            <appender-ref ref="AUDIT_FILE" />
+            <appender-ref ref="ASYNC_AUDIT_FILE" />
         </logger>
 
         <root>
