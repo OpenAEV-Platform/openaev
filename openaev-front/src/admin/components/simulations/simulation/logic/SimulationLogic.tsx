@@ -4,11 +4,13 @@ import { type ExercisesHelper } from '../../../../../actions/exercises/exercise-
 import { useHelper } from '../../../../../store';
 import type { Exercise } from '../../../../../utils/api-types';
 import Logic from '../../../chaining/logic/Logic';
+import LogicV1 from '../../../chaining/logic/LogicV1';
 
 const SimulationLogic = () => {
   const { exerciseId } = useParams() as { exerciseId: Exercise['exercise_id'] };
   const { exercise } = useHelper((helper: ExercisesHelper) => ({ exercise: helper.getExercise(exerciseId) }));
   return <Logic workflowId={exercise?.exercise_workflow_id} context="simulation" />;
+  // return <LogicV1 workflowId={exercise?.exercise_workflow_id} />;
 };
 
 export default SimulationLogic;

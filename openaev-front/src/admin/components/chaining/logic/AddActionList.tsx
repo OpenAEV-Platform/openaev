@@ -59,9 +59,10 @@ interface AddActionListProps {
   onClose: () => void;
   onBack: () => void;
   onAddActions: (selectedIds: string[]) => void;
+  onSelectAction?: (action: ThreatArsenalAction) => void;
 }
 
-const AddActionList = ({ open, onClose, onBack, onAddActions }: AddActionListProps) => {
+const AddActionList = ({ open, onClose, onBack, onAddActions, onSelectAction }: AddActionListProps) => {
   const { t, tPick } = useFormatter();
   const theme = useTheme();
   const { classes } = useStyles();
@@ -89,10 +90,19 @@ const AddActionList = ({ open, onClose, onBack, onAddActions }: AddActionListPro
     numberOfSelectedElements,
   } = useEntityToggle<ThreatArsenalAction>('injector_contract', actions, queryableHelpers.paginationHelpers.getTotalElements());
 
+  // Tabletop injector types to exclude (email, SMS, challenges, media pressure)
+  const EXCLUDED_INJECTOR_TYPES = ['openaev_email', 'openaev_ovh_sms', 'openaev_challenge', 'openaev_channel'];
+
   const searchActions = (input: SearchPaginationInput) => {
     setLoading(true);
     return searchThreatArsenalActions({ ...input }).finally(() => setLoading(false));
   };
+
+  // Filter out tabletop actions client-side
+  const filteredActions = useMemo(
+    () => actions.filter(a => !EXCLUDED_INJECTOR_TYPES.includes(a.action_injector_type ?? '')),
+    [actions],
+  );
 
   const availableFilterNames = [
     'action_injectors',
@@ -160,7 +170,7 @@ const AddActionList = ({ open, onClose, onBack, onAddActions }: AddActionListPro
 
   const handleAddActions = () => {
     const ids = selectAll
-      ? actions
+      ? filteredActions
           .map(a => a.injector_contract_id)
           .filter(id => !(id in (deSelectedElements || {})))
       : Object.keys(selectedElements);
@@ -218,14 +228,22 @@ const AddActionList = ({ open, onClose, onBack, onAddActions }: AddActionListPro
           </ListItem>
           {loading
             ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} />
-            : actions.map(action => (
+            : filteredActions.map(action => (
                 <ListItem
                   key={action.injector_contract_id}
                   divider
                   disablePadding
                   className={classes.listItem}
                   secondaryAction={(
-                    <IconButton edge="end" size="small" className="chevron-action">
+                    <IconButton
+                      edge="end"
+                      size="small"
+                      className="chevron-action"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelectAction?.(action);
+                      }}
+                    >
                       <ChevronRight />
                     </IconButton>
                   )}
