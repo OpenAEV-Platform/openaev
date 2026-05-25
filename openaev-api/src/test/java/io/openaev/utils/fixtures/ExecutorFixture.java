@@ -45,11 +45,7 @@ public class ExecutorFixture {
   }
 
   public Executor createOpenAEVExecutor() {
-    Executor executor = new Executor();
-    executor.setType(OPENAEV_EXECUTOR_TYPE);
-    executor.setName(OPENAEV_EXECUTOR_NAME);
-    executor.setId(OPENAEV_EXECUTOR_ID);
-    return executor;
+    return createOAEVExecutor();
   }
 
   public Executor createCrowdstrikeExecutor() {
