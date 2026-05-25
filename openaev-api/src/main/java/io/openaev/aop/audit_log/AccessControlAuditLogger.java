@@ -24,7 +24,7 @@ import org.springframework.stereotype.Component;
  * <p>Phase 1: delegates to {@link LogService} for console-only output.
  */
 @Component
-@ConditionalOnProperty(name = "openaev.audit-logs.enabled", havingValue = "true")
+@ConditionalOnProperty(name = "openaev.audit-logs.service.enabled", havingValue = "true")
 @RequiredArgsConstructor
 @Slf4j
 public class AccessControlAuditLogger {

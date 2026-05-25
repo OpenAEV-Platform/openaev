@@ -37,7 +37,7 @@ import org.springframework.web.bind.annotation.RequestBody;
  */
 @Aspect
 @Component
-@ConditionalOnProperty(name = "openaev.audit-logs.enabled", havingValue = "true")
+@ConditionalOnProperty(name = "openaev.audit-logs.service.enabled", havingValue = "true")
 @Order
 @RequiredArgsConstructor
 @Slf4j

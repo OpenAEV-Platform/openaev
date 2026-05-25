@@ -11,7 +11,7 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 @Component
-@ConditionalOnProperty(name = "openaev.audit-logs.enabled", havingValue = "true")
+@ConditionalOnProperty(name = "openaev.audit-logs.service.enabled", havingValue = "true")
 @RequiredArgsConstructor
 public class AuditRequestValidator {
 
