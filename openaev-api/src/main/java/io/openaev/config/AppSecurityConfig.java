@@ -5,6 +5,7 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter.DEFAULT_AUTHORIZATION_REQUEST_BASE_URI;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.aop.audit_log.AccessControlAuditLogger;
 import io.openaev.config.security.OpenSamlConfig;
 import io.openaev.config.security.SecurityService;
 import io.openaev.database.model.User;
@@ -63,6 +64,7 @@ public class AppSecurityConfig {
   private final SecurityService securityService;
   private final UserEventService userEventService;
   private final UserMappingService userMappingService;
+  private final AccessControlAuditLogger accessControlAuditLogger;
 
   @Resource protected ObjectMapper mapper;
 
@@ -117,6 +119,18 @@ public class AppSecurityConfig {
         .logout(
             logout ->
                 logout
+                    // Audit Log: audit handler fires first, then Spring Security's built-in
+                    // SecurityContextLogoutHandler
+                    // invalidates the session and clears cookies
+                    .addLogoutHandler(
+                        (request, response, authentication) -> {
+                          try {
+                            accessControlAuditLogger.logAuthEvent(
+                                "logout", "success", null, null, null);
+                          } catch (Exception e) {
+                            // Never block the logout flow
+                          }
+                        })
                     .invalidateHttpSession(true)
                     .deleteCookies("JSESSIONID", openAEVConfig.getCookieName())
                     .logoutSuccessUrl(
@@ -131,9 +145,11 @@ public class AppSecurityConfig {
                           auth.authorizationRequestResolver(
                               authorizationRequestResolver(
                                   http.getSharedObject(ClientRegistrationRepository.class))))
-                  .successHandler(new SsoRefererAuthenticationSuccessHandler())
+                  .successHandler(
+                      new SsoRefererAuthenticationSuccessHandler(this.accessControlAuditLogger))
                   .failureHandler(
-                      new SsoRefererAuthenticationFailureHandler(this.userEventService)));
+                      new SsoRefererAuthenticationFailureHandler(
+                          this.userEventService, this.accessControlAuditLogger)));
     }
 
     if (openAEVConfig.isAuthSaml2Enable()) {

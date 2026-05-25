@@ -2,6 +2,7 @@ package io.openaev.rest.user;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.UserRoleDescription;
+import io.openaev.aop.audit_log.AccessControlAuditLogger;
 import io.openaev.config.SessionManager;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
@@ -51,6 +52,7 @@ public class UserApi extends RestBehavior {
   private final UserRepository userRepository;
   private final UserService userService;
   private final UserEventService userEventService;
+  private final AccessControlAuditLogger accessControlAuditLogger;
 
   @Operation(description = "Endpoint to login", summary = "Endpoint to login")
   @ApiResponses(
@@ -70,11 +72,14 @@ public class UserApi extends RestBehavior {
       if (userService.isUserPasswordValid(user, input.getPassword())) {
         userService.createUserSession(user);
         userEventService.createLoginSuccessEvent(user);
+        accessControlAuditLogger.logAuthEvent("login", "success", "local", null, null);
         return user;
       }
     }
     userEventService.createLoginFailedEvent(
         "local login", BadCredentialsException.class.getSimpleName());
+    accessControlAuditLogger.logAuthEvent(
+        "login", "error", "local", BadCredentialsException.class.getSimpleName(), null);
     throw new BadCredentialsException("Invalid credential.");
   }
 

@@ -2,6 +2,7 @@ package io.openaev.security;
 
 import static org.springframework.http.HttpHeaders.REFERER;
 
+import io.openaev.aop.audit_log.AccessControlAuditLogger;
 import io.openaev.service.user_events.UserEventService;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -18,9 +19,12 @@ public class SsoRefererAuthenticationFailureHandler extends SimpleUrlAuthenticat
 
   private RequestCache requestCache = new HttpSessionRequestCache();
   private final UserEventService userEventService;
+  private final AccessControlAuditLogger accessControlAuditLogger;
 
-  public SsoRefererAuthenticationFailureHandler(UserEventService userEventService) {
+  public SsoRefererAuthenticationFailureHandler(
+      UserEventService userEventService, AccessControlAuditLogger accessControlAuditLogger) {
     this.userEventService = userEventService;
+    this.accessControlAuditLogger = accessControlAuditLogger;
   }
 
   @Override
@@ -29,6 +33,8 @@ public class SsoRefererAuthenticationFailureHandler extends SimpleUrlAuthenticat
       throws ServletException, IOException {
     userEventService.createLoginFailedEvent(
         request.getRequestURI(), exception.getClass().getSimpleName());
+    accessControlAuditLogger.logAuthEvent(
+        "login", "error", request.getRequestURI(), exception.getClass().getSimpleName(), null);
 
     this.saveException(request, exception);
     SavedRequest savedRequest = this.requestCache.getRequest(request, response);
