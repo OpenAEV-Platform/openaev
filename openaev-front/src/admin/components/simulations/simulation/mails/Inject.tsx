@@ -24,20 +24,14 @@ import AnimationMenu from '../AnimationMenu';
 import CommunicationItem from './Communication';
 import CommunicationForm from './CommunicationForm';
 
-const useStyles = makeStyles()((theme) => ({
+const useStyles = makeStyles()(theme => ({
   container: {
     margin: '0 0 50px 0',
     padding: '0 200px 0 0',
   },
-  section: {
-    marginTop: 0,
-  },
-  mailsSection: {
-    marginTop: theme.spacing(5),
-  },
-  replyAction: {
-    marginBottom: theme.spacing(2.5),
-  },
+  section: { marginTop: 0 },
+  mailsSection: { marginTop: theme.spacing(5) },
+  replyAction: { marginBottom: theme.spacing(2.5) },
   paper: {
     position: 'relative',
     padding: '20px 20px 0 20px',
@@ -254,7 +248,7 @@ const InjectComponent: FunctionComponent = () => {
                 communicationUsers={topicUsers}
                 isTopic={true}
               />
-              {topic.communication_communications.toReversed().map((comm) => {
+              {topic.communication_communications.slice().reverse().map((comm) => {
                 const commUsers = (comm.communication_users ?? []).map(
                   (userId: string) => usersMap[userId] ?? {},
                 );

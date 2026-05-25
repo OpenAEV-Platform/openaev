@@ -50,7 +50,7 @@ class ScenarioExecutionJobTest extends IntegrationTest {
 
   @Nested
   @DisplayName("When using cron-based recurrence")
-  class WhenUSingCronBasedRecurrence {
+  class WhenUsingCronBasedRecurrence {
     @DisplayName("Not create simulation based on recurring scenario in one hour")
     @Test
     void given_cron_in_one_hour_should_not_create_simulation() throws JobExecutionException {

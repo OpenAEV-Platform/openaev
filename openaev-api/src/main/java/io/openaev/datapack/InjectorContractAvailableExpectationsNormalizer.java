@@ -20,7 +20,7 @@ import org.springframework.stereotype.Component;
  * Normalizes {@code availableExpectations} on all injector contracts after the application has
  * fully started.
  *
- * <p>This complements the Flyway migration {@code V4_93} which handles data existing at migration
+ * <p>This complements the Flyway migration {@code V5_08} which handles data existing at migration
  * time. Contracts created by DataPacks or built-in injectors (email, channel, challenge, manual,
  * payload-based) are inserted during Spring startup — after Flyway — so they cannot be covered by
  * the migration alone. This listener runs after all {@code @PostConstruct} methods (including
@@ -87,7 +87,8 @@ public class InjectorContractAvailableExpectationsNormalizer {
             + "  ON iic.injector_contract_id = ic.injector_contract_id "
             + "  AND iic.tenant_id = ic.tenant_id "
             + "LEFT JOIN injectors i ON i.injector_id = iic.injector_id "
-            + "WHERE ic.injector_contract_content IS NOT NULL";
+            + "WHERE ic.injector_contract_content IS NOT NULL"
+            + "ORDER BY ic.injector_contract_id, ic.tenant_id, i.injector_type NULLS LAST";
 
     try (Connection conn = dataSource.getConnection();
         PreparedStatement select = conn.prepareStatement(selectQuery);

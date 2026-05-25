@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class V5_08__Add_available_expectations_to_injector_contracts extends BaseJavaMigration {
 
+  // Legacy table name kept intentionally for backward compatibility with previous runs
   private static final String BACKUP_TABLE = "migration_v4_93_injector_contracts_backup";
 
   // Default expiration times (seconds) — mirrors ExpectationPropertiesConfig constants
@@ -68,7 +69,8 @@ public class V5_08__Add_available_expectations_to_injector_contracts extends Bas
             + "  ON iic.injector_contract_id = ic.injector_contract_id "
             + "  AND iic.tenant_id = ic.tenant_id "
             + "LEFT JOIN injectors i ON i.injector_id = iic.injector_id "
-            + "WHERE ic.injector_contract_content IS NOT NULL";
+            + "WHERE ic.injector_contract_content IS NOT NULL"
+            + "ORDER BY ic.injector_contract_id, ic.tenant_id, i.injector_type NULLS LAST";
 
     try (PreparedStatement select = context.getConnection().prepareStatement(selectQuery);
         ResultSet contracts = select.executeQuery();
