@@ -902,5 +902,54 @@ public class ScenarioApiTest extends IntegrationTest {
       // -------- Assert --------
       assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
     }
+
+    @Test
+    @DisplayName("Fetching scenarios by IDs should NOT return scenarios from another tenant")
+    void given_scenarioInTenantX_should_notBeReturnedByIdFromTenantY() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_ASSESSMENT));
+
+      ScenarioInput input = new ScenarioInput();
+      input.setName("SearchById Isolation Scenario");
+
+      String createResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantX.getId() + "/scenarios")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String scenarioId = JsonPath.read(createResponse, "$.scenario_id");
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // -------- Act — fetch by IDs from tenant Y --------
+      String searchByIdResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantY.getId() + "/scenarios/search-by-id")
+                      .content(asJsonString(Map.of("scenario_ids", List.of(scenarioId))))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -------- Assert — result should be empty --------
+      List<Object> results = JsonPath.read(searchByIdResponse, "$");
+      assertThat(results.size()).isEqualTo(0);
+    }
   }
 }

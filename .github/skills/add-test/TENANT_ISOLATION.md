@@ -82,9 +82,12 @@ public void switchToTenant(String tenantId, EntityManager entityManager) {
 ```
 ### Step 5 — Implement Test Methods
 
-> **Template**: All 5 test templates (READ, same-tenant READ, SEARCH, UPDATE, DELETE) are in
+> **Template**: All 6 test templates (READ, same-tenant READ, SEARCH, UPDATE, DELETE,
+> search-by-IDs) are in
 > [`examples/tenant-isolation-templates.md`](examples/tenant-isolation-templates.md).
 > Read that file for the full code templates with placeholder documentation.
+> Test 6 (search-by-IDs) is only needed when the API has a batch-lookup endpoint
+> (e.g., `POST /{entities}/search-by-id`).
 
 > **Real-world examples** (read these for patterns to follow):
 > - [`AssetGroupApiTest.TenantIsolation`](../../../openaev-api/src/test/java/io/openaev/rest/asset_group/AssetGroupApiTest.java) — fixture + REST API create

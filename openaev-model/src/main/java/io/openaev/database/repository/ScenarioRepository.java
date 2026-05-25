@@ -130,6 +130,7 @@ public interface ScenarioRepository
               + "INNER JOIN users_groups ON groups.group_id = users_groups.group_id "
               + "WHERE users_groups.user_id = :userId "
               + "AND sce.scenario_id IN :scenarioIds "
+              + "AND sce.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY sce.scenario_id",
       nativeQuery = true)
   List<RawScenarioSimpleIndexing> rawGrantedByScenarioIds(
@@ -151,6 +152,7 @@ public interface ScenarioRepository
               + "FROM scenarios sce "
               + "LEFT JOIN scenarios_tags sct ON sct.scenario_id = sce.scenario_id "
               + "WHERE sce.scenario_id IN :scenarioIds "
+              + "AND sce.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY sce.scenario_id",
       nativeQuery = true)
   List<RawScenarioSimpleIndexing> rawByScenarioIds(@Param("scenarioIds") List<String> scenarioIds);

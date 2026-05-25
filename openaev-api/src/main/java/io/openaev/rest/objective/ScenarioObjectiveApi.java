@@ -58,7 +58,9 @@ public class ScenarioObjectiveApi extends RestBehavior {
   public Objective createObjective(
       @PathVariable String scenarioId, @Valid @RequestBody ObjectiveInput input) {
     Scenario scenario =
-        scenarioRepository.findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant()).orElseThrow(ElementNotFoundException::new);
+        scenarioRepository
+            .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
+            .orElseThrow(ElementNotFoundException::new);
     Objective objective = new Objective();
     objective.setUpdateAttributes(input);
     objective.setScenario(scenario);
@@ -149,7 +151,9 @@ public class ScenarioObjectiveApi extends RestBehavior {
     objective.setUpdatedAt(now());
     objectiveRepository.save(objective);
     Scenario scenario =
-        scenarioRepository.findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant()).orElseThrow(ElementNotFoundException::new);
+        scenarioRepository
+            .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
+            .orElseThrow(ElementNotFoundException::new);
     scenario.setUpdatedAt(now());
     scenarioRepository.save(scenario);
     return result;
@@ -177,7 +181,9 @@ public class ScenarioObjectiveApi extends RestBehavior {
     objective.setUpdatedAt(now());
     objectiveRepository.save(objective);
     Scenario scenario =
-        scenarioRepository.findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant()).orElseThrow(ElementNotFoundException::new);
+        scenarioRepository
+            .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
+            .orElseThrow(ElementNotFoundException::new);
     scenario.setUpdatedAt(now());
     scenarioRepository.save(scenario);
     return result;

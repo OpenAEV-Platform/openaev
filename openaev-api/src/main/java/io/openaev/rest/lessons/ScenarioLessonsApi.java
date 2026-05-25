@@ -56,7 +56,9 @@ public class ScenarioLessonsApi extends RestBehavior {
   public Iterable<LessonsCategory> applyScenarioLessonsTemplate(
       @PathVariable String scenarioId, @PathVariable String lessonsTemplateId) {
     Scenario scenario =
-        scenarioRepository.findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant()).orElseThrow(ElementNotFoundException::new);
+        scenarioRepository
+            .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
+            .orElseThrow(ElementNotFoundException::new);
     LessonsTemplate lessonsTemplate =
         lessonsTemplateRepository
             .findById(lessonsTemplateId)
@@ -99,7 +101,9 @@ public class ScenarioLessonsApi extends RestBehavior {
   public LessonsCategory createScenarioLessonsCategory(
       @PathVariable String scenarioId, @Valid @RequestBody LessonsCategoryCreateInput input) {
     Scenario scenario =
-        scenarioRepository.findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant()).orElseThrow(ElementNotFoundException::new);
+        scenarioRepository
+            .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
+            .orElseThrow(ElementNotFoundException::new);
     LessonsCategory lessonsCategory = new LessonsCategory();
     lessonsCategory.setUpdateAttributes(input);
     lessonsCategory.setScenario(scenario);
