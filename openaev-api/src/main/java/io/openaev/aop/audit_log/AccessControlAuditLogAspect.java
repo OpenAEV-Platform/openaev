@@ -17,7 +17,7 @@ import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
-import org.springframework.core.Ordered;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.annotation.Order;
 import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.ExpressionParser;
@@ -37,7 +37,8 @@ import org.springframework.web.bind.annotation.RequestBody;
  */
 @Aspect
 @Component
-@Order(Ordered.LOWEST_PRECEDENCE)
+@ConditionalOnProperty(name = "openaev.audit-logs.enabled", havingValue = "true")
+@Order
 @RequiredArgsConstructor
 @Slf4j
 public class AccessControlAuditLogAspect {
