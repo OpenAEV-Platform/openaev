@@ -25,7 +25,7 @@
 
 ## Status code expectations
 
-Cross-tenant access typically returns **404** (Hibernate `@Filter` or RLS blocks the SELECT →
+Cross-tenant access typically returns **404** (Hibernate `@Filter` blocks the SELECT →
 `ElementNotFoundException`).
 
 ---
@@ -41,7 +41,7 @@ void given_{entity}InTenantX_should_notBeReadableFromTenantY() throws Exception 
   Tenant tenantY = tenantIsolationHelper.createTenantWithCapabilities(
       "Tenant Y", Set.of({ACCESS_CAP}));
 
-  {CreateInput} input = {EntityFixture}.createDefault{CreateInput}("RLS Isolation Test");
+  {CreateInput} input = {EntityFixture}.createDefault{CreateInput}("Isolation Test");
 
   String createResponse = mvc.perform(
           post("/api/tenants/" + tenantX.getId() + "/{entities}")

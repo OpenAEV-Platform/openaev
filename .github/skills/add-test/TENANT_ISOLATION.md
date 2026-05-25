@@ -69,13 +69,8 @@ class TenantIsolation {
 
 ### Step 4 — Evict Hibernate L1 Cache Between Create and Cross-Tenant Access
 
-**Critical**: When a test creates an entity and then reads it within the same `@Transactional`
-test, Hibernate's L1 (session) cache may return the entity directly **without hitting the
-database**. Since RLS filtering happens at the PostgreSQL level, a cached `findById()` bypasses
-RLS entirely — making the test pass even when isolation is broken.
-
 **Always call `entityManager.flush()` + `entityManager.clear()` between the create and the
-cross-tenant access** to force Hibernate to issue a real SQL query that goes through RLS.
+cross-tenant access** to force Hibernate to issue a real SQL query.
 
 > NOTE: this is done in switchToTenant() for example.
 ```java
