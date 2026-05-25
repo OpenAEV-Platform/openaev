@@ -4,6 +4,7 @@ import static io.openaev.config.OpenAEVAnonymous.ANONYMOUS;
 import static io.openaev.helper.StreamHelper.fromIterable;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.UserRepository;
@@ -41,7 +42,7 @@ public class ScenarioChallengesApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   public List<Document> playerDocuments(
       @PathVariable String scenarioId, @RequestParam Optional<String> userId) {
-    Optional<Scenario> scenarioOpt = this.scenarioRepository.findById(scenarioId);
+    Optional<Scenario> scenarioOpt = this.scenarioRepository.findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant());
     final User user = impersonateUser(userRepository, userId);
     if (user.getId().equals(ANONYMOUS)) {
       throw new UnsupportedOperationException("User must be logged or dynamic player is required");
@@ -64,7 +65,7 @@ public class ScenarioChallengesApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   public ScenarioChallengesReader observerChallenges(@PathVariable String scenarioId) {
     Scenario scenario =
-        scenarioRepository.findById(scenarioId).orElseThrow(ElementNotFoundException::new);
+        scenarioRepository.findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant()).orElseThrow(ElementNotFoundException::new);
     ScenarioChallengesReader scenarioChallengesReader = new ScenarioChallengesReader(scenario);
     Iterable<Challenge> challenges = challengeService.getScenarioChallenges(scenario);
     scenarioChallengesReader.setScenarioChallenges(

@@ -820,7 +820,10 @@ public class ScenarioService {
   @Transactional
   public Scenario getDuplicateScenario(@NotBlank String scenarioId) {
     if (StringUtils.isNotBlank(scenarioId)) {
-      Scenario scenarioOrigin = scenarioRepository.findById(scenarioId).orElseThrow();
+      Scenario scenarioOrigin =
+          scenarioRepository
+              .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
+              .orElseThrow();
       Scenario scenario = copyScenario(scenarioOrigin);
       Scenario scenarioDuplicate = scenarioRepository.save(scenario);
       getListOfDuplicatedInjects(scenarioDuplicate, scenarioOrigin);

@@ -531,7 +531,7 @@ public class DocumentApi extends RestBehavior {
   public List<Document> playerDocuments(
       @PathVariable String exerciseOrScenarioId, @RequestParam Optional<String> userId) {
     Optional<Exercise> exerciseOpt = this.exerciseRepository.findById(exerciseOrScenarioId);
-    Optional<Scenario> scenarioOpt = this.scenarioRepository.findById(exerciseOrScenarioId);
+    Optional<Scenario> scenarioOpt = this.scenarioRepository.findByIdAndTenantId(exerciseOrScenarioId, TenantContext.getCurrentTenant());
 
     final User user = impersonateUser(userRepository, userId);
     if (user.getId().equals(ANONYMOUS)) {
@@ -567,7 +567,7 @@ public class DocumentApi extends RestBehavior {
       HttpServletResponse response)
       throws IOException {
     Optional<Exercise> exerciseOpt = this.exerciseRepository.findById(exerciseOrScenarioId);
-    Optional<Scenario> scenarioOpt = this.scenarioRepository.findById(exerciseOrScenarioId);
+    Optional<Scenario> scenarioOpt = this.scenarioRepository.findByIdAndTenantId(exerciseOrScenarioId, TenantContext.getCurrentTenant());
 
     final User user = impersonateUser(userRepository, userId);
     if (user.getId().equals(ANONYMOUS)) {
