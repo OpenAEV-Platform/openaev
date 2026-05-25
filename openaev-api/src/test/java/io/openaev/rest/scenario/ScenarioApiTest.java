@@ -697,7 +697,7 @@ public class ScenarioApiTest extends IntegrationTest {
               "Tenant Y", Set.of(Capability.ACCESS_ASSESSMENT));
 
       ScenarioInput input = new ScenarioInput();
-      input.setName("solation Test Scenario");
+      input.setName("Isolation Test Scenario");
 
       String createResponse =
           mvc.perform(
