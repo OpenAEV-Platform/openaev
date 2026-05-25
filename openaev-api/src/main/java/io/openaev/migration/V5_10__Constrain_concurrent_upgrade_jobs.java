@@ -16,11 +16,11 @@ public class V5_10__Constrain_concurrent_upgrade_jobs extends BaseJavaMigration 
       statement.execute(
           """
               DELETE from asset_agent_jobs WHERE asset_agent_inject IS NULL;
-              CREATE UNIQUE INDEX idx_unique_upgrade_job_per_asset ON asset_agent_jobs (asset_agent_agent) WHERE (asset_agent_inject IS NULL);
+              CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_upgrade_job_per_asset ON asset_agent_jobs (asset_agent_agent) WHERE (asset_agent_inject IS NULL);
               """);
 
       /* rollback
-       * DROP INDEX idx_unique_upgrade_job_per_asset;
+       * DROP INDEX IF EXISTS idx_unique_upgrade_job_per_asset;
        */
     }
   }

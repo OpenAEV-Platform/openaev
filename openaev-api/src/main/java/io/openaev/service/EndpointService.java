@@ -47,6 +47,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -467,18 +468,26 @@ public class EndpointService {
     // for the agent
     Endpoint endpoint = (Endpoint) agent.getAsset();
     if (agent.getParent() == null && !agent.getVersion().equals(version)) {
-      AssetAgentJob assetAgentJob = new AssetAgentJob();
-      assetAgentJob.setCommand(
-          generateUpgradeCommand(
-              endpoint.getPlatform().name(),
-              input.getInstallationMode(),
-              input.getInstallationDirectory(),
-              input.getServiceName(),
-              agent.getTenant().getId()));
-      assetAgentJob.setAgent(agent);
-      assetAgentJob.setTenant(agent.getTenant());
-      if (assetAgentJobRepository.findUpgradeJobByAgentIdAndInjectNull(agent.getId()).isEmpty()) {
-        assetAgentJobRepository.save(assetAgentJob);
+      if (assetAgentJobRepository
+          .findUpgradeJobByAgentIdAndInjectNull(agent.getId(), agent.getTenant().getId())
+          .isEmpty()) {
+        AssetAgentJob assetAgentJob = new AssetAgentJob();
+        assetAgentJob.setCommand(
+            generateUpgradeCommand(
+                endpoint.getPlatform().name(),
+                input.getInstallationMode(),
+                input.getInstallationDirectory(),
+                input.getServiceName(),
+                agent.getTenant().getId()));
+        assetAgentJob.setAgent(agent);
+        assetAgentJob.setTenant(agent.getTenant());
+
+        try {
+          assetAgentJobRepository.save(assetAgentJob);
+        } catch (DataIntegrityViolationException e) {
+          // Concurrent registration already created the upgrade job — safe to ignore
+          log.warn("Upgrade job already exists for agent {} (concurrent insert)", agent.getId(), e);
+        }
       } else {
         log.warn("Upgrade job already exists");
       }

@@ -10,15 +10,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.AssetAgentJob;
 import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.EndpointRegisterInputFixture;
 import io.openaev.utils.fixtures.ExecutorFixture;
 import io.openaev.utils.fixtures.composers.ExecutorComposer;
 import io.openaev.utils.fixtures.tenants.TenantComposer;
-import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
 import java.util.List;
@@ -37,6 +36,7 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
   @Autowired private ExecutorComposer executorComposer;
   @Autowired private TenantComposer tenantComposer;
   @Autowired private ExecutorFixture executorFixture;
+  @Autowired private TenantIsolationTestHelper tenantIsolationTestHelper;
   @Autowired private AssetAgentJobRepository assetAgentJobRepository;
 
   @BeforeEach
@@ -116,23 +116,29 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
         }
 
         @Test
-        @Disabled(
-            "Multitenant registration does not work because builtin openaev executor can't exist in multiple tenants")
         @DisplayName(
             "Registering same endpoint on different tenants create a single upgrade job in each tenant")
         void registeringSameEndpointOnDifferentTenants() throws Exception {
-          // executor in default tenant
-          executorComposer.forExecutor(executorFixture.createOpenAEVExecutor()).persist();
           TenantComposer.Composer tenantWrapper =
-              tenantComposer.forTenant(TenantFixture.getTenant("additional_tenant")).persist();
-          entityManager.flush();
-          TenantContext.setCurrentTenant(tenantWrapper.get().getId());
-          // executor in other tenant
-          executorComposer.forExecutor(executorFixture.createOpenAEVExecutor()).persist();
+              tenantComposer
+                  .forTenant(
+                      tenantIsolationTestHelper.createTenantWithCurrentUser("additional_tenant_1"))
+                  .persist();
+          tenantIsolationTestHelper.switchToTenant(tenantWrapper.get().getId(), entityManager);
+          // executor in default tenant
+          executorComposer.forExecutor(executorFixture.createOAEVExecutor()).persist();
           entityManager.flush();
           entityManager.clear();
-
-          TenantContext.clearCurrentTenant();
+          TenantComposer.Composer tenantWrapper2 =
+              tenantComposer
+                  .forTenant(
+                      tenantIsolationTestHelper.createTenantWithCurrentUser("additional_tenant_2"))
+                  .persist();
+          tenantIsolationTestHelper.switchToTenant(tenantWrapper2.get().getId(), entityManager);
+          // executor in other tenant
+          executorComposer.forExecutor(executorFixture.createOAEVExecutor()).persist();
+          entityManager.flush();
+          entityManager.clear();
 
           EndpointRegisterInput input =
               EndpointRegisterInputFixture.getDefaultEndpointRegisterInput();
@@ -140,27 +146,44 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
 
           mockMvc
               .perform(
-                  post(ENDPOINT_URI + "/register")
+                  post("/api/tenants/" + tenantWrapper.get().getId() + "/endpoints/register")
                       .content(mapper.writeValueAsString(input))
                       .contentType(MediaType.APPLICATION_JSON)
                       .with(csrf()))
               .andExpect(status().isOk())
               .andReturn();
-
-          TenantContext.setCurrentTenant(tenantWrapper.get().getId());
+          entityManager.flush();
+          entityManager.clear();
 
           mockMvc
               .perform(
-                  post(ENDPOINT_URI + "/register")
+                  post("/api/tenants/" + tenantWrapper2.get().getId() + "/endpoints/register")
                       .content(mapper.writeValueAsString(input))
                       .contentType(MediaType.APPLICATION_JSON)
                       .with(csrf()))
               .andExpect(status().isOk())
               .andReturn();
+          entityManager.flush();
+          entityManager.clear();
 
-          List<AssetAgentJob> jobs = fromIterable(assetAgentJobRepository.findAll());
+          tenantIsolationTestHelper.switchToTenant(tenantWrapper.get().getId(), entityManager);
+          List<AssetAgentJob> jobTenant1 = fromIterable(assetAgentJobRepository.findAll());
 
-          assertThat(jobs).satisfiesOnlyOnce(job -> assertThat(job.getInject()).isNull());
+          assertThat(jobTenant1)
+              .satisfiesOnlyOnce(job -> assertThat(job.getInject()).isNull())
+              .satisfiesOnlyOnce(
+                  job ->
+                      assertThat(job.getTenant().getId()).isEqualTo(tenantWrapper.get().getId()));
+          ;
+
+          tenantIsolationTestHelper.switchToTenant(tenantWrapper2.get().getId(), entityManager);
+          List<AssetAgentJob> jobTenant2 = fromIterable(assetAgentJobRepository.findAll());
+
+          assertThat(jobTenant2)
+              .satisfiesOnlyOnce(job -> assertThat(job.getInject()).isNull())
+              .satisfiesOnlyOnce(
+                  job ->
+                      assertThat(job.getTenant().getId()).isEqualTo(tenantWrapper2.get().getId()));
         }
 
         @Test

@@ -20,7 +20,7 @@ import org.springframework.stereotype.Component;
 public class ExecutorFixture {
   @Autowired ExecutorRepository executorRepository;
 
-  private Executor createOAEVExecutor() {
+  public Executor createOAEVExecutor() {
     Executor executor = new Executor();
     executor.setType(OPENAEV_EXECUTOR_TYPE);
     executor.setId(OPENAEV_EXECUTOR_ID);
@@ -42,10 +42,6 @@ public class ExecutorFixture {
         executorRepository.findByTypeAndTenantId(
             OPENAEV_EXECUTOR_TYPE, TenantContext.getCurrentTenant());
     return executorOptional.orElseGet(() -> executorRepository.save(createOAEVExecutor()));
-  }
-
-  public Executor createOpenAEVExecutor() {
-    return createOAEVExecutor();
   }
 
   public Executor createCrowdstrikeExecutor() {

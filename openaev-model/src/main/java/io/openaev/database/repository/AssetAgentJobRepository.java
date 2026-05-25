@@ -27,7 +27,8 @@ public interface AssetAgentJobRepository
   @Query(
       value =
           """
-    SELECT j FROM AssetAgentJob j WHERE j.agent.id = :agentId AND j.inject IS NULL
+    SELECT j FROM AssetAgentJob j WHERE j.agent.id = :agentId AND j.tenant.id = :tenantId AND j.inject IS NULL
     """)
-  Optional<AssetAgentJob> findUpgradeJobByAgentIdAndInjectNull(@Param("agentId") String agentId);
+  Optional<AssetAgentJob> findUpgradeJobByAgentIdAndInjectNull(
+      @Param("agentId") String agentId, @Param("tenantId") String tenantId);
 }
