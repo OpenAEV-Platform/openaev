@@ -3,6 +3,7 @@ package io.openaev.engine.model.log;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.annotation.Indexable;
 import java.time.Instant;
 import java.util.Map;
@@ -73,6 +74,10 @@ public class LogEvent {
   @JsonProperty("user_metadata")
   private UserMetadata userMetadata;
 
+  /** Nested request metadata (protocol, port, request URL/API endpoint, HTTP method). */
+  @JsonProperty("request_metadata")
+  private RequestMetadata requestMetadata;
+
   // -- Timing --
 
   /** Event timestamp (when the action occurred). */
@@ -88,9 +93,6 @@ public class LogEvent {
    */
   @JsonProperty("context_data")
   private Map<String, Object> contextData;
-
-  @JsonProperty("request_data")
-  private Map<String, Object> requestData;
 
   // -- Nested objects --
 
@@ -116,5 +118,23 @@ public class LogEvent {
 
     /** Resolved remote IP address (remoteAddr or X-Real-IP). */
     private String ip;
+  }
+
+  /** User metadata: request-level information about the actor. */
+  @Getter
+  @Setter
+  @JsonAutoDetect(
+      getterVisibility = JsonAutoDetect.Visibility.NONE,
+      fieldVisibility = JsonAutoDetect.Visibility.ANY)
+  public static class RequestMetadata {
+
+    /** HTTP Url. */
+    private String url;
+
+    /** HTTP Method. */
+    private String method;
+
+    /** Called method. */
+    private JsonNode signature;
   }
 }
