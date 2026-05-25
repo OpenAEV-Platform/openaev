@@ -104,6 +104,7 @@ public class InjectService {
   private final EnterpriseEditionService enterpriseEditionService;
   private final EndpointService endpointService;
   private final InjectRepository injectRepository;
+  private final InjectDependenciesRepository injectDependenciesRepository;
   private final InjectDocumentRepository injectDocumentRepository;
   private final InjectorService injectorService;
   private final InjectStatusRepository injectStatusRepository;
@@ -315,6 +316,19 @@ public class InjectService {
     if (!CollectionUtils.isEmpty(injectIds)) {
       injectRepository.deleteByAllIdsNative(injectIds);
     }
+  }
+
+  /**
+   * Deletes all inject dependencies (rows in injects_dependencies) for every inject belonging to
+   * the given scenario. Must be called before deleting the scenario to prevent Hibernate
+   * StaleStateException caused by CascadeType.ALL trying to delete the same dependency row twice
+   * when multiple injects in the scenario have cross-dependencies.
+   *
+   * @param scenarioId the scenario whose inject dependencies must be cleared
+   */
+  @Transactional(rollbackOn = Exception.class)
+  public void clearInjectDependenciesByScenarioId(String scenarioId) {
+    injectDependenciesRepository.deleteAllByScenarioId(scenarioId);
   }
 
   /**
