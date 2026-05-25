@@ -30,16 +30,17 @@ public class SsoRefererAuthenticationSuccessHandler extends SimpleUrlAuthenticat
       throws ServletException, IOException {
 
     // Audit: log SSO login success
+    String provider = "sso";
+
     try {
-      String provider = "sso";
       if (authentication instanceof OAuth2AuthenticationToken oauth2Token) {
         provider = oauth2Token.getAuthorizedClientRegistrationId();
       }
-
-      accessControlAuditLogger.logAuthEvent("login", "success", provider, null, null);
     } catch (Exception e) {
       // Never block the login flow
     }
+
+    accessControlAuditLogger.logAuthEvent("login", "success", provider, null, null);
 
     SavedRequest savedRequest = this.requestCache.getRequest(request, response);
 
