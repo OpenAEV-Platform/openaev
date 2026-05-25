@@ -27,4 +27,9 @@ public class ExecutionTraceFixture {
   public static ExecutionTrace createDefaultExecutionTraceError() {
     return ExecutionTrace.getNewErrorTrace("Error", ExecutionTraceAction.COMPLETE);
   }
+
+  public static ExecutionTrace createDefaultExecutionTrace(List<String> identifiers) {
+    return ExecutionTrace.getNewSuccessTrace(
+        "Test execution completed", ExecutionTraceAction.EXECUTION, identifiers);
+  }
 }

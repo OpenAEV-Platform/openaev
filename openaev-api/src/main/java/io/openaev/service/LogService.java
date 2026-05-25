@@ -1,0 +1,389 @@
+package io.openaev.service;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.config.OpenAEVPrincipal;
+import io.openaev.config.SessionHelper;
+import io.openaev.config.ThreadPoolTaskLoggerConfig;
+import io.openaev.context.TenantContext;
+import io.openaev.database.model.ResourceType;
+import io.openaev.database.model.User;
+import io.openaev.engine.EngineService;
+import io.openaev.engine.model.log.LogEvent;
+import io.openaev.rest.settings.PreviewFeature;
+import io.openaev.utils.HttpReqRespUtils;
+import io.openaev.utils.ResourceManagerUtils;
+import io.openaev.utils.log.LogUtils;
+import io.openaev.utils.log.dispatcher.AuditLogTransportDispatcherUtils;
+import io.openaev.utils.log.dispatcher.GenericLogTransportDispatcherUtils;
+import io.openaev.utils.object.ObjectNormalizationUtils;
+import io.openaev.utils.object.ObjectRedactionUtils;
+import jakarta.servlet.http.HttpServletRequest;
+import java.time.Instant;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
+/**
+ * Log service — builds structured {@link LogEvent} events for CRUD and authentication operations.
+ */
+@Service
+@Slf4j
+@RequiredArgsConstructor
+public class LogService {
+
+  @Value("${openaev.generic-logs.service.enabled:false}")
+  private boolean genericLogsEnabled;
+
+  @Value("${openaev.audit-logs.service.enabled:false}")
+  private boolean auditLogsEnabled;
+
+  public enum AuditLogType {
+    GENERIC,
+    AUDIT
+  }
+
+  private final GenericLogTransportDispatcherUtils genericLogTransportDispatcherUtils;
+  private final PreviewFeatureService previewFeatureService;
+
+  private final AuditLogTransportDispatcherUtils auditLogTransportDispatcherUtils;
+
+  private final ObjectNormalizationUtils objectNormalizationUtils;
+  private final EngineService engineService;
+
+  private final UserService userService;
+
+  // -- Public API --
+
+  public boolean isEnabled(AuditLogType logType) {
+    return logType == AuditLogType.AUDIT
+        ? auditLogsEnabled && previewFeatureService.isFeatureEnabled(PreviewFeature.AUDIT_LOG)
+        : (logType == AuditLogType.GENERIC
+            ? genericLogsEnabled
+            : genericLogsEnabled || auditLogsEnabled);
+  }
+
+  /**
+   * Logs an authentication audit event.
+   *
+   * @param eventScope "login", "logout", or "unauthorized"
+   * @param eventStatus "success" or "error"
+   * @param provider auth provider name (e.g. "local", "auth0", "saml2")
+   * @param reason error reason (exception class name); null on success
+   */
+  public boolean logAuthEvent(
+      String eventScope,
+      String eventStatus,
+      String provider,
+      String reason,
+      Object logLevel,
+      AuditLogType logType,
+      String logUUID) {
+    if (!isEnabled(logType)) {
+      return true;
+    }
+
+    try {
+      // Build human-readable message
+      String message = LogUtils.buildAuthLogMessage(eventScope, eventStatus, provider);
+      String eventAccess = LogUtils.getAuthEventAccess();
+      LogEvent doc =
+          buildBaseAuditLog("authentication", eventStatus, eventAccess, eventScope, logUUID);
+
+      // -- context_data --
+      Map<String, Object> ctx = new LinkedHashMap<>();
+      if (provider != null) {
+        ctx.put("provider", provider);
+      }
+      if (reason != null) {
+        ctx.put("reason", reason);
+      }
+      ctx.put("message", message);
+      doc.setContextData(ctx);
+
+      return emit(doc, logLevel, logType);
+    } catch (Exception e) {
+      log.warn("[{}] Failed to log auth event: {}", logType.name(), e.getMessage(), e);
+    }
+
+    return false;
+  }
+
+  public boolean logRequestEvent(
+      String eventScope,
+      String eventStatus,
+      ResourceType resourceType,
+      String resourceId,
+      JsonNode input,
+      JsonNode output,
+      JsonNode signatureNode,
+      Object logLevel,
+      AuditLogType logType,
+      String logUUID) {
+    try {
+      if (!isEnabled(logType)) {
+        return true;
+      }
+
+      String entityTypeName = formatResourceType(resourceType);
+      String displayName = ResourceManagerUtils.extractNameFromSnapshot(input);
+      displayName = displayName != null ? displayName : resourceId;
+      String message;
+
+      if ("status_change".equals(eventScope)) {
+        message = LogUtils.buildStatusChangeMessage(input, entityTypeName, displayName);
+      } else {
+        message = eventScope + "s " + entityTypeName + " `" + displayName + "`";
+      }
+
+      String eventAccess = LogUtils.getDefaultEventAccess();
+      LogEvent doc = buildBaseAuditLog("mutation", eventStatus, eventAccess, eventScope, logUUID);
+      Map<String, Object> ctx = new LinkedHashMap<>();
+
+      ctx.put("entity_type", entityTypeName);
+
+      if (input != null) {
+        // Redacted input
+        input = objectNormalizationUtils.normalize(input);
+        input = ObjectRedactionUtils.redact(input, null);
+        ctx.put("input", toContextValue(input));
+      }
+
+      if (output != null) {
+        output = objectNormalizationUtils.normalize(output);
+        output = ObjectRedactionUtils.redact(output, entityTypeName);
+        ctx.put("output", toContextValue(output));
+      }
+
+      doc.getRequestData().put("signature", signatureNode);
+
+      ctx.put("message", message);
+      doc.setContextData(ctx);
+
+      return emit(doc, logLevel, logType);
+    } catch (Exception e) {
+      log.warn("[{}] Failed to log request event: {}", logType.name(), e.getMessage(), e);
+    }
+
+    return false;
+  }
+
+  public boolean logEvent(LogEvent doc, Object logLevel, AuditLogType logType, String logUUID) {
+    try {
+      if (!isEnabled(logType)) {
+        return true;
+      }
+
+      if (logUUID != null) {
+        doc.setId(logUUID);
+      }
+
+      return emit(doc, logLevel, logType);
+    } catch (Exception e) {
+      log.warn("[{}] Failed to log event: {}", logType.name(), e.getMessage(), e);
+    }
+
+    return false;
+  }
+
+  public boolean logMessage(String message, Object logLevel, AuditLogType logType, String logUUID) {
+    try {
+      if (!isEnabled(logType)) {
+        return true;
+      }
+
+      if (logUUID != null) {
+        message = "[log_id: " + logUUID + "] " + message;
+      }
+
+      return emit(message, logLevel, logType);
+    } catch (Exception e) {
+      log.warn("[{}] Failed to log message: {}", logType.name(), e.getMessage(), e);
+    }
+
+    return false;
+  }
+
+  // -- Internal helpers --
+
+  /** Builds the common part of an {@link LogEvent} with all envelope and user fields populated. */
+  private LogEvent buildBaseAuditLog(
+      String eventType, String eventStatus, String eventAccess, String eventScope, String logUUID) {
+    Instant now = Instant.now();
+
+    if (logUUID == null) {
+      logUUID = UUID.randomUUID().toString();
+    }
+
+    LogEvent doc = new LogEvent();
+    doc.setId(logUUID);
+    doc.setCreatedAt(now);
+    doc.setTimestamp(now);
+
+    doc.setEventType(eventType);
+    doc.setEventStatus(eventStatus);
+    doc.setEventAccess(eventAccess);
+    doc.setEventScope(eventScope);
+
+    // Request context
+    Map<String, Object> requestData = new LinkedHashMap<>();
+
+    ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.RequestContextData requestContextData =
+        ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.getRequestContextData();
+    String url = requestContextData != null ? requestContextData.url() : null;
+
+    requestData.put("url", url);
+    doc.setRequestData(requestData);
+
+    // Tenant context
+    doc.setTenantId(TenantContext.getCurrentTenant());
+
+    // User context
+    doc.setUserId(resolveUserId());
+    populateUserMetadata(doc);
+
+    return doc;
+  }
+
+  /** Resolves the current user ID from the security context, or null if anonymous. */
+  private String resolveUserId() {
+    try {
+      OpenAEVPrincipal principal = SessionHelper.currentUser();
+      if (principal == null || "anonymous".equals(principal.getId())) {
+        return null;
+      }
+      return principal.getId();
+    } catch (Exception e) {
+      return null;
+    }
+  }
+
+  /** Populates user metadata (email, IP, user agent) on the given audit log document. */
+  private void populateUserMetadata(LogEvent doc) {
+    LogEvent.UserMetadata meta = new LogEvent.UserMetadata();
+    boolean hasData = false;
+
+    // User email — denormalized for display
+    try {
+      String userId = doc.getUserId();
+      if (userId != null) {
+        User user = userService.user(userId);
+        if (user != null && user.getEmail() != null) {
+          String email = ObjectRedactionUtils.hash(user.getEmail());
+          meta.setUserEmail(email);
+          hasData = true;
+        }
+      }
+    } catch (Exception e) {
+      // User not found or not in a request context — skip email
+    }
+
+    // HTTP request headers
+    HttpServletRequest request = HttpReqRespUtils.getCurrentRequest();
+    Map<String, String> headers = HttpReqRespUtils.extractHeaders(request);
+
+    if (headers != null) {
+      String userAgent = HttpReqRespUtils.extractHeader(headers, "User-Agent");
+      if (userAgent != null) {
+        meta.setUserAgent(userAgent);
+        hasData = true;
+      }
+
+      String xff = HttpReqRespUtils.extractHeader(headers, "X-Forwarded-For");
+      if (xff != null && !xff.isEmpty()) {
+        meta.setXForwardedFor(xff);
+        hasData = true;
+      }
+
+      String ip = HttpReqRespUtils.getClientIpAddressIfServletRequestExist();
+      if (ip != null) {
+        meta.setIp(ip);
+        hasData = true;
+      }
+    }
+
+    if (hasData) {
+      doc.setUserMetadata(meta);
+    }
+  }
+
+  /** Converts a ResourceType enum to a human-readable display name (e.g. SCENARIO → Scenario). */
+  private static String formatResourceType(ResourceType resourceType) {
+    if (resourceType == null) {
+      return "Unknown";
+    }
+    String raw = resourceType.name();
+    String[] parts = raw.split("_");
+    StringBuilder sb = new StringBuilder();
+    for (String part : parts) {
+      if (!sb.isEmpty()) {
+        sb.append(" ");
+      }
+      sb.append(part.charAt(0)).append(part.substring(1).toLowerCase());
+    }
+    return sb.toString();
+  }
+
+  /** Serializes the audit log to the console and forwards to the search engine if enabled. */
+  private boolean emit(LogEvent doc, Object logLevel, AuditLogType logType) {
+    if (AuditLogType.AUDIT == logType) {
+      return auditLogTransportDispatcherUtils.dispatch(doc, logLevel);
+    }
+
+    try {
+      String json = objectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(doc);
+      String message = "[LOG] json doc: " + json;
+
+      return genericLogTransportDispatcherUtils.dispatch(message, logLevel);
+    } catch (Exception e) {
+      log.warn("[LOG] Failed to serialize event: {}", e.getMessage(), e);
+    }
+
+    return false;
+  }
+
+  private boolean emit(String message, Object logLevel, AuditLogType logType) {
+    if (AuditLogType.AUDIT == logType) {
+      return auditLogTransportDispatcherUtils.dispatch(message, logLevel);
+    }
+    return genericLogTransportDispatcherUtils.dispatch(message, logLevel);
+  }
+
+  /**
+   * Reuses the ObjectMapper from the search engine driver so audit serialization stays identical to
+   * ES/OS transport serialization.
+   */
+  private ObjectMapper objectMapper() {
+    return engineService.getObjectMapper();
+  }
+
+  /** Converts JsonNode payloads to a JSON-compatible Java value while preserving shape. */
+  private Object toContextValue(JsonNode node) {
+    if (node == null || node.isNull()) {
+      return null;
+    }
+
+    ObjectMapper mapper = objectMapper();
+    if (node.isObject()) {
+      return mapper.convertValue(node, Map.class);
+    }
+    if (node.isArray()) {
+      return mapper.convertValue(node, List.class);
+    }
+    if (node.isBoolean()) {
+      return node.booleanValue();
+    }
+    if (node.isNumber()) {
+      return node.numberValue();
+    }
+    if (node.isTextual()) {
+      return node.textValue();
+    }
+    return mapper.convertValue(node, Object.class);
+  }
+}

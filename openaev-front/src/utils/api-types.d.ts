@@ -6325,6 +6325,7 @@ export interface PlatformSettings {
     | "MULTI_TENANCY"
     | "OPENAEV_TRIALS_XTMHUB"
     | "INJECT_CHAINING"
+    | "AUDIT_LOG"
   )[];
   /** True if the Tanium Executor is enabled */
   executor_tanium_enable?: boolean;
@@ -6595,6 +6596,7 @@ export interface PublicPlatformSettings {
     | "MULTI_TENANCY"
     | "OPENAEV_TRIALS_XTMHUB"
     | "INJECT_CHAINING"
+    | "AUDIT_LOG"
   )[];
   /** Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL) */
   platform_banner_by_level?: Record<string, string[]>;
