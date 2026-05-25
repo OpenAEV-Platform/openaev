@@ -19,9 +19,11 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.Customizer;
@@ -64,7 +66,10 @@ public class AppSecurityConfig {
   private final SecurityService securityService;
   private final UserEventService userEventService;
   private final UserMappingService userMappingService;
-  private final AccessControlAuditLogger accessControlAuditLogger;
+
+  @Autowired
+  @Lazy
+  private AccessControlAuditLogger accessControlAuditLogger;
 
   @Resource protected ObjectMapper mapper;
 

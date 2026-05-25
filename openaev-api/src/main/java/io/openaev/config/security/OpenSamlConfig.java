@@ -18,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -49,7 +50,10 @@ public class OpenSamlConfig {
   private RelyingPartyRegistrationRepository relyingPartyRegistrationRepository;
 
   private final UserEventService userEventService;
-  private final AccessControlAuditLogger accessControlAuditLogger;
+
+  @Autowired
+  @Lazy
+  private AccessControlAuditLogger accessControlAuditLogger;
 
   public void addOpenSamlConfig(@NotNull final HttpSecurity http) throws Exception {
     if (this.relyingPartyRegistrationRepository == null) {
