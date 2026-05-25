@@ -139,7 +139,7 @@ public class LogService {
       if (input != null) {
         // Redacted input
         input = objectNormalizationUtils.normalize(input);
-        input = ObjectRedactionUtils.redact(input, null);
+        input = ObjectRedactionUtils.redact(input, entityTypeName);
         ctx.put("input", toContextValue(input));
       }
 
