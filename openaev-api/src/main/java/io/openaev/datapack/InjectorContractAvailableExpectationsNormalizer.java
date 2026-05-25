@@ -20,7 +20,7 @@ import org.springframework.stereotype.Component;
  * Normalizes {@code availableExpectations} on all injector contracts after the application has
  * fully started.
  *
- * <p>This complements the Flyway migration {@code V5_08} which handles data existing at migration
+ * <p>This complements the Flyway migration {@code V5_10} which handles data existing at migration
  * time. Contracts created by DataPacks or built-in injectors (email, channel, challenge, manual,
  * payload-based) are inserted during Spring startup — after Flyway — so they cannot be covered by
  * the migration alone. This listener runs after all {@code @PostConstruct} methods (including
