@@ -14,7 +14,6 @@ type UtilRequiredKeys<T, K extends keyof T> = Omit<T, K> & Required<Pick<T, K>>;
 
 export interface Agent {
   agent_active?: boolean;
-  /** @default "" */
   agent_asset: string;
   /** @format date-time */
   agent_cleared_at?: string;
@@ -23,16 +22,13 @@ export interface Agent {
   agent_deployment_mode: "service" | "session";
   /** @minLength 1 */
   agent_executed_by_user: string;
-  /** @default "" */
   agent_executor?: string;
   agent_external_reference?: string;
   /** @minLength 1 */
   agent_id: string;
-  /** @default "" */
   agent_inject?: string;
   /** @format date-time */
   agent_last_seen?: string;
-  /** @default "" */
   agent_parent?: string;
   agent_privilege: "admin" | "standard";
   agent_process_name?: string;
@@ -56,65 +52,36 @@ export interface AgentCallOutput {
 }
 
 export interface AgentExecutorOutput {
-  /**
-   * Agent executor id
-   * @default ""
-   */
+  /** Agent executor id */
   executor_id?: string;
-  /**
-   * Agent executor name
-   * @default ""
-   */
+  /** Agent executor name */
   executor_name?: string;
-  /**
-   * Agent executor type
-   * @default ""
-   */
+  /** Agent executor type */
   executor_type?: string;
 }
 
 export interface AgentOutput {
-  /**
-   * Indicates whether the endpoint is active. The endpoint is considered active if it was seen in the last 3 minutes.
-   * @default false
-   */
+  /** Indicates whether the endpoint is active. The endpoint is considered active if it was seen in the last 3 minutes. */
   agent_active?: boolean;
-  /**
-   * Agent deployment mode
-   * @default ""
-   */
+  /** Agent deployment mode */
   agent_deployment_mode?: "service" | "session";
-  /**
-   * The user who executed the agent
-   * @default ""
-   */
+  /** The user who executed the agent */
   agent_executed_by_user?: string;
-  /**
-   * Agent executor
-   * @default ""
-   */
+  /** Agent executor */
   agent_executor?: AgentExecutorOutput;
   /**
    * Agent id
    * @minLength 1
-   * @default ""
    */
   agent_id: string;
   /**
    * Instant when agent was last seen
    * @format date-time
-   * @default ""
    */
   agent_last_seen?: string;
-  /**
-   * Agent privilege
-   * @default ""
-   */
+  /** Agent privilege */
   agent_privilege?: "admin" | "standard";
-  /**
-   * The version of the agent
-   * @default ""
-   */
+  /** The version of the agent */
   agent_version?: string;
 }
 
@@ -162,13 +129,11 @@ export interface AggregatedFindingOutput {
   /**
    * Asset groups linked to endpoints
    * @uniqueItems true
-   * @default ""
    */
   finding_asset_groups?: AssetGroupSimple[];
   /**
    * Endpoint linked to finding
    * @uniqueItems true
-   * @default ""
    */
   finding_assets: EndpointSimple[];
   /** @format date-time */
@@ -176,12 +141,10 @@ export interface AggregatedFindingOutput {
   /**
    * Finding Id
    * @minLength 1
-   * @default ""
    */
   finding_id: string;
   /**
    * Represents the data type being extracted.
-   * @default ""
    * @example "text, number, port, portscan, ipv4, ipv6, credentials, cve"
    */
   finding_type:
@@ -209,7 +172,6 @@ export interface AggregatedFindingOutput {
   /**
    * Finding Value
    * @minLength 1
-   * @default ""
    */
   finding_value: string;
 }
@@ -222,28 +184,28 @@ export interface AiGenericTextInput {
 }
 
 export interface AiMediaInput {
-  ai_author?: string | null;
-  ai_context?: string | null;
-  /** @minLength 1 */
-  ai_format: string | null;
-  /** @minLength 1 */
-  ai_input: string;
-  /** @format int32 */
-  ai_paragraphs?: number | null;
-  ai_tone?: string | null;
-}
-
-export interface AiMessageInput {
-  ai_context?: string | null;
+  ai_author?: string;
+  ai_context?: string;
   /** @minLength 1 */
   ai_format: string;
   /** @minLength 1 */
   ai_input: string;
   /** @format int32 */
-  ai_paragraphs?: number | null;
-  ai_recipient?: string | null;
-  ai_sender?: string | null;
-  ai_tone?: string | null;
+  ai_paragraphs?: number;
+  ai_tone?: string;
+}
+
+export interface AiMessageInput {
+  ai_context?: string;
+  /** @minLength 1 */
+  ai_format: string;
+  /** @minLength 1 */
+  ai_input: string;
+  /** @format int32 */
+  ai_paragraphs?: number;
+  ai_recipient?: string;
+  ai_sender?: string;
+  ai_tone?: string;
 }
 
 export interface AiResult {
@@ -288,16 +250,13 @@ export interface ArgumentTypeOutput {
 
 export interface Article {
   article_author?: string;
-  /** @default "" */
   article_channel: string;
   /** @format int32 */
   article_comments?: number;
   article_content?: string;
   /** @format date-time */
   article_created_at: string;
-  /** @default "" */
   article_documents?: string[];
-  /** @default "" */
   article_exercise?: string;
   /** @minLength 1 */
   article_id: string;
@@ -305,7 +264,6 @@ export interface Article {
   /** @format int32 */
   article_likes?: number;
   article_name?: string;
-  /** @default "" */
   article_scenario?: string;
   /** @format int32 */
   article_shares?: number;
@@ -351,7 +309,6 @@ export interface ArticleUpdateInput {
 }
 
 export interface AssetAgentJob {
-  /** @default "" */
   asset_agent_agent?: string;
   /** @deprecated */
   asset_agent_asset?: string;
@@ -359,18 +316,15 @@ export interface AssetAgentJob {
   asset_agent_command: string;
   /** @minLength 1 */
   asset_agent_id: string;
-  /** @default "" */
   asset_agent_inject?: string;
   listened?: boolean;
 }
 
 export interface AssetGroup {
-  /** @default "" */
   asset_group_assets?: string[];
   /** @format date-time */
   asset_group_created_at: string;
   asset_group_description?: string;
-  /** @default "" */
   asset_group_dynamic_assets?: string[];
   asset_group_dynamic_filter: FilterGroup;
   asset_group_external_reference?: string;
@@ -378,7 +332,6 @@ export interface AssetGroup {
   asset_group_id: string;
   /** @minLength 1 */
   asset_group_name: string;
-  /** @default "" */
   asset_group_tags?: string[];
   /** @format date-time */
   asset_group_updated_at: string;
@@ -410,13 +363,11 @@ export interface AssetGroupSimple {
   /**
    * Asset group Id
    * @minLength 1
-   * @default ""
    */
   asset_group_id: string;
   /**
    * Asset group Name
    * @minLength 1
-   * @default ""
    */
   asset_group_name: string;
 }
@@ -509,11 +460,9 @@ export interface AttackPattern {
   attack_pattern_external_id: string;
   /** @minLength 1 */
   attack_pattern_id: string;
-  /** @default "" */
   attack_pattern_kill_chain_phases?: string[];
   /** @minLength 1 */
   attack_pattern_name: string;
-  /** @default "" */
   attack_pattern_parent?: string;
   attack_pattern_permissions_required?: string[];
   attack_pattern_platforms?: string[];
@@ -567,7 +516,6 @@ export type AverageConfiguration = UtilRequiredKeys<
   series: Series[];
 };
 
-/** @default null */
 interface BaseEsBase {
   /** @format date-time */
   base_created_at?: string;
@@ -584,7 +532,6 @@ type BaseEsBaseBaseEntityMapping<Key, Type> = {
   base_entity: Key;
 } & Type;
 
-/** @default null */
 interface BaseInjectTarget {
   target_detection_status?:
     | "FAILED"
@@ -628,24 +575,18 @@ type BaseInjectTargetTargetTypeMapping<Key, Type> = {
   target_type: Key;
 } & Type;
 
-/** @default null */
 interface BaseInjectorContractBaseOutput {
-  /**
-   * Injector contract external Id
-   * @default ""
-   */
+  /** Injector contract external Id */
   injector_contract_external_id?: string;
   injector_contract_has_full_details?: boolean;
   /**
    * Injector contract Id
    * @minLength 1
-   * @default ""
    */
   injector_contract_id: string;
   /**
    * Timestamp when the injector contract was last updated
    * @format date-time
-   * @default ""
    */
   injector_contract_updated_at: string;
 }
@@ -657,13 +598,11 @@ type BaseInjectorContractBaseOutputInjectorContractHasFullDetailsMapping<
   injector_contract_has_full_details: Key;
 } & Type;
 
-/** @default null */
 interface BasePayload {
   listened?: boolean;
   payload_arguments?: PayloadArgument[];
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
-  /** @default "" */
   payload_collector_type?: string;
   /** @format date-time */
   payload_created_at: string;
@@ -713,31 +652,20 @@ interface BasePayload {
     | "NETWORK_TRAFFIC";
 }
 
-/** @default null */
 interface BasePayloadCreateInput {
-  /** @default "" */
   command_content?: string | null;
-  /** @default "" */
   command_executor?: string | null;
   dns_resolution_hostname?: string;
   executable_file?: string;
   file_drop_file?: string;
   payload_arguments?: PayloadArgument[];
   payload_attack_patterns?: string[];
-  /** @default "" */
   payload_cleanup_command?: string | null;
-  /** @default "" */
   payload_cleanup_executor?: string | null;
   payload_description?: string;
-  /**
-   * List of detection remediation gaps for collectors
-   * @default ""
-   */
+  /** List of detection remediation gaps for collectors */
   payload_detection_remediations?: DetectionRemediationInput[];
-  /**
-   * Set list of domains
-   * @default ""
-   */
+  /** Set list of domains */
   payload_domains: string[];
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations: (
@@ -755,7 +683,6 @@ interface BasePayloadCreateInput {
   /**
    * Set of output parsers
    * @uniqueItems true
-   * @default ""
    */
   payload_output_parsers?: OutputParserInput[];
   /** @minItems 1 */
@@ -811,186 +738,106 @@ export interface CVEBulkInsertInput {
 }
 
 export interface CalderaSettings {
-  /**
-   * True if the Caldera Executor is enabled
-   * @default false
-   */
+  /** True if the Caldera Executor is enabled */
   executor_caldera_enable?: boolean;
-  /**
-   * Id of the instance linked to the configuration
-   * @default ""
-   */
+  /** Id of the instance linked to the configuration */
   executor_caldera_instance_id?: string;
-  /**
-   * Url of the Caldera Executor
-   * @default ""
-   */
+  /** Url of the Caldera Executor */
   executor_caldera_public_url?: string;
 }
 
-/**
- * A capability node in the capability tree
- * @default null
- */
+/** A capability node in the capability tree */
 export interface CapabilityOutput {
-  /**
-   * Whether this capability can be assigned to a role
-   * @default false
-   */
+  /** Whether this capability can be assigned to a role */
   capability_checkable: boolean;
-  /**
-   * Child capabilities
-   * @default ""
-   */
+  /** Child capabilities */
   capability_children: CapabilityOutput[];
   /**
    * Scopes where this capability applies (PLATFORM, TENANT)
    * @uniqueItems true
-   * @default ""
    */
   capability_scopes: string[];
   /**
    * Enum key of the capability or group
    * @minLength 1
-   * @default ""
    */
   capability_value: string;
 }
 
 export interface CatalogConnector {
-  /**
-   * Connector class name
-   * @default ""
-   */
+  /** Connector class name */
   catalog_connector_class_name?: string;
   /** @uniqueItems true */
   catalog_connector_configuration: CatalogConnectorConfiguration[];
-  /**
-   * Connector container image
-   * @default ""
-   */
+  /** Connector container image */
   catalog_connector_container_image?: string;
-  /**
-   * Connector container version
-   * @default ""
-   */
+  /** Connector container version */
   catalog_connector_container_version?: string;
   /**
    * Connector deleted at
    * @format date-time
-   * @default ""
    */
   catalog_connector_deleted_at?: string;
-  /**
-   * Connector description
-   * @default ""
-   */
+  /** Connector description */
   catalog_connector_description?: string;
   /** @uniqueItems true */
   catalog_connector_instances: ConnectorInstancePersisted[];
   /**
    * Connector last verified date
    * @format date-time
-   * @default ""
    */
   catalog_connector_last_verified_date?: string;
-  /**
-   * Connector logo
-   * @default ""
-   */
+  /** Connector logo */
   catalog_connector_logo_url?: string;
-  /**
-   * Connector manager supported
-   * @default false
-   */
+  /** Connector manager supported */
   catalog_connector_manager_supported?: boolean;
   /**
    * Connector max confidence level
    * @format int32
-   * @default ""
    */
   catalog_connector_max_confidence_level?: number;
-  /**
-   * Connector playbook supported
-   * @default false
-   */
+  /** Connector playbook supported */
   catalog_connector_playbook_supported?: boolean;
-  /**
-   * Connector description
-   * @default ""
-   */
+  /** Connector description */
   catalog_connector_short_description?: string;
-  /**
-   * Connector slug
-   * @default ""
-   */
+  /** Connector slug */
   catalog_connector_slug?: string;
-  /**
-   * Connector source code
-   * @default ""
-   */
+  /** Connector source code */
   catalog_connector_source_code?: string;
-  /**
-   * Connector subscription link
-   * @default ""
-   */
+  /** Connector subscription link */
   catalog_connector_subscription_link?: string;
-  /**
-   * Connector support version
-   * @default ""
-   */
+  /** Connector support version */
   catalog_connector_support_version?: string;
-  /**
-   * Connector type
-   * @default ""
-   */
+  /** Connector type */
   catalog_connector_type?: "COLLECTOR" | "INJECTOR" | "EXECUTOR";
   /**
    * Connector use cases
    * @uniqueItems true
-   * @default ""
    */
   catalog_connector_use_cases?: string[];
-  /**
-   * Connector verified
-   * @default false
-   */
+  /** Connector verified */
   catalog_connector_verified?: boolean;
-  /**
-   * Connector ID
-   * @default ""
-   */
+  /** Connector ID */
   connector_id: string;
   /**
    * Connector title
    * @minLength 1
-   * @default ""
    */
   connector_title: string;
   listened?: boolean;
 }
 
 export interface CatalogConnectorConfiguration {
-  /**
-   * Connector configuration default
-   * @default ""
-   */
+  /** Connector configuration default */
   connector_configuration_default?: JsonNode;
-  /**
-   * Connector configuration description
-   * @default ""
-   */
+  /** Connector configuration description */
   connector_configuration_description?: string;
   /**
    * Connector configuration enum
    * @uniqueItems true
-   * @default ""
    */
   connector_configuration_enum?: string[];
-  /**
-   * Connector configuration format
-   * @default ""
-   */
+  /** Connector configuration format */
   connector_configuration_format?:
     | "DEFAULT"
     | "DATE"
@@ -999,35 +846,20 @@ export interface CatalogConnectorConfiguration {
     | "EMAIL"
     | "PASSWORD"
     | "URI";
-  /**
-   * Connector ID
-   * @default ""
-   */
+  /** Connector ID */
   connector_configuration_id?: string;
-  /**
-   * Connector configuration key
-   * @default ""
-   */
+  /** Connector configuration key */
   connector_configuration_key: string;
-  /**
-   * Connector configuration required
-   * @default false
-   */
+  /** Connector configuration required */
   connector_configuration_required?: boolean;
-  /**
-   * Connector configuration type
-   * @default ""
-   */
+  /** Connector configuration type */
   connector_configuration_type:
     | "ARRAY"
     | "BOOLEAN"
     | "INTEGER"
     | "OBJECT"
     | "STRING";
-  /**
-   * Connector configuration write only
-   * @default false
-   */
+  /** Connector configuration write only */
   connector_configuration_writeonly?: boolean;
   listened?: boolean;
 }
@@ -1055,10 +887,7 @@ export interface CatalogConnectorOutput {
   instance_deployed_count?: number;
 }
 
-/**
- * Catalog simple output
- * @default null
- */
+/** Catalog simple output */
 export interface CatalogConnectorSimpleOutput {
   catalog_connector_id?: string;
   catalog_connector_logo_url?: string;
@@ -1075,7 +904,6 @@ export interface Challenge {
   challenge_content?: string;
   /** @format date-time */
   challenge_created_at: string;
-  /** @default "" */
   challenge_documents?: string[];
   challenge_exercises?: string[];
   /** @minItems 1 */
@@ -1089,7 +917,6 @@ export interface Challenge {
   challenge_scenarios?: string[];
   /** @format double */
   challenge_score?: number;
-  /** @default "" */
   challenge_tags?: string[];
   /** @format date-time */
   challenge_updated_at: string;
@@ -1099,7 +926,6 @@ export interface Challenge {
 }
 
 export interface ChallengeFlag {
-  /** @default "" */
   flag_challenge?: string;
   /** @format date-time */
   flag_created_at?: string;
@@ -1145,13 +971,11 @@ export interface ChangePasswordInput {
   /**
    * The new password
    * @minLength 1
-   * @default ""
    */
   password: string;
   /**
    * The new password again to validate it's been typed well
    * @minLength 1
-   * @default ""
    */
   password_validation: string;
 }
@@ -1162,9 +986,7 @@ export interface Channel {
   channel_description?: string;
   /** @minLength 1 */
   channel_id: string;
-  /** @default "" */
   channel_logo_dark?: string;
-  /** @default "" */
   channel_logo_light?: string;
   channel_mode?: string;
   channel_name?: string;
@@ -1223,34 +1045,22 @@ export interface ChatbotAgentOutput {
 }
 
 export interface CheckExerciseRulesInput {
-  /**
-   * List of tag that will be applied to the simulation
-   * @default ""
-   */
+  /** List of tag that will be applied to the simulation */
   new_tags?: string[];
 }
 
 export interface CheckExerciseRulesOutput {
-  /**
-   * Are there rules that can be applied?
-   * @default false
-   */
+  /** Are there rules that can be applied? */
   rules_found: boolean;
 }
 
 export interface CheckScenarioRulesInput {
-  /**
-   * List of tag that will be applied to the scenario
-   * @default ""
-   */
+  /** List of tag that will be applied to the scenario */
   new_tags?: string[];
 }
 
 export interface CheckScenarioRulesOutput {
-  /**
-   * Are there rules that can be applied?
-   * @default false
-   */
+  /** Are there rules that can be applied? */
   rules_found: boolean;
 }
 
@@ -1259,7 +1069,7 @@ export interface Collector {
   collector_created_at: string;
   collector_external?: boolean;
   /** @minLength 1 */
-  collector_id: string | null;
+  collector_id: string;
   /** @format date-time */
   collector_last_execution?: string;
   /** @minLength 1 */
@@ -1287,10 +1097,7 @@ export interface CollectorCreateInput {
   collector_type: string;
 }
 
-/**
- * Collector output
- * @default null
- */
+/** Collector output */
 export interface CollectorOutput {
   /** Catalog simple output */
   catalog?: CatalogConnectorSimpleOutput;
@@ -1298,7 +1105,6 @@ export interface CollectorOutput {
   /**
    * Collector id
    * @minLength 1
-   * @default ""
    */
   collector_id: string;
   /** @format date-time */
@@ -1320,7 +1126,6 @@ export interface CollectorUpdateInput {
 export interface Comcheck {
   /** @format date-time */
   comcheck_end_date: string;
-  /** @default "" */
   comcheck_exercise?: string;
   /** @minLength 1 */
   comcheck_id: string;
@@ -1329,7 +1134,6 @@ export interface Comcheck {
   /** @format date-time */
   comcheck_start_date: string;
   comcheck_state?: "RUNNING" | "EXPIRED" | "FINISHED";
-  /** @default "" */
   comcheck_statuses?: string[];
   comcheck_subject?: string;
   /** @format int64 */
@@ -1348,7 +1152,6 @@ export interface ComcheckInput {
 }
 
 export interface ComcheckStatus {
-  /** @default "" */
   comcheckstatus_comcheck?: string;
   comcheckstatus_id?: string;
   /** @format date-time */
@@ -1358,7 +1161,6 @@ export interface ComcheckStatus {
   /** @format int32 */
   comcheckstatus_sent_retry?: number;
   comcheckstatus_state?: "RUNNING" | "SUCCESS" | "FAILURE";
-  /** @default "" */
   comcheckstatus_user?: string;
   listened?: boolean;
 }
@@ -1370,7 +1172,6 @@ export interface Command {
   payload_arguments?: PayloadArgument[];
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
-  /** @default "" */
   payload_collector_type?: string;
   /** @format date-time */
   payload_created_at: string;
@@ -1431,7 +1232,6 @@ export interface Communication {
   communication_from: string;
   /** @minLength 1 */
   communication_id: string;
-  /** @default "" */
   communication_inject?: string;
   /** @minLength 1 */
   communication_message_id: string;
@@ -1442,7 +1242,6 @@ export interface Communication {
   communication_subject?: string;
   /** @minLength 1 */
   communication_to: string;
-  /** @default "" */
   communication_users?: string[];
   listened?: boolean;
 }
@@ -1453,25 +1252,13 @@ export interface Condition {
   value?: boolean;
 }
 
-/**
- * Condition used to execute a step. Can be a Template or an Execution depending on the status of stepFrom.
- * @default null
- */
+/** Condition used to execute a step. Can be a Template or an Execution depending on the status of stepFrom. */
 export interface ConditionCreateInput {
-  /**
-   * Property to be mapped
-   * @default ""
-   */
+  /** Property to be mapped */
   condition_key?: string;
-  /**
-   * Condition key subtype
-   * @default ""
-   */
+  /** Condition key subtype */
   condition_key_subtype?: "port" | "ipv4" | "ipv6" | "username" | "password";
-  /**
-   * Path to the value in the output of the step from
-   * @default ""
-   */
+  /** Path to the value in the output of the step from */
   condition_key_type?:
     | "execution_time"
     | "step_template_id"
@@ -1497,30 +1284,15 @@ export interface ConditionCreateInput {
     | "asreproastable_account"
     | "kerberoastable_account"
     | "asset";
-  /**
-   * Mapping type: DEFAULT, LOCAL, or GLOBAL. Required when condition type is MAPPER, must be null otherwise.
-   * @default ""
-   */
+  /** Mapping type: DEFAULT, LOCAL, or GLOBAL. Required when condition type is MAPPER, must be null otherwise. */
   condition_mapping_type?: "DEFAULT" | "LOCAL" | "GLOBAL";
-  /**
-   * ID of the step linked to the key
-   * @default ""
-   */
+  /** ID of the step linked to the key */
   condition_step_from?: string;
-  /**
-   * Temporary ID of the condition
-   * @default ""
-   */
+  /** Temporary ID of the condition */
   condition_temporary_id?: string;
-  /**
-   * Temporary ID of the parent condition
-   * @default ""
-   */
+  /** Temporary ID of the parent condition */
   condition_temporary_id_condition_parent?: string;
-  /**
-   * Condition type: AND, OR, EQ, NEQ, IS_NULL, IS_NOT_NULL, GT, GTE, LT, LTE, IN, NIN, AFTER, BEFORE, MAPPER, or DEPEND_ON
-   * @default ""
-   */
+  /** Condition type: AND, OR, EQ, NEQ, IS_NULL, IS_NOT_NULL, GT, GTE, LT, LTE, IN, NIN, AFTER, BEFORE, MAPPER, or DEPEND_ON */
   condition_type?:
     | "AND"
     | "OR"
@@ -1536,10 +1308,7 @@ export interface ConditionCreateInput {
     | "NIN"
     | "MAPPER"
     | "DEPEND_ON";
-  /**
-   * Value to be compared
-   * @default ""
-   */
+  /** Value to be compared */
   condition_value?: string;
 }
 
@@ -1579,21 +1348,14 @@ export interface ConditionOutput {
 }
 
 export interface Configuration {
-  /**
-   * Configuration is encrypted
-   * @default false
-   */
+  /** Configuration is encrypted */
   configuration_is_encrypted?: boolean;
   /**
    * Configuration key
    * @minLength 1
-   * @default ""
    */
   configuration_key: string;
-  /**
-   * Configuration value
-   * @default ""
-   */
+  /** Configuration value */
   configuration_value?: string;
 }
 
@@ -1601,27 +1363,17 @@ export interface ConfigurationInput {
   /**
    * Configuration key
    * @minLength 1
-   * @default ""
    */
   configuration_key: string;
-  /**
-   * Configuration value
-   * @default ""
-   */
+  /** Configuration value */
   configuration_value?: JsonNode;
 }
 
-/**
- * Define the ids linked to a collector
- * @default null
- */
+/** Define the ids linked to a collector */
 export interface ConnectorIds {
   catalog_connector_id?: string;
   connector_instance_id?: string;
-  /**
-   * Whether the connector entity is registered in the database. False when a connector instance has been deployed but the connector has not yet started.
-   * @default false
-   */
+  /** Whether the connector entity is registered in the database. False when a connector instance has been deployed but the connector has not yet started. */
   connector_registered?: boolean;
 }
 
@@ -1636,35 +1388,26 @@ export interface ConnectorInstanceConfiguration {
 }
 
 export interface ConnectorInstanceHealthInput {
-  /**
-   * The connector instance id
-   * @default false
-   */
+  /** The connector instance id */
   connector_instance_is_in_reboot_loop?: boolean;
   /**
    * Connector instance restart count
    * @format int32
-   * @default ""
    */
   connector_instance_restart_count?: number;
   /**
    * The connector instance id
    * @format date-time
-   * @default ""
    */
   connector_instance_started_at?: string;
 }
 
 export interface ConnectorInstanceLog {
-  /**
-   * Connector instance log
-   * @default ""
-   */
+  /** Connector instance log */
   connector_instance_log?: string;
   /**
    * Connector instance log created at
    * @format date-time
-   * @default ""
    */
   connector_instance_log_created_at?: string;
   /** @minLength 1 */
@@ -1676,7 +1419,6 @@ export interface ConnectorInstanceLogsInput {
   /**
    * The connector instance logs
    * @uniqueItems true
-   * @default ""
    */
   connector_instance_logs?: string[];
 }
@@ -1726,7 +1468,6 @@ export interface ContractOutputElement {
   contract_output_element_regex_groups: RegexGroup[];
   /** @minLength 1 */
   contract_output_element_rule: string;
-  /** @default "" */
   contract_output_element_tags?: string[];
   contract_output_element_type:
     | "text"
@@ -1757,44 +1498,31 @@ export interface ContractOutputElement {
 
 export interface ContractOutputElementInput {
   contract_output_element_id?: string;
-  /**
-   * Indicates whether this contract output element can be used to generate a finding
-   * @default false
-   */
+  /** Indicates whether this contract output element can be used to generate a finding */
   contract_output_element_is_finding: boolean;
   /**
    * Key
    * @minLength 1
-   * @default ""
    */
   contract_output_element_key: string;
   /**
    * Name
    * @minLength 1
-   * @default ""
    */
   contract_output_element_name: string;
   /**
    * Set of regex groups
    * @uniqueItems true
-   * @default ""
    */
   contract_output_element_regex_groups: RegexGroupInput[];
   /**
    * Parser Rule
    * @minLength 1
-   * @default ""
    */
   contract_output_element_rule: string;
-  /**
-   * List of tags
-   * @default ""
-   */
+  /** List of tags */
   contract_output_element_tags?: string[];
-  /**
-   * Contract Output element type, can be: text, number, port, IPV6, IPV4, portscan, credentials
-   * @default ""
-   */
+  /** Contract Output element type, can be: text, number, port, IPV6, IPV4, portscan, credentials */
   contract_output_element_type:
     | "text"
     | "number"
@@ -1819,23 +1547,18 @@ export interface ContractOutputElementInput {
     | "expectation_signature";
 }
 
-/**
- * Represents the rules for parsing the output of an execution.
- * @default null
- */
+/** Represents the rules for parsing the output of an execution. */
 export interface ContractOutputElementSimple {
   /** @minLength 1 */
   contract_output_element_id: string;
   /**
    * Represents a unique key identifier.
    * @minLength 1
-   * @default ""
    */
   contract_output_element_key: string;
   /**
    * Represents the name of the rule.
    * @minLength 1
-   * @default ""
    */
   contract_output_element_name: string;
   /** @uniqueItems true */
@@ -1843,13 +1566,11 @@ export interface ContractOutputElementSimple {
   /**
    * The rule to apply for parsing the output, for example, can be a regex.
    * @minLength 1
-   * @default ""
    */
   contract_output_element_rule: string;
   contract_output_element_tags?: string[];
   /**
    * Represents the data type being extracted.
-   * @default ""
    * @example "text, number, port, portscan, ipv4, ipv6, credentials"
    */
   contract_output_element_type:
@@ -1883,9 +1604,9 @@ export interface CreateConnectorInstanceInput {
 }
 
 export interface CreateExerciseInput {
-  exercise_category?: string | null;
+  exercise_category?: string;
   exercise_custom_dashboard?: string;
-  exercise_description?: string | null;
+  exercise_description?: string;
   exercise_is_chaining?: boolean;
   /**
    * @minLength 0
@@ -1894,7 +1615,7 @@ export interface CreateExerciseInput {
    */
   exercise_mail_from_name?: string;
   exercise_mails_reply_to?: string[];
-  exercise_main_focus?: string | null;
+  exercise_main_focus?: string;
   exercise_message_footer?: string;
   exercise_message_header?: string;
   /**
@@ -1902,11 +1623,8 @@ export interface CreateExerciseInput {
    * @maxLength 255
    */
   exercise_name: string;
-  exercise_severity?: string | null;
-  /**
-   * @format date-time
-   * @default ""
-   */
+  exercise_severity?: string;
+  /** @format date-time */
   exercise_start_date?: string | null;
   exercise_subtitle?: string;
   exercise_tags?: string[];
@@ -1971,240 +1689,160 @@ export interface CustomDashboardParametersInput {
     | "scenario";
 }
 
-/**
- * Payload to create a CVE
- * @default null
- */
+/** Payload to create a CVE */
 export interface CveCreateInput {
   /**
    * CVSS score
    * @min 0
    * @max 10
-   * @default ""
-   * @example 7.5
+   * @example "7.5"
    */
   cve_cvss_v31: number;
   /**
    * Date when action is due by CISA
    * @format date-time
-   * @default ""
    */
   cve_cisa_action_due?: string;
   /**
    * Date when CISA added the CVE to the exploited list
    * @format date-time
-   * @default ""
    */
   cve_cisa_exploit_add?: string;
-  /**
-   * Action required by CISA
-   * @default ""
-   */
+  /** Action required by CISA */
   cve_cisa_required_action?: string;
-  /**
-   * Vulnerability name used by CISA
-   * @default ""
-   */
+  /** Vulnerability name used by CISA */
   cve_cisa_vulnerability_name?: string;
-  /**
-   * List of linked CWEs
-   * @default ""
-   */
+  /** List of linked CWEs */
   cve_cwes?: CweInput[];
-  /**
-   * Description of the CVE
-   * @default ""
-   */
+  /** Description of the CVE */
   cve_description?: string;
   /**
    * External Unique CVE identifier
    * @minLength 1
-   * @default ""
    * @example "CVE-2024-0001"
    */
   cve_external_id: string;
   /**
    * Publication date of the CVE
    * @format date-time
-   * @default ""
    */
   cve_published?: string;
-  /**
-   * List of reference URLs
-   * @default ""
-   */
+  /** List of reference URLs */
   cve_reference_urls?: string[];
-  /**
-   * Suggested remediation
-   * @default ""
-   */
+  /** Suggested remediation */
   cve_remediation?: string;
   /**
    * Identifier of the CVE source
-   * @default ""
    * @example "MITRE"
    */
   cve_source_identifier?: string;
   /**
    * Vulnerability status
-   * @default ""
    * @example "ANALYZED"
    */
   cve_vuln_status?: "ANALYZED" | "DEFERRED" | "MODIFIED";
 }
 
-/**
- * Full CVE output including references and CWEs
- * @default null
- */
+/** Full CVE output including references and CWEs */
 export interface CveOutput {
   /**
    * CVSS score
-   * @default ""
-   * @example 7.8
+   * @example "7.8"
    */
   cve_cvss_v31: number;
   /**
    * CISA required action due date
    * @format date-time
-   * @default ""
    */
   cve_cisa_action_due?: string;
   /**
    * CISA exploit addition date
    * @format date-time
-   * @default ""
    */
   cve_cisa_exploit_add?: string;
-  /**
-   * Action required by CISA
-   * @default ""
-   */
+  /** Action required by CISA */
   cve_cisa_required_action?: string;
-  /**
-   * Name used by CISA for the vulnerability
-   * @default ""
-   */
+  /** Name used by CISA for the vulnerability */
   cve_cisa_vulnerability_name?: string;
-  /**
-   * List of CWE outputs
-   * @default ""
-   */
+  /** List of CWE outputs */
   cve_cwes?: CweOutput[];
-  /**
-   * Detailed CVE description
-   * @default ""
-   */
+  /** Detailed CVE description */
   cve_description?: string;
   /**
    * External CVE identifier
    * @minLength 1
-   * @default ""
    * @example "CVE-2024-0001"
    */
   cve_external_id: string;
   /**
    * Id
    * @minLength 1
-   * @default ""
    */
   cve_id: string;
   /**
    * CVE published date
    * @format date-time
-   * @default ""
    */
   cve_published?: string;
-  /**
-   * External references
-   * @default ""
-   */
+  /** External references */
   cve_reference_urls?: string[];
-  /**
-   * Remediation suggestions
-   * @default ""
-   */
+  /** Remediation suggestions */
   cve_remediation?: string;
-  /**
-   * Source identifier
-   * @default ""
-   */
+  /** Source identifier */
   cve_source_identifier?: string;
-  /**
-   * Status of the vulnerability
-   * @default ""
-   */
+  /** Status of the vulnerability */
   cve_vuln_status?: "ANALYZED" | "DEFERRED" | "MODIFIED";
 }
 
-/**
- * Simplified CVE representation
- * @default null
- */
+/** Simplified CVE representation */
 export interface CveSimple {
   /**
    * CVSS score
-   * @default ""
-   * @example 7.8
+   * @example "7.8"
    */
   cve_cvss_v31: number;
   /**
    * External CVE identifier
    * @minLength 1
-   * @default ""
    * @example "CVE-2024-0001"
    */
   cve_external_id: string;
   /**
    * Id
    * @minLength 1
-   * @default ""
    */
   cve_id: string;
   /**
    * CVE published date
    * @format date-time
-   * @default ""
    */
   cve_published?: string;
 }
 
-/**
- * CWE input used in vulnerability creation/update
- * @default null
- */
+/** CWE input used in vulnerability creation/update */
 export interface CweInput {
   /**
    * External CWE identifier
    * @minLength 1
-   * @default ""
    * @example "CWE-79"
    */
   cwe_external_id: string;
   /**
    * Source of the CWE
-   * @default ""
    * @example "NIST"
    */
   cwe_source?: string;
 }
 
-/**
- * CWE output data
- * @default null
- */
+/** CWE output data */
 export interface CweOutput {
   /**
    * CWE identifier
    * @minLength 1
-   * @default ""
    * @example "CWE-79"
    */
   cwe_external_id: string;
-  /**
-   * Source of the CWE
-   * @default ""
-   */
+  /** Source of the CWE */
   cwe_source?: string;
 }
 
@@ -2221,13 +1859,11 @@ export type DateHistogramWidget = UtilRequiredKeys<
 
 export interface DetectionRemediation {
   author_rule: "HUMAN" | "AI" | "AI_OUTDATED";
-  /** @default "" */
   detection_remediation_collector_type: string;
   /** @format date-time */
   detection_remediation_created_at?: string;
   /** @minLength 1 */
   detection_remediation_id: string;
-  /** @default "" */
   detection_remediation_payload_id: string;
   /** @format date-time */
   detection_remediation_updated_at?: string;
@@ -2239,46 +1875,30 @@ export interface DetectionRemediationAIOutput {
   rules?: string;
 }
 
-export interface DetectionRemediationCallInput {
-  agent_slug?: string | null;
-  /** @minLength 1 */
-  collector_type: string;
-  /** @minLength 1 */
-  content: string;
-}
-
-/**
- * Health check response of the detection/remediation service.
- * @default null
- */
+/** Health check response of the detection/remediation service. */
 export interface DetectionRemediationHealthResponse {
   /**
    * Name of the service
-   * @default ""
    * @example "remediation-detection-webservice"
    */
   service?: string;
   /**
    * Status of the web service. Only one possible value: "healthy"
-   * @default ""
    * @example "healthy"
    */
   status?: string;
   /**
    * Timestamp of the request
-   * @default ""
    * @example "2025-09-09T12:08:07.489773Z"
    */
   timestamp?: string;
   /**
    * Elapsed time between request initiation and service start. (format HH:MM:SS.ffffff,)
-   * @default ""
    * @example "2:07:39.269613"
    */
   up_time?: string;
   /**
    * Version of the service
-   * @default ""
    * @example "0.1.0"
    */
   version?: string;
@@ -2286,40 +1906,22 @@ export interface DetectionRemediationHealthResponse {
 
 export interface DetectionRemediationInput {
   author_rule: "HUMAN" | "AI" | "AI_OUTDATED";
-  /**
-   * Collector type
-   * @default ""
-   */
+  /** Collector type */
   detection_remediation_collector: string;
   detection_remediation_id?: string;
-  /**
-   * Value of detection remediation, for exemple: query for sentinel
-   * @default ""
-   */
+  /** Value of detection remediation, for exemple: query for sentinel */
   detection_remediation_values: string;
 }
 
 export interface DetectionRemediationOutput {
-  /**
-   * Author of rules: Human, AI or AI out of date (for rules generated before payload updated)
-   * @default ""
-   */
+  /** Author of rules: Human, AI or AI out of date (for rules generated before payload updated) */
   detection_remediation_author_rule: "HUMAN" | "AI" | "AI_OUTDATED";
-  /**
-   * Collector type
-   * @default ""
-   */
+  /** Collector type */
   detection_remediation_collector: string;
   detection_remediation_id?: string;
-  /**
-   * Payload id
-   * @default ""
-   */
+  /** Payload id */
   detection_remediation_payload: string;
-  /**
-   * Value of detection remediation, for exemple: query for sentinel
-   * @default ""
-   */
+  /** Value of detection remediation, for exemple: query for sentinel */
   detection_remediation_values: string;
 }
 
@@ -2339,7 +1941,6 @@ export interface DnsResolution {
   payload_arguments?: PayloadArgument[];
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
-  /** @default "" */
   payload_collector_type?: string;
   /** @format date-time */
   payload_created_at: string;
@@ -2391,15 +1992,12 @@ export interface DnsResolution {
 
 export interface Document {
   document_description?: string;
-  /** @default "" */
   document_exercises?: string[];
   /** @minLength 1 */
   document_id: string;
   /** @minLength 1 */
   document_name: string;
-  /** @default "" */
   document_scenarios?: string[];
-  /** @default "" */
   document_tags?: string[];
   document_target?: string;
   /** @minLength 1 */
@@ -2466,13 +2064,11 @@ export interface DomainBaseInput {
   /**
    * Color of the domain
    * @minLength 1
-   * @default ""
    */
   domain_color: string;
   /**
    * Name of the domain
    * @minLength 1
-   * @default ""
    */
   domain_name: string;
 }
@@ -2487,7 +2083,6 @@ export interface Endpoint {
   asset_id: string;
   /** @minLength 1 */
   asset_name: string;
-  /** @default "" */
   asset_tags?: string[];
   asset_type?: string;
   /** @format date-time */
@@ -2520,10 +2115,7 @@ export interface EndpointInput {
   endpoint_arch: "x86_64" | "arm64" | "Unknown";
   endpoint_hostname?: string;
   endpoint_ips?: string[];
-  /**
-   * True if the endpoint is in an End of Life state
-   * @default false
-   */
+  /** True if the endpoint is in an End of Life state */
   endpoint_is_eol?: boolean;
   endpoint_mac_addresses?: string[];
   endpoint_platform:
@@ -2541,47 +2133,35 @@ export interface EndpointOutput {
   /**
    * List of agents
    * @uniqueItems true
-   * @default ""
    */
   asset_agents: AgentOutput[];
-  /**
-   * Asset external reference
-   * @default ""
-   */
+  /** Asset external reference */
   asset_external_reference?: string;
   /**
    * Asset Id
    * @minLength 1
-   * @default ""
    */
   asset_id: string;
   /**
    * Asset name
    * @minLength 1
-   * @default ""
    */
   asset_name: string;
   /**
    * Tags
    * @uniqueItems true
-   * @default ""
    */
   asset_tags?: string[];
-  /**
-   * Asset type
-   * @default ""
-   */
+  /** Asset type */
   asset_type?: string;
   /**
    * Architecture
    * @minLength 1
-   * @default ""
    */
   endpoint_arch: "x86_64" | "arm64" | "Unknown";
   /**
    * Platform
    * @minLength 1
-   * @default ""
    */
   endpoint_platform:
     | "Linux"
@@ -2592,10 +2172,7 @@ export interface EndpointOutput {
     | "Generic"
     | "Internal"
     | "Unknown";
-  /**
-   * The endpoint is associated with an asset group, either statically or dynamically.
-   * @default false
-   */
+  /** The endpoint is associated with an asset group, either statically or dynamically. */
   is_static?: boolean;
 }
 
@@ -2603,63 +2180,42 @@ export interface EndpointOverviewOutput {
   /**
    * List of primary agents
    * @uniqueItems true
-   * @default ""
    */
   asset_agents: AgentOutput[];
-  /**
-   * Asset description
-   * @default ""
-   */
+  /** Asset description */
   asset_description?: string;
   /**
    * Asset Id
    * @minLength 1
-   * @default ""
    */
   asset_id: string;
   /**
    * Asset name
    * @minLength 1
-   * @default ""
    */
   asset_name: string;
   /**
    * Tags
    * @uniqueItems true
-   * @default ""
    */
   asset_tags?: string[];
-  /**
-   * Architecture
-   * @default ""
-   */
+  /** Architecture */
   endpoint_arch?: "x86_64" | "arm64" | "Unknown";
-  /**
-   * Hostname
-   * @default ""
-   */
+  /** Hostname */
   endpoint_hostname?: string;
   /**
    * List IPs
    * @uniqueItems true
-   * @default ""
    */
   endpoint_ips?: string[];
-  /**
-   * True if the endpoint is in an End of Life state
-   * @default false
-   */
+  /** True if the endpoint is in an End of Life state */
   endpoint_is_eol?: boolean;
   /**
    * List of MAC addresses
    * @uniqueItems true
-   * @default ""
    */
   endpoint_mac_addresses?: string[];
-  /**
-   * Platform
-   * @default ""
-   */
+  /** Platform */
   endpoint_platform?:
     | "Linux"
     | "Windows"
@@ -2669,10 +2225,7 @@ export interface EndpointOverviewOutput {
     | "Generic"
     | "Internal"
     | "Unknown";
-  /**
-   * Seen IP
-   * @default ""
-   */
+  /** Seen IP */
   endpoint_seen_ip?: string;
 }
 
@@ -2693,10 +2246,7 @@ export interface EndpointRegisterInput {
   endpoint_arch: "x86_64" | "arm64" | "Unknown";
   endpoint_hostname?: string;
   endpoint_ips?: string[];
-  /**
-   * True if the endpoint is in an End of Life state
-   * @default false
-   */
+  /** True if the endpoint is in an End of Life state */
   endpoint_is_eol?: boolean;
   endpoint_mac_addresses?: string[];
   endpoint_platform:
@@ -2716,13 +2266,11 @@ export interface EndpointSimple {
   /**
    * Asset Id
    * @minLength 1
-   * @default ""
    */
   asset_id: string;
   /**
    * Asset name
    * @minLength 1
-   * @default ""
    */
   asset_name: string;
 }
@@ -2771,30 +2319,21 @@ export interface EndpointTargetOutput {
   /**
    * List agents installed
    * @uniqueItems true
-   * @default ""
    */
   asset_agents?: AgentOutput[];
   /**
    * Asset Id
    * @minLength 1
-   * @default ""
    */
   asset_id: string;
-  /**
-   * Hostname
-   * @default ""
-   */
+  /** Hostname */
   endpoint_hostname?: string;
   /**
    * List IPs
    * @uniqueItems true
-   * @default ""
    */
   endpoint_ips?: string[];
-  /**
-   * Seen IP
-   * @default ""
-   */
+  /** Seen IP */
   endpoint_seen_ip?: string;
 }
 
@@ -2804,15 +2343,9 @@ export interface EngineSortField {
 }
 
 export interface EntitiesPaginationInput {
-  /**
-   * Pagination to set (optional)
-   * @default ""
-   */
-  pagination?: null;
-  /**
-   * Parameters to set
-   * @default ""
-   */
+  /** Pagination to set (optional) */
+  pagination?: Pagination;
+  /** Parameters to set */
   parameters?: Record<string, string>;
 }
 
@@ -2871,7 +2404,6 @@ export interface EsAvgs {
   security_domain_average: EsDomainsAvgData[];
 }
 
-/** @default null */
 export type EsBase = BaseEsBase &
   (
     | BaseEsBaseBaseEntityMapping<"attack-pattern", EsAttackPattern>
@@ -2938,33 +2470,26 @@ export interface EsEndpoint {
 }
 
 export interface EsEntities {
-  /**
-   * List of data from elasticSearch
-   * @default ""
-   */
+  /** List of data from elasticSearch */
   es_datas: EsBase[];
   /**
    * Current page number
    * @format int64
-   * @default ""
    */
   page_number: number;
   /**
    * Total datas per pages
    * @format int64
-   * @default ""
    */
   page_size: number;
   /**
    * Total datas
    * @format int64
-   * @default ""
    */
   total: number;
   /**
    * Current page number
    * @format int64
-   * @default ""
    */
   total_pages: number;
 }
@@ -3237,13 +2762,11 @@ export interface Evaluation {
   evaluation_created_at: string;
   /** @minLength 1 */
   evaluation_id: string;
-  /** @default "" */
   evaluation_objective: string;
   /** @format int64 */
   evaluation_score?: number;
   /** @format date-time */
   evaluation_updated_at: string;
-  /** @default "" */
   evaluation_user: string;
   listened?: boolean;
 }
@@ -3285,13 +2808,11 @@ export interface EventOutput {
 }
 
 export interface Executable {
-  /** @default "" */
   executable_file: string;
   listened?: boolean;
   payload_arguments?: PayloadArgument[];
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
-  /** @default "" */
   payload_collector_type?: string;
   /** @format date-time */
   payload_created_at: string;
@@ -3342,7 +2863,6 @@ export interface Executable {
 }
 
 export interface ExecutionTrace {
-  /** @default "" */
   agent?: string;
   execution_action?:
     | "START"
@@ -3378,21 +2898,15 @@ export interface ExecutionTrace {
   execution_trace_id: string;
   /** @format date-time */
   execution_updated_at: string;
-  /** @default "" */
   injectStatus?: string;
-  /** @default "" */
   injectTestStatus?: string;
   listened?: boolean;
 }
 
-/**
- * Represents a single execution trace detail
- * @default null
- */
+/** Represents a single execution trace detail */
 export interface ExecutionTraceOutput {
   /**
    * The action that created this execution trace
-   * @default ""
    * @example "START, PREREQUISITE_CHECK, PREREQUISITE_EXECUTION, EXECUTION, CLEANUP_EXECUTION or COMPLETE"
    */
   execution_action:
@@ -3403,14 +2917,10 @@ export interface ExecutionTraceOutput {
     | "CLEANUP_EXECUTION"
     | "COMPLETE";
   execution_agent?: AgentOutput;
-  /**
-   * A detailed message describing the execution
-   * @default ""
-   */
+  /** A detailed message describing the execution */
   execution_message: string;
   /**
    * The status of the execution trace
-   * @default ""
    * @example "SUCCESS, ERROR, COMMAND_NOT_FOUND, WARNING, COMMAND_CANNOT_BE_EXECUTED.."
    */
   execution_status:
@@ -3441,7 +2951,7 @@ export interface Executor {
   executor_created_at: string;
   executor_doc?: string;
   /** @minLength 1 */
-  executor_id: string | null;
+  executor_id: string;
   /** @minLength 1 */
   executor_name: string;
   executor_platforms?: string[];
@@ -3463,10 +2973,7 @@ export interface ExecutorCreateInput {
   executor_type: string;
 }
 
-/**
- * Executor output
- * @default null
- */
+/** Executor output */
 export interface ExecutorOutput {
   /** Catalog simple output */
   catalog?: CatalogConnectorSimpleOutput;
@@ -3476,7 +2983,6 @@ export interface ExecutorOutput {
   /**
    * Executor id
    * @minLength 1
-   * @default ""
    */
   executor_id: string;
   /** @minLength 1 */
@@ -3498,34 +3004,27 @@ export interface ExecutorUpdateInput {
 export interface Exercise {
   /** @format int64 */
   exercise_all_users_number?: number;
-  /** @default "" */
   exercise_articles?: string[];
   exercise_category?: string;
   /** @format int64 */
   exercise_communications_number?: number;
   /** @format date-time */
   exercise_created_at: string;
-  /** @default "" */
   exercise_custom_dashboard?: string;
   exercise_description?: string;
-  /** @default "" */
   exercise_documents?: string[];
   /** @format date-time */
   exercise_end_date?: string;
   /** @minLength 1 */
   exercise_id: string;
-  /** @default "" */
   exercise_injects?: string[];
   exercise_injects_statistics?: Record<string, number>;
   exercise_kill_chain_phases?: KillChainPhase[];
   exercise_lessons_anonymized?: boolean;
   /** @format int64 */
   exercise_lessons_answers_number?: number;
-  /** @default "" */
   exercise_lessons_categories?: string[];
-  /** @default "" */
   exercise_logo_dark?: string;
-  /** @default "" */
   exercise_logo_light?: string;
   /** @format int64 */
   exercise_logs_number?: number;
@@ -3555,11 +3054,8 @@ export interface Exercise {
     | "PAUSED"
     | "FINISHED"
   )[];
-  /** @default "" */
   exercise_observers?: string[];
-  /** @default "" */
   exercise_pauses?: string[];
-  /** @default "" */
   exercise_planners?: string[];
   exercise_platforms?: (
     | "Linux"
@@ -3571,7 +3067,6 @@ export interface Exercise {
     | "Internal"
     | "Unknown"
   )[];
-  /** @default "" */
   exercise_scenario?: string;
   /** @format double */
   exercise_score?: number;
@@ -3580,79 +3075,58 @@ export interface Exercise {
   exercise_start_date?: string;
   exercise_status: "SCHEDULED" | "CANCELED" | "RUNNING" | "PAUSED" | "FINISHED";
   exercise_subtitle?: string;
-  /** @default "" */
   exercise_tags?: string[];
-  /** @default "" */
   exercise_teams?: string[];
   exercise_teams_users?: ExerciseTeamUser[];
   /** @format date-time */
   exercise_updated_at: string;
-  /** @default "" */
   exercise_users?: string[];
   /** @format int64 */
   exercise_users_number?: number;
-  /** @default "" */
   exercise_variables?: string[];
   listened?: boolean;
 }
 
 export interface ExerciseSimple {
-  /**
-   * Exercise Category
-   * @default ""
-   */
+  /** Exercise Category */
   exercise_category?: string;
   exercise_global_score: ExpectationResultsByType[];
   /**
    * Exercise Id
    * @minLength 1
-   * @default ""
    */
   exercise_id: string;
   /**
    * Exercise Name
    * @minLength 1
-   * @default ""
    */
   exercise_name: string;
   /**
    * Exercise Start Date
    * @format date-time
-   * @default ""
    */
   exercise_start_date?: string;
-  /**
-   * Exercise status
-   * @default ""
-   */
+  /** Exercise status */
   exercise_status?:
     | "SCHEDULED"
     | "CANCELED"
     | "RUNNING"
     | "PAUSED"
     | "FINISHED";
-  /**
-   * Exercise Subtitle
-   * @default ""
-   */
+  /** Exercise Subtitle */
   exercise_subtitle?: string;
   /**
    * Tags
    * @uniqueItems true
-   * @default ""
    */
   exercise_tags?: string[];
   exercise_targets?: TargetSimple[];
   /**
    * Exercise Update Date
    * @format date-time
-   * @default ""
    */
   exercise_updated_at?: string;
-  /**
-   * Workflow ID associated with the simulation
-   * @default ""
-   */
+  /** Workflow ID associated with the simulation */
   exercise_workflow_id?: string;
 }
 
@@ -3661,11 +3135,8 @@ export interface ExerciseTeamPlayersEnableInput {
 }
 
 export interface ExerciseTeamUser {
-  /** @default "" */
   exercise_id?: string;
-  /** @default "" */
   team_id?: string;
-  /** @default "" */
   user_id?: string;
 }
 
@@ -3751,13 +3222,11 @@ export interface ExportOptionsInput {
 }
 
 export interface FileDrop {
-  /** @default "" */
   file_drop_file: string;
   listened?: boolean;
   payload_arguments?: PayloadArgument[];
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
-  /** @default "" */
   payload_collector_type?: string;
   /** @format date-time */
   payload_created_at: string;
@@ -3835,7 +3304,6 @@ export interface FilterGroup {
 export interface Finding {
   /** @uniqueItems true */
   finding_asset_groups?: AssetGroup[];
-  /** @default "" */
   finding_assets?: string[];
   /** @format date-time */
   finding_created_at: string;
@@ -3843,16 +3311,13 @@ export interface Finding {
   finding_field: string;
   /** @minLength 1 */
   finding_id: string;
-  /** @default "" */
   finding_inject_id?: string;
   /** @deprecated */
   finding_labels?: string[];
   finding_name?: string;
   finding_scenario?: Scenario;
   finding_simulation?: Exercise;
-  /** @default "" */
   finding_tags?: string[];
-  /** @default "" */
   finding_teams?: string[];
   finding_type:
     | "text"
@@ -3878,7 +3343,6 @@ export interface Finding {
     | "expectation_signature";
   /** @format date-time */
   finding_updated_at: string;
-  /** @default "" */
   finding_users?: string[];
   /** @minLength 1 */
   finding_value: string;
@@ -3965,12 +3429,10 @@ export interface GlobalScoreBySimulationEndDate {
 }
 
 export interface Grant {
-  /** @default "" */
   grant_group?: string;
   /** @minLength 1 */
   grant_id: string;
   grant_name: "OBSERVER" | "PLANNER" | "LAUNCHER";
-  /** @default "" */
   grant_resource?: string;
   grant_resource_type?:
     | "SCENARIO"
@@ -3990,9 +3452,7 @@ export interface Group {
   group_id: string;
   /** @minLength 1 */
   group_name: string;
-  /** @default "" */
   group_roles?: string[];
-  /** @default "" */
   group_users?: string[];
   listened?: boolean;
 }
@@ -4010,10 +3470,7 @@ export interface GroupGrantInput {
 }
 
 export interface GroupUpdateRolesInput {
-  /**
-   * List of role ids associated with the group
-   * @default ""
-   */
+  /** List of role ids associated with the group */
   group_roles?: string[];
 }
 
@@ -4025,23 +3482,13 @@ export interface HealthCheck {
   /**
    * Date when the failure have been found
    * @format date-time
-   * @default ""
    */
   creation_date: string;
-  /**
-   * Detail of the check failure
-   * @default ""
-   */
+  /** Detail of the check failure */
   detail: "SERVICE_UNAVAILABLE" | "NOT_READY" | "EMPTY" | "MANDATORY_CONTENT";
-  /**
-   * Define if it's an error or a warning
-   * @default ""
-   */
+  /** Define if it's an error or a warning */
   status: "ERROR" | "WARNING";
-  /**
-   * Type of the check, could be a service, an attribute, etc
-   * @default ""
-   */
+  /** Type of the check, could be a service, an attribute, etc */
   type:
     | "SMTP"
     | "IMAP"
@@ -4129,14 +3576,11 @@ export interface Inject {
   footer?: string;
   header?: string;
   inject_all_teams?: boolean;
-  /** @default "" */
   inject_asset_groups?: string[];
-  /** @default "" */
   inject_assets?: string[];
   inject_attack_patterns?: AttackPattern[];
   inject_city?: string;
   inject_collect_status?: "COLLECTING" | "COMPLETED";
-  /** @default "" */
   inject_communications?: string[];
   /** @format int64 */
   inject_communications_not_ack_number?: number;
@@ -4157,27 +3601,20 @@ export interface Inject {
   inject_depends_duration: number;
   inject_depends_on?: InjectDependency[];
   inject_description?: string;
-  /** @default "" */
   inject_documents?: string[];
   inject_enabled?: boolean;
-  /** @default "" */
   inject_exercise?: string;
-  /** @default "" */
   inject_expectations?: string[];
   /** @minLength 1 */
   inject_id: string;
-  /** @default "" */
   inject_injector?: string;
   inject_injector_contract?: InjectorContract;
   inject_kill_chain_phases?: KillChainPhase[];
-  /** @default "" */
   inject_scenario?: string;
   /** @format date-time */
   inject_sent_at?: string;
   inject_status?: InjectStatus;
-  /** @default "" */
   inject_tags?: string[];
-  /** @default "" */
   inject_teams?: string[];
   inject_testable?: boolean;
   /** @minLength 1 */
@@ -4187,38 +3624,26 @@ export interface Inject {
   inject_type?: string;
   /** @format date-time */
   inject_updated_at: string;
-  /** @default "" */
   inject_user?: string;
   /** @format int64 */
   inject_users_number?: number;
   listened?: boolean;
 }
 
-/**
- * Input model for automatically generating injects, based on the provided attack pattern IDs and target asset or asset group IDs.
- * @default null
- */
+/** Input model for automatically generating injects, based on the provided attack pattern IDs and target asset or asset group IDs. */
 export interface InjectAssistantInput {
-  /**
-   * List of asset group IDs to target. Either asset_ids or asset_group_ids must be provided.
-   * @default ""
-   */
+  /** List of asset group IDs to target. Either asset_ids or asset_group_ids must be provided. */
   asset_group_ids?: string[];
-  /**
-   * List of asset IDs to target. Either asset_ids or asset_group_ids must be provided.
-   * @default ""
-   */
+  /** List of asset IDs to target. Either asset_ids or asset_group_ids must be provided. */
   asset_ids?: string[];
   /**
    * List of attack pattern used to generate injects
    * @minItems 1
-   * @default ""
    */
   attack_pattern_ids: string[];
   /**
    * Number of injects to generate for each TTP
    * @format int32
-   * @default ""
    */
   inject_by_ttp_number: number;
 }
@@ -4259,9 +3684,7 @@ export interface InjectDependencyCondition {
 }
 
 export interface InjectDependencyId {
-  /** @default "" */
   inject_children_id?: string;
-  /** @default "" */
   inject_parent_id?: string;
 }
 
@@ -4293,7 +3716,6 @@ export interface InjectExecutionInput {
   /**
    * Duration of the execution in miliseconds
    * @format int32
-   * @default ""
    */
   execution_duration?: number;
   /** @minLength 1 */
@@ -4305,27 +3727,20 @@ export interface InjectExecutionInput {
 }
 
 export interface InjectExpectation {
-  /** @default "" */
   inject_expectation_agent?: string;
-  /** @default "" */
   inject_expectation_article?: string;
-  /** @default "" */
   inject_expectation_asset?: string;
-  /** @default "" */
   inject_expectation_asset_group?: string;
-  /** @default "" */
   inject_expectation_challenge?: string;
   /** @format date-time */
   inject_expectation_created_at?: string;
   inject_expectation_description?: string;
-  /** @default "" */
   inject_expectation_exercise?: string;
   /** @format double */
   inject_expectation_expected_score: number;
   inject_expectation_group?: boolean;
   /** @minLength 1 */
   inject_expectation_id: string;
-  /** @default "" */
   inject_expectation_inject?: string;
   inject_expectation_name?: string;
   inject_expectation_results?: InjectExpectationResult[];
@@ -4338,7 +3753,6 @@ export interface InjectExpectation {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
-  /** @default "" */
   inject_expectation_team?: string;
   inject_expectation_traces?: InjectExpectationTrace[];
   inject_expectation_type:
@@ -4352,7 +3766,6 @@ export interface InjectExpectation {
     | "VULNERABILITY";
   /** @format date-time */
   inject_expectation_updated_at?: string;
-  /** @default "" */
   inject_expectation_user?: string;
   /** @format int64 */
   inject_expiration_time: number;
@@ -4360,10 +3773,7 @@ export interface InjectExpectation {
   target_id?: string;
 }
 
-/**
- * Represents a single inject expectation with agent name
- * @default null
- */
+/** Represents a single inject expectation with agent name */
 export interface InjectExpectationAgentOutput {
   inject_expectation_agent?: string;
   inject_expectation_agent_name?: string;
@@ -4415,7 +3825,6 @@ export interface InjectExpectationResult {
 }
 
 export interface InjectExpectationResultsByAttackPattern {
-  /** @default "" */
   inject_attack_pattern?: string;
   inject_expectation_results?: InjectExpectationResultsByType[];
 }
@@ -4444,11 +3853,9 @@ export interface InjectExpectationTrace {
   inject_expectation_trace_created_at: string;
   /** @format date-time */
   inject_expectation_trace_date?: string;
-  /** @default "" */
   inject_expectation_trace_expectation?: string;
   /** @minLength 1 */
   inject_expectation_trace_id: string;
-  /** @default "" */
   inject_expectation_trace_source_id?: string;
   /** @format date-time */
   inject_expectation_trace_updated_at: string;
@@ -4466,15 +3873,9 @@ export interface InjectExpectationTraceInput {
   inject_expectation_trace_alert_name: string;
   /** @format date-time */
   inject_expectation_trace_date: string;
-  /**
-   * @minLength 1
-   * @default ""
-   */
+  /** @minLength 1 */
   inject_expectation_trace_expectation: string;
-  /**
-   * @minLength 1
-   * @default ""
-   */
+  /** @minLength 1 */
   inject_expectation_trace_source_id: string;
 }
 
@@ -4506,7 +3907,6 @@ export interface InjectImporter {
   /** @format date-time */
   inject_importer_created_at?: string;
   inject_importer_id: string;
-  /** @default "" */
   inject_importer_injector_contract: string;
   inject_importer_rule_attributes?: RuleAttribute[];
   /** @minLength 1 */
@@ -4559,15 +3959,9 @@ export interface InjectInput {
 }
 
 export interface InjectOutput {
-  /**
-   * Footer of the inject
-   * @default ""
-   */
+  /** Footer of the inject */
   footer?: string;
-  /**
-   * Header of the inject
-   * @default ""
-   */
+  /** Header of the inject */
   header?: string;
   inject_asset_groups?: string[];
   inject_assets?: string[];
@@ -4576,110 +3970,74 @@ export interface InjectOutput {
   /**
    * Communications not ack count of the inject
    * @format int64
-   * @default ""
    */
   inject_communications_not_ack_number?: number;
   /**
    * Communications count of the inject
    * @format int64
-   * @default ""
    */
   inject_communications_number?: number;
-  /**
-   * Content of the inject
-   * @default ""
-   */
+  /** Content of the inject */
   inject_content?: object;
   /**
    * Domain of the inject
    * @uniqueItems true
-   * @default ""
    */
   inject_contract_domains?: Domain[];
   /**
    * Date of the inject
    * @format date-time
-   * @default ""
    */
   inject_date?: string;
   /**
    * Depend duration of the inject
    * @format int64
    * @min 0
-   * @default ""
    */
   inject_depends_duration: number;
   inject_depends_on?: InjectDependency[];
   inject_documents?: string[];
-  /**
-   * Enabled state of the inject
-   * @default false
-   */
+  /** Enabled state of the inject */
   inject_enabled?: boolean;
-  /**
-   * Simulation ID of the inject
-   * @default ""
-   */
+  /** Simulation ID of the inject */
   inject_exercise?: string;
   inject_expectations?: string[];
   inject_healthchecks?: HealthCheck[];
   /**
    * ID of the inject
    * @minLength 1
-   * @default ""
    */
   inject_id: string;
-  /**
-   * Injector contract of the inject
-   * @default ""
-   */
+  /** Injector contract of the inject */
   inject_injector_contract?: InjectorContract;
   inject_kill_chain_phases?: KillChainPhase[];
-  /**
-   * Ready state of the inject
-   * @default false
-   */
+  /** Ready state of the inject */
   inject_ready?: boolean;
-  /**
-   * Scenario ID of the inject
-   * @default ""
-   */
+  /** Scenario ID of the inject */
   inject_scenario?: string;
   /**
    * Sent date of the inject
    * @format date-time
-   * @default ""
    */
   inject_sent_at?: string;
   /** @uniqueItems true */
   inject_tags?: string[];
   inject_teams?: string[];
-  /**
-   * Testable state of the inject
-   * @default false
-   */
+  /** Testable state of the inject */
   inject_testable?: boolean;
   /**
    * Title of the inject
    * @minLength 1
-   * @default ""
    */
   inject_title: string;
-  /**
-   * Type of the inject
-   * @default ""
-   */
+  /** Type of the inject */
   inject_type?: string;
   /**
    * Count of users targeted by the inject
    * @format int64
-   * @default ""
    */
   inject_users_number?: number;
-  /**
-   * Stream listener value of the inject
-   * @default false
-   */
+  /** Stream listener value of the inject */
   listened?: boolean;
 }
 
@@ -4689,131 +4047,76 @@ export interface InjectReceptionInput {
 }
 
 export interface InjectResultOutput {
-  /**
-   * Domain of the inject
-   * @default ""
-   */
+  /** Domain of the inject */
   inject_contract_domains?: string[];
-  /**
-   * Result of expectations
-   * @default ""
-   */
+  /** Result of expectations */
   inject_expectation_results: ExpectationResultsByType[];
   /**
    * Id of inject
    * @minLength 1
-   * @default ""
    */
   inject_id: string;
-  /**
-   * Injector contract
-   * @default ""
-   */
+  /** Injector contract */
   inject_injector_contract?: InjectorContractSimple;
-  /**
-   * Status
-   * @default ""
-   */
+  /** Status */
   inject_status?: InjectStatusSimple;
   inject_targets?: TargetSimple[];
   /**
    * Title of inject
    * @minLength 1
-   * @default ""
    */
   inject_title: string;
-  /**
-   * Type of inject
-   * @default ""
-   */
+  /** Type of inject */
   inject_type?: string;
   /**
    * Timestamp when the inject was last updated
    * @format date-time
-   * @default ""
    */
   inject_updated_at: string;
 }
 
 export interface InjectResultOverviewOutput {
-  /**
-   * Content of inject
-   * @default ""
-   */
+  /** Content of inject */
   inject_content?: object;
-  /**
-   * Description of inject
-   * @default ""
-   */
+  /** Description of inject */
   inject_description?: string;
-  /**
-   * Result of expectations
-   * @default ""
-   */
+  /** Result of expectations */
   inject_expectation_results: ExpectationResultsByType[];
-  /**
-   * Expectations
-   * @default ""
-   */
+  /** Expectations */
   inject_expectations?: InjectExpectationSimple[];
   /**
    * Id of inject
    * @minLength 1
-   * @default ""
    */
   inject_id: string;
-  /**
-   * Full contract
-   * @default ""
-   */
+  /** Full contract */
   inject_injector_contract?: AtomicInjectorContractOutput;
-  /**
-   * Kill chain phases
-   * @default ""
-   */
+  /** Kill chain phases */
   inject_kill_chain_phases?: KillChainPhaseSimple[];
-  /**
-   * Indicates whether the inject is ready for use
-   * @default false
-   */
+  /** Indicates whether the inject is ready for use */
   inject_ready?: boolean;
-  /**
-   * status
-   * @default ""
-   */
+  /** status */
   inject_status?: InjectStatusSimple;
   /**
    * Tags
    * @uniqueItems true
-   * @default ""
    */
   inject_tags?: string[];
   /**
    * Title of inject
    * @minLength 1
-   * @default ""
    */
   inject_title: string;
-  /**
-   * Type of inject
-   * @default ""
-   */
+  /** Type of inject */
   inject_type?: string;
   /**
    * Timestamp when the inject was last updated
    * @format date-time
-   * @default ""
    */
   inject_updated_at?: string;
-  /**
-   * Documents
-   * @default ""
-   */
+  /** Documents */
   injects_documents?: string[];
-  /**
-   * Tags
-   * @default ""
-   */
+  /** Tags */
   injects_tags?: string[];
   ready?: boolean;
 }
@@ -4828,13 +4131,11 @@ export interface InjectSimple {
   /**
    * Inject Id
    * @minLength 1
-   * @default ""
    */
   inject_id: string;
   /**
    * Inject Title
    * @minLength 1
-   * @default ""
    */
   inject_title: string;
 }
@@ -4879,7 +4180,6 @@ export interface InjectStatusSimple {
   tracking_sent_date?: string;
 }
 
-/** @default null */
 export type InjectTarget = BaseInjectTarget &
   (
     | BaseInjectTargetTargetTypeMapping<"ASSETS_GROUPS", AssetGroupTarget>
@@ -4933,7 +4233,7 @@ export interface Injector {
   injector_executor_commands?: Record<string, string>;
   injector_external?: boolean;
   /** @minLength 1 */
-  injector_id: string | null;
+  injector_id: string;
   /** @minLength 1 */
   injector_name: string;
   injector_payloads?: boolean;
@@ -4948,22 +4248,19 @@ export interface InjectorContract {
   convertedContent?: object;
   injector_contract_arch?: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   injector_contract_atomic_testing?: boolean;
-  /** @default "" */
   injector_contract_attack_patterns?: string[];
   /** @minLength 1 */
   injector_contract_content: string;
   /** @format date-time */
   injector_contract_created_at: string;
   injector_contract_custom?: boolean;
-  /** @default "" */
   injector_contract_domains?: string[];
-  injector_contract_external_id?: string | null;
+  injector_contract_external_id?: string;
   /** @minLength 1 */
   injector_contract_id: string;
   injector_contract_import_available?: boolean;
   injector_contract_injector_names?: Record<string, string>;
   injector_contract_injector_type?: string;
-  /** @default "" */
   injector_contract_injectors?: string[];
   injector_contract_labels?: Record<string, string>;
   injector_contract_manual?: boolean;
@@ -4980,11 +4277,9 @@ export interface InjectorContract {
     | "Internal"
     | "Unknown"
   )[];
-  /** @default "" */
   injector_contract_tags?: string[];
   /** @format date-time */
   injector_contract_updated_at: string;
-  /** @default "" */
   injector_contract_vulnerabilities?: string[];
   listened?: boolean;
 }
@@ -5009,7 +4304,6 @@ export interface InjectorContractAddInput {
   is_atomic_testing?: boolean;
 }
 
-/** @default null */
 export type InjectorContractBaseOutput = BaseInjectorContractBaseOutput &
   (
     | BaseInjectorContractBaseOutputInjectorContractHasFullDetailsMapping<
@@ -5026,14 +4320,12 @@ export interface InjectorContractDomainCountOutput {
   /**
    * Total number of observations linked to this domain
    * @format int64
-   * @default ""
    * @example 42
    */
   count: number;
   /**
    * The domain name extracted from OpenAEV
    * @minLength 1
-   * @default ""
    * @example "Endpoints"
    */
   domain: string;
@@ -5050,64 +4342,37 @@ export interface InjectorContractDomainDTO {
 
 export interface InjectorContractFullOutput {
   injector_contract_arch?: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
-  /**
-   * Attack pattern IDs
-   * @default ""
-   */
+  /** Attack pattern IDs */
   injector_contract_attack_patterns?: string[];
   /**
    * Content
    * @minLength 1
-   * @default ""
    */
   injector_contract_content: string;
   /**
    * Domain IDs
    * @minItems 1
-   * @default ""
    */
   injector_contract_domains: string[];
-  /**
-   * Injector contract external Id
-   * @default ""
-   */
+  /** Injector contract external Id */
   injector_contract_external_id?: string;
   injector_contract_has_full_details?: boolean;
   /**
    * Injector contract Id
    * @minLength 1
-   * @default ""
    */
   injector_contract_id: string;
-  /**
-   * Map of injector ID to injector name for all injectors linked to this contract
-   * @default ""
-   */
+  /** Map of injector ID to injector name for all injectors linked to this contract */
   injector_contract_injector_names?: Record<string, string>;
-  /**
-   * Injector type
-   * @default ""
-   */
+  /** Injector type */
   injector_contract_injector_type?: string;
-  /**
-   * Injector IDs linked to this contract
-   * @default ""
-   */
+  /** Injector IDs linked to this contract */
   injector_contract_injectors?: string[];
-  /**
-   * Labels
-   * @default ""
-   */
+  /** Labels */
   injector_contract_labels?: Record<string, string>;
-  /**
-   * Payload type
-   * @default ""
-   */
+  /** Payload type */
   injector_contract_payload_type?: string;
-  /**
-   * Platforms
-   * @default ""
-   */
+  /** Platforms */
   injector_contract_platforms?: (
     | "Linux"
     | "Windows"
@@ -5118,15 +4383,11 @@ export interface InjectorContractFullOutput {
     | "Internal"
     | "Unknown"
   )[];
-  /**
-   * Tag IDs
-   * @default ""
-   */
+  /** Tag IDs */
   injector_contract_tags?: string[];
   /**
    * Timestamp when the injector contract was last updated
    * @format date-time
-   * @default ""
    */
   injector_contract_updated_at: string;
 }
@@ -5155,54 +4416,31 @@ export interface InjectorContractInput {
 }
 
 export interface InjectorContractSearchPaginationInput {
-  /**
-   * Filter object to search within filterable attributes
-   * @default ""
-   */
+  /** Filter object to search within filterable attributes */
   filterGroup?: FilterGroup;
-  /**
-   * Include the injector contract content on the returned object if set to true
-   * @default false
-   */
+  /** Include the injector contract content on the returned object if set to true */
   include_content_details?: boolean;
-  /**
-   * Allow the return of a full object if true, partial object if false
-   * @default false
-   */
+  /** Allow the return of a full object if true, partial object if false */
   include_full_details?: boolean;
-  /**
-   * List of all the ids to ignore on the search
-   * @default ""
-   */
+  /** List of all the ids to ignore on the search */
   injector_contract_ids_to_ignore?: string[];
-  /**
-   * List of all the ids to include on the search
-   * @default ""
-   */
+  /** List of all the ids to include on the search */
   injector_contract_ids_to_process?: string[];
   /**
    * Page number to get
    * @format int32
    * @min 0
-   * @default ""
    */
   page: number;
   /**
    * Element number by page
    * @format int32
    * @max 1000
-   * @default ""
    */
   size: number;
-  /**
-   * List of sort fields : a field is composed of a property (for instance "label" and an optional direction ("asc" is assumed if no direction is specified) : ("desc", "asc")
-   * @default ""
-   */
+  /** List of sort fields : a field is composed of a property (for instance "label" and an optional direction ("asc" is assumed if no direction is specified) : ("desc", "asc") */
   sorts?: SortField[];
-  /**
-   * Text to search within searchable attributes
-   * @default ""
-   */
+  /** Text to search within searchable attributes */
   textSearch?: string;
 }
 
@@ -5243,15 +4481,9 @@ export interface InjectorContractUpdateInput {
 
 export interface InjectorContractUpdateMappingInput {
   contract_attack_patterns_ids?: string[];
-  /**
-   * Set list of domains
-   * @default ""
-   */
+  /** Set list of domains */
   contract_domains: string[];
-  /**
-   * Set list of tags ids
-   * @default ""
-   */
+  /** Set list of tags ids */
   contract_tags_ids?: string[];
 }
 
@@ -5270,10 +4502,7 @@ export interface InjectorCreateInput {
   injector_type: string;
 }
 
-/**
- * Injector output
- * @default null
- */
+/** Injector output */
 export interface InjectorOutput {
   /** Catalog simple output */
   catalog?: CatalogConnectorSimpleOutput;
@@ -5283,7 +4512,6 @@ export interface InjectorOutput {
   /**
    * Injector id
    * @minLength 1
-   * @default ""
    */
   injector_id: string;
   /** @minLength 1 */
@@ -5399,61 +4627,43 @@ export interface KillChainPhaseObject {
 }
 
 export interface KillChainPhaseOutput {
-  /**
-   * Creation date of the phase
-   * @default ""
-   */
+  /** Creation date of the phase */
   phase_created_at: string;
-  /**
-   * Description of the phase
-   * @default ""
-   */
+  /** Description of the phase */
   phase_description?: string;
   /**
    * External ID of the phase
    * @minLength 1
-   * @default ""
    */
   phase_external_id: string;
   /**
    * ID of the phase
    * @minLength 1
-   * @default ""
    */
   phase_id: string;
   /**
    * Name of the kill chain phase
    * @minLength 1
-   * @default ""
    */
   phase_kill_chain_name: string;
   /**
    * Name of the phase
    * @minLength 1
-   * @default ""
    */
   phase_name: string;
   /**
    * Order of the phase
    * @format int64
-   * @default ""
    */
   phase_order?: number;
   /**
    * Short name of the phase
    * @minLength 1
-   * @default ""
    */
   phase_shortname: string;
-  /**
-   * Stix ID of the phase
-   * @default ""
-   */
+  /** Stix ID of the phase */
   phase_stix_id?: string;
-  /**
-   * Update date of the phase
-   * @default ""
-   */
+  /** Update date of the phase */
   phase_updated_at: string;
 }
 
@@ -5482,13 +4692,11 @@ export interface LessonsAnswer {
   lessons_answer_exercise?: string;
   lessons_answer_negative?: string;
   lessons_answer_positive?: string;
-  /** @default "" */
   lessons_answer_question: string;
   /** @format int32 */
   lessons_answer_score: number;
   /** @format date-time */
   lessons_answer_updated_at: string;
-  /** @default "" */
   lessons_answer_user?: string;
   /** @minLength 1 */
   lessonsanswer_id: string;
@@ -5506,17 +4714,13 @@ export interface LessonsCategory {
   /** @format date-time */
   lessons_category_created_at: string;
   lessons_category_description?: string;
-  /** @default "" */
   lessons_category_exercise?: string;
   /** @minLength 1 */
   lessons_category_name: string;
   /** @format int32 */
   lessons_category_order?: number;
-  /** @default "" */
   lessons_category_questions?: string[];
-  /** @default "" */
   lessons_category_scenario?: string;
-  /** @default "" */
   lessons_category_teams?: string[];
   /** @format date-time */
   lessons_category_updated_at: string;
@@ -5551,9 +4755,7 @@ export interface LessonsInput {
 }
 
 export interface LessonsQuestion {
-  /** @default "" */
   lessons_question_answers?: string[];
-  /** @default "" */
   lessons_question_category: string;
   /** @minLength 1 */
   lessons_question_content: string;
@@ -5613,9 +4815,7 @@ export interface LessonsTemplateCategory {
   lessons_template_category_name: string;
   /** @format int32 */
   lessons_template_category_order: number;
-  /** @default "" */
   lessons_template_category_questions?: string[];
-  /** @default "" */
   lessons_template_category_template?: string;
   /** @format date-time */
   lessons_template_category_updated_at: string;
@@ -5639,7 +4839,6 @@ export interface LessonsTemplateInput {
 }
 
 export interface LessonsTemplateQuestion {
-  /** @default "" */
   lessons_template_question_category?: string;
   /** @minLength 1 */
   lessons_template_question_content: string;
@@ -5711,17 +4910,14 @@ export interface Log {
   log_content: string;
   /** @format date-time */
   log_created_at: string;
-  /** @default "" */
   log_exercise?: string;
   /** @minLength 1 */
   log_id: string;
-  /** @default "" */
   log_tags?: string[];
   /** @minLength 1 */
   log_title: string;
   /** @format date-time */
   log_updated_at: string;
-  /** @default "" */
   log_user?: string;
 }
 
@@ -5735,19 +4931,14 @@ export interface LoginUserInput {
   /**
    * The identifier of the user
    * @minLength 1
-   * @default ""
    */
   login: string;
   /**
    * The password of the user
    * @minLength 1
-   * @default ""
    */
   password: string;
-  /**
-   * The tenant ID the user is logging into (optional)
-   * @default ""
-   */
+  /** The tenant ID the user is logging into (optional) */
   tenantId?: string;
 }
 
@@ -5784,7 +4975,6 @@ export interface MapperConditionOutput {
 
 export interface Mitigation {
   listened?: boolean;
-  /** @default "" */
   mitigation_attack_patterns?: string[];
   /** @format date-time */
   mitigation_created_at: string;
@@ -5840,7 +5030,6 @@ export interface NetworkTraffic {
   payload_arguments?: PayloadArgument[];
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
-  /** @default "" */
   payload_collector_type?: string;
   /** @format date-time */
   payload_created_at: string;
@@ -5891,35 +5080,17 @@ export interface NetworkTraffic {
 }
 
 export interface NotificationRuleOutput {
-  /**
-   * ID of the notification rule
-   * @default ""
-   */
+  /** ID of the notification rule */
   notification_rule_id: string;
-  /**
-   * Owner of the notification rule
-   * @default ""
-   */
+  /** Owner of the notification rule */
   notification_rule_owner?: string;
-  /**
-   * Resource id of the resource associated with the rule
-   * @default ""
-   */
+  /** Resource id of the resource associated with the rule */
   notification_rule_resource_id?: string;
-  /**
-   * Resource type of the resource associated with the rule
-   * @default ""
-   */
+  /** Resource type of the resource associated with the rule */
   notification_rule_resource_type?: string;
-  /**
-   * Subject of the notification rule
-   * @default ""
-   */
+  /** Subject of the notification rule */
   notification_rule_subject?: string;
-  /**
-   * Event that will trigger the notification
-   * @default ""
-   */
+  /** Event that will trigger the notification */
   notification_rule_trigger?: string;
 }
 
@@ -5934,15 +5105,12 @@ export interface Objective {
   /** @format date-time */
   objective_created_at: string;
   objective_description?: string;
-  /** @default "" */
   objective_evaluations?: string[];
-  /** @default "" */
   objective_exercise?: string;
   /** @minLength 1 */
   objective_id: string;
   /** @format int32 */
   objective_priority?: number;
-  /** @default "" */
   objective_scenario?: string;
   /** @format double */
   objective_score?: number;
@@ -5971,13 +5139,11 @@ export interface Organization {
   organization_description?: string;
   /** @minLength 1 */
   organization_id: string;
-  /** @default "" */
   organization_injects?: string[];
   /** @format int64 */
   organization_injects_number?: number;
   /** @minLength 1 */
   organization_name: string;
-  /** @default "" */
   organization_tags?: string[];
   /** @format date-time */
   organization_updated_at: string;
@@ -6015,40 +5181,24 @@ export interface OutputParserInput {
   /**
    * List of Contract output elements
    * @uniqueItems true
-   * @default ""
    */
   output_parser_contract_output_elements: ContractOutputElementInput[];
   output_parser_id?: string;
-  /**
-   * Paser Mode: STDOUT, STDERR, READ_FILE
-   * @default ""
-   */
+  /** Paser Mode: STDOUT, STDERR, READ_FILE */
   output_parser_mode: "STDOUT" | "STDERR" | "READ_FILE";
-  /**
-   * Parser Type: REGEX
-   * @default ""
-   */
+  /** Parser Type: REGEX */
   output_parser_type: "REGEX";
 }
 
-/**
- * Represents a single output parser
- * @default null
- */
+/** Represents a single output parser */
 export interface OutputParserSimple {
   /** @uniqueItems true */
   output_parser_contract_output_elements: ContractOutputElementSimple[];
   /** @minLength 1 */
   output_parser_id: string;
-  /**
-   * Mode of parser, which output will be parsed, for now only STDOUT is supported
-   * @default ""
-   */
+  /** Mode of parser, which output will be parsed, for now only STDOUT is supported */
   output_parser_mode: "STDOUT" | "STDERR" | "READ_FILE";
-  /**
-   * Type of parser, for now only REGEX is supported
-   * @default ""
-   */
+  /** Type of parser, for now only REGEX is supported */
   output_parser_type: "REGEX";
 }
 
@@ -6064,7 +5214,6 @@ export interface PageAggregatedFindingOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  /** @default null */
   sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
@@ -6084,7 +5233,6 @@ export interface PageAssetGroupOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  /** @default null */
   sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
@@ -6104,7 +5252,6 @@ export interface PageAttackPattern {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  /** @default null */
   sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
@@ -6124,7 +5271,6 @@ export interface PageCustomDashboard {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  /** @default null */
   sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
@@ -6144,7 +5290,6 @@ export interface PageCveSimple {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  /** @default null */
   sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
@@ -6164,7 +5309,6 @@ export interface PageEndpointOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  /** @default null */
   sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
@@ -6184,7 +5328,6 @@ export interface PageEndpointTargetOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  /** @default null */
   sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
@@ -6204,7 +5347,6 @@ export interface PageExerciseSimple {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  /** @default null */
   sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
@@ -6224,7 +5366,6 @@ export interface PageFullTextSearchResult {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  /** @default null */
   sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
@@ -6244,7 +5385,6 @@ export interface PageGroup {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  /** @default null */
   sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
@@ -6264,7 +5404,6 @@ export interface PageInjectResultOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  /** @default null */
   sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
@@ -6284,7 +5423,6 @@ export interface PageInjectTarget {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  /** @default null */
   sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
@@ -6304,7 +5442,6 @@ export interface PageInjectTestStatusOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  /** @default null */
   sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
@@ -6324,7 +5461,6 @@ export interface PageKillChainPhase {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  /** @default null */
   sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
@@ -6344,7 +5480,6 @@ export interface PageLessonsTemplate {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  /** @default null */
   sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
@@ -6364,7 +5499,6 @@ export interface PageMitigation {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  /** @default null */
   sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
@@ -6384,7 +5518,6 @@ export interface PageNotificationRuleOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  /** @default null */
   sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
@@ -6404,7 +5537,6 @@ export interface PageOrganization {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  /** @default null */
   sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
@@ -6424,7 +5556,6 @@ export interface PagePayload {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  /** @default null */
   sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
@@ -6444,7 +5575,6 @@ export interface PagePlatformGroupOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  /** @default null */
   sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
@@ -6464,7 +5594,6 @@ export interface PagePlatformRoleOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  /** @default null */
   sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
@@ -6484,7 +5613,6 @@ export interface PagePlayerOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  /** @default null */
   sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
@@ -6504,7 +5632,6 @@ export interface PageRawPaginationDocument {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  /** @default null */
   sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
@@ -6524,7 +5651,6 @@ export interface PageRawPaginationImportMapper {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  /** @default null */
   sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
@@ -6544,7 +5670,6 @@ export interface PageRawPaginationScenario {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  /** @default null */
   sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
@@ -6564,7 +5689,6 @@ export interface PageRelatedFindingOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  /** @default null */
   sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
@@ -6584,7 +5708,6 @@ export interface PageRoleOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  /** @default null */
   sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
@@ -6604,7 +5727,6 @@ export interface PageSecurityPlatform {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  /** @default null */
   sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
@@ -6624,7 +5746,6 @@ export interface PageTag {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  /** @default null */
   sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
@@ -6644,7 +5765,6 @@ export interface PageTagRuleOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  /** @default null */
   sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
@@ -6664,7 +5784,6 @@ export interface PageTeamOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  /** @default null */
   sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
@@ -6684,7 +5803,6 @@ export interface PageTenantOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  /** @default null */
   sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
@@ -6704,7 +5822,6 @@ export interface PageUserOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  /** @default null */
   sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
@@ -6724,7 +5841,6 @@ export interface PageVulnerabilitySimple {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  /** @default null */
   sort?: SortObject[];
   /** @format int64 */
   totalElements?: number;
@@ -6740,7 +5856,6 @@ export interface PageableObject {
   /** @format int32 */
   pageSize?: number;
   paged?: boolean;
-  /** @default null */
   sort?: SortObject[];
   unpaged?: boolean;
 }
@@ -6750,19 +5865,16 @@ export interface Pagination {
    * Page number to get
    * @format int32
    * @min 0
-   * @default ""
    */
   page: number;
   /**
    * Element number by page
    * @format int32
    * @max 1000
-   * @default ""
    */
   size: number;
 }
 
-/** @default null */
 export type Payload = BasePayload &
   (
     | BasePayloadPayloadTypeMapping<"Command", Command>
@@ -6775,16 +5887,11 @@ export type Payload = BasePayload &
 export interface PayloadArgument {
   /** @minLength 1 */
   default_value: string;
-  /** @default "" */
   description?: string | null;
   /** @minLength 1 */
   key: string;
-  /** @default "" */
   separator?: string | null;
-  /**
-   * Optional sub-field key for structured output types
-   * @default ""
-   */
+  /** Optional sub-field key for structured output types */
   subtype?:
     | "host"
     | "port"
@@ -6824,7 +5931,6 @@ export interface PayloadCommandBlock {
   payload_cleanup_command?: string[];
 }
 
-/** @default null */
 export type PayloadCreateInput = BasePayloadCreateInput &
   (
     | BasePayloadCreateInputPayloadTypeMapping<"Command", Command>
@@ -6836,29 +5942,19 @@ export type PayloadCreateInput = BasePayloadCreateInput &
 
 export interface PayloadInput {
   agent_slug?: string;
-  /** @default "" */
   command_content?: string | null;
-  /** @default "" */
   command_executor?: string | null;
   dns_resolution_hostname?: string;
   executable_file?: string;
   file_drop_file?: string;
   payload_arguments?: PayloadArgument[];
   payload_attack_patterns?: string[];
-  /** @default "" */
   payload_cleanup_command?: string | null;
-  /** @default "" */
   payload_cleanup_executor?: string | null;
   payload_description?: string;
-  /**
-   * List of detection remediation gaps for collectors
-   * @default ""
-   */
+  /** List of detection remediation gaps for collectors */
   payload_detection_remediations?: DetectionRemediationInput[];
-  /**
-   * Update list of domains
-   * @default ""
-   */
+  /** Update list of domains */
   payload_domains: string[];
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations: (
@@ -6876,7 +5972,6 @@ export interface PayloadInput {
   /**
    * Set of output parsers
    * @uniqueItems true
-   * @default ""
    */
   payload_output_parsers?: OutputParserInput[];
   payload_platforms?: (
@@ -6895,86 +5990,40 @@ export interface PayloadInput {
 }
 
 export interface PayloadOutput {
-  /**
-   * Command content for command payloads
-   * @default ""
-   */
+  /** Command content for command payloads */
   command_content?: string;
-  /**
-   * Executor used for command payloads
-   * @default ""
-   */
+  /** Executor used for command payloads */
   command_executor?: string;
-  /**
-   * Hostname resolved by DNS resolution payloads
-   * @default ""
-   */
+  /** Hostname resolved by DNS resolution payloads */
   dns_resolution_hostname?: string;
-  /**
-   * Executable file path for executable payloads
-   * @default ""
-   */
+  /** Executable file path for executable payloads */
   executable_file?: string;
-  /**
-   * Dropped file path for file-drop payloads
-   * @default ""
-   */
+  /** Dropped file path for file-drop payloads */
   file_drop_file?: string;
-  /**
-   * Payload input arguments definition
-   * @default ""
-   */
+  /** Payload input arguments definition */
   payload_arguments?: PayloadArgument[];
-  /**
-   * MITRE ATT&CK patterns associated with the payload
-   * @default ""
-   */
+  /** MITRE ATT&CK patterns associated with the payload */
   payload_attack_patterns?: string[];
-  /**
-   * Cleanup command executed after payload run
-   * @default ""
-   */
+  /** Cleanup command executed after payload run */
   payload_cleanup_command?: string;
-  /**
-   * Executor used for cleanup operations
-   * @default ""
-   */
+  /** Executor used for cleanup operations */
   payload_cleanup_executor?: string;
-  /**
-   * Collector type associated with this payload
-   * @default ""
-   */
+  /** Collector type associated with this payload */
   payload_collector_type?: string;
   /**
    * Payload creation timestamp
    * @format date-time
-   * @default ""
    */
   payload_created_at: string;
-  /**
-   * Payload description
-   * @default ""
-   */
+  /** Payload description */
   payload_description?: string;
-  /**
-   * Detection and remediation mappings for this payload
-   * @default ""
-   */
+  /** Detection and remediation mappings for this payload */
   payload_detection_remediations?: DetectionRemediation[];
-  /**
-   * Domains related to the payload
-   * @default ""
-   */
+  /** Domains related to the payload */
   payload_domains?: string[];
-  /**
-   * CPU architecture targeted for payload execution
-   * @default ""
-   */
+  /** CPU architecture targeted for payload execution */
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
-  /**
-   * Expected output types for payload execution
-   * @default ""
-   */
+  /** Expected output types for payload execution */
   payload_expectations?: (
     | "TEXT"
     | "DOCUMENT"
@@ -6985,33 +6034,24 @@ export interface PayloadOutput {
     | "DETECTION"
     | "VULNERABILITY"
   )[];
-  /**
-   * External reference identifier
-   * @default ""
-   */
+  /** External reference identifier */
   payload_external_id?: string;
   /**
    * Payload unique identifier
    * @minLength 1
-   * @default ""
    */
   payload_id: string;
   /**
    * Payload display name
    * @minLength 1
-   * @default ""
    */
   payload_name: string;
   /**
    * Parsers used to process payload outputs
    * @uniqueItems true
-   * @default ""
    */
   payload_output_parsers?: OutputParser[];
-  /**
-   * Supported endpoint platforms for this payload
-   * @default ""
-   */
+  /** Supported endpoint platforms for this payload */
   payload_platforms?: (
     | "Linux"
     | "Windows"
@@ -7022,42 +6062,25 @@ export interface PayloadOutput {
     | "Internal"
     | "Unknown"
   )[];
-  /**
-   * Prerequisites required before payload execution
-   * @default ""
-   */
+  /** Prerequisites required before payload execution */
   payload_prerequisites?: PayloadPrerequisite[];
-  /**
-   * Payload source origin
-   * @default ""
-   */
+  /** Payload source origin */
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
-  /**
-   * Current payload lifecycle status
-   * @default ""
-   */
+  /** Current payload lifecycle status */
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
-  /**
-   * Tags attached to the payload
-   * @default ""
-   */
+  /** Tags attached to the payload */
   payload_tags?: string[];
-  /**
-   * Payload implementation type
-   * @default ""
-   */
+  /** Payload implementation type */
   payload_type?: string;
   /**
    * Payload last update timestamp
    * @format date-time
-   * @default ""
    */
   payload_updated_at: string;
 }
 
 export interface PayloadPrerequisite {
   check_command?: string;
-  /** @default "" */
   description?: string | null;
   /** @minLength 1 */
   executor: string;
@@ -7073,29 +6096,19 @@ export interface PayloadSimple {
 }
 
 export interface PayloadUpdateInput {
-  /** @default "" */
   command_content?: string | null;
-  /** @default "" */
   command_executor?: string | null;
   dns_resolution_hostname?: string;
   executable_file?: string;
   file_drop_file?: string;
   payload_arguments?: PayloadArgument[];
   payload_attack_patterns?: string[];
-  /** @default "" */
   payload_cleanup_command?: string | null;
-  /** @default "" */
   payload_cleanup_executor?: string | null;
   payload_description?: string;
-  /**
-   * List of detection remediation gaps for collectors
-   * @default ""
-   */
+  /** List of detection remediation gaps for collectors */
   payload_detection_remediations?: DetectionRemediationInput[];
-  /**
-   * Update list of domains
-   * @default ""
-   */
+  /** Update list of domains */
   payload_domains: string[];
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations: (
@@ -7113,7 +6126,6 @@ export interface PayloadUpdateInput {
   /**
    * Set of output parsers
    * @uniqueItems true
-   * @default ""
    */
   payload_output_parsers?: OutputParserInput[];
   payload_platforms?: (
@@ -7131,30 +6143,22 @@ export interface PayloadUpdateInput {
 }
 
 export interface PayloadUpsertInput {
-  /** @default "" */
   command_content?: string | null;
-  /** @default "" */
   command_executor?: string | null;
   dns_resolution_hostname?: string;
   executable_file?: string;
   file_drop_file?: string;
   payload_arguments?: PayloadArgument[];
   payload_attack_patterns?: string[];
-  /** @default "" */
   payload_cleanup_command?: string | null;
-  /** @default "" */
   payload_cleanup_executor?: string | null;
   payload_collector?: string;
   payload_description?: string;
-  /**
-   * List of detection remediation gaps for collectors
-   * @default ""
-   */
+  /** List of detection remediation gaps for collectors */
   payload_detection_remediations?: DetectionRemediationInput[];
   /**
    * Update list of domains
    * @uniqueItems true
-   * @default ""
    */
   payload_domains: InjectorContractDomainDTO[];
   payload_elevation_required?: boolean;
@@ -7176,7 +6180,6 @@ export interface PayloadUpsertInput {
   /**
    * Set of output parsers
    * @uniqueItems true
-   * @default ""
    */
   payload_output_parsers?: OutputParserInput[];
   payload_platforms?: (
@@ -7295,55 +6298,25 @@ export interface PlatformRoleOutput {
 }
 
 export interface PlatformSettings {
-  /**
-   * True if Saml2 is enabled
-   * @default false
-   */
+  /** True if Saml2 is enabled */
   auth_saml2_enable?: boolean;
-  /**
-   * List of Saml2 providers
-   * @default ""
-   */
+  /** List of Saml2 providers */
   platform_saml2_providers?: OAuthProvider[];
-  /**
-   * Type of analytics engine
-   * @default ""
-   */
+  /** Type of analytics engine */
   analytics_engine_type?: string;
-  /**
-   * Current version of analytics engine
-   * @default ""
-   */
+  /** Current version of analytics engine */
   analytics_engine_version?: string;
-  /**
-   * True if local authentication is enabled
-   * @default false
-   */
+  /** True if local authentication is enabled */
   auth_local_enable?: boolean;
-  /**
-   * True if OpenID is enabled
-   * @default false
-   */
+  /** True if OpenID is enabled */
   auth_openid_enable?: boolean;
-  /**
-   * Sender mail to use by default for injects
-   * @default ""
-   */
+  /** Sender mail to use by default for injects */
   default_mailer?: string;
-  /**
-   * Sender display name to use by default for injects
-   * @default ""
-   */
+  /** Sender display name to use by default for injects */
   default_mailer_name?: string;
-  /**
-   * Reply to mail to use by default for injects
-   * @default ""
-   */
+  /** Reply to mail to use by default for injects */
   default_reply_to?: string;
-  /**
-   * List of enabled dev features
-   * @default ""
-   */
+  /** List of enabled dev features */
   enabled_dev_features?: (
     | "_RESERVED"
     | "FEATURE_FLAG_ALL"
@@ -7354,205 +6327,115 @@ export interface PlatformSettings {
     | "INJECT_CHAINING"
     | "AUDIT_LOG"
   )[];
-  /**
-   * True if the Tanium Executor is enabled
-   * @default false
-   */
+  /** True if the Tanium Executor is enabled */
   executor_tanium_enable?: boolean;
   /**
    * Time to wait before article time has expired
    * @format int64
-   * @default ""
    */
   expectation_article_expiration_time: number;
   /**
    * Time to wait before challenge time has expired
    * @format int64
-   * @default ""
    */
   expectation_challenge_expiration_time: number;
   /**
    * Time to wait before detection time has expired
    * @format int64
-   * @default ""
    */
   expectation_detection_expiration_time: number;
   /**
    * Default score for manuel expectation
    * @format int32
-   * @default ""
    */
   expectation_manual_default_score_value: number;
   /**
    * Time to wait before manual expectation time has expired
    * @format int64
-   * @default ""
    */
   expectation_manual_expiration_time: number;
   /**
    * Time to wait before prevention time has expired
    * @format int64
-   * @default ""
    */
   expectation_prevention_expiration_time: number;
   /**
    * Time to wait before vulnerability time has expired
    * @format int64
-   * @default ""
    */
   expectation_vulnerability_expiration_time: number;
   /** Chatbot AI CGU acceptance status: pending, enabled, or disabled */
   filigran_chatbot_ai_cgu_status?: string;
   /** IMAP Service availability */
   imap_service_available?: string;
-  /**
-   * Current version of Java
-   * @default ""
-   */
+  /** Current version of Java */
   java_version?: string;
-  /**
-   * URL of the server containing the map tile with dark theme
-   * @default ""
-   */
+  /** URL of the server containing the map tile with dark theme */
   map_tile_server_dark?: string;
-  /**
-   * URL of the server containing the map tile with light theme
-   * @default ""
-   */
+  /** URL of the server containing the map tile with light theme */
   map_tile_server_light?: string;
-  /**
-   * Agent URL of the platform
-   * @default ""
-   */
+  /** Agent URL of the platform */
   platform_agent_url?: string;
   /** True if we have an AI token */
   platform_ai_has_token?: boolean;
-  /**
-   * Chosen model of AI
-   * @default ""
-   */
+  /** Chosen model of AI */
   platform_ai_model?: string;
-  /**
-   * Type of AI (mistralai or openai)
-   * @default ""
-   */
+  /** Type of AI (mistralai or openai) */
   platform_ai_type?: string;
-  /**
-   * Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL)
-   * @default ""
-   */
+  /** Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL) */
   platform_banner_by_level?: Record<string, string[]>;
-  /**
-   * Base URL of the platform
-   * @default ""
-   */
+  /** Base URL of the platform */
   platform_base_url?: string;
-  /**
-   * Definition of the dark theme
-   * @default ""
-   */
+  /** Definition of the dark theme */
   platform_dark_theme?: ThemeInput;
-  /**
-   * id of the platform
-   * @default ""
-   */
+  /** id of the platform */
   platform_id?: string;
   /**
    * Language of the platform
    * @minLength 1
-   * @default ""
    */
   platform_lang: string;
-  /**
-   * Platform licensing information
-   * @default ""
-   */
+  /** Platform licensing information */
   platform_license?: License;
-  /**
-   * Definition of the light theme
-   * @default ""
-   */
+  /** Definition of the light theme */
   platform_light_theme?: ThemeInput;
   /**
    * Name of the platform
    * @minLength 1
-   * @default ""
    */
   platform_name: string;
-  /**
-   * List of OpenID providers
-   * @default ""
-   */
+  /** List of OpenID providers */
   platform_openid_providers?: OAuthProvider[];
-  /**
-   * Policies of the platform
-   * @default ""
-   */
+  /** Policies of the platform */
   platform_policies?: PolicyInput;
   /**
    * Theme of the platform
    * @minLength 1
-   * @default ""
    */
   platform_theme: string;
-  /**
-   * Current version of the platform
-   * @default ""
-   */
+  /** Current version of the platform */
   platform_version?: string;
-  /**
-   * 'true' if the platform has the whitemark activated
-   * @default ""
-   */
+  /** 'true' if the platform has the whitemark activated */
   platform_whitemark?: string;
-  /**
-   * True if XTM One is configured (url and token set)
-   * @default false
-   */
+  /** True if XTM One is configured (url and token set) */
   platform_xtm_one_configured?: boolean;
-  /**
-   * XTM One platform URL
-   * @default ""
-   */
+  /** XTM One platform URL */
   platform_xtm_one_url?: string;
-  /** XTM One public chat web token for the embedded agent */
-  platform_xtm_one_web_token?: string;
   /** Current version of the PostgreSQL */
   postgre_version?: string;
-  /**
-   * Current version of RabbitMQ
-   * @default ""
-   */
+  /** Current version of RabbitMQ */
   rabbitmq_version?: string;
-  /**
-   * SMTP Service availability
-   * @default ""
-   */
+  /** SMTP Service availability */
   smtp_service_available?: string;
-  /**
-   * True if telemetry manager enable
-   * @default false
-   */
+  /** True if telemetry manager enable */
   telemetry_manager_enable?: boolean;
-  /**
-   * True if connection with XTM Hub is enabled
-   * @default false
-   */
+  /** True if connection with XTM Hub is enabled */
   xtm_hub_enable?: boolean;
-  /**
-   * True if xtmhub backend is reachable
-   * @default false
-   */
+  /** True if xtmhub backend is reachable */
   xtm_hub_reachable?: boolean;
-  /**
-   * XTM Hub should send connectivity email
-   * @default ""
-   */
+  /** XTM Hub should send connectivity email */
   xtm_hub_should_send_connectivity_email?: string;
-  /**
-   * Url of XTM Hub
-   * @default ""
-   */
+  /** Url of XTM Hub */
   xtm_hub_url?: string;
 }
 
@@ -7634,20 +6517,11 @@ export interface PlayerTarget {
 }
 
 export interface PolicyInput {
-  /**
-   * Consent confirmation message
-   * @default ""
-   */
+  /** Consent confirmation message */
   platform_consent_confirm_text?: string;
-  /**
-   * Consent message to show at login
-   * @default ""
-   */
+  /** Consent message to show at login */
   platform_consent_message?: string;
-  /**
-   * Message to show at login
-   * @default ""
-   */
+  /** Message to show at login */
   platform_login_message?: string;
 }
 
@@ -7705,30 +6579,15 @@ export interface PublicExercise {
 }
 
 export interface PublicPlatformSettings {
-  /**
-   * True if Saml2 is enabled
-   * @default false
-   */
+  /** True if Saml2 is enabled */
   auth_saml2_enable?: boolean;
-  /**
-   * List of Saml2 providers
-   * @default ""
-   */
+  /** List of Saml2 providers */
   platform_saml2_providers?: OAuthProvider[];
-  /**
-   * True if local authentication is enabled
-   * @default false
-   */
+  /** True if local authentication is enabled */
   auth_local_enable?: boolean;
-  /**
-   * True if OpenID is enabled
-   * @default false
-   */
+  /** True if OpenID is enabled */
   auth_openid_enable?: boolean;
-  /**
-   * List of enabled dev features
-   * @default ""
-   */
+  /** List of enabled dev features */
   enabled_dev_features?: (
     | "_RESERVED"
     | "FEATURE_FLAG_ALL"
@@ -7739,47 +6598,27 @@ export interface PublicPlatformSettings {
     | "INJECT_CHAINING"
     | "AUDIT_LOG"
   )[];
-  /**
-   * Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL)
-   * @default ""
-   */
+  /** Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL) */
   platform_banner_by_level?: Record<string, string[]>;
-  /**
-   * Definition of the dark theme
-   * @default ""
-   */
+  /** Definition of the dark theme */
   platform_dark_theme?: ThemeInput;
   /**
    * Language of the platform
    * @minLength 1
-   * @default ""
    */
   platform_lang: string;
-  /**
-   * Definition of the light theme
-   * @default ""
-   */
+  /** Definition of the light theme */
   platform_light_theme?: ThemeInput;
-  /**
-   * List of OpenID providers
-   * @default ""
-   */
+  /** List of OpenID providers */
   platform_openid_providers?: OAuthProvider[];
-  /**
-   * Policies of the platform
-   * @default ""
-   */
+  /** Policies of the platform */
   platform_policies?: PolicyInput;
   /**
    * Theme of the platform
    * @minLength 1
-   * @default ""
    */
   platform_theme: string;
-  /**
-   * 'true' if the platform has the whitemark activated
-   * @default ""
-   */
+  /** 'true' if the platform has the whitemark activated */
   platform_whitemark?: string;
 }
 
@@ -7886,27 +6725,21 @@ export interface RegexGroupInput {
   /**
    * Field
    * @minLength 1
-   * @default ""
    */
   regex_group_field: string;
   regex_group_id?: string;
   /**
    * Index of the group from the regex match: $index0$index1
    * @minLength 1
-   * @default ""
    */
   regex_group_index_values: string;
 }
 
-/**
- * Represents the groups defined by the regex pattern.
- * @default null
- */
+/** Represents the groups defined by the regex pattern. */
 export interface RegexGroupSimple {
   /**
    * Represents the field name of specific captured groups.
    * @minLength 1
-   * @default ""
    */
   regex_group_field: string;
   /** @minLength 1 */
@@ -7914,7 +6747,6 @@ export interface RegexGroupSimple {
   /**
    * Represents the indexes of specific captured groups.
    * @minLength 1
-   * @default ""
    */
   regex_group_index_values: string;
 }
@@ -7929,13 +6761,11 @@ export interface RelatedFindingOutput {
   /**
    * Asset groups linked to endpoints
    * @uniqueItems true
-   * @default ""
    */
   finding_asset_groups?: AssetGroupSimple[];
   /**
    * Endpoint linked to finding
    * @uniqueItems true
-   * @default ""
    */
   finding_assets: EndpointSimple[];
   /** @format date-time */
@@ -7943,27 +6773,16 @@ export interface RelatedFindingOutput {
   /**
    * Finding Id
    * @minLength 1
-   * @default ""
    */
   finding_id: string;
-  /**
-   * Inject linked to finding
-   * @default ""
-   */
+  /** Inject linked to finding */
   finding_inject: InjectSimple;
-  /**
-   * Scenario linked to inject
-   * @default ""
-   */
+  /** Scenario linked to inject */
   finding_scenario?: ScenarioSimple;
-  /**
-   * Simulation linked to inject
-   * @default ""
-   */
+  /** Simulation linked to inject */
   finding_simulation?: ExerciseSimple;
   /**
    * Represents the data type being extracted.
-   * @default ""
    * @example "text, number, port, portscan, ipv4, ipv6, credentials, cve"
    */
   finding_type:
@@ -7991,7 +6810,6 @@ export interface RelatedFindingOutput {
   /**
    * Finding Value
    * @minLength 1
-   * @default ""
    */
   finding_value: string;
 }
@@ -8009,12 +6827,10 @@ export interface Report {
   listened?: boolean;
   /** @format date-time */
   report_created_at: string;
-  /** @default "" */
   report_exercise?: string;
   report_global_observation?: string;
   report_id: string;
   report_informations?: ReportInformation[];
-  /** @default "" */
   report_injects_comments?: ReportInjectComment[];
   /** @minLength 1 */
   report_name: string;
@@ -8025,7 +6841,6 @@ export interface Report {
 export interface ReportInformation {
   id: string;
   listened?: boolean;
-  /** @default "" */
   report: string;
   report_informations_display?: boolean;
   report_informations_type:
@@ -8050,15 +6865,9 @@ export interface ReportInformationInput {
 }
 
 export interface ReportInjectComment {
-  /**
-   * ID of the inject
-   * @default ""
-   */
+  /** ID of the inject */
   inject_id?: string;
-  /**
-   * ID of the report
-   * @default ""
-   */
+  /** ID of the report */
   report_id?: string;
   report_inject_comment?: string;
 }
@@ -8186,7 +6995,6 @@ export interface RuleAttribute {
 
 export interface RuleAttributeAddInput {
   rule_attribute_additional_config?: Record<string, string>;
-  /** @default "" */
   rule_attribute_columns?: string | null;
   rule_attribute_default_value?: string;
   /** @minLength 1 */
@@ -8195,7 +7003,6 @@ export interface RuleAttributeAddInput {
 
 export interface RuleAttributeUpdateInput {
   rule_attribute_additional_config?: Record<string, string>;
-  /** @default "" */
   rule_attribute_columns?: string | null;
   rule_attribute_default_value?: string;
   rule_attribute_id?: string;
@@ -8207,31 +7014,25 @@ export interface Scenario {
   listened?: boolean;
   /** @format int64 */
   scenario_all_users_number?: number;
-  /** @default "" */
   scenario_articles?: string[];
   scenario_category?: string;
   /** @format int64 */
   scenario_communications_number?: number;
   /** @format date-time */
   scenario_created_at: string;
-  /** @default "" */
   scenario_custom_dashboard?: string;
   scenario_dependencies?: "STARTERPACK"[];
   scenario_description?: string;
-  /** @default "" */
   scenario_documents?: string[];
-  /** @default "" */
   scenario_exercises?: string[];
   scenario_external_reference?: string;
   scenario_external_url?: string;
   /** @minLength 1 */
   scenario_id: string;
-  /** @default "" */
   scenario_injects?: string[];
   scenario_injects_statistics?: Record<string, number>;
   scenario_kill_chain_phases?: KillChainPhase[];
   scenario_lessons_anonymized?: boolean;
-  /** @default "" */
   scenario_lessons_categories?: string[];
   /**
    * @format email
@@ -8250,9 +7051,7 @@ export interface Scenario {
   scenario_message_header?: string;
   /** @minLength 1 */
   scenario_name: string;
-  /** @default "" */
   scenario_observers?: string[];
-  /** @default "" */
   scenario_planners?: string[];
   scenario_platforms?: (
     | "Linux"
@@ -8271,15 +7070,12 @@ export interface Scenario {
   scenario_recurrence_start?: string;
   scenario_severity?: "low" | "medium" | "high" | "critical";
   scenario_subtitle?: string;
-  /** @default "" */
   scenario_tags?: string[];
-  /** @default "" */
   scenario_teams?: string[];
   scenario_teams_users?: ScenarioTeamUser[];
   scenario_type_affinity?: string;
   /** @format date-time */
   scenario_updated_at: string;
-  /** @default "" */
   scenario_users?: string[];
   /** @format int64 */
   scenario_users_number?: number;
@@ -8307,11 +7103,11 @@ export interface ScenarioIdsAndInjectorContractsInputs {
 }
 
 export interface ScenarioInput {
-  scenario_category?: string | null;
+  scenario_category?: string;
   scenario_custom_dashboard?: string;
   scenario_description?: string;
-  scenario_external_reference?: string | null;
-  scenario_external_url?: string | null;
+  scenario_external_reference?: string;
+  scenario_external_url?: string;
   scenario_is_chaining?: boolean;
   /**
    * @minLength 0
@@ -8320,7 +7116,7 @@ export interface ScenarioInput {
    */
   scenario_mail_from_name?: string;
   scenario_mails_reply_to?: string[];
-  scenario_main_focus?: string | null;
+  scenario_main_focus?: string;
   scenario_message_footer?: string;
   scenario_message_header?: string;
   /** @minLength 1 */
@@ -8331,51 +7127,33 @@ export interface ScenarioInput {
 }
 
 export interface ScenarioOutput {
-  /**
-   * Lesson anonymized state of the scenario
-   * @default false
-   */
+  /** Lesson anonymized state of the scenario */
   lessonsAnonymized?: boolean;
   /**
    * Total number of users of the scenario
    * @format int64
-   * @default ""
    */
   scenario_all_users_number?: number;
-  /**
-   * Category of the scenario
-   * @default ""
-   */
+  /** Category of the scenario */
   scenario_category?: string;
   /**
    * Creation date of the scenario
    * @format date-time
-   * @default ""
    */
   scenario_created_at: string;
-  /**
-   * Custom dashboard of the scenario
-   * @default ""
-   */
+  /** Custom dashboard of the scenario */
   scenario_custom_dashboard?: string;
   /** @uniqueItems true */
   scenario_dependencies?: string[];
-  /**
-   * Description of the scenario
-   * @default ""
-   */
+  /** Description of the scenario */
   scenario_description?: string;
   /** @uniqueItems true */
   scenario_exercises?: string[];
-  /**
-   * External URL of the scenario
-   * @default ""
-   */
+  /** External URL of the scenario */
   scenario_external_url?: string;
   /**
    * ID of the scenario
    * @minLength 1
-   * @default ""
    */
   scenario_id: string;
   /** @uniqueItems true */
@@ -8383,89 +7161,56 @@ export interface ScenarioOutput {
   /**
    * From value of the scenario
    * @minLength 1
-   * @default ""
    */
   scenario_mail_from: string;
-  /**
-   * Sender display name of the scenario
-   * @default ""
-   */
+  /** Sender display name of the scenario */
   scenario_mail_from_name?: string;
-  /**
-   * Main focus value of the scenario
-   * @default ""
-   */
+  /** Main focus value of the scenario */
   scenario_main_focus?: string;
-  /**
-   * Footer of the scenario
-   * @default ""
-   */
+  /** Footer of the scenario */
   scenario_message_footer?: string;
-  /**
-   * Header of the scenario
-   * @default ""
-   */
+  /** Header of the scenario */
   scenario_message_header?: string;
   /**
    * Name of the scenario
    * @minLength 1
-   * @default ""
    */
   scenario_name: string;
   /** @uniqueItems true */
   scenario_platforms?: string[];
-  /**
-   * Recurrence of the scenario
-   * @default ""
-   */
+  /** Recurrence of the scenario */
   scenario_recurrence?: string;
   /**
    * Recurrence end date of the scenario
    * @format date-time
-   * @default ""
    */
   scenario_recurrence_end?: string;
   /**
    * Recurrence start date of the scenario
    * @format date-time
-   * @default ""
    */
   scenario_recurrence_start?: string;
-  /**
-   * Severity of the scenario
-   * @default ""
-   */
+  /** Severity of the scenario */
   scenario_severity?: string;
-  /**
-   * Subtitle of the scenario
-   * @default ""
-   */
+  /** Subtitle of the scenario */
   scenario_subtitle?: string;
   /** @uniqueItems true */
   scenario_tags?: string[];
   /** @uniqueItems true */
   scenario_teams_users?: ScenarioTeamUserOutput[];
-  /**
-   * Type affinity of the scenario
-   * @default ""
-   */
+  /** Type affinity of the scenario */
   scenario_type_affinity?: string;
   /**
    * Update date of the scenario
    * @format date-time
-   * @default ""
    */
   scenario_updated_at: string;
   /**
    * Active total number of users of the scenario
    * @format int64
-   * @default ""
    */
   scenario_users_number?: number;
-  /**
-   * Workflow ID associated with the scenario
-   * @default ""
-   */
+  /** Workflow ID associated with the scenario */
   scenario_workflow_id?: string;
 }
 
@@ -8481,7 +7226,6 @@ export interface ScenarioSimple {
   scenario_id?: string;
   scenario_name?: string;
   scenario_subtitle?: string;
-  /** @default "" */
   scenario_tags?: string[];
 }
 
@@ -8494,29 +7238,17 @@ export interface ScenarioTeamPlayersEnableInput {
 }
 
 export interface ScenarioTeamUser {
-  /** @default "" */
   scenario_id?: string;
-  /** @default "" */
   team_id?: string;
-  /** @default "" */
   user_id?: string;
 }
 
 export interface ScenarioTeamUserOutput {
-  /**
-   * ID of the scenario
-   * @default ""
-   */
+  /** ID of the scenario */
   scenario_id?: string;
-  /**
-   * ID of the team
-   * @default ""
-   */
+  /** ID of the team */
   team_id?: string;
-  /**
-   * ID of the user
-   * @default ""
-   */
+  /** ID of the user */
   user_id?: string;
 }
 
@@ -8529,31 +7261,18 @@ export interface ScenarioUpdateTeamsInput {
   scenario_teams?: string[];
 }
 
-/**
- * Input for a scope variable attached to a workflow.
- * @default null
- */
+/** Input for a scope variable attached to a workflow. */
 export interface ScopeVariableInput {
-  /**
-   * Optional description of the variable's purpose.
-   * @default ""
-   */
+  /** Optional description of the variable's purpose. */
   scope_variable_description?: string;
-  /**
-   * ID of an existing scope variable. Null means a new variable will be created.
-   * @default ""
-   */
+  /** ID of an existing scope variable. Null means a new variable will be created. */
   scope_variable_id?: string;
   /**
    * Unique key used to reference the variable in templates (e.g. company_name).
    * @minLength 1
-   * @default ""
    */
   scope_variable_key: string;
-  /**
-   * Argument type driving how the variable value is interpreted.
-   * @default ""
-   */
+  /** Argument type driving how the variable value is interpreted. */
   scope_variable_type:
     | "text"
     | "number"
@@ -8580,35 +7299,19 @@ export interface ScopeVariableInput {
   /**
    * Value of the variable.
    * @minLength 1
-   * @default ""
    */
   scope_variable_value: string;
 }
 
-/**
- * Output for a scope variable attached to a workflow.
- * @default null
- */
+/** Output for a scope variable attached to a workflow. */
 export interface ScopeVariableOutput {
-  /**
-   * Optional description of the variable's purpose.
-   * @default ""
-   */
+  /** Optional description of the variable's purpose. */
   scope_variable_description?: string;
-  /**
-   * Unique ID of the scope variable.
-   * @default ""
-   */
+  /** Unique ID of the scope variable. */
   scope_variable_id?: string;
-  /**
-   * Key used to reference the variable in templates.
-   * @default ""
-   */
+  /** Key used to reference the variable in templates. */
   scope_variable_key?: string;
-  /**
-   * Argument type driving how the variable value is interpreted.
-   * @default ""
-   */
+  /** Argument type driving how the variable value is interpreted. */
   scope_variable_type?:
     | "text"
     | "number"
@@ -8632,42 +7335,28 @@ export interface ScopeVariableOutput {
     | "kerberoastable_account"
     | "document"
     | "targeted-asset";
-  /**
-   * Value of the variable.
-   * @default ""
-   */
+  /** Value of the variable. */
   scope_variable_value?: string;
 }
 
 export interface SearchPaginationInput {
-  /**
-   * Filter object to search within filterable attributes
-   * @default ""
-   */
+  /** Filter object to search within filterable attributes */
   filterGroup?: FilterGroup;
   /**
    * Page number to get
    * @format int32
    * @min 0
-   * @default ""
    */
   page: number;
   /**
    * Element number by page
    * @format int32
    * @max 1000
-   * @default ""
    */
   size: number;
-  /**
-   * List of sort fields : a field is composed of a property (for instance "label" and an optional direction ("asc" is assumed if no direction is specified) : ("desc", "asc")
-   * @default ""
-   */
+  /** List of sort fields : a field is composed of a property (for instance "label" and an optional direction ("asc" is assumed if no direction is specified) : ("desc", "asc") */
   sorts?: SortField[];
-  /**
-   * Text to search within searchable attributes
-   * @default ""
-   */
+  /** Text to search within searchable attributes */
   textSearch?: string;
 }
 
@@ -8684,15 +7373,12 @@ export interface SecurityPlatform {
   asset_id: string;
   /** @minLength 1 */
   asset_name: string;
-  /** @default "" */
   asset_tags?: string[];
   asset_type?: string;
   /** @format date-time */
   asset_updated_at: string;
   listened?: boolean;
-  /** @default "" */
   security_platform_logo_dark?: string;
-  /** @default "" */
   security_platform_logo_light?: string;
   security_platform_traces?: InjectExpectationTrace[];
   security_platform_type: "EDR" | "XDR" | "SIEM" | "SOAR" | "NDR" | "ISPM";
@@ -8704,9 +7390,7 @@ export interface SecurityPlatformInput {
   /** @minLength 1 */
   asset_name: string;
   asset_tags?: string[];
-  /** @default "" */
   security_platform_logo_dark?: string | null;
-  /** @default "" */
   security_platform_logo_light?: string | null;
   security_platform_type: "EDR" | "XDR" | "SIEM" | "SOAR" | "NDR" | "ISPM";
 }
@@ -8737,10 +7421,7 @@ export interface SettingsChatbotAiCguUpdateInput {
 }
 
 export interface SettingsEnterpriseEditionUpdateInput {
-  /**
-   * cert of enterprise edition
-   * @default ""
-   */
+  /** cert of enterprise edition */
   platform_enterprise_license?: string;
 }
 
@@ -8748,7 +7429,6 @@ export interface SettingsPlatformWhitemarkUpdateInput {
   /**
    * The whitemark of the platform
    * @minLength 1
-   * @default ""
    */
   platform_whitemark: string;
 }
@@ -8822,12 +7502,11 @@ export interface SimulationsResultsLatest {
 }
 
 export interface SortField {
-  direction?: string | null;
+  direction?: string;
   nullHandling?: "NATIVE" | "NULLS_FIRST" | "NULLS_LAST";
   property?: string;
 }
 
-/** @default null */
 export interface SortObject {
   ascending?: boolean;
   direction?: string;
@@ -8964,21 +7643,16 @@ export type StructuralHistogramWidget = UtilRequiredKeys<
 
 export interface Tag {
   listened?: boolean;
-  /**
-   * Color of the tag
-   * @default ""
-   */
+  /** Color of the tag */
   tag_color?: string;
   /**
    * Unique identifier of the tag
    * @minLength 1
-   * @default ""
    */
   tag_id: string;
   /**
    * Name of the tag
    * @minLength 1
-   * @default ""
    */
   tag_name: string;
 }
@@ -8987,53 +7661,39 @@ export interface TagCreateInput {
   /**
    * Color of the tag
    * @minLength 1
-   * @default ""
    */
   tag_color: string;
   /**
    * Name of the tag
    * @minLength 1
-   * @default ""
    */
   tag_name: string;
 }
 
 export interface TagRuleInput {
-  /**
-   * Asset groups of the tag rule
-   * @default ""
-   */
+  /** Asset groups of the tag rule */
   asset_groups?: string[];
   /**
    * Name of the tag
    * @minLength 1
-   * @default ""
    */
   tag_name: string;
 }
 
 export interface TagRuleOutput {
-  /**
-   * Asset groups of the tag rule
-   * @default ""
-   */
+  /** Asset groups of the tag rule */
   asset_groups?: Record<string, string>;
   /**
    * Name of the tag associated with the tag rule
    * @minLength 1
-   * @default ""
    */
   tag_name: string;
   /**
    * ID of the tag rule
    * @minLength 1
-   * @default ""
    */
   tag_rule_id: string;
-  /**
-   * The tag rule is protected and cannot change the associated tag or be deleted.
-   * @default false
-   */
+  /** The tag rule is protected and cannot change the associated tag or be deleted. */
   tag_rule_protected: boolean;
 }
 
@@ -9041,13 +7701,11 @@ export interface TagUpdateInput {
   /**
    * Color of the tag
    * @minLength 1
-   * @default ""
    */
   tag_color: string;
   /**
    * Name of the tag
    * @minLength 1
-   * @default ""
    */
   tag_name: string;
 }
@@ -9068,32 +7726,21 @@ export interface TargetSimple {
 
 export interface Team {
   listened?: boolean;
-  /**
-   * List of communications of this team
-   * @default ""
-   */
+  /** List of communications of this team */
   team_communications?: Communication[];
-  /**
-   * True if the team is contextual (exists only in the scenario/simulation it is linked to)
-   * @default false
-   */
+  /** True if the team is contextual (exists only in the scenario/simulation it is linked to) */
   team_contextual?: boolean;
   /**
    * Creation date of the team
    * @format date-time
-   * @default ""
    */
   team_created_at: string;
-  /**
-   * Description of the team
-   * @default ""
-   */
+  /** Description of the team */
   team_description?: string;
   team_exercise_injects?: string[];
   /**
    * Number of injects of all simulations of the team
    * @format int64
-   * @default ""
    */
   team_exercise_injects_number?: number;
   team_exercises?: string[];
@@ -9101,26 +7748,20 @@ export interface Team {
   /**
    * ID of the team
    * @minLength 1
-   * @default ""
    */
   team_id: string;
   team_inject_expectations?: string[];
   /**
    * Number of expectations linked to this team
    * @format int64
-   * @default ""
    */
   team_injects_expectations_number?: number;
   /**
    * Total expected score of expectations linked to this team
    * @format double
-   * @default ""
    */
   team_injects_expectations_total_expected_score: number;
-  /**
-   * Total expected score of expectations by simulation linked to this team
-   * @default ""
-   */
+  /** Total expected score of expectations by simulation linked to this team */
   team_injects_expectations_total_expected_score_by_exercise: Record<
     string,
     number
@@ -9128,30 +7769,21 @@ export interface Team {
   /**
    * Total score of expectations linked to this team
    * @format double
-   * @default ""
    */
   team_injects_expectations_total_score: number;
-  /**
-   * Total score of expectations by simulation linked to this team
-   * @default ""
-   */
+  /** Total score of expectations by simulation linked to this team */
   team_injects_expectations_total_score_by_exercise: Record<string, number>;
   /**
    * Name of the team
    * @minLength 1
-   * @default ""
    */
   team_name: string;
-  /**
-   * Organization of the team
-   * @default ""
-   */
+  /** Organization of the team */
   team_organization?: string;
   team_scenario_injects?: string[];
   /**
    * Number of injects of all scenarios of the team
    * @format int64
-   * @default ""
    */
   team_scenario_injects_number?: number;
   team_scenarios?: string[];
@@ -9160,119 +7792,81 @@ export interface Team {
   /**
    * Update date of the team
    * @format date-time
-   * @default ""
    */
   team_updated_at: string;
   team_users?: string[];
   /**
    * Number of users of the team
    * @format int64
-   * @default ""
    */
   team_users_number?: number;
 }
 
 export interface TeamCreateInput {
-  /**
-   * True if the team is contextual (exists only in the scenario/simulation it is linked to)
-   * @default false
-   */
+  /** True if the team is contextual (exists only in the scenario/simulation it is linked to) */
   team_contextual?: boolean;
-  /**
-   * Description of the team
-   * @default ""
-   */
+  /** Description of the team */
   team_description?: string;
-  /**
-   * Id of the simulations linked to the team
-   * @default ""
-   */
+  /** Id of the simulations linked to the team */
   team_exercises?: string[];
   /**
    * Name of the team
    * @minLength 1
-   * @default ""
    */
   team_name: string;
-  /**
-   * ID of the organization of the team
-   * @default ""
-   */
+  /** ID of the organization of the team */
   team_organization?: string;
-  /**
-   * Id of the scenarios linked to the team
-   * @default ""
-   */
+  /** Id of the scenarios linked to the team */
   team_scenarios?: string[];
-  /**
-   * IDs of the tags of the team
-   * @default ""
-   */
+  /** IDs of the tags of the team */
   team_tags?: string[];
 }
 
 export interface TeamOutput {
-  /**
-   * True if the team is contextual (exists only in the scenario/simulation it is linked to)
-   * @default false
-   */
+  /** True if the team is contextual (exists only in the scenario/simulation it is linked to) */
   team_contextual?: boolean;
-  /**
-   * Description of the team
-   * @default ""
-   */
+  /** Description of the team */
   team_description?: string;
   /**
    * Simulation ids linked to this team
    * @uniqueItems true
-   * @default ""
    */
   team_exercises: string[];
   /**
    * ID of the team
    * @minLength 1
-   * @default ""
    */
   team_id: string;
   /**
    * Name of the team
    * @minLength 1
-   * @default ""
    */
   team_name: string;
-  /**
-   * Organization of the team
-   * @default ""
-   */
+  /** Organization of the team */
   team_organization?: string;
   /**
    * Scenario ids linked to this team
    * @uniqueItems true
-   * @default ""
    */
   team_scenarios: string[];
   /**
    * List of tags of the team
    * @uniqueItems true
-   * @default ""
    */
   team_tags?: string[];
   /**
    * Update date of the team
    * @format date-time
-   * @default ""
    */
   team_updated_at: string;
   /**
    * User ids of the team
    * @uniqueItems true
-   * @default ""
    */
   team_users?: string[];
   /**
    * Number of users of the team
    * @format int64
-   * @default ""
    */
   team_users_number?: number;
 }
@@ -9318,26 +7912,16 @@ export interface TeamTarget {
 }
 
 export interface TeamUpdateInput {
-  /**
-   * Description of the team
-   * @default ""
-   */
+  /** Description of the team */
   team_description?: string;
   /**
    * Name of the team
    * @minLength 1
-   * @default ""
    */
   team_name: string;
-  /**
-   * ID of the organization of the team
-   * @default ""
-   */
+  /** ID of the organization of the team */
   team_organization?: string;
-  /**
-   * IDs of the tags of the team
-   * @default ""
-   */
+  /** IDs of the tags of the team */
   team_tags?: string[];
 }
 
@@ -9393,50 +7977,23 @@ export interface TenantSettingsUpdateInput {
 }
 
 export interface ThemeInput {
-  /**
-   * Accent color of the theme
-   * @default ""
-   */
+  /** Accent color of the theme */
   accent_color?: string;
-  /**
-   * Background color of the theme
-   * @default ""
-   */
+  /** Background color of the theme */
   background_color?: string;
-  /**
-   * Url of the login logo
-   * @default ""
-   */
+  /** Url of the login logo */
   logo_login_url?: string;
-  /**
-   * Url of the logo
-   * @default ""
-   */
+  /** Url of the logo */
   logo_url?: string;
-  /**
-   * 'true' if the logo needs to be collapsed
-   * @default ""
-   */
+  /** 'true' if the logo needs to be collapsed */
   logo_url_collapsed?: string;
-  /**
-   * Navigation color of the theme
-   * @default ""
-   */
+  /** Navigation color of the theme */
   navigation_color?: string;
-  /**
-   * Paper color of the theme
-   * @default ""
-   */
+  /** Paper color of the theme */
   paper_color?: string;
-  /**
-   * Primary color of the theme
-   * @default ""
-   */
+  /** Primary color of the theme */
   primary_color?: string;
-  /**
-   * Secondary color of the theme
-   * @default ""
-   */
+  /** Secondary color of the theme */
   secondary_color?: string;
 }
 
@@ -9445,35 +8002,21 @@ export interface ThreatArsenalAction {
    * Attack Patterns IDs
    * @minItems 1
    * @uniqueItems true
-   * @default ""
    */
   action_attack_patterns_ids: string[];
   /**
    * Domain IDs
    * @minItems 1
    * @uniqueItems true
-   * @default ""
    */
   action_domains_ids: string[];
-  /**
-   * Injector type
-   * @default ""
-   */
+  /** Injector type */
   action_injector_type?: string;
-  /**
-   * Labels
-   * @default ""
-   */
+  /** Labels */
   action_labels?: Record<string, string>;
-  /**
-   * Payload attached
-   * @default ""
-   */
+  /** Payload attached */
   action_payload?: PayloadSimple;
-  /**
-   * Platforms
-   * @default ""
-   */
+  /** Platforms */
   action_platforms?: (
     | "Linux"
     | "Windows"
@@ -9487,47 +8030,32 @@ export interface ThreatArsenalAction {
   /**
    * Tags Ids
    * @uniqueItems true
-   * @default ""
    */
   action_tags_ids?: string[];
-  /**
-   * Injector contract external Id
-   * @default ""
-   */
+  /** Injector contract external Id */
   injector_contract_external_id?: string;
   injector_contract_has_full_details?: boolean;
   /**
    * Injector contract Id
    * @minLength 1
-   * @default ""
    */
   injector_contract_id: string;
   /**
    * Timestamp when the injector contract was last updated
    * @format date-time
-   * @default ""
    */
   injector_contract_updated_at: string;
 }
 
-/** @default null */
 export interface ThreatArsenalActionCreateInput {
   action_arguments?: PayloadArgument[];
   action_attack_patterns?: string[];
-  /** @default "" */
   action_cleanup_command?: string | null;
-  /** @default "" */
   action_cleanup_executor?: string | null;
   action_description?: string;
-  /**
-   * List of detection remediation gaps for collectors
-   * @default ""
-   */
+  /** List of detection remediation gaps for collectors */
   action_detection_remediations?: DetectionRemediationInput[];
-  /**
-   * Set list of domains
-   * @default ""
-   */
+  /** Set list of domains */
   action_domains: string[];
   action_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   action_expectations: (
@@ -9545,7 +8073,6 @@ export interface ThreatArsenalActionCreateInput {
   /**
    * Set of output parsers
    * @uniqueItems true
-   * @default ""
    */
   action_output_parsers?: OutputParserInput[];
   /** @minItems 1 */
@@ -9565,9 +8092,7 @@ export interface ThreatArsenalActionCreateInput {
   action_tags?: string[];
   /** @minLength 1 */
   action_type: string;
-  /** @default "" */
   command_content?: string | null;
-  /** @default "" */
   command_executor?: string | null;
   dns_resolution_hostname?: string;
   executable_file?: string;
@@ -9575,61 +8100,30 @@ export interface ThreatArsenalActionCreateInput {
 }
 
 export interface ThreatArsenalActionFullOutput {
-  /**
-   * Action input arguments definition
-   * @default ""
-   */
+  /** Action input arguments definition */
   action_arguments?: PayloadArgument[];
-  /**
-   * MITRE ATT&CK patterns associated with the action
-   * @default ""
-   */
+  /** MITRE ATT&CK patterns associated with the action */
   action_attack_patterns?: string[];
-  /**
-   * Cleanup command executed after action run
-   * @default ""
-   */
+  /** Cleanup command executed after action run */
   action_cleanup_command?: string;
-  /**
-   * Executor used for cleanup operations
-   * @default ""
-   */
+  /** Executor used for cleanup operations */
   action_cleanup_executor?: string;
-  /**
-   * Collector type associated with this action
-   * @default ""
-   */
+  /** Collector type associated with this action */
   action_collector_type?: string;
   /**
    * Action creation timestamp
    * @format date-time
-   * @default ""
    */
   action_created_at: string;
-  /**
-   * Action description
-   * @default ""
-   */
+  /** Action description */
   action_description?: string;
-  /**
-   * Detection and remediation mappings for this action
-   * @default ""
-   */
+  /** Detection and remediation mappings for this action */
   action_detection_remediations?: DetectionRemediation[];
-  /**
-   * Domains related to the action
-   * @default ""
-   */
+  /** Domains related to the action */
   action_domains?: string[];
-  /**
-   * CPU architecture targeted for action execution
-   * @default ""
-   */
+  /** CPU architecture targeted for action execution */
   action_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
-  /**
-   * Expected output types for action execution
-   * @default ""
-   */
+  /** Expected output types for action execution */
   action_expectations?: (
     | "TEXT"
     | "DOCUMENT"
@@ -9640,32 +8134,21 @@ export interface ThreatArsenalActionFullOutput {
     | "DETECTION"
     | "VULNERABILITY"
   )[];
-  /**
-   * External reference identifier
-   * @default ""
-   */
+  /** External reference identifier */
   action_external_id?: string;
   /**
    * Action unique identifier
    * @minLength 1
-   * @default ""
    */
   action_id: string;
-  /**
-   * Action display name
-   * @default ""
-   */
+  /** Action display name */
   action_labels: Record<string, string>;
   /**
    * Parsers used to process action outputs
    * @uniqueItems true
-   * @default ""
    */
   action_output_parsers?: OutputParser[];
-  /**
-   * Supported endpoint platforms for this action
-   * @default ""
-   */
+  /** Supported endpoint platforms for this action */
   action_platforms?: (
     | "Linux"
     | "Windows"
@@ -9676,81 +8159,42 @@ export interface ThreatArsenalActionFullOutput {
     | "Internal"
     | "Unknown"
   )[];
-  /**
-   * Prerequisites required before action execution
-   * @default ""
-   */
+  /** Prerequisites required before action execution */
   action_prerequisites?: PayloadPrerequisite[];
-  /**
-   * Action source origin
-   * @default ""
-   */
+  /** Action source origin */
   action_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
-  /**
-   * Current action lifecycle status
-   * @default ""
-   */
+  /** Current action lifecycle status */
   action_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
-  /**
-   * Tags attached to the action
-   * @default ""
-   */
+  /** Tags attached to the action */
   action_tags?: string[];
-  /**
-   * Action implementation type
-   * @default ""
-   */
+  /** Action implementation type */
   action_type?: string;
   /**
    * Action last update timestamp
    * @format date-time
-   * @default ""
    */
   action_updated_at: string;
-  /**
-   * Command content for command actions
-   * @default ""
-   */
+  /** Command content for command actions */
   command_content?: string;
-  /**
-   * Executor used for command actions
-   * @default ""
-   */
+  /** Executor used for command actions */
   command_executor?: string;
-  /**
-   * Hostname resolved by DNS resolution actions
-   * @default ""
-   */
+  /** Hostname resolved by DNS resolution actions */
   dns_resolution_hostname?: string;
-  /**
-   * Executable file path for executable actions
-   * @default ""
-   */
+  /** Executable file path for executable actions */
   executable_file?: string;
-  /**
-   * Dropped file path for file-drop actions
-   * @default ""
-   */
+  /** Dropped file path for file-drop actions */
   file_drop_file?: string;
 }
 
 export interface ThreatArsenalActionUpdateInput {
   action_arguments?: PayloadArgument[];
   action_attack_patterns?: string[];
-  /** @default "" */
   action_cleanup_command?: string | null;
-  /** @default "" */
   action_cleanup_executor?: string | null;
   action_description?: string;
-  /**
-   * List of detection remediation gaps for collectors
-   * @default ""
-   */
+  /** List of detection remediation gaps for collectors */
   action_detection_remediations?: DetectionRemediationInput[];
-  /**
-   * Update list of domains
-   * @default ""
-   */
+  /** Update list of domains */
   action_domains: string[];
   action_execution_arch?: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   action_expectations?: (
@@ -9768,7 +8212,6 @@ export interface ThreatArsenalActionUpdateInput {
   /**
    * Set of output parsers
    * @uniqueItems true
-   * @default ""
    */
   action_output_parsers?: OutputParserInput[];
   action_platforms?: (
@@ -9783,9 +8226,7 @@ export interface ThreatArsenalActionUpdateInput {
   )[];
   action_prerequisites?: PayloadPrerequisite[];
   action_tags?: string[];
-  /** @default "" */
   command_content?: string | null;
-  /** @default "" */
   command_executor?: string | null;
   dns_resolution_hostname?: string;
   executable_file?: string;
@@ -9793,41 +8234,22 @@ export interface ThreatArsenalActionUpdateInput {
 }
 
 export interface ThreatArsenalActionWithContentOutput {
-  /**
-   * CPU architecture targeted for action execution
-   * @default ""
-   */
+  /** CPU architecture targeted for action execution */
   action_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
-  /**
-   * Action content
-   * @default ""
-   */
+  /** Action content */
   action_content?: string;
   /**
    * Action injectors names
    * @minLength 1
-   * @default ""
    */
   action_injector_name: string;
-  /**
-   * Action implementation injector type
-   * @default ""
-   */
+  /** Action implementation injector type */
   action_injector_type?: string;
-  /**
-   * Action display labels
-   * @default ""
-   */
+  /** Action display labels */
   action_labels: Record<string, string>;
-  /**
-   * Action implementation payload type
-   * @default ""
-   */
+  /** Action implementation payload type */
   action_payload_type?: string;
-  /**
-   * Supported endpoint platforms for this action
-   * @default ""
-   */
+  /** Supported endpoint platforms for this action */
   action_platforms?: (
     | "Linux"
     | "Windows"
@@ -9838,22 +8260,17 @@ export interface ThreatArsenalActionWithContentOutput {
     | "Internal"
     | "Unknown"
   )[];
-  /**
-   * Injector contract external Id
-   * @default ""
-   */
+  /** Injector contract external Id */
   injector_contract_external_id?: string;
   injector_contract_has_full_details?: boolean;
   /**
    * Injector contract Id
    * @minLength 1
-   * @default ""
    */
   injector_contract_id: string;
   /**
    * Timestamp when the injector contract was last updated
    * @format date-time
-   * @default ""
    */
   injector_contract_updated_at: string;
 }
@@ -9864,7 +8281,6 @@ export interface Token {
   token_created_at: string;
   /** @minLength 1 */
   token_id: string;
-  /** @default "" */
   token_user?: string;
   /** @minLength 1 */
   token_value: string;
@@ -9875,18 +8291,15 @@ export interface UpdateAssetsOnAssetGroupInput {
 }
 
 export interface UpdateConnectorInstanceRequestedStatus {
-  /**
-   * The connector instance current status
-   * @default ""
-   */
+  /** The connector instance current status */
   connector_instance_requested_status: "starting" | "stopping";
 }
 
 export interface UpdateExerciseInput {
   apply_tag_rule?: boolean;
-  exercise_category?: string | null;
+  exercise_category?: string;
   exercise_custom_dashboard?: string;
-  exercise_description?: string | null;
+  exercise_description?: string;
   exercise_is_chaining?: boolean;
   /**
    * @minLength 0
@@ -9895,7 +8308,7 @@ export interface UpdateExerciseInput {
    */
   exercise_mail_from_name?: string;
   exercise_mails_reply_to?: string[];
-  exercise_main_focus?: string | null;
+  exercise_main_focus?: string;
   exercise_message_footer?: string;
   exercise_message_header?: string;
   /**
@@ -9903,7 +8316,7 @@ export interface UpdateExerciseInput {
    * @maxLength 255
    */
   exercise_name: string;
-  exercise_severity?: string | null;
+  exercise_severity?: string;
   exercise_subtitle?: string;
   exercise_tags?: string[];
 }
@@ -9939,11 +8352,11 @@ export interface UpdateProfileInput {
 
 export interface UpdateScenarioInput {
   apply_tag_rule?: boolean;
-  scenario_category?: string | null;
+  scenario_category?: string;
   scenario_custom_dashboard?: string;
   scenario_description?: string;
-  scenario_external_reference?: string | null;
-  scenario_external_url?: string | null;
+  scenario_external_reference?: string;
+  scenario_external_url?: string;
   scenario_is_chaining?: boolean;
   /**
    * @minLength 0
@@ -9952,7 +8365,7 @@ export interface UpdateScenarioInput {
    */
   scenario_mail_from_name?: string;
   scenario_mails_reply_to?: string[];
-  scenario_main_focus?: string | null;
+  scenario_main_focus?: string;
   scenario_message_footer?: string;
   scenario_message_header?: string;
   /** @minLength 1 */
@@ -9969,25 +8382,16 @@ export interface UpdateUserInfoInput {
 }
 
 export interface UpdateUsersTeamInput {
-  /**
-   * The list of users the team contains
-   * @default ""
-   */
+  /** The list of users the team contains */
   team_users?: string[];
 }
 
 export interface User {
-  /**
-   * Secondary phone number of the user
-   * @default ""
-   */
+  /** Secondary phone number of the user */
   user_phone2?: string;
   listened?: boolean;
   team_exercises_users?: string[];
-  /**
-   * True if the user is admin
-   * @default false
-   */
+  /** True if the user is admin */
   user_admin?: boolean;
   /** @uniqueItems true */
   user_capabilities?: (
@@ -10043,125 +8447,69 @@ export interface User {
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
   )[];
-  /**
-   * City of the user
-   * @default ""
-   */
+  /** City of the user */
   user_city?: string;
   user_communications?: string[];
-  /**
-   * Country of the user
-   * @default ""
-   */
+  /** Country of the user */
   user_country?: string;
   /**
    * Creation date of the user
    * @format date-time
-   * @default ""
    */
   user_created_at: string;
   /**
    * Email of the user
    * @minLength 1
-   * @default ""
    */
   user_email: string;
-  /**
-   * First name of the user
-   * @default ""
-   */
+  /** First name of the user */
   user_firstname?: string;
   user_grants?: Record<string, string>;
-  /**
-   * Gravatar of the user
-   * @default ""
-   */
+  /** Gravatar of the user */
   user_gravatar?: string;
   user_groups?: string[];
   /**
    * User ID
    * @minLength 1
-   * @default ""
    */
   user_id: string;
-  /**
-   * True if the user is admin or has bypass capa
-   * @default false
-   */
+  /** True if the user is admin or has bypass capa */
   user_is_admin_or_bypass?: boolean;
-  /**
-   * True if the user is external
-   * @default false
-   */
+  /** True if the user is external */
   user_is_external?: boolean;
-  /**
-   * True if the user is manager
-   * @default false
-   */
+  /** True if the user is manager */
   user_is_manager?: boolean;
-  /**
-   * True if the user is observer
-   * @default false
-   */
+  /** True if the user is observer */
   user_is_observer?: boolean;
-  /**
-   * True if the user is only a player
-   * @default false
-   */
+  /** True if the user is only a player */
   user_is_only_player?: boolean;
-  /**
-   * True if the user is planner
-   * @default false
-   */
+  /** True if the user is planner */
   user_is_planner?: boolean;
-  /**
-   * True if the user is player
-   * @default false
-   */
+  /** True if the user is player */
   user_is_player?: boolean;
-  /**
-   * Language of the user
-   * @default ""
-   */
+  /** Language of the user */
   user_lang?: string;
-  /**
-   * Last name of the user
-   * @default ""
-   */
+  /** Last name of the user */
   user_lastname?: string;
-  /**
-   * Organization ID of the user
-   * @default ""
-   */
+  /** Organization ID of the user */
   user_organization?: string;
-  /**
-   * PGP key of the user
-   * @default ""
-   */
+  /** PGP key of the user */
   user_pgp_key?: string;
-  /**
-   * Phone number of the user
-   * @default ""
-   */
+  /** Phone number of the user */
   user_phone?: string;
   /**
    * Status of the user
    * @format int32
-   * @default ""
    */
   user_status: number;
   /** @uniqueItems true */
   user_tags?: string[];
   user_teams?: string[];
-  /**
-   * Theme of the user
-   * @default ""
-   */
+  /** Theme of the user */
   user_theme?: string;
   /**
    * Update date of the user
    * @format date-time
-   * @default ""
    */
   user_updated_at: string;
 }
@@ -10213,18 +8561,12 @@ export interface UserTenantOutput {
 }
 
 export interface ValidationContent {
-  /**
-   * A list of errors
-   * @default ""
-   */
+  /** A list of errors */
   errors?: string[];
 }
 
 export interface ValidationError {
-  /**
-   * Map of errors by input
-   * @default ""
-   */
+  /** Map of errors by input */
   children?: Record<string, ValidationContent>;
 }
 
@@ -10232,18 +8574,11 @@ export interface ValidationErrorBag {
   /**
    * Return code
    * @format int32
-   * @default ""
    */
   code?: number;
-  /**
-   * Errors raised
-   * @default ""
-   */
+  /** Errors raised */
   errors?: ValidationError;
-  /**
-   * Return message
-   * @default ""
-   */
+  /** Return message */
   message?: string;
 }
 
@@ -10252,7 +8587,6 @@ export interface Variable {
   /** @format date-time */
   variable_created_at: string;
   variable_description?: string;
-  /** @default "" */
   variable_exercise?: string;
   /** @minLength 1 */
   variable_id: string;
@@ -10261,7 +8595,6 @@ export interface Variable {
    * @pattern ^[a-z_]+$
    */
   variable_key: string;
-  /** @default "" */
   variable_scenario?: string;
   variable_type: "String" | "Object";
   /** @format date-time */
@@ -10289,266 +8622,172 @@ export interface VulnerabilityBulkInsertInput {
   vulnerabilities: VulnerabilityCreateInput[];
 }
 
-/**
- * Payload to create a Vulnerabilty
- * @default null
- */
+/** Payload to create a Vulnerabilty */
 export interface VulnerabilityCreateInput {
   /**
    * CVSS score
    * @min 0
    * @max 10
-   * @default ""
-   * @example 7.5
+   * @example "7.5"
    */
   vulnerability_cvss_v31: number;
   /**
    * Date when action is due by CISA
    * @format date-time
-   * @default ""
    */
   vulnerability_cisa_action_due?: string;
   /**
    * Date when CISA added the vulnerability to the exploited list
    * @format date-time
-   * @default ""
    */
   vulnerability_cisa_exploit_add?: string;
-  /**
-   * Action required by CISA
-   * @default ""
-   */
+  /** Action required by CISA */
   vulnerability_cisa_required_action?: string;
-  /**
-   * Vulnerability name used by CISA
-   * @default ""
-   */
+  /** Vulnerability name used by CISA */
   vulnerability_cisa_vulnerability_name?: string;
-  /**
-   * List of linked CWEs
-   * @default ""
-   */
+  /** List of linked CWEs */
   vulnerability_cwes?: CweInput[];
-  /**
-   * Description of the vulnerability
-   * @default ""
-   */
+  /** Description of the vulnerability */
   vulnerability_description?: string;
   /**
    * External Unique Vulnerabilty Identifier
    * @minLength 1
-   * @default ""
    * @example "CVE-2024-0001"
    */
   vulnerability_external_id: string;
   /**
    * Publication date of the vulnerability
    * @format date-time
-   * @default ""
    */
   vulnerability_published?: string;
-  /**
-   * List of reference URLs
-   * @default ""
-   */
+  /** List of reference URLs */
   vulnerability_reference_urls?: string[];
-  /**
-   * Suggested remediation
-   * @default ""
-   */
+  /** Suggested remediation */
   vulnerability_remediation?: string;
   /**
    * Identifier of the vulnerability source
-   * @default ""
    * @example "MITRE"
    */
   vulnerability_source_identifier?: string;
   /**
    * Vulnerability status
-   * @default ""
    * @example "ANALYZED"
    */
   vulnerability_vuln_status?: "ANALYZED" | "DEFERRED" | "MODIFIED";
 }
 
-/**
- * Full vulnerability output including references and CWEs
- * @default null
- */
+/** Full vulnerability output including references and CWEs */
 export interface VulnerabilityOutput {
   /**
    * CVSS score
-   * @default ""
-   * @example 7.8
+   * @example "7.8"
    */
   vulnerability_cvss_v31: number;
   /**
    * CISA required action due date
    * @format date-time
-   * @default ""
    */
   vulnerability_cisa_action_due?: string;
   /**
    * CISA exploit addition date
    * @format date-time
-   * @default ""
    */
   vulnerability_cisa_exploit_add?: string;
-  /**
-   * Action required by CISA
-   * @default ""
-   */
+  /** Action required by CISA */
   vulnerability_cisa_required_action?: string;
-  /**
-   * Name used by CISA for the vulnerability
-   * @default ""
-   */
+  /** Name used by CISA for the vulnerability */
   vulnerability_cisa_vulnerability_name?: string;
-  /**
-   * List of CWE outputs
-   * @default ""
-   */
+  /** List of CWE outputs */
   vulnerability_cwes?: CweOutput[];
-  /**
-   * Detailed vulnerability description
-   * @default ""
-   */
+  /** Detailed vulnerability description */
   vulnerability_description?: string;
   /**
    * External Vulnerability identifier
    * @minLength 1
-   * @default ""
    * @example "CVE-2024-0001"
    */
   vulnerability_external_id: string;
   /**
    * Id
    * @minLength 1
-   * @default ""
    */
   vulnerability_id: string;
   /**
    * Vulnerability published date
    * @format date-time
-   * @default ""
    */
   vulnerability_published?: string;
-  /**
-   * External references
-   * @default ""
-   */
+  /** External references */
   vulnerability_reference_urls?: string[];
-  /**
-   * Remediation suggestions
-   * @default ""
-   */
+  /** Remediation suggestions */
   vulnerability_remediation?: string;
-  /**
-   * Source identifier
-   * @default ""
-   */
+  /** Source identifier */
   vulnerability_source_identifier?: string;
-  /**
-   * Status of the vulnerability
-   * @default ""
-   */
+  /** Status of the vulnerability */
   vulnerability_vuln_status?: "ANALYZED" | "DEFERRED" | "MODIFIED";
 }
 
-/**
- * Simplified Vulnerability representation
- * @default null
- */
+/** Simplified Vulnerability representation */
 export interface VulnerabilitySimple {
   /**
    * CVSS score
-   * @default ""
-   * @example 7.8
+   * @example "7.8"
    */
   vulnerability_cvss_v31: number;
   /**
    * External Vulnerability identifier
    * @minLength 1
-   * @default ""
    * @example "CVE-2024-0001"
    */
   vulnerability_external_id: string;
   /**
    * Id
    * @minLength 1
-   * @default ""
    */
   vulnerability_id: string;
   /**
    * Vulnerability published date
    * @format date-time
-   * @default ""
    */
   vulnerability_published?: string;
 }
 
-/**
- * Payload to update a vulnerability
- * @default null
- */
+/** Payload to update a vulnerability */
 export interface VulnerabilityUpdateInput {
   /**
    * Date when action is due by CISA
    * @format date-time
-   * @default ""
    */
   vulnerability_cisa_action_due?: string;
   /**
    * Date when CISA added the vulnerability to the exploited list
    * @format date-time
-   * @default ""
    */
   vulnerability_cisa_exploit_add?: string;
-  /**
-   * Action required by CISA
-   * @default ""
-   */
+  /** Action required by CISA */
   vulnerability_cisa_required_action?: string;
-  /**
-   * Vulnerability name used by CISA
-   * @default ""
-   */
+  /** Vulnerability name used by CISA */
   vulnerability_cisa_vulnerability_name?: string;
-  /**
-   * List of linked CWEs
-   * @default ""
-   */
+  /** List of linked CWEs */
   vulnerability_cwes?: CweInput[];
-  /**
-   * Description of the vulnerability
-   * @default ""
-   */
+  /** Description of the vulnerability */
   vulnerability_description?: string;
   /**
    * Publication date of the vulnerability
    * @format date-time
-   * @default ""
    */
   vulnerability_published?: string;
-  /**
-   * List of reference URLs
-   * @default ""
-   */
+  /** List of reference URLs */
   vulnerability_reference_urls?: string[];
-  /**
-   * Suggested remediation
-   * @default ""
-   */
+  /** Suggested remediation */
   vulnerability_remediation?: string;
   /**
    * Identifier of the vulnerability source
-   * @default ""
    * @example "MITRE"
    */
   vulnerability_source_identifier?: string;
   /**
    * Vulnerability status
-   * @default ""
    * @example "ANALYZED"
    */
   vulnerability_vuln_status?: "ANALYZED" | "DEFERRED" | "MODIFIED";
@@ -10584,9 +8823,7 @@ export interface Widget {
 export interface WidgetConfiguration {
   /** @minLength 1 */
   date_attribute: string;
-  /** @default "" */
   end?: string | null;
-  /** @default "" */
   start?: string | null;
   time_range:
     | "DEFAULT"
@@ -10639,53 +8876,33 @@ export interface WidgetLayout {
 }
 
 export interface WidgetToEntitiesInput {
-  /**
-   * Key-value pairs for filtering entities, where the key is the field name and the value is the filter criterion
-   * @default ""
-   */
+  /** Key-value pairs for filtering entities, where the key is the field name and the value is the filter criterion */
   filter_values_map?: Record<string, string[]>;
-  /**
-   * Pagination for the widget
-   * @default ""
-   */
+  /** Pagination for the widget */
   pagination?: Pagination;
-  /**
-   * Additional parameters for the widget
-   * @default ""
-   */
+  /** Additional parameters for the widget */
   parameters?: Record<string, string>;
   /**
    * The index of the series to filter by, if applicable, otherwise 0
    * @format int32
-   * @default ""
    */
   series_index?: number;
 }
 
 export interface WidgetToEntitiesOutput {
-  /**
-   * List of entities
-   * @default ""
-   */
+  /** List of entities */
   es_entities?: EsEntities;
-  /**
-   * List configuration generated based on the input widget id and filter value
-   * @default ""
-   */
+  /** List configuration generated based on the input widget id and filter value */
   list_configuration?: ListConfiguration;
 }
 
-/**
- * Input for creating or updating a workflow configuration.
- * @default null
- */
+/** Input for creating or updating a workflow configuration. */
 export interface WorkflowConfigurationInput {
   /**
    * Maximum number of attempts allowed before the temporal rate limit kicks in (1–99).
    * @format int32
    * @min 1
    * @max 99
-   * @default ""
    */
   workflow_configuration_max_attempts?: number;
   /**
@@ -10693,146 +8910,83 @@ export interface WorkflowConfigurationInput {
    * @format int64
    * @min 1
    * @max 5940
-   * @default ""
    */
   workflow_configuration_max_temporal_rate_seconds?: number;
-  /**
-   * Whether rate limiting is enabled.
-   * @default false
-   */
+  /** Whether rate limiting is enabled. */
   workflow_configuration_rate_limit_enabled?: boolean;
   /**
    * If enabled, exploits that could crash the customer environment will not be executed.
    * @default true
    */
   workflow_configuration_safe_mode_enabled?: boolean;
-  /**
-   * Whether the timeout feature is enabled.
-   * @default false
-   */
+  /** Whether the timeout feature is enabled. */
   workflow_configuration_timeout_enabled?: boolean;
   /**
    * Total timeout in seconds for the attack workflow scenario (60–86400).
    * @format int64
    * @min 60
    * @max 86400
-   * @default ""
    */
   workflow_configuration_timeout_seconds?: number;
-  /**
-   * List scope rules.
-   * @default ""
-   */
+  /** List scope rules. */
   workflow_scope_rules?: WorkflowScopeRuleInput[];
-  /**
-   * List of custom variables available for template substitution in this workflow.
-   * @default ""
-   */
+  /** List of custom variables available for template substitution in this workflow. */
   workflow_scope_variables?: ScopeVariableInput[];
 }
 
-/**
- * Output for a workflow configuration.
- * @default null
- */
+/** Output for a workflow configuration. */
 export interface WorkflowConfigurationOutput {
   /**
    * Maximum number of attempts allowed before the temporal rate limit kicks in.
    * @format int32
-   * @default ""
    */
   workflow_configuration_max_attempts?: number;
   /**
    * Seconds to wait between attempts.
    * @format int64
-   * @default ""
    */
   workflow_configuration_max_temporal_rate_seconds?: number;
-  /**
-   * Whether rate limiting is enabled.
-   * @default false
-   */
+  /** Whether rate limiting is enabled. */
   workflow_configuration_rate_limit_enabled?: boolean;
-  /**
-   * If enabled, exploits that could crash the customer environment will not be executed.
-   * @default false
-   */
+  /** If enabled, exploits that could crash the customer environment will not be executed. */
   workflow_configuration_safe_mode_enabled?: boolean;
-  /**
-   * Whether the timeout feature is enabled.
-   * @default false
-   */
+  /** Whether the timeout feature is enabled. */
   workflow_configuration_timeout_enabled?: boolean;
   /**
    * Total timeout in seconds for the attack workflow.
    * @format int64
-   * @default ""
    */
   workflow_configuration_timeout_seconds?: number;
-  /**
-   * List scope rules
-   * @default ""
-   */
+  /** List scope rules */
   workflow_scope_rules?: WorkflowScopeRuleOutput[];
-  /**
-   * Custom variables available for template substitution in this workflow.
-   * @default ""
-   */
+  /** Custom variables available for template substitution in this workflow. */
   workflow_scope_variables?: ScopeVariableOutput[];
 }
 
-/**
- * Input for a scope rule used in workflow configuration.
- * @default null
- */
+/** Input for a scope rule used in workflow configuration. */
 export interface WorkflowScopeRuleInput {
-  /**
-   * ID of an existing scope rule. Null means a new rule will be created.
-   * @default ""
-   */
+  /** ID of an existing scope rule. Null means a new rule will be created. */
   workflow_scope_rule_id?: string;
-  /**
-   * Selected list mode where the rule should be applied
-   * @default ""
-   */
+  /** Selected list mode where the rule should be applied */
   workflow_scope_rule_selected_mode: "ALLOWLIST" | "DENYLIST";
-  /**
-   * Source of the selected rule
-   * @default ""
-   */
+  /** Source of the selected rule */
   workflow_scope_rule_source: "ASSET" | "ASSET_GROUP" | "MANUAL" | "CSV";
   /**
    * Selected rule value
    * @minLength 1
-   * @default ""
    */
   workflow_scope_rule_value: string;
 }
 
-/**
- * Output for a scope rule used in workflow configuration.
- * @default null
- */
+/** Output for a scope rule used in workflow configuration. */
 export interface WorkflowScopeRuleOutput {
-  /**
-   * ID of the scope rule.
-   * @default ""
-   */
+  /** ID of the scope rule. */
   workflow_scope_rule_id?: string;
-  /**
-   * Selected list mode where the rule is applied.
-   * @default ""
-   */
+  /** Selected list mode where the rule is applied. */
   workflow_scope_rule_selected_mode?: "ALLOWLIST" | "DENYLIST";
-  /**
-   * Source of the selected item
-   * @default ""
-   */
+  /** Source of the selected item */
   workflow_scope_rule_source?: "ASSET" | "ASSET_GROUP" | "MANUAL" | "CSV";
-  /**
-   * Selected item value
-   * @default ""
-   */
+  /** Selected item value */
   workflow_scope_rule_value?: string;
 }
 
@@ -10840,42 +8994,33 @@ export interface XtmComposerInstanceOutput {
   /**
    * Connector image
    * @minLength 1
-   * @default ""
    */
   connector_image: string;
-  /**
-   * Connector Instance configuration
-   * @default ""
-   */
+  /** Connector Instance configuration */
   connector_instance_configurations: Configuration[];
   /**
    * Connector Instance current status
    * @minLength 1
-   * @default ""
    */
   connector_instance_current_status: "started" | "stopped";
   /**
    * Connector Instance hash
    * @minLength 1
-   * @default ""
    */
   connector_instance_hash: string;
   /**
    * Connector Instance Id
    * @minLength 1
-   * @default ""
    */
   connector_instance_id: string;
   /**
    * Connector Instance name
    * @minLength 1
-   * @default ""
    */
   connector_instance_name: string;
   /**
    * Connector Instance requested status
    * @minLength 1
-   * @default ""
    */
   connector_instance_requested_status: "starting" | "stopping";
 }
@@ -10884,13 +9029,11 @@ export interface XtmComposerOutput {
   /**
    * XTM Composer Id
    * @minLength 1
-   * @default ""
    */
   xtm_composer_id: string;
   /**
    * XTM Composer Version
    * @minLength 1
-   * @default ""
    */
   xtm_composer_version: string;
 }
@@ -10899,28 +9042,22 @@ export interface XtmComposerRegisterInput {
   /**
    * The XTM Composer Id
    * @minLength 1
-   * @default ""
    */
   id: string;
   /**
    * The XTM Composer Name
    * @minLength 1
-   * @default ""
    */
   name: string;
   /**
    * The registration public key
    * @minLength 1
-   * @default ""
    */
   public_key: string;
 }
 
 export interface XtmComposerUpdateStatusInput {
-  /**
-   * The connector instance current status
-   * @default ""
-   */
+  /** The connector instance current status */
   connector_instance_current_status: "started" | "stopped";
 }
 
@@ -10928,7 +9065,6 @@ export interface XtmHubContactUsInput {
   /**
    * The message sent
    * @minLength 1
-   * @default ""
    */
   message: string;
 }
@@ -10937,7 +9073,6 @@ export interface XtmHubRegisterInput {
   /**
    * The registration token
    * @minLength 1
-   * @default ""
    */
   token: string;
 }
