@@ -11,8 +11,8 @@ public class V5_10__Add_Indexes_For_Inject_Execution_Job extends BaseJavaMigrati
   @Override
   public void migrate(Context context) throws Exception {
     try (Statement statement = context.getConnection().createStatement()) {
-      // Partial index on exercises: only RUNNING simulations are queried every minute
-      // by InjectsExecutionJob via InjectSpecification.executable()
+      // Partial index on exercises: RUNNING and SCHEDULED simulations are queried every
+      // minute by InjectsExecutionJob (executable(), handleAutoStartExercises())
       statement.execute(
           "CREATE INDEX IF NOT EXISTS idx_exercises_running "
               + "ON exercises (exercise_start_date) "
@@ -32,14 +32,14 @@ public class V5_10__Add_Indexes_For_Inject_Execution_Job extends BaseJavaMigrati
               + "ON injects_statuses (status_inject) "
               + "WHERE status_name = 'QUEUING'");
 
-      // Index on injects_statuses.status_inject for the LEFT JOIN from injects to statuses
-      // (used when checking notExecuted: status_name IS NULL after left join)
+      // Index on injects_statuses.status_inject to speed up joins/anti-joins from injects to
+      // statuses
+      // (e.g. InjectSpecification.executable() checks for missing status rows via LEFT JOIN)
       statement.execute(
-          "CREATE INDEX IF NOT EXISTS idx_injects_statuses_inject_id "
-              + "ON injects_statuses (status_inject) "
-              + "WHERE status_name IS NULL OR status_name NOT IN ('DRAFT')");
+          "CREATE INDEX IF NOT EXISTS idx_injects_statuses_status_inject "
+              + "ON injects_statuses (status_inject)");
 
-      // Composite index on injects for the executable() spec hot path:
+      // Partial index on injects for the executable() spec hot path:
       // enabled injects with a non-null exercise
       statement.execute(
           "CREATE INDEX IF NOT EXISTS idx_injects_enabled_exercise "
@@ -48,4 +48,3 @@ public class V5_10__Add_Indexes_For_Inject_Execution_Job extends BaseJavaMigrati
     }
   }
 }
-
