@@ -1695,7 +1695,7 @@ export interface CveCreateInput {
    * CVSS score
    * @min 0
    * @max 10
-   * @example 7.5
+   * @example "7.5"
    */
   cve_cvss_v31: number;
   /**
@@ -1747,7 +1747,7 @@ export interface CveCreateInput {
 export interface CveOutput {
   /**
    * CVSS score
-   * @example 7.8
+   * @example "7.8"
    */
   cve_cvss_v31: number;
   /**
@@ -1798,7 +1798,7 @@ export interface CveOutput {
 export interface CveSimple {
   /**
    * CVSS score
-   * @example 7.8
+   * @example "7.8"
    */
   cve_cvss_v31: number;
   /**
@@ -8628,7 +8628,7 @@ export interface VulnerabilityCreateInput {
    * CVSS score
    * @min 0
    * @max 10
-   * @example 7.5
+   * @example "7.5"
    */
   vulnerability_cvss_v31: number;
   /**
@@ -8680,7 +8680,7 @@ export interface VulnerabilityCreateInput {
 export interface VulnerabilityOutput {
   /**
    * CVSS score
-   * @example 7.8
+   * @example "7.8"
    */
   vulnerability_cvss_v31: number;
   /**
@@ -8731,7 +8731,7 @@ export interface VulnerabilityOutput {
 export interface VulnerabilitySimple {
   /**
    * CVSS score
-   * @example 7.8
+   * @example "7.8"
    */
   vulnerability_cvss_v31: number;
   /**
