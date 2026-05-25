@@ -1,5 +1,7 @@
 package io.openaev.service;
 
+import static io.openaev.helper.CryptoHelper.hashWithSHA256;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.config.OpenAEVPrincipal;
@@ -225,7 +227,7 @@ public class LogService {
       if (userId != null) {
         User user = userService.user(userId);
         if (user != null && user.getEmail() != null) {
-          String email = ObjectRedactionUtils.hash(user.getEmail());
+          String email = hashWithSHA256(user.getEmail());
           meta.setUserEmail(email);
           hasData = true;
         }
