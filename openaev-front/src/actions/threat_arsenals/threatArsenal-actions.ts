@@ -1,8 +1,11 @@
-import { simpleCall, simplePostCall, simplePutCall } from '../../utils/Action';
+import type { Dispatch } from 'redux';
+
+import { getReferential, simpleCall, simpleDelCall, simplePostCall, simplePutCall } from '../../utils/Action';
 import type {
-  InjectorContractSearchPaginationInput,
+  InjectorContractSearchPaginationInput, SearchPaginationInput,
   ThreatArsenalActionCreateInput, ThreatArsenalActionUpdateInput,
 } from '../../utils/api-types';
+import * as schema from '../Schema';
 
 const THREAT_ARSENAL_URI = '/api/threat_arsenals';
 
@@ -39,4 +42,23 @@ export const exportThreatArsenalAction = (actionId: string) => {
 
 export const importThreatArsenalAction = (content: FormData) => {
   return simplePostCall(`${THREAT_ARSENAL_URI}/import`, content, { params: { include: true } }, true, true);
+};
+
+export const deleteThreatArsenalAction = (actionId: string) => {
+  return simpleDelCall(`${THREAT_ARSENAL_URI}/${actionId}`, {}, true, true);
+};
+
+export const fetchCollectorsForActionRemediation = (actionId: string) => (dispatch: Dispatch) => {
+  const uri = `${THREAT_ARSENAL_URI}/${actionId}/collectors`;
+  return getReferential(schema.arrayOfCollectors, uri)(dispatch);
+};
+
+export const exportThreatArsenalCsvMapper = (searchPaginationInput: SearchPaginationInput | undefined) => {
+  const uri = `${THREAT_ARSENAL_URI}/export/csv`;
+  return simplePostCall(uri, searchPaginationInput).then((response) => {
+    return {
+      data: response.data,
+      filename: response.headers['content-disposition'].split('filename=')[1],
+    };
+  });
 };

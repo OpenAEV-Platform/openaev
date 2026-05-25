@@ -152,7 +152,6 @@ const TENANT_EXEMPT_PREFIXES = [
   '/api/xtmhub/contact-us',
   '/api/xtmhub/auto-register',
   '/api/xtm-composer',
-  '/api/stream',
   '/api/schemas',
   '/api/engine',
 ];

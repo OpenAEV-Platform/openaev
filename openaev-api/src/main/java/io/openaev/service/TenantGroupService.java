@@ -48,9 +48,10 @@ public class TenantGroupService {
   }
 
   public Group createGroupWithRole(
-      @NotBlank final String id, TenantGroupCreateInput input, List<Role> roles) {
+      @NotBlank final String id, TenantGroupCreateInput input, List<Role> roles, String tenantId) {
     Group group = createGroupInner(id, input);
     group.setRoles(roles);
+    group.setTenant(new Tenant(tenantId));
     return groupRepository.save(group);
   }
 

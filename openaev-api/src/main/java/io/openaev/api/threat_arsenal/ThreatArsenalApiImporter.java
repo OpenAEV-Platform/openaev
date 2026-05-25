@@ -45,7 +45,7 @@ public class ThreatArsenalApiImporter {
       consumes = MediaType.MULTIPART_FORM_DATA_VALUE,
       produces = MediaType.APPLICATION_JSON_VALUE)
   @Transactional(rollbackFor = Exception.class)
-  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PAYLOAD)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.THREAT_ARSENAL)
   public ThreatArsenalAction importJson(@RequestPart("file") @NotNull MultipartFile file)
       throws Exception {
     return threatArsenalImportService.importThreatArsenalAction(file);

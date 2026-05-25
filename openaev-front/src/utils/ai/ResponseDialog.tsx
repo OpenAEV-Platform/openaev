@@ -141,7 +141,7 @@ const ResponseDialog: FunctionComponent<ResponseDialogProps> = ({
     }
   }, [selectedAgent, isOpen, agentMode, agentExecuted, agentLoading]);
 
-  // Re-execute when tone changes (for change.tone action)
+  // Re-execute when tone changes (for global.change_tone action)
   const toneRef = useRef(tone);
   useEffect(() => {
     if (toneRef.current !== tone && isOpen && agentMode && selectedAgent && agentExecuted) {

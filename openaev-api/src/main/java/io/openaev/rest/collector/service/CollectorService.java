@@ -6,6 +6,7 @@ import static io.openaev.service.FileService.COLLECTORS_IMAGES_BASE_PATH;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.CollectorTypeRepository;
@@ -77,7 +78,9 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
 
   @Override
   protected Collector getConnectorById(String collectorId) {
-    return collectorRepository.findById(collectorId).orElse(null);
+    return collectorRepository
+        .findByIdAndTenantId(collectorId, TenantContext.getCurrentTenant())
+        .orElse(null);
   }
 
   @Override
@@ -99,7 +102,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
 
   public Collector collector(String id) {
     return collectorRepository
-        .findById(id)
+        .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
         .orElseThrow(() -> new ElementNotFoundException("Collector not found with id: " + id));
   }
 
@@ -159,6 +162,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
         .orElseGet(
             () -> {
               CollectorType ct = new CollectorType(type);
+              // Tenant is auto-assigned by TenantBaseListener @PrePersist
               return collectorTypeRepository.save(ct);
             });
   }
@@ -193,16 +197,15 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
       fileService.uploadStream(COLLECTORS_IMAGES_BASE_PATH, type + ".png", iconStream);
     }
 
-    ensureCollectorTypeExists(type);
+    CollectorType collectorType = ensureCollectorTypeExists(type);
 
-    Collector collector = collectorRepository.findById(id).orElse(null);
+    Collector collector =
+        collectorRepository.findByIdAndTenantId(id, TenantContext.getCurrentTenant()).orElse(null);
 
     SecurityPlatform securityPlatform =
         securityPlatformId != null
             ? securityPlatformRepository.findById(securityPlatformId).orElseThrow()
             : null;
-
-    CollectorType collectorType = collectorTypeRepository.findByName(type).orElseThrow();
 
     if (collector != null) {
       collector.setName(name);
@@ -228,6 +231,8 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
     if (securityPlatform != null) {
       newCollector.setSecurityPlatform(securityPlatform);
     }
+    // For new entities, isNew()=true triggers persist() via Spring Data save().
+    newCollector.setTenant(new Tenant(TenantContext.getCurrentTenant()));
     return collectorRepository.save(newCollector);
   }
 

@@ -14,8 +14,10 @@ import io.openaev.database.repository.UserRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.execution.ExecutionContextService;
+import io.openaev.executors.InjectorContext;
+import io.openaev.injectors.email.EmailExecutor;
 import io.openaev.injectors.email.model.EmailContent;
-import io.openaev.integration.Manager;
+import io.openaev.injectors.email.service.EmailService;
 import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
 import io.openaev.model.inject.form.Expectation;
 import io.openaev.utils.fixtures.*;
@@ -41,6 +43,9 @@ public class EmailExecutorTest extends IntegrationTest {
   @Autowired private UserRepository userRepository;
   @Autowired private InjectExpectationRepository injectExpectationRepository;
   @Autowired private ExecutionContextService executionContextService;
+  @Autowired private InjectorContext injectorContext;
+  @Autowired private EmailService emailService;
+  @Autowired private io.openaev.service.InjectExpectationService injectExpectationService;
   @Resource protected ObjectMapper mapper;
   @Autowired private InjectorContractFixture injectorContractFixture;
   @Autowired private EmailInjectorIntegrationFactory emailInjectorIntegrationFactory;
@@ -104,9 +109,9 @@ public class EmailExecutorTest extends IntegrationTest {
     Execution execution = new Execution(executableInject.isRuntime());
 
     // -- EXECUTE --
-    Manager manager = new Manager(List.of(emailInjectorIntegrationFactory));
-    manager.monitorIntegrations();
-    io.openaev.executors.Injector emailExecutor = manager.requestEmailInjector();
+    emailInjectorIntegrationFactory.registerConnectorForTenant();
+    io.openaev.executors.Injector emailExecutor =
+        new EmailExecutor(injectorContext, emailService, injectExpectationService);
     emailExecutor.process(execution, executableInject);
 
     // -- ASSERT --
@@ -150,9 +155,9 @@ public class EmailExecutorTest extends IntegrationTest {
     Execution execution = new Execution(executableInject.isRuntime());
 
     // -- EXECUTE --
-    Manager manager = new Manager(List.of(emailInjectorIntegrationFactory));
-    manager.monitorIntegrations();
-    io.openaev.executors.Injector emailExecutor = manager.requestEmailInjector();
+    emailInjectorIntegrationFactory.registerConnectorForTenant();
+    io.openaev.executors.Injector emailExecutor =
+        new EmailExecutor(injectorContext, emailService, injectExpectationService);
     emailExecutor.process(execution, executableInject);
 
     // -- ASSERT --

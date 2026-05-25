@@ -17,7 +17,8 @@ export interface ScopeCsvParseResult {
   invalid: ScopeCsvInvalidRow[];
 }
 
-const DOMAIN_REGEX = /^(?=.{1,253}$)(?!-)(?:[a-zA-Z0-9-]{1,63}\.)+[a-zA-Z]{2,63}$/;
+// Supports ASCII domains and internationalized domain names (IDN).
+const DOMAIN_REGEX = /^(?=.{1,253}$)(?!-)(?:[a-zA-Z0-9\u00C0-\u024F\u0400-\u04FF\u4E00-\u9FFF-]{1,63}\.)+[a-zA-Z\u00C0-\u024F\u0400-\u04FF\u4E00-\u9FFF]{2,63}$/;
 
 const TYPE_MAP: Record<string, ScopeCsvType> = {
   'domain': 'DOMAIN',

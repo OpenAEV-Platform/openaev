@@ -108,6 +108,13 @@ public class PlayerService {
   }
 
   public User createPlayer(@Valid @RequestBody PlayerInput input) {
+    var existingUser = userRepository.findByEmailIgnoreCase(input.getEmail());
+    if (existingUser.isPresent()) {
+      String userId = existingUser.get().getId();
+      tenantUserService.attachToTenant(userId, TenantContext.getCurrentTenant());
+      // Reload user after @Modifying queries cleared the persistence context
+      return userRepository.findById(userId).orElseThrow();
+    }
     User user = new User();
     user.setUpdateAttributes(input);
     user.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));

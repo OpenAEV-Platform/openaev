@@ -2,7 +2,6 @@ package io.openaev.utils;
 
 import io.openaev.database.model.Condition;
 import io.openaev.database.model.ConditionType;
-import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
@@ -13,46 +12,13 @@ import org.springframework.stereotype.Component;
 public class ConditionUtils {
 
   /**
-   * Checks whether the condition is a time-based condition.
-   *
-   * @param condition condition to evaluate
-   * @return {@code true} if the condition type is AFTER or BEFORE
-   */
-  public boolean isTimeCondition(Condition condition) {
-    return switch (condition.getType()) {
-      case ConditionType.AFTER, ConditionType.BEFORE -> true;
-      default -> false;
-    };
-  }
-
-  /**
-   * Evaluates a time condition against the current time.
-   *
-   * <p>TODO: this is for legacy behavior only (compare from start of workflow instead of previous
-   * step.
-   *
-   * @param conditionTemplate the condition to evaluate
-   * @param now current instant
-   * @param goal target instant
-   * @return {@code true} if the condition is valid
-   */
-  public Boolean isTimeConditionValid(Condition conditionTemplate, Instant now, Instant goal) {
-    if (conditionTemplate.getType().equals(ConditionType.AFTER)) {
-      return now.isAfter(goal);
-    } else if (conditionTemplate.getType().equals(ConditionType.BEFORE)) {
-      return now.isBefore(goal);
-    }
-    return false;
-  }
-
-  /**
    * Checks whether the condition is a mapper condition.
    *
    * @param condition condition to evaluate
    * @return {@code true} if the condition type is MAPPER
    */
   public boolean isMapperCondition(Condition condition) {
-    return condition.getType() == ConditionType.MAPPER;
+    return condition.getType() != null && ConditionType.MAPPER.equals(condition.getType());
   }
 
   /**
@@ -63,14 +29,27 @@ public class ConditionUtils {
   }
 
   /**
+   * Checks whether the condition is a dependency condition.
+   *
+   * @param condition condition to evaluate
+   * @return {@code true} if the condition type is DEPEND_ON
+   */
+  public boolean isDependOnCondition(Condition condition) {
+    return condition.getType() != null && condition.getType() == ConditionType.DEPEND_ON;
+  }
+
+  /**
    * Checks whether the condition is a filter condition.
    *
    * @param condition condition to evaluate
-   * @return {@code true} if it is not a time or mapper condition
+   * @return {@code true} if it is a data-filtering condition (not time, mapper, or dependency)
    */
   public boolean isFilterCondition(Condition condition) {
+    if (condition.getType() == null) {
+      return false;
+    }
     return switch (condition.getType()) {
-      case ConditionType.AFTER, ConditionType.BEFORE, ConditionType.MAPPER -> false;
+      case ConditionType.MAPPER, ConditionType.DEPEND_ON -> false;
       default -> true;
     };
   }
@@ -97,8 +76,11 @@ public class ConditionUtils {
     return evaluateLeafCondition(value, rootFilter);
   }
 
-  private boolean evaluateLeafCondition(String actualValue, Condition filter) {
+  public boolean evaluateLeafCondition(String actualValue, Condition filter) {
     ConditionType type = filter.getType();
+    if (type == null) {
+      return true;
+    }
     String target = filter.getValue();
 
     switch (type) {
@@ -122,6 +104,29 @@ public class ConditionUtils {
       default:
         return true;
     }
+  }
+
+  /**
+   * Checks whether a value matches any leaf condition in the condition tree, ignoring AND/OR
+   * logical grouping. This is used for propagation (deciding which values are relevant to an
+   * event), not for full evaluation (deciding if the event is fully satisfied).
+   *
+   * @param value the value to check
+   * @param node the condition tree node to inspect
+   * @return {@code true} if the value satisfies at least one leaf condition in the tree
+   */
+  public boolean matchesAnyLeafCondition(String value, Condition node) {
+    if (node == null || node.getType() == null) {
+      return false;
+    }
+    // For logical operator nodes (AND/OR), recurse into children looking for any matching leaf
+    if (node.getType() == ConditionType.AND || node.getType() == ConditionType.OR) {
+      return node.getConditionChildren() != null
+          && node.getConditionChildren().stream()
+              .anyMatch(child -> matchesAnyLeafCondition(value, child));
+    }
+    // For leaf nodes, delegate to the existing leaf evaluator
+    return evaluateLeafCondition(value, node);
   }
 
   private static boolean handleNumericComparison(

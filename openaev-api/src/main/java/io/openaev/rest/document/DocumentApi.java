@@ -10,6 +10,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
 import io.openaev.database.raw.RawPaginationDocument;
@@ -336,7 +337,7 @@ public class DocumentApi extends RestBehavior {
       @PathVariable String injectorId) throws IOException {
     Injector injector =
         this.injectorRepository
-            .findById(injectorId)
+            .findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant())
             .orElseThrow(() -> new ElementNotFoundException("Injector not found"));
     Optional<InputStream> fileStream = fileService.getInjectorImage(injector.getType());
     if (fileStream.isPresent()) {
@@ -390,7 +391,7 @@ public class DocumentApi extends RestBehavior {
       @PathVariable String collectorId) throws IOException {
     Collector collector =
         this.collectorRepository
-            .findById(collectorId)
+            .findByIdAndTenantId(collectorId, TenantContext.getCurrentTenant())
             .orElseThrow(() -> new ElementNotFoundException("Collector not found"));
     Optional<InputStream> fileStream = fileService.getCollectorImage(collector.getType());
     if (fileStream.isPresent()) {

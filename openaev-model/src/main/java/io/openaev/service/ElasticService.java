@@ -780,7 +780,6 @@ public class ElasticService implements EngineService {
     Map<String, String> parameters = runtime.getParameters();
     Map<String, CustomDashboardParameters> definitionParameters = runtime.getDefinitionParameters();
     return runtime.getWidget().getSeries().stream()
-        .parallel()
         .map(c -> termHistogram(user, runtime.getWidget(), c, parameters, definitionParameters))
         .toList();
   }
@@ -815,8 +814,8 @@ public class ElasticService implements EngineService {
         extendedBounds = null;
       } else {
         ExtendedBounds.Builder<FieldDateMath> bounds = new ExtendedBounds.Builder<>();
-        bounds.min(FieldDateMath.of(m -> m.value((double) finalStart.toEpochMilli())));
-        bounds.max(FieldDateMath.of(m -> m.value((double) finalEnd.toEpochMilli())));
+        bounds.min(FieldDateMath.of(m -> m.value(finalStart.toEpochMilli())));
+        bounds.max(FieldDateMath.of(m -> m.value(finalEnd.toEpochMilli())));
         extendedBounds = bounds.build();
       }
       SearchResponse<Void> response =
@@ -1026,6 +1025,11 @@ public class ElasticService implements EngineService {
       log.warn("Unable to retrieve engine version", e);
     }
     return null;
+  }
+
+  @Override
+  public ObjectMapper getObjectMapper() {
+    return driver.getObjectMapper();
   }
 
   // endregion

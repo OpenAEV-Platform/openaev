@@ -146,4 +146,49 @@ class PlayerServiceTest extends IntegrationTest {
       assertThat(result.getOrganization().getId()).isEqualTo(newOrg.getId());
     }
   }
+
+  @Nested
+  @DisplayName("Create player")
+  class CreatePlayer {
+
+    @Test
+    @DisplayName("Given existing user email should return existing user")
+    void given_existingUserEmail_should_returnExistingUser() {
+      // Arrange
+      User existingUser = UserFixture.getUserWithDefaultEmail();
+      existingUser.setFirstname("ExistingPlayer");
+      userComposer.forUser(existingUser).persist();
+
+      PlayerInput playerInput = new PlayerInput();
+      playerInput.setEmail(existingUser.getEmail());
+      playerInput.setFirstname("ExistingPlayer");
+
+      // Act
+      User result = playerService.createPlayer(playerInput);
+
+      // Assert
+      assertThat(result.getId()).isEqualTo(existingUser.getId());
+      assertThat(result.getEmail()).isEqualTo(existingUser.getEmail());
+    }
+
+    @Test
+    @DisplayName("Given new email should create new player")
+    void given_newEmail_should_createNewPlayer() {
+      // Arrange
+      PlayerInput playerInput = new PlayerInput();
+      playerInput.setEmail("newplayer@example.com");
+      playerInput.setFirstname("NewPlayer");
+      playerInput.setLastname("Test");
+
+      // Act
+      User result = playerService.createPlayer(playerInput);
+
+      // Assert
+      assertThat(result).isNotNull();
+      assertThat(result.getId()).isNotNull();
+      assertThat(result.getEmail()).isEqualTo("newplayer@example.com");
+      assertThat(result.getFirstname()).isEqualTo("NewPlayer");
+      assertThat(result.getLastname()).isEqualTo("Test");
+    }
+  }
 }

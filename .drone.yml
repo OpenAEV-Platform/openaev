@@ -36,7 +36,7 @@ steps:
       - mvn test
 
   - name: frontend-tests
-    image: node:22.22.2-alpine
+    image: node:22.22.3-alpine
     commands:
       - npm install -g corepack
       - cd openaev-front
@@ -83,7 +83,7 @@ steps:
       - frontend-tests
 
   - name: frontend-e2e-tests
-    image: node:22.22.2
+    image: node:22.22.3
     commands:
       - apt update
       - apt -y install netcat-traditional
@@ -97,7 +97,7 @@ steps:
       - app-e2e
 
   - name: frontend-api-types
-    image: node:22.22.2
+    image: node:22.22.3
     volumes:
       - name: cache-node-frontend-api-types
         path: /drone/src/openaev-front/node_modules
@@ -218,7 +218,7 @@ services:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
   - name: elastic
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.18.3
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.19.15
     environment:
       discovery.type: single-node
       xpack.security.enabled: false
