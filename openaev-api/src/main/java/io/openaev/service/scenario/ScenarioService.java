@@ -399,7 +399,7 @@ public class ScenarioService {
 
   public ScenarioOutput getScenarioById(@NotBlank final String scenarioId) {
     ObjectMapper objectMapper = new ObjectMapper();
-    RawScenario rawScenario = this.scenarioRepository.getScenarioById(scenarioId);
+    RawScenario rawScenario = this.scenarioRepository.getScenarioByIdAndTenantId(scenarioId);
     if (rawScenario == null) {
       throw new ElementNotFoundException("Scenario not found");
     }

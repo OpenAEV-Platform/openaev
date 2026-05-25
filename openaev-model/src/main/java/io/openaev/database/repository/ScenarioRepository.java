@@ -227,7 +227,7 @@ public interface ScenarioRepository
               + "LEFT JOIN workflows w ON w.workflow_scenario_id = s.scenario_id "
               + "WHERE s.scenario_id = :scenarioId AND s.tenant_id = :#{#tenantContext.currentTenant}",
       nativeQuery = true)
-  RawScenario getScenarioById(@Param("scenarioId") final String scenarioId);
+  RawScenario getScenarioByIdAndTenantId(@Param("scenarioId") final String scenarioId);
 
   // -- CATEGORY --
 
