@@ -32,7 +32,6 @@ import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.mapper.EndpointMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
-import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.io.BufferedInputStream;
@@ -53,6 +52,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @RequiredArgsConstructor
 @Service
@@ -477,7 +477,11 @@ public class EndpointService {
               agent.getTenant().getId()));
       assetAgentJob.setAgent(agent);
       assetAgentJob.setTenant(agent.getTenant());
-      assetAgentJobRepository.save(assetAgentJob);
+      if (assetAgentJobRepository.findUpgradeJobByAgentIdAndInjectNull(agent.getId()).isEmpty()) {
+        assetAgentJobRepository.save(assetAgentJob);
+      } else {
+        log.warn("Upgrade job already exists");
+      }
     }
     return endpoint;
   }

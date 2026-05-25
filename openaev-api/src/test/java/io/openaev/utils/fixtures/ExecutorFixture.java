@@ -44,6 +44,14 @@ public class ExecutorFixture {
     return executorOptional.orElseGet(() -> executorRepository.save(createOAEVExecutor()));
   }
 
+  public Executor createOpenAEVExecutor() {
+    Executor executor = new Executor();
+    executor.setType(OPENAEV_EXECUTOR_TYPE);
+    executor.setName(OPENAEV_EXECUTOR_NAME);
+    executor.setId(OPENAEV_EXECUTOR_ID);
+    return executor;
+  }
+
   public Executor createCrowdstrikeExecutor() {
     Executor executor = new Executor();
     executor.setType(CROWDSTRIKE_EXECUTOR_TYPE);
