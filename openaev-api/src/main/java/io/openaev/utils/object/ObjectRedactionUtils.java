@@ -14,7 +14,7 @@ public class ObjectRedactionUtils {
 
   /** Fields whose values are replaced with {@link #REDACTED} before logging. */
   private static final Set<String> SENSITIVE_FIELDS =
-          Set.of("password", "token", "secret", "apikey", "api_key", "credential");
+      Set.of("password", "token", "secret", "apikey", "api_key", "credential");
 
   /** Fields redacted only when the entity type is User (PII protection). */
   private static final Set<String> USER_PII_FIELDS = Set.of("name", "user_email");
@@ -48,20 +48,20 @@ public class ObjectRedactionUtils {
     if (node.isObject()) {
       ObjectNode copy = ((ObjectNode) node).deepCopy();
       copy.properties()
-              .forEach(
-                      entry -> {
-                        String key = entry.getKey();
-                        String fieldName = key.toLowerCase(Locale.ROOT);
-                        boolean containsSensitiveToken =
-                                SENSITIVE_FIELDS.stream().anyMatch(fieldName::contains);
+          .forEach(
+              entry -> {
+                String key = entry.getKey();
+                String fieldName = key.toLowerCase(Locale.ROOT);
+                boolean containsSensitiveToken =
+                    SENSITIVE_FIELDS.stream().anyMatch(fieldName::contains);
 
-                        if (containsSensitiveToken
-                                || (isUserEntity && USER_PII_FIELDS.contains(fieldName))) {
-                          copy.put(key, REDACTED);
-                        } else {
-                          copy.set(key, redactNode(entry.getValue(), isUserEntity));
-                        }
-                      });
+                if (containsSensitiveToken
+                    || (isUserEntity && USER_PII_FIELDS.contains(fieldName))) {
+                  copy.put(key, REDACTED);
+                } else {
+                  copy.set(key, redactNode(entry.getValue(), isUserEntity));
+                }
+              });
       return copy;
     }
 
