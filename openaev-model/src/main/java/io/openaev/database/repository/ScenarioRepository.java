@@ -225,7 +225,7 @@ public interface ScenarioRepository
               + "LEFT JOIN platforms pf ON pf.scenario_id = s.scenario_id "
               + "LEFT JOIN tags tg ON tg.scenario_id = s.scenario_id "
               + "LEFT JOIN workflows w ON w.workflow_scenario_id = s.scenario_id "
-              + "WHERE s.scenario_id = :scenarioId",
+              + "WHERE s.scenario_id = :scenarioId AND s.tenant_id = :#{#tenantContext.currentTenant}",
       nativeQuery = true)
   RawScenario getScenarioById(@Param("scenarioId") final String scenarioId);
 
@@ -254,4 +254,6 @@ public interface ScenarioRepository
       @Param("scenarioId") final String scenarioId, @Param("teamIds") final List<String> teamIds);
 
   Optional<Scenario> findByExercises_Id(String exerciseId);
+
+  Optional<Scenario> findByIdAndTenantId(String id, String tenantId);
 }

@@ -25,6 +25,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawExerciseSimple;
 import io.openaev.database.raw.RawPaginationScenario;
@@ -392,7 +393,7 @@ public class ScenarioService {
 
   public Scenario scenario(@NotBlank final String scenarioId) {
     return this.scenarioRepository
-        .findById(scenarioId)
+        .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
         .orElseThrow(() -> new ElementNotFoundException("Scenario not found"));
   }
 
@@ -486,6 +487,8 @@ public class ScenarioService {
   }
 
   public void deleteScenario(@NotBlank final String scenarioId) {
+    // Verify scenario belongs to current tenant before deleting
+    scenario(scenarioId);
     this.scenarioRepository.deleteById(scenarioId);
   }
 

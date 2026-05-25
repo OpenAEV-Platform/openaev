@@ -738,7 +738,6 @@ public class ScenarioApiTest extends IntegrationTest {
           tenantIsolationHelper.createTenantWithCapabilities(
               "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
 
-
       ScenarioInput input = new ScenarioInput();
       input.setName("Same Tenant Scenario");
 
