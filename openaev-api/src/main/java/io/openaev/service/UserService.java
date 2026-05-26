@@ -24,7 +24,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.InputValidationException;
 import io.openaev.rest.user.form.login.ResetUserInput;
 import io.openaev.rest.user.form.user.ChangePasswordInput;
-import io.openaev.service.account.ReservedNameValidator;
+import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.utils.RandomUtils;
 import io.openaev.utils.ReferenceResolver;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -124,7 +124,7 @@ public class UserService {
     if (!StringUtils.hasLength(input.plainPassword())) {
       throw new IllegalArgumentException("Password is required when creating a user");
     }
-    ReservedNameValidator.validateUserEmailPattern(input.email());
+    ReservedKeyValidator.validateUserEmailPattern(input.email());
     if (userRepository.findByEmailIgnoreCase(input.email()).isPresent()) {
       throw new DataIntegrityViolationException(
           "User with email " + input.email() + " already exists");
@@ -214,10 +214,10 @@ public class UserService {
   @Transactional(rollbackFor = Exception.class)
   public User updateUser(String userId, UserInput input) {
     // Check if new email is reserved
-    ReservedNameValidator.validateUserEmailPattern(input.email());
+    ReservedKeyValidator.validateUserEmailPattern(input.email());
     User existing = user(userId);
     // Check if previous email is reserved
-    ReservedNameValidator.validateUserEmailPattern(existing.getEmail());
+    ReservedKeyValidator.validateUserEmailPattern(existing.getEmail());
     // Capture old tenant IDs before update for cache eviction
     List<String> oldTenantIds =
         existing.getTenants() != null
@@ -270,7 +270,7 @@ public class UserService {
   @Transactional(rollbackFor = Exception.class)
   public void delete(String userId) {
     User existing = user(userId);
-    ReservedNameValidator.validateUserEmailPattern(existing.getEmail());
+    ReservedKeyValidator.validateUserEmailPattern(existing.getEmail());
     sessionManager.invalidateUserSession(userId);
     userRepository.deleteByIdNative(userId);
   }
