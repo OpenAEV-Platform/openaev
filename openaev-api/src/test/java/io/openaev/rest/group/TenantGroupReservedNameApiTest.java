@@ -1,8 +1,10 @@
 package io.openaev.rest.group;
 
 import static io.openaev.api.groups.TenantGroupApi.TENANT_GROUP_URI;
+import static io.openaev.opencti.connectors.Constants.PROCESS_STIX_GROUP_ID;
+import static io.openaev.service.account.Constants.SERVICE_GROUP_ID;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -23,6 +25,7 @@ import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.group.form.GroupGrantInput;
 import io.openaev.rest.group.form.GroupUpdateRolesInput;
 import io.openaev.rest.group.form.GroupUpdateUsersInput;
+import io.openaev.service.AbstractPrivilegeService;
 import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.TenantRoleFixture;
 import io.openaev.utils.fixtures.UserFixture;
@@ -43,7 +46,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
 @Transactional
-@DisplayName("Tenant Group API — reserved names")
+@DisplayName("Tenant Group API — reserved keys (by id)")
 public class TenantGroupReservedNameApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
@@ -52,58 +55,42 @@ public class TenantGroupReservedNameApiTest extends IntegrationTest {
   @Autowired private UserRepository userRepository;
   @Autowired private TenantRepository tenantRepository;
 
-  private static final String SERVICE_GROUP_NAME =
-      io.openaev.service.account.Constants.SERVICE_GROUP_NAME;
-  private static final String SERVICE_ROLE_NAME =
-      io.openaev.service.account.Constants.SERVICE_ROLE_NAME;
   private static final String SERVICE_EMAIL_PATTERN =
       io.openaev.service.account.ServiceAccountPrivilegeService.SERVICE_EMAIL_PATTERN;
 
-  // --------------------------------------------------------------------------
-  // CREATE
-  // --------------------------------------------------------------------------
+  /** Computes the tenant-scoped reserved id used by the service-account group in this tenant. */
+  private String reservedServiceGroupId() {
+    return AbstractPrivilegeService.getUUIDFromName(
+        SERVICE_GROUP_ID, TenantContext.getCurrentTenant());
+  }
 
-  @Nested
-  @DisplayName("Create")
-  class Create {
+  /** Computes the tenant-scoped reserved id used by the STIX-processor group in this tenant. */
+  private String reservedStixGroupId() {
+    return AbstractPrivilegeService.getUUIDFromName(
+        PROCESS_STIX_GROUP_ID, TenantContext.getCurrentTenant());
+  }
 
-    @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
-    @DisplayName("Given SERVICE_GROUP_NAME, should return 400")
-    void given_serviceGroupName_should_returnBadRequest_onCreate() throws Exception {
-      // -------- Arrange --------
-      TenantGroupCreateInput input = new TenantGroupCreateInput();
-      input.setName(SERVICE_GROUP_NAME);
-
-      // -------- Act & Assert --------
-      mvc.perform(
-              post(tenantUri(TENANT_GROUP_URI))
-                  .content(asJsonString(input))
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON)
-                  .with(csrf()))
-          .andExpect(status().isBadRequest());
-    }
+  /** Persists a group with an explicitly assigned (reserved) id. */
+  private Group persistGroupWithId(String id, String name) {
+    Group group = TenantGroupFixture.getGroup(name);
+    group.setId(id);
+    return tenantGroupComposer.forGroup(group).persist().get();
   }
 
   // --------------------------------------------------------------------------
-  // SERVICE-ACCOUNT GROUP (reserved name) — every mutation is forbidden
+  // SERVICE-ACCOUNT GROUP (reserved id) — every mutation is forbidden
   // --------------------------------------------------------------------------
 
   @Nested
-  @DisplayName("Service-account group (reserved name)")
+  @DisplayName("Service-account group (reserved id)")
   class ServiceAccountGroup {
 
     @Test
     @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
     @DisplayName("editing information should return 400")
-    void given_reservedGroup_should_returnBadRequest_onUpdateInformation() throws Exception {
+    void given_reservedGroupId_should_returnBadRequest_onUpdateInformation() throws Exception {
       // -------- Arrange --------
-      Group reserved =
-          tenantGroupComposer
-              .forGroup(TenantGroupFixture.getGroup(SERVICE_GROUP_NAME))
-              .persist()
-              .get();
+      Group reserved = persistGroupWithId(reservedServiceGroupId(), "ReservedByIdService");
       TenantGroupCreateInput input = new TenantGroupCreateInput();
       input.setName("RenamedToNonReserved");
       input.setDescription("desc");
@@ -121,13 +108,9 @@ public class TenantGroupReservedNameApiTest extends IntegrationTest {
     @Test
     @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
     @DisplayName("adding a grant should return 400")
-    void given_reservedGroup_should_returnBadRequest_onAddGrant() throws Exception {
+    void given_reservedGroupId_should_returnBadRequest_onAddGrant() throws Exception {
       // -------- Arrange --------
-      Group reserved =
-          tenantGroupComposer
-              .forGroup(TenantGroupFixture.getGroup(SERVICE_GROUP_NAME))
-              .persist()
-              .get();
+      Group reserved = persistGroupWithId(reservedServiceGroupId(), "ReservedByIdService");
       GroupGrantInput input = new GroupGrantInput();
       input.setName(Grant.GRANT_TYPE.OBSERVER);
       input.setResourceId("any-resource-id");
@@ -146,16 +129,12 @@ public class TenantGroupReservedNameApiTest extends IntegrationTest {
     @Test
     @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
     @DisplayName("removing a grant should return 400")
-    void given_reservedGroup_should_returnBadRequest_onRemoveGrant() throws Exception {
+    void given_reservedGroupId_should_returnBadRequest_onRemoveGrant() throws Exception {
       // -------- Arrange --------
-      Group reserved =
-          tenantGroupComposer
-              .forGroup(TenantGroupFixture.getGroup(SERVICE_GROUP_NAME))
-              .persist()
-              .get();
+      Group reserved = persistGroupWithId(reservedServiceGroupId(), "ReservedByIdService");
 
       // -------- Act & Assert --------
-      // Reserved-name guard fires before any grant lookup, so any grantId is fine.
+      // Reserved-id guard fires before any grant lookup, so any grantId is fine.
       mvc.perform(
               delete(tenantUri(TENANT_GROUP_URI) + "/" + reserved.getId() + "/grants/any-grant-id")
                   .accept(MediaType.APPLICATION_JSON)
@@ -166,13 +145,9 @@ public class TenantGroupReservedNameApiTest extends IntegrationTest {
     @Test
     @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
     @DisplayName("updating users should return 400")
-    void given_reservedGroup_should_returnBadRequest_onUpdateUsers() throws Exception {
+    void given_reservedGroupId_should_returnBadRequest_onUpdateUsers() throws Exception {
       // -------- Arrange --------
-      Group reserved =
-          tenantGroupComposer
-              .forGroup(TenantGroupFixture.getGroup(SERVICE_GROUP_NAME))
-              .persist()
-              .get();
+      Group reserved = persistGroupWithId(reservedServiceGroupId(), "ReservedByIdService");
       GroupUpdateUsersInput input = new GroupUpdateUsersInput();
       input.setUserIds(List.of());
 
@@ -189,13 +164,9 @@ public class TenantGroupReservedNameApiTest extends IntegrationTest {
     @Test
     @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
     @DisplayName("updating roles should return 400")
-    void given_reservedGroup_should_returnBadRequest_onUpdateRoles() throws Exception {
+    void given_reservedGroupId_should_returnBadRequest_onUpdateRoles() throws Exception {
       // -------- Arrange --------
-      Group reserved =
-          tenantGroupComposer
-              .forGroup(TenantGroupFixture.getGroup(SERVICE_GROUP_NAME))
-              .persist()
-              .get();
+      Group reserved = persistGroupWithId(reservedServiceGroupId(), "ReservedByIdService");
       GroupUpdateRolesInput input = GroupUpdateRolesInput.builder().roleIds(List.of()).build();
 
       // -------- Act & Assert --------
@@ -210,14 +181,25 @@ public class TenantGroupReservedNameApiTest extends IntegrationTest {
 
     @Test
     @WithMockUser(withCapabilities = {Capability.DELETE_TENANT_SETTINGS})
-    @DisplayName("deleting should return 400")
-    void given_reservedGroup_should_returnBadRequest_onDelete() throws Exception {
+    @DisplayName("deleting (SERVICE) should return 400")
+    void given_reservedServiceGroupId_should_returnBadRequest_onDelete() throws Exception {
       // -------- Arrange --------
-      Group reserved =
-          tenantGroupComposer
-              .forGroup(TenantGroupFixture.getGroup(SERVICE_GROUP_NAME))
-              .persist()
-              .get();
+      Group reserved = persistGroupWithId(reservedServiceGroupId(), "ReservedByIdService");
+
+      // -------- Act & Assert --------
+      mvc.perform(
+              delete(tenantUri(TENANT_GROUP_URI) + "/" + reserved.getId())
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.DELETE_TENANT_SETTINGS})
+    @DisplayName("deleting (PROCESS_STIX) should return 400")
+    void given_reservedStixGroupId_should_returnBadRequest_onDelete() throws Exception {
+      // -------- Arrange --------
+      Group reserved = persistGroupWithId(reservedStixGroupId(), "ReservedByIdStix");
 
       // -------- Act & Assert --------
       mvc.perform(
@@ -271,26 +253,27 @@ public class TenantGroupReservedNameApiTest extends IntegrationTest {
               .getStatus();
 
       // -------- Assert --------
-      assertTrue(status == 400, "Expected 400 but got " + status);
+      assertEquals(400, status, "Expected 400 but got " + status);
     }
 
     @Test
     @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
-    @DisplayName("should reject adding a reserved role (Service integration) into a normal group")
-    void given_reservedRoleInPayload_should_returnBadRequest_onUpdateRoles() throws Exception {
+    @DisplayName("should reject adding a reserved-id role into a normal group")
+    void given_reservedRoleIdInPayload_should_returnBadRequest_onUpdateRoles() throws Exception {
       // -------- Arrange --------
       Group group =
           tenantGroupComposer
               .forGroup(TenantGroupFixture.getGroup("NormalGroupForRoles"))
               .persist()
               .get();
-      // Seed a reserved-name role in the current tenant.
-      Role reservedRole =
-          tenantRoleComposer
-              .forRole(
-                  TenantRoleFixture.getRole(SERVICE_ROLE_NAME, Set.of(Capability.ACCESS_ASSETS)))
-              .persist()
-              .get();
+      // Seed a role with a reserved id in the current tenant.
+      Role roleWithReservedId =
+          TenantRoleFixture.getRole("ReservedRoleById", Set.of(Capability.ACCESS_ASSETS));
+      roleWithReservedId.setId(
+          AbstractPrivilegeService.getUUIDFromName(
+              io.openaev.service.account.Constants.SERVICE_ROLE_ID,
+              TenantContext.getCurrentTenant()));
+      Role reservedRole = tenantRoleComposer.forRole(roleWithReservedId).persist().get();
       GroupUpdateRolesInput input =
           GroupUpdateRolesInput.builder().roleIds(List.of(reservedRole.getId())).build();
 
