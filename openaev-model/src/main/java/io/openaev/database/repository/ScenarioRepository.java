@@ -258,6 +258,4 @@ public interface ScenarioRepository
       @Param("scenarioId") final String scenarioId, @Param("teamIds") final List<String> teamIds);
 
   Optional<Scenario> findByExercises_Id(String exerciseId);
-
-  Optional<Scenario> findByIdAndTenantId(String id, String tenantId);
 }
