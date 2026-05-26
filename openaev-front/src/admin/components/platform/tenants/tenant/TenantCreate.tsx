@@ -24,6 +24,9 @@ const TenantCreate: FunctionComponent<Props> = ({ onCreate }) => {
   const handleSubmit = useCallback(
     async (data: TenantInput) => {
       setLoading(true);
+      // Close the drawer immediately so the user isn't blocked
+      handleClose();
+
       try {
         const result = await dispatch(addTenant(data));
 
@@ -34,7 +37,6 @@ const TenantCreate: FunctionComponent<Props> = ({ onCreate }) => {
         const createdTenant = result.entities.tenants[result.result];
         onCreate(createdTenant);
         await reloadUserTenants(createdTenant.tenant_id);
-        handleClose();
 
         return result;
       } finally {
