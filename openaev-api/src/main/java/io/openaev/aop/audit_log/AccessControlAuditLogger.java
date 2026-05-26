@@ -10,6 +10,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
@@ -23,6 +24,7 @@ import org.springframework.stereotype.Component;
  * <p>Phase 1: delegates to {@link LogService} for console-only output.
  */
 @Component
+@ConditionalOnProperty(name = "openaev.audit-logs.service.enabled", havingValue = "true")
 @RequiredArgsConstructor
 @Slf4j
 public class AccessControlAuditLogger {
