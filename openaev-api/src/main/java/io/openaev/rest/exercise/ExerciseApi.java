@@ -436,7 +436,7 @@ public class ExerciseApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   public Exercise updateExerciseInformation(
       @PathVariable String exerciseId, @Valid @RequestBody UpdateExerciseInput input) {
-    Exercise exercise = exerciseService.findById(exerciseId);
+    Exercise exercise = exerciseService.exercise(exerciseId);
     Set<Tag> currentTagList = exercise.getTags();
     exercise.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
     exercise.setUpdateAttributes(input);
@@ -562,7 +562,7 @@ public class ExerciseApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
   public void deleteExercise(@PathVariable String exerciseId) {
-    Exercise exercise = exerciseService.findById(exerciseId);
+    Exercise exercise = exerciseService.exercise(exerciseId);
     exerciseRepository.delete(exercise);
   }
 

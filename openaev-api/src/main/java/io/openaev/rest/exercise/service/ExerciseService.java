@@ -197,7 +197,7 @@ public class ExerciseService {
   // -- READ --
   public Exercise exercise(@NotBlank final String exerciseId) {
     return this.exerciseRepository
-        .findById(exerciseId)
+        .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
         .orElseThrow(() -> new ElementNotFoundException("Exercise not found"));
   }
 
@@ -229,7 +229,7 @@ public class ExerciseService {
   // -- DUPLICATION --
   @Transactional
   public Exercise getDuplicateExercise(@NotBlank String exerciseId) {
-    Exercise exerciseOrigin = exerciseRepository.findById(exerciseId).orElseThrow();
+    Exercise exerciseOrigin = exercise(exerciseId);
     Exercise exercise = copyExercise(exerciseOrigin);
     Exercise exerciseDuplicate = exerciseRepository.save(exercise);
     actionMetricCollector.addSimulationCreatedCount();
@@ -508,24 +508,12 @@ public class ExerciseService {
   }
 
   /**
-   * Find a simulation by it's ID
-   *
-   * @param simulationId ID of the simulation to fetch
-   * @return the simulation found
-   * @throws ElementNotFoundException if no simulation matches the given ID
+   * @deprecated Use {@link #exercise(String)} instead — kept temporarily for backward
+   *     compatibility.
    */
+  @Deprecated(forRemoval = true)
   public Exercise findById(String simulationId) {
-    String tenantId = TenantContext.getCurrentTenant();
-    return (tenantId != null)
-        ? exerciseRepository
-            .findByIdAndTenantId(simulationId, tenantId)
-            .orElseThrow(
-                () -> new ElementNotFoundException("Simulation not found with ID: " + simulationId))
-        : exerciseRepository
-            .findById(simulationId)
-            .orElseThrow(
-                () ->
-                    new ElementNotFoundException("Simulation not found with ID: " + simulationId));
+    return exercise(simulationId);
   }
 
   /**
@@ -560,8 +548,7 @@ public class ExerciseService {
   @Transactional(rollbackFor = Exception.class)
   public Exercise changeExerciseStatus(ExerciseStatus status, String exerciseId)
       throws ChainingException {
-    Exercise exercise =
-        this.exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
+    Exercise exercise = this.exercise(exerciseId);
     // Check if next status is possible
     List<ExerciseStatus> nextPossibleStatus = exercise.nextPossibleStatus();
     if (!nextPossibleStatus.contains(status)) {
@@ -615,8 +602,7 @@ public class ExerciseService {
       entityManager.flush();
       entityManager.clear();
       // Reload exercise after clearing entity manager to avoid detached entity issues
-      exercise =
-          this.exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
+      exercise = this.exercise(exerciseId);
       // Delete exercise transient files (communications, ...)
       fileService.deleteDirectory(exerciseId);
       if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
@@ -1078,8 +1064,7 @@ public class ExerciseService {
       @NotBlank final String exerciseId,
       @NotNull final Team team,
       @NotNull final List<String> playerIds) {
-    Exercise exercise =
-        exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
+    Exercise exercise = this.exercise(exerciseId);
     playerIds.forEach(
         playerId -> {
           boolean alreadyLinked =
