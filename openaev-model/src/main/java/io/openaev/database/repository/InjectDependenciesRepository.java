@@ -42,8 +42,18 @@ public interface InjectDependenciesRepository
   @Query(
       value =
           "DELETE FROM injects_dependencies "
-              + "WHERE inject_children_id IN (SELECT inject_id FROM injects i WHERE i.inject_scenario = :scenarioId) "
-              + "OR inject_parent_id IN (SELECT inject_id FROM injects i WHERE i.inject_scenario = :scenarioId)",
+              + "WHERE inject_children_id IN ("
+              + "  SELECT inject_id FROM injects i "
+              + "  JOIN scenarios s ON s.scenario_id = i.inject_scenario "
+              + "  WHERE i.inject_scenario = :scenarioId "
+              + "  AND s.tenant_id = :#{#tenantContext.currentTenant}"
+              + ") "
+              + "OR inject_parent_id IN ("
+              + "  SELECT inject_id FROM injects i "
+              + "  JOIN scenarios s ON s.scenario_id = i.inject_scenario "
+              + "  WHERE i.inject_scenario = :scenarioId "
+              + "  AND s.tenant_id = :#{#tenantContext.currentTenant}"
+              + ")",
       nativeQuery = true)
   void deleteAllByScenarioId(@Param("scenarioId") String scenarioId);
 }
