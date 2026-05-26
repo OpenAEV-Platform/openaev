@@ -2,7 +2,7 @@
 # Manual changes might be lost - proceed with caution!
 
 __metadata:
-  version: 9
+  version: 10
   cacheKey: 10c0
 
 "@apidevtools/json-schema-ref-parser@npm:14.0.1":
@@ -9915,10 +9915,10 @@ __metadata:
     react-final-form: "npm:6.5.9"
     react-final-form-arrays: "npm:4.0.0"
     react-grid-layout: "npm:2.2.3"
-    react-hook-form: "npm:7.75.0"
-    react-intl: "npm:10.1.7"
+    react-hook-form: "npm:7.76.0"
+    react-intl: "npm:10.1.8"
     react-markdown: "npm:10.1.0"
-    react-redux: "npm:9.2.0"
+    react-redux: "npm:9.3.0"
     react-router: "npm:7.15.1"
     react-syntax-highlighter: "npm:16.1.1"
     redux: "npm:5.0.1"
@@ -9928,7 +9928,7 @@ __metadata:
     remark-parse: "npm:11.0.0"
     rxjs: "npm:7.8.2"
     swagger-typescript-api: "npm:13.9.2"
-    tss-react: "npm:4.9.20"
+    tss-react: "npm:4.9.21"
     typescript: "npm:5.9.3"
     typescript-eslint: "npm:8.59.4"
     usehooks-ts: "npm:3.1.1"
@@ -10548,18 +10548,18 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-hook-form@npm:7.75.0":
-  version: 7.75.0
-  resolution: "react-hook-form@npm:7.75.0"
+"react-hook-form@npm:7.76.0":
+  version: 7.76.0
+  resolution: "react-hook-form@npm:7.76.0"
   peerDependencies:
     react: ^16.8.0 || ^17 || ^18 || ^19
-  checksum: 10c0/4c264ffde2fae6d5f3158a97784d5bb44e7cbffea3204af364244fcd6921b763f4e66fd8e34423fb416baa8bee2cfa4777556a7245f66de24a28be28b6af172e
+  checksum: 10c0/b78ff45a5beca6a954d8ef513031c484f9f30f726c174957228866c9faf0528e24dd5523dac850a8dd6db46753ca3485aae0cd61772f9a131a1a77293bb6931c
   languageName: node
   linkType: hard
 
-"react-intl@npm:10.1.7":
-  version: 10.1.7
-  resolution: "react-intl@npm:10.1.7"
+"react-intl@npm:10.1.8":
+  version: 10.1.8
+  resolution: "react-intl@npm:10.1.8"
   dependencies:
     "@formatjs/icu-messageformat-parser": "npm:3.5.9"
     "@formatjs/intl": "npm:4.1.11"
@@ -10567,7 +10567,7 @@ __metadata:
   peerDependencies:
     "@types/react": 19
     react: 19
-  checksum: 10c0/128a3b9600dc86ac1f27eef0e94d8df088a1b7670769518b871e23b9e808edcc96b9e359563213fe2c0496e88df7d5c98a7df3fc0f8cf5a767a51fb09fada881
+  checksum: 10c0/c67c98a528dabf82fcc08c53809c8217b056b21b060880579497553fa8bb9169d9159ff98cf801a19235d471c3e6189b9956854b4cb97d9d8f8e7f54d521d518
   languageName: node
   linkType: hard
 
@@ -10628,7 +10628,26 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-redux@npm:9.2.0, react-redux@npm:^9.2.0":
+"react-redux@npm:9.3.0":
+  version: 9.3.0
+  resolution: "react-redux@npm:9.3.0"
+  dependencies:
+    "@types/use-sync-external-store": "npm:^0.0.6"
+    use-sync-external-store: "npm:^1.4.0"
+  peerDependencies:
+    "@types/react": ^18.2.25 || ^19
+    react: ^18.0 || ^19
+    redux: ^5.0.0
+  peerDependenciesMeta:
+    "@types/react":
+      optional: true
+    redux:
+      optional: true
+  checksum: 10c0/b9f4efcfbfbc90cac9d1709ab3affb1e18a9dc9bd3cceda43bd2e1d9d2394ee0c29df36ec2202d52b566db774888b594c8c5aa86b64f27ef34fca607c687c9e3
+  languageName: node
+  linkType: hard
+
+"react-redux@npm:^9.2.0":
   version: 9.2.0
   resolution: "react-redux@npm:9.2.0"
   dependencies:
@@ -12362,9 +12381,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"tss-react@npm:4.9.20":
-  version: 4.9.20
-  resolution: "tss-react@npm:4.9.20"
+"tss-react@npm:4.9.21":
+  version: 4.9.21
+  resolution: "tss-react@npm:4.9.21"
   dependencies:
     "@emotion/cache": "npm:*"
     "@emotion/serialize": "npm:*"
@@ -12372,7 +12391,7 @@ __metadata:
   peerDependencies:
     "@emotion/react": ^11.4.1
     "@emotion/server": ^11.4.0
-    "@mui/material": ^5.0.0 || ^6.0.0 || ^7.0.0
+    "@mui/material": ^5.0.0 || ^6.0.0 || ^7.0.0 || ^9.0.0
     "@types/react": ^16.8.0 || ^17.0.2 || ^18.0.0 || ^19.0.0
     react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
   peerDependenciesMeta:
@@ -12380,7 +12399,7 @@ __metadata:
       optional: true
     "@mui/material":
       optional: true
-  checksum: 10c0/90095c969eaa6db893ea9ddb078b76e9668740a55aa8efc95086097cc818c5fc0b48c003d44892980db7665256487db19a39dad46e2952c3d554f7e1e361e8d9
+  checksum: 10c0/7a68a8f149b4d94b5a370ae1e0008856c4e464181790a5b02bd695372efd1fe37c1f3b59c93cca69f40009d845d91127d411ed0d40c35d0f8288d861ff1909a9
   languageName: node
   linkType: hard
 

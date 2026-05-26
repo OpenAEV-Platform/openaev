@@ -50,7 +50,7 @@ class XtmHubConnectivityCollectorServiceTest extends IntegrationTest {
 
   @AfterEach
   void cleanup() {
-    // Delete each registration while the tenant context matches its tenant_id (required by RLS).
+    // Delete each registration while the tenant context matches its tenant_id.
     createdRegistrationIdToTenantId.forEach(
         (registrationId, tenantId) -> {
           TenantContext.setCurrentTenant(tenantId);

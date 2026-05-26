@@ -108,18 +108,4 @@ public class InjectTestHelper {
   public List<Finding> findFindingsByInjectId(String injectId) {
     return findingRepository.findAllByInjectId(injectId);
   }
-
-  /**
-   * Returns true if the inject has at least one execution trace, confirming async processing
-   * completed. Runs in a new independent transaction so results committed by async threads are
-   * visible from within an outer {@code @Transactional} test.
-   */
-  @Transactional(propagation = Propagation.REQUIRES_NEW)
-  public boolean hasInjectStatusTrace(String injectId) {
-    return injectRepository
-        .findById(injectId)
-        .flatMap(Inject::getStatus)
-        .filter(s -> !s.getTraces().isEmpty())
-        .isPresent();
-  }
 }

@@ -4,10 +4,7 @@ import { Controller, useFormContext } from 'react-hook-form';
 
 import { postDetectionRemediationAIRulesByPayload } from '../../../../actions/detection-remediation/detectionremediation-action';
 import CKEditor from '../../../../components/CKEditor';
-import { callDetectionRemediationAgent } from '../../../../utils/ai/agentApi';
 import { type Collector, type PayloadInput } from '../../../../utils/api-types';
-import { MESSAGING$ } from '../../../../utils/Environment';
-import useAI from '../../../../utils/hooks/useAI';
 import { isNotEmptyField } from '../../../../utils/utils';
 import {
   type DetectionRemediationForm,
@@ -25,7 +22,6 @@ interface RemediationFormTabProps { activeTab: Collector }
 
 const RemediationFormTab = ({ activeTab }: RemediationFormTabProps) => {
   const { control, watch, setValue, getValues, formState: { isValid, defaultValues } } = useFormContext();
-  const { xtmOneConfigured } = useAI();
 
   const { snapshot, setSnapshot } = useSnapshotRemediation();
   const editorRef = useRef<ClassicEditor | null>(null);
@@ -78,7 +74,7 @@ const RemediationFormTab = ({ activeTab }: RemediationFormTabProps) => {
       });
   };
 
-  const onClickUseArianeViaXtmOne = async (agentSlug?: string) => {
+  const onClickUseAriane = async (agentSlug?: string) => {
     const payloadInput: Partial<PayloadInput> = payloadFormToPayloadInputForAI(getValues());
 
     setSnapshot((prev) => {
@@ -92,58 +88,12 @@ const RemediationFormTab = ({ activeTab }: RemediationFormTabProps) => {
       return next;
     });
 
-    if (!agentSlug) {
-      MESSAGING$.notifyError('AI service is unavailable. No agent selected for detection generation.');
-      setLoadingSnapshot(activeTab.collector_type, false);
-      return;
-    }
-
-    try {
-      // Build prompt with payload context for the remediation agent chain
-      const prompt = `Generate ${activeTab.collector_type} detection rules for the following payload:\n\n`
-        + `${JSON.stringify(payloadInput, null, 2)}`;
-
-      const result = await callDetectionRemediationAgent(
-        agentSlug,
-        prompt,
-        activeTab.collector_type,
-      );
-      if (result.status === 'success' && result.content) {
-        applyRulesToEditor(result.content);
-      } else {
-        setLoadingSnapshot(activeTab.collector_type, false);
-      }
-    } catch {
-      MESSAGING$.notifyError('AI service is unavailable.');
-      setLoadingSnapshot(activeTab.collector_type, false);
-    }
-  };
-
-  const onClickUseArianeLegacy = async () => {
-    const payloadInput: Partial<PayloadInput> = payloadFormToPayloadInputForAI(getValues());
-
-    setSnapshot((prev) => {
-      const next = new Map(prev ?? []);
-      const currentValue = structuredClone(getValues(trackedFields));
-      const snapshot: SnapshotEditionRemediationType = {
-        ...next.get(activeTab.collector_type) ?? {},
-        trackedFields: currentValue,
-        isLoading: true,
-      };
-      next.set(activeTab.collector_type, snapshot as SnapshotEditionRemediationType);
-      return next;
-    });
-
-    return postDetectionRemediationAIRulesByPayload(activeTab.collector_type, payloadInput).then((value) => {
+    return postDetectionRemediationAIRulesByPayload(activeTab.collector_type, payloadInput, agentSlug).then((value) => {
       applyRulesToEditor(value.data.rules);
     }).finally(() => {
       setLoadingSnapshot(activeTab.collector_type, false);
     });
   };
-
-  const onClickUseAriane = xtmOneConfigured
-    ? (agentSlug?: string) => onClickUseArianeViaXtmOne(agentSlug)
-    : () => onClickUseArianeLegacy();
 
   function initSnap() {
     const formValues: DetectionRemediationForm = getValues(fieldName);

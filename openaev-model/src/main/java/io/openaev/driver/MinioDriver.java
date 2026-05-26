@@ -7,6 +7,7 @@ import io.openaev.config.MinioConfig;
 import io.openaev.config.S3Config;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.TenantRepository;
+import io.openaev.minio.CopySource;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -71,8 +72,6 @@ public class MinioDriver {
    * tenant isolation.
    */
   private void moveDefaultTenantFiles(MinioClient minioClient, String bucket) throws Exception {
-    String defaultTenantPrefix = Tenant.DEFAULT_TENANT_UUID + "/";
-
     Set<String> tenants =
         tenantRepository.findAll().stream()
             .map(tenant -> tenant.getId() + "/")
@@ -90,16 +89,20 @@ public class MinioDriver {
         continue;
       }
 
-      String newObjectName = defaultTenantPrefix + objectName;
+      String newObjectName =
+          objectName.startsWith("/")
+              ? Tenant.DEFAULT_TENANT_UUID + objectName
+              : Tenant.DEFAULT_TENANT_UUID + "/" + objectName;
 
       log.info("Migrating file '{}' to '{}'", objectName, newObjectName);
 
       // Copy to new path under default tenant
+
       minioClient.copyObject(
           CopyObjectArgs.builder()
               .bucket(bucket)
               .object(newObjectName)
-              .source(CopySource.builder().bucket(bucket).object(objectName).build())
+              .source(CopySource.customBuilder().bucket(bucket).object(objectName).build())
               .build());
 
       // Remove original
