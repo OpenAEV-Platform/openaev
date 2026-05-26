@@ -13,9 +13,11 @@ import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionCallback;
 import io.openaev.rest.inject.form.InjectExecutionInput;
 import io.openaev.service.queue.BatchQueueService;
+import jakarta.persistence.EntityManager;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
+import org.hibernate.Session;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -26,6 +28,7 @@ import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("BatchingInjectStatusService Tests")
@@ -35,6 +38,8 @@ class BatchingInjectStatusServiceTest {
   @Mock private AgentRepository agentRepository;
   @Mock private StructuredOutputUtils structuredOutputUtils;
   @Mock private InjectExecutionService injectExecutionService;
+  @Mock private EntityManager entityManager;
+  @Mock private Session session;
 
   @Mock private BatchQueueService<InjectExecutionCallback> injectTraceQueueService;
 
@@ -50,6 +55,8 @@ class BatchingInjectStatusServiceTest {
     // that exercise the requeue path. Tests that want to exercise the null-guard branch can
     // override this via service.setInjectTraceQueueService(null).
     service.setInjectTraceQueueService(injectTraceQueueService);
+    ReflectionTestUtils.setField(service, "entityManager", entityManager);
+    when(entityManager.unwrap(Session.class)).thenReturn(session);
   }
 
   private Inject createInjectWithPendingStatus(String injectId) {

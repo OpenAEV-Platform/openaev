@@ -13,6 +13,7 @@ import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionCallback;
 import io.openaev.service.queue.BatchQueueService;
 import jakarta.annotation.Resource;
+import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import java.io.IOException;
 import java.time.Instant;
@@ -25,6 +26,7 @@ import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Session;
 import org.springframework.stereotype.Service;
 
 @RequiredArgsConstructor
@@ -49,6 +51,8 @@ public class BatchingInjectStatusService {
 
   @Resource protected ObjectMapper mapper;
 
+  private final EntityManager entityManager;
+
   /**
    * Handle the list of inject execution callbacks
    *
@@ -59,6 +63,8 @@ public class BatchingInjectStatusService {
   @WorkflowUpdateEvent(injectIds = "#injectExecutionCallbacks.![injectId]")
   public List<InjectExecutionCallback> handleInjectExecutionCallback(
       List<InjectExecutionCallback> injectExecutionCallbacks) {
+    // Disable tenant filter — because cross-tenant
+    entityManager.unwrap(Session.class).disableFilter("tenantFilter");
 
     List<InjectExecutionCallback> successfullyProcessedCallbacks = new ArrayList<>();
 

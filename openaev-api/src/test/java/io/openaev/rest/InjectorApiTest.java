@@ -21,12 +21,14 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.rest.injector.form.InjectorCreateInput;
 import io.openaev.rest.injector_contract.form.InjectorContractInput;
 import io.openaev.utils.AgentUtils;
 import io.openaev.utils.HashUtils;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.AgentFixture;
 import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.InjectFixture;
@@ -60,7 +62,9 @@ public class InjectorApiTest extends IntegrationTest {
 
   @Autowired private InjectorRepository injectorRepository;
   @Autowired private InjectorContractRepository injectorContractRepository;
+  @Autowired private InjectRepository injectRepository;
   @Autowired private EntityManager em;
+  @Autowired private TenantIsolationTestHelper tenantHelper;
 
   @Autowired private InjectComposer injectComposer;
   @Autowired private EndpointComposer endpointComposer;
@@ -591,6 +595,51 @@ public class InjectorApiTest extends IntegrationTest {
                           .queryParam("injectId", injectWrapper.get().getId())
                           .queryParam("agentId", agentWrapper.get().getId())))
           .hasCauseInstanceOf(IllegalArgumentException.class);
+    }
+  }
+
+  @Nested
+  @DisplayName("Tenant Isolation")
+  @WithMockUser(isAdmin = true)
+  class TenantIsolation {
+
+    @Test
+    @DisplayName(
+        "Given same injector type in two tenants, loading inject should reference correct tenant injector")
+    void givenSameInjectorInTwoTenants_injectShouldReferenceCorrectInjector() throws Exception {
+      // -- Arrange --
+      String tenantA = TenantContext.getCurrentTenant();
+
+      // TenantBaseListener auto-sets tenant from TenantContext
+      Injector injectorA = getInjector("Email Injector");
+
+      Inject injectA = InjectFixture.getDefaultInject();
+      injectA.setInjector(injectorA);
+      injectComposer.forInject(injectA).persist();
+
+      em.flush();
+      em.clear();
+
+      // Create tenant B with same injector type
+      Tenant tenantB = tenantHelper.createTenantWithCurrentUser("TenantB-Injector");
+      tenantHelper.switchToTenant(tenantB.getId(), em);
+
+      // TenantBaseListener auto-sets tenant B from TenantContext
+      getInjector("Email Injector");
+
+      // Switch back to tenant A and reload the inject
+      tenantHelper.switchToTenant(tenantA, em);
+
+      Inject reloadedInject = injectRepository.findById(injectA.getId()).orElseThrow();
+
+      // -- Assert --
+      assertThat(reloadedInject.getInjector())
+          .as("Inject should have an injector (not null)")
+          .isNotNull();
+
+      assertThat(reloadedInject.getInjector().getTenant().getId())
+          .as("Injector should belong to tenant A")
+          .isEqualTo(tenantA);
     }
   }
 }

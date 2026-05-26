@@ -45,7 +45,6 @@ class PlatformSettingsApiTest extends IntegrationTest {
           "xtm_hub_url",
           "xtm_hub_reachable",
           // AI config
-          "platform_ai_enabled",
           "platform_ai_has_token",
           "platform_ai_type",
           "platform_ai_model",

@@ -12,10 +12,12 @@ import io.openaev.rest.inject.form.InjectExecutionCallback;
 import io.openaev.rest.inject.form.InjectExecutionInput;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.queue.BatchQueueService;
+import jakarta.persistence.EntityManager;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
+import org.hibernate.Session;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Named;
@@ -28,6 +30,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.test.util.ReflectionTestUtils;
 
 /**
  * Contract tests that verify the sync path ({@link
@@ -53,6 +56,8 @@ class InjectCallbackContractTest {
   @Mock private InjectorExecutionProcessingHandler injectorExecutionProcessingHandler;
   @Mock private StructuredOutputUtils structuredOutputUtils;
   @Mock private BatchQueueService<InjectExecutionCallback> injectTraceQueueService;
+  @Mock private EntityManager entityManager;
+  @Mock private Session session;
 
   private InjectExecutionService injectExecutionService;
   private BatchingInjectStatusService batchingService;
@@ -89,8 +94,15 @@ class InjectCallbackContractTest {
     // Can't use @InjectMocks: batchingService needs the spy, not a plain mock
     batchingService =
         new BatchingInjectStatusService(
-            injectRepository, agentRepository, structuredOutputUtils, injectExecutionService);
+            injectRepository,
+            agentRepository,
+            structuredOutputUtils,
+            injectExecutionService,
+            entityManager);
     batchingService.setInjectTraceQueueService(injectTraceQueueService);
+
+    ReflectionTestUtils.setField(batchingService, "entityManager", entityManager);
+    when(entityManager.unwrap(Session.class)).thenReturn(session);
   }
 
   private CallbackInvoker syncInvoker() {

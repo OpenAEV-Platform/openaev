@@ -255,7 +255,7 @@ public final class FilterUtilsJpa {
       case lt -> (paths, texts) -> lessThanTexts((Expression<Instant>) paths, cb, texts);
       case lte -> (paths, texts) -> lessThanOrEqualTexts((Expression<Instant>) paths, cb, texts);
       case not_eq -> (paths, texts) -> notEqualsTexts((Expression<String>) paths, cb, texts, type);
-      default -> (paths, texts) -> equalsTexts((Expression<String>) paths, cb, texts, type);
+      default -> (paths, texts) -> equalsTexts((Expression<String>) paths, cb, texts, type, mode);
     };
   }
 }

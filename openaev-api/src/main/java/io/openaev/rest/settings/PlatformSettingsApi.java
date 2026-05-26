@@ -136,4 +136,18 @@ public class PlatformSettingsApi extends RestBehavior {
   public PlatformSettings updateSettingsPolicies(@Valid @RequestBody PolicyInput input) {
     return platformSettingsService.updateSettingsPolicies(input);
   }
+
+  @PutMapping("/chatbot-ai-cgu")
+  @AccessControl(
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.PLATFORM_SETTING,
+      isEnterpriseEdition = true)
+  @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The updated settings")})
+  @Operation(
+      summary = "Update chatbot AI CGU status",
+      description = "Accept or revoke the Filigran AI Terms for the chatbot feature")
+  public PlatformSettings updateChatbotAiCguStatus(
+      @Valid @RequestBody SettingsChatbotAiCguUpdateInput input) {
+    return platformSettingsService.updateChatbotAiCguStatus(input);
+  }
 }

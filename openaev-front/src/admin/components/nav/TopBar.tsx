@@ -26,6 +26,7 @@ import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import AskArianeButton from '../ariane/AskArianeButton';
 import AskArianePanel from '../ariane/AskArianePanel';
+import { useChatbot } from '../ariane/useChatbotHooks';
 
 const useStyles = makeStyles()(theme => ({
   appBar: {
@@ -168,13 +169,14 @@ const TopBar: FunctionComponent = () => {
       sub.unsubscribe();
     };
   }, []);
-  const [isArianeChatOpen, setIsArianeChatOpen] = useState(false);
-  useEffect(() => {
-    const sub = MESSAGING$.toggleArianeChat.subscribe({ next: () => setIsArianeChatOpen(prev => !prev) });
-    return () => {
-      sub.unsubscribe();
-    };
-  }, []);
+  const {
+    isOpen: isArianeChatOpen,
+    mode: arianeChatMode,
+    closeChat,
+    setMode,
+    setSidebarWidth,
+    setIsResizing,
+  } = useChatbot();
   const handleLogout = async () => {
     await dispatch(logout());
     window.location.href = '/';
@@ -237,7 +239,7 @@ const TopBar: FunctionComponent = () => {
           <div className={classes.barRight}>
             <div className={classes.barRightContainer}>
               { settings.platform_license?.license_type === 'nfr' && <ItemBoolean variant="large" label="EE DEV LICENSE" status={false} /> }
-              <AskArianeButton isOpen={isArianeChatOpen} />
+              <AskArianeButton />
               <Tooltip title={t('Install simulation agents')}>
                 <IconButton
                   size="medium"
@@ -361,9 +363,14 @@ const TopBar: FunctionComponent = () => {
           </div>
         </Toolbar>
       </AppBar>
-      {isArianeChatOpen && (
+      {settings.platform_xtm_one_configured && isArianeChatOpen && (
         <AskArianePanel
-          onClose={() => setIsArianeChatOpen(false)}
+          mode={arianeChatMode}
+          onClose={closeChat}
+          onModeChange={setMode}
+          onWidthChange={setSidebarWidth}
+          onResizeStart={() => setIsResizing(true)}
+          onResizeEnd={() => setIsResizing(false)}
         />
       )}
     </>
