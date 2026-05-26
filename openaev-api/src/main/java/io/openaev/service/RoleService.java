@@ -11,7 +11,7 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.RoleRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.service.account.ReservedNameValidator;
+import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -49,7 +49,7 @@ public class RoleService {
       @NotBlank final String roleDescription,
       @NotNull final Set<Capability> capabilities,
       String tenantId) {
-    ReservedNameValidator.validateRoleName(roleName);
+    ReservedKeyValidator.validateRoleId(id);
     return createRoleInternal(id, roleName, roleDescription, capabilities, tenantId);
   }
 
@@ -116,11 +116,7 @@ public class RoleService {
       @NotBlank final String roleDescription,
       @NotNull final Set<Capability> capabilities) {
 
-    ReservedNameValidator.validateRoleName(roleName);
-    roleRepository
-        .findById(roleId)
-        .ifPresent(existing -> ReservedNameValidator.validateRoleName(existing.getName()));
-
+    ReservedKeyValidator.validateRoleId(roleId);
     return updateRoleInternal(roleId, roleName, roleDescription, capabilities);
   }
 
@@ -151,7 +147,7 @@ public class RoleService {
         roleRepository
             .findByIdAndTenantId(roleId, tenantId)
             .orElseThrow(() -> new ElementNotFoundException("Role not found with id: " + roleId));
-    ReservedNameValidator.validateRoleName(role.getName());
+    ReservedKeyValidator.validateRoleId(role.getId());
     List<Group> groups = groupRepository.findAllByRoles(role);
     for (Group g : groups) {
       g.getRoles().remove(role);

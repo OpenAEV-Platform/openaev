@@ -1,13 +1,14 @@
 package io.openaev.service.account;
 
-import static io.openaev.opencti.connectors.Constants.PROCESS_STIX_GROUP_NAME;
-import static io.openaev.opencti.connectors.Constants.PROCESS_STIX_ROLE_NAME;
+import static io.openaev.opencti.connectors.Constants.*;
 import static io.openaev.opencti.connectors.service.PrivilegeService.CONNECTOR_EMAIL_PATTERN;
-import static io.openaev.service.account.Constants.SERVICE_GROUP_NAME;
-import static io.openaev.service.account.Constants.SERVICE_ROLE_NAME;
+import static io.openaev.service.account.Constants.*;
 import static io.openaev.service.account.ServiceAccountPrivilegeService.SERVICE_EMAIL_PATTERN;
 
+import io.openaev.context.TenantContext;
 import io.openaev.rest.exception.BadRequestException;
+import io.openaev.service.AbstractPrivilegeService;
+
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -16,14 +17,14 @@ import java.util.regex.Pattern;
  * Validates that user-provided names do not conflict with system-reserved names used by service
  * accounts.
  */
-public final class ReservedNameValidator {
+public final class ReservedKeyValidator {
 
-  private ReservedNameValidator() {}
+  private ReservedKeyValidator() {}
+  private static final Set<String> RESERVED_GROUP_ID =
+      Set.of(SERVICE_GROUP_ID, PROCESS_STIX_GROUP_ID);
 
-  private static final Set<String> RESERVED_ROLE_NAMES =
-      Set.of(SERVICE_ROLE_NAME, PROCESS_STIX_ROLE_NAME);
-  private static final Set<String> RESERVED_GROUP_NAMES =
-      Set.of(SERVICE_GROUP_NAME, PROCESS_STIX_GROUP_NAME);
+  private static final Set<String> RESERVED_ROLE_ID =
+      Set.of(SERVICE_ROLE_ID, PROCESS_STIX_ROLE_ID);
 
   /**
    * Compiled regexes derived from the service email patterns. The patterns contain a {@code %s}
@@ -38,19 +39,26 @@ public final class ReservedNameValidator {
     return Pattern.compile("^" + quoted + "$", Pattern.CASE_INSENSITIVE);
   }
 
-  /** Throws BadRequestException if the role name is reserved for system use. */
-  public static void validateRoleName(String name) {
-    if (name != null && RESERVED_ROLE_NAMES.contains(name)) {
+  /** Throws BadRequestException if the group id is reserved for system use. */
+  public static void validateGroupId(String uuid) {
+    List<String> idsReserved = RESERVED_GROUP_ID.stream()
+        .map(id->AbstractPrivilegeService.getUUIDFromName(id, TenantContext.getCurrentTenant() ))
+        .toList();
+
+    if (uuid != null && idsReserved.contains(uuid)) {
       throw new BadRequestException(
-          "The role '%s' is reserved for system use and cannot be used.".formatted(name));
+          "The group is reserved for system use and cannot be used.");
     }
   }
+  /** Throws BadRequestException if the group id is reserved for system use. */
+  public static void validateRoleId(String uuid) {
+    List<String> idsReserved = RESERVED_ROLE_ID.stream()
+        .map(id->AbstractPrivilegeService.getUUIDFromName(id, TenantContext.getCurrentTenant() ))
+        .toList();
 
-  /** Throws BadRequestException if the group name is reserved for system use. */
-  public static void validateGroupName(String name) {
-    if (name != null && RESERVED_GROUP_NAMES.contains(name)) {
+    if (uuid != null && idsReserved.contains(uuid)) {
       throw new BadRequestException(
-          "The group '%s' is reserved for system use and cannot be used.".formatted(name));
+          "The role is reserved for system use and cannot be used.");
     }
   }
 

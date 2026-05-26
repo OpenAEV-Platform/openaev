@@ -19,7 +19,7 @@ import io.openaev.database.repository.*;
 import io.openaev.rest.user.form.player.PlayerInput;
 import io.openaev.rest.user.form.player.PlayerOutput;
 import io.openaev.service.UserService;
-import io.openaev.service.account.ReservedNameValidator;
+import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.service.tenants.TenantUserService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
@@ -109,7 +109,7 @@ public class PlayerService {
   }
 
   public User createPlayer(@Valid @RequestBody PlayerInput input) {
-    ReservedNameValidator.validateUserEmailPattern(input.getEmail());
+    ReservedKeyValidator.validateUserEmailPattern(input.getEmail());
     var existingUser = userRepository.findByEmailIgnoreCase(input.getEmail());
     if (existingUser.isPresent()) {
       String userId = existingUser.get().getId();
@@ -129,7 +129,7 @@ public class PlayerService {
   }
 
   public User upsertPlayer(@Valid @RequestBody PlayerInput input) {
-    ReservedNameValidator.validateUserEmailPattern(input.getEmail());
+    ReservedKeyValidator.validateUserEmailPattern(input.getEmail());
     Optional<User> user = userRepository.findByEmailIgnoreCase(input.getEmail());
     if (user.isPresent()) {
       if (!requireUpdate(user.get(), input)) {

@@ -16,7 +16,7 @@ import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.user.form.player.PlayerInput;
 import io.openaev.rest.user.form.player.PlayerOutput;
 import io.openaev.service.UserService;
-import io.openaev.service.account.ReservedNameValidator;
+import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
 import jakarta.transaction.Transactional;
@@ -89,7 +89,7 @@ public class PlayerApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.PLAYER)
   public User updatePlayer(@PathVariable String userId, @Valid @RequestBody PlayerInput input) {
-    ReservedNameValidator.validateUserEmailPattern(input.getEmail());
+    ReservedKeyValidator.validateUserEmailPattern(input.getEmail());
     User user = userRepository.findById(userId).orElseThrow(ElementNotFoundException::new);
     user.setUpdateAttributes(input);
     user.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
