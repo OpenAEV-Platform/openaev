@@ -73,7 +73,7 @@ public class FileService {
    * @throws Exception if the upload fails
    */
   public String uploadStream(String path, String name, InputStream data) throws Exception {
-    String file = path.endsWith("/") ? path + name :  path + "/" + name;
+    String file = path.endsWith("/") ? path + name : path + "/" + name;
     minioService.uploadStreamInTenantPath(file, name, data);
     return file;
   }
@@ -136,7 +136,8 @@ public class FileService {
    * Retrieves an injector's image file.
    *
    * @param injectType the injector type identifier
-   * @param isExternal indicates if the file is a built-in asset (false) or a tenant-specific file (true)
+   * @param isExternal indicates if the file is a built-in asset (false) or a tenant-specific file
+   *     (true)
    * @return an Optional containing the image input stream, or empty if not found
    */
   public Optional<InputStream> getInjectorImage(String injectType, boolean isExternal) {
@@ -147,7 +148,8 @@ public class FileService {
    * Retrieves a collector's image file.
    *
    * @param collectorId the collector identifier
-   * @param isExternal indicates if the file is a built-in asset (false) or a tenant-specific file (true)
+   * @param isExternal indicates if the file is a built-in asset (false) or a tenant-specific file
+   *     (true)
    * @return an Optional containing the image input stream, or empty if not found
    */
   public Optional<InputStream> getCollectorImage(String collectorId, boolean isExternal) {
@@ -158,7 +160,8 @@ public class FileService {
    * Retrieves an executor's icon image file.
    *
    * @param executorId the executor identifier
-   * @param isExternal indicates if the file is a built-in asset (false) or a tenant-specific file (true)
+   * @param isExternal indicates if the file is a built-in asset (false) or a tenant-specific file
+   *     (true)
    * @return an Optional containing the image input stream, or empty if not found
    */
   public Optional<InputStream> getExecutorIconImage(String executorId, boolean isExternal) {
@@ -169,7 +172,8 @@ public class FileService {
    * Retrieves an executor's banner image file.
    *
    * @param executorId the executor identifier
-   * @param isExternal indicates if the file is a built-in asset (false) or a tenant-specific file (true)
+   * @param isExternal indicates if the file is a built-in asset (false) or a tenant-specific file
+   *     (true)
    * @return an Optional containing the image input stream, or empty if not found
    */
   public Optional<InputStream> getExecutorBannerImage(String executorId, boolean isExternal) {
@@ -180,7 +184,8 @@ public class FileService {
    * Retrieves a catalog connector's logo image file.
    *
    * @param fileName the logo filename
-   * @param isExternal indicates if the file is a built-in asset (false) or a tenant-specific file (true)
+   * @param isExternal indicates if the file is a built-in asset (false) or a tenant-specific file
+   *     (true)
    * @return an Optional containing the image input stream, or empty if not found
    */
   public Optional<InputStream> getCatalogConnectorImage(String fileName, boolean isExternal) {
@@ -192,7 +197,8 @@ public class FileService {
    * should fall back to specific tenant if isExternal is true.
    *
    * @param filePath to retrieve
-   * @param isExternal indicates if the file is a built-in asset (false) or from an external asset (true)
+   * @param isExternal indicates if the file is a built-in asset (false) or from an external asset
+   *     (true)
    * @return finded file
    */
   private Optional<InputStream> getPlatformImage(String filePath, boolean isExternal) {
@@ -200,7 +206,8 @@ public class FileService {
     if (tenantFile.isPresent()) {
       return tenantFile;
     }
-    return minioService.getFilePathForTenant(isExternal ? TenantContext.getCurrentTenant() : Tenant.DEFAULT_TENANT_UUID, filePath);
+    return minioService.getFilePathForTenant(
+        isExternal ? TenantContext.getCurrentTenant() : Tenant.DEFAULT_TENANT_UUID, filePath);
   }
 
   /**
