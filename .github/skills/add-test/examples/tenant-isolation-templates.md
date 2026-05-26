@@ -25,7 +25,7 @@
 
 ## Status code expectations
 
-Cross-tenant access typically returns **404** (Hibernate `@Filter` or RLS blocks the SELECT →
+Cross-tenant access typically returns **404** (Hibernate `@Filter` blocks the SELECT →
 `ElementNotFoundException`).
 
 ---
@@ -41,7 +41,7 @@ void given_{entity}InTenantX_should_notBeReadableFromTenantY() throws Exception 
   Tenant tenantY = tenantIsolationHelper.createTenantWithCapabilities(
       "Tenant Y", Set.of({ACCESS_CAP}));
 
-  {CreateInput} input = {EntityFixture}.createDefault{CreateInput}("RLS Isolation Test");
+  {CreateInput} input = {EntityFixture}.createDefault{CreateInput}("Isolation Test");
 
   String createResponse = mvc.perform(
           post("/api/tenants/" + tenantX.getId() + "/{entities}")
@@ -67,8 +67,51 @@ void given_{entity}InTenantX_should_notBeReadableFromTenantY() throws Exception 
 }
 ```
 
-## Test 2 — Same-tenant READ works
+## Test 6 — Cross-tenant search-by-IDs filtered
 
+> This test targets "batch fetch" endpoints (e.g., `POST /search-by-id`) where the client
+> provides a list of entity IDs. Without tenant filtering on the native query, an attacker
+> in tenant Y could enumerate entities from tenant X by guessing UUIDs.
+> Only applicable when the API has a `search-by-id` or similar batch-lookup endpoint.
+
+```java
+@Test
+@DisplayName("Fetching {entities} by IDs should NOT return {entities} from another tenant")
+void given_{entity}InTenantX_should_notBeReturnedByIdFromTenantY() throws Exception {
+  Tenant tenantX = tenantIsolationHelper.createTenantWithCapabilities(
+      "Tenant X", Set.of({MANAGE_CAP}, {ACCESS_CAP}));
+  Tenant tenantY = tenantIsolationHelper.createTenantWithCapabilities(
+      "Tenant Y", Set.of({ACCESS_CAP}));
+
+  {CreateInput} input = {EntityFixture}.createDefault{CreateInput}("SearchById Isolation");
+
+  String createResponse = mvc.perform(
+          post("/api/tenants/" + tenantX.getId() + "/{entities}")
+              .content(asJsonString(input))
+              .contentType(MediaType.APPLICATION_JSON)
+              .accept(MediaType.APPLICATION_JSON)
+              .with(csrf()))
+      .andExpect(status().is2xxSuccessful())
+      .andReturn().getResponse().getContentAsString();
+
+  String entityId = JsonPath.read(createResponse, "{entity_id_json_path}");
+
+  entityManager.flush();
+  entityManager.clear();
+
+  String searchByIdResponse = mvc.perform(
+          post("/api/tenants/" + tenantY.getId() + "/{entities}/search-by-id")
+              .content(asJsonString(Map.of("{entity}_ids", List.of(entityId))))
+              .contentType(MediaType.APPLICATION_JSON)
+              .accept(MediaType.APPLICATION_JSON)
+              .with(csrf()))
+      .andExpect(status().is2xxSuccessful())
+      .andReturn().getResponse().getContentAsString();
+
+  List<Object> results = JsonPath.read(searchByIdResponse, "$");
+  assertThat(results.size()).isEqualTo(0);
+}
+```
 ```java
 @Test
 @DisplayName("{Entity} created in tenant X should be readable from tenant X")
