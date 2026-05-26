@@ -7,9 +7,7 @@ import io.openaev.aop.AccessControl;
 import io.openaev.aop.AccessControlAspect;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
-import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.LogService;
-import io.openaev.service.PreviewFeatureService;
 import io.openaev.utils.log.LogUtils;
 import java.lang.annotation.Annotation;
 import java.util.UUID;
@@ -19,7 +17,7 @@ import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
-import org.springframework.core.Ordered;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.annotation.Order;
 import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.ExpressionParser;
@@ -39,13 +37,13 @@ import org.springframework.web.bind.annotation.RequestBody;
  */
 @Aspect
 @Component
-@Order(Ordered.LOWEST_PRECEDENCE)
+@ConditionalOnProperty(name = "openaev.audit-logs.service.enabled", havingValue = "true")
+@Order
 @RequiredArgsConstructor
 @Slf4j
 public class AccessControlAuditLogAspect {
 
   private final AccessControlAuditLogger accessControlAuditLogger;
-  private final PreviewFeatureService previewFeatureService;
 
   private final ObjectMapper objectMapper;
   private final ExpressionParser parser = new SpelExpressionParser();
@@ -61,8 +59,7 @@ public class AccessControlAuditLogAspect {
       action = accessControl.actionPerformed();
       isActive =
           accessControlAuditLogger.isAuditLoggingEnabled()
-              && accessControlAuditLogger.isAuditLoggingValid(action)
-              && previewFeatureService.isFeatureEnabled(PreviewFeature.AUDIT_LOG);
+              && accessControlAuditLogger.isAuditLoggingValid(action);
     } catch (Exception ex) {
       log.warn("Error during audit logging", ex);
     }
