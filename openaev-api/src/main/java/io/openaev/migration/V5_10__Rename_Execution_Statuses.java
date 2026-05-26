@@ -49,13 +49,10 @@ public class V5_10__Rename_Execution_Statuses extends BaseJavaMigration {
               UPDATE execution_traces
               SET execution_status = 'EXECUTED_WITH_CLEANUP_FAILURE'
               WHERE execution_status IN (
-                'SUCCESS_WITH_CLEANUP_FAIL',
-                'SUCCESS_WITH_CLEANUP_FAILURE',
-                'EXECUTED_WITH_CLEANUP_FAIL',
-                'EXECUTED WITH CLEANUP FAIL',
                 'SUCCESS WITH CLEANUP FAIL',
                 'SUCCESS WITH CLEANUP FAILURE',
-                'EXECUTED WITH CLEANUP FAILURE'
+                'EXECUTED WITH CLEANUP FAILURE',
+                                                        'EXECUTED WITH CLEANUP FAIL',
               );
               """);
     }
