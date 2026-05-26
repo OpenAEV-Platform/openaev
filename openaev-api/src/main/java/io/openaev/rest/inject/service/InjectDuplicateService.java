@@ -37,7 +37,9 @@ public class InjectDuplicateService {
   public Inject duplicateInjectForScenarioWithDuplicateWordInTitle(
       final String scenarioId, final String injectId) {
     Scenario scenario =
-        scenarioRepository.findById(scenarioId).orElseThrow(ElementNotFoundException::new);
+        scenarioRepository
+            .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
+            .orElseThrow(ElementNotFoundException::new);
     Inject inject = injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
     Inject duplicatedInject = getDuplicatedInjectWithScenario(scenario, inject);
     duplicatedInject.setTitle(duplicateString(duplicatedInject.getTitle()));

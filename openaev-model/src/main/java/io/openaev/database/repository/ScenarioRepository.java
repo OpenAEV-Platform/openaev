@@ -132,6 +132,7 @@ public interface ScenarioRepository
               + "INNER JOIN users_groups ON groups.group_id = users_groups.group_id "
               + "WHERE users_groups.user_id = :userId "
               + "AND sce.scenario_id IN :scenarioIds "
+              + "AND sce.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY sce.scenario_id",
       nativeQuery = true)
   List<RawScenarioSimpleIndexing> rawGrantedByScenarioIds(
@@ -153,6 +154,7 @@ public interface ScenarioRepository
               + "FROM scenarios sce "
               + "LEFT JOIN scenarios_tags sct ON sct.scenario_id = sce.scenario_id "
               + "WHERE sce.scenario_id IN :scenarioIds "
+              + "AND sce.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY sce.scenario_id",
       nativeQuery = true)
   List<RawScenarioSimpleIndexing> rawByScenarioIds(@Param("scenarioIds") List<String> scenarioIds);
@@ -227,9 +229,9 @@ public interface ScenarioRepository
               + "LEFT JOIN platforms pf ON pf.scenario_id = s.scenario_id "
               + "LEFT JOIN tags tg ON tg.scenario_id = s.scenario_id "
               + "LEFT JOIN workflows w ON w.workflow_scenario_id = s.scenario_id "
-              + "WHERE s.scenario_id = :scenarioId",
+              + "WHERE s.scenario_id = :scenarioId AND s.tenant_id = :#{#tenantContext.currentTenant}",
       nativeQuery = true)
-  RawScenario getScenarioById(@Param("scenarioId") final String scenarioId);
+  RawScenario getScenarioByIdAndTenantId(@Param("scenarioId") final String scenarioId);
 
   // -- CATEGORY --
 
@@ -256,4 +258,6 @@ public interface ScenarioRepository
       @Param("scenarioId") final String scenarioId, @Param("teamIds") final List<String> teamIds);
 
   Optional<Scenario> findByExercises_Id(String exerciseId);
+
+  Optional<Scenario> findByIdAndTenantId(String id, String tenantId);
 }

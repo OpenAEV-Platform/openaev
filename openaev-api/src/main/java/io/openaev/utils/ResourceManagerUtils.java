@@ -1,7 +1,25 @@
 package io.openaev.utils;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import io.openaev.database.model.AssetGroup;
+import io.openaev.database.model.AttackPattern;
+import io.openaev.database.model.Challenge;
+import io.openaev.database.model.Channel;
+import io.openaev.database.model.Document;
+import io.openaev.database.model.Exercise;
+import io.openaev.database.model.Group;
+import io.openaev.database.model.Inject;
+import io.openaev.database.model.KillChainPhase;
+import io.openaev.database.model.Objective;
+import io.openaev.database.model.Organization;
+import io.openaev.database.model.Payload;
 import io.openaev.database.model.ResourceType;
+import io.openaev.database.model.Role;
+import io.openaev.database.model.Scenario;
+import io.openaev.database.model.Tag;
+import io.openaev.database.model.Team;
+import io.openaev.database.model.User;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -78,40 +96,29 @@ public class ResourceManagerUtils {
    * direct 1:1 JPA entity. This map is used for {@code EntityManager.find()} pre-fetch.
    */
   private static Map<ResourceType, Class<?>> buildEntityClassMap() {
-    try {
-      return Map.ofEntries(
-          Map.entry(ResourceType.SCENARIO, Class.forName("io.openaev.database.model.Scenario")),
-          Map.entry(ResourceType.SIMULATION, Class.forName("io.openaev.database.model.Exercise")),
-          Map.entry(ResourceType.USER, Class.forName("io.openaev.database.model.User")),
-          Map.entry(ResourceType.TEAM, Class.forName("io.openaev.database.model.Team")),
-          Map.entry(ResourceType.INJECT, Class.forName("io.openaev.database.model.Inject")),
-          Map.entry(ResourceType.DOCUMENT, Class.forName("io.openaev.database.model.Document")),
-          Map.entry(ResourceType.TAG, Class.forName("io.openaev.database.model.Tag")),
-          Map.entry(ResourceType.CHANNEL, Class.forName("io.openaev.database.model.Channel")),
-          Map.entry(ResourceType.CHALLENGE, Class.forName("io.openaev.database.model.Challenge")),
-          Map.entry(ResourceType.PAYLOAD, Class.forName("io.openaev.database.model.Payload")),
-          Map.entry(
-              ResourceType.ASSET_GROUP, Class.forName("io.openaev.database.model.AssetGroup")),
-          Map.entry(ResourceType.OBJECTIVE, Class.forName("io.openaev.database.model.Objective")),
-          Map.entry(
-              ResourceType.ORGANIZATION, Class.forName("io.openaev.database.model.Organization")),
-          Map.entry(
-              ResourceType.KILL_CHAIN_PHASE,
-              Class.forName("io.openaev.database.model.KillChainPhase")),
-          Map.entry(
-              ResourceType.ATTACK_PATTERN,
-              Class.forName("io.openaev.database.model.AttackPattern")),
-          Map.entry(ResourceType.USER_GROUP, Class.forName("io.openaev.database.model.Group")),
-          Map.entry(ResourceType.GROUP_ROLE, Class.forName("io.openaev.database.model.Role")));
-    } catch (ClassNotFoundException e) {
-      log.error("[EntityManagerUtils] Failed to build entity class map: {}", e.getMessage(), e);
-      return Map.of();
-    }
+    return Map.ofEntries(
+        Map.entry(ResourceType.SCENARIO, Scenario.class),
+        Map.entry(ResourceType.SIMULATION, Exercise.class),
+        Map.entry(ResourceType.USER, User.class),
+        Map.entry(ResourceType.TEAM, Team.class),
+        Map.entry(ResourceType.INJECT, Inject.class),
+        Map.entry(ResourceType.DOCUMENT, Document.class),
+        Map.entry(ResourceType.TAG, Tag.class),
+        Map.entry(ResourceType.CHANNEL, Channel.class),
+        Map.entry(ResourceType.CHALLENGE, Challenge.class),
+        Map.entry(ResourceType.PAYLOAD, Payload.class),
+        Map.entry(ResourceType.ASSET_GROUP, AssetGroup.class),
+        Map.entry(ResourceType.OBJECTIVE, Objective.class),
+        Map.entry(ResourceType.ORGANIZATION, Organization.class),
+        Map.entry(ResourceType.KILL_CHAIN_PHASE, KillChainPhase.class),
+        Map.entry(ResourceType.ATTACK_PATTERN, AttackPattern.class),
+        Map.entry(ResourceType.USER_GROUP, Group.class),
+        Map.entry(ResourceType.GROUP_ROLE, Role.class));
   }
 
   /** Builds the reverse mapping: JPA entity class → ResourceType. */
   private static Map<Class<?>, ResourceType> buildReverseEntityClassMap() {
-    Map<Class<?>, ResourceType> reverse = new java.util.HashMap<>();
+    Map<Class<?>, ResourceType> reverse = new HashMap<>();
     ENTITY_CLASS_MAP.forEach((resourceType, clazz) -> reverse.put(clazz, resourceType));
     return Map.copyOf(reverse);
   }

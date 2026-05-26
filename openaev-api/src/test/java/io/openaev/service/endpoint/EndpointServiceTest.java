@@ -1,4 +1,4 @@
-package io.openaev.service;
+package io.openaev.service.endpoint;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
@@ -16,6 +16,9 @@ import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.rest.asset.endpoint.form.EndpointOutput;
 import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.service.AgentService;
+import io.openaev.service.AssetService;
+import io.openaev.service.EndpointService;
 import io.openaev.utils.fixtures.AgentFixture;
 import io.openaev.utils.fixtures.AssetAgentJobFixture;
 import io.openaev.utils.mapper.EndpointMapper;
