@@ -1,5 +1,6 @@
 package io.openaev.aop;
 
+import io.openaev.aop.audit_log.AccessControlAuditLogAspect;
 import io.openaev.config.SessionHelper;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.User;
@@ -18,6 +19,7 @@ import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Before;
 import org.aspectj.lang.reflect.MethodSignature;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.Expression;
 import org.springframework.expression.ExpressionParser;
@@ -39,6 +41,7 @@ public class AccessControlAspect {
   private final UserService userService;
   private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
+  private final ObjectProvider<AccessControlAuditLogAspect> accessControlAuditLogAspectProvider;
 
   private final ExpressionParser parser = new SpelExpressionParser();
 
@@ -124,8 +127,18 @@ public class AccessControlAspect {
           resourceId,
           accessControl.resourceType(),
           accessControl.actionPerformed());
-      throw new ResponseStatusException(
-          HttpStatus.FORBIDDEN, "Access denied for user: " + principal.getEmail()) {};
+
+      var ex =
+          new ResponseStatusException(
+              HttpStatus.FORBIDDEN, "Access denied for user: " + principal.getEmail()) {};
+
+      AccessControlAuditLogAspect accessControlAuditLogAspect =
+          accessControlAuditLogAspectProvider.getIfAvailable();
+      if (accessControlAuditLogAspect != null) {
+        accessControlAuditLogAspect.auditDeniedAccess(joinPoint, accessControl, ex);
+      }
+
+      throw ex;
     }
   }
 

@@ -16,7 +16,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.ProceedingJoinPoint;
-import org.aspectj.lang.annotation.AfterThrowing;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
@@ -117,12 +116,6 @@ public class AccessControlAuditLogAspect {
     try {
       result = joinPoint.proceed();
     } catch (Throwable ex) {
-      if (isRbacDeniedException(ex)) {
-        // Dedicated @AfterThrowing advice logs RBAC denials as unauthorized/error events.
-
-        throw ex;
-      }
-
       try {
         JsonNode resultNode = getOutputNode(result);
         JsonNode errorNode = buildErrorNode(resultNode, ex);
@@ -170,7 +163,6 @@ public class AccessControlAuditLogAspect {
    * Logs RBAC denials as unauthorized audit events, independently from read-action logging
    * settings.
    */
-  @AfterThrowing(pointcut = "@annotation(accessControl)", throwing = "exception")
   public void auditDeniedAccess(
       JoinPoint joinPoint, AccessControl accessControl, Throwable exception) {
     if (!isRbacDeniedException(exception)
