@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V5_10__Add_Indexes_For_Inject_Execution_Job extends BaseJavaMigration {
+public class V5_11__Add_Indexes_For_Inject_Execution_Job extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
