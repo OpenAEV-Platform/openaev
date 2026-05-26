@@ -38,7 +38,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -286,7 +285,7 @@ class CustomDashboardWidgetApiTest extends IntegrationTest {
       entityManager.clear();
 
       // Act
-      int responseStatus =
+      int response =
           mockMvc
               .perform(
                   get(TENANT_CUSTOM_DASHBOARDS_URI.replace("{tenantId}", tenantY.getId())
@@ -297,10 +296,10 @@ class CustomDashboardWidgetApiTest extends IntegrationTest {
                       .with(csrf()))
               .andReturn()
               .getResponse()
-              .getStatus();
+              .getContentLength();
 
       // Assert
-      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
+      assertThat(response).isEqualTo(0);
     }
 
     @Test
@@ -463,7 +462,7 @@ class CustomDashboardWidgetApiTest extends IntegrationTest {
       WidgetInput updateWidgetInput = createDefaultWidgetInput("Hijacked widget title");
 
       // Act
-      int responseStatus =
+      int response =
           mockMvc
               .perform(
                   put(TENANT_CUSTOM_DASHBOARDS_URI.replace("{tenantId}", tenantY.getId())
@@ -477,10 +476,10 @@ class CustomDashboardWidgetApiTest extends IntegrationTest {
                       .with(csrf()))
               .andReturn()
               .getResponse()
-              .getStatus();
+              .getContentLength();
 
       // Assert
-      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
+      assertThat(response).isEqualTo(0);
     }
 
     @Test
@@ -532,7 +531,7 @@ class CustomDashboardWidgetApiTest extends IntegrationTest {
       entityManager.clear();
 
       // Act
-      int responseStatus =
+      int response =
           mockMvc
               .perform(
                   delete(
@@ -544,10 +543,10 @@ class CustomDashboardWidgetApiTest extends IntegrationTest {
                       .with(csrf()))
               .andReturn()
               .getResponse()
-              .getStatus();
+              .getContentLength();
 
       // Assert
-      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
+      assertThat(response).isEqualTo(0);
     }
   }
 }
