@@ -188,11 +188,11 @@ public class FileService {
   }
 
   /**
-   * Platform assets are written once under the default tenant during startup; non-default tenants
-   * should transparently fall back to that location.
+   * Platform assets are written once under the default tenant during startup for built in assets
+   * should fall back to specific tenant if isExternal is true.
    *
    * @param filePath to retrieve
-   * @param isExternal indicates if the file is a built-in asset (false) or a tenant-specific file (true)
+   * @param isExternal indicates if the file is a built-in asset (false) or from an external asset (true)
    * @return finded file
    */
   private Optional<InputStream> getPlatformImage(String filePath, boolean isExternal) {

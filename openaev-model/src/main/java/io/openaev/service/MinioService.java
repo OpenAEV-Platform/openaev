@@ -105,7 +105,7 @@ public class MinioService implements DependenciesManager {
       InputStreamResource streamResource = new InputStreamResource(objectStream);
       return Optional.of(streamResource.getInputStream());
     } catch (Exception e) {
-      log.error("Error during file access", e);
+      log.info("Error during file access", e);
       return Optional.empty();
     }
   }
