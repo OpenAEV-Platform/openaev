@@ -289,14 +289,14 @@ class TeamServiceTest {
       // EntityManager setup
       when(entityManager.getCriteriaBuilder()).thenReturn(criteriaBuilder);
       when(entityManager.createQuery(criteriaQuery)).thenReturn(typedQuery);
-      when(entityManager.createQuery(countQuery)).thenReturn(countTypedQuery);
+      lenient().when(entityManager.createQuery(countQuery)).thenReturn(countTypedQuery);
 
       // CriteriaBuilder setup
       when(criteriaBuilder.createTupleQuery()).thenReturn(criteriaQuery);
-      when(criteriaBuilder.createQuery(Long.class)).thenReturn(countQuery);
+      lenient().when(criteriaBuilder.createQuery(Long.class)).thenReturn(countQuery);
       when(criteriaBuilder.function(anyString(), any(Class.class), any(Expression[].class)))
           .thenReturn(arrayAggFunction);
-      when(criteriaBuilder.count(any(Expression.class))).thenReturn(countExpression);
+      lenient().when(criteriaBuilder.count(any(Expression.class))).thenReturn(countExpression);
       when(criteriaBuilder.asc(any(Expression.class))).thenReturn(mock(JpaOrder.class));
       when(criteriaBuilder.desc(any(Expression.class))).thenReturn(mock(JpaOrder.class));
 
@@ -310,8 +310,8 @@ class TeamServiceTest {
       when(criteriaQuery.distinct(anyBoolean())).thenReturn(criteriaQuery);
 
       // Count query setup
-      when(countQuery.from(Team.class)).thenReturn(countRoot);
-      when(countQuery.select(any(JpaExpression.class))).thenReturn(countQuery);
+      lenient().when(countQuery.from(Team.class)).thenReturn(countRoot);
+      lenient().when(countQuery.select(any(JpaExpression.class))).thenReturn(countQuery);
 
       // TypedQuery setup
       when(typedQuery.setFirstResult(anyInt())).thenReturn(typedQuery);
@@ -348,9 +348,6 @@ class TeamServiceTest {
     @MethodSource("paginationTestCases")
     void shouldPaginateCorrectly(
         String name, int page, int size, int expectedOffset, int expectedMax) {
-      // Prepare
-      when(countTypedQuery.getSingleResult()).thenReturn(100L);
-
       // Act
       Page<TeamOutput> result =
           teamService.teamPagination(createPaginationInput(page, size), createSpecification(null));
@@ -368,7 +365,6 @@ class TeamServiceTest {
     void shouldApplyWhereClause() {
       // Prepare
       Predicate predicate = mock(Predicate.class);
-      when(countTypedQuery.getSingleResult()).thenReturn(50L);
 
       // Act
       teamService.teamPagination(createPaginationInput(0, 10), createSpecification(predicate));
@@ -380,9 +376,6 @@ class TeamServiceTest {
     @Test
     @DisplayName("should not apply where clause when predicate is null")
     void shouldNotApplyWhereClause() {
-      // Prepare
-      when(countTypedQuery.getSingleResult()).thenReturn(0L);
-
       // Act
       teamService.teamPagination(createPaginationInput(0, 10), createSpecification(null));
 
@@ -393,7 +386,23 @@ class TeamServiceTest {
     @Test
     @DisplayName("should return correct total count")
     void shouldReturnCorrectTotalCount() {
-      // Prepare
+      // Prepare — return a full page so the count query is triggered (page 0, size 10)
+      List<Tuple> fullPage = new ArrayList<>();
+      for (int i = 0; i < 10; i++) {
+        Tuple tuple = mock(Tuple.class);
+        when(tuple.get("team_id", String.class)).thenReturn("id-" + i);
+        when(tuple.get("team_name", String.class)).thenReturn("name-" + i);
+        when(tuple.get("team_description", String.class)).thenReturn("desc");
+        when(tuple.get("team_contextual", Boolean.class)).thenReturn(false);
+        when(tuple.get("team_updated_at", java.time.Instant.class)).thenReturn(null);
+        when(tuple.get("team_exercises", String[].class)).thenReturn(new String[0]);
+        when(tuple.get("team_scenarios", String[].class)).thenReturn(new String[0]);
+        when(tuple.get("team_tags", String[].class)).thenReturn(new String[0]);
+        when(tuple.get("team_users", String[].class)).thenReturn(new String[0]);
+        when(tuple.get("team_organization", String.class)).thenReturn(null);
+        fullPage.add(tuple);
+      }
+      when(typedQuery.getResultList()).thenReturn(fullPage);
       when(countTypedQuery.getSingleResult()).thenReturn(150L);
 
       // Act
