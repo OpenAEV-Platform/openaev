@@ -317,7 +317,12 @@ public class DocumentApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   public @ResponseBody ResponseEntity<byte[]> getInjectorImage(@PathVariable String injectorType)
       throws IOException {
-    Optional<InputStream> fileStream = fileService.getInjectorImage(injectorType);
+    Injector injector =
+        this.injectorRepository
+            .findByTypeAndTenantId(injectorType, TenantContext.getCurrentTenant())
+            .orElseThrow(() -> new ElementNotFoundException("Injector not found"));
+    Optional<InputStream> fileStream =
+        fileService.getInjectorImage(injector.getType(), injector.isExternal());
     if (fileStream.isPresent()) {
       return ResponseEntity.ok()
           .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
@@ -339,7 +344,8 @@ public class DocumentApi extends RestBehavior {
         this.injectorRepository
             .findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant())
             .orElseThrow(() -> new ElementNotFoundException("Injector not found"));
-    Optional<InputStream> fileStream = fileService.getInjectorImage(injector.getType());
+    Optional<InputStream> fileStream =
+        fileService.getInjectorImage(injector.getType(), injector.isExternal());
     if (fileStream.isPresent()) {
       return ResponseEntity.ok()
           .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
@@ -357,7 +363,12 @@ public class DocumentApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   public @ResponseBody ResponseEntity<byte[]> getCollectorImage(@PathVariable String collectorType)
       throws IOException {
-    Optional<InputStream> fileStream = fileService.getCollectorImage(collectorType);
+    Collector collector =
+        this.collectorRepository
+            .findByTypeAndTenantId(collectorType, TenantContext.getCurrentTenant())
+            .orElseThrow(() -> new ElementNotFoundException("Collector not found"));
+    Optional<InputStream> fileStream =
+        fileService.getCollectorImage(collector.getType(), collector.isExternal());
     if (fileStream.isPresent()) {
       return ResponseEntity.ok()
           .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
@@ -372,9 +383,13 @@ public class DocumentApi extends RestBehavior {
         HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + collectorType + ".png");
     response.addHeader(HttpHeaders.CONTENT_TYPE, MediaType.IMAGE_PNG_VALUE);
     response.setStatus(HttpServletResponse.SC_OK);
+    Collector collector =
+        this.collectorRepository
+            .findByTypeAndTenantId(collectorType, TenantContext.getCurrentTenant())
+            .orElseThrow(() -> new ElementNotFoundException("Collector not found"));
     try (InputStream fileStream =
         fileService
-            .getCollectorImage(collectorType)
+            .getCollectorImage(collectorType, collector.isExternal())
             .orElseThrow(() -> new ElementNotFoundException("File not found"))) {
       fileStream.transferTo(response.getOutputStream());
     }
@@ -393,7 +408,8 @@ public class DocumentApi extends RestBehavior {
         this.collectorRepository
             .findByIdAndTenantId(collectorId, TenantContext.getCurrentTenant())
             .orElseThrow(() -> new ElementNotFoundException("Collector not found"));
-    Optional<InputStream> fileStream = fileService.getCollectorImage(collector.getType());
+    Optional<InputStream> fileStream =
+        fileService.getCollectorImage(collector.getType(), collector.isExternal());
     if (fileStream.isPresent()) {
       return ResponseEntity.ok()
           .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
@@ -462,7 +478,7 @@ public class DocumentApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   public @ResponseBody ResponseEntity<byte[]> getExecutorIconImage(@PathVariable String executorId)
       throws IOException {
-    Optional<InputStream> fileStream = fileService.getExecutorIconImage(executorId);
+    Optional<InputStream> fileStream = fileService.getExecutorIconImage(executorId, false);
     if (fileStream.isPresent()) {
       return ResponseEntity.ok()
           .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
@@ -480,7 +496,7 @@ public class DocumentApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   public @ResponseBody ResponseEntity<byte[]> getExecutorBannerImage(
       @PathVariable String executorId) throws IOException {
-    Optional<InputStream> fileStream = fileService.getExecutorBannerImage(executorId);
+    Optional<InputStream> fileStream = fileService.getExecutorBannerImage(executorId, false);
     if (fileStream.isPresent()) {
       return ResponseEntity.ok()
           .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
