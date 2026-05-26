@@ -43,6 +43,8 @@ public interface ScenarioRepository
         StatisticRepository,
         JpaSpecificationExecutor<Scenario> {
 
+  Optional<Scenario> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
+
   @Query(
       value =
           "WITH scenario_data AS ("
