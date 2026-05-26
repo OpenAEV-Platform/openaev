@@ -26,7 +26,6 @@ import org.springframework.expression.ExpressionParser;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.expression.spel.support.SimpleEvaluationContext;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.server.ResponseStatusException;
@@ -332,10 +331,6 @@ public class AccessControlAuditLogAspect {
   }
 
   private boolean isRbacDeniedException(Throwable exception) {
-    if (exception instanceof AccessDeniedException) {
-      return true;
-    }
-
     if (exception instanceof ResponseStatusException responseStatusException) {
       return HttpStatus.FORBIDDEN.equals(responseStatusException.getStatusCode());
     }
