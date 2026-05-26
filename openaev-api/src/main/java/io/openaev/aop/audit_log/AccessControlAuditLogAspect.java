@@ -13,7 +13,9 @@ import java.lang.annotation.Annotation;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.ProceedingJoinPoint;
+import org.aspectj.lang.annotation.AfterThrowing;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
@@ -23,8 +25,11 @@ import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.ExpressionParser;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.expression.spel.support.SimpleEvaluationContext;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.server.ResponseStatusException;
 
 /**
  * AOP aspect that intercepts {@link AccessControl}-annotated controller methods to produce audit
@@ -109,6 +114,11 @@ public class AccessControlAuditLogAspect {
     try {
       result = joinPoint.proceed();
     } catch (Throwable ex) {
+      if (isRbacDeniedException(ex)) {
+        // Dedicated @AfterThrowing advice logs RBAC denials as unauthorized/error events.
+        throw ex;
+      }
+
       try {
         JsonNode resultNode = getOutputNode(result);
         JsonNode errorNode = buildErrorNode(resultNode, ex);
@@ -152,8 +162,60 @@ public class AccessControlAuditLogAspect {
     return result;
   }
 
+  /**
+   * Logs RBAC denials as unauthorized audit events, independently from read-action logging
+   * settings.
+   */
+  @AfterThrowing(pointcut = "@annotation(accessControl)", throwing = "exception")
+  public void auditDeniedAccess(
+      JoinPoint joinPoint, AccessControl accessControl, Throwable exception) {
+    if (!isRbacDeniedException(exception)) {
+      return;
+    }
+
+    if (!accessControlAuditLogger.isAuditLoggingEnabled()
+        || !accessControlAuditLogger.isAuditUnauthorizedLoggingValid()) {
+      return;
+    }
+
+    String logUUID = UUID.randomUUID().toString();
+
+    try {
+      ResourceType resourceType = accessControl.resourceType();
+      String resourceId = resolveResourceId(joinPoint, accessControl);
+      JsonNode inputNode = getInputNode(joinPoint, "unauthorized");
+      JsonNode signatureNode = getMethodSignature(joinPoint, inputNode);
+      JsonNode errorNode = buildErrorNode(null, exception);
+
+      accessControlAuditLogger
+          .logAccessControlEvent(
+              "unauthorized",
+              "error",
+              resourceType,
+              resourceId,
+              inputNode,
+              errorNode,
+              signatureNode,
+              logUUID)
+          .whenComplete(
+              (success, throwable) -> {
+                if (throwable != null || (success != null && !success)) {
+                  log.warn(
+                      "[AUDIT] Failed to log RBAC denial event for {}.{}",
+                      resourceType,
+                      "unauthorized");
+                  if (throwable != null) {
+                    log.warn("Error during audit logging", throwable);
+                  }
+                }
+              });
+    } catch (Exception ex) {
+      log.warn("Error during audit logging", ex);
+    }
+  }
+
   // Capture the input DTO for create/update/status_change
-  private JsonNode getInputNode(ProceedingJoinPoint joinPoint, String eventScope) {
+  private JsonNode getInputNode(JoinPoint joinPoint, String eventScope) {
     JsonNode inputNode = null;
 
     if ("create".equals(eventScope)
@@ -196,7 +258,7 @@ public class AccessControlAuditLogAspect {
   }
 
   /** Finds the first method argument annotated with {@code @RequestBody}. */
-  private Object findRequestBody(ProceedingJoinPoint joinPoint) {
+  private Object findRequestBody(JoinPoint joinPoint) {
     try {
       MethodSignature signature = (MethodSignature) joinPoint.getSignature();
       Annotation[][] paramAnnotations = signature.getMethod().getParameterAnnotations();
@@ -215,7 +277,7 @@ public class AccessControlAuditLogAspect {
   }
 
   /** Builds a JsonNode with the method signature and its parameter names mapped to their values. */
-  private JsonNode getMethodSignature(ProceedingJoinPoint joinPoint, JsonNode inputNode) {
+  private JsonNode getMethodSignature(JoinPoint joinPoint, JsonNode inputNode) {
     try {
       MethodSignature signature = (MethodSignature) joinPoint.getSignature();
       String[] paramNames = signature.getParameterNames();
@@ -252,7 +314,7 @@ public class AccessControlAuditLogAspect {
   }
 
   /** Resolves the resource ID from the annotation's SpEL expression. */
-  public String resolveResourceId(ProceedingJoinPoint joinPoint, AccessControl accessControl) {
+  public String resolveResourceId(JoinPoint joinPoint, AccessControl accessControl) {
     if (accessControl.resourceId().isEmpty()) {
       return "";
     }
@@ -274,5 +336,17 @@ public class AccessControlAuditLogAspect {
       log.warn("[AUDIT] Failed to resolve resourceId SpEL: {}", e.getMessage(), e);
       return "";
     }
+  }
+
+  private boolean isRbacDeniedException(Throwable exception) {
+    if (exception instanceof AccessDeniedException) {
+      return true;
+    }
+
+    if (exception instanceof ResponseStatusException responseStatusException) {
+      return HttpStatus.FORBIDDEN.equals(responseStatusException.getStatusCode());
+    }
+
+    return false;
   }
 }

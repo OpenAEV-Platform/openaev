@@ -41,6 +41,10 @@ public class AccessControlAuditLogger {
     return auditRequestValidator.valid(action);
   }
 
+  public boolean isAuditUnauthorizedLoggingValid() {
+    return auditRequestValidator.validUnauthorized();
+  }
+
   /** Wraps the audit service call in try/catch — audit must never break the business flow. */
   @Async("accessControlAuditLoggerExecutor")
   public CompletableFuture<Boolean> logAuthEvent(

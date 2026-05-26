@@ -43,6 +43,13 @@ public class AuditRequestValidator {
     return !isAutomatedRequest();
   }
 
+  /**
+   * Unauthorized RBAC-denial events must always be auditable, even when read logging is disabled.
+   */
+  public boolean validUnauthorized() {
+    return !isAutomatedRequest();
+  }
+
   private boolean shouldSkip(Action action) {
     return switch (action) {
       case CREATE, WRITE, DELETE, LAUNCH, DUPLICATE -> false;
