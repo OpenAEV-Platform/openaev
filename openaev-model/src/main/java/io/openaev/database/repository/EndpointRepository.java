@@ -162,7 +162,10 @@ public interface EndpointRepository
   // Native query does the same as Hibernate query here because all "cascade" and other relations
   // are properly set in the database
   @Modifying
-  @Query(value = "DELETE FROM assets WHERE asset_id = :assetId", nativeQuery = true)
+  @Query(
+      value =
+          "DELETE FROM assets WHERE asset_id = :assetId AND tenant_id = :#{#tenantContext.currentTenant}",
+      nativeQuery = true)
   void deleteById(@Param("assetId") @NotBlank String assetId);
 
   List<Endpoint> findDistinctByInjectsScenarioId(String scenarioId);

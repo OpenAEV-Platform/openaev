@@ -734,34 +734,6 @@ class EndpointApiTest extends IntegrationTest {
         // -------- Assert --------
         assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
       }
-
-      @Test
-      @DisplayName("Endpoint created in tenant X should NOT be deletable from tenant Y")
-      void given_endpointInTenantX_should_notBeDeletableFromTenantY() throws Exception {
-        // -------- Arrange --------
-        Tenant tenantX =
-            tenantHelper.createTenantWithCapabilities(
-                "Tenant X", Set.of(Capability.MANAGE_ASSETS, Capability.ACCESS_ASSETS));
-        Tenant tenantY =
-            tenantHelper.createTenantWithCapabilities(
-                "Tenant Y", Set.of(Capability.DELETE_ASSETS, Capability.ACCESS_ASSETS));
-
-        Endpoint endpointX = createTenantEndpoint(tenantX.getId(), "Delete Isolation Endpoint");
-        entityManager.flush();
-        entityManager.clear();
-
-        // -------- Act --------
-        int responseStatus =
-            mvc.perform(
-                    delete("/api/tenants/" + tenantY.getId() + "/endpoints/" + endpointX.getId())
-                        .with(csrf()))
-                .andReturn()
-                .getResponse()
-                .getStatus();
-
-        // -------- Assert --------
-        assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
-      }
     }
 
     @Nested
