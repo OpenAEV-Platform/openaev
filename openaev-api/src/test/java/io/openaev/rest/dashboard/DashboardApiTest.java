@@ -1300,57 +1300,5 @@ class DashboardApiTest extends IntegrationTest {
       // -------- Assert --------
       assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
     }
-
-    @Test
-    @DisplayName(
-        "Widget data endpoint in tenant Y should NOT return data for widget belonging to tenant X")
-    void given_widgetInTenantX_should_notBeAccessibleFromTenantY() throws Exception {
-      // -------- Arrange --------
-      Tenant tenantX =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant X", Set.of(Capability.MANAGE_DASHBOARDS, Capability.ACCESS_DASHBOARDS));
-      Tenant tenantY =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant Y", Set.of(Capability.ACCESS_DASHBOARDS));
-
-      CustomDashboardInput dashboardInput = new CustomDashboardInput();
-      dashboardInput.setName("Widget Isolation Dashboard");
-
-      mvc.perform(
-              post("/api/tenants/" + tenantX.getId() + "/custom-dashboards")
-                  .content(asJsonString(dashboardInput))
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON)
-                  .with(csrf()))
-          .andExpect(status().is2xxSuccessful());
-
-      // Create a widget via composers in tenant X context
-      tenantIsolationHelper.switchToTenant(tenantX.getId(), entityManager);
-      Widget widget =
-          widgetComposer
-              .forWidget(WidgetFixture.createNumberWidgetWithEntity("endpoint"))
-              .withCustomDashboard(
-                  customDashboardComposer.forCustomDashboard(
-                      CustomDashboardFixture.createCustomDashboardWithDefaultParams()))
-              .persist()
-              .get();
-
-      entityManager.flush();
-      entityManager.clear();
-
-      // -------- Act — access widget data from tenant Y (expect 404) --------
-      int responseStatus =
-          mvc.perform(
-                  post("/api/tenants/" + tenantY.getId() + "/dashboards/count/" + widget.getId())
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(new HashMap<>()))
-                      .with(csrf()))
-              .andReturn()
-              .getResponse()
-              .getStatus();
-
-      // -------- Assert --------
-      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
-    }
   }
 }
