@@ -66,7 +66,7 @@ public class WidgetService {
   @Transactional(readOnly = true)
   public Widget widget(@NotBlank final String widgetId) {
     return this.widgetRepository
-        .findById(widgetId)
+        .findByIdAndTenantId(widgetId, TenantContext.getCurrentTenant())
         .orElseThrow(() -> new EntityNotFoundException("Widget with id: " + widgetId));
   }
 
