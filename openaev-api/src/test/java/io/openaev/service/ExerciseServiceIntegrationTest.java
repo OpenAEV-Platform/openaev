@@ -156,7 +156,7 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
     exerciseTeams.add(contextualTeam);
     Team noContextualTeam = this.teamRepository.save(getTeam(null, "fakeTeamName2", false));
     exerciseTeams.add(noContextualTeam);
-    Exercise exercise = this.exerciseRepository.save(getExercise(exerciseTeams));
+    Exercise exercise = getExercise(exerciseTeams);
     exercise.setFrom("test@test.com");
     this.exerciseRepository.save(exercise);
     entityManager.flush();
