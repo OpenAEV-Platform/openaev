@@ -73,7 +73,7 @@ public class FileService {
    * @throws Exception if the upload fails
    */
   public String uploadStream(String path, String name, InputStream data) throws Exception {
-    String file = path + "/" + name;
+    String file = path.endsWith("/") ? path + name :  path + "/" + name;
     minioService.uploadStreamInTenantPath(file, name, data);
     return file;
   }
