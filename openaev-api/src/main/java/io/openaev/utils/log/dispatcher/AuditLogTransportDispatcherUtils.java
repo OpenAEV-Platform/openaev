@@ -2,18 +2,23 @@ package io.openaev.utils.log.dispatcher;
 
 import io.openaev.engine.model.log.LogEvent;
 import io.openaev.utils.log.transport.AuditLogTransportUtils;
+import java.util.Comparator;
 import java.util.List;
 import java.util.function.BiFunction;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 @Component
 @Slf4j
-@RequiredArgsConstructor
 public class AuditLogTransportDispatcherUtils {
 
   private final List<AuditLogTransportUtils> transports;
+
+  public AuditLogTransportDispatcherUtils(List<AuditLogTransportUtils> transports) {
+    this.transports = transports.stream()
+        .sorted(Comparator.comparingInt(AuditLogTransportUtils::priority))
+        .toList();
+  }
 
   public boolean dispatch(LogEvent event, Object level) {
     return dispatchInternal((transport, l) -> transport.send(event, l), level);

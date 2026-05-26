@@ -32,6 +32,11 @@ public class AuditEngineLogTransport implements AuditLogTransportUtils {
   private final EngineService engineService;
   private final EngineConfig engineConfig;
 
+  @Override
+  public int priority() {
+    return 3;
+  }
+
   /** Indexes a fully-populated audit log document into the search engine. */
   @Override
   public boolean send(LogEvent doc, Object level) {

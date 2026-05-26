@@ -28,6 +28,11 @@ public class AuditFileLogTransportUtils implements AuditLogTransportUtils {
   private final ObjectMapper objectMapper;
 
   @Override
+  public int priority() {
+    return 2;
+  }
+
+  @Override
   public boolean send(LogEvent event, Object level) {
     try {
       String json = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(event);
