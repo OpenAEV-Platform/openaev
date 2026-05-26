@@ -139,13 +139,13 @@ public class LogService {
       if (input != null) {
         // Redacted input
         input = objectNormalizationUtils.normalize(input);
-        input = ObjectRedactionUtils.redact(input, entityTypeName);
+        input = ObjectRedactionUtils.redact(input, resourceType);
         ctx.put("input", toContextValue(input));
       }
 
       if (output != null) {
         output = objectNormalizationUtils.normalize(output);
-        output = ObjectRedactionUtils.redact(output, entityTypeName);
+        output = ObjectRedactionUtils.redact(output, resourceType);
         ctx.put("output", toContextValue(output));
       }
 

@@ -120,7 +120,7 @@ public class LogEvent {
     private String ip;
   }
 
-  /** User metadata: request-level information about the actor. */
+  /** Request metadata: request-level information about the request. */
   @Getter
   @Setter
   @JsonAutoDetect(

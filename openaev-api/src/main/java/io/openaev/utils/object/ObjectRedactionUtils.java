@@ -3,8 +3,10 @@ package io.openaev.utils.object;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.database.model.ResourceType;
 import java.util.Locale;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 public class ObjectRedactionUtils {
 
@@ -13,31 +15,35 @@ public class ObjectRedactionUtils {
   private static final String REDACTED = "*** Redacted ***";
 
   /** Fields whose values are replaced with {@link #REDACTED} before logging. */
-  private static final Set<String> SENSITIVE_FIELDS =
-      Set.of("password", "token", "secret", "apikey", "api_key", "credential");
+  private static final Set<Pattern> SENSITIVE_FIELDS_REGEX =
+      Set.of(
+          Pattern.compile(".*password.*"),
+          Pattern.compile(".*token.*"),
+          Pattern.compile(".*secret.*"),
+          Pattern.compile(".*apikey.*"),
+          Pattern.compile(".*api_key.*"),
+          Pattern.compile(".*credential.*"));
+
+  /** Sensitive-like fields that are explicitly allowed and therefore not redacted. */
+  private static final Set<Pattern> ALLOWED_SENSITIVE_FIELDS_REGEX =
+      Set.of(Pattern.compile(".*_date"), Pattern.compile(".*_time"), Pattern.compile(".*_at"));
 
   /** Fields redacted only when the entity type is User (PII protection). */
   private static final Set<String> USER_PII_FIELDS = Set.of("name", "user_email");
+
+  private static final Set<ResourceType> USER_ENTITY_TYPES =
+      Set.of(ResourceType.USER, ResourceType.PLATFORM_USER);
 
   /**
    * Redacts sensitive field values in a JSON tree. Operates on a deep copy — the original is never
    * modified.
    */
-  public static JsonNode redact(JsonNode node, String entityTypeName) {
+  public static JsonNode redact(JsonNode node, ResourceType resourceType) {
     if (node == null || node.isNull()) {
       return node;
     }
-    boolean isUserEntity = isUserEntityType(entityTypeName);
+    boolean isUserEntity = resourceType != null && USER_ENTITY_TYPES.contains(resourceType);
     return redactNode(node, isUserEntity);
-  }
-
-  /** Returns true for user-scoped entity labels like "User", "Platform User" or "Tenant User". */
-  private static boolean isUserEntityType(String entityTypeName) {
-    if (entityTypeName == null || entityTypeName.isBlank()) {
-      return false;
-    }
-    String normalized = entityTypeName.trim().toLowerCase(Locale.ROOT);
-    return normalized.equals("user") || normalized.endsWith(" user");
   }
 
   private static JsonNode redactNode(JsonNode node, boolean isUserEntity) {
@@ -45,35 +51,41 @@ public class ObjectRedactionUtils {
       return node;
     }
 
-    if (node.isObject()) {
-      ObjectNode copy = ((ObjectNode) node).deepCopy();
-      copy.properties()
+    if (node instanceof ObjectNode original) {
+      ObjectNode result = original.objectNode();
+      original
+          .properties()
           .forEach(
               entry -> {
                 String key = entry.getKey();
                 String fieldName = key.toLowerCase(Locale.ROOT);
-                boolean containsSensitiveToken =
-                    SENSITIVE_FIELDS.stream().anyMatch(fieldName::contains);
+                boolean redact =
+                    (matchesAnyRegex(fieldName, SENSITIVE_FIELDS_REGEX)
+                            && !matchesAnyRegex(fieldName, ALLOWED_SENSITIVE_FIELDS_REGEX))
+                        || (isUserEntity && USER_PII_FIELDS.contains(fieldName));
 
-                if (containsSensitiveToken
-                    || (isUserEntity && USER_PII_FIELDS.contains(fieldName))) {
-                  copy.put(key, REDACTED);
+                if (redact) {
+                  result.put(key, REDACTED);
                 } else {
-                  copy.set(key, redactNode(entry.getValue(), isUserEntity));
+                  result.set(key, redactNode(entry.getValue(), isUserEntity));
                 }
               });
-      return copy;
+      return result;
     }
 
-    if (node.isArray()) {
-      ArrayNode copy = ((ArrayNode) node).deepCopy();
-      for (int i = 0; i < copy.size(); i++) {
-        copy.set(i, redactNode(copy.get(i), isUserEntity));
+    if (node instanceof ArrayNode original) {
+      ArrayNode result = original.arrayNode();
+      for (JsonNode element : original) {
+        result.add(redactNode(element, isUserEntity));
       }
-      return copy;
+      return result;
     }
 
     // Scalar nodes are immutable; returning as-is preserves value and avoids unnecessary copies.
     return node;
+  }
+
+  private static boolean matchesAnyRegex(String value, Set<Pattern> patterns) {
+    return patterns.stream().anyMatch(pattern -> pattern.matcher(value).matches());
   }
 }
