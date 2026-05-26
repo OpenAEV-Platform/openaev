@@ -2,7 +2,7 @@ package io.openaev.security;
 
 import static org.springframework.http.HttpHeaders.REFERER;
 
-import io.openaev.aop.audit_log.AuditLogger;
+import io.openaev.aop.audit_log.AccessControlAuditLogger;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -18,10 +18,10 @@ import org.springframework.security.web.savedrequest.SavedRequest;
 public class SsoRefererAuthenticationSuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
 
   private final RequestCache requestCache = new HttpSessionRequestCache();
-  private final AuditLogger auditLogger;
+  private final AccessControlAuditLogger accessControlAuditLogger;
 
-  public SsoRefererAuthenticationSuccessHandler(AuditLogger auditLogger) {
-    this.auditLogger = auditLogger;
+  public SsoRefererAuthenticationSuccessHandler(AccessControlAuditLogger accessControlAuditLogger) {
+    this.accessControlAuditLogger = accessControlAuditLogger;
   }
 
   @Override
@@ -40,7 +40,7 @@ public class SsoRefererAuthenticationSuccessHandler extends SimpleUrlAuthenticat
       // Never block the login flow
     }
 
-    auditLogger.logAuthEvent("login", "success", provider, null, null);
+    accessControlAuditLogger.logAuthEvent("login", "success", provider, null, null);
 
     SavedRequest savedRequest = this.requestCache.getRequest(request, response);
 

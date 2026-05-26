@@ -28,7 +28,7 @@ import org.springframework.stereotype.Component;
 @ConditionalOnProperty(name = "openaev.audit-logs.service.enabled", havingValue = "true")
 @RequiredArgsConstructor
 @Slf4j
-public class AuditLogger {
+public class AccessControlAuditLogger {
 
   private final AuditRequestValidator auditRequestValidator;
 
