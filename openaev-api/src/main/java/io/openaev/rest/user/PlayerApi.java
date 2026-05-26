@@ -104,9 +104,6 @@ public class PlayerApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.PLAYER)
   public void deletePlayer(@PathVariable String userId) {
-    User user = userRepository.findById(userId).orElseThrow(ElementNotFoundException::new);;
-    ReservedNameValidator.validateUserEmailPattern(user.getEmail());
-    sessionManager.invalidateUserSession(userId);
-    userRepository.deleteByIdNative(userId);
+    userService.delete(userId);
   }
 }
