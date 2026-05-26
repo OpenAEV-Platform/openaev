@@ -5,7 +5,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V5_10__Add_index_teams_contextual extends BaseJavaMigration {
+public class V5_12__Add_index_teams_contextual extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
@@ -15,3 +15,4 @@ public class V5_10__Add_index_teams_contextual extends BaseJavaMigration {
         .execute("CREATE INDEX IF NOT EXISTS idx_teams_contextual ON teams (team_contextual);");
   }
 }
+
