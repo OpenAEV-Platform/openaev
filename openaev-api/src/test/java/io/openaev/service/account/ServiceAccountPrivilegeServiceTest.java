@@ -1,5 +1,12 @@
 package io.openaev.service.account;
 
+import static io.openaev.service.account.Constants.*;
+import static io.openaev.service.account.ServiceAccountPrivilegeService.SERVICE_EMAIL_PATTERN;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.*;
+
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
 import io.openaev.database.model.Token;
@@ -9,6 +16,9 @@ import io.openaev.service.RoleService;
 import io.openaev.service.TenantGroupService;
 import io.openaev.service.UserService;
 import io.openaev.service.tenants.TenantUserService;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -16,17 +26,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-
-import static io.openaev.service.account.Constants.*;
-import static io.openaev.service.account.ServiceAccountPrivilegeService.SERVICE_EMAIL_PATTERN;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("Service Account Privilege Service tests")
@@ -146,7 +145,8 @@ public class ServiceAccountPrivilegeServiceTest {
     when(roleService.updateRoleInternal(anyString(), anyString(), anyString(), anySet()))
         .thenReturn(mockRole);
     when(tenantGroupService.findById(anyString())).thenReturn(Optional.empty());
-    when(tenantGroupService.createInternalGroupWithRole(any(), any(), any(), any())).thenReturn(mockGroup);
+    when(tenantGroupService.createInternalGroupWithRole(any(), any(), any(), any()))
+        .thenReturn(mockGroup);
     when(userService.findByEmailIgnoreCase(SERVICE_EMAIL)).thenReturn(Optional.empty());
     when(userService.createInternalUser(any(), any(), any(), anyBoolean(), any()))
         .thenReturn(mockUser);
@@ -155,7 +155,8 @@ public class ServiceAccountPrivilegeServiceTest {
     privilegeService.ensurePrivilegedUserExists(TENANT_ID);
 
     // assert
-    verify(tenantGroupService).createInternalGroupWithRole(anyString(), any(), any(), eq(TENANT_ID));
+    verify(tenantGroupService)
+        .createInternalGroupWithRole(anyString(), any(), any(), eq(TENANT_ID));
     verify(tenantGroupService, never()).updateGroupInfoWithRoles(any(), any(), any());
   }
 

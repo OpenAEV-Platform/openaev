@@ -1,5 +1,7 @@
 package io.openaev.opencti.connectors.service;
 
+import static io.openaev.opencti.connectors.Constants.*;
+
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.User;
@@ -9,17 +11,14 @@ import io.openaev.service.RoleService;
 import io.openaev.service.TenantGroupService;
 import io.openaev.service.UserService;
 import io.openaev.service.tenants.TenantUserService;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-
-import static io.openaev.opencti.connectors.Constants.*;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional(rollbackFor = Exception.class)
@@ -32,10 +31,12 @@ public class PrivilegeService extends AbstractPrivilegeService {
   LegacyOpenCTIConnectorMigration legacyOpenCTIConnectorMigration;
 
   @Autowired
-  public PrivilegeService(RoleService roleService,
-                          TenantGroupService tenantGroupService, UserService userService,
-                          TenantUserService tenantUserService,
-                          LegacyOpenCTIConnectorMigration legacyOpenCTIConnectorMigration) {
+  public PrivilegeService(
+      RoleService roleService,
+      TenantGroupService tenantGroupService,
+      UserService userService,
+      TenantUserService tenantUserService,
+      LegacyOpenCTIConnectorMigration legacyOpenCTIConnectorMigration) {
     super(roleService, tenantGroupService, userService, tenantUserService);
     this.legacyOpenCTIConnectorMigration = legacyOpenCTIConnectorMigration;
   }
@@ -94,8 +95,8 @@ public class PrivilegeService extends AbstractPrivilegeService {
 
     if (connectorUser.isPresent()) {
       // Token-matched user already exists — update its attributes
-      applyUserServiceAttributes(connectorUser.get(), connector.getName(), CONNECTOR_LASTNAME,
-          email, group);
+      applyUserServiceAttributes(
+          connectorUser.get(), connector.getName(), CONNECTOR_LASTNAME, email, group);
       userService.saveUser(connectorUser.get());
       tenantUserService.attachToTenant(connectorUser.get().getId(), connector.getTenantId());
     } else if (existingEmailUser.isPresent()) {
@@ -110,8 +111,7 @@ public class PrivilegeService extends AbstractPrivilegeService {
                   List.of(
                       userService.createUserToken(existingEmailUser.get(), connector.getToken()))));
       applyUserServiceAttributes(
-          existingEmailUser.get(), connector.getName(), CONNECTOR_LASTNAME,
-          email, group);
+          existingEmailUser.get(), connector.getName(), CONNECTOR_LASTNAME, email, group);
       userService.saveUser(existingEmailUser.get());
       tenantUserService.attachToTenant(existingEmailUser.get().getId(), connector.getTenantId());
     } else {

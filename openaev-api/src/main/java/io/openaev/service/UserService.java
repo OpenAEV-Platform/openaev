@@ -31,7 +31,6 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.users.UserQueryHelper;
 import jakarta.annotation.Resource;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.validation.constraints.NotBlank;

@@ -1,5 +1,7 @@
 package io.openaev.service.account;
 
+import static io.openaev.service.account.Constants.*;
+
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.User;
@@ -8,14 +10,11 @@ import io.openaev.service.RoleService;
 import io.openaev.service.TenantGroupService;
 import io.openaev.service.UserService;
 import io.openaev.service.tenants.TenantUserService;
+import java.util.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.*;
-
-import static io.openaev.service.account.Constants.*;
 
 @Service
 @Slf4j
@@ -24,19 +23,48 @@ public class ServiceAccountPrivilegeService extends AbstractPrivilegeService {
   private static final String SERVICE_FIRSTNAME = "service";
 
   @Autowired
-  public ServiceAccountPrivilegeService(RoleService roleService,
-                                        TenantGroupService tenantGroupService, UserService userService,
-                                        TenantUserService tenantUserService) {
+  public ServiceAccountPrivilegeService(
+      RoleService roleService,
+      TenantGroupService tenantGroupService,
+      UserService userService,
+      TenantUserService tenantUserService) {
     super(roleService, tenantGroupService, userService, tenantUserService);
   }
 
-  @Override protected String getRoleId() { return SERVICE_ROLE_ID; }
-  @Override protected String getRoleName() { return SERVICE_ROLE_NAME; }
-  @Override protected String getRoleDescription() { return SERVICE_ROLE_DESCRIPTION; }
-  @Override protected Set<Capability> getRoleCapabilities() { return SERVICE_ROLE_CAPABILITIES; }
-  @Override protected String getGroupId() { return SERVICE_GROUP_ID; }
-  @Override protected String getGroupName() { return SERVICE_GROUP_NAME; }
-  @Override protected String getGroupDescription() { return SERVICE_GROUP_DESCRIPTION; }
+  @Override
+  protected String getRoleId() {
+    return SERVICE_ROLE_ID;
+  }
+
+  @Override
+  protected String getRoleName() {
+    return SERVICE_ROLE_NAME;
+  }
+
+  @Override
+  protected String getRoleDescription() {
+    return SERVICE_ROLE_DESCRIPTION;
+  }
+
+  @Override
+  protected Set<Capability> getRoleCapabilities() {
+    return SERVICE_ROLE_CAPABILITIES;
+  }
+
+  @Override
+  protected String getGroupId() {
+    return SERVICE_GROUP_ID;
+  }
+
+  @Override
+  protected String getGroupName() {
+    return SERVICE_GROUP_NAME;
+  }
+
+  @Override
+  protected String getGroupDescription() {
+    return SERVICE_GROUP_DESCRIPTION;
+  }
 
   @Transactional
   public void ensurePrivilegedUserExists(String tenantId) {
@@ -55,8 +83,7 @@ public class ServiceAccountPrivilegeService extends AbstractPrivilegeService {
             "User with email {} already exists, but no token found. Reusing existing user.",
             user.getEmail());
 
-        applyUserServiceAttributes(user,SERVICE_FIRSTNAME, null,
-            email, group);
+        applyUserServiceAttributes(user, SERVICE_FIRSTNAME, null, email, group);
 
         userService.createUserToken(user);
 
@@ -66,8 +93,8 @@ public class ServiceAccountPrivilegeService extends AbstractPrivilegeService {
     } else {
       // No user exists — create one
       User user =
-          userService.createInternalUser(email, SERVICE_FIRSTNAME, null,
-              false, UUID.randomUUID().toString());
+          userService.createInternalUser(
+              email, SERVICE_FIRSTNAME, null, false, UUID.randomUUID().toString());
       user.setGroups(new ArrayList<>(List.of(group)));
       tenantUserService.attachToTenant(user.getId(), tenantId);
       userService.saveUser(user);
@@ -79,5 +106,4 @@ public class ServiceAccountPrivilegeService extends AbstractPrivilegeService {
 
     return userService.findByEmailIgnoreCase(email);
   }
-
 }
