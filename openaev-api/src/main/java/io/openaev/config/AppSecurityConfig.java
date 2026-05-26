@@ -136,7 +136,7 @@ public class AppSecurityConfig {
                           } catch (Exception e) {
                             // Never block the logout flow
                             log.error(
-                                "Failed to prepare request context on logout event: {}",
+                                "Failed to prepare request context on logout handler: {}",
                                 e.getMessage(),
                                 e);
                           }
