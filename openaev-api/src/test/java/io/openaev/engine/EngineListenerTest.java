@@ -27,6 +27,8 @@ class EngineListenerTest {
 
   @AfterEach
   void cleanupSynchronization() {
+    TransactionSynchronizationManager.unbindResourceIfPossible(
+        EngineListener.PENDING_DELETE_IDS_RESOURCE_KEY);
     if (TransactionSynchronizationManager.isSynchronizationActive()) {
       TransactionSynchronizationManager.clearSynchronization();
     }
@@ -88,6 +90,22 @@ class EngineListenerTest {
 
     // Assert
     verify(engineService, never()).bulkDelete(List.of("inject-1"));
+  }
+
+  @Test
+  @DisplayName("given_deleteEventInTransaction_should_bindPendingIdsAsTransactionResource")
+  void given_deleteEventInTransaction_should_bindPendingIdsAsTransactionResource() {
+    // Arrange
+    TransactionSynchronizationManager.initSynchronization();
+
+    // Act
+    engineListener.listenIndexEvent(new IndexEvent(DATA_DELETE, "inject-1"));
+
+    // Assert
+    assertThat(
+            TransactionSynchronizationManager.hasResource(
+                EngineListener.PENDING_DELETE_IDS_RESOURCE_KEY))
+        .isTrue();
   }
 
   @Test

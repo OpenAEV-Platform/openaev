@@ -326,7 +326,7 @@ public class InjectService {
    *
    * @param scenarioId the scenario whose inject dependencies must be cleared
    */
-  @Transactional(rollbackOn = Exception.class)
+  @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
   public void clearInjectDependenciesByScenarioId(String scenarioId) {
     injectDependenciesRepository.deleteAllByScenarioId(scenarioId);
   }

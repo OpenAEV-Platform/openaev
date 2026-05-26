@@ -18,9 +18,8 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 @RequiredArgsConstructor
 public class EngineListener {
 
-  private static final ThreadLocal<Set<String>> PENDING_DELETE_IDS =
-      ThreadLocal.withInitial(LinkedHashSet::new);
-  private static final ThreadLocal<Boolean> SYNC_REGISTERED = ThreadLocal.withInitial(() -> false);
+  static final String PENDING_DELETE_IDS_RESOURCE_KEY =
+      EngineListener.class.getName() + ".PENDING_DELETE_IDS";
 
   private final EngineService esService;
 
@@ -35,8 +34,9 @@ public class EngineListener {
       return;
     }
 
-    PENDING_DELETE_IDS.get().add(event.getId());
-    if (Boolean.TRUE.equals(SYNC_REGISTERED.get())) {
+    Set<String> pendingDeleteIds = getOrCreatePendingDeleteIds();
+    pendingDeleteIds.add(event.getId());
+    if (pendingDeleteIds.size() > 1) {
       return;
     }
 
@@ -52,11 +52,29 @@ public class EngineListener {
             clearPendingDeletes();
           }
         });
-    SYNC_REGISTERED.set(true);
+  }
+
+  private Set<String> getOrCreatePendingDeleteIds() {
+    if (TransactionSynchronizationManager.hasResource(PENDING_DELETE_IDS_RESOURCE_KEY)) {
+      return getBoundPendingDeleteIds();
+    }
+    Set<String> pendingDeleteIds = new LinkedHashSet<>();
+    TransactionSynchronizationManager.bindResource(
+        PENDING_DELETE_IDS_RESOURCE_KEY, pendingDeleteIds);
+    return pendingDeleteIds;
+  }
+
+  @SuppressWarnings("unchecked")
+  private Set<String> getBoundPendingDeleteIds() {
+    return (Set<String>)
+        TransactionSynchronizationManager.getResource(PENDING_DELETE_IDS_RESOURCE_KEY);
   }
 
   private void flushPendingDeletes() {
-    Set<String> pendingDeleteIds = PENDING_DELETE_IDS.get();
+    if (!TransactionSynchronizationManager.hasResource(PENDING_DELETE_IDS_RESOURCE_KEY)) {
+      return;
+    }
+    Set<String> pendingDeleteIds = getBoundPendingDeleteIds();
     if (pendingDeleteIds.isEmpty()) {
       return;
     }
@@ -64,7 +82,6 @@ public class EngineListener {
   }
 
   private void clearPendingDeletes() {
-    PENDING_DELETE_IDS.remove();
-    SYNC_REGISTERED.remove();
+    TransactionSynchronizationManager.unbindResourceIfPossible(PENDING_DELETE_IDS_RESOURCE_KEY);
   }
 }
