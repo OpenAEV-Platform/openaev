@@ -22,8 +22,8 @@ public class ThreadPoolTaskLoggerConfig {
   private ThreadPoolTaskExecutor createBaseExecutor() {
     ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
 
-    // TODO AUDIT: find a better way to configure this variables dynamically - maybe through properties
-    // file.
+    // TODO AUDIT: find a better way to configure this variables dynamically - maybe through
+    // properties file.
 
     executor.setCorePoolSize(10);
     executor.setMaxPoolSize(50);
