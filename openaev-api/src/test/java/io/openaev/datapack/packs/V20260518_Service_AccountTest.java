@@ -25,7 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @DisplayName("Service Account DataPack process tests")
 @Transactional
-public class ServiceAccountPackTest extends IntegrationTest {
+public class V20260518_Service_AccountTest extends IntegrationTest {
 
   @Autowired private DataPackService dataPackService;
   @Autowired private ServiceAccountPrivilegeService privilegeService;

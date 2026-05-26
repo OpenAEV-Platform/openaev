@@ -103,6 +103,6 @@ public class PlayerApi extends RestBehavior {
       resourceType = ResourceType.PLAYER)
   public void deletePlayer(@PathVariable String userId) {
     sessionManager.invalidateUserSession(userId);
-    userRepository.deleteById(userId);
+    userRepository.deleteByIdNative(userId);
   }
 }
