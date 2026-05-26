@@ -53,10 +53,10 @@ public class InjectTestStatus extends BaseInjectStatus {
     int numberOfSuccess =
         (int)
             execution.getTraces().stream()
-                .filter(ex -> ExecutionTraceStatus.SUCCESS.equals(ex.getStatus()))
+                .filter(ex -> ExecutionTraceStatus.EXECUTED.equals(ex.getStatus()))
                 .count();
     ExecutionStatus globalStatus =
-        numberOfSuccess > 0 ? ExecutionStatus.SUCCESS : ExecutionStatus.ERROR;
+        numberOfSuccess > 0 ? ExecutionStatus.EXECUTED : ExecutionStatus.ERROR;
     ExecutionStatus finalStatus =
         numberOfError > 0 && numberOfSuccess > 0 ? ExecutionStatus.PARTIAL : globalStatus;
     injectTestStatus.setName(execution.isAsync() ? ExecutionStatus.PENDING : finalStatus);

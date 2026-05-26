@@ -49,7 +49,7 @@ class WorkflowTimeoutServiceTest {
       when(stepService.endActiveStepsByWorkflowId(workflowRun.getId())).thenReturn(3);
 
       Inject activeInject = buildInjectWithStatus(ExecutionStatus.PENDING);
-      Inject finishedInject = buildInjectWithStatus(ExecutionStatus.SUCCESS);
+      Inject finishedInject = buildInjectWithStatus(ExecutionStatus.EXECUTED);
       when(injectService.findBySimulationId(simulation.getId()))
           .thenReturn(List.of(activeInject, finishedInject));
 
@@ -126,7 +126,7 @@ class WorkflowTimeoutServiceTest {
       Workflow workflowRun = buildRunWorkflowWithSimulation(simulation);
       when(stepService.endActiveStepsByWorkflowId(workflowRun.getId())).thenReturn(0);
 
-      Inject finishedInject = buildInjectWithStatus(ExecutionStatus.SUCCESS);
+      Inject finishedInject = buildInjectWithStatus(ExecutionStatus.EXECUTED);
       when(injectService.findBySimulationId(simulation.getId()))
           .thenReturn(List.of(finishedInject));
 

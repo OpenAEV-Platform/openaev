@@ -2876,8 +2876,8 @@ export interface ExecutionTrace {
   execution_created_at: string;
   execution_message: string;
   execution_status?:
-    | "SUCCESS"
-    | "SUCCESS_WITH_CLEANUP_FAIL"
+    | "EXECUTED"
+    | "EXECUTED_WITH_CLEANUP_FAILURE"
     | "WARNING"
     | "ACCESS_DENIED"
     | "ERROR"
@@ -2925,8 +2925,8 @@ export interface ExecutionTraceOutput {
    * @example "SUCCESS, ERROR, COMMAND_NOT_FOUND, WARNING, COMMAND_CANNOT_BE_EXECUTED.."
    */
   execution_status:
-    | "SUCCESS"
-    | "SUCCESS_WITH_CLEANUP_FAIL"
+    | "EXECUTED"
+    | "EXECUTED_WITH_CLEANUP_FAILURE"
     | "WARNING"
     | "ACCESS_DENIED"
     | "ERROR"
@@ -4146,7 +4146,7 @@ export interface InjectStatus {
   listened?: boolean;
   status_id?: string;
   status_name:
-    | "SUCCESS"
+    | "EXECUTED"
     | "PARTIAL"
     | "ERROR"
     | "MAYBE_PREVENTED"
