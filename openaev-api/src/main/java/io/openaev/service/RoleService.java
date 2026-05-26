@@ -11,6 +11,7 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.RoleRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -48,7 +49,22 @@ public class RoleService {
       @NotBlank final String roleDescription,
       @NotNull final Set<Capability> capabilities,
       String tenantId) {
+    ReservedKeyValidator.validateRoleId(id);
+    return createRoleInternal(id, roleName, roleDescription, capabilities, tenantId);
+  }
+
+  /**
+   * Internal method for system-managed roles (e.g. service accounts). Bypasses reserved name
+   * validation.
+   */
+  public Role createRoleInternal(
+      @NotBlank final String id,
+      @NotBlank final String roleName,
+      @NotBlank final String roleDescription,
+      @NotNull final Set<Capability> capabilities,
+      String tenantId) {
     Capability.validateForTenantRole(capabilities);
+
     Role role = new Role();
     role.setId(id);
     role.setName(roleName);
@@ -99,6 +115,17 @@ public class RoleService {
       @NotBlank final String roleName,
       @NotBlank final String roleDescription,
       @NotNull final Set<Capability> capabilities) {
+
+    ReservedKeyValidator.validateRoleId(roleId);
+    return updateRoleInternal(roleId, roleName, roleDescription, capabilities);
+  }
+
+  /** Internal method for system-managed roles. Bypasses reserved name validation. */
+  public Role updateRoleInternal(
+      @NotBlank final String roleId,
+      @NotBlank final String roleName,
+      @NotBlank final String roleDescription,
+      @NotNull final Set<Capability> capabilities) {
     Capability.validateForTenantRole(capabilities);
     String tenantId = TenantContext.getCurrentTenant();
     Role role =
@@ -120,7 +147,7 @@ public class RoleService {
         roleRepository
             .findByIdAndTenantId(roleId, tenantId)
             .orElseThrow(() -> new ElementNotFoundException("Role not found with id: " + roleId));
-
+    ReservedKeyValidator.validateRoleId(role.getId());
     List<Group> groups = groupRepository.findAllByRoles(role);
     for (Group g : groups) {
       g.getRoles().remove(role);

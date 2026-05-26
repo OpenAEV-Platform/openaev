@@ -240,7 +240,7 @@ class PlayerApiTest extends IntegrationTest {
     assertTrue(this.userRepository.findById(user.getId()).isEmpty());
   }
 
-  @DisplayName("Given non-existing player ID, when deleting, then return 200")
+  @DisplayName("Given non-existing player ID, when deleting, then return 400")
   @Test
   @WithMockUser(isAdmin = true)
   void givenNonExistingPlayerId_whenDelete_thenReturnNoContent() throws Exception {
@@ -253,7 +253,7 @@ class PlayerApiTest extends IntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .accept(MediaType.APPLICATION_JSON)
                 .with(csrf()))
-        .andExpect(status().isOk());
+        .andExpect(status().isNotFound());
   }
 
   // -- PRIVATE --
