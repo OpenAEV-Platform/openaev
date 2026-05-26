@@ -10,6 +10,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -34,6 +35,8 @@ import org.springframework.transaction.annotation.Transactional;
     properties = {"openaev.audit-logs.service.enabled=true", "openaev.audit-logs.log-reads=false"})
 class AccessControlAuditLogAspectTest extends IntegrationTest {
 
+  private static final String PROTECTED_TEAM_ID = "team-without-permission";
+
   @Autowired private MockMvc mvc;
 
   @SpyBean private AccessControlAuditLogger accessControlAuditLogger;
@@ -42,6 +45,7 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
   void setup() {
     reset(accessControlAuditLogger);
     doReturn(true).when(accessControlAuditLogger).isAuditLoggingEnabled();
+    doReturn(true).when(accessControlAuditLogger).isAuditUnauthorizedLoggingValid();
   }
 
   @Nested
@@ -52,7 +56,8 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
     @WithMockUser
     void given_missingCapability_should_logUnauthorizedEvent() throws Exception {
       // Arrange / Act
-      mvc.perform(get(TEAM_URI)).andExpect(status().isForbidden());
+      mvc.perform(delete(TEAM_URI + "/{teamId}", PROTECTED_TEAM_ID))
+          .andExpect(status().isForbidden());
 
       // Assert
       verify(accessControlAuditLogger, timeout(1000))
@@ -60,7 +65,7 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
               eq("unauthorized"),
               eq("error"),
               eq(ResourceType.TEAM),
-              anyString(),
+              eq(PROTECTED_TEAM_ID),
               any(),
               any(),
               any(),
