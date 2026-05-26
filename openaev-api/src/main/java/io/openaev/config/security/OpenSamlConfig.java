@@ -5,7 +5,7 @@ import static io.openaev.database.model.User.ROLE_ADMIN;
 import static io.openaev.database.model.User.ROLE_USER;
 import static org.springframework.security.saml2.provider.service.authentication.OpenSaml4AuthenticationProvider.createDefaultResponseAuthenticationConverter;
 
-import io.openaev.aop.audit_log.AccessControlAuditLogger;
+import io.openaev.aop.audit_log.AuditLogger;
 import io.openaev.config.OpenAEVSaml2User;
 import io.openaev.database.model.User;
 import io.openaev.security.SsoRefererAuthenticationSuccessHandler;
@@ -51,7 +51,7 @@ public class OpenSamlConfig {
 
   private final UserEventService userEventService;
 
-  @Autowired @Lazy private AccessControlAuditLogger accessControlAuditLogger;
+  @Autowired @Lazy private AuditLogger auditLogger;
 
   public void addOpenSamlConfig(@NotNull final HttpSecurity http) throws Exception {
     if (this.relyingPartyRegistrationRepository == null) {
@@ -70,8 +70,7 @@ public class OpenSamlConfig {
             saml2Login ->
                 saml2Login
                     .authenticationManager(new ProviderManager(authenticationProvider))
-                    .successHandler(
-                        new SsoRefererAuthenticationSuccessHandler(this.accessControlAuditLogger)));
+                    .successHandler(new SsoRefererAuthenticationSuccessHandler(this.auditLogger)));
   }
 
   // -- PRIVATE --

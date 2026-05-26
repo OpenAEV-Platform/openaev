@@ -5,7 +5,7 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter.DEFAULT_AUTHORIZATION_REQUEST_BASE_URI;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.aop.audit_log.AccessControlAuditLogger;
+import io.openaev.aop.audit_log.AuditLogger;
 import io.openaev.config.security.OpenSamlConfig;
 import io.openaev.config.security.SecurityService;
 import io.openaev.database.model.User;
@@ -67,7 +67,7 @@ public class AppSecurityConfig {
   private final UserEventService userEventService;
   private final UserMappingService userMappingService;
 
-  @Autowired @Lazy private AccessControlAuditLogger accessControlAuditLogger;
+  @Autowired @Lazy private AuditLogger auditLogger;
 
   @Resource protected ObjectMapper mapper;
 
@@ -141,7 +141,7 @@ public class AppSecurityConfig {
                                 e);
                           }
 
-                          accessControlAuditLogger.logAuthEventWithRequestContext(
+                          auditLogger.logAuthEventWithRequestContext(
                               rcd, "logout", "success", null, null, null);
                         })
                     .invalidateHttpSession(true)
@@ -158,11 +158,10 @@ public class AppSecurityConfig {
                           auth.authorizationRequestResolver(
                               authorizationRequestResolver(
                                   http.getSharedObject(ClientRegistrationRepository.class))))
-                  .successHandler(
-                      new SsoRefererAuthenticationSuccessHandler(this.accessControlAuditLogger))
+                  .successHandler(new SsoRefererAuthenticationSuccessHandler(this.auditLogger))
                   .failureHandler(
                       new SsoRefererAuthenticationFailureHandler(
-                          this.userEventService, this.accessControlAuditLogger)));
+                          this.userEventService, this.auditLogger)));
     }
 
     if (openAEVConfig.isAuthSaml2Enable()) {
