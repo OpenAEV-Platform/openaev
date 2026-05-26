@@ -458,14 +458,25 @@ public class InjectExecutionStepTest extends IntegrationTest {
     assertNotNull(injectorIdsJson);
     String[] injectorIds = mapper.readValue(injectorIdsJson, String[].class);
     for (String id : injectorIds) {
-      injectorRepository.deleteById(id);
+      injectorRepository.deleteByIdAndTenantId(
+          id, io.openaev.context.TenantContext.getCurrentTenant());
     }
+    entityManager.flush();
+    entityManager.clear();
+
+    // Clear injectors from the mocked contract so the code cannot resolve them
+    injectorContractSaved.getInjectors().clear();
 
     // ACT
     ChainingException ex =
         Assertions.assertThrows(ChainingException.class, () -> injectExecutionStep.run(stepReady));
     // ASSERT
-    Assertions.assertEquals("Step (READY) : Error processing JSON to Inject ", ex.getMessage());
+    Assertions.assertEquals(
+        "Injector not found for injectorId "
+            + injectorIds[0]
+            + " and step (READY) ID "
+            + stepReady.getId(),
+        ex.getMessage());
   }
 
   @Test

@@ -52,7 +52,7 @@ export const handleAddSingleValueFilterUtil = (filters: FilterGroup, key: string
       key,
       values: [value],
       operator: 'eq',
-      mode: 'or',
+      mode: 'and',
     };
     return handleAddFilterWithEmptyValueUtil(filters, newFilter);
   }
@@ -73,7 +73,7 @@ export const handleAddMultipleValueFilterUtil = (filters: FilterGroup, key: stri
       key,
       values,
       operator: 'eq',
-      mode: 'or',
+      mode: 'and',
     };
     return handleAddFilterWithEmptyValueUtil(filters, newFilter);
   }

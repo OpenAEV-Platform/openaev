@@ -1,32 +1,59 @@
-import { Button, SvgIcon } from '@mui/material';
+import { Button, SvgIcon, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { LogoXtmOneIcon } from 'filigran-icon';
-import { type FunctionComponent } from 'react';
+import { useContext, useState } from 'react';
 
 import { useFormatter } from '../../../components/i18n';
-import { MESSAGING$ } from '../../../utils/Environment';
 import useAuth from '../../../utils/hooks/useAuth';
+import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
+import { AbilityContext } from '../../../utils/permissions/permissionsContext';
+import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+import EEChip from '../common/entreprise_edition/EEChip';
+import FiligranAiCguDialog from './FiligranAiCguDialog';
+import { useChatbot } from './useChatbotHooks';
 
-interface AskArianeButtonProps { isOpen: boolean }
-
-const AskArianeButton: FunctionComponent<AskArianeButtonProps> = ({ isOpen }) => {
+const AskArianeButton = () => {
   const theme = useTheme();
   const { t } = useFormatter();
   const { settings } = useAuth();
+  const { isOpen, toggleChat } = useChatbot();
+  const ability = useContext(AbilityContext);
+  const [cguDialogOpen, setCguDialogOpen] = useState(false);
+  const {
+    isValidated: isEnterpriseEdition,
+    openDialog: openEnterpriseEditionDialog,
+    setEEFeatureDetectedInfo,
+  } = useEnterpriseEdition();
 
-  if (!settings.platform_xtm_one_configured) {
+  const chatbotCguStatus = settings.filigran_chatbot_ai_cgu_status;
+  const isCguPending = chatbotCguStatus === 'pending' || chatbotCguStatus === undefined;
+
+  // Hide if chatbot has been explicitly disabled
+  if (chatbotCguStatus === 'disabled') {
     return null;
   }
 
-  const handleToggle = () => {
-    MESSAGING$.toggleArianeChat.next();
+  const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS);
+
+  const handleClick = () => {
+    if (!isEnterpriseEdition) {
+      // No EE license - open EE dialog
+      setEEFeatureDetectedInfo(t('XTM One (Agentic IA)'));
+      openEnterpriseEditionDialog();
+    } else if (chatbotCguStatus === 'enabled') {
+      // CGU accepted - normal toggle behavior
+      toggleChat();
+    } else if (canManage) {
+      // CGU pending - show CGU dialog
+      setCguDialogOpen(true);
+    }
   };
 
-  return (
+  const buttonContent = (
     <Button
       variant="outlined"
       size="small"
-      onClick={handleToggle}
+      onClick={handleClick}
       startIcon={(
         <SvgIcon
           component={LogoXtmOneIcon}
@@ -34,6 +61,7 @@ const AskArianeButton: FunctionComponent<AskArianeButtonProps> = ({ isOpen }) =>
           sx={{ fontSize: '16px !important' }}
         />
       )}
+      endIcon={!isEnterpriseEdition ? <span><EEChip /></span> : undefined}
       sx={{
         'borderColor': isOpen
           ? theme.palette.ai.main
@@ -59,6 +87,27 @@ const AskArianeButton: FunctionComponent<AskArianeButtonProps> = ({ isOpen }) =>
     >
       {t('Ask Ariane')}
     </Button>
+  );
+
+  // If CGU pending and user cannot manage, wrap with tooltip explaining
+  if (isEnterpriseEdition && isCguPending && !canManage) {
+    return (
+      <Tooltip title={t('Ask Ariane isn\'t activated yet. Please reach out to your administrator to enable this feature.')}>
+        <span>{buttonContent}</span>
+      </Tooltip>
+    );
+  }
+
+  return (
+    <>
+      {buttonContent}
+      {cguDialogOpen && (
+        <FiligranAiCguDialog
+          open={cguDialogOpen}
+          onClose={() => setCguDialogOpen(false)}
+        />
+      )}
+    </>
   );
 };
 

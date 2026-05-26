@@ -8,19 +8,12 @@ import { deleteInjectorContract, updateInjectorContract, updateInjectorContractM
 import Drawer from '../../../../../components/common/Drawer';
 import Transition from '../../../../../components/common/Transition';
 import { useFormatter } from '../../../../../components/i18n';
-import { useHelper } from '../../../../../store.ts';
-import { attackPatternOptions } from '../../../../../utils/Option';
 import { Can } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import InjectorContractCustomForm from './InjectorContractCustomForm';
 import InjectorContractForm from './InjectorContractForm';
 
 const InjectorContractPopover = ({ injectorContract, onUpdate, canDelete = true, canEditCustomForm = true }) => {
-  const { attackPatternsMap, killChainPhasesMap } = useHelper(helper => ({
-    attackPatternsMap: helper.getAttackPatternsMap(),
-    killChainPhasesMap: helper.getKillChainPhasesMap(),
-  }));
-
   const [openDelete, setOpenDelete] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
@@ -39,9 +32,8 @@ const InjectorContractPopover = ({ injectorContract, onUpdate, canDelete = true,
 
   const onSubmitInjectorContractEdit = (data) => {
     const inputValues = {
-      contract_attack_patterns_ids:
-          data.injector_contract_attack_patterns?.map(p => p.id),
-      contract_domains: data.injector_contract_domains.map(d => d.domain_id ? d.domain_id : d),
+      contract_attack_patterns_ids: data.injector_contract_attack_patterns,
+      contract_domains: data.injector_contract_domains,
       contract_tags_ids: data.injector_contract_tags,
     };
 
@@ -105,25 +97,18 @@ const InjectorContractPopover = ({ injectorContract, onUpdate, canDelete = true,
     dispatch(deleteInjectorContract(injectorContract.injector_contract_id));
     handleCloseDelete();
   };
-  const injectorContractAttackPatterns = attackPatternOptions(injectorContract.injector_contract_attack_patterns, attackPatternsMap, killChainPhasesMap);
 
-  let initialValues;
-
-  if (injectorContract.injector_contract_custom) {
-    initialValues = {
-      ...injectorContract,
-      injector_contract_name: injectorContract.injector_contract_labels.en,
-      injector_contract_attack_patterns: injectorContractAttackPatterns,
-      injector_contract_domains: injectorContract.injector_contract_domains,
-      injector_contract_tags: injectorContract.injector_contract_tags ?? [],
-    };
-  } else {
-    initialValues = {
-      injector_contract_attack_patterns: injectorContractAttackPatterns,
-      injector_contract_domains: injectorContract.injector_contract_domains,
-      injector_contract_tags: injectorContract.injector_contract_tags ?? [],
-    };
-  }
+  const initialValues = {
+    ...(injectorContract.injector_contract_custom
+      ? {
+          ...injectorContract,
+          injector_contract_name: injectorContract.injector_contract_labels.en,
+        }
+      : {}),
+    injector_contract_attack_patterns: injectorContract.injector_contract_attack_patterns,
+    injector_contract_domains: injectorContract.injector_contract_domains,
+    injector_contract_tags: injectorContract.injector_contract_tags ?? [],
+  };
 
   return (
     <>

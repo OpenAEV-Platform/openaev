@@ -4,6 +4,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.InjectExpectationTrace;
@@ -65,7 +66,7 @@ public class InjectExpectationTraceApi extends RestBehavior {
 
     Collector collector =
         collectorRepository
-            .findById(input.getSourceId())
+            .findByIdAndTenantId(input.getSourceId(), TenantContext.getCurrentTenant())
             .orElseThrow(() -> new ElementNotFoundException("Collector not found"));
 
     return this.injectExpectationTraceRepository
@@ -108,7 +109,7 @@ public class InjectExpectationTraceApi extends RestBehavior {
     try {
       Collector collector =
           collectorRepository
-              .findById(sourceId)
+              .findByIdAndTenantId(sourceId, TenantContext.getCurrentTenant())
               .orElseThrow(() -> new ElementNotFoundException("Collector not found"));
       return this.injectExpectationTraceService.getInjectExpectationTracesFromCollector(
           injectExpectationId, collector.getSecurityPlatform().getId());

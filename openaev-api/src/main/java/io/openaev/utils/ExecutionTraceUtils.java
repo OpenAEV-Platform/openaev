@@ -1,10 +1,6 @@
 package io.openaev.utils;
 
-import io.openaev.database.model.Agent;
-import io.openaev.database.model.ExecutionTrace;
-import io.openaev.database.model.ExecutionTraceAction;
-import io.openaev.database.model.ExecutionTraceStatus;
-import io.openaev.database.model.InjectStatus;
+import io.openaev.database.model.*;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 import java.util.List;
 import java.util.Set;
@@ -70,6 +66,14 @@ public class ExecutionTraceUtils {
             + " minutes threshold.",
         ExecutionTraceAction.COMPLETE,
         agent);
+  }
+
+  public static void addSimulationTimeoutTrace(InjectStatus status) {
+    status.addTrace(
+        ExecutionTraceStatus.TIMEOUT,
+        "Inject stopped due to simulation timeout.",
+        ExecutionTraceAction.COMPLETE,
+        null);
   }
 
   /**

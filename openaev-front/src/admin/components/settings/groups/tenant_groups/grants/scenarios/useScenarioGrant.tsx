@@ -1,8 +1,6 @@
 import { Checkbox } from '@mui/material';
-import { useEffect } from 'react';
 
 import { addGrant, deleteGrant } from '../../../../../../../actions/Grant';
-import { fetchGroup } from '../../../../../../../actions/Group';
 import { type GroupHelper } from '../../../../../../../actions/group/group-helper';
 import { useFormatter } from '../../../../../../../components/i18n';
 import { useHelper } from '../../../../../../../store';
@@ -20,15 +18,6 @@ const useScenarioGrant = ({ groupId, onGrantChange }: ScenarioGrantsProps) => {
   const dispatch = useAppDispatch();
   const group = useHelper((helper: GroupHelper) => helper.getGroup(groupId));
 
-  useEffect(() => {
-    dispatch(fetchGroup(groupId));
-  }, [dispatch]);
-
-  useEffect(() => {
-    if (!group) return;
-    onGrantChange();
-  }, [group]);
-
   if (!group) {
     return { configs: [] };
   }
@@ -40,9 +29,9 @@ const useScenarioGrant = ({ groupId, onGrantChange }: ScenarioGrantsProps) => {
         grant_resource: scenarioId,
         grant_resource_type: 'SCENARIO',
       };
-      dispatch(addGrant(group.group_id, data));
+      dispatch(addGrant(group.group_id, data)).then(onGrantChange);
     } else {
-      dispatch(deleteGrant(group.group_id, grantId));
+      dispatch(deleteGrant(group.group_id, grantId)).then(onGrantChange);
     }
   };
 

@@ -13,13 +13,14 @@ const TabPanel = ({
   children,
 }: Props) => {
   const isActive = value === index;
+  if (!isActive) {
+    return null;
+  }
   return (
     <div
       role="tabpanel"
-      hidden={!isActive}
       id={`simple-tabpanel-${index}`}
       aria-labelledby={`simple-tab-${index}`}
-      style={{ display: isActive ? undefined : 'none' }}
     >
       <Box
         display="flex"

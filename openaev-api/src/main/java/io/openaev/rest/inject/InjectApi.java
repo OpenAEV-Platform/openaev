@@ -397,7 +397,7 @@ public class InjectApi extends RestBehavior {
   @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.WRITE,
-      resourceType = ResourceType.INJECT)
+      resourceType = ResourceType.JOB)
   @Lock(type = LockResourceType.INJECT, key = "#injectId")
   @Operation(
       summary = "Inject execution callback for implants",
@@ -446,7 +446,7 @@ public class InjectApi extends RestBehavior {
   @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.READ,
-      resourceType = ResourceType.INJECT)
+      resourceType = ResourceType.JOB)
   @Operation(
       summary = "Get the payload ready to be executed",
       description =

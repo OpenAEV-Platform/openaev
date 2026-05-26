@@ -52,21 +52,26 @@ const ScopeTimeOut = ({ workflowConfiguration, onUpdate }: Props) => {
   return (
     <Box sx={{
       display: 'grid',
-      gap: theme.spacing(2),
+      gridTemplateRows: 'min-content 1fr',
+      gap: theme.spacing(1),
     }}
     >
-      <Box
+      <Typography
+        variant="h4"
         sx={{
           display: 'flex',
-          alignItems: 'center',
           justifyContent: 'space-between',
+          alignItems: 'center',
+          m: 0,
         }}
       >
-        <Typography variant="h4">
-          {t('Simulation time out')}
-        </Typography>
-        <Switch checked={timeoutEnabled} onChange={handleToggleTimeout} />
-      </Box>
+        {t('Simulation time out')}
+        <Switch
+          checked={timeoutEnabled}
+          onChange={handleToggleTimeout}
+          sx={{ m: 0 }}
+        />
+      </Typography>
 
       <Paper sx={{ p: 2 }} variant="outlined">
         <Box

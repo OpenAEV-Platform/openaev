@@ -167,7 +167,8 @@ export interface AggregatedFindingOutput {
     | "vulnerability"
     | "account_with_password_not_required"
     | "asreproastable_account"
-    | "kerberoastable_account";
+    | "kerberoastable_account"
+    | "expectation_signature";
   /**
    * Finding Value
    * @minLength 1
@@ -1305,8 +1306,6 @@ export interface ConditionCreateInput {
     | "LTE"
     | "IN"
     | "NIN"
-    | "AFTER"
-    | "BEFORE"
     | "MAPPER"
     | "DEPEND_ON";
   /** Value to be compared */
@@ -1490,7 +1489,8 @@ export interface ContractOutputElement {
     | "vulnerability"
     | "account_with_password_not_required"
     | "asreproastable_account"
-    | "kerberoastable_account";
+    | "kerberoastable_account"
+    | "expectation_signature";
   /** @format date-time */
   contract_output_element_updated_at: string;
   listened?: boolean;
@@ -1543,7 +1543,8 @@ export interface ContractOutputElementInput {
     | "vulnerability"
     | "account_with_password_not_required"
     | "asreproastable_account"
-    | "kerberoastable_account";
+    | "kerberoastable_account"
+    | "expectation_signature";
 }
 
 /** Represents the rules for parsing the output of an execution. */
@@ -1592,7 +1593,8 @@ export interface ContractOutputElementSimple {
     | "vulnerability"
     | "account_with_password_not_required"
     | "asreproastable_account"
-    | "kerberoastable_account";
+    | "kerberoastable_account"
+    | "expectation_signature";
 }
 
 export interface CreateConnectorInstanceInput {
@@ -1693,7 +1695,7 @@ export interface CveCreateInput {
    * CVSS score
    * @min 0
    * @max 10
-   * @example 7.5
+   * @example "7.5"
    */
   cve_cvss_v31: number;
   /**
@@ -1745,7 +1747,7 @@ export interface CveCreateInput {
 export interface CveOutput {
   /**
    * CVSS score
-   * @example 7.8
+   * @example "7.8"
    */
   cve_cvss_v31: number;
   /**
@@ -1796,7 +1798,7 @@ export interface CveOutput {
 export interface CveSimple {
   /**
    * CVSS score
-   * @example 7.8
+   * @example "7.8"
    */
   cve_cvss_v31: number;
   /**
@@ -1871,14 +1873,6 @@ export interface DetectionRemediation {
 
 export interface DetectionRemediationAIOutput {
   rules?: string;
-}
-
-export interface DetectionRemediationCallInput {
-  agent_slug?: string;
-  /** @minLength 1 */
-  collector_type: string;
-  /** @minLength 1 */
-  content: string;
 }
 
 /** Health check response of the detection/remediation service. */
@@ -3345,7 +3339,8 @@ export interface Finding {
     | "vulnerability"
     | "account_with_password_not_required"
     | "asreproastable_account"
-    | "kerberoastable_account";
+    | "kerberoastable_account"
+    | "expectation_signature";
   /** @format date-time */
   finding_updated_at: string;
   finding_users?: string[];
@@ -3379,7 +3374,8 @@ export interface FindingInput {
     | "vulnerability"
     | "account_with_password_not_required"
     | "asreproastable_account"
-    | "kerberoastable_account";
+    | "kerberoastable_account"
+    | "expectation_signature";
   /** @minLength 1 */
   finding_value: string;
 }
@@ -3442,6 +3438,7 @@ export interface Grant {
     | "SCENARIO"
     | "SIMULATION"
     | "ATOMIC_TESTING"
+    | "THREAT_ARSENAL"
     | "PAYLOAD"
     | "UNKNOWN";
   listened?: boolean;
@@ -3467,6 +3464,7 @@ export interface GroupGrantInput {
     | "SCENARIO"
     | "SIMULATION"
     | "ATOMIC_TESTING"
+    | "THREAT_ARSENAL"
     | "PAYLOAD"
     | "UNKNOWN";
 }
@@ -4487,7 +4485,6 @@ export interface InjectorContractUpdateMappingInput {
   contract_domains: string[];
   /** Set list of tags ids */
   contract_tags_ids?: string[];
-  contract_vulnerability_ids?: string[];
 }
 
 export interface InjectorCreateInput {
@@ -5944,6 +5941,7 @@ export type PayloadCreateInput = BasePayloadCreateInput &
   );
 
 export interface PayloadInput {
+  agent_slug?: string;
   command_content?: string | null;
   command_executor?: string | null;
   dns_resolution_hostname?: string;
@@ -6248,6 +6246,9 @@ export interface PlatformRoleInput {
     | "ACCESS_PAYLOADS"
     | "MANAGE_PAYLOADS"
     | "DELETE_PAYLOADS"
+    | "ACCESS_THREAT_ARSENALS"
+    | "MANAGE_THREAT_ARSENALS"
+    | "DELETE_THREAT_ARSENALS"
     | "ACCESS_DASHBOARDS"
     | "MANAGE_DASHBOARDS"
     | "DELETE_DASHBOARDS"
@@ -6281,6 +6282,7 @@ export interface PlatformRoleInput {
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_STIX_BUNDLE"
+    | "AGENT_RUNTIME_ACCESS"
   )[];
   platform_role_description?: string;
   /** @minLength 1 */
@@ -6323,6 +6325,7 @@ export interface PlatformSettings {
     | "MULTI_TENANCY"
     | "OPENAEV_TRIALS_XTMHUB"
     | "INJECT_CHAINING"
+    | "AUDIT_LOG"
   )[];
   /** True if the Tanium Executor is enabled */
   executor_tanium_enable?: boolean;
@@ -6361,6 +6364,8 @@ export interface PlatformSettings {
    * @format int64
    */
   expectation_vulnerability_expiration_time: number;
+  /** Chatbot AI CGU acceptance status: pending, enabled, or disabled */
+  filigran_chatbot_ai_cgu_status?: string;
   /** IMAP Service availability */
   imap_service_available?: string;
   /** Current version of Java */
@@ -6371,8 +6376,6 @@ export interface PlatformSettings {
   map_tile_server_light?: string;
   /** Agent URL of the platform */
   platform_agent_url?: string;
-  /** True if AI is enabled for the platform */
-  platform_ai_enabled?: boolean;
   /** True if we have an AI token */
   platform_ai_has_token?: boolean;
   /** Chosen model of AI */
@@ -6418,8 +6421,6 @@ export interface PlatformSettings {
   platform_xtm_one_configured?: boolean;
   /** XTM One platform URL */
   platform_xtm_one_url?: string;
-  /** XTM One public chat web token for the embedded agent */
-  platform_xtm_one_web_token?: string;
   /** Current version of the PostgreSQL */
   postgre_version?: string;
   /** Current version of RabbitMQ */
@@ -6436,10 +6437,6 @@ export interface PlatformSettings {
   xtm_hub_should_send_connectivity_email?: string;
   /** Url of XTM Hub */
   xtm_hub_url?: string;
-  /** True if connection with OpenCTI is enabled */
-  xtm_opencti_enable?: boolean;
-  /** Url of OpenCTI */
-  xtm_opencti_url?: string;
 }
 
 export interface PlayerInput {
@@ -6599,6 +6596,7 @@ export interface PublicPlatformSettings {
     | "MULTI_TENANCY"
     | "OPENAEV_TRIALS_XTMHUB"
     | "INJECT_CHAINING"
+    | "AUDIT_LOG"
   )[];
   /** Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL) */
   platform_banner_by_level?: Record<string, string[]>;
@@ -6807,7 +6805,8 @@ export interface RelatedFindingOutput {
     | "vulnerability"
     | "account_with_password_not_required"
     | "asreproastable_account"
-    | "kerberoastable_account";
+    | "kerberoastable_account"
+    | "expectation_signature";
   /**
    * Finding Value
    * @minLength 1
@@ -6925,6 +6924,9 @@ export interface RoleInput {
     | "ACCESS_PAYLOADS"
     | "MANAGE_PAYLOADS"
     | "DELETE_PAYLOADS"
+    | "ACCESS_THREAT_ARSENALS"
+    | "MANAGE_THREAT_ARSENALS"
+    | "DELETE_THREAT_ARSENALS"
     | "ACCESS_DASHBOARDS"
     | "MANAGE_DASHBOARDS"
     | "DELETE_DASHBOARDS"
@@ -6958,6 +6960,7 @@ export interface RoleInput {
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_STIX_BUNDLE"
+    | "AGENT_RUNTIME_ACCESS"
   )[];
   role_description?: string;
   /** @minLength 1 */
@@ -7406,6 +7409,15 @@ export interface SecurityPlatformUpsertInput {
 export interface Series {
   filter?: FilterGroup;
   name?: string;
+}
+
+export interface SettingsChatbotAiCguUpdateInput {
+  /**
+   * Chatbot AI CGU acceptance status: pending, enabled, or disabled
+   * @minLength 1
+   * @pattern pending|enabled|disabled
+   */
+  status: string;
 }
 
 export interface SettingsEnterpriseEditionUpdateInput {
@@ -7948,6 +7960,8 @@ export interface TenantSettingsOutput {
   platform_simulation_dashboard?: string;
   /** @minLength 1 */
   platform_theme: string;
+  xtm_opencti_enable?: boolean;
+  xtm_opencti_url?: string;
 }
 
 export interface TenantSettingsUpdateInput {
@@ -8182,8 +8196,8 @@ export interface ThreatArsenalActionUpdateInput {
   action_detection_remediations?: DetectionRemediationInput[];
   /** Update list of domains */
   action_domains: string[];
-  action_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
-  action_expectations: (
+  action_execution_arch?: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
+  action_expectations?: (
     | "TEXT"
     | "DOCUMENT"
     | "ARTICLE"
@@ -8395,6 +8409,9 @@ export interface User {
     | "ACCESS_PAYLOADS"
     | "MANAGE_PAYLOADS"
     | "DELETE_PAYLOADS"
+    | "ACCESS_THREAT_ARSENALS"
+    | "MANAGE_THREAT_ARSENALS"
+    | "DELETE_THREAT_ARSENALS"
     | "ACCESS_DASHBOARDS"
     | "MANAGE_DASHBOARDS"
     | "DELETE_DASHBOARDS"
@@ -8428,6 +8445,7 @@ export interface User {
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_STIX_BUNDLE"
+    | "AGENT_RUNTIME_ACCESS"
   )[];
   /** City of the user */
   user_city?: string;
@@ -8610,7 +8628,7 @@ export interface VulnerabilityCreateInput {
    * CVSS score
    * @min 0
    * @max 10
-   * @example 7.5
+   * @example "7.5"
    */
   vulnerability_cvss_v31: number;
   /**
@@ -8662,7 +8680,7 @@ export interface VulnerabilityCreateInput {
 export interface VulnerabilityOutput {
   /**
    * CVSS score
-   * @example 7.8
+   * @example "7.8"
    */
   vulnerability_cvss_v31: number;
   /**
@@ -8713,7 +8731,7 @@ export interface VulnerabilityOutput {
 export interface VulnerabilitySimple {
   /**
    * CVSS score
-   * @example 7.8
+   * @example "7.8"
    */
   vulnerability_cvss_v31: number;
   /**
