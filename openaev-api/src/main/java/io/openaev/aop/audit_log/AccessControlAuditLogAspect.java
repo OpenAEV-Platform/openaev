@@ -48,7 +48,7 @@ import org.springframework.web.server.ResponseStatusException;
 @Slf4j
 public class AccessControlAuditLogAspect {
 
-  private final AccessControlAuditLogger accessControlAuditLogger;
+  private final AuditLogger auditLogger;
 
   private final ObjectMapper objectMapper;
   private final ExpressionParser parser = new SpelExpressionParser();
