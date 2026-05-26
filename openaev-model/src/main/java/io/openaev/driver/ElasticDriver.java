@@ -14,11 +14,7 @@ import co.elastic.clients.json.JsonData;
 import co.elastic.clients.json.jackson.JacksonJsonpMapper;
 import co.elastic.clients.transport.ElasticsearchTransport;
 import co.elastic.clients.transport.rest_client.RestClientTransport;
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.openaev.config.EngineConfig;
 import io.openaev.database.model.IndexingStatus;
 import io.openaev.database.repository.IndexingStatusRepository;
@@ -63,24 +59,11 @@ public class ElasticDriver {
    * #getObjectMapper()} so that other components (e.g. audit log service) can reuse the exact same
    * serialization settings.
    */
-  private final ObjectMapper engineObjectMapper = createEngineObjectMapper();
+  private final ObjectMapper engineObjectMapper = EngineObjectMapperFactory.create();
 
   /** Returns the ObjectMapper used by the Elasticsearch client for document serialization. */
   public ObjectMapper getObjectMapper() {
     return engineObjectMapper;
-  }
-
-  /**
-   * Creates the ObjectMapper shared by the Elasticsearch client and any component that needs to
-   * serialize documents consistently with the search engine.
-   */
-  static ObjectMapper createEngineObjectMapper() {
-    ObjectMapper mapper = new ObjectMapper();
-    mapper.registerModule(new JavaTimeModule());
-    mapper.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
-    mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-    mapper.setSerializationInclusion(JsonInclude.Include.ALWAYS);
-    return mapper;
   }
 
   @Autowired
@@ -114,10 +97,7 @@ public class ElasticDriver {
     }
     restClientBuilder.setHttpClientConfigCallback(hc -> clientBuilder);
     RestClient restClient = restClientBuilder.build();
-    JacksonJsonpMapper jsonpMapper = new JacksonJsonpMapper();
-    jsonpMapper.objectMapper().registerModule(new JavaTimeModule());
-    jsonpMapper.objectMapper().configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
-    jsonpMapper.objectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+    JacksonJsonpMapper jsonpMapper = new JacksonJsonpMapper(engineObjectMapper);
     ElasticsearchTransport transport = new RestClientTransport(restClient, jsonpMapper);
     return new ElasticsearchClient(transport);
   }
