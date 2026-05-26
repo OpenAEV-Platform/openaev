@@ -3,6 +3,7 @@ package io.openaev.rest.custom_dashboard;
 import static io.openaev.engine.api.WidgetType.AVERAGE;
 import static io.openaev.engine.api.WidgetType.VERTICAL_BAR_CHART;
 import static io.openaev.rest.custom_dashboard.CustomDashboardApi.CUSTOM_DASHBOARDS_URI;
+import static io.openaev.rest.custom_dashboard.CustomDashboardApi.TENANT_CUSTOM_DASHBOARDS_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.CustomDashboardFixture.createDefaultCustomDashboard;
 import static io.openaev.utils.fixtures.WidgetFixture.NAME;
@@ -13,21 +14,31 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.database.model.Capability;
 import io.openaev.database.model.CustomDashboard;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.Widget;
 import io.openaev.database.model.WidgetLayout;
 import io.openaev.database.repository.WidgetRepository;
 import io.openaev.engine.api.DateHistogramWidget;
 import io.openaev.engine.api.HistogramInterval;
+import io.openaev.rest.custom_dashboard.form.CustomDashboardInput;
 import io.openaev.rest.custom_dashboard.form.WidgetInput;
 import io.openaev.utils.CustomDashboardTimeRange;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.composers.CustomDashboardComposer;
 import io.openaev.utils.fixtures.composers.WidgetComposer;
 import io.openaev.utils.mockUser.WithMockUser;
+import jakarta.persistence.EntityManager;
 import java.util.ArrayList;
+import java.util.Set;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,6 +50,8 @@ class CustomDashboardWidgetApiTest extends IntegrationTest {
   @Autowired private WidgetRepository repository;
   @Autowired private WidgetComposer widgetComposer;
   @Autowired private CustomDashboardComposer customDashboardComposer;
+  @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
+  @Autowired private EntityManager entityManager;
 
   WidgetComposer.Composer createWidgetComposer() {
     return this.widgetComposer
@@ -46,6 +59,22 @@ class CustomDashboardWidgetApiTest extends IntegrationTest {
         .withCustomDashboard(
             customDashboardComposer.forCustomDashboard(createDefaultCustomDashboard()))
         .persist();
+  }
+
+  private WidgetInput createDefaultWidgetInput(String title) {
+    WidgetInput input = new WidgetInput();
+    input.setType(VERTICAL_BAR_CHART);
+    DateHistogramWidget widgetConfig = new DateHistogramWidget();
+    widgetConfig.setTitle(title);
+    widgetConfig.setDateAttribute("base_updated_at");
+    widgetConfig.setTimeRange(CustomDashboardTimeRange.CUSTOM);
+    widgetConfig.setSeries(new ArrayList<>());
+    widgetConfig.setInterval(HistogramInterval.day);
+    widgetConfig.setStart("2012-12-21T10:45:23Z");
+    widgetConfig.setEnd("2012-12-22T10:45:23Z");
+    input.setWidgetConfiguration(widgetConfig);
+    input.setWidgetLayout(new WidgetLayout());
+    return input;
   }
 
   @Test
@@ -201,5 +230,324 @@ class CustomDashboardWidgetApiTest extends IntegrationTest {
         .andExpect(status().isNoContent());
 
     assertThat(repository.existsById(widget.getId())).isFalse();
+  }
+
+  @Nested
+  @DisplayName("Tenant Isolation")
+  @WithMockUser
+  class TenantIsolation {
+
+    @Test
+    @DisplayName("Widget created in tenant X should NOT be readable from tenant Y")
+    void given_widgetInTenantX_should_notBeReadableFromTenantY() throws Exception {
+      // Arrange
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_DASHBOARDS, Capability.ACCESS_DASHBOARDS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_DASHBOARDS));
+
+      CustomDashboardInput dashboardInput = new CustomDashboardInput();
+      dashboardInput.setName("Tenant X Dashboard Read Isolation");
+      String dashboardResponse =
+          mockMvc
+              .perform(
+                  post(TENANT_CUSTOM_DASHBOARDS_URI.replace("{tenantId}", tenantX.getId()))
+                      .content(asJsonString(dashboardInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      String dashboardId = JsonPath.read(dashboardResponse, "$.custom_dashboard_id");
+
+      WidgetInput widgetInput = createDefaultWidgetInput("Tenant X widget");
+      String widgetResponse =
+          mockMvc
+              .perform(
+                  post(TENANT_CUSTOM_DASHBOARDS_URI.replace("{tenantId}", tenantX.getId())
+                          + "/"
+                          + dashboardId
+                          + "/widgets")
+                      .content(asJsonString(widgetInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      String widgetId = JsonPath.read(widgetResponse, "$.widget_id");
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act
+      int responseStatus =
+          mockMvc
+              .perform(
+                  get(TENANT_CUSTOM_DASHBOARDS_URI.replace("{tenantId}", tenantY.getId())
+                          + "/"
+                          + dashboardId
+                          + "/widgets/"
+                          + widgetId)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // Assert
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
+    }
+
+    @Test
+    @DisplayName("Widget created in tenant X should be readable from tenant X")
+    void given_widgetInTenantX_should_beReadableFromTenantX() throws Exception {
+      // Arrange
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_DASHBOARDS, Capability.ACCESS_DASHBOARDS));
+
+      CustomDashboardInput dashboardInput = new CustomDashboardInput();
+      dashboardInput.setName("Tenant X Dashboard Same Tenant Read");
+      String dashboardResponse =
+          mockMvc
+              .perform(
+                  post(TENANT_CUSTOM_DASHBOARDS_URI.replace("{tenantId}", tenantX.getId()))
+                      .content(asJsonString(dashboardInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      String dashboardId = JsonPath.read(dashboardResponse, "$.custom_dashboard_id");
+
+      WidgetInput widgetInput = createDefaultWidgetInput("Widget same tenant");
+      String widgetResponse =
+          mockMvc
+              .perform(
+                  post(TENANT_CUSTOM_DASHBOARDS_URI.replace("{tenantId}", tenantX.getId())
+                          + "/"
+                          + dashboardId
+                          + "/widgets")
+                      .content(asJsonString(widgetInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      String widgetId = JsonPath.read(widgetResponse, "$.widget_id");
+
+      // Act + Assert
+      mockMvc
+          .perform(
+              get(TENANT_CUSTOM_DASHBOARDS_URI.replace("{tenantId}", tenantX.getId())
+                      + "/"
+                      + dashboardId
+                      + "/widgets/"
+                      + widgetId)
+                  .with(csrf()))
+          .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("Widget list in tenant Y should NOT contain widgets from tenant X")
+    void given_widgetInTenantX_should_notAppearInTenantYWidgetList() throws Exception {
+      // Arrange
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_DASHBOARDS, Capability.ACCESS_DASHBOARDS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_DASHBOARDS));
+
+      CustomDashboardInput dashboardInput = new CustomDashboardInput();
+      dashboardInput.setName("Tenant X Dashboard List Isolation");
+      String dashboardResponse =
+          mockMvc
+              .perform(
+                  post(TENANT_CUSTOM_DASHBOARDS_URI.replace("{tenantId}", tenantX.getId()))
+                      .content(asJsonString(dashboardInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      String dashboardId = JsonPath.read(dashboardResponse, "$.custom_dashboard_id");
+
+      WidgetInput widgetInput = createDefaultWidgetInput("Widget hidden from tenant Y");
+      mockMvc
+          .perform(
+              post(TENANT_CUSTOM_DASHBOARDS_URI.replace("{tenantId}", tenantX.getId())
+                      + "/"
+                      + dashboardId
+                      + "/widgets")
+                  .content(asJsonString(widgetInput))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act + Assert
+      mockMvc
+          .perform(
+              get(TENANT_CUSTOM_DASHBOARDS_URI.replace("{tenantId}", tenantY.getId())
+                      + "/"
+                      + dashboardId
+                      + "/widgets")
+                  .with(csrf()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    @DisplayName("Widget created in tenant X should NOT be updatable from tenant Y")
+    void given_widgetInTenantX_should_notBeUpdatableFromTenantY() throws Exception {
+      // Arrange
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_DASHBOARDS, Capability.ACCESS_DASHBOARDS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.MANAGE_DASHBOARDS, Capability.ACCESS_DASHBOARDS));
+
+      CustomDashboardInput dashboardInput = new CustomDashboardInput();
+      dashboardInput.setName("Tenant X Dashboard Update Isolation");
+      String dashboardResponse =
+          mockMvc
+              .perform(
+                  post(TENANT_CUSTOM_DASHBOARDS_URI.replace("{tenantId}", tenantX.getId()))
+                      .content(asJsonString(dashboardInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      String dashboardId = JsonPath.read(dashboardResponse, "$.custom_dashboard_id");
+
+      WidgetInput createWidgetInput = createDefaultWidgetInput("Update isolation widget");
+      String widgetResponse =
+          mockMvc
+              .perform(
+                  post(TENANT_CUSTOM_DASHBOARDS_URI.replace("{tenantId}", tenantX.getId())
+                          + "/"
+                          + dashboardId
+                          + "/widgets")
+                      .content(asJsonString(createWidgetInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      String widgetId = JsonPath.read(widgetResponse, "$.widget_id");
+
+      entityManager.flush();
+      entityManager.clear();
+
+      WidgetInput updateWidgetInput = createDefaultWidgetInput("Hijacked widget title");
+
+      // Act
+      int responseStatus =
+          mockMvc
+              .perform(
+                  put(TENANT_CUSTOM_DASHBOARDS_URI.replace("{tenantId}", tenantY.getId())
+                          + "/"
+                          + dashboardId
+                          + "/widgets/"
+                          + widgetId)
+                      .content(asJsonString(updateWidgetInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // Assert
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
+    }
+
+    @Test
+    @DisplayName("Widget created in tenant X should NOT be deletable from tenant Y")
+    void given_widgetInTenantX_should_notBeDeletableFromTenantY() throws Exception {
+      // Arrange
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_DASHBOARDS, Capability.ACCESS_DASHBOARDS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.DELETE_DASHBOARDS, Capability.ACCESS_DASHBOARDS));
+
+      CustomDashboardInput dashboardInput = new CustomDashboardInput();
+      dashboardInput.setName("Tenant X Dashboard Delete Isolation");
+      String dashboardResponse =
+          mockMvc
+              .perform(
+                  post(TENANT_CUSTOM_DASHBOARDS_URI.replace("{tenantId}", tenantX.getId()))
+                      .content(asJsonString(dashboardInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      String dashboardId = JsonPath.read(dashboardResponse, "$.custom_dashboard_id");
+
+      WidgetInput widgetInput = createDefaultWidgetInput("Delete isolation widget");
+      String widgetResponse =
+          mockMvc
+              .perform(
+                  post(TENANT_CUSTOM_DASHBOARDS_URI.replace("{tenantId}", tenantX.getId())
+                          + "/"
+                          + dashboardId
+                          + "/widgets")
+                      .content(asJsonString(widgetInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      String widgetId = JsonPath.read(widgetResponse, "$.widget_id");
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act
+      int responseStatus =
+          mockMvc
+              .perform(
+                  delete(
+                          TENANT_CUSTOM_DASHBOARDS_URI.replace("{tenantId}", tenantY.getId())
+                              + "/"
+                              + dashboardId
+                              + "/widgets/"
+                              + widgetId)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // Assert
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
+    }
   }
 }
