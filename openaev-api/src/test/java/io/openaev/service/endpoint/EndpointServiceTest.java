@@ -105,7 +105,8 @@ class EndpointServiceTest {
       // -------- Prepare --------
       Endpoint endpoint = new Endpoint();
       endpoint.setId("ep-1");
-      when(endpointRepository.findById("ep-1")).thenReturn(Optional.of(endpoint));
+      when(endpointRepository.findByIdAndTenantId("ep-1", TenantContext.getCurrentTenant()))
+          .thenReturn(Optional.of(endpoint));
 
       // -------- Act --------
       Endpoint result = endpointService.endpoint("ep-1");
@@ -118,7 +119,8 @@ class EndpointServiceTest {
     @Test
     void shouldThrowElementNotFoundException_whenNotFound() {
       // -------- Prepare --------
-      when(endpointRepository.findById("missing")).thenReturn(Optional.empty());
+      when(endpointRepository.findByIdAndTenantId("missing", TenantContext.getCurrentTenant()))
+          .thenReturn(Optional.empty());
 
       // -------- Act / Assert --------
       assertThrows(ElementNotFoundException.class, () -> endpointService.endpoint("missing"));
@@ -296,7 +298,8 @@ class EndpointServiceTest {
       // -------- Prepare --------
       Endpoint existing = new Endpoint();
       existing.setId("ep-1");
-      when(endpointRepository.findById("ep-1")).thenReturn(Optional.of(existing));
+      when(endpointRepository.findByIdAndTenantId("ep-1", TenantContext.getCurrentTenant()))
+          .thenReturn(Optional.of(existing));
 
       EndpointInput input = new EndpointInput();
       input.setName("updated-endpoint");
