@@ -11,6 +11,7 @@ import io.openaev.service.LogService;
 import io.openaev.utils.log.LogUtils;
 import java.lang.annotation.Annotation;
 import java.util.UUID;
+import java.util.function.BiConsumer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.JoinPoint;
@@ -53,6 +54,8 @@ public class AccessControlAuditLogAspect {
   private final ObjectMapper objectMapper;
   private final ExpressionParser parser = new SpelExpressionParser();
 
+  private final String logErrorMsg = "Error during audit logging";
+
   @Around("@annotation(accessControl)")
   public Object auditAround(ProceedingJoinPoint joinPoint, AccessControl accessControl)
       throws Throwable {
@@ -66,7 +69,7 @@ public class AccessControlAuditLogAspect {
           accessControlAuditLogger.isAuditLoggingEnabled()
               && accessControlAuditLogger.isAuditLoggingValid(action);
     } catch (Exception ex) {
-      log.warn("Error during audit logging", ex);
+      log.warn(logErrorMsg, ex);
     }
 
     if (!isActive) {
@@ -79,7 +82,7 @@ public class AccessControlAuditLogAspect {
     String eventScope = null;
     JsonNode inputNode = null;
     JsonNode signatureNode = null;
-    java.util.function.BiConsumer<Boolean, Throwable> logCompletion = null;
+    BiConsumer<Boolean, Throwable> logCompletion = (success, throwable) -> {};
 
     try {
       logUUID = UUID.randomUUID().toString();
@@ -102,12 +105,12 @@ public class AccessControlAuditLogAspect {
                   finalResourceType,
                   finalEventScope);
               if (throwable != null) {
-                log.warn("Error during audit logging", throwable);
+                log.warn(logErrorMsg, throwable);
               }
             }
           };
     } catch (Throwable ex) {
-      log.warn("Error during audit logging", ex);
+      log.warn(logErrorMsg, ex);
     }
 
     // Execute the business operation
@@ -116,6 +119,7 @@ public class AccessControlAuditLogAspect {
     } catch (Throwable ex) {
       if (isRbacDeniedException(ex)) {
         // Dedicated @AfterThrowing advice logs RBAC denials as unauthorized/error events.
+
         throw ex;
       }
 
@@ -135,7 +139,7 @@ public class AccessControlAuditLogAspect {
                 logUUID)
             .whenComplete(logCompletion);
       } catch (Exception e) {
-        log.warn("Error during audit logging", e);
+        log.warn(logErrorMsg, e);
       }
 
       throw ex;
@@ -156,7 +160,7 @@ public class AccessControlAuditLogAspect {
               logUUID)
           .whenComplete(logCompletion);
     } catch (Exception ex) {
-      log.warn("Error during audit logging", ex);
+      log.warn(logErrorMsg, ex);
     }
 
     return result;
@@ -169,27 +173,35 @@ public class AccessControlAuditLogAspect {
   @AfterThrowing(pointcut = "@annotation(accessControl)", throwing = "exception")
   public void auditDeniedAccess(
       JoinPoint joinPoint, AccessControl accessControl, Throwable exception) {
-    if (!isRbacDeniedException(exception)) {
-      return;
-    }
-
-    if (!accessControlAuditLogger.isAuditLoggingEnabled()
+    if (!isRbacDeniedException(exception)
+        || !accessControlAuditLogger.isAuditLoggingEnabled()
         || !accessControlAuditLogger.isAuditUnauthorizedLoggingValid()) {
       return;
     }
 
-    String logUUID = UUID.randomUUID().toString();
-
     try {
+      String logUUID = UUID.randomUUID().toString();
       ResourceType resourceType = accessControl.resourceType();
       String resourceId = resolveResourceId(joinPoint, accessControl);
-      JsonNode inputNode = getInputNode(joinPoint, "unauthorized");
+      String eventScope = "unauthorized";
+      JsonNode inputNode = getInputNode(joinPoint, eventScope);
       JsonNode signatureNode = getMethodSignature(joinPoint, inputNode);
       JsonNode errorNode = buildErrorNode(null, exception);
 
+      BiConsumer<Boolean, Throwable> logCompletion =
+          (success, throwable) -> {
+            if (throwable != null || (success != null && !success)) {
+              log.warn(
+                  "[AUDIT] Failed to log RBAC denial event for {}.{}", resourceType, eventScope);
+              if (throwable != null) {
+                log.warn(logErrorMsg, throwable);
+              }
+            }
+          };
+
       accessControlAuditLogger
           .logAccessControlEvent(
-              "unauthorized",
+              eventScope,
               "error",
               resourceType,
               resourceId,
@@ -197,20 +209,9 @@ public class AccessControlAuditLogAspect {
               errorNode,
               signatureNode,
               logUUID)
-          .whenComplete(
-              (success, throwable) -> {
-                if (throwable != null || (success != null && !success)) {
-                  log.warn(
-                      "[AUDIT] Failed to log RBAC denial event for {}.{}",
-                      resourceType,
-                      "unauthorized");
-                  if (throwable != null) {
-                    log.warn("Error during audit logging", throwable);
-                  }
-                }
-              });
+          .whenComplete(logCompletion);
     } catch (Exception ex) {
-      log.warn("Error during audit logging", ex);
+      log.warn(logErrorMsg, ex);
     }
   }
 
