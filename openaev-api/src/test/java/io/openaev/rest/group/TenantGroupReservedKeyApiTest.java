@@ -47,7 +47,7 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(PER_CLASS)
 @Transactional
 @DisplayName("Tenant Group API — reserved keys (by id)")
-public class TenantGroupReservedNameApiTest extends IntegrationTest {
+public class TenantGroupReservedKeyApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantGroupComposer tenantGroupComposer;
