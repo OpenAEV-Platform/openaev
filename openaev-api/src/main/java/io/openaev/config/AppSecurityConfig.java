@@ -67,9 +67,7 @@ public class AppSecurityConfig {
   private final UserEventService userEventService;
   private final UserMappingService userMappingService;
 
-  @Autowired
-  @Lazy
-  private AccessControlAuditLogger accessControlAuditLogger;
+  @Autowired @Lazy private AccessControlAuditLogger accessControlAuditLogger;
 
   @Resource protected ObjectMapper mapper;
 
@@ -129,12 +127,22 @@ public class AppSecurityConfig {
                     // invalidates the session and clears cookies
                     .addLogoutHandler(
                         (request, response, authentication) -> {
+                          ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.RequestContextData
+                              rcd = null;
                           try {
-                            accessControlAuditLogger.logAuthEvent(
-                                "logout", "success", null, null, null);
+                            rcd =
+                                ThreadPoolTaskLoggerConfig.buildThreadRequestContextHolder(
+                                    request, authentication);
                           } catch (Exception e) {
                             // Never block the logout flow
+                            log.error(
+                                "Failed to prepare request context on logout event: {}",
+                                e.getMessage(),
+                                e);
                           }
+
+                          accessControlAuditLogger.logAuthEventWithRequestContext(
+                              rcd, "logout", "success", null, null, null);
                         })
                     .invalidateHttpSession(true)
                     .deleteCookies("JSESSIONID", openAEVConfig.getCookieName())

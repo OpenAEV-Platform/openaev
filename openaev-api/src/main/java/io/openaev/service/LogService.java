@@ -4,6 +4,7 @@ import static io.openaev.helper.CryptoHelper.hashWithSHA256;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.config.OpenAEVAnonymous;
 import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.config.SessionHelper;
 import io.openaev.config.ThreadPoolTaskLoggerConfig;
@@ -30,6 +31,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
 /**
@@ -229,15 +231,32 @@ public class LogService {
 
   /** Resolves the current user ID from the security context, or null if anonymous. */
   private String resolveUserId() {
+    String id = null;
+
     try {
       OpenAEVPrincipal principal = SessionHelper.currentUser();
-      if (principal == null || "anonymous".equals(principal.getId())) {
-        return null;
+
+      if (principal != null && !(principal instanceof OpenAEVAnonymous)) id = principal.getId();
+
+      if (id == null) {
+        ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.RequestContextData
+            requestContextData =
+                ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.getRequestContextData();
+        Authentication auth = requestContextData.authentication();
+
+        if (auth != null) {
+          Object princ = auth.getPrincipal();
+
+          if (princ instanceof OpenAEVPrincipal user) {
+            id = user.getId();
+          }
+        }
       }
-      return principal.getId();
     } catch (Exception e) {
-      return null;
+      log.warn("[LOG] Failed to resolve user ID: {}", e.getMessage(), e);
     }
+
+    return id;
   }
 
   /** Populates user metadata (email, IP, user agent) on the given audit log document. */

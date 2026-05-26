@@ -51,9 +51,7 @@ public class OpenSamlConfig {
 
   private final UserEventService userEventService;
 
-  @Autowired
-  @Lazy
-  private AccessControlAuditLogger accessControlAuditLogger;
+  @Autowired @Lazy private AccessControlAuditLogger accessControlAuditLogger;
 
   public void addOpenSamlConfig(@NotNull final HttpSecurity http) throws Exception {
     if (this.relyingPartyRegistrationRepository == null) {

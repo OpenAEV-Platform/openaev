@@ -3,6 +3,7 @@ package io.openaev.aop.audit_log;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.AccessControlAspect;
+import io.openaev.config.ThreadPoolTaskLoggerConfig;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.service.LogService;
@@ -46,7 +47,24 @@ public class AccessControlAuditLogger {
   }
 
   /** Wraps the audit service call in try/catch — audit must never break the business flow. */
-  @Async("accessControlAuditLoggerExecutor")
+  @Async("taskLoggerExecutor")
+  public CompletableFuture<Boolean> logAuthEventWithRequestContext(
+      ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.RequestContextData rcd,
+      String eventScope,
+      String eventStatus,
+      String provider,
+      String reason,
+      String logUUID) {
+
+    if (rcd != null) {
+      ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.setRequestContextData(rcd);
+    }
+
+    return logAuthEvent(eventScope, eventStatus, provider, reason, logUUID);
+  }
+
+  /** Wraps the audit service call in try/catch — audit must never break the business flow. */
+  @Async("taskLoggerExecutor")
   public CompletableFuture<Boolean> logAuthEvent(
       String eventScope, String eventStatus, String provider, String reason, String logUUID) {
     boolean status = false;
@@ -62,7 +80,7 @@ public class AccessControlAuditLogger {
     return CompletableFuture.completedFuture(status);
   }
 
-  @Async("accessControlAuditLoggerExecutor")
+  @Async("taskLoggerExecutor")
   public CompletableFuture<Boolean> logAccessControlEvent(
       String eventScope,
       String eventStatus,
