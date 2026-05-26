@@ -190,6 +190,71 @@ public class LogService {
 
   // -- Internal helpers --
 
+  /**
+   * Logs a session expiry audit event. Called from the session listener (no HTTP request context).
+   *
+   * @param userId the user whose session expired
+   * @param sessionId the HTTP session ID
+   * @param sessionDurationSeconds how long the session was active
+   * @param expiryReason "inactivity_timeout" or "explicit_invalidation"
+   */
+  public boolean logSessionExpiredEvent(
+      String userId, String sessionId, long sessionDurationSeconds, String expiryReason) {
+    if (!isEnabled(AuditLogType.AUDIT)) {
+      return true;
+    }
+
+    try {
+      String logUUID = UUID.randomUUID().toString();
+      LogEvent doc = new LogEvent();
+      Instant now = Instant.now();
+      doc.setId(logUUID);
+      doc.setCreatedAt(now);
+      doc.setTimestamp(now);
+      doc.setEventType("authentication");
+      doc.setEventStatus("success");
+      doc.setEventAccess("administration");
+      doc.setEventScope("session_expired");
+      doc.setUserId(userId);
+      doc.setTenantId(TenantContext.getCurrentTenant());
+
+      // User metadata with session ID
+      LogEvent.UserMetadata meta = new LogEvent.UserMetadata();
+      meta.setSessionId(sessionId);
+      doc.setUserMetadata(meta);
+
+      // Context data
+      Map<String, Object> ctx = new LinkedHashMap<>();
+      ctx.put("session_id", sessionId);
+      ctx.put("user_id", userId);
+      ctx.put("session_active_duration_seconds", sessionDurationSeconds);
+      ctx.put("expiry_reason", expiryReason);
+      ctx.put(
+          "message",
+          "Session expired: active for "
+              + formatDuration(sessionDurationSeconds)
+              + ", then expired due to "
+              + expiryReason.replace("_", " "));
+      doc.setContextData(ctx);
+
+      return emit(doc, java.util.logging.Level.WARNING, AuditLogType.AUDIT);
+    } catch (Exception e) {
+      log.warn("[AUDIT] Failed to log session expiry event: {}", e.getMessage(), e);
+    }
+    return false;
+  }
+
+  // -- Internal helpers (cont.) --
+
+  private String formatDuration(long seconds) {
+    long h = seconds / 3600;
+    long m = (seconds % 3600) / 60;
+    if (h > 0) {
+      return h + "h" + (m > 0 ? m + "m" : "");
+    }
+    return m + "m";
+  }
+
   /** Builds the common part of an {@link LogEvent} with all envelope and user fields populated. */
   private LogEvent buildBaseAuditLog(
       String eventType, String eventStatus, String eventAccess, String eventScope, String logUUID) {
@@ -283,6 +348,16 @@ public class LogService {
 
     // HTTP request headers
     HttpServletRequest request = HttpReqRespUtils.getCurrentRequest();
+
+    // Session ID for correlation
+    if (request != null) {
+      var session = request.getSession(false);
+      if (session != null) {
+        meta.setSessionId(session.getId());
+        hasData = true;
+      }
+    }
+
     Map<String, String> headers = HttpReqRespUtils.extractHeaders(request);
 
     if (headers != null) {

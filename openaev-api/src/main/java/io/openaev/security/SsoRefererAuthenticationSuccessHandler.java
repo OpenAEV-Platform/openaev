@@ -6,6 +6,7 @@ import io.openaev.aop.audit_log.AuditLogger;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.EventStatus;
 import io.openaev.utils.log.LogUtils;
+import io.openaev.config.SessionManager;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -45,6 +46,9 @@ public class SsoRefererAuthenticationSuccessHandler extends SimpleUrlAuthenticat
           String eventStatus = LogUtils.getEventStatus(EventStatus.SUCCESS);
           logger.logAuthEvent(eventScope, eventStatus, provider, null, null);
         });
+
+    // Mark this session as a real authenticated session (for audit log filtering)
+    request.getSession().setAttribute(SessionManager.AUTHENTICATED_SESSION, Boolean.TRUE);
 
     SavedRequest savedRequest = this.requestCache.getRequest(request, response);
 

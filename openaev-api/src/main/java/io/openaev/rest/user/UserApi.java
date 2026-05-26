@@ -67,12 +67,16 @@ public class UserApi extends RestBehavior {
   @PostMapping("/api/login")
   @AccessControl(skipRBAC = true)
   @UserRoleDescription(needAuthenticated = false)
-  public User login(@Valid @RequestBody LoginUserInput input) {
+  public User login(
+      @Valid @RequestBody LoginUserInput input,
+      jakarta.servlet.http.HttpServletRequest httpRequest) {
     Optional<User> optionalUser = userRepository.findByEmailIgnoreCase(input.getLogin());
     if (optionalUser.isPresent()) {
       User user = optionalUser.get();
       if (userService.isUserPasswordValid(user, input.getPassword())) {
         userService.createUserSession(user);
+        // Mark this session as genuinely authenticated (for session expiry audit)
+        httpRequest.getSession().setAttribute(SessionManager.AUTHENTICATED_SESSION, Boolean.TRUE);
         userEventService.createLoginSuccessEvent(user);
 
         auditLogger.ifPresent(

@@ -23,6 +23,8 @@ import io.openaev.rest.user.form.user.RenewTokenInput;
 import io.openaev.rest.user.form.user.UpdateUserInfoInput;
 import io.openaev.service.UserService;
 import io.openaev.service.tenants.TenantService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -48,7 +50,11 @@ public class MeApi extends RestBehavior {
 
   @GetMapping("/api/logout")
   @AccessControl(skipRBAC = true)
-  public ResponseEntity<Object> logout() {
+  public ResponseEntity<Object> logout(HttpServletRequest request) {
+    HttpSession session = request.getSession(false);
+    if (session != null) {
+      session.setAttribute("EXPLICIT_LOGOUT", Boolean.TRUE);
+    }
     return ResponseEntity.ok().build();
   }
 

@@ -118,6 +118,10 @@ public class LogEvent {
 
     /** Resolved remote IP address (remoteAddr or X-Real-IP). */
     private String ip;
+
+    /** HTTP session ID for session-boundary correlation. */
+    @JsonProperty("session_id")
+    private String sessionId;
   }
 
   /** Request metadata: request-level information about the request. */

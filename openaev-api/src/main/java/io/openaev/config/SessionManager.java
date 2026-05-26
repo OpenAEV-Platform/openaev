@@ -3,6 +3,7 @@ package io.openaev.config;
 import static org.springframework.security.web.context.HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY;
 
 import io.openaev.database.model.User;
+import io.openaev.service.LogService;
 import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.HttpSessionEvent;
 import jakarta.servlet.http.HttpSessionListener;
@@ -12,6 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
@@ -21,7 +23,25 @@ import org.springframework.security.web.authentication.preauth.PreAuthenticatedA
 @Configuration
 public class SessionManager {
 
+  /**
+   * Session attribute marker set by the logout handler to distinguish explicit logout from timeout.
+   */
+  public static final String EXPLICIT_LOGOUT = "EXPLICIT_LOGOUT";
+
+  /**
+   * Session attribute set during real authentication (login). Only sessions carrying this marker
+   * will emit a session_expired audit event. This prevents SSE/polling ephemeral sessions from
+   * generating spurious audit noise.
+   */
+  public static final String AUTHENTICATED_SESSION = "AUTHENTICATED_SESSION";
+
   private static final Map<String, HttpSession> sessions = new ConcurrentHashMap<>();
+
+  private final LogService logService;
+
+  public SessionManager(@Lazy LogService logService) {
+    this.logService = logService;
+  }
 
   @Bean
   public HttpSessionListener httpSessionListener() {
@@ -33,9 +53,63 @@ public class SessionManager {
 
       @Override
       public void sessionDestroyed(HttpSessionEvent hse) {
-        sessions.remove(hse.getSession().getId());
+        HttpSession session = hse.getSession();
+        try {
+          emitSessionExpiredEvent(session);
+        } finally {
+          sessions.remove(session.getId());
+        }
       }
     };
+  }
+
+  private void emitSessionExpiredEvent(HttpSession session) {
+    // Only emit for sessions that went through real authentication (marker set in success handler)
+    Object authenticatedMarker;
+    try {
+      authenticatedMarker = session.getAttribute(AUTHENTICATED_SESSION);
+    } catch (IllegalStateException e) {
+      return;
+    }
+    if (!Boolean.TRUE.equals(authenticatedMarker)) {
+      return;
+    }
+
+    // Do not emit if the session was explicitly invalidated via logout
+    Object logoutMarker;
+    try {
+      logoutMarker = session.getAttribute(EXPLICIT_LOGOUT);
+    } catch (IllegalStateException e) {
+      return;
+    }
+    if (Boolean.TRUE.equals(logoutMarker)) {
+      return;
+    }
+
+    // Extract user ID from the session's security context
+    String userId = null;
+    try {
+      Object ctx = session.getAttribute(SPRING_SECURITY_CONTEXT_KEY);
+      if (ctx instanceof SecurityContext secCtx) {
+        Authentication auth = secCtx.getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof OpenAEVPrincipal principal) {
+          userId = principal.getId();
+        }
+      }
+    } catch (IllegalStateException e) {
+      return;
+    }
+
+    if (userId == null || "anonymous".equals(userId)) {
+      return;
+    }
+
+    long creationTime = session.getCreationTime();
+    long lastAccessed = session.getLastAccessedTime();
+    long activeDurationSeconds = (lastAccessed - creationTime) / 1000;
+
+    logService.logSessionExpiredEvent(
+        userId, session.getId(), activeDurationSeconds, "inactivity_timeout");
   }
 
   private Optional<SecurityContext> extractSecurityContext(HttpSession httpSession) {
