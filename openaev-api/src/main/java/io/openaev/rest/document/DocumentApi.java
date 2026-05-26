@@ -555,7 +555,7 @@ public class DocumentApi extends RestBehavior {
       }
       return getScenarioPlayerDocuments(scenarioOpt.get());
     } else {
-      throw new IllegalArgumentException("Exercise or scenario ID not found");
+      throw new ElementNotFoundException("Exercise or scenario not found");
     }
   }
 
