@@ -12,6 +12,7 @@ import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
 import io.openaev.database.model.Token;
 import io.openaev.database.model.User;
+import io.openaev.service.AbstractPrivilegeService;
 import io.openaev.service.RoleService;
 import io.openaev.service.TenantGroupService;
 import io.openaev.service.UserService;
@@ -47,12 +48,13 @@ public class ServiceAccountPrivilegeServiceTest {
 
   @BeforeEach
   void setUp() {
+
     mockRole = new Role();
-    mockRole.setId("role-id");
+    mockRole.setId(AbstractPrivilegeService.getUUIDFromName(SERVICE_ROLE_ID, TENANT_ID));
     mockRole.setName(SERVICE_ROLE_NAME);
 
     mockGroup = new Group();
-    mockGroup.setId("group-id");
+    mockGroup.setId(AbstractPrivilegeService.getUUIDFromName(SERVICE_GROUP_ID, TENANT_ID));
     mockGroup.setName(SERVICE_GROUP_NAME);
 
     mockUser = new User();
@@ -97,17 +99,15 @@ public class ServiceAccountPrivilegeServiceTest {
     when(tenantGroupService.updateGroupInfoWithRoles(any(), any(), any())).thenReturn(mockGroup);
     when(userService.findByEmailIgnoreCase(SERVICE_EMAIL)).thenReturn(Optional.of(mockUser));
     when(userService.userHasToken(any())).thenReturn(false);
-    when(userService.createUserToken(any(), anyString())).thenReturn(mock());
 
     // act
     privilegeService.ensurePrivilegedUserExists(TENANT_ID);
 
     // assert
     verify(userService, never()).createInternalUser(any(), any(), any(), anyBoolean(), any());
-    verify(userService).createUserToken(eq(mockUser), anyString());
+    verify(userService).createUserToken(eq(mockUser));
     verify(tenantUserService).attachToTenant(any(), eq(TENANT_ID));
     verify(userService).saveUser(mockUser);
-    assertThat(mockUser.getTokens()).hasSize(1);
   }
 
   @Test
@@ -129,7 +129,7 @@ public class ServiceAccountPrivilegeServiceTest {
 
     // assert
     verify(userService, never()).createInternalUser(any(), any(), any(), anyBoolean(), any());
-    verify(userService, never()).createUserToken(any(), any());
+    verify(userService, never()).createUserToken(any());
     verify(userService, never()).saveUser(any());
     verify(tenantUserService, never()).attachToTenant(any(), any());
   }
@@ -146,7 +146,8 @@ public class ServiceAccountPrivilegeServiceTest {
     when(roleService.updateRoleInternal(anyString(), anyString(), anyString(), anySet()))
         .thenReturn(mockRole);
     when(tenantGroupService.findById(anyString())).thenReturn(Optional.empty());
-    when(tenantGroupService.createGroupWithRole(any(), any(), any(), any())).thenReturn(mockGroup);
+    when(tenantGroupService.createInternalGroupWithRole(any(), any(), any(), any()))
+        .thenReturn(mockGroup);
     when(userService.findByEmailIgnoreCase(SERVICE_EMAIL)).thenReturn(Optional.empty());
     when(userService.createInternalUser(any(), any(), any(), anyBoolean(), any()))
         .thenReturn(mockUser);
@@ -155,7 +156,8 @@ public class ServiceAccountPrivilegeServiceTest {
     privilegeService.ensurePrivilegedUserExists(TENANT_ID);
 
     // assert
-    verify(tenantGroupService).createGroupWithRole(anyString(), any(), any(), eq(TENANT_ID));
+    verify(tenantGroupService)
+        .createInternalGroupWithRole(anyString(), any(), any(), eq(TENANT_ID));
     verify(tenantGroupService, never()).updateGroupInfoWithRoles(any(), any(), any());
   }
 
@@ -177,7 +179,7 @@ public class ServiceAccountPrivilegeServiceTest {
 
     // assert
     verify(tenantGroupService).updateGroupInfoWithRoles(eq(mockGroup), any(), any());
-    verify(tenantGroupService, never()).createGroupWithRole(any(), any(), any(), any());
+    verify(tenantGroupService, never()).createInternalGroupWithRole(any(), any(), any(), any());
   }
 
   // endregion

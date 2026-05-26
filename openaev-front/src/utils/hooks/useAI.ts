@@ -17,12 +17,16 @@ import useAuth from './useAuth';
 
 const useAI = (): {
   configured?: boolean | null;
-  enabled?: boolean | null;
+  enabled: boolean;
+  isCguPending: boolean;
   xtmOneConfigured?: boolean | null;
 } => {
   const { settings } = useAuth();
+  const isCguPending = settings.filigran_chatbot_ai_cgu_status === 'pending' || settings.filigran_chatbot_ai_cgu_status === undefined;
+  const enabled = settings.filigran_chatbot_ai_cgu_status !== 'disabled';
   return {
-    enabled: settings.platform_ai_enabled,
+    enabled,
+    isCguPending,
     configured: settings.platform_ai_has_token,
     xtmOneConfigured: settings.platform_xtm_one_configured,
   };

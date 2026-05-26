@@ -19,6 +19,8 @@ interface LoginData {
   tenantId?: string;
 }
 
+interface ChatbotAiCguUpdateInput { status: 'pending' | 'enabled' | 'disabled' }
+
 type AppDispatch = Dispatch;
 
 export const fetchPlatformParameters = () => (dispatch: AppDispatch) => {
@@ -45,6 +47,14 @@ export const updatePlatformWhitemarkParameters = (data: SettingsPlatformWhitemar
   return putReferential(
     schema.platformParameters,
     '/api/settings/platform_whitemark',
+    data,
+  )(dispatch);
+};
+
+export const updateChatbotAiCguStatus = (data: ChatbotAiCguUpdateInput) => (dispatch: AppDispatch) => {
+  return putReferential(
+    schema.platformParameters,
+    '/api/settings/chatbot-ai-cgu',
     data,
   )(dispatch);
 };

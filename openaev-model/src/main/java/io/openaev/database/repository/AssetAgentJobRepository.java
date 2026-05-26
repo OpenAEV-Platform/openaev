@@ -23,4 +23,12 @@ public interface AssetAgentJobRepository
       value = "DELETE FROM asset_agent_jobs j WHERE j.asset_agent_id = :assetAgentJobId",
       nativeQuery = true)
   void deleteById(@Param("assetAgentJobId") @NotBlank String assetAgentJobId);
+
+  @Query(
+      value =
+          """
+    SELECT j FROM AssetAgentJob j WHERE j.agent.id = :agentId AND j.tenant.id = :tenantId AND j.inject IS NULL
+    """)
+  Optional<AssetAgentJob> findUpgradeJobByAgentIdAndInjectNull(
+      @Param("agentId") String agentId, @Param("tenantId") String tenantId);
 }

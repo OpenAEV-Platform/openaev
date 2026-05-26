@@ -31,7 +31,6 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.users.UserQueryHelper;
 import jakarta.annotation.Resource;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.validation.constraints.NotBlank;
@@ -217,7 +216,7 @@ public class UserService {
     // Check if new email is reserved
     ReservedNameValidator.validateUserEmailPattern(input.email());
     User existing = user(userId);
-    // Check if previews email is reserved
+    // Check if previous email is reserved
     ReservedNameValidator.validateUserEmailPattern(existing.getEmail());
     // Capture old tenant IDs before update for cache eviction
     List<String> oldTenantIds =
@@ -272,9 +271,6 @@ public class UserService {
   public void delete(String userId) {
     User existing = user(userId);
     ReservedNameValidator.validateUserEmailPattern(existing.getEmail());
-    if (existing == null) {
-      throw new EntityNotFoundException("User not found: " + userId);
-    }
     sessionManager.invalidateUserSession(userId);
     userRepository.deleteByIdNative(userId);
   }

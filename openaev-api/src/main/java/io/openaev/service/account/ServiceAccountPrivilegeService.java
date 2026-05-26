@@ -2,33 +2,69 @@ package io.openaev.service.account;
 
 import static io.openaev.service.account.Constants.*;
 
-import io.openaev.api.groups.dto.TenantGroupCreateInput;
+import io.openaev.database.model.Capability;
 import io.openaev.database.model.Group;
-import io.openaev.database.model.Role;
 import io.openaev.database.model.User;
+import io.openaev.service.AbstractPrivilegeService;
 import io.openaev.service.RoleService;
 import io.openaev.service.TenantGroupService;
 import io.openaev.service.UserService;
 import io.openaev.service.tenants.TenantUserService;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
-import lombok.RequiredArgsConstructor;
+import java.util.*;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
-public class ServiceAccountPrivilegeService {
+public class ServiceAccountPrivilegeService extends AbstractPrivilegeService {
   public static final String SERVICE_EMAIL_PATTERN = "service-%s@openaev.invalid";
-  private static final String SERVICE_FIRSTNAME = "discrete";
-  private final RoleService roleService;
-  private final TenantGroupService tenantGroupService;
-  private final UserService userService;
-  private final TenantUserService tenantUserService;
+  private static final String SERVICE_FIRSTNAME = "service";
+
+  @Autowired
+  public ServiceAccountPrivilegeService(
+      RoleService roleService,
+      TenantGroupService tenantGroupService,
+      UserService userService,
+      TenantUserService tenantUserService) {
+    super(roleService, tenantGroupService, userService, tenantUserService);
+  }
+
+  @Override
+  protected String getRoleId() {
+    return SERVICE_ROLE_ID;
+  }
+
+  @Override
+  protected String getRoleName() {
+    return SERVICE_ROLE_NAME;
+  }
+
+  @Override
+  protected String getRoleDescription() {
+    return SERVICE_ROLE_DESCRIPTION;
+  }
+
+  @Override
+  protected Set<Capability> getRoleCapabilities() {
+    return SERVICE_ROLE_CAPABILITIES;
+  }
+
+  @Override
+  protected String getGroupId() {
+    return SERVICE_GROUP_ID;
+  }
+
+  @Override
+  protected String getGroupName() {
+    return SERVICE_GROUP_NAME;
+  }
+
+  @Override
+  protected String getGroupDescription() {
+    return SERVICE_GROUP_DESCRIPTION;
+  }
 
   @Transactional
   public void ensurePrivilegedUserExists(String tenantId) {
@@ -47,10 +83,9 @@ public class ServiceAccountPrivilegeService {
             "User with email {} already exists, but no token found. Reusing existing user.",
             user.getEmail());
 
-        applyAgentAttributes(user, email, group);
+        applyUserServiceAttributes(user, SERVICE_FIRSTNAME, null, email, group);
 
-        user.setTokens(
-            new ArrayList<>(List.of(userService.createUserToken(user, getNewTokenAgent()))));
+        userService.createUserToken(user);
 
         tenantUserService.attachToTenant(user.getId(), tenantId);
         userService.saveUser(user);
@@ -58,7 +93,8 @@ public class ServiceAccountPrivilegeService {
     } else {
       // No user exists — create one
       User user =
-          userService.createInternalUser(email, SERVICE_FIRSTNAME, null, false, getNewTokenAgent());
+          userService.createInternalUser(
+              email, SERVICE_FIRSTNAME, null, false, UUID.randomUUID().toString());
       user.setGroups(new ArrayList<>(List.of(group)));
       tenantUserService.attachToTenant(user.getId(), tenantId);
       userService.saveUser(user);
@@ -82,54 +118,5 @@ public class ServiceAccountPrivilegeService {
         .filter(tokens -> tokens.size() == 1)
         .map(tokens -> tokens.getFirst().getValue())
         .orElseThrow(() -> new UnsupportedOperationException("Invalid token"));
-  }
-
-  private Role createWellKnownRole(String tenantId) {
-    String id = getUUIDFromName(SERVICE_ROLE_ID, tenantId);
-
-    Optional<Role> role = roleService.findById(id);
-    if (role.isEmpty()) {
-      return roleService.createRoleInternal(
-          id, SERVICE_ROLE_NAME, SERVICE_ROLE_DESCRIPTION, SERVICE_ROLE_CAPABILITIES, tenantId);
-    }
-    // Re-converge the existing role toward the description / capability set in case it
-    // has drifted (manual edit, partial migration, etc.). The reserved-name guards prevent users
-    // from doing this through the public API, so we must do it ourselves.
-    return roleService.updateRoleInternal(
-        role.get().getId(), SERVICE_ROLE_NAME, SERVICE_ROLE_DESCRIPTION, SERVICE_ROLE_CAPABILITIES);
-  }
-
-  private Group createWellKnownGroupWithRole(Role role, String tenantId) {
-    String groupId = getUUIDFromName(SERVICE_GROUP_ID, tenantId);
-
-    Optional<Group> group = tenantGroupService.findById(groupId);
-
-    TenantGroupCreateInput input = new TenantGroupCreateInput();
-    input.setName(SERVICE_GROUP_NAME);
-    input.setDescription(SERVICE_GROUP_DESCRIPTION);
-    input.setDefaultUserAssignation(false);
-
-    List<Role> roles = new ArrayList<>(List.of(role));
-    if (group.isPresent()) {
-      return tenantGroupService.updateGroupInfoWithRoles(group.get(), input, roles);
-    } else {
-      return tenantGroupService.createGroupWithRole(groupId, input, roles, tenantId);
-    }
-  }
-
-  private String getNewTokenAgent() {
-    return UUID.randomUUID().toString();
-  }
-
-  private void applyAgentAttributes(User user, String email, Group group) {
-    user.setFirstname(SERVICE_FIRSTNAME);
-    user.setLastname(null);
-    user.setEmail(email);
-    user.setAdmin(false);
-    user.setGroups(new ArrayList<>(List.of(group)));
-  }
-
-  private String getUUIDFromName(String name, String tenantId) {
-    return UUID.nameUUIDFromBytes((UUID.fromString(name) + ":" + tenantId).getBytes()).toString();
   }
 }

@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.util.Date;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hc.client5.http.classic.methods.HttpGet;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
 import org.apache.hc.client5.http.classic.methods.HttpUriRequestBase;
@@ -56,6 +57,37 @@ public class DetectionRemediationAIService {
 
     payload.setSessionId(
         platformSettingsService.findSettings().getPlatformId() + "-" + new Date().getTime());
+
+    Pair<String, ? extends Class<? extends DetectionRemediationAIResponse>> info =
+        inferUrlAndType(collectorType);
+    String errorMessage =
+        "Request to Remediation Detection AI Webservice " + collectorType + " failed: ";
+
+    HttpPost httpPost = new HttpPost(info.getLeft());
+
+    httpPost.addHeader(X_OPENAEV_CERTIFICATE, certificate);
+    httpPost.addHeader(CONTENT_TYPE, APPLICATION_JSON_VALUE);
+
+    StringEntity httpBody;
+    try {
+      httpBody = new StringEntity(mapper.writeValueAsString(payload));
+    } catch (JsonProcessingException e) {
+      log.error(
+          "Failed to process JSON {} . Error: {} ",
+          payload.getClass().getName(),
+          e.getMessage(),
+          e);
+      throw new ResponseStatusException(
+          HttpStatus.INTERNAL_SERVER_ERROR, errorMessage + ": " + e.getMessage());
+    }
+
+    httpPost.setEntity(httpBody);
+    String responseBody = callWebService(errorMessage, httpPost);
+    return getDetectionRemediationAIResponse(responseBody, info.getRight(), errorMessage);
+  }
+
+  public Pair<String, ? extends Class<? extends DetectionRemediationAIResponse>> inferUrlAndType(
+      String collectorType) {
     String url;
     Class<? extends DetectionRemediationAIResponse> classResponse;
     switch (collectorType) {
@@ -79,32 +111,13 @@ public class DetectionRemediationAIService {
       default ->
           throw new IllegalStateException("Collector :\"" + collectorType + "\" unsupported");
     }
+    return Pair.of(url, classResponse);
+  }
 
-    String errorMessage =
-        "Request to Remediation Detection AI Webservice " + collectorType + " failed: ";
-
-    HttpPost httpPost = new HttpPost(url);
-
-    httpPost.addHeader(X_OPENAEV_CERTIFICATE, certificate);
-    httpPost.addHeader(CONTENT_TYPE, APPLICATION_JSON_VALUE);
-
-    StringEntity httpBody;
-    try {
-      httpBody = new StringEntity(mapper.writeValueAsString(payload));
-    } catch (JsonProcessingException e) {
-      log.error(
-          "Failed to process JSON {} . Error: {} ",
-          payload.getClass().getName(),
-          e.getMessage(),
-          e);
-      throw new ResponseStatusException(
-          HttpStatus.INTERNAL_SERVER_ERROR, errorMessage + ": " + e.getMessage());
-    }
-
-    httpPost.setEntity(httpBody);
-
-    String responseBody = callWebService(errorMessage, httpPost);
-
+  public DetectionRemediationAIResponse getDetectionRemediationAIResponse(
+      String responseBody,
+      Class<? extends DetectionRemediationAIResponse> classResponse,
+      String errorMessage) {
     try {
       return mapper.readValue(responseBody, classResponse);
     } catch (JsonProcessingException e) {

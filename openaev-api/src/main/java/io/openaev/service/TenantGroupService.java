@@ -49,7 +49,7 @@ public class TenantGroupService {
     return groupRepository.save(createGroupInner(UUID.randomUUID().toString(), input));
   }
 
-  public Group createGroupWithRole(
+  public Group createInternalGroupWithRole(
       @NotBlank final String id, TenantGroupCreateInput input, List<Role> roles, String tenantId) {
     Group group = createGroupInner(id, input);
     group.setRoles(roles);
@@ -151,7 +151,7 @@ public class TenantGroupService {
         groupRepository
             .findByIdAndTenantId(groupId, tenantId)
             .orElseThrow(ElementNotFoundException::new);
-    // Check if previews name is reserved
+    // Check if previous name is reserved
     ReservedNameValidator.validateGroupName(group.getName());
     return this.updateGroup(group, input);
   }

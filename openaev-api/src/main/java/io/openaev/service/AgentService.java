@@ -31,7 +31,7 @@ public class AgentService {
       Agent.PRIVILEGE privilege,
       String executorId) {
     return agentRepository.findByAssetExecutorIdUserDeploymentAndPrivilege(
-        assetId, user, deploymentMode.name(), privilege.name(), executorId);
+        assetId, user, deploymentMode, privilege, executorId);
   }
 
   public List<Agent> getAgentsByExecutorId(String executorId) {
