@@ -200,7 +200,7 @@ public class LogService {
    */
   public boolean logSessionExpiredEvent(
       String userId, String sessionId, long sessionDurationSeconds, String expiryReason) {
-    if (!isEnabled(AuditLogType.AUDIT)) {
+    if (!isEnabled()) {
       return true;
     }
 
@@ -235,7 +235,7 @@ public class LogService {
               + expiryReason.replace("_", " "));
       doc.setContextData(ctx);
 
-      return emit(doc, java.util.logging.Level.INFO, AuditLogType.AUDIT);
+      return emit(doc, java.util.logging.Level.INFO);
     } catch (Exception e) {
       log.warn("[AUDIT] Failed to log session expiry event: {}", e.getMessage(), e);
     }
