@@ -220,13 +220,13 @@ public interface ExerciseRepository
       nativeQuery = true)
   RawSimulationIndexing rawDetailsById(@Param("exerciseId") String exerciseId);
 
+  /** Also called by cross-tenant notification job (ScenarioNotificationEventHandler). */
   @Query(
       value =
           " SELECT DISTINCT (ie.inject_id) "
               + "FROM exercises ex "
               + "LEFT JOIN injects_expectations ie ON ex.exercise_id = ie.exercise_id "
-              + "WHERE ex.exercise_id = :exerciseId AND ie.inject_id IS NOT NULL "
-              + "AND ex.tenant_id = :#{#tenantContext.currentTenant};",
+              + "WHERE ex.exercise_id = :exerciseId AND ie.inject_id IS NOT NULL;",
       nativeQuery = true)
   Set<String> findInjectsByExercise(@Param("exerciseId") String exerciseId);
 

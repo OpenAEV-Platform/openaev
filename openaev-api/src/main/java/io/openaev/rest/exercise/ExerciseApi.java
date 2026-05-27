@@ -663,6 +663,8 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   public List<ExpectationResultsByType> globalResults(@NotBlank @PathVariable String exerciseId) {
+    // Validate tenant isolation before querying cross-tenant-safe repository method
+    exerciseService.exercise(exerciseId);
     return exerciseService.getGlobalResults(exerciseId);
   }
 
