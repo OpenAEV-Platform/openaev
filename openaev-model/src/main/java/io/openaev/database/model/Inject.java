@@ -184,7 +184,12 @@ public class Inject implements GrantableBase, Injection, TenantBase {
 
   @Getter
   @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "inject_injector")
+  @JoinColumnsOrFormulas({
+    @JoinColumnOrFormula(
+        column = @JoinColumn(name = "inject_injector", referencedColumnName = "injector_id")),
+    @JoinColumnOrFormula(
+        formula = @JoinFormula(value = "tenant_id", referencedColumnName = "tenant_id"))
+  })
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonDeserialize(using = MonoIdDeserializerHelper.class)
   @JsonProperty("inject_injector")

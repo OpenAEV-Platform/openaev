@@ -5,6 +5,7 @@ import io.openaev.database.model.WorkflowStatus;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -30,5 +31,24 @@ public interface WorkflowRepository extends JpaRepository<Workflow, String> {
 
   Optional<Workflow> findByIdAndStatus(String workflowId, WorkflowStatus status);
 
+  boolean existsByIdAndStatus(String workflowId, WorkflowStatus status);
+
   List<Workflow> findByScenario_IdAndStatus(String scenarioId, WorkflowStatus workflowStatus);
+
+  /**
+   * Finds all RUN workflows that have timeout enabled and whose timeout has expired.
+   *
+   * @return list of expired workflows
+   */
+  @Query(
+      value =
+          """
+        SELECT * FROM workflows
+        WHERE workflow_status = 'RUN'
+          AND workflow_timeout_enabled = true
+          AND workflow_timeout_seconds IS NOT NULL
+          AND workflow_created_at + (workflow_timeout_seconds || ' seconds')::interval <= now()
+        """,
+      nativeQuery = true)
+  List<Workflow> findAllExpiredRunWorkflows();
 }

@@ -35,4 +35,23 @@ public class EndpointRegisterInput extends EndpointInput {
   private String serviceName;
 
   private String seenIp;
+
+  public static EndpointRegisterInput from(EndpointInput input) {
+    EndpointRegisterInput registerInput = new EndpointRegisterInput();
+    // asset input abstract fields
+    registerInput.setName(input.getName());
+    registerInput.setDescription(input.getDescription());
+    registerInput.setTagIds(input.getTagIds());
+    registerInput.setExternalReference(input.getExternalReference());
+
+    // endpoint input concrete fields
+    registerInput.setPlatform(input.getPlatform());
+    registerInput.setArch(input.getArch());
+    registerInput.setHostname(input.getHostname());
+    registerInput.setAgentVersion(input.getAgentVersion());
+    registerInput.setIps(input.getIps());
+    registerInput.setMacAddresses(input.getMacAddresses());
+    registerInput.setEol(input.isEol());
+    return registerInput;
+  }
 }

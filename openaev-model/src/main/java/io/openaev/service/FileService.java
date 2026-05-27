@@ -1,6 +1,8 @@
 package io.openaev.service;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Document;
+import io.openaev.database.model.Tenant;
 import java.io.InputStream;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -71,7 +73,7 @@ public class FileService {
    * @throws Exception if the upload fails
    */
   public String uploadStream(String path, String name, InputStream data) throws Exception {
-    String file = path + "/" + name;
+    String file = path.endsWith("/") ? path + name : path + "/" + name;
     minioService.uploadStreamInTenantPath(file, name, data);
     return file;
   }
@@ -134,50 +136,78 @@ public class FileService {
    * Retrieves an injector's image file.
    *
    * @param injectType the injector type identifier
+   * @param isExternal indicates if the file is a built-in asset (false) or a tenant-specific file
+   *     (true)
    * @return an Optional containing the image input stream, or empty if not found
    */
-  public Optional<InputStream> getInjectorImage(String injectType) {
-    return getFilePath(INJECTORS_IMAGES_BASE_PATH + injectType + EXT_PNG);
+  public Optional<InputStream> getInjectorImage(String injectType, boolean isExternal) {
+    return getPlatformImage(INJECTORS_IMAGES_BASE_PATH + injectType + EXT_PNG, isExternal);
   }
 
   /**
    * Retrieves a collector's image file.
    *
    * @param collectorId the collector identifier
+   * @param isExternal indicates if the file is a built-in asset (false) or a tenant-specific file
+   *     (true)
    * @return an Optional containing the image input stream, or empty if not found
    */
-  public Optional<InputStream> getCollectorImage(String collectorId) {
-    return getFilePath(COLLECTORS_IMAGES_BASE_PATH + collectorId + EXT_PNG);
+  public Optional<InputStream> getCollectorImage(String collectorId, boolean isExternal) {
+    return getPlatformImage(COLLECTORS_IMAGES_BASE_PATH + collectorId + EXT_PNG, isExternal);
   }
 
   /**
    * Retrieves an executor's icon image file.
    *
    * @param executorId the executor identifier
+   * @param isExternal indicates if the file is a built-in asset (false) or a tenant-specific file
+   *     (true)
    * @return an Optional containing the image input stream, or empty if not found
    */
-  public Optional<InputStream> getExecutorIconImage(String executorId) {
-    return getFilePath(EXECUTORS_IMAGES_ICONS_BASE_PATH + executorId + EXT_PNG);
+  public Optional<InputStream> getExecutorIconImage(String executorId, boolean isExternal) {
+    return getPlatformImage(EXECUTORS_IMAGES_ICONS_BASE_PATH + executorId + EXT_PNG, isExternal);
   }
 
   /**
    * Retrieves an executor's banner image file.
    *
    * @param executorId the executor identifier
+   * @param isExternal indicates if the file is a built-in asset (false) or a tenant-specific file
+   *     (true)
    * @return an Optional containing the image input stream, or empty if not found
    */
-  public Optional<InputStream> getExecutorBannerImage(String executorId) {
-    return getFilePath(EXECUTORS_IMAGES_BANNERS_BASE_PATH + executorId + EXT_PNG);
+  public Optional<InputStream> getExecutorBannerImage(String executorId, boolean isExternal) {
+    return getPlatformImage(EXECUTORS_IMAGES_BANNERS_BASE_PATH + executorId + EXT_PNG, isExternal);
   }
 
   /**
    * Retrieves a catalog connector's logo image file.
    *
    * @param fileName the logo filename
+   * @param isExternal indicates if the file is a built-in asset (false) or a tenant-specific file
+   *     (true)
    * @return an Optional containing the image input stream, or empty if not found
    */
-  public Optional<InputStream> getCatalogConnectorImage(String fileName) {
-    return getFilePath(CONNECTORS_LOGO_PATH + fileName);
+  public Optional<InputStream> getCatalogConnectorImage(String fileName, boolean isExternal) {
+    return getPlatformImage(CONNECTORS_LOGO_PATH + fileName, isExternal);
+  }
+
+  /**
+   * Platform assets are written once under the default tenant during startup for built in assets
+   * should fall back to specific tenant if isExternal is true.
+   *
+   * @param filePath to retrieve
+   * @param isExternal indicates if the file is a built-in asset (false) or from an external asset
+   *     (true)
+   * @return finded file
+   */
+  private Optional<InputStream> getPlatformImage(String filePath, boolean isExternal) {
+    Optional<InputStream> tenantFile = getFilePath(filePath);
+    if (tenantFile.isPresent()) {
+      return tenantFile;
+    }
+    return minioService.getFilePathForTenant(
+        isExternal ? TenantContext.getCurrentTenant() : Tenant.DEFAULT_TENANT_UUID, filePath);
   }
 
   /**

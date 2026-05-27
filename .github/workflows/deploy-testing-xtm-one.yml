@@ -67,26 +67,27 @@ jobs:
           context: .
           file: ./Dockerfile_ga
           push: true
+          pull: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=filigran/openaev-platform:buildcache
           cache-to: type=registry,ref=filigran/openaev-platform:buildcache,mode=max
 
   deploy:
-      name: Restart testing-xtm-one instance
-      needs: build-image
-      runs-on: ubuntu-latest
-      steps:
-        - name: Install AWX cli
-          run: pip install awxkit
+    name: Restart testing-xtm-one instance
+    needs: build-image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install AWX cli
+        run: pip install awxkit
 
-        - name: Restart instance via AWX
-          run: |
-            awx --conf.host ${{ secrets.AWX_URL }} \
-              --conf.username ${{ secrets.AWX_USER }} \
-              --conf.password ${{ secrets.AWX_PASSWORD }} \
-              job_templates launch 'Rollout restart an instance resources' \
-              --inventory eu-west-staging \
-              --extra_vars '{"solution":"openaev", "customer":"testing-xtm-one-oaev"}' \
-              --wait \
-              -f human
+      - name: Restart instance via AWX
+        run: |
+          awx --conf.host ${{ secrets.AWX_URL }} \
+            --conf.username ${{ secrets.AWX_USER }} \
+            --conf.password ${{ secrets.AWX_PASSWORD }} \
+            job_templates launch 'Rollout restart an instance resources' \
+            --inventory eu-west-staging \
+            --extra_vars '{"solution":"openaev", "customer":"testing-xtm-one-oaev"}' \
+            --wait \
+            -f human

@@ -59,6 +59,14 @@ public class Executor extends BaseConnectorEntity implements TenantBase {
   @JsonIgnore
   private Tenant tenant;
 
+  /**
+   * Read-only mapping of the physical tenant_id column. Needed so that Hibernate can resolve {@code
+   * referencedColumnName = "tenant_id"} in {@code @JoinFormula} from Agent → Executor.
+   */
+  @Column(name = "tenant_id", insertable = false, updatable = false)
+  @JsonIgnore
+  private String tenantId;
+
   @Column(name = "executor_created_at")
   @JsonProperty("executor_created_at")
   @NotNull

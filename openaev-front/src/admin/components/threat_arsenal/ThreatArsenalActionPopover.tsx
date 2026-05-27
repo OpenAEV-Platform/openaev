@@ -11,8 +11,8 @@ import {
 } from '@mui/material';
 import { type MouseEvent, useContext, useState } from 'react';
 
-import { deletePayload } from '../../../actions/payloads/payload-actions';
 import {
+  deleteThreatArsenalAction,
   duplicateThreatArsenalAction,
   exportThreatArsenalAction,
   fetchThreatArsenalAction,
@@ -24,26 +24,28 @@ import Transition from '../../../components/common/Transition';
 import { useFormatter } from '../../../components/i18n';
 import {
   type ThreatArsenalAction,
-  type ThreatArsenalActionCreateInput,
   type ThreatArsenalActionFullOutput,
+  type ThreatArsenalActionUpdateInput,
 } from '../../../utils/api-types';
 import { type ThreatArsenalActionCreateCustomInput } from '../../../utils/api-types-custom';
-import { useAppDispatch } from '../../../utils/hooks';
 import { AbilityContext, Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { download } from '../../../utils/utils';
+import InjectorContractForm, { type InjectorContractFormValues } from '../integrations/injectors/injector_contracts/InjectorContractForm';
 import { type DetectionRemediationForm } from '../payloads/utils/payloadFormToPayloadInput';
 import ThreatArsenalActionForm from './ThreatArsenalActionForm';
 import SnapshotRemediationProvider from './utils/SnapshotRemediationProvider';
 
 interface PayloadPopoverNewProps {
   actionId: string;
-  payloadId: string;
+  payloadId?: string;
   name: string;
   onUpdate?: (action: ThreatArsenalAction) => void;
   onDelete?: () => void;
   onDuplicate?: (action: ThreatArsenalAction) => void;
   disableUpdate?: boolean;
+  disableDuplicate?: boolean;
+  disableJsonExport?: boolean;
   disableDelete?: boolean;
 }
 
@@ -99,9 +101,11 @@ const ThreatArsenalActionPopover = ({
   payloadId,
   name,
   onUpdate,
-  onDelete,
   onDuplicate,
+  onDelete,
   disableUpdate,
+  disableDuplicate,
+  disableJsonExport,
   disableDelete,
 }: PayloadPopoverNewProps) => {
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
@@ -110,7 +114,6 @@ const ThreatArsenalActionPopover = ({
   const [deletion, setDeletion] = useState(false);
   const [fetchedAction, setFetchedAction] = useState<ThreatArsenalActionFullOutput | null>(null);
 
-  const dispatch = useAppDispatch();
   const { t, tPick } = useFormatter();
   const ability = useContext(AbilityContext);
 
@@ -135,7 +138,7 @@ const ThreatArsenalActionPopover = ({
   };
 
   const onSubmitEdit = async (data: ThreatArsenalActionCreateCustomInput) => {
-    const inputValues: ThreatArsenalActionCreateInput = {
+    const inputValues: ThreatArsenalActionUpdateInput = {
       ...data,
       action_cleanup_executor: handleCleanupExecutorValue(
         data.action_cleanup_executor as string ?? '',
@@ -153,7 +156,7 @@ const ThreatArsenalActionPopover = ({
             author_rule: remediation.author_rule,
           };
         }),
-    } as ThreatArsenalActionCreateInput;
+    } as ThreatArsenalActionUpdateInput;
 
     const response = await updateThreatArsenalAction(actionId, inputValues);
     if (response.data && onUpdate) {
@@ -162,12 +165,27 @@ const ThreatArsenalActionPopover = ({
     handleCloseEdit();
   };
 
+  const onSubmitInjectorContractEdit = (data: InjectorContractFormValues) => {
+    const updatedDataInput: ThreatArsenalActionCreateCustomInput = {
+      ...fetchedAction,
+      action_name: fetchedAction?.action_labels ? tPick(fetchedAction?.action_labels) : '',
+      action_tags: data.injector_contract_tags,
+      action_attack_patterns: data.injector_contract_attack_patterns,
+      action_domains: data.injector_contract_domains,
+    } as ThreatArsenalActionCreateCustomInput;
+    onSubmitEdit(updatedDataInput);
+  };
+
   // -- Delete --
   const handleOpenDelete = () => setDeletion(true);
   const handleCloseDelete = () => setDeletion(false);
 
   const submitDelete = () => {
-    dispatch(deletePayload(payloadId)).then(() => {
+    if (!actionId) {
+      handleCloseDelete();
+      return;
+    }
+    deleteThreatArsenalAction(actionId).then(() => {
       handleCloseDelete();
       if (onDelete) onDelete();
     });
@@ -188,8 +206,8 @@ const ThreatArsenalActionPopover = ({
     handleCloseDuplicate();
   };
 
-  const hasUpdateCapability = ability.can(ACTIONS.MANAGE, SUBJECTS.PAYLOADS) || ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, payloadId);
-  const hasDeleteCapability = ability.can(ACTIONS.DELETE, SUBJECTS.PAYLOADS) || ability.can(ACTIONS.DELETE, SUBJECTS.RESOURCE, payloadId);
+  const hasUpdateCapability = ability.can(ACTIONS.MANAGE, SUBJECTS.THREAT_ARSENALS) || ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, payloadId);
+  const hasDeleteCapability = ability.can(ACTIONS.DELETE, SUBJECTS.THREAT_ARSENALS) || ability.can(ACTIONS.DELETE, SUBJECTS.RESOURCE, payloadId);
 
   // -- Export --
   const handleExportJsonSingle = async () => {
@@ -210,10 +228,10 @@ const ThreatArsenalActionPopover = ({
         open={Boolean(anchorEl)}
         onClose={handlePopoverClose}
       >
-        <Can I={ACTIONS.MANAGE} a={SUBJECTS.PAYLOADS}>
-          <MenuItem onClick={handleOpenDuplicate}>{t('Duplicate')}</MenuItem>
+        <Can I={ACTIONS.MANAGE} a={SUBJECTS.THREAT_ARSENALS}>
+          <MenuItem onClick={handleOpenDuplicate} disabled={disableDuplicate}>{t('Duplicate')}</MenuItem>
         </Can>
-        <MenuItem onClick={handleExportJsonSingle}>{t('Export')}</MenuItem>
+        <MenuItem onClick={handleExportJsonSingle} disabled={disableJsonExport}>{t('Export')}</MenuItem>
         {hasUpdateCapability && (
           <MenuItem onClick={handleOpenEdit} disabled={disableUpdate}>{t('Update')}</MenuItem>
         )}
@@ -249,18 +267,32 @@ const ThreatArsenalActionPopover = ({
       <Drawer
         open={openEdit}
         handleClose={handleCloseEdit}
-        title={t('Update the action')}
+        title={`${t('Update the action :')} ${name}`}
       >
-        {fetchedAction && (
-          <SnapshotRemediationProvider>
-            <ThreatArsenalActionForm
-              onSubmit={onSubmitEdit}
-              handleClose={handleCloseEdit}
+        <>
+          {fetchedAction && !!payloadId && (
+            <SnapshotRemediationProvider>
+              <ThreatArsenalActionForm
+                onSubmit={onSubmitEdit}
+                handleClose={handleCloseEdit}
+                editing
+                initialValues={buildInitialValues(fetchedAction, tPick(fetchedAction.action_labels))}
+              />
+            </SnapshotRemediationProvider>
+          )}
+          {fetchedAction && !payloadId && (
+            <InjectorContractForm
+              initialValues={{
+                injector_contract_attack_patterns: fetchedAction.action_attack_patterns,
+                injector_contract_domains: fetchedAction.action_domains,
+                injector_contract_tags: fetchedAction.action_tags,
+              }}
               editing
-              initialValues={buildInitialValues(fetchedAction, tPick(fetchedAction.action_labels))}
+              onSubmit={onSubmitInjectorContractEdit}
+              handleClose={handleCloseEdit}
             />
-          </SnapshotRemediationProvider>
-        )}
+          )}
+        </>
       </Drawer>
     </>
   );

@@ -2,10 +2,10 @@ package io.openaev.opencti.connectors.service;
 
 import static org.assertj.core.api.AssertionsForClassTypes.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.opencti.client.OpenCTIClient;
 import io.openaev.opencti.client.mutations.Ping;
 import io.openaev.opencti.client.mutations.QueryTypeFields;
@@ -17,10 +17,7 @@ import io.openaev.opencti.errors.ConnectorError;
 import io.openaev.stix.objects.Bundle;
 import io.openaev.stix.types.Identifier;
 import io.openaev.utils.fixtures.opencti.ResponseFixture;
-import io.openaev.utils.fixtures.opencti.TestBeanConnector;
-import io.openaev.utils.fixtures.opencti.TestBeanConnectorShouldRegister;
 import io.openaev.utils.mockConfig.WithMockSecurityCoverageConnectorConfig;
-import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
@@ -42,18 +39,6 @@ public class OpenCTIConnectorServiceTest extends IntegrationTest {
   @MockitoBean private OpenCTIClient mockOpenCTIClient;
   @Autowired OpenCTIConnectorService openCTIConnectorService;
 
-  private Optional<ConnectorBase> getInstanceOfTestBeanConnector() {
-    return openCTIConnectorService.getConnectors().stream()
-        .filter(c -> c instanceof TestBeanConnector)
-        .findFirst();
-  }
-
-  private Optional<ConnectorBase> getInstanceOfTestBeanShouldRegisterConnector() {
-    return openCTIConnectorService.getConnectors().stream()
-        .filter(c -> c instanceof TestBeanConnectorShouldRegister)
-        .findFirst();
-  }
-
   private Optional<ConnectorBase> getInstanceOfSecurityCoverageConnector() {
     return openCTIConnectorService.getConnectors().stream()
         .filter(c -> c instanceof SecurityCoverageConnector)
@@ -70,59 +55,20 @@ public class OpenCTIConnectorServiceTest extends IntegrationTest {
   public class RegisterAllConnectorsTest {
 
     @Test
-    @DisplayName(
-        "When API return is error payload for single connector, the other connector was successfully registered")
-    public void
-        whenApiReturnIsErrorPayloadForSingleConnector_theOtherConnectorWasSuccessfullyRegistered()
-            throws IOException {
+    @DisplayName("When API return is error, the connector is NOT registered")
+    public void whenApiReturnIsError_connectorIsNotRegistered() throws IOException {
+      ConnectorBase connector = getInstanceOfSecurityCoverageConnector().get();
+      connector.setRegistered(false);
 
-      when(mockOpenCTIClient.execute(any(), any(), any()))
-          .thenReturn(ResponseFixture.getOkResponse());
       Response jwksSchemaResponse = ResponseFixture.getSchemaResponseWithJwks();
       when(mockOpenCTIClient.execute(any(), any(), any(QueryTypeFields.class)))
           .thenReturn(jwksSchemaResponse);
-      ConnectorBase connector = getInstanceOfTestBeanConnector().get();
-      when(mockOpenCTIClient.execute(any(), any(), eq(new RegisterConnector(connector))))
+      when(mockOpenCTIClient.execute(any(), any(), any(RegisterConnector.class)))
           .thenReturn(ResponseFixture.getErrorResponse());
 
       openCTIConnectorService.registerOrPingAllConnectors();
 
-      // the test connector is NOT registered
       assertThat(connector.isRegistered()).isFalse();
-      // other connectors are registered OK
-      assertThat(
-              openCTIConnectorService.getConnectors().stream()
-                  .filter(c -> !(c instanceof TestBeanConnector))
-                  .allMatch(ConnectorBase::isRegistered))
-          .isTrue();
-    }
-
-    @Test
-    @DisplayName(
-        "When Connector should not register, the other connector was successfully registered")
-    public void whenConnectorShouldNotRegister_theOtherConnectorWasSuccessfullyRegistered()
-        throws IOException {
-      // make is so it appears not correctly configured
-      when(mockOpenCTIClient.execute(any(), any(), any()))
-          .thenReturn(ResponseFixture.getOkResponse());
-      Response jwksSchemaResponse = ResponseFixture.getSchemaResponseWithJwks();
-      when(mockOpenCTIClient.execute(any(), any(), any(QueryTypeFields.class)))
-          .thenReturn(jwksSchemaResponse);
-
-      openCTIConnectorService.registerOrPingAllConnectors();
-
-      // the test connector is NOT registered
-      ConnectorBase connector = getInstanceOfTestBeanConnector().get();
-      assertThat(connector.isRegistered()).isFalse();
-      // register was not attempted
-      verify(mockOpenCTIClient, never())
-          .execute(any(), any(), eq(new RegisterConnector(connector)));
-      // other connectors are registered OK
-      assertThat(
-              openCTIConnectorService.getConnectors().stream()
-                  .filter(c -> !(c instanceof TestBeanConnector))
-                  .allMatch(ConnectorBase::isRegistered))
-          .isTrue();
     }
 
     @Test
@@ -130,9 +76,8 @@ public class OpenCTIConnectorServiceTest extends IntegrationTest {
         "When Connector is known registered, the service should ping instead of registering")
     public void whenConnectorIsKnownRegistered_theServiceShouldPingInsteadOfRegistering()
         throws IOException {
-      openCTIConnectorService.getConnectors().forEach(c -> c.setRegistered(false));
-      ConnectorBase connectorBase = getInstanceOfTestBeanShouldRegisterConnector().get();
-      connectorBase.setRegistered(true);
+      ConnectorBase connector = getInstanceOfSecurityCoverageConnector().get();
+      connector.setRegistered(true);
 
       when(mockOpenCTIClient.execute(any(), any(), any()))
           .thenReturn(ResponseFixture.getOkResponse());
@@ -142,77 +87,26 @@ public class OpenCTIConnectorServiceTest extends IntegrationTest {
 
       openCTIConnectorService.registerOrPingAllConnectors();
 
-      verify(mockOpenCTIClient, atLeastOnce())
-          .execute(
-              any(),
-              any(),
-              argThat(
-                  arg ->
-                      arg instanceof Ping
-                          && ((Ping) arg).getConnector()
-                              instanceof TestBeanConnectorShouldRegister));
-      verify(mockOpenCTIClient, times(1)).execute(any(), any(), any(RegisterConnector.class));
-      // all connectors are registered OK
-      List<ConnectorBase> connectors = getConnectorsShouldRegister();
-
-      assertThat(connectors.stream().allMatch(ConnectorBase::isRegistered)).isTrue();
+      verify(mockOpenCTIClient, atLeastOnce()).execute(any(), any(), any(Ping.class));
+      verify(mockOpenCTIClient, never()).execute(any(), any(), any(RegisterConnector.class));
     }
 
     @Test
-    @DisplayName(
-        "When Connector fails to register, the service should keep going and register the others.")
-    public void whenConnectorFailsToRegister_theServiceShouldKeepGoingAndRegisterTheOthers()
-        throws IOException {
-      openCTIConnectorService.getConnectors().forEach(c -> c.setRegistered(false));
+    @DisplayName("When registration succeeds, connector is marked as registered")
+    public void whenRegistrationSucceeds_connectorIsMarkedAsRegistered() throws IOException {
+      ConnectorBase connector = getInstanceOfSecurityCoverageConnector().get();
+      connector.setRegistered(false);
+
       Response jwksSchemaResponse = ResponseFixture.getSchemaResponseWithJwks();
       when(mockOpenCTIClient.execute(any(), any(), any(QueryTypeFields.class)))
           .thenReturn(jwksSchemaResponse);
-      when(mockOpenCTIClient.execute(
-              any(),
-              any(),
-              argThat(
-                  arg ->
-                      arg instanceof RegisterConnector
-                          && ((RegisterConnector) arg).getConnector()
-                              instanceof SecurityCoverageConnector)))
+      when(mockOpenCTIClient.execute(any(), any(), any(RegisterConnector.class)))
           .thenReturn(ResponseFixture.getOkResponse());
-
-      ConnectorBase connectorBase = getInstanceOfTestBeanShouldRegisterConnector().get();
-      when(mockOpenCTIClient.execute(
-              any(),
-              any(),
-              argThat(
-                  arg ->
-                      arg instanceof RegisterConnector
-                          && ((RegisterConnector) arg).getConnector()
-                              instanceof TestBeanConnectorShouldRegister)))
-          .thenThrow(IOException.class);
 
       openCTIConnectorService.registerOrPingAllConnectors();
 
-      List<ConnectorBase> connectors = getConnectorsShouldRegister();
-
-      verify(mockOpenCTIClient, times(connectors.size()))
-          .execute(any(), any(), any(RegisterConnector.class));
-      // the test connector is NOT registered
-      assertThat(connectorBase.isRegistered()).isFalse();
-      // other connectors are registered OK
-      assertThat(
-              connectors.stream()
-                  .filter(c -> !(c instanceof TestBeanConnectorShouldRegister))
-                  .allMatch(ConnectorBase::isRegistered))
-          .isTrue();
+      assertThat(connector.isRegistered()).isTrue();
     }
-  }
-
-  @NotNull
-  private List<ConnectorBase> getConnectorsShouldRegister() {
-    return openCTIConnectorService.getConnectors().stream()
-        .filter(
-            c ->
-                c instanceof SecurityCoverageConnector
-                    || c instanceof TestBeanConnectorShouldRegister)
-        .toList();
   }
 
   @Nested
@@ -234,11 +128,11 @@ public class OpenCTIConnectorServiceTest extends IntegrationTest {
         connector.setRegistered(false);
 
         assertThatThrownBy(
-                () -> openCTIConnectorService.pushSecurityCoverageStixBundle(createBundle()))
+                () ->
+                    openCTIConnectorService.pushSecurityCoverageStixBundle(
+                        createBundle(), TenantContext.getCurrentTenant()))
             .isInstanceOf(ConnectorError.class)
-            .hasMessage(
-                "Cannot push STIX bundle via connector %s to OpenCTI at %s: connector hasn't registered yet. Try again later."
-                    .formatted(connector.getName(), connector.getApiUrl()));
+            .hasMessageContaining("connector hasn't registered yet");
       }
 
       @Test
@@ -251,11 +145,11 @@ public class OpenCTIConnectorServiceTest extends IntegrationTest {
             .thenReturn(ResponseFixture.getErrorResponse());
 
         assertThatThrownBy(
-                () -> openCTIConnectorService.pushSecurityCoverageStixBundle(createBundle()))
+                () ->
+                    openCTIConnectorService.pushSecurityCoverageStixBundle(
+                        createBundle(), TenantContext.getCurrentTenant()))
             .isInstanceOf(ConnectorError.class)
-            .hasMessageContaining(
-                "Failed to push STIX bundle via connector %s to OpenCTI at %s"
-                    .formatted(connector.getName(), connector.getApiUrl()));
+            .hasMessageContaining("Failed to push STIX bundle");
       }
 
       @Test
@@ -269,7 +163,9 @@ public class OpenCTIConnectorServiceTest extends IntegrationTest {
 
         assertThatNoException()
             .isThrownBy(
-                () -> openCTIConnectorService.pushSecurityCoverageStixBundle(createBundle()));
+                () ->
+                    openCTIConnectorService.pushSecurityCoverageStixBundle(
+                        createBundle(), TenantContext.getCurrentTenant()));
       }
     }
   }

@@ -7,9 +7,10 @@ import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.executors.InjectorContext;
 import io.openaev.injectors.openaev.OpenAEVImplantContract;
+import io.openaev.integration.BuiltinIntegrationFactory;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
-import io.openaev.integration.IntegrationFactory;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.InjectExpectationService;
@@ -18,10 +19,11 @@ import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
+import java.util.Map;
 import org.springframework.stereotype.Service;
 
 @Service
-public class OpenaevInjectorIntegrationFactory extends IntegrationFactory {
+public class OpenaevInjectorIntegrationFactory extends BuiltinIntegrationFactory {
 
   private final ComponentRequestEngine componentRequestEngine;
   private final ConnectorInstanceService connectorInstanceService;
@@ -99,5 +101,28 @@ public class OpenaevInjectorIntegrationFactory extends IntegrationFactory {
         assetGroupService,
         injectExpectationService,
         injectService);
+  }
+
+  @Override
+  public void registerConnectorForTenant() throws Exception {
+    try {
+      injectorService.injector(OpenaevInjectorIntegration.OPENAEV_INJECTOR_ID);
+    } catch (ElementNotFoundException e) {
+      Map<String, String> executorCommands =
+          OpenaevImplantCommandBuilder.buildExecutorCommands(openAEVConfig);
+      Map<String, String> executorClearCommands =
+          OpenaevImplantCommandBuilder.buildExecutorClearCommands();
+
+      injectorService.registerBuiltinInjector(
+          OpenaevInjectorIntegration.OPENAEV_INJECTOR_ID,
+          OpenaevInjectorIntegration.OPENAEV_INJECTOR_NAME,
+          openAEVImplantContract,
+          false,
+          "simulation-implant",
+          executorCommands,
+          executorClearCommands,
+          true,
+          List.of());
+    }
   }
 }

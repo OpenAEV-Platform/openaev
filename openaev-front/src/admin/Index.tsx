@@ -217,15 +217,7 @@ const Index = () => {
             />
             <Route
               path="threat-arsenal"
-              element={(
-                <ProtectedRoute
-                  checks={[{
-                    action: ACTIONS.ACCESS,
-                    subject: SUBJECTS.PAYLOADS,
-                  }]}
-                  Component={errorWrapper(ThreatArsenal)()}
-                />
-              )}
+              element={errorWrapper(ThreatArsenal)()}
             />
             <Route
               path="integrations/*"

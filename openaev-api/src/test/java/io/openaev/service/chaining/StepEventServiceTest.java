@@ -318,7 +318,7 @@ class StepEventServiceTest {
 
       // Assert
       verify(stepService).saveStep(updated);
-      verify(stepService).evaluateWorkflowProgress(workflowRun);
+      verify(workflowService).evaluateWorkflowProgress(workflowRun);
       verify(workflowService).saveWorkflowRun(workflowRun);
     }
   }

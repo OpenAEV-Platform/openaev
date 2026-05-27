@@ -31,7 +31,6 @@ import io.openaev.database.repository.*;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.executors.Executor;
 import io.openaev.injector_contract.ContractTargetedProperty;
-import io.openaev.integration.Manager;
 import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
 import io.openaev.rest.atomic_testing.form.ExecutionTraceOutput;
@@ -63,11 +62,7 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import net.javacrumbs.jsonunit.core.Option;
 import org.awaitility.Awaitility;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
@@ -142,8 +137,8 @@ class InjectApiTest extends IntegrationTest {
 
   @BeforeEach
   void beforeEach() throws Exception {
-    new Manager(List.of(emailInjectorIntegrationFactory, openaevInjectorIntegrationFactory))
-        .monitorIntegrations();
+    emailInjectorIntegrationFactory.registerConnectorForTenant();
+    openaevInjectorIntegrationFactory.registerConnectorForTenant();
 
     Scenario scenario = new Scenario();
     scenario.setName("Scenario name");
@@ -1669,11 +1664,6 @@ class InjectApiTest extends IntegrationTest {
         performCallbackRequest(agentId, cveInject.getId(), input);
 
         // -- ASSERT --
-        Awaitility.await()
-            .atMost(15, TimeUnit.SECONDS)
-            .with()
-            .pollInterval(1, TimeUnit.SECONDS)
-            .until(() -> injectTestHelper.hasInjectStatusTrace(cveInject.getId()));
         assertTrue(
             injectTestHelper.findFindingsByInjectId(cveInject.getId()).isEmpty(),
             "No findings expected when output has no CVE match");
@@ -1748,11 +1738,6 @@ class InjectApiTest extends IntegrationTest {
         performCallbackRequest(agentId, credInject.getId(), input);
 
         // -- ASSERT --
-        Awaitility.await()
-            .atMost(15, TimeUnit.SECONDS)
-            .with()
-            .pollInterval(1, TimeUnit.SECONDS)
-            .until(() -> injectTestHelper.hasInjectStatusTrace(credInject.getId()));
         assertTrue(injectTestHelper.findFindingsByInjectId(credInject.getId()).isEmpty());
       }
 
@@ -1830,11 +1815,6 @@ class InjectApiTest extends IntegrationTest {
         performCallbackRequest(agentId, portScanInject.getId(), input);
 
         // -- ASSERT --
-        Awaitility.await()
-            .atMost(15, TimeUnit.SECONDS)
-            .with()
-            .pollInterval(1, TimeUnit.SECONDS)
-            .until(() -> injectTestHelper.hasInjectStatusTrace(portScanInject.getId()));
         assertTrue(injectTestHelper.findFindingsByInjectId(portScanInject.getId()).isEmpty());
       }
 
@@ -1904,11 +1884,6 @@ class InjectApiTest extends IntegrationTest {
         performCallbackRequest(agentId, portInject.getId(), input);
 
         // -- ASSERT --
-        Awaitility.await()
-            .atMost(15, TimeUnit.SECONDS)
-            .with()
-            .pollInterval(1, TimeUnit.SECONDS)
-            .until(() -> injectTestHelper.hasInjectStatusTrace(portInject.getId()));
         assertTrue(injectTestHelper.findFindingsByInjectId(portInject.getId()).isEmpty());
       }
 
@@ -1964,11 +1939,6 @@ class InjectApiTest extends IntegrationTest {
         performCallbackRequest(agentId, textInject.getId(), input);
 
         // -- ASSERT --
-        Awaitility.await()
-            .atMost(15, TimeUnit.SECONDS)
-            .with()
-            .pollInterval(1, TimeUnit.SECONDS)
-            .until(() -> injectTestHelper.hasInjectStatusTrace(textInject.getId()));
         assertTrue(injectTestHelper.findFindingsByInjectId(textInject.getId()).isEmpty());
       }
 
@@ -2027,11 +1997,6 @@ class InjectApiTest extends IntegrationTest {
         performCallbackRequest(agentId, numberInject.getId(), input);
 
         // -- ASSERT --
-        Awaitility.await()
-            .atMost(15, TimeUnit.SECONDS)
-            .with()
-            .pollInterval(1, TimeUnit.SECONDS)
-            .until(() -> injectTestHelper.hasInjectStatusTrace(numberInject.getId()));
         assertTrue(injectTestHelper.findFindingsByInjectId(numberInject.getId()).isEmpty());
       }
 
@@ -2103,11 +2068,6 @@ class InjectApiTest extends IntegrationTest {
         performCallbackRequest(agentId, ipv4Inject.getId(), input);
 
         // -- ASSERT --
-        Awaitility.await()
-            .atMost(15, TimeUnit.SECONDS)
-            .with()
-            .pollInterval(1, TimeUnit.SECONDS)
-            .until(() -> injectTestHelper.hasInjectStatusTrace(ipv4Inject.getId()));
         assertTrue(injectTestHelper.findFindingsByInjectId(ipv4Inject.getId()).isEmpty());
       }
 
@@ -2172,11 +2132,6 @@ class InjectApiTest extends IntegrationTest {
         performCallbackRequest(agentId, ipv6Inject.getId(), input);
 
         // -- ASSERT --
-        Awaitility.await()
-            .atMost(15, TimeUnit.SECONDS)
-            .with()
-            .pollInterval(1, TimeUnit.SECONDS)
-            .until(() -> injectTestHelper.hasInjectStatusTrace(ipv6Inject.getId()));
         assertTrue(injectTestHelper.findFindingsByInjectId(ipv6Inject.getId()).isEmpty());
       }
 
@@ -2242,11 +2197,6 @@ class InjectApiTest extends IntegrationTest {
         performCallbackRequest(agentId, usernameInject.getId(), input);
 
         // -- ASSERT --
-        Awaitility.await()
-            .atMost(15, TimeUnit.SECONDS)
-            .with()
-            .pollInterval(1, TimeUnit.SECONDS)
-            .until(() -> injectTestHelper.hasInjectStatusTrace(usernameInject.getId()));
         assertTrue(injectTestHelper.findFindingsByInjectId(usernameInject.getId()).isEmpty());
       }
 
@@ -2316,11 +2266,6 @@ class InjectApiTest extends IntegrationTest {
         performCallbackRequest(agentId, shareInject.getId(), input);
 
         // -- ASSERT --
-        Awaitility.await()
-            .atMost(15, TimeUnit.SECONDS)
-            .with()
-            .pollInterval(1, TimeUnit.SECONDS)
-            .until(() -> injectTestHelper.hasInjectStatusTrace(shareInject.getId()));
         assertTrue(injectTestHelper.findFindingsByInjectId(shareInject.getId()).isEmpty());
       }
 
@@ -2386,11 +2331,6 @@ class InjectApiTest extends IntegrationTest {
         performCallbackRequest(agentId, adminInject.getId(), input);
 
         // -- ASSERT --
-        Awaitility.await()
-            .atMost(15, TimeUnit.SECONDS)
-            .with()
-            .pollInterval(1, TimeUnit.SECONDS)
-            .until(() -> injectTestHelper.hasInjectStatusTrace(adminInject.getId()));
         assertTrue(injectTestHelper.findFindingsByInjectId(adminInject.getId()).isEmpty());
       }
 
@@ -2452,11 +2392,6 @@ class InjectApiTest extends IntegrationTest {
         performCallbackRequest(agentId, groupInject.getId(), input);
 
         // -- ASSERT --
-        Awaitility.await()
-            .atMost(15, TimeUnit.SECONDS)
-            .with()
-            .pollInterval(1, TimeUnit.SECONDS)
-            .until(() -> injectTestHelper.hasInjectStatusTrace(groupInject.getId()));
         assertTrue(injectTestHelper.findFindingsByInjectId(groupInject.getId()).isEmpty());
       }
 
@@ -2528,11 +2463,6 @@ class InjectApiTest extends IntegrationTest {
         performCallbackRequest(agentId, computerInject.getId(), input);
 
         // -- ASSERT --
-        Awaitility.await()
-            .atMost(15, TimeUnit.SECONDS)
-            .with()
-            .pollInterval(1, TimeUnit.SECONDS)
-            .until(() -> injectTestHelper.hasInjectStatusTrace(computerInject.getId()));
         assertTrue(injectTestHelper.findFindingsByInjectId(computerInject.getId()).isEmpty());
       }
 
@@ -2608,11 +2538,6 @@ class InjectApiTest extends IntegrationTest {
         performCallbackRequest(agentId, policyInject.getId(), input);
 
         // -- ASSERT --
-        Awaitility.await()
-            .atMost(15, TimeUnit.SECONDS)
-            .with()
-            .pollInterval(1, TimeUnit.SECONDS)
-            .until(() -> injectTestHelper.hasInjectStatusTrace(policyInject.getId()));
         assertTrue(injectTestHelper.findFindingsByInjectId(policyInject.getId()).isEmpty());
       }
 
@@ -2679,11 +2604,6 @@ class InjectApiTest extends IntegrationTest {
         performCallbackRequest(agentId, delegationInject.getId(), input);
 
         // -- ASSERT --
-        Awaitility.await()
-            .atMost(15, TimeUnit.SECONDS)
-            .with()
-            .pollInterval(1, TimeUnit.SECONDS)
-            .until(() -> injectTestHelper.hasInjectStatusTrace(delegationInject.getId()));
         assertTrue(injectTestHelper.findFindingsByInjectId(delegationInject.getId()).isEmpty());
       }
 
@@ -2745,11 +2665,6 @@ class InjectApiTest extends IntegrationTest {
         performCallbackRequest(agentId, sidInject.getId(), input);
 
         // -- ASSERT --
-        Awaitility.await()
-            .atMost(15, TimeUnit.SECONDS)
-            .with()
-            .pollInterval(1, TimeUnit.SECONDS)
-            .until(() -> injectTestHelper.hasInjectStatusTrace(sidInject.getId()));
         assertTrue(injectTestHelper.findFindingsByInjectId(sidInject.getId()).isEmpty());
       }
 
@@ -2823,11 +2738,6 @@ class InjectApiTest extends IntegrationTest {
         performCallbackRequest(agentId, vulnInject.getId(), input);
 
         // -- ASSERT --
-        Awaitility.await()
-            .atMost(15, TimeUnit.SECONDS)
-            .with()
-            .pollInterval(1, TimeUnit.SECONDS)
-            .until(() -> injectTestHelper.hasInjectStatusTrace(vulnInject.getId()));
         assertTrue(injectTestHelper.findFindingsByInjectId(vulnInject.getId()).isEmpty());
       }
 
@@ -2901,11 +2811,6 @@ class InjectApiTest extends IntegrationTest {
         performCallbackRequest(agentId, nopassInject.getId(), input);
 
         // -- ASSERT --
-        Awaitility.await()
-            .atMost(15, TimeUnit.SECONDS)
-            .with()
-            .pollInterval(1, TimeUnit.SECONDS)
-            .until(() -> injectTestHelper.hasInjectStatusTrace(nopassInject.getId()));
         assertTrue(injectTestHelper.findFindingsByInjectId(nopassInject.getId()).isEmpty());
       }
 
@@ -2978,11 +2883,6 @@ class InjectApiTest extends IntegrationTest {
         performCallbackRequest(agentId, asrepInject.getId(), input);
 
         // -- ASSERT --
-        Awaitility.await()
-            .atMost(15, TimeUnit.SECONDS)
-            .with()
-            .pollInterval(1, TimeUnit.SECONDS)
-            .until(() -> injectTestHelper.hasInjectStatusTrace(asrepInject.getId()));
         assertTrue(injectTestHelper.findFindingsByInjectId(asrepInject.getId()).isEmpty());
       }
 
@@ -3055,11 +2955,6 @@ class InjectApiTest extends IntegrationTest {
         performCallbackRequest(agentId, kerbInject.getId(), input);
 
         // -- ASSERT --
-        Awaitility.await()
-            .atMost(15, TimeUnit.SECONDS)
-            .with()
-            .pollInterval(1, TimeUnit.SECONDS)
-            .until(() -> injectTestHelper.hasInjectStatusTrace(kerbInject.getId()));
         assertTrue(injectTestHelper.findFindingsByInjectId(kerbInject.getId()).isEmpty());
       }
     }

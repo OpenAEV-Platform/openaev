@@ -1,7 +1,10 @@
 package io.openaev.api.stix_process;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Scenario;
@@ -31,11 +34,12 @@ import org.springframework.web.bind.annotation.RestController;
 @Slf4j
 @RestController
 @RequiredArgsConstructor
-@RequestMapping(StixApi.STIX_URI)
+@RequestMapping({StixApi.STIX_URI, StixApi.TENANT_STIX_URI})
 @Tag(name = "STIX API", description = "Operations related to STIX bundles")
 public class StixApi extends RestBehavior {
 
   public static final String STIX_URI = "/api/stix";
+  public static final String TENANT_STIX_URI = TENANT_PREFIX + "/stix";
   private final ObjectMapper objectMapper;
   private final StixService stixService;
   private final OpenCTIConnectorService openCTIService;
@@ -58,14 +62,18 @@ public class StixApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.PROCESS, resourceType = ResourceType.STIX_BUNDLE)
   public ResponseEntity<?> processBundle(@RequestBody @Validated CTIEvent ctiEvent)
       throws ParsingException, ConnectorError, IOException {
+    String tenantId = TenantContext.getCurrentTenant();
     try {
       openCTIService.acknowledgeReceivedOfCoverage(
-          ctiEvent.getInternal().getWorkId(), "OpenAEV ready to process the operation");
+          ctiEvent.getInternal().getWorkId(), "OpenAEV ready to process the operation", tenantId);
 
-      Scenario scenario = stixService.processBundle(ctiEvent.getEvent().getStixObjects());
+      Scenario scenario = stixService.processBundle(ctiEvent.getEvent().getStixObjects(), tenantId);
 
       openCTIService.acknowledgeProcessedOfCoverage(
-          ctiEvent.getInternal().getWorkId(), "Coverage successfully created or updated", false);
+          ctiEvent.getInternal().getWorkId(),
+          "Coverage successfully created or updated",
+          false,
+          tenantId);
       return ResponseEntity.ok(
           new BundleImportReport(
               scenario.getId(), stixService.generateBundleImportReport(scenario)));
@@ -85,7 +93,8 @@ public class StixApi extends RestBehavior {
           ctiEvent.getInternal().getWorkId(),
           "OpenAEV did not process this STIX bundle due to processing rules: %s"
               .formatted(e.getMessage()),
-          true);
+          true,
+          tenantId);
       // here we explicitly return a status of HTTP 200 OK
       // it's a silent error
       return ResponseEntity.status(HttpStatus.OK).build();
@@ -98,7 +107,8 @@ public class StixApi extends RestBehavior {
       openCTIService.acknowledgeProcessedOfCoverage(
           ctiEvent.getInternal().getWorkId(),
           "An error occurred while processing STIX bundle: %s".formatted(e.getMessage()),
-          true);
+          true,
+          tenantId);
       throw e;
     }
   }

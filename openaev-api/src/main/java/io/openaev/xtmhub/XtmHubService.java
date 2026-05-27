@@ -52,7 +52,7 @@ public class XtmHubService {
     registration.setRegistrationDate(LocalDateTime.now());
     registration.setRegistrationStatus(XtmHubRegistrationStatus.REGISTERED);
     registration.setRegistrationUserId(currentUser.getId());
-    registration.setRegistrationUserName(currentUser.getName());
+    registration.setRegistrationUserName(currentUser.getNameOrEmail());
     registration.setLastConnectivityCheck(LocalDateTime.now());
     registration.setConnectivityEmailEligible(true);
     return tenantXtmHubRegistrationRepository.save(registration);

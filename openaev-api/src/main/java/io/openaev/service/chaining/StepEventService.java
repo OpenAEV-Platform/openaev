@@ -3,6 +3,7 @@ package io.openaev.service.chaining;
 import io.openaev.api.chaining.ActionStep;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.StepStatus;
+import io.openaev.database.model.Workflow;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -62,6 +63,17 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
    * @param stepReady step ready to run
    */
   void run(Step stepReady) {
+    // Guard: ignore if workflow run has already ended (e.g. timeout).
+    // Reads fresh status from DB to catch concurrent timeout completion.
+    Workflow workflowRun = stepReady.getWorkflow();
+    if (workflowRun != null && workflowService.isWorkflowEnded(workflowRun.getId())) {
+      log.info(
+          "Ignoring run request for step {} because workflow run {} has ended.",
+          stepReady.getId(),
+          workflowRun.getId());
+      return;
+    }
+
     Step stepRun;
     try {
       ActionStep actionStep =
@@ -127,6 +139,18 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
           e);
       return;
     }
+
+    // Guard: ignore if workflow run has already ended (e.g. timeout).
+    // Reads fresh status from DB to catch concurrent timeout completion.
+    Workflow workflowRun = stepRun.getWorkflow();
+    if (workflowRun != null && workflowService.isWorkflowEnded(workflowRun.getId())) {
+      log.info(
+          "Ignoring external update event for step {} because workflow run {} has ended.",
+          stepRun.getId(),
+          workflowRun.getId());
+      return;
+    }
+
     Optional<Step> stepUpdatedOpt;
 
     try {
@@ -148,7 +172,7 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
       Step stepUpdated = stepUpdatedOpt.get();
       stepService.saveStep(stepUpdated);
       try {
-        stepService.evaluateWorkflowProgress(stepUpdated.getWorkflow());
+        workflowService.evaluateWorkflowProgress(stepUpdated.getWorkflow());
         workflowService.saveWorkflowRun(stepUpdated.getWorkflow());
       } catch (ChainingException e) {
         log.error(

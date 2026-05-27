@@ -284,7 +284,10 @@ public class User implements Base {
 
   @JsonIgnore
   public String getNameOrEmail() {
-    if (getFirstname() != null && getLastname() != null) {
+    if (getFirstname() != null
+        && !getFirstname().isBlank()
+        && getLastname() != null
+        && !getLastname().isBlank()) {
       return getName();
     } else {
       return getEmail();

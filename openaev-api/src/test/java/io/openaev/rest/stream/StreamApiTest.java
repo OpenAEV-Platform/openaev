@@ -3,6 +3,7 @@ package io.openaev.rest.stream;
 import static io.openaev.database.audit.ModelBaseListener.DATA_DELETE;
 import static io.openaev.database.audit.ModelBaseListener.DATA_UPDATE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
 
@@ -15,7 +16,10 @@ import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
 import io.openaev.utils.fixtures.ScenarioFixture;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.lang.reflect.RecordComponent;
 import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,8 +33,6 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.http.codec.ServerSentEvent;
 import reactor.core.publisher.FluxSink;
-import reactor.util.function.Tuple2;
-import reactor.util.function.Tuples;
 
 @MockitoSettings(strictness = Strictness.LENIENT) // class-wide
 @ExtendWith(MockitoExtension.class)
@@ -39,6 +41,8 @@ public class StreamApiTest {
   private static final String RESOURCE_ID = "id";
   private static final String USER_ID = "userid";
   private static final String SESSION_ID = "sessionid";
+  private static final String TENANT_ID = "tenant-a";
+  private static final String OTHER_TENANT_ID = "tenant-b";
 
   @Mock private User mockUser;
 
@@ -53,7 +57,7 @@ public class StreamApiTest {
   @InjectMocks private StreamApi streamApi;
 
   @BeforeEach
-  public void setup() throws NoSuchFieldException, IllegalAccessException {
+  public void setup() throws Exception {
     // mock consumer
     OpenAEVPrincipal mockPrincipal = mock(OpenAEVPrincipal.class);
     when(mockPrincipal.getId()).thenReturn(USER_ID);
@@ -67,9 +71,35 @@ public class StreamApiTest {
     // inject into consumers using reflection
     Field consumersField = StreamApi.class.getDeclaredField("consumers");
     consumersField.setAccessible(true);
-    Map<String, Tuple2<OpenAEVPrincipal, FluxSink<Object>>> consumers =
-        (Map<String, Tuple2<OpenAEVPrincipal, FluxSink<Object>>>) consumersField.get(streamApi);
-    consumers.put(SESSION_ID, Tuples.of(mockPrincipal, mockSink));
+    @SuppressWarnings("unchecked")
+    Map<String, Object> consumers = (Map<String, Object>) consumersField.get(streamApi);
+    consumers.put(SESSION_ID, buildStreamConsumer(mockPrincipal, null, mockSink));
+  }
+
+  private static Object buildStreamConsumer(
+      OpenAEVPrincipal principal, String tenantId, FluxSink<Object> sink) throws Exception {
+    Class<?> streamConsumerClass = Class.forName("io.openaev.rest.stream.StreamApi$StreamConsumer");
+    RecordComponent[] components = streamConsumerClass.getRecordComponents();
+    Class<?>[] parameterTypes =
+        new Class<?>[] {
+          components[0].getType(), components[1].getType(), components[2].getType(),
+        };
+    Constructor<?> constructor = streamConsumerClass.getDeclaredConstructor(parameterTypes);
+    constructor.setAccessible(true);
+    return constructor.newInstance(principal, tenantId, sink);
+  }
+
+  private boolean invokeIsVisibleForTenant(BaseEvent event, String tenantId) throws Exception {
+    Method method =
+        StreamApi.class.getDeclaredMethod("isVisibleForTenant", BaseEvent.class, String.class);
+    method.setAccessible(true);
+    return (boolean) method.invoke(streamApi, event, tenantId);
+  }
+
+  private static Tenant tenant(String id) {
+    Tenant tenant = new Tenant();
+    tenant.setId(id);
+    return tenant;
   }
 
   @Test
@@ -134,5 +164,62 @@ public class StreamApiTest {
     streamApi.listenDatabaseUpdate(event);
 
     verify(mockSink, never()).next(any());
+  }
+
+  @Test
+  public void given_tenantScopedEvent_when_tenantMatches_should_beVisible() throws Exception {
+    // Arrange
+    Scenario scenario = ScenarioFixture.getScenario();
+    scenario.setTenant(tenant(TENANT_ID));
+    BaseEvent event = new BaseEvent(DATA_UPDATE, scenario, mock(ObjectMapper.class));
+
+    // Act
+    boolean visible = invokeIsVisibleForTenant(event, TENANT_ID);
+
+    // Assert
+    assertTrue(visible);
+  }
+
+  @Test
+  public void given_tenantScopedEvent_when_tenantDiffers_should_notBeVisible() throws Exception {
+    // Arrange
+    Scenario scenario = ScenarioFixture.getScenario();
+    scenario.setTenant(tenant(TENANT_ID));
+    BaseEvent event = new BaseEvent(DATA_UPDATE, scenario, mock(ObjectMapper.class));
+
+    // Act
+    boolean visible = invokeIsVisibleForTenant(event, OTHER_TENANT_ID);
+
+    // Assert
+    assertFalse(visible);
+  }
+
+  @Test
+  public void given_dualScopeEventWithoutTenant_when_consumerHasTenant_should_notBeVisible()
+      throws Exception {
+    // Arrange
+    Setting setting = new Setting();
+    setting.setId("setting-id");
+    BaseEvent event = new BaseEvent(DATA_UPDATE, setting, mock(ObjectMapper.class));
+
+    // Act
+    boolean visible = invokeIsVisibleForTenant(event, TENANT_ID);
+
+    // Assert
+    assertFalse(visible);
+  }
+
+  @Test
+  public void given_tenantScopedEvent_when_consumerHasNoTenant_should_beVisible() throws Exception {
+    // Arrange
+    Scenario scenario = ScenarioFixture.getScenario();
+    scenario.setTenant(tenant(TENANT_ID));
+    BaseEvent event = new BaseEvent(DATA_UPDATE, scenario, mock(ObjectMapper.class));
+
+    // Act
+    boolean visible = invokeIsVisibleForTenant(event, null);
+
+    // Assert
+    assertTrue(visible);
   }
 }
