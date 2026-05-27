@@ -61,7 +61,7 @@ public class CatalogConnectorApi extends RestBehavior {
       produces = MediaType.IMAGE_PNG_VALUE)
   @AccessControl(skipRBAC = true)
   public ResponseEntity<byte[]> getCatalogLogo(@PathVariable String fileName) throws IOException {
-    Optional<InputStream> fileStream = fileService.getCatalogConnectorImage(fileName);
+    Optional<InputStream> fileStream = fileService.getCatalogConnectorImage(fileName, false);
 
     if (fileStream.isPresent()) {
       byte[] bytes = IOUtils.toByteArray(fileStream.get());

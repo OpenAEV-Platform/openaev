@@ -20,6 +20,9 @@ public interface TokenRepository
 
   Optional<Token> findByValue(String value);
 
+  /** Returns true if the given user has at least one token. */
+  boolean existsByUserId(String userId);
+
   // -- ADMIN --
 
   // Custom query to bypass ID generator on Token property

@@ -47,4 +47,6 @@ public interface CollectorRepository
       nativeQuery = true,
       value = "DELETE FROM collectors WHERE collector_id = :id AND tenant_id = :tenantId")
   void deleteByIdAndTenantId(@Param("id") String id, @Param("tenantId") String tenantId);
+
+  Optional<Collector> findByTypeAndTenantId(@NotNull String type, @NotNull String tenantId);
 }

@@ -24,13 +24,13 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.InputValidationException;
 import io.openaev.rest.user.form.login.ResetUserInput;
 import io.openaev.rest.user.form.user.ChangePasswordInput;
+import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.utils.RandomUtils;
 import io.openaev.utils.ReferenceResolver;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.users.UserQueryHelper;
 import jakarta.annotation.Resource;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.validation.constraints.NotBlank;
@@ -124,6 +124,7 @@ public class UserService {
     if (!StringUtils.hasLength(input.plainPassword())) {
       throw new IllegalArgumentException("Password is required when creating a user");
     }
+    ReservedKeyValidator.validateUserEmailPattern(input.email());
     if (userRepository.findByEmailIgnoreCase(input.email()).isPresent()) {
       throw new DataIntegrityViolationException(
           "User with email " + input.email() + " already exists");
@@ -212,7 +213,11 @@ public class UserService {
 
   @Transactional(rollbackFor = Exception.class)
   public User updateUser(String userId, UserInput input) {
+    // Check if new email is reserved
+    ReservedKeyValidator.validateUserEmailPattern(input.email());
     User existing = user(userId);
+    // Check if previous email is reserved
+    ReservedKeyValidator.validateUserEmailPattern(existing.getEmail());
     // Capture old tenant IDs before update for cache eviction
     List<String> oldTenantIds =
         existing.getTenants() != null
@@ -265,9 +270,7 @@ public class UserService {
   @Transactional(rollbackFor = Exception.class)
   public void delete(String userId) {
     User existing = user(userId);
-    if (existing == null) {
-      throw new EntityNotFoundException("User not found: " + userId);
-    }
+    ReservedKeyValidator.validateUserEmailPattern(existing.getEmail());
     sessionManager.invalidateUserSession(userId);
     userRepository.deleteByIdNative(userId);
   }
@@ -405,6 +408,12 @@ public class UserService {
    */
   public String encodeUserPassword(String password) {
     return passwordEncoder.encode(password);
+  }
+
+  /** Returns true if the given user has at least one API token. */
+  @Transactional(readOnly = true)
+  public boolean userHasToken(String userId) {
+    return tokenRepository.existsByUserId(userId);
   }
 
   /**

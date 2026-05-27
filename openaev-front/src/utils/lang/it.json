@@ -297,6 +297,7 @@
   "Can't be tested": "Non può essere testato",
   "Cancel": "Annullamento",
   "Canceled": "Annullato",
+  "Cannot delete this team because it is still in use. Please remove its dependencies first.": "Impossibile eliminare questo team perché è ancora in uso. Rimuovere prima le dipendenze.",
   "capture-the-flag": "Cattura la bandiera",
   "Catalog": "Catalogo",
   "Categories and questions": "Categorie e domande",

@@ -9,15 +9,20 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.CatalogConnectorConfiguration;
+import io.openaev.database.model.Tenant;
+import io.openaev.service.FileService;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.ConnectorInstanceFixture;
 import io.openaev.utils.fixtures.composers.CatalogConnectorComposer;
 import io.openaev.utils.fixtures.composers.CatalogConnectorConfigurationComposer;
 import io.openaev.utils.fixtures.composers.ConnectorInstanceComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.transaction.Transactional;
+import java.io.ByteArrayInputStream;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -36,6 +41,8 @@ public class CatalogConnectorApiTest extends IntegrationTest {
   @Autowired private CatalogConnectorComposer catalogConnectorComposer;
   @Autowired private ConnectorInstanceComposer connectorInstanceComposer;
   @Autowired private CatalogConnectorConfigurationComposer catalogConfigurationComposer;
+  @Autowired private TenantIsolationTestHelper tenantIsolationTestHelper;
+  @Autowired private FileService fileService;
 
   @Test
   @DisplayName(
@@ -128,5 +135,28 @@ public class CatalogConnectorApiTest extends IntegrationTest {
         .inPath("[*].catalog_connector_title")
         .isArray()
         .containsExactlyInAnyOrderElementsOf(List.of("Collector1", "Collector2"));
+  }
+
+  @Test
+  @DisplayName("Given non-default tenant should retrieve catalog logo from default tenant storage")
+  void given_nonDefaultTenant_should_retrieveCatalogLogoFromDefaultTenantStorage()
+      throws Exception {
+    // Arrange
+    String fileName = "tenant-fallback-logo.png";
+    TenantContext.setCurrentTenant(Tenant.DEFAULT_TENANT_UUID);
+    try {
+      fileService.uploadStream(
+          FileService.CONNECTORS_LOGO_PATH,
+          fileName,
+          new ByteArrayInputStream(new byte[] {1, 2, 3}));
+    } finally {
+      TenantContext.clearCurrentTenant();
+    }
+    Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("logo-fallback");
+
+    // Act / Assert
+    mvc.perform(
+            get("/api/tenants/" + tenant.getId() + "/images/catalog/connectors/logos/" + fileName))
+        .andExpect(status().isOk());
   }
 }
