@@ -364,7 +364,7 @@ class InjectApiTest extends IntegrationTest {
 
     // -- ASSERT --
     assertNotNull(response);
-    assertEquals("SUCCESS", JsonPath.read(response, "$.status_name"));
+    assertEquals("EXECUTED", JsonPath.read(response, "$.status_name"));
     ArgumentCaptor<ExecutableInject> executableInjectCaptor =
         ArgumentCaptor.forClass(ExecutableInject.class);
     verify(executor).execute(executableInjectCaptor.capture());
@@ -505,7 +505,7 @@ class InjectApiTest extends IntegrationTest {
 
     // -- ASSERT --
     assertNotNull(response);
-    assertEquals("SUCCESS", JsonPath.read(response, "$.status_name"));
+    assertEquals("EXECUTED", JsonPath.read(response, "$.status_name"));
   }
 
   // -- BULK DELETE --
