@@ -105,9 +105,7 @@ public class ServiceAccountPrivilegeService extends AbstractPrivilegeService {
   public Optional<User> getUserServiceAccountByTenant(String tenantId) {
     String email = SERVICE_EMAIL_PATTERN.formatted(tenantId);
 
-    return userService.findByEmailIgnoreCase(email).stream()
-        .filter(user -> user.getTokens().size() == 1)
-        .findFirst();
+    return userService.findByEmailIgnoreCase(email).stream().findFirst();
   }
 
   @Transactional(readOnly = true)
@@ -115,7 +113,7 @@ public class ServiceAccountPrivilegeService extends AbstractPrivilegeService {
 
     return getUserServiceAccountByTenant(tenantId)
         .map(User::getTokens)
-        .filter(tokens -> tokens.size() == 1)
+        .filter(tokens -> !tokens.isEmpty())
         .map(tokens -> tokens.getFirst().getValue())
         .orElseThrow(() -> new UnsupportedOperationException("Invalid token"));
   }

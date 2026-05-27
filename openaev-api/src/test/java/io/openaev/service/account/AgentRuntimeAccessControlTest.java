@@ -59,6 +59,26 @@ class AgentRuntimeAccessControlTest extends IntegrationTest {
   class RegisterEndpoint {
 
     @Test
+    @DisplayName("should register endpoint when is admin")
+    @WithMockUser(isAdmin = true)
+    void given_admin_should_register() throws Exception {
+      // Arrange
+      EndpointRegisterInput input = buildRegisterInput();
+      Endpoint mockEndpoint = new Endpoint();
+      mockEndpoint.setHostname("test");
+      doReturn(mockEndpoint).when(endpointService).register(any(EndpointRegisterInput.class));
+
+      // Act & Assert
+      mvc.perform(
+              post(ENDPOINT_URI + "/register")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk());
+    }
+
+    @Test
     @DisplayName("should be forbidden with only MANAGE_ASSETS capability")
     @WithMockUser(withCapabilities = {Capability.MANAGE_ASSETS})
     void given_manageAssetsOnly_should_forbidRegister() throws Exception {

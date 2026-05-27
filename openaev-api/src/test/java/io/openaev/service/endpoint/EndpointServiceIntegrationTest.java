@@ -10,9 +10,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.AssetAgentJob;
 import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
+import io.openaev.service.account.ServiceAccountPrivilegeService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.EndpointRegisterInputFixture;
 import io.openaev.utils.fixtures.ExecutorFixture;
@@ -38,11 +40,24 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
   @Autowired private ExecutorFixture executorFixture;
   @Autowired private TenantIsolationTestHelper tenantIsolationTestHelper;
   @Autowired private AssetAgentJobRepository assetAgentJobRepository;
+  @Autowired private ServiceAccountPrivilegeService serviceAccountPrivilegeService;
 
   @BeforeEach
   void setUp() {
     executorComposer.reset();
     tenantComposer.reset();
+    ensureServiceAccount(TenantContext.getCurrentTenant());
+  }
+
+  /**
+   * Bootstraps the service-account user + token for the given tenant. Required as soon as a test
+   * triggers the agent upgrade-job branch, because {@code EndpointService.generateUpgradeCommand}
+   * looks up the service-account token
+   */
+  private void ensureServiceAccount(String tenantId) {
+    serviceAccountPrivilegeService.ensurePrivilegedUserExists(tenantId);
+    entityManager.flush();
+    entityManager.clear();
   }
 
   @Nested
@@ -129,6 +144,7 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
           executorComposer.forExecutor(executorFixture.createOAEVExecutor()).persist();
           entityManager.flush();
           entityManager.clear();
+          ensureServiceAccount(tenantWrapper.get().getId());
           TenantComposer.Composer tenantWrapper2 =
               tenantComposer
                   .forTenant(
@@ -140,6 +156,7 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
           entityManager.flush();
           entityManager.clear();
 
+          ensureServiceAccount(tenantWrapper2.get().getId());
           EndpointRegisterInput input =
               EndpointRegisterInputFixture.getDefaultEndpointRegisterInput();
           input.setAgentVersion(agentVersion);

@@ -283,21 +283,7 @@ public class ServiceAccountPrivilegeServiceTest {
     Optional<User> result = privilegeService.getUserServiceAccountByTenant(TENANT_ID);
 
     // assert
-    assertThat(result).isEmpty();
-  }
-
-  @Test
-  @DisplayName("Should return empty when service account user has more than one token")
-  void shouldReturnEmptyWhenServiceAccountUserHasMultipleTokens() {
-    // prepare
-    mockUser.setTokens(new ArrayList<>(List.of(new Token(), new Token())));
-    when(userService.findByEmailIgnoreCase(SERVICE_EMAIL)).thenReturn(Optional.of(mockUser));
-
-    // act
-    Optional<User> result = privilegeService.getUserServiceAccountByTenant(TENANT_ID);
-
-    // assert
-    assertThat(result).isEmpty();
+    assertThat(result.get().getTokens()).isEmpty();
   }
 
   // region getTokenUserServiceAccountByTenant
