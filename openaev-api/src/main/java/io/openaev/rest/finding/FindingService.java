@@ -9,7 +9,6 @@ import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
-import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.ContractOutputContext;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.rest.inject.service.InjectService;
@@ -52,7 +51,7 @@ public class FindingService {
     if (injectService.existsByIdAndTenantId(finding.getInject().getId())) {
       return finding;
     } else {
-      throw new ElementNotFoundException(
+      throw new EntityNotFoundException(
           "Finding not found for tenant " + TenantContext.getCurrentTenant());
     }
   }

@@ -12,11 +12,11 @@ import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.FindingRepository;
+import io.openaev.database.repository.InjectRepository;
 import io.openaev.injector_contract.outputs.InjectorContractContentOutputElement;
 import io.openaev.rest.inject.service.ContractOutputContext;
 import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import io.openaev.utils.helpers.InjectTestHelper;
-import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
@@ -37,8 +37,8 @@ class FindingServiceTest extends IntegrationTest {
   @Autowired private InjectTestHelper injectTestHelper;
   @Autowired private FindingService findingService;
   @Autowired private FindingRepository findingRepository;
+  @Autowired private InjectRepository injectRepository;
   @Autowired private InjectorContractContentUtils injectorContractContentUtils;
-  @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
   @Autowired private EntityManager entityManager;
 
   @Test
@@ -227,13 +227,23 @@ class FindingServiceTest extends IntegrationTest {
   @WithMockUser
   class TenantIsolation {
 
+    private void switchToTenant(String tenantId) {
+      entityManager.flush();
+      entityManager.clear();
+      TenantContext.setCurrentTenant(tenantId);
+      entityManager
+          .unwrap(org.hibernate.Session.class)
+          .enableFilter("tenantFilter")
+          .setParameter("tenantId", tenantId);
+    }
+
     private Finding createFindingInTenant(String tenantId) {
       String previousTenant = TenantContext.getCurrentTenant();
       try {
-        tenantIsolationHelper.switchToTenant(tenantId, entityManager);
+        switchToTenant(tenantId);
 
         Inject inject = getDefaultInject();
-        injectTestHelper.forceSaveInject(inject);
+        inject = injectRepository.save(inject);
 
         Finding finding = new Finding();
         finding.setValue("tenant-finding-" + UUID.randomUUID());
@@ -242,25 +252,21 @@ class FindingServiceTest extends IntegrationTest {
         finding.setType(ContractOutputType.Text);
         finding.setAssets(new ArrayList<>());
 
-        return injectTestHelper.forceSaveFinding(finding);
+        return findingRepository.save(finding);
       } finally {
-        tenantIsolationHelper.switchToTenant(previousTenant, entityManager);
+        switchToTenant(previousTenant);
       }
     }
 
     @Test
     @DisplayName("Finding created in tenant X should NOT be readable from tenant Y")
-    void given_findingInTenantX_should_notBeReadableFromTenantY() throws Exception {
+    void given_findingInTenantX_should_notBeReadableFromTenantY() {
       // -------- Arrange --------
-      Tenant tenantX =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant X", Set.of(Capability.MANAGE_FINDINGS, Capability.ACCESS_FINDINGS));
-      Tenant tenantY =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant Y", Set.of(Capability.ACCESS_FINDINGS));
+      String tenantX = TenantContext.getCurrentTenant();
+      String tenantY = UUID.randomUUID().toString();
 
-      Finding finding = createFindingInTenant(tenantX.getId());
-      tenantIsolationHelper.switchToTenant(tenantY.getId(), entityManager);
+      Finding finding = createFindingInTenant(tenantX);
+      switchToTenant(tenantY);
 
       // -------- Act & Assert --------
       assertThrows(EntityNotFoundException.class, () -> findingService.finding(finding.getId()));
@@ -268,14 +274,12 @@ class FindingServiceTest extends IntegrationTest {
 
     @Test
     @DisplayName("Finding created in tenant X should be readable from tenant X")
-    void given_findingInTenantX_should_beReadableFromTenantX() throws Exception {
+    void given_findingInTenantX_should_beReadableFromTenantX() {
       // -------- Arrange --------
-      Tenant tenantX =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant X", Set.of(Capability.MANAGE_FINDINGS, Capability.ACCESS_FINDINGS));
-      Finding finding = createFindingInTenant(tenantX.getId());
+      String tenantX = TenantContext.getCurrentTenant();
+      Finding finding = createFindingInTenant(tenantX);
 
-      tenantIsolationHelper.switchToTenant(tenantX.getId(), entityManager);
+      switchToTenant(tenantX);
 
       // -------- Act --------
       Finding result = findingService.finding(finding.getId());
@@ -286,19 +290,13 @@ class FindingServiceTest extends IntegrationTest {
 
     @Test
     @DisplayName("Finding list in tenant Y should NOT return findings from tenant X")
-    void given_findingInTenantX_should_notAppearInTenantYList() throws Exception {
+    void given_findingInTenantX_should_notAppearInTenantYList() {
       // -------- Arrange --------
-      Tenant tenantX =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant X", Set.of(Capability.MANAGE_FINDINGS, Capability.ACCESS_FINDINGS));
-      Tenant tenantY =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant Y", Set.of(Capability.ACCESS_FINDINGS));
+      String tenantX = TenantContext.getCurrentTenant();
+      String tenantY = UUID.randomUUID().toString();
 
-      Finding findingInTenantX = createFindingInTenant(tenantX.getId());
-      Finding findingInTenantY = createFindingInTenant(tenantY.getId());
-
-      tenantIsolationHelper.switchToTenant(tenantY.getId(), entityManager);
+      Finding findingInTenantX = createFindingInTenant(tenantX);
+      switchToTenant(tenantY);
 
       // -------- Act --------
       List<Finding> findings = findingService.findings();
@@ -306,28 +304,25 @@ class FindingServiceTest extends IntegrationTest {
 
       // -------- Assert --------
       assertFalse(findingIds.contains(findingInTenantX.getId()));
-      assertTrue(findingIds.contains(findingInTenantY.getId()));
+      assertTrue(findingIds.isEmpty());
     }
 
     @Test
     @DisplayName("Finding created in tenant X should NOT be deletable from tenant Y")
-    void given_findingInTenantX_should_notBeDeletableFromTenantY() throws Exception {
+    void given_findingInTenantX_should_notBeDeletableFromTenantY() {
       // -------- Arrange --------
-      Tenant tenantX =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant X", Set.of(Capability.MANAGE_FINDINGS, Capability.ACCESS_FINDINGS));
-      Tenant tenantY =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant Y", Set.of(Capability.DELETE_FINDINGS, Capability.ACCESS_FINDINGS));
+      String tenantX = TenantContext.getCurrentTenant();
+      String tenantY = UUID.randomUUID().toString();
 
-      Finding finding = createFindingInTenant(tenantX.getId());
-      tenantIsolationHelper.switchToTenant(tenantY.getId(), entityManager);
+      Finding finding = createFindingInTenant(tenantX);
+      switchToTenant(tenantY);
 
       // -------- Act & Assert --------
-      assertThrows(EntityNotFoundException.class, () -> findingService.deleteFinding(finding.getId()));
+      assertThrows(
+          EntityNotFoundException.class, () -> findingService.deleteFinding(finding.getId()));
 
       // Ensure record is still visible from owner tenant
-      tenantIsolationHelper.switchToTenant(tenantX.getId(), entityManager);
+      switchToTenant(tenantX);
       assertDoesNotThrow(() -> findingService.finding(finding.getId()));
     }
   }
