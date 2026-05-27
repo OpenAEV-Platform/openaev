@@ -5,7 +5,11 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import io.openaev.engine.model.log.LogEvent;
+import io.openaev.utils.HttpReqRespUtils;
 import io.openaev.utils.log.dispatcher.AuditLogTransportDispatcherUtils;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
+import java.util.Collections;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -13,12 +17,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("LogService - logSessionExpiredEvent")
-class LogServiceSessionExpiredTest {
+class LogServiceTest {
 
   @Mock private AuditLogTransportDispatcherUtils auditLogTransportDispatcherUtils;
   @Mock private PreviewFeatureService previewFeatureService;
@@ -74,6 +79,39 @@ class LogServiceSessionExpiredTest {
     }
 
     @Test
+    @DisplayName("given_httpSessionContext_should_setSessionIdInUserMetadata")
+    void given_httpSessionContext_should_setSessionIdInUserMetadata() {
+      // -- PREPARE --
+      when(previewFeatureService.isFeatureEnabled(any())).thenReturn(true);
+      when(auditLogTransportDispatcherUtils.dispatch(any(LogEvent.class), any())).thenReturn(true);
+
+      HttpServletRequest request = mock(HttpServletRequest.class);
+      HttpSession session = mock(HttpSession.class);
+      when(request.getSession(false)).thenReturn(session);
+      when(session.getId()).thenReturn("session-456");
+      when(request.getHeaderNames()).thenReturn(Collections.emptyEnumeration());
+
+      // -- EXECUTE --
+      boolean result;
+      try (MockedStatic<HttpReqRespUtils> mockedHttpReqRespUtils =
+          mockStatic(HttpReqRespUtils.class, CALLS_REAL_METHODS)) {
+        mockedHttpReqRespUtils.when(HttpReqRespUtils::getCurrentRequest).thenReturn(request);
+        result =
+            logService.logSessionExpiredEvent(
+                "user-123", "session-456", 3600L, "inactivity_timeout");
+      }
+
+      // -- VERIFY --
+      assertTrue(result);
+
+      ArgumentCaptor<LogEvent> captor = ArgumentCaptor.forClass(LogEvent.class);
+      verify(auditLogTransportDispatcherUtils).dispatch(captor.capture(), any());
+      LogEvent event = captor.getValue();
+      assertNotNull(event.getUserMetadata());
+      assertEquals("session-456", event.getUserMetadata().getSessionId());
+    }
+
+    @Test
     @DisplayName("given_auditDisabled_should_returnTrueWithoutDispatching")
     void given_auditDisabled_should_returnTrueWithoutDispatching() {
       // -- PREPARE --
@@ -101,6 +139,26 @@ class LogServiceSessionExpiredTest {
       // -- VERIFY --
       assertTrue(result);
       verify(auditLogTransportDispatcherUtils, never()).dispatch(any(LogEvent.class), any());
+    }
+
+    @Test
+    @DisplayName("given_dispatchException_should_returnFalse")
+    void given_dispatchException_should_returnFalse() {
+      // -- PREPARE --
+      when(previewFeatureService.isFeatureEnabled(any())).thenReturn(true);
+      when(auditLogTransportDispatcherUtils.dispatch(any(LogEvent.class), any()))
+          .thenThrow(new RuntimeException("dispatch failed"));
+
+      // -- EXECUTE --
+      boolean result =
+          assertDoesNotThrow(
+              () ->
+                  logService.logSessionExpiredEvent(
+                      "user-1", "sess-1", 60L, "inactivity_timeout"));
+
+      // -- VERIFY --
+      assertFalse(result);
+      verify(auditLogTransportDispatcherUtils).dispatch(any(LogEvent.class), any());
     }
   }
 }

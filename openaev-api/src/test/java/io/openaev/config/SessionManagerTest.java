@@ -19,7 +19,7 @@ import org.springframework.security.core.context.SecurityContext;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("SessionManager - session expired audit")
-class SessionManagerAuditTest {
+class SessionManagerTest {
 
   @Mock private LogService logService;
   @Mock private HttpSession session;
