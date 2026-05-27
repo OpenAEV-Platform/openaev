@@ -20,6 +20,7 @@ import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.ExpressionParser;
@@ -42,7 +43,7 @@ import org.springframework.web.server.ResponseStatusException;
 @Aspect
 @Component
 @ConditionalOnProperty(name = "openaev.audit-logs.service.enabled", havingValue = "true")
-@Order
+@Order(Ordered.HIGHEST_PRECEDENCE)
 @RequiredArgsConstructor
 @Slf4j
 public class AccessControlAuditLogAspect {
@@ -54,9 +55,13 @@ public class AccessControlAuditLogAspect {
 
   private final String logErrorMsg = "Error during audit logging";
 
-  @Around("@annotation(accessControl)")
-  public Object auditAround(ProceedingJoinPoint joinPoint, AccessControl accessControl)
-      throws Throwable {
+  @Around("@annotation(io.openaev.aop.AccessControl)")
+  public Object auditAround(ProceedingJoinPoint joinPoint) throws Throwable {
+    AccessControl accessControl = resolveAccessControlAnnotation(joinPoint);
+    if (accessControl == null) {
+      return joinPoint.proceed();
+    }
+
     Object result = null;
     boolean isActive = false;
     Action action = null;
@@ -71,7 +76,14 @@ public class AccessControlAuditLogAspect {
     }
 
     if (!isActive) {
-      return joinPoint.proceed();
+      try {
+        return joinPoint.proceed();
+      } catch (Throwable ex) {
+        if (isRbacDeniedException(ex)) {
+          logUnauthorizedDeniedEvent(joinPoint, accessControl, ex);
+        }
+        throw ex;
+      }
     }
 
     String logUUID = null;
@@ -115,6 +127,11 @@ public class AccessControlAuditLogAspect {
     try {
       result = joinPoint.proceed();
     } catch (Throwable ex) {
+      if (isRbacDeniedException(ex)) {
+        logUnauthorizedDeniedEvent(joinPoint, accessControl, ex);
+        throw ex;
+      }
+
       try {
         JsonNode resultNode = getOutputNode(result);
         JsonNode errorNode = buildErrorNode(resultNode, ex);
@@ -158,14 +175,9 @@ public class AccessControlAuditLogAspect {
     return result;
   }
 
-  /**
-   * Logs RBAC denials as unauthorized audit events, independently from read-action logging
-   * settings.
-   */
-  public void auditDeniedAccess(
+  private void logUnauthorizedDeniedEvent(
       JoinPoint joinPoint, AccessControl accessControl, Throwable exception) {
-    if (!isRbacDeniedException(exception)
-        || !accessControlAuditLogger.isAuditLoggingEnabled()
+    if (!accessControlAuditLogger.isAuditLoggingEnabled()
         || !accessControlAuditLogger.isAuditUnauthorizedLoggingValid()) {
       return;
     }
@@ -203,6 +215,25 @@ public class AccessControlAuditLogAspect {
           .whenComplete(logCompletion);
     } catch (Exception ex) {
       log.warn(logErrorMsg, ex);
+    }
+  }
+
+  private AccessControl resolveAccessControlAnnotation(JoinPoint joinPoint) {
+    try {
+      MethodSignature signature = (MethodSignature) joinPoint.getSignature();
+      AccessControl annotation = signature.getMethod().getAnnotation(AccessControl.class);
+      if (annotation != null) {
+        return annotation;
+      }
+
+      return joinPoint
+          .getTarget()
+          .getClass()
+          .getMethod(signature.getName(), signature.getMethod().getParameterTypes())
+          .getAnnotation(AccessControl.class);
+    } catch (Exception ex) {
+      log.warn(logErrorMsg, ex);
+      return null;
     }
   }
 
