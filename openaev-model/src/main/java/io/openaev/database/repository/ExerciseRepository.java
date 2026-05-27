@@ -27,6 +27,8 @@ public interface ExerciseRepository
 
   Optional<Exercise> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
+  boolean existsByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
+
   /** Called by background job (scheduled task) — cross-tenant scoped by design. */
   @Query(value = "select e from Exercise e where e.status = 'SCHEDULED' and e.start <= :start")
   List<Exercise> findAllShouldBeInRunningState(@Param("start") Instant start);

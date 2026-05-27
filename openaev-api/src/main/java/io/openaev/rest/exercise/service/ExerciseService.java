@@ -195,6 +195,15 @@ public class ExerciseService {
   }
 
   // -- READ --
+
+  /** Validates that the exercise exists for the current tenant. Throws if not found. */
+  public void existsByIdAndTenantId(@NotBlank final String exerciseId) {
+    if (!this.exerciseRepository.existsByIdAndTenantId(
+        exerciseId, TenantContext.getCurrentTenant())) {
+      throw new ElementNotFoundException("Exercise not found");
+    }
+  }
+
   public Exercise exercise(@NotBlank final String exerciseId) {
     return this.exerciseRepository
         .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
