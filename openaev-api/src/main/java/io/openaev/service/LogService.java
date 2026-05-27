@@ -184,14 +184,16 @@ public class LogService {
     doc.setEventScope(eventScope);
 
     // Request context
-    LogEvent.RequestMetadata requestData = new LogEvent.RequestMetadata();
+    LogEvent.RequestMetadata meta = new LogEvent.RequestMetadata();
 
     ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.RequestContextData requestContextData =
         ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.getRequestContextData();
     String url = requestContextData != null ? requestContextData.url() : null;
+    String method = requestContextData != null ? requestContextData.method() : null;
 
-    requestData.setUrl(url);
-    doc.setRequestMetadata(requestData);
+    meta.setUrl(url);
+    meta.setMethod(method);
+    doc.setRequestMetadata(meta);
 
     // Tenant context
     doc.setTenantId(TenantContext.getCurrentTenant());
