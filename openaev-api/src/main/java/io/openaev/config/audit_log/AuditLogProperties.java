@@ -3,7 +3,6 @@ package io.openaev.config.audit_log;
 import jakarta.annotation.PostConstruct;
 import java.util.Set;
 import java.util.stream.Collectors;
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -19,19 +18,15 @@ public class AuditLogProperties {
   private static final Set<String> VALID_TRANSPORTS =
       Set.of(TRANSPORT_CONSOLE, TRANSPORT_FILE, TRANSPORT_ENGINE);
 
-  @Getter
-  @Value("${openaev.audit-logs.enabled:true}")
-  private boolean enabled;
-
-  @Getter
-  @Value("${openaev.audit-logs.include-reads:false}")
-  private boolean includeReads;
-
-  @Value("${openaev.audit-logs.transports:console,file,engine}")
+  @Value("${openaev.audit-logs.transports:}")
   private Set<String> transports;
 
   @PostConstruct
   void validate() {
+    if (!isEnabled()) {
+      return;
+    }
+
     // Normalize: trim whitespace from each transport name (handles "console, file" with spaces)
     if (transports != null) {
       transports =
@@ -39,17 +34,6 @@ public class AuditLogProperties {
               .map(String::trim)
               .filter(s -> !s.isEmpty())
               .collect(Collectors.toSet());
-    }
-
-    if (!enabled) {
-      return;
-    }
-
-    if (transports == null || transports.isEmpty()) {
-      log.warn(
-          "[AUDIT CONFIG] Audit logging is enabled but no transports are configured "
-              + "(openaev.audit-logs.transports is empty). No audit events will be emitted.");
-      return;
     }
 
     Set<String> unknown =
@@ -64,8 +48,16 @@ public class AuditLogProperties {
     }
   }
 
+  /**
+   * Audit logging is enabled when at least one transport is configured. An empty or absent {@code
+   * openaev.audit-logs.transports} value disables it.
+   */
+  public boolean isEnabled() {
+    return transports != null && !transports.isEmpty();
+  }
+
   /** Returns whether a specific transport is active. */
   public boolean isTransportEnabled(String transportName) {
-    return enabled && transports != null && transports.contains(transportName);
+    return transports != null && transports.contains(transportName);
   }
 }
