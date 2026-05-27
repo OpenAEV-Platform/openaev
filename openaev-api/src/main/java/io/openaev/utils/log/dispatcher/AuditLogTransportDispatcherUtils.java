@@ -2,43 +2,53 @@ package io.openaev.utils.log.dispatcher;
 
 import io.openaev.engine.model.log.LogEvent;
 import io.openaev.utils.log.transport.AuditLogTransportUtils;
+import java.util.Comparator;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import lombok.RequiredArgsConstructor;
+import java.util.function.BiFunction;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 @Component
-@RequiredArgsConstructor
+@Slf4j
 public class AuditLogTransportDispatcherUtils {
+
   private final List<AuditLogTransportUtils> transports;
 
-  public boolean dispatch(LogEvent event, Object level) {
-    List<CompletableFuture<Boolean>> futures =
+  public AuditLogTransportDispatcherUtils(List<AuditLogTransportUtils> transports) {
+    this.transports =
         transports.stream()
-            .filter(AuditLogTransportUtils::isEnabled)
-            .map(transport -> transport.send(event, level))
+            .sorted(Comparator.comparingInt(AuditLogTransportUtils::priority))
             .toList();
+  }
 
-    CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
-
-    return futures.stream()
-        .allMatch(
-            CompletableFuture
-                ::join); // only return true if all results from all send methods are true.
+  public boolean dispatch(LogEvent event, Object level) {
+    return dispatchInternal((transport, l) -> transport.send(event, l), level);
   }
 
   public boolean dispatch(String message, Object level) {
-    List<CompletableFuture<Boolean>> futures =
-        transports.stream()
-            .filter(AuditLogTransportUtils::isEnabled)
-            .map(transport -> transport.send(message, level))
-            .toList();
+    return dispatchInternal((transport, l) -> transport.send(message, l), level);
+  }
 
-    CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
-
-    return futures.stream()
-        .allMatch(
-            CompletableFuture
-                ::join); // only return true if all results from all send methods are true.
+  private boolean dispatchInternal(
+      BiFunction<AuditLogTransportUtils, Object, Boolean> sendFn, Object level) {
+    boolean allSucceeded = true;
+    for (AuditLogTransportUtils transport : transports) {
+      if (!transport.isEnabled()) {
+        continue;
+      }
+      try {
+        if (!sendFn.apply(transport, level)) {
+          allSucceeded = false;
+        }
+      } catch (Exception e) {
+        log.error(
+            "Audit log transport [{}] failed: {}",
+            transport.getClass().getSimpleName(),
+            e.getMessage(),
+            e);
+        allSucceeded = false;
+      }
+    }
+    return allSucceeded;
   }
 }

@@ -297,6 +297,7 @@
   "Can't be tested": "Не может быть проверено",
   "Cancel": "Отменить",
   "Canceled": "Отменено",
+  "Cannot delete this team because it is still in use. Please remove its dependencies first.": "Удалить эту команду невозможно, так как она всё ещё используется. Пожалуйста, сначала удалите её зависимости.",
   "capture-the-flag": "Захват флага",
   "Catalog": "Каталог",
   "Categories and questions": "Категории и вопросы",

@@ -6,8 +6,9 @@ import static io.openaev.utils.CustomDashboardTimeRange.*;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
@@ -22,7 +23,9 @@ import io.openaev.engine.api.EngineSortField;
 import io.openaev.engine.api.HistogramInterval;
 import io.openaev.engine.api.ListConfiguration;
 import io.openaev.engine.api.SortDirection;
+import io.openaev.rest.custom_dashboard.form.CustomDashboardInput;
 import io.openaev.utils.CustomDashboardTimeRange;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.es.EntitiesPaginationInput;
 import io.openaev.utils.es.WidgetToEntitiesInput;
 import io.openaev.utils.fixtures.*;
@@ -30,6 +33,7 @@ import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.fixtures.files.AttackPatternFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.Pagination;
+import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import java.io.IOException;
@@ -38,6 +42,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.*;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -64,6 +69,7 @@ class DashboardApiTest extends IntegrationTest {
   @Autowired private CustomDashboardParameterComposer customDashboardParameterComposer;
   @Autowired private AttackPatternRepository attackPatternRepository;
   @Autowired private EndpointRepository endpointRepository;
+  @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
 
   @BeforeEach
   void setup() throws IOException {
@@ -1065,6 +1071,286 @@ class DashboardApiTest extends IntegrationTest {
               });
 
       assertThatJson(response).node("es_entities.es_datas").isArray().hasSize(2);
+    }
+  }
+
+  @Nested
+  @DisplayName("Tenant Isolation")
+  @WithMockUser
+  class TenantIsolation {
+
+    @Test
+    @DisplayName("Custom dashboard created in tenant X should NOT be readable from tenant Y")
+    void given_customDashboardInTenantX_should_notBeReadableFromTenantY() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_DASHBOARDS, Capability.ACCESS_DASHBOARDS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_DASHBOARDS));
+
+      CustomDashboardInput input = new CustomDashboardInput();
+      input.setName("Isolation Test Dashboard");
+
+      String createResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantX.getId() + "/custom-dashboards")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String dashboardId = JsonPath.read(createResponse, "$.custom_dashboard_id");
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // -------- Act — read from tenant Y (expect 404) --------
+      int responseStatus =
+          mvc.perform(
+                  get("/api/tenants/" + tenantY.getId() + "/custom-dashboards/" + dashboardId)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // -------- Assert --------
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
+    }
+
+    @Test
+    @DisplayName("Custom dashboard created in tenant X should be readable from tenant X")
+    void given_customDashboardInTenantX_should_beReadableFromTenantX() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_DASHBOARDS, Capability.ACCESS_DASHBOARDS));
+
+      CustomDashboardInput input = new CustomDashboardInput();
+      input.setName("Same Tenant Dashboard");
+
+      String createResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantX.getId() + "/custom-dashboards")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String dashboardId = JsonPath.read(createResponse, "$.custom_dashboard_id");
+
+      // -------- Act & Assert — read from same tenant should succeed --------
+      mvc.perform(
+              get("/api/tenants/" + tenantX.getId() + "/custom-dashboards/" + dashboardId)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk())
+          .andExpect(
+              result ->
+                  assertThatJson(result.getResponse().getContentAsString())
+                      .node("custom_dashboard_name")
+                      .isEqualTo("Same Tenant Dashboard"));
+    }
+
+    @Test
+    @DisplayName("Custom dashboard search in tenant Y should NOT return dashboards from tenant X")
+    void given_customDashboardInTenantX_should_notAppearInTenantYSearch() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_DASHBOARDS, Capability.ACCESS_DASHBOARDS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_DASHBOARDS));
+
+      CustomDashboardInput input = new CustomDashboardInput();
+      input.setName("CrossTenantSearchDashboard");
+
+      mvc.perform(
+              post("/api/tenants/" + tenantX.getId() + "/custom-dashboards")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // -------- Act — search from tenant Y --------
+      SearchPaginationInput searchInput =
+          PaginationFixture.simpleTextSearch("CrossTenantSearchDashboard");
+
+      String searchResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantY.getId() + "/custom-dashboards/search")
+                      .content(asJsonString(searchInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -------- Assert --------
+      assertEquals(Integer.valueOf(0), JsonPath.read(searchResponse, "$.totalElements"));
+    }
+
+    @Test
+    @DisplayName("Custom dashboard created in tenant X should NOT be updatable from tenant Y")
+    void given_customDashboardInTenantX_should_notBeUpdatableFromTenantY() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_DASHBOARDS, Capability.ACCESS_DASHBOARDS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.MANAGE_DASHBOARDS, Capability.ACCESS_DASHBOARDS));
+
+      CustomDashboardInput input = new CustomDashboardInput();
+      input.setName("Update Isolation Test Dashboard");
+
+      String createResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantX.getId() + "/custom-dashboards")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String dashboardId = JsonPath.read(createResponse, "$.custom_dashboard_id");
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // -------- Act — update from tenant Y (expect 404) --------
+      CustomDashboardInput updateInput = new CustomDashboardInput();
+      updateInput.setName("Hijacked Name");
+
+      int responseStatus =
+          mvc.perform(
+                  put("/api/tenants/" + tenantY.getId() + "/custom-dashboards/" + dashboardId)
+                      .content(asJsonString(updateInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // -------- Assert --------
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
+    }
+
+    @Test
+    @DisplayName("Custom dashboard created in tenant X should NOT be deletable from tenant Y")
+    void given_customDashboardInTenantX_should_notBeDeletableFromTenantY() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_DASHBOARDS, Capability.ACCESS_DASHBOARDS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.DELETE_DASHBOARDS, Capability.ACCESS_DASHBOARDS));
+
+      CustomDashboardInput input = new CustomDashboardInput();
+      input.setName("Delete Isolation Test Dashboard");
+
+      String createResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantX.getId() + "/custom-dashboards")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String dashboardId = JsonPath.read(createResponse, "$.custom_dashboard_id");
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // -------- Act — delete from tenant Y (expect 404) --------
+      int responseStatus =
+          mvc.perform(
+                  delete("/api/tenants/" + tenantY.getId() + "/custom-dashboards/" + dashboardId)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // -------- Assert --------
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
+    }
+
+    @Test
+    @DisplayName(
+        "Widget data endpoint in tenant Y should NOT return data for widget belonging to tenant X")
+    void given_widgetInTenantX_should_notBeAccessibleFromTenantY() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_DASHBOARDS, Capability.ACCESS_DASHBOARDS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_DASHBOARDS));
+
+      CustomDashboardInput dashboardInput = new CustomDashboardInput();
+      dashboardInput.setName("Widget Isolation Dashboard");
+
+      mvc.perform(
+              post("/api/tenants/" + tenantX.getId() + "/custom-dashboards")
+                  .content(asJsonString(dashboardInput))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      // Create a widget via composers in tenant X context
+      tenantIsolationHelper.switchToTenant(tenantX.getId(), entityManager);
+      Widget widget =
+          widgetComposer
+              .forWidget(WidgetFixture.createNumberWidgetWithEntity("endpoint"))
+              .withCustomDashboard(
+                  customDashboardComposer.forCustomDashboard(
+                      CustomDashboardFixture.createCustomDashboardWithDefaultParams()))
+              .persist()
+              .get();
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // -------- Act — access widget data from tenant Y (expect 404) --------
+      int response =
+          mvc.perform(
+                  post("/api/tenants/" + tenantY.getId() + "/dashboards/count/" + widget.getId())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(new HashMap<>()))
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getContentLength();
+
+      // -------- Assert --------
+      assertThat(response).isEqualTo(0);
     }
   }
 }

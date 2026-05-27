@@ -5,6 +5,7 @@ import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 import static java.time.Instant.now;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ComcheckRepository;
 import io.openaev.database.repository.ComcheckStatusRepository;
@@ -101,7 +102,9 @@ public class ComcheckApi extends RestBehavior {
     check.setName(comCheck.getName());
     check.setStart(now());
     Exercise exercise =
-        exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
+        exerciseRepository
+            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
+            .orElseThrow(ElementNotFoundException::new);
     check.setExercise(exercise);
     // 02. Get users
     List<String> teamIds = comCheck.getTeamIds();

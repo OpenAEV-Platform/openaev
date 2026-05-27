@@ -27,6 +27,9 @@ public interface ExerciseRepository
 
   Optional<Exercise> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
+  boolean existsByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
+
+  /** Called by background job (scheduled task) — cross-tenant scoped by design. */
   @Query(value = "select e from Exercise e where e.status = 'SCHEDULED' and e.start <= :start")
   List<Exercise> findAllShouldBeInRunningState(@Param("start") Instant start);
 
@@ -42,6 +45,7 @@ public interface ExerciseRepository
   @Query("select count(distinct e) from Exercise e where e.createdAt > :creationDate")
   long globalCount(@Param("creationDate") Instant creationDate);
 
+  /** Called by background job (scheduled task) — cross-tenant scoped by design. */
   @Query(
       value =
           "select e.*, se.scenario_id from exercises e "
@@ -110,6 +114,7 @@ public interface ExerciseRepository
               + "LEFT JOIN injects_expectations ie ON ex.exercise_id = ie.exercise_id "
               + "LEFT JOIN exercises_tags et ON et.exercise_id = ex.exercise_id "
               + "WHERE ex.exercise_id IN (:exerciseIds) "
+              + "AND ex.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY ex.exercise_id ;",
       nativeQuery = true)
   List<RawExerciseSimple> rawByExerciseIds(List<String> exerciseIds);
@@ -173,6 +178,7 @@ public interface ExerciseRepository
               + "INNER JOIN users_groups ON groups.group_id = users_groups.group_id "
               + "WHERE users_groups.user_id = :userId "
               + "AND ex.exercise_id IN (:exerciseIds) "
+              + "AND ex.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY ex.exercise_id ;",
       nativeQuery = true)
   List<RawExerciseSimple> rawGrantedByExerciseIds(
@@ -216,6 +222,7 @@ public interface ExerciseRepository
       nativeQuery = true)
   RawSimulationIndexing rawDetailsById(@Param("exerciseId") String exerciseId);
 
+  /** Also called by cross-tenant notification job (ScenarioNotificationEventHandler). */
   @Query(
       value =
           " SELECT DISTINCT (ie.inject_id) "
@@ -242,6 +249,7 @@ public interface ExerciseRepository
               + "LEFT JOIN exercises_tags et ON et.exercise_id = ex.exercise_id "
               + "LEFT JOIN injects_expectations ie ON ex.exercise_id = ie.exercise_id "
               + "WHERE s.scenario_id IN (:scenarioIds) "
+              + "AND ex.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY ex.exercise_id ;",
       nativeQuery = true)
   List<RawExerciseSimple> rawAllByScenarioIds(@Param("scenarioIds") List<String> scenarioIds);
@@ -267,6 +275,7 @@ public interface ExerciseRepository
               + "WHERE s.scenario_id = :scenarioId "
               + "AND ex.exercise_status = 'FINISHED' "
               + "AND ex.exercise_end_date IS NOT NULL "
+              + "AND ex.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY ex.exercise_id, ex.exercise_end_date "
               + "ORDER BY ex.exercise_end_date DESC "
               + "LIMIT 10 ;",
@@ -307,7 +316,7 @@ public interface ExerciseRepository
       @Param("sourceId") String sourceId, @Param("name") String name, Pageable pageable);
 
   // -- INDEXING --
-
+  /** Called by background job (scheduled task) — cross-tenant scoped by design. */
   @Query(
       value =
           "WITH exercise_data AS ("

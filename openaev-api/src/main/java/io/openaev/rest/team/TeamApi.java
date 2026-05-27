@@ -19,6 +19,7 @@ import io.openaev.database.repository.*;
 import io.openaev.rest.exception.AlreadyExistingException;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exception.ResourceInUseException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.helper.TeamHelper;
 import io.openaev.rest.team.form.TeamCreateInput;
@@ -43,6 +44,8 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.hibernate.TransientObjectException;
+import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.transaction.annotation.Transactional;
@@ -193,8 +196,15 @@ public class TeamApi extends RestBehavior {
       resourceType = ResourceType.TEAM)
   @ApiResponses(value = {@ApiResponse(responseCode = "200")})
   @Operation(description = "Delete an existing team", summary = "Delete team")
-  public void deleteTeam(@PathVariable @Schema(description = "ID of the team") String teamId) {
-    teamRepository.deleteById(teamId);
+  public void deleteTeam(@PathVariable @Schema(description = "ID of the team") String teamId)
+      throws ResourceInUseException {
+    try {
+      teamRepository.deleteById(teamId);
+    } catch (InvalidDataAccessApiUsageException | TransientObjectException ex) {
+      throw new ResourceInUseException(
+          "Cannot delete this team because it is still in use. Please remove its dependencies first.",
+          ex);
+    }
   }
 
   @PutMapping({"/api/teams/{teamId}", TENANT_TEAM_URI + "/{teamId}"})
