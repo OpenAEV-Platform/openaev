@@ -297,6 +297,7 @@
   "Can't be tested": "無法測試",
   "Cancel": "取消",
   "Canceled": "已取消",
+  "Cannot delete this team because it is still in use. Please remove its dependencies first.": "由于该团队仍在被使用，因此无法删除。请先移除其依赖项。",
   "capture-the-flag": "获得flag",
   "Catalog": "目录",
   "Categories and questions": "分类和问题",
