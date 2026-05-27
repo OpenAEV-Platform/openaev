@@ -1,17 +1,14 @@
 package io.openaev.integration;
 
 import static io.openaev.aop.lock.LockResourceType.MANAGER_FACTORY;
-import static io.openaev.helper.StreamHelper.fromIterable;
 
 import io.openaev.aop.lock.Lock;
-import io.openaev.database.audit.TenantAssertionControl;
 import io.openaev.database.model.Tenant;
-import io.openaev.database.repository.TenantRepository;
-import io.openaev.datapack.DataPackProcessor;
-import io.openaev.multitenancy.DependenciesManager;
-import io.openaev.multitenancy.DependenciesManagerException;
-import io.openaev.rest.injector_contract.InjectorContractService;
-import java.util.List;
+
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -20,69 +17,40 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class ManagerFactory implements DependenciesManager {
+public class ManagerFactory {
   private final List<IntegrationFactory> factories;
-  private final TenantRepository tenantRepository;
-  private final TenantRegistrationExecutor tenantRegistrationExecutor;
 
-  private volatile Manager manager = null;
+  private final Map<String, Manager> managers = new ConcurrentHashMap<>();
+
+  @PostConstruct
+  public void init() throws Exception {
+    for (IntegrationFactory factory : factories) {
+      factory.initialise();
+    }
+  }
 
   @Transactional
-  @Lock(type = MANAGER_FACTORY, key = "manager-factory")
+  @Lock(type = MANAGER_FACTORY, key = Tenant.DEFAULT_TENANT_UUID)
   public Manager getManager() {
-    if (manager == null) {
+    return getManagerForTenant(Tenant.DEFAULT_TENANT_UUID);
+  }
+
+  @Transactional
+  @Lock(type = MANAGER_FACTORY, key = "#tenantId")
+  public Manager getManager(String tenantId) {
+    return getManagerForTenant(tenantId);
+  }
+
+  private Manager getManagerForTenant(String tenantId) {
+    if(!this.managers.containsKey(tenantId)) {
       try {
-        registerBuiltinsForAllTenants();
-        this.manager = new Manager(factories);
-        this.manager.monitorIntegrations();
+        Manager manager = new Manager(factories, tenantId);
+        manager.monitorIntegrations();
+        this.managers.put(tenantId, manager);
       } catch (Exception e) {
         throw new RuntimeException("Failed to initialize Manager", e);
       }
     }
-    return this.manager;
-  }
-
-  /**
-   * Ensures built-in connectors are registered for every existing tenant. Each tenant registration
-   * runs in its own transaction and persistence context (via {@link TenantRegistrationExecutor}) to
-   * avoid JPA entity identity collisions when connector IDs are reused across tenants.
-   */
-  private void registerBuiltinsForAllTenants() {
-    List<Tenant> tenants = fromIterable(tenantRepository.findAll());
-    TenantAssertionControl.suppress();
-    try {
-      for (Tenant tenant : tenants) {
-        try {
-          // Use isolated transaction per tenant to avoid JPA L1 cache identity collisions
-          // (connector IDs are reused across tenants).
-          tenantRegistrationExecutor.registerForTenantIsolated(tenant);
-        } catch (DependenciesManagerException e) {
-          log.error(
-              "Failed to register built-in connectors for tenant '{}': {}",
-              tenant.getName(),
-              e.getMessage(),
-              e);
-        }
-      }
-    } finally {
-      TenantAssertionControl.restore();
-    }
-  }
-
-  // -- TENANT DEPENDENCIES --
-
-  @Override
-  public void createDependencyForTenant(Tenant tenant) throws DependenciesManagerException {
-    tenantRegistrationExecutor.registerForTenant(tenant);
-  }
-
-  @Override
-  public void deleteDependencyForTenant(String tenantId) {
-    // Built-in connectors are tenant-scoped and deleted by CASCADE.
-  }
-
-  @Override
-  public List<Class<? extends DependenciesManager>> getPrerequisite() {
-    return List.of(InjectorContractService.class, DataPackProcessor.class);
+    return this.managers.get(tenantId);
   }
 }

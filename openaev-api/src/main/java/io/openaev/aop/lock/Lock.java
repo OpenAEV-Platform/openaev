@@ -1,10 +1,13 @@
 package io.openaev.aop.lock;
 
+import io.openaev.integration.ManagerFactory;
+
 import java.lang.annotation.*;
 
 @Target({ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
+@Repeatable(Locks.class)
 public @interface Lock {
   /** SpEL expression for the lock key Examples: "#injectId", "#user.id", "#id + ':' + #type" */
   String key();

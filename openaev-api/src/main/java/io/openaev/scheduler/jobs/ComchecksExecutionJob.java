@@ -113,7 +113,7 @@ public class ComchecksExecutionJob implements Job {
                 ExecutableInject injection =
                     new ExecutableInject(false, true, emailInject, userInjectContexts);
                 io.openaev.executors.Injector emailExecutor =
-                    this.managerFactory.getManager().requestEmailInjector();
+                    this.managerFactory.getManager(emailInject.getTenant().getId()).requestEmailInjector();
                 Execution execution = emailExecutor.executeInjection(injection);
                 // Save the status sent date
                 List<String> usersSuccessfullyNotified =

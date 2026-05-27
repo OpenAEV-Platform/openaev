@@ -5,7 +5,6 @@ import io.openaev.database.model.Injector;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.injectors.email.EmailContract;
 import io.openaev.injectors.openaev.OpenAEVImplantContract;
-import io.openaev.integration.BuiltinIntegrationFactory;
 import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
 import java.time.Instant;

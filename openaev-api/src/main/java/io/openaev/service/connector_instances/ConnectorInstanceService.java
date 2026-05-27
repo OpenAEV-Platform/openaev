@@ -6,6 +6,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.integration.Manager;
@@ -97,7 +98,7 @@ public class ConnectorInstanceService {
       ConnectorType connectorType) {
     List<ConnectorInstanceInMemory> instancesInMemory = new ArrayList<>();
     try {
-      Manager manager = this.managerFactory.getManager();
+      Manager manager = this.managerFactory.getManager(TenantContext.getCurrentTenant());
       instancesInMemory =
           manager.getSpawnedIntegrations().keySet().stream()
               .filter(ConnectorInstanceInMemory.class::isInstance)
@@ -298,13 +299,13 @@ public class ConnectorInstanceService {
                 () ->
                     new EntityNotFoundException("ConnectorInstance with id " + id + " not found"));
 
-    if (managerFactory.getManager().getSpawnedIntegrations().get(connectorInstance) != null) {
+    if (managerFactory.getManager(TenantContext.getCurrentTenant()).getSpawnedIntegrations().get(connectorInstance) != null) {
       // Setting the status to stopping and immediately calling initialize to effectively stop the
       // integration
       try {
         connectorInstance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
         this.save(connectorInstance);
-        managerFactory.getManager().getSpawnedIntegrations().get(connectorInstance).initialise();
+        managerFactory.getManager(TenantContext.getCurrentTenant()).getSpawnedIntegrations().get(connectorInstance).initialise();
       } catch (Exception e) {
         log.error("Could not stop the connector id {} before delete", id, e);
         throw new ConnectorStatusException(

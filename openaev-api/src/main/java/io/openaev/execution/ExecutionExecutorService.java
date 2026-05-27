@@ -84,7 +84,7 @@ public class ExecutionExecutorService {
       AtomicBoolean atLeastOneExecution) {
     if (!agents.isEmpty()) {
       try {
-        Manager manager = managerFactory.getManager();
+        Manager manager = managerFactory.getManager(inject.getTenant().getId());
         ExecutorContextService executorContextService;
         if (executor.isExternal()) {
           // Resolve the ConnectorInstance that owns this executor

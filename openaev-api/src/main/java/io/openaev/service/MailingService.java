@@ -77,7 +77,7 @@ public class MailingService {
                   new ExecutableInject(false, true, inject, userInjectContexts);
               io.openaev.executors.Injector executor =
                   managerFactory
-                      .getManager()
+                      .getManager(inject.getTenant().getId())
                       .requestInjectorExecutorByType(injectorContract.getFirstInjector().getType());
               executor.executeInjection(injection);
             });

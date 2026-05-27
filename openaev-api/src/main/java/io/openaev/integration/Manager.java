@@ -1,5 +1,6 @@
 package io.openaev.integration;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstance.CURRENT_STATUS_TYPE;
 import io.openaev.injectors.email.EmailContract;
@@ -14,9 +15,11 @@ public class Manager {
   private final List<IntegrationFactory> factories;
 
   @Getter private final Map<ConnectorInstance, Integration> spawnedIntegrations = new HashMap<>();
+  private final String tenantId;
 
-  public Manager(List<IntegrationFactory> factories) throws Exception {
+  public Manager(List<IntegrationFactory> factories, String tenantId) throws Exception {
     this.factories = factories;
+    this.tenantId = tenantId;
 
     initialise();
   }
@@ -117,6 +120,7 @@ public class Manager {
   /** Not thread-safe */
   @Transactional
   public void monitorIntegrations() {
+    TenantContext.setCurrentTenant(this.tenantId);
     for (IntegrationFactory factory : factories) {
       List<ConnectorInstance> newInstances =
           factory.findRelatedInstances().stream()

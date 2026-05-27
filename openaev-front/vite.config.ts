@@ -59,6 +59,7 @@ export default ({ mode }: { mode: string }) => {
     ],
 
     server: {
+      allowedHosts: ['filibook.obas.lan'],
       port: 3001,
       proxy: {
         '/api': backProxy(),
