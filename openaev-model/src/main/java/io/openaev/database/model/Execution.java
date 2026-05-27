@@ -69,11 +69,8 @@ public class Execution {
   }
 
   public ExecutionStatus getStatus() {
-    boolean hasSuccess =
-        traces.stream()
-            .anyMatch(context -> ExecutionTraceStatus.EXECUTED.equals(context.getStatus()));
-    boolean hasError =
-        traces.stream().anyMatch(context -> ExecutionTraceStatus.ERROR.equals(context.getStatus()));
+    boolean hasSuccess = traces.stream().anyMatch(t -> t.getStatus().isSuccess());
+    boolean hasError = traces.stream().anyMatch(t -> t.getStatus().isError());
     if (!hasSuccess && !hasError) {
       return ExecutionStatus.PENDING;
     } else if (hasSuccess && hasError) {

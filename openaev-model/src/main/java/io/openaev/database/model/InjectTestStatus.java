@@ -36,7 +36,6 @@ public class InjectTestStatus extends BaseInjectStatus {
   public static InjectTestStatus fromExecutionTest(Execution execution) {
     InjectTestStatus injectTestStatus = new InjectTestStatus();
     injectTestStatus.setTrackingSentDate(Instant.now());
-    injectTestStatus.getTraces().addAll(execution.getTraces());
     if (!execution.getTraces().isEmpty()) {
       List<ExecutionTrace> traces =
           execution.getTraces().stream()
@@ -46,15 +45,9 @@ public class InjectTestStatus extends BaseInjectStatus {
     }
 
     int numberOfError =
-        (int)
-            execution.getTraces().stream()
-                .filter(ex -> ExecutionTraceStatus.ERROR.equals(ex.getStatus()))
-                .count();
+        (int) execution.getTraces().stream().filter(ex -> ex.getStatus().isError()).count();
     int numberOfSuccess =
-        (int)
-            execution.getTraces().stream()
-                .filter(ex -> ExecutionTraceStatus.EXECUTED.equals(ex.getStatus()))
-                .count();
+        (int) execution.getTraces().stream().filter(ex -> ex.getStatus().isSuccess()).count();
     ExecutionStatus globalStatus =
         numberOfSuccess > 0 ? ExecutionStatus.EXECUTED : ExecutionStatus.ERROR;
     ExecutionStatus finalStatus =

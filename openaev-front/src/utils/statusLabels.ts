@@ -12,6 +12,7 @@ const statusLabelMap: Record<string, string> = {
   EXECUTED: 'Executed',
   SUCCESS: 'Executed',
   EXECUTED_WITH_CLEANUP_FAILURE: 'Cleanup failed',
+  // Legacy aliases kept for backward compatibility
   SUCCESS_WITH_CLEANUP_FAIL: 'Cleanup failed',
   WARNING: 'Executed with warning',
   ACCESS_DENIED: 'Access denied',
@@ -25,7 +26,7 @@ const statusLabelMap: Record<string, string> = {
   ASSET_AGENTLESS: 'Asset agentless',
 };
 
-// -- REMOVE THIS PART IN #5643 --
+// TODO: remove legacy inject-status label aliases once older agents/backends that emit SUCCESS are no longer supported.
 const injectStatusLabelMap: Record<string, string> = {
   EXECUTED: 'EXECUTED',
   SUCCESS: 'EXECUTED',

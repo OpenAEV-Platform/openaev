@@ -8,6 +8,7 @@ public enum ExecutionTraceStatus {
   // -- Success status --
   EXECUTED,
   EXECUTED_WITH_CLEANUP_FAILURE,
+  EXECUTED_WITH_CLEANUP_FAIL,
   WARNING,
   ACCESS_DENIED,
 
@@ -52,7 +53,12 @@ public enum ExecutionTraceStatus {
 
   /** Trace statuses that indicate a successful execution. */
   public static final Set<ExecutionTraceStatus> SUCCESS_STATUSES =
-      Set.of(EXECUTED, EXECUTED_WITH_CLEANUP_FAILURE, WARNING, ACCESS_DENIED);
+      Set.of(
+          EXECUTED,
+          EXECUTED_WITH_CLEANUP_FAILURE,
+          EXECUTED_WITH_CLEANUP_FAIL,
+          WARNING,
+          ACCESS_DENIED);
 
   public static ExecutionTraceStatus fromName(String status) {
     String normalized = normalize(status);
@@ -60,7 +66,8 @@ public enum ExecutionTraceStatus {
       case "SUCCESS" -> EXECUTED;
       case "SUCCESS_WITH_CLEANUP_FAIL",
               "SUCCESS_WITH_CLEANUP_FAILURE",
-              "EXECUTED_WITH_CLEANUP_FAILURE" ->
+              "EXECUTED_WITH_CLEANUP_FAILURE",
+              "EXECUTED_WITH_CLEANUP_FAIL" ->
           EXECUTED_WITH_CLEANUP_FAILURE;
       default -> ExecutionTraceStatus.valueOf(normalized);
     };

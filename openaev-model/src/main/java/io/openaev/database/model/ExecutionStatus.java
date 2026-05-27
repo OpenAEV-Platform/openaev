@@ -31,8 +31,9 @@ public enum ExecutionStatus {
    * <ul>
    *   <li>{@code SUCCESS} → {@code EXECUTED} (pre-rename inject-level success)
    *   <li>{@code SUCCESS_WITH_CLEANUP_FAIL}, {@code SUCCESS_WITH_CLEANUP_FAILURE}, {@code
-   *       EXECUTED_WITH_CLEANUP_FAILURE} → {@code EXECUTED} (cleanup-failure is still a successful
-   *       inject at the inject level; the detail lives in {@link ExecutionTraceStatus})
+   *       EXECUTED_WITH_CLEANUP_FAILURE}, {@code EXECUTED_WITH_CLEANUP_FAIL} → {@code EXECUTED}
+   *       (cleanup-failure is still a successful inject at the inject level; the detail lives in
+   *       {@link ExecutionTraceStatus})
    * </ul>
    */
   public static ExecutionStatus fromName(String status) {
@@ -41,7 +42,8 @@ public enum ExecutionStatus {
       case "SUCCESS",
               "SUCCESS_WITH_CLEANUP_FAIL",
               "SUCCESS_WITH_CLEANUP_FAILURE",
-              "EXECUTED_WITH_CLEANUP_FAILURE" ->
+              "EXECUTED_WITH_CLEANUP_FAILURE",
+              "EXECUTED_WITH_CLEANUP_FAIL" ->
           EXECUTED;
       default -> ExecutionStatus.valueOf(normalized);
     };
