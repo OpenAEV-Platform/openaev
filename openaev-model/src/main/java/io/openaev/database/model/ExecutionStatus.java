@@ -1,6 +1,6 @@
 package io.openaev.database.model;
 
-import java.util.Locale;
+import java.util.Set;
 
 public enum ExecutionStatus {
   // Inject Status
@@ -21,38 +21,28 @@ public enum ExecutionStatus {
   PENDING,
   ;
 
+  /** Inject statuses considered successful at aggregate level. */
+  public static final Set<ExecutionStatus> SUCCESS_STATUSES = Set.of(EXECUTED);
+
+  /** Inject statuses considered error/failed at aggregate level. */
+  public static final Set<ExecutionStatus> ERROR_STATUSES =
+      Set.of(ERROR, PARTIAL, MAYBE_PREVENTED, MAYBE_PARTIAL_PREVENTED);
+
   /**
-   * Alias-aware parser: maps legacy and trace-level success values to their canonical {@link
-   * ExecutionStatus} equivalent, so implant callbacks and injector payloads that send the old or
-   * trace-level status name are still accepted without error.
-   *
-   * <p>Mappings:
-   *
-   * <ul>
-   *   <li>{@code SUCCESS} → {@code EXECUTED} (pre-rename inject-level success)
-   *   <li>{@code SUCCESS_WITH_CLEANUP_FAIL}, {@code SUCCESS_WITH_CLEANUP_FAILURE}, {@code
-   *       EXECUTED_WITH_CLEANUP_FAILURE}, {@code EXECUTED_WITH_CLEANUP_FAIL} → {@code EXECUTED}
-   *       (cleanup-failure is still a successful inject at the inject level; the detail lives in
-   *       {@link ExecutionTraceStatus})
-   * </ul>
+   * Legacy-aware parser: keeps backward compatibility for historical SUCCESS value.
    */
   public static ExecutionStatus fromName(String status) {
-    String normalized = normalize(status);
-    return switch (normalized) {
-      case "SUCCESS",
-              "SUCCESS_WITH_CLEANUP_FAIL",
-              "SUCCESS_WITH_CLEANUP_FAILURE",
-              "EXECUTED_WITH_CLEANUP_FAILURE",
-              "EXECUTED_WITH_CLEANUP_FAIL" ->
-          EXECUTED;
-      default -> ExecutionStatus.valueOf(normalized);
-    };
+    if ("SUCCESS".equalsIgnoreCase(status)) {
+      return EXECUTED;
+    }
+    return ExecutionStatus.valueOf(status);
   }
 
-  private static String normalize(String status) {
-    if (status == null || status.isBlank()) {
-      throw new IllegalArgumentException("Execution status must not be null or blank");
-    }
-    return status.trim().replace(' ', '_').toUpperCase(Locale.ROOT);
+  public boolean isError() {
+    return ERROR_STATUSES.contains(this);
+  }
+
+  public boolean isSuccess() {
+    return SUCCESS_STATUSES.contains(this);
   }
 }

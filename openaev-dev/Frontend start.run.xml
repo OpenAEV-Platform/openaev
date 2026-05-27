@@ -2,13 +2,9 @@
   <configuration default="false" name="Frontend start" type="js.build_tools.npm">
     <package-json value="$PROJECT_DIR$/openaev-front/package.json" />
     <command value="start" />
-    <arguments value="--host" />
     <node-interpreter value="project" />
     <package-manager value="yarn" />
     <envs />
-    <EXTENSION ID="com.intellij.javascript.debugger.execution.StartBrowserRunConfigurationExtension">
-      <browser with-js-debugger="true" />
-    </EXTENSION>
     <method v="2" />
   </configuration>
 </component>

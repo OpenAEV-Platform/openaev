@@ -54,14 +54,11 @@ export const computeStatusStyle = (status: string | undefined | null) => {
   const statusMap: Record<string, typeof colorStyles[keyof typeof colorStyles]> = {
     // -- Common --
     'EXECUTED': colorStyles.green,
-    // Legacy aliases (pre-rename, kept for backward compatibility)
-    'SUCCESS': colorStyles.green,
     'ERROR': colorStyles.red,
 
     // -- ExecutionTraceStatus --
     // Success statuses
     'EXECUTED_WITH_CLEANUP_FAILURE': colorStyles.orange,
-    'SUCCESS_WITH_CLEANUP_FAIL': colorStyles.orange, // legacy alias
     'WARNING': colorStyles.green,
     'ACCESS_DENIED': colorStyles.green,
 
@@ -159,7 +156,6 @@ export const getStatusColor = (theme: Theme, status: string | undefined): string
     'partially prevented': theme.palette.warning.main,
     'partially detected': theme.palette.warning.main,
     'executed_with_cleanup_failure': theme.palette.warning.main,
-    'success_with_cleanup_fail': theme.palette.warning.main, // legacy alias
     // Failed
     'failed': theme.palette.error.main,
     'undetected': theme.palette.error.main,

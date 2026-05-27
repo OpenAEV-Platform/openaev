@@ -1,6 +1,5 @@
 package io.openaev.database.model;
 
-import java.util.Locale;
 import java.util.Set;
 
 public enum ExecutionTraceStatus {
@@ -8,7 +7,6 @@ public enum ExecutionTraceStatus {
   // -- Success status --
   EXECUTED,
   EXECUTED_WITH_CLEANUP_FAILURE,
-  EXECUTED_WITH_CLEANUP_FAIL,
   WARNING,
   ACCESS_DENIED,
 
@@ -53,31 +51,13 @@ public enum ExecutionTraceStatus {
 
   /** Trace statuses that indicate a successful execution. */
   public static final Set<ExecutionTraceStatus> SUCCESS_STATUSES =
-      Set.of(
-          EXECUTED,
-          EXECUTED_WITH_CLEANUP_FAILURE,
-          EXECUTED_WITH_CLEANUP_FAIL,
-          WARNING,
-          ACCESS_DENIED);
+      Set.of(EXECUTED, EXECUTED_WITH_CLEANUP_FAILURE, WARNING, ACCESS_DENIED);
 
   public static ExecutionTraceStatus fromName(String status) {
-    String normalized = normalize(status);
-    return switch (normalized) {
-      case "SUCCESS" -> EXECUTED;
-      case "SUCCESS_WITH_CLEANUP_FAIL",
-              "SUCCESS_WITH_CLEANUP_FAILURE",
-              "EXECUTED_WITH_CLEANUP_FAILURE",
-              "EXECUTED_WITH_CLEANUP_FAIL" ->
-          EXECUTED_WITH_CLEANUP_FAILURE;
-      default -> ExecutionTraceStatus.valueOf(normalized);
-    };
-  }
-
-  private static String normalize(String status) {
-    if (status == null || status.isBlank()) {
-      throw new IllegalArgumentException("Execution trace status must not be null or blank");
+    if ("SUCCESS".equalsIgnoreCase(status)) {
+      return EXECUTED;
     }
-    return status.trim().replace(' ', '_').toUpperCase(Locale.ROOT);
+    return ExecutionTraceStatus.valueOf(status);
   }
 
   public boolean isError() {

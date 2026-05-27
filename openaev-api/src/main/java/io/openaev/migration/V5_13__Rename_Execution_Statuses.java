@@ -16,12 +16,6 @@ public class V5_13__Rename_Execution_Statuses extends BaseJavaMigration {
               UPDATE injects_statuses
               SET status_name = 'EXECUTED'
               WHERE status_name = 'SUCCESS'
-                 OR status_name IN (
-                   'SUCCESS_WITH_CLEANUP_FAIL',
-                   'SUCCESS_WITH_CLEANUP_FAILURE',
-                   'EXECUTED_WITH_CLEANUP_FAIL',
-                   'EXECUTED_WITH_CLEANUP_FAILURE'
-                 );
               """);
 
       statement.execute(
@@ -29,12 +23,6 @@ public class V5_13__Rename_Execution_Statuses extends BaseJavaMigration {
               UPDATE injects_tests_statuses
               SET status_name = 'EXECUTED'
               WHERE status_name = 'SUCCESS'
-                 OR status_name IN (
-                   'SUCCESS_WITH_CLEANUP_FAIL',
-                   'SUCCESS_WITH_CLEANUP_FAILURE',
-                   'EXECUTED_WITH_CLEANUP_FAIL',
-                   'EXECUTED_WITH_CLEANUP_FAILURE'
-                 );
               """);
 
       statement.execute(
@@ -42,18 +30,6 @@ public class V5_13__Rename_Execution_Statuses extends BaseJavaMigration {
               UPDATE execution_traces
               SET execution_status = 'EXECUTED'
               WHERE execution_status = 'SUCCESS';
-              """);
-
-      statement.execute(
-          """
-              UPDATE execution_traces
-              SET execution_status = 'EXECUTED_WITH_CLEANUP_FAILURE'
-              WHERE execution_status IN (
-                'SUCCESS WITH CLEANUP FAIL',
-                'SUCCESS WITH CLEANUP FAILURE',
-                'EXECUTED WITH CLEANUP FAILURE',
-                'EXECUTED WITH CLEANUP FAIL'
-              );
               """);
     }
   }
