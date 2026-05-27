@@ -297,6 +297,7 @@
   "Can't be tested": "テスト不可",
   "Cancel": "キャンセル",
   "Canceled": "キャンセル",
+  "Cannot delete this team because it is still in use. Please remove its dependencies first.": "このチームは現在使用中のため削除できません。まず依存関係を削除してください。",
   "capture-the-flag": "キャプチャー・ザ・フラッグ",
   "Catalog": "カタログ",
   "Categories and questions": "カテゴリーと質問",
