@@ -1,5 +1,7 @@
 package io.openaev.service;
 
+import static io.openaev.helper.CryptoHelper.hashWithSHA256;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.config.OpenAEVPrincipal;
@@ -137,17 +139,17 @@ public class LogService {
       if (input != null) {
         // Redacted input
         input = objectNormalizationUtils.normalize(input);
-        input = ObjectRedactionUtils.redact(input, null);
+        input = ObjectRedactionUtils.redact(input, resourceType);
         ctx.put("input", toContextValue(input));
       }
 
       if (output != null) {
         output = objectNormalizationUtils.normalize(output);
-        output = ObjectRedactionUtils.redact(output, entityTypeName);
+        output = ObjectRedactionUtils.redact(output, resourceType);
         ctx.put("output", toContextValue(output));
       }
 
-      doc.getRequestData().put("signature", signatureNode);
+      doc.getRequestMetadata().setSignature(signatureNode);
 
       ctx.put("message", message);
       doc.setContextData(ctx);
@@ -182,14 +184,16 @@ public class LogService {
     doc.setEventScope(eventScope);
 
     // Request context
-    Map<String, Object> requestData = new LinkedHashMap<>();
+    LogEvent.RequestMetadata meta = new LogEvent.RequestMetadata();
 
     ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.RequestContextData requestContextData =
         ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.getRequestContextData();
     String url = requestContextData != null ? requestContextData.url() : null;
+    String method = requestContextData != null ? requestContextData.method() : null;
 
-    requestData.put("url", url);
-    doc.setRequestData(requestData);
+    meta.setUrl(url);
+    meta.setMethod(method);
+    doc.setRequestMetadata(meta);
 
     // Tenant context
     doc.setTenantId(TenantContext.getCurrentTenant());
@@ -225,7 +229,7 @@ public class LogService {
       if (userId != null) {
         User user = userService.user(userId);
         if (user != null && user.getEmail() != null) {
-          String email = ObjectRedactionUtils.hash(user.getEmail());
+          String email = hashWithSHA256(user.getEmail());
           meta.setUserEmail(email);
           hasData = true;
         }
