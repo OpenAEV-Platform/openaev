@@ -2878,6 +2878,7 @@ export interface ExecutionTrace {
   execution_status?:
     | "EXECUTED"
     | "EXECUTED_WITH_CLEANUP_FAILURE"
+    | "EXECUTED_WITH_CLEANUP_FAIL"
     | "WARNING"
     | "ACCESS_DENIED"
     | "ERROR"
@@ -2922,11 +2923,12 @@ export interface ExecutionTraceOutput {
   execution_message: string;
   /**
    * The status of the execution trace
-   * @example "SUCCESS, ERROR, COMMAND_NOT_FOUND, WARNING, COMMAND_CANNOT_BE_EXECUTED.."
+   * @example "EXECUTED, ERROR, COMMAND_NOT_FOUND, WARNING, COMMAND_CANNOT_BE_EXECUTED.."
    */
   execution_status:
     | "EXECUTED"
     | "EXECUTED_WITH_CLEANUP_FAILURE"
+    | "EXECUTED_WITH_CLEANUP_FAIL"
     | "WARNING"
     | "ACCESS_DENIED"
     | "ERROR"
