@@ -227,6 +227,7 @@ public class LogService {
       doc.setUserMetadata(metadata);
 
       metadata.setSessionId(sessionId);
+      populateUserEmail(metadata, userId);
       if (clientIp != null) {
         metadata.setIp(clientIp);
       }
@@ -326,25 +327,31 @@ public class LogService {
     return id;
   }
 
-  /** Populates user metadata (email, IP, user agent) on the given audit log document. */
-  private void populateUserMetadata(LogEvent doc) {
-    LogEvent.UserMetadata meta = new LogEvent.UserMetadata();
-    boolean hasData = false;
-
-    // User email — denormalized for display
+  /**
+   * Populates the hashed user email on the given metadata if the user exists.
+   *
+   * @return {@code true} if the email was set, {@code false} otherwise
+   */
+  private boolean populateUserEmail(LogEvent.UserMetadata meta, String userId) {
+    if (userId == null) {
+      return false;
+    }
     try {
-      String userId = doc.getUserId();
-      if (userId != null) {
-        User user = userService.user(userId);
-        if (user != null && user.getEmail() != null) {
-          String email = hashWithSHA256(user.getEmail());
-          meta.setUserEmail(email);
-          hasData = true;
-        }
+      User user = userService.user(userId);
+      if (user != null && user.getEmail() != null) {
+        meta.setUserEmail(hashWithSHA256(user.getEmail()));
+        return true;
       }
     } catch (Exception e) {
       // User not found or not in a request context — skip email
     }
+    return false;
+  }
+
+  /** Populates user metadata (email, IP, user agent) on the given audit log document. */
+  private void populateUserMetadata(LogEvent doc) {
+    LogEvent.UserMetadata meta = new LogEvent.UserMetadata();
+    boolean hasData = populateUserEmail(meta, doc.getUserId());
 
     // HTTP request headers
     HttpServletRequest request = HttpReqRespUtils.getCurrentRequest();
