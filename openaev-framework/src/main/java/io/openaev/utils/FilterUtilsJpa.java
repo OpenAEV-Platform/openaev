@@ -373,7 +373,8 @@ public final class FilterUtilsJpa {
 
     Predicate[] predicates =
         texts.stream()
-            .map(text -> notEqualsTextOnJoinRelation(root, query, cb, joinRelation, labelPath, text))
+            .map(
+                text -> notEqualsTextOnJoinRelation(root, query, cb, joinRelation, labelPath, text))
             .toArray(Predicate[]::new);
 
     return FilterMode.and.equals(mode) ? cb.and(predicates) : cb.or(predicates);

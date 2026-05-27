@@ -589,7 +589,8 @@ public class ThreatArsenalApiTest extends IntegrationTest {
           countedDomains.contains(domain2.get().getId()),
           "domain2 should not be present in domain counts");
 
-      List<List<String>> resultDomains = JsonPath.read(searchResponse, "$.content[*].action_domains_ids");
+      List<List<String>> resultDomains =
+          JsonPath.read(searchResponse, "$.content[*].action_domains_ids");
       assertTrue(
           resultDomains.stream().noneMatch(domains -> domains.contains(domain1.get().getId())),
           "No result should contain domain1");
@@ -639,7 +640,8 @@ public class ThreatArsenalApiTest extends IntegrationTest {
           JsonPath.read(countResponse, "$[?(@.domain=='" + domain1.get().getId() + "')].count");
       assertTrue(countsDomain1.isEmpty(), "domain1 should not be present in domain counts");
 
-      List<List<String>> resultDomains = JsonPath.read(searchResponse, "$.content[*].action_domains_ids");
+      List<List<String>> resultDomains =
+          JsonPath.read(searchResponse, "$.content[*].action_domains_ids");
       assertTrue(
           resultDomains.stream().noneMatch(domains -> domains.contains(domain1.get().getId())),
           "No result should contain domain1");
