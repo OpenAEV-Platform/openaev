@@ -544,6 +544,110 @@ public class ThreatArsenalApiTest extends IntegrationTest {
       }
     }
 
+    @Test
+    @DisplayName(
+        "given action_domains not_eq with AND and two values should return no result for search and domain counts")
+    void given_actionDomainsNotEqAndWithTwoValues_should_returnNoResultForSearchAndDomainCounts()
+        throws Exception {
+      // Arrange
+      SearchPaginationInput input =
+          buildSearchInputForActionDomainsNotEqAnd(
+              List.of(domain1.get().getId(), domain2.get().getId()));
+
+      // Act
+      String searchResponse =
+          mvc.perform(
+                  post(THREAT_ARSENAL_URI + "/search")
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input)))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String countResponse =
+          mvc.perform(
+                  post(THREAT_ARSENAL_URI + "/domain-counts")
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input)))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      int totalElements = JsonPath.read(searchResponse, "$.totalElements");
+      assertEquals(0, totalElements, "Expected no results when excluding both domain1 and domain2");
+
+      List<String> countedDomains = JsonPath.read(countResponse, "$[*].domain");
+      assertTrue(
+          countedDomains == null || countedDomains.isEmpty(),
+          "Expected no domain counts when search result set is empty");
+    }
+
+    @Test
+    @DisplayName(
+        "given action_domains not_eq with AND and one value should keep contracts from other domains")
+    void given_actionDomainsNotEqAndWithOneValue_should_keepOtherDomains() throws Exception {
+      // Arrange
+      SearchPaginationInput input =
+          buildSearchInputForActionDomainsNotEqAnd(List.of(domain1.get().getId()));
+
+      // Act
+      String searchResponse =
+          mvc.perform(
+                  post(THREAT_ARSENAL_URI + "/search")
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input)))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String countResponse =
+          mvc.perform(
+                  post(THREAT_ARSENAL_URI + "/domain-counts")
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input)))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      int totalElements = JsonPath.read(searchResponse, "$.totalElements");
+      assertEquals(1, totalElements, "Expected only contracts from domain2 to remain");
+
+      List<Integer> countsDomain2 =
+          JsonPath.read(countResponse, "$[?(@.domain=='" + domain2.get().getId() + "')].count");
+      assertFalse(countsDomain2.isEmpty(), "domain2 should be present in domain counts");
+      assertEquals(1, countsDomain2.getFirst(), "Unexpected count for domain2");
+
+      List<Integer> countsDomain1 =
+          JsonPath.read(countResponse, "$[?(@.domain=='" + domain1.get().getId() + "')].count");
+      assertTrue(countsDomain1.isEmpty(), "domain1 should not be present in domain counts");
+    }
+
+    private SearchPaginationInput buildSearchInputForActionDomainsNotEqAnd(List<String> domainIds) {
+      Filters.Filter filter = new Filters.Filter();
+      filter.setKey("action_domains");
+      filter.setOperator(Filters.FilterOperator.not_eq);
+      filter.setMode(Filters.FilterMode.and);
+      filter.setValues(domainIds);
+
+      Filters.FilterGroup filterGroup = new Filters.FilterGroup();
+      filterGroup.setMode(Filters.FilterMode.and);
+      filterGroup.setFilters(new ArrayList<>(List.of(filter)));
+
+      SearchPaginationInput input = PaginationFixture.getDefault().build();
+      input.setFilterGroup(filterGroup);
+      return input;
+    }
+
     private SearchPaginationInput buildSearchInput(String filterType) {
       return switch (filterType) {
         case "injector-email-filter" ->
