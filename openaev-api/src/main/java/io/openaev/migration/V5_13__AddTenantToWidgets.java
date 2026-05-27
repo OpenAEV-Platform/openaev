@@ -8,7 +8,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V5_12__AddTenantToWidgets extends BaseJavaMigration {
+public class V5_13__AddTenantToWidgets extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
