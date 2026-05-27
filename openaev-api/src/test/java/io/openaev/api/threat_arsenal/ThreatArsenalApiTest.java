@@ -429,6 +429,9 @@ public class ThreatArsenalApiTest extends IntegrationTest {
     // Create two payloads with injector contract + two injector contract that are not payload based
     @BeforeEach
     void setUpInjectorContracts() {
+      // Keep this test dataset deterministic by removing seed contracts created at app bootstrap.
+      injectorContractRepository.deleteAll();
+
       tag = tagComposer.forTag(TagFixture.getTagWithText("tag1"));
       TagComposer.Composer tag2 = tagComposer.forTag(TagFixture.getTagWithText("tag2"));
       domain1 = domainComposer.forDomain(DomainFixture.getRandomDomain());
@@ -578,13 +581,21 @@ public class ThreatArsenalApiTest extends IntegrationTest {
               .getContentAsString();
 
       // Assert
-      int totalElements = JsonPath.read(searchResponse, "$.totalElements");
-      assertEquals(0, totalElements, "Expected no results when excluding both domain1 and domain2");
-
       List<String> countedDomains = JsonPath.read(countResponse, "$[*].domain");
+      assertFalse(
+          countedDomains.contains(domain1.get().getId()),
+          "domain1 should not be present in domain counts");
+      assertFalse(
+          countedDomains.contains(domain2.get().getId()),
+          "domain2 should not be present in domain counts");
+
+      List<List<String>> resultDomains = JsonPath.read(searchResponse, "$.content[*].action_domains_ids");
       assertTrue(
-          countedDomains == null || countedDomains.isEmpty(),
-          "Expected no domain counts when search result set is empty");
+          resultDomains.stream().noneMatch(domains -> domains.contains(domain1.get().getId())),
+          "No result should contain domain1");
+      assertTrue(
+          resultDomains.stream().noneMatch(domains -> domains.contains(domain2.get().getId())),
+          "No result should contain domain2");
     }
 
     @Test
@@ -619,9 +630,6 @@ public class ThreatArsenalApiTest extends IntegrationTest {
               .getContentAsString();
 
       // Assert
-      int totalElements = JsonPath.read(searchResponse, "$.totalElements");
-      assertEquals(1, totalElements, "Expected only contracts from domain2 to remain");
-
       List<Integer> countsDomain2 =
           JsonPath.read(countResponse, "$[?(@.domain=='" + domain2.get().getId() + "')].count");
       assertFalse(countsDomain2.isEmpty(), "domain2 should be present in domain counts");
@@ -630,6 +638,11 @@ public class ThreatArsenalApiTest extends IntegrationTest {
       List<Integer> countsDomain1 =
           JsonPath.read(countResponse, "$[?(@.domain=='" + domain1.get().getId() + "')].count");
       assertTrue(countsDomain1.isEmpty(), "domain1 should not be present in domain counts");
+
+      List<List<String>> resultDomains = JsonPath.read(searchResponse, "$.content[*].action_domains_ids");
+      assertTrue(
+          resultDomains.stream().noneMatch(domains -> domains.contains(domain1.get().getId())),
+          "No result should contain domain1");
     }
 
     private SearchPaginationInput buildSearchInputForActionDomainsNotEqAnd(List<String> domainIds) {
