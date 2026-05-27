@@ -199,7 +199,12 @@ public class LogService {
    * @param expiryReason "inactivity_timeout" or "explicit_invalidation"
    */
   public boolean logSessionExpiredEvent(
-      String userId, String sessionId, long sessionDurationSeconds, String expiryReason) {
+      String userId,
+      String sessionId,
+      long sessionDurationSeconds,
+      String expiryReason,
+      String clientIp,
+      String userAgent) {
     if (!isEnabled()) {
       return true;
     }
@@ -216,10 +221,18 @@ public class LogService {
       doc.setEventAccess("administration");
       doc.setEventScope("session_expired");
       doc.setUserId(userId);
-      doc.setTenantId(TenantContext.getCurrentTenant());
 
       // User metadata with session ID
-      populateUserMetadata(doc);
+      LogEvent.UserMetadata metadata = new LogEvent.UserMetadata();
+      doc.setUserMetadata(metadata);
+
+      metadata.setSessionId(sessionId);
+      if (clientIp != null) {
+        metadata.setIp(clientIp);
+      }
+      if (userAgent != null) {
+        metadata.setUserAgent(userAgent);
+      }
 
       // Context data
       Map<String, Object> ctx = new LinkedHashMap<>();

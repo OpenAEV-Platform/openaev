@@ -4,9 +4,12 @@ import static org.springframework.security.web.context.HttpSessionSecurityContex
 
 import io.openaev.database.model.User;
 import io.openaev.service.LogService;
+import io.openaev.utils.HttpReqRespUtils;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.HttpSessionEvent;
 import jakarta.servlet.http.HttpSessionListener;
+import java.io.Serializable;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -29,11 +32,10 @@ public class SessionManager {
   public static final String EXPLICIT_LOGOUT = "EXPLICIT_LOGOUT";
 
   /**
-   * Session attribute set during real authentication (login). Only sessions carrying this marker
-   * will emit a session_expired audit event. This prevents SSE/polling ephemeral sessions from
-   * generating audit noise.
+   * Session attribute storing authentication context captured at login and reused at session expiry
+   * time.
    */
-  public static final String AUTHENTICATED_SESSION = "AUTHENTICATED_SESSION";
+  public static final String AUTH_SESSION_CONTEXT = "AUTH_SESSION_CONTEXT";
 
   private static final Map<String, HttpSession> sessions = new ConcurrentHashMap<>();
 
@@ -41,6 +43,11 @@ public class SessionManager {
 
   public SessionManager(@Lazy LogService logService) {
     this.logService = logService;
+  }
+
+  public static void markAuthenticatedSession(HttpServletRequest request) {
+    AuthSessionContext context = AuthSessionContext.fromRequest(request);
+    request.getSession().setAttribute(AUTH_SESSION_CONTEXT, context);
   }
 
   @Bean
@@ -64,14 +71,15 @@ public class SessionManager {
   }
 
   private void emitSessionExpiredEvent(HttpSession session) {
-    // Only emit for sessions that went through real authentication (marker set in success handler)
-    Object authenticatedMarker;
+    // Only emit for sessions that went through real authentication.
+    Object authContextAttr;
     try {
-      authenticatedMarker = session.getAttribute(AUTHENTICATED_SESSION);
+      authContextAttr = session.getAttribute(AUTH_SESSION_CONTEXT);
     } catch (IllegalStateException e) {
       return;
     }
-    if (!Boolean.TRUE.equals(authenticatedMarker)) {
+
+    if (!(authContextAttr instanceof AuthSessionContext authContext)) {
       return;
     }
 
@@ -109,7 +117,25 @@ public class SessionManager {
     long activeDurationSeconds = (lastAccessed - creationTime) / 1000;
 
     logService.logSessionExpiredEvent(
-        userId, session.getId(), activeDurationSeconds, "inactivity_timeout");
+        userId,
+        session.getId(),
+        activeDurationSeconds,
+        "inactivity_timeout",
+        authContext.clientIp(),
+        authContext.userAgent());
+  }
+
+  public record AuthSessionContext(String clientIp, String userAgent) implements Serializable {
+
+    public static AuthSessionContext fromRequest(HttpServletRequest request) {
+      Map<String, String> headers = HttpReqRespUtils.extractHeaders(request);
+      String userAgent = HttpReqRespUtils.extractHeader(headers, "User-Agent");
+      String clientIp = HttpReqRespUtils.getClientIpAddressFromHeaders(headers);
+      if (clientIp == null && request != null) {
+        clientIp = request.getRemoteAddr();
+      }
+      return new AuthSessionContext(clientIp, userAgent);
+    }
   }
 
   private Optional<SecurityContext> extractSecurityContext(HttpSession httpSession) {

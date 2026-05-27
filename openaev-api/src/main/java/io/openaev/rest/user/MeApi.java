@@ -53,7 +53,7 @@ public class MeApi extends RestBehavior {
   public ResponseEntity<Object> logout(HttpServletRequest request) {
     HttpSession session = request.getSession(false);
     if (session != null) {
-      session.setAttribute("EXPLICIT_LOGOUT", Boolean.TRUE);
+      session.setAttribute(SessionManager.EXPLICIT_LOGOUT, Boolean.TRUE);
     }
     return ResponseEntity.ok().build();
   }

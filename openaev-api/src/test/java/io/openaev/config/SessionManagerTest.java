@@ -33,6 +33,7 @@ class SessionManagerTest {
     listener = sessionManager.httpSessionListener();
     lenient().when(sessionEvent.getSession()).thenReturn(session);
     lenient().when(session.getId()).thenReturn("session-abc");
+    lenient().when(session.getAttribute(SessionManager.AUTH_SESSION_CONTEXT)).thenReturn(null);
   }
 
   @Nested
@@ -43,7 +44,8 @@ class SessionManagerTest {
     @DisplayName("given_authenticatedSessionWithoutExplicitLogout_should_emitSessionExpiredEvent")
     void given_authenticatedSessionWithoutExplicitLogout_should_emitSessionExpiredEvent() {
       // -- PREPARE --
-      when(session.getAttribute(SessionManager.AUTHENTICATED_SESSION)).thenReturn(Boolean.TRUE);
+      when(session.getAttribute(SessionManager.AUTH_SESSION_CONTEXT))
+          .thenReturn(new SessionManager.AuthSessionContext("10.0.0.1", "ua/1.0"));
       when(session.getAttribute(SessionManager.EXPLICIT_LOGOUT)).thenReturn(null);
 
       SecurityContext secCtx = mock(SecurityContext.class);
@@ -64,41 +66,47 @@ class SessionManagerTest {
       // -- VERIFY --
       verify(logService)
           .logSessionExpiredEvent(
-              eq("user-456"), eq("session-abc"), eq(60L), eq("inactivity_timeout"));
+              eq("user-456"),
+              eq("session-abc"),
+              eq(60L),
+              eq("inactivity_timeout"),
+              eq("10.0.0.1"),
+              eq("ua/1.0"));
     }
 
     @Test
     @DisplayName("given_explicitLogoutMarker_should_notEmitEvent")
     void given_explicitLogoutMarker_should_notEmitEvent() {
       // -- PREPARE --
-      when(session.getAttribute(SessionManager.AUTHENTICATED_SESSION)).thenReturn(Boolean.TRUE);
+      when(session.getAttribute(SessionManager.AUTH_SESSION_CONTEXT))
+          .thenReturn(new SessionManager.AuthSessionContext("10.0.0.1", "ua/1.0"));
       when(session.getAttribute(SessionManager.EXPLICIT_LOGOUT)).thenReturn(Boolean.TRUE);
 
       // -- EXECUTE --
       listener.sessionDestroyed(sessionEvent);
 
       // -- VERIFY --
-      verify(logService, never()).logSessionExpiredEvent(any(), any(), anyLong(), any());
+      verify(logService, never())
+          .logSessionExpiredEvent(any(), any(), anyLong(), any(), any(), any());
     }
 
     @Test
     @DisplayName("given_unauthenticatedSession_should_notEmitEvent")
     void given_unauthenticatedSession_should_notEmitEvent() {
-      // -- PREPARE --
-      when(session.getAttribute(SessionManager.AUTHENTICATED_SESSION)).thenReturn(null);
-
       // -- EXECUTE --
       listener.sessionDestroyed(sessionEvent);
 
       // -- VERIFY --
-      verify(logService, never()).logSessionExpiredEvent(any(), any(), anyLong(), any());
+      verify(logService, never())
+          .logSessionExpiredEvent(any(), any(), anyLong(), any(), any(), any());
     }
 
     @Test
     @DisplayName("given_anonymousUserId_should_notEmitEvent")
     void given_anonymousUserId_should_notEmitEvent() {
       // -- PREPARE --
-      when(session.getAttribute(SessionManager.AUTHENTICATED_SESSION)).thenReturn(Boolean.TRUE);
+      when(session.getAttribute(SessionManager.AUTH_SESSION_CONTEXT))
+          .thenReturn(new SessionManager.AuthSessionContext("10.0.0.1", "ua/1.0"));
       when(session.getAttribute(SessionManager.EXPLICIT_LOGOUT)).thenReturn(null);
 
       SecurityContext secCtx = mock(SecurityContext.class);
@@ -114,14 +122,16 @@ class SessionManagerTest {
       listener.sessionDestroyed(sessionEvent);
 
       // -- VERIFY --
-      verify(logService, never()).logSessionExpiredEvent(any(), any(), anyLong(), any());
+      verify(logService, never())
+          .logSessionExpiredEvent(any(), any(), anyLong(), any(), any(), any());
     }
 
     @Test
     @DisplayName("given_noSecurityContext_should_notEmitEvent")
     void given_noSecurityContext_should_notEmitEvent() {
       // -- PREPARE --
-      when(session.getAttribute(SessionManager.AUTHENTICATED_SESSION)).thenReturn(Boolean.TRUE);
+      when(session.getAttribute(SessionManager.AUTH_SESSION_CONTEXT))
+          .thenReturn(new SessionManager.AuthSessionContext("10.0.0.1", "ua/1.0"));
       when(session.getAttribute(SessionManager.EXPLICIT_LOGOUT)).thenReturn(null);
       when(session.getAttribute(SPRING_SECURITY_CONTEXT_KEY)).thenReturn(null);
 
@@ -129,14 +139,16 @@ class SessionManagerTest {
       listener.sessionDestroyed(sessionEvent);
 
       // -- VERIFY --
-      verify(logService, never()).logSessionExpiredEvent(any(), any(), anyLong(), any());
+      verify(logService, never())
+          .logSessionExpiredEvent(any(), any(), anyLong(), any(), any(), any());
     }
 
     @Test
     @DisplayName("given_principalNotOpenAEVPrincipal_should_notEmitEvent")
     void given_principalNotOpenAEVPrincipal_should_notEmitEvent() {
       // -- PREPARE --
-      when(session.getAttribute(SessionManager.AUTHENTICATED_SESSION)).thenReturn(Boolean.TRUE);
+      when(session.getAttribute(SessionManager.AUTH_SESSION_CONTEXT))
+          .thenReturn(new SessionManager.AuthSessionContext("10.0.0.1", "ua/1.0"));
       when(session.getAttribute(SessionManager.EXPLICIT_LOGOUT)).thenReturn(null);
 
       SecurityContext secCtx = mock(SecurityContext.class);
@@ -150,21 +162,23 @@ class SessionManagerTest {
       listener.sessionDestroyed(sessionEvent);
 
       // -- VERIFY --
-      verify(logService, never()).logSessionExpiredEvent(any(), any(), anyLong(), any());
+      verify(logService, never())
+          .logSessionExpiredEvent(any(), any(), anyLong(), any(), any(), any());
     }
 
     @Test
     @DisplayName("given_sessionAlreadyInvalidated_should_notThrow")
     void given_sessionAlreadyInvalidated_should_notThrow() {
       // -- PREPARE --
-      when(session.getAttribute(SessionManager.AUTHENTICATED_SESSION))
+      when(session.getAttribute(SessionManager.AUTH_SESSION_CONTEXT))
           .thenThrow(new IllegalStateException("session already invalidated"));
 
       // -- EXECUTE --
       listener.sessionDestroyed(sessionEvent);
 
       // -- VERIFY --
-      verify(logService, never()).logSessionExpiredEvent(any(), any(), anyLong(), any());
+      verify(logService, never())
+          .logSessionExpiredEvent(any(), any(), anyLong(), any(), any(), any());
     }
   }
 }

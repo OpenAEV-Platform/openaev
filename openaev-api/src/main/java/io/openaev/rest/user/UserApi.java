@@ -74,8 +74,8 @@ public class UserApi extends RestBehavior {
       User user = optionalUser.get();
       if (userService.isUserPasswordValid(user, input.getPassword())) {
         userService.createUserSession(user);
-        // Mark this session as genuinely authenticated (for session expiry audit)
-        httpRequest.getSession().setAttribute(SessionManager.AUTHENTICATED_SESSION, Boolean.TRUE);
+        // Capture auth context in session for reliable expiry audit metadata.
+        SessionManager.markAuthenticatedSession(httpRequest);
         userEventService.createLoginSuccessEvent(user);
 
         auditLogger.ifPresent(

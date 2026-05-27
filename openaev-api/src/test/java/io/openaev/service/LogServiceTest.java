@@ -8,8 +8,6 @@ import io.openaev.engine.model.log.LogEvent;
 import io.openaev.utils.HttpReqRespUtils;
 import io.openaev.utils.log.dispatcher.AuditLogTransportDispatcherUtils;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpSession;
-import java.util.Collections;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -55,7 +53,8 @@ class LogServiceTest {
 
       // -- EXECUTE --
       boolean result =
-          logService.logSessionExpiredEvent("user-123", "session-456", 3600L, "inactivity_timeout");
+          logService.logSessionExpiredEvent(
+              "user-123", "session-456", 3600L, "inactivity_timeout", "1.1.1.1", "test");
 
       // -- VERIFY --
       assertTrue(result);
@@ -86,10 +85,6 @@ class LogServiceTest {
       when(auditLogTransportDispatcherUtils.dispatch(any(LogEvent.class), any())).thenReturn(true);
 
       HttpServletRequest request = mock(HttpServletRequest.class);
-      HttpSession session = mock(HttpSession.class);
-      when(request.getSession(false)).thenReturn(session);
-      when(session.getId()).thenReturn("session-456");
-      when(request.getHeaderNames()).thenReturn(Collections.emptyEnumeration());
 
       // -- EXECUTE --
       boolean result;
@@ -98,7 +93,7 @@ class LogServiceTest {
         mockedHttpReqRespUtils.when(HttpReqRespUtils::getCurrentRequest).thenReturn(request);
         result =
             logService.logSessionExpiredEvent(
-                "user-123", "session-456", 3600L, "inactivity_timeout");
+                "user-123", "session-456", 3600L, "inactivity_timeout", "1.1.1.1", "test");
       }
 
       // -- VERIFY --
@@ -112,6 +107,30 @@ class LogServiceTest {
     }
 
     @Test
+    @DisplayName("given_explicitTenantIpUserAgent_should_setThemOnEvent")
+    void given_explicitTenantIpUserAgent_should_setThemOnEvent() {
+      // -- PREPARE --
+      when(previewFeatureService.isFeatureEnabled(any())).thenReturn(true);
+      when(auditLogTransportDispatcherUtils.dispatch(any(LogEvent.class), any())).thenReturn(true);
+
+      // -- EXECUTE --
+      boolean result =
+          logService.logSessionExpiredEvent(
+              "user-123", "session-456", 3600L, "inactivity_timeout", "10.0.0.1", "ua/1.0");
+
+      // -- VERIFY --
+      assertTrue(result);
+
+      ArgumentCaptor<LogEvent> captor = ArgumentCaptor.forClass(LogEvent.class);
+      verify(auditLogTransportDispatcherUtils).dispatch(captor.capture(), any());
+      LogEvent event = captor.getValue();
+      assertNotNull(event.getUserMetadata());
+      assertEquals("session-456", event.getUserMetadata().getSessionId());
+      assertEquals("10.0.0.1", event.getUserMetadata().getIp());
+      assertEquals("ua/1.0", event.getUserMetadata().getUserAgent());
+    }
+
+    @Test
     @DisplayName("given_auditDisabled_should_returnTrueWithoutDispatching")
     void given_auditDisabled_should_returnTrueWithoutDispatching() {
       // -- PREPARE --
@@ -119,7 +138,8 @@ class LogServiceTest {
 
       // -- EXECUTE --
       boolean result =
-          logService.logSessionExpiredEvent("user-1", "sess-1", 60L, "inactivity_timeout");
+          logService.logSessionExpiredEvent(
+              "user-1", "sess-1", 60L, "inactivity_timeout", "1.1.1.1", "test");
 
       // -- VERIFY --
       assertTrue(result);
@@ -134,7 +154,8 @@ class LogServiceTest {
 
       // -- EXECUTE --
       boolean result =
-          logService.logSessionExpiredEvent("user-1", "sess-1", 60L, "inactivity_timeout");
+          logService.logSessionExpiredEvent(
+              "user-1", "sess-1", 60L, "inactivity_timeout", "1.1.1.1", "test");
 
       // -- VERIFY --
       assertTrue(result);
@@ -153,7 +174,8 @@ class LogServiceTest {
       boolean result =
           assertDoesNotThrow(
               () ->
-                  logService.logSessionExpiredEvent("user-1", "sess-1", 60L, "inactivity_timeout"));
+                  logService.logSessionExpiredEvent(
+                      "user-1", "sess-1", 60L, "inactivity_timeout", "1.1.1.1", "test"));
 
       // -- VERIFY --
       assertFalse(result);

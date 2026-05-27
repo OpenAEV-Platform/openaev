@@ -47,8 +47,8 @@ public class SsoRefererAuthenticationSuccessHandler extends SimpleUrlAuthenticat
           logger.logAuthEvent(eventScope, eventStatus, provider, null, null);
         });
 
-    // Mark this session as a real authenticated session (for audit log filtering)
-    request.getSession().setAttribute(SessionManager.AUTHENTICATED_SESSION, Boolean.TRUE);
+    // Capture auth context in session for reliable expiry audit metadata.
+    SessionManager.markAuthenticatedSession(request);
 
     SavedRequest savedRequest = this.requestCache.getRequest(request, response);
 
