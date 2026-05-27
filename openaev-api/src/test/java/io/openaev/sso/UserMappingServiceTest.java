@@ -59,6 +59,31 @@ public class UserMappingServiceTest extends IntegrationTest {
     return tenantScopedId(Constants.PROCESS_STIX_ROLE_ID);
   }
 
+  @Nested
+  @DisplayName("When groups_management property is not configured")
+  class EmptyGroupMappings {
+
+    @Test
+    @DisplayName("Given null or empty mapping, should not throw and not modify user groups")
+    void given_nullOrEmptyMapping_should_notThrowAndNotModifyUserGroups() {
+      // -- ARRANGE --
+      User user = UserFixture.getUser();
+      userComposer.forUser(user).persist();
+      entityManager.flush();
+      entityManager.clear();
+      List<String> roles = List.of("observer");
+
+      // -- ACT & ASSERT --
+      assertThat(user.getGroups().size()).isEqualTo(0);
+      userMappingService.mapCurrentUserWithGroup(null, user, roles);
+      assertThat(user.getGroups().size()).isEqualTo(0);
+      userMappingService.mapCurrentUserWithGroup("", user, roles);
+      assertThat(user.getGroups().size()).isEqualTo(0);
+      userMappingService.mapCurrentUserWithGroup("   ", user, roles);
+      assertThat(user.getGroups().size()).isEqualTo(0);
+    }
+  }
+
   @Test
   @DisplayName(
       "When the specific group already exists and the autocreate is false, add it to the user")
