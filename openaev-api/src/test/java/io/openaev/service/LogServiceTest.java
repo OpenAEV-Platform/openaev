@@ -153,8 +153,7 @@ class LogServiceTest {
       boolean result =
           assertDoesNotThrow(
               () ->
-                  logService.logSessionExpiredEvent(
-                      "user-1", "sess-1", 60L, "inactivity_timeout"));
+                  logService.logSessionExpiredEvent("user-1", "sess-1", 60L, "inactivity_timeout"));
 
       // -- VERIFY --
       assertFalse(result);
