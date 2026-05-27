@@ -15,9 +15,10 @@ public class AuditLogTransportDispatcherUtils {
   private final List<AuditLogTransportUtils> transports;
 
   public AuditLogTransportDispatcherUtils(List<AuditLogTransportUtils> transports) {
-    this.transports = transports.stream()
-        .sorted(Comparator.comparingInt(AuditLogTransportUtils::priority))
-        .toList();
+    this.transports =
+        transports.stream()
+            .sorted(Comparator.comparingInt(AuditLogTransportUtils::priority))
+            .toList();
   }
 
   public boolean dispatch(LogEvent event, Object level) {
