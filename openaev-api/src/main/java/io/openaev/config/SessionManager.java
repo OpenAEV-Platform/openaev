@@ -31,7 +31,7 @@ public class SessionManager {
   /**
    * Session attribute set during real authentication (login). Only sessions carrying this marker
    * will emit a session_expired audit event. This prevents SSE/polling ephemeral sessions from
-   * generating spurious audit noise.
+   * generating audit noise.
    */
   public static final String AUTHENTICATED_SESSION = "AUTHENTICATED_SESSION";
 

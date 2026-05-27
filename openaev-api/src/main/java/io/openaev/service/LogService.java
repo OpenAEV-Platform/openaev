@@ -219,9 +219,7 @@ public class LogService {
       doc.setTenantId(TenantContext.getCurrentTenant());
 
       // User metadata with session ID
-      LogEvent.UserMetadata meta = new LogEvent.UserMetadata();
-      meta.setSessionId(sessionId);
-      doc.setUserMetadata(meta);
+      populateUserMetadata(doc);
 
       // Context data
       Map<String, Object> ctx = new LinkedHashMap<>();
@@ -232,27 +230,16 @@ public class LogService {
       ctx.put(
           "message",
           "Session expired: active for "
-              + formatDuration(sessionDurationSeconds)
-              + ", then expired due to "
+              + sessionDurationSeconds
+              + "s, then expired due to "
               + expiryReason.replace("_", " "));
       doc.setContextData(ctx);
 
-      return emit(doc, java.util.logging.Level.WARNING, AuditLogType.AUDIT);
+      return emit(doc, java.util.logging.Level.INFO, AuditLogType.AUDIT);
     } catch (Exception e) {
       log.warn("[AUDIT] Failed to log session expiry event: {}", e.getMessage(), e);
     }
     return false;
-  }
-
-  // -- Internal helpers (cont.) --
-
-  private String formatDuration(long seconds) {
-    long h = seconds / 3600;
-    long m = (seconds % 3600) / 60;
-    if (h > 0) {
-      return h + "h" + (m > 0 ? m + "m" : "");
-    }
-    return m + "m";
   }
 
   /** Builds the common part of an {@link LogEvent} with all envelope and user fields populated. */
