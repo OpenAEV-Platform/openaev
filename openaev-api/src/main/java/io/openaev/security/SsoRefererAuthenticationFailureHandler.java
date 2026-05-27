@@ -33,8 +33,11 @@ public class SsoRefererAuthenticationFailureHandler extends SimpleUrlAuthenticat
       throws ServletException, IOException {
     userEventService.createLoginFailedEvent(
         request.getRequestURI(), exception.getClass().getSimpleName());
-    auditLogger.logAuthEvent(
-        "login", "error", request.getRequestURI(), exception.getClass().getSimpleName(), null);
+
+    if (auditLogger != null) {
+      auditLogger.logAuthEvent(
+          "login", "error", request.getRequestURI(), exception.getClass().getSimpleName(), null);
+    }
 
     this.saveException(request, exception);
     SavedRequest savedRequest = this.requestCache.getRequest(request, response);

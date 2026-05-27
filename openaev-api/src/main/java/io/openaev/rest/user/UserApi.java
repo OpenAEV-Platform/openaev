@@ -52,7 +52,7 @@ public class UserApi extends RestBehavior {
   private final UserRepository userRepository;
   private final UserService userService;
   private final UserEventService userEventService;
-  private final AuditLogger auditLogger;
+  private final Optional<AuditLogger> auditLogger;
 
   @Operation(description = "Endpoint to login", summary = "Endpoint to login")
   @ApiResponses(
@@ -72,14 +72,21 @@ public class UserApi extends RestBehavior {
       if (userService.isUserPasswordValid(user, input.getPassword())) {
         userService.createUserSession(user);
         userEventService.createLoginSuccessEvent(user);
-        auditLogger.logAuthEvent("login", "success", "local", null, null);
+
+        auditLogger.ifPresent(
+            logger -> logger.logAuthEvent("login", "success", "local", null, null));
+
         return user;
       }
     }
     userEventService.createLoginFailedEvent(
         "local login", BadCredentialsException.class.getSimpleName());
-    auditLogger.logAuthEvent(
-        "login", "error", "local", BadCredentialsException.class.getSimpleName(), null);
+
+    auditLogger.ifPresent(
+        logger ->
+            logger.logAuthEvent(
+                "login", "error", "local", BadCredentialsException.class.getSimpleName(), null));
+
     throw new BadCredentialsException("Invalid credential.");
   }
 

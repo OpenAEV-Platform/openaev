@@ -40,7 +40,9 @@ public class SsoRefererAuthenticationSuccessHandler extends SimpleUrlAuthenticat
       // Never block the login flow
     }
 
-    auditLogger.logAuthEvent("login", "success", provider, null, null);
+    if (auditLogger != null) {
+      auditLogger.logAuthEvent("login", "success", provider, null, null);
+    }
 
     SavedRequest savedRequest = this.requestCache.getRequest(request, response);
 

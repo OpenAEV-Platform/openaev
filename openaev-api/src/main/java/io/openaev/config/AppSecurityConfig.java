@@ -17,13 +17,12 @@ import io.openaev.service.user_events.UserEventService;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.Customizer;
@@ -67,7 +66,7 @@ public class AppSecurityConfig {
   private final UserEventService userEventService;
   private final UserMappingService userMappingService;
 
-  @Autowired @Lazy private AuditLogger auditLogger;
+  private final Optional<AuditLogger> auditLogger;
 
   @Resource protected ObjectMapper mapper;
 
@@ -127,22 +126,26 @@ public class AppSecurityConfig {
                     // invalidates the session and clears cookies
                     .addLogoutHandler(
                         (request, response, authentication) -> {
-                          ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.RequestContextData
-                              rcd = null;
-                          try {
-                            rcd =
-                                ThreadPoolTaskLoggerConfig.buildThreadRequestContextHolder(
-                                    request, authentication);
-                          } catch (Exception e) {
-                            // Never block the logout flow
-                            log.error(
-                                "Failed to prepare request context on the logout callback handler: {}",
-                                e.getMessage(),
-                                e);
-                          }
+                          auditLogger.ifPresent(
+                              logger -> {
+                                ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder
+                                        .RequestContextData
+                                    rcd = null;
+                                try {
+                                  rcd =
+                                      ThreadPoolTaskLoggerConfig.buildThreadRequestContextHolder(
+                                          request, authentication);
+                                } catch (Exception e) {
+                                  // Never block the logout flow
+                                  log.error(
+                                      "Failed to prepare request context on the logout callback handler: {}",
+                                      e.getMessage(),
+                                      e);
+                                }
 
-                          auditLogger.logAuthEventWithRequestContext(
-                              rcd, "logout", "success", null, null, null);
+                                logger.logAuthEventWithRequestContext(
+                                    rcd, "logout", "success", null, null, null);
+                              });
                         })
                     .invalidateHttpSession(true)
                     .deleteCookies("JSESSIONID", openAEVConfig.getCookieName())
@@ -158,10 +161,11 @@ public class AppSecurityConfig {
                           auth.authorizationRequestResolver(
                               authorizationRequestResolver(
                                   http.getSharedObject(ClientRegistrationRepository.class))))
-                  .successHandler(new SsoRefererAuthenticationSuccessHandler(this.auditLogger))
+                  .successHandler(
+                      new SsoRefererAuthenticationSuccessHandler(this.auditLogger.orElse(null)))
                   .failureHandler(
                       new SsoRefererAuthenticationFailureHandler(
-                          this.userEventService, this.auditLogger)));
+                          this.userEventService, this.auditLogger.orElse(null))));
     }
 
     if (openAEVConfig.isAuthSaml2Enable()) {

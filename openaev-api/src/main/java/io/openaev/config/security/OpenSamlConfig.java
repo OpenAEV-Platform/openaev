@@ -14,11 +14,11 @@ import io.openaev.service.user_events.UserEventService;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -50,8 +50,7 @@ public class OpenSamlConfig {
   private RelyingPartyRegistrationRepository relyingPartyRegistrationRepository;
 
   private final UserEventService userEventService;
-
-  @Autowired @Lazy private AuditLogger auditLogger;
+  private final Optional<AuditLogger> auditLogger;
 
   public void addOpenSamlConfig(@NotNull final HttpSecurity http) throws Exception {
     if (this.relyingPartyRegistrationRepository == null) {
@@ -70,7 +69,8 @@ public class OpenSamlConfig {
             saml2Login ->
                 saml2Login
                     .authenticationManager(new ProviderManager(authenticationProvider))
-                    .successHandler(new SsoRefererAuthenticationSuccessHandler(this.auditLogger)));
+                    .successHandler(
+                        new SsoRefererAuthenticationSuccessHandler(this.auditLogger.orElse(null))));
   }
 
   // -- PRIVATE --
