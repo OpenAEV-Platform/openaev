@@ -611,7 +611,7 @@ class EndpointApiTest extends IntegrationTest {
                 .getContentAsString();
 
         String endpointId = JsonPath.read(createResponse, "$.asset_id");
-        return endpointRepository.findById(endpointId).orElseThrow();
+        return endpointRepository.findByIdAndTenantId(endpointId, tenantId).orElseThrow();
       }
 
       @Test
