@@ -101,8 +101,7 @@ class EngineServiceIntegrationTest extends IntegrationTest {
   class BulkDelete {
 
     @Test
-    @DisplayName(
-        "given_indexedEndpoint_should_removeDocumentFromEngineAfterBulkDelete")
+    @DisplayName("given_indexedEndpoint_should_removeDocumentFromEngineAfterBulkDelete")
     void given_indexedEndpoint_should_removeDocumentFromEngineAfterBulkDelete()
         throws InterruptedException {
       // Arrange: persist one endpoint and index it
@@ -165,10 +164,8 @@ class EngineServiceIntegrationTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName(
-        "given_bulkDeleteOnlyOneShouldLeaveOtherIntact")
-    void given_bulkDeleteOnlyOneId_should_leaveOtherDocumentIntact()
-        throws InterruptedException {
+    @DisplayName("given_bulkDeleteOnlyOneShouldLeaveOtherIntact")
+    void given_bulkDeleteOnlyOneId_should_leaveOtherDocumentIntact() throws InterruptedException {
       // Arrange
       String endpointToDeleteId =
           endpointComposer
@@ -176,9 +173,7 @@ class EngineServiceIntegrationTest extends IntegrationTest {
               .persist()
               .get()
               .getId();
-      endpointComposer
-          .forEndpoint(EndpointFixture.createEndpoint("ep-to-keep"))
-          .persist();
+      endpointComposer.forEndpoint(EndpointFixture.createEndpoint("ep-to-keep")).persist();
 
       indexAndWait();
 
@@ -196,6 +191,3 @@ class EngineServiceIntegrationTest extends IntegrationTest {
     }
   }
 }
-
-
-
