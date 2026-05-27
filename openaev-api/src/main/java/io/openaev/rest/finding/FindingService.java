@@ -3,11 +3,13 @@ package io.openaev.rest.finding;
 import static io.openaev.helper.StreamHelper.fromIterable;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.ContractOutputContext;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.rest.inject.service.InjectService;
@@ -43,9 +45,16 @@ public class FindingService {
   }
 
   public Finding finding(@NotNull final String id) {
-    return this.findingRepository
-        .findById(id)
-        .orElseThrow(() -> new EntityNotFoundException("Finding not found with id: " + id));
+    Finding finding =
+        this.findingRepository
+            .findById(id)
+            .orElseThrow(() -> new EntityNotFoundException("Finding not found with id: " + id));
+    if (injectService.existsByIdAndTenantId(finding.getInject().getId())) {
+      return finding;
+    } else {
+      throw new ElementNotFoundException(
+          "Finding not found for tenant " + TenantContext.getCurrentTenant());
+    }
   }
 
   public Finding createFinding(@NotNull final Finding finding, @NotBlank final String injectId) {

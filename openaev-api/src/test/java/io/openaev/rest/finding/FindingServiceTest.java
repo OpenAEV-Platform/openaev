@@ -9,15 +9,21 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.FindingRepository;
 import io.openaev.injector_contract.outputs.InjectorContractContentOutputElement;
 import io.openaev.rest.inject.service.ContractOutputContext;
 import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import io.openaev.utils.helpers.InjectTestHelper;
+import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.mockUser.WithMockUser;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityNotFoundException;
 import java.util.*;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,6 +38,8 @@ class FindingServiceTest extends IntegrationTest {
   @Autowired private FindingService findingService;
   @Autowired private FindingRepository findingRepository;
   @Autowired private InjectorContractContentUtils injectorContractContentUtils;
+  @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
+  @Autowired private EntityManager entityManager;
 
   @Test
   @DisplayName("Should have two assets when finding already exists with one asset")
@@ -212,5 +220,115 @@ class FindingServiceTest extends IntegrationTest {
                 node -> Collections.emptyList(),
                 node -> Collections.emptyList(),
                 node -> Collections.emptyList()));
+  }
+
+  @Nested
+  @DisplayName("Tenant Isolation")
+  @WithMockUser
+  class TenantIsolation {
+
+    private Finding createFindingInTenant(String tenantId) {
+      String previousTenant = TenantContext.getCurrentTenant();
+      try {
+        tenantIsolationHelper.switchToTenant(tenantId, entityManager);
+
+        Inject inject = getDefaultInject();
+        injectTestHelper.forceSaveInject(inject);
+
+        Finding finding = new Finding();
+        finding.setValue("tenant-finding-" + UUID.randomUUID());
+        finding.setInject(inject);
+        finding.setField("finding_field");
+        finding.setType(ContractOutputType.Text);
+        finding.setAssets(new ArrayList<>());
+
+        return injectTestHelper.forceSaveFinding(finding);
+      } finally {
+        tenantIsolationHelper.switchToTenant(previousTenant, entityManager);
+      }
+    }
+
+    @Test
+    @DisplayName("Finding created in tenant X should NOT be readable from tenant Y")
+    void given_findingInTenantX_should_notBeReadableFromTenantY() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_FINDINGS, Capability.ACCESS_FINDINGS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_FINDINGS));
+
+      Finding finding = createFindingInTenant(tenantX.getId());
+      tenantIsolationHelper.switchToTenant(tenantY.getId(), entityManager);
+
+      // -------- Act & Assert --------
+      assertThrows(EntityNotFoundException.class, () -> findingService.finding(finding.getId()));
+    }
+
+    @Test
+    @DisplayName("Finding created in tenant X should be readable from tenant X")
+    void given_findingInTenantX_should_beReadableFromTenantX() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_FINDINGS, Capability.ACCESS_FINDINGS));
+      Finding finding = createFindingInTenant(tenantX.getId());
+
+      tenantIsolationHelper.switchToTenant(tenantX.getId(), entityManager);
+
+      // -------- Act --------
+      Finding result = findingService.finding(finding.getId());
+
+      // -------- Assert --------
+      assertEquals(finding.getId(), result.getId());
+    }
+
+    @Test
+    @DisplayName("Finding list in tenant Y should NOT return findings from tenant X")
+    void given_findingInTenantX_should_notAppearInTenantYList() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_FINDINGS, Capability.ACCESS_FINDINGS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_FINDINGS));
+
+      Finding findingInTenantX = createFindingInTenant(tenantX.getId());
+      Finding findingInTenantY = createFindingInTenant(tenantY.getId());
+
+      tenantIsolationHelper.switchToTenant(tenantY.getId(), entityManager);
+
+      // -------- Act --------
+      List<Finding> findings = findingService.findings();
+      Set<String> findingIds = findings.stream().map(Finding::getId).collect(Collectors.toSet());
+
+      // -------- Assert --------
+      assertFalse(findingIds.contains(findingInTenantX.getId()));
+      assertTrue(findingIds.contains(findingInTenantY.getId()));
+    }
+
+    @Test
+    @DisplayName("Finding created in tenant X should NOT be deletable from tenant Y")
+    void given_findingInTenantX_should_notBeDeletableFromTenantY() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_FINDINGS, Capability.ACCESS_FINDINGS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.DELETE_FINDINGS, Capability.ACCESS_FINDINGS));
+
+      Finding finding = createFindingInTenant(tenantX.getId());
+      tenantIsolationHelper.switchToTenant(tenantY.getId(), entityManager);
+
+      // -------- Act & Assert --------
+      assertThrows(EntityNotFoundException.class, () -> findingService.deleteFinding(finding.getId()));
+
+      // Ensure record is still visible from owner tenant
+      tenantIsolationHelper.switchToTenant(tenantX.getId(), entityManager);
+      assertDoesNotThrow(() -> findingService.finding(finding.getId()));
+    }
   }
 }

@@ -20,8 +20,10 @@ import org.springframework.transaction.annotation.Transactional;
 public interface FindingRepository
     extends CrudRepository<Finding, String>, JpaSpecificationExecutor<Finding> {
 
+  // For testing purposes only
   List<Finding> findAllByInjectId(@NotNull final String injectId);
 
+  // For testing purposes only
   @Query(
       value =
           "SELECT f FROM Finding f WHERE f.inject.id = :injectId AND f.value = :value AND f.type = :type AND f.field = :key")

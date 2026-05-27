@@ -22,6 +22,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawInject;
 import io.openaev.database.repository.*;
@@ -249,6 +250,11 @@ public class InjectService {
     }
 
     return inject;
+  }
+
+  /** Validates that the inject exists for the current tenant */
+  public boolean existsByIdAndTenantId(@NotBlank final String injectId) {
+    return this.injectRepository.existsByIdAndTenantId(injectId, TenantContext.getCurrentTenant());
   }
 
   public Inject inject(@NotBlank final String injectId) {
