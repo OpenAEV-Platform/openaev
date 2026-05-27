@@ -105,7 +105,9 @@ public class ServiceAccountPrivilegeService extends AbstractPrivilegeService {
   public Optional<User> getUserServiceAccountByTenant(String tenantId) {
     String email = SERVICE_EMAIL_PATTERN.formatted(tenantId);
 
-    return userService.findByEmailIgnoreCase(email);
+    return userService.findByEmailIgnoreCase(email).stream()
+        .filter(user -> user.getTokens().size() == 1)
+        .findFirst();
   }
 
   @Transactional(readOnly = true)
