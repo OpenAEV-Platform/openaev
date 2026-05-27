@@ -149,7 +149,7 @@ public class LogService {
         ctx.put("output", toContextValue(output));
       }
 
-      doc.getRequestData().put("signature", signatureNode);
+      doc.getRequestMetadata().setSignature(signatureNode);
 
       ctx.put("message", message);
       doc.setContextData(ctx);
@@ -184,14 +184,14 @@ public class LogService {
     doc.setEventScope(eventScope);
 
     // Request context
-    Map<String, Object> requestData = new LinkedHashMap<>();
+    LogEvent.RequestMetadata requestData = new LogEvent.RequestMetadata();
 
     ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.RequestContextData requestContextData =
         ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.getRequestContextData();
     String url = requestContextData != null ? requestContextData.url() : null;
 
-    requestData.put("url", url);
-    doc.setRequestData(requestData);
+    requestData.setUrl(url);
+    doc.setRequestMetadata(requestData);
 
     // Tenant context
     doc.setTenantId(TenantContext.getCurrentTenant());
