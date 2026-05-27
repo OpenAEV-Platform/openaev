@@ -6,7 +6,6 @@ import static org.mockito.Mockito.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import io.openaev.engine.model.log.LogEvent;
-import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -82,10 +81,10 @@ class AuditConsoleLogTransportUtilsTest {
       when(writer.writeValueAsString(event)).thenReturn("{\"event_type\":\"authentication\"}");
 
       // -- EXECUTE --
-      CompletableFuture<Boolean> result = transport.send(event, Level.INFO);
+      boolean result = transport.send(event, Level.INFO);
 
       // -- VERIFY --
-      assertTrue(result.join());
+      assertTrue(result);
       verify(writer).writeValueAsString(event);
     }
 
@@ -101,10 +100,10 @@ class AuditConsoleLogTransportUtilsTest {
       when(writer.writeValueAsString(event)).thenThrow(new RuntimeException("serialization error"));
 
       // -- EXECUTE --
-      CompletableFuture<Boolean> result = transport.send(event, Level.INFO);
+      boolean result = transport.send(event, Level.INFO);
 
       // -- VERIFY --
-      assertFalse(result.join());
+      assertFalse(result);
     }
   }
 
@@ -119,10 +118,10 @@ class AuditConsoleLogTransportUtilsTest {
       setEnabled(true);
 
       // -- EXECUTE --
-      CompletableFuture<Boolean> result = transport.send("[AUDIT] test message", Level.INFO);
+      boolean result = transport.send("[AUDIT] test message", Level.INFO);
 
       // -- VERIFY --
-      assertTrue(result.join());
+      assertTrue(result);
     }
 
     @Test
@@ -132,10 +131,10 @@ class AuditConsoleLogTransportUtilsTest {
       setEnabled(true);
 
       // -- EXECUTE --
-      CompletableFuture<Boolean> result = transport.send("[AUDIT] test", null);
+      boolean result = transport.send("[AUDIT] test", null);
 
       // -- VERIFY --
-      assertTrue(result.join());
+      assertTrue(result);
     }
   }
 }
