@@ -546,7 +546,9 @@ public class DocumentApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   public List<Document> playerDocuments(
       @PathVariable String exerciseOrScenarioId, @RequestParam Optional<String> userId) {
-    Optional<Exercise> exerciseOpt = this.exerciseRepository.findById(exerciseOrScenarioId);
+    Optional<Exercise> exerciseOpt =
+        this.exerciseRepository.findByIdAndTenantId(
+            exerciseOrScenarioId, TenantContext.getCurrentTenant());
     Optional<Scenario> scenarioOpt =
         this.scenarioRepository.findByIdAndTenantId(
             exerciseOrScenarioId, TenantContext.getCurrentTenant());
@@ -569,7 +571,7 @@ public class DocumentApi extends RestBehavior {
       }
       return getScenarioPlayerDocuments(scenarioOpt.get());
     } else {
-      throw new IllegalArgumentException("Exercise or scenario ID not found");
+      throw new ElementNotFoundException("Exercise or scenario not found");
     }
   }
 
@@ -584,7 +586,9 @@ public class DocumentApi extends RestBehavior {
       @RequestParam Optional<String> userId,
       HttpServletResponse response)
       throws IOException {
-    Optional<Exercise> exerciseOpt = this.exerciseRepository.findById(exerciseOrScenarioId);
+    Optional<Exercise> exerciseOpt =
+        this.exerciseRepository.findByIdAndTenantId(
+            exerciseOrScenarioId, TenantContext.getCurrentTenant());
     Optional<Scenario> scenarioOpt =
         this.scenarioRepository.findByIdAndTenantId(
             exerciseOrScenarioId, TenantContext.getCurrentTenant());

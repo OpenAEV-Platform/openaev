@@ -141,9 +141,9 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
 
   @AfterAll
   public void teardown() {
-    this.userRepository.deleteById(USER_ID);
-    this.teamRepository.deleteById(TEAM_ID);
-    this.injectRepository.deleteById(INJECT_ID);
+    if (USER_ID != null) this.userRepository.deleteById(USER_ID);
+    if (TEAM_ID != null) this.teamRepository.deleteById(TEAM_ID);
+    if (INJECT_ID != null) this.injectRepository.deleteById(INJECT_ID);
   }
 
   @DisplayName("Should create new contextual teams while exercise duplication")
@@ -156,7 +156,10 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
     exerciseTeams.add(contextualTeam);
     Team noContextualTeam = this.teamRepository.save(getTeam(null, "fakeTeamName2", false));
     exerciseTeams.add(noContextualTeam);
-    Exercise exercise = this.exerciseRepository.save(getExercise(exerciseTeams));
+    Exercise exercise = getExercise(exerciseTeams);
+    exercise.setFrom("test@test.com");
+    this.exerciseRepository.save(exercise);
+    entityManager.flush();
 
     // -- EXECUTE --
     Exercise exerciseDuplicated = exerciseService.getDuplicateExercise(exercise.getId());

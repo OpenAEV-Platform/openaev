@@ -8,6 +8,7 @@ import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
 import io.openaev.database.repository.*;
@@ -136,7 +137,8 @@ public class ChannelApi extends RestBehavior {
     Channel channel =
         channelRepository.findById(channelId).orElseThrow(ElementNotFoundException::new);
 
-    Optional<Exercise> exerciseOpt = this.exerciseRepository.findById(exerciseId);
+    Optional<Exercise> exerciseOpt =
+        this.exerciseRepository.findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant());
     if (exerciseOpt.isPresent()) {
       Exercise exercise = exerciseOpt.get();
       channelReader = new ChannelReader(channel, exercise);
@@ -187,15 +189,16 @@ public class ChannelApi extends RestBehavior {
   public Article createArticleForExercise(
       @PathVariable String exerciseId, @Valid @RequestBody ArticleCreateInput input) {
     Exercise exercise =
-        exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
+        exerciseRepository
+            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
+            .orElseThrow(ElementNotFoundException::new);
     Article article = new Article();
     article.setUpdateAttributes(input);
     article.setChannel(
         channelRepository
             .findById(input.getChannelId())
             .orElseThrow(ElementNotFoundException::new));
-    article.setExercise(
-        exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new));
+    article.setExercise(exercise);
     Article savedArticle = articleRepository.save(article);
     List<String> articleDocuments = input.getDocuments();
     List<Document> finalArticleDocuments = new ArrayList<>();
@@ -229,7 +232,9 @@ public class ChannelApi extends RestBehavior {
       @PathVariable String articleId,
       @Valid @RequestBody ArticleUpdateInput input) {
     Exercise exercise =
-        exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
+        exerciseRepository
+            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
+            .orElseThrow(ElementNotFoundException::new);
     Article article =
         articleRepository.findById(articleId).orElseThrow(ElementNotFoundException::new);
     List<String> newDocumentsIds = input.getDocuments();

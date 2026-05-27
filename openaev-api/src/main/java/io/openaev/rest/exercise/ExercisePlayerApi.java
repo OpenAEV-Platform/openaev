@@ -1,6 +1,7 @@
 package io.openaev.rest.exercise;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.UserRepository;
@@ -29,7 +30,9 @@ public class ExercisePlayerApi extends RestBehavior {
       @PathVariable String exerciseId, @RequestParam Optional<String> userId) {
     impersonateUser(this.userRepository, userId);
     Exercise exercise =
-        this.exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
+        this.exerciseRepository
+            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
+            .orElseThrow(ElementNotFoundException::new);
     return new PublicExercise(exercise);
   }
 }
