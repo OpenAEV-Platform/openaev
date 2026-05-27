@@ -177,12 +177,12 @@ public class AccessControlAuditLogAspect {
 
   private void logUnauthorizedDeniedEvent(
       JoinPoint joinPoint, AccessControl accessControl, Throwable exception) {
-    if (!accessControlAuditLogger.isAuditLoggingEnabled()
-        || !accessControlAuditLogger.isAuditUnauthorizedLoggingValid()) {
-      return;
-    }
-
     try {
+      if (!accessControlAuditLogger.isAuditLoggingEnabled()
+          || !accessControlAuditLogger.isAuditUnauthorizedLoggingValid()) {
+        return;
+      }
+
       String logUUID = UUID.randomUUID().toString();
       ResourceType resourceType = accessControl.resourceType();
       String resourceId = resolveResourceId(joinPoint, accessControl);
@@ -362,8 +362,11 @@ public class AccessControlAuditLogAspect {
   }
 
   private boolean isRbacDeniedException(Throwable exception) {
-    if (exception instanceof ResponseStatusException responseStatusException) {
-      return HttpStatus.FORBIDDEN.equals(responseStatusException.getStatusCode());
+    try {
+      if (exception instanceof ResponseStatusException responseStatusException) {
+        return HttpStatus.FORBIDDEN.equals(responseStatusException.getStatusCode());
+      }
+    } catch (Exception e) {
     }
 
     return false;

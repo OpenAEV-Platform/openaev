@@ -49,6 +49,7 @@ public class AuditRequestValidator {
   private boolean shouldSkip(Action action) {
     return switch (action) {
       case CREATE, WRITE, DELETE, LAUNCH, DUPLICATE -> false;
+      case READ, SEARCH -> true; // SKIP READ AND SEARCH
       default -> true; // SKIP_RBAC, PROCESS
     };
   }
