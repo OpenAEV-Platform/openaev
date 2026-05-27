@@ -126,7 +126,7 @@ public class EndpointService {
 
   public Endpoint endpoint(@NotBlank final String endpointId) {
     return this.endpointRepository
-        .findById(endpointId)
+        .findByIdAndTenantId(endpointId, TenantContext.getCurrentTenant())
         .orElseThrow(() -> new ElementNotFoundException("Endpoint not found"));
   }
 
