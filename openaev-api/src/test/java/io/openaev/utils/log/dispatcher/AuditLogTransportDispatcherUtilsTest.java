@@ -6,7 +6,6 @@ import static org.mockito.Mockito.*;
 import io.openaev.engine.model.log.LogEvent;
 import io.openaev.utils.log.transport.AuditLogTransportUtils;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -30,8 +29,8 @@ class AuditLogTransportDispatcherUtilsTest {
       AuditLogTransportUtils t2 = mock(AuditLogTransportUtils.class);
       when(t1.isEnabled()).thenReturn(true);
       when(t2.isEnabled()).thenReturn(true);
-      when(t1.send(any(LogEvent.class), any())).thenReturn(CompletableFuture.completedFuture(true));
-      when(t2.send(any(LogEvent.class), any())).thenReturn(CompletableFuture.completedFuture(true));
+      when(t1.send(any(LogEvent.class), any())).thenReturn(true);
+      when(t2.send(any(LogEvent.class), any())).thenReturn(true);
 
       AuditLogTransportDispatcherUtils dispatcher =
           new AuditLogTransportDispatcherUtils(List.of(t1, t2));
@@ -54,9 +53,8 @@ class AuditLogTransportDispatcherUtilsTest {
       AuditLogTransportUtils t2 = mock(AuditLogTransportUtils.class);
       when(t1.isEnabled()).thenReturn(true);
       when(t2.isEnabled()).thenReturn(true);
-      when(t1.send(any(LogEvent.class), any())).thenReturn(CompletableFuture.completedFuture(true));
-      when(t2.send(any(LogEvent.class), any()))
-          .thenReturn(CompletableFuture.completedFuture(false));
+      when(t1.send(any(LogEvent.class), any())).thenReturn(true);
+      when(t2.send(any(LogEvent.class), any())).thenReturn(false);
 
       AuditLogTransportDispatcherUtils dispatcher =
           new AuditLogTransportDispatcherUtils(List.of(t1, t2));
@@ -76,8 +74,7 @@ class AuditLogTransportDispatcherUtilsTest {
       AuditLogTransportUtils disabled = mock(AuditLogTransportUtils.class);
       when(enabled.isEnabled()).thenReturn(true);
       when(disabled.isEnabled()).thenReturn(false);
-      when(enabled.send(any(LogEvent.class), any()))
-          .thenReturn(CompletableFuture.completedFuture(true));
+      when(enabled.send(any(LogEvent.class), any())).thenReturn(true);
 
       AuditLogTransportDispatcherUtils dispatcher =
           new AuditLogTransportDispatcherUtils(List.of(enabled, disabled));
@@ -118,7 +115,7 @@ class AuditLogTransportDispatcherUtilsTest {
       // -- PREPARE --
       AuditLogTransportUtils transport = mock(AuditLogTransportUtils.class);
       when(transport.isEnabled()).thenReturn(true);
-      when(transport.send(anyString(), any())).thenReturn(CompletableFuture.completedFuture(true));
+      when(transport.send(anyString(), any())).thenReturn(true);
 
       AuditLogTransportDispatcherUtils dispatcher =
           new AuditLogTransportDispatcherUtils(List.of(transport));
