@@ -34,8 +34,8 @@ describe('getBackgroundColor', () => {
   });
 
   describe('when successRate is exactly 25% (0.25)', () => {
-    it('returns SUCCESS_50_COLOR (orange)', () => {
-      expect(getBackgroundColor(0.25)).toBe(SUCCESS_50_COLOR);
+    it('returns SUCCESS_25_COLOR (red)', () => {
+      expect(getBackgroundColor(0.25)).toBe(SUCCESS_25_COLOR);
     });
   });
 
@@ -46,20 +46,20 @@ describe('getBackgroundColor', () => {
   });
 
   describe('when successRate is exactly 50% (0.50)', () => {
-    it('returns SUCCESS_75_COLOR (green)', () => {
-      expect(getBackgroundColor(0.50)).toBe(SUCCESS_75_COLOR);
+    it('returns SUCCESS_50_COLOR (orange)', () => {
+      expect(getBackgroundColor(0.50)).toBe(SUCCESS_50_COLOR);
     });
   });
 
   describe('when successRate is 74% (0.74)', () => {
-    it('returns SUCCESS_75_COLOR (green)', () => {
+    it('returns SUCCESS_75_COLOR (yellow)', () => {
       expect(getBackgroundColor(0.74)).toBe(SUCCESS_75_COLOR);
     });
   });
 
   describe('when successRate is exactly 75% (0.75)', () => {
-    it('returns SUCCESS_100_COLOR (dark green)', () => {
-      expect(getBackgroundColor(0.75)).toBe(SUCCESS_100_COLOR);
+    it('returns SUCCESS_75_COLOR (yellow)', () => {
+      expect(getBackgroundColor(0.75)).toBe(SUCCESS_75_COLOR);
     });
   });
 
