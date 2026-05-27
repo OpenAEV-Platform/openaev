@@ -4,7 +4,6 @@ import io.openaev.database.model.Action;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -14,9 +13,6 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 @ConditionalOnProperty(name = "openaev.audit-logs.service.enabled", havingValue = "true")
 @RequiredArgsConstructor
 public class AuditRequestValidator {
-
-  @Value("${openaev.audit-logs.log-reads:false}")
-  private boolean logReads;
 
   /**
    * Requests from automated clients are excluded from audit logging. Matches User-Agent headers
@@ -53,7 +49,6 @@ public class AuditRequestValidator {
   private boolean shouldSkip(Action action) {
     return switch (action) {
       case CREATE, WRITE, DELETE, LAUNCH, DUPLICATE -> false;
-      case READ, SEARCH -> !logReads;
       default -> true; // SKIP_RBAC, PROCESS
     };
   }
