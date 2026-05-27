@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V5_12__Rename_Execution_Statuses extends BaseJavaMigration {
+public class V5_13__Rename_Execution_Statuses extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
@@ -52,7 +52,7 @@ public class V5_12__Rename_Execution_Statuses extends BaseJavaMigration {
                 'SUCCESS WITH CLEANUP FAIL',
                 'SUCCESS WITH CLEANUP FAILURE',
                 'EXECUTED WITH CLEANUP FAILURE',
-                'EXECUTED WITH CLEANUP FAIL',
+                'EXECUTED WITH CLEANUP FAIL'
               );
               """);
     }
