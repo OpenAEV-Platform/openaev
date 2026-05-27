@@ -52,7 +52,7 @@ public class V5_12__Rename_Execution_Statuses extends BaseJavaMigration {
                 'SUCCESS WITH CLEANUP FAIL',
                 'SUCCESS WITH CLEANUP FAILURE',
                 'EXECUTED WITH CLEANUP FAILURE',
-                                                        'EXECUTED WITH CLEANUP FAIL',
+                'EXECUTED WITH CLEANUP FAIL',
               );
               """);
     }
