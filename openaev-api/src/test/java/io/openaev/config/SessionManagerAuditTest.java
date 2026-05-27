@@ -55,8 +55,8 @@ class SessionManagerAuditTest {
       when(auth.getPrincipal()).thenReturn(principal);
       when(principal.getId()).thenReturn("user-456");
 
-      when(session.getCreationTime()).thenReturn(System.currentTimeMillis() - 120_000L);
-      when(session.getLastAccessedTime()).thenReturn(System.currentTimeMillis() - 60_000L);
+      when(session.getCreationTime()).thenReturn(1_000L);
+      when(session.getLastAccessedTime()).thenReturn(61_000L);
 
       // -- EXECUTE --
       listener.sessionDestroyed(sessionEvent);
@@ -64,7 +64,7 @@ class SessionManagerAuditTest {
       // -- VERIFY --
       verify(logService)
           .logSessionExpiredEvent(
-              eq("user-456"), eq("session-abc"), anyLong(), eq("inactivity_timeout"));
+              eq("user-456"), eq("session-abc"), eq(60L), eq("inactivity_timeout"));
     }
 
     @Test

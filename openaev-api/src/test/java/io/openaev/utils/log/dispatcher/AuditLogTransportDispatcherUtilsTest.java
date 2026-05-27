@@ -67,6 +67,30 @@ class AuditLogTransportDispatcherUtilsTest {
     }
 
     @Test
+    @DisplayName("given_oneTransportThrows_should_returnFalseAndContinue")
+    void given_oneTransportThrows_should_returnFalseAndContinue() {
+      // -- PREPARE --
+      AuditLogTransportUtils failing = mock(AuditLogTransportUtils.class);
+      AuditLogTransportUtils healthy = mock(AuditLogTransportUtils.class);
+      when(failing.isEnabled()).thenReturn(true);
+      when(healthy.isEnabled()).thenReturn(true);
+      when(failing.send(any(LogEvent.class), any())).thenThrow(new RuntimeException("boom"));
+      when(healthy.send(any(LogEvent.class), any())).thenReturn(true);
+
+      AuditLogTransportDispatcherUtils dispatcher =
+          new AuditLogTransportDispatcherUtils(List.of(failing, healthy));
+      LogEvent event = new LogEvent();
+
+      // -- EXECUTE --
+      boolean result = dispatcher.dispatch(event, Level.INFO);
+
+      // -- VERIFY --
+      assertFalse(result);
+      verify(failing).send(event, Level.INFO);
+      verify(healthy).send(event, Level.INFO);
+    }
+
+    @Test
     @DisplayName("given_transportDisabled_should_skipIt")
     void given_transportDisabled_should_skipIt() {
       // -- PREPARE --

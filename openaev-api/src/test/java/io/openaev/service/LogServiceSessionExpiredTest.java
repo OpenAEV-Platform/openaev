@@ -29,7 +29,6 @@ class LogServiceSessionExpiredTest {
   void setUp() {
     logService =
         new LogService(
-            mock(io.openaev.utils.log.dispatcher.GenericLogTransportDispatcherUtils.class),
             previewFeatureService,
             auditLogTransportDispatcherUtils,
             mock(io.openaev.utils.object.ObjectNormalizationUtils.class),

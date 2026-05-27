@@ -34,37 +34,6 @@ class AuditConsoleLogTransportUtilsTest {
   }
 
   @Nested
-  @DisplayName("isEnabled")
-  class IsEnabled {
-
-    @Test
-    @DisplayName("given_enabledPropertyTrue_should_returnTrue")
-    void given_enabledPropertyTrue_should_returnTrue() {
-      // -- PREPARE --
-      setEnabled(true);
-
-      // -- EXECUTE --
-      boolean result = transport.isEnabled();
-
-      // -- VERIFY --
-      assertTrue(result);
-    }
-
-    @Test
-    @DisplayName("given_enabledPropertyFalse_should_returnFalse")
-    void given_enabledPropertyFalse_should_returnFalse() {
-      // -- PREPARE --
-      setEnabled(false);
-
-      // -- EXECUTE --
-      boolean result = transport.isEnabled();
-
-      // -- VERIFY --
-      assertFalse(result);
-    }
-  }
-
-  @Nested
   @DisplayName("send(LogEvent, Object)")
   class SendLogEvent {
 
@@ -89,6 +58,29 @@ class AuditConsoleLogTransportUtilsTest {
     }
 
     @Test
+    @DisplayName("given_validEvent_should_prefixAuditAndPropagateLevel")
+    void given_validEvent_should_prefixAuditAndPropagateLevel() throws Exception {
+      // -- PREPARE --
+      AuditConsoleLogTransportUtils spyTransport =
+          spy(new AuditConsoleLogTransportUtils(objectMapper));
+      ReflectionTestUtils.setField(spyTransport, "enabled", true);
+
+      LogEvent event = new LogEvent();
+      ObjectWriter writer = mock(ObjectWriter.class);
+      when(objectMapper.writerWithDefaultPrettyPrinter()).thenReturn(writer);
+      when(writer.writeValueAsString(event)).thenReturn("{\"event_type\":\"authentication\"}");
+      doReturn(true).when(spyTransport).send(anyString(), any());
+
+      // -- EXECUTE --
+      boolean result = spyTransport.send(event, Level.WARNING);
+
+      // -- VERIFY --
+      assertTrue(result);
+      verify(spyTransport)
+          .send(eq("[AUDIT] {\"event_type\":\"authentication\"}"), eq(Level.WARNING));
+    }
+
+    @Test
     @DisplayName("given_serializationFailure_should_returnFalse")
     void given_serializationFailure_should_returnFalse() throws Exception {
       // -- PREPARE --
@@ -101,6 +93,27 @@ class AuditConsoleLogTransportUtilsTest {
 
       // -- EXECUTE --
       boolean result = transport.send(event, Level.INFO);
+
+      // -- VERIFY --
+      assertFalse(result);
+    }
+
+    @Test
+    @DisplayName("given_messageSendThrows_should_returnFalse")
+    void given_messageSendThrows_should_returnFalse() throws Exception {
+      // -- PREPARE --
+      AuditConsoleLogTransportUtils spyTransport =
+          spy(new AuditConsoleLogTransportUtils(objectMapper));
+      ReflectionTestUtils.setField(spyTransport, "enabled", true);
+
+      LogEvent event = new LogEvent();
+      ObjectWriter writer = mock(ObjectWriter.class);
+      when(objectMapper.writerWithDefaultPrettyPrinter()).thenReturn(writer);
+      when(writer.writeValueAsString(event)).thenReturn("{}");
+      doThrow(new RuntimeException("log failure")).when(spyTransport).send(anyString(), any());
+
+      // -- EXECUTE --
+      boolean result = spyTransport.send(event, Level.INFO);
 
       // -- VERIFY --
       assertFalse(result);
