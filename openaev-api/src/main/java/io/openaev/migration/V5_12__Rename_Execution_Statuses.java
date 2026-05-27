@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V5_10__Rename_Execution_Statuses extends BaseJavaMigration {
+public class V5_12__Rename_Execution_Statuses extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
