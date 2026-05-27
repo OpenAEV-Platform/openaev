@@ -67,6 +67,8 @@ public class AuditLogger {
   @Async("taskLoggerExecutor")
   public CompletableFuture<Boolean> logAuthEvent(
       String eventScope, String eventStatus, String provider, String reason, String logUUID) {
+    if (!isAuditLoggingEnabled()) return CompletableFuture.completedFuture(true);
+
     boolean status = false;
 
     try {
@@ -90,6 +92,8 @@ public class AuditLogger {
       JsonNode output,
       JsonNode signatureNode,
       String logUUID) {
+    if (!isAuditLoggingEnabled()) return CompletableFuture.completedFuture(true);
+
     boolean status = false;
 
     try {
