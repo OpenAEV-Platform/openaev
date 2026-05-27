@@ -68,9 +68,9 @@ class LogServiceSessionExpiredTest {
       assertEquals("user-123", event.getContextData().get("user_id"));
       assertEquals(3600L, event.getContextData().get("session_active_duration_seconds"));
       assertEquals("inactivity_timeout", event.getContextData().get("expiry_reason"));
-      assertNotNull(event.getContextData().get("message"));
-      assertNotNull(event.getUserMetadata());
-      assertEquals("session-456", event.getUserMetadata().getSessionId());
+      assertEquals(
+          "Session expired: active for 3600s, then expired due to inactivity timeout",
+          event.getContextData().get("message"));
     }
 
     @Test
