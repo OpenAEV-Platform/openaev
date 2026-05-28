@@ -7,19 +7,19 @@ const ColoredPercentageRate = ({ style = {} }) => {
   const theme = useTheme();
   const items = [
     {
-      label: '100%',
+      label: '≤ 100%',
       color: SUCCESS_100_COLOR,
     },
     {
-      label: '< 75%',
+      label: '≤ 75%',
       color: SUCCESS_75_COLOR,
     },
     {
-      label: '< 50%',
+      label: '≤ 50%',
       color: SUCCESS_50_COLOR,
     },
     {
-      label: '< 25%',
+      label: '≤ 25%',
       color: SUCCESS_25_COLOR,
     },
   ];
