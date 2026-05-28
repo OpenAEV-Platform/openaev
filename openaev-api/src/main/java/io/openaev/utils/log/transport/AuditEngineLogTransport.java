@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 /**
@@ -19,6 +20,7 @@ import org.springframework.stereotype.Component;
  */
 @Component
 @ConditionalOnProperty(name = "openaev.audit-logs.engine.enabled", havingValue = "true")
+@Order(3) // Ensure this runs after console transport (priority 1) and file transport (priority 2)
 @RequiredArgsConstructor
 @Slf4j
 public class AuditEngineLogTransport implements AuditLogTransportUtils {
@@ -31,11 +33,6 @@ public class AuditEngineLogTransport implements AuditLogTransportUtils {
 
   private final EngineService engineService;
   private final EngineConfig engineConfig;
-
-  @Override
-  public int priority() {
-    return 3;
-  }
 
   /** Indexes a fully-populated audit log document into the search engine. */
   @Override

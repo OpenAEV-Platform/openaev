@@ -9,9 +9,12 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 @Component
+@Order(2) // Ensure this runs after console transport (priority 1) and before engine transport
+// (priority 3)
 @RequiredArgsConstructor
 public class AuditFileLogTransportUtils implements AuditLogTransportUtils {
 
@@ -26,11 +29,6 @@ public class AuditFileLogTransportUtils implements AuditLogTransportUtils {
   private static final Logger log = LoggerFactory.getLogger("AUDIT_LOG");
 
   private final ObjectMapper objectMapper;
-
-  @Override
-  public int priority() {
-    return 2;
-  }
 
   @Override
   public boolean send(LogEvent event, Object level) {
