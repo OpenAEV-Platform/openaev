@@ -115,6 +115,6 @@ public class ServiceAccountPrivilegeService extends AbstractPrivilegeService {
         .map(User::getTokens)
         .filter(tokens -> !tokens.isEmpty())
         .map(tokens -> tokens.getFirst().getValue())
-        .orElseThrow(() -> new UnsupportedOperationException("Invalid token"));
+        .orElseThrow(() -> new UnsupportedOperationException("Token not found"));
   }
 }
