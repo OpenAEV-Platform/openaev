@@ -507,7 +507,7 @@ public class EndpointService {
                     : Agent.DEPLOYMENT_MODE.session.name(),
                 input.isElevated() ? Agent.PRIVILEGE.admin.name() : Agent.PRIVILEGE.standard.name(),
                 input.getExecutedByUser()),
-            PageRequest.of(0, maxSimultaneousJobs, Sort.by(Sort.Direction.DESC, "createdAt")))
+            PageRequest.of(0, maxSimultaneousJobs, Sort.by(Sort.Direction.ASC, "createdAt")))
         .getContent();
   }
 

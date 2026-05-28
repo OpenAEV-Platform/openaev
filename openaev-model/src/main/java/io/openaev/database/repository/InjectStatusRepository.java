@@ -20,8 +20,6 @@ public interface InjectStatusRepository
 
   Optional<InjectStatus> findByInjectId(@NotNull String injectId);
 
-  List<InjectStatus> findAllByInjectId(String injectId);
-
   @Query(
       value =
           "SELECT ins.*, t.*"
