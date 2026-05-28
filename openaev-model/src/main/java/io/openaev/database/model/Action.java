@@ -18,4 +18,8 @@ public enum Action {
 
   // specific to stix bundle processing
   PROCESS,
+
+  // specific to login/logout
+  LOGIN,
+  LOGOUT
 }

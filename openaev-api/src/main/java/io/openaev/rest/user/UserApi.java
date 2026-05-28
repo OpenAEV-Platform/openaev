@@ -5,6 +5,7 @@ import io.openaev.aop.UserRoleDescription;
 import io.openaev.aop.audit_log.AuditLogger;
 import io.openaev.config.SessionManager;
 import io.openaev.database.model.Action;
+import io.openaev.database.model.EventStatus;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.UserRepository;
@@ -16,6 +17,7 @@ import io.openaev.rest.user.form.login.ResetUserInput;
 import io.openaev.rest.user.form.user.ChangePasswordInput;
 import io.openaev.service.UserService;
 import io.openaev.service.user_events.UserEventService;
+import io.openaev.utils.log.LogUtils;
 import io.swagger.v3.oas.annotations.ExternalDocumentation;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -74,7 +76,12 @@ public class UserApi extends RestBehavior {
         userEventService.createLoginSuccessEvent(user);
 
         auditLogger.ifPresent(
-            logger -> logger.logAuthEvent("login", "success", "local", null, null));
+            logger -> {
+              String eventScope = LogUtils.getEventScope(Action.LOGIN);
+              String eventStatus = LogUtils.getEventStatus(EventStatus.SUCCESS);
+              logger.logAuthEvent(
+                  eventScope, eventStatus, LogUtils.getAuthEventProviderLocal(), null, null);
+            });
 
         return user;
       }
@@ -83,9 +90,16 @@ public class UserApi extends RestBehavior {
         "local login", BadCredentialsException.class.getSimpleName());
 
     auditLogger.ifPresent(
-        logger ->
-            logger.logAuthEvent(
-                "login", "error", "local", BadCredentialsException.class.getSimpleName(), null));
+        logger -> {
+          String eventScope = LogUtils.getEventScope(Action.LOGIN);
+          String eventStatus = LogUtils.getEventStatus(EventStatus.ERROR);
+          logger.logAuthEvent(
+              eventScope,
+              eventStatus,
+              LogUtils.getAuthEventProviderLocal(),
+              BadCredentialsException.class.getSimpleName(),
+              null);
+        });
 
     throw new BadCredentialsException("Invalid credential.");
   }

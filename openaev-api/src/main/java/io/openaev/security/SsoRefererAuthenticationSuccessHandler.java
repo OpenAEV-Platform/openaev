@@ -3,11 +3,15 @@ package io.openaev.security;
 import static org.springframework.http.HttpHeaders.REFERER;
 
 import io.openaev.aop.audit_log.AuditLogger;
+import io.openaev.database.model.Action;
+import io.openaev.database.model.EventStatus;
+import io.openaev.utils.log.LogUtils;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
@@ -18,10 +22,10 @@ import org.springframework.security.web.savedrequest.SavedRequest;
 public class SsoRefererAuthenticationSuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
 
   private final RequestCache requestCache = new HttpSessionRequestCache();
-  private final AuditLogger auditLogger;
+  private final Optional<AuditLogger> auditLogger;
 
   public SsoRefererAuthenticationSuccessHandler(AuditLogger auditLogger) {
-    this.auditLogger = auditLogger;
+    this.auditLogger = Optional.ofNullable(auditLogger);
   }
 
   @Override
@@ -30,7 +34,7 @@ public class SsoRefererAuthenticationSuccessHandler extends SimpleUrlAuthenticat
       throws ServletException, IOException {
 
     // Audit: log SSO login success
-    String provider = "sso";
+    String provider = LogUtils.getAuthEventProviderSSO();
 
     try {
       if (authentication instanceof OAuth2AuthenticationToken oauth2Token) {
@@ -40,9 +44,13 @@ public class SsoRefererAuthenticationSuccessHandler extends SimpleUrlAuthenticat
       // Never block the login flow
     }
 
-    if (auditLogger != null) {
-      auditLogger.logAuthEvent("login", "success", provider, null, null);
-    }
+    final String finalProvider = provider;
+    auditLogger.ifPresent(
+        logger -> {
+          String eventScope = LogUtils.getEventScope(Action.LOGIN);
+          String eventStatus = LogUtils.getEventStatus(EventStatus.SUCCESS);
+          logger.logAuthEvent(eventScope, eventStatus, finalProvider, null, null);
+        });
 
     SavedRequest savedRequest = this.requestCache.getRequest(request, response);
 

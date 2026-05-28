@@ -3,6 +3,7 @@ package io.openaev.utils.log;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.AdministrationResourceType;
+import io.openaev.database.model.EventStatus;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.log.form.LogDetailsInput;
 import java.util.logging.Level;
@@ -18,6 +19,8 @@ import org.slf4j.Logger;
  */
 public class LogUtils {
 
+  private static final String EVENT_PROVIDER_LOCAL = "local";
+  private static final String EVENT_PROVIDER_SSO = "sso";
   private static final String EVENT_ACCESS_ADMINISTRATION = "administration";
   private static final String EVENT_ACCESS_EXTENDED = "extended";
 
@@ -136,6 +139,16 @@ public class LogUtils {
       case LAUNCH -> "status_change";
       case DUPLICATE -> "duplicate";
       case READ, SEARCH -> "read";
+      case LOGIN -> "login";
+      case LOGOUT -> "logout";
+      default -> "unknown";
+    };
+  }
+
+  public static String getEventStatus(EventStatus status) {
+    return switch (status) {
+      case SUCCESS -> "success";
+      case ERROR -> "error";
       default -> "unknown";
     };
   }
@@ -147,6 +160,14 @@ public class LogUtils {
     } catch (IllegalArgumentException e) {
       return EVENT_ACCESS_EXTENDED;
     }
+  }
+
+  public static String getAuthEventProviderLocal() {
+    return EVENT_PROVIDER_LOCAL;
+  }
+
+  public static String getAuthEventProviderSSO() {
+    return EVENT_PROVIDER_SSO;
   }
 
   public static String getAuthEventAccess() {
