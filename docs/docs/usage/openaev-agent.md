@@ -272,6 +272,17 @@ cleanup_interval_seconds = 180
 ```
 
 ---
+
+## Security
+
+### Agent Token Scope and Privilege Isolation
+
+OpenAEV enforces strict **segregation of duties** for agent token authentication.
+
+The agent token has a deliberately narrow scope: it is only permitted to **retrieve jobs to execute**, **retrieve documents**, and **send back results**. It cannot be used to perform any administrative action or access any resource outside of that execution flow.
+
+---
+
 ## Troubleshooting
 
 Logs are available at the following locations (see installation tables for paths):
