@@ -53,7 +53,7 @@ public class AccessControlAuditLogAspect {
   private final ObjectMapper objectMapper;
   private final ExpressionParser parser = new SpelExpressionParser();
 
-  private final String logErrorMsg = "Error during audit logging";
+  private final static String logErrorMsg = "Error during audit logging";
 
   @Around("@annotation(io.openaev.aop.AccessControl)")
   public Object auditAround(ProceedingJoinPoint joinPoint) throws Throwable {
@@ -86,43 +86,6 @@ public class AccessControlAuditLogAspect {
       }
     }
 
-    String logUUID = null;
-    ResourceType resourceType = null;
-    String resourceId = null;
-    String eventScope = null;
-    JsonNode inputNode = null;
-    JsonNode signatureNode = null;
-    BiConsumer<Boolean, Throwable> logCompletion = (success, throwable) -> {};
-
-    try {
-      logUUID = UUID.randomUUID().toString();
-      resourceType = accessControl.resourceType();
-      resourceId = resolveResourceId(joinPoint, accessControl);
-
-      // Capture the input DTO for create/update/status_change
-      eventScope = LogUtils.getEventScope(action);
-      inputNode = getInputNode(joinPoint, eventScope);
-      signatureNode = getMethodSignature(joinPoint, inputNode);
-
-      final ResourceType finalResourceType = resourceType;
-      final String finalEventScope = eventScope;
-
-      logCompletion =
-          (success, throwable) -> {
-            if (throwable != null || (success != null && !success)) {
-              log.warn(
-                  "[AUDIT] Failed to log access control event for {}.{}",
-                  finalResourceType,
-                  finalEventScope);
-              if (throwable != null) {
-                log.warn(logErrorMsg, throwable);
-              }
-            }
-          };
-    } catch (Throwable ex) {
-      log.warn(logErrorMsg, ex);
-    }
-
     // Execute the business operation
     try {
       result = joinPoint.proceed();
@@ -133,20 +96,11 @@ public class AccessControlAuditLogAspect {
       }
 
       try {
+        String eventScope = LogUtils.getEventScope(action);
         JsonNode resultNode = getOutputNode(result);
         JsonNode errorNode = buildErrorNode(resultNode, ex);
 
-        accessControlAuditLogger
-            .logAccessControlEvent(
-                eventScope,
-                "error",
-                resourceType,
-                resourceId,
-                inputNode,
-                errorNode,
-                signatureNode,
-                logUUID)
-            .whenComplete(logCompletion);
+        logAccessControlEvent(joinPoint, accessControl, eventScope, "error", errorNode);
       } catch (Exception e) {
         log.warn(logErrorMsg, e);
       }
@@ -155,19 +109,10 @@ public class AccessControlAuditLogAspect {
     }
 
     try {
+      String eventScope = LogUtils.getEventScope(action);
       JsonNode resultNode = getOutputNode(result);
 
-      accessControlAuditLogger
-          .logAccessControlEvent(
-              eventScope,
-              "success",
-              resourceType,
-              resourceId,
-              inputNode,
-              resultNode,
-              signatureNode,
-              logUUID)
-          .whenComplete(logCompletion);
+      logAccessControlEvent(joinPoint, accessControl, eventScope, "success", resultNode);
     } catch (Exception ex) {
       log.warn(logErrorMsg, ex);
     }
@@ -183,19 +128,32 @@ public class AccessControlAuditLogAspect {
         return;
       }
 
+      JsonNode errorNode = buildErrorNode(null, exception);
+
+      logAccessControlEvent(joinPoint, accessControl, "unauthorized", "error", errorNode);
+    } catch (Exception ex) {
+      log.warn(logErrorMsg, ex);
+    }
+  }
+
+  private void logAccessControlEvent(
+      JoinPoint joinPoint,
+      AccessControl accessControl,
+      String eventScope,
+      String eventStatus,
+      JsonNode outputNode) {
+    try {
       String logUUID = UUID.randomUUID().toString();
       ResourceType resourceType = accessControl.resourceType();
       String resourceId = resolveResourceId(joinPoint, accessControl);
-      String eventScope = "unauthorized";
       JsonNode inputNode = getInputNode(joinPoint, eventScope);
       JsonNode signatureNode = getMethodSignature(joinPoint, inputNode);
-      JsonNode errorNode = buildErrorNode(null, exception);
 
       BiConsumer<Boolean, Throwable> logCompletion =
           (success, throwable) -> {
             if (throwable != null || (success != null && !success)) {
               log.warn(
-                  "[AUDIT] Failed to log RBAC denial event for {}.{}", resourceType, eventScope);
+                  "[AUDIT] Failed to log access control event for {}.{}", resourceType, eventScope);
               if (throwable != null) {
                 log.warn(logErrorMsg, throwable);
               }
@@ -205,11 +163,11 @@ public class AccessControlAuditLogAspect {
       accessControlAuditLogger
           .logAccessControlEvent(
               eventScope,
-              "error",
+              eventStatus,
               resourceType,
               resourceId,
               inputNode,
-              errorNode,
+              outputNode,
               signatureNode,
               logUUID)
           .whenComplete(logCompletion);
@@ -363,10 +321,10 @@ public class AccessControlAuditLogAspect {
 
   private boolean isRbacDeniedException(Throwable exception) {
     try {
-      if (exception instanceof ResponseStatusException responseStatusException) {
-        return HttpStatus.FORBIDDEN.equals(responseStatusException.getStatusCode());
-      }
+      return exception instanceof ResponseStatusException rse
+          && HttpStatus.FORBIDDEN.equals(rse.getStatusCode());
     } catch (Exception e) {
+      // return false
     }
 
     return false;
