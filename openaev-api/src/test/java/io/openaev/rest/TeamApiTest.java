@@ -619,8 +619,7 @@ class TeamApiTest extends IntegrationTest {
       Tenant tenantY =
           tenantIsolationHelper.createTenantWithCapabilities(
               "Tenant Y",
-              Set.of(
-                  Capability.DELETE_TEAMS_AND_PLAYERS, Capability.ACCESS_TEAMS_AND_PLAYERS));
+              Set.of(Capability.DELETE_TEAMS_AND_PLAYERS, Capability.ACCESS_TEAMS_AND_PLAYERS));
 
       TeamCreateInput input = createTeam();
       input.setName("Delete Isolation Test Team");

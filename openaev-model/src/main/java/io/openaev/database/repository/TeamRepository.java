@@ -109,4 +109,5 @@ public interface TeamRepository
 
   Optional<Team> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
+  boolean existsByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 }

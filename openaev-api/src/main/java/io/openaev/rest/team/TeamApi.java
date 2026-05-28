@@ -123,7 +123,9 @@ public class TeamApi extends RestBehavior {
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The team")})
   @Operation(description = "Get a team", summary = "Get team")
   public Team getTeam(@PathVariable @Schema(description = "ID of the team") String teamId) {
-    return teamRepository.findByIdAndTenantId(teamId, TenantContext.getCurrentTenant()).orElseThrow(ElementNotFoundException::new);
+    return teamRepository
+        .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
+        .orElseThrow(ElementNotFoundException::new);
   }
 
   @GetMapping({"/api/teams/{teamId}/players", TENANT_TEAM_URI + "/{teamId}/players"})
@@ -136,7 +138,10 @@ public class TeamApi extends RestBehavior {
   @Operation(description = "Get the list of players of a team", summary = "Get team's players")
   public Iterable<User> getTeamPlayers(
       @PathVariable @Schema(description = "ID of the team") String teamId) {
-    return teamRepository.findByIdAndTenantId(teamId,TenantContext.getCurrentTenant()).orElseThrow(ElementNotFoundException::new).getUsers();
+    return teamRepository
+        .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
+        .orElseThrow(ElementNotFoundException::new)
+        .getUsers();
   }
 
   @PostMapping({TEAM_URI, TENANT_TEAM_URI})
@@ -199,12 +204,11 @@ public class TeamApi extends RestBehavior {
   @Operation(description = "Delete an existing team", summary = "Delete team")
   public void deleteTeam(@PathVariable @Schema(description = "ID of the team") String teamId)
       throws ResourceInUseException {
-    Team team =
-        teamRepository
-            .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+    if (!teamRepository.existsByIdAndTenantId(teamId, TenantContext.getCurrentTenant())) {
+      throw new ElementNotFoundException();
+    }
     try {
-      teamRepository.delete(team);
+      teamRepository.deleteById(teamId);
     } catch (InvalidDataAccessApiUsageException | TransientObjectException ex) {
       throw new ResourceInUseException(
           "Cannot delete this team because it is still in use. Please remove its dependencies first.",
@@ -222,7 +226,10 @@ public class TeamApi extends RestBehavior {
   public Team updateTeam(
       @PathVariable @Schema(description = "ID of the team") String teamId,
       @Valid @RequestBody TeamUpdateInput input) {
-    Team team = teamRepository.findByIdAndTenantId(teamId,TenantContext.getCurrentTenant()).orElseThrow(ElementNotFoundException::new);
+    Team team =
+        teamRepository
+            .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
+            .orElseThrow(ElementNotFoundException::new);
     team.setUpdateAttributes(input);
     team.setUpdatedAt(now());
     team.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
@@ -243,7 +250,10 @@ public class TeamApi extends RestBehavior {
   public Team updateTeamUsers(
       @PathVariable @Schema(description = "ID of the team") String teamId,
       @Valid @RequestBody UpdateUsersTeamInput input) {
-    Team team = teamRepository.findByIdAndTenantId(teamId,TenantContext.getCurrentTenant()).orElseThrow(ElementNotFoundException::new);
+    Team team =
+        teamRepository
+            .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
+            .orElseThrow(ElementNotFoundException::new);
     Iterable<User> teamUsers = userRepository.findAllById(input.getUserIds());
     team.setUsers(fromIterable(teamUsers));
     return teamRepository.save(team);
