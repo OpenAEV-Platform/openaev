@@ -61,9 +61,6 @@ public class EndpointService {
 
   private static final String ASSET_GROUP_FILTER = "assetGroups";
 
-  @Value("${openaev.agent.max-simultaneous-jobs:5}")
-  private int maxSimultaneousJobs;
-
   public static final int DELETE_TTL = 86400000; // 24 hours
   public static final String OPENAEV_AGENT_INSTALLER = "openaev-agent-installer";
   public static final String OPENAEV_AGENT_UPGRADE = "openaev-agent-upgrade";
@@ -101,6 +98,9 @@ public class EndpointService {
   @Value(
       "${executor.openaev-agent.binaries.version:${executor.openaev.binaries.version:${info.app.version:unknown}}}")
   private String agentBinaryVersion;
+
+  @Value("${executor.openaev.agent.max-simultaneous-jobs:5}")
+  private int maxSimultaneousJobs;
 
   private final EndpointRepository endpointRepository;
   private final ExecutorRepository executorRepository;

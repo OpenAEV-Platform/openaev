@@ -24,8 +24,6 @@ import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -87,10 +85,13 @@ public class InjectStatusService {
   public void addJobRetrievalTraces(AssetAgentJob job) {
     if (job.getInject() != null && job.getAgent() != null) {
       String injectId = job.getInject().getId();
-      injectStatusRepository.findByInjectId(injectId).ifPresent(status -> {
-        ExecutionTraceUtils.addJobRetrievalTrace(status, job.getAgent());
-        injectStatusRepository.save(status);
-      });
+      injectStatusRepository
+          .findByInjectId(injectId)
+          .ifPresent(
+              status -> {
+                ExecutionTraceUtils.addJobRetrievalTrace(status, job.getAgent());
+                injectStatusRepository.save(status);
+              });
     }
   }
 
