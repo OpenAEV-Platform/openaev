@@ -130,6 +130,7 @@ public class AccessControlAuditLogAspect {
 
       JsonNode errorNode = buildErrorNode(null, exception);
 
+      //TODO AUDIT: Move this to enum just like in the issue/5483
       logAccessControlEvent(joinPoint, accessControl, "unauthorized", "error", errorNode);
     } catch (Exception ex) {
       log.warn(logErrorMsg, ex);
