@@ -43,6 +43,8 @@ public interface ScenarioRepository
         StatisticRepository,
         JpaSpecificationExecutor<Scenario> {
 
+  Optional<Scenario> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
+
   @Query(
       value =
           "WITH scenario_data AS ("
@@ -256,6 +258,4 @@ public interface ScenarioRepository
       @Param("scenarioId") final String scenarioId, @Param("teamIds") final List<String> teamIds);
 
   Optional<Scenario> findByExercises_Id(String exerciseId);
-
-  Optional<Scenario> findByIdAndTenantId(String id, String tenantId);
 }

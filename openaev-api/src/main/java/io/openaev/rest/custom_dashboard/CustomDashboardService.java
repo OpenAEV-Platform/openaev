@@ -6,6 +6,7 @@ import static io.openaev.database.specification.CustomDashboardSpecification.byN
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.Setting;
 import io.openaev.database.model.TenantSettingKeys;
@@ -124,7 +125,7 @@ public class CustomDashboardService {
   @Transactional(readOnly = true)
   public CustomDashboard customDashboard(@NotNull final String id) {
     return this.customDashboardRepository
-        .findById(id)
+        .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
         .orElseThrow(
             () -> new EntityNotFoundException("Custom dashboard not found with id: " + id));
   }

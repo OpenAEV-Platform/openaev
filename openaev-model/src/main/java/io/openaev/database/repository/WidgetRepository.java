@@ -16,4 +16,6 @@ public interface WidgetRepository
 
   Optional<Widget> findByCustomDashboardIdAndId(
       @NotBlank final String customDashboardId, @NotBlank final String id);
+
+  Optional<Widget> findByIdAndTenantId(String id, String tenantId);
 }
