@@ -18,6 +18,8 @@ public interface NotificationRuleRepository
   @NotNull
   Optional<NotificationRule> findById(@NotNull String id);
 
+  Optional<NotificationRule> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
+
   @Query("select nr from NotificationRule nr " + "where nr.resourceId = :resourceId")
   List<NotificationRule> findNotificationRuleByResource(@NotNull String resourceId);
 
