@@ -22,6 +22,7 @@ public enum ExecutionTraceStatus {
   // -- Not counted (ignored in status computation) --
   ASSET_AGENTLESS,
   AGENT_INACTIVE,
+  AGENT_OVERLOADED,
   INFO,
 
   // -- Deprecated (kept for backward compatibility with existing DB data) --
