@@ -1,5 +1,4 @@
 import { type AttackPattern, type EsSeriesData, type KillChainPhase } from '../../../../../../utils/api-types';
-import {EMPTY_DATA} from "./domains/SecurityDomainsWidgetUtils";
 
 export interface ResolvedTTPData {
   key: string | undefined;
