@@ -1,5 +1,8 @@
 package io.openaev.database.repository;
 
+import io.openaev.aop.AuditModifying;
+import io.openaev.aop.AuditTarget;
+import io.openaev.aop.LogEntityChanges;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
 import jakarta.validation.constraints.NotNull;
@@ -14,6 +17,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 @Repository
+@LogEntityChanges
 public interface GroupRepository
     extends JpaRepository<Group, String>, JpaSpecificationExecutor<Group> {
 
@@ -47,5 +51,6 @@ public interface GroupRepository
 
   @Modifying
   @Query(value = "DELETE FROM groups WHERE group_id = :id", nativeQuery = true)
+  @AuditModifying(@AuditTarget(entityType = Group.class, paramName = "id"))
   void deleteByIdNative(@Param("id") String id);
 }

@@ -1,5 +1,8 @@
 package io.openaev.database.repository;
 
+import io.openaev.aop.AuditModifying;
+import io.openaev.aop.AuditTarget;
+import io.openaev.aop.LogEntityChanges;
 import io.openaev.database.model.Role;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
@@ -13,6 +16,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 @Repository
+@LogEntityChanges
 public interface RoleRepository
     extends JpaRepository<Role, String>, JpaSpecificationExecutor<Role> {
 
@@ -27,5 +31,6 @@ public interface RoleRepository
 
   @Modifying
   @Query(value = "DELETE FROM roles WHERE role_id = :id", nativeQuery = true)
+  @AuditModifying(@AuditTarget(entityType = Role.class, paramName = "id"))
   void deleteByIdNative(@Param("id") String id);
 }
