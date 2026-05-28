@@ -56,7 +56,8 @@ public class OpenAEVExecutorContextService extends ExecutorContextService {
   public void launchExecutorSubprocess(
       @NotNull final Inject inject,
       @NotNull final Endpoint assetEndpoint,
-      @NotNull final Agent agent) {
+      @NotNull final Agent agent,
+      @NotNull final String token) {
     Endpoint.PLATFORM_TYPE platform = assetEndpoint.getPlatform();
     Endpoint.PLATFORM_ARCH arch = assetEndpoint.getArch();
     if (platform == null) {
@@ -71,7 +72,7 @@ public class OpenAEVExecutorContextService extends ExecutorContextService {
   }
 
   public List<Agent> launchBatchExecutorSubprocess(
-      Inject inject, Set<Agent> agents, InjectStatus injectStatus) {
+      Inject inject, Set<Agent> agents, InjectStatus injectStatus, String token) {
     return new ArrayList<>();
   }
 }

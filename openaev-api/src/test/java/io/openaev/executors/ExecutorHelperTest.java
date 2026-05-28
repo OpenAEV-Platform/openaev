@@ -20,7 +20,7 @@ class ExecutorHelperTest {
   void shouldReplaceAllPlaceholdersIncludingTokenForWindows() {
     // prepare
     String command =
-        "run --inject=#{inject} --agent=#{agent} --tenant=#{tenant} --token=$token --loc=\"#{location}\"";
+        "run --inject=#{inject} --agent=#{agent} --tenant=#{tenant} --token=#{token} --loc=\"#{location}\"";
 
     // act
     String result =
@@ -37,14 +37,14 @@ class ExecutorHelperTest {
         .doesNotContain("#{inject}")
         .doesNotContain("#{agent}")
         .doesNotContain("#{tenant}")
-        .doesNotContain("$token");
+        .doesNotContain("#{token}");
   }
 
   @Test
   @DisplayName("Should replace token placeholder for Linux platform")
   void shouldReplaceTokenForLinux() {
     // prepare
-    String command = "echo $token #{tenant}";
+    String command = "echo #{token} #{tenant}";
 
     // act
     String result =
@@ -59,7 +59,7 @@ class ExecutorHelperTest {
   @DisplayName("Should replace token placeholder for MacOS platform")
   void shouldReplaceTokenForMacOS() {
     // prepare
-    String command = "curl -H \"Authorization: $token\"";
+    String command = "curl -H \"Authorization: #{token}\"";
 
     // act
     String result =
