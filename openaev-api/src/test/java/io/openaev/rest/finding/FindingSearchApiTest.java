@@ -102,7 +102,7 @@ class FindingSearchApiTest extends IntegrationTest {
       entityManager.clear();
 
       // Act
-      int responseStatus =
+      int response =
           performSearch(
                   "/api/tenants/"
                       + tenantY.getId()
@@ -114,7 +114,7 @@ class FindingSearchApiTest extends IntegrationTest {
               .getContentLength();
 
       // Assert
-      assertThat(responseStatus).isEqualTo(0);
+      assertThat(response).isZero();
     }
 
     @Test
@@ -129,7 +129,7 @@ class FindingSearchApiTest extends IntegrationTest {
       entityManager.clear();
 
       // Act
-      int responseStatus =
+      int response =
           performSearch(
                   "/api/tenants/"
                       + tenantY.getId()
@@ -141,7 +141,7 @@ class FindingSearchApiTest extends IntegrationTest {
               .getContentLength();
 
       // Assert
-      assertThat(responseStatus).isEqualTo(0);
+      assertThat(response).isZero();
     }
 
     @Test
@@ -156,7 +156,7 @@ class FindingSearchApiTest extends IntegrationTest {
       entityManager.clear();
 
       // Act
-      int responseStatus =
+      int response =
           performSearch(
                   "/api/tenants/"
                       + tenantY.getId()
@@ -168,7 +168,7 @@ class FindingSearchApiTest extends IntegrationTest {
               .getContentLength();
 
       // Assert
-      assertThat(responseStatus).isEqualTo(0);
+      assertThat(response).isZero();
     }
 
     @Test
@@ -183,7 +183,7 @@ class FindingSearchApiTest extends IntegrationTest {
       entityManager.clear();
 
       // Act
-      int responseStatus =
+      int response =
           performSearch(
                   "/api/tenants/"
                       + tenantY.getId()
@@ -195,7 +195,7 @@ class FindingSearchApiTest extends IntegrationTest {
               .getContentLength();
 
       // Assert
-      assertThat(responseStatus).isEqualTo(0);
+      assertThat(response).isZero();
     }
 
     private Tenant createTenantX() throws Exception {
