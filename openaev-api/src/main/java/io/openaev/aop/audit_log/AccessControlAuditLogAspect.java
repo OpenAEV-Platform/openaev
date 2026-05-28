@@ -58,61 +58,50 @@ public class AccessControlAuditLogAspect {
   @Around("@annotation(io.openaev.aop.AccessControl)")
   public Object auditAround(ProceedingJoinPoint joinPoint) throws Throwable {
     AccessControl accessControl = resolveAccessControlAnnotation(joinPoint);
-    if (accessControl == null) {
-      return joinPoint.proceed();
-    }
-
     Object result = null;
-    boolean isActive = false;
-    Action action = null;
 
-    try {
-      action = accessControl.actionPerformed();
-      isActive =
-          accessControlAuditLogger.isAuditLoggingEnabled()
-              && accessControlAuditLogger.isAuditLoggingValid(action);
-    } catch (Exception ex) {
-      log.warn(LOG_ERROR_MSG, ex);
-    }
-
-    if (!isActive) {
-      try {
-        return joinPoint.proceed();
-      } catch (Throwable ex) {
-        if (isRbacDeniedException(ex)) {
-          logUnauthorizedDeniedEvent(joinPoint, accessControl, ex);
-        }
-        throw ex;
-      }
-    }
-
-    // Execute the business operation
     try {
       result = joinPoint.proceed();
     } catch (Throwable ex) {
-      if (isRbacDeniedException(ex)) {
-        logUnauthorizedDeniedEvent(joinPoint, accessControl, ex);
-        throw ex;
+      if (accessControl != null) {
+        if (isRbacDeniedException(ex)) {
+          logUnauthorizedDeniedEvent(joinPoint, accessControl, ex);
+        } else {
+          try {
+            Action action = accessControl.actionPerformed();
+            boolean isActive =
+                accessControlAuditLogger.isAuditLoggingEnabled()
+                    && accessControlAuditLogger.isAuditLoggingValid(action);
+
+            if (isActive) {
+              String eventScope = LogUtils.getEventScope(action);
+              JsonNode resultNode = getOutputNode(result);
+              JsonNode errorNode = buildErrorNode(resultNode, ex);
+
+              logAccessControlEvent(joinPoint, accessControl, eventScope, "error", errorNode);
+            }
+          } catch (Exception e) {
+            log.warn(LOG_ERROR_MSG, e);
+          }
+        }
       }
-
-      try {
-        String eventScope = LogUtils.getEventScope(action);
-        JsonNode resultNode = getOutputNode(result);
-        JsonNode errorNode = buildErrorNode(resultNode, ex);
-
-        logAccessControlEvent(joinPoint, accessControl, eventScope, "error", errorNode);
-      } catch (Exception e) {
-        log.warn(LOG_ERROR_MSG, e);
-      }
-
       throw ex;
     }
 
     try {
-      String eventScope = LogUtils.getEventScope(action);
-      JsonNode resultNode = getOutputNode(result);
+      if (accessControl != null) {
+        Action action = accessControl.actionPerformed();
+        boolean isActive =
+            accessControlAuditLogger.isAuditLoggingEnabled()
+                && accessControlAuditLogger.isAuditLoggingValid(action);
 
-      logAccessControlEvent(joinPoint, accessControl, eventScope, "success", resultNode);
+        if (isActive) {
+          String eventScope = LogUtils.getEventScope(action);
+          JsonNode resultNode = getOutputNode(result);
+
+          logAccessControlEvent(joinPoint, accessControl, eventScope, "success", resultNode);
+        }
+      }
     } catch (Exception ex) {
       log.warn(LOG_ERROR_MSG, ex);
     }
