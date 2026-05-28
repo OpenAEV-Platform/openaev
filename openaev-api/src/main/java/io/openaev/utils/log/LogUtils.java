@@ -2,9 +2,9 @@ package io.openaev.utils.log;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.database.model.Action;
+import io.openaev.database.model.AdministrationResourceType;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.log.form.LogDetailsInput;
-import io.openaev.utils.ResourceManagerUtils;
 import java.util.logging.Level;
 import org.slf4j.Logger;
 
@@ -23,16 +23,18 @@ public class LogUtils {
 
   private LogUtils() {}
 
-  public static void log(Logger logger, String message, Level level) {
-    if (level == null) {
+  public static void log(Logger logger, String message, Object level) {
+    Level resolvedLevel = getLogLevel(level);
+
+    if (resolvedLevel == null) {
       logger.info(message);
-    } else if (level == Level.SEVERE) {
+    } else if (resolvedLevel == Level.SEVERE) {
       logger.error(message);
-    } else if (level == Level.WARNING) {
+    } else if (resolvedLevel == Level.WARNING) {
       logger.warn(message);
-    } else if (level == Level.INFO) {
+    } else if (resolvedLevel == Level.INFO) {
       logger.info(message);
-    } else if (level == Level.FINE) {
+    } else if (resolvedLevel == Level.FINE) {
       logger.debug(message);
     } else {
       logger.info(message);
@@ -139,16 +141,39 @@ public class LogUtils {
   }
 
   public static String getEventAccess(ResourceType resourceType) {
-    return ResourceManagerUtils.ADMINISTRATION_RESOURCE_TYPES.contains(resourceType)
-        ? EVENT_ACCESS_ADMINISTRATION
-        : EVENT_ACCESS_EXTENDED;
+    try {
+      AdministrationResourceType.valueOf(resourceType.name());
+      return EVENT_ACCESS_ADMINISTRATION;
+    } catch (IllegalArgumentException e) {
+      return EVENT_ACCESS_EXTENDED;
+    }
   }
 
   public static String getAuthEventAccess() {
     return EVENT_ACCESS_ADMINISTRATION;
   }
 
-  public static String getDefaultEventAccess() {
-    return EVENT_ACCESS_EXTENDED;
+  /** Extracts a name from a snapshotted JSON node. */
+  public static String extractNameFromSnapshot(JsonNode snapshot) {
+    if (snapshot == null) {
+      return null;
+    }
+    // Try common name fields in order of precedence
+    for (String field :
+        new String[] {
+          "scenario_name",
+          "exercise_name",
+          "inject_title",
+          "user_firstname",
+          "name",
+          "role_name",
+          "group_name"
+        }) {
+      JsonNode node = snapshot.get(field);
+      if (node != null && node.isTextual()) {
+        return node.asText();
+      }
+    }
+    return null;
   }
 }

@@ -14,7 +14,6 @@ import io.openaev.engine.EngineService;
 import io.openaev.engine.model.log.LogEvent;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.utils.HttpReqRespUtils;
-import io.openaev.utils.ResourceManagerUtils;
 import io.openaev.utils.log.LogUtils;
 import io.openaev.utils.log.dispatcher.AuditLogTransportDispatcherUtils;
 import io.openaev.utils.object.ObjectNormalizationUtils;
@@ -120,7 +119,7 @@ public class LogService {
       }
 
       String entityTypeName = formatResourceType(resourceType);
-      String displayName = ResourceManagerUtils.extractNameFromSnapshot(input);
+      String displayName = LogUtils.extractNameFromSnapshot(input);
       displayName = displayName != null ? displayName : resourceId;
       String message;
 
@@ -130,7 +129,7 @@ public class LogService {
         message = eventScope + "s " + entityTypeName + " `" + displayName + "`";
       }
 
-      String eventAccess = LogUtils.getDefaultEventAccess();
+      String eventAccess = LogUtils.getEventAccess(resourceType);
       LogEvent doc = buildBaseAuditLog("mutation", eventStatus, eventAccess, eventScope, logUUID);
       Map<String, Object> ctx = new LinkedHashMap<>();
 
