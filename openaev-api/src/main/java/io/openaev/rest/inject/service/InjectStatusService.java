@@ -24,8 +24,6 @@ import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -84,22 +82,17 @@ public class InjectStatusService {
     injectStatusRepository.save(injectStatus);
   }
 
-  public void addJobRetrievalTraces(List<AssetAgentJob> jobs) {
-    Map<String, List<AssetAgentJob>> jobsByInjectId =
-        jobs.stream()
-            .filter(j -> j.getInject() != null && j.getAgent() != null)
-            .collect(Collectors.groupingBy(j -> j.getInject().getId()));
-    if (jobsByInjectId.isEmpty()) {
-      return;
+  public void addJobRetrievalTraces(AssetAgentJob job) {
+    if (job.getInject() != null && job.getAgent() != null) {
+      String injectId = job.getInject().getId();
+      injectStatusRepository
+          .findByInjectId(injectId)
+          .ifPresent(
+              status -> {
+                ExecutionTraceUtils.addJobRetrievalTrace(status, job.getAgent());
+                injectStatusRepository.save(status);
+              });
     }
-    List<InjectStatus> statuses =
-        injectStatusRepository.findAllByInjectIdIn(jobsByInjectId.keySet());
-    for (InjectStatus status : statuses) {
-      for (AssetAgentJob job : jobsByInjectId.getOrDefault(status.getInject().getId(), List.of())) {
-        ExecutionTraceUtils.addJobRetrievalTrace(status, job.getAgent());
-      }
-    }
-    injectStatusRepository.saveAll(statuses);
   }
 
   private int getCompleteTrace(Inject inject) {

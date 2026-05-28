@@ -23,6 +23,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
+import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.repository.EndpointRepository;
 import io.openaev.database.repository.InjectRepository;
@@ -30,6 +31,7 @@ import io.openaev.database.repository.TagRepository;
 import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
 import io.openaev.rest.exercise.service.ExerciseService;
+import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.service.EndpointService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.EndpointFixture;
@@ -75,6 +77,8 @@ class EndpointApiTest extends IntegrationTest {
   @Autowired private AgentComposer agentComposer;
 
   @MockitoSpyBean private EndpointService endpointService;
+  @MockitoSpyBean private AssetAgentJobRepository assetAgentJobRepository;
+  @MockitoSpyBean private InjectStatusService injectStatusService;
   @Autowired private AssetGroupRepository assetGroupRepository;
 
   @BeforeEach
@@ -798,6 +802,93 @@ class EndpointApiTest extends IntegrationTest {
             .as("Returned agent_id should match tenant A's agent and not a cross-tenant agent")
             .isEqualTo(executorA.getId());
       }
+    }
+  }
+
+  @Nested
+  @DisplayName("Agent jobs")
+  @WithMockUser(isAdmin = true)
+  class AgentJobs {
+
+    @Test
+    @DisplayName("Given endpoint register input, should return endpoint jobs from service")
+    void given_endpointRegisterInput_should_returnEndpointJobsFromService() throws Exception {
+      // -- PREPARE --
+      EndpointRegisterInput input = createWindowsEndpointRegisterInput(List.of(), "jobs-ext-ref");
+      input.setExecutedByUser("jobs-user");
+      input.setService(true);
+      input.setElevated(false);
+
+      Agent agent = new Agent();
+      agent.setId("agent-1");
+
+      AssetAgentJob assetAgentJob = new AssetAgentJob();
+      assetAgentJob.setId("job-1");
+      assetAgentJob.setCommand("whoami");
+      assetAgentJob.setAgent(agent);
+
+      Mockito.doReturn(List.of(assetAgentJob))
+          .when(endpointService)
+          .getEndpointJobs(Mockito.any(EndpointRegisterInput.class));
+
+      // -- EXECUTE --
+      mvc.perform(
+              post(ENDPOINT_URI + "/jobs")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful())
+          .andExpect(jsonPath("$[0].asset_agent_id").value("job-1"))
+          .andExpect(jsonPath("$[0].asset_agent_command").value("whoami"));
+
+      // -- ASSERT --
+      Mockito.verify(endpointService).getEndpointJobs(Mockito.any(EndpointRegisterInput.class));
+    }
+
+    @Test
+    @DisplayName("Given existing asset agent job id, should trace retrieval and delete job")
+    void given_existingAssetAgentJobId_should_traceRetrievalAndDeleteJob() throws Exception {
+      // -- PREPARE --
+      String assetAgentJobId = "job-to-clean";
+      AssetAgentJob assetAgentJob = new AssetAgentJob();
+      assetAgentJob.setId(assetAgentJobId);
+      assetAgentJob.setCommand("command");
+
+      Mockito.doReturn(java.util.Optional.of(assetAgentJob))
+          .when(assetAgentJobRepository)
+          .findById(assetAgentJobId);
+
+      // -- EXECUTE --
+      mvc.perform(delete(ENDPOINT_URI + "/jobs/" + assetAgentJobId).with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      // -- ASSERT --
+      Mockito.verify(assetAgentJobRepository).findById(assetAgentJobId);
+      Mockito.verify(injectStatusService).addJobRetrievalTraces(assetAgentJob);
+      Mockito.verify(assetAgentJobRepository).deleteById(assetAgentJobId);
+    }
+
+    @Test
+    @DisplayName(
+        "Given unknown asset agent job id, should not trace retrieval and should not delete")
+    void given_unknownAssetAgentJobId_should_notTraceRetrievalAndShouldNotDelete()
+        throws Exception {
+      // -- PREPARE --
+      String assetAgentJobId = "job-missing";
+      Mockito.doReturn(java.util.Optional.empty())
+          .when(assetAgentJobRepository)
+          .findById(assetAgentJobId);
+
+      // -- EXECUTE --
+      mvc.perform(delete(ENDPOINT_URI + "/jobs/" + assetAgentJobId).with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      // -- ASSERT --
+      Mockito.verify(assetAgentJobRepository).findById(assetAgentJobId);
+      Mockito.verify(injectStatusService, Mockito.never())
+          .addJobRetrievalTraces(Mockito.any(AssetAgentJob.class));
+      Mockito.verify(assetAgentJobRepository, Mockito.never()).deleteById(assetAgentJobId);
     }
   }
 }
