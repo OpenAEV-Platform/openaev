@@ -22,6 +22,7 @@ import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
+import io.openaev.rest.exercise.form.ScenarioTeamPlayersEnableInput;
 import io.openaev.rest.scenario.form.CheckScenarioRulesInput;
 import io.openaev.rest.scenario.form.ScenarioAndInjectorContractsInputs;
 import io.openaev.rest.scenario.form.ScenarioIdsAndInjectorContractsInputs;
@@ -950,6 +951,267 @@ public class ScenarioApiTest extends IntegrationTest {
       // -------- Assert — result should be empty --------
       List<Object> results = JsonPath.read(searchByIdResponse, "$");
       assertThat(results.size()).isEqualTo(0);
+    }
+
+    @Test
+    @DisplayName(
+        "Enabling team players in scenario from tenant X should fail with team from tenant Y")
+    void given_teamInTenantY_should_notEnablePlayersInScenarioFromTenantX() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X",
+              Set.of(
+                  Capability.MANAGE_ASSESSMENT,
+                  Capability.ACCESS_ASSESSMENT,
+                  Capability.MANAGE_TEAMS_AND_PLAYERS,
+                  Capability.ACCESS_TEAMS_AND_PLAYERS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y",
+              Set.of(
+                  Capability.MANAGE_ASSESSMENT,
+                  Capability.ACCESS_ASSESSMENT,
+                  Capability.MANAGE_TEAMS_AND_PLAYERS,
+                  Capability.ACCESS_TEAMS_AND_PLAYERS));
+
+      // Create scenario in tenant X
+      ScenarioInput scenarioInput = new ScenarioInput();
+      scenarioInput.setName("TeamPlayer Isolation Scenario");
+
+      String scenarioResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantX.getId() + "/scenarios")
+                      .content(asJsonString(scenarioInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String scenarioId = JsonPath.read(scenarioResponse, "$.scenario_id");
+
+      // Create team in tenant Y
+      io.openaev.rest.team.form.TeamCreateInput teamInput =
+          new io.openaev.rest.team.form.TeamCreateInput();
+      teamInput.setName("CrossTenant Scenario Team");
+
+      String teamResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantY.getId() + "/teams")
+                      .content(asJsonString(teamInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String teamId = JsonPath.read(teamResponse, "$.team_id");
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // -------- Act — enable team players from tenant X using team from tenant Y --------
+      ScenarioTeamPlayersEnableInput playersInput = new ScenarioTeamPlayersEnableInput();
+      playersInput.setPlayersIds(List.of());
+
+      int responseStatus =
+          mvc.perform(
+                  put("/api/tenants/"
+                          + tenantX.getId()
+                          + "/scenarios/"
+                          + scenarioId
+                          + "/teams/"
+                          + teamId
+                          + "/players/enable")
+                      .content(asJsonString(playersInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // -------- Assert — team from another tenant should not be found --------
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
+    }
+
+    @Test
+    @DisplayName(
+        "Adding team players in scenario from tenant X should fail with team from tenant Y")
+    void given_teamInTenantY_should_notAddPlayersInScenarioFromTenantX() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X",
+              Set.of(
+                  Capability.MANAGE_ASSESSMENT,
+                  Capability.ACCESS_ASSESSMENT,
+                  Capability.MANAGE_TEAMS_AND_PLAYERS,
+                  Capability.ACCESS_TEAMS_AND_PLAYERS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y",
+              Set.of(
+                  Capability.MANAGE_ASSESSMENT,
+                  Capability.ACCESS_ASSESSMENT,
+                  Capability.MANAGE_TEAMS_AND_PLAYERS,
+                  Capability.ACCESS_TEAMS_AND_PLAYERS));
+
+      // Create scenario in tenant X
+      ScenarioInput scenarioInput = new ScenarioInput();
+      scenarioInput.setName("AddPlayer Isolation Scenario");
+
+      String scenarioResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantX.getId() + "/scenarios")
+                      .content(asJsonString(scenarioInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String scenarioId = JsonPath.read(scenarioResponse, "$.scenario_id");
+
+      // Create team in tenant Y
+      io.openaev.rest.team.form.TeamCreateInput teamInput =
+          new io.openaev.rest.team.form.TeamCreateInput();
+      teamInput.setName("CrossTenant Add Scenario Team");
+
+      String teamResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantY.getId() + "/teams")
+                      .content(asJsonString(teamInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String teamId = JsonPath.read(teamResponse, "$.team_id");
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // -------- Act — add players from tenant X using team from tenant Y --------
+      ScenarioTeamPlayersEnableInput playersInput = new ScenarioTeamPlayersEnableInput();
+      playersInput.setPlayersIds(List.of());
+
+      int responseStatus =
+          mvc.perform(
+                  put("/api/tenants/"
+                          + tenantX.getId()
+                          + "/scenarios/"
+                          + scenarioId
+                          + "/teams/"
+                          + teamId
+                          + "/players/add")
+                      .content(asJsonString(playersInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // -------- Assert — team from another tenant should not be found --------
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
+    }
+
+    @Test
+    @DisplayName(
+        "Removing team players in scenario from tenant X should fail with team from tenant Y")
+    void given_teamInTenantY_should_notRemovePlayersInScenarioFromTenantX() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X",
+              Set.of(
+                  Capability.MANAGE_ASSESSMENT,
+                  Capability.ACCESS_ASSESSMENT,
+                  Capability.MANAGE_TEAMS_AND_PLAYERS,
+                  Capability.ACCESS_TEAMS_AND_PLAYERS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y",
+              Set.of(
+                  Capability.MANAGE_ASSESSMENT,
+                  Capability.ACCESS_ASSESSMENT,
+                  Capability.MANAGE_TEAMS_AND_PLAYERS,
+                  Capability.ACCESS_TEAMS_AND_PLAYERS));
+
+      // Create scenario in tenant X
+      ScenarioInput scenarioInput = new ScenarioInput();
+      scenarioInput.setName("RemovePlayer Isolation Scenario");
+
+      String scenarioResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantX.getId() + "/scenarios")
+                      .content(asJsonString(scenarioInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String scenarioId = JsonPath.read(scenarioResponse, "$.scenario_id");
+
+      // Create team in tenant Y
+      io.openaev.rest.team.form.TeamCreateInput teamInput =
+          new io.openaev.rest.team.form.TeamCreateInput();
+      teamInput.setName("CrossTenant Remove Scenario Team");
+
+      String teamResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantY.getId() + "/teams")
+                      .content(asJsonString(teamInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String teamId = JsonPath.read(teamResponse, "$.team_id");
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // -------- Act — remove players from tenant X using team from tenant Y --------
+      ScenarioTeamPlayersEnableInput playersInput = new ScenarioTeamPlayersEnableInput();
+      playersInput.setPlayersIds(List.of());
+
+      int responseStatus =
+          mvc.perform(
+                  put("/api/tenants/"
+                          + tenantX.getId()
+                          + "/scenarios/"
+                          + scenarioId
+                          + "/teams/"
+                          + teamId
+                          + "/players/remove")
+                      .content(asJsonString(playersInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // -------- Assert — team from another tenant should not be found --------
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
     }
   }
 }

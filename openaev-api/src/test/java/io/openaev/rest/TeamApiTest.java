@@ -4,36 +4,44 @@ import static io.openaev.rest.team.TeamApi.TEAM_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.InjectFixture.getInjectForEmailContract;
 import static io.openaev.utils.fixtures.TeamFixture.*;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
-import io.openaev.database.model.Exercise;
-import io.openaev.database.model.Inject;
-import io.openaev.database.model.Team;
+import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.team.form.TeamCreateInput;
+import io.openaev.rest.team.form.UpdateUsersTeamInput;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
+import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.persistence.EntityManager;
 import jakarta.servlet.ServletException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Stream;
 import org.json.JSONArray;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,6 +58,8 @@ class TeamApiTest extends IntegrationTest {
   @Autowired private InjectRepository injectRepository;
   @Autowired private TeamRepository teamRepository;
   @Autowired private InjectorContractFixture injectorContractFixture;
+  @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
+  @Autowired private EntityManager entityManager;
 
   @DisplayName("Given valid team input, should create a team successfully")
   @Test
@@ -410,5 +420,335 @@ class TeamApiTest extends IntegrationTest {
 
     // --ASSERT--
     assertEquals(expectedNumberOfResults, jsonArray.length());
+  }
+
+  // -- TENANT ISOLATION TESTS --
+
+  @Nested
+  @DisplayName("Tenant Isolation")
+  @WithMockUser
+  class TenantIsolation {
+
+    @Test
+    @DisplayName("Team created in tenant X should NOT be readable from tenant Y")
+    void given_teamInTenantX_should_notBeReadableFromTenantY() throws Exception {
+      // Arrange
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X",
+              Set.of(Capability.MANAGE_TEAMS_AND_PLAYERS, Capability.ACCESS_TEAMS_AND_PLAYERS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_TEAMS_AND_PLAYERS));
+
+      TeamCreateInput input = createTeam();
+      input.setName("Isolation Test Team");
+
+      String createResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantX.getId() + "/teams")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String teamId = JsonPath.read(createResponse, "$.team_id");
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act — read from tenant Y (expect 404)
+      int responseStatus =
+          mvc.perform(
+                  get("/api/tenants/" + tenantY.getId() + "/teams/" + teamId)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // Assert
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
+    }
+
+    @Test
+    @DisplayName("Team created in tenant X should be readable from tenant X")
+    void given_teamInTenantX_should_beReadableFromTenantX() throws Exception {
+      // Arrange
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X",
+              Set.of(Capability.MANAGE_TEAMS_AND_PLAYERS, Capability.ACCESS_TEAMS_AND_PLAYERS));
+
+      TeamCreateInput input = createTeam();
+      input.setName("Same Tenant Team");
+
+      String createResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantX.getId() + "/teams")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String teamId = JsonPath.read(createResponse, "$.team_id");
+
+      // Act & Assert — read from same tenant should succeed
+      mvc.perform(
+              get("/api/tenants/" + tenantX.getId() + "/teams/" + teamId)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.team_name").value("Same Tenant Team"));
+    }
+
+    @Test
+    @DisplayName("Team search in tenant Y should NOT return teams from tenant X")
+    void given_teamInTenantX_should_notAppearInTenantYSearch() throws Exception {
+      // Arrange
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X",
+              Set.of(Capability.MANAGE_TEAMS_AND_PLAYERS, Capability.ACCESS_TEAMS_AND_PLAYERS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_TEAMS_AND_PLAYERS));
+
+      TeamCreateInput input = createTeam();
+      input.setName("CrossTenantSearchTeam");
+
+      mvc.perform(
+              post("/api/tenants/" + tenantX.getId() + "/teams")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act — search from tenant Y
+      SearchPaginationInput searchInput =
+          PaginationFixture.simpleTextSearch("CrossTenantSearchTeam");
+
+      String searchResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantY.getId() + "/teams/search")
+                      .content(asJsonString(searchInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert — no results from tenant X
+      assertEquals(Integer.valueOf(0), JsonPath.read(searchResponse, "$.totalElements"));
+    }
+
+    @Test
+    @DisplayName("Team created in tenant X should NOT be updatable from tenant Y")
+    void given_teamInTenantX_should_notBeUpdatableFromTenantY() throws Exception {
+      // Arrange
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X",
+              Set.of(Capability.MANAGE_TEAMS_AND_PLAYERS, Capability.ACCESS_TEAMS_AND_PLAYERS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y",
+              Set.of(Capability.MANAGE_TEAMS_AND_PLAYERS, Capability.ACCESS_TEAMS_AND_PLAYERS));
+
+      TeamCreateInput input = createTeam();
+      input.setName("Update Isolation Test Team");
+
+      String createResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantX.getId() + "/teams")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String teamId = JsonPath.read(createResponse, "$.team_id");
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act — update from tenant Y
+      TeamCreateInput updateInput = createTeam();
+      updateInput.setName("Hijacked Team Name");
+
+      int responseStatus =
+          mvc.perform(
+                  put("/api/tenants/" + tenantY.getId() + "/teams/" + teamId)
+                      .content(asJsonString(updateInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // Assert
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
+    }
+
+    @Test
+    @DisplayName("Team created in tenant X should NOT be deletable from tenant Y")
+    void given_teamInTenantX_should_notBeDeletableFromTenantY() throws Exception {
+      // Arrange
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X",
+              Set.of(Capability.MANAGE_TEAMS_AND_PLAYERS, Capability.ACCESS_TEAMS_AND_PLAYERS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y",
+              Set.of(
+                  Capability.DELETE_TEAMS_AND_PLAYERS, Capability.ACCESS_TEAMS_AND_PLAYERS));
+
+      TeamCreateInput input = createTeam();
+      input.setName("Delete Isolation Test Team");
+
+      String createResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantX.getId() + "/teams")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String teamId = JsonPath.read(createResponse, "$.team_id");
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act — delete from tenant Y
+      int responseStatus =
+          mvc.perform(delete("/api/tenants/" + tenantY.getId() + "/teams/" + teamId).with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // Assert
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
+    }
+
+    @Test
+    @DisplayName("Team players in tenant X should NOT be readable from tenant Y")
+    void given_teamInTenantX_should_notHavePlayersReadableFromTenantY() throws Exception {
+      // Arrange
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X",
+              Set.of(Capability.MANAGE_TEAMS_AND_PLAYERS, Capability.ACCESS_TEAMS_AND_PLAYERS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_TEAMS_AND_PLAYERS));
+
+      TeamCreateInput input = createTeam();
+      input.setName("Players Isolation Test Team");
+
+      String createResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantX.getId() + "/teams")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String teamId = JsonPath.read(createResponse, "$.team_id");
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act — read players from tenant Y (expect 404)
+      int responseStatus =
+          mvc.perform(
+                  get("/api/tenants/" + tenantY.getId() + "/teams/" + teamId + "/players")
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // Assert
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
+    }
+
+    @Test
+    @DisplayName("Team players in tenant X should NOT be updatable from tenant Y")
+    void given_teamInTenantX_should_notHavePlayersUpdatableFromTenantY() throws Exception {
+      // Arrange
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X",
+              Set.of(Capability.MANAGE_TEAMS_AND_PLAYERS, Capability.ACCESS_TEAMS_AND_PLAYERS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y",
+              Set.of(Capability.MANAGE_TEAMS_AND_PLAYERS, Capability.ACCESS_TEAMS_AND_PLAYERS));
+
+      TeamCreateInput input = createTeam();
+      input.setName("UpdatePlayers Isolation Test Team");
+
+      String createResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantX.getId() + "/teams")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String teamId = JsonPath.read(createResponse, "$.team_id");
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act — update players from tenant Y (expect 404)
+      UpdateUsersTeamInput updateUsersInput = new UpdateUsersTeamInput();
+      updateUsersInput.setUserIds(List.of());
+
+      int responseStatus =
+          mvc.perform(
+                  put("/api/tenants/" + tenantY.getId() + "/teams/" + teamId + "/players")
+                      .content(asJsonString(updateUsersInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // Assert
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
+    }
   }
 }
