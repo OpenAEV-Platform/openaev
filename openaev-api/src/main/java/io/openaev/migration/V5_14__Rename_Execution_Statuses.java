@@ -31,6 +31,13 @@ public class V5_14__Rename_Execution_Statuses extends BaseJavaMigration {
               SET execution_status = 'EXECUTED'
               WHERE execution_status = 'SUCCESS';
               """);
+
+      statement.execute(
+          """
+              UPDATE execution_traces
+              SET execution_status = 'EXECUTED_WITH_CLEANUP_FAILURE'
+              WHERE execution_status = 'SUCCESS_WITH_CLEANUP_FAIL'
+              """);
     }
   }
 }
