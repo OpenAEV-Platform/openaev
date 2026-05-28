@@ -53,7 +53,7 @@ public class AccessControlAuditLogAspect {
   private final ObjectMapper objectMapper;
   private final ExpressionParser parser = new SpelExpressionParser();
 
-  private final static String logErrorMsg = "Error during audit logging";
+  private static final String LOG_ERROR_MSG = "Error during audit logging";
 
   @Around("@annotation(io.openaev.aop.AccessControl)")
   public Object auditAround(ProceedingJoinPoint joinPoint) throws Throwable {
@@ -72,7 +72,7 @@ public class AccessControlAuditLogAspect {
           accessControlAuditLogger.isAuditLoggingEnabled()
               && accessControlAuditLogger.isAuditLoggingValid(action);
     } catch (Exception ex) {
-      log.warn(logErrorMsg, ex);
+      log.warn(LOG_ERROR_MSG, ex);
     }
 
     if (!isActive) {
@@ -102,7 +102,7 @@ public class AccessControlAuditLogAspect {
 
         logAccessControlEvent(joinPoint, accessControl, eventScope, "error", errorNode);
       } catch (Exception e) {
-        log.warn(logErrorMsg, e);
+        log.warn(LOG_ERROR_MSG, e);
       }
 
       throw ex;
@@ -114,7 +114,7 @@ public class AccessControlAuditLogAspect {
 
       logAccessControlEvent(joinPoint, accessControl, eventScope, "success", resultNode);
     } catch (Exception ex) {
-      log.warn(logErrorMsg, ex);
+      log.warn(LOG_ERROR_MSG, ex);
     }
 
     return result;
@@ -130,10 +130,10 @@ public class AccessControlAuditLogAspect {
 
       JsonNode errorNode = buildErrorNode(null, exception);
 
-      //TODO AUDIT: Move this to enum just like in the issue/5483
+      // TODO AUDIT: Move this to enum just like in the issue/5483
       logAccessControlEvent(joinPoint, accessControl, "unauthorized", "error", errorNode);
     } catch (Exception ex) {
-      log.warn(logErrorMsg, ex);
+      log.warn(LOG_ERROR_MSG, ex);
     }
   }
 
@@ -156,7 +156,7 @@ public class AccessControlAuditLogAspect {
               log.warn(
                   "[AUDIT] Failed to log access control event for {}.{}", resourceType, eventScope);
               if (throwable != null) {
-                log.warn(logErrorMsg, throwable);
+                log.warn(LOG_ERROR_MSG, throwable);
               }
             }
           };
@@ -173,7 +173,7 @@ public class AccessControlAuditLogAspect {
               logUUID)
           .whenComplete(logCompletion);
     } catch (Exception ex) {
-      log.warn(logErrorMsg, ex);
+      log.warn(LOG_ERROR_MSG, ex);
     }
   }
 
@@ -191,7 +191,7 @@ public class AccessControlAuditLogAspect {
           .getMethod(signature.getName(), signature.getMethod().getParameterTypes())
           .getAnnotation(AccessControl.class);
     } catch (Exception ex) {
-      log.warn(logErrorMsg, ex);
+      log.warn(LOG_ERROR_MSG, ex);
       return null;
     }
   }
