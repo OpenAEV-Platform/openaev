@@ -19,12 +19,14 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetService;
 import io.openaev.service.EndpointService;
+import io.openaev.service.account.ServiceAccountPrivilegeService;
 import io.openaev.utils.fixtures.AgentFixture;
 import io.openaev.utils.fixtures.AssetAgentJobFixture;
 import io.openaev.utils.mapper.EndpointMapper;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -32,10 +34,15 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class EndpointServiceTest {
+
+  private static final int MAX_SIMULTANEOUS_JOBS = 5;
 
   @Mock private EndpointRepository endpointRepository;
   @Mock private ExecutorRepository executorRepository;
@@ -45,8 +52,14 @@ class EndpointServiceTest {
   @Mock private AgentService agentService;
   @Mock private AssetService assetService;
   @Mock private EndpointMapper endpointMapper;
+  @Mock private ServiceAccountPrivilegeService privilegeService;
 
   @InjectMocks private EndpointService endpointService;
+
+  @BeforeEach
+  void setUp() {
+    ReflectionTestUtils.setField(endpointService, "maxSimultaneousJobs", MAX_SIMULTANEOUS_JOBS);
+  }
 
   @Nested
   class CreateEndpoint {
@@ -317,7 +330,8 @@ class EndpointServiceTest {
       input.setElevated(true);
       input.setExecutedByUser(Agent.ADMIN_SYSTEM_WINDOWS);
 
-      when(assetAgentJobRepository.findAll(any(Specification.class))).thenReturn(List.of(job));
+      when(assetAgentJobRepository.findAll(any(Specification.class), any(Pageable.class)))
+          .thenReturn(new PageImpl<>(List.of(job)));
 
       // Act
       List<AssetAgentJob> result = endpointService.getEndpointJobs(input);
@@ -335,7 +349,8 @@ class EndpointServiceTest {
       input.setElevated(true);
       input.setExecutedByUser(Agent.ADMIN_SYSTEM_WINDOWS);
 
-      when(assetAgentJobRepository.findAll(any(Specification.class))).thenReturn(List.of());
+      when(assetAgentJobRepository.findAll(any(Specification.class), any(Pageable.class)))
+          .thenReturn(new PageImpl<>(List.of()));
 
       // Act
       List<AssetAgentJob> result = endpointService.getEndpointJobs(input);
