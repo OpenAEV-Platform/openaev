@@ -14,6 +14,7 @@ import lombok.Data;
 
 @Data
 @Entity
+@IdClass(io.openaev.database.id.TenantId.class)
 @Table(name = "tenants")
 @EntityListeners({ModelBaseListener.class, AuditableListener.class})
 public class Tenant implements Base, Auditable {
@@ -23,7 +24,7 @@ public class Tenant implements Base, Auditable {
 
   @Id
   @GeneratedValue(strategy = GenerationType.UUID)
-  @Column(name = "tenant_id", nullable = false)
+  @Column(name = "tenant_id", updatable = false, nullable = false)
   @NotBlank
   @JsonProperty("tenant_id")
   @Schema(description = "Tenant ID")

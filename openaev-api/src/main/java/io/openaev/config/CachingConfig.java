@@ -41,7 +41,7 @@ public class CachingConfig {
 
   /** Emptying the cache every second to avoid old data on the admin users being persisted */
   @CacheEvict(value = "adminUsers", allEntries = true)
-  @Scheduled(fixedRateString = "1000")
+  //      @Scheduled(fixedRateString = "1000")
   public void emptyAdminUsersCache() {
     log.debug("emptying admin users cache");
   }

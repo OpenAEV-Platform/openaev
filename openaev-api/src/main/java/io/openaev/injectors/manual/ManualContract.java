@@ -17,6 +17,7 @@ import io.openaev.injector_contract.ContractorIcon;
 import io.openaev.injector_contract.fields.ContractElement;
 import io.openaev.rest.domain.enums.PresetDomain;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -66,7 +67,7 @@ public class ManualContract extends Contractor {
 
   @Override
   public List<Contract> contracts() {
-    return contracts;
+    return new ArrayList<>(contracts);
   }
 
   @Override

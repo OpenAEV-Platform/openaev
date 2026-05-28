@@ -328,7 +328,7 @@ public class ImapService extends ExternalServiceBase {
   }
 
   // Sync folders every 10 sec
-  @Scheduled(fixedDelay = 10000, initialDelay = 10000)
+  //@Scheduled(fixedDelay = 10000, initialDelay = 10000)
   public void connectionListener() throws Exception {
     if (enabled) {
       if (!imapStore.isConnected()) {

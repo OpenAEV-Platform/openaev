@@ -29,7 +29,7 @@ public class PlatformTriggers {
     this.platformJobs = platformJobs;
   }
 
-  @Bean
+
   public Trigger injectsExecutionTrigger() {
     return newTrigger()
         .forJob(platformJobs.getInjectsExecution())
@@ -38,7 +38,7 @@ public class PlatformTriggers {
         .build();
   }
 
-  @Bean
+
   public Trigger comchecksExecutionTrigger() {
     return newTrigger()
         .forJob(platformJobs.getComchecksExecution())
@@ -47,7 +47,6 @@ public class PlatformTriggers {
         .build();
   }
 
-  @Bean
   public Trigger scenarioExecutionTrigger() {
     return newTrigger()
         .forJob(this.platformJobs.getScenarioExecution())
@@ -56,7 +55,7 @@ public class PlatformTriggers {
         .build();
   }
 
-  @Bean
+
   @Profile("!test")
   public Trigger elasticSyncExecutionTrigger() {
     SimpleScheduleBuilder _15_seconds = simpleSchedule().withIntervalInSeconds(15).repeatForever();
@@ -78,7 +77,7 @@ public class PlatformTriggers {
         .build();
   }
 
-  @Bean
+
   @Profile("!test")
   public Trigger securityCoverageTrigger() {
     SimpleScheduleBuilder _15_seconds = simpleSchedule().withIntervalInSeconds(15).repeatForever();
@@ -89,7 +88,7 @@ public class PlatformTriggers {
         .build();
   }
 
-  @Bean
+
   @Profile("!test")
   public Trigger connectorPingTrigger() {
     // 40 seconds is recommended for OCTI connectors pings
@@ -101,7 +100,7 @@ public class PlatformTriggers {
         .build();
   }
 
-  @Bean
+
   public Trigger userEventRetentionTrigger() {
     return newTrigger()
         .forJob(this.platformJobs.userEventRetentionJobDetail())
@@ -115,7 +114,7 @@ public class PlatformTriggers {
    *
    * @return the trigger
    */
-  @Bean
+
   public Trigger executionTracesBatchRequeueTrigger() {
     return newTrigger()
         .forJob(this.platformJobs.getExecutionTracesBatchRequeueJob())
@@ -124,7 +123,7 @@ public class PlatformTriggers {
         .build();
   }
 
-  @Bean
+
   @Profile("!test")
   @Conditional(InjectChainingCondition.class)
   public Trigger queueChainingTrigger() {
@@ -138,7 +137,7 @@ public class PlatformTriggers {
         .build();
   }
 
-  @Bean
+
   @Profile("!test")
   @Conditional(InjectChainingCondition.class)
   public Trigger workflowTimeoutTrigger() {
@@ -152,7 +151,7 @@ public class PlatformTriggers {
         .build();
   }
 
-  @Bean
+
   @Profile("!test")
   public Trigger tenantPurgeTrigger() {
     return newTrigger()

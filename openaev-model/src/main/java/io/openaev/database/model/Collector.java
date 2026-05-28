@@ -8,10 +8,13 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.TenantBaseListener;
+import io.openaev.database.id.CompositeId;
 import io.openaev.jsonapi.BusinessId;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+
+import java.awt.*;
 import java.time.Instant;
 import java.util.Objects;
 import lombok.Getter;
@@ -23,12 +26,13 @@ import org.hibernate.annotations.Type;
 @Setter
 @Entity
 @Table(name = "collectors")
+@IdClass(CompositeId.class)
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 public class Collector extends BaseConnectorEntity implements TenantBase {
 
   @Id
-  @Column(name = "collector_id")
+  @Column(name = "collector_id", updatable = false)
   @JsonProperty("collector_id")
   @NotBlank
   private String id;
@@ -84,6 +88,7 @@ public class Collector extends BaseConnectorEntity implements TenantBase {
   @ManyToOne
   @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
   @JsonIgnore
+  @Id
   private Tenant tenant;
 
   @Getter(onMethod_ = @JsonIgnore)

@@ -39,7 +39,7 @@ public class SmtpService extends ExternalServiceBase {
   }
 
   // Check connection every 10 seconds
-  @Scheduled(fixedDelay = 10000, initialDelay = 10000)
+  //@Scheduled(fixedDelay = 10000, initialDelay = 10000)
   public void connectionListener() {
     this.testConnection();
   }
