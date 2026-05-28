@@ -67,14 +67,19 @@ public class LogService {
           return false;
         }
 
-        boolean isEeActive =
-            enterpriseEditionService.isLicenseActive(
-                licenseCacheManager.getEnterpriseEditionInfo());
-        if (!isEeActive && auditEeDisabledWarningLogged.compareAndSet(false, true)) {
-          log.error(
-              "[AUDIT] Audit logging is configured but inactive - an Enterprise Edition license is required.");
+        try {
+          boolean isEeActive =
+              enterpriseEditionService.isLicenseActive(
+                  licenseCacheManager.getEnterpriseEditionInfo());
+          if (!isEeActive && auditEeDisabledWarningLogged.compareAndSet(false, true)) {
+            log.error(
+                "[AUDIT] Audit logging is configured but inactive - an Enterprise Edition license is required.");
+          }
+          return isEeActive;
+        } catch (Exception e) {
+          log.error("[AUDIT] Failed to check enterprise edition license", e);
         }
-        return isEeActive;
+        yield false;
       }
   }
 
