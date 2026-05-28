@@ -49,9 +49,7 @@ import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.*;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -62,6 +60,9 @@ import org.springframework.transaction.annotation.Transactional;
 public class EndpointService {
 
   private static final String ASSET_GROUP_FILTER = "assetGroups";
+
+  @Value("${openaev.agent.max-simultaneous-jobs:5}")
+  private int maxSimultaneousJobs;
 
   public static final int DELETE_TTL = 86400000; // 24 hours
   public static final String OPENAEV_AGENT_INSTALLER = "openaev-agent-installer";
@@ -481,6 +482,7 @@ public class EndpointService {
                 agent.getTenant().getId()));
         assetAgentJob.setAgent(agent);
         assetAgentJob.setTenant(agent.getTenant());
+        assetAgentJob.setCreatedAt(now());
 
         try {
           assetAgentJobRepository.save(assetAgentJob);
@@ -496,14 +498,17 @@ public class EndpointService {
   }
 
   public List<AssetAgentJob> getEndpointJobs(final EndpointRegisterInput input) {
-    return this.assetAgentJobRepository.findAll(
-        AssetAgentJobSpecification.forEndpoint(
-            input.getExternalReference(),
-            input.isService()
-                ? Agent.DEPLOYMENT_MODE.service.name()
-                : Agent.DEPLOYMENT_MODE.session.name(),
-            input.isElevated() ? Agent.PRIVILEGE.admin.name() : Agent.PRIVILEGE.standard.name(),
-            input.getExecutedByUser()));
+    return this.assetAgentJobRepository
+        .findAll(
+            AssetAgentJobSpecification.forEndpoint(
+                input.getExternalReference(),
+                input.isService()
+                    ? Agent.DEPLOYMENT_MODE.service.name()
+                    : Agent.DEPLOYMENT_MODE.session.name(),
+                input.isElevated() ? Agent.PRIVILEGE.admin.name() : Agent.PRIVILEGE.standard.name(),
+                input.getExecutedByUser()),
+            PageRequest.of(0, maxSimultaneousJobs, Sort.by(Sort.Direction.DESC, "createdAt")))
+        .getContent();
   }
 
   private void addSourceTagToEndpoint(Endpoint endpoint, AgentRegisterInput input) {
