@@ -6,6 +6,7 @@ import io.openaev.executors.openaev.service.OpenAEVExecutorContextService;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.QualifiedComponent;
+import io.openaev.service.account.ServiceAccountPrivilegeService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 
 public class OpenAEVExecutorIntegration extends Integration {
@@ -21,19 +22,24 @@ public class OpenAEVExecutorIntegration extends Integration {
   @QualifiedComponent(identifier = OPENAEV_EXECUTOR_NAME)
   private OpenAEVExecutorContextService openAEVExecutorContextService;
 
+  private final ServiceAccountPrivilegeService serviceAccountPrivilegeService;
+
   public OpenAEVExecutorIntegration(
       ConnectorInstance connectorInstance,
       ConnectorInstanceService connectorInstanceService,
       AssetAgentJobRepository assetAgentJobRepository,
-      ComponentRequestEngine componentRequestEngine) {
+      ComponentRequestEngine componentRequestEngine,
+      ServiceAccountPrivilegeService serviceAccountPrivilegeService) {
     super(componentRequestEngine, connectorInstance, connectorInstanceService);
     this.assetAgentJobRepository = assetAgentJobRepository;
+    this.serviceAccountPrivilegeService = serviceAccountPrivilegeService;
   }
 
   @Override
   protected void innerStart() throws Exception {
 
-    this.openAEVExecutorContextService = new OpenAEVExecutorContextService(assetAgentJobRepository);
+    this.openAEVExecutorContextService =
+        new OpenAEVExecutorContextService(assetAgentJobRepository, serviceAccountPrivilegeService);
   }
 
   @Override

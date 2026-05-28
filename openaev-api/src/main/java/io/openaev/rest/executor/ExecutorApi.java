@@ -9,7 +9,6 @@ import io.openaev.aop.AccessControl;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ExecutorRepository;
-import io.openaev.database.repository.TokenRepository;
 import io.openaev.executors.ExecutorService;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -19,6 +18,7 @@ import io.openaev.rest.executor.form.ExecutorUpdateInput;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.EndpointService;
 import io.openaev.service.FileService;
+import io.openaev.service.account.ServiceAccountPrivilegeService;
 import io.openaev.utils.AgentUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -52,7 +52,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class ExecutorApi extends RestBehavior {
 
   public static final String EXECUTOR_URI = "/api/executors";
-  private static final String AGENT_URI = "/api/agent";
+  public static final String AGENT_URI = "/api/agent";
   private static final String TENANT_EXECUTOR_URI = TENANT_PREFIX + "/executors";
   private static final String TENANT_AGENT_URI = TENANT_PREFIX + "/agent";
 
@@ -69,8 +69,8 @@ public class ExecutorApi extends RestBehavior {
   private final ExecutorRepository executorRepository;
   private final EndpointService endpointService;
   private final FileService fileService;
-  private final TokenRepository tokenRepository;
   private final ExecutorService executorService;
+  private final ServiceAccountPrivilegeService privilegeService;
 
   @Resource protected ObjectMapper mapper;
 
@@ -365,8 +365,8 @@ public class ExecutorApi extends RestBehavior {
       })
   @GetMapping(
       value = {
-        AGENT_URI + "/installer/openaev/{platform}/{installationMode}/{token}",
-        TENANT_AGENT_URI + "/installer/openaev/{platform}/{installationMode}/{token}"
+        AGENT_URI + "/installer/openaev/{platform}/{installationMode}",
+        TENANT_AGENT_URI + "/installer/openaev/{platform}/{installationMode}"
       })
   @AccessControl(skipRBAC = true)
   public @ResponseBody ResponseEntity<String> getOpenAevAgentInstaller(
@@ -376,11 +376,6 @@ public class ExecutorApi extends RestBehavior {
               required = true)
           @PathVariable
           String platform,
-      @Parameter(
-              description = "Unique token associated with the agent installation.",
-              required = true)
-          @PathVariable
-          String token,
       @Parameter(
               description = "Installation Mode: session, user or system service",
               required = true)
@@ -393,14 +388,15 @@ public class ExecutorApi extends RestBehavior {
     String resolvedPlatform =
         AgentUtils.normaliseSupportedAgentPlatform(platform).name().toLowerCase();
     String resolvedInstallationMode = AgentUtils.getSupportedInstallationMode(installationMode);
-    Token resolvedToken =
-        tokenRepository
-            .findByValue(token)
-            .orElseThrow(() -> new UnsupportedOperationException("Invalid token"));
+
+    // FIND TOKEN BY TENANT
+    String token =
+        privilegeService.getTokenUserServiceAccountByTenant(TenantContext.getCurrentTenant());
+
     String installCommand =
         this.endpointService.generateInstallCommand(
             resolvedPlatform,
-            resolvedToken.getValue(),
+            token,
             resolvedInstallationMode,
             installationDir,
             serviceName,

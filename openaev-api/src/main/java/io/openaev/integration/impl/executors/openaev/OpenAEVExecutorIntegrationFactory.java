@@ -10,6 +10,7 @@ import io.openaev.integration.BuiltinIntegrationFactory;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.service.account.ServiceAccountPrivilegeService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import java.util.List;
@@ -22,6 +23,7 @@ public class OpenAEVExecutorIntegrationFactory extends BuiltinIntegrationFactory
   private final ExecutorService executorService;
   private final ComponentRequestEngine componentRequestEngine;
   private final AssetAgentJobRepository assetAgentJobRepository;
+  private final ServiceAccountPrivilegeService serviceAccountPrivilegeService;
 
   public OpenAEVExecutorIntegrationFactory(
       ConnectorInstanceService connectorInstanceService,
@@ -29,11 +31,13 @@ public class OpenAEVExecutorIntegrationFactory extends BuiltinIntegrationFactory
       ExecutorService executorService,
       ComponentRequestEngine componentRequestEngine,
       AssetAgentJobRepository assetAgentJobRepository,
-      HttpClientFactory httpClientFactory) {
+      HttpClientFactory httpClientFactory,
+      ServiceAccountPrivilegeService serviceAccountPrivilegeService) {
     super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.executorService = executorService;
     this.componentRequestEngine = componentRequestEngine;
     this.assetAgentJobRepository = assetAgentJobRepository;
+    this.serviceAccountPrivilegeService = serviceAccountPrivilegeService;
   }
 
   @Override
@@ -63,7 +67,11 @@ public class OpenAEVExecutorIntegrationFactory extends BuiltinIntegrationFactory
   @Override
   public Integration spawn(ConnectorInstance instance) {
     return new OpenAEVExecutorIntegration(
-        instance, connectorInstanceService, assetAgentJobRepository, componentRequestEngine);
+        instance,
+        connectorInstanceService,
+        assetAgentJobRepository,
+        componentRequestEngine,
+        serviceAccountPrivilegeService);
   }
 
   @Override
