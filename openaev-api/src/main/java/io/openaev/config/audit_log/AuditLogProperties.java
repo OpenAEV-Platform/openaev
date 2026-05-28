@@ -1,6 +1,9 @@
 package io.openaev.config.audit_log;
 
+import io.openaev.database.model.LogTransport;
 import jakarta.annotation.PostConstruct;
+import java.util.Arrays;
+import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
@@ -10,13 +13,6 @@ import org.springframework.stereotype.Component;
 @Component
 @Slf4j
 public class AuditLogProperties {
-
-  public static final String TRANSPORT_CONSOLE = "console";
-  public static final String TRANSPORT_FILE = "file";
-  public static final String TRANSPORT_ENGINE = "engine";
-
-  private static final Set<String> VALID_TRANSPORTS =
-      Set.of(TRANSPORT_CONSOLE, TRANSPORT_FILE, TRANSPORT_ENGINE);
 
   @Value("${openaev.audit-logs.transports:}")
   private Set<String> transports;
@@ -28,23 +24,22 @@ public class AuditLogProperties {
     }
 
     // Normalize: trim whitespace from each transport name (handles "console, file" with spaces)
-    if (transports != null) {
-      transports =
-          transports.stream()
-              .map(String::trim)
-              .filter(s -> !s.isEmpty())
-              .collect(Collectors.toSet());
-    }
+    transports =
+        transports.stream()
+            .map(String::trim)
+            .map(name -> name.toLowerCase(Locale.ROOT))
+            .filter(s -> !s.isEmpty())
+            .collect(Collectors.toSet());
 
     Set<String> unknown =
-        transports.stream().filter(t -> !VALID_TRANSPORTS.contains(t)).collect(Collectors.toSet());
+        transports.stream().filter(t -> !isLogTransport(t)).collect(Collectors.toSet());
 
     if (!unknown.isEmpty()) {
       throw new IllegalStateException(
           "[AUDIT CONFIG] Invalid transport(s) in openaev.audit-logs.transports: "
               + unknown
               + ". Valid values are: "
-              + VALID_TRANSPORTS);
+              + Arrays.toString(LogTransport.values()));
     }
   }
 
@@ -57,7 +52,13 @@ public class AuditLogProperties {
   }
 
   /** Returns whether a specific transport is active. */
-  public boolean isTransportEnabled(String transportName) {
-    return transports != null && transports.contains(transportName);
+  public boolean isTransportEnabled(LogTransport logTransport) {
+    return transports != null && transports.contains(logTransport.name().toLowerCase(Locale.ROOT));
+  }
+
+  private boolean isLogTransport(String value) {
+    return value != null
+        && Arrays.stream(LogTransport.values())
+            .anyMatch(transport -> transport.name().equalsIgnoreCase(value));
   }
 }

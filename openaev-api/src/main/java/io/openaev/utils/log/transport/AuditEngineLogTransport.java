@@ -2,6 +2,7 @@ package io.openaev.utils.log.transport;
 
 import io.openaev.config.EngineConfig;
 import io.openaev.config.audit_log.AuditLogProperties;
+import io.openaev.database.model.LogTransport;
 import io.openaev.engine.EngineService;
 import io.openaev.engine.model.log.LogEvent;
 import java.util.UUID;
@@ -29,7 +30,7 @@ public class AuditEngineLogTransport implements AuditLogTransportUtils {
 
   @Override
   public boolean isEnabled() {
-    return auditLogProperties.isTransportEnabled(AuditLogProperties.TRANSPORT_ENGINE);
+    return auditLogProperties.isTransportEnabled(LogTransport.ENGINE);
   }
 
   private static final String AUDIT_LOG_INDEX = "audit-log";
