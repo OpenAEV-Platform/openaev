@@ -2878,7 +2878,6 @@ export interface ExecutionTrace {
   execution_status?:
     | "EXECUTED"
     | "EXECUTED_WITH_CLEANUP_FAILURE"
-    | "EXECUTED_WITH_CLEANUP_FAIL"
     | "WARNING"
     | "ACCESS_DENIED"
     | "ERROR"
@@ -2928,7 +2927,6 @@ export interface ExecutionTraceOutput {
   execution_status:
     | "EXECUTED"
     | "EXECUTED_WITH_CLEANUP_FAILURE"
-    | "EXECUTED_WITH_CLEANUP_FAIL"
     | "WARNING"
     | "ACCESS_DENIED"
     | "ERROR"

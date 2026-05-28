@@ -28,9 +28,7 @@ public enum ExecutionStatus {
   public static final Set<ExecutionStatus> ERROR_STATUSES =
       Set.of(ERROR, PARTIAL, MAYBE_PREVENTED, MAYBE_PARTIAL_PREVENTED);
 
-  /**
-   * Legacy-aware parser: keeps backward compatibility for historical SUCCESS value.
-   */
+  /** Legacy-aware parser: keeps backward compatibility for historical SUCCESS value. */
   public static ExecutionStatus fromName(String status) {
     if ("SUCCESS".equalsIgnoreCase(status)) {
       return EXECUTED;
