@@ -51,10 +51,11 @@ public class LogEntityChangesAspect {
       return joinPoint.proceed();
     }
     Object entity = joinPoint.getArgs()[0];
-    Object before = snapshotBefore(entity);
+    Object before = snapshotEntity(entity);
     Object result = joinPoint.proceed();
+    // Snapshot after via StatelessSession so Jackson doesn't touch managed Hibernate proxies.
     logService.logEntityChangeEvent(
-        repositoryName(bean), "save", Level.WARNING, before, result, null);
+        repositoryName(bean), "save", Level.WARNING, before, snapshotEntity(result), null);
     return result;
   }
 
@@ -66,10 +67,10 @@ public class LogEntityChangesAspect {
     if (!isAnnotatedRepository(bean)) {
       return joinPoint.proceed();
     }
-    Object before = snapshotBeforeCollection(joinPoint.getArgs()[0]);
+    Object before = snapshotCollection(joinPoint.getArgs()[0]);
     Object result = joinPoint.proceed();
     logService.logEntityChangeEvent(
-        repositoryName(bean), "saveAll", Level.WARNING, before, result, null);
+        repositoryName(bean), "saveAll", Level.WARNING, before, snapshotCollection(result), null);
     return result;
   }
 
@@ -81,7 +82,10 @@ public class LogEntityChangesAspect {
     if (!isAnnotatedRepository(bean)) {
       return joinPoint.proceed();
     }
-    Object before = joinPoint.getArgs()[0];
+    // Load a clean copy via StatelessSession BEFORE deletion — accessing the raw entity after
+    // delete() triggers lazy-collection loading on a REMOVED entity, which can cause
+    // TransientObjectException at commit (e.g. bidirectional User↔Group back-references).
+    Object before = snapshotEntity(joinPoint.getArgs()[0]);
     Object result = joinPoint.proceed();
     logService.logEntityChangeEvent(
         repositoryName(bean), "delete", Level.WARNING, before, null, null);
@@ -96,8 +100,9 @@ public class LogEntityChangesAspect {
     if (!isAnnotatedRepository(bean)) {
       return joinPoint.proceed();
     }
+    // Same reasoning as aroundDelete: snapshot via StatelessSession before the deletions.
     Object entities = joinPoint.getArgs().length > 0 ? joinPoint.getArgs()[0] : null;
-    Object before = entities != null ? entities : "ALL";
+    Object before = entities != null ? snapshotCollection(entities) : "ALL";
     Object result = joinPoint.proceed();
     logService.logEntityChangeEvent(
         repositoryName(bean), "deleteAll", Level.WARNING, before, null, null);
@@ -203,11 +208,11 @@ public class LogEntityChangesAspect {
   }
 
   /**
-   * Loads the current DB state via a {@link StatelessSession} to bypass the Hibernate L1 cache —
-   * otherwise {@code EntityManager.find()} returns the already-modified instance, making BEFORE ==
-   * AFTER.
+   * Loads an entity snapshot via a {@link StatelessSession}, completely isolated from the main
+   * Hibernate session. Used for both before-state (bypasses L1 cache) and after-state (avoids
+   * touching managed proxies that could trigger unwanted lazy loading or cascading).
    */
-  private Object snapshotBefore(Object entity) {
+  private Object snapshotEntity(Object entity) {
     try {
       if (entity instanceof Base baseEntity && baseEntity.getId() != null) {
         try (StatelessSession stateless =
@@ -224,11 +229,12 @@ public class LogEntityChangesAspect {
     }
   }
 
-  private Object snapshotBeforeCollection(Object entities) {
+  /** Snapshots each entity in a collection via {@link #snapshotEntity}. */
+  private Object snapshotCollection(Object entities) {
     if (entities instanceof Collection<?> collection) {
       List<Object> snapshots = new ArrayList<>();
       for (Object entity : collection) {
-        snapshots.add(snapshotBefore(entity));
+        snapshots.add(snapshotEntity(entity));
       }
       return snapshots;
     }
