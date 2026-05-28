@@ -58,72 +58,60 @@ public class AccessControlAuditLogAspect {
   @Around("@annotation(io.openaev.aop.AccessControl)")
   public Object auditAround(ProceedingJoinPoint joinPoint) throws Throwable {
     AccessControl accessControl = resolveAccessControlAnnotation(joinPoint);
+
+    if (accessControl == null) return joinPoint.proceed();
+
+    Action action = null;
+    boolean isActive = false;
+    boolean isActionActive = false;
+
+    try {
+      action = accessControl.actionPerformed();
+      isActive = accessControlAuditLogger.isAuditLoggingEnabled();
+      isActionActive = accessControlAuditLogger.isAuditLoggingValid(action);
+    } catch (Exception e) {
+      log.warn(LOG_ERROR_MSG, e);
+    }
+
     Object result = null;
 
     try {
       result = joinPoint.proceed();
     } catch (Throwable ex) {
-      if (accessControl != null) {
-        if (isRbacDeniedException(ex)) {
-          logUnauthorizedDeniedEvent(joinPoint, accessControl, ex);
-        } else {
-          try {
-            Action action = accessControl.actionPerformed();
-            boolean isActive =
-                accessControlAuditLogger.isAuditLoggingEnabled()
-                    && accessControlAuditLogger.isAuditLoggingValid(action);
+      if (isActive) {
+        try {
+          if (accessControlAuditLogger.isAuditUnauthorizedLoggingValid()
+              && isRbacDeniedException(ex)) {
+            JsonNode errorNode = buildErrorNode(null, ex);
 
-            if (isActive) {
-              String eventScope = LogUtils.getEventScope(action);
-              JsonNode resultNode = getOutputNode(result);
-              JsonNode errorNode = buildErrorNode(resultNode, ex);
+            // TODO AUDIT: Move this to enum just like in the issue/5483
+            logAccessControlEvent(joinPoint, accessControl, "unauthorized", "error", errorNode);
+          } else if (isActionActive) {
+            String eventScope = LogUtils.getEventScope(action);
+            JsonNode resultNode = getOutputNode(result);
+            JsonNode errorNode = buildErrorNode(resultNode, ex);
 
-              logAccessControlEvent(joinPoint, accessControl, eventScope, "error", errorNode);
-            }
-          } catch (Exception e) {
-            log.warn(LOG_ERROR_MSG, e);
+            logAccessControlEvent(joinPoint, accessControl, eventScope, "error", errorNode);
           }
+        } catch (Exception e) {
+          log.warn(LOG_ERROR_MSG, e);
         }
       }
       throw ex;
     }
 
-    try {
-      if (accessControl != null) {
-        Action action = accessControl.actionPerformed();
-        boolean isActive =
-            accessControlAuditLogger.isAuditLoggingEnabled()
-                && accessControlAuditLogger.isAuditLoggingValid(action);
+    if (isActive && isActionActive) {
+      try {
+        String eventScope = LogUtils.getEventScope(action);
+        JsonNode resultNode = getOutputNode(result);
 
-        if (isActive) {
-          String eventScope = LogUtils.getEventScope(action);
-          JsonNode resultNode = getOutputNode(result);
-
-          logAccessControlEvent(joinPoint, accessControl, eventScope, "success", resultNode);
-        }
+        logAccessControlEvent(joinPoint, accessControl, eventScope, "success", resultNode);
+      } catch (Exception ex) {
+        log.warn(LOG_ERROR_MSG, ex);
       }
-    } catch (Exception ex) {
-      log.warn(LOG_ERROR_MSG, ex);
     }
 
     return result;
-  }
-
-  private void logUnauthorizedDeniedEvent(
-      JoinPoint joinPoint, AccessControl accessControl, Throwable exception) {
-    try {
-      if (!accessControlAuditLogger.isAuditLoggingEnabled()
-          || !accessControlAuditLogger.isAuditUnauthorizedLoggingValid()) {
-        return;
-      }
-
-      JsonNode errorNode = buildErrorNode(null, exception);
-
-      // TODO AUDIT: Move this to enum just like in the issue/5483
-      logAccessControlEvent(joinPoint, accessControl, "unauthorized", "error", errorNode);
-    } catch (Exception ex) {
-      log.warn(LOG_ERROR_MSG, ex);
-    }
   }
 
   private void logAccessControlEvent(
