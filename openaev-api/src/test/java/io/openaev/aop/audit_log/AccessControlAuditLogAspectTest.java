@@ -41,13 +41,13 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
 
-  @MockitoSpyBean private AccessControlAuditLogger accessControlAuditLogger;
+  @MockitoSpyBean private AuditLogger auditLogger;
 
   @BeforeEach
   void setup() {
-    reset(accessControlAuditLogger);
-    doReturn(true).when(accessControlAuditLogger).isAuditLoggingEnabled();
-    doReturn(true).when(accessControlAuditLogger).isAuditUnauthorizedLoggingValid();
+    reset(auditLogger);
+    doReturn(true).when(auditLogger).isAuditLoggingEnabled();
+    doReturn(true).when(auditLogger).isAuditUnauthorizedLoggingValid();
   }
 
   @Nested
@@ -72,7 +72,7 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
           .andExpect(status().isForbidden());
 
       // Assert
-      verify(accessControlAuditLogger, timeout(1000))
+      verify(auditLogger, timeout(1000))
           .logAccessControlEvent(
               eventScopeCaptor.capture(),
               eventStatusCaptor.capture(),
@@ -106,7 +106,7 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
       mvc.perform(get(TEAM_URI)).andExpect(status().isUnauthorized());
 
       // Assert
-      verify(accessControlAuditLogger, after(1000).never())
+      verify(auditLogger, after(1000).never())
           .logAccessControlEvent(
               anyString(), anyString(), any(), anyString(), any(), any(), any(), anyString());
     }
@@ -123,7 +123,7 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
       mvc.perform(get(TEAM_URI)).andExpect(status().isOk());
 
       // Assert
-      verify(accessControlAuditLogger, after(1000).never())
+      verify(auditLogger, after(1000).never())
           .logAccessControlEvent(
               anyString(), anyString(), any(), anyString(), any(), any(), any(), anyString());
     }

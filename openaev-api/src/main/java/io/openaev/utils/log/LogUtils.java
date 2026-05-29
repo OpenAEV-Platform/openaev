@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.AdministrationResourceType;
 import io.openaev.database.model.EventStatus;
+import io.openaev.database.model.EventType;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.log.form.LogDetailsInput;
 import java.util.logging.Level;
@@ -141,6 +142,15 @@ public class LogUtils {
       case READ, SEARCH -> "read";
       case LOGIN -> "login";
       case LOGOUT -> "logout";
+      case UNAUTHORIZED -> "unauthorized";
+      default -> "unknown";
+    };
+  }
+
+  public static String getEventType(EventType type) {
+    return switch (type) {
+      case MUTATION -> "mutation";
+      case AUTHENTICATION -> "authentication";
       default -> "unknown";
     };
   }
@@ -154,6 +164,7 @@ public class LogUtils {
   }
 
   public static String getEventAccess(ResourceType resourceType) {
+    // TODO: optimize this method without try and catch
     try {
       AdministrationResourceType.valueOf(resourceType.name());
       return EVENT_ACCESS_ADMINISTRATION;

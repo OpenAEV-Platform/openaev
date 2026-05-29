@@ -10,6 +10,7 @@ import io.openaev.config.SessionHelper;
 import io.openaev.config.ThreadPoolTaskLoggerConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
+import io.openaev.database.model.EventType;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.User;
 import io.openaev.ee.EnterpriseEditionService;
@@ -105,9 +106,9 @@ public class LogService {
     try {
       // Build human-readable message
       String message = LogUtils.buildAuthLogMessage(eventScope, eventStatus, provider);
+      String eventType = LogUtils.getEventType(EventType.AUTHENTICATION);
       String eventAccess = LogUtils.getAuthEventAccess();
-      LogEvent doc =
-          buildBaseAuditLog("authentication", eventStatus, eventAccess, eventScope, logUUID);
+      LogEvent doc = buildBaseAuditLog(eventType, eventStatus, eventAccess, eventScope, logUUID);
 
       // -- context_data --
       Map<String, Object> ctx = new LinkedHashMap<>();
@@ -154,8 +155,9 @@ public class LogService {
         message = eventScope + "s " + entityTypeName + " `" + displayName + "`";
       }
 
+      String eventType = LogUtils.getEventType(EventType.MUTATION);
       String eventAccess = LogUtils.getEventAccess(resourceType);
-      LogEvent doc = buildBaseAuditLog("mutation", eventStatus, eventAccess, eventScope, logUUID);
+      LogEvent doc = buildBaseAuditLog(eventType, eventStatus, eventAccess, eventScope, logUUID);
       Map<String, Object> ctx = new LinkedHashMap<>();
 
       ctx.put("entity_type", entityTypeName);

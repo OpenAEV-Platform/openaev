@@ -21,5 +21,6 @@ public enum Action {
 
   // specific to login/logout
   LOGIN,
-  LOGOUT
+  LOGOUT,
+  UNAUTHORIZED
 }
