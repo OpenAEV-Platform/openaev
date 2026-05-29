@@ -12,6 +12,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.CatalogConnectorConfiguration;
+import io.openaev.database.model.Tenant;
 import io.openaev.service.FileService;
 import io.openaev.utils.fixtures.ConnectorInstanceFixture;
 import io.openaev.utils.fixtures.composers.CatalogConnectorComposer;
@@ -19,8 +20,11 @@ import io.openaev.utils.fixtures.composers.CatalogConnectorConfigurationComposer
 import io.openaev.utils.fixtures.composers.ConnectorInstanceComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.io.ByteArrayInputStream;
+import jakarta.persistence.EntityManager;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,6 +43,7 @@ public class CatalogConnectorApiTest extends IntegrationTest {
   @Autowired private ConnectorInstanceComposer connectorInstanceComposer;
   @Autowired private CatalogConnectorConfigurationComposer catalogConfigurationComposer;
   @Autowired private FileService fileService;
+  @Autowired private EntityManager entityManager;
 
   @Test
   @DisplayName(
@@ -144,5 +149,112 @@ public class CatalogConnectorApiTest extends IntegrationTest {
 
     // Act / Assert
     mvc.perform(get("/api/images/catalog/connectors/logos/" + fileName)).andExpect(status().isOk());
+  }
+
+  @Nested
+  @DisplayName("Tenant Isolation")
+  @WithMockUser
+  class TenantIsolation {
+
+    @Test
+    @DisplayName("Catalog connector in tenant X should NOT be readable from tenant Y")
+    void given_catalogConnectorInTenantX_should_notBeReadableFromTenantY() throws Exception {
+      // Arrange
+      Tenant tenantX =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.ACCESS_TENANT_SETTINGS));
+      Tenant tenantY =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_TENANT_SETTINGS));
+
+      tenantIsolationTestHelper.switchToTenant(tenantX.getId(), entityManager);
+      CatalogConnector connector =
+          catalogConnectorComposer
+              .forCatalogConnector(
+                  createDefaultCatalogConnectorManagedByXtmComposer("tenant-x-catalog"))
+              .persist()
+              .get();
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act + Assert
+      tenantIsolationTestHelper.switchToTenant(tenantY.getId(), entityManager);
+      mvc.perform(
+              get("/api/tenants/" + tenantY.getId() + "/catalog-connector/" + connector.getId()))
+          .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("Catalog connector in tenant X should be readable from tenant X")
+    void given_catalogConnectorInTenantX_should_beReadableFromTenantX() throws Exception {
+      // Arrange
+      Tenant tenantX =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.ACCESS_TENANT_SETTINGS));
+
+      tenantIsolationTestHelper.switchToTenant(tenantX.getId(), entityManager);
+      CatalogConnector connector =
+          catalogConnectorComposer
+              .forCatalogConnector(
+                  createDefaultCatalogConnectorManagedByXtmComposer("tenant-x-catalog-readable"))
+              .persist()
+              .get();
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act + Assert
+      tenantIsolationTestHelper.switchToTenant(tenantX.getId(), entityManager);
+      mvc.perform(
+              get("/api/tenants/" + tenantX.getId() + "/catalog-connector/" + connector.getId()))
+          .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName(
+        "Catalog connector configurations in tenant X should NOT be readable from tenant Y")
+    void given_catalogConnectorConfigurationInTenantX_should_notBeReadableFromTenantY()
+        throws Exception {
+      // Arrange
+      Tenant tenantX =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.ACCESS_TENANT_SETTINGS));
+      Tenant tenantY =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_TENANT_SETTINGS));
+
+      tenantIsolationTestHelper.switchToTenant(tenantX.getId(), entityManager);
+      CatalogConnectorConfiguration conf =
+          createCatalogConfiguration(
+              "tenant-x-key",
+              CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_TYPE.STRING,
+              true,
+              null,
+              null,
+              null);
+      CatalogConnector connector =
+          catalogConnectorComposer
+              .forCatalogConnector(
+                  createDefaultCatalogConnectorManagedByXtmComposer("tenant-x-catalog-config"))
+              .withCatalogConnectorConfiguration(
+                  catalogConfigurationComposer.forCatalogConnectorConfiguration(conf))
+              .persist()
+              .get();
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act + Assert
+      tenantIsolationTestHelper.switchToTenant(tenantY.getId(), entityManager);
+      mvc.perform(
+              get(
+                  "/api/tenants/"
+                      + tenantY.getId()
+                      + "/catalog-connector/"
+                      + connector.getId()
+                      + "/configurations"))
+          .andExpect(status().isNotFound());
+    }
   }
 }
