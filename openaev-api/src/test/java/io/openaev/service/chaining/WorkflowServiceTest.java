@@ -109,7 +109,7 @@ class WorkflowServiceTest {
     @Captor private ArgumentCaptor<Workflow> workflowCaptor;
 
     @Test
-    @DisplayName("should create workflow template with inline configuration defaults")
+    @DisplayName("should create simulation workflow template with inline configuration defaults")
     void shouldCreateWorkflowTemplateWithInlineConfigurationDefaults() {
       // Prepare
       Exercise exercise = mock(Exercise.class);
@@ -126,7 +126,41 @@ class WorkflowServiceTest {
       // Configuration defaults stored inline on the workflow row
       assertFalse(savedWorkflow.isRateLimitEnabled());
       assertFalse(savedWorkflow.isTimeoutEnabled());
+      assertEquals(
+          WorkflowService.DEFAULT_TIMEOUT_SECONDS,
+          savedWorkflow.getTimeoutSeconds(),
+          "Timeout seconds must default to DEFAULT_TIMEOUT_SECONDS");
       assertTrue(savedWorkflow.isSafeModeEnabled());
+    }
+
+    @Test
+    @DisplayName("should create scenario workflow template with default timeout seconds")
+    void shouldCreateScenarioWorkflowTemplateWithDefaultTimeoutSeconds() {
+      // Prepare
+      Scenario scenario = mock(Scenario.class);
+
+      // Act
+      workflowService.creationWorkflow(scenario);
+
+      // Assert
+      verify(workflowRepository).save(workflowCaptor.capture());
+      Workflow savedWorkflow = workflowCaptor.getValue();
+      assertEquals(0, savedWorkflow.getVersion());
+      assertEquals(WorkflowStatus.TEMPLATE, savedWorkflow.getStatus());
+      assertEquals(scenario, savedWorkflow.getScenario());
+      assertFalse(savedWorkflow.isRateLimitEnabled());
+      assertFalse(savedWorkflow.isTimeoutEnabled());
+      assertEquals(
+          WorkflowService.DEFAULT_TIMEOUT_SECONDS,
+          savedWorkflow.getTimeoutSeconds(),
+          "Timeout seconds must default to DEFAULT_TIMEOUT_SECONDS");
+      assertTrue(savedWorkflow.isSafeModeEnabled());
+    }
+
+    @Test
+    @DisplayName("DEFAULT_TIMEOUT_SECONDS constant should be 3600")
+    void defaultTimeoutConstantShouldBe3600() {
+      assertEquals(3600L, WorkflowService.DEFAULT_TIMEOUT_SECONDS);
     }
   }
 
@@ -710,7 +744,12 @@ class WorkflowServiceTest {
     private Workflow buildTemplate(boolean stubSave) {
       String workflowId = UUID.randomUUID().toString();
       Workflow workflow =
-          Workflow.builder().id(workflowId).status(WorkflowStatus.TEMPLATE).version(0).build();
+          Workflow.builder()
+              .id(workflowId)
+              .status(WorkflowStatus.TEMPLATE)
+              .version(0)
+              .timeoutSeconds(WorkflowService.DEFAULT_TIMEOUT_SECONDS)
+              .build();
       when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
           .thenReturn(Optional.of(workflow));
       if (stubSave) {
@@ -914,7 +953,12 @@ class WorkflowServiceTest {
     private Workflow buildTemplate() {
       String workflowId = UUID.randomUUID().toString();
       Workflow workflow =
-          Workflow.builder().id(workflowId).status(WorkflowStatus.TEMPLATE).version(0).build();
+          Workflow.builder()
+              .id(workflowId)
+              .status(WorkflowStatus.TEMPLATE)
+              .version(0)
+              .timeoutSeconds(WorkflowService.DEFAULT_TIMEOUT_SECONDS)
+              .build();
       when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
           .thenReturn(Optional.of(workflow));
       lenient()
