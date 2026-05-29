@@ -12,7 +12,6 @@ import {
   ListItemIcon,
   ListItemText,
 } from '@mui/material';
-import * as R from 'ramda';
 import { type FunctionComponent, useContext, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -88,7 +87,7 @@ const InjectAddArticlesDialog: FunctionComponent<Props> = ({
     setKeyword(value || '');
   };
 
-  const addArticle = (articleId: string) => setArticleIds(R.append(articleId, articleIds));
+  const addArticle = (articleId: string) => setArticleIds([...articleIds, articleId]);
 
   const removeArticle = (articleId: string) => {
     if (articleIds.includes(articleId)) {
@@ -105,8 +104,6 @@ const InjectAddArticlesDialog: FunctionComponent<Props> = ({
 
   // Creation
   const [openCreate, setOpenCreate] = useState(false);
-  const handleOpenCreate = () => setOpenCreate(true);
-  const handleCloseCreate = () => setOpenCreate(false);
   const onCreate = (result: string) => {
     addArticle(result);
   };
@@ -121,10 +118,7 @@ const InjectAddArticlesDialog: FunctionComponent<Props> = ({
     ...item,
     article_fullchannel: item.article_channel ? channelsMap[item.article_channel] : {},
   }));
-  const filteredArticles = R.pipe(
-    R.filter(filterByKeyword),
-    R.take(10),
-  )(fullArticles);
+  const filteredArticles = fullArticles.filter(filterByKeyword).slice(0, 10);
   return (
     <Dialog
       open={open}
@@ -184,9 +178,8 @@ const InjectAddArticlesDialog: FunctionComponent<Props> = ({
                   <CreateArticle
                     inline
                     openCreate={openCreate}
+                    isOpen={setOpenCreate}
                     onCreate={onCreate}
-                    handleOpenCreate={handleOpenCreate}
-                    handleCloseCreate={handleCloseCreate}
                   />
                 )}
             </List>
