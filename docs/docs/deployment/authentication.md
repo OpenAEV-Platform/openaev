@@ -79,7 +79,7 @@ Url for the config of your sso provider
 ${openaev.base-url}/login/saml2/sso/{registrationId}
 ```
 
-### Map administrators to specific roles (OpenID and SAML 2)
+### Map administrators to specific roles (OpenID and SAML2)
 
 To grant administrative roles, you can utilize OAuth and SAML2 integration. If you opt for this approach, you'll need to include the following variables:
 
@@ -89,6 +89,64 @@ OPENAEV_PROVIDER_{registrationId}_ROLES_ADMIN=
 ```
 
 However, if you intend to manage administrative roles within the OpenAEV platform itself, there's no need to provide these variables.
+
+### Map users to groups automatically (OpenID and SAML2)
+
+When using OpenID Connect or SAML2, you can automatically assign users to OpenAEV groups at login based on the groups they belong to in your identity provider (IdP). This is controlled by the `groups_management` parameter.
+
+| Parameter | Environment variable | Description |
+|:---|:---|:---|
+| `openaev.provider.{registrationId}.groups_management` | `OPENAEV_PROVIDER_{registrationId}_GROUPS__MANAGEMENT` | JSON array of group mapping rules (see format below) |
+
+#### Group mapping format
+
+The value must be a **JSON array** of mapping rules. Each rule maps an IdP group to an OpenAEV group:
+
+```json
+[
+  {
+    "idpGroup": "<group-name-from-your-identity-provider>",
+    "userGroup": "<openaev-group-name>",
+    "autoCreate": false
+  }
+]
+```
+
+| Field | Type | Required | Description |
+|:---|:---|:---|:---|
+| `idpGroup` | string | ✅ | The group name as it appears in the IdP token or assertion |
+| `userGroup` | string | ✅ | The OpenAEV group to assign the user to |
+| `autoCreate` | boolean | ✅ | If `true`, the OpenAEV group is created automatically if it does not exist. If `false`, the mapping is silently skipped when the group does not exist. |
+
+#### Example — Azure AD with SAML2
+
+Map two Azure AD groups to OpenAEV groups:
+
+```properties
+OPENAEV_PROVIDER_AZURE_GROUPS__MANAGEMENT=[{"idpGroup":"AzureAD-SOC-Team","userGroup":"OpenAEV-SOC","autoCreate":false},{"idpGroup":"AzureAD-Admins","userGroup":"OpenAEV-Administrators","autoCreate":false}]
+```
+
+Or in expanded YAML form:
+
+```yaml
+OPENAEV_PROVIDER_AZURE_GROUPS__MANAGEMENT: |
+  [
+    {
+      "idpGroup": "AzureAD-SOC-Team",
+      "userGroup": "OpenAEV-SOC",
+      "autoCreate": false
+    },
+    {
+      "idpGroup": "AzureAD-Admins",
+      "userGroup": "OpenAEV-Administrators",
+      "autoCreate": false
+    }
+  ]
+```
+
+!!! tip "Group not found behavior"
+
+    If `autoCreate` is `false` and the target OpenAEV group does not exist, the mapping is **silently skipped** — the user logs in successfully but is not added to the group. Make sure the group names match exactly (case-sensitive).
 
 ## Breakglass local account with SSO enabled
 
