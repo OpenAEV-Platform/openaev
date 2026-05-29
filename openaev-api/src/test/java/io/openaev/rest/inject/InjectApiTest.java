@@ -364,7 +364,7 @@ class InjectApiTest extends IntegrationTest {
 
     // -- ASSERT --
     assertNotNull(response);
-    assertEquals("SUCCESS", JsonPath.read(response, "$.status_name"));
+    assertEquals("EXECUTED", JsonPath.read(response, "$.status_name"));
     ArgumentCaptor<ExecutableInject> executableInjectCaptor =
         ArgumentCaptor.forClass(ExecutableInject.class);
     verify(executor).execute(executableInjectCaptor.capture());
@@ -505,7 +505,7 @@ class InjectApiTest extends IntegrationTest {
 
     // -- ASSERT --
     assertNotNull(response);
-    assertEquals("SUCCESS", JsonPath.read(response, "$.status_name"));
+    assertEquals("EXECUTED", JsonPath.read(response, "$.status_name"));
   }
 
   // -- BULK DELETE --
@@ -1110,7 +1110,7 @@ class InjectApiTest extends IntegrationTest {
         assertEquals(ExecutionStatus.PENDING, injectStatusSaved.getName());
         assertEquals(1, injectStatusSaved.getTraces().size());
         assertEquals(
-            ExecutionTraceStatus.SUCCESS, injectStatusSaved.getTraces().getFirst().getStatus());
+            ExecutionTraceStatus.EXECUTED, injectStatusSaved.getTraces().getFirst().getStatus());
         assertEquals(
             ExecutionTraceAction.EXECUTION, injectStatusSaved.getTraces().getFirst().getAction());
         assertEquals(logMessage, injectStatusSaved.getTraces().getFirst().getMessage());
@@ -1308,9 +1308,9 @@ class InjectApiTest extends IntegrationTest {
       }
 
       @Test
-      @DisplayName("Should compute agent status as SUCCESS")
+      @DisplayName("Should compute agent status as EXECUTED")
       void shouldComputeAgentStatusAsSuccess() throws Exception {
-        testAgentStatusFunction("SUCCESS", "WARNING", ExecutionTraceStatus.SUCCESS);
+        testAgentStatusFunction("SUCCESS", "WARNING", ExecutionTraceStatus.EXECUTED);
       }
 
       @Test
@@ -1322,9 +1322,9 @@ class InjectApiTest extends IntegrationTest {
       }
 
       @Test
-      @DisplayName("Should compute agent status as SUCCESS for ACCESS_DENIED")
+      @DisplayName("Should compute agent status as EXECUTED for ACCESS_DENIED")
       void shouldComputeAgentStatusAsSuccessForAccessDenied() throws Exception {
-        testAgentStatusFunction("SUCCESS", "ACCESS_DENIED", ExecutionTraceStatus.SUCCESS);
+        testAgentStatusFunction("SUCCESS", "ACCESS_DENIED", ExecutionTraceStatus.EXECUTED);
       }
     }
 
@@ -3410,7 +3410,7 @@ class InjectApiTest extends IntegrationTest {
           .when(Option.IGNORING_ARRAY_ORDER)
           .inPath("[*].execution_status")
           .isArray()
-          .contains(ExecutionTraceStatus.INFO, ExecutionTraceStatus.SUCCESS);
+          .contains(ExecutionTraceStatus.INFO, ExecutionTraceStatus.EXECUTED);
     }
 
     @Test

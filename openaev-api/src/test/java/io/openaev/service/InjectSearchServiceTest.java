@@ -190,7 +190,7 @@ class InjectSearchServiceTest {
       assertThat(result.getInjectorContract()).isNotNull();
       assertThat(result.getInjectorContract().getId()).isEqualTo(contract.getId());
       assertThat(result.getStatus()).isNotNull();
-      assertThat(result.getStatus().getName()).isEqualTo(ExecutionStatus.SUCCESS.name());
+      assertThat(result.getStatus().getName()).isEqualTo(ExecutionStatus.EXECUTED.name());
     }
 
     @Test
