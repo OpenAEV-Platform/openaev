@@ -53,6 +53,7 @@ public class AuditLogger {
   }
 
   public void prepareLogFailure() {
+    // Halt the application when stop-the-world is enabled and a log failure occurs.
     if (stw) {
       log.error("[AUDIT] Stop-the-world triggered — shutting down application.");
 
@@ -67,7 +68,10 @@ public class AuditLogger {
     }
   }
 
-  /** Wraps the audit service call in try/catch — audit must never break the business flow. */
+  /**
+   * Log Authentication events Wraps the audit service call in try/catch — non-blocking by default,
+   * but may terminate the process when stop-the-world audit failure handling is enabled.
+   */
   @Async("taskLoggerExecutor")
   public CompletableFuture<Boolean> logAuthEventWithRequestContext(
       ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.RequestContextData rcd,
@@ -84,7 +88,10 @@ public class AuditLogger {
     return logAuthEvent(eventScope, eventStatus, provider, reason, logUUID);
   }
 
-  /** Wraps the audit service call in try/catch — audit must never break the business flow. */
+  /**
+   * Log Authentication events Wraps the audit service call in try/catch — non-blocking by default,
+   * but may terminate the process when stop-the-world audit failure handling is enabled.
+   */
   @Async("taskLoggerExecutor")
   public CompletableFuture<Boolean> logAuthEvent(
       String eventScope, String eventStatus, String provider, String reason, String logUUID) {
@@ -107,6 +114,10 @@ public class AuditLogger {
     return CompletableFuture.completedFuture(status);
   }
 
+  /**
+   * Log Mutation events Wraps the audit service call in try/catch — non-blocking by default, but
+   * may terminate the process when stop-the-world audit failure handling is enabled.
+   */
   @Async("taskLoggerExecutor")
   public CompletableFuture<Boolean> logAccessControlEvent(
       String eventScope,
