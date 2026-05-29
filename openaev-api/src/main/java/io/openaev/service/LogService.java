@@ -7,9 +7,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.config.SessionHelper;
 import io.openaev.config.ThreadPoolTaskLoggerConfig;
+import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.User;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.engine.EngineService;
 import io.openaev.engine.model.log.LogEvent;
 import io.openaev.rest.settings.PreviewFeature;
@@ -24,6 +26,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -49,13 +52,33 @@ public class LogService {
 
   private final UserService userService;
 
+  private final EnterpriseEditionService enterpriseEditionService;
+  private final LicenseCacheManager licenseCacheManager;
+
+  /** Ensures the EE audit-disabled warning is logged only once. */
+  private final AtomicBoolean auditEeDisabledWarningLogged = new AtomicBoolean(false);
+
   // -- Public API --
 
-  /**
-   * Returns {@code true} if audit logging is globally enabled and the preview feature is active.
-   */
   public boolean isEnabled() {
-    return auditLogsEnabled && previewFeatureService.isFeatureEnabled(PreviewFeature.AUDIT_LOG);
+    boolean isAuditConfigured =
+        auditLogsEnabled && previewFeatureService.isFeatureEnabled(PreviewFeature.AUDIT_LOG);
+    if (!isAuditConfigured) {
+      return false;
+    }
+
+    try {
+      boolean isEeActive =
+          enterpriseEditionService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo());
+      if (!isEeActive && auditEeDisabledWarningLogged.compareAndSet(false, true)) {
+        log.error(
+            "[AUDIT] Audit logging is configured but inactive - an Enterprise Edition license is required.");
+      }
+      return isEeActive;
+    } catch (Exception e) {
+      log.error("[AUDIT] Failed to check enterprise edition license", e);
+    }
+    return false;
   }
 
   /**
