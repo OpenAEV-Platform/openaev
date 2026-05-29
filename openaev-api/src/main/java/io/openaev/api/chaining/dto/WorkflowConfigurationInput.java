@@ -54,6 +54,7 @@ public class WorkflowConfigurationInput {
   @JsonSetter(nulls = Nulls.SKIP)
   @Min(value = 60, message = "Timeout seconds must be at least 60 (1 min)")
   @Max(value = 86400, message = "Timeout seconds must be at most 86400 (24 h)")
+  @Builder.Default
   private Long timeoutSeconds = DEFAULT_TIMEOUT_SECONDS;
 
   // -- Safe mode --
