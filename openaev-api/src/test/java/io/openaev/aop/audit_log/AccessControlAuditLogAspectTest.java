@@ -34,7 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
 @Transactional
-@TestPropertySource(properties = {"openaev.audit-logs.service.enabled=true"})
+@TestPropertySource(properties = {"openaev.audit-logs.transports=console"})
 class AccessControlAuditLogAspectTest extends IntegrationTest {
 
   private static final String PROTECTED_TEAM_ID = "team-without-permission";

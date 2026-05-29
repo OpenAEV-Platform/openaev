@@ -8,7 +8,6 @@ import io.openaev.engine.model.log.LogEvent;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -20,7 +19,6 @@ import org.springframework.stereotype.Component;
  * openaev.audit-logs.transports}.
  */
 @Component
-@ConditionalOnProperty(name = "openaev.audit-logs.engine.enabled", havingValue = "true")
 @Order(3) // Ensure this runs after console transport (priority 1) and file transport (priority 2)
 @RequiredArgsConstructor
 @Slf4j
