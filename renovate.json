@@ -22,20 +22,6 @@
   "commitMessagePrefix": "[tool] chore(deps):",
   "packageRules": [
     {
-      "description": "Disable updates of images intentionally pinned to older versions for compatibility testing",
-      "matchFileNames": [
-        "^\\.drone\\.yml$"
-      ],
-      "matchDatasources": [
-        "docker"
-      ],
-      "matchPackageNames": [
-        "python"
-      ],
-      "matchCurrentVersion": "^3\\.(9|10|11|12)$",
-      "enabled": false
-    },
-    {
       "description": "Disable updates of internal packages",
       "matchDatasources": [
         "maven"
