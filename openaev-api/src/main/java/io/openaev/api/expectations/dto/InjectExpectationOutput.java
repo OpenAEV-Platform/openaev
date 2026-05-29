@@ -15,10 +15,6 @@ public record InjectExpectationOutput(
     @JsonProperty("inject_expectation_id")
     String id,
 
-    @Schema(description = "External ID of the inject expectation")
-    @JsonProperty("inject_expectation_external_id")
-    String externalId,
-
     @Schema(description = "Type of the inject expectation")
     @JsonProperty("inject_expectation_type")
     EXPECTATION_TYPE type,

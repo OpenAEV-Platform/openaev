@@ -1,12 +1,13 @@
 package io.openaev.rest.atomic_testing;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+import static io.openaev.api.expectations.mapper.InjectExpectationMapper.toOutputs;
 
+import io.openaev.api.expectations.dto.InjectExpectationOutput;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Collector;
-import io.openaev.database.model.InjectExpectation;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.atomic_testing.form.*;
 import io.openaev.rest.collector.service.CollectorService;
@@ -146,13 +147,14 @@ public class AtomicTestingApi extends RestBehavior {
       resourceId = "#injectId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
-  public List<InjectExpectation> findTargetResult(
+  public List<InjectExpectationOutput> findTargetResult(
       @PathVariable String injectId,
       @PathVariable String targetId,
       @PathVariable String targetType,
       @RequestParam(required = false) String parentTargetId) {
-    return injectExpectationService.findMergedExpectationsByInjectAndTargetAndTargetType(
-        injectId, targetId, parentTargetId, targetType);
+    return toOutputs(
+        injectExpectationService.findMergedExpectationsByInjectAndTargetAndTargetType(
+            injectId, targetId, parentTargetId, targetType));
   }
 
   @GetMapping("/{injectId}/target_results/{targetId}/asset_with_agents")
@@ -201,15 +203,16 @@ public class AtomicTestingApi extends RestBehavior {
       resourceId = "#injectId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
-  public List<InjectExpectation> findTargetResultMerged(
+  public List<InjectExpectationOutput> findTargetResultMerged(
       @PathVariable String injectId,
       @PathVariable String targetId,
       @PathVariable String targetType) {
-    return injectExpectationService
-        .findMergedExpectationsByInjectAndTargetAndTargetType(injectId, targetId, targetType)
-        .stream()
-        .sorted(Comparator.comparing(InjectExpectation::getType))
-        .toList();
+    return toOutputs(
+        injectExpectationService
+            .findMergedExpectationsByInjectAndTargetAndTargetType(injectId, targetId, targetType)
+            .stream()
+            .sorted(Comparator.comparing(expectation -> expectation.getType().name()))
+            .toList());
   }
 
   @PutMapping("/{injectId}/tags")
