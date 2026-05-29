@@ -407,7 +407,7 @@ const CreateInject: FunctionComponent<Props> = ({
       <Grid style={{
         display: 'flex',
         flexDirection: 'column',
-        height: 'calc(100vh - 100px)',
+        height: 'calc(100vh - 60px)',
         overflow: 'hidden',
       }}
       >
@@ -431,20 +431,28 @@ const CreateInject: FunctionComponent<Props> = ({
         >
           {/* Left panel: inject list */}
           <div style={{
-            overflowY: 'auto',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
             paddingTop: theme.spacing(0.5),
           }}
           >
-            <PaginationComponentV2
-              fetch={searchInjectorContracts}
-              searchPaginationInput={searchPaginationInput}
-              setContent={setContracts}
-              entityPrefix="injector_contract"
-              availableFilterNames={availableFilterNames}
-              queryableHelpers={queryableHelpers}
-              attackPatterns={attackPatterns}
-            />
-            <List>
+            <div style={{ flexShrink: 0 }}>
+              <PaginationComponentV2
+                fetch={searchInjectorContracts}
+                searchPaginationInput={searchPaginationInput}
+                setContent={setContracts}
+                entityPrefix="injector_contract"
+                availableFilterNames={availableFilterNames}
+                queryableHelpers={queryableHelpers}
+                attackPatterns={attackPatterns}
+              />
+            </div>
+            <List style={{
+              flex: 1,
+              overflowY: 'auto',
+            }}
+            >
               <ListItem
                 classes={{ root: classes.itemHead }}
                 divider={false}
