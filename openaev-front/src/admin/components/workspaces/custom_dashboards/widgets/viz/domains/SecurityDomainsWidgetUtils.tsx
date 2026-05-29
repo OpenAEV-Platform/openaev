@@ -162,17 +162,17 @@ const colorByAverageForDomain = (data: EsExpectationByDomainAndType[], theme: Th
  * @param average to calculate
  * @param theme to get colors values
  */
-const colorByAverageForExpectation = (average: number, theme: Theme): string => {
+export const colorByAverageForExpectation = (average: number, theme: Theme): string => {
   switch (true) {
     case average < 0:
       return EMPTY_DATA;
-    case average < 25:
+    case average <= 25:
       return theme.palette.widgets.securityDomains.colors.failed;
-    case average <= 75:
+    case average <= 50:
       return theme.palette.widgets.securityDomains.colors.warning;
-    case average < 100:
+    case average <= 75:
       return theme.palette.widgets.securityDomains.colors.intermediate;
-    case average === 100:
+    case average <= 100:
       return theme.palette.widgets.securityDomains.colors.success;
     default:
       return theme.palette.widgets.securityDomains.colors.unknown;
@@ -203,13 +203,13 @@ export const statusByAverage = (average: number): string => {
   switch (true) {
     case average < 0:
       return STATUS_EMPTY;
-    case average < 25:
+    case average <= 25:
       return STATUS_FAILURE;
-    case average <= 75:
+    case average <= 50:
       return STATUS_WARNING;
-    case average < 100:
+    case average <= 75:
       return STATUS_INTERMEDIATE;
-    case average === 100:
+    case average <= 100:
       return STATUS_SUCCESS;
     default:
       return STATUS_EMPTY;

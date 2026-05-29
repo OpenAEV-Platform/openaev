@@ -184,6 +184,8 @@ public class AgentUtils {
                                     && trace.getAgent().getId().equals(agent.getId())
                                     && (ExecutionTraceStatus.ERROR.equals(trace.getStatus())
                                         || ExecutionTraceStatus.AGENT_INACTIVE.equals(
+                                            trace.getStatus())
+                                        || ExecutionTraceStatus.AGENT_OVERLOADED.equals(
                                             trace.getStatus())))))
         .orElse(Boolean.TRUE)
         .booleanValue(); // If there are no traces, return true by default

@@ -10,7 +10,6 @@ import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
-import io.openaev.database.repository.GrantRepository;
 import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -36,7 +35,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(rollbackFor = Exception.class)
 public class TenantGroupService {
   private final GroupRepository groupRepository;
-  private final GrantRepository grantRepository;
   private final UserRepository userRepository;
   private final RoleService roleService;
   private final GrantService grantService;
@@ -187,7 +185,7 @@ public class TenantGroupService {
             .orElseThrow(() -> new ElementNotFoundException("Group not found with id: " + groupId));
 
     ReservedKeyValidator.validateGroupId(group.getId());
-    groupRepository.delete(group);
+    groupRepository.deleteByIdNative(group.getId());
   }
 
   /** Remove a grant from a tenant group. */

@@ -377,7 +377,7 @@ class InjectsExecutionJobTest extends IntegrationTest {
       // Assert
       Inject savedInject = injectRepository.findById(inject.getId()).orElseThrow();
       InjectStatus savedStatus = savedInject.getStatus().orElseThrow();
-      assertEquals(ExecutionStatus.SUCCESS, savedStatus.getName());
+      assertEquals(ExecutionStatus.EXECUTED, savedStatus.getName());
       assertTrue(
           savedStatus.getTraces().stream()
               .noneMatch(trace -> ExecutionTraceStatus.WARNING.equals(trace.getStatus())));

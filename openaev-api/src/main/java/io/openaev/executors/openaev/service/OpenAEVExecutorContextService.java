@@ -2,6 +2,7 @@ package io.openaev.executors.openaev.service;
 
 import static io.openaev.executors.ExecutorHelper.replaceArgs;
 import static io.openaev.integration.impl.executors.openaev.OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_NAME;
+import static java.time.Instant.now;
 
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AssetAgentJobRepository;
@@ -68,6 +69,7 @@ public class OpenAEVExecutorContextService extends ExecutorContextService {
     assetAgentJob.setAgent(agent);
     assetAgentJob.setInject(inject);
     assetAgentJob.setTenant(inject.getTenant());
+    assetAgentJob.setCreatedAt(now());
     assetAgentJobRepository.save(assetAgentJob);
   }
 

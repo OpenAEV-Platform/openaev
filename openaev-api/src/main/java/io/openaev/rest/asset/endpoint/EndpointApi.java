@@ -81,9 +81,7 @@ public class EndpointApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.JOB)
   @Transactional(rollbackFor = Exception.class)
   public List<AssetAgentJob> getEndpointJobs(@RequestBody final EndpointRegisterInput input) {
-    List<AssetAgentJob> jobs = this.endpointService.getEndpointJobs(input);
-    this.injectStatusService.addJobRetrievalTraces(jobs);
-    return jobs;
+    return this.endpointService.getEndpointJobs(input);
   }
 
   @Deprecated(since = "1.11.0")
@@ -107,7 +105,13 @@ public class EndpointApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.JOB)
   @Transactional(rollbackFor = Exception.class)
   public void cleanupAssetAgentJob(@PathVariable @NotBlank final String assetAgentJobId) {
-    this.assetAgentJobRepository.deleteById(assetAgentJobId);
+    this.assetAgentJobRepository
+        .findById(assetAgentJobId)
+        .ifPresent(
+            assetAgentJob -> {
+              this.injectStatusService.addJobRetrievalTraces(assetAgentJob);
+              this.assetAgentJobRepository.deleteById(assetAgentJobId);
+            });
   }
 
   @Deprecated(since = "1.11.0")

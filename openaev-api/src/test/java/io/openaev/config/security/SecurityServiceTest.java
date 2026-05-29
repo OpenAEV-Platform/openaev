@@ -124,5 +124,20 @@ class SecurityServiceTest extends IntegrationTest {
       // -- ASSERT --
       assertThat(result.getTenants()).hasSize(1);
     }
+
+    @Test
+    void given_noTenantIdConfigured_should_fallbackToDefaultTenant() {
+      // -- ARRANGE --
+      // "unknown_provider" has no openaev.provider.unknown_provider.tenant_id configured
+
+      // -- ACT --
+      User result =
+          securityService.userManagement(
+              SSO_EMAIL, "unknown_provider", List.of(), List.of(), "Jane", "Doe");
+
+      // -- ASSERT --
+      assertThat(result.getTenants()).hasSize(1);
+      assertThat(result.getTenants().getFirst().getId()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
+    }
   }
 }

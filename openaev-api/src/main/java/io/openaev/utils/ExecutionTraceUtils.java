@@ -93,8 +93,8 @@ public class ExecutionTraceUtils {
    * <ul>
    *   <li>Non-cleanup errors take priority → return the granular error status
    *   <li>Prerequisite failed → PREREQUISITE_FAILED
-   *   <li>If execution succeeded but cleanup failed → SUCCESS_WITH_CLEANUP_FAIL
-   *   <li>If all succeeded → SUCCESS
+   *   <li>If execution succeeded but cleanup failed → EXECUTED_WITH_CLEANUP_FAILURE
+   *   <li>If all succeeded → EXECUTED
    * </ul>
    */
   public static ExecutionTraceStatus computeAgentTraceStatus(List<ExecutionTrace> agentTraces) {
@@ -127,10 +127,10 @@ public class ExecutionTraceUtils {
       return ExecutionTraceStatus.PREREQUISITE_FAILED;
     }
     if (hasSuccess && hasCleanupError) {
-      return ExecutionTraceStatus.SUCCESS_WITH_CLEANUP_FAIL;
+      return ExecutionTraceStatus.EXECUTED_WITH_CLEANUP_FAILURE;
     }
     if (hasSuccess) {
-      return ExecutionTraceStatus.SUCCESS;
+      return ExecutionTraceStatus.EXECUTED;
     }
     return null;
   }

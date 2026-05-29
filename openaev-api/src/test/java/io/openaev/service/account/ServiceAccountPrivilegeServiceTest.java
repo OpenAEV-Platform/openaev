@@ -313,7 +313,7 @@ public class ServiceAccountPrivilegeServiceTest {
     // act & assert
     assertThatThrownBy(() -> privilegeService.getTokenUserServiceAccountByTenant(TENANT_ID))
         .isInstanceOf(UnsupportedOperationException.class)
-        .hasMessage("Invalid token");
+        .hasMessage("Token not found");
   }
 
   @Test
@@ -326,7 +326,7 @@ public class ServiceAccountPrivilegeServiceTest {
     // act & assert
     assertThatThrownBy(() -> privilegeService.getTokenUserServiceAccountByTenant(TENANT_ID))
         .isInstanceOf(UnsupportedOperationException.class)
-        .hasMessage("Invalid token");
+        .hasMessage("Token not found");
   }
 
   @Test
@@ -340,7 +340,7 @@ public class ServiceAccountPrivilegeServiceTest {
     // act & assert
     assertThatThrownBy(() -> privilegeService.getTokenUserServiceAccountByTenant(TENANT_ID))
         .isInstanceOf(UnsupportedOperationException.class)
-        .hasMessage("Invalid token");
+        .hasMessage("Token not found");
   }
 
   // endregion

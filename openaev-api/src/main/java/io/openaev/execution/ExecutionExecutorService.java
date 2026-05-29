@@ -48,12 +48,16 @@ public class ExecutionExecutorService {
     agents.removeAll(inactiveAgents);
     Set<Agent> agentsWithoutExecutor = executorUtils.findAgentsWithoutExecutor(agents);
     agents.removeAll(agentsWithoutExecutor);
+    Set<Agent> overloadedAgents = executorUtils.findOverloadedAgents(agents);
+    agents.removeAll(overloadedAgents);
 
     AtomicBoolean atLeastOneExecution = new AtomicBoolean(false);
     // Manage inactive agents
     saveInactiveAgentsTraces(inactiveAgents, injectStatus);
     // Manage without executor agents
     saveWithoutExecutorAgentsTraces(agentsWithoutExecutor, injectStatus);
+    // Manage overloaded agents
+    saveOverloadedAgentsTraces(overloadedAgents, injectStatus);
 
     // Group remaining agents by their executor entity for per-instance routing.
     // Each executor entity maps to exactly one ConnectorInstance (and therefore one Integration
@@ -190,6 +194,29 @@ public class ExecutionExecutorService {
                               + agent.getExecutedByUser()
                               + " is inactive for the asset "
                               + agent.getAsset().getName(),
+                          ExecutionTraceAction.COMPLETE,
+                          agent,
+                          null))
+              .toList());
+    }
+  }
+
+  @VisibleForTesting
+  public void saveOverloadedAgentsTraces(Set<Agent> overloadedAgents, InjectStatus injectStatus) {
+    if (!overloadedAgents.isEmpty()) {
+      executionTraceRepository.saveAll(
+          overloadedAgents.stream()
+              .map(
+                  agent ->
+                      new ExecutionTrace(
+                          injectStatus,
+                          ExecutionTraceStatus.AGENT_OVERLOADED,
+                          List.of(),
+                          "Agent "
+                              + agent.getExecutedByUser()
+                              + " is overloaded for the asset "
+                              + agent.getAsset().getName()
+                              + " (queue threshold exceeded)",
                           ExecutionTraceAction.COMPLETE,
                           agent,
                           null))

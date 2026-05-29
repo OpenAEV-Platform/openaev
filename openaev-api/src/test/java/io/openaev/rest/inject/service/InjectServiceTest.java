@@ -127,6 +127,8 @@ class InjectServiceTest {
 
   @Mock private InjectorService injectorService;
 
+  @Mock private AssetAgentJobRepository assetAgentJobRepository;
+
   @Spy private InjectorContractContentUtils injectorContractContentUtils;
 
   ObjectMapper mapper;
@@ -139,7 +141,9 @@ class InjectServiceTest {
     mapper = new ObjectMapper();
     ReflectionTestUtils.setField(injectService, "mapper", mapper);
     ReflectionTestUtils.setField(
-        injectService, "healthCheckUtils", new HealthCheckUtils(new ExecutorUtils()));
+        injectService,
+        "healthCheckUtils",
+        new HealthCheckUtils(new ExecutorUtils(assetAgentJobRepository)));
     ReflectionTestUtils.setField(
         injectService,
         "injectMapper",
@@ -148,7 +152,7 @@ class InjectServiceTest {
             payloadMapper,
             injectExpectationMapper,
             injectUtils,
-            new HealthCheckUtils(new ExecutorUtils())));
+            new HealthCheckUtils(new ExecutorUtils(assetAgentJobRepository))));
     ReflectionTestUtils.setField(
         injectService, "injectorContractContentUtils", injectorContractContentUtils);
   }
