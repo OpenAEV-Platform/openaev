@@ -6,6 +6,8 @@ import java.util.Arrays;
 import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -16,6 +18,10 @@ public class AuditLogProperties {
 
   @Value("${openaev.audit-logs.transports:}")
   private Set<String> transports;
+
+  @Getter
+  @Value("${openaev.audit-logs.include-reads:false}")
+  private boolean includeReads;
 
   @PostConstruct
   void validate() {

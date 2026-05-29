@@ -1,5 +1,6 @@
 package io.openaev.aop.audit_log;
 
+import io.openaev.config.audit_log.AuditLogProperties;
 import io.openaev.database.model.Action;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.regex.Pattern;
@@ -29,6 +30,8 @@ public class AuditRequestValidator {
    */
   private static final String XTM_COMPOSER_URI_PREFIX = "/api/xtm-composer";
 
+  private final AuditLogProperties auditLogProperties;
+
   public boolean valid(Action action) {
     // Skip actions we don't audit
     if (shouldSkip(action)) {
@@ -51,7 +54,7 @@ public class AuditRequestValidator {
       case CREATE, WRITE, DELETE, LAUNCH, DUPLICATE -> false;
       // READ/SEARCH are never audited on success — only unauthorized attempts are logged
       // (captured separately via logAuthEvent when RBAC denies access).
-      case READ, SEARCH -> true;
+      case READ, SEARCH -> !auditLogProperties.isIncludeReads();
       default -> true; // SKIP_RBAC, PROCESS
     };
   }
