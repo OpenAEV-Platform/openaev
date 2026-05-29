@@ -36,8 +36,10 @@
     <springProfile name="!(dev | test)">
         <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
         <appender name="jsonEncoder" class="ch.qos.logback.core.ConsoleAppender">
-            <encoder class="ch.qos.logback.classic.encoder.JsonEncoder">
-                <WithThrowable>true</WithThrowable>
+            <encoder class="io.openaev.logging.StackDepthLimitingJsonEncoder">
+                <withThrowable>true</withThrowable>
+                <maxStackDepth>30</maxStackDepth>
+                <maxCauseDepth>5</maxCauseDepth>
             </encoder>
         </appender>
 
@@ -49,8 +51,10 @@
                 <maxHistory>90</maxHistory>
                 <totalSizeCap>1GB</totalSizeCap>
             </rollingPolicy>
-            <encoder class="ch.qos.logback.classic.encoder.JsonEncoder">
-                <WithThrowable>true</WithThrowable>
+            <encoder class="io.openaev.logging.StackDepthLimitingJsonEncoder">
+                <withThrowable>true</withThrowable>
+                <maxStackDepth>30</maxStackDepth>
+                <maxCauseDepth>5</maxCauseDepth>
             </encoder>
         </appender>
 
