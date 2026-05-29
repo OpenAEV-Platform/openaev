@@ -142,7 +142,7 @@ public class AccessControlAuditLogAspect {
                 log.warn(LOG_ERROR_MSG, throwable);
               }
 
-              accessControlAuditLogger.prepareLogFailure();
+              auditLogger.prepareLogFailure();
             }
           };
 
