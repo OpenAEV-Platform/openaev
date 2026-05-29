@@ -56,22 +56,18 @@ const ArticlePopover = ({ article, onRemoveArticle, disabled = false, inline = f
     setOpenEdit(false);
   };
 
-  const onSubmitEdit: SubmitHandler<ArticleUpdateInput> = (data) => {
-    const result = onUpdateArticle(article, data);
-    if (result) {
-      handleCloseEdit();
-    }
+  const onSubmitEdit: SubmitHandler<ArticleUpdateInput> = async (data) => {
+    await onUpdateArticle(article, data);
+    handleCloseEdit();
   };
 
   // Delete action
   const handleOpenDelete = () => setOpenDelete(true);
   const handleCloseDelete = () => setOpenDelete(false);
 
-  const submitDelete = () => {
-    const result = onDeleteArticle(article);
-    if (result) {
-      handleCloseDelete();
-    }
+  const submitDelete = async () => {
+    await onDeleteArticle(article);
+    handleCloseDelete();
   };
 
   // Remove action
