@@ -87,12 +87,9 @@ public class NotificationRuleService {
   }
 
   public void deleteNotificationRule(@NotBlank final String id) {
-    // verify that the rule exists
-    notificationRuleRepository
-        .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
-        .orElseThrow(
-            () -> new ElementNotFoundException("NotificationRule not found with id: " + id));
-
+    if (!notificationRuleRepository.existsByIdAndTenantId(id, TenantContext.getCurrentTenant())) {
+      throw new ElementNotFoundException("NotificationRule not found with id: " + id);
+    }
     notificationRuleRepository.deleteById(id);
   }
 

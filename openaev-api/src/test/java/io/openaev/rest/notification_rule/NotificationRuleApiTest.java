@@ -1,6 +1,7 @@
 package io.openaev.rest.notification_rule;
 
 import static io.openaev.utils.JsonTestUtils.asJsonString;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -15,15 +16,17 @@ import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.notification_rule.form.CreateNotificationRuleInput;
 import io.openaev.rest.notification_rule.form.UpdateNotificationRuleInput;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utilstest.RabbitMQTestListener;
 import jakarta.transaction.Transactional;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Test;
+import java.util.Set;
+import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.test.web.servlet.MockMvc;
@@ -42,6 +45,7 @@ public class NotificationRuleApiTest extends IntegrationTest {
   @Autowired private NotificationRuleRepository notificationRuleRepository;
   @Autowired private UserRepository userRepository;
   @Autowired private ScenarioRepository scenarioRepository;
+  @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
 
   @AfterEach
   void afterEach() {
@@ -294,5 +298,183 @@ public class NotificationRuleApiTest extends IntegrationTest {
     notificationRule.setType(NotificationRuleType.EMAIL);
     notificationRule.setResourceId(resourceId);
     return notificationRule;
+  }
+
+  // -- TENANT ISOLATION TESTS --
+
+  @Nested
+  @DisplayName("Tenant Isolation")
+  @WithMockUser
+  class TenantIsolation {
+
+    private String createScenarioInTenant(String tenantId) throws Exception {
+      io.openaev.rest.scenario.form.ScenarioInput scenarioInput =
+          new io.openaev.rest.scenario.form.ScenarioInput();
+      scenarioInput.setName("Notification Test Scenario");
+
+      String response =
+          mvc.perform(
+                  post("/api/tenants/" + tenantId + "/scenarios")
+                      .content(asJsonString(scenarioInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      return JsonPath.read(response, "$.scenario_id");
+    }
+
+    private String createNotificationRuleInTenant(String tenantId, String scenarioId)
+        throws Exception {
+      CreateNotificationRuleInput input =
+          CreateNotificationRuleInput.builder()
+              .trigger("DIFFERENCE")
+              .type("EMAIL")
+              .resourceType("SCENARIO")
+              .resourceId(scenarioId)
+              .subject("isolation-test-subject")
+              .build();
+
+      String response =
+          mvc.perform(
+                  post("/api/tenants/" + tenantId + "/notification-rules")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      return JsonPath.read(response, "$.notification_rule_id");
+    }
+
+    @Test
+    @DisplayName("NotificationRule created in tenant X should NOT be readable from tenant Y")
+    void given_notificationRuleInTenantX_should_notBeReadableFromTenantY() throws Exception {
+      // Arrange
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_ASSESSMENT));
+
+      String scenarioId = createScenarioInTenant(tenantX.getId());
+      String ruleId = createNotificationRuleInTenant(tenantX.getId(), scenarioId);
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act — read from tenant Y
+      String response =
+          mvc.perform(
+                  get("/api/tenants/" + tenantY.getId() + "/notification-rules/" + ruleId)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert — should return null/empty (findById returns null when not found)
+      assertEquals("", response);
+    }
+
+    @Test
+    @DisplayName("NotificationRule created in tenant X should be readable from tenant X")
+    void given_notificationRuleInTenantX_should_beReadableFromTenantX() throws Exception {
+      // Arrange
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+
+      String scenarioId = createScenarioInTenant(tenantX.getId());
+      String ruleId = createNotificationRuleInTenant(tenantX.getId(), scenarioId);
+
+      // Act & Assert — read from same tenant should succeed
+      String response =
+          mvc.perform(
+                  get("/api/tenants/" + tenantX.getId() + "/notification-rules/" + ruleId)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      assertEquals(
+          "isolation-test-subject", JsonPath.read(response, "$.notification_rule_subject"));
+    }
+
+    @Test
+    @DisplayName("NotificationRule created in tenant X should NOT be updatable from tenant Y")
+    void given_notificationRuleInTenantX_should_notBeUpdatableFromTenantY() throws Exception {
+      // Arrange
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+
+      String scenarioId = createScenarioInTenant(tenantX.getId());
+      String ruleId = createNotificationRuleInTenant(tenantX.getId(), scenarioId);
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act — update from tenant Y
+      UpdateNotificationRuleInput updateInput =
+          UpdateNotificationRuleInput.builder().subject("hijacked").build();
+
+      int responseStatus =
+          mvc.perform(
+                  put("/api/tenants/" + tenantY.getId() + "/notification-rules/" + ruleId)
+                      .content(asJsonString(updateInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // Assert
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
+    }
+
+    @Test
+    @DisplayName("NotificationRule created in tenant X should NOT be deletable from tenant Y")
+    void given_notificationRuleInTenantX_should_notBeDeletableFromTenantY() throws Exception {
+      // Arrange
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+
+      String scenarioId = createScenarioInTenant(tenantX.getId());
+      String ruleId = createNotificationRuleInTenant(tenantX.getId(), scenarioId);
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act — delete from tenant Y
+      int responseStatus =
+          mvc.perform(
+                  delete("/api/tenants/" + tenantY.getId() + "/notification-rules/" + ruleId)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // Assert
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
+    }
   }
 }
