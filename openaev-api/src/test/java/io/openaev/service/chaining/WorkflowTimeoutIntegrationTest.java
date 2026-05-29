@@ -312,6 +312,97 @@ class WorkflowTimeoutIntegrationTest extends IntegrationTest {
   }
 
   // ========================================================================
+  // End-to-end timeout flow (detect → force-complete)
+  // ========================================================================
+  @Nested
+  @DisplayName("end-to-end timeout flow")
+  class EndToEndTimeoutFlowTests {
+
+    @Test
+    @DisplayName(
+        "given_expiredRunWorkflowWithActiveStepsAndDelayQueue_should_detectAndForceCompleteEverything")
+    void
+        given_expiredRunWorkflowWithActiveStepsAndDelayQueue_should_detectAndForceCompleteEverything() {
+      // Arrange — workflow created 2 hours ago with a 60s timeout → already expired
+      Workflow workflowRun =
+          createPersistedRunWorkflowWithTimeout(
+              true, 60L, Instant.now().minus(2, ChronoUnit.HOURS));
+
+      // Add active steps and a delay queue entry
+      Step stepReady = createPersistedStep(workflowRun, StepStatus.READY);
+      Step stepRun = createPersistedStep(workflowRun, StepStatus.RUN);
+      Step stepAlreadyEnded = createPersistedStep(workflowRun, StepStatus.END);
+      Step stepTemplate = createPersistedStep(workflowRun, StepStatus.TEMPLATE);
+
+      StepDelayQueue delayEntry =
+          StepDelayQueue.builder()
+              .workflowRun(workflowRun)
+              .stepTemplate(stepTemplate)
+              .input("{}")
+              .now(Instant.now())
+              .goal(Instant.now().plus(1, ChronoUnit.HOURS))
+              .delay(3600000L)
+              .build();
+      stepDelayQueueRepository.save(delayEntry);
+
+      // Precondition: workflow is detected as expired
+      List<Workflow> expired = workflowTimeoutService.findAllExpiredRunWorkflows();
+      assertTrue(
+          expired.stream().anyMatch(w -> w.getId().equals(workflowRun.getId())),
+          "Workflow must be detected as expired");
+
+      // Act — simulate what the timeout scheduled job does
+      workflowTimeoutService.forceCompleteWorkflow(workflowRun);
+
+      // Assert — workflow status is END
+      Workflow result = workflowRepository.findById(workflowRun.getId()).orElseThrow();
+      assertEquals(WorkflowStatus.END, result.getStatus());
+
+      // Assert — all active steps are END
+      assertEquals(
+          StepStatus.END, stepRepository.findById(stepReady.getId()).orElseThrow().getStatus());
+      assertEquals(
+          StepStatus.END, stepRepository.findById(stepRun.getId()).orElseThrow().getStatus());
+      assertEquals(
+          StepStatus.END,
+          stepRepository.findById(stepAlreadyEnded.getId()).orElseThrow().getStatus());
+
+      // Assert — delay queue is purged
+      assertTrue(stepDelayQueueRepository.findAllByWorkflowRun(workflowRun).isEmpty());
+
+      // Assert — workflow is no longer detected as expired (status is now END, not RUN)
+      List<Workflow> expiredAfter = workflowTimeoutService.findAllExpiredRunWorkflows();
+      assertTrue(
+          expiredAfter.stream().noneMatch(w -> w.getId().equals(workflowRun.getId())),
+          "Force-completed workflow must no longer appear in expired list");
+    }
+
+    @Test
+    @DisplayName("given_nonExpiredWorkflow_should_notBeDetectedOrTerminated")
+    void given_nonExpiredWorkflow_should_notBeDetectedOrTerminated() {
+      // Arrange — workflow just created with a long timeout → not expired
+      Workflow workflowRun = createPersistedRunWorkflowWithTimeout(true, 7200L, Instant.now());
+
+      Step stepRun = createPersistedStep(workflowRun, StepStatus.RUN);
+
+      // Act
+      List<Workflow> expired = workflowTimeoutService.findAllExpiredRunWorkflows();
+
+      // Assert — not detected
+      assertTrue(
+          expired.stream().noneMatch(w -> w.getId().equals(workflowRun.getId())),
+          "Non-expired workflow must not appear in expired list");
+
+      // Assert — step and workflow untouched
+      assertEquals(
+          WorkflowStatus.RUN,
+          workflowRepository.findById(workflowRun.getId()).orElseThrow().getStatus());
+      assertEquals(
+          StepStatus.RUN, stepRepository.findById(stepRun.getId()).orElseThrow().getStatus());
+    }
+  }
+
+  // ========================================================================
   // Helpers
   // ========================================================================
 
