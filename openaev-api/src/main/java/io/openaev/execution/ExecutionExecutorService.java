@@ -105,7 +105,8 @@ public class ExecutionExecutorService {
             serviceAccountPrivilegeService.getTokenUserServiceAccountByTenant(
                 inject.getTenant().getId());
         List<Agent> agentsProcessed =
-            executorContextService.launchBatchExecutorSubprocess(inject, agents, injectStatus, token);
+            executorContextService.launchBatchExecutorSubprocess(
+                inject, agents, injectStatus, token);
         List<Agent> remainingAgents = new ArrayList<>(agents);
         remainingAgents.removeAll(agentsProcessed);
         // Also handle individual execution for executor context services whose batch

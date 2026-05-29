@@ -129,7 +129,11 @@ public class TaniumExecutorContextService extends ExecutorContextService {
   }
 
   private List<TaniumAction> getWindowsActions(
-      List<Agent> agents, Injector injector, Inject inject, Endpoint.PLATFORM_ARCH arch, String token) {
+      List<Agent> agents,
+      Injector injector,
+      Inject inject,
+      Endpoint.PLATFORM_ARCH arch,
+      String token) {
     List<TaniumAction> actions = new ArrayList<>();
     for (Agent agent : agents) {
       TaniumAction actionWindows = new TaniumAction();
@@ -181,7 +185,8 @@ public class TaniumExecutorContextService extends ExecutorContextService {
       String executorCommandKey = platform.name() + "." + arch.name();
       String command = injector.getExecutorCommands().get(executorCommandKey);
       command =
-          replaceArgs(platform, command, inject.getId(), agent.getId(), inject.getTenant().getId(), token);
+          replaceArgs(
+              platform, command, inject.getId(), agent.getId(), inject.getTenant().getId(), token);
       command =
           command.replaceFirst(
               "\\$?x=.+location=.+;filename=", Matcher.quoteReplacement(implantLocation));

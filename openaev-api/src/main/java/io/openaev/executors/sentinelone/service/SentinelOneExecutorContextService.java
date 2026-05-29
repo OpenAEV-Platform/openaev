@@ -165,7 +165,12 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
       command = WINDOWS_EXTERNAL_REFERENCE + command;
       command =
           replaceArgs(
-              platform, command, inject.getId(), AGENT_ID_VARIABLE, inject.getTenant().getId(), token);
+              platform,
+              command,
+              inject.getId(),
+              AGENT_ID_VARIABLE,
+              inject.getTenant().getId(),
+              token);
       command =
           command.replaceFirst(
               "\\$?x=.+location=.+;\\[Environment]::CurrentDirectory",
@@ -186,7 +191,12 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
       actionLinux.setScriptId(this.config.getUnixScriptId());
       actionLinux.setCommandEncoded(
           getUnixCommand(
-              Endpoint.PLATFORM_TYPE.Linux, injector, inject, LINUX_EXTERNAL_REFERENCE, arch, token));
+              Endpoint.PLATFORM_TYPE.Linux,
+              injector,
+              inject,
+              LINUX_EXTERNAL_REFERENCE,
+              arch,
+              token));
       actionLinux.setAgents(agents);
       actions.add(actionLinux);
     }
@@ -232,7 +242,12 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
     command = externalReferenceVariable + command;
     command =
         replaceArgs(
-            platform, command, inject.getId(), AGENT_ID_VARIABLE, inject.getTenant().getId(), token);
+            platform,
+            command,
+            inject.getId(),
+            AGENT_ID_VARIABLE,
+            inject.getTenant().getId(),
+            token);
     command =
         command.replaceFirst(
             "\\$?x=.+location=.+;filename=", Matcher.quoteReplacement(implantLocation));

@@ -18,8 +18,8 @@ public abstract class ExecutorContextService {
    * @param agent concerned by the attack
    * @throws AgentException if problem
    */
-  public abstract void launchExecutorSubprocess(Inject inject, Endpoint assetEndpoint, Agent agent, String token)
-      throws AgentException;
+  public abstract void launchExecutorSubprocess(
+      Inject inject, Endpoint assetEndpoint, Agent agent, String token) throws AgentException;
 
   /**
    * To use when possible for better performance, launch one attack for X agents, used by

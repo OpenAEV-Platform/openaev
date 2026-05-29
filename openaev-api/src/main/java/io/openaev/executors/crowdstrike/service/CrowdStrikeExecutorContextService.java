@@ -87,10 +87,12 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
             getAgentsFromOS(csAgents, Endpoint.PLATFORM_TYPE.Windows), injector, inject, token));
     // Set implant script for Linux CS agents
     actions.addAll(
-        getLinuxActions(getAgentsFromOS(csAgents, Endpoint.PLATFORM_TYPE.Linux), injector, inject, token));
+        getLinuxActions(
+            getAgentsFromOS(csAgents, Endpoint.PLATFORM_TYPE.Linux), injector, inject, token));
     // Set implant script for MacOS CS agents
     actions.addAll(
-        getMacOSActions(getAgentsFromOS(csAgents, Endpoint.PLATFORM_TYPE.MacOS), injector, inject, token));
+        getMacOSActions(
+            getAgentsFromOS(csAgents, Endpoint.PLATFORM_TYPE.MacOS), injector, inject, token));
     // Launch payloads with CS API
     executeActions(actions);
     return csAgents;
@@ -151,7 +153,12 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
                       + "`"); // Specific for Windows to escape the ? right after in the URL
       command =
           replaceArgs(
-              platform, command, inject.getId(), AGENT_ID_VARIABLE, inject.getTenant().getId(), token);
+              platform,
+              command,
+              inject.getId(),
+              AGENT_ID_VARIABLE,
+              inject.getTenant().getId(),
+              token);
       command =
           command.replaceFirst(
               "\\$?x=.+location=.+;\\[Environment]::CurrentDirectory",
@@ -171,7 +178,8 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
       CrowdStrikeAction actionLinux = new CrowdStrikeAction();
       actionLinux.setScriptName(this.crowdStrikeExecutorConfig.getUnixScriptName());
       actionLinux.setCommandEncoded(
-          getUnixCommand(Endpoint.PLATFORM_TYPE.Linux, injector, inject, LINUX_EXTERNAL_REFERENCE, token));
+          getUnixCommand(
+              Endpoint.PLATFORM_TYPE.Linux, injector, inject, LINUX_EXTERNAL_REFERENCE, token));
       actionLinux.setAgents(agents);
       actions.add(actionLinux);
     }
@@ -185,7 +193,8 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
       CrowdStrikeAction actionMac = new CrowdStrikeAction();
       actionMac.setScriptName(this.crowdStrikeExecutorConfig.getUnixScriptName());
       actionMac.setCommandEncoded(
-          getUnixCommand(Endpoint.PLATFORM_TYPE.MacOS, injector, inject, MAC_EXTERNAL_REFERENCE, token));
+          getUnixCommand(
+              Endpoint.PLATFORM_TYPE.MacOS, injector, inject, MAC_EXTERNAL_REFERENCE, token));
       actionMac.setAgents(agents);
       actions.add(actionMac);
     }
@@ -197,8 +206,7 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
       Injector injector,
       Inject inject,
       String externalReferenceVariable,
-      String token
-      ) {
+      String token) {
     String implantLocation =
         "location="
             + ExecutorHelper.IMPLANT_LOCATION_UNIX
@@ -221,7 +229,12 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
             + command.replace(Endpoint.PLATFORM_ARCH.x86_64.name(), ARCH_VARIABLE);
     command =
         replaceArgs(
-            platform, command, inject.getId(), AGENT_ID_VARIABLE, inject.getTenant().getId(), token);
+            platform,
+            command,
+            inject.getId(),
+            AGENT_ID_VARIABLE,
+            inject.getTenant().getId(),
+            token);
     command =
         command.replaceFirst(
             "\\$?x=.+location=.+;filename=", Matcher.quoteReplacement(implantLocation));

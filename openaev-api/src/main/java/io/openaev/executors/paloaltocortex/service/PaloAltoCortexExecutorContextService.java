@@ -83,19 +83,22 @@ public class PaloAltoCortexExecutorContextService extends ExecutorContextService
         getWindowsActions(
             getAgentsFromOS(paloAltoCortexAgents, Endpoint.PLATFORM_TYPE.Windows),
             injector,
-            inject, token));
+            inject,
+            token));
     actions.addAll(
         getUnixActions(
             getAgentsFromOS(paloAltoCortexAgents, Endpoint.PLATFORM_TYPE.Linux),
             injector,
             inject,
-            Endpoint.PLATFORM_TYPE.Linux, token));
+            Endpoint.PLATFORM_TYPE.Linux,
+            token));
     actions.addAll(
         getUnixActions(
             getAgentsFromOS(paloAltoCortexAgents, Endpoint.PLATFORM_TYPE.MacOS),
             injector,
             inject,
-            Endpoint.PLATFORM_TYPE.MacOS, token));
+            Endpoint.PLATFORM_TYPE.MacOS,
+            token));
     // Launch payloads with Palo Alto Cortex API
     executeActions(actions);
     return paloAltoCortexAgents;
@@ -184,7 +187,11 @@ public class PaloAltoCortexExecutorContextService extends ExecutorContextService
   }
 
   private List<PaloAltoCortexAction> getUnixActions(
-      List<Agent> agents, Injector injector, Inject inject, Endpoint.PLATFORM_TYPE platform, String token) {
+      List<Agent> agents,
+      Injector injector,
+      Inject inject,
+      Endpoint.PLATFORM_TYPE platform,
+      String token) {
     List<PaloAltoCortexAction> actions = new ArrayList<>();
     for (Agent agent : agents) {
       PaloAltoCortexAction actionUnix = new PaloAltoCortexAction();
@@ -205,7 +212,8 @@ public class PaloAltoCortexExecutorContextService extends ExecutorContextService
       // architecture before downloading the implant and we replace the default x86_64 put before
       command = UNIX_ARCH + command.replace(Endpoint.PLATFORM_ARCH.x86_64.name(), ARCH_VARIABLE);
       command =
-          replaceArgs(platform, command, inject.getId(), agent.getId(), inject.getTenant().getId(), token);
+          replaceArgs(
+              platform, command, inject.getId(), agent.getId(), inject.getTenant().getId(), token);
       command =
           command.replaceFirst(
               "\\$?x=.+location=.+;filename=", Matcher.quoteReplacement(implantLocation));
