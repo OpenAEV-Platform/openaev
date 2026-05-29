@@ -7,7 +7,10 @@ import io.openaev.database.model.EventStatus;
 import io.openaev.database.model.EventType;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.log.form.LogDetailsInput;
+import java.util.Arrays;
+import java.util.Set;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 
 /**
@@ -24,6 +27,11 @@ public class LogUtils {
   private static final String EVENT_PROVIDER_SSO = "sso";
   private static final String EVENT_ACCESS_ADMINISTRATION = "administration";
   private static final String EVENT_ACCESS_EXTENDED = "extended";
+
+  private static final Set<String> ADMIN_RESOURCE_TYPES =
+      Arrays.stream(AdministrationResourceType.values())
+          .map(Enum::name)
+          .collect(Collectors.toUnmodifiableSet());
 
   private LogUtils() {}
 
@@ -164,13 +172,12 @@ public class LogUtils {
   }
 
   public static String getEventAccess(ResourceType resourceType) {
-    // TODO: optimize this method without try and catch
-    try {
-      AdministrationResourceType.valueOf(resourceType.name());
-      return EVENT_ACCESS_ADMINISTRATION;
-    } catch (IllegalArgumentException e) {
+    if (resourceType == null) {
       return EVENT_ACCESS_EXTENDED;
     }
+    return ADMIN_RESOURCE_TYPES.contains(resourceType.name())
+        ? EVENT_ACCESS_ADMINISTRATION
+        : EVENT_ACCESS_EXTENDED;
   }
 
   public static String getAuthEventProviderLocal() {
