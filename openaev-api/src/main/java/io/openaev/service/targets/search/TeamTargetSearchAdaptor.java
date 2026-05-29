@@ -98,7 +98,7 @@ public class TeamTargetSearchAdaptor extends SearchAdaptorBase {
 
   @Override
   public List<FilterUtilsJpa.Option> getOptionsByIds(List<String> ids) {
-    return teamService.getTeams(ids).stream()
+    return teamService.findByIds(ids).stream()
         .map(team -> new FilterUtilsJpa.Option(team.getId(), team.getName()))
         .toList();
   }

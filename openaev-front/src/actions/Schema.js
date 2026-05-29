@@ -483,7 +483,7 @@ export const storeHelper = state => ({
   getScenarios: () => entities('scenarios', state),
   getScenariosMap: () => maps('scenarios', state),
   getScenario: id => entity(id, 'scenarios', state),
-  getScenarioTeams: id => entities('teams', state).filter(i => i.get('team_scenarios').includes(id)),
+  // getScenarioTeams: id => entities('teams', state).filter(i => i.get('team_scenarios').includes(id)),
   getScenarioVariables: id => entities('variables', state).filter(i => i.get('variable_scenario') === id),
   getScenarioArticles: id => entities('articles', state).filter(i => i.get('article_scenario') === id),
   getScenarioChallenges: id => entities('challenges', state).filter(c => c.get('challenge_scenarios').includes(id)),

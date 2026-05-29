@@ -1,14 +1,19 @@
-import { CheckCircleOutlined, GroupsOutlined } from '@mui/icons-material';
+import { CheckCircleOutlined, GroupsOutlined, HelpOutlineOutlined } from '@mui/icons-material';
 import { Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, type FunctionComponent, useContext, useState } from 'react';
-import { useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
+import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
+import { initSorting } from '../../../../components/common/queryable/Page';
+import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
+import SortHeadersComponentV2 from '../../../../components/common/queryable/sort/SortHeadersComponentV2';
+import { useQueryable } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
+import PaginatedListLoader from '../../../../components/PaginatedListLoader';
+import { type Header } from '../../../../components/common/SortHeadersList';
 import ItemTags from '../../../../components/ItemTags';
-import { type Team } from '../../../../utils/api-types';
+import { type TeamOutput } from '../../../../utils/api-types';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import useSearchAndFilter from '../../../../utils/SortingFiltering';
 import { PermissionsContext, TeamContext } from '../../common/Context';
 import TeamPlayers from './TeamPlayers';
 import TeamPopover from './TeamPopover';
@@ -37,45 +42,6 @@ const useStyles = makeStyles()(() => ({
     padding: 0,
   },
 }));
-
-const headerStylesContextual: Record<string, CSSProperties> = {
-  iconSort: {
-    position: 'absolute',
-    margin: '0 0 0 5px',
-    padding: 0,
-    top: '0px',
-  },
-  team_name: {
-    float: 'left',
-    width: '35%',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  team_users_number: {
-    float: 'left',
-    width: '10%',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  team_users_enabled_number: {
-    float: 'left',
-    width: '10%',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  team_tags: {
-    float: 'left',
-    width: '29%',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  team_contextual: {
-    float: 'left',
-    width: '8%',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-};
 
 const inlineStylesContextual: Record<string, CSSProperties> = {
   team_name: {
@@ -120,45 +86,45 @@ const inlineStylesContextual: Record<string, CSSProperties> = {
   },
 };
 
-interface Props { teams: Team[] }
-
-interface TeamStoreExtended extends Team { team_users_enabled_number: number }
-
-const ContextualTeams: FunctionComponent<Props> = ({ teams }) => {
+const ContextualTeams: FunctionComponent<{ reloadContentCount?: number }> = ({ reloadContentCount = 0 }) => {
   // Standard hooks
   const { classes } = useStyles();
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
-  const { computeTeamUsersEnabled } = useContext(TeamContext);
+  const { computeTeamUsersEnabled, searchTeams } = useContext(TeamContext);
   const { permissions } = useContext(PermissionsContext);
   const ability = useContext(AbilityContext);
 
-  // Query param
-  const [searchParams] = useSearchParams();
-  const [search] = searchParams.getAll('search');
-  const [searchId] = searchParams.getAll('id');
+  const [teams, setTeams] = useState<TeamOutput[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [localReloadCount, setLocalReloadCount] = useState(0);
 
-  // Filter and sort hook
-  const filtering = useSearchAndFilter(
-    'team',
-    'name',
-    [
-      'name',
-      'description',
-    ],
-    { defaultKeyword: search },
-  );
-  const sortedTeams = filtering.filterAndSort(teams.map((team) => {
-    if (computeTeamUsersEnabled) {
-      return ({
-        team_users_enabled_number: computeTeamUsersEnabled(team.team_id),
-        ...team,
-      });
-    }
-    return team;
+  // Pagination
+  const { queryableHelpers, searchPaginationInput } = useQueryable(buildSearchPagination({
+    sorts: initSorting('team_name'),
   }));
+
+  // Headers
+  const headers: Header[] = [
+    { field: 'team_name', label: 'Name', isSortable: true },
+    { field: 'team_users_number', label: 'Players', isSortable: false },
+    ...(computeTeamUsersEnabled ? [{ field: 'team_users_enabled_number', label: 'Enabled', isSortable: false }] : []),
+    { field: 'team_tags', label: 'Tags', isSortable: false },
+    { field: 'team_contextual', label: 'Contextual', isSortable: false },
+  ];
+
   return (
     <>
       <div className="clearfix" />
+      <PaginationComponentV2
+        fetch={input => searchTeams(input, true)}
+        searchPaginationInput={searchPaginationInput}
+        setContent={setTeams}
+        setLoading={setLoading}
+        entityPrefix="team"
+        availableFilterNames={[]}
+        queryableHelpers={queryableHelpers}
+        reloadContentCount={reloadContentCount + localReloadCount}
+      />
       <List>
         <ListItem
           classes={{ root: classes.itemHead }}
@@ -167,117 +133,70 @@ const ContextualTeams: FunctionComponent<Props> = ({ teams }) => {
           secondaryAction={<></>}
         >
           <ListItemIcon>
-            <span
-              style={{
-                padding: '0 8px 0 10px',
-                fontWeight: 700,
-                fontSize: 12,
-              }}
-            >
-              #
-            </span>
+            <span style={{ padding: '0 8px 0 10px', fontWeight: 700, fontSize: 12 }}>#</span>
           </ListItemIcon>
           <ListItemText
             primary={(
-              <>
-                {filtering.buildHeader(
-                  'team_name',
-                  'Name',
-                  true,
-                  headerStylesContextual,
-                )}
-                {filtering.buildHeader(
-                  'team_users_number',
-                  'Players',
-                  true,
-                  headerStylesContextual,
-                )}
-                {computeTeamUsersEnabled && filtering.buildHeader(
-                  'team_users_enabled_number',
-                  'Enabled',
-                  true,
-                  headerStylesContextual,
-                )}
-                {filtering.buildHeader(
-                  'team_tags',
-                  'Tags',
-                  true,
-                  headerStylesContextual,
-                )}
-                {filtering.buildHeader(
-                  'team_contextual',
-                  'Contextual',
-                  true,
-                  headerStylesContextual,
-                )}
-              </>
+              <SortHeadersComponentV2
+                headers={headers}
+                inlineStylesHeaders={inlineStylesContextual}
+                sortHelpers={queryableHelpers.sortHelpers}
+              />
             )}
           />
         </ListItem>
-        {sortedTeams.map((team: TeamStoreExtended) => (
-          <ListItem
-            key={team.team_id}
-            disablePadding
-            secondaryAction={(
-              permissions.canManage
-              && (
-                <TeamPopover
-                  team={team}
-                  managePlayers={() => setSelectedTeam(team.team_id)}
-                  openEditOnInit={team.team_id === searchId}
-                />
-              )
-            )}
-          >
-            <ListItemButton
-              classes={{ root: classes.item }}
-              divider
-              onClick={() => setSelectedTeam(team.team_id)}
-            >
-              <ListItemIcon>
-                <GroupsOutlined color="primary" />
-              </ListItemIcon>
-              <ListItemText
-                primary={(
-                  <>
-                    <div
-                      className={classes.bodyItem}
-                      style={inlineStylesContextual.team_name}
-                    >
-                      {team.team_name}
-                    </div>
-                    <div
-                      className={classes.bodyItem}
-                      style={inlineStylesContextual.team_users_number}
-                    >
-                      {team.team_users_number}
-                    </div>
-                    {computeTeamUsersEnabled && (
-                      <div
-                        className={classes.bodyItem}
-                        style={inlineStylesContextual.team_users_enabled_number}
-                      >
-                        {team.team_users_enabled_number}
-                      </div>
+        {loading
+          ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStylesContextual} />
+          : teams.map((team: TeamOutput) => (
+              <ListItem
+                key={team.team_id}
+                disablePadding
+                secondaryAction={
+                  permissions.canManage && (
+                    <TeamPopover
+                      team={team}
+                      managePlayers={() => setSelectedTeam(team.team_id)}
+                      onUpdate={() => setLocalReloadCount(c => c + 1)}
+                      onDelete={() => setLocalReloadCount(c => c + 1)}
+                      onTeamRemoved={() => setLocalReloadCount(c => c + 1)}
+                    />
+                  )
+                }
+              >
+                <ListItemButton
+                  classes={{ root: classes.item }}
+                  divider
+                  onClick={() => setSelectedTeam(team.team_id)}
+                >
+                  <ListItemIcon>
+                    <GroupsOutlined color="primary" />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={(
+                      <>
+                        <div className={classes.bodyItem} style={inlineStylesContextual.team_name}>
+                          {team.team_name}
+                        </div>
+                        <div className={classes.bodyItem} style={inlineStylesContextual.team_users_number}>
+                          {team.team_users_number}
+                        </div>
+                        {computeTeamUsersEnabled && (
+                          <div className={classes.bodyItem} style={inlineStylesContextual.team_users_enabled_number}>
+                            {computeTeamUsersEnabled(team.team_id)}
+                          </div>
+                        )}
+                        <div className={classes.bodyItem} style={inlineStylesContextual.team_tags}>
+                          <ItemTags variant="reduced-view" tags={team.team_tags} />
+                        </div>
+                        <div className={classes.bodyItem} style={inlineStylesContextual.team_contextual}>
+                          {team.team_contextual ? <CheckCircleOutlined fontSize="small" /> : '-'}
+                        </div>
+                      </>
                     )}
-                    <div
-                      className={classes.bodyItem}
-                      style={inlineStylesContextual.team_tags}
-                    >
-                      <ItemTags variant="reduced-view" tags={team.team_tags} />
-                    </div>
-                    <div
-                      className={classes.bodyItem}
-                      style={inlineStylesContextual.team_contextual}
-                    >
-                      {team.team_contextual ? <CheckCircleOutlined fontSize="small" /> : '-'}
-                    </div>
-                  </>
-                )}
-              />
-            </ListItemButton>
-          </ListItem>
-        ))}
+                  />
+                </ListItemButton>
+              </ListItem>
+            ))}
       </List>
       <Drawer
         open={selectedTeam !== null}
@@ -285,13 +204,19 @@ const ContextualTeams: FunctionComponent<Props> = ({ teams }) => {
         anchor="right"
         sx={{ zIndex: 1202 }}
         classes={{ paper: classes.drawerPaper }}
-        onClose={() => setSelectedTeam(null)}
+        onClose={() => {
+          setSelectedTeam(null);
+          setLocalReloadCount(c => c + 1);
+        }}
         elevation={1}
       >
         {selectedTeam !== null && (
           <TeamPlayers
             teamId={selectedTeam}
-            handleClose={() => setSelectedTeam(null)}
+            handleClose={() => {
+              setSelectedTeam(null);
+              setLocalReloadCount(c => c + 1);
+            }}
             canManage={permissions.canManage && ability.can(ACTIONS.MANAGE, SUBJECTS.TEAMS_AND_PLAYERS)}
           />
         )}

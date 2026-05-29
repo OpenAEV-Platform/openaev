@@ -1,33 +1,25 @@
 package io.openaev.service;
 
-import static io.openaev.database.criteria.GenericCriteria.countQuery;
-import static io.openaev.rest.team.TeamQueryHelper.execution;
-import static io.openaev.rest.team.TeamQueryHelper.select;
-import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
-import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilder;
-
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.Team;
 import io.openaev.database.model.User;
-import io.openaev.database.raw.RawTeamIndexing;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.utils.CopyObjectListUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.Tuple;
-import jakarta.persistence.TypedQuery;
-import jakarta.persistence.criteria.*;
+import jakarta.persistence.Query;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import java.util.Comparator;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.apache.commons.lang3.function.TriFunction;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -35,22 +27,6 @@ public class TeamService {
 
   private final EntityManager entityManager;
   private final TeamRepository teamRepository;
-
-  /**
-   * Fetch teams corresponding to given IDs
-   *
-   * @param teamIds list of team IDs to fetch
-   * @return the found teams as TeamOutput
-   */
-  public List<TeamOutput> getTeams(@NotNull List<String> teamIds) {
-    List<RawTeamIndexing> rawTeams =
-        teamRepository.rawTeamByIds(teamIds).stream()
-            .sorted(Comparator.comparing(RawTeamIndexing::getTeam_name))
-            .toList();
-    return rawTeams.stream()
-        .map(rt -> TeamOutput.builder().id(rt.getTeam_id()).name(rt.getTeam_name()).build())
-        .toList();
-  }
 
   /**
    * Duplicate a contextual team
@@ -69,142 +45,399 @@ public class TeamService {
     return newTeam;
   }
 
-  /**
-   * Fetch a list of teams with a paginated result
-   *
-   * @param searchPaginationInput pagination criteria
-   * @param teamSpecification team search criteria
-   * @return list of found teams
-   */
-  public Page<TeamOutput> teamPagination(
-      @NotNull SearchPaginationInput searchPaginationInput,
-      @NotNull final Specification<Team> teamSpecification) {
-    TriFunction<Specification<Team>, Specification<Team>, Pageable, Page<TeamOutput>> teamsFunction;
-
-    teamsFunction =
-        (Specification<Team> specification,
-            Specification<Team> specificationCount,
-            Pageable pageable) ->
-            this.paginate(
-                teamSpecification.and(specification),
-                teamSpecification.and(specificationCount),
-                pageable);
-
-    return buildPaginationCriteriaBuilder(teamsFunction, searchPaginationInput, Team.class);
-  }
+  // -- LIST --
 
   /**
-   * Generate the page result for a pagination search
+   * Paginated team list using native SQL.
    *
-   * @param specification criteria for the team search with pagination
-   * @param specificationCount criteria for the count of the whole corresponding search, without
-   *     pagination
-   * @param pageable JPA pageable criteria
-   * @return page of matching teams plus total count of corresponding teams
+   * <p>Returns only scalar fields plus a user COUNT. Use this for search/list endpoints where the
+   * UI only needs to display the team name and user count.
+   *
+   * @param input pagination and optional text search
+   * @param contextual when non-null, filters by the team_contextual flag
+   * @return paginated list of lightweight team projections
    */
-  private Page<TeamOutput> paginate(
-      Specification<Team> specification,
-      Specification<Team> specificationCount,
-      Pageable pageable) {
-    CriteriaBuilder cb = this.entityManager.getCriteriaBuilder();
+  @Transactional(readOnly = true)
+  public Page<TeamOutput> teamPaginationSimple(
+      @NotNull SearchPaginationInput input, Boolean contextual) {
+    String tenantId = TenantContext.getCurrentTenant();
+    String tenantClause = tenantId != null ? "AND t.tenant_id = :tenantId " : "";
+    boolean hasSearch = StringUtils.isNotBlank(input.getTextSearch());
+    String search = hasSearch ? "%" + input.getTextSearch() + "%" : null;
+    int pageSize = input.getSize();
+    long offset = (long) input.getPage() * pageSize;
+    String contextualClause =
+        contextual != null ? "AND t.team_contextual = :contextual " : "";
 
-    CriteriaQuery<Tuple> cq = cb.createTupleQuery();
-    Root<Team> teamRoot = cq.from(Team.class);
-    select(cb, cq, teamRoot);
+    String dataSQL =
+        """
+        SELECT t.team_id, t.team_name, t.team_description, t.team_contextual,
+               t.team_updated_at,
+               COUNT(DISTINCT tu.user_id)                                          AS team_users_number,
+               array_agg(DISTINCT tt.tag_id) FILTER (WHERE tt.tag_id IS NOT NULL)  AS team_tags
+        FROM teams t
+        LEFT JOIN users_teams tu ON tu.team_id = t.team_id
+        LEFT JOIN teams_tags  tt ON tt.team_id = t.team_id
+        WHERE 1=1
+        """
+            + tenantClause
+            + contextualClause
+            + """
+              AND (:hasSearch = false OR t.team_name ILIKE :search)
+            GROUP BY t.team_id
+            ORDER BY t.team_name ASC
+            LIMIT :pageSize OFFSET :offset
+            """;
 
-    // -- Specification --
-    if (specification != null) {
-      Predicate predicate = specification.toPredicate(teamRoot, cq, cb);
-      if (predicate != null) {
-        cq.where(predicate);
-      }
+    String countSQL =
+        """
+        SELECT COUNT(DISTINCT t.team_id)
+        FROM teams t
+        WHERE 1=1
+        """
+            + tenantClause
+            + contextualClause
+            + """
+              AND (:hasSearch = false OR t.team_name ILIKE :search)
+            """;
+
+    Query dataQuery = entityManager.createNativeQuery(dataSQL);
+    Query countQuery = entityManager.createNativeQuery(countSQL);
+    for (Query q : List.of(dataQuery, countQuery)) {
+      if (tenantId != null) q.setParameter("tenantId", tenantId);
+      if (contextual != null) q.setParameter("contextual", contextual);
+      q.setParameter("hasSearch", hasSearch);
+      q.setParameter("search", search);
     }
+    dataQuery.setParameter("pageSize", pageSize);
+    dataQuery.setParameter("offset", offset);
 
-    // -- Sorting --
-    List<Order> orders = toSortCriteriaBuilder(cb, teamRoot, pageable.getSort());
-    cq.orderBy(orders);
-
-    // Type Query
-    TypedQuery<Tuple> query = entityManager.createQuery(cq);
-
-    // -- Pagination --
-    query.setFirstResult((int) pageable.getOffset());
-    query.setMaxResults(pageable.getPageSize());
-
-    // -- EXECUTION --
-    List<TeamOutput> teams = execution(query);
-
-    // -- Count Query (skip on subsequent pages if result page is full) --
-    long total;
-    if (teams.size() < pageable.getPageSize()) {
-      // Last page or only page: exact total = offset + actual results
-      total = pageable.getOffset() + teams.size();
-    } else if (pageable.getPageNumber() == 0) {
-      // First full page: compute exact count (frontend will cache it)
-      total = countQuery(cb, this.entityManager, Team.class, specificationCount);
-    } else {
-      // Subsequent full pages: use a fast estimated count to avoid expensive COUNT(*)
-      total = estimateCount();
-    }
-
-    return new PageImpl<>(teams, pageable, total);
+    @SuppressWarnings("unchecked")
+    List<TeamOutput> teams =
+        ((List<Object[]>) dataQuery.getResultList())
+            .stream().map(TeamOutput::fromRow).toList();
+    long total = ((Number) countQuery.getSingleResult()).longValue();
+    return new PageImpl<>(teams, PageRequest.of(input.getPage(), pageSize), total);
   }
 
   /**
-   * Get a fast estimated count of the teams table from PostgreSQL statistics. This avoids an
-   * expensive full COUNT(*) query on subsequent pages where the frontend already has the exact
-   * total from the first page request.
-   */
-  private long estimateCount() {
-    Number estimate =
-        (Number)
-            entityManager
-                .createNativeQuery("SELECT reltuples FROM pg_class WHERE relname = 'teams'")
-                .getSingleResult();
-    return Math.max(estimate.longValue(), 0);
-  }
-
-  /**
-   * Fetch a list of teams matching some criteria
+   * Fetch teams by their IDs using native SQL.
    *
-   * @param specification criteria to fetch matching teams
-   * @return teams found, as TeamOutput
+   * @param teamIds list of team IDs to fetch
+   * @return the found teams as TeamOutput
    */
-  public List<TeamOutput> find(Specification<Team> specification) {
-    CriteriaQuery<Tuple> cq = getTupleCriteriaQuery(specification);
-    TypedQuery<Tuple> query = entityManager.createQuery(cq);
-    return execution(query);
-  }
-
-  /**
-   * Generate a criteria builder from a specification
-   *
-   * @param specification criteria for team search
-   * @return the built criteria builder
-   */
-  private CriteriaQuery<Tuple> getTupleCriteriaQuery(Specification<Team> specification) {
-    CriteriaBuilder cb = this.entityManager.getCriteriaBuilder();
-
-    CriteriaQuery<Tuple> cq = cb.createTupleQuery();
-    Root<Team> teamRoot = cq.from(Team.class);
-    select(cb, cq, teamRoot);
-
-    if (specification != null) {
-      Predicate predicate = specification.toPredicate(teamRoot, cq, cb);
-      if (predicate != null) {
-        cq.where(predicate);
-      }
+  @Transactional(readOnly = true)
+  public List<TeamOutput> findByIds(@NotNull List<String> teamIds) {
+    if (teamIds.isEmpty()) {
+      return List.of();
     }
-    return cq;
+    String tenantId = TenantContext.getCurrentTenant();
+    String tenantClause = tenantId != null ? "AND t.tenant_id = :tenantId " : "";
+    String sql =
+        """
+        SELECT t.team_id, t.team_name, t.team_description, t.team_contextual,
+               t.team_updated_at,
+               COUNT(DISTINCT tu.user_id)                                          AS team_users_number,
+               array_agg(DISTINCT tt.tag_id) FILTER (WHERE tt.tag_id IS NOT NULL)  AS team_tags
+        FROM teams t
+        LEFT JOIN users_teams tu ON tu.team_id = t.team_id
+        LEFT JOIN teams_tags  tt ON tt.team_id = t.team_id
+        WHERE t.team_id IN (:ids)
+        """
+            + tenantClause
+            + """
+            GROUP BY t.team_id
+            ORDER BY t.team_name ASC
+            """;
+    Query q = entityManager.createNativeQuery(sql);
+    q.setParameter("ids", teamIds);
+    if (tenantId != null) q.setParameter("tenantId", tenantId);
+    @SuppressWarnings("unchecked")
+    List<TeamOutput> result =
+        ((List<Object[]>) q.getResultList()).stream().map(TeamOutput::fromRow).toList();
+    return result;
   }
 
   /**
-   * Fetch teams corresponding to given IDs
+   * Fetch all teams linked to a simulation using native SQL.
+   *
+   * @param exerciseId the simulation ID
+   * @return the teams of this simulation
+   */
+  @Transactional(readOnly = true)
+  public List<TeamOutput> findByExerciseId(@NotBlank String exerciseId) {
+    String tenantId = TenantContext.getCurrentTenant();
+    String tenantClause = tenantId != null ? "AND t.tenant_id = :tenantId " : "";
+    String sql =
+        """
+        SELECT t.team_id, t.team_name, t.team_description, t.team_contextual,
+               t.team_updated_at,
+               COUNT(DISTINCT tu.user_id)                                          AS team_users_number,
+               array_agg(DISTINCT tt.tag_id) FILTER (WHERE tt.tag_id IS NOT NULL)  AS team_tags
+        FROM teams t
+        INNER JOIN exercises_teams et ON et.team_id = t.team_id AND et.exercise_id = :exerciseId
+        LEFT  JOIN users_teams tu     ON tu.team_id = t.team_id
+        LEFT  JOIN teams_tags  tt     ON tt.team_id = t.team_id
+        WHERE 1=1
+        """
+            + tenantClause
+            + """
+            GROUP BY t.team_id
+            ORDER BY t.team_name ASC
+            """;
+    Query q = entityManager.createNativeQuery(sql);
+    q.setParameter("exerciseId", exerciseId);
+    if (tenantId != null) q.setParameter("tenantId", tenantId);
+    @SuppressWarnings("unchecked")
+    List<TeamOutput> result =
+        ((List<Object[]>) q.getResultList()).stream().map(TeamOutput::fromRow).toList();
+    return result;
+  }
+
+  /**
+   * Fetch all teams linked to a scenario using native SQL.
+   *
+   * @param scenarioId the scenario ID
+   * @return the teams of this scenario
+   */
+  @Transactional(readOnly = true)
+  public List<TeamOutput> findByScenarioId(@NotBlank String scenarioId) {
+    String tenantId = TenantContext.getCurrentTenant();
+    String tenantClause = tenantId != null ? "AND t.tenant_id = :tenantId " : "";
+    String sql =
+        """
+        SELECT t.team_id, t.team_name, t.team_description, t.team_contextual,
+               t.team_updated_at,
+               COUNT(DISTINCT tu.user_id)                                          AS team_users_number,
+               array_agg(DISTINCT tt.tag_id) FILTER (WHERE tt.tag_id IS NOT NULL)  AS team_tags
+        FROM teams t
+        INNER JOIN scenarios_teams st ON st.team_id = t.team_id AND st.scenario_id = :scenarioId
+        LEFT  JOIN users_teams tu     ON tu.team_id = t.team_id
+        LEFT  JOIN teams_tags  tt     ON tt.team_id = t.team_id
+        WHERE 1=1
+        """
+            + tenantClause
+            + """
+            GROUP BY t.team_id
+            ORDER BY t.team_name ASC
+            """;
+    Query q = entityManager.createNativeQuery(sql);
+    q.setParameter("scenarioId", scenarioId);
+    if (tenantId != null) q.setParameter("tenantId", tenantId);
+    @SuppressWarnings("unchecked")
+    List<TeamOutput> result =
+        ((List<Object[]>) q.getResultList()).stream().map(TeamOutput::fromRow).toList();
+    return result;
+  }
+
+  /**
+   * Fetch teams corresponding to given IDs (full JPA entities).
    *
    * @param teamIds list of team IDs to fetch
    * @return the found teams
    */
   public List<Team> getTeamsByIds(List<String> teamIds) {
     return teamRepository.findAllById(teamIds);
+  }
+
+  // -- EXERCISE / SCENARIO TEAM PAGINATION --
+
+  /**
+   * Paginated team search scoped to a simulation using native SQL.
+   *
+   * <p>For {@code contextualOnly=true}: INNER JOIN on {@code exercises_teams} drives the query
+   * directly from the exercise_id index — no subquery, no IN list, O(exercise_teams) scan only.
+   * For {@code contextualOnly=false}: non-contextual teams UNION exercise teams via EXISTS.
+   *
+   * @param exerciseId exercise to scope to
+   * @param input pagination and optional text search
+   * @param contextualOnly true = only teams in this exercise; false = non-contextual + exercise
+   * @return paginated lightweight team projections
+   */
+  @Transactional(readOnly = true)
+  public Page<TeamOutput> exerciseTeamPagination(
+      @NotBlank String exerciseId,
+      @NotNull SearchPaginationInput input,
+      boolean contextualOnly) {
+    String tenantId = TenantContext.getCurrentTenant();
+    // null tenantId = admin user, bypasses tenant isolation (same as Hibernate @Filter behaviour)
+    String tenantClause = tenantId != null ? "AND t.tenant_id = :tenantId " : "";
+    boolean hasSearch = StringUtils.isNotBlank(input.getTextSearch());
+    String search = hasSearch ? "%" + input.getTextSearch() + "%" : null;
+    int pageSize = input.getSize();
+    long offset = (long) input.getPage() * pageSize;
+
+    String dataSQL;
+    String countSQL;
+
+    if (contextualOnly) {
+      dataSQL = """
+          SELECT t.team_id, t.team_name, t.team_description, t.team_contextual,
+                 t.team_updated_at,
+                 COUNT(DISTINCT tu.user_id)                                          AS team_users_number,
+                 array_agg(DISTINCT tt.tag_id) FILTER (WHERE tt.tag_id IS NOT NULL)  AS team_tags
+          FROM teams t
+          INNER JOIN exercises_teams et ON et.team_id = t.team_id AND et.exercise_id = :contextId
+          LEFT  JOIN users_teams tu     ON tu.team_id = t.team_id
+          LEFT  JOIN teams_tags  tt     ON tt.team_id = t.team_id
+          WHERE 1=1
+          """ + tenantClause + """
+            AND (:hasSearch = false OR t.team_name ILIKE :search)
+          GROUP BY t.team_id
+          ORDER BY t.team_name ASC
+          LIMIT :pageSize OFFSET :offset
+          """;
+      countSQL = """
+          SELECT COUNT(DISTINCT t.team_id)
+          FROM teams t
+          INNER JOIN exercises_teams et ON et.team_id = t.team_id AND et.exercise_id = :contextId
+          WHERE 1=1
+          """ + tenantClause + """
+            AND (:hasSearch = false OR t.team_name ILIKE :search)
+          """;
+    } else {
+      dataSQL = """
+          SELECT t.team_id, t.team_name, t.team_description, t.team_contextual,
+                 t.team_updated_at,
+                 COUNT(DISTINCT tu.user_id)                                          AS team_users_number,
+                 array_agg(DISTINCT tt.tag_id) FILTER (WHERE tt.tag_id IS NOT NULL)  AS team_tags
+          FROM teams t
+          LEFT  JOIN users_teams tu ON tu.team_id = t.team_id
+          LEFT  JOIN teams_tags  tt ON tt.team_id = t.team_id
+          WHERE (t.team_contextual = false
+                 OR EXISTS (SELECT 1 FROM exercises_teams et
+                            WHERE et.team_id = t.team_id AND et.exercise_id = :contextId))
+          """ + tenantClause + """
+            AND (:hasSearch = false OR t.team_name ILIKE :search)
+          GROUP BY t.team_id
+          ORDER BY t.team_name ASC
+          LIMIT :pageSize OFFSET :offset
+          """;
+      countSQL = """
+          SELECT COUNT(DISTINCT t.team_id)
+          FROM teams t
+          WHERE (t.team_contextual = false
+                 OR EXISTS (SELECT 1 FROM exercises_teams et
+                            WHERE et.team_id = t.team_id AND et.exercise_id = :contextId))
+          """ + tenantClause + """
+            AND (:hasSearch = false OR t.team_name ILIKE :search)
+          """;
+    }
+
+    List<TeamOutput> teams =
+        runNativeTeamQuery(dataSQL, exerciseId, tenantId, hasSearch, search, pageSize, offset);
+    long total = countNativeTeamQuery(countSQL, exerciseId, tenantId, hasSearch, search);
+    return new PageImpl<>(teams, PageRequest.of(input.getPage(), pageSize), total);
+  }
+
+  /**
+   * Paginated team search scoped to a scenario using native SQL.
+   *
+   * @see #exerciseTeamPagination for full description — same pattern for scenarios.
+   */
+  @Transactional(readOnly = true)
+  public Page<TeamOutput> scenarioTeamPagination(
+      @NotBlank String scenarioId,
+      @NotNull SearchPaginationInput input,
+      boolean contextualOnly) {
+    String tenantId = TenantContext.getCurrentTenant();
+    String tenantClause = tenantId != null ? "AND t.tenant_id = :tenantId " : "";
+    boolean hasSearch = StringUtils.isNotBlank(input.getTextSearch());
+    String search = hasSearch ? "%" + input.getTextSearch() + "%" : null;
+    int pageSize = input.getSize();
+    long offset = (long) input.getPage() * pageSize;
+
+    String dataSQL;
+    String countSQL;
+
+    if (contextualOnly) {
+      dataSQL = """
+          SELECT t.team_id, t.team_name, t.team_description, t.team_contextual,
+                 t.team_updated_at,
+                 COUNT(DISTINCT tu.user_id)                                          AS team_users_number,
+                 array_agg(DISTINCT tt.tag_id) FILTER (WHERE tt.tag_id IS NOT NULL)  AS team_tags
+          FROM teams t
+          INNER JOIN scenarios_teams st ON st.team_id = t.team_id AND st.scenario_id = :contextId
+          LEFT  JOIN users_teams tu     ON tu.team_id = t.team_id
+          LEFT  JOIN teams_tags  tt     ON tt.team_id = t.team_id
+          WHERE 1=1
+          """ + tenantClause + """
+            AND (:hasSearch = false OR t.team_name ILIKE :search)
+          GROUP BY t.team_id
+          ORDER BY t.team_name ASC
+          LIMIT :pageSize OFFSET :offset
+          """;
+      countSQL = """
+          SELECT COUNT(DISTINCT t.team_id)
+          FROM teams t
+          INNER JOIN scenarios_teams st ON st.team_id = t.team_id AND st.scenario_id = :contextId
+          WHERE 1=1
+          """ + tenantClause + """
+            AND (:hasSearch = false OR t.team_name ILIKE :search)
+          """;
+    } else {
+      dataSQL = """
+          SELECT t.team_id, t.team_name, t.team_description, t.team_contextual,
+                 t.team_updated_at,
+                 COUNT(DISTINCT tu.user_id)                                          AS team_users_number,
+                 array_agg(DISTINCT tt.tag_id) FILTER (WHERE tt.tag_id IS NOT NULL)  AS team_tags
+          FROM teams t
+          LEFT  JOIN users_teams tu ON tu.team_id = t.team_id
+          LEFT  JOIN teams_tags  tt ON tt.team_id = t.team_id
+          WHERE (t.team_contextual = false
+                 OR EXISTS (SELECT 1 FROM scenarios_teams st
+                            WHERE st.team_id = t.team_id AND st.scenario_id = :contextId))
+          """ + tenantClause + """
+            AND (:hasSearch = false OR t.team_name ILIKE :search)
+          GROUP BY t.team_id
+          ORDER BY t.team_name ASC
+          LIMIT :pageSize OFFSET :offset
+          """;
+      countSQL = """
+          SELECT COUNT(DISTINCT t.team_id)
+          FROM teams t
+          WHERE (t.team_contextual = false
+                 OR EXISTS (SELECT 1 FROM scenarios_teams st
+                            WHERE st.team_id = t.team_id AND st.scenario_id = :contextId))
+          """ + tenantClause + """
+            AND (:hasSearch = false OR t.team_name ILIKE :search)
+          """;
+    }
+
+    List<TeamOutput> teams =
+        runNativeTeamQuery(dataSQL, scenarioId, tenantId, hasSearch, search, pageSize, offset);
+    long total = countNativeTeamQuery(countSQL, scenarioId, tenantId, hasSearch, search);
+    return new PageImpl<>(teams, PageRequest.of(input.getPage(), pageSize), total);
+  }
+
+  // -- NATIVE QUERY HELPERS --
+
+  @SuppressWarnings("unchecked")
+  private List<TeamOutput> runNativeTeamQuery(
+      String sql,
+      String contextId,
+      String tenantId,
+      boolean hasSearch,
+      String search,
+      int pageSize,
+      long offset) {
+    Query q = entityManager.createNativeQuery(sql);
+    q.setParameter("contextId", contextId);
+    if (tenantId != null) q.setParameter("tenantId", tenantId);
+    q.setParameter("hasSearch", hasSearch);
+    q.setParameter("search", search);
+    q.setParameter("pageSize", pageSize);
+    q.setParameter("offset", offset);
+    return ((List<Object[]>) q.getResultList()).stream().map(TeamOutput::fromRow).toList();
+  }
+
+  private long countNativeTeamQuery(
+      String sql, String contextId, String tenantId, boolean hasSearch, String search) {
+    Query q = entityManager.createNativeQuery(sql);
+    q.setParameter("contextId", contextId);
+    if (tenantId != null) q.setParameter("tenantId", tenantId);
+    q.setParameter("hasSearch", hasSearch);
+    q.setParameter("search", search);
+    return ((Number) q.getSingleResult()).longValue();
   }
 }

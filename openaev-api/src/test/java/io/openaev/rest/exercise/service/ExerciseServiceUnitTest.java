@@ -445,7 +445,7 @@ class ExerciseServiceUnitTest {
       verify(exerciseTeamUserRepository).deleteByExerciseIdAndTeamIds(exerciseId, teamIds);
       verify(injectService).removeTeamsForSimulation(exerciseId, teamIds);
       verify(lessonsService).removeTeamsForSimulation(exerciseId, teamIds);
-      verify(teamService).find(any());
+      verify(teamService).findByIds(any());
     }
   }
 
@@ -535,7 +535,7 @@ class ExerciseServiceUnitTest {
         when(exerciseTeamUserRepository.existsByExerciseIdAndTeamIdAndUserId(
                 exerciseId, "team-3", "user-1"))
             .thenReturn(false);
-        when(teamService.find(any())).thenReturn(List.of());
+        when(teamService.findByIds(any())).thenReturn(List.of());
 
         mockedExerciseService.replaceTeams(exerciseId, List.of("team-2", "team-3", "team-3"));
 
@@ -577,7 +577,7 @@ class ExerciseServiceUnitTest {
         when(exerciseRepository.findByIdAndTenantId(exerciseId, "tenant-1"))
             .thenReturn(Optional.of(exercise));
         when(teamRepository.findAllById(any())).thenReturn(List.of(existingTeam));
-        when(teamService.find(any())).thenReturn(List.of());
+        when(teamService.findByIds(any())).thenReturn(List.of());
 
         mockedExerciseService.replaceTeams(exerciseId, List.of("team-1"));
 

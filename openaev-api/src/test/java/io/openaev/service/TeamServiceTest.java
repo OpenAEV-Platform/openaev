@@ -3,11 +3,11 @@ package io.openaev.service;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Organization;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.Team;
 import io.openaev.database.model.User;
-import io.openaev.database.raw.RawTeamIndexing;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.utils.fixtures.OrganizationFixture;
@@ -15,14 +15,9 @@ import io.openaev.utils.fixtures.TagFixture;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.Tuple;
-import jakarta.persistence.TypedQuery;
-import jakarta.persistence.criteria.Expression;
-import jakarta.persistence.criteria.Predicate;
-import jakarta.persistence.criteria.Selection;
+import jakarta.persistence.Query;
 import java.util.*;
 import java.util.stream.Stream;
-import org.hibernate.query.criteria.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -34,14 +29,12 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
-import org.springframework.data.jpa.domain.Specification;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("TeamService Tests")
 class TeamServiceTest {
 
   @Mock private EntityManager entityManager;
-
   @Mock private TeamRepository teamRepository;
 
   @InjectMocks private TeamService teamService;
@@ -49,79 +42,6 @@ class TeamServiceTest {
   @BeforeEach
   void setUp() {
     reset(entityManager, teamRepository);
-  }
-
-  // ========================================================================
-  // getTeams Tests
-  // ========================================================================
-  @Nested
-  @DisplayName("getTeams")
-  class GetTeamsTests {
-
-    @Captor private ArgumentCaptor<List<String>> teamIdsCaptor;
-
-    private static Stream<Arguments> testCases() {
-      String id1 = UUID.randomUUID().toString();
-      String id2 = UUID.randomUUID().toString();
-      String id3 = UUID.randomUUID().toString();
-
-      return Stream.of(
-          Arguments.of(
-              "should return teams sorted alphabetically",
-              List.of(id1, id2, id3),
-              createRawTeams(id1, "Gamma", id2, "Alpha", id3, "Beta"),
-              List.of("Alpha", "Beta", "Gamma")),
-          Arguments.of(
-              "should return empty list when no IDs provided",
-              Collections.emptyList(),
-              Collections.emptyList(),
-              Collections.emptyList()),
-          Arguments.of(
-              "should return single team",
-              List.of(id1),
-              createRawTeams(id1, "Alpha"),
-              List.of("Alpha")),
-          Arguments.of(
-              "should return empty list when no teams found",
-              List.of(id1, id2),
-              Collections.emptyList(),
-              Collections.emptyList()));
-    }
-
-    private static List<RawTeamIndexing> createRawTeams(String... idNamePairs) {
-      List<RawTeamIndexing> rawTeams = new ArrayList<>();
-      for (int i = 0; i < idNamePairs.length; i += 2) {
-        RawTeamIndexing rawTeam = mock(RawTeamIndexing.class);
-        when(rawTeam.getTeam_id()).thenReturn(idNamePairs[i]);
-        when(rawTeam.getTeam_name()).thenReturn(idNamePairs[i + 1]);
-        rawTeams.add(rawTeam);
-      }
-      return rawTeams;
-    }
-
-    @ParameterizedTest(name = "{0}")
-    @MethodSource("testCases")
-    void shouldReturnTeamOutputs(
-        String testName,
-        List<String> inputIds,
-        List<RawTeamIndexing> rawTeams,
-        List<String> expectedNames) {
-      // Prepare
-      when(teamRepository.rawTeamByIds(inputIds)).thenReturn(rawTeams);
-
-      // Act
-      List<TeamOutput> result = teamService.getTeams(inputIds);
-
-      // Assert
-      verify(teamRepository).rawTeamByIds(teamIdsCaptor.capture());
-      assertEquals(inputIds, teamIdsCaptor.getValue());
-      assertNotNull(result);
-      assertEquals(expectedNames.size(), result.size());
-      for (int i = 0; i < expectedNames.size(); i++) {
-        assertEquals(expectedNames.get(i), result.get(i).getName());
-      }
-      verifyNoMoreInteractions(teamRepository);
-    }
   }
 
   // ========================================================================
@@ -161,8 +81,8 @@ class TeamServiceTest {
 
     @Test
     @DisplayName("should copy all fields from source team")
-    void shouldCopyAllFields() {
-      // Prepare
+    void given_fullTeam_should_copyAllFields() {
+      // Arrange
       Organization org = OrganizationFixture.createOrganization();
       Set<Tag> tags = Set.of(TagFixture.getTag("Tag1"), TagFixture.getTag("Tag2"));
       List<User> users =
@@ -187,8 +107,8 @@ class TeamServiceTest {
 
     @Test
     @DisplayName("should copy team with empty collections")
-    void shouldCopyWithEmptyCollections() {
-      // Prepare
+    void given_teamWithEmptyCollections_should_copySuccessfully() {
+      // Arrange
       Team teamToCopy =
           createFullMockTeam(
               "Team", "Desc", false, null, Collections.emptySet(), Collections.emptyList());
@@ -207,8 +127,8 @@ class TeamServiceTest {
 
     @Test
     @DisplayName("should copy team with null simple fields")
-    void shouldCopyWithNullSimpleFields() {
-      // Prepare
+    void given_teamWithNullSimpleFields_should_copySuccessfully() {
+      // Arrange
       Team teamToCopy =
           createFullMockTeam(
               null, null, null, null, Collections.emptySet(), Collections.emptyList());
@@ -225,8 +145,8 @@ class TeamServiceTest {
 
     @Test
     @DisplayName("should throw NullPointerException when tags is null")
-    void shouldThrowWhenTagsNull() {
-      // Prepare
+    void given_nullTags_should_throwNullPointerException() {
+      // Arrange
       Team teamToCopy = createPartialMockTeam("Team", "Desc", null);
 
       // Act & Assert
@@ -235,266 +155,13 @@ class TeamServiceTest {
 
     @Test
     @DisplayName("should throw NullPointerException when users is null")
-    void shouldThrowWhenUsersNull() {
-      // Prepare
+    void given_nullUsers_should_throwNullPointerException() {
+      // Arrange
       Team teamToCopy =
           createLessPartialMockTeam("Team", "Desc", null, Collections.emptySet(), null);
 
       // Act & Assert
       assertThrows(NullPointerException.class, () -> teamService.copyContextualTeam(teamToCopy));
-    }
-  }
-
-  // ========================================================================
-  // teamPagination Tests
-  // ========================================================================
-  @Nested
-  @DisplayName("teamPagination")
-  class TeamPaginationTests {
-
-    @Mock(answer = Answers.RETURNS_DEEP_STUBS)
-    private HibernateCriteriaBuilder criteriaBuilder;
-
-    @Mock(answer = Answers.RETURNS_DEEP_STUBS)
-    private JpaCriteriaQuery<Tuple> criteriaQuery;
-
-    @Mock(answer = Answers.RETURNS_DEEP_STUBS)
-    private JpaCriteriaQuery<Long> countQuery;
-
-    @Mock(answer = Answers.RETURNS_DEEP_STUBS)
-    private JpaRoot<Team> teamRoot;
-
-    @Mock(answer = Answers.RETURNS_DEEP_STUBS)
-    private JpaRoot<Team> countRoot;
-
-    @Mock private TypedQuery<Tuple> typedQuery;
-
-    @Mock private TypedQuery<Long> countTypedQuery;
-
-    @SuppressWarnings("rawtypes")
-    @Mock(answer = Answers.RETURNS_DEEP_STUBS)
-    private JpaFunction arrayAggFunction;
-
-    @SuppressWarnings("rawtypes")
-    @Mock
-    private JpaExpression countExpression;
-
-    @Captor private ArgumentCaptor<Integer> offsetCaptor;
-
-    @Captor private ArgumentCaptor<Integer> maxResultsCaptor;
-
-    @BeforeEach
-    @SuppressWarnings("unchecked")
-    void setUpMocks() {
-      // EntityManager setup
-      when(entityManager.getCriteriaBuilder()).thenReturn(criteriaBuilder);
-      when(entityManager.createQuery(criteriaQuery)).thenReturn(typedQuery);
-      lenient().when(entityManager.createQuery(countQuery)).thenReturn(countTypedQuery);
-
-      // CriteriaBuilder setup
-      when(criteriaBuilder.createTupleQuery()).thenReturn(criteriaQuery);
-      lenient().when(criteriaBuilder.createQuery(Long.class)).thenReturn(countQuery);
-      when(criteriaBuilder.function(anyString(), any(Class.class), any(Expression[].class)))
-          .thenReturn(arrayAggFunction);
-      lenient().when(criteriaBuilder.count(any(Expression.class))).thenReturn(countExpression);
-      when(criteriaBuilder.asc(any(Expression.class))).thenReturn(mock(JpaOrder.class));
-      when(criteriaBuilder.desc(any(Expression.class))).thenReturn(mock(JpaOrder.class));
-
-      // CriteriaQuery setup
-      when(criteriaQuery.from(Team.class)).thenReturn(teamRoot);
-      when(criteriaQuery.multiselect(any(Selection[].class))).thenReturn(criteriaQuery);
-      when(criteriaQuery.multiselect(anyList())).thenReturn(criteriaQuery);
-      when(criteriaQuery.groupBy(any(Expression[].class))).thenReturn(criteriaQuery);
-      when(criteriaQuery.groupBy(anyList())).thenReturn(criteriaQuery);
-      when(criteriaQuery.orderBy(anyList())).thenReturn(criteriaQuery);
-      when(criteriaQuery.distinct(anyBoolean())).thenReturn(criteriaQuery);
-
-      // Count query setup
-      lenient().when(countQuery.from(Team.class)).thenReturn(countRoot);
-      lenient().when(countQuery.select(any(JpaExpression.class))).thenReturn(countQuery);
-
-      // TypedQuery setup
-      when(typedQuery.setFirstResult(anyInt())).thenReturn(typedQuery);
-      when(typedQuery.setMaxResults(anyInt())).thenReturn(typedQuery);
-      when(typedQuery.getResultList()).thenReturn(Collections.emptyList());
-    }
-
-    private SearchPaginationInput createPaginationInput(int page, int size) {
-      SearchPaginationInput input = mock(SearchPaginationInput.class);
-      when(input.getPage()).thenReturn(page);
-      when(input.getSize()).thenReturn(size);
-      when(input.getSorts()).thenReturn(Collections.emptyList());
-      when(input.getTextSearch()).thenReturn(null);
-      return input;
-    }
-
-    private Specification<Team> createSpecification(Predicate predicate) {
-      Specification<Team> spec = mock(Specification.class);
-      Specification<Team> combined = mock(Specification.class);
-      when(spec.and(any())).thenReturn(combined);
-      when(combined.toPredicate(any(), any(), any())).thenReturn(predicate);
-      return spec;
-    }
-
-    private static Stream<Arguments> paginationTestCases() {
-      return Stream.of(
-          Arguments.of("first page", 0, 10, 0, 10),
-          Arguments.of("second page", 1, 10, 10, 10),
-          Arguments.of("custom page size", 2, 15, 30, 15),
-          Arguments.of("large page number", 100, 20, 2000, 20));
-    }
-
-    @ParameterizedTest(name = "should paginate correctly for {0}")
-    @MethodSource("paginationTestCases")
-    void shouldPaginateCorrectly(
-        String name, int page, int size, int expectedOffset, int expectedMax) {
-      // Act
-      Page<TeamOutput> result =
-          teamService.teamPagination(createPaginationInput(page, size), createSpecification(null));
-
-      // Assert
-      verify(typedQuery).setFirstResult(offsetCaptor.capture());
-      verify(typedQuery).setMaxResults(maxResultsCaptor.capture());
-      assertEquals(expectedOffset, offsetCaptor.getValue());
-      assertEquals(expectedMax, maxResultsCaptor.getValue());
-      assertNotNull(result);
-    }
-
-    @Test
-    @DisplayName("should apply where clause when predicate is not null")
-    void shouldApplyWhereClause() {
-      // Prepare
-      Predicate predicate = mock(Predicate.class);
-
-      // Act
-      teamService.teamPagination(createPaginationInput(0, 10), createSpecification(predicate));
-
-      // Assert
-      verify(criteriaQuery).where(predicate);
-    }
-
-    @Test
-    @DisplayName("should not apply where clause when predicate is null")
-    void shouldNotApplyWhereClause() {
-      // Act
-      teamService.teamPagination(createPaginationInput(0, 10), createSpecification(null));
-
-      // Assert
-      verify(criteriaQuery, never()).where(any(Predicate.class));
-    }
-
-    @Test
-    @DisplayName("should return correct total count")
-    void shouldReturnCorrectTotalCount() {
-      // Prepare — return a full page so the count query is triggered (page 0, size 10)
-      List<Tuple> fullPage = new ArrayList<>();
-      for (int i = 0; i < 10; i++) {
-        Tuple tuple = mock(Tuple.class);
-        when(tuple.get("team_id", String.class)).thenReturn("id-" + i);
-        when(tuple.get("team_name", String.class)).thenReturn("name-" + i);
-        when(tuple.get("team_description", String.class)).thenReturn("desc");
-        when(tuple.get("team_contextual", Boolean.class)).thenReturn(false);
-        when(tuple.get("team_updated_at", java.time.Instant.class)).thenReturn(null);
-        when(tuple.get("team_exercises", String[].class)).thenReturn(new String[0]);
-        when(tuple.get("team_scenarios", String[].class)).thenReturn(new String[0]);
-        when(tuple.get("team_tags", String[].class)).thenReturn(new String[0]);
-        when(tuple.get("team_users", String[].class)).thenReturn(new String[0]);
-        when(tuple.get("team_organization", String.class)).thenReturn(null);
-        fullPage.add(tuple);
-      }
-      when(typedQuery.getResultList()).thenReturn(fullPage);
-      when(countTypedQuery.getSingleResult()).thenReturn(150L);
-
-      // Act
-      Page<TeamOutput> result =
-          teamService.teamPagination(createPaginationInput(0, 10), createSpecification(null));
-
-      // Assert
-      assertEquals(150L, result.getTotalElements());
-    }
-  }
-
-  // ========================================================================
-  // find Tests
-  // ========================================================================
-  @Nested
-  @DisplayName("find")
-  class FindTests {
-
-    @Mock(answer = Answers.RETURNS_DEEP_STUBS)
-    private HibernateCriteriaBuilder criteriaBuilder;
-
-    @Mock(answer = Answers.RETURNS_DEEP_STUBS)
-    private JpaCriteriaQuery<Tuple> criteriaQuery;
-
-    @Mock(answer = Answers.RETURNS_DEEP_STUBS)
-    private JpaRoot<Team> teamRoot;
-
-    @Mock private TypedQuery<Tuple> typedQuery;
-
-    @SuppressWarnings("rawtypes")
-    @Mock(answer = Answers.RETURNS_DEEP_STUBS)
-    private JpaFunction arrayAggFunction;
-
-    @BeforeEach
-    @SuppressWarnings("unchecked")
-    void setUpMocks() {
-      when(entityManager.getCriteriaBuilder()).thenReturn(criteriaBuilder);
-      when(entityManager.createQuery(criteriaQuery)).thenReturn(typedQuery);
-
-      when(criteriaBuilder.createTupleQuery()).thenReturn(criteriaQuery);
-      when(criteriaBuilder.function(anyString(), any(Class.class), any(Expression[].class)))
-          .thenReturn(arrayAggFunction);
-
-      when(criteriaQuery.from(Team.class)).thenReturn(teamRoot);
-      when(criteriaQuery.multiselect(any(Selection[].class))).thenReturn(criteriaQuery);
-      when(criteriaQuery.multiselect(anyList())).thenReturn(criteriaQuery);
-      when(criteriaQuery.distinct(anyBoolean())).thenReturn(criteriaQuery);
-      when(criteriaQuery.groupBy(any(Expression[].class))).thenReturn(criteriaQuery);
-      when(criteriaQuery.groupBy(anyList())).thenReturn(criteriaQuery);
-
-      when(typedQuery.getResultList()).thenReturn(Collections.emptyList());
-    }
-
-    @Test
-    @DisplayName("should find teams with specification")
-    void shouldFindWithSpecification() {
-      // Prepare
-      Specification<Team> spec = mock(Specification.class);
-      when(spec.toPredicate(any(), any(), any())).thenReturn(mock(Predicate.class));
-
-      // Act
-      List<TeamOutput> result = teamService.find(spec);
-
-      // Assert
-      verify(entityManager).getCriteriaBuilder();
-      assertNotNull(result);
-    }
-
-    @Test
-    @DisplayName("should find teams with null specification")
-    void shouldFindWithNullSpecification() {
-      // Act
-      List<TeamOutput> result = teamService.find(null);
-
-      // Assert
-      verify(entityManager).getCriteriaBuilder();
-      assertNotNull(result);
-    }
-
-    @Test
-    @DisplayName("should not apply where clause when predicate is null")
-    void shouldNotApplyWhereClause() {
-      // Prepare
-      Specification<Team> spec = mock(Specification.class);
-      when(spec.toPredicate(any(), any(), any())).thenReturn(null);
-
-      // Act
-      List<TeamOutput> result = teamService.find(spec);
-
-      // Assert
-      assertNotNull(result);
-      verify(criteriaQuery, never()).where(any(Predicate.class));
     }
   }
 
@@ -524,9 +191,9 @@ class TeamServiceTest {
 
     @ParameterizedTest(name = "should handle {0}")
     @MethodSource("testCases")
-    void shouldReturnTeams(
+    void given_teamIds_should_returnTeams(
         String name, List<String> inputIds, List<Team> expected, int expectedSize) {
-      // Prepare
+      // Arrange
       when(teamRepository.findAllById(inputIds)).thenReturn(expected);
 
       // Act
@@ -539,6 +206,247 @@ class TeamServiceTest {
       assertEquals(expectedSize, result.size());
       assertEquals(expected, result);
       verifyNoMoreInteractions(teamRepository);
+    }
+  }
+
+  // ========================================================================
+  // findByIds Tests
+  // ========================================================================
+  @Nested
+  @DisplayName("findByIds")
+  class FindByIdsTests {
+
+    @Mock private Query nativeQuery;
+
+    @Test
+    @DisplayName("should return empty list immediately when teamIds is empty")
+    void given_emptyList_should_returnEmptyWithoutQueryingDatabase() {
+      // Act
+      List<TeamOutput> result = teamService.findByIds(Collections.emptyList());
+
+      // Assert
+      assertNotNull(result);
+      assertTrue(result.isEmpty());
+      verifyNoInteractions(entityManager);
+    }
+
+    @Test
+    @DisplayName("should execute native query when teamIds is non-empty")
+    void given_validIds_should_executeNativeQuery() {
+      // Arrange
+      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
+        tc.when(TenantContext::getCurrentTenant).thenReturn(null);
+        when(entityManager.createNativeQuery(anyString())).thenReturn(nativeQuery);
+        when(nativeQuery.getResultList()).thenReturn(Collections.emptyList());
+
+        // Act
+        List<TeamOutput> result = teamService.findByIds(List.of("id-1", "id-2"));
+
+        // Assert
+        assertNotNull(result);
+        verify(entityManager).createNativeQuery(anyString());
+        verify(nativeQuery).setParameter("ids", List.of("id-1", "id-2"));
+      }
+    }
+
+    @Test
+    @DisplayName("should set tenantId parameter when tenant is present")
+    void given_tenantContext_should_setTenantParameter() {
+      // Arrange
+      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
+        tc.when(TenantContext::getCurrentTenant).thenReturn("tenant-1");
+        when(entityManager.createNativeQuery(anyString())).thenReturn(nativeQuery);
+        when(nativeQuery.getResultList()).thenReturn(Collections.emptyList());
+
+        // Act
+        teamService.findByIds(List.of("id-1"));
+
+        // Assert
+        verify(nativeQuery).setParameter("tenantId", "tenant-1");
+      }
+    }
+  }
+
+  // ========================================================================
+  // findByExerciseId Tests
+  // ========================================================================
+  @Nested
+  @DisplayName("findByExerciseId")
+  class FindByExerciseIdTests {
+
+    @Mock private Query nativeQuery;
+
+    @Test
+    @DisplayName("should execute native query with exerciseId parameter")
+    void given_exerciseId_should_executeNativeQuery() {
+      // Arrange
+      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
+        tc.when(TenantContext::getCurrentTenant).thenReturn(null);
+        when(entityManager.createNativeQuery(anyString())).thenReturn(nativeQuery);
+        when(nativeQuery.getResultList()).thenReturn(Collections.emptyList());
+
+        // Act
+        List<TeamOutput> result = teamService.findByExerciseId("exercise-1");
+
+        // Assert
+        assertNotNull(result);
+        verify(nativeQuery).setParameter("exerciseId", "exercise-1");
+      }
+    }
+
+    @Test
+    @DisplayName("should set tenantId parameter when tenant is present")
+    void given_tenantContext_should_setTenantParameter() {
+      // Arrange
+      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
+        tc.when(TenantContext::getCurrentTenant).thenReturn("tenant-1");
+        when(entityManager.createNativeQuery(anyString())).thenReturn(nativeQuery);
+        when(nativeQuery.getResultList()).thenReturn(Collections.emptyList());
+
+        // Act
+        teamService.findByExerciseId("exercise-1");
+
+        // Assert
+        verify(nativeQuery).setParameter("tenantId", "tenant-1");
+      }
+    }
+  }
+
+  // ========================================================================
+  // findByScenarioId Tests
+  // ========================================================================
+  @Nested
+  @DisplayName("findByScenarioId")
+  class FindByScenarioIdTests {
+
+    @Mock private Query nativeQuery;
+
+    @Test
+    @DisplayName("should execute native query with scenarioId parameter")
+    void given_scenarioId_should_executeNativeQuery() {
+      // Arrange
+      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
+        tc.when(TenantContext::getCurrentTenant).thenReturn(null);
+        when(entityManager.createNativeQuery(anyString())).thenReturn(nativeQuery);
+        when(nativeQuery.getResultList()).thenReturn(Collections.emptyList());
+
+        // Act
+        List<TeamOutput> result = teamService.findByScenarioId("scenario-1");
+
+        // Assert
+        assertNotNull(result);
+        verify(nativeQuery).setParameter("scenarioId", "scenario-1");
+      }
+    }
+
+    @Test
+    @DisplayName("should set tenantId parameter when tenant is present")
+    void given_tenantContext_should_setTenantParameter() {
+      // Arrange
+      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
+        tc.when(TenantContext::getCurrentTenant).thenReturn("tenant-1");
+        when(entityManager.createNativeQuery(anyString())).thenReturn(nativeQuery);
+        when(nativeQuery.getResultList()).thenReturn(Collections.emptyList());
+
+        // Act
+        teamService.findByScenarioId("scenario-1");
+
+        // Assert
+        verify(nativeQuery).setParameter("tenantId", "tenant-1");
+      }
+    }
+  }
+
+  // ========================================================================
+  // teamPaginationSimple Tests
+  // ========================================================================
+  @Nested
+  @DisplayName("teamPaginationSimple")
+  class TeamPaginationSimpleTests {
+
+    @Mock private Query dataQuery;
+    @Mock private Query countQuery;
+
+    private SearchPaginationInput createInput(int page, int size, String textSearch) {
+      SearchPaginationInput input = mock(SearchPaginationInput.class);
+      when(input.getPage()).thenReturn(page);
+      when(input.getSize()).thenReturn(size);
+      lenient().when(input.getTextSearch()).thenReturn(textSearch);
+      return input;
+    }
+
+    @BeforeEach
+    void setUpQueries() {
+      when(entityManager.createNativeQuery(anyString()))
+          .thenReturn(dataQuery)
+          .thenReturn(countQuery);
+      when(dataQuery.getResultList()).thenReturn(Collections.emptyList());
+      when(countQuery.getSingleResult()).thenReturn(0L);
+    }
+
+    @Test
+    @DisplayName("should return a page result")
+    void given_paginationInput_should_returnPage() {
+      // Arrange
+      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
+        tc.when(TenantContext::getCurrentTenant).thenReturn(null);
+
+        // Act
+        Page<TeamOutput> result =
+            teamService.teamPaginationSimple(createInput(0, 10, null), null);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(0, result.getTotalElements());
+        assertEquals(10, result.getSize());
+      }
+    }
+
+    @Test
+    @DisplayName("should set contextual parameter when contextual filter is provided")
+    void given_contextualFilter_should_setContextualParameter() {
+      // Arrange
+      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
+        tc.when(TenantContext::getCurrentTenant).thenReturn(null);
+
+        // Act
+        teamService.teamPaginationSimple(createInput(0, 10, null), false);
+
+        // Assert
+        verify(dataQuery).setParameter("contextual", false);
+        verify(countQuery).setParameter("contextual", false);
+      }
+    }
+
+    @Test
+    @DisplayName("should not set contextual parameter when contextual is null")
+    void given_nullContextual_should_notSetContextualParameter() {
+      // Arrange
+      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
+        tc.when(TenantContext::getCurrentTenant).thenReturn(null);
+
+        // Act
+        teamService.teamPaginationSimple(createInput(0, 10, null), null);
+
+        // Assert
+        verify(dataQuery, never()).setParameter(eq("contextual"), any());
+      }
+    }
+
+    @Test
+    @DisplayName("should set pagination parameters correctly")
+    void given_pageAndSize_should_setPaginationParameters() {
+      // Arrange
+      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
+        tc.when(TenantContext::getCurrentTenant).thenReturn(null);
+
+        // Act
+        teamService.teamPaginationSimple(createInput(2, 15, null), null);
+
+        // Assert
+        verify(dataQuery).setParameter("pageSize", 15);
+        verify(dataQuery).setParameter("offset", 30L);
+      }
     }
   }
 }

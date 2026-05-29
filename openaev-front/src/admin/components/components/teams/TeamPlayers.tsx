@@ -1,7 +1,7 @@
 import { ArrowDropDownOutlined, ArrowDropUpOutlined, CloseRounded, EmailOutlined, KeyOutlined, PersonOutlined, SmartphoneOutlined } from '@mui/icons-material';
 import { IconButton, List, ListItem, ListItemIcon, ListItemText, Typography } from '@mui/material';
 import * as R from 'ramda';
-import { type CSSProperties, type FunctionComponent, useContext, useState } from 'react';
+import { type CSSProperties, type FunctionComponent, useContext, useEffect, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { type OrganizationHelper, type UserHelper } from '../../../../actions/helper';
@@ -15,7 +15,6 @@ import SearchFilter from '../../../../components/SearchFilter';
 import { useHelper } from '../../../../store';
 import { type Organization, type Team } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
-import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { type Option } from '../../../../utils/Option';
 import { TeamContext } from '../../common/Context';
 import TagsFilter from '../../common/filters/TagsFilter';
@@ -174,11 +173,13 @@ const TeamPlayers: FunctionComponent<Props> = ({ teamId, handleClose, canManage 
 
   const { onToggleUser, checkUserEnabled } = useContext(TeamContext);
 
-  useDataLoader(() => {
+  const [playersVersion, setPlayersVersion] = useState(0);
+
+  useEffect(() => {
     dispatch(fetchTeam(teamId));
     dispatch(fetchTeamPlayers(teamId));
     dispatch(fetchOrganizations());
-  });
+  }, [teamId, playersVersion]);
 
   const filterByKeyword = (user: UserStore) => keyword === ''
     || (user.user_email || '').toLowerCase().indexOf(keyword.toLowerCase()) !== -1
@@ -312,7 +313,7 @@ const TeamPlayers: FunctionComponent<Props> = ({ teamId, handleClose, canManage 
             classes={{ root: classes.item }}
             divider
             secondaryAction={canManage
-              ? (<PlayerPopover user={user} teamId={teamId} />)
+              ? (<PlayerPopover user={user} teamId={teamId} onDelete={() => setPlayersVersion(v => v + 1)} />)
               : <span> &nbsp; </span>}
           >
             <ListItemIcon>
@@ -416,6 +417,7 @@ const TeamPlayers: FunctionComponent<Props> = ({ teamId, handleClose, canManage 
         <TeamAddPlayers
           teamId={teamId}
           addedUsersIds={users.filter(u => !!u).map(u => u.user_id)}
+          onPlayersUpdated={() => setPlayersVersion(v => v + 1)}
         />
       )}
 

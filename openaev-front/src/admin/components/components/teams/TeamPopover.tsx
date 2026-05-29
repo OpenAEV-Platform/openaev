@@ -29,6 +29,7 @@ interface TeamPopoverProps {
   onRemoveTeamFromInject?: (teamId: string) => void;
   onUpdate?: (result: Team) => void;
   onDelete?: (result: string) => void;
+  onTeamRemoved?: () => void;
 }
 
 const TeamPopover: FunctionComponent<TeamPopoverProps> = ({
@@ -39,6 +40,7 @@ const TeamPopover: FunctionComponent<TeamPopoverProps> = ({
   onRemoveTeamFromInject = null,
   onUpdate,
   onDelete,
+  onTeamRemoved,
 }) => {
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
@@ -122,7 +124,10 @@ const TeamPopover: FunctionComponent<TeamPopoverProps> = ({
   const handleCloseRemove = () => setOpenRemove(false);
 
   const submitRemove = () => {
-    return onRemoveTeam!(team.team_id).then(() => handleCloseRemove());
+    return onRemoveTeam!(team.team_id).then(() => {
+      handleCloseRemove();
+      onTeamRemoved?.();
+    });
   };
 
   // Remove

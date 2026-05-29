@@ -80,7 +80,7 @@ const InjectAddTeams: FunctionComponent<Props> = ({
   }, [open, injectTeamsIds]);
 
   // Pagination
-  const addTeam = (_teamId: string, team: TeamOutput) => setSelectedTeamValues([...selectedTeamValues, team]);
+  const addTeam = (_teamId: string, team: TeamOutput) => setSelectedTeamValues([...selectedTeamValues, team as unknown as TeamOutput]);
   const removeTeam = (teamId: string) => setSelectedTeamValues(selectedTeamValues.filter(v => v.team_id !== teamId));
 
   // Headers
@@ -108,7 +108,7 @@ const InjectAddTeams: FunctionComponent<Props> = ({
       setContent={setTeamValues}
       setLoading={setIsLoading}
       entityPrefix="team"
-      availableFilterNames={['team_tags']}
+      availableFilterNames={[]}
       queryableHelpers={queryableHelpers}
     />
   );

@@ -1,13 +1,12 @@
 package io.openaev.rest.team;
 
-import static io.openaev.database.specification.TeamSpecification.contextual;
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.rest.atomic_testing.AtomicTestingApi.ATOMIC_TESTING_URI;
 import static io.openaev.rest.atomic_testing.AtomicTestingApi.TENANT_ATOMIC_TESTING_URI;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
-import io.openaev.database.model.Team;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.TeamService;
@@ -15,7 +14,6 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -32,7 +30,6 @@ public class AtomicTestingTeamApi extends RestBehavior {
   @Transactional(readOnly = true)
   public Page<TeamOutput> searchTeams(
       @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
-    final Specification<Team> teamSpecification = contextual(false);
-    return this.teamService.teamPagination(searchPaginationInput, teamSpecification);
+    return this.teamService.teamPaginationSimple(searchPaginationInput, false);
   }
 }

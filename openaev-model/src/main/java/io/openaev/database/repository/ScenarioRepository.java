@@ -45,6 +45,10 @@ public interface ScenarioRepository
 
   Optional<Scenario> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
+  /** Returns only the IDs of teams linked to the given scenario — no entity loading. */
+  @Query("SELECT t.id FROM Scenario s JOIN s.teams t WHERE s.id = :scenarioId")
+  List<String> findTeamIdsByScenarioId(@Param("scenarioId") String scenarioId);
+
   @Query(
       value =
           "WITH scenario_data AS ("

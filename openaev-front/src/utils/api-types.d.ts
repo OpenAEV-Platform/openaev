@@ -7871,6 +7871,38 @@ export interface TeamOutput {
   team_users_number?: number;
 }
 
+export interface TeamOutput {
+  /** True if the team is contextual (exists only in the scenario/simulation it is linked to) */
+  team_contextual?: boolean;
+  /** Description of the team */
+  team_description?: string;
+  /**
+   * ID of the team
+   * @minLength 1
+   */
+  team_id: string;
+  /**
+   * Name of the team
+   * @minLength 1
+   */
+  team_name: string;
+  /**
+   * List of tags of the team
+   * @uniqueItems true
+   */
+  team_tags?: string[];
+  /**
+   * Update date of the team
+   * @format date-time
+   */
+  team_updated_at: string;
+  /**
+   * Number of users of the team
+   * @format int64
+   */
+  team_users_number?: number;
+}
+
 export interface TeamTarget {
   target_detection_status?:
     | "FAILED"

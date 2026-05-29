@@ -2,7 +2,6 @@ import { Add, GroupsOutlined } from '@mui/icons-material';
 import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton } from '@mui/material';
 import { type FunctionComponent, useContext, useEffect, useMemo, useState } from 'react';
 
-import { findTeams } from '../../../../actions/teams/team-actions';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
 import { useQueryable } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
@@ -10,15 +9,15 @@ import SelectList, { type SelectListElements } from '../../../../components/comm
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
-import { type Team, type TeamOutput } from '../../../../utils/api-types';
+import { type TeamOutput } from '../../../../utils/api-types';
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { TeamContext } from '../../common/Context';
 import CreateTeam from './CreateTeam';
 
-interface Props { addedTeamIds: Team['team_id'][] }
+interface Props { onTeamsUpdated?: () => void }
 
-const UpdateTeams: FunctionComponent<Props> = ({ addedTeamIds }) => {
+const UpdateTeams: FunctionComponent<Props> = ({ onTeamsUpdated }) => {
   // Standard hooks
   const { t } = useFormatter();
   const { searchTeams, onReplaceTeam } = useContext(TeamContext);
@@ -37,17 +36,19 @@ const UpdateTeams: FunctionComponent<Props> = ({ addedTeamIds }) => {
 
   const handleSubmit = async () => {
     setOpen(false);
-    onReplaceTeam?.(selectedTeamValues.map(v => v.team_id));
+    await onReplaceTeam?.(selectedTeamValues.map(v => v.team_id));
+    onTeamsUpdated?.();
   };
 
   useEffect(() => {
     if (open) {
-      findTeams(addedTeamIds).then(result => setSelectedTeamValues(result.data));
+      // Load currently assigned teams (contextualOnly=true) to pre-populate selection
+      searchTeams(buildSearchPagination({ size: 1000 }), true).then(result => setSelectedTeamValues(result.data.content ?? []));
     }
-  }, [open, addedTeamIds]);
+  }, [open]);
 
   // Pagination
-  const addTeam = (_teamId: string, team: TeamOutput) => setSelectedTeamValues([...selectedTeamValues, team]);
+  const addTeam = (_teamId: string, team: TeamOutput) => setSelectedTeamValues([...selectedTeamValues, team as unknown as TeamOutput]);
   const removeTeam = (teamId: string) => setSelectedTeamValues(selectedTeamValues.filter(v => v.team_id !== teamId));
 
   // Headers
@@ -67,9 +68,6 @@ const UpdateTeams: FunctionComponent<Props> = ({ addedTeamIds }) => {
     ],
   }), []);
 
-  const availableFilterNames = [
-    'team_tags',
-  ];
   const { queryableHelpers, searchPaginationInput } = useQueryable(buildSearchPagination({}));
 
   const paginationComponent = (
@@ -79,7 +77,7 @@ const UpdateTeams: FunctionComponent<Props> = ({ addedTeamIds }) => {
       setContent={setTeamValues}
       setLoading={setIsLoading}
       entityPrefix="team"
-      availableFilterNames={availableFilterNames}
+      availableFilterNames={[]}
       queryableHelpers={queryableHelpers}
     />
   );
@@ -111,6 +109,7 @@ const UpdateTeams: FunctionComponent<Props> = ({ addedTeamIds }) => {
         }}
       >
         <DialogTitle>{t('Update teams')}</DialogTitle>
+        {open && (
         <DialogContent>
           <Box sx={{ marginTop: 2 }} data-testid="select-team-list">
             <SelectList
@@ -134,6 +133,7 @@ const UpdateTeams: FunctionComponent<Props> = ({ addedTeamIds }) => {
             />
           </Box>
         </DialogContent>
+        )}
         <DialogActions>
           <Button onClick={handleClose}>{t('Cancel')}</Button>
           {!isLoading && (

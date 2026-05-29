@@ -382,7 +382,7 @@ class ScenarioServiceUnitTest {
         when(scenarioTeamUserRepository.existsByScenarioIdAndTeamIdAndUserId(
                 scenarioId, "team-3", "user-1"))
             .thenReturn(false);
-        when(teamService.find(any())).thenReturn(List.of());
+        when(teamService.findByIds(any())).thenReturn(List.of());
 
         scenarioService.replaceTeams(scenarioId, List.of("team-2", "team-3", "team-3"));
 
@@ -424,7 +424,7 @@ class ScenarioServiceUnitTest {
         when(scenarioRepository.findByIdAndTenantId(scenarioId, "tenant-1"))
             .thenReturn(Optional.of(scenario));
         when(teamRepository.findAllById(any())).thenReturn(List.of(existingTeam));
-        when(teamService.find(any())).thenReturn(List.of());
+        when(teamService.findByIds(any())).thenReturn(List.of());
 
         scenarioService.replaceTeams(scenarioId, List.of("team-1"));
 

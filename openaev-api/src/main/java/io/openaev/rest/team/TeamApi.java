@@ -47,7 +47,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.hibernate.TransientObjectException;
 import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.data.domain.Page;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -100,8 +99,7 @@ public class TeamApi extends RestBehavior {
       description = "Search the teams corresponding to the criteria")
   public Page<TeamOutput> searchTeams(
       @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
-    final Specification<Team> teamSpecification = contextual(false);
-    return this.teamService.teamPagination(searchPaginationInput, teamSpecification);
+    return this.teamService.teamPaginationSimple(searchPaginationInput, false);
   }
 
   @LogExecutionTime
@@ -111,7 +109,7 @@ public class TeamApi extends RestBehavior {
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The list of teams")})
   @Operation(description = "Find a list of teams based on their ids", summary = "Find teams")
   public List<TeamOutput> findTeams(@RequestBody @Valid @NotNull final List<String> teamIds) {
-    return this.teamService.find(fromIds(teamIds));
+    return this.teamService.findByIds(teamIds);
   }
 
   @GetMapping({"/api/teams/{teamId}", TENANT_TEAM_URI + "/{teamId}"})

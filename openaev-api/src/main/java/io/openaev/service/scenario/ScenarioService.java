@@ -3,7 +3,6 @@ package io.openaev.service.scenario;
 import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.database.criteria.GenericCriteria.countQuery;
 import static io.openaev.database.specification.ScenarioSpecification.findGrantedFor;
-import static io.openaev.database.specification.TeamSpecification.fromIds;
 import static io.openaev.helper.MailHelper.resolveFromName;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
@@ -397,6 +396,17 @@ public class ScenarioService {
         .orElseThrow(() -> new ElementNotFoundException("Scenario not found"));
   }
 
+  /**
+   * Returns only the IDs of teams linked to the given scenario — no Team entity loading.
+   *
+   * @param scenarioId the scenario to look up
+   * @return list of team IDs
+   */
+  @Transactional(readOnly = true)
+  public List<String> findTeamIds(@NotBlank String scenarioId) {
+    return scenarioRepository.findTeamIdsByScenarioId(scenarioId);
+  }
+
   public ScenarioOutput getScenarioById(@NotBlank final String scenarioId) {
     ObjectMapper objectMapper = new ObjectMapper();
     RawScenario rawScenario = this.scenarioRepository.getScenarioByIdAndTenantId(scenarioId);
@@ -716,7 +726,7 @@ public class ScenarioService {
     this.injectRepository.removeTeamsForScenario(scenarioId, teamIds);
     // Remove all association between lessons learned and teams
     this.lessonsCategoryRepository.removeTeamsForScenario(scenarioId, teamIds);
-    return teamService.find(fromIds(teamIds));
+    return teamService.findByIds(teamIds);
   }
 
   @Transactional(rollbackFor = Exception.class)
@@ -758,7 +768,7 @@ public class ScenarioService {
         Stream.concat(previousTeamIds.stream(), teams.stream().map(Team::getId))
             .distinct()
             .toList();
-    return teamService.find(fromIds(modifiedTeamIds));
+    return teamService.findByIds(modifiedTeamIds);
   }
 
   public Scenario addScenarioPlayer(

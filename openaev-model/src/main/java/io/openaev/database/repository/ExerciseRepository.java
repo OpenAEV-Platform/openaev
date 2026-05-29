@@ -29,6 +29,10 @@ public interface ExerciseRepository
 
   boolean existsByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
+  /** Returns only the IDs of teams linked to the given exercise — no entity loading. */
+  @Query("SELECT t.id FROM Exercise e JOIN e.teams t WHERE e.id = :exerciseId")
+  List<String> findTeamIdsByExerciseId(@Param("exerciseId") String exerciseId);
+
   /** Called by background job (scheduled task) — cross-tenant scoped by design. */
   @Query(value = "select e from Exercise e where e.status = 'SCHEDULED' and e.start <= :start")
   List<Exercise> findAllShouldBeInRunningState(@Param("start") Instant start);

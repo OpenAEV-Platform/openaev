@@ -243,7 +243,7 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   public List<TeamOutput> getExerciseTeams(@PathVariable String exerciseId) {
-    return this.teamService.find(fromExercise(exerciseId));
+    return this.teamService.findByExerciseId(exerciseId);
   }
 
   @Transactional(rollbackFor = Exception.class)

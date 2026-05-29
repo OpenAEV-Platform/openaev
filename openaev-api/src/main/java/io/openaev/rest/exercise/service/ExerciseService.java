@@ -4,7 +4,6 @@ import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.database.criteria.GenericCriteria.countQuery;
 import static io.openaev.database.model.Grant.GRANT_RESOURCE_TYPE.SIMULATION;
 import static io.openaev.database.specification.ExerciseSpecification.*;
-import static io.openaev.database.specification.TeamSpecification.fromIds;
 import static io.openaev.helper.MailHelper.resolveFromName;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.JpaUtils.arrayAggOnId;
@@ -1014,7 +1013,7 @@ public class ExerciseService {
 
   // -- TEAMS --
   @Transactional(rollbackFor = Exception.class)
-  public Iterable<TeamOutput> removeTeams(
+  public List<TeamOutput> removeTeams(
       @NotBlank final String exerciseId, @NotNull final List<String> teamIds) {
     // Remove teams from exercise
     this.exerciseRepository.removeTeams(exerciseId, teamIds);
@@ -1024,7 +1023,7 @@ public class ExerciseService {
     this.injectService.removeTeamsForSimulation(exerciseId, teamIds);
     // Remove all association between lessons learned and teams
     this.lessonsService.removeTeamsForSimulation(exerciseId, teamIds);
-    return teamService.find(fromIds(teamIds));
+    return teamService.findByIds(teamIds);
   }
 
   @Transactional(rollbackFor = Exception.class)
@@ -1066,7 +1065,7 @@ public class ExerciseService {
         Stream.concat(previousTeamIds.stream(), teams.stream().map(Team::getId))
             .distinct()
             .toList();
-    return teamService.find(fromIds(modifiedTeamIds));
+    return teamService.findByIds(modifiedTeamIds);
   }
 
   public Exercise enablePlayers(

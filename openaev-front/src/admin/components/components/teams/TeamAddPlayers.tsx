@@ -56,6 +56,7 @@ const useStyles = makeStyles()(theme => ({
 interface Props {
   addedUsersIds: UserStore['user_id'][];
   teamId: Team['team_id'];
+  onPlayersUpdated?: () => void;
 }
 
 type UserStoreExtended = UserStore & {
@@ -63,7 +64,7 @@ type UserStoreExtended = UserStore & {
   organization_description: Organization['organization_description'];
 };
 
-const TeamAddPlayers: FunctionComponent<Props> = ({ addedUsersIds, teamId }) => {
+const TeamAddPlayers: FunctionComponent<Props> = ({ addedUsersIds, teamId, onPlayersUpdated }) => {
   const dispatch = useAppDispatch();
   const { t } = useFormatter();
   const { classes } = useStyles();
@@ -117,6 +118,7 @@ const TeamAddPlayers: FunctionComponent<Props> = ({ addedUsersIds, teamId }) => 
 
   const submitAddUsers = async () => {
     await onAddUsersTeam?.(teamId, usersIds);
+    onPlayersUpdated?.();
     setOpen(false);
     setKeyword('');
     setUsersIds([]);
