@@ -2,12 +2,17 @@ package io.openaev.security;
 
 import static org.springframework.http.HttpHeaders.REFERER;
 
+import io.openaev.aop.audit_log.AuditLogger;
+import io.openaev.database.model.Action;
+import io.openaev.database.model.EventStatus;
 import io.openaev.service.user_events.UserEventService;
+import io.openaev.utils.log.LogUtils;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler;
 import org.springframework.security.web.savedrequest.HttpSessionRequestCache;
@@ -18,9 +23,12 @@ public class SsoRefererAuthenticationFailureHandler extends SimpleUrlAuthenticat
 
   private RequestCache requestCache = new HttpSessionRequestCache();
   private final UserEventService userEventService;
+  private final Optional<AuditLogger> auditLogger;
 
-  public SsoRefererAuthenticationFailureHandler(UserEventService userEventService) {
+  public SsoRefererAuthenticationFailureHandler(
+      UserEventService userEventService, AuditLogger auditLogger) {
     this.userEventService = userEventService;
+    this.auditLogger = Optional.ofNullable(auditLogger);
   }
 
   @Override
@@ -29,6 +37,18 @@ public class SsoRefererAuthenticationFailureHandler extends SimpleUrlAuthenticat
       throws ServletException, IOException {
     userEventService.createLoginFailedEvent(
         request.getRequestURI(), exception.getClass().getSimpleName());
+
+    auditLogger.ifPresent(
+        logger -> {
+          String eventScope = LogUtils.getEventScope(Action.LOGIN);
+          String eventStatus = LogUtils.getEventStatus(EventStatus.ERROR);
+          logger.logAuthEvent(
+              eventScope,
+              eventStatus,
+              request.getRequestURI(),
+              exception.getClass().getSimpleName(),
+              null);
+        });
 
     this.saveException(request, exception);
     SavedRequest savedRequest = this.requestCache.getRequest(request, response);
