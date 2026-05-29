@@ -4,9 +4,8 @@ import {
   Grid, IconButton, Tooltip, Typography,
 } from '@mui/material';
 import { green, orange } from '@mui/material/colors';
-import { Fragment, type FunctionComponent, useContext, useState } from 'react';
+import { Fragment, type FunctionComponent, useContext, useMemo, useState } from 'react';
 import { Link } from 'react-router';
-import { makeStyles } from 'tss-react/mui';
 
 import { type FullArticleStore } from '../../../../actions/channels/Article';
 import { type ChannelsHelper } from '../../../../actions/channels/channel-helper';
@@ -16,8 +15,7 @@ import ExpandableMarkdown from '../../../../components/ExpandableMarkdown';
 import { useFormatter } from '../../../../components/i18n';
 import ChannelColor from '../../../../public/components/channels/ChannelColor';
 import { useHelper } from '../../../../store';
-import { type Article } from '../../../../utils/api-types';
-import { useAppDispatch } from '../../../../utils/hooks';
+import { type Article, type Channel, type Document } from '../../../../utils/api-types';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useSearchAndFilter from '../../../../utils/SortingFiltering';
 import { buildTenantApiPath } from '../../../../utils/url-helper';
@@ -28,26 +26,31 @@ import { ArticleContext, PermissionsContext } from '../Context';
 import ArticlePopover from './ArticlePopover';
 import CreateArticle from './CreateArticle';
 
-const useStyles = makeStyles()(() => ({
-  channel: {
-    fontSize: 12,
-    float: 'left',
-    marginRight: 7,
-    maxWidth: 300,
-    borderRadius: 4,
-  },
-  card: { position: 'relative' },
-  footer: {
-    width: '100%',
-    position: 'absolute',
-    padding: '0 15px 0 15px',
-    left: 0,
-    bottom: 10,
-  },
-  button: { cursor: 'default' },
-}));
-
 interface Props { articles: Article[] }
+type ArticleWithChannel = Article & { article_fullchannel?: Channel };
+
+const getHeaderDocuments = (article: ArticleWithChannel, docs: Document[]) => {
+  if (article.article_fullchannel?.channel_type === 'newspaper') {
+    return docs.filter(d => d.document_type.includes('image/'));
+  }
+  if (article.article_fullchannel?.channel_type === 'tv') {
+    return docs.filter(d => d.document_type.includes('video/'));
+  }
+  return docs.filter(d => d.document_type.includes('image/') || d.document_type.includes('video/'));
+};
+
+const getColumnsByDocumentsLength = (documentsLength: number) => {
+  if (documentsLength === 2) {
+    return 6;
+  }
+  if (documentsLength === 3) {
+    return 4;
+  }
+  if (documentsLength >= 4) {
+    return 3;
+  }
+  return 12;
+};
 
 const Articles: FunctionComponent<Props> = ({ articles }) => {
   // Context
@@ -55,8 +58,6 @@ const Articles: FunctionComponent<Props> = ({ articles }) => {
   const { permissions } = useContext(PermissionsContext);
 
   // Standard hooks
-  const { classes } = useStyles();
-  const dispatch = useAppDispatch();
   const { t } = useFormatter();
 
   // Fetching data
@@ -65,8 +66,8 @@ const Articles: FunctionComponent<Props> = ({ articles }) => {
     documentsMap: helper.getDocumentsMap(),
   }));
   useDataLoader(() => {
-    dispatch(fetchChannels());
-    dispatch(fetchDocuments());
+    fetchChannels();
+    fetchDocuments();
   });
 
   // Creation
@@ -82,26 +83,33 @@ const Articles: FunctionComponent<Props> = ({ articles }) => {
   };
   const searchColumns = ['name', 'type', 'content'];
   const filtering = useSearchAndFilter('article', 'name', searchColumns);
-  // Rendering
-  const fullArticles = articles.map(item => ({
-    ...item,
-    article_fullchannel: item.article_channel ? channelsMap[item.article_channel] : {},
-  }));
 
-	const selectedChannelIds = channels.map((c) => c.id);
-	const sortedArticles: FullArticleStore[] = filtering
-		.filterAndSort(fullArticles)
-		.filter((n: FullArticleStore) => {
-			if (selectedChannelIds.length === 0) {
-				return true;
-			}
-			const articleChannelId = n.article_fullchannel?.channel_id;
-			return articleChannelId ? selectedChannelIds.includes(articleChannelId) : false;
-		});
+  // Rendering
+  const fullArticles = useMemo<ArticleWithChannel[]>(() => (
+    articles.map(item => ({
+      ...item,
+      article_fullchannel: item.article_channel ? channelsMap[item.article_channel] : undefined,
+    }))
+  ), [articles, channelsMap]);
+
+  const selectedChannelIds = useMemo(() => channels.map(c => c.id), [channels]);
+
+  const sortedArticles = useMemo<ArticleWithChannel[]>(() => (
+    filtering
+      .filterAndSort(fullArticles)
+      .filter((article: ArticleWithChannel) => {
+        if (selectedChannelIds.length === 0) {
+          return true;
+        }
+
+        const articleChannelId = article.article_fullchannel?.channel_id;
+        return articleChannelId ? selectedChannelIds.includes(articleChannelId) : false;
+      })
+  ), [filtering, fullArticles, selectedChannelIds]);
 
   return (
     <div>
-      <Typography variant="h4" gutterBottom style={{ float: 'left' }}>
+      <Typography variant="h4" gutterBottom sx={{ float: 'left' }}>
         {t('Media pressure')}
       </Typography>
       {permissions.canManage && (
@@ -126,7 +134,7 @@ const Articles: FunctionComponent<Props> = ({ articles }) => {
             {permissions.canManage
               && (
                 <Button
-                  style={{ marginTop: 20 }}
+                  sx={{ mt: 2.5 }}
                   startIcon={<NewspaperOutlined />}
                   variant="outlined"
                   color="primary"
@@ -143,32 +151,21 @@ const Articles: FunctionComponent<Props> = ({ articles }) => {
       <Grid container spacing={3}>
         {sortedArticles.map((article, index) => {
           const docs = (article.article_documents ?? [])
-            .map(docId => (documentsMap[docId] ? documentsMap[docId] : undefined))
-            .filter(d => d !== undefined);
-          const images = docs.filter(d => d.document_type.includes('image/'));
-          const videos = docs.filter(d => d.document_type.includes('video/'));
-          let headersDocs;
-          if (article.article_fullchannel?.channel_type === 'newspaper') {
-            headersDocs = images;
-          } else if (article.article_fullchannel?.channel_type === 'tv') {
-            headersDocs = videos;
-          } else {
-            headersDocs = [...images, ...videos];
-          }
-          let columns = 12;
-          if (headersDocs.length === 2) {
-            columns = 6;
-          } else if (headersDocs.length === 3) {
-            columns = 4;
-          } else if (headersDocs.length >= 4) {
-            columns = 3;
-          }
+            .map(docId => documentsMap[docId])
+            .filter((doc): doc is Document => doc !== undefined);
+          const headerDocs = getHeaderDocuments(article, docs);
+          const columns = getColumnsByDocumentsLength(headerDocs.length);
+          const channelColor = ChannelColor(article.article_fullchannel?.channel_type);
+          const previewUrl = article.article_fullchannel
+            ? previewArticleUrl(article as FullArticleStore)
+            : '#';
+
           return (
-            <Grid key={article.article_id} size={{ xs: 4 }} style={index < 3 ? { paddingTop: 0 } : undefined}>
+            <Grid key={article.article_id} size={{ xs: 4 }} sx={index < 3 ? { pt: 0 } : undefined}>
               <Card
                 variant="outlined"
-                classes={{ root: classes.card }}
                 sx={{
+                  position: 'relative',
                   width: '100%',
                   height: '100%',
                 }}
@@ -177,9 +174,7 @@ const Articles: FunctionComponent<Props> = ({ articles }) => {
                   avatar={(
                     <Avatar
                       sx={{
-                        bgcolor: ChannelColor(
-                          article.article_fullchannel?.channel_type,
-                        ),
+                        bgcolor: channelColor,
                       }}
                     >
                       {(article.article_author || t('Unknown')).charAt(0)}
@@ -203,7 +198,8 @@ const Articles: FunctionComponent<Props> = ({ articles }) => {
                         aria-haspopup="true"
                         size="large"
                         component={Link}
-                        to={previewArticleUrl(article)}
+                        to={previewUrl}
+                        disabled={!article.article_fullchannel}
                       >
                         <VisibilityOutlined />
                       </IconButton>
@@ -212,7 +208,7 @@ const Articles: FunctionComponent<Props> = ({ articles }) => {
                   )}
                 />
                 <Grid container={true} spacing={3}>
-                  {headersDocs.map(doc => (
+                  {headerDocs.map(doc => (
                     <Grid key={doc.document_id} size={{ xs: columns }}>
                       {doc.document_type.includes('image/') && (
                         <CardMedia
@@ -232,12 +228,12 @@ const Articles: FunctionComponent<Props> = ({ articles }) => {
                     </Grid>
                   ))}
                 </Grid>
-                <CardContent style={{ marginBottom: 30 }}>
+                <CardContent sx={{ mb: 3.75 }}>
                   <Typography
                     gutterBottom
                     variant="h1"
                     component="div"
-                    style={{
+                    sx={{
                       margin: '0 auto',
                       textAlign: 'center',
                     }}
@@ -245,7 +241,15 @@ const Articles: FunctionComponent<Props> = ({ articles }) => {
                     {article.article_name}
                   </Typography>
                   <ExpandableMarkdown source={article.article_content ?? ''} limit={500} />
-                  <div className={classes.footer}>
+                  <div
+                    style={{
+                      width: '100%',
+                      position: 'absolute',
+                      padding: '0 15px',
+                      left: 0,
+                      bottom: 10,
+                    }}
+                  >
                     <div style={{ float: 'left' }}>
                       <Tooltip title={article.article_fullchannel?.channel_name}>
                         <Chip
@@ -255,14 +259,14 @@ const Articles: FunctionComponent<Props> = ({ articles }) => {
                               variant="chip"
                             />
                           )}
-                          classes={{ root: classes.channel }}
-                          style={{
-                            color: ChannelColor(
-                              article.article_fullchannel?.channel_type,
-                            ),
-                            borderColor: ChannelColor(
-                              article.article_fullchannel?.channel_type,
-                            ),
+                          sx={{
+                            fontSize: 12,
+                            float: 'left',
+                            mr: 1,
+                            maxWidth: 300,
+                            borderRadius: 1,
+                            color: channelColor,
+                            borderColor: channelColor,
                           }}
                           variant="outlined"
                           label={article.article_fullchannel?.channel_name}
@@ -273,21 +277,21 @@ const Articles: FunctionComponent<Props> = ({ articles }) => {
                       <Button
                         size="small"
                         startIcon={<ChatBubbleOutlineOutlined />}
-                        className={classes.button}
+                        sx={{ cursor: 'default' }}
                       >
                         {article.article_comments || 0}
                       </Button>
                       <Button
                         size="small"
                         startIcon={<ShareOutlined />}
-                        className={classes.button}
+                        sx={{ cursor: 'default' }}
                       >
                         {article.article_shares || 0}
                       </Button>
                       <Button
                         size="small"
                         startIcon={<FavoriteBorderOutlined />}
-                        className={classes.button}
+                        sx={{ cursor: 'default' }}
                       >
                         {article.article_likes || 0}
                       </Button>
