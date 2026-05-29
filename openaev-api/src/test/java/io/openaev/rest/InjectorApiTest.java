@@ -18,6 +18,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
@@ -43,6 +44,7 @@ import jakarta.persistence.EntityManager;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -642,6 +644,101 @@ public class InjectorApiTest extends IntegrationTest {
       assertThat(reloadedInject.getInjector().getTenant().getId())
           .as("Injector should belong to tenant A")
           .isEqualTo(tenantA);
+    }
+  }
+
+  @Nested
+  @DisplayName("Tenant Isolation API")
+  @WithMockUser
+  class TenantIsolationApi {
+
+    @Test
+    @DisplayName("Injector created in tenant X should NOT appear in tenant Y list")
+    void given_injectorInTenantX_should_notAppearInTenantYList() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantHelper.createTenantWithCapabilities(
+              "Tenant X",
+              Set.of(Capability.MANAGE_TENANT_SETTINGS, Capability.ACCESS_TENANT_SETTINGS));
+      Tenant tenantY =
+          tenantHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_TENANT_SETTINGS));
+
+      InjectorCreateInput input = new InjectorCreateInput();
+      input.setId("tenant-x-injector");
+      input.setName("Tenant X Injector");
+      input.setType("tenant_x_type");
+      input.setCategory("attack");
+      input.setContracts(List.of(buildContractInput("tenant-x-contract")));
+
+      mvc.perform(
+              multipart("/api/tenants/" + tenantX.getId() + "/injectors")
+                  .file(buildInputPart(input))
+                  .file(buildEmptyIconPart())
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      em.flush();
+      em.clear();
+
+      // -------- Act --------
+      String response =
+          mvc.perform(
+                  get("/api/tenants/" + tenantY.getId() + "/injectors")
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -------- Assert --------
+      List<String> injectorIds = JsonPath.read(response, "$[*].injector_id");
+      assertThat(injectorIds.stream().noneMatch(input.getId()::equals)).isTrue();
+    }
+
+    @Test
+    @DisplayName("Injector created in tenant X should appear in tenant X list")
+    void given_injectorInTenantX_should_appearInTenantXList() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantHelper.createTenantWithCapabilities(
+              "Tenant X",
+              Set.of(Capability.MANAGE_TENANT_SETTINGS, Capability.ACCESS_TENANT_SETTINGS));
+
+      InjectorCreateInput input = new InjectorCreateInput();
+      input.setId("tenant-x-injector-visible");
+      input.setName("Tenant X Injector Visible");
+      input.setType("tenant_x_visible_type");
+      input.setCategory("attack");
+      input.setContracts(List.of(buildContractInput("tenant-x-visible-contract")));
+
+      mvc.perform(
+              multipart("/api/tenants/" + tenantX.getId() + "/injectors")
+                  .file(buildInputPart(input))
+                  .file(buildEmptyIconPart())
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      em.flush();
+      em.clear();
+
+      // -------- Act --------
+      String response =
+          mvc.perform(
+                  get("/api/tenants/" + tenantX.getId() + "/injectors")
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -------- Assert --------
+      List<String> injectorIds = JsonPath.read(response, "$[*].injector_id");
+      assertThat(injectorIds).contains(input.getId());
     }
   }
 
