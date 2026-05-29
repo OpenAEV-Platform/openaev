@@ -60,6 +60,8 @@ public class AccessControlAuditLogAspect {
   public Object auditAround(ProceedingJoinPoint joinPoint) throws Throwable {
     AccessControl accessControl = resolveAccessControlAnnotation(joinPoint);
 
+    // TODO: Logs should be based in HTTP interceptor and not only in the access control annotation.
+
     if (accessControl == null) return joinPoint.proceed();
 
     Action action = null;

@@ -45,7 +45,10 @@ public class SsoRefererAuthenticationFailureHandler extends SimpleUrlAuthenticat
           logger.logAuthEvent(
               eventScope,
               eventStatus,
-              request.getRequestURI(),
+              request
+                  .getRequestURI(), // TODO This represents a security issue bc we can have malicius
+              // log injection issues. Before log in, we should normalize and
+              // sanitize this data.
               exception.getClass().getSimpleName(),
               null);
         });
