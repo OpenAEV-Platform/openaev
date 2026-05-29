@@ -46,8 +46,6 @@ public interface InjectRepository
   @NotNull
   Optional<Inject> findById(@NotNull String id);
 
-  boolean existsByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
-
   @NotNull
   Optional<Inject> findWithStatusById(@NotNull String id);
 

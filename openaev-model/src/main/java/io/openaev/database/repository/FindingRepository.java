@@ -20,6 +20,10 @@ import org.springframework.transaction.annotation.Transactional;
 public interface FindingRepository
     extends CrudRepository<Finding, String>, JpaSpecificationExecutor<Finding> {
 
+  Optional<Finding> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
+
+  boolean existsByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
+
   // For testing purposes only
   List<Finding> findAllByInjectId(@NotNull final String injectId);
 

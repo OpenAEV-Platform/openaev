@@ -44,16 +44,9 @@ public class FindingService {
   }
 
   public Finding finding(@NotNull final String id) {
-    Finding finding =
-        this.findingRepository
-            .findById(id)
-            .orElseThrow(() -> new EntityNotFoundException("Finding not found with id: " + id));
-    if (injectService.existsByIdAndTenantId(finding.getInject().getId())) {
-      return finding;
-    } else {
-      throw new EntityNotFoundException(
-          "Finding not found for tenant " + TenantContext.getCurrentTenant());
-    }
+    return this.findingRepository
+        .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
+        .orElseThrow(() -> new EntityNotFoundException("Finding not found with id: " + id));
   }
 
   public Finding createFinding(@NotNull final Finding finding, @NotBlank final String injectId) {
@@ -70,7 +63,7 @@ public class FindingService {
   }
 
   public void deleteFinding(@NotNull final String id) {
-    if (!this.findingRepository.existsById(id)) {
+    if (!this.findingRepository.existsByIdAndTenantId(id, TenantContext.getCurrentTenant())) {
       throw new EntityNotFoundException("Finding not found with id: " + id);
     }
     this.findingRepository.deleteById(id);
