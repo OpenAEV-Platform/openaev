@@ -381,13 +381,30 @@ public class TenantGroupApiTest extends IntegrationTest {
   class Delete {
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.DELETE_TENANT_SETTINGS})
-    @DisplayName("Given DELETE_TENANT_SETTINGS, should delete a tenant group")
+    @WithMockUser(
+        withCapabilities = {Capability.DELETE_TENANT_SETTINGS, Capability.MANAGE_TENANT_SETTINGS})
+    @DisplayName("Given DELETE_TENANT_SETTINGS, should delete a tenant group with users")
     void given_deleteTenantSettings_should_deleteGroup() throws Exception {
       // -------- Arrange --------
       Group group =
           tenantGroupComposer.forGroup(TenantGroupFixture.getGroup("ToDelete")).persist().get();
       entityManager.flush();
+
+      // Assign the current user to the group (bidirectional User↔Group relationship)
+      String userId = testUserHolder.get().getId();
+      GroupUpdateUsersInput usersInput = new GroupUpdateUsersInput();
+      usersInput.setUserIds(List.of(userId));
+
+      mvc.perform(
+              put(tenantUri(TENANT_GROUP_URI) + "/" + group.getId() + "/users")
+                  .content(asJsonString(usersInput))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      entityManager.flush();
+      entityManager.clear();
 
       // -------- Act --------
       mvc.perform(
