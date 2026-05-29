@@ -141,6 +141,8 @@ public class AccessControlAuditLogAspect {
               if (throwable != null) {
                 log.warn(LOG_ERROR_MSG, throwable);
               }
+
+              accessControlAuditLogger.prepareLogFailure();
             }
           };
 

@@ -11,7 +11,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
+import org.springframework.context.ApplicationContext;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
@@ -30,8 +33,11 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class AuditLogger {
 
-  private final AuditRequestValidator auditRequestValidator;
+  @Value("${openaev.audit-logs.stop-the-world:false}")
+  private boolean stw;
 
+  private final ApplicationContext context;
+  private final AuditRequestValidator auditRequestValidator;
   private final LogService logService;
 
   public boolean isAuditLoggingEnabled() {
@@ -44,6 +50,21 @@ public class AuditLogger {
 
   public boolean isAuditUnauthorizedLoggingValid() {
     return auditRequestValidator.validUnauthorized();
+  }
+
+  public void prepareLogFailure() {
+    if (stw) {
+      log.error("[AUDIT] Stop-the-world triggered — shutting down application.");
+
+      try {
+        int exitCode = SpringApplication.exit(context, () -> 1);
+        System.exit(exitCode);
+      } catch (Exception e) {
+        log.warn("[AUDIT] Failed to stop application after log failure: {}", e.getMessage(), e);
+      }
+    } else {
+      log.warn("[AUDIT] Stop-the-world disabled, application continue running...");
+    }
   }
 
   /** Wraps the audit service call in try/catch — audit must never break the business flow. */
@@ -79,6 +100,10 @@ public class AuditLogger {
       log.warn("[AUDIT] Audit auth logging failed (non-blocking): {}", e.getMessage(), e);
     }
 
+    if (!status) {
+      prepareLogFailure();
+    }
+
     return CompletableFuture.completedFuture(status);
   }
 
@@ -111,6 +136,10 @@ public class AuditLogger {
 
     } catch (Exception e) {
       log.warn("[AUDIT] Audit logging failed (non-blocking): {}", e.getMessage(), e);
+    }
+
+    if (!status) {
+      prepareLogFailure();
     }
 
     return CompletableFuture.completedFuture(status);
