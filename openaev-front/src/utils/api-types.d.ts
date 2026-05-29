@@ -8928,6 +8928,7 @@ export interface WorkflowConfigurationInput {
    * @format int64
    * @min 60
    * @max 86400
+   * @default 3600
    */
   workflow_configuration_timeout_seconds?: number;
   /** List scope rules. */

@@ -29,6 +29,8 @@ import org.springframework.util.CollectionUtils;
 @Service
 public class WorkflowService {
 
+  public static final long DEFAULT_TIMEOUT_SECONDS = 3600L;
+
   private static final Gson GSON = new Gson();
 
   private final StepService stepService;
@@ -98,6 +100,7 @@ public class WorkflowService {
             .simulation(simulation)
             .rateLimitEnabled(false)
             .timeoutEnabled(false)
+            .timeoutSeconds(DEFAULT_TIMEOUT_SECONDS)
             .safeModeEnabled(true)
             .build();
     workflowRepository.save(workflow);
@@ -116,6 +119,7 @@ public class WorkflowService {
             .scenario(scenario)
             .rateLimitEnabled(false)
             .timeoutEnabled(false)
+            .timeoutSeconds(DEFAULT_TIMEOUT_SECONDS)
             .safeModeEnabled(true)
             .build();
     workflowRepository.save(workflow);
