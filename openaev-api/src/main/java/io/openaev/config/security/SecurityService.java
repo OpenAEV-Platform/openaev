@@ -20,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
@@ -41,6 +42,7 @@ public class SecurityService {
   private final UserEventService userEventService;
   private final TenantRepository tenantRepository;
 
+  @Transactional(rollbackFor = Exception.class)
   public User userManagement(
       String emailAttribute,
       String registrationId,
@@ -102,12 +104,10 @@ public class SecurityService {
 
   /** Attaches the user to the tenant configured for the given SSO provider registration. */
   private void attachTenant(String registrationId, User user) {
-    String tenantId =
+    String configuredTenantId =
         env.getProperty(
             OPENAEV_PROVIDER_PATH_PREFIX + registrationId + TENANT_ID_SUFFIX, String.class, "");
-    if (!hasText(tenantId)) {
-      return;
-    }
+    String tenantId = hasText(configuredTenantId) ? configuredTenantId : Tenant.DEFAULT_TENANT_UUID;
     boolean alreadyAttached = user.getTenants().stream().anyMatch(t -> t.getId().equals(tenantId));
     if (alreadyAttached) {
       return;

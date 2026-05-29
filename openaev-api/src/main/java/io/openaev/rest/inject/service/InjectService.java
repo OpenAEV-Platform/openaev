@@ -357,7 +357,7 @@ public class InjectService {
 
   public List<Inject> getExecutedAndNotFinished() {
     return this.injectRepository.findAll(
-        hasStatus(List.of(SUCCESS, ERROR, MAYBE_PREVENTED, PARTIAL, MAYBE_PARTIAL_PREVENTED))
+        hasStatus(List.of(EXECUTED, ERROR, MAYBE_PREVENTED, PARTIAL, MAYBE_PARTIAL_PREVENTED))
             .and(hasCollectingStatus(List.of(COLLECTING)))
             .and(fromRunningSimulation()));
   }

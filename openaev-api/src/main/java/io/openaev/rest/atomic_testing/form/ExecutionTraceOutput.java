@@ -23,7 +23,7 @@ public class ExecutionTraceOutput {
   @JsonProperty("execution_status")
   @Schema(
       description = "The status of the execution trace",
-      example = "SUCCESS, ERROR, COMMAND_NOT_FOUND, WARNING, COMMAND_CANNOT_BE_EXECUTED..")
+      example = "EXECUTED, ERROR, COMMAND_NOT_FOUND, WARNING, COMMAND_CANNOT_BE_EXECUTED..")
   private ExecutionTraceStatus status;
 
   @NotNull

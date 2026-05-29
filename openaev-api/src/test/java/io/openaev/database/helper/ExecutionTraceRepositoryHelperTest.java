@@ -63,7 +63,7 @@ class ExecutionTraceRepositoryHelperTest extends IntegrationTest {
     assertThat(persisted).isPresent();
     assertThat(persisted.get().getMessage()).isEqualTo("Test execution completed");
     assertThat(persisted.get().getAction()).isEqualTo(ExecutionTraceAction.EXECUTION);
-    assertThat(persisted.get().getStatus()).isEqualTo(ExecutionTraceStatus.SUCCESS);
+    assertThat(persisted.get().getStatus()).isEqualTo(ExecutionTraceStatus.EXECUTED);
     assertThat(persisted.get().getIdentifiers()).containsExactly("asset-1", "asset-2");
   }
 
@@ -85,14 +85,14 @@ class ExecutionTraceRepositoryHelperTest extends IntegrationTest {
     entityManager.flush();
 
     // Act
-    helper.updateInjectStatus(injectStatus.getId(), "SUCCESS", endDate);
+    helper.updateInjectStatus(injectStatus.getId(), "EXECUTED", endDate);
 
     // Assert
     entityManager.clear();
 
     Optional<InjectStatus> updated = injectStatusRepository.findById(injectStatus.getId());
     assertThat(updated).isPresent();
-    assertThat(updated.get().getName()).isEqualTo(ExecutionStatus.SUCCESS);
+    assertThat(updated.get().getName()).isEqualTo(ExecutionStatus.EXECUTED);
     assertThat(updated.get().getTrackingEndDate()).isNotNull();
   }
 

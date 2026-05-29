@@ -119,13 +119,13 @@ public class ExecutionTrace implements Base {
 
   public static ExecutionTrace getNewSuccessTrace(String message, ExecutionTraceAction action) {
     return new ExecutionTrace(
-        null, ExecutionTraceStatus.SUCCESS, null, message, action, null, null);
+        null, ExecutionTraceStatus.EXECUTED, null, message, action, null, null);
   }
 
   public static ExecutionTrace getNewSuccessTrace(
       String message, ExecutionTraceAction category, List<String> identifiers) {
     return new ExecutionTrace(
-        null, ExecutionTraceStatus.SUCCESS, identifiers, message, category, null, null);
+        null, ExecutionTraceStatus.EXECUTED, identifiers, message, category, null, null);
   }
 
   public static ExecutionTrace getNewInfoTrace(String message, ExecutionTraceAction action) {

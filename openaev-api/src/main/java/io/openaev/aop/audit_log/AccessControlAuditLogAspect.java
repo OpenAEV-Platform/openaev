@@ -11,20 +11,25 @@ import io.openaev.service.LogService;
 import io.openaev.utils.log.LogUtils;
 import java.lang.annotation.Annotation;
 import java.util.UUID;
+import java.util.function.BiConsumer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.ExpressionParser;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.expression.spel.support.SimpleEvaluationContext;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.server.ResponseStatusException;
 
 /**
  * AOP aspect that intercepts {@link AccessControl}-annotated controller methods to produce audit
@@ -38,7 +43,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 @Aspect
 @Component
 @ConditionalOnProperty(name = "openaev.audit-logs.service.enabled", havingValue = "true")
-@Order
+@Order(Ordered.HIGHEST_PRECEDENCE)
 @RequiredArgsConstructor
 @Slf4j
 public class AccessControlAuditLogAspect {
@@ -48,112 +53,128 @@ public class AccessControlAuditLogAspect {
   private final ObjectMapper objectMapper;
   private final ExpressionParser parser = new SpelExpressionParser();
 
-  @Around("@annotation(accessControl)")
-  public Object auditAround(ProceedingJoinPoint joinPoint, AccessControl accessControl)
-      throws Throwable {
-    Object result = null;
-    boolean isActive = false;
+  private static final String LOG_ERROR_MSG = "Error during audit logging";
+
+  @Around("@annotation(io.openaev.aop.AccessControl)")
+  public Object auditAround(ProceedingJoinPoint joinPoint) throws Throwable {
+    AccessControl accessControl = resolveAccessControlAnnotation(joinPoint);
+
+    if (accessControl == null) return joinPoint.proceed();
+
     Action action = null;
+    boolean isActive = false;
+    boolean isActionActive = false;
 
     try {
       action = accessControl.actionPerformed();
-      isActive =
-          accessControlAuditLogger.isAuditLoggingEnabled()
-              && accessControlAuditLogger.isAuditLoggingValid(action);
-    } catch (Exception ex) {
-      log.warn("Error during audit logging", ex);
+      isActive = accessControlAuditLogger.isAuditLoggingEnabled();
+      isActionActive = accessControlAuditLogger.isAuditLoggingValid(action);
+    } catch (Exception e) {
+      log.warn(LOG_ERROR_MSG, e);
     }
 
-    if (!isActive) {
-      return joinPoint.proceed();
-    }
+    Object result = null;
 
-    String logUUID = null;
-    ResourceType resourceType = null;
-    String resourceId = null;
-    String eventScope = null;
-    JsonNode inputNode = null;
-    JsonNode signatureNode = null;
-    java.util.function.BiConsumer<Boolean, Throwable> logCompletion = null;
-
-    try {
-      logUUID = UUID.randomUUID().toString();
-      resourceType = accessControl.resourceType();
-      resourceId = resolveResourceId(joinPoint, accessControl);
-
-      // Capture the input DTO for create/update/status_change
-      eventScope = LogUtils.getEventScope(action);
-      inputNode = getInputNode(joinPoint, eventScope);
-      signatureNode = getMethodSignature(joinPoint, inputNode);
-
-      final ResourceType finalResourceType = resourceType;
-      final String finalEventScope = eventScope;
-
-      logCompletion =
-          (success, throwable) -> {
-            if (throwable != null || (success != null && !success)) {
-              log.warn(
-                  "[AUDIT] Failed to log access control event for {}.{}",
-                  finalResourceType,
-                  finalEventScope);
-              if (throwable != null) {
-                log.warn("Error during audit logging", throwable);
-              }
-            }
-          };
-    } catch (Throwable ex) {
-      log.warn("Error during audit logging", ex);
-    }
-
-    // Execute the business operation
     try {
       result = joinPoint.proceed();
     } catch (Throwable ex) {
-      try {
-        JsonNode resultNode = getOutputNode(result);
-        JsonNode errorNode = buildErrorNode(resultNode, ex);
+      if (isActive) {
+        try {
+          if (accessControlAuditLogger.isAuditUnauthorizedLoggingValid()
+              && isRbacDeniedException(ex)) {
+            JsonNode errorNode = buildErrorNode(null, ex);
 
-        accessControlAuditLogger
-            .logAccessControlEvent(
-                eventScope,
-                "error",
-                resourceType,
-                resourceId,
-                inputNode,
-                errorNode,
-                signatureNode,
-                logUUID)
-            .whenComplete(logCompletion);
-      } catch (Exception e) {
-        log.warn("Error during audit logging", e);
+            // TODO AUDIT: Move this to enum just like in the issue/5483
+            logAccessControlEvent(joinPoint, accessControl, "unauthorized", "error", errorNode);
+          } else if (isActionActive) {
+            String eventScope = LogUtils.getEventScope(action);
+            JsonNode resultNode = getOutputNode(result);
+            JsonNode errorNode = buildErrorNode(resultNode, ex);
+
+            logAccessControlEvent(joinPoint, accessControl, eventScope, "error", errorNode);
+          }
+        } catch (Exception e) {
+          log.warn(LOG_ERROR_MSG, e);
+        }
       }
-
       throw ex;
     }
 
-    try {
-      JsonNode resultNode = getOutputNode(result);
+    if (isActive && isActionActive) {
+      try {
+        String eventScope = LogUtils.getEventScope(action);
+        JsonNode resultNode = getOutputNode(result);
 
-      accessControlAuditLogger
-          .logAccessControlEvent(
-              eventScope,
-              "success",
-              resourceType,
-              resourceId,
-              inputNode,
-              resultNode,
-              signatureNode,
-              logUUID)
-          .whenComplete(logCompletion);
-    } catch (Exception ex) {
-      log.warn("Error during audit logging", ex);
+        logAccessControlEvent(joinPoint, accessControl, eventScope, "success", resultNode);
+      } catch (Exception ex) {
+        log.warn(LOG_ERROR_MSG, ex);
+      }
     }
 
     return result;
   }
 
+  private void logAccessControlEvent(
+      JoinPoint joinPoint,
+      AccessControl accessControl,
+      String eventScope,
+      String eventStatus,
+      JsonNode outputNode) {
+    try {
+      String logUUID = UUID.randomUUID().toString();
+      ResourceType resourceType = accessControl.resourceType();
+      String resourceId = resolveResourceId(joinPoint, accessControl);
+      JsonNode inputNode = getInputNode(joinPoint, eventScope);
+      JsonNode signatureNode = getMethodSignature(joinPoint, inputNode);
+
+      BiConsumer<Boolean, Throwable> logCompletion =
+          (success, throwable) -> {
+            if (throwable != null || (success != null && !success)) {
+              log.warn(
+                  "[AUDIT] Failed to log access control event for {}.{}", resourceType, eventScope);
+              if (throwable != null) {
+                log.warn(LOG_ERROR_MSG, throwable);
+              }
+            }
+          };
+
+      accessControlAuditLogger
+          .logAccessControlEvent(
+              eventScope,
+              eventStatus,
+              resourceType,
+              resourceId,
+              inputNode,
+              outputNode,
+              signatureNode,
+              logUUID)
+          .whenComplete(logCompletion);
+    } catch (Exception ex) {
+      log.warn(LOG_ERROR_MSG, ex);
+    }
+  }
+
+  private AccessControl resolveAccessControlAnnotation(JoinPoint joinPoint) {
+    try {
+      MethodSignature signature = (MethodSignature) joinPoint.getSignature();
+      AccessControl annotation = signature.getMethod().getAnnotation(AccessControl.class);
+      if (annotation != null) {
+        return annotation;
+      }
+
+      return joinPoint
+          .getTarget()
+          .getClass()
+          .getMethod(signature.getName(), signature.getMethod().getParameterTypes())
+          .getAnnotation(AccessControl.class);
+    } catch (Exception ex) {
+      log.warn(LOG_ERROR_MSG, ex);
+      return null;
+    }
+  }
+
   // Capture the input DTO for create/update/status_change
-  private JsonNode getInputNode(ProceedingJoinPoint joinPoint, String eventScope) {
+  private JsonNode getInputNode(JoinPoint joinPoint, String eventScope) {
     JsonNode inputNode = null;
 
     if ("create".equals(eventScope)
@@ -196,7 +217,7 @@ public class AccessControlAuditLogAspect {
   }
 
   /** Finds the first method argument annotated with {@code @RequestBody}. */
-  private Object findRequestBody(ProceedingJoinPoint joinPoint) {
+  private Object findRequestBody(JoinPoint joinPoint) {
     try {
       MethodSignature signature = (MethodSignature) joinPoint.getSignature();
       Annotation[][] paramAnnotations = signature.getMethod().getParameterAnnotations();
@@ -215,7 +236,7 @@ public class AccessControlAuditLogAspect {
   }
 
   /** Builds a JsonNode with the method signature and its parameter names mapped to their values. */
-  private JsonNode getMethodSignature(ProceedingJoinPoint joinPoint, JsonNode inputNode) {
+  private JsonNode getMethodSignature(JoinPoint joinPoint, JsonNode inputNode) {
     try {
       MethodSignature signature = (MethodSignature) joinPoint.getSignature();
       String[] paramNames = signature.getParameterNames();
@@ -252,7 +273,7 @@ public class AccessControlAuditLogAspect {
   }
 
   /** Resolves the resource ID from the annotation's SpEL expression. */
-  public String resolveResourceId(ProceedingJoinPoint joinPoint, AccessControl accessControl) {
+  public String resolveResourceId(JoinPoint joinPoint, AccessControl accessControl) {
     if (accessControl.resourceId().isEmpty()) {
       return "";
     }
@@ -274,5 +295,16 @@ public class AccessControlAuditLogAspect {
       log.warn("[AUDIT] Failed to resolve resourceId SpEL: {}", e.getMessage(), e);
       return "";
     }
+  }
+
+  private boolean isRbacDeniedException(Throwable exception) {
+    try {
+      return exception instanceof ResponseStatusException rse
+          && HttpStatus.FORBIDDEN.equals(rse.getStatusCode());
+    } catch (Exception e) {
+      // return false
+    }
+
+    return false;
   }
 }

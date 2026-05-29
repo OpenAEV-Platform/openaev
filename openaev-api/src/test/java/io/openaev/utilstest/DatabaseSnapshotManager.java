@@ -189,12 +189,42 @@ public class DatabaseSnapshotManager {
     List<Map<String, Object>> data = startupData.get(table);
     if (data == null || data.isEmpty()) return;
 
+    Map<String, String> userDefinedColumns = getUserDefinedColumns(table);
+
     for (Map<String, Object> row : data) {
-      String columns = String.join(", ", row.keySet());
-      String placeholders = row.keySet().stream().map(k -> "?").collect(Collectors.joining(", "));
+      List<String> columnsList = new ArrayList<>(row.keySet());
+      String columns = String.join(", ", columnsList);
+      String placeholders =
+          columnsList.stream()
+              .map(
+                  column -> {
+                    String udt = userDefinedColumns.get(column);
+                    return udt != null ? "?::" + udt : "?";
+                  })
+              .collect(Collectors.joining(", "));
 
       String sql = "INSERT INTO " + table + " (" + columns + ") VALUES (" + placeholders + ")";
-      jdbcTemplate.update(sql, row.values().toArray());
+      Object[] values = columnsList.stream().map(row::get).toArray();
+      jdbcTemplate.update(sql, values);
     }
+  }
+
+  private Map<String, String> getUserDefinedColumns(String table) {
+    List<Map<String, Object>> rows =
+        jdbcTemplate.queryForList(
+            """
+            SELECT column_name, udt_name
+              FROM information_schema.columns
+             WHERE table_schema = 'public'
+               AND table_name = ?
+               AND data_type = 'USER-DEFINED'
+            """,
+            table);
+
+    Map<String, String> result = new HashMap<>();
+    for (Map<String, Object> row : rows) {
+      result.put((String) row.get("column_name"), (String) row.get("udt_name"));
+    }
+    return result;
   }
 }

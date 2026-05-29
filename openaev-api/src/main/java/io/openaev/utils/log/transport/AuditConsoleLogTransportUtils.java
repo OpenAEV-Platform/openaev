@@ -8,10 +8,14 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 /** Audit log transport that writes events to the application console (stdout via SLF4J). */
 @Component
+@Order(
+    1) // Ensure this runs first before file transport (priority 2) and engine transport (priority
+// 3)
 @RequiredArgsConstructor
 @Slf4j
 public class AuditConsoleLogTransportUtils implements AuditLogTransportUtils {
@@ -21,11 +25,6 @@ public class AuditConsoleLogTransportUtils implements AuditLogTransportUtils {
   private boolean enabled;
 
   private final ObjectMapper objectMapper;
-
-  @Override
-  public int priority() {
-    return 1;
-  }
 
   @Override
   public boolean send(LogEvent event, Object level) {

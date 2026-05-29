@@ -404,25 +404,40 @@ const CreateInject: FunctionComponent<Props> = ({
       variant="full"
       disableEnforceFocus
     >
-      <Grid>
-        <IconBar elements={iconBarOrderedDomains} />
+      <Grid style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: 'calc(100vh - 60px)',
+        overflow: 'hidden',
+      }}
+      >
+        {/* Icon bar */}
+        <div style={{ flexShrink: 0 }}>
+          <IconBar elements={iconBarOrderedDomains} />
+        </div>
+
+        {/* Two-panel layout */}
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: selectedContract
+            gridTemplateColumns: selectedContract && numberOfSelectedElements === 0
               ? `60% calc(40% - ${theme.spacing(2)})`
               : '1fr',
             gap: theme.spacing(2),
+            flex: 1,
             overflow: 'hidden',
             padding: `0 0 ${theme.spacing(2.5)} 0`,
           }}
         >
-          <div>
-            <div style={{
-              overflowY: 'auto',
-              paddingTop: theme.spacing(0.5),
-            }}
-            >
+          {/* Left panel: inject list */}
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            paddingTop: theme.spacing(0.5),
+          }}
+          >
+            <div style={{ flexShrink: 0 }}>
               <PaginationComponentV2
                 fetch={searchInjectorContracts}
                 searchPaginationInput={searchPaginationInput}
@@ -432,131 +447,136 @@ const CreateInject: FunctionComponent<Props> = ({
                 queryableHelpers={queryableHelpers}
                 attackPatterns={attackPatterns}
               />
-              <List>
-                <ListItem
-                  classes={{ root: classes.itemHead }}
-                  divider={false}
-                  style={{ ...(numberOfSelectedElements > 0 ? { backgroundColor: 'rgb(15, 30, 56)' } : {}) }}
-                  {...(numberOfSelectedElements === 0 ? { secondaryAction: <>&nbsp;</> } : {})}
-                >
-                  {numberOfSelectedElements > 0 ? (
-                    <>
-                      <ListItemIcon style={{ minWidth: 40 }} />
-                      <ListItemText
-                        sx={{
-                          'margin': 0,
-                          'padding': 0,
-                          '& .MuiTypography-root': { margin: 0 },
-                        }}
-                        primary={<ToolBar {...createInjectToolBarProps} />}
-                      />
-                    </>
-                  ) : (
-                    <>
-                      <ListItemIcon style={{ minWidth: 90 }} />
+            </div>
+            <List style={{
+              flex: 1,
+              overflowY: 'auto',
+            }}
+            >
+              <ListItem
+                classes={{ root: classes.itemHead }}
+                divider={false}
+                style={{ ...(numberOfSelectedElements > 0 ? { backgroundColor: 'rgb(15, 30, 56)' } : {}) }}
+                {...(numberOfSelectedElements === 0 ? { secondaryAction: <>&nbsp;</> } : {})}
+              >
+                {numberOfSelectedElements > 0 ? (
+                  <>
+                    <ListItemIcon style={{ minWidth: 40 }} />
+                    <ListItemText
+                      sx={{
+                        'margin': 0,
+                        'padding': 0,
+                        '& .MuiTypography-root': { margin: 0 },
+                      }}
+                      primary={<ToolBar {...createInjectToolBarProps} />}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <ListItemIcon style={{ minWidth: 90 }} />
+                    <ListItemText
+                      primary={(
+                        <SortHeadersComponentV2
+                          headers={headers}
+                          inlineStylesHeaders={inlineStyles}
+                          sortHelpers={queryableHelpers.sortHelpers}
+                        />
+                      )}
+                    />
+                    <ListItemIcon />
+                  </>
+                )}
+              </ListItem>
+              {contracts.map((contract: InjectorContractFullOutput, index) => {
+                const contractAttackPatterns = computeAttackPatterns(
+                  contract.injector_contract_attack_patterns,
+                  attackPatternsMap,
+                );
+
+                const contractKillChainPhase = contractAttackPatterns
+                  .flatMap(ap => ap.attack_pattern_kill_chain_phases ?? [])
+                  .at(0);
+
+                const resolvedContractKillChainPhase
+                  = contractKillChainPhase && killChainPhasesMap[contractKillChainPhase];
+
+                return (
+                  <ListItem
+                    key={contract.injector_contract_id}
+                    divider
+                    disablePadding
+                    secondaryAction={<>&nbsp;</>}
+                  >
+                    <ListItemButton
+                      onClick={() => {
+                        selectContract(contract);
+                        handleClearSelectedElements();
+                      }}
+                      selected={selectedContract?.injector_contract_id === contract.injector_contract_id}
+                      disabled={selectedContract?.injector_contract_id === contract.injector_contract_id}
+                    >
+                      {!isAtomic && (
+                        <ListItemIcon
+                          style={{ minWidth: 40 }}
+                          onClick={event => (
+                            event.shiftKey
+                              ? onRowShiftClick(index, contract, event)
+                              : handleToggle(contract, event)
+                          )}
+                        >
+                          <Checkbox
+                            edge="start"
+                            checked={
+                              (selectAll
+                                && !(contract.injector_contract_id in (deSelectedElements || {})))
+                              || contract.injector_contract_id in (selectedElements || {})
+                            }
+                            disableRipple
+                          />
+                        </ListItemIcon>
+                      )}
+
+                      <ListItemIcon style={{ minWidth: 56 }}>
+                        <InjectIcon
+                          variant="list"
+                          type={
+                            contract.injector_contract_payload_type
+                            ?? contract.injector_contract_injector_type
+                          }
+                          isPayload={isNotEmptyField(contract.injector_contract_payload_type)}
+                        />
+                      </ListItemIcon>
+
                       <ListItemText
                         primary={(
-                          <SortHeadersComponentV2
-                            headers={headers}
-                            inlineStylesHeaders={inlineStyles}
-                            sortHelpers={queryableHelpers.sortHelpers}
-                          />
+                          <div className={classes.bodyItems}>
+                            {headers.map(header => (
+                              <div
+                                key={header.field}
+                                className={classes.bodyItem}
+                                style={inlineStyles[header.field]}
+                              >
+                                {header.value?.(
+                                  contract,
+                                  resolvedContractKillChainPhase,
+                                  contractAttackPatterns,
+                                )}
+                              </div>
+                            ))}
+                          </div>
                         )}
                       />
-                      <ListItemIcon />
-                    </>
-                  )}
-                </ListItem>
-                {contracts.map((contract: InjectorContractFullOutput, index) => {
-                  const contractAttackPatterns = computeAttackPatterns(
-                    contract.injector_contract_attack_patterns,
-                    attackPatternsMap,
-                  );
-
-                  const contractKillChainPhase = contractAttackPatterns
-                    .flatMap(ap => ap.attack_pattern_kill_chain_phases ?? [])
-                    .at(0);
-
-                  const resolvedContractKillChainPhase
-                    = contractKillChainPhase && killChainPhasesMap[contractKillChainPhase];
-
-                  return (
-                    <ListItem
-                      key={contract.injector_contract_id}
-                      divider
-                      disablePadding
-                      secondaryAction={<>&nbsp;</>}
-                    >
-                      <ListItemButton
-                        onClick={() => {
-                          selectContract(contract);
-                          handleClearSelectedElements();
-                        }}
-                        selected={selectedContract?.injector_contract_id === contract.injector_contract_id}
-                        disabled={selectedContract?.injector_contract_id === contract.injector_contract_id}
-                      >
-                        {!isAtomic && (
-                          <ListItemIcon
-                            style={{ minWidth: 40 }}
-                            onClick={event => (
-                              event.shiftKey
-                                ? onRowShiftClick(index, contract, event)
-                                : handleToggle(contract, event)
-                            )}
-                          >
-                            <Checkbox
-                              edge="start"
-                              checked={
-                                (selectAll
-                                  && !(contract.injector_contract_id in (deSelectedElements || {})))
-                                || contract.injector_contract_id in (selectedElements || {})
-                              }
-                              disableRipple
-                            />
-                          </ListItemIcon>
-                        )}
-
-                        <ListItemIcon style={{ minWidth: 56 }}>
-                          <InjectIcon
-                            variant="list"
-                            type={
-                              contract.injector_contract_payload_type
-                              ?? contract.injector_contract_injector_type
-                            }
-                            isPayload={isNotEmptyField(contract.injector_contract_payload_type)}
-                          />
-                        </ListItemIcon>
-
-                        <ListItemText
-                          primary={(
-                            <div className={classes.bodyItems}>
-                              {headers.map(header => (
-                                <div
-                                  key={header.field}
-                                  className={classes.bodyItem}
-                                  style={inlineStyles[header.field]}
-                                >
-                                  {header.value?.(
-                                    contract,
-                                    resolvedContractKillChainPhase,
-                                    contractAttackPatterns,
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        />
-                        <ListItemIcon>
-                          <KeyboardArrowRight />
-                        </ListItemIcon>
-                      </ListItemButton>
-                    </ListItem>
-                  );
-                })}
-
-              </List>
-            </div>
+                      <ListItemIcon>
+                        <KeyboardArrowRight />
+                      </ListItemIcon>
+                    </ListItemButton>
+                  </ListItem>
+                );
+              })}
+            </List>
           </div>
+
+          {/* Right panel: selected inject detail */}
           {selectedContract && numberOfSelectedElements === 0 && (
             <Slide direction="left" in={checked} mountOnEnter unmountOnExit>
               <div style={{

@@ -55,7 +55,7 @@ public class Execution {
 
   public void addTrace(ExecutionTrace context) {
     ExecutionTraceStatus status = context.getStatus();
-    if (ExecutionTraceStatus.SUCCESS.equals(status) || ExecutionTraceStatus.INFO.equals(status)) {
+    if (ExecutionTraceStatus.EXECUTED.equals(status) || ExecutionTraceStatus.INFO.equals(status)) {
       log.info(context.getMessage());
     } else {
       log.error(context.getMessage());
@@ -69,17 +69,14 @@ public class Execution {
   }
 
   public ExecutionStatus getStatus() {
-    boolean hasSuccess =
-        traces.stream()
-            .anyMatch(context -> ExecutionTraceStatus.SUCCESS.equals(context.getStatus()));
-    boolean hasError =
-        traces.stream().anyMatch(context -> ExecutionTraceStatus.ERROR.equals(context.getStatus()));
+    boolean hasSuccess = traces.stream().anyMatch(t -> t.getStatus().isSuccess());
+    boolean hasError = traces.stream().anyMatch(t -> t.getStatus().isError());
     if (!hasSuccess && !hasError) {
       return ExecutionStatus.PENDING;
     } else if (hasSuccess && hasError) {
       return ExecutionStatus.PARTIAL;
     } else {
-      return hasSuccess ? ExecutionStatus.SUCCESS : ExecutionStatus.ERROR;
+      return hasSuccess ? ExecutionStatus.EXECUTED : ExecutionStatus.ERROR;
     }
   }
 
