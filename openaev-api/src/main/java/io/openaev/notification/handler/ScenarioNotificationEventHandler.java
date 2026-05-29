@@ -9,6 +9,7 @@ import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.scenario.service.ScenarioStatisticService;
 import io.openaev.service.NotificationRuleService;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
+import jakarta.persistence.EntityManager;
 import jakarta.validation.constraints.NotNull;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -16,17 +17,21 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.Session;
 import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
 public class ScenarioNotificationEventHandler implements NotificationEventHandler {
+  private final EntityManager entityManager;
   private final OpenAEVConfig openAEVConfig;
   private final ExerciseService exerciseService;
   private final NotificationRuleService notificationRuleService;
 
   @Override
   public void handle(NotificationEvent event) {
+    // Disable tenant filter — this handler runs cross-tenant
+    entityManager.unwrap(Session.class).disableFilter("tenantFilter");
     if (NotificationEventType.SIMULATION_COMPLETED.equals(event.getEventType())) {
       // get the last 2 simulations
       Exercise lastSimulation =
