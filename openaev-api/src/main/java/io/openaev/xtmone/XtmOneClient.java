@@ -370,6 +370,27 @@ public class XtmOneClient {
    */
   public void streamChatMessage(
       String content, String conversationId, String agentSlug, StreamConsumer streamConsumer) {
+    streamChatMessage(content, conversationId, agentSlug, null, streamConsumer);
+  }
+
+  /**
+   * Streams a chat message response from XTM One, forwarding an optional arbitrary page/application
+   * {@code context} object so the agent is aware of where the user is (e.g. the current URL). The
+   * context shape is decided by the caller (today the embedded chatbot sends {@code {"url": ...}});
+   * it is omitted from the upstream body when {@code null} or empty.
+   *
+   * @param content message content
+   * @param conversationId optional conversation ID
+   * @param agentSlug optional agent slug
+   * @param context optional host page/application context (forwarded verbatim)
+   * @param streamConsumer callback that receives the SSE {@link InputStream}
+   */
+  public void streamChatMessage(
+      String content,
+      String conversationId,
+      String agentSlug,
+      Map<String, Object> context,
+      StreamConsumer streamConsumer) {
     if (!config.isConfigured()) {
       log.warn("[XTM One] Chat message skipped: not configured");
       return;
@@ -380,6 +401,7 @@ public class XtmOneClient {
       body.put("content", content);
       if (conversationId != null) body.put("conversation_id", conversationId);
       if (agentSlug != null) body.put("agent_slug", agentSlug);
+      if (context != null && !context.isEmpty()) body.put("context", context);
       String json = objectMapper.writeValueAsString(body);
 
       HttpPost httpPost = chatPostBuilder("/api/v1/platform/chat/messages", jwt, json);

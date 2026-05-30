@@ -69,6 +69,12 @@ public class XtmOneChatApi extends RestBehavior {
     String conversationId =
         body.get("conversation_id") != null ? body.get("conversation_id").toString() : null;
     String agentSlug = body.get("agent_slug") != null ? body.get("agent_slug").toString() : null;
+    // Arbitrary host page/application context (e.g. current URL) forwarded so
+    // the agent is aware of where the user is. Optional and flexible — only
+    // passed upstream when present.
+    @SuppressWarnings("unchecked")
+    Map<String, Object> context =
+        body.get("context") instanceof Map ? (Map<String, Object>) body.get("context") : null;
 
     StreamingResponseBody responseBody =
         outputStream -> {
@@ -77,6 +83,7 @@ public class XtmOneChatApi extends RestBehavior {
                 content,
                 conversationId,
                 agentSlug,
+                context,
                 sseStream -> {
                   byte[] buf = new byte[4096];
                   int n;
