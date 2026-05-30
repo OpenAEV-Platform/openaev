@@ -23,8 +23,8 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 /**
  * Unit test for the {@code /api/xtmone/chat/messages} proxy forwarding contract. Executes the
  * returned {@link StreamingResponseBody} so the controller body actually runs and we can verify the
- * arguments handed to {@link XtmOneClient#streamChatMessage}. Pure POJO (no Spring / async dispatch)
- * to keep the contract check fast and deterministic.
+ * arguments handed to {@link XtmOneClient#streamChatMessage}. Pure POJO (no Spring / async
+ * dispatch) to keep the contract check fast and deterministic.
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("XTM One Chat API forwarding tests")
