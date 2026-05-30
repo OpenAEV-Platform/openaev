@@ -65,9 +65,12 @@ const AskArianePanel: React.FC<AskArianePanelProps> = ({
 
   // Forward the user's current in-app location so the agent is always aware
   // of the page (URI) the question is being asked from, e.g.
-  // `/admin/atomic_testings/<id>`. The shape is intentionally extensible —
-  // more context (page title, selected entity, etc.) can be added later.
-  const pageContext = { url: `${location.pathname}${location.search}` };
+  // `/admin/atomic_testings/<id>`. Only the pathname is sent — the query
+  // string is intentionally omitted to avoid forwarding UI state (filters,
+  // view settings, …) that would bloat the payload and could leak more than
+  // the agent needs. The shape is extensible — more context (page title,
+  // selected entity, etc.) can be added later.
+  const pageContext = { url: location.pathname };
 
   useEffect(() => {
     installChatbotCsrf();
