@@ -57,7 +57,8 @@ class ScenarioLifecycleAuditLogAspectTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private EmailInjectorIntegrationFactory emailInjectorIntegrationFactory;
 
-  @MockitoBean private ExpectationsExpirationManagerCollector expectationsExpirationManagerCollector;
+  @MockitoBean
+  private ExpectationsExpirationManagerCollector expectationsExpirationManagerCollector;
 
   @MockitoSpyBean private AuditLogger auditLogger;
 
