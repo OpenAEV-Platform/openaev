@@ -54,12 +54,12 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
     : predefinedExpectations;
 
   // Filter contract available expectations already included into current inject expectations.
-  // expectation_is_limited=false means the type can be selected multiple times.
+  // expectation_is_multi_selectable=true means the type can be selected multiple times.
   const addableAvailableExpectations = useMemo(() => {
     const selectedTypes = new Set(sortedExpectations.map(e => e.expectation_type));
     return expectationsAvailableInContract.filter((expectation) => {
-      const isLimited = expectation.expectation_is_limited ?? true;
-      return !isLimited || !selectedTypes.has(expectation.expectation_type);
+      const isMultiSelectable = expectation.expectation_is_multi_selectable ?? false;
+      return isMultiSelectable || !selectedTypes.has(expectation.expectation_type);
     });
   }, [sortedExpectations, expectationsAvailableInContract]);
 

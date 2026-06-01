@@ -239,33 +239,35 @@ public class PayloadService {
         switch (type) {
           case TEXT ->
               predefined.add(
-                  withExpectedLimitedFlag(this.expectationBuilderService.buildTextExpectation()));
+                  withExpectedMultiSelectableFlag(
+                      this.expectationBuilderService.buildTextExpectation()));
           case DOCUMENT ->
               predefined.add(
-                  withExpectedLimitedFlag(
+                  withExpectedMultiSelectableFlag(
                       this.expectationBuilderService.buildDocumentExpectation()));
           case ARTICLE ->
               predefined.add(
-                  withExpectedLimitedFlag(
+                  withExpectedMultiSelectableFlag(
                       this.expectationBuilderService.buildArticleExpectation()));
           case CHALLENGE ->
               predefined.add(
-                  withExpectedLimitedFlag(
+                  withExpectedMultiSelectableFlag(
                       this.expectationBuilderService.buildChallengeExpectation()));
           case MANUAL ->
               predefined.add(
-                  withExpectedLimitedFlag(this.expectationBuilderService.buildManualExpectation()));
+                  withExpectedMultiSelectableFlag(
+                      this.expectationBuilderService.buildManualExpectation()));
           case PREVENTION ->
               predefined.add(
-                  withExpectedLimitedFlag(
+                  withExpectedMultiSelectableFlag(
                       this.expectationBuilderService.buildPreventionExpectation()));
           case DETECTION ->
               predefined.add(
-                  withExpectedLimitedFlag(
+                  withExpectedMultiSelectableFlag(
                       this.expectationBuilderService.buildDetectionExpectation()));
           case VULNERABILITY ->
               predefined.add(
-                  withExpectedLimitedFlag(
+                  withExpectedMultiSelectableFlag(
                       this.expectationBuilderService.buildVulnerabilityExpectation()));
           default -> throw new IllegalArgumentException("Unsupported expectation type: " + type);
         }
@@ -276,13 +278,12 @@ public class PayloadService {
     // technical types.
     List<Expectation> available =
         expectationService.buildAvailableExpectationsForTechnicalInject().stream()
-            .map(this::withExpectedLimitedFlag)
+            .map(this::withExpectedMultiSelectableFlag)
             .toList();
 
     return expectationsField(predefined, available);
   }
 
-  /** Applies the OpenAEV rule for available expectations: MANUAL is not limited, all others are. */
   public PayloadOutput convertPayloadInjectorContractCreationToPayloadOutput(
       PayloadCreationService.PayloadInjectorContractCreationResult result) {
     return payloadMapper.toPayloadOutput(
@@ -316,10 +317,13 @@ public class PayloadService {
     return new PayloadWithRelatedEntities(payload, attackPatternIds, domainIds, tagIds);
   }
 
-  /** Applies the OpenAEV rule for available expectations: MANUAL is not limited, all others are. */
-  private Expectation withExpectedLimitedFlag(Expectation expectation) {
-    expectation.setIsLimited(
-        !InjectExpectation.EXPECTATION_TYPE.MANUAL.equals(expectation.getType()));
+  /**
+   * Applies the OpenAEV rule for available expectations: only MANUAL is multi-selectable, all other
+   * types are single-select.
+   */
+  private Expectation withExpectedMultiSelectableFlag(Expectation expectation) {
+    expectation.setMultiSelectable(
+        InjectExpectation.EXPECTATION_TYPE.MANUAL.equals(expectation.getType()));
     return expectation;
   }
 

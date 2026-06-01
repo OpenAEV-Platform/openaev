@@ -24,20 +24,20 @@ const makeExpectation = (overrides: Partial<ExpectationInput> = {}): Expectation
   ...overrides,
 });
 
-const LIMITED_DETECTION = makeExpectation({
+const SINGLE_SELECT_DETECTION = makeExpectation({
   expectation_type: 'DETECTION',
   expectation_name: 'Detection',
-  expectation_is_limited: true,
+  expectation_is_multi_selectable: false,
 });
-const UNLIMITED_MANUAL = makeExpectation({
+const MULTI_SELECT_MANUAL = makeExpectation({
   expectation_type: 'MANUAL',
   expectation_name: 'Manual check',
-  expectation_is_limited: false,
+  expectation_is_multi_selectable: true,
 });
-const LIMITED_PREVENTION = makeExpectation({
+const SINGLE_SELECT_PREVENTION = makeExpectation({
   expectation_type: 'PREVENTION',
   expectation_name: 'Prevention',
-  expectation_is_limited: true,
+  expectation_is_multi_selectable: false,
 });
 
 // -- HELPERS --
@@ -101,62 +101,62 @@ describe('InjectExpectations', () => {
 
   describe('Add expectations button visibility', () => {
     it('shows the "Add expectations" button when available expectations exist', () => {
-      renderInjectExpectations({ availableExpectations: [LIMITED_DETECTION] });
+      renderInjectExpectations({ availableExpectations: [SINGLE_SELECT_DETECTION] });
 
       expect(screen.getByText('Add expectations')).toBeDefined();
     });
 
     it('hides the "Add expectations" button when there are no addable expectations', () => {
-      // LIMITED_DETECTION is already added as expectationData → it is filtered out
+      // SINGLE_SELECT_DETECTION is already added as expectationData -> it is filtered out
       renderInjectExpectations({
-        expectationDatas: [LIMITED_DETECTION],
-        availableExpectations: [LIMITED_DETECTION],
+        expectationDatas: [SINGLE_SELECT_DETECTION],
+        availableExpectations: [SINGLE_SELECT_DETECTION],
       });
 
       expect(screen.queryByText('Add expectations')).toBeNull();
     });
   });
 
-  describe('isLimited=true — limited to one selection', () => {
+  describe('isMultiSelectable=false - single selection', () => {
     it('removes the type from the add list once it is already in the inject', () => {
-      // DETECTION is limited and already added → should no longer be offered
+      // DETECTION is single-select and already added -> should no longer be offered
       renderInjectExpectations({
-        expectationDatas: [LIMITED_DETECTION],
-        availableExpectations: [LIMITED_DETECTION, UNLIMITED_MANUAL],
+        expectationDatas: [SINGLE_SELECT_DETECTION],
+        availableExpectations: [SINGLE_SELECT_DETECTION, MULTI_SELECT_MANUAL],
       });
 
-      // Only MANUAL remains → button still visible
+      // Only MANUAL remains -> button still visible
       expect(screen.getByText('Add expectations')).toBeDefined();
     });
 
-    it('keeps a second limited type available when only the first is already added', () => {
+    it('keeps a second single-select type available when only the first is already added', () => {
       renderInjectExpectations({
-        expectationDatas: [LIMITED_DETECTION],
-        availableExpectations: [LIMITED_DETECTION, LIMITED_PREVENTION],
+        expectationDatas: [SINGLE_SELECT_DETECTION],
+        availableExpectations: [SINGLE_SELECT_DETECTION, SINGLE_SELECT_PREVENTION],
       });
 
-      // PREVENTION is not yet added → button still visible
+      // PREVENTION is not yet added -> button still visible
       expect(screen.getByText('Add expectations')).toBeDefined();
     });
 
-    it('hides the button when all limited types are already in the inject', () => {
+    it('hides the button when all single-select types are already in the inject', () => {
       renderInjectExpectations({
-        expectationDatas: [LIMITED_DETECTION, LIMITED_PREVENTION],
-        availableExpectations: [LIMITED_DETECTION, LIMITED_PREVENTION],
+        expectationDatas: [SINGLE_SELECT_DETECTION, SINGLE_SELECT_PREVENTION],
+        availableExpectations: [SINGLE_SELECT_DETECTION, SINGLE_SELECT_PREVENTION],
       });
 
       expect(screen.queryByText('Add expectations')).toBeNull();
     });
   });
 
-  describe('isLimited=false — unlimited selections', () => {
+  describe('isMultiSelectable=true - multiple selections', () => {
     it('keeps the type available even after it has been added once', () => {
       renderInjectExpectations({
-        expectationDatas: [UNLIMITED_MANUAL],
-        availableExpectations: [UNLIMITED_MANUAL],
+        expectationDatas: [MULTI_SELECT_MANUAL],
+        availableExpectations: [MULTI_SELECT_MANUAL],
       });
 
-      // MANUAL is unlimited → still offered after first addition
+      // MANUAL is multi-selectable -> still offered after first addition
       expect(screen.getByText('Add expectations')).toBeDefined();
     });
 
@@ -164,24 +164,24 @@ describe('InjectExpectations', () => {
       const secondManual = makeExpectation({
         expectation_type: 'MANUAL',
         expectation_name: 'Manual check 2',
-        expectation_is_limited: false,
+        expectation_is_multi_selectable: true,
       });
       renderInjectExpectations({
-        expectationDatas: [UNLIMITED_MANUAL, secondManual],
-        availableExpectations: [UNLIMITED_MANUAL],
+        expectationDatas: [MULTI_SELECT_MANUAL, secondManual],
+        availableExpectations: [MULTI_SELECT_MANUAL],
       });
 
       expect(screen.getByText('Add expectations')).toBeDefined();
     });
   });
 
-  describe('isLimited fallback (undefined)', () => {
-    it('treats undefined isLimited as limited (true) — hides button when type already added', () => {
+  describe('isMultiSelectable fallback (undefined)', () => {
+    it('treats undefined isMultiSelectable as false (single-select) - hides button when type already added', () => {
       const noFlag = makeExpectation({
         expectation_type: 'DETECTION',
         expectation_name: 'Detection',
       });
-      // expectation_is_limited is undefined → fallback to true (limited)
+      // expectation_is_multi_selectable is undefined -> fallback to false (single-select)
       renderInjectExpectations({
         expectationDatas: [noFlag],
         availableExpectations: [noFlag],
@@ -194,7 +194,7 @@ describe('InjectExpectations', () => {
   describe('Read-only mode', () => {
     it('never shows the "Add expectations" button in read-only mode', () => {
       renderInjectExpectations(
-        { availableExpectations: [UNLIMITED_MANUAL] },
+        { availableExpectations: [MULTI_SELECT_MANUAL] },
         {
           ...permissionsCanManage,
           permissions: {
