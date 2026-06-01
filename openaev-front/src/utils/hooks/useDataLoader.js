@@ -28,20 +28,28 @@ let batchTimeoutId;
 let idleCallbackId;
 let autoReConnectIntervalId;
 
+const drainPendingActions = () => {
+  const actions = pendingActions;
+  pendingActions = [];
+  actions.forEach(action => store.dispatch(action));
+};
+
 const flushPendingActions = () => {
   batchTimeoutId = undefined;
   if (pendingActions.length === 0) return;
-  const actions = pendingActions;
-  pendingActions = [];
-  const dispatch = action => store.dispatch(action);
-  if (typeof requestIdleCallback === 'function') {
-    idleCallbackId = requestIdleCallback(() => {
-      idleCallbackId = undefined;
-      actions.forEach(dispatch);
-    }, { timeout: IDLE_CALLBACK_TIMEOUT });
-  } else {
-    actions.forEach(dispatch);
+  if (typeof requestIdleCallback !== 'function') {
+    drainPendingActions();
+    return;
   }
+  // Keep a single idle callback in flight at a time. It drains whatever is
+  // queued when it actually runs, so later 200ms batches never schedule extra
+  // idle callbacks that we cannot track/cancel (which could otherwise dispatch
+  // after the last listener unmounts).
+  if (idleCallbackId !== undefined) return;
+  idleCallbackId = requestIdleCallback(() => {
+    idleCallbackId = undefined;
+    drainPendingActions();
+  }, { timeout: IDLE_CALLBACK_TIMEOUT });
 };
 
 const scheduleBatchedDispatch = (action) => {
@@ -65,6 +73,11 @@ const cancelPendingBatches = () => {
 
 const useDataLoader = (loader = () => {}, refetchArg = []) => {
   const sseConnect = () => {
+    // Bail out where EventSource is unavailable (jsdom/tests, older browsers)
+    // so reconnect timers/intervals can never throw on `new EventSource(...)`.
+    if (typeof EventSource === 'undefined') {
+      return undefined;
+    }
     if (reconnectTimeoutId) {
       clearTimeout(reconnectTimeoutId);
       reconnectTimeoutId = undefined;
@@ -143,7 +156,7 @@ const useDataLoader = (loader = () => {}, refetchArg = []) => {
   };
   useEffect(() => {
     listeners.set(loader, '');
-    if (EventSource !== undefined && sseClient === undefined) {
+    if (typeof EventSource !== 'undefined' && sseClient === undefined) {
       sseClient = sseConnect();
     } else if (!pristine) {
       const load = async () => {
