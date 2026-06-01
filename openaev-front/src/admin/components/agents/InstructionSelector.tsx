@@ -10,6 +10,7 @@ import useTabs from '../../../components/common/tabs/useTabs';
 import { useFormatter } from '../../../components/i18n';
 import { type BasePayload, type CalderaSettings, type ExecutorOutput, type Token } from '../../../utils/api-types';
 import useAuth from '../../../utils/hooks/useAuth';
+import { DEFAULT_TENANT_UUID } from '../../../utils/url-helper';
 import { copyToClipboard, download } from '../../../utils/utils';
 
 const USER = 'user';
@@ -52,7 +53,8 @@ const InstructionSelector: React.FC<InstructionSelectorProps> = ({ userToken, pl
   }];
   const { currentTab, handleChangeTab } = useTabs(tabEntries[0].key);
 
-  const { settings } = useAuth();
+  const { settings, currentUserTenant } = useAuth();
+  const tenantPrefix = `/api/tenants/${currentUserTenant?.tenant_id ?? DEFAULT_TENANT_UUID}`;
 
   const handleOptionChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSelectedOption(event.target.value);
@@ -157,9 +159,9 @@ nohup ${agentFolder ?? '/opt/openaev-caldera-agent'}/openaev-caldera-agent -serv
     };
     const buildUrlScript2Windows = () => {
       if (currentTab === 'Advanced Installation' && selectedOption === USER) {
-        return `&([scriptblock]::Create((iwr ${buildInstallationUrl(settings.platform_base_url + '/api/agent/installer/openaev/windows')}))) ${buildExtraParams('-User USER -Password PASSWORD', '', '')}`;
+        return `&([scriptblock]::Create((iwr ${buildInstallationUrl(settings.platform_base_url + tenantPrefix + '/agent/installer/openaev/windows')}))) ${buildExtraParams('-User USER -Password PASSWORD', '', '')}`;
       }
-      return `iex (iwr ${buildInstallationUrl(settings.platform_base_url + '/api/agent/installer/openaev/windows')}).Content`;
+      return `iex (iwr ${buildInstallationUrl(settings.platform_base_url + tenantPrefix + '/agent/installer/openaev/windows')}).Content`;
     };
 
     switch (platform) {
@@ -176,24 +178,24 @@ nohup ${agentFolder ?? '/opt/openaev-caldera-agent'}/openaev-caldera-agent -serv
           icon: <Bash />,
           label: 'sh',
           exclusions: '',
-          displayedCode: `curl -s ${buildInstallationUrl(settings.platform_agent_url + '/api/agent/installer/openaev/linux')} ${buildExtraParams(' | sudo sh -s -- --user USER --group GROUP', '| sh', '| sudo sh')}`,
-          code: `curl -s ${buildInstallationUrl(settings.platform_agent_url + '/api/agent/installer/openaev/linux')} ${buildExtraParams(' | sudo sh -s -- --user USER --group GROUP', '| sh', '| sudo sh')}`,
+          displayedCode: `curl -s ${buildInstallationUrl(settings.platform_agent_url + tenantPrefix + '/agent/installer/openaev/linux')} ${buildExtraParams(' | sudo sh -s -- --user USER --group GROUP', '| sh', '| sudo sh')}`,
+          code: `curl -s ${buildInstallationUrl(settings.platform_agent_url + tenantPrefix + '/agent/installer/openaev/linux')} ${buildExtraParams(' | sudo sh -s -- --user USER --group GROUP', '| sh', '| sudo sh')}`,
         };
       case MACOS:
         return {
           icon: <TerminalOutlined />,
           label: 'sh',
           exclusions: '',
-          displayedCode: `curl -s ${buildInstallationUrl(settings.platform_agent_url + '/api/agent/installer/openaev/macos')} ${buildExtraParams(' | sudo sh -s -- --user USER --group GROUP', '| sh', '| sudo sh')}`,
-          code: `curl -s ${buildInstallationUrl(settings.platform_agent_url + '/api/agent/installer/openaev/macos')} ${buildExtraParams(' | sudo sh -s -- --user USER --group GROUP', '| sh', '| sudo sh')}`,
+          displayedCode: `curl -s ${buildInstallationUrl(settings.platform_agent_url + tenantPrefix + '/agent/installer/openaev/macos')} ${buildExtraParams(' | sudo sh -s -- --user USER --group GROUP', '| sh', '| sudo sh')}`,
+          code: `curl -s ${buildInstallationUrl(settings.platform_agent_url + tenantPrefix + '/agent/installer/openaev/macos')} ${buildExtraParams(' | sudo sh -s -- --user USER --group GROUP', '| sh', '| sudo sh')}`,
         };
       default:
         return {
           icon: <Bash />,
           label: 'sh',
           exclusions: '',
-          displayedCode: `curl -s ${buildInstallationUrl(settings.platform_agent_url + '/api/agent/installer/openaev/linux')} ${buildExtraParams(' | sudo sh -s -- --user USER --group GROUP', '| sh', '| sudo sh')}`,
-          code: `curl -s ${buildInstallationUrl(settings.platform_agent_url + '/api/agent/installer/openaev/linux')} ${buildExtraParams(' | sudo sh -s -- --user USER --group GROUP', '| sh', '| sudo sh')}`,
+          displayedCode: `curl -s ${buildInstallationUrl(settings.platform_agent_url + tenantPrefix + '/agent/installer/openaev/linux')} ${buildExtraParams(' | sudo sh -s -- --user USER --group GROUP', '| sh', '| sudo sh')}`,
+          code: `curl -s ${buildInstallationUrl(settings.platform_agent_url + tenantPrefix + '/agent/installer/openaev/linux')} ${buildExtraParams(' | sudo sh -s -- --user USER --group GROUP', '| sh', '| sudo sh')}`,
         };
     }
   };

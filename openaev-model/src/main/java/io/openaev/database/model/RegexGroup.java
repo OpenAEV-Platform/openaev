@@ -4,6 +4,7 @@ import static java.time.Instant.now;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.jsonapi.InnerRelationship;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -17,6 +18,7 @@ import org.hibernate.annotations.UuidGenerator;
 @Data
 @Entity
 @Table(name = "regex_groups")
+@InnerRelationship
 public class RegexGroup implements Base {
 
   @Id

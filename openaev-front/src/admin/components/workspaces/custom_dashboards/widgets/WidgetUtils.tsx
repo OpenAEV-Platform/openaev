@@ -1,6 +1,7 @@
 import { AccountTree, List, TableChart, VerifiedUser } from '@mui/icons-material';
 import { AlignHorizontalLeft, ChartBar, ChartDonut, ChartLine, Counter } from 'mdi-material-ui';
 
+import { generateFilterId } from '../../../../../components/common/queryable/filter/FilterUtils';
 import {
   type CustomDashboardParameters,
   type EsAttackPath,
@@ -183,30 +184,35 @@ export const getDefaultValuesForType = (
 
 // -- MATRIX MITRE --
 const entityFilter: Filter = {
+  id: generateFilterId(),
   key: BASE_ENTITY_FILTER_KEY,
   mode: 'and',
   operator: 'eq',
   values: ['expectation-inject'],
 };
 const statusSuccessFilter: Filter = {
+  id: generateFilterId(),
   key: 'inject_expectation_status',
   mode: 'and',
   operator: 'eq',
   values: ['SUCCESS'],
 };
 const statusFailedFilter: Filter = {
+  id: generateFilterId(),
   key: 'inject_expectation_status',
   mode: 'and',
   operator: 'eq',
   values: ['FAILED'],
 };
 const typeFilter: (injectExpectationType: InjectExpectation['inject_expectation_type']) => Filter = injectExpectationType => ({
+  id: generateFilterId(),
   key: 'inject_expectation_type',
   mode: 'and',
   operator: 'eq',
   values: [injectExpectationType],
 });
 const simulationFilter: (simulationId: Exercise['exercise_id']) => Filter = simulationId => ({
+  id: generateFilterId(),
   key: 'base_simulation_side',
   mode: 'and',
   operator: 'eq',
@@ -264,6 +270,7 @@ export const updateSimulationFilterOnSeries = (series: Series[], simulationId?: 
 
 // -- SECURITY DOMAINS WIDGET --
 export const domainsEntityFilter: Filter = {
+  id: generateFilterId(),
   key: BASE_ENTITY_FILTER_KEY,
   mode: 'or',
   operator: 'eq',

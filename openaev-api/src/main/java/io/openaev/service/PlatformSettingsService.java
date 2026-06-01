@@ -2,6 +2,9 @@ package io.openaev.service;
 
 import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.database.model.SettingKeys.*;
+import static io.openaev.database.model.TenantSettingKeys.DEFAULT_LANG;
+import static io.openaev.database.model.TenantSettingKeys.DEFAULT_THEME;
+import static io.openaev.database.model.TenantSettingKeys.PLATFORM_NAME;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static java.lang.Boolean.parseBoolean;
 import static java.util.Optional.ofNullable;
@@ -9,31 +12,30 @@ import static java.util.Optional.ofNullable;
 import io.openaev.config.EngineConfig;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.OpenAEVPrincipal;
-import io.openaev.config.RabbitmqConfig;
 import io.openaev.config.cache.LicenseCacheManager;
-import io.openaev.database.model.*;
+import io.openaev.database.model.BannerMessage;
+import io.openaev.database.model.Setting;
+import io.openaev.database.model.SettingKeys;
+import io.openaev.database.model.Theme;
 import io.openaev.database.repository.SettingRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.ee.License;
 import io.openaev.engine.EngineService;
 import io.openaev.expectation.ExpectationPropertiesConfig;
-import io.openaev.helper.RabbitMQHelper;
 import io.openaev.opencti.config.OpenCTIConfig;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.settings.form.*;
 import io.openaev.rest.settings.response.OAuthProvider;
 import io.openaev.rest.settings.response.PlatformSettings;
+import io.openaev.rest.settings.response.PublicPlatformSettings;
 import io.openaev.rest.stream.ai.AiConfig;
 import io.openaev.xtmhub.XtmHubConnectivityService;
-import io.openaev.xtmhub.XtmHubRegistererRecord;
-import io.openaev.xtmhub.XtmHubRegistrationStatus;
 import io.openaev.xtmhub.config.XtmHubConfig;
 import io.openaev.xtmone.XtmOneConfig;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import java.time.LocalDateTime;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -78,7 +80,7 @@ public class PlatformSettingsService {
 
   @Resource private OpenAEVConfig openAEVConfig;
   @Resource private ExpectationPropertiesConfig expectationPropertiesConfig;
-  @Resource private RabbitmqConfig rabbitmqConfig;
+  @Resource private RabbitmqService rabbitmqService;
   @Resource private EngineConfig engineConfig;
   @Autowired private LicenseCacheManager licenseCacheManager;
 
@@ -172,114 +174,43 @@ public class PlatformSettingsService {
   }
 
   // -- FIND SETTINGS --
-  public PlatformSettings findSettings() {
-    Map<String, Setting> dbSettings = mapOfSettings(fromIterable(this.settingRepository.findAll()));
-    PlatformSettings platformSettings = new PlatformSettings();
-    // Build anonymous settings
-    platformSettings.setPlatformOpenIdProviders(buildOpenIdProviders());
-    platformSettings.setPlatformSaml2Providers(buildSaml2Providers());
-    platformSettings.setAuthOpenidEnable(openAEVConfig.isAuthOpenidEnable());
-    platformSettings.setAuthSaml2Enable(openAEVConfig.isAuthSaml2Enable());
-    platformSettings.setAuthLocalEnable(openAEVConfig.isAuthLocalEnable());
-    platformSettings.setPlatformTheme(
+
+  /** Populate the public (non-sensitive) fields on any {@link PublicPlatformSettings} instance. */
+  private void populatePublicSettings(
+      PublicPlatformSettings settings, Map<String, Setting> dbSettings) {
+    // Auth providers
+    settings.setPlatformOpenIdProviders(buildOpenIdProviders());
+    settings.setPlatformSaml2Providers(buildSaml2Providers());
+    settings.setAuthOpenidEnable(openAEVConfig.isAuthOpenidEnable());
+    settings.setAuthSaml2Enable(openAEVConfig.isAuthSaml2Enable());
+    settings.setAuthLocalEnable(openAEVConfig.isAuthLocalEnable());
+
+    // Theme & language
+    settings.setPlatformTheme(
         ofNullable(dbSettings.get(DEFAULT_THEME.key()))
             .map(Setting::getValue)
             .orElse(DEFAULT_THEME.defaultValue()));
-    platformSettings.setPlatformLang(
+    settings.setPlatformLang(
         ofNullable(dbSettings.get(DEFAULT_LANG.key()))
             .map(Setting::getValue)
             .orElse(DEFAULT_LANG.defaultValue()));
-    platformSettings.setPlatformHomeDashboard(
-        ofNullable(dbSettings.get(DEFAULT_HOME_DASHBOARD.key()))
-            .map(Setting::getValue)
-            .orElse(DEFAULT_HOME_DASHBOARD.defaultValue()));
-    platformSettings.setPlatformScenarioDashboard(
-        ofNullable(dbSettings.get(DEFAULT_SCENARIO_DASHBOARD.key()))
-            .map(Setting::getValue)
-            .orElse(DEFAULT_SCENARIO_DASHBOARD.defaultValue()));
-    platformSettings.setPlatformSimulationDashboard(
-        ofNullable(dbSettings.get(DEFAULT_SIMULATION_DASHBOARD.key()))
-            .map(Setting::getValue)
-            .orElse(DEFAULT_SIMULATION_DASHBOARD.defaultValue()));
-    if (this.imapEnabled) {
-      platformSettings.setDefaultMailer(this.imapUsername);
-      platformSettings.setDefaultReplyTo(this.imapUsername);
-    } else {
-      platformSettings.setDefaultMailer(openAEVConfig.getDefaultMailer());
-      platformSettings.setDefaultReplyTo(openAEVConfig.getDefaultReplyTo());
-    }
-    platformSettings.setSmtpServiceAvailable(
-        ofNullable(dbSettings.get(SMTP_SERVICE_AVAILABLE.key()))
-            .map(Setting::getValue)
-            .orElse(SMTP_SERVICE_AVAILABLE.defaultValue()));
-    platformSettings.setImapServiceAvailable(
-        ofNullable(dbSettings.get(IMAP_SERVICE_AVAILABLE.key()))
-            .map(Setting::getValue)
-            .orElse(IMAP_SERVICE_AVAILABLE.defaultValue()));
+    settings.setThemeLight(createThemeInput(dbSettings, THEME_TYPE_LIGHT));
+    settings.setThemeDark(createThemeInput(dbSettings, THEME_TYPE_DARK));
 
-    // Build authenticated user settings
-    OpenAEVPrincipal user = currentUser();
-    if (user != null) {
-      platformSettings.setPlatformWhitemark(
-          ofNullable(dbSettings.get(PLATFORM_WHITEMARK.key()))
-              .map(Setting::getValue)
-              .orElse(PLATFORM_WHITEMARK.defaultValue()));
-      platformSettings.setMapTileServerLight(openAEVConfig.getMapTileServerLight());
-      platformSettings.setMapTileServerDark(openAEVConfig.getMapTileServerDark());
-      platformSettings.setPlatformId(
-          ofNullable(dbSettings.get(PLATFORM_INSTANCE.key()))
-              .map(Setting::getValue)
-              .orElse(PLATFORM_INSTANCE.defaultValue()));
-      platformSettings.setPlatformName(
-          ofNullable(dbSettings.get(PLATFORM_NAME.key()))
-              .map(Setting::getValue)
-              .orElse(PLATFORM_NAME.defaultValue()));
-      platformSettings.setPlatformBaseUrl(openAEVConfig.getBaseUrl());
-      platformSettings.setPlatformAgentUrl(openAEVConfig.getBaseUrlForAgent());
-      platformSettings.setXtmOpenctiEnable(openCTIConfig.getEnable());
-      platformSettings.setXtmOpenctiUrl(openCTIConfig.getUrl());
-      platformSettings.setXtmOneConfigured(xtmOneConfig.isConfigured());
-      platformSettings.setXtmOneUrl(xtmOneConfig.getUrl());
-      platformSettings.setXtmOneWebToken(xtmOneConfig.getEffectiveWebToken());
-      platformSettings.setAiEnabled(aiConfig.isEnabled());
-      platformSettings.setAiHasToken(StringUtils.hasText(aiConfig.getToken()));
-      platformSettings.setAiType(aiConfig.getType());
-      platformSettings.setAiModel(aiConfig.getModel());
-      platformSettings.setExecutorTaniumEnable(false);
-      platformSettings.setTelemetryManagerEnable(true);
-
-      // Build admin settings
-      if (user.isAdmin()) {
-        platformSettings.setPlatformVersion(openAEVConfig.getVersion());
-        platformSettings.setPostgreVersion(settingRepository.getServerVersion());
-        platformSettings.setJavaVersion(Runtime.version().toString());
-        platformSettings.setRabbitMQVersion(RabbitMQHelper.getRabbitMQVersion(rabbitmqConfig));
-        platformSettings.setAnalyticsEngineType(engineConfig.getEngineSelector());
-        platformSettings.setAnalyticsEngineVersion(engineService.getEngineVersion());
-      }
-    }
-
-    // THEME
-    ThemeInput themeLight = createThemeInput(dbSettings, THEME_TYPE_LIGHT);
-    platformSettings.setThemeLight(themeLight);
-
-    ThemeInput themeDark = createThemeInput(dbSettings, THEME_TYPE_DARK);
-    platformSettings.setThemeDark(themeDark);
-
-    // POLICIES
+    // Policies
     PolicyInput policies = new PolicyInput();
     policies.setLoginMessage(getValueFromMapOfSettings(dbSettings, PLATFORM_LOGIN_MESSAGE.key()));
     policies.setConsentMessage(
         getValueFromMapOfSettings(dbSettings, PLATFORM_CONSENT_MESSAGE.key()));
     policies.setConsentConfirmText(
         getValueFromMapOfSettings(dbSettings, PLATFORM_CONSENT_CONFIRM_TEXT.key()));
-    platformSettings.setPolicies(policies);
+    settings.setPolicies(policies);
 
-    // FEATURE FLAG
+    // Feature flags
     if (!StringUtils.hasText(openAEVConfig.getEnabledDevFeatures())) {
-      platformSettings.setEnabledDevFeatures(new ArrayList<>());
+      settings.setEnabledDevFeatures(new ArrayList<>());
     } else {
-      platformSettings.setEnabledDevFeatures(
+      settings.setEnabledDevFeatures(
           Arrays.stream(openAEVConfig.getEnabledDevFeatures().split(","))
               .map(
                   featureStr -> {
@@ -295,7 +226,7 @@ public class PlatformSettingsService {
               .toList());
     }
 
-    // PLATFORM MESSAGE
+    // Platform banners
     Map<String, List<String>> platformBannerByLevel = new HashMap<>();
     for (BannerMessage.BANNER_KEYS bannerKey : BannerMessage.BANNER_KEYS.values()) {
       String value = getValueFromMapOfSettings(dbSettings, PLATFORM_BANNER + "." + bannerKey.key());
@@ -308,7 +239,85 @@ public class PlatformSettingsService {
         }
       }
     }
-    platformSettings.setPlatformBannerByLevel(platformBannerByLevel);
+    settings.setPlatformBannerByLevel(platformBannerByLevel);
+
+    // Whitemark
+    settings.setPlatformWhitemark(
+        ofNullable(dbSettings.get(PLATFORM_WHITEMARK.key()))
+            .map(Setting::getValue)
+            .orElse(PLATFORM_WHITEMARK.defaultValue()));
+  }
+
+  /** Return only non-sensitive settings suitable for unauthenticated (public) access. */
+  public PublicPlatformSettings findPublicSettings() {
+    Map<String, Setting> dbSettings = mapOfSettings(this.settingRepository.findAllByTenantIsNull());
+    PublicPlatformSettings settings = new PublicPlatformSettings();
+    populatePublicSettings(settings, dbSettings);
+    return settings;
+  }
+
+  /** Return the full platform settings. Must only be called from authenticated endpoints. */
+  public PlatformSettings findSettings() {
+    Map<String, Setting> dbSettings = mapOfSettings(this.settingRepository.findAllByTenantIsNull());
+    PlatformSettings platformSettings = new PlatformSettings();
+
+    // Populate public fields (shared with findPublicSettings)
+    populatePublicSettings(platformSettings, dbSettings);
+
+    // Authenticated-only fields
+    platformSettings.setPlatformLicense(licenseCacheManager.getEnterpriseEditionInfo());
+    if (this.imapEnabled) {
+      platformSettings.setDefaultMailer(this.imapUsername);
+      platformSettings.setDefaultReplyTo(this.imapUsername);
+    } else {
+      platformSettings.setDefaultMailer(openAEVConfig.getDefaultMailer());
+      platformSettings.setDefaultReplyTo(openAEVConfig.getDefaultReplyTo());
+    }
+    platformSettings.setDefaultMailerName(openAEVConfig.getDefaultMailerName());
+    platformSettings.setSmtpServiceAvailable(
+        ofNullable(dbSettings.get(SMTP_SERVICE_AVAILABLE.key()))
+            .map(Setting::getValue)
+            .orElse(SMTP_SERVICE_AVAILABLE.defaultValue()));
+    platformSettings.setImapServiceAvailable(
+        ofNullable(dbSettings.get(IMAP_SERVICE_AVAILABLE.key()))
+            .map(Setting::getValue)
+            .orElse(IMAP_SERVICE_AVAILABLE.defaultValue()));
+
+    // Authenticated user settings
+    platformSettings.setMapTileServerLight(openAEVConfig.getMapTileServerLight());
+    platformSettings.setMapTileServerDark(openAEVConfig.getMapTileServerDark());
+    platformSettings.setPlatformId(
+        ofNullable(dbSettings.get(PLATFORM_INSTANCE.key()))
+            .map(Setting::getValue)
+            .orElse(PLATFORM_INSTANCE.defaultValue()));
+    platformSettings.setPlatformName(
+        ofNullable(dbSettings.get(PLATFORM_NAME.key()))
+            .map(Setting::getValue)
+            .orElse(PLATFORM_NAME.defaultValue()));
+    platformSettings.setPlatformBaseUrl(openAEVConfig.getBaseUrl());
+    platformSettings.setPlatformAgentUrl(openAEVConfig.getBaseUrlForAgent());
+    platformSettings.setPlatformVersion(openAEVConfig.getVersion());
+    platformSettings.setXtmOpenctiEnable(openCTIConfig.getEnable());
+    platformSettings.setXtmOpenctiUrl(openCTIConfig.getUrl());
+    platformSettings.setXtmOneConfigured(xtmOneConfig.isConfigured());
+    platformSettings.setXtmOneUrl(xtmOneConfig.getUrl());
+    platformSettings.setXtmOneWebToken(xtmOneConfig.getEffectiveWebToken());
+    platformSettings.setAiEnabled(aiConfig.isEnabled());
+    platformSettings.setAiHasToken(StringUtils.hasText(aiConfig.getToken()));
+    platformSettings.setAiType(aiConfig.getType());
+    platformSettings.setAiModel(aiConfig.getModel());
+    platformSettings.setExecutorTaniumEnable(false);
+    platformSettings.setTelemetryManagerEnable(true);
+
+    // Admin-only settings
+    OpenAEVPrincipal user = currentUser();
+    if (user != null && user.isAdmin()) {
+      platformSettings.setPostgreVersion(settingRepository.getServerVersion());
+      platformSettings.setJavaVersion(Runtime.version().toString());
+      platformSettings.setRabbitMQVersion(rabbitmqService.getVersion());
+      platformSettings.setAnalyticsEngineType(engineConfig.getEngineSelector());
+      platformSettings.setAnalyticsEngineVersion(engineService.getEngineVersion());
+    }
 
     // EXPECTATION
     platformSettings.setDetectionExpirationTime(
@@ -325,26 +334,14 @@ public class PlatformSettingsService {
     platformSettings.setExpectationDefaultScoreValue(
         expectationPropertiesConfig.getDefaultExpectationScoreValue());
 
-    // License
-    platformSettings.setPlatformLicense(licenseCacheManager.getEnterpriseEditionInfo());
-
     // XTM Hub
     platformSettings.setXtmHubEnable(xtmHubConfig.getEnable());
     platformSettings.setXtmHubUrl(xtmHubConfig.getUrl());
     platformSettings.setXtmHubReachable(xtmHubConnectivityService.isReachable());
-    platformSettings.setXtmHubToken(getValueFromMapOfSettings(dbSettings, XTM_HUB_TOKEN.key()));
-    platformSettings.setXtmHubRegistrationStatus(
-        getValueFromMapOfSettings(dbSettings, XTM_HUB_REGISTRATION_STATUS.key()));
-    platformSettings.setXtmHubRegistrationDate(
-        getValueFromMapOfSettings(dbSettings, XTM_HUB_REGISTRATION_DATE.key()));
-    platformSettings.setXtmHubRegistrationUserId(
-        getValueFromMapOfSettings(dbSettings, XTM_HUB_REGISTRATION_USER_ID.key()));
-    platformSettings.setXtmHubRegistrationUserName(
-        getValueFromMapOfSettings(dbSettings, XTM_HUB_REGISTRATION_USER_NAME.key()));
-    platformSettings.setXtmHubLastConnectivityCheck(
-        getValueFromMapOfSettings(dbSettings, XTM_HUB_LAST_CONNECTIVITY_CHECK.key()));
     platformSettings.setXtmHubShouldSendConnectivityEmail(
-        getValueFromMapOfSettings(dbSettings, XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL.key()));
+        ofNullable(dbSettings.get(XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL.key()))
+            .map(Setting::getValue)
+            .orElse(XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL.defaultValue()));
     return platformSettings;
   }
 
@@ -358,7 +355,7 @@ public class PlatformSettingsService {
   }
 
   public Map<String, Setting> findSettingsByKeys(List<String> keys) {
-    return mapOfSettings(fromIterable(this.settingRepository.findAllByKeyIn(keys)));
+    return mapOfSettings(this.settingRepository.findAllByKeyInAndTenantIsNull(keys));
   }
 
   private ThemeInput createThemeInput(Map<String, Setting> dbSettings, String themeType) {
@@ -394,38 +391,12 @@ public class PlatformSettingsService {
 
   // -- UPDATE SETTINGS --
   public Optional<Setting> setting(String key) {
-    return this.settingRepository.findByKey(key);
-  }
-
-  private void addSettingIfExists(
-      List<Setting> settingsToSave, Map<String, Setting> dbSettings, String key, String value) {
-    if (value != null) {
-      settingsToSave.add(resolveFromMap(dbSettings, key, value));
-    }
-  }
-
-  public PlatformSettings updateBasicConfigurationSettings(SettingsUpdateInput input) {
-    Map<String, Setting> dbSettings = mapOfSettings(fromIterable(this.settingRepository.findAll()));
-    List<Setting> settingsToSave = new ArrayList<>();
-    settingsToSave.add(resolveFromMap(dbSettings, PLATFORM_NAME.key(), input.getName()));
-    settingsToSave.add(resolveFromMap(dbSettings, DEFAULT_THEME.key(), input.getTheme()));
-    settingsToSave.add(resolveFromMap(dbSettings, DEFAULT_LANG.key(), input.getLang()));
-    addSettingIfExists(
-        settingsToSave, dbSettings, DEFAULT_HOME_DASHBOARD.key(), input.getHomeDashboard());
-    addSettingIfExists(
-        settingsToSave, dbSettings, DEFAULT_SCENARIO_DASHBOARD.key(), input.getScenarioDashboard());
-    addSettingIfExists(
-        settingsToSave,
-        dbSettings,
-        DEFAULT_SIMULATION_DASHBOARD.key(),
-        input.getSimulationDashboard());
-    settingRepository.saveAll(settingsToSave);
-    return findSettings();
+    return this.settingRepository.findByKeyAndTenantIsNull(key);
   }
 
   public PlatformSettings updateSettingsEnterpriseEdition(
       SettingsEnterpriseEditionUpdateInput input) throws Exception {
-    Map<String, Setting> dbSettings = mapOfSettings(fromIterable(this.settingRepository.findAll()));
+    Map<String, Setting> dbSettings = mapOfSettings(this.settingRepository.findAllByTenantIsNull());
     List<Setting> settingsToSave = new ArrayList<>();
     String certPem = input.getEnterpriseEdition();
     if (certPem != null && !certPem.isEmpty()) {
@@ -442,7 +413,7 @@ public class PlatformSettingsService {
 
   public PlatformSettings updateSettingsPlatformWhitemark(
       SettingsPlatformWhitemarkUpdateInput input) {
-    Map<String, Setting> dbSettings = mapOfSettings(fromIterable(this.settingRepository.findAll()));
+    Map<String, Setting> dbSettings = mapOfSettings(this.settingRepository.findAllByTenantIsNull());
     List<Setting> settingsToSave = new ArrayList<>();
     settingsToSave.add(
         resolveFromMap(dbSettings, PLATFORM_WHITEMARK.key(), input.getPlatformWhitemark()));
@@ -451,7 +422,7 @@ public class PlatformSettingsService {
   }
 
   public PlatformSettings updateSettingsPolicies(PolicyInput input) {
-    Map<String, Setting> dbSettings = mapOfSettings(fromIterable(this.settingRepository.findAll()));
+    Map<String, Setting> dbSettings = mapOfSettings(this.settingRepository.findAllByTenantIsNull());
     List<Setting> settingsToSave = new ArrayList<>();
     settingsToSave.add(
         resolveFromMap(dbSettings, PLATFORM_LOGIN_MESSAGE.key(), input.getLoginMessage()));
@@ -472,30 +443,8 @@ public class PlatformSettingsService {
     return updateTheme(input, THEME_TYPE_DARK);
   }
 
-  /**
-   * Clear default platform dashboard settings if they match the provided dashboardId.
-   *
-   * @param dashboardId the dashboard ID to check against default settings
-   */
-  public void clearDefaultPlatformDashboardIfMatch(String dashboardId) {
-    List<SettingKeys> clearableSettings =
-        List.of(SettingKeys.DEFAULT_SCENARIO_DASHBOARD, SettingKeys.DEFAULT_SIMULATION_DASHBOARD);
-
-    Map<String, Setting> dbSettings = mapOfSettings(fromIterable(this.settingRepository.findAll()));
-
-    List<Setting> settingsToSave = new ArrayList<>();
-    clearableSettings.forEach(
-        setting -> {
-          String currentValue = getValueFromMapOfSettings(dbSettings, setting.key());
-          if (dashboardId.equals(currentValue)) {
-            settingsToSave.add(resolveFromMap(dbSettings, setting.key(), setting.defaultValue()));
-          }
-        });
-    settingRepository.saveAll(settingsToSave);
-  }
-
   private PlatformSettings updateTheme(ThemeInput input, String themeType) {
-    Map<String, Setting> dbSettings = mapOfSettings(fromIterable(this.settingRepository.findAll()));
+    Map<String, Setting> dbSettings = mapOfSettings(this.settingRepository.findAllByTenantIsNull());
     List<Setting> settingsToSave = new ArrayList<>();
 
     settingsToSave.add(
@@ -585,73 +534,25 @@ public class PlatformSettingsService {
    * @return the saved setting
    */
   public Setting saveSetting(String key, String value) {
-    Setting setting = settingRepository.findByKey(key).orElse(new Setting(key, value));
+    Setting setting =
+        settingRepository.findByKeyAndTenantIsNull(key).orElse(new Setting(key, value));
     setting.setValue(value);
     return settingRepository.save(setting);
   }
 
-  public PlatformSettings updateXTMHubRegistration(
-      String token,
-      LocalDateTime registrationDate,
-      XtmHubRegistrationStatus registrationStatus,
-      XtmHubRegistererRecord registerer,
-      LocalDateTime lastConnectivityCheck,
-      Boolean shouldSendConnectivityEmail) {
-    Map<String, Setting> dbSettings = mapOfSettings(fromIterable(this.settingRepository.findAll()));
-
-    Map<SettingKeys, String> xtmhubSettingsMap = new HashMap<>();
-    xtmhubSettingsMap.put(XTM_HUB_TOKEN, token);
-    xtmhubSettingsMap.put(
-        XTM_HUB_REGISTRATION_DATE, registrationDate != null ? registrationDate.toString() : null);
-    xtmhubSettingsMap.put(XTM_HUB_REGISTRATION_STATUS, registrationStatus.label);
-    xtmhubSettingsMap.put(
-        XTM_HUB_REGISTRATION_USER_ID, registerer != null ? registerer.id() : null);
-    xtmhubSettingsMap.put(
-        XTM_HUB_REGISTRATION_USER_NAME, registerer != null ? registerer.name() : null);
-    xtmhubSettingsMap.put(
-        XTM_HUB_LAST_CONNECTIVITY_CHECK,
-        lastConnectivityCheck != null ? lastConnectivityCheck.toString() : null);
-    xtmhubSettingsMap.put(
-        XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL,
-        shouldSendConnectivityEmail != null ? shouldSendConnectivityEmail.toString() : null);
-
-    List<Setting> settingsToSave = new ArrayList<>();
-
-    xtmhubSettingsMap.forEach(
-        (settingKey, value) -> {
-          if (value != null) {
-            settingsToSave.add(resolveFromMap(dbSettings, settingKey.key(), value));
-          }
-        });
-
-    settingRepository.saveAll(settingsToSave);
-
-    return findSettings();
-  }
-
-  public PlatformSettings deleteXTMHubRegistration() {
-    Map<String, Setting> dbSettings = mapOfSettings(fromIterable(this.settingRepository.findAll()));
-
-    List<String> keys =
-        Arrays.asList(
-            XTM_HUB_TOKEN.key(),
-            XTM_HUB_REGISTRATION_DATE.key(),
-            XTM_HUB_REGISTRATION_STATUS.key(),
-            XTM_HUB_REGISTRATION_USER_ID.key(),
-            XTM_HUB_REGISTRATION_USER_NAME.key(),
-            XTM_HUB_LAST_CONNECTIVITY_CHECK.key(),
+  public void updateXTMHubEmailNotification(boolean shouldSendConnectivityEmail) {
+    Optional<Setting> current =
+        this.settingRepository.findByKeyAndTenantIsNull(
             XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL.key());
-
-    List<String> toDelete = new ArrayList<>();
-    keys.forEach(
-        settingsKey -> {
-          if (dbSettings.containsKey(settingsKey)) {
-            toDelete.add(dbSettings.get(settingsKey).getId());
-          }
-        });
-
-    this.settingRepository.deleteByIdsNative(toDelete);
-    return findSettings();
+    boolean currentValue = current.map(s -> Boolean.parseBoolean(s.getValue())).orElse(true);
+    if (currentValue != shouldSendConnectivityEmail) {
+      Setting setting =
+          resolve(
+              current,
+              XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL.key(),
+              String.valueOf(shouldSendConnectivityEmail));
+      settingRepository.save(setting);
+    }
   }
 
   // -- PLATFORM MESSAGE --
@@ -662,7 +563,7 @@ public class PlatformSettingsService {
 
   public void errorMessage(@NotBlank final BannerMessage.BANNER_KEYS banner) {
     Optional<Setting> bannerLevelOpt =
-        this.settingRepository.findByKey(PLATFORM_BANNER + "." + banner.key());
+        this.settingRepository.findByKeyAndTenantIsNull(PLATFORM_BANNER + "." + banner.key());
     if (bannerLevelOpt.isEmpty()) {
       Setting bannerLevel =
           resolve(bannerLevelOpt, PLATFORM_BANNER + "." + banner.key(), banner.level().name());

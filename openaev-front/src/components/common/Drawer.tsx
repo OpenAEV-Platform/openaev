@@ -1,21 +1,19 @@
 import { Close } from '@mui/icons-material';
-import { Chip, Drawer as DrawerMUI, type PaperProps, Stack, Tooltip, Typography } from '@mui/material';
+import { Chip, Drawer as DrawerMUI, IconButton, type PaperProps, Tooltip, Typography } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { cloneElement, type CSSProperties, type FunctionComponent, type ReactElement } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { computeBannerSettings } from '../../public/components/systembanners/utils';
 import { getSeverityAndColor } from '../../utils/Colors';
 import useAuth from '../../utils/hooks/useAuth';
-import IconButton from './button/IconButton';
 
 const useStyles = makeStyles()(theme => ({
   drawerPaperHalf: {
     minHeight: '100vh',
     width: '50%',
     position: 'fixed',
-    overflow: 'hidden',
-    display: 'flex',
-    flexDirection: 'column',
+    overflow: 'auto',
     transition: theme.transitions.create('width', {
       easing: theme.transitions.easing.sharp,
       duration: theme.transitions.duration.enteringScreen,
@@ -26,41 +24,23 @@ const useStyles = makeStyles()(theme => ({
     width: '100vw',
     position: 'fixed',
     overflow: 'auto',
-    backgroundColor: theme.palette.background.default,
     transition: theme.transitions.create('width', {
       easing: theme.transitions.easing.sharp,
       duration: theme.transitions.duration.enteringScreen,
     }),
+    backgroundColor: theme.palette.background.default,
   },
   header: {
-    backgroundColor: theme.palette.background.secondary,
-    paddingLeft: theme.spacing(3),
-    paddingRight: theme.spacing(3),
-    paddingTop: theme.spacing(2),
-    paddingBottom: theme.spacing(2),
+    backgroundColor: theme.palette.mode === 'light' ? theme.palette.background.default : theme.palette.background.nav,
+    padding: '10px 0',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'space-between',
   },
   headerFull: {
-    backgroundColor: theme.palette.background.secondary,
+    backgroundColor: theme.palette.mode === 'light' ? theme.palette.background.default : theme.palette.background.nav,
     borderBottom: `1px solid ${theme.palette.divider}`,
-    paddingLeft: theme.spacing(3),
-    paddingRight: theme.spacing(3),
-    paddingTop: theme.spacing(2),
-    paddingBottom: theme.spacing(2),
-    display: 'flex',
+    display: 'inline-flex',
     alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  container: {
-    padding: theme.spacing(3),
-    flex: 1,
-    overflowY: 'auto',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: theme.spacing(2),
-    backgroundColor: theme.palette.mode === 'dark' ? '#0f1d34' : '#FFFFFF',
   },
 }));
 
@@ -92,6 +72,7 @@ const Drawer: FunctionComponent<DrawerProps> = ({
   disableEnforceFocus = false,
   containerStyle = {},
 }) => {
+  const theme = useTheme();
   const { settings } = useAuth();
   const { bannerHeightNumber } = computeBannerSettings(settings);
 
@@ -111,29 +92,47 @@ const Drawer: FunctionComponent<DrawerProps> = ({
     <DrawerMUI
       open={open}
       anchor="right"
-      elevation={1}
+      elevation={variant === 'full' ? 0 : 1}
       sx={{ zIndex: 1202 }}
       classes={{ paper: variant === 'full' ? classes.drawerPaperFull : classes.drawerPaperHalf }}
       onClose={handleClose}
       PaperProps={PaperProps}
       ModalProps={{ disableEnforceFocus }}
     >
-      <div
-        className={variant === 'full' ? classes.headerFull : classes.header}
-        style={{ marginTop: bannerHeightNumber }}
-      >
-        <Stack direction="row" alignItems="center" gap={1} sx={{ minWidth: 0 }}>
+      <div className={variant === 'full' ? classes.headerFull : classes.header} style={{ marginTop: bannerHeightNumber }}>
+        <IconButton
+          aria-label="Close"
+          onClick={handleClose}
+          size="large"
+          color="primary"
+        >
+          <Close fontSize="small" color="primary" />
+        </IconButton>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          flex: 1,
+          minWidth: 0,
+        }}
+        >
           <Tooltip title={title}>
             <Typography
-              variant="h5"
+              variant="subtitle2"
               noWrap
-              style={{ textWrap: 'nowrap' }}
             >
               {title}
             </Typography>
           </Tooltip>
           {(additionalTitle || additionalChipLabel) && (
-            <Stack direction="row" alignItems="center" gap={1}>
+            <div style={{
+              display: 'flex',
+              float: 'right',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: 10,
+              paddingRight: theme.spacing(2),
+            }}
+            >
               {additionalTitle && (<Typography variant="subtitle1">{additionalTitle}</Typography>)}
               {additionalChipLabel && (
                 <Chip
@@ -142,24 +141,18 @@ const Drawer: FunctionComponent<DrawerProps> = ({
                   variant="outlined"
                   sx={{
                     borderColor: color,
-                    color,
+                    color: color,
                   }}
                 />
               )}
-            </Stack>
+            </div>
           )}
-        </Stack>
-        <IconButton
-          aria-label="Close"
-          onClick={handleClose}
-          size="default"
-        >
-          <Close />
-        </IconButton>
+        </div>
       </div>
-      <div
-        className={classes.container}
-        style={containerStyle}
+      <div style={{
+        padding: '10px 20px 20px 20px',
+        ...containerStyle,
+      }}
       >
         {component}
       </div>

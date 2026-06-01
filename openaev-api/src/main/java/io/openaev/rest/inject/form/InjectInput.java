@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.api.chaining.DataInputStep;
 import io.openaev.database.model.Inject;
+import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -65,13 +66,14 @@ public class InjectInput implements DataInputStep {
   @JsonProperty("inject_enabled")
   private boolean enabled = true;
 
-  public Inject toInject(@NotNull final InjectorContract injectorContract) {
+  public Inject toInject(
+      @NotNull final InjectorContract injectorContract, @NotNull final Injector injector) {
     Inject inject = new Inject();
     inject.setTitle(getTitle());
     inject.setDescription(getDescription());
     inject.setContent(getContent());
     inject.setInjectorContract(injectorContract);
-    inject.setInjector(injectorContract.getInjector());
+    inject.setInjector(injector);
     inject.setDependsDuration(getDependsDuration());
     inject.setAllTeams(isAllTeams());
     inject.setCountry(getCountry());

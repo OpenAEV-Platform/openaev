@@ -1,17 +1,18 @@
 import { List, ListItem, ListItemText } from '@mui/material';
 import type React from 'react';
 
+import type { LoggedHelper } from '../../../../../actions/helper';
 import { useFormatter } from '../../../../../components/i18n';
 import ItemBoolean from '../../../../../components/ItemBoolean';
-import useAuth from '../../../../../utils/hooks/useAuth';
+import { useHelper } from '../../../../../store';
 
 const XtmHubRegisteredSection: React.FC = () => {
   const { t, fd } = useFormatter();
-  const { settings } = useAuth();
+  const registration = useHelper((helper: LoggedHelper) => helper.getXtmHubRegistration());
 
   return (
     <List style={{ padding: 0 }}>
-      {settings.xtm_hub_registration_status === 'registered' && (
+      {registration?.tenant_xtmhub_registration_status === 'REGISTERED' && (
         <>
           <ListItem divider={true}>
             <ListItemText primary={t('Registration status')} />
@@ -25,7 +26,7 @@ const XtmHubRegisteredSection: React.FC = () => {
             <ListItemText primary={t('Registration date')} />
             <ItemBoolean
               variant="xlarge"
-              neutralLabel={fd(settings.xtm_hub_registration_date)}
+              neutralLabel={fd(registration.tenant_xtmhub_registration_date)}
               status={null}
             />
           </ListItem>
@@ -33,13 +34,13 @@ const XtmHubRegisteredSection: React.FC = () => {
             <ListItemText primary={t('Registered by')} />
             <ItemBoolean
               variant="xlarge"
-              neutralLabel={settings.xtm_hub_registration_user_name}
+              neutralLabel={registration.tenant_xtmhub_registration_user_name}
               status={null}
             />
           </ListItem>
         </>
       )}
-      {settings.xtm_hub_registration_status === 'lost_connectivity' && (
+      {registration?.tenant_xtmhub_registration_status === 'LOST_CONNECTIVITY' && (
         <>
           <ListItem divider={true}>
             <ListItemText primary={t('Registration status')} />
@@ -53,7 +54,7 @@ const XtmHubRegisteredSection: React.FC = () => {
             <ListItemText primary={t('Last successful check')} />
             <ItemBoolean
               variant="xlarge"
-              neutralLabel={fd(settings.xtm_hub_last_connectivity_check)}
+              neutralLabel={fd(registration.tenant_xtmhub_registration_last_connectivity_check)}
               status={null}
             />
           </ListItem>

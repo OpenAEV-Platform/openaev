@@ -8,6 +8,7 @@ import { useFormatter } from '../../../../components/i18n';
 import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { buildTenantApiPath } from '../../../../utils/url-helper';
 import CreateConnectorInstanceDrawer from '../connector_instance/CreateConnectorInstanceDrawer';
 import ConnectorAlerts from './ConnectorAlerts';
 import ConnectorCatalogInfo from './ConnectorCatalogInfo';
@@ -61,7 +62,7 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
           connectorName: connector?.name || catalogConnector?.catalog_connector_title,
           connectorType: catalogConnector?.catalog_connector_type,
           connectorLogoName: connector?.type || catalogConnector?.catalog_connector_slug,
-          connectorLogoUrl: instance ? `/api/images/catalog/connectors/logos/${catalogConnector?.catalog_connector_logo_url}` : logoUrl(connector?.type),
+          connectorLogoUrl: instance ? buildTenantApiPath(`/api/images/catalog/connectors/logos/${catalogConnector?.catalog_connector_logo_url}`) : logoUrl(connector?.type),
           connectorDescription: catalogConnector?.catalog_connector_description,
           isExternal: catalogConnector?.catalog_connector_manager_supported,
           isVerified: instance != null,
@@ -70,8 +71,8 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
         detailsTitle
         instanceCurrentStatus={instance?.connector_instance_current_status}
         instanceRequestedStatus={instance?.connector_instance_requested_status}
-        showUpdateButtons={ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS)}
-        showMigrateButton={connector?.isExternal === true && !instance && isXtmComposerUp && ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS)}
+        showUpdateButtons={ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS)}
+        showMigrateButton={connector?.isExternal === true && !instance && isXtmComposerUp && ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS)}
         onMigrateBtnClick={onMigrateBtnClick}
         disabledUpdateButtons={!isEnterpriseEdition || (!isXtmComposerUp && catalogConnector?.catalog_connector_manager_supported)}
       />

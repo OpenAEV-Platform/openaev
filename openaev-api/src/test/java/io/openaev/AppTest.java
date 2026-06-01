@@ -24,13 +24,14 @@ class AppTest extends IntegrationTest {
   @Test
   void shouldThrowExceptionWithInvalidInstanceId() {
     openAEVConfig.setInstanceId("pouet");
-    when(settingRepository.findByKey(PLATFORM_INSTANCE.key())).thenReturn(Optional.empty());
+    when(settingRepository.findByKeyAndTenantIsNull(PLATFORM_INSTANCE.key()))
+        .thenReturn(Optional.empty());
 
     assertThatThrownBy(() -> new App(settingRepository, openAEVConfig).init())
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessage("Invalid UUID string: pouet");
-    verify(settingRepository).findByKey(PLATFORM_INSTANCE.key());
-    verify(settingRepository).findByKey(PLATFORM_INSTANCE_CREATION.key());
+    verify(settingRepository).findByKeyAndTenantIsNull(PLATFORM_INSTANCE.key());
+    verify(settingRepository).findByKeyAndTenantIsNull(PLATFORM_INSTANCE_CREATION.key());
   }
 
   @DisplayName("Should update the instance id with the one in the properties")
@@ -39,8 +40,8 @@ class AppTest extends IntegrationTest {
     String uuid = UUID.randomUUID().toString();
     openAEVConfig.setInstanceId(uuid);
     new App(settingRepository, openAEVConfig).init();
-    verify(settingRepository).findByKey(PLATFORM_INSTANCE.key());
-    verify(settingRepository).findByKey(PLATFORM_INSTANCE_CREATION.key());
+    verify(settingRepository).findByKeyAndTenantIsNull(PLATFORM_INSTANCE.key());
+    verify(settingRepository).findByKeyAndTenantIsNull(PLATFORM_INSTANCE_CREATION.key());
     verify(settingRepository)
         .save(
             argThat(
@@ -55,10 +56,11 @@ class AppTest extends IntegrationTest {
   @Test
   void shouldUpdateInstanceIdWhenNoneInDb() {
     // Mock le repository pour retourner empty
-    when(settingRepository.findByKey(PLATFORM_INSTANCE.key())).thenReturn(Optional.empty());
+    when(settingRepository.findByKeyAndTenantIsNull(PLATFORM_INSTANCE.key()))
+        .thenReturn(Optional.empty());
     new App(settingRepository, openAEVConfig).init();
-    verify(settingRepository).findByKey(PLATFORM_INSTANCE.key());
-    verify(settingRepository).findByKey(PLATFORM_INSTANCE_CREATION.key());
+    verify(settingRepository).findByKeyAndTenantIsNull(PLATFORM_INSTANCE.key());
+    verify(settingRepository).findByKeyAndTenantIsNull(PLATFORM_INSTANCE_CREATION.key());
     verify(settingRepository)
         .save(argThat(setting -> PLATFORM_INSTANCE.key().equals(setting.getKey())));
     verify(settingRepository)
@@ -70,10 +72,11 @@ class AppTest extends IntegrationTest {
   @Test
   void shouldUpdateInstanceIdWhenNoneInDbAndSpecifiedOneIsBlank() {
     openAEVConfig.setInstanceId("");
-    when(settingRepository.findByKey(PLATFORM_INSTANCE.key())).thenReturn(Optional.empty());
+    when(settingRepository.findByKeyAndTenantIsNull(PLATFORM_INSTANCE.key()))
+        .thenReturn(Optional.empty());
     new App(settingRepository, openAEVConfig).init();
-    verify(settingRepository).findByKey(PLATFORM_INSTANCE.key());
-    verify(settingRepository).findByKey(PLATFORM_INSTANCE_CREATION.key());
+    verify(settingRepository).findByKeyAndTenantIsNull(PLATFORM_INSTANCE.key());
+    verify(settingRepository).findByKeyAndTenantIsNull(PLATFORM_INSTANCE_CREATION.key());
     verify(settingRepository)
         .save(argThat(setting -> PLATFORM_INSTANCE.key().equals(setting.getKey())));
     verify(settingRepository)
@@ -84,12 +87,12 @@ class AppTest extends IntegrationTest {
   @Test
   void shouldNotUpdateInstanceIdWhenInDbAndSpecifiedOneIsBlank() {
     openAEVConfig.setInstanceId("");
-    when(settingRepository.findByKey(PLATFORM_INSTANCE.key()))
+    when(settingRepository.findByKeyAndTenantIsNull(PLATFORM_INSTANCE.key()))
         .thenReturn(
             Optional.of(new Setting(PLATFORM_INSTANCE.key(), UUID.randomUUID().toString())));
     new App(settingRepository, openAEVConfig).init();
-    verify(settingRepository).findByKey(PLATFORM_INSTANCE.key());
-    verify(settingRepository).findByKey(PLATFORM_INSTANCE_CREATION.key());
+    verify(settingRepository).findByKeyAndTenantIsNull(PLATFORM_INSTANCE.key());
+    verify(settingRepository).findByKeyAndTenantIsNull(PLATFORM_INSTANCE_CREATION.key());
     verifyNoMoreInteractions(settingRepository);
   }
 
@@ -97,12 +100,12 @@ class AppTest extends IntegrationTest {
   @Test
   void shouldNotUpdateInstanceIdWhenInDbAndNoSpecifiedOne() {
     openAEVConfig.setInstanceId(null);
-    when(settingRepository.findByKey(PLATFORM_INSTANCE.key()))
+    when(settingRepository.findByKeyAndTenantIsNull(PLATFORM_INSTANCE.key()))
         .thenReturn(
             Optional.of(new Setting(PLATFORM_INSTANCE.key(), UUID.randomUUID().toString())));
     new App(settingRepository, openAEVConfig).init();
-    verify(settingRepository).findByKey(PLATFORM_INSTANCE.key());
-    verify(settingRepository).findByKey(PLATFORM_INSTANCE_CREATION.key());
+    verify(settingRepository).findByKeyAndTenantIsNull(PLATFORM_INSTANCE.key());
+    verify(settingRepository).findByKeyAndTenantIsNull(PLATFORM_INSTANCE_CREATION.key());
     verifyNoMoreInteractions(settingRepository);
   }
 }

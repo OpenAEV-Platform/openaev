@@ -19,7 +19,7 @@ import AtomicTestingResult from '../atomic_testings/atomic_testing/AtomicTesting
 import ExerciseStatus from './simulation/ExerciseStatus';
 
 const useStyles = makeStyles()(() => ({
-  itemHead: {},
+  itemHead: { textTransform: 'uppercase' },
   item: { height: 50 },
 }));
 

@@ -4,6 +4,8 @@ import io.openaev.database.model.LessonsAnswer;
 import jakarta.validation.constraints.NotNull;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Repository;
 
@@ -16,4 +18,12 @@ public interface LessonsAnswerRepository
 
   Optional<LessonsAnswer> findByUserIdAndQuestionId(
       @NotNull String userId, @NotNull String questionId);
+
+  @Modifying(clearAutomatically = true)
+  @Query(
+      """
+    delete from LessonsAnswer la
+    where la.question.category.exercise.id = :exerciseId
+""")
+  void deleteAllLessonsAnswersQuestionsCategoriesByExerciseId(String exerciseId);
 }

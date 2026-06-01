@@ -8,7 +8,6 @@ import io.openaev.rest.atomic_testing.form.*;
 import io.openaev.rest.document.form.RelatedEntityOutput;
 import io.openaev.rest.inject.output.InjectOutput;
 import io.openaev.rest.inject.output.InjectSimple;
-import io.openaev.rest.payload.output.PayloadSimple;
 import io.openaev.utils.InjectExpectationResultUtils;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.TargetType;
@@ -31,6 +30,7 @@ import org.springframework.stereotype.Component;
 public class InjectMapper {
 
   private final InjectStatusMapper injectStatusMapper;
+  private final PayloadMapper payloadMapper;
   private final InjectExpectationMapper injectExpectationMapper;
   private final InjectUtils injectUtils;
   private final HealthCheckUtils healthCheckUtils;
@@ -54,12 +54,21 @@ public class InjectMapper {
             .map(Document::getId)
             .toList();
 
+    // Use primary (top-level) expectations for score computation.
+    // When no primary expectations match (e.g. only agent-level expectations exist),
+    // fall back to all expectations to avoid losing scores in buildFallbackResults.
+    List<InjectExpectation> primaryExpectations = injectUtils.getPrimaryExpectations(inject);
+    List<InjectExpectation> expectationsForScoring =
+        primaryExpectations.isEmpty()
+            ? new ArrayList<>(inject.getExpectations())
+            : primaryExpectations;
+
     return InjectResultOverviewOutput.builder()
         .id(inject.getId())
         .title(inject.getTitle())
         .description(inject.getDescription())
         .content(inject.getContent())
-        .type(injectorContract.map(contract -> contract.getInjector().getType()).orElse(null))
+        .type(inject.getType())
         .tagIds(inject.getTags().stream().map(Tag::getId).toList())
         .documentIds(documentIds)
         .injectorContract(toInjectorContractOutput(injectorContract))
@@ -70,7 +79,7 @@ public class InjectMapper {
         .expectationResultByTypes(
             injectExpectationMapper.extractExpectationResults(
                 inject.getContent(),
-                injectUtils.getPrimaryExpectations(inject),
+                expectationsForScoring,
                 InjectExpectationResultUtils::getScores))
         .isReady(healthCheckUtils.runContentChecks(inject).isEmpty())
         .updatedAt(inject.getUpdatedAt())
@@ -126,24 +135,13 @@ public class InjectMapper {
                     .content(contract.getContent())
                     .convertedContent(contract.getConvertedContent())
                     .platforms(contract.getPlatforms())
-                    .payload(toPayloadSimple(Optional.ofNullable(contract.getPayload())))
-                    .labels(contract.getLabels())
-                    .build())
-        .orElse(null);
-  }
-
-  private PayloadSimple toPayloadSimple(Optional<Payload> payload) {
-    return payload
-        .map(
-            payloadToSimple ->
-                PayloadSimple.builder()
-                    .id(payloadToSimple.getId())
-                    .type(payloadToSimple.getType())
-                    .collectorType(payloadToSimple.getCollectorTypeValue())
                     .domains(
-                        payloadToSimple.getDomains().stream()
+                        contract.getDomains().stream()
                             .map(Domain::getId)
-                            .toArray(String[]::new))
+                            .collect(Collectors.toList()))
+                    .payload(
+                        payloadMapper.toPayloadSimple(Optional.ofNullable(contract.getPayload())))
+                    .labels(contract.getLabels())
                     .build())
         .orElse(null);
   }
@@ -280,7 +278,7 @@ public class InjectMapper {
 
   public InjectOutput toInjectOutput(Inject inject, List<HealthCheck> healthchecks) {
     InjectorContract injectorContract = inject.getInjectorContract().orElse(null);
-    String type = injectorContract != null ? injectorContract.getInjector().getType() : null;
+    String type = inject.getType();
     return toInjectOutput(
         inject.getId(),
         inject.getTitle(),

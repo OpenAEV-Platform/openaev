@@ -8,10 +8,11 @@ import type { HealthCheck } from '../../../../utils/api-types';
 
 interface Props {
   healthchecks: HealthCheck[];
-  scenarioId: string;
+  scenarioId?: string;
+  exerciseId?: string;
 }
 
-const Healthchecks = ({ healthchecks, scenarioId }: Props) => {
+const Healthchecks = ({ healthchecks, scenarioId, exerciseId }: Props) => {
   const documentationRootUrl = 'https://docs.openaev.io';
   const theme = useTheme();
   const navigate = useNavigate();
@@ -45,16 +46,32 @@ const Healthchecks = ({ healthchecks, scenarioId }: Props) => {
         break;
       }
       case 'INJECT': {
-        navigate(`/admin/scenarios/${scenarioId}/injects`);
+        if (exerciseId) {
+          navigate(`/admin/simulations/${exerciseId}/injects`);
+        } else {
+          navigate(`/admin/scenarios/${scenarioId}/injects`);
+        }
         break;
       }
       case 'TEAMS': {
-        navigate(`/admin/scenarios/${scenarioId}/definition`);
+        if (exerciseId) {
+          navigate(`/admin/simulations/${exerciseId}/definition`);
+        } else {
+          navigate(`/admin/scenarios/${scenarioId}/definition`);
+        }
         break;
       }
       case 'NMAP':
       case 'NUCLEI': {
         window.open(`${documentationRootUrl}/latest/usage/injectors`);
+        break;
+      }
+      case 'SCOPE_DEFINITION': {
+        if (exerciseId) {
+          navigate(`/admin/simulations/${exerciseId}/scope`);
+        } else {
+          navigate(`/admin/scenarios/${scenarioId}/scope`);
+        }
         break;
       }
       default:
@@ -85,7 +102,9 @@ const Healthchecks = ({ healthchecks, scenarioId }: Props) => {
         }}
       >
         <AccordionSummary expandIcon={<ExpandMore />}>
-          <Typography variant="h1" marginBottom={0}>{t('Scenario configuration')}</Typography>
+          <Typography variant="h6" sx={{ color: theme.palette.warning.main }}>
+            {t(exerciseId ? 'Simulation configuration' : 'Scenario configuration')}
+          </Typography>
         </AccordionSummary>
         <AccordionDetails style={{
           display: 'flex',

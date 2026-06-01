@@ -4,7 +4,7 @@ import { type FunctionComponent, type ReactNode, useEffect, useState } from 'rea
 
 import { type LoggedHelper } from '../actions/helper';
 import { useHelper } from '../store';
-import { type PlatformSettings, type User } from '../utils/api-types';
+import { type PlatformSettings, type TenantSettingsOutput, type User } from '../utils/api-types';
 import { useFormatter } from './i18n';
 import themeDark from './ThemeDark';
 import themeLight from './ThemeLight';
@@ -24,42 +24,33 @@ const AppThemeProvider: FunctionComponent<Props> = ({ children }) => {
   const [muiLocale, setMuiLocale] = useState<Localization>(enUS);
   const { locale } = useFormatter();
   const [theme, setTheme] = useState('dark');
-  const { me, settings }: {
+  const { me, settings, tenantSettings }: {
     me: User;
     settings: PlatformSettings;
+    tenantSettings: TenantSettingsOutput;
   } = useHelper((helper: LoggedHelper) => ({
     me: helper.getMe(),
     settings: helper.getPlatformSettings(),
+    tenantSettings: helper.getTenantSettings(),
   }));
 
   useEffect(() => {
-    const rawPlatformTheme = settings.platform_theme ?? 'dark';
+    const rawPlatformTheme = tenantSettings?.platform_theme || settings.platform_theme || 'dark';
     const rawUserTheme = me?.user_theme ?? 'default';
     const themeToSet = rawUserTheme !== 'default' ? rawUserTheme : rawPlatformTheme;
     document.body.setAttribute('data-theme', themeToSet);
     setTheme(themeToSet);
-  }, [settings, me]);
+  }, [settings, tenantSettings, me]);
 
   useEffect(() => {
     setMuiLocale(localeMap[locale as keyof typeof localeMap]);
   }, [locale]);
 
-  const dark = settings.platform_dark_theme;
-  const themeBuilder = theme === 'light'
-    ? () => {
-        const light = settings.platform_light_theme;
-        return themeLight(
-          light?.logo_url,
-          light?.logo_url_collapsed,
-          light?.background_color,
-          light?.paper_color,
-          light?.navigation_color,
-          light?.primary_color,
-          light?.secondary_color,
-          light?.accent_color,
-        );
-      }
-    : () => themeDark(
+  const dark = tenantSettings?.platform_dark_theme ?? settings.platform_dark_theme;
+  let muiTheme = createTheme(
+    {
+      spacing: scaleFactor,
+      ...themeDark(
         dark?.logo_url,
         dark?.logo_url_collapsed,
         dark?.background_color,
@@ -68,15 +59,29 @@ const AppThemeProvider: FunctionComponent<Props> = ({ children }) => {
         dark?.primary_color,
         dark?.secondary_color,
         dark?.accent_color,
-      );
-  const themeComponent = themeBuilder();
-  const muiTheme = createTheme(
-    {
-      spacing: scaleFactor,
-      ...themeComponent,
+      ),
     },
     muiLocale,
   );
+  if (theme === 'light') {
+    const light = tenantSettings?.platform_light_theme ?? settings.platform_light_theme;
+    muiTheme = createTheme(
+      {
+        spacing: scaleFactor,
+        ...themeLight(
+          light?.logo_url,
+          light?.logo_url_collapsed,
+          light?.background_color,
+          light?.paper_color,
+          light?.navigation_color,
+          light?.primary_color,
+          light?.secondary_color,
+          light?.accent_color,
+        ),
+      },
+      muiLocale,
+    );
+  }
   return <ThemeProvider theme={muiTheme}>{children}</ThemeProvider>;
 };
 

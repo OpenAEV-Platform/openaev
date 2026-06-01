@@ -1,11 +1,13 @@
 package io.openaev.rest.user;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Organization;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.OrganizationRepository;
 import io.openaev.database.repository.TagRepository;
+import io.openaev.database.repository.TenantRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.user.form.player.PlayerOutput;
 import io.openaev.utils.fixtures.OrganizationFixture;
@@ -31,6 +33,7 @@ class PlayerServiceIntegrationTest extends IntegrationTest {
   @Autowired private UserRepository userRepository;
   @Autowired private OrganizationRepository organizationRepository;
   @Autowired private TagRepository tagRepository;
+  @Autowired private TenantRepository tenantRepository;
 
   @Test
   @DisplayName(
@@ -45,11 +48,13 @@ class PlayerServiceIntegrationTest extends IntegrationTest {
     User user = UserFixture.getUser("John", "Doe", "player@test.com");
     user.setOrganization(organization);
     user.setTags(Set.of(tag1, tag2));
-    userRepository.save(user);
+    User savedUser = userRepository.save(user);
+    tenantRepository.addUserToTenant(savedUser.getId(), TenantContext.getCurrentTenant());
 
     User userWithoutOrg = UserFixture.getUser("Jane", "Doe", "noorg@test.com");
     userWithoutOrg.setTags(Set.of(tag1));
-    userRepository.save(userWithoutOrg);
+    User savedUserWithoutOrg = userRepository.save(userWithoutOrg);
+    tenantRepository.addUserToTenant(savedUserWithoutOrg.getId(), TenantContext.getCurrentTenant());
 
     SearchPaginationInput input = new SearchPaginationInput();
     input.setPage(0);
@@ -90,7 +95,8 @@ class PlayerServiceIntegrationTest extends IntegrationTest {
     user.setFirstname("Solo");
     user.setLastname("Player");
     user.setTags(Set.of(tag));
-    userRepository.save(user);
+    User savedUser = userRepository.save(user);
+    tenantRepository.addUserToTenant(savedUser.getId(), TenantContext.getCurrentTenant());
 
     SearchPaginationInput input = new SearchPaginationInput();
     input.setPage(0);

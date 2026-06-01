@@ -13,11 +13,12 @@ import { type CSSProperties, type FunctionComponent, useState } from 'react';
 import { type GlobalError } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 
-import { type TagHelper, type UserHelper } from '../../actions/helper';
-import { addTag } from '../../actions/Tag';
+import { type UserHelper } from '../../actions/helper';
+import { addTag } from '../../actions/tags/tag-action';
+import { type TagHelper } from '../../actions/tags/tag-helper';
 import TagForm from '../../admin/components/settings/tags/TagForm';
 import { useHelper } from '../../store';
-import { type Tag } from '../../utils/api-types';
+import { type Tag, type TagCreateInput } from '../../utils/api-types';
 import { useAppDispatch } from '../../utils/hooks';
 import { Can } from '../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../utils/permissions/types';
@@ -80,7 +81,7 @@ const TagField: FunctionComponent<Props> = ({
     return tagsOptions.filter(tag => fieldValue.includes(tag.id));
   };
 
-  const onSubmit = (data: Tag) => {
+  const onSubmit = (data: TagCreateInput) => {
     dispatch(addTag(data))
       .then((result: {
         entities: { tags: Record<string, Tag> };
@@ -140,7 +141,7 @@ const TagField: FunctionComponent<Props> = ({
                 ...params.InputProps,
                 endAdornment: (
                   <>
-                    <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
+                    <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
                       <IconButton
                         style={{
                           position: 'absolute',
@@ -161,7 +162,7 @@ const TagField: FunctionComponent<Props> = ({
         )}
         classes={{ clearIndicator: classes.autoCompleteIndicator }}
       />
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
+      <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
         <Dialog
           open={tagCreation}
           onClose={handleCloseTagCreation}

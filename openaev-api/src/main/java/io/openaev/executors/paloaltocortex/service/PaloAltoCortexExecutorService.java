@@ -51,7 +51,6 @@ public class PaloAltoCortexExecutorService implements Runnable {
     this.assetGroupService = assetGroupService;
   }
 
-  // TODO multi-tenancy: Multi executors dev
   @Override
   public void run() {
     log.info("Running Palo Alto Cortex executor endpoints gathering...");
@@ -79,8 +78,7 @@ public class PaloAltoCortexExecutorService implements Runnable {
         List<Agent> agents =
             endpointService.syncAgentsEndpoints(
                 toAgentEndpoint(paloAltoCortexEndpoints),
-                agentService.getAgentsByExecutorType(
-                    PALOALTOCORTEX_EXECUTOR_TYPE, executor.getTenant().getId()));
+                agentService.getAgentsByExecutorId(executor.getId()));
         assetGroup.setAssets(agents.stream().map(Agent::getAsset).toList());
         assetGroupService.createOrUpdateAssetGroupWithoutDynamicAssets(assetGroup);
       }

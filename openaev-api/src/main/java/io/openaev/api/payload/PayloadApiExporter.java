@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping(PayloadApi.PAYLOAD_URI)
+@RequestMapping({PayloadApi.PAYLOAD_URI, PayloadApi.TENANT_PAYLOAD_URI})
 @RequiredArgsConstructor
 public class PayloadApiExporter extends RestBehavior {
 
@@ -38,8 +38,8 @@ public class PayloadApiExporter extends RestBehavior {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PAYLOAD)
   public ResponseEntity<byte[]> export(@PathVariable @NotBlank final String payloadId)
       throws IOException {
-    Map<String, Boolean> opts = new HashMap<>();
-    opts.put("exclude from payload export", false);
+    Map<String, IncludeOptions.IncludeMode> opts = new HashMap<>();
+    opts.put("exclude from payload export", IncludeOptions.IncludeMode.FALSE);
     IncludeOptions includeOptions = IncludeOptions.of(opts);
 
     Payload payload =

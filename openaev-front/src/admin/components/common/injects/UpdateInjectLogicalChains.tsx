@@ -130,7 +130,7 @@ const UpdateInjectLogicalChains: FunctionComponent<Props> = ({ inject, handleClo
               </Button>
               <Button
                 variant="contained"
-                color="primary"
+                color="secondary"
                 type="submit"
                 disabled={(errors !== undefined && Object.keys(errors).length > 0) || permissions.readOnly}
               >

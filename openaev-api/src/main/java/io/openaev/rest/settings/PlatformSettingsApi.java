@@ -3,19 +3,14 @@ package io.openaev.rest.settings;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.UserRoleDescription;
 import io.openaev.database.model.Action;
-import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.ResourceType;
-import io.openaev.engine.query.*;
-import io.openaev.rest.custom_dashboard.CustomDashboardService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.settings.form.*;
 import io.openaev.rest.settings.response.CalderaSettings;
 import io.openaev.rest.settings.response.PlatformSettings;
+import io.openaev.rest.settings.response.PublicPlatformSettings;
 import io.openaev.service.CalderaSettingsService;
 import io.openaev.service.PlatformSettingsService;
-import io.openaev.utils.es.EntitiesPaginationInput;
-import io.openaev.utils.es.WidgetToEntitiesInput;
-import io.openaev.utils.es.WidgetToEntitiesOutput;
 import io.swagger.v3.oas.annotations.ExternalDocumentation;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -23,10 +18,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ExecutionException;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RequestMapping("/api/settings")
@@ -44,12 +36,31 @@ public class PlatformSettingsApi extends RestBehavior {
 
   private final PlatformSettingsService platformSettingsService;
   private final CalderaSettingsService calderaSettingsService;
-  private final CustomDashboardService customDashboardService;
+
+  // -- READ --
+
+  @GetMapping("/public")
+  @AccessControl(skipRBAC = true)
+  @ApiResponses(
+      value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Non-sensitive settings for login page and initial rendering")
+      })
+  @Operation(
+      summary = "List public settings",
+      description =
+          "Return only non-sensitive settings (auth providers, theme, language, policies)")
+  public PublicPlatformSettings publicSettings() {
+    return platformSettingsService.findPublicSettings();
+  }
 
   @GetMapping()
-  @AccessControl(skipRBAC = true)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The list of settings")})
-  @Operation(summary = "List settings", description = "Return the settings")
+  @Operation(
+      summary = "List settings",
+      description = "Return the full settings (authenticated users only)")
   public PlatformSettings settings() {
     return platformSettingsService.findSettings();
   }
@@ -75,15 +86,6 @@ public class PlatformSettingsApi extends RestBehavior {
     return platformSettingsService.getPlatformVersion();
   }
 
-  @PutMapping()
-  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
-  @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The updated settings")})
-  @Operation(summary = "Update settings", description = "Update the settings")
-  public PlatformSettings updateBasicConfigurationSettings(
-      @Valid @RequestBody SettingsUpdateInput input) {
-    return platformSettingsService.updateBasicConfigurationSettings(input);
-  }
-
   @PutMapping("/enterprise-edition")
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(
@@ -98,7 +100,10 @@ public class PlatformSettingsApi extends RestBehavior {
   }
 
   @PutMapping("/platform_whitemark")
-  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
+  @AccessControl(
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.PLATFORM_SETTING,
+      isEnterpriseEdition = true)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The updated settings")})
   @Operation(summary = "Update Whitemark settings", description = "Update the whitemark settings")
   public PlatformSettings updateSettingsPlatformWhitemark(
@@ -130,59 +135,5 @@ public class PlatformSettingsApi extends RestBehavior {
   @Operation(summary = "Update policies settings", description = "Update the policies settings")
   public PlatformSettings updateSettingsPolicies(@Valid @RequestBody PolicyInput input) {
     return platformSettingsService.updateSettingsPolicies(input);
-  }
-
-  @GetMapping("/home-dashboard")
-  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PLATFORM_SETTING)
-  public ResponseEntity<CustomDashboard> homeDashboard() {
-    return ResponseEntity.ok(customDashboardService.findHomeDashboard().orElse(null));
-  }
-
-  @PostMapping("/home-dashboard/count/{widgetId}")
-  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PLATFORM_SETTING)
-  public EsCountInterval homeDashboardCount(
-      @PathVariable final String widgetId,
-      @RequestBody(required = false) Map<String, String> parameters) {
-    return customDashboardService.homeDashboardCount(widgetId, parameters);
-  }
-
-  @PostMapping("/home-dashboard/average/{widgetId}")
-  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PLATFORM_SETTING)
-  public EsAvgs homeDashboardAverage(
-      @PathVariable final String widgetId,
-      @RequestBody(required = false) Map<String, String> parameters) {
-    return customDashboardService.homeDashboardAverage(widgetId, parameters);
-  }
-
-  @PostMapping("/home-dashboard/series/{widgetId}")
-  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PLATFORM_SETTING)
-  public List<EsSeries> homeDashboardSeries(
-      @PathVariable final String widgetId,
-      @RequestBody(required = false) Map<String, String> parameters) {
-    return customDashboardService.homeDashboardSeries(widgetId, parameters);
-  }
-
-  @PostMapping("/home-dashboard/entities/{widgetId}")
-  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PLATFORM_SETTING)
-  public EsEntities homeDashboardEntities(
-      @PathVariable final String widgetId,
-      @RequestBody(required = false) EntitiesPaginationInput input) {
-    return customDashboardService.homeDashboardEntities(widgetId, input);
-  }
-
-  @PostMapping("/home-dashboard/entities-runtime/{widgetId}")
-  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PLATFORM_SETTING)
-  public WidgetToEntitiesOutput homeWidgetToEntitiesRuntime(
-      @PathVariable final String widgetId, @Valid @RequestBody WidgetToEntitiesInput input) {
-    return customDashboardService.homeWidgetToEntitiesRuntimeOnResourceId(widgetId, input);
-  }
-
-  @PostMapping("/home-dashboard/attack-paths/{widgetId}")
-  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PLATFORM_SETTING)
-  public List<EsAttackPath> homeDashboardAttackPaths(
-      @PathVariable final String widgetId,
-      @RequestBody(required = false) Map<String, String> parameters)
-      throws ExecutionException, InterruptedException {
-    return customDashboardService.homeDashboardAttackPaths(widgetId, parameters);
   }
 }

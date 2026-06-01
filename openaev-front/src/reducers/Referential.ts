@@ -31,6 +31,7 @@ export const entitiesInitializer = Map({
     tags: Map({}),
     documents: Map({}),
     platformParameters: Map({}),
+    publicPlatformParameters: Map({}),
     channels: Map({}),
     payloads: Map({}),
     challenges: Map({}),
@@ -58,7 +59,9 @@ export const entitiesInitializer = Map({
     domains: Map({}),
     catalog_connectors: Map({}),
     connector_instances: Map({}),
-    capabilities: Map({}),
+    platform_capabilities: Map({}),
+    tenant_capabilities: Map({}),
+    tenantXtmHubRegistrations: Map({}),
   }),
 });
 
@@ -107,6 +110,21 @@ const mergeDeepOverwriteLists = (a: any, b: any, deep = 0) => {
   return b;
 };
 
+/**
+ * Entity keys that are platform-scoped.
+ * These are preserved when switching tenant so the user session is not lost.
+ */
+const PLATFORM_ENTITIES = [
+  'platformParameters',
+  'users',
+  'tokens',
+  'groups',
+  'roles',
+  'grants',
+  'organizations',
+  'capabilities',
+] as const;
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const referential = (state: any = Map({}), action: any = {}) => {
   switch (action.type) {
@@ -137,14 +155,23 @@ const referential = (state: any = Map({}), action: any = {}) => {
     case Constants.DATA_FETCH_ERROR: {
       if (action.payload.status === 401) {
         // If unauthorized, reset all entities except platform parameters.
-        return entitiesInitializer.setIn(['entities', 'platformParameters'], state.getIn(['entities', 'platformParameters']));
+        return entitiesInitializer.setIn(['entities', 'publicPlatformParameters'], state.getIn(['entities', 'publicPlatformParameters']));
       }
       return state;
     }
 
+    case Constants.TENANT_SWITCH_SUCCESS: {
+      // Reset all tenant-scoped entities but preserve platform-scoped entities
+      let nextState = entitiesInitializer;
+      for (const key of PLATFORM_ENTITIES) {
+        nextState = nextState.setIn(['entities', key], state.getIn(['entities', key]));
+      }
+      return nextState;
+    }
+
     case Constants.IDENTITY_LOGOUT_SUCCESS: {
       // Upon logout, reset all entities except for platform parameters.
-      return entitiesInitializer.setIn(['entities', 'platformParameters'], state.getIn(['entities', 'platformParameters']));
+      return entitiesInitializer.setIn(['entities', 'publicPlatformParameters'], state.getIn(['entities', 'publicPlatformParameters']));
     }
     default: {
       return state;

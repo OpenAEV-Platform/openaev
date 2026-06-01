@@ -17,6 +17,8 @@ const ErrorHandler = () => {
         const messages = error?.errors?.children?.message?.errors;
         setEEFeatureDetectedInfo(Array.isArray(messages) ? messages.join(', ') : '');
         openDialog();
+      } else if (error.status === 403 && error.message === 'TENANT_ACCESS_DENIED') {
+        MESSAGING$.notifyError(t('You are not a member of this tenant. Please contact your administrator to request access.'));
       } else if (error.status === 409) {
         MESSAGING$.notifyError(t('The element already exists'));
       } else if (error.status === 400) {

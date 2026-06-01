@@ -1,7 +1,7 @@
 package io.openaev.service.chaining;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.openaev.rest.helper.queue.Queueable;
+import io.openaev.service.queue.Queueable;
 import java.util.Objects;
 import java.util.UUID;
 import lombok.*;

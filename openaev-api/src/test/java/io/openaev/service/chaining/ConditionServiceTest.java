@@ -3,13 +3,19 @@ package io.openaev.service.chaining;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import io.openaev.api.chaining.dto.ConditionCreateInput;
+import io.openaev.api.chaining.dto.EventInput;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ConditionRepository;
+import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.ChainingException;
-import java.io.IOException;
+import io.openaev.utils.ConditionUtils;
+import jakarta.persistence.EntityNotFoundException;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-import java.util.*;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -27,14 +33,16 @@ public class ConditionServiceTest {
   @Captor private ArgumentCaptor<Condition> conditionCaptor;
   @Captor private ArgumentCaptor<List<Condition>> conditionsCaptor;
   @Mock private ConditionRepository conditionRepository;
-  @Mock private QueueChainingService queueChainingService;
-  @Captor private ArgumentCaptor<Long> delayCaptor;
+  @Mock private StepRepository stepRepository;
+  @Mock private WorkflowStateService workflowStateService;
+  @Spy private ConditionUtils conditionUtils;
 
   /* ============================================================
    * isTimeCondition
    * ============================================================ */
   @Nested
   class IsTimeCondition {
+
     static Stream<ConditionType> allConditionTypes() {
       return Stream.of(ConditionType.values());
     }
@@ -50,7 +58,7 @@ public class ConditionServiceTest {
 
       boolean expected = (type == ConditionType.AFTER || type == ConditionType.BEFORE);
       // -------- Act --------
-      boolean result = conditionService.isTimeCondition(condition);
+      boolean result = conditionUtils.isTimeCondition(condition);
 
       // -------- Assert --------
       assertEquals(result, expected);
@@ -62,6 +70,7 @@ public class ConditionServiceTest {
    * ============================================================ */
   @Nested
   class IsMapperCondition {
+
     static Stream<ConditionType> allConditionTypes() {
       return Stream.of(ConditionType.values());
     }
@@ -78,7 +87,7 @@ public class ConditionServiceTest {
       boolean expected = type == ConditionType.MAPPER;
 
       // -------- Act --------
-      boolean actual = conditionService.isMapperCondition(condition);
+      boolean actual = conditionUtils.isMapperCondition(condition);
 
       // -------- Assert --------
       assertEquals(expected, actual);
@@ -90,6 +99,7 @@ public class ConditionServiceTest {
    * ============================================================ */
   @Nested
   class IsFilterCondition {
+
     static Stream<ConditionType> allConditionTypes() {
       return Stream.of(ConditionType.values());
     }
@@ -108,7 +118,7 @@ public class ConditionServiceTest {
               || type == ConditionType.BEFORE
               || type == ConditionType.MAPPER);
       // -------- Act --------
-      boolean result = conditionService.isFilterCondition(condition);
+      boolean result = conditionUtils.isFilterCondition(condition);
 
       // -------- Assert --------
       assertEquals(expected, result);
@@ -127,7 +137,7 @@ public class ConditionServiceTest {
         ConditionType type, NowGoalRelation relation, boolean shouldCreate) {
       // -------- Prepare --------
       Condition template = mock(Condition.class);
-      when(template.getType()).thenReturn(type);
+      lenient().when(template.getType()).thenReturn(type);
 
       Instant now = Instant.parse("2026-02-04T10:15:30Z");
       Instant goal =
@@ -138,7 +148,7 @@ public class ConditionServiceTest {
           };
 
       // -------- Act --------
-      boolean result = conditionService.isTimeConditionValid(template, now, goal);
+      boolean result = conditionUtils.isTimeConditionValid(template, now, goal);
 
       // -------- Assert --------
       if (shouldCreate) {
@@ -225,7 +235,7 @@ public class ConditionServiceTest {
       String stepId = UUID.randomUUID().toString();
       List<Condition> expected = List.of(mock(Condition.class), mock(Condition.class));
 
-      when(conditionRepository.findAllByStep_Id(stepId)).thenReturn(expected);
+      when(conditionRepository.findAllLinkedToStepId(stepId)).thenReturn(expected);
 
       // -------- Act --------
       List<Condition> result = conditionService.findAllConditionsByStepId(stepId);
@@ -233,7 +243,7 @@ public class ConditionServiceTest {
       // -------- Assert --------
       assertSame(expected, result);
 
-      verify(conditionRepository).findAllByStep_Id(stepId);
+      verify(conditionRepository).findAllLinkedToStepId(stepId);
       verifyNoMoreInteractions(conditionRepository);
     }
   }
@@ -254,7 +264,7 @@ public class ConditionServiceTest {
 
       // -------- Assert --------
       assertNotNull(result);
-      assertEquals("step_template_id", result.getKey());
+      assertEquals(ConditionKeyType.STEP_TEMPLATE_ID, result.getKeyType());
       assertEquals(ConditionType.DEPEND_ON, result.getType());
       assertEquals(stepTemplateId, result.getValue());
     }
@@ -268,27 +278,28 @@ public class ConditionServiceTest {
 
     @ParameterizedTest(name = "{index} => templates={0}")
     @MethodSource("noConditionTemplates")
-    void shouldReturnEmptyList_whenNoConditionTemplates(List<Condition> templates)
+    void shouldReturnSingleBatchWithInput_whenNoConditionTemplates(List<Condition> templates)
         throws ChainingException {
       // -------- Prepare --------
       Step stepTemplate = mock(Step.class);
       Workflow workflowRun = mock(Workflow.class);
-      StepService stepService = mock(StepService.class);
 
       String stepId = UUID.randomUUID().toString();
       when(stepTemplate.getId()).thenReturn(stepId);
 
-      when(conditionRepository.findAllByStep_Id(stepId)).thenReturn(templates);
+      when(conditionRepository.findAllLinkedToStepId(stepId)).thenReturn(templates);
 
       // -------- Act --------
-      List<Condition> result =
-          conditionService.checkCondition(stepTemplate, "{\"in\":1}", workflowRun, stepService);
+      List<ConditionService.ExecutionBatch> result =
+          conditionService.checkCondition(stepTemplate, workflowRun, "{\"in\":1}");
 
       // -------- Assert --------
       assertNotNull(result);
-      assertTrue(result.isEmpty());
+      assertEquals(1, result.size());
+      assertEquals("{\"in\":1}", result.getFirst().inputString());
+      assertTrue(result.getFirst().usedMappers().isEmpty());
 
-      verify(conditionRepository).findAllByStep_Id(stepId);
+      verify(conditionRepository).findAllLinkedToStepId(stepId);
     }
 
     static Stream<Arguments> noConditionTemplates() {
@@ -296,234 +307,702 @@ public class ConditionServiceTest {
     }
 
     @Test
-    void shouldAddValidTimeCondition_whenAfterAndGoalAlreadyReached() throws ChainingException {
-      // -------- Prepare --------
+    void shouldDelegateToExtractInputsForStepExecution_withMapperConditionsOnly()
+        throws ChainingException {
+      // -------- Arrange --------
       Step stepTemplate = mock(Step.class);
       Workflow workflowRun = mock(Workflow.class);
-      StepService stepService = mock(StepService.class);
 
       String stepId = UUID.randomUUID().toString();
       when(stepTemplate.getId()).thenReturn(stepId);
-
-      // time condition template: AFTER with "0ms" from workflowCreatedAt
-      Condition timeTemplate = mock(Condition.class);
-      when(timeTemplate.getType()).thenReturn(ConditionType.AFTER);
-      when(timeTemplate.getValue()).thenReturn("0");
-
-      when(conditionRepository.findAllByStep_Id(stepId)).thenReturn(List.of(timeTemplate));
-
-      // Make goal safely in the past => now.isAfter(goal) will be true
-      when(workflowRun.getWorkflowCreatedAt()).thenReturn(Instant.EPOCH);
-
-      // We stub isTimeConditionValid to return a concrete Condition (so we don't depend on
-      // builder/getters)
-
-      doReturn(true)
-          .when(conditionService)
-          .isTimeConditionValid(eq(timeTemplate), any(Instant.class), any(Instant.class));
-      // -------- Act --------
-      List<Condition> result =
-          conditionService.checkCondition(stepTemplate, "{\"in\":1}", workflowRun, stepService);
-
-      // -------- Assert --------
-      assertNotNull(result);
-      assertEquals(1, result.size());
-
-      verify(conditionRepository).findAllByStep_Id(stepId);
-      verify(conditionService)
-          .isTimeConditionValid(eq(timeTemplate), any(Instant.class), any(Instant.class));
-      verifyNoInteractions(queueChainingService);
-      verifyNoInteractions(stepService);
-    }
-
-    @Test
-    void shouldDelayAndReturnNull_whenTimeConditionNotYetValid() throws Exception {
-      // -------- Prepare --------
-      Step stepTemplate = mock(Step.class);
-      Workflow workflowRun = mock(Workflow.class);
-      StepService stepService = mock(StepService.class);
-
-      String stepId = UUID.randomUUID().toString();
-      when(stepTemplate.getId()).thenReturn(stepId);
-
-      Condition timeTemplate = mock(Condition.class);
-      when(timeTemplate.getType()).thenReturn(ConditionType.AFTER);
-      when(timeTemplate.getValue()).thenReturn("60000"); // +60s from start
-
-      when(conditionRepository.findAllByStep_Id(stepId)).thenReturn(List.of(timeTemplate));
-
-      // Start in the future => goal in the future => AFTER should be invalid now
-      Instant futureStart = Instant.now().plus(2, ChronoUnit.MINUTES);
-      when(workflowRun.getWorkflowCreatedAt()).thenReturn(futureStart);
-
-      // Force helper to return null => triggers delay branch
-      doReturn(false)
-          .when(conditionService)
-          .isTimeConditionValid(eq(timeTemplate), any(Instant.class), any(Instant.class));
-
-      // -------- Act --------
-      List<Condition> result =
-          conditionService.checkCondition(stepTemplate, "{\"in\":1}", workflowRun, stepService);
-
-      // -------- Assert --------
-      assertNull(result);
-
-      verify(queueChainingService)
-          .delayStep(eq(stepTemplate), eq(workflowRun), delayCaptor.capture());
-      assertTrue(delayCaptor.getValue() > 0, "delay should be > 0 when goal is in the future");
-    }
-
-    @Test
-    void shouldWrapIOException_whenDelayStepThrows() throws Exception {
-      // -------- Prepare --------
-      Step stepTemplate = mock(Step.class);
-      Workflow workflowRun = mock(Workflow.class);
-      StepService stepService = mock(StepService.class);
-
-      String stepId = UUID.randomUUID().toString();
-      when(stepTemplate.getId()).thenReturn(stepId);
-
-      Condition timeTemplate = mock(Condition.class);
-      when(timeTemplate.getType()).thenReturn(ConditionType.AFTER);
-      when(timeTemplate.getValue()).thenReturn("60000");
-
-      when(conditionRepository.findAllByStep_Id(stepId)).thenReturn(List.of(timeTemplate));
-
-      when(workflowRun.getWorkflowCreatedAt())
-          .thenReturn(Instant.now().plus(2, ChronoUnit.MINUTES));
-
-      doReturn(false)
-          .when(conditionService)
-          .isTimeConditionValid(eq(timeTemplate), any(Instant.class), any(Instant.class));
-
-      IOException io = new IOException("boom");
-      doThrow(io)
-          .when(queueChainingService)
-          .delayStep(any(Step.class), any(Workflow.class), anyLong());
-
-      // -------- Act --------
-      assertThrows(
-          ChainingException.class,
-          () ->
-              conditionService.checkCondition(
-                  stepTemplate, "{\"in\":1}", workflowRun, stepService));
-
-      // -------- Assert --------
-      verify(queueChainingService).delayStep(eq(stepTemplate), eq(workflowRun), anyLong());
-    }
-
-    @Test
-    void shouldReturnEmptyList_whenAtLeastOneConditionsInvalid() throws ChainingException {
-      // -------- Prepare --------
-      Step stepTemplate = mock(Step.class);
-      Workflow workflowRun = mock(Workflow.class);
-      StepService stepService = mock(StepService.class);
-
-      String stepId = UUID.randomUUID().toString();
-      when(stepTemplate.getId()).thenReturn(stepId);
-      when(stepTemplate.getData()).thenReturn("{\"data\" : \"data\"}");
-
-      // One filter condition (non time, non mapper) + one mapper condition
       Condition filterTemplate = mock(Condition.class);
-      when(filterTemplate.getType()).thenReturn(ConditionType.EQ);
       Condition mapperTemplate = mock(Condition.class);
-      when(mapperTemplate.getType()).thenReturn(ConditionType.MAPPER);
-      List<Condition> conditions = new ArrayList<>();
-      conditions.add(filterTemplate);
-      conditions.add(mapperTemplate);
-      when(conditionService.findAllConditionsByStepId(stepId)).thenReturn(conditions);
+      List<Condition> conditions = List.of(filterTemplate, mapperTemplate);
 
-      Condition filterExec = mock(Condition.class);
-      doReturn(filterExec)
+      doReturn(conditions).when(conditionService).findAllConditionsByStepId(stepId);
+      when(conditionUtils.isMapperCondition(filterTemplate)).thenReturn(false);
+      when(conditionUtils.isMapperCondition(mapperTemplate)).thenReturn(true);
+
+      List<ConditionService.ExecutionBatch> expected =
+          List.of(new ConditionService.ExecutionBatch("{\"IPv4\":\"10.10.10.10\"}", List.of()));
+      doReturn(expected)
           .when(conditionService)
-          .isFilterConditionValid(eq(filterTemplate), anyString(), anyString());
-      doReturn(null)
-          .when(conditionService)
-          .isMapperConditionValid(eq(mapperTemplate), anyString(), anyString());
+          .prepareInputsForStepExecution(stepTemplate, workflowRun, List.of(mapperTemplate));
 
       // -------- Act --------
-      List<Condition> result =
-          conditionService.checkCondition(stepTemplate, "{\"in\":1}", workflowRun, stepService);
+      List<ConditionService.ExecutionBatch> result =
+          conditionService.checkCondition(stepTemplate, workflowRun, "{\"in\":1}");
 
       // -------- Assert --------
-      assertNotNull(result);
-      assertEquals(1, result.size());
+      assertEquals(expected, result);
+      verify(conditionService)
+          .prepareInputsForStepExecution(stepTemplate, workflowRun, List.of(mapperTemplate));
+    }
+  }
 
-      verify(conditionService).isFilterConditionValid(eq(filterTemplate), eq("{\"in\":1}"), any());
-      verify(conditionService).isMapperConditionValid(eq(mapperTemplate), eq("{\"in\":1}"), any());
-      verifyNoInteractions(queueChainingService);
-      verifyNoInteractions(stepService);
+  /* ============================================================
+   * deleteAllConditionsByStepId
+   * ============================================================ */
+  @Nested
+  class DeleteAllConditionsByStepId {
+
+    @Test
+    void shouldDoNothing_whenNoConditionLinkedToStep() {
+      String stepId = UUID.randomUUID().toString();
+      when(conditionRepository.findAllLinkedToStepId(stepId)).thenReturn(List.of());
+
+      conditionService.deleteAllConditionsByStepId(stepId);
+
+      verify(conditionRepository).findAllLinkedToStepId(stepId);
+      verify(conditionRepository, never()).save(any());
+      verify(conditionRepository, never()).delete(any());
     }
 
+    @Test
+    void shouldDeleteCondition_whenUnlinkedAndNoStepFromAndNoRemainingLinks() {
+      String removedStepId = "step-A";
+
+      Condition condition = new Condition();
+      Step stepA = new Step();
+      stepA.setId(removedStepId);
+      conditionService.linkToStep(condition, stepA, true);
+
+      when(conditionRepository.findAllLinkedToStepId(removedStepId)).thenReturn(List.of(condition));
+      when(conditionRepository.save(any(Condition.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
+
+      conditionService.deleteAllConditionsByStepId(removedStepId);
+
+      verify(conditionRepository).save(condition);
+      verify(conditionRepository).delete(condition);
+      assertTrue(condition.getConditionSteps().isEmpty());
+    }
+
+    @Test
+    void shouldKeepCondition_whenStillLinkedToAnotherStep() {
+      String removedStepId = "step-A";
+
+      Condition condition = new Condition();
+      Step stepA = new Step();
+      stepA.setId(removedStepId);
+      Step stepB = new Step();
+      stepB.setId("step-B");
+      conditionService.linkToStep(condition, stepA, true);
+      conditionService.linkToStep(condition, stepB, false);
+
+      when(conditionRepository.findAllLinkedToStepId(removedStepId)).thenReturn(List.of(condition));
+      when(conditionRepository.save(any(Condition.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
+
+      conditionService.deleteAllConditionsByStepId(removedStepId);
+
+      verify(conditionRepository).save(condition);
+      verify(conditionRepository, never()).delete(any());
+      assertEquals(1, condition.getConditionSteps().size());
+      assertEquals("step-B", condition.getConditionSteps().getFirst().getStep().getId());
+    }
+
+    @Test
+    void shouldPreserveExcludedCondition_whenUnlinkedButInExclusionList() {
+      String removedStepId = "step-A";
+
+      Condition condition = new Condition();
+      condition.setId("cond-excluded");
+      Step stepA = new Step();
+      stepA.setId(removedStepId);
+      conditionService.linkToStep(condition, stepA, true);
+
+      when(conditionRepository.findAllLinkedToStepId(removedStepId)).thenReturn(List.of(condition));
+      when(conditionRepository.save(any(Condition.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
+
+      conditionService.deleteAllConditionsByStepId(removedStepId, List.of("cond-excluded"));
+
+      verify(conditionRepository).save(condition);
+      verify(conditionRepository, never()).delete(any());
+      assertTrue(condition.getConditionSteps().isEmpty());
+    }
+  }
+
+  /* ============================================================
+   * linkExistingConditionsToStep
+   * ============================================================ */
+  @Nested
+  class LinkExistingConditionsToStep {
+
+    @Test
+    void shouldLinkAllExistingRootConditionsToStep() {
+      Step step = new Step();
+      step.setId("step-1");
+
+      Condition root1 = new Condition();
+      root1.setId("c-1");
+      Condition root2 = new Condition();
+      root2.setId("c-2");
+
+      when(conditionRepository.findById("c-1")).thenReturn(Optional.of(root1));
+      when(conditionRepository.findById("c-2")).thenReturn(Optional.of(root2));
+
+      conditionService.linkExistingConditionsToStep(step, List.of("c-1", "c-2"));
+
+      verify(conditionRepository).save(root1);
+      verify(conditionRepository).save(root2);
+      assertEquals(1, root1.getConditionSteps().size());
+      assertEquals("step-1", root1.getConditionSteps().getFirst().getStep().getId());
+      assertEquals(1, root2.getConditionSteps().size());
+      assertEquals("step-1", root2.getConditionSteps().getFirst().getStep().getId());
+    }
+
+    @Test
+    void shouldDoNothing_whenConditionIdsAreEmpty() {
+      Step step = new Step();
+      step.setId("step-1");
+
+      conditionService.linkExistingConditionsToStep(step, List.of());
+
+      verify(conditionRepository, never()).findById(anyString());
+      verify(conditionRepository, never()).save(any());
+    }
+  }
+
+  /* ============================================================
+   * createConditionTree
+   * ============================================================ */
+  @Nested
+  class CreateConditionTree {
+
+    @Test
+    void shouldCreateRootAndChildrenAndLinkSteps() {
+      String workflowId = "wf-1";
+      String linkedStepId = "linked-step";
+
+      ConditionCreateInput rootInput = new ConditionCreateInput();
+      rootInput.setTemporaryId("tmp-root");
+      rootInput.setType(ConditionType.AND);
+
+      ConditionCreateInput childInput = new ConditionCreateInput();
+      childInput.setTemporaryId("tmp-child");
+      childInput.setTemporaryIdConditionParent("tmp-root");
+      childInput.setType(ConditionType.EQ);
+      childInput.setKeyType(ConditionKeyType.Portscan);
+      childInput.setValue("445");
+
+      EventInput input =
+          EventInput.builder()
+              .name("event-1")
+              .description("desc-1")
+              .workflowId(workflowId)
+              .conditions(List.of(rootInput, childInput))
+              .stepIds(List.of(linkedStepId))
+              .build();
+
+      Step linkedStep = new Step();
+      linkedStep.setId(linkedStepId);
+
+      when(stepRepository.findAllById(List.of(linkedStepId))).thenReturn(List.of(linkedStep));
+      when(conditionRepository.save(any(Condition.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
+
+      Condition createdRoot = conditionService.createConditionTree(input);
+
+      assertNotNull(createdRoot);
+      assertEquals("event-1", createdRoot.getName());
+      assertEquals("desc-1", createdRoot.getDescription());
+      assertEquals(workflowId, createdRoot.getWorkflowId());
+      assertEquals(ConditionType.AND, createdRoot.getType());
+      assertEquals(1, createdRoot.getConditionChildren().size());
+
+      verify(stepRepository).findAllById(List.of(linkedStepId));
+
+      Condition savedChild = createdRoot.getConditionChildren().getFirst();
+      assertEquals("445", savedChild.getValue());
+      assertEquals(workflowId, savedChild.getWorkflowId());
+      assertNotNull(savedChild.getConditionParent());
+    }
+  }
+
+  /* ============================================================
+   * updateConditionTree
+   * ============================================================ */
+  @Nested
+  class UpdateConditionTree {
+
+    @Test
+    void shouldUpdateRootAndRebuildChildrenAndLinks() {
+      String rootId = "root-1";
+      String workflowId = "wf-new";
+      String linkedStepId = "linked-step";
+
+      Condition existingRoot = new Condition();
+      existingRoot.setId(rootId);
+      existingRoot.setName("old-name");
+      existingRoot.setDescription("old-desc");
+      existingRoot.setWorkflowId("wf-old");
+      existingRoot.setType(ConditionType.OR);
+
+      Condition oldChild = new Condition();
+      oldChild.setConditionParent(existingRoot);
+      existingRoot.getConditionChildren().add(oldChild);
+
+      Step oldLinkedStep = new Step();
+      oldLinkedStep.setId("old-linked-step");
+      conditionService.linkToStep(oldChild, oldLinkedStep, true);
+
+      ConditionCreateInput rootInput = new ConditionCreateInput();
+      rootInput.setTemporaryId("tmp-root");
+      rootInput.setType(ConditionType.AND);
+
+      ConditionCreateInput childInput = new ConditionCreateInput();
+      childInput.setTemporaryId("tmp-child");
+      childInput.setTemporaryIdConditionParent("tmp-root");
+      childInput.setType(ConditionType.EQ);
+      childInput.setKeyType(ConditionKeyType.Status);
+      childInput.setValue("ok");
+
+      EventInput input =
+          EventInput.builder()
+              .name("new-name")
+              .description("new-desc")
+              .workflowId(workflowId)
+              .conditions(List.of(rootInput, childInput))
+              .stepIds(List.of(linkedStepId))
+              .build();
+
+      Step linkedStep = new Step();
+      linkedStep.setId(linkedStepId);
+
+      when(conditionRepository.findById(rootId)).thenReturn(Optional.of(existingRoot));
+      when(stepRepository.findAllById(List.of(linkedStepId))).thenReturn(List.of(linkedStep));
+      when(conditionRepository.save(any(Condition.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
+
+      Condition updated = conditionService.updateConditionTree(rootId, input);
+
+      assertEquals("new-name", updated.getName());
+      assertEquals("new-desc", updated.getDescription());
+      assertEquals(workflowId, updated.getWorkflowId());
+      assertEquals(ConditionType.AND, updated.getType());
+      assertEquals(1, updated.getConditionChildren().size());
+      assertEquals("ok", updated.getConditionChildren().getFirst().getValue());
+      assertEquals(workflowId, updated.getConditionChildren().getFirst().getWorkflowId());
+
+      verify(conditionRepository, atLeast(2)).save(any(Condition.class));
+    }
+
+    @Test
+    void shouldThrowWhenRootConditionDoesNotExist() {
+      ConditionCreateInput rootInput = new ConditionCreateInput();
+      rootInput.setTemporaryId("tmp-root");
+      rootInput.setType(ConditionType.AND);
+
+      EventInput input =
+          EventInput.builder().name("x").workflowId("wf").conditions(List.of(rootInput)).build();
+      when(conditionRepository.findById("missing-root")).thenReturn(Optional.empty());
+
+      assertThrows(
+          EntityNotFoundException.class,
+          () -> conditionService.updateConditionTree("missing-root", input));
+    }
+  }
+
+  /* ============================================================
+   * MappingTypeResolution
+   * ============================================================ */
+  @Nested
+  class MappingTypeResolution {
+
+    /** MAPPER condition with explicit LOCAL → stays LOCAL. */
+    @Test
+    void shouldPreserveMappingType_whenMapperConditionHasExplicitValue() {
+      // -------- Prepare --------
+      ConditionCreateInput mapperInput = new ConditionCreateInput();
+      mapperInput.setTemporaryId("tmp-mapper");
+      mapperInput.setType(ConditionType.MAPPER);
+      mapperInput.setMappingType(MappingType.LOCAL);
+
+      EventInput input =
+          EventInput.builder()
+              .name("ev-mr")
+              .workflowId("wf-mr")
+              .conditions(List.of(mapperInput))
+              .build();
+
+      when(conditionRepository.save(any(Condition.class))).thenAnswer(inv -> inv.getArgument(0));
+
+      // -------- Act --------
+      Condition root = conditionService.createConditionTree(input);
+
+      // -------- Assert --------
+      assertEquals(MappingType.LOCAL, root.getMappingType());
+    }
+
+    /** MAPPER condition with no mappingType → defaults to DEFAULT. */
+    @Test
+    void shouldDefaultMappingTypeToDefault_whenMapperConditionHasNullMappingType() {
+      // -------- Prepare --------
+      ConditionCreateInput mapperInput = new ConditionCreateInput();
+      mapperInput.setTemporaryId("tmp-mapper");
+      mapperInput.setType(ConditionType.MAPPER);
+      mapperInput.setMappingType(null); // not provided — should be auto-defaulted
+
+      EventInput input =
+          EventInput.builder()
+              .name("ev-def")
+              .workflowId("wf-def")
+              .conditions(List.of(mapperInput))
+              .build();
+
+      when(conditionRepository.save(any(Condition.class))).thenAnswer(inv -> inv.getArgument(0));
+
+      // -------- Act --------
+      Condition root = conditionService.createConditionTree(input);
+
+      // -------- Assert --------
+      assertEquals(
+          MappingType.DEFAULT,
+          root.getMappingType(),
+          "mappingType should be auto-defaulted to DEFAULT for MAPPER conditions");
+    }
+
+    /** Non-MAPPER condition never carries a mappingType. */
+    @Test
+    void shouldLeaveMappingTypeNull_whenNonMapperCondition() {
+      // -------- Prepare --------
+      ConditionCreateInput eqInput = new ConditionCreateInput();
+      eqInput.setTemporaryId("tmp-eq");
+      eqInput.setType(ConditionType.EQ);
+      eqInput.setValue("445");
+
+      EventInput input =
+          EventInput.builder()
+              .name("ev-nm")
+              .workflowId("wf-nm")
+              .conditions(List.of(eqInput))
+              .build();
+
+      when(conditionRepository.save(any(Condition.class))).thenAnswer(inv -> inv.getArgument(0));
+
+      // -------- Act --------
+      Condition root = conditionService.createConditionTree(input);
+
+      // -------- Assert --------
+      assertNull(root.getMappingType(), "mappingType must be null for non-MAPPER conditions");
+    }
+  }
+
+  /* ============================================================
+   * isFilterConditionValid / evaluateLeafCondition
+   * ============================================================ */
+  @Nested
+  class IsFilterConditionValid {
+
+    private Condition leaf(ConditionType type, String value) {
+      Condition c = new Condition();
+      c.setType(type);
+      c.setValue(value);
+      return c;
+    }
+
+    // -- null root filter --
+
+    @Test
+    void shouldReturnTrue_whenRootFilterIsNull() {
+      // -------- Act / Assert --------
+      assertTrue(conditionUtils.isFilterConditionValid("anything", null));
+    }
+
+    // -- AND logical operator --
+
+    @Test
+    void shouldReturnTrue_whenAndNode_withNoChildren() {
+      // allMatch on an empty stream is vacuously true
+      // -------- Prepare --------
+      Condition and = new Condition();
+      and.setType(ConditionType.AND);
+
+      // -------- Act / Assert --------
+      assertTrue(conditionUtils.isFilterConditionValid("x", and));
+    }
+
+    @Test
+    void shouldReturnTrue_whenAndNode_allChildrenPass() {
+      // -------- Prepare --------
+      Condition and = new Condition();
+      and.setType(ConditionType.AND);
+      and.getConditionChildren().add(leaf(ConditionType.IS_NOT_NULL, null));
+      and.getConditionChildren().add(leaf(ConditionType.EQ, "admin"));
+
+      // -------- Act / Assert --------
+      assertTrue(conditionUtils.isFilterConditionValid("admin", and));
+    }
+
+    @Test
+    void shouldReturnFalse_whenAndNode_oneChildFails() {
+      // -------- Prepare --------
+      Condition and = new Condition();
+      and.setType(ConditionType.AND);
+      and.getConditionChildren().add(leaf(ConditionType.IS_NOT_NULL, null)); // passes
+      and.getConditionChildren().add(leaf(ConditionType.EQ, "admin")); // fails for "other"
+
+      // -------- Act / Assert --------
+      assertFalse(conditionUtils.isFilterConditionValid("other", and));
+    }
+
+    // -- OR logical operator --
+
+    @Test
+    void shouldReturnFalse_whenOrNode_withNoChildren() {
+      // anyMatch on an empty stream is false
+      // -------- Prepare --------
+      Condition or = new Condition();
+      or.setType(ConditionType.OR);
+
+      // -------- Act / Assert --------
+      assertFalse(conditionUtils.isFilterConditionValid("x", or));
+    }
+
+    @Test
+    void shouldReturnTrue_whenOrNode_atLeastOneChildPasses() {
+      // -------- Prepare --------
+      Condition or = new Condition();
+      or.setType(ConditionType.OR);
+      or.getConditionChildren().add(leaf(ConditionType.EQ, "admin")); // fails for "other"
+      or.getConditionChildren().add(leaf(ConditionType.IS_NOT_NULL, null)); // passes for "other"
+
+      // -------- Act / Assert --------
+      assertTrue(conditionUtils.isFilterConditionValid("other", or));
+    }
+
+    @Test
+    void shouldReturnFalse_whenOrNode_allChildrenFail() {
+      // -------- Prepare --------
+      Condition or = new Condition();
+      or.setType(ConditionType.OR);
+      or.getConditionChildren().add(leaf(ConditionType.EQ, "admin"));
+      or.getConditionChildren().add(leaf(ConditionType.EQ, "root"));
+
+      // -------- Act / Assert --------
+      assertFalse(conditionUtils.isFilterConditionValid("other", or));
+    }
+
+    /* ----------------------------------------------------------
+     * LeafConditions — exercises evaluateLeafCondition for every
+     * ConditionType branch handled in the private switch.
+     * ---------------------------------------------------------- */
     @Nested
-    class StepDependency {
+    class LeafConditions {
 
-      @ParameterizedTest(name = "{index} => hasOutput={0}, underLimit={1}, expectedNull={2}")
-      @MethodSource("dependencyScenarios")
-      void shouldHandleStepFromDependency(
-          boolean hasOutput, boolean underLimit, boolean expectedNull) throws ChainingException {
-        // -------- Prepare --------
-        Step nextStepTemplateToExecute = mock(Step.class);
-        Workflow workflowRun = mock(Workflow.class);
-        StepService stepService = mock(StepService.class);
+      // -- IS_NULL --
 
-        String nextId = UUID.randomUUID().toString();
-        String workflowRunId = UUID.randomUUID().toString();
-        String stepFromTemplateId = UUID.randomUUID().toString();
-
-        when(nextStepTemplateToExecute.getId()).thenReturn(nextId);
-        when(workflowRun.getId()).thenReturn(workflowRunId);
-
-        when(nextStepTemplateToExecute.getLimitExecution()).thenReturn(3);
-        when(stepService.countExecutedStep(workflowRunId, nextId)).thenReturn(underLimit ? 2 : 3);
-
-        Condition depTemplate = mockCondition(ConditionType.DEPEND_ON);
-
-        Step stepFrom = mock(Step.class);
-        when(stepFrom.getId()).thenReturn(stepFromTemplateId);
-        when(depTemplate.getStepFrom()).thenReturn(stepFrom);
-
-        when(conditionRepository.findAllByStep_Id(nextId)).thenReturn(List.of(depTemplate));
-
-        Step executed = mock(Step.class);
-        when(executed.getOutput()).thenReturn(hasOutput ? "out" : null);
-
-        when(stepService.findAllStepExecutedByStepTemplateIdAndWorkflowRunId(
-                stepFromTemplateId, workflowRunId))
-            .thenReturn(List.of(executed));
-
-        Condition depExec = mock(Condition.class);
-        if (!expectedNull) doReturn(depExec).when(conditionService).isDependOn(stepFromTemplateId);
-
-        // -------- Act --------
-        List<Condition> result =
-            conditionService.checkCondition(
-                nextStepTemplateToExecute, "{\"in\":1}", workflowRun, stepService);
-
-        // -------- Assert --------
-        if (expectedNull) {
-          assertNull(result);
-          verify(conditionService, never()).isDependOn(anyString());
-        } else {
-          assertNotNull(result);
-          assertEquals(1, result.size());
-          assertSame(depExec, result.get(0));
-          verify(conditionService).isDependOn(stepFromTemplateId);
-        }
+      @Test
+      void isNull_shouldReturnTrue_whenValueIsNull() {
+        assertTrue(conditionUtils.isFilterConditionValid(null, leaf(ConditionType.IS_NULL, null)));
       }
 
-      static Stream<Arguments> dependencyScenarios() {
-        return Stream.of(
-            Arguments.of(true, true, false),
-            Arguments.of(false, true, true),
-            Arguments.of(true, false, true),
-            Arguments.of(false, false, true));
+      @Test
+      void isNull_shouldReturnFalse_whenValueIsNotNull() {
+        assertFalse(
+            conditionUtils.isFilterConditionValid("val", leaf(ConditionType.IS_NULL, null)));
       }
 
-      private Condition mockCondition(ConditionType type) {
-        Condition c = mock(Condition.class);
-        when(c.getType()).thenReturn(type);
-        return c;
+      // -- IS_NOT_NULL --
+
+      @Test
+      void isNotNull_shouldReturnTrue_whenValueIsNotNull() {
+        assertTrue(
+            conditionUtils.isFilterConditionValid("val", leaf(ConditionType.IS_NOT_NULL, null)));
+      }
+
+      @Test
+      void isNotNull_shouldReturnFalse_whenValueIsNull() {
+        assertFalse(
+            conditionUtils.isFilterConditionValid(null, leaf(ConditionType.IS_NOT_NULL, null)));
+      }
+
+      // -- EQ --
+
+      @Test
+      void eq_shouldReturnTrue_whenValuesMatch_caseInsensitive() {
+        assertTrue(conditionUtils.isFilterConditionValid("Admin", leaf(ConditionType.EQ, "admin")));
+      }
+
+      @Test
+      void eq_shouldReturnFalse_whenValuesDontMatch() {
+        assertFalse(conditionUtils.isFilterConditionValid("root", leaf(ConditionType.EQ, "admin")));
+      }
+
+      @Test
+      void eq_shouldReturnFalse_whenActualValueIsNull() {
+        assertFalse(conditionUtils.isFilterConditionValid(null, leaf(ConditionType.EQ, "admin")));
+      }
+
+      // -- NEQ --
+
+      @Test
+      void neq_shouldReturnFalse_whenValuesMatch() {
+        assertFalse(
+            conditionUtils.isFilterConditionValid("admin", leaf(ConditionType.NEQ, "admin")));
+      }
+
+      @Test
+      void neq_shouldReturnTrue_whenValuesDontMatch() {
+        assertTrue(conditionUtils.isFilterConditionValid("root", leaf(ConditionType.NEQ, "admin")));
+      }
+
+      @Test
+      void neq_shouldReturnFalse_whenActualValueIsNull() {
+        assertFalse(conditionUtils.isFilterConditionValid(null, leaf(ConditionType.NEQ, "admin")));
+      }
+
+      // -- IN --
+
+      @Test
+      void in_shouldReturnTrue_whenValueIsInTargetList() {
+        assertTrue(
+            conditionUtils.isFilterConditionValid(
+                "admin", leaf(ConditionType.IN, "admin, root, guest")));
+      }
+
+      @Test
+      void in_shouldReturnFalse_whenValueIsNotInTargetList() {
+        assertFalse(
+            conditionUtils.isFilterConditionValid(
+                "unknown", leaf(ConditionType.IN, "admin, root")));
+      }
+
+      @Test
+      void in_shouldBeCaseInsensitive() {
+        assertTrue(
+            conditionUtils.isFilterConditionValid("ADMIN", leaf(ConditionType.IN, "admin, root")));
+      }
+
+      @Test
+      void in_shouldReturnFalse_whenActualValueIsNull() {
+        assertFalse(conditionUtils.isFilterConditionValid(null, leaf(ConditionType.IN, "admin")));
+      }
+
+      @Test
+      void in_shouldReturnFalse_whenTargetIsNull() {
+        assertFalse(conditionUtils.isFilterConditionValid("admin", leaf(ConditionType.IN, null)));
+      }
+
+      // -- NIN --
+
+      @Test
+      void nin_shouldReturnFalse_whenValueIsInTargetList() {
+        assertFalse(
+            conditionUtils.isFilterConditionValid("admin", leaf(ConditionType.NIN, "admin, root")));
+      }
+
+      @Test
+      void nin_shouldReturnTrue_whenValueIsNotInTargetList() {
+        assertTrue(
+            conditionUtils.isFilterConditionValid(
+                "unknown", leaf(ConditionType.NIN, "admin, root")));
+      }
+
+      @Test
+      void nin_shouldReturnFalse_whenActualValueIsNull() {
+        assertFalse(conditionUtils.isFilterConditionValid(null, leaf(ConditionType.NIN, "admin")));
+      }
+
+      // -- GT --
+
+      @Test
+      void gt_shouldReturnTrue_whenActualIsGreaterThanTarget() {
+        assertTrue(conditionUtils.isFilterConditionValid("10", leaf(ConditionType.GT, "5")));
+      }
+
+      @Test
+      void gt_shouldReturnFalse_whenActualIsEqualToTarget() {
+        assertFalse(conditionUtils.isFilterConditionValid("5", leaf(ConditionType.GT, "5")));
+      }
+
+      @Test
+      void gt_shouldReturnFalse_whenActualIsLessThanTarget() {
+        assertFalse(conditionUtils.isFilterConditionValid("3", leaf(ConditionType.GT, "5")));
+      }
+
+      @Test
+      void gt_shouldReturnFalse_whenActualValueIsNull() {
+        assertFalse(conditionUtils.isFilterConditionValid(null, leaf(ConditionType.GT, "5")));
+      }
+
+      @Test
+      void gt_shouldReturnFalse_whenActualValueIsNotNumeric() {
+        assertFalse(conditionUtils.isFilterConditionValid("abc", leaf(ConditionType.GT, "5")));
+      }
+
+      // -- GTE --
+
+      @Test
+      void gte_shouldReturnTrue_whenActualIsGreaterThanTarget() {
+        assertTrue(conditionUtils.isFilterConditionValid("10", leaf(ConditionType.GTE, "5")));
+      }
+
+      @Test
+      void gte_shouldReturnTrue_whenActualIsEqualToTarget() {
+        assertTrue(conditionUtils.isFilterConditionValid("5", leaf(ConditionType.GTE, "5")));
+      }
+
+      @Test
+      void gte_shouldReturnFalse_whenActualIsLessThanTarget() {
+        assertFalse(conditionUtils.isFilterConditionValid("3", leaf(ConditionType.GTE, "5")));
+      }
+
+      @Test
+      void gte_shouldReturnFalse_whenActualValueIsNull() {
+        assertFalse(conditionUtils.isFilterConditionValid(null, leaf(ConditionType.GTE, "5")));
+      }
+
+      // -- LT --
+
+      @Test
+      void lt_shouldReturnTrue_whenActualIsLessThanTarget() {
+        assertTrue(conditionUtils.isFilterConditionValid("3", leaf(ConditionType.LT, "5")));
+      }
+
+      @Test
+      void lt_shouldReturnFalse_whenActualIsEqualToTarget() {
+        assertFalse(conditionUtils.isFilterConditionValid("5", leaf(ConditionType.LT, "5")));
+      }
+
+      @Test
+      void lt_shouldReturnFalse_whenActualIsGreaterThanTarget() {
+        assertFalse(conditionUtils.isFilterConditionValid("10", leaf(ConditionType.LT, "5")));
+      }
+
+      @Test
+      void lt_shouldReturnFalse_whenActualValueIsNull() {
+        assertFalse(conditionUtils.isFilterConditionValid(null, leaf(ConditionType.LT, "5")));
+      }
+
+      // -- LTE --
+
+      @Test
+      void lte_shouldReturnTrue_whenActualIsLessThanTarget() {
+        assertTrue(conditionUtils.isFilterConditionValid("3", leaf(ConditionType.LTE, "5")));
+      }
+
+      @Test
+      void lte_shouldReturnTrue_whenActualIsEqualToTarget() {
+        assertTrue(conditionUtils.isFilterConditionValid("5", leaf(ConditionType.LTE, "5")));
+      }
+
+      @Test
+      void lte_shouldReturnFalse_whenActualIsGreaterThanTarget() {
+        assertFalse(conditionUtils.isFilterConditionValid("10", leaf(ConditionType.LTE, "5")));
+      }
+
+      @Test
+      void lte_shouldReturnFalse_whenActualValueIsNull() {
+        assertFalse(conditionUtils.isFilterConditionValid(null, leaf(ConditionType.LTE, "5")));
+      }
+
+      @Test
+      void default_shouldReturnTrue_forUnrecognizedLeafType() {
+        assertTrue(
+            conditionUtils.isFilterConditionValid("any", leaf(ConditionType.DEPEND_ON, "some-id")));
       }
     }
   }

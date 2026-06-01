@@ -8,11 +8,10 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.xtmone.XtmOneClient;
 import io.openaev.xtmone.XtmOneConfig;
-import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.java.Log;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,11 +20,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
-@Log
+@Slf4j
 @RestController
 @RequiredArgsConstructor
 public class XtmOneChatApi extends RestBehavior {
 
+  private static final String XTM_ONE_URI = "/api/xtmone";
   private final XtmOneClient client;
   private final XtmOneConfig config;
   private final UserRepository userRepository;
@@ -41,16 +41,16 @@ public class XtmOneChatApi extends RestBehavior {
         user.getId(), user.getName() != null ? user.getName() : user.getEmail(), user.getEmail());
   }
 
-  @GetMapping("/api/xtmone/chat/agents")
-  public List<Map<String, Object>> listAgents() {
+  @GetMapping(XTM_ONE_URI + "/chat/agents")
+  public ResponseEntity<List<Map<String, Object>>> listAgents() {
     if (!config.isConfigured()) {
-      return List.of();
+      return ResponseEntity.ok(List.of());
     }
     User user = resolveCurrentUser();
-    return client.listChatAgents(issueJwt(user));
+    return ResponseEntity.ok(client.listChatAgents(issueJwt(user)));
   }
 
-  @PostMapping("/api/xtmone/chat/sessions")
+  @PostMapping(XTM_ONE_URI + "/chat/sessions")
   public ResponseEntity<Map<String, Object>> createSession(@RequestBody Map<String, Object> body) {
     if (!config.isConfigured()) {
       return ResponseEntity.badRequest().build();
@@ -67,7 +67,7 @@ public class XtmOneChatApi extends RestBehavior {
     return ResponseEntity.ok(result);
   }
 
-  @PostMapping(path = "/api/xtmone/chat/messages", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+  @PostMapping(path = XTM_ONE_URI + "/chat/messages", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
   public ResponseEntity<StreamingResponseBody> sendMessage(@RequestBody Map<String, Object> body) {
     if (!config.isConfigured()) {
       return ResponseEntity.badRequest().build();
@@ -81,27 +81,28 @@ public class XtmOneChatApi extends RestBehavior {
 
     StreamingResponseBody responseBody =
         outputStream -> {
-          InputStream sseStream = client.streamChatMessage(jwt, content, conversationId, agentSlug);
-          if (sseStream == null) {
-            log.warning("[XTM One Chat] streamChatMessage returned null, agent=" + agentSlug);
+          try {
+            client.streamChatMessage(
+                jwt,
+                content,
+                conversationId,
+                agentSlug,
+                sseStream -> {
+                  byte[] buf = new byte[4096];
+                  int n;
+                  while ((n = sseStream.read(buf)) != -1) {
+                    outputStream.write(buf, 0, n);
+                    outputStream.flush();
+                  }
+                });
+          } catch (Exception e) {
+            log.warn("[XTM One Chat] Stream error, agent={}.", agentSlug, e);
             outputStream.write(
                 ("data: "
                         + "{\"type\":\"error\",\"content\":\"Unable to connect to the AI assistant. Please try again.\"}"
                         + "\n\n")
                     .getBytes(java.nio.charset.StandardCharsets.UTF_8));
             outputStream.flush();
-            return;
-          }
-          try (sseStream) {
-            byte[] buf = new byte[4096];
-            int n;
-            while ((n = sseStream.read(buf)) != -1) {
-              outputStream.write(buf, 0, n);
-              outputStream.flush();
-            }
-          } catch (Exception e) {
-            log.warning(
-                "[XTM One Chat] Stream interrupted, agent=" + agentSlug + ": " + e.getMessage());
           }
         };
 

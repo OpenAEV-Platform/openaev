@@ -3,7 +3,7 @@ package io.openaev.engine.model.attackpattern;
 import static org.springframework.util.CollectionUtils.isEmpty;
 import static org.springframework.util.StringUtils.hasText;
 
-import io.openaev.database.raw.RawAttackPattern;
+import io.openaev.database.raw.RawAttackPatternIndexing;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.engine.Handler;
 import java.time.Instant;
@@ -19,9 +19,10 @@ public class AttackPatternHandler implements Handler<EsAttackPattern> {
   private final AttackPatternRepository attackPatternRepository;
 
   @Override
-  public List<EsAttackPattern> fetch(Instant from) {
+  public List<EsAttackPattern> fetch(Instant from, int limit) {
     Instant queryFrom = from != null ? from : Instant.ofEpochMilli(0);
-    List<RawAttackPattern> forIndexing = attackPatternRepository.findForIndexing(queryFrom);
+    List<RawAttackPatternIndexing> forIndexing =
+        attackPatternRepository.findForIndexing(queryFrom, limit);
     return forIndexing.stream()
         .map(
             attackPattern -> {
@@ -34,6 +35,7 @@ public class AttackPatternHandler implements Handler<EsAttackPattern> {
                       + attackPattern.getAttack_pattern_name());
               esAttackPattern.setBase_created_at(attackPattern.getAttack_pattern_created_at());
               esAttackPattern.setBase_updated_at(attackPattern.getAttack_pattern_updated_at());
+              esAttackPattern.setBase_tenant_side(attackPattern.getTenant_id());
               // Specific
               esAttackPattern.setStixId(attackPattern.getAttack_pattern_stix_id());
               esAttackPattern.setName(attackPattern.getAttack_pattern_name());

@@ -52,6 +52,8 @@ public class RestBehavior {
                 BeanPropertyDefinition::getInternalName, BeanPropertyDefinition::getName));
   }
 
+  // -- 400 BAD_REQUEST --
+
   @ResponseStatus(HttpStatus.BAD_REQUEST)
   @ExceptionHandler(MethodArgumentNotValidException.class)
   public ValidationErrorBag handleValidationExceptions(MethodArgumentNotValidException ex) {
@@ -67,19 +69,6 @@ public class RestBehavior {
               String errorMessage = error.getDefaultMessage();
               errorsBag.put(jsonFieldsMapping.get(fieldName), new ValidationContent(errorMessage));
             });
-    errors.setChildren(errorsBag);
-    bag.setErrors(errors);
-    return bag;
-  }
-
-  @ResponseStatus(HttpStatus.FORBIDDEN)
-  @ExceptionHandler(LicenseRestrictionException.class)
-  public ValidationErrorBag handleLicenseError(LicenseRestrictionException ex) {
-    ValidationErrorBag bag =
-        new ValidationErrorBag(HttpStatus.FORBIDDEN.value(), "LICENSE_RESTRICTION");
-    ValidationError errors = new ValidationError();
-    Map<String, ValidationContent> errorsBag = new HashMap<>();
-    errorsBag.put("message", new ValidationContent(ex.getMessage()));
     errors.setChildren(errorsBag);
     bag.setErrors(errors);
     return bag;
@@ -128,22 +117,36 @@ public class RestBehavior {
     return bag;
   }
 
-  @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
-  @ExceptionHandler(UnprocessableContentException.class)
-  @ApiResponses(
-      value = {
-        @ApiResponse(
-            responseCode = "422",
-            description = "Unprocessable Content",
-            content = @Content(schema = @Schema(implementation = ResponseEntity.class)))
-      })
-  ResponseEntity<ErrorMessage> handleUnprocessableException(UnprocessableContentException ex) {
-    String errorMessage =
-        ex.getMessage() != null && !ex.getMessage().isEmpty()
-            ? ex.getMessage()
-            : HttpStatus.UNPROCESSABLE_ENTITY.getReasonPhrase();
-    return new ResponseEntity<>(new ErrorMessage(errorMessage), HttpStatus.UNPROCESSABLE_ENTITY);
+  @ExceptionHandler(FileTooBigException.class)
+  public ResponseEntity<ErrorMessage> handleFileTooBigException(FileTooBigException ex) {
+    ErrorMessage message = new ErrorMessage(ex.getMessage());
+    log.warn(String.format("FileTooBigException: %s", ex.getMessage()), ex);
+    return new ResponseEntity<>(message, HttpStatus.BAD_REQUEST);
   }
+
+  @ExceptionHandler(AlreadyExistingException.class)
+  public ResponseEntity<ErrorMessage> handleAlreadyExistingException(AlreadyExistingException ex) {
+    ErrorMessage message = new ErrorMessage(ex.getMessage());
+    log.warn(String.format("AlreadyExistingException: %s", ex.getMessage()), ex);
+    return new ResponseEntity<>(message, HttpStatus.BAD_REQUEST);
+  }
+
+  @ResponseStatus(HttpStatus.BAD_REQUEST)
+  @ExceptionHandler(io.openaev.utils.pagination.InvalidSortPropertyException.class)
+  public ResponseEntity<ErrorMessage> handleInvalidSortProperty(
+      io.openaev.utils.pagination.InvalidSortPropertyException ex) {
+    ErrorMessage message = new ErrorMessage(ex.getMessage());
+    return new ResponseEntity<>(message, HttpStatus.BAD_REQUEST);
+  }
+
+  @ResponseStatus(HttpStatus.BAD_REQUEST)
+  @ExceptionHandler(IllegalArgumentException.class)
+  public ResponseEntity<ErrorMessage> handleIllegalArgument(IllegalArgumentException ex) {
+    ErrorMessage message = new ErrorMessage(ex.getMessage());
+    return new ResponseEntity<>(message, HttpStatus.BAD_REQUEST);
+  }
+
+  // -- 401 UNAUTHORIZED --
 
   @ResponseStatus(HttpStatus.UNAUTHORIZED)
   @ExceptionHandler(AuthenticationException.class)
@@ -165,6 +168,37 @@ public class RestBehavior {
     return bag;
   }
 
+  // -- 403 FORBIDDEN --
+
+  @ResponseStatus(HttpStatus.FORBIDDEN)
+  @ExceptionHandler(LicenseRestrictionException.class)
+  public ValidationErrorBag handleLicenseError(LicenseRestrictionException ex) {
+    ValidationErrorBag bag =
+        new ValidationErrorBag(HttpStatus.FORBIDDEN.value(), "LICENSE_RESTRICTION");
+    ValidationError errors = new ValidationError();
+    Map<String, ValidationContent> errorsBag = new HashMap<>();
+    errorsBag.put("message", new ValidationContent(ex.getMessage()));
+    errors.setChildren(errorsBag);
+    bag.setErrors(errors);
+    return bag;
+  }
+
+  @ResponseStatus(HttpStatus.FORBIDDEN)
+  @ExceptionHandler(TenantAccessDeniedException.class)
+  @ApiResponses(
+      value = {
+        @ApiResponse(
+            responseCode = "403",
+            description = "User is not a member of the requested tenant",
+            content = @Content(schema = @Schema(implementation = ResponseEntity.class))),
+      })
+  public ResponseEntity<ErrorMessage> handleTenantAccessDeniedException(
+      TenantAccessDeniedException ex) {
+    return new ResponseEntity<>(new ErrorMessage("TENANT_ACCESS_DENIED"), HttpStatus.FORBIDDEN);
+  }
+
+  // -- 404 NOT_FOUND --
+
   @ResponseStatus(HttpStatus.NOT_FOUND)
   @ExceptionHandler(AccessDeniedException.class)
   @ApiResponses(
@@ -182,35 +216,6 @@ public class RestBehavior {
     // existence
     return new ResponseEntity<>(
         new ErrorMessage(HttpStatus.NOT_FOUND.getReasonPhrase()), HttpStatus.NOT_FOUND);
-  }
-
-  @ResponseStatus(HttpStatus.CONFLICT)
-  @ExceptionHandler({DataIntegrityViolationException.class, LockAcquisitionException.class})
-  @ApiResponses(
-      value = {
-        @ApiResponse(
-            responseCode = "409",
-            description = "Conflict",
-            content = @Content(schema = @Schema(implementation = ViolationErrorBag.class))),
-      })
-  public ViolationErrorBag handleIntegrityException(Exception e) {
-    ViolationErrorBag errorBag = new ViolationErrorBag();
-    if (e instanceof DataIntegrityViolationException) {
-      errorBag.setType(DataIntegrityViolationException.class.getSimpleName());
-      if (e.getCause() instanceof ConstraintViolationException violationException) {
-        errorBag.setType(ConstraintViolationException.class.getSimpleName());
-        errorBag.setMessage("Error applying constraint " + violationException.getConstraintName());
-        errorBag.setError(violationException.getMessage());
-      } else {
-        errorBag.setMessage("Database integrity violation");
-        errorBag.setError(e.getMessage());
-      }
-    } else if (e instanceof LockAcquisitionException) {
-      errorBag.setType(LockAcquisitionException.class.getSimpleName());
-      errorBag.setMessage("Resource is locked");
-      errorBag.setError(e.getMessage());
-    }
-    return errorBag;
   }
 
   @ExceptionHandler(ElementNotFoundException.class)
@@ -241,6 +246,39 @@ public class RestBehavior {
     return new ResponseEntity<>(message, HttpStatus.NOT_FOUND);
   }
 
+  // -- 409 CONFLICT --
+
+  @ResponseStatus(HttpStatus.CONFLICT)
+  @ExceptionHandler({DataIntegrityViolationException.class, LockAcquisitionException.class})
+  @ApiResponses(
+      value = {
+        @ApiResponse(
+            responseCode = "409",
+            description = "Conflict",
+            content = @Content(schema = @Schema(implementation = ViolationErrorBag.class))),
+      })
+  public ViolationErrorBag handleIntegrityException(Exception e) {
+    ViolationErrorBag errorBag = new ViolationErrorBag();
+    if (e instanceof DataIntegrityViolationException) {
+      errorBag.setType(DataIntegrityViolationException.class.getSimpleName());
+      if (e.getCause() instanceof ConstraintViolationException violationException) {
+        errorBag.setType(ConstraintViolationException.class.getSimpleName());
+        errorBag.setMessage("Error applying constraint " + violationException.getConstraintName());
+        errorBag.setError(violationException.getMessage());
+      } else {
+        errorBag.setMessage("Database integrity violation");
+        errorBag.setError(e.getMessage());
+      }
+    } else if (e instanceof LockAcquisitionException) {
+      errorBag.setType(LockAcquisitionException.class.getSimpleName());
+      errorBag.setMessage("Resource is locked");
+      errorBag.setError(e.getMessage());
+    }
+    return errorBag;
+  }
+
+  // -- 415 UNSUPPORTED_MEDIA_TYPE --
+
   @ExceptionHandler(UnsupportedMediaTypeException.class)
   public ResponseEntity<ErrorMessage> handleUnsupportedMediaTypeException(
       UnsupportedMediaTypeException ex) {
@@ -249,18 +287,23 @@ public class RestBehavior {
     return new ResponseEntity<>(message, HttpStatus.UNSUPPORTED_MEDIA_TYPE);
   }
 
-  @ExceptionHandler(FileTooBigException.class)
-  public ResponseEntity<ErrorMessage> handleFileTooBigException(FileTooBigException ex) {
-    ErrorMessage message = new ErrorMessage(ex.getMessage());
-    log.warn(String.format("FileTooBigException: %s", ex.getMessage()), ex);
-    return new ResponseEntity<>(message, HttpStatus.BAD_REQUEST);
-  }
+  // -- 422 UNPROCESSABLE_ENTITY --
 
-  @ExceptionHandler(AlreadyExistingException.class)
-  public ResponseEntity<ErrorMessage> handleAlreadyExistingException(AlreadyExistingException ex) {
-    ErrorMessage message = new ErrorMessage(ex.getMessage());
-    log.warn(String.format("AlreadyExistingException: %s", ex.getMessage()), ex);
-    return new ResponseEntity<>(message, HttpStatus.BAD_REQUEST);
+  @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
+  @ExceptionHandler(UnprocessableContentException.class)
+  @ApiResponses(
+      value = {
+        @ApiResponse(
+            responseCode = "422",
+            description = "Unprocessable Content",
+            content = @Content(schema = @Schema(implementation = ResponseEntity.class)))
+      })
+  ResponseEntity<ErrorMessage> handleUnprocessableException(UnprocessableContentException ex) {
+    String errorMessage =
+        ex.getMessage() != null && !ex.getMessage().isEmpty()
+            ? ex.getMessage()
+            : HttpStatus.UNPROCESSABLE_ENTITY.getReasonPhrase();
+    return new ResponseEntity<>(new ErrorMessage(errorMessage), HttpStatus.UNPROCESSABLE_ENTITY);
   }
 
   // --- Open channel access

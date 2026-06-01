@@ -1,4 +1,5 @@
 import {
+  Button,
   Checkbox,
   Dialog, DialogActions,
   DialogContent,
@@ -13,7 +14,6 @@ import {
 import { type FunctionComponent, useState } from 'react';
 
 import { useFormatter } from '../../i18n';
-import Button from '../button/Button';
 import Transition from '../Transition';
 
 interface ExportOptionsProps {
@@ -106,8 +106,8 @@ const ExportOptionsDialog: FunctionComponent<ExportOptionsProps> = ({
         </TableContainer>
       </DialogContent>
       <DialogActions>
-        <Button variant="secondary" onClick={onCancel}>{t('Cancel')}</Button>
-        <Button variant="primary" onClick={doSubmit}>
+        <Button onClick={onCancel}>{t('Cancel')}</Button>
+        <Button color="secondary" onClick={doSubmit}>
           {t('Export')}
         </Button>
       </DialogActions>

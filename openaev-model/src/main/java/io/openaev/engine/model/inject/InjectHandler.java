@@ -28,9 +28,9 @@ public class InjectHandler implements Handler<EsInject> {
   }
 
   @Override
-  public List<EsInject> fetch(Instant from) {
+  public List<EsInject> fetch(Instant from, int limit) {
     Instant queryFrom = from != null ? from : Instant.ofEpochMilli(0);
-    List<RawInjectIndexing> forIndexing = injectRepository.findForIndexing(queryFrom);
+    List<RawInjectIndexing> forIndexing = injectRepository.findForIndexing(queryFrom, limit);
     return forIndexing.stream()
         .map(
             inject -> {
@@ -50,6 +50,7 @@ public class InjectHandler implements Handler<EsInject> {
               }
               esInject.setBase_restrictions(
                   buildRestrictions(inject.getInject_scenario(), inject.getInject_Exercise()));
+              esInject.setBase_tenant_side(inject.getTenant_id());
               // Specific
               esInject.setInject_title(inject.getInject_title());
               esInject.setInject_status(

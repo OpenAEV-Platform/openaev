@@ -5,6 +5,7 @@ import { useFormatter } from '../../../../../components/i18n';
 import ItemCopy from '../../../../../components/ItemCopy';
 import ItemTags from '../../../../../components/ItemTags';
 import { type OutputParserSimple } from '../../../../../utils/api-types';
+import ContractOutputElementType from '../../../findings/ContractOutputElementType';
 
 const useStyles = makeStyles()(theme => ({
   paperContainer: {
@@ -63,7 +64,7 @@ const OutputParserInfoCard = ({ outputParsers }: Props) => {
               <Typography variant="body2">{contractOutput.contract_output_element_key}</Typography>
               <Typography variant="body2">
                 {contractOutput.contract_output_element_type
-                  ? t(contractOutput.contract_output_element_type.charAt(0).toUpperCase() + contractOutput.contract_output_element_type.slice(1)) : ''}
+                  ? t(ContractOutputElementType[contractOutput.contract_output_element_type as keyof typeof ContractOutputElementType] ?? contractOutput.contract_output_element_type) : ''}
               </Typography>
               <ItemTags variant="reduced-view" tags={contractOutput.contract_output_element_tags} />
 

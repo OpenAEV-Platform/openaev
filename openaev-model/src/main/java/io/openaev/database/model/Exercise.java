@@ -2,6 +2,7 @@ package io.openaev.database.model;
 
 import static io.openaev.database.model.Grant.GRANT_TYPE.OBSERVER;
 import static io.openaev.database.model.Grant.GRANT_TYPE.PLANNER;
+import static io.openaev.helper.MailHelper.*;
 import static io.openaev.helper.UserHelper.getUsersByType;
 import static java.time.Instant.now;
 import static java.util.Optional.ofNullable;
@@ -27,6 +28,8 @@ import jakarta.persistence.Table;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -128,6 +131,16 @@ public class Exercise implements GrantableBase, TenantBase {
   @Email
   @NotBlank
   private String from;
+
+  @Pattern(regexp = FROM_NAME_PATTERN, message = FROM_NAME_PATTERN_MESSAGE)
+  @Size(max = FROM_NAME_MAX_LENGTH, message = FROM_NAME_SIZE_MESSAGE)
+  @Column(name = "exercise_mail_from_name")
+  @JsonProperty("exercise_mail_from_name")
+  private String fromName;
+
+  public String getFromName() {
+    return resolveFromName(fromName, from);
+  }
 
   @Getter
   @ElementCollection(fetch = FetchType.EAGER)

@@ -1,7 +1,7 @@
 package io.openaev.rest.inject.form;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.openaev.rest.helper.queue.Queueable;
+import io.openaev.service.queue.Queueable;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -28,6 +28,9 @@ public class InjectExecutionCallback implements Queueable {
   @JsonProperty("execution_emission_date")
   private long emissionDate;
 
+  @JsonProperty("retry_count")
+  private int retryCount = 0;
+
   @Override
   public boolean equals(Object o) {
     if (o instanceof InjectExecutionCallback) {
@@ -38,6 +41,6 @@ public class InjectExecutionCallback implements Queueable {
 
   @Override
   public String getUniqueElementKey() {
-    return injectId + agentId;
+    return injectId;
   }
 }

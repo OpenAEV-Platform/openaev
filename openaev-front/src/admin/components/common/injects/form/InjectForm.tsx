@@ -1,11 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Button } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useContext, useEffect, useState } from 'react';
 import { FormProvider, type SubmitHandler, useForm } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 import { z, type ZodObject } from 'zod/v4';
 
-import Button from '../../../../../components/common/button/Button';
 import TagFieldController from '../../../../../components/fields/TagFieldController';
 import TextFieldController from '../../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../../components/i18n';
@@ -22,6 +22,7 @@ import { splitDuration } from '../../../../../utils/Time';
 import { PermissionsContext } from '../../Context';
 import { getValidatingRule, isInjectContentType, isRequiredField, isVisibleField } from '../utils';
 import InjectContentForm from './InjectContentForm';
+import InjectInjectorSelector from './InjectInjectorSelector';
 
 const useStyles = makeStyles()(theme => ({
   injectFormContainer: {
@@ -86,6 +87,8 @@ interface Props {
   articlesFromExerciseOrScenario: Article[];
   uriVariable: string;
   variablesFromExerciseOrScenario: Variable[];
+  injectorNames?: Record<string, string>;
+  onInjectorChange?: (injectorId: string, injectorName: string) => void;
 }
 
 const initialZodSchema = z.object({ inject_content: z.object({}) });
@@ -101,11 +104,14 @@ const InjectForm = ({
   articlesFromExerciseOrScenario,
   uriVariable,
   variablesFromExerciseOrScenario,
+  injectorNames = {},
+  onInjectorChange,
 }: Props) => {
   const { classes } = useStyles();
   const { t } = useFormatter();
   const theme = useTheme();
   const { permissions } = useContext(PermissionsContext);
+
   const [fieldsMapByKey, setFieldsMapByKey] = useState<Record<ContractElement['key'], ContractElement>>({});
   const [enhancedFields, setEnhancedFields] = useState<EnhancedContractElement[]>([]);
   const [enhancedFieldsMapByType, setEnhancedFieldsMapByType] = useState<Map<ContractElement['type'], EnhancedContractElement>>(new Map());
@@ -133,6 +139,7 @@ const InjectForm = ({
       inject_depends_duration_minutes: duration.minutes,
       inject_all_teams: defaultInject?.inject_all_teams ?? false,
       inject_teams: defaultInject?.inject_teams ?? [],
+      inject_injector: (defaultInject as Inject)?.inject_injector ?? (Object.keys(injectorNames).length > 0 ? Object.keys(injectorNames)[0] : ''),
     };
 
     // Enrich initialValues with default contract value
@@ -251,7 +258,16 @@ const InjectForm = ({
     });
   };
 
-  const { handleSubmit, reset, subscribe, getValues, setError, clearErrors, trigger, formState: { isSubmitting } } = methods;
+  const { handleSubmit, reset, subscribe, getValues, setError, clearErrors, trigger, watch, formState: { isSubmitting } } = methods;
+
+  // Notify parent when the selected injector changes
+  const selectedInjectorId = watch('inject_injector');
+  useEffect(() => {
+    if (onInjectorChange && selectedInjectorId) {
+      onInjectorChange(selectedInjectorId, injectorNames[selectedInjectorId] ?? '');
+    }
+  }, [selectedInjectorId]);
+
   const onSubmit: SubmitHandler<InjectInputForm> = async (data) => {
     // we cannot save, even in draft, without title
     if (!data.inject_title?.length) {
@@ -275,6 +291,7 @@ const InjectForm = ({
         inject_documents: data.inject_documents,
         inject_depends_duration,
         inject_depends_on: data.inject_depends_on ? data.inject_depends_on : [],
+        ...(data.inject_injector ? { inject_injector: data.inject_injector } : {}),
       } as InjectInput;
       cleanInvisibleFields(values);
       await onSubmitInject(values);
@@ -482,12 +499,17 @@ const InjectForm = ({
         <TextFieldController name="inject_description" label={t('Description')} multiline rows={2} disabled={isSubmitting || disabled || permissions.readOnly} />
         <TagFieldController name="inject_tags" label={t('Tags')} disabled={isSubmitting || disabled || permissions.readOnly} />
 
+        <InjectInjectorSelector
+          injectorNames={injectorNames}
+          disabled={isSubmitting || disabled || permissions.readOnly}
+        />
+
         {!isAtomic && (
           <div className={`${classes.triggerBox} ${isSubmitting || disabled || permissions.readOnly ? classes.triggerBoxColorDisabled : classes.triggerBoxColor}`}>
             <div className={`${classes.triggerText} ${isSubmitting || disabled || permissions.readOnly ? classes.triggerTextColorDisabled : classes.triggerTextColor}`}>{t('Trigger after')}</div>
-            <TextFieldController name="inject_depends_duration_days" label={t('Days')} type="number" disabled={permissions.readOnly} />
-            <TextFieldController name="inject_depends_duration_hours" label={t('Hours')} type="number" disabled={permissions.readOnly} />
-            <TextFieldController name="inject_depends_duration_minutes" label={t('Minutes')} type="number" disabled={permissions.readOnly} />
+            <TextFieldController name="inject_depends_duration_days" label={t('Days')} type="number" disabled={permissions.readOnly || disabled} />
+            <TextFieldController name="inject_depends_duration_hours" label={t('Hours')} type="number" disabled={permissions.readOnly || disabled} />
+            <TextFieldController name="inject_depends_duration_minutes" label={t('Minutes')} type="number" disabled={permissions.readOnly || disabled} />
           </div>
         )}
 
@@ -514,14 +536,15 @@ const InjectForm = ({
           }}
         >
           <Button
-            variant="secondary"
+            variant="contained"
             onClick={handleClose}
             disabled={isSubmitting}
           >
             {t('Cancel')}
           </Button>
           <Button
-            variant="primary"
+            variant="contained"
+            color="secondary"
             data-testid="inject-form-submit-button"
             onClick={() => {
               onSubmit(getValues());

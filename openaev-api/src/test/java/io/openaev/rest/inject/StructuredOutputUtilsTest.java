@@ -275,7 +275,7 @@ class StructuredOutputUtilsTest extends IntegrationTest {
         ContractOutputType.Credentials,
         "Credentials",
         "(\\S+)\\\\(\\S+):(\\S+)",
-        "[{\"username\":\"savacano\",\"password\":\"savacano\"}]");
+        "[{\"asset_id\":null,\"username\":\"savacano\",\"password\":\"savacano\",\"hash\":null,\"host\":null}]");
   }
 
   private void testRegexExtraction(

@@ -9,7 +9,7 @@ import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteri
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.Team;
 import io.openaev.database.model.User;
-import io.openaev.database.raw.RawTeam;
+import io.openaev.database.raw.RawTeamIndexing;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.utils.CopyObjectListUtils;
@@ -43,9 +43,9 @@ public class TeamService {
    * @return the found teams as TeamOutput
    */
   public List<TeamOutput> getTeams(@NotNull List<String> teamIds) {
-    List<RawTeam> rawTeams =
+    List<RawTeamIndexing> rawTeams =
         teamRepository.rawTeamByIds(teamIds).stream()
-            .sorted(Comparator.comparing(RawTeam::getTeam_name))
+            .sorted(Comparator.comparing(RawTeamIndexing::getTeam_name))
             .toList();
     return rawTeams.stream()
         .map(rt -> TeamOutput.builder().id(rt.getTeam_id()).name(rt.getTeam_name()).build())

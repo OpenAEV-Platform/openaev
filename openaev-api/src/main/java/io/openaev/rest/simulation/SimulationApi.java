@@ -1,5 +1,7 @@
 package io.openaev.rest.simulation;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+
 import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
@@ -9,12 +11,13 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
-@RequestMapping(SimulationApi.SIMULATION_URI)
+@RequestMapping({SimulationApi.SIMULATION_URI, SimulationApi.TENANT_SIMULATION_URI})
 @RestController
 @RequiredArgsConstructor
 public class SimulationApi extends RestBehavior {
 
   public static final String SIMULATION_URI = "/api/simulations";
+  public static final String TENANT_SIMULATION_URI = TENANT_PREFIX + "/simulations";
 
   private final SimulationService simulationService;
 

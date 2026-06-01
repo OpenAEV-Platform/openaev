@@ -9,11 +9,4 @@ public interface StepEventHandler {
    * @param stepEvent the step event to handle
    */
   void handleReadyStepEvent(StepEvent stepEvent);
-
-  /**
-   * Handles a step event when the step execution should be delayed.
-   *
-   * @param stepEvent the step event to handle
-   */
-  void handleDelayStepEvent(StepEvent stepEvent);
 }

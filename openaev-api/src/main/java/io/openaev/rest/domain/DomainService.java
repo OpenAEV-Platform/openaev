@@ -8,20 +8,24 @@ import static io.openaev.utils.StringUtils.generateRandomColor;
 import static java.util.stream.Collectors.toMap;
 import static java.util.stream.Collectors.toSet;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Domain;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.DomainRepository;
+import io.openaev.multitenancy.DependenciesManager;
+import io.openaev.multitenancy.DependenciesManagerException;
 import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.domain.form.DomainBaseInput;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.injector_contract.form.InjectorContractDomainDTO;
 import io.openaev.utils.FilterUtilsJpa;
 import jakarta.transaction.Transactional;
-import java.time.Instant;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -29,7 +33,8 @@ import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-public class DomainService {
+@Slf4j
+public class DomainService implements DependenciesManager {
 
   private static final String DOMAIN_ID_NOT_FOUND_MSG = "Domain not found with id";
 
@@ -68,12 +73,14 @@ public class DomainService {
 
   @Transactional
   public Domain upsert(final DomainBaseInput input) {
-    return this.upsert(input.getName(), input.getColor());
+    return this.upsert(
+        input.getName(), input.getColor(), new Tenant(TenantContext.getCurrentTenant()));
   }
 
   @Transactional
   public Domain upsert(final Domain domainToUpsert) {
-    return this.upsert(domainToUpsert.getName(), domainToUpsert.getColor());
+    return this.upsert(
+        domainToUpsert.getName(), domainToUpsert.getColor(), domainToUpsert.getTenant());
   }
 
   /**
@@ -85,13 +92,14 @@ public class DomainService {
    * @return set of saved or retrieved domains
    */
   @Transactional
-  public Set<Domain> upsertDomainEntities(Set<Domain> domains) {
+  public Set<Domain> upsertDomainEntities(Set<Domain> domains, String tenantId) {
     return this.upserts(
         Optional.ofNullable(domains)
             .map(
                 collection ->
                     collection.stream().map(InjectorContractDomainDTO::fromDomain).collect(toSet()))
-            .orElse(null));
+            .orElse(null),
+        tenantId);
   }
 
   /**
@@ -103,7 +111,7 @@ public class DomainService {
    * @return set of saved or retrieved domains
    */
   @Transactional
-  public Set<Domain> upserts(Set<InjectorContractDomainDTO> domains) {
+  public Set<Domain> upserts(Set<InjectorContractDomainDTO> domains, String tenantId) {
     if (domains == null || domains.isEmpty()) {
       return new HashSet<>();
     }
@@ -119,18 +127,21 @@ public class DomainService {
             d ->
                 existing.computeIfAbsent(
                     d.getName(),
-                    name -> domainRepository.save(buildSanityDomain(name, d.getColor()))))
+                    name ->
+                        domainRepository.save(
+                            buildSanityDomain(name, d.getColor(), new Tenant(tenantId)))))
         .collect(toSet());
   }
 
-  public Domain upsert(final String name, final String color) {
+  public Domain upsert(final String name, final String color, final Tenant tenant) {
     Optional<Domain> existingDomain = domainRepository.findByName(name);
-    return existingDomain.orElseGet(() -> domainRepository.save(buildSanityDomain(name, color)));
+    return existingDomain.orElseGet(
+        () -> domainRepository.save(buildSanityDomain(name, color, tenant)));
   }
 
   @Transactional
   public Set<Domain> mergeDomains(
-      final Set<Domain> existingDomains, final Set<Domain> addedDomains) {
+      final Set<Domain> existingDomains, final Set<Domain> addedDomains, final Tenant tenant) {
     final boolean isExistingDomainsEmptyOrToClassify = isEmptyOrToClassify(existingDomains);
     final boolean domainsEmptyOrToClassify = isEmptyOrToClassify(addedDomains);
 
@@ -139,7 +150,11 @@ public class DomainService {
       return new HashSet<>(
           Collections.singletonList(
               this.upsert(
-                  new Domain(null, TO_CLASSIFY, DEFAULT_DOMAIN_COLOR, Instant.now(), null))));
+                  Domain.builder()
+                      .name(PresetDomain.getToClassify().getName())
+                      .color(PresetDomain.getToClassify().getColor())
+                      .tenant(tenant)
+                      .build())));
     }
 
     // Filter out "To classify" from domains to add
@@ -170,7 +185,7 @@ public class DomainService {
 
   public Set<Domain> findDomainByNameAndDescription(final String name) {
     Set<Domain> domains = new HashSet<>();
-    domains.add(PresetDomain.ENDPOINT);
+    domains.add(PresetDomain.getEndpoint());
     domains.addAll(PresetDomain.getRelevantDomainsFromKeywords(name));
     return domains;
   }
@@ -193,8 +208,28 @@ public class DomainService {
 
   // -- PRIVATE --
 
-  private Domain buildSanityDomain(final String name, final String color) {
-    return new Domain(
-        null, name, color != null ? color : generateRandomColor(), Instant.now(), null);
+  private Domain buildSanityDomain(final String name, final String color, final Tenant tenant) {
+    return Domain.builder()
+        .name(name)
+        .color(color != null ? color : generateRandomColor())
+        .tenant(tenant)
+        .build();
+  }
+
+  @Override
+  public void createDependencyForTenant(Tenant tenant) throws DependenciesManagerException {
+    log.info("Tenant {} created — domains inserted", tenant.getId());
+    try {
+      domainRepository.saveAll(PresetDomain.getDomainsForTenant(tenant));
+    } catch (Exception e) {
+      throw new DependenciesManagerException(
+          "Failed to insert domains for tenant " + tenant.getId(), e);
+    }
+  }
+
+  @Override
+  public void deleteDependencyForTenant(String tenantId) {
+    // Automatic thanks to cascade delete
+    log.info("Deleting all domains for tenant");
   }
 }

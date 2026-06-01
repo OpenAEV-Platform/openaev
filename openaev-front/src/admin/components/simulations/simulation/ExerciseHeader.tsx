@@ -1,20 +1,21 @@
 import { CancelOutlined, PauseOutlined, PlayArrowOutlined, RestartAltOutlined } from '@mui/icons-material';
-import { Button as MuiButton, Dialog, DialogActions, DialogContent, DialogContentText, Tooltip, Typography } from '@mui/material';
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import { updateExerciseStatus } from '../../../../actions/Exercise';
+import type { WorkflowConfigurationHelper } from '../../../../actions/chaining/workflow-helper';
+import { searchExerciseHealthchecks, updateExerciseStatus } from '../../../../actions/Exercise';
 import { type ExercisesHelper } from '../../../../actions/exercises/exercise-helper';
-import Button from '../../../../components/common/button/Button';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
-import { type Exercise, type Exercise as ExerciseType } from '../../../../utils/api-types';
+import { type Exercise, type Exercise as ExerciseType, type HealthCheck } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useSimulationPermissions from '../../../../utils/permissions/useSimulationPermissions';
 import { truncate } from '../../../../utils/String';
+import { isFeatureEnabled } from '../../../../utils/utils';
 import ExercisePopover, { type ExerciseActionPopover } from './ExercisePopover';
 import ExerciseStatus from './ExerciseStatus';
 
@@ -30,38 +31,54 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
-const Buttons = ({ exerciseId, exerciseStatus, exerciseName }: {
+const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoading, isScopeMissing }: {
   exerciseId: Exercise['exercise_id'];
   exerciseStatus: Exercise['exercise_status'];
   exerciseName: Exercise['exercise_name'];
+  onLoading: (loading: boolean) => void;
+  isLoading: boolean;
+  isScopeMissing: boolean;
 }) => {
   // Standard hooks
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
   const permissions = useSimulationPermissions(exerciseId);
   const [openChangeStatus, setOpenChangeStatus] = useState<Exercise['exercise_status'] | null>(null);
-  const submitUpdateStatus = (status: { exercise_status: Exercise['exercise_status'] | null }) => {
-    dispatch(updateExerciseStatus(exerciseId, { exercise_status: status.exercise_status ?? undefined }));
+
+  const submitUpdateStatus = async (status: { exercise_status: Exercise['exercise_status'] | null }) => {
     setOpenChangeStatus(null);
+    onLoading(true);
+    try {
+      await dispatch(updateExerciseStatus(exerciseId, { exercise_status: status.exercise_status ?? undefined }));
+    } finally {
+      onLoading(false);
+    }
   };
   const executionButton = () => {
     switch (exerciseStatus) {
       case 'SCHEDULED': {
         if (permissions.canLaunch) {
           return (
-            <MuiButton
-              style={{
-                marginRight: 10,
-                lineHeight: 'initial',
-              }}
-              startIcon={<PlayArrowOutlined />}
-              variant="contained"
-              size="small"
-              color="primary"
-              onClick={() => setOpenChangeStatus('RUNNING')}
+            <Tooltip
+              title={isScopeMissing ? t('A Chaining Simulation requires a defined scope.') : ''}
             >
-              {t('Start now')}
-            </MuiButton>
+              <span style={{ display: 'inline-flex' }}>
+                <Button
+                  style={{
+                    marginRight: 10,
+                    lineHeight: 'initial',
+                  }}
+                  startIcon={<PlayArrowOutlined />}
+                  variant="contained"
+                  size="small"
+                  color="primary"
+                  onClick={() => setOpenChangeStatus('RUNNING')}
+                  disabled={isLoading || isScopeMissing}
+                >
+                  {t('Start now')}
+                </Button>
+              </span>
+            </Tooltip>
           );
         }
         return (<div />);
@@ -69,16 +86,17 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName }: {
       case 'RUNNING': {
         if (permissions.canLaunch) {
           return (
-            <MuiButton
+            <Button
               style={{ marginRight: 10 }}
               startIcon={<PauseOutlined />}
               variant="outlined"
               color="warning"
               size="small"
               onClick={() => setOpenChangeStatus('PAUSED')}
+              disabled={isLoading}
             >
               {t('Pause')}
-            </MuiButton>
+            </Button>
           );
         }
         return (<div />);
@@ -86,15 +104,16 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName }: {
       case 'PAUSED': {
         if (permissions.canLaunch) {
           return (
-            <MuiButton
+            <Button
               style={{ marginRight: 10 }}
               variant="outlined"
               startIcon={<PlayArrowOutlined />}
               color="success"
               onClick={() => setOpenChangeStatus('RUNNING')}
+              disabled={isLoading}
             >
               {t('Resume')}
-            </MuiButton>
+            </Button>
           );
         }
         return <div />;
@@ -110,15 +129,16 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName }: {
       case 'PAUSED': {
         if (permissions.canLaunch) {
           return (
-            <MuiButton
+            <Button
               style={{ marginRight: 10 }}
               variant="outlined"
               startIcon={<CancelOutlined />}
               color="error"
               onClick={() => setOpenChangeStatus('CANCELED')}
+              disabled={isLoading}
             >
               {t('Stop')}
-            </MuiButton>
+            </Button>
           );
         }
         return <div />;
@@ -127,15 +147,16 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName }: {
       case 'CANCELED': {
         if (permissions.canLaunch) {
           return (
-            <MuiButton
+            <Button
               style={{ marginRight: 10 }}
               variant="outlined"
               startIcon={<RestartAltOutlined />}
               color="warning"
               onClick={() => setOpenChangeStatus('SCHEDULED')}
+              disabled={isLoading}
             >
               {t('Reset')}
-            </MuiButton>
+            </Button>
           );
         }
         return <div />;
@@ -175,11 +196,11 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName }: {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="secondary" onClick={() => setOpenChangeStatus(null)}>
+          <Button onClick={() => setOpenChangeStatus(null)}>
             {t('Cancel')}
           </Button>
           <Button
-            variant="primary"
+            color="secondary"
             onClick={() => submitUpdateStatus({ exercise_status: openChangeStatus })}
           >
             {t('Confirm')}
@@ -190,7 +211,10 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName }: {
   );
 };
 
-const ExerciseHeader = () => {
+const ExerciseHeader = ({ onLoading, isLoading }: {
+  onLoading: (loading: boolean) => void;
+  isLoading: boolean;
+}) => {
   // Standard hooks
   const theme = useTheme();
   const { classes } = useStyles();
@@ -201,7 +225,32 @@ const ExerciseHeader = () => {
     return { exercise: helper.getExercise(exerciseId) };
   });
 
-  const actions: ExerciseActionPopover[] = ['Update', 'Duplicate', 'Export', 'Delete', 'Access reports'];
+  const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
+  const exerciseWorkflowId = exercise.exercise_workflow_id as string | undefined;
+  const isSimulationChaining = isChainingFeatureEnabled && !!exerciseWorkflowId;
+
+  const { workflowConfiguration } = useHelper(
+    (helper: WorkflowConfigurationHelper) => ({
+      workflowConfiguration: exerciseWorkflowId
+        ? helper.getWorkflowConfiguration(exerciseWorkflowId)
+        : undefined,
+    }),
+  );
+
+  const [healthchecks, setHealthchecks] = useState<HealthCheck[]>([]);
+
+  const isScopeMissing = isSimulationChaining
+    && healthchecks.some((hc: HealthCheck) => hc.type === ('SCOPE_DEFINITION' as HealthCheck['type']) && hc.detail === 'EMPTY');
+
+  useEffect(() => {
+    if (isChainingFeatureEnabled && exerciseWorkflowId) {
+      searchExerciseHealthchecks(exerciseId).then((result: { data: HealthCheck[] }) => setHealthchecks(result.data));
+    }
+  }, [exerciseId, exercise, isChainingFeatureEnabled, workflowConfiguration]);
+
+  const actions: ExerciseActionPopover[] = isSimulationChaining
+    ? ['Update', 'Delete', 'Access reports']
+    : ['Update', 'Duplicate', 'Export', 'Delete', 'Access reports'];
 
   return (
     <>
@@ -220,7 +269,14 @@ const ExerciseHeader = () => {
       />
       <ExerciseStatus exerciseStatus={exercise.exercise_status} exerciseStartDate={exercise.exercise_start_date} />
       <div className={classes.actions}>
-        <Buttons exerciseId={exercise.exercise_id} exerciseStatus={exercise.exercise_status} exerciseName={exercise.exercise_name} />
+        <Buttons
+          exerciseId={exercise.exercise_id}
+          exerciseStatus={exercise.exercise_status}
+          exerciseName={exercise.exercise_name}
+          onLoading={onLoading}
+          isLoading={isLoading}
+          isScopeMissing={isScopeMissing}
+        />
         <ExercisePopover
           exercise={exercise}
           actions={actions}

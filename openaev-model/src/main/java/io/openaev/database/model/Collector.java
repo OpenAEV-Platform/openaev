@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.TenantBaseListener;
+import io.openaev.jsonapi.BusinessId;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -37,10 +38,16 @@ public class Collector extends BaseConnectorEntity implements TenantBase {
   @NotBlank
   private String name;
 
+  @BusinessId
   @Column(name = "collector_type")
   @JsonProperty("collector_type")
   @NotBlank
   private String type;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "collector_type_id")
+  @JsonIgnore
+  private CollectorType collectorType;
 
   @Column(name = "collector_period")
   @JsonProperty("collector_period")

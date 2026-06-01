@@ -1,4 +1,4 @@
-import type { PaletteColorOptions } from '@mui/material';
+import { type PaletteColorOptions } from '@mui/material';
 
 declare module '@mui/material/IconButton' {
   interface IconButtonPropsColorOverrides {
@@ -44,7 +44,6 @@ declare module '@mui/material/styles' {
     grey: string;
     lightGrey: string;
   }
-
   interface TypeBackground {
     nav: string;
     accent: string;
@@ -59,17 +58,14 @@ declare module '@mui/material/styles' {
     code: string;
     paperInCard: string;
   }
-
   interface PaletteColor {
     background: string;
     lightBackground: string;
   }
-
   interface SimplePaletteColorOptions {
     background?: string;
     lightBackground?: string;
   }
-
   interface Palette {
     chip: PaletteColor;
     ee: PaletteColor;

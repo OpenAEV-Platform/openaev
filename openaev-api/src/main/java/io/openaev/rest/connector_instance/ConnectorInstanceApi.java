@@ -1,5 +1,7 @@
 package io.openaev.rest.connector_instance;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+
 import io.openaev.aop.AccessControl;
 import io.openaev.database.model.*;
 import io.openaev.rest.connector_instance.dto.*;
@@ -7,6 +9,7 @@ import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.connector_instances.ConnectorInstanceLogService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connectors.ConnectorOrchestrationService;
+import io.openaev.service.exception.ConnectorStatusException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -26,12 +29,14 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "Connector Instance API", description = "Operations related to Connector Instances")
 public class ConnectorInstanceApi extends RestBehavior {
   public static final String CONNECTOR_INSTANCE_URI = "/api/connector-instances";
+  private static final String TENANT_CONNECTOR_INSTANCE_URI =
+      TENANT_PREFIX + "/connector-instances";
 
   private final ConnectorInstanceService connectorInstanceService;
   private final ConnectorInstanceLogService connectorInstanceLogService;
   private final ConnectorOrchestrationService orchestrationService;
 
-  @PostMapping(value = CONNECTOR_INSTANCE_URI)
+  @PostMapping(value = {CONNECTOR_INSTANCE_URI, TENANT_CONNECTOR_INSTANCE_URI})
   @Operation(
       summary = "Create a new connector instance",
       description = "Create a new connector instance in the platform")
@@ -55,7 +60,11 @@ public class ConnectorInstanceApi extends RestBehavior {
     return orchestrationService.createConnectorInstance(catalogConnectorWithConfigMap, safeInput);
   }
 
-  @GetMapping(value = CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}")
+  @GetMapping(
+      value = {
+        CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}",
+        TENANT_CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}"
+      })
   @Operation(summary = "Retrieve connector Instance by id")
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.CATALOG)
   @ApiResponses(
@@ -69,7 +78,11 @@ public class ConnectorInstanceApi extends RestBehavior {
     return connectorInstanceService.connectorInstanceOutputById(connectorInstanceId);
   }
 
-  @GetMapping(value = CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}/configurations")
+  @GetMapping(
+      value = {
+        CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}/configurations",
+        TENANT_CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}/configurations"
+      })
   @Operation(summary = "Retrieve connector Instance configuratiosn by instance id")
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.CATALOG)
   @ApiResponse(
@@ -86,7 +99,11 @@ public class ConnectorInstanceApi extends RestBehavior {
         connectorInstanceId);
   }
 
-  @PutMapping(value = CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}/configurations")
+  @PutMapping(
+      value = {
+        CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}/configurations",
+        TENANT_CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}/configurations"
+      })
   @Operation(summary = "Update connector instance configuration")
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.CATALOG)
   @ApiResponse(
@@ -112,7 +129,11 @@ public class ConnectorInstanceApi extends RestBehavior {
         catalogConnectorWithConfigMap, connectorInstanceId, safeInput);
   }
 
-  @GetMapping(value = CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}/logs")
+  @GetMapping(
+      value = {
+        CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}/logs",
+        TENANT_CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}/logs"
+      })
   @Operation(summary = "Retrieve connector instance logs")
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.CATALOG)
   @ApiResponse(
@@ -126,7 +147,11 @@ public class ConnectorInstanceApi extends RestBehavior {
     return connectorInstanceLogService.findLogsByConnectorInstanceId(connectorInstanceId);
   }
 
-  @PutMapping(value = CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}/requested-status")
+  @PutMapping(
+      value = {
+        CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}/requested-status",
+        TENANT_CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}/requested-status"
+      })
   @Operation(
       summary = "Update requested status",
       description = "Update requested status of connector instance")
@@ -142,14 +167,19 @@ public class ConnectorInstanceApi extends RestBehavior {
         connectorInstanceId, input.getRequestedStatus());
   }
 
-  @DeleteMapping(value = CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}")
+  @DeleteMapping(
+      value = {
+        CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}",
+        TENANT_CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}"
+      })
   @Operation(summary = "Delete connector instance")
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.CATALOG)
   @ApiResponses(
       value = {
         @ApiResponse(responseCode = "200", description = "Successfully deleted connector instance")
       })
-  public void deleteConnectorInstance(@PathVariable @NotBlank final String connectorInstanceId) {
+  public void deleteConnectorInstance(@PathVariable @NotBlank final String connectorInstanceId)
+      throws ConnectorStatusException {
     connectorInstanceService.deleteById(connectorInstanceId);
   }
 }

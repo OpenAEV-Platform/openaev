@@ -10,6 +10,7 @@ import type {
   StatusPayloadOutput,
 } from '../../../../../utils/api-types';
 import { emptyFilled } from '../../../../../utils/String';
+import { isFeatureEnabled } from '../../../../../utils/utils';
 
 const useStyles = makeStyles()(theme => ({
   paperContainer: { '& > *:nth-child(even)': { marginBottom: theme.spacing(2) } },
@@ -21,6 +22,7 @@ interface Props { payloadOutput?: StatusPayloadOutput }
 const CommandsInfoCard = ({ payloadOutput }: Props) => {
   const { t } = useFormatter();
   const { classes } = useStyles();
+  const isChainingEnabled = isFeatureEnabled('INJECT_CHAINING');
 
   if (!payloadOutput) {
     return (
@@ -91,22 +93,26 @@ const CommandsInfoCard = ({ payloadOutput }: Props) => {
       {payloadOutput.payload_arguments?.length === 0 ? '-' : (
         <TableContainer className={classes.tableContainer} component={Paper}>
           <Table sx={{ minWidth: 650 }} aria-label="Table to show payload's arguments">
-            <TableHead sx={{ fontWeight: 'bold' }}>
-              <TableCell width="30%">{t('Type')}</TableCell>
-              <TableCell width="30%">{t('Key')}</TableCell>
-              <TableCell width="30%">{t('Default value')}</TableCell>
+            <TableHead sx={{
+              textTransform: 'uppercase',
+              fontWeight: 'bold',
+            }}
+            >
+              <TableCell>{t('Type')}</TableCell>
+              {isChainingEnabled && <TableCell>{t('Sub-type')}</TableCell>}
+              <TableCell>{t('Key')}</TableCell>
+              <TableCell>{t('Default value')}</TableCell>
             </TableHead>
             <TableBody>
               {payloadOutput.payload_arguments?.map((argument: PayloadArgument) => (
-                <>
-                  <TableRow key={argument.key}>
-                    <TableCell>{argument.type}</TableCell>
-                    <TableCell>{argument.key}</TableCell>
-                    <TableCell>
-                      <pre><ItemCopy content={argument.default_value} /></pre>
-                    </TableCell>
-                  </TableRow>
-                </>
+                <TableRow key={argument.key}>
+                  <TableCell>{argument.type}</TableCell>
+                  {isChainingEnabled && <TableCell>{argument.subtype ?? '-'}</TableCell>}
+                  <TableCell>{argument.key}</TableCell>
+                  <TableCell>
+                    <pre><ItemCopy content={argument.default_value} /></pre>
+                  </TableCell>
+                </TableRow>
               ))}
             </TableBody>
           </Table>
@@ -117,7 +123,11 @@ const CommandsInfoCard = ({ payloadOutput }: Props) => {
       {payloadOutput.payload_prerequisites?.length === 0 ? '-' : (
         <TableContainer className={classes.tableContainer} component={Paper}>
           <Table sx={{ minWidth: 650 }} aria-label="Table to show payload's prerequisites">
-            <TableHead sx={{ fontWeight: 'bold' }}>
+            <TableHead sx={{
+              textTransform: 'uppercase',
+              fontWeight: 'bold',
+            }}
+            >
               <TableCell width="30%">{t('Command executor')}</TableCell>
               <TableCell width="30%">{t('Get command')}</TableCell>
               <TableCell width="30%">{t('Check command')}</TableCell>
@@ -155,7 +165,7 @@ const CommandsInfoCard = ({ payloadOutput }: Props) => {
           ? '-'
           : (
               <pre key={commandBlock.command_content}>
-                { commandBlock.payload_cleanup_command?.map((cleanupCommand: string) => (
+                {commandBlock.payload_cleanup_command?.map((cleanupCommand: string) => (
                   <ItemCopy
                     key={cleanupCommand}
                     content={

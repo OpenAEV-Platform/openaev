@@ -18,6 +18,7 @@ import { type Article } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useSearchAndFilter from '../../../../utils/SortingFiltering';
+import { buildTenantApiPath } from '../../../../utils/url-helper';
 import ChannelIcon from '../../components/channels/ChannelIcon';
 import { type ChannelOption } from '../../components/channels/ChannelOption';
 import ChannelsFilter from '../../components/channels/ChannelsFilter';
@@ -94,33 +95,23 @@ const Articles: FunctionComponent<Props> = ({ articles }) => {
 
   return (
     <div>
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        marginBottom: 10,
-      }}
-      >
-        <Typography
-          variant="h4"
-          gutterBottom={false}
-          style={{ margin: 0 }}
-        >
-          {t('Media pressure')}
-        </Typography>
-        {permissions.canManage && (
-          <CreateArticle
-            openCreate={openCreate}
-            handleOpenCreate={handleOpenCreate}
-            handleCloseCreate={handleCloseCreate}
-          />
-        )}
-        {fullArticles.length > 0 && (
-          <ChannelsFilter
-            onChannelsChange={handleChannelsChange}
-            onClearChannels={handleClearChannels}
-          />
-        )}
-      </div>
+      <Typography variant="h4" gutterBottom style={{ float: 'left' }}>
+        {t('Media pressure')}
+      </Typography>
+      {permissions.canManage && (
+        <CreateArticle
+          openCreate={openCreate}
+          handleOpenCreate={handleOpenCreate}
+          handleCloseCreate={handleCloseCreate}
+        />
+      )}
+      {fullArticles.length > 0 && (
+        <ChannelsFilter
+          onChannelsChange={handleChannelsChange}
+          onClearChannels={handleClearChannels}
+        />
+      )}
+      <div className="clearfix" />
       {sortedArticles.length === 0 && (
         <Empty message={(
           <div style={{ textAlign: 'center' }}>
@@ -223,14 +214,14 @@ const Articles: FunctionComponent<Props> = ({ articles }) => {
                         <CardMedia
                           component="img"
                           height="150"
-                          src={`/api/documents/${doc.document_id}/file`}
+                          src={buildTenantApiPath(`/api/documents/${doc.document_id}/file`)}
                         />
                       )}
                       {doc.document_type.includes('video/') && (
                         <CardMedia
                           component="video"
                           height="150"
-                          src={`/api/documents/${doc.document_id}/file`}
+                          src={buildTenantApiPath(`/api/documents/${doc.document_id}/file`)}
                           controls
                         />
                       )}

@@ -19,6 +19,7 @@ import KillChainPhasePopover from './KillChainPhasePopover';
 const useStyles = makeStyles()(() => ({
   itemHead: {
     paddingLeft: 10,
+    textTransform: 'uppercase',
     cursor: 'pointer',
   },
   item: {
@@ -29,6 +30,7 @@ const useStyles = makeStyles()(() => ({
     fontSize: 12,
     height: 20,
     float: 'left',
+    textTransform: 'uppercase',
     borderRadius: 4,
     width: 120,
   },
@@ -192,7 +194,7 @@ const KillChainPhases = () => {
             </ListItem>
           ))}
         </List>
-        <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
+        <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
           <CreateKillChainPhase
             onCreate={result => setKillChainPhases([result, ...killChainPhases])}
           />

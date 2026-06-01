@@ -9,6 +9,7 @@ import static io.openaev.utils.fixtures.ConnectorInstanceFixture.createDefaultCo
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -35,7 +36,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @TestInstance(PER_CLASS)
 @Transactional
 @DisplayName("Collector Api Integration Tests")
-@WithMockUser(withCapabilities = {Capability.ACCESS_PLATFORM_SETTINGS})
+@WithMockUser(withCapabilities = {Capability.ACCESS_TENANT_SETTINGS})
 public class CollectorApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
@@ -101,6 +102,7 @@ public class CollectorApiTest extends IntegrationTest {
       String response =
           mvc.perform(
                   get(COLLECTOR_URI)
+                      .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .accept(MediaType.APPLICATION_JSON))
               .andExpect(status().is2xxSuccessful())
@@ -140,6 +142,7 @@ public class CollectorApiTest extends IntegrationTest {
       String response =
           mvc.perform(
                   get(COLLECTOR_URI + "?include_next=true")
+                      .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .accept(MediaType.APPLICATION_JSON))
               .andExpect(status().is2xxSuccessful())
@@ -181,6 +184,7 @@ public class CollectorApiTest extends IntegrationTest {
       String response =
           mvc.perform(
                   get(COLLECTOR_URI + "/" + collector.getId() + "/related-ids")
+                      .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .accept(MediaType.APPLICATION_JSON))
               .andExpect(status().is2xxSuccessful())
@@ -191,6 +195,7 @@ public class CollectorApiTest extends IntegrationTest {
       assertThatJson(response)
           .inPath("catalog_connector_id")
           .isEqualTo(instance.getCatalogConnector().getId());
+      assertThatJson(response).inPath("connector_registered").isEqualTo(true);
     }
 
     @Test
@@ -208,6 +213,7 @@ public class CollectorApiTest extends IntegrationTest {
       String response =
           mvc.perform(
                   get(COLLECTOR_URI + "/" + collector.getId() + "/related-ids")
+                      .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .accept(MediaType.APPLICATION_JSON))
               .andExpect(status().is2xxSuccessful())
@@ -216,6 +222,7 @@ public class CollectorApiTest extends IntegrationTest {
               .getContentAsString();
       assertThatJson(response).inPath("connector_instance_id").isEqualTo(null);
       assertThatJson(response).inPath("catalog_connector_id").isEqualTo(catalogConnector.getId());
+      assertThatJson(response).inPath("connector_registered").isEqualTo(true);
     }
 
     @Test
@@ -225,6 +232,7 @@ public class CollectorApiTest extends IntegrationTest {
       String response =
           mvc.perform(
                   get(COLLECTOR_URI + "/" + collector.getId() + "/related-ids")
+                      .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .accept(MediaType.APPLICATION_JSON))
               .andExpect(status().is2xxSuccessful())
@@ -233,12 +241,13 @@ public class CollectorApiTest extends IntegrationTest {
               .getContentAsString();
       assertThatJson(response).inPath("connector_instance_id").isEqualTo(null);
       assertThatJson(response).inPath("catalog_connector_id").isEqualTo(null);
+      assertThatJson(response).inPath("connector_registered").isEqualTo(true);
     }
   }
 
   @Nested
   @DisplayName("Register collector")
-  @WithMockUser(withCapabilities = {Capability.MANAGE_PLATFORM_SETTINGS})
+  @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
   class RegisterCollector {
 
     @Test
@@ -256,7 +265,8 @@ public class CollectorApiTest extends IntegrationTest {
                   multipart(COLLECTOR_URI)
                       .file(buildInputPart(input))
                       .file(buildEmptyIconPart())
-                      .accept(MediaType.APPLICATION_JSON))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()
@@ -291,7 +301,8 @@ public class CollectorApiTest extends IntegrationTest {
                   multipart(COLLECTOR_URI)
                       .file(buildInputPart(input))
                       .file(buildEmptyIconPart())
-                      .accept(MediaType.APPLICATION_JSON))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()
@@ -325,7 +336,8 @@ public class CollectorApiTest extends IntegrationTest {
                   multipart(COLLECTOR_URI)
                       .file(buildInputPart(input))
                       .file(buildEmptyIconPart())
-                      .accept(MediaType.APPLICATION_JSON))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()
@@ -354,7 +366,8 @@ public class CollectorApiTest extends IntegrationTest {
               multipart(COLLECTOR_URI)
                   .file(buildInputPart(input))
                   .file(buildEmptyIconPart())
-                  .accept(MediaType.APPLICATION_JSON))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().is2xxSuccessful());
 
       Collector updated = collectorRepository.findById(input.getId()).orElseThrow();
@@ -377,7 +390,8 @@ public class CollectorApiTest extends IntegrationTest {
                   multipart(COLLECTOR_URI)
                       .file(buildInputPart(input))
                       .file(buildEmptyIconPart())
-                      .accept(MediaType.APPLICATION_JSON))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()

@@ -7,6 +7,7 @@ import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static net.javacrumbs.jsonunit.core.Option.IGNORING_ARRAY_ORDER;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -23,6 +24,7 @@ import io.openaev.rest.inject.form.*;
 import io.openaev.service.FileService;
 import io.openaev.utils.ZipUtils;
 import io.openaev.utils.fixtures.*;
+import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.helpers.GrantHelper;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -65,8 +67,8 @@ public class InjectExportTest extends IntegrationTest {
   @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private PayloadComposer payloadComposer;
   @Autowired private GrantComposer grantComposer;
-  @Autowired private GroupComposer groupComposer;
-  @Autowired private RoleComposer roleComposer;
+  @Autowired private TenantGroupComposer tenantGroupComposer;
+  @Autowired private TenantRoleComposer tenantRoleComposer;
   @Autowired private DomainComposer domainComposer;
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper mapper;
@@ -89,8 +91,8 @@ public class InjectExportTest extends IntegrationTest {
     channelComposer.reset();
     teamComposer.reset();
     userComposer.reset();
-    groupComposer.reset();
-    roleComposer.reset();
+    tenantGroupComposer.reset();
+    tenantRoleComposer.reset();
     grantComposer.reset();
     tagComposer.reset();
     exerciseComposer.reset();
@@ -148,9 +150,6 @@ public class InjectExportTest extends IntegrationTest {
   }
 
   private List<InjectComposer.Composer> createDefaultInjectWrappers() {
-    Set<Domain> domains =
-        domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
-
     ArticleComposer.Composer articleToExportFromExercise =
         articleComposer
             .forArticle(ArticleFixture.getDefaultArticle())
@@ -181,8 +180,9 @@ public class InjectExportTest extends IntegrationTest {
                 injectorContractComposer
                     .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
                     .withInjector(InjectorFixture.createDefaultPayloadInjector())
+                    .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                     .withPayload(
-                        payloadComposer.forPayload(PayloadFixture.createDefaultCommand(domains))));
+                        payloadComposer.forPayload(PayloadFixture.createDefaultCommand())));
     // wrap it in a persisted exercise
     exerciseComposer
         .forExercise(ExerciseFixture.createDefaultExercise())
@@ -350,7 +350,7 @@ public class InjectExportTest extends IntegrationTest {
     @Test
     @DisplayName("Return UNAUTHORISED")
     public void whenLackingAuthorisation_returnUnauthorised() throws Exception {
-      mvc.perform(post(INJECT_URI + "/export").contentType(MediaType.APPLICATION_JSON))
+      mvc.perform(post(INJECT_URI + "/export").contentType(MediaType.APPLICATION_JSON).with(csrf()))
           .andExpect(status().isUnauthorized());
     }
   }
@@ -381,7 +381,8 @@ public class InjectExportTest extends IntegrationTest {
           mvc.perform(
                   post(INJECT_EXPORT_URI)
                       .content(mapper.writeValueAsString(input))
-                      .contentType(MediaType.APPLICATION_JSON))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
               .andExpect(status().isNotFound())
               .andReturn()
               .getResponse()
@@ -429,7 +430,8 @@ public class InjectExportTest extends IntegrationTest {
           mvc.perform(
                   post(INJECT_EXPORT_URI)
                       .content(mapper.writeValueAsString(input))
-                      .contentType(MediaType.APPLICATION_JSON))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
               .andExpect(status().isNotFound())
               .andReturn()
               .getResponse()
@@ -461,10 +463,10 @@ public class InjectExportTest extends IntegrationTest {
         InjectExportFromSearchRequestInput exportInput =
             createDefaultInjectExportFromSearchInput(List.of(), "", false, false, false);
 
-        GroupComposer.Composer groupComposed =
-            groupComposer
-                .forGroup(GroupFixture.createGroup())
-                .withRole(roleComposer.forRole(RoleFixture.getRole()));
+        TenantGroupComposer.Composer groupComposed =
+            tenantGroupComposer
+                .forGroup(TenantGroupFixture.getGroup())
+                .withRole(tenantRoleComposer.forRole(TenantRoleFixture.getRole()));
 
         groupComposed.withGrant(
             grantComposer.forGrant(
@@ -496,7 +498,8 @@ public class InjectExportTest extends IntegrationTest {
                     post(INJECT_EXPORT_SEARCH_URI)
                         .content(mapper.writeValueAsString(exportInput))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .with(authentication(auth)))
+                        .with(authentication(auth))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(header().string(HttpHeaders.CONTENT_TYPE, "application/zip"))
                 .andExpect(header().exists(HttpHeaders.CONTENT_DISPOSITION))
@@ -575,7 +578,8 @@ public class InjectExportTest extends IntegrationTest {
             mvc.perform(
                     post(INJECT_EXPORT_SEARCH_URI)
                         .content(mapper.writeValueAsString(exportInput))
-                        .contentType(MediaType.APPLICATION_JSON))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
                 .andExpect(status().isNotFound())
                 .andReturn()
                 .getResponse()
@@ -607,7 +611,8 @@ public class InjectExportTest extends IntegrationTest {
             mvc.perform(
                     post(INJECT_EXPORT_SEARCH_URI)
                         .content(mapper.writeValueAsString(exportInput))
-                        .contentType(MediaType.APPLICATION_JSON))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -654,7 +659,8 @@ public class InjectExportTest extends IntegrationTest {
             mvc.perform(
                     post(INJECT_EXPORT_SEARCH_URI)
                         .content(mapper.writeValueAsString(exportInput))
-                        .contentType(MediaType.APPLICATION_JSON))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -699,7 +705,8 @@ public class InjectExportTest extends IntegrationTest {
       mvc.perform(
               post("/api/injects/ " + UUID.randomUUID().toString() + "/inject_export")
                   .content(mapper.writeValueAsString(new InjectIndividualExportRequestInput()))
-                  .contentType(MediaType.APPLICATION_JSON))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().isNotFound())
           .andReturn()
           .getResponse()
@@ -716,7 +723,8 @@ public class InjectExportTest extends IntegrationTest {
           mvc.perform(
                   post("/api/injects/" + inject.getId() + "/inject_export")
                       .content(mapper.writeValueAsString(new InjectIndividualExportRequestInput()))
-                      .contentType(MediaType.APPLICATION_JSON))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -758,7 +766,8 @@ public class InjectExportTest extends IntegrationTest {
           mvc.perform(
                   post(INJECT_EXPORT_URI)
                       .content(mapper.writeValueAsString(input))
-                      .contentType(MediaType.APPLICATION_JSON))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
               .andExpect(status().isNotFound())
               .andReturn()
               .getResponse()
@@ -776,7 +785,8 @@ public class InjectExportTest extends IntegrationTest {
         return mvc.perform(
                 post(INJECT_EXPORT_URI)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(mapper.writeValueAsString(createDefaultInjectExportRequestInput())))
+                    .content(mapper.writeValueAsString(createDefaultInjectExportRequestInput()))
+                    .with(csrf()))
             .andExpect(status().isOk())
             .andReturn()
             .getResponse()
@@ -930,7 +940,8 @@ public class InjectExportTest extends IntegrationTest {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(
                         mapper.writeValueAsString(
-                            createDefaultInjectExportRequestInput(false, true, false))))
+                            createDefaultInjectExportRequestInput(false, true, false)))
+                    .with(csrf()))
             .andExpect(status().isOk())
             .andReturn()
             .getResponse()
@@ -977,7 +988,8 @@ public class InjectExportTest extends IntegrationTest {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(
                         mapper.writeValueAsString(
-                            createDefaultInjectExportRequestInput(true, false, false))))
+                            createDefaultInjectExportRequestInput(true, false, false)))
+                    .with(csrf()))
             .andExpect(status().isOk())
             .andReturn()
             .getResponse()

@@ -1,11 +1,10 @@
-import { Alert, Button as MuiButton, Dialog, DialogActions, DialogContent, DialogTitle, Grid, List, ListItem, ListItemText, Paper, Typography } from '@mui/material';
+import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, Grid, List, ListItem, ListItemText, Paper, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import type React from 'react';
 import { useState } from 'react';
 
 import { updatePlatformEnterpriseEditionParameters } from '../../../../actions/Application';
 import type { LoggedHelper } from '../../../../actions/helper';
-import Button from '../../../../components/common/button/Button';
 import { useFormatter } from '../../../../components/i18n';
 import ItemBoolean from '../../../../components/ItemBoolean';
 import { useHelper } from '../../../../store';
@@ -50,20 +49,20 @@ const EnterpriseEditionSettings: React.FC = () => {
               {t('Enterprise Edition')}
             </Typography>
             {!isEnterpriseEditionByConfig && !isEnterpriseEdition && (
-              <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
+              <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
                 <EnterpriseEditionButton />
               </Can>
             )}
             {!isEnterpriseEditionByConfig && isEnterpriseEdition && (
-              <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
-                <MuiButton
+              <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
+                <Button
                   size="small"
                   variant="outlined"
                   color="primary"
                   onClick={() => setOpenEEChanges(true)}
                 >
                   {t('Disable Enterprise Edition')}
-                </MuiButton>
+                </Button>
                 <Dialog
                   slotProps={{ paper: { elevation: 1 } }}
                   open={openEEChanges}
@@ -88,7 +87,6 @@ const EnterpriseEditionSettings: React.FC = () => {
                   </DialogContent>
                   <DialogActions>
                     <Button
-                      variant="secondary"
                       onClick={() => {
                         setOpenEEChanges(false);
                       }}
@@ -96,7 +94,7 @@ const EnterpriseEditionSettings: React.FC = () => {
                       {t('Cancel')}
                     </Button>
                     <Button
-                      variant="primary"
+                      color="secondary"
                       onClick={() => {
                         setOpenEEChanges(false);
                         updateEnterpriseEdition({ platform_enterprise_license: '' });
@@ -200,7 +198,7 @@ const EnterpriseEditionSettings: React.FC = () => {
               {t('Enterprise Edition')}
             </Typography>
             {!isEnterpriseEditionActivated && (
-              <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
+              <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
                 <EnterpriseEditionButton />
               </Can>
             )}

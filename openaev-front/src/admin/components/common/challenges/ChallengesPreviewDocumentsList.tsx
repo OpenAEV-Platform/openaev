@@ -13,11 +13,13 @@ import { useQueryableWithLocalStorage } from '../../../../components/common/quer
 import ItemTags from '../../../../components/ItemTags';
 import { useHelper } from '../../../../store';
 import type { Challenge, Document } from '../../../../utils/api-types';
+import { buildTenantApiPath } from '../../../../utils/url-helper';
 import DocumentType from '../../components/documents/DocumentType';
 
 const useStyles = makeStyles()(theme => ({
   itemHead: {
     paddingLeft: theme.spacing(1),
+    textTransform: 'uppercase',
     cursor: 'pointer',
   },
   item: {
@@ -141,7 +143,7 @@ const ChallengesPreviewDocumentsList: FunctionComponent<Props> = ({ currentChall
               classes={{ root: classes.item }}
               component={Link}
               divider
-              to={`/api/documents/${document.document_id}/file`}
+              to={buildTenantApiPath(`/api/documents/${document.document_id}/file`)}
             >
               <ListItemIcon>
                 <AttachmentOutlined />

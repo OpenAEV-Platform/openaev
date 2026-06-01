@@ -22,6 +22,7 @@ import io.openaev.config.OpenAEVConfig;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
+import io.openaev.database.specification.AssetAgentJobSpecification;
 import io.openaev.executors.model.AgentRegisterInput;
 import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.rest.asset.endpoint.form.EndpointOutput;
@@ -92,11 +93,12 @@ public class EndpointService {
   @Value("${info.app.version:unknown}")
   String version;
 
-  @Value("${executor.openaev.binaries.origin:local}")
-  private String executorOpenaevBinariesOrigin;
+  @Value("${executor.openaev-agent.binaries.origin:${executor.openaev.binaries.origin:local}}")
+  private String agentBinaryOrigin;
 
-  @Value("${executor.openaev.binaries.version:${info.app.version:unknown}}")
-  private String executorOpenaevBinariesVersion;
+  @Value(
+      "${executor.openaev-agent.binaries.version:${executor.openaev.binaries.version:${info.app.version:unknown}}}")
+  private String agentBinaryVersion;
 
   private final EndpointRepository endpointRepository;
   private final ExecutorRepository executorRepository;
@@ -471,12 +473,24 @@ public class EndpointService {
               endpoint.getPlatform().name(),
               input.getInstallationMode(),
               input.getInstallationDirectory(),
-              input.getServiceName()));
+              input.getServiceName(),
+              agent.getTenant().getId()));
       assetAgentJob.setAgent(agent);
       assetAgentJob.setTenant(agent.getTenant());
       assetAgentJobRepository.save(assetAgentJob);
     }
     return endpoint;
+  }
+
+  public List<AssetAgentJob> getEndpointJobs(final EndpointRegisterInput input) {
+    return this.assetAgentJobRepository.findAll(
+        AssetAgentJobSpecification.forEndpoint(
+            input.getExternalReference(),
+            input.isService()
+                ? Agent.DEPLOYMENT_MODE.service.name()
+                : Agent.DEPLOYMENT_MODE.session.name(),
+            input.isElevated() ? Agent.PRIVILEGE.admin.name() : Agent.PRIVILEGE.standard.name(),
+            input.getExecutedByUser()));
   }
 
   private void addSourceTagToEndpoint(Endpoint endpoint, AgentRegisterInput input) {
@@ -529,12 +543,12 @@ public class EndpointService {
     Agent.PRIVILEGE privilege =
         input.isElevated() ? Agent.PRIVILEGE.admin : Agent.PRIVILEGE.standard;
     Optional<Agent> existingAgent =
-        agentService.getAgentForAnAsset(
+        agentService.getAgentForAnAssetByExecutorId(
             endpoint.getId(),
             input.getExecutedByUser(),
             deploymentMode,
             privilege,
-            input.getExecutor().getType());
+            input.getExecutor().getId());
     Agent agent;
     if (existingAgent.isPresent()) {
       agent = existingAgent.get();
@@ -629,7 +643,8 @@ public class EndpointService {
       String file,
       String adminToken,
       String installationDir,
-      String serviceNameOrPrefix)
+      String serviceNameOrPrefix,
+      String tenantId)
       throws IOException {
     String extension =
         switch (platform.toLowerCase()) {
@@ -641,17 +656,17 @@ public class EndpointService {
     String filename;
     String resourcePath = "/openaev-agent/" + platform.toLowerCase() + "/";
 
-    if (executorOpenaevBinariesOrigin.equals("local")) { // if we want the local binaries
+    if (agentBinaryOrigin.equals("local")) { // if we want the local binaries
       filename = file + "-" + version + "." + extension;
       in = getClass().getResourceAsStream("/agents" + resourcePath + filename);
-    } else if (executorOpenaevBinariesOrigin.equals(
+    } else if (agentBinaryOrigin.equals(
         "repository")) { // if we want a specific version from artifactory
-      filename = file + "-" + executorOpenaevBinariesVersion + "." + extension;
+      filename = file + "-" + agentBinaryVersion + "." + extension;
       in = new BufferedInputStream(validateJFrogUri(resourcePath, filename).toURL().openStream());
     }
     if (in == null) {
       throw new UnsupportedOperationException(
-          "Agent installer version " + executorOpenaevBinariesVersion + " not found");
+          "Agent installer version " + agentBinaryVersion + " not found");
     }
 
     if (installationDir == null) {
@@ -666,7 +681,8 @@ public class EndpointService {
             String.valueOf(openAEVConfig.isUnsecuredCertificate()))
         .replace("${OPENAEV_WITH_PROXY}", String.valueOf(openAEVConfig.isWithProxy()))
         .replace("${OPENAEV_SERVICE_NAME}", serviceNameOrPrefix)
-        .replace("${OPENAEV_INSTALL_DIR}", installationDir);
+        .replace("${OPENAEV_INSTALL_DIR}", installationDir)
+        .replace("${OPENAEV_TENANT_ID}", tenantId);
   }
 
   public String generateServiceNameOrPrefix(
@@ -734,7 +750,8 @@ public class EndpointService {
       String token,
       String installationMode,
       String installationDir,
-      String serviceNameOrPrefix)
+      String serviceNameOrPrefix,
+      String tenantId)
       throws IOException {
     if (token == null || token.isEmpty()) {
       throw new IllegalArgumentException("Token must not be null or empty.");
@@ -747,11 +764,15 @@ public class EndpointService {
     serviceNameOrPrefix =
         generateServiceNameOrPrefix(platform, installationMode, serviceNameOrPrefix);
     return getFileOrDownloadFromJfrog(
-        platform, installerName, token, installationDir, serviceNameOrPrefix);
+        platform, installerName, token, installationDir, serviceNameOrPrefix, tenantId);
   }
 
   public String generateUpgradeCommand(
-      String platform, String installationMode, String installationDir, String serviceNameOrPrefix)
+      String platform,
+      String installationMode,
+      String installationDir,
+      String serviceNameOrPrefix,
+      String tenantId)
       throws IOException {
     String upgradeName = OPENAEV_AGENT_UPGRADE;
     if (installationMode != null && !installationMode.equals(SERVICE)) {
@@ -761,7 +782,7 @@ public class EndpointService {
     serviceNameOrPrefix =
         generateServiceNameOrPrefix(platform, installationMode, serviceNameOrPrefix);
     return getFileOrDownloadFromJfrog(
-        platform, upgradeName, adminToken, installationDir, serviceNameOrPrefix);
+        platform, upgradeName, adminToken, installationDir, serviceNameOrPrefix, tenantId);
   }
 
   public List<Endpoint> endpointsForScenario(String scenarioId) {

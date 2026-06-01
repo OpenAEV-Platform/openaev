@@ -17,15 +17,11 @@ public interface CollectorRepository
   @NotNull
   Optional<Collector> findById(@NotNull String id);
 
-  // TODO multi-tenancy: Multi executors dev
-  @NotNull
-  Optional<Collector> findByTypeAndTenantId(@NotNull String type, @NotNull String tenantId);
-
   @Query(
       """
               SELECT DISTINCT c FROM Collector c
-              WHERE c.type IN (
-                  SELECT dr.collectorType.name FROM DetectionRemediation dr
+              WHERE c.collectorType IN (
+                  SELECT dr.collectorType FROM DetectionRemediation dr
                   JOIN dr.payload p
                   WHERE p.id = :payloadId
               )
@@ -35,8 +31,8 @@ public interface CollectorRepository
   @Query(
       """
               SELECT DISTINCT c FROM Collector c
-              WHERE c.type IN (
-                  SELECT dr.collectorType.name
+              WHERE c.collectorType IN (
+                  SELECT dr.collectorType
                   FROM Inject i
                   JOIN i.injectorContract ic
                   JOIN ic.payload p

@@ -1,11 +1,13 @@
 package io.openaev.config.security;
 
+import static io.jsonwebtoken.lang.Strings.hasText;
 import static java.util.Optional.ofNullable;
 import static org.springframework.util.StringUtils.hasLength;
 
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
+import io.openaev.database.repository.TenantRepository;
 import io.openaev.database.repository.UserRepository;
-import io.openaev.rest.user.form.user.CreateUserInput;
 import io.openaev.service.UserMappingService;
 import io.openaev.service.UserService;
 import io.openaev.service.user_events.UserEventService;
@@ -13,10 +15,13 @@ import jakarta.validation.constraints.NotBlank;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class SecurityService {
@@ -26,6 +31,7 @@ public class SecurityService {
   public static final String GROUPS_MANAGEMENT_SUFFIX = ".groups_management";
   public static final String ALL_ADMIN_PATH_SUFFIX = ".all_admin";
   public static final String AUDIENCE_PATH = ".audience";
+  public static final String TENANT_ID_SUFFIX = ".tenant_id";
   public static final String REGISTRATION_ID = "registration_id";
 
   private final UserRepository userRepository;
@@ -33,6 +39,7 @@ public class SecurityService {
   private final UserMappingService userMappingService;
   private final Environment env;
   private final UserEventService userEventService;
+  private final TenantRepository tenantRepository;
 
   public User userManagement(
       String emailAttribute,
@@ -49,14 +56,9 @@ public class SecurityService {
       Optional<User> optionalUser = userRepository.findByEmailIgnoreCase(email);
       // If user not exists, create it
       if (optionalUser.isEmpty()) {
-        CreateUserInput createUserInput = new CreateUserInput();
-        createUserInput.setEmail(email);
-        createUserInput.setFirstname(firstName);
-        createUserInput.setLastname(lastName);
-        if (allAdmin || !adminRoles.isEmpty()) {
-          createUserInput.setAdmin(isAdmin);
-        }
-        User user = this.userService.createUser(createUserInput, 0);
+        User user =
+            this.userService.createInternalUser(
+                email, firstName, lastName, isAdmin, UUID.randomUUID().toString());
         this.userEventService.createUserCreatedEvent(user, registrationId);
         userEventService.createLoginSuccessEvent(user);
         String groupsManagementObject =
@@ -65,7 +67,8 @@ public class SecurityService {
                 String.class,
                 "");
         userMappingService.mapCurrentUserWithGroup(groupsManagementObject, user, groups);
-        return this.userService.updateUser(user);
+        attachTenant(registrationId, user);
+        return this.userService.saveUser(user);
       } else {
         // If user exists, update it
         User currentUser = optionalUser.get();
@@ -81,7 +84,8 @@ public class SecurityService {
                 String.class,
                 "");
         userMappingService.mapCurrentUserWithGroup(groupsManagementObject, currentUser, groups);
-        return this.userService.updateUser(currentUser);
+        attachTenant(registrationId, currentUser);
+        return this.userService.saveUser(currentUser);
       }
     }
     return null;
@@ -95,6 +99,26 @@ public class SecurityService {
   }
 
   // -- PRIVATE --
+
+  /** Attaches the user to the tenant configured for the given SSO provider registration. */
+  private void attachTenant(String registrationId, User user) {
+    String tenantId =
+        env.getProperty(
+            OPENAEV_PROVIDER_PATH_PREFIX + registrationId + TENANT_ID_SUFFIX, String.class, "");
+    if (!hasText(tenantId)) {
+      return;
+    }
+    boolean alreadyAttached = user.getTenants().stream().anyMatch(t -> t.getId().equals(tenantId));
+    if (alreadyAttached) {
+      return;
+    }
+    if (!tenantRepository.existsById(tenantId)) {
+      log.warn("SSO tenant ID '{}' configured but not found in database", tenantId);
+      return;
+    }
+    Tenant tenant = tenantRepository.getReferenceById(tenantId);
+    user.getTenants().add(tenant);
+  }
 
   private List<String> getAdminRoles(@NotBlank final String registrationId) {
     String rolesAdminConfig =

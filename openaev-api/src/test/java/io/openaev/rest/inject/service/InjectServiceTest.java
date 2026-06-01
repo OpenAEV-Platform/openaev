@@ -9,13 +9,11 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawInject;
-import io.openaev.database.repository.InjectDocumentRepository;
-import io.openaev.database.repository.InjectRepository;
-import io.openaev.database.repository.InjectStatusRepository;
-import io.openaev.database.repository.InjectorRepository;
-import io.openaev.database.repository.TeamRepository;
+import io.openaev.database.repository.*;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.utils.ExecutorUtils;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
@@ -23,17 +21,20 @@ import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.injectors.email.service.ImapService;
 import io.openaev.injectors.email.service.SmtpService;
 import io.openaev.rest.collector.service.CollectorService;
+import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.*;
 import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import io.openaev.rest.injector_contract.InjectorContractService;
-import io.openaev.rest.security.SecurityExpressionHandler;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.AssetService;
+import io.openaev.service.EndpointService;
 import io.openaev.service.InjectorService;
+import io.openaev.service.TagRuleService;
 import io.openaev.service.UserService;
+import io.openaev.service.threat_arsenal.ThreatArsenalService;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.fixtures.AssetGroupFixture;
@@ -43,6 +44,7 @@ import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.mapper.InjectExpectationMapper;
 import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.mapper.InjectStatusMapper;
+import io.openaev.utils.mapper.PayloadMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import java.util.*;
 import java.util.ArrayList;
@@ -77,16 +79,17 @@ class InjectServiceTest {
 
   @Mock private TeamRepository teamRepository;
 
-  @Mock(extraInterfaces = {MethodSecurityExpressionHandler.class})
-  private SecurityExpressionHandler methodSecurityExpressionHandler;
-
-  @Mock private InjectDocumentRepository injectDocumentRepository;
+  @Mock private ExecutionTraceRepository executionTraceRepository;
 
   @Mock private InjectStatusRepository injectStatusRepository;
+
+  @Mock private InjectDocumentRepository injectDocumentRepository;
 
   @Mock private InjectUtils injectUtils;
 
   @Mock private InjectStatusMapper injectStatusMapper;
+
+  @Mock private PayloadMapper payloadMapper;
 
   @Mock private InjectExpectationMapper injectExpectationMapper;
 
@@ -94,7 +97,27 @@ class InjectServiceTest {
 
   @Mock private UserService userService;
 
+  @Mock private EnterpriseEditionService enterpriseEditionService;
+
+  @Mock private EndpointService endpointService;
+
+  @Mock private MethodSecurityExpressionHandler methodSecurityExpressionHandler;
+
+  @Mock private TagRuleService tagRuleService;
+
   @Mock private TagService tagService;
+
+  @Mock private DocumentService documentService;
+
+  @Mock private TagRepository tagRepository;
+
+  @Mock private DocumentRepository documentRepository;
+
+  @Mock private PayloadRepository payloadRepository;
+
+  @Mock private ThreatArsenalService threatArsenalService;
+
+  @Mock private LicenseCacheManager licenseCacheManager;
 
   @Mock private SmtpService smtpService;
 
@@ -103,8 +126,6 @@ class InjectServiceTest {
   @Mock private CollectorService collectorService;
 
   @Mock private InjectorService injectorService;
-
-  @Mock private InjectorRepository injectorRepository;
 
   @Spy private InjectorContractContentUtils injectorContractContentUtils;
 
@@ -124,6 +145,7 @@ class InjectServiceTest {
         "injectMapper",
         new InjectMapper(
             injectStatusMapper,
+            payloadMapper,
             injectExpectationMapper,
             injectUtils,
             new HealthCheckUtils(new ExecutorUtils())));
@@ -631,7 +653,7 @@ class InjectServiceTest {
 
     InjectorContract injectorContract = new InjectorContract();
     injectorContract.setId(injectorContractId);
-    injectorContract.setInjector(contractInjector);
+    injectorContract.addInjector(contractInjector);
     ObjectNode contractContent = mapper.createObjectNode();
     contractContent.set("fields", mapper.createArrayNode());
     injectorContract.setConvertedContent(contractContent);
@@ -648,7 +670,7 @@ class InjectServiceTest {
     Scenario scenario = new Scenario();
 
     when(injectorContractService.injectorContract(injectorContractId)).thenReturn(injectorContract);
-    when(injectorRepository.findById(injectorId)).thenReturn(Optional.of(explicitInjector));
+    when(injectUtils.resolveInjector(injectorId, injectorContract)).thenReturn(explicitInjector);
 
     // -- ACT --
     injectService.createAndSaveInject(null, scenario, injectInput);
@@ -664,7 +686,7 @@ class InjectServiceTest {
         contractInjector.getId(),
         capturedInject.getInjector().getId(),
         "Injector should come from explicit ID, not from the contract");
-    verify(injectorRepository).findById(injectorId);
+    verify(injectUtils).resolveInjector(injectorId, injectorContract);
   }
 
   @Test
@@ -678,7 +700,7 @@ class InjectServiceTest {
 
     InjectorContract injectorContract = new InjectorContract();
     injectorContract.setId(injectorContractId);
-    injectorContract.setInjector(contractInjector);
+    injectorContract.addInjector(contractInjector);
     ObjectNode contractContent = mapper.createObjectNode();
     contractContent.set("fields", mapper.createArrayNode());
     injectorContract.setConvertedContent(contractContent);
@@ -692,6 +714,7 @@ class InjectServiceTest {
     Scenario scenario = new Scenario();
 
     when(injectorContractService.injectorContract(injectorContractId)).thenReturn(injectorContract);
+    when(injectUtils.resolveInjector(null, injectorContract)).thenReturn(contractInjector);
 
     // -- ACT --
     injectService.createAndSaveInject(null, scenario, injectInput);
@@ -703,7 +726,7 @@ class InjectServiceTest {
 
     assertNotNull(capturedInject.getInjector());
     assertEquals(contractInjector.getId(), capturedInject.getInjector().getId());
-    verify(injectorRepository, never()).findById(any());
+    verify(injectUtils).resolveInjector(null, injectorContract);
   }
 
   @Test
@@ -715,6 +738,7 @@ class InjectServiceTest {
 
     InjectorContract injectorContract = new InjectorContract();
     injectorContract.setId(injectorContractId);
+    injectorContract.setInjectors(List.of());
     ObjectNode contractContent = mapper.createObjectNode();
     contractContent.set("fields", mapper.createArrayNode());
     injectorContract.setConvertedContent(contractContent);
@@ -728,13 +752,15 @@ class InjectServiceTest {
     Scenario scenario = new Scenario();
 
     when(injectorContractService.injectorContract(injectorContractId)).thenReturn(injectorContract);
-    when(injectorRepository.findById(unknownInjectorId)).thenReturn(Optional.empty());
+    when(injectUtils.resolveInjector(unknownInjectorId, injectorContract))
+        .thenThrow(
+            new ElementNotFoundException("Injector not found with id: " + unknownInjectorId));
 
     // -- ACT & ASSERT --
     assertThrows(
         ElementNotFoundException.class,
         () -> injectService.createAndSaveInject(null, scenario, injectInput));
-    verify(injectorRepository).findById(unknownInjectorId);
+    verify(injectUtils).resolveInjector(unknownInjectorId, injectorContract);
     verify(injectRepository, never()).save(any());
   }
 
@@ -755,9 +781,10 @@ class InjectServiceTest {
         InjectFixture.getInjectForEmailContract(
             InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
                 InjectorFixture.createDefaultPayloadInjector(), null, List.of()));
+
+    inject.setInjector(inject.getInjectorContract().get().getFirstInjector());
+
     inject
-        .getInjectorContract()
-        .get()
         .getInjector()
         .setDependencies(new ExternalServiceDependency[] {ExternalServiceDependency.SMTP});
 
@@ -790,9 +817,10 @@ class InjectServiceTest {
         InjectFixture.getInjectForEmailContract(
             InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
                 InjectorFixture.createDefaultPayloadInjector(), null, List.of()));
+
+    inject.setInjector(inject.getInjectorContract().get().getFirstInjector());
+
     inject
-        .getInjectorContract()
-        .get()
         .getInjector()
         .setDependencies(new ExternalServiceDependency[] {ExternalServiceDependency.IMAP});
 
@@ -904,7 +932,7 @@ class InjectServiceTest {
     inject
         .getInjectorContract()
         .get()
-        .getInjector()
+        .getFirstInjector()
         .setDependencies(new ExternalServiceDependency[] {ExternalServiceDependency.NMAP});
 
     // MOCK
@@ -929,9 +957,10 @@ class InjectServiceTest {
         InjectFixture.getInjectForEmailContract(
             InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
                 InjectorFixture.createDefaultPayloadInjector(), null, List.of()));
+
+    inject.setInjector(inject.getInjectorContract().get().getFirstInjector());
+
     inject
-        .getInjectorContract()
-        .get()
         .getInjector()
         .setDependencies(new ExternalServiceDependency[] {ExternalServiceDependency.NMAP});
 
@@ -962,9 +991,10 @@ class InjectServiceTest {
         InjectFixture.getInjectForEmailContract(
             InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
                 InjectorFixture.createDefaultPayloadInjector(), null, List.of()));
+
+    inject.setInjector(inject.getInjectorContract().get().getFirstInjector());
+
     inject
-        .getInjectorContract()
-        .get()
         .getInjector()
         .setDependencies(new ExternalServiceDependency[] {ExternalServiceDependency.NUCLEI});
 

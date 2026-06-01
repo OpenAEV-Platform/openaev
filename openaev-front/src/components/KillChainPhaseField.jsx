@@ -104,7 +104,7 @@ class KillChainPhaseFieldComponent extends Component {
           )}
           classes={{ clearIndicator: classes.autoCompleteIndicator }}
         />
-        <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
+        <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
           <Dialog
             open={this.state.killChainPhaseCreation}
             onClose={this.handleCloseKillChainPhaseCreation.bind(this)}

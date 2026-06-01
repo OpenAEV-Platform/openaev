@@ -18,6 +18,7 @@ import {
   type InjectExpectationResult,
   type PayloadSimple,
 } from '../../../../../utils/api-types';
+import { buildTenantApiPath } from '../../../../../utils/url-helper';
 import { isNotEmptyField } from '../../../../../utils/utils';
 import { type InjectExpectationsStore } from '../../../common/injects/expectations/Expectation';
 import InjectIcon from '../../../common/injects/InjectIcon';
@@ -50,8 +51,8 @@ const InjectExpectationResultList = ({
       return (
         <img
           src={expectationResult.sourceType === 'collector'
-            ? `/api/images/collectors/id/${expectationResult.sourceId}`
-            : `/api/images/security_platforms/id/${expectationResult.sourceId}/${theme.palette.mode}`}
+            ? buildTenantApiPath(`/api/images/collectors/id/${expectationResult.sourceId}`)
+            : buildTenantApiPath(`/api/images/security_platforms/id/${expectationResult.sourceId}/${theme.palette.mode}`)}
           alt={expectationResult.sourceId}
           style={{
             width: 25,
@@ -77,7 +78,7 @@ const InjectExpectationResultList = ({
     <TableContainer>
       <Table>
         <TableHead>
-          <TableRow>
+          <TableRow sx={{ textTransform: 'uppercase' }}>
             <TableCell>{t('Security platforms')}</TableCell>
             <TableCell>{t('Status')}</TableCell>
             <TableCell>{t('Detection time')}</TableCell>

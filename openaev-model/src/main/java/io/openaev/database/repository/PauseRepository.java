@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
@@ -28,4 +29,8 @@ public interface PauseRepository
               + "WHERE p.pause_exercise = :exerciseId",
       nativeQuery = true)
   List<RawPause> rawAllForExercise(@Param("exerciseId") String exerciseId);
+
+  @Modifying(clearAutomatically = true)
+  @Query("DELETE FROM Pause p WHERE p.exercise.id = :exerciseId")
+  void deleteAllPauseByExerciseId(String exerciseId);
 }

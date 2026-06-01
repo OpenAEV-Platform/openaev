@@ -4,10 +4,12 @@ import static io.openaev.rest.injector_contract.InjectorContractApi.INJECTOR_CON
 import static io.openaev.service.UserService.buildAuthenticationToken;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -18,6 +20,11 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.DomainRepository;
 import io.openaev.database.repository.InjectorContractRepository;
+import io.openaev.helper.SupportedLanguage;
+import io.openaev.injector_contract.Contract;
+import io.openaev.injector_contract.ContractConfig;
+import io.openaev.injector_contract.ContractDef;
+import io.openaev.injector_contract.fields.ContractText;
 import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.injector_contract.form.InjectorContractAddInput;
 import io.openaev.rest.injector_contract.form.InjectorContractDomainDTO;
@@ -27,6 +34,7 @@ import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationI
 import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;
 import io.openaev.utils.fixtures.*;
+import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.fixtures.files.AttackPatternFixture;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -36,6 +44,7 @@ import jakarta.transaction.Transactional;
 import java.sql.BatchUpdateException;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -46,7 +55,6 @@ import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.postgresql.util.PSQLException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
@@ -67,13 +75,14 @@ public class InjectorContractApiTest extends IntegrationTest {
   @Autowired private AttackPatternComposer attackPatternComposer;
   @Autowired private VulnerabilityComposer vulnerabilityComposer;
   @Autowired private InjectorContractRepository injectorContractRepository;
+  @Autowired private InjectorContractService injectorContractService;
   @Autowired private DomainComposer domainComposer;
   @Autowired private PayloadComposer payloadComposer;
   @Autowired private DomainRepository domainRepository;
 
   @Autowired private UserComposer userComposer;
-  @Autowired private GroupComposer groupComposer;
-  @Autowired private RoleComposer roleComposer;
+  @Autowired private TenantGroupComposer tenantGroupComposer;
+  @Autowired private TenantRoleComposer tenantRoleComposer;
   @Autowired private GrantComposer grantComposer;
 
   @BeforeEach
@@ -83,8 +92,8 @@ public class InjectorContractApiTest extends IntegrationTest {
     payloadComposer.reset();
     vulnerabilityComposer.reset();
     userComposer.reset();
-    groupComposer.reset();
-    roleComposer.reset();
+    tenantGroupComposer.reset();
+    tenantRoleComposer.reset();
     grantComposer.reset();
     domainComposer.reset();
   }
@@ -96,7 +105,10 @@ public class InjectorContractApiTest extends IntegrationTest {
     @Test
     @DisplayName("When internal ID is empty, fetching by internal ID fails with NOT FOUND")
     void whenExternalIdIsNull_FetchingByExternalIdFailsWithBadRequest() throws Exception {
-      mvc.perform(get(INJECTOR_CONTRACT_URL + "//").contentType(MediaType.APPLICATION_JSON))
+      mvc.perform(
+              get(INJECTOR_CONTRACT_URL + "//")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().isNotFound());
     }
 
@@ -139,7 +151,8 @@ public class InjectorContractApiTest extends IntegrationTest {
                         + injectorContractComposer.generatedItems.getFirst().getId()
                         + "/mapping")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(mapper.writeValueAsString(input)))
+                    .content(mapper.writeValueAsString(input))
+                    .with(csrf()))
             .andExpect(status().isOk());
       }
 
@@ -157,7 +170,8 @@ public class InjectorContractApiTest extends IntegrationTest {
                         + injectorContractComposer.generatedItems.getFirst().getId()
                         + "/mapping")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(mapper.writeValueAsString(input)))
+                    .content(mapper.writeValueAsString(input))
+                    .with(csrf()))
             .andExpect(status().isNotFound());
       }
 
@@ -184,7 +198,8 @@ public class InjectorContractApiTest extends IntegrationTest {
                         + injectorContractComposer.generatedItems.getFirst().getId()
                         + "/mapping")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(mapper.writeValueAsString(input)))
+                    .content(mapper.writeValueAsString(input))
+                    .with(csrf()))
             .andExpect(status().isOk());
       }
 
@@ -202,7 +217,8 @@ public class InjectorContractApiTest extends IntegrationTest {
                         + injectorContractComposer.generatedItems.getFirst().getId()
                         + "/mapping")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(mapper.writeValueAsString(input)))
+                    .content(mapper.writeValueAsString(input))
+                    .with(csrf()))
             .andExpect(status().isNotFound());
       }
 
@@ -215,7 +231,8 @@ public class InjectorContractApiTest extends IntegrationTest {
                     get(INJECTOR_CONTRACT_URL
                             + "/"
                             + injectorContractComposer.generatedItems.getFirst().getId())
-                        .contentType(MediaType.APPLICATION_JSON))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -223,6 +240,7 @@ public class InjectorContractApiTest extends IntegrationTest {
 
         assertThatJson(body)
             .whenIgnoringPaths("injector_contract_created_at", "injector_contract_updated_at")
+            .when(Option.IGNORING_EXTRA_FIELDS)
             .isEqualTo(mapper.writeValueAsString(ic));
       }
 
@@ -232,23 +250,15 @@ public class InjectorContractApiTest extends IntegrationTest {
 
         @Test
         @DisplayName("Deleting a non custom contract fails")
-        void deleteNonCustomContractFails() {
-          assertThatThrownBy(
-                  () ->
-                      mvc.perform(
-                              delete(
-                                      INJECTOR_CONTRACT_URL
-                                          + "/"
-                                          + injectorContractComposer
-                                              .generatedItems
-                                              .getFirst()
-                                              .getId())
-                                  .contentType(MediaType.APPLICATION_JSON))
-                          .andReturn())
-              .hasCauseInstanceOf(IllegalArgumentException.class)
-              .hasMessageEndingWith(
-                  "This injector contract can't be removed because is not a custom one: "
-                      + injectorContractComposer.generatedItems.getFirst().getId());
+        void deleteNonCustomContractFails() throws Exception {
+          mvc.perform(
+                  delete(
+                          INJECTOR_CONTRACT_URL
+                              + "/"
+                              + injectorContractComposer.generatedItems.getFirst().getId())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isBadRequest());
         }
 
         @Test
@@ -271,7 +281,8 @@ public class InjectorContractApiTest extends IntegrationTest {
 
           mvc.perform(
                   delete(INJECTOR_CONTRACT_URL + "/" + customContract.getExternalId())
-                      .contentType(MediaType.APPLICATION_JSON))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
               .andExpect(status().isOk());
         }
       }
@@ -308,7 +319,8 @@ public class InjectorContractApiTest extends IntegrationTest {
                             + "/"
                             + injectorContractComposer.generatedItems.getFirst().getId())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(input)))
+                        .content(mapper.writeValueAsString(input))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -362,7 +374,8 @@ public class InjectorContractApiTest extends IntegrationTest {
                             + "/"
                             + injectorContractComposer.generatedItems.getFirst().getId())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(input)))
+                        .content(mapper.writeValueAsString(input))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -402,14 +415,17 @@ public class InjectorContractApiTest extends IntegrationTest {
             mvc.perform(
                     post(INJECTOR_CONTRACT_URL)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(input)))
+                        .content(mapper.writeValueAsString(input))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
 
         assertThatJson(response)
+            .when(Option.IGNORING_ARRAY_ORDER)
             .whenIgnoringPaths("injector_contract_created_at", "injector_contract_updated_at")
+            .when(Option.IGNORING_EXTRA_FIELDS)
             .isEqualTo(
                 String.format(
                     """
@@ -420,13 +436,14 @@ public class InjectorContractApiTest extends IntegrationTest {
                           "injector_contract_content":"{\\"fields\\":[]}",
                           "injector_contract_custom":true,"injector_contract_needs_executor":false,
                           "injector_contract_platforms":[],"injector_contract_payload":null,
-                          "injector_contract_injector":"49229430-b5b5-431f-ba5b-f36f599b0144",
+                          "injector_contract_injectors":["49229430-b5b5-431f-ba5b-f36f599b0144"],
+                          "injector_contract_injector_names":{"49229430-b5b5-431f-ba5b-f36f599b0144":"OpenAEV Implant"},
                           "injector_contract_attack_patterns":[],"injector_contract_vulnerabilities":[],
                           "injector_contract_atomic_testing":true,
                           "injector_contract_import_available":false,"injector_contract_arch":null,
                           "injector_contract_injector_type":"openaev_implant",
-                          "injector_contract_injector_type_name":"OpenAEV Implant",
-                          "injector_contract_domains":[]
+                          "injector_contract_domains":[],
+                          "injector_contract_tags":[]
                         }
                         """,
                     injectorContractInternalId));
@@ -450,7 +467,8 @@ public class InjectorContractApiTest extends IntegrationTest {
         mvc.perform(
                 post(INJECTOR_CONTRACT_URL)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(mapper.writeValueAsString(input)))
+                    .content(mapper.writeValueAsString(input))
+                    .with(csrf()))
             .andExpect(status().isNotFound());
       }
 
@@ -472,7 +490,8 @@ public class InjectorContractApiTest extends IntegrationTest {
         mvc.perform(
                 post(INJECTOR_CONTRACT_URL)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(mapper.writeValueAsString(input)))
+                    .content(mapper.writeValueAsString(input))
+                    .with(csrf()))
             .andExpect(status().isNotFound());
       }
 
@@ -504,14 +523,17 @@ public class InjectorContractApiTest extends IntegrationTest {
             mvc.perform(
                     post(INJECTOR_CONTRACT_URL)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(input)))
+                        .content(mapper.writeValueAsString(input))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
 
         assertThatJson(response)
+            .when(Option.IGNORING_ARRAY_ORDER)
             .whenIgnoringPaths("injector_contract_created_at", "injector_contract_updated_at")
+            .when(Option.IGNORING_EXTRA_FIELDS)
             .isEqualTo(
                 String.format(
                     """
@@ -522,13 +544,14 @@ public class InjectorContractApiTest extends IntegrationTest {
                           "injector_contract_content":"{\\"fields\\":[]}",
                           "injector_contract_custom":true,"injector_contract_needs_executor":false,
                           "injector_contract_platforms":[],"injector_contract_payload":null,
-                          "injector_contract_injector":"49229430-b5b5-431f-ba5b-f36f599b0144",
+                          "injector_contract_injectors":["49229430-b5b5-431f-ba5b-f36f599b0144"],
+                          "injector_contract_injector_names":{"49229430-b5b5-431f-ba5b-f36f599b0144":"OpenAEV Implant"},
                           "injector_contract_attack_patterns":[%s],"injector_contract_vulnerabilities":[],
                           "injector_contract_atomic_testing":true,
                           "injector_contract_import_available":false,"injector_contract_arch":null,
                           "injector_contract_injector_type":"openaev_implant",
-                          "injector_contract_injector_type_name":"OpenAEV Implant",
-                          "injector_contract_domains":[]
+                          "injector_contract_domains":[],
+                          "injector_contract_tags":[]
                         }
                         """,
                     injectorContractInternalId,
@@ -569,14 +592,17 @@ public class InjectorContractApiTest extends IntegrationTest {
             mvc.perform(
                     post(INJECTOR_CONTRACT_URL)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(input)))
+                        .content(mapper.writeValueAsString(input))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
 
         assertThatJson(response)
+            .when(Option.IGNORING_ARRAY_ORDER)
             .whenIgnoringPaths("injector_contract_created_at", "injector_contract_updated_at")
+            .when(Option.IGNORING_EXTRA_FIELDS)
             .isEqualTo(
                 String.format(
                     """
@@ -587,13 +613,14 @@ public class InjectorContractApiTest extends IntegrationTest {
                           "injector_contract_content":"{\\"fields\\":[]}",
                           "injector_contract_custom":true,"injector_contract_needs_executor":false,
                           "injector_contract_platforms":[],"injector_contract_payload":null,
-                          "injector_contract_injector":"49229430-b5b5-431f-ba5b-f36f599b0144",
+                          "injector_contract_injectors":["49229430-b5b5-431f-ba5b-f36f599b0144"],
+                          "injector_contract_injector_names":{"49229430-b5b5-431f-ba5b-f36f599b0144":"OpenAEV Implant"},
                           "injector_contract_attack_patterns":[%s],"injector_contract_vulnerabilities":[],
                           "injector_contract_atomic_testing":true,
                           "injector_contract_import_available":false,"injector_contract_arch":null,
                           "injector_contract_injector_type":"openaev_implant",
-                          "injector_contract_injector_type_name":"OpenAEV Implant",
-                          "injector_contract_domains":[]
+                          "injector_contract_domains":[],
+                          "injector_contract_tags":[]
                         }
                         """,
                     injectorContractInternalId,
@@ -634,15 +661,17 @@ public class InjectorContractApiTest extends IntegrationTest {
             mvc.perform(
                     post(INJECTOR_CONTRACT_URL)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(input)))
+                        .content(mapper.writeValueAsString(input))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
 
         assertThatJson(response)
-            .whenIgnoringPaths("injector_contract_created_at", "injector_contract_updated_at")
             .when(Option.IGNORING_ARRAY_ORDER)
+            .whenIgnoringPaths("injector_contract_created_at", "injector_contract_updated_at")
+            .when(Option.IGNORING_EXTRA_FIELDS)
             .isEqualTo(
                 String.format(
                     """
@@ -653,13 +682,14 @@ public class InjectorContractApiTest extends IntegrationTest {
                           "injector_contract_content":"{\\"fields\\":[]}",
                           "injector_contract_custom":true,"injector_contract_needs_executor":false,
                           "injector_contract_platforms":[],"injector_contract_payload":null,
-                          "injector_contract_injector":"49229430-b5b5-431f-ba5b-f36f599b0144",
+                          "injector_contract_injectors":["49229430-b5b5-431f-ba5b-f36f599b0144"],
+                          "injector_contract_injector_names":{"49229430-b5b5-431f-ba5b-f36f599b0144":"OpenAEV Implant"},
                           "injector_contract_attack_patterns":[],"injector_contract_vulnerabilities":[%s],
                           "injector_contract_atomic_testing":true,
                           "injector_contract_import_available":false,"injector_contract_arch":null,
                           "injector_contract_injector_type":"openaev_implant",
-                          "injector_contract_injector_type_name":"OpenAEV Implant",
-                          "injector_contract_domains":[]
+                          "injector_contract_domains":[],
+                          "injector_contract_tags":[]
                         }
                         """,
                     injectorContractInternalId,
@@ -703,7 +733,8 @@ public class InjectorContractApiTest extends IntegrationTest {
             mvc.perform(
                     post(INJECTOR_CONTRACT_URL)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(input)))
+                        .content(mapper.writeValueAsString(input))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -712,6 +743,7 @@ public class InjectorContractApiTest extends IntegrationTest {
         assertThatJson(response)
             .whenIgnoringPaths("injector_contract_created_at", "injector_contract_updated_at")
             .when(Option.IGNORING_ARRAY_ORDER)
+            .when(Option.IGNORING_EXTRA_FIELDS)
             .isEqualTo(
                 String.format(
                     """
@@ -722,13 +754,14 @@ public class InjectorContractApiTest extends IntegrationTest {
                           "injector_contract_content":"{\\"fields\\":[]}",
                           "injector_contract_custom":true,"injector_contract_needs_executor":false,
                           "injector_contract_platforms":[],"injector_contract_payload":null,
-                          "injector_contract_injector":"49229430-b5b5-431f-ba5b-f36f599b0144",
+                          "injector_contract_injectors":["49229430-b5b5-431f-ba5b-f36f599b0144"],
+                          "injector_contract_injector_names":{"49229430-b5b5-431f-ba5b-f36f599b0144":"OpenAEV Implant"},
                           "injector_contract_attack_patterns":[],"injector_contract_vulnerabilities":[%s],
                           "injector_contract_atomic_testing":true,
                           "injector_contract_import_available":false,"injector_contract_arch":null,
                           "injector_contract_injector_type":"openaev_implant",
-                          "injector_contract_injector_type_name":"OpenAEV Implant",
-                          "injector_contract_domains":[]
+                          "injector_contract_domains":[],
+                          "injector_contract_tags":[]
                         }
                         """,
                     injectorContractInternalId,
@@ -744,7 +777,8 @@ public class InjectorContractApiTest extends IntegrationTest {
       void fetchByInternalIdFailsWithNotFound() throws Exception {
         mvc.perform(
                 get(INJECTOR_CONTRACT_URL + "/" + injectorContractInternalId)
-                    .contentType(MediaType.APPLICATION_JSON))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().isNotFound());
       }
 
@@ -766,7 +800,8 @@ public class InjectorContractApiTest extends IntegrationTest {
         mvc.perform(
                 put(INJECTOR_CONTRACT_URL + "/" + injectorContractInternalId + "/mapping")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(mapper.writeValueAsString(input)))
+                    .content(mapper.writeValueAsString(input))
+                    .with(csrf()))
             .andExpect(status().isNotFound());
       }
 
@@ -775,7 +810,8 @@ public class InjectorContractApiTest extends IntegrationTest {
       void deleteContractFailsWithNotFound() throws Exception {
         mvc.perform(
                 delete(INJECTOR_CONTRACT_URL + "/" + injectorContractInternalId)
-                    .contentType(MediaType.APPLICATION_JSON))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().isNotFound());
       }
 
@@ -794,7 +830,8 @@ public class InjectorContractApiTest extends IntegrationTest {
         mvc.perform(
                 put(INJECTOR_CONTRACT_URL + "/" + injectorContractInternalId)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(mapper.writeValueAsString(input)))
+                    .content(mapper.writeValueAsString(input))
+                    .with(csrf()))
             .andExpect(status().isNotFound());
       }
     }
@@ -809,7 +846,10 @@ public class InjectorContractApiTest extends IntegrationTest {
     @Test
     @DisplayName("When external ID is empty, fetching by External ID fails with NOT FOUND")
     void whenExternalIdIsNull_FetchingByExternalIdFailsWithBadRequest() throws Exception {
-      mvc.perform(get(INJECTOR_CONTRACT_URL + "//").contentType(MediaType.APPLICATION_JSON))
+      mvc.perform(
+              get(INJECTOR_CONTRACT_URL + "//")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
           .andExpect(status().isNotFound());
     }
 
@@ -838,9 +878,7 @@ public class InjectorContractApiTest extends IntegrationTest {
         assertThatThrownBy(this::createStaticInjectorContract)
             .hasCauseInstanceOf(BatchUpdateException.class)
             .cause()
-            .hasCauseInstanceOf(PSQLException.class)
-            .hasMessageContaining(
-                "Key (injector_contract_external_id)=(" + externalId + ") already exists");
+            .hasMessageContaining("injectors_contracts_injector_contract_external_id_key");
       }
 
       @Test
@@ -861,7 +899,8 @@ public class InjectorContractApiTest extends IntegrationTest {
         mvc.perform(
                 put(INJECTOR_CONTRACT_URL + "/" + externalId + "/mapping")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(mapper.writeValueAsString(input)))
+                    .content(mapper.writeValueAsString(input))
+                    .with(csrf()))
             .andExpect(status().isOk());
       }
 
@@ -876,7 +915,8 @@ public class InjectorContractApiTest extends IntegrationTest {
         mvc.perform(
                 put(INJECTOR_CONTRACT_URL + "/" + externalId + "/mapping")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(mapper.writeValueAsString(input)))
+                    .content(mapper.writeValueAsString(input))
+                    .with(csrf()))
             .andExpect(status().isNotFound());
       }
 
@@ -900,7 +940,8 @@ public class InjectorContractApiTest extends IntegrationTest {
         mvc.perform(
                 put(INJECTOR_CONTRACT_URL + "/" + externalId + "/mapping")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(mapper.writeValueAsString(input)))
+                    .content(mapper.writeValueAsString(input))
+                    .with(csrf()))
             .andExpect(status().isOk());
       }
 
@@ -915,7 +956,8 @@ public class InjectorContractApiTest extends IntegrationTest {
         mvc.perform(
                 put(INJECTOR_CONTRACT_URL + "/" + externalId + "/mapping")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(mapper.writeValueAsString(input)))
+                    .content(mapper.writeValueAsString(input))
+                    .with(csrf()))
             .andExpect(status().isNotFound());
       }
 
@@ -926,7 +968,8 @@ public class InjectorContractApiTest extends IntegrationTest {
         String body =
             mvc.perform(
                     get(INJECTOR_CONTRACT_URL + "/" + externalId)
-                        .contentType(MediaType.APPLICATION_JSON))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -934,6 +977,7 @@ public class InjectorContractApiTest extends IntegrationTest {
 
         assertThatJson(body)
             .whenIgnoringPaths("injector_contract_created_at", "injector_contract_updated_at")
+            .when(Option.IGNORING_EXTRA_FIELDS)
             .isEqualTo(mapper.writeValueAsString(ic));
       }
 
@@ -943,17 +987,12 @@ public class InjectorContractApiTest extends IntegrationTest {
 
         @Test
         @DisplayName("Deleting a non custom contract fails")
-        void deleteNonCustomContractFails() {
-          assertThatThrownBy(
-                  () ->
-                      mvc.perform(
-                              delete(INJECTOR_CONTRACT_URL + "/" + externalId)
-                                  .contentType(MediaType.APPLICATION_JSON))
-                          .andReturn())
-              .hasCauseInstanceOf(IllegalArgumentException.class)
-              .hasMessageEndingWith(
-                  "This injector contract can't be removed because is not a custom one: "
-                      + externalId);
+        void deleteNonCustomContractFails() throws Exception {
+          mvc.perform(
+                  delete(INJECTOR_CONTRACT_URL + "/" + externalId)
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isBadRequest());
         }
 
         @Test
@@ -976,7 +1015,8 @@ public class InjectorContractApiTest extends IntegrationTest {
 
           mvc.perform(
                   delete(INJECTOR_CONTRACT_URL + "/" + customContract.getExternalId())
-                      .contentType(MediaType.APPLICATION_JSON))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
               .andExpect(status().isOk());
         }
       }
@@ -1011,7 +1051,8 @@ public class InjectorContractApiTest extends IntegrationTest {
             mvc.perform(
                     put(INJECTOR_CONTRACT_URL + "/" + externalId)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(input)))
+                        .content(mapper.writeValueAsString(input))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -1050,7 +1091,8 @@ public class InjectorContractApiTest extends IntegrationTest {
             mvc.perform(
                     post(INJECTOR_CONTRACT_URL)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(input)))
+                        .content(mapper.writeValueAsString(input))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -1058,6 +1100,7 @@ public class InjectorContractApiTest extends IntegrationTest {
 
         assertThatJson(response)
             .whenIgnoringPaths("injector_contract_created_at", "injector_contract_updated_at")
+            .when(Option.IGNORING_EXTRA_FIELDS)
             .isEqualTo(
                 String.format(
                     """
@@ -1068,13 +1111,14 @@ public class InjectorContractApiTest extends IntegrationTest {
                                     "injector_contract_content":"{\\"fields\\":[]}",
                                     "injector_contract_custom":true,"injector_contract_needs_executor":false,
                                     "injector_contract_platforms":[],"injector_contract_payload":null,
-                                    "injector_contract_injector":"49229430-b5b5-431f-ba5b-f36f599b0144",
+                                    "injector_contract_injectors":["49229430-b5b5-431f-ba5b-f36f599b0144"],
+                                    "injector_contract_injector_names":{"49229430-b5b5-431f-ba5b-f36f599b0144":"OpenAEV Implant"},
                                     "injector_contract_attack_patterns":[],"injector_contract_vulnerabilities":[],
                                     "injector_contract_atomic_testing":true,
                                     "injector_contract_import_available":false,"injector_contract_arch":null,
                                     "injector_contract_injector_type":"openaev_implant",
-                                    "injector_contract_injector_type_name":"OpenAEV Implant",
-                                    "injector_contract_domains":[]
+                                    "injector_contract_domains":[],
+                                    "injector_contract_tags":[]
                                   }""",
                     newId));
       }
@@ -1099,20 +1143,16 @@ public class InjectorContractApiTest extends IntegrationTest {
             mvc.perform(
                     post(INJECTOR_CONTRACT_URL)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(input)))
+                        .content(mapper.writeValueAsString(input))
+                        .with(csrf()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
 
         assertThatJson(response)
-            .whenIgnoringPaths(
-                "injector_contract_created_at",
-                "injector_contract_updated_at",
-                "injector_contract_domains[*].domain_created_at",
-                "injector_contract_domains[*].domain_updated_at",
-                "injector_contract_domains[*].domain_id",
-                "injector_contract_domains[*].listened")
+            .whenIgnoringPaths("injector_contract_created_at", "injector_contract_updated_at")
+            .when(Option.IGNORING_EXTRA_FIELDS)
             .isEqualTo(
                 String.format(
                     """
@@ -1123,15 +1163,16 @@ public class InjectorContractApiTest extends IntegrationTest {
                                       "injector_contract_content":"{\\"fields\\":[]}",
                                       "injector_contract_custom":true,"injector_contract_needs_executor":false,
                                       "injector_contract_platforms":[],"injector_contract_payload":null,
-                                      "injector_contract_injector":"41b4dd55-5bd1-4614-98cd-9e3770753306",
+                                      "injector_contract_injectors":["41b4dd55-5bd1-4614-98cd-9e3770753306"],
+                                      "injector_contract_injector_names":{"41b4dd55-5bd1-4614-98cd-9e3770753306":"Email"},
                                       "injector_contract_attack_patterns":[],"injector_contract_vulnerabilities":[],
                                       "injector_contract_atomic_testing":true,
                                       "injector_contract_import_available":false,"injector_contract_arch":null,
                                       "injector_contract_injector_type":"openaev_email",
-                                      "injector_contract_injector_type_name":"Email",
-                                      "injector_contract_domains":[{domain_name: "%s", domain_color: "%s"}]
+                                      "injector_contract_domains":["%s"],
+                                      "injector_contract_tags": []
                                     }""",
-                    newId, domain.getName(), domain.getColor()));
+                    newId, domain.getId()));
       }
 
       @Test
@@ -1139,7 +1180,8 @@ public class InjectorContractApiTest extends IntegrationTest {
       void fetchByExternalIdFailsWithNotFound() throws Exception {
         mvc.perform(
                 get(INJECTOR_CONTRACT_URL + "/" + externalId)
-                    .contentType(MediaType.APPLICATION_JSON))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().isNotFound());
       }
 
@@ -1161,7 +1203,8 @@ public class InjectorContractApiTest extends IntegrationTest {
         mvc.perform(
                 put(INJECTOR_CONTRACT_URL + "/" + externalId + "/mapping")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(mapper.writeValueAsString(input)))
+                    .content(mapper.writeValueAsString(input))
+                    .with(csrf()))
             .andExpect(status().isNotFound());
       }
 
@@ -1170,7 +1213,8 @@ public class InjectorContractApiTest extends IntegrationTest {
       void deleteContractFailsWithNotFound() throws Exception {
         mvc.perform(
                 delete(INJECTOR_CONTRACT_URL + "/" + externalId)
-                    .contentType(MediaType.APPLICATION_JSON))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().isNotFound());
       }
 
@@ -1189,7 +1233,8 @@ public class InjectorContractApiTest extends IntegrationTest {
         mvc.perform(
                 put(INJECTOR_CONTRACT_URL + "/" + externalId)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(mapper.writeValueAsString(input)))
+                    .content(mapper.writeValueAsString(input))
+                    .with(csrf()))
             .andExpect(status().isNotFound());
       }
     }
@@ -1220,15 +1265,16 @@ public class InjectorContractApiTest extends IntegrationTest {
     void WithClassicSearchPaginationInput() throws Exception {
       SearchPaginationInput input =
           PaginationFixture.simpleSearchWithAndOperator(
-              "injector_contract_injector",
+              "injector_contract_injectors",
               injectorFixture.getWellKnownOaevImplantInjector().getId(),
-              Filters.FilterOperator.eq);
+              Filters.FilterOperator.contains);
 
       String response =
           mvc.perform(
                   post(INJECTOR_CONTRACT_URL + "/search")
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(mapper.writeValueAsString(input)))
+                      .content(mapper.writeValueAsString(input))
+                      .with(csrf()))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -1251,16 +1297,17 @@ public class InjectorContractApiTest extends IntegrationTest {
     void WithSearchPaginationWithSerialisationOptionsInput() throws Exception {
       InjectorContractSearchPaginationInput input =
           PaginationFixture.optionedSearchWithAndOperator(
-              "injector_contract_injector",
+              "injector_contract_injectors",
               injectorFixture.getWellKnownOaevImplantInjector().getId(),
-              Filters.FilterOperator.eq);
+              Filters.FilterOperator.contains);
       input.setIncludeFullDetails(false);
 
       String response =
           mvc.perform(
                   post(INJECTOR_CONTRACT_URL + "/search")
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(mapper.writeValueAsString(input)))
+                      .content(mapper.writeValueAsString(input))
+                      .with(csrf()))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -1301,12 +1348,12 @@ public class InjectorContractApiTest extends IntegrationTest {
                 UserFixture.getAdminUser(
                     "Admin", "User", UUID.randomUUID() + "@unittests.invalid"));
         case WITH_BYPASS -> {
-          GroupComposer.Composer bypassGroup =
-              groupComposer
-                  .forGroup(GroupFixture.createGroup())
+          TenantGroupComposer.Composer bypassGroup =
+              tenantGroupComposer
+                  .forGroup(TenantGroupFixture.getGroup())
                   .withRole(
-                      roleComposer.forRole(
-                          RoleFixture.getRole(new HashSet<>(Set.of(Capability.BYPASS)))));
+                      tenantRoleComposer.forRole(
+                          TenantRoleFixture.getRole(new HashSet<>(Set.of(Capability.BYPASS)))));
 
           yield userComposer
               .forUser(
@@ -1314,12 +1361,13 @@ public class InjectorContractApiTest extends IntegrationTest {
               .withGroup(bypassGroup);
         }
         case WITH_ACCESS_PAYLOADS -> {
-          GroupComposer.Composer payloadsGroup =
-              groupComposer
-                  .forGroup(GroupFixture.createGroup())
+          TenantGroupComposer.Composer payloadsGroup =
+              tenantGroupComposer
+                  .forGroup(TenantGroupFixture.getGroup())
                   .withRole(
-                      roleComposer.forRole(
-                          RoleFixture.getRole(new HashSet<>(Set.of(Capability.ACCESS_PAYLOADS)))));
+                      tenantRoleComposer.forRole(
+                          TenantRoleFixture.getRole(
+                              new HashSet<>(Set.of(Capability.ACCESS_PAYLOADS)))));
 
           yield userComposer
               .forUser(
@@ -1332,10 +1380,10 @@ public class InjectorContractApiTest extends IntegrationTest {
           grant.setGrantResourceType(Grant.GRANT_RESOURCE_TYPE.PAYLOAD);
           grant.setName(Grant.GRANT_TYPE.OBSERVER);
           grant.setResourceId(testPayload.getId());
-          GroupComposer.Composer observerGroup =
-              groupComposer
-                  .forGroup(GroupFixture.createGroup())
-                  .withRole(roleComposer.forRole(RoleFixture.getRole(new HashSet<>())))
+          TenantGroupComposer.Composer observerGroup =
+              tenantGroupComposer
+                  .forGroup(TenantGroupFixture.getGroup())
+                  .withRole(tenantRoleComposer.forRole(TenantRoleFixture.getRole(new HashSet<>())))
                   .withGrant(grantComposer.forGrant(grant));
 
           yield userComposer
@@ -1351,16 +1399,13 @@ public class InjectorContractApiTest extends IntegrationTest {
     private int preExistingContractsCount;
 
     private void createStaticInjectorContract(boolean addPayload) {
-      Set<Domain> domains =
-          domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
-
       InjectorContractComposer.Composer icComposer =
           injectorContractComposer
               .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+              .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()).persist())
               .withInjector(injectorFixture.getWellKnownOaevImplantInjector());
       if (addPayload) {
-        icComposer.withPayload(
-            payloadComposer.forPayload(PayloadFixture.createDefaultCommand(domains)));
+        icComposer.withPayload(payloadComposer.forPayload(PayloadFixture.createDefaultCommand()));
       }
       InjectorContract ic = icComposer.persist().get();
       if (addPayload) {
@@ -1430,7 +1475,8 @@ public class InjectorContractApiTest extends IntegrationTest {
           mvc.perform(
                   get(INJECTOR_CONTRACT_URL)
                       .with(authentication(auth))
-                      .contentType(MediaType.APPLICATION_JSON))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
               .andDo(print())
               .andExpect(status().is(HttpStatus.SC_OK));
 
@@ -1474,7 +1520,8 @@ public class InjectorContractApiTest extends IntegrationTest {
                   post(INJECTOR_CONTRACT_URL + "/search")
                       .with(authentication(auth))
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(searchPaginationInput)))
+                      .content(asJsonString(searchPaginationInput))
+                      .with(csrf()))
               .andExpect(status().is(HttpStatus.SC_OK));
 
       // Verify pagination response
@@ -1515,7 +1562,8 @@ public class InjectorContractApiTest extends IntegrationTest {
                   post(INJECTOR_CONTRACT_URL + "/search")
                       .with(authentication(auth))
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(searchPaginationInput)))
+                      .content(asJsonString(searchPaginationInput))
+                      .with(csrf()))
               .andExpect(status().is(HttpStatus.SC_OK));
 
       // Verify pagination response with full details
@@ -1548,8 +1596,9 @@ public class InjectorContractApiTest extends IntegrationTest {
       em.flush();
 
       Set<Domain> endpointDomain =
-          domainComposer.forDomain(PresetDomain.ENDPOINT).persist().getSet();
-      Set<Domain> cloudDomain = domainComposer.forDomain(PresetDomain.CLOUD).persist().getSet();
+          domainComposer.forDomain(PresetDomain.getEndpoint()).persist().getSet();
+      Set<Domain> cloudDomain =
+          domainComposer.forDomain(PresetDomain.getCloud()).persist().getSet();
 
       Injector validInjector = injectorFixture.getWellKnownOaevImplantInjector();
 
@@ -1580,7 +1629,8 @@ public class InjectorContractApiTest extends IntegrationTest {
           mvc.perform(
                   post(INJECTOR_CONTRACT_URL + "/domain-counts")
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(input)))
+                      .content(asJsonString(input))
+                      .with(csrf()))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -1603,6 +1653,105 @@ public class InjectorContractApiTest extends IntegrationTest {
             ]
             """,
                   endpointDomain.iterator().next().getId(), cloudDomain.iterator().next().getId()));
+    }
+  }
+
+  @Nested
+  @DisplayName("Builtin contract registration (applyBuiltinContractData)")
+  class BuiltinContractRegistration {
+
+    private Contract buildSourceContract(String id, List<String> attackPatternExternalIds) {
+      ContractConfig config =
+          new ContractConfig(
+              "test-type",
+              Map.of(SupportedLanguage.en, "Test Injector"),
+              "#000000",
+              "#FFFFFF",
+              null);
+      Contract contract =
+          Contract.executableContract(
+              config,
+              id,
+              Map.of(SupportedLanguage.en, "Test Contract"),
+              ContractDef.contractBuilder()
+                  .mandatory(ContractText.textField("field1", "Field 1"))
+                  .build(),
+              List.of(Endpoint.PLATFORM_TYPE.Generic),
+              false,
+              Set.of());
+      attackPatternExternalIds.forEach(contract::addAttackPattern);
+      return contract;
+    }
+
+    @Test
+    @DisplayName(
+        "given source contract with attack pattern external IDs — should resolve and set attack patterns from DB")
+    void givenSourceWithAttackPatterns_shouldResolveAndSetAttackPatterns() {
+      // -- ARRANGE --
+      Injector injector = injectorFixture.getWellKnownOaevImplantInjector();
+
+      AttackPattern ap1 =
+          attackPatternComposer
+              .forAttackPattern(
+                  AttackPatternFixture.createAttackPatternsWithExternalId("T1566.001"))
+              .persist()
+              .get();
+      AttackPattern ap2 =
+          attackPatternComposer
+              .forAttackPattern(
+                  AttackPatternFixture.createAttackPatternsWithExternalId("T1059.001"))
+              .persist()
+              .get();
+      em.flush();
+
+      String contractId = UUID.randomUUID().toString();
+      Contract source = buildSourceContract(contractId, List.of("T1566.001", "T1059.001"));
+
+      // -- ACT --
+      InjectorContract result =
+          injectorContractService.createBuiltinInjectorContract(source, injector, true);
+
+      // -- ASSERT --
+      assertThat(result.getAttackPatterns())
+          .extracting(AttackPattern::getExternalId)
+          .containsExactlyInAnyOrder("T1566.001", "T1059.001");
+    }
+
+    @Test
+    @DisplayName(
+        "given ObjectMapper that fails to serialize — should throw IllegalStateException wrapping cause")
+    void givenSerializationFailure_shouldThrowIllegalStateException() throws Exception {
+      // -- ARRANGE --
+      Injector injector = injectorFixture.getWellKnownOaevImplantInjector();
+
+      String contractId = UUID.randomUUID().toString();
+      Contract source = buildSourceContract(contractId, List.of());
+
+      // Temporarily replace the mapper in the service with a spy that throws
+      ObjectMapper originalMapper =
+          (ObjectMapper)
+              org.springframework.test.util.ReflectionTestUtils.getField(
+                  injectorContractService, "mapper");
+      ObjectMapper spyMapper = org.mockito.Mockito.spy(originalMapper);
+      org.mockito.Mockito.doThrow(
+              new com.fasterxml.jackson.core.JsonProcessingException("Simulated failure") {})
+          .when(spyMapper)
+          .writeValueAsString(source);
+      org.springframework.test.util.ReflectionTestUtils.setField(
+          injectorContractService, "mapper", spyMapper);
+
+      try {
+        // -- ACT & ASSERT --
+        assertThatThrownBy(
+                () -> injectorContractService.createBuiltinInjectorContract(source, injector, true))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("Failed to serialize contract content for: " + contractId)
+            .hasCauseInstanceOf(com.fasterxml.jackson.core.JsonProcessingException.class);
+      } finally {
+        // Restore the original mapper
+        org.springframework.test.util.ReflectionTestUtils.setField(
+            injectorContractService, "mapper", originalMapper);
+      }
     }
   }
 }

@@ -21,7 +21,6 @@ import jakarta.annotation.Resource;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -30,7 +29,6 @@ public class MailingService {
 
   @Resource protected ObjectMapper mapper;
 
-  private final ApplicationContext context;
   private final UserRepository userRepository;
   private final InjectorContractRepository injectorContractRepository;
   private final ExecutionContextService executionContextService;
@@ -48,7 +46,7 @@ public class MailingService {
             .findById(EmailContract.EMAIL_DEFAULT)
             .orElseThrow(ElementNotFoundException::new);
     inject.setInjectorContract(emailContract);
-    inject.setInjector(emailContract.getInjector());
+    inject.setInjector(emailContract.getFirstInjector());
 
     inject
         .getInjectorContract()
@@ -80,7 +78,7 @@ public class MailingService {
               io.openaev.executors.Injector executor =
                   managerFactory
                       .getManager()
-                      .requestInjectorExecutorByType(injectorContract.getInjector().getType());
+                      .requestInjectorExecutorByType(injectorContract.getFirstInjector().getType());
               executor.executeInjection(injection);
             });
   }

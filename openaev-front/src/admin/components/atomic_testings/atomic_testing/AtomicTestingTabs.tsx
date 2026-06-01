@@ -57,16 +57,6 @@ const AtomicTestingTabs = ({ injectResultOverview }: Props) => {
         label={t('Overview')}
         className={classes.item}
       />
-      {(injectResultOverview.inject_injector_contract?.injector_contract_payload
-        || externalContractTypesWithFindings.includes(injectResultOverview.inject_type ?? '')) && (
-        <Tab
-          component={Link}
-          to={`/admin/atomic_testings/${injectResultOverview.inject_id}/findings`}
-          value={`/admin/atomic_testings/${injectResultOverview.inject_id}/findings`}
-          label={t('Findings')}
-          className={classes.item}
-        />
-      )}
       <Tab
         component={Link}
         to={`/admin/atomic_testings/${injectResultOverview.inject_id}/detail`}
@@ -79,7 +69,17 @@ const AtomicTestingTabs = ({ injectResultOverview }: Props) => {
           component={Link}
           to={`/admin/atomic_testings/${injectResultOverview.inject_id}/payload_info`}
           value={`/admin/atomic_testings/${injectResultOverview.inject_id}/payload_info`}
-          label={t('Payload info')}
+          label={t('Action info')}
+          className={classes.item}
+        />
+      )}
+      {(injectResultOverview.inject_injector_contract?.injector_contract_payload
+        || externalContractTypesWithFindings.includes(injectResultOverview.inject_type ?? '')) && (
+        <Tab
+          component={Link}
+          to={`/admin/atomic_testings/${injectResultOverview.inject_id}/findings`}
+          value={`/admin/atomic_testings/${injectResultOverview.inject_id}/findings`}
+          label={t('Findings')}
           className={classes.item}
         />
       )}

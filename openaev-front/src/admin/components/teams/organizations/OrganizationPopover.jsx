@@ -1,6 +1,6 @@
 import { MoreVert } from '@mui/icons-material';
 import {
-  Dialog, DialogActions, DialogContent, DialogContentText,
+  Button, Dialog, DialogActions, DialogContent, DialogContentText,
   IconButton, Menu, MenuItem,
 } from '@mui/material';
 import * as PropTypes from 'prop-types';
@@ -9,7 +9,6 @@ import { Component } from 'react';
 import { connect } from 'react-redux';
 
 import { deleteOrganization, updateOrganization } from '../../../../actions/Organization';
-import Button from '../../../../components/common/button/Button';
 import Drawer from '../../../../components/common/Drawer';
 import Transition from '../../../../components/common/Transition';
 import inject18n from '../../../../components/i18n';
@@ -85,7 +84,7 @@ class OrganizationPopoverComponent extends Component {
     )(organization);
     return (
       <div>
-        <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
+        <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
           <IconButton
             onClick={this.handlePopoverOpen.bind(this)}
             aria-haspopup="true"
@@ -119,10 +118,10 @@ class OrganizationPopoverComponent extends Component {
             </DialogContentText>
           </DialogContent>
           <DialogActions>
-            <Button variant="secondary" onClick={this.handleCloseDelete.bind(this)}>
+            <Button onClick={this.handleCloseDelete.bind(this)}>
               {t('Cancel')}
             </Button>
-            <Button variant="primary" onClick={this.submitDelete.bind(this)}>
+            <Button color="secondary" onClick={this.submitDelete.bind(this)}>
               {t('Delete')}
             </Button>
           </DialogActions>

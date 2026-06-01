@@ -1,9 +1,10 @@
 package io.openaev.service;
 
 import io.openaev.database.model.Exercise;
+import io.openaev.database.model.ExerciseStatus;
 import io.openaev.database.model.SecurityCoverageSendJob;
+import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.SecurityCoverageSendJobRepository;
-import io.openaev.rest.exercise.service.ExerciseService;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -18,7 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class SecurityCoverageSendJobService {
   private final SecurityCoverageSendJobRepository securityCoverageSendJobRepository;
-  private final ExerciseService exerciseService;
+  private final ExerciseRepository exerciseRepository;
   private final EntityManager entityManager;
 
   public void createOrUpdateCoverageSendJobForSimulationsIfReady(List<Exercise> exercises) {
@@ -84,7 +85,8 @@ public class SecurityCoverageSendJobService {
   private boolean shouldCreateCoverageSendJob(Exercise exercise) {
     return exercise != null
         && exercise.getSecurityCoverage() != null
-        && exerciseService.isFinished(exercise)
-        && exerciseService.getFollowingSimulation(exercise).isEmpty();
+        && ExerciseStatus.FINISHED.equals(exercise.getStatus()) // inlined
+        && (exercise.getScenario() == null
+            || exerciseRepository.following(exercise).isEmpty()); // inlined
   }
 }

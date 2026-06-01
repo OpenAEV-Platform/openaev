@@ -6,7 +6,6 @@ import static java.time.Instant.now;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.groupingBy;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.database.model.*;
@@ -28,13 +27,14 @@ import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.SecurityCoverageSendJobService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
+import io.openaev.utils.ExecutionTraceUtils;
 import jakarta.annotation.PostConstruct;
-import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.Spliterators;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -45,7 +45,6 @@ import org.quartz.DisallowConcurrentExecution;
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.EvaluationException;
@@ -92,8 +91,7 @@ public class InjectsExecutionJob implements Job {
       List.of(InjectExpectation.EXPECTATION_STATUS.SUCCESS);
 
   private final WorkflowService workflowService;
-  @Resource protected ObjectMapper mapper;
-  @Autowired private HealthCheckUtils healthCheckUtils;
+  private final HealthCheckUtils healthCheckUtils;
 
   @PostConstruct
   private void init() {
@@ -171,23 +169,27 @@ public class InjectsExecutionJob implements Job {
       return;
     }
 
-    List<InjectStatus> updatedStatuses =
-        pendingInjects.stream()
-            .map(
-                inject -> {
-                  InjectStatus status =
-                      inject.getStatus().orElseThrow(ElementNotFoundException::new);
-                  status.setName(ExecutionStatus.MAYBE_PREVENTED);
-                  status.addWarningTrace(
-                      "Execution delay detected: Inject exceeded the "
-                          + this.injectExecutionThreshold
-                          + " minutes threshold.",
-                      ExecutionTraceAction.EXECUTION);
-                  return status;
-                })
-            .collect(Collectors.toList());
+    for (Inject inject : pendingInjects) {
+      InjectStatus status = inject.getStatus().orElseThrow(ElementNotFoundException::new);
+      // Find agents that already have a COMPLETE trace
+      Set<String> completedAgentIds = ExecutionTraceUtils.getCompletedAgentIds(status.getTraces());
 
-    injectStatusService.saveAll(updatedStatuses);
+      // Get all agents expected to execute this inject
+      List<Agent> allAgents = injectService.getAgentsByInject(inject);
+
+      // Add a COMPLETE/TIMEOUT trace for each agent that never responded
+      for (Agent agent : allAgents) {
+        if (!completedAgentIds.contains(agent.getId())) {
+          ExecutionTraceUtils.addTimeoutTrace(status, agent, this.injectExecutionThreshold);
+        }
+      }
+      injectStatusService.updateFinalInjectStatus(status);
+    }
+
+    injectStatusService.saveAll(
+        pendingInjects.stream()
+            .map(inject -> inject.getStatus().orElseThrow(ElementNotFoundException::new))
+            .collect(Collectors.toList()));
   }
 
   private void executeInject(ExecutableInject executableInject) throws Exception {

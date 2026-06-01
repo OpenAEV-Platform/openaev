@@ -78,7 +78,7 @@ class InjectExpectationServiceTest {
     Payload payload = PayloadFixture.createDefaultCommand();
     payload.setOutputParsers(outputParser != null ? Set.of(outputParser) : Set.of());
     InjectorContract contract =
-        InjectorContractFixture.createPayloadInjectorContract(injector, payload);
+        InjectorContractFixture.createPayloadInjectorContractWithDefaultDomain(injector, payload);
     inject.setInjectorContract(contract);
   }
 

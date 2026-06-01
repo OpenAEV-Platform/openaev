@@ -19,10 +19,14 @@ import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
+import io.openaev.rest.custom_dashboard.CustomDashboardService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.injector_contract.InjectorContractService;
+import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
+import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
@@ -58,6 +62,7 @@ class ScenarioServiceTest extends IntegrationTest {
   @Autowired private ArticleRepository articleRepository;
   @Autowired InjectRepository injectRepository;
   @Autowired private LessonsCategoryRepository lessonsCategoryRepository;
+  @Autowired private TagRepository tagRepository;
   @Autowired private HealthCheckUtils healthCheckUtils;
 
   @Autowired private ScenarioComposer scenarioComposer;
@@ -74,8 +79,14 @@ class ScenarioServiceTest extends IntegrationTest {
   @Mock private InjectService injectService;
   @Mock private TagRuleService tagRuleService;
   @Mock private UserService userService;
+  @Mock private TenantSettingsService tenantSettingsService;
+  @Mock private CustomDashboardService customDashboardService;
+  @Mock private InjectorContractService injectorContractService;
   @InjectMocks private ScenarioService scenarioService;
   @Autowired private ScenarioMapper scenarioMapper;
+
+  @Mock private WorkflowService workflowService;
+  @Autowired private PreviewFeatureService previewFeatureService;
 
   @Mock private LicenseCacheManager licenseCacheManager;
   @Autowired private ExerciseMapper exerciseMapper;
@@ -108,10 +119,15 @@ class ScenarioServiceTest extends IntegrationTest {
             tagRuleService,
             injectService,
             userService,
+            tenantSettingsService,
+            customDashboardService,
+            injectorContractService,
             injectRepository,
             lessonsCategoryRepository,
+            tagRepository,
             healthCheckUtils,
-            scenarioMapper);
+            scenarioMapper,
+            workflowService);
   }
 
   @AfterAll
@@ -457,6 +473,30 @@ class ScenarioServiceTest extends IntegrationTest {
 
   @Test
   @Transactional
+  public void given_disabledInject_should_notReturnMissingContent() {
+    // Arrange
+    Inject inject = new Inject();
+    inject.setEnabled(false);
+    Scenario scenario = new Scenario();
+    scenario.setInjects(new HashSet<>(List.of(inject)));
+    this.scenarioRepository.save(scenario);
+
+    // Act
+    when(this.injectService.runChecks(any())).thenReturn(List.of());
+    List<HealthCheck> healthchecks = scenarioService.runChecks(scenario.getId());
+
+    // Assert
+    boolean hasMissingContent =
+        healthchecks.stream()
+            .anyMatch(
+                hc ->
+                    HealthCheck.Type.INJECT.equals(hc.getType())
+                        && HealthCheck.Detail.NOT_READY.equals(hc.getDetail()));
+    assertFalse(hasMissingContent, "Disabled inject should not trigger MISSING_CONTENT check");
+  }
+
+  @Test
+  @Transactional
   public void testRunChecksForTeamsIssue() {
     // PREPARE
     Scenario scenario = new Scenario();
@@ -467,9 +507,11 @@ class ScenarioServiceTest extends IntegrationTest {
           ExternalServiceDependency.SMTP, ExternalServiceDependency.IMAP
         });
     InjectorContract injectorContract = InjectorContractFixture.createDefaultInjectorContract();
-    injectorContract.setInjector(injector);
+    injectorContract.getInjectors().clear();
+    injectorContract.addInjector(injector);
 
     Inject inject = InjectFixture.createInject(injectorContract, "test");
+    inject.setInjector(injector);
     scenario.setInjects(new HashSet<>(List.of(inject)));
     this.scenarioRepository.save(scenario);
 

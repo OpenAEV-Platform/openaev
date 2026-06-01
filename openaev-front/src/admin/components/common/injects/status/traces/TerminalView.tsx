@@ -1,10 +1,11 @@
-import { Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useCallback, useMemo } from 'react';
 
 import ExpandableSection from '../../../../../../components/common/ExpandableSection';
 import Terminal, { type TerminalLine } from '../../../../../../components/common/terminal/Terminal';
 import { type ExecutionTraceOutput, type PayloadCommandBlock } from '../../../../../../utils/api-types';
+import AgentStatusHeader from './AgentStatusHeader';
+import useAgentStatus from './useAgentStatus';
 
 interface Props {
   payloadCommandBlocks: PayloadCommandBlock[];
@@ -14,9 +15,9 @@ interface Props {
 
 const TerminalView: FunctionComponent<Props> = ({ payloadCommandBlocks, traces, forceExpanded }) => {
   const theme = useTheme();
+  const agentStatus = useAgentStatus(traces);
 
   const firstTrace = traces[0];
-
   const parseTraceOutput = useCallback((trace: ExecutionTraceOutput) => {
     try {
       const parsed = JSON.parse(trace.execution_message);
@@ -77,12 +78,6 @@ const TerminalView: FunctionComponent<Props> = ({ payloadCommandBlocks, traces, 
     ];
   }, [traces, parseTraceOutput, commandLine, firstTrace]);
 
-  const header = (
-    <Typography gutterBottom sx={{ mr: theme.spacing(1.5) }}>
-      {firstTrace?.execution_agent?.agent_executed_by_user}
-    </Typography>
-  );
-
   if (!firstTrace) {
     return null;
   }
@@ -90,12 +85,14 @@ const TerminalView: FunctionComponent<Props> = ({ payloadCommandBlocks, traces, 
   return (
     <ExpandableSection
       forceExpanded={forceExpanded}
-      header={header}
+      header={<AgentStatusHeader agentName={agentStatus.agentName} />}
     >
-      <Terminal
-        maxHeight={400}
-        lines={lines}
-      />
+      <div style={{ margin: theme.spacing(1, 0) }}>
+        <Terminal
+          maxHeight={400}
+          lines={lines}
+        />
+      </div>
     </ExpandableSection>
   );
 }

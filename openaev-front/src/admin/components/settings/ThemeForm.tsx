@@ -185,10 +185,10 @@ const ThemeForm: FunctionComponent<Props> = ({
       />
 
       <div style={{ marginTop: 20 }}>
-        <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
+        <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
           <Button
             variant="contained"
-            color="primary"
+            color="secondary"
             type="submit"
             disabled={!isDirty || isSubmitting}
           >

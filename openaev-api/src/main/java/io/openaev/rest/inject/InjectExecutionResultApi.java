@@ -1,5 +1,7 @@
 package io.openaev.rest.inject;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+
 import io.openaev.aop.AccessControl;
 import io.openaev.api.inject_result.dto.InjectResultPayloadExecutionOutput;
 import io.openaev.database.model.Action;
@@ -21,10 +23,14 @@ import org.springframework.web.bind.annotation.RestController;
 public class InjectExecutionResultApi extends RestBehavior {
 
   public static final String INJECT_EXECUTION_URI = "/api/injects/{injectId}";
+  private static final String TENANT_INJECT_EXECUTION_URI = TENANT_PREFIX + "/injects/{injectId}";
 
   private final InjectExecutionResultService injectExecutionService;
 
-  @GetMapping(INJECT_EXECUTION_URI + "/execution-result")
+  @GetMapping({
+    INJECT_EXECUTION_URI + "/execution-result",
+    TENANT_INJECT_EXECUTION_URI + "/execution-result"
+  })
   @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.READ,

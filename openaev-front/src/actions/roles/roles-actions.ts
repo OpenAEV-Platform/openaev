@@ -1,6 +1,6 @@
 import type { Dispatch } from 'redux';
 
-import type { RoleCreateInput } from '../../admin/components/settings/roles/RoleForm';
+import { type RoleCreateInput } from '../../admin/components/settings/roles/tenant_roles/RoleForm';
 import { delReferential, getReferential, postReferential, putReferential, simplePostCall } from '../../utils/Action';
 import { type RoleOutput, type SearchPaginationInput } from '../../utils/api-types';
 import * as schema from '../Schema';

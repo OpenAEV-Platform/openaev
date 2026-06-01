@@ -1,14 +1,17 @@
 import { PlayArrowOutlined, Stop } from '@mui/icons-material';
-import { Button as MuiButton, Dialog, DialogActions, DialogContent, DialogContentText, Tooltip, Typography } from '@mui/material';
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type Dispatch, type SetStateAction, useContext, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { playInjectsAssistantForScenario } from '../../../../actions/Inject';
-import { createRunningExerciseFromScenario, updateScenarioRecurrence } from '../../../../actions/scenarios/scenario-actions';
+import {
+  createRunningExerciseFromScenario,
+  searchScenarioHealthcheks,
+  updateScenarioRecurrence,
+} from '../../../../actions/scenarios/scenario-actions';
 import { type ScenariosHelper } from '../../../../actions/scenarios/scenario-helper';
-import Button from '../../../../components/common/button/Button';
 import LoaderDialog from '../../../../components/common/loader/LoaderDialog';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
@@ -16,6 +19,7 @@ import { SIMULATION_BASE_URL } from '../../../../constants/BaseUrls';
 import { useHelper } from '../../../../store';
 import {
   type Exercise,
+  type HealthCheck,
   type InjectAssistantInput,
   type Scenario,
 } from '../../../../utils/api-types';
@@ -26,6 +30,7 @@ import handle from '../../../../utils/period/Period';
 import { type PeriodExpressionHandler } from '../../../../utils/period/PeriodExpressionHandler';
 import useScenarioPermissions from '../../../../utils/permissions/useScenarioPermissions';
 import { truncate } from '../../../../utils/String';
+import { isFeatureEnabled } from '../../../../utils/utils';
 import { InjectContext } from '../../common/Context';
 import ScenarioAssistantDrawer from './scenario_assistant/ScenarioAssistantDrawer';
 import ScenarioPopover from './ScenarioPopover';
@@ -97,11 +102,25 @@ const ScenarioHeader = ({
   const [openScenarioAssistant, setOpenScenarioAssistant] = useState(openScenarioAssistantQueryParam === 'true');
   const [openLoaderDialog, setOpenLoaderDialog] = useState(false);
   const [isInjectAssistantLoading, setIsInjectAssistantLoading] = useState(false);
+  const [healthchecks, setHealthchecks] = useState<HealthCheck[]>([]);
   // Fetching data
   const { scenario }: { scenario: Scenario } = useHelper((helper: ScenariosHelper) => ({ scenario: helper.getScenario(scenarioId) }));
 
+  const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
+  const scenarioWorkflowId = (scenario as unknown as Record<string, unknown>).scenario_workflow_id as string | undefined;
+  const isScenarioChaining = isChainingFeatureEnabled && !!scenarioWorkflowId;
+  const isScopeMissing = isScenarioChaining
+    && healthchecks.some((hc: HealthCheck) => hc.type === ('SCOPE_DEFINITION' as HealthCheck['type']) && hc.detail === 'EMPTY');
+
   // Local
   const ended = scenario.scenario_recurrence_end && new Date(scenario.scenario_recurrence_end).getTime() < new Date().getTime();
+
+  useEffect(() => {
+    if (isChainingFeatureEnabled && scenarioWorkflowId) {
+      searchScenarioHealthcheks(scenarioId).then((result: { data: HealthCheck[] }) => setHealthchecks(result.data));
+    }
+  }, [scenarioId, scenario, isChainingFeatureEnabled]);
+
   const onSubmit = (cron: Cron, start: string, end?: string) => {
     dispatch(updateScenarioRecurrence(scenarioId, {
       scenario_recurrence: cron.toCronExpression(),
@@ -166,9 +185,9 @@ const ScenarioHeader = ({
         <div className={scenario.scenario_recurrence ? classes.statusScheduled : classes.statusNotScheduled} />
       </Tooltip>
       <div className={classes.actions}>
-        { canLaunch
+        {canLaunch
           && scenario.scenario_recurrence && !ended ? (
-              <MuiButton
+              <Button
                 style={{ marginRight: theme.spacing(1) }}
                 startIcon={<Stop />}
                 variant="outlined"
@@ -177,13 +196,13 @@ const ScenarioHeader = ({
                 onClick={stop}
               >
                 {t('Stop')}
-              </MuiButton>
+              </Button>
             )
           : (
               <>
-                {canManage
+                {canManage && !isScenarioChaining
                   && (
-                    <MuiButton
+                    <Button
                       style={{
                         marginRight: theme.spacing(1),
                         lineHeight: 'initial',
@@ -195,29 +214,38 @@ const ScenarioHeader = ({
                       onClick={() => setOpenScenarioAssistant(true)}
                     >
                       {t('Scenario assistant')}
-                    </MuiButton>
+                    </Button>
                   )}
                 {canLaunch
                   && (
-                    <MuiButton
-                      style={{
-                        marginRight: theme.spacing(1),
-                        lineHeight: 'initial',
-                      }}
-                      startIcon={<PlayArrowOutlined />}
-                      variant="contained"
-                      color="primary"
-                      size="small"
-                      onClick={() => setOpenInstantiateSimulationAndStart(true)}
+
+                    <Tooltip
+                      title={isScopeMissing ? t('A Chaining Scenario requires a defined scope.') : ''}
                     >
-                      {t('Launch now')}
-                    </MuiButton>
+                      <span style={{ display: 'inline-flex' }}>
+                        <Button
+                          style={{
+                            marginRight: theme.spacing(1),
+                            lineHeight: 'initial',
+                          }}
+                          startIcon={<PlayArrowOutlined />}
+                          variant="contained"
+                          color="primary"
+                          size="small"
+                          onClick={() => setOpenInstantiateSimulationAndStart(true)}
+                          disabled={isScopeMissing}
+
+                        >
+                          {t('Launch now')}
+                        </Button>
+                      </span>
+                    </Tooltip>
                   )}
               </>
             )}
         <ScenarioPopover
           scenario={scenario}
-          actions={['Duplicate', 'Update', 'Delete', 'Export']}
+          actions={isScenarioChaining ? ['Update', 'Delete'] : ['Duplicate', 'Update', 'Delete', 'Export']}
           onDelete={() => navigate('/admin/scenarios')}
         />
       </div>
@@ -243,11 +271,11 @@ const ScenarioHeader = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="secondary" onClick={() => setOpenInstantiateSimulationAndStart(false)}>
+          <Button onClick={() => setOpenInstantiateSimulationAndStart(false)}>
             {t('Cancel')}
           </Button>
           <Button
-            variant="primary"
+            color="secondary"
             onClick={async () => {
               setOpenInstantiateSimulationAndStart(false);
               const exercise: Exercise = (await createRunningExerciseFromScenario(scenarioId)).data;

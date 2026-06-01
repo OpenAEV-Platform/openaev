@@ -107,7 +107,7 @@ const ScenarioAssistantDrawer = ({ open, onClose, onSubmit }: Props) => {
 
   const onUseArianeClick = () => {
     if (!isEnterpriseEdition) {
-      setEEFeatureDetectedInfo(t('Ariane AI'));
+      setEEFeatureDetectedInfo(t('XTM One AI'));
       openEnterpriseEditionDialog();
     } else {
       setOpenArianeAIAssistantDialog(true);
@@ -240,7 +240,7 @@ const ScenarioAssistantDrawer = ({ open, onClose, onSubmit }: Props) => {
                 startIcon={<SvgIcon component={LogoXtmOneIcon} fontSize="small" inheritViewBox />}
                 endIcon={isEnterpriseEdition ? <></> : <span><EEChip /></span>}
               >
-                {t('Use Ariane')}
+                {t('Use XTM One')}
               </Button>
               <Button
                 variant="outlined"
@@ -261,7 +261,7 @@ const ScenarioAssistantDrawer = ({ open, onClose, onSubmit }: Props) => {
             <TextFieldController type="number" label={t('Number of injects by TTP')} name="inject_by_ttp_number" required />
             <Button
               variant="contained"
-              color="primary"
+              color="secondary"
               type="submit"
               style={{ marginLeft: 'auto' }}
               disabled={isSubmitting || !isDirty}

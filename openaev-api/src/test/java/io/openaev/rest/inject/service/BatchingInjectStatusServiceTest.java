@@ -3,17 +3,25 @@ package io.openaev.rest.inject.service;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-import io.openaev.database.model.*;
+import io.openaev.database.model.Agent;
+import io.openaev.database.model.ExecutionStatus;
+import io.openaev.database.model.Inject;
+import io.openaev.database.model.InjectStatus;
 import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionCallback;
 import io.openaev.rest.inject.form.InjectExecutionInput;
-import java.util.*;
+import io.openaev.service.queue.BatchQueueService;
+import java.io.IOException;
+import java.time.Instant;
+import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -28,10 +36,21 @@ class BatchingInjectStatusServiceTest {
   @Mock private StructuredOutputUtils structuredOutputUtils;
   @Mock private InjectExecutionService injectExecutionService;
 
+  @Mock private BatchQueueService<InjectExecutionCallback> injectTraceQueueService;
+
   @InjectMocks private BatchingInjectStatusService service;
 
   private static final String INJECT_ID = "inject-1";
   private static final String AGENT_ID = "agent-1";
+  private static final int MAX_RETRIES = 5;
+
+  @BeforeEach
+  void wireQueueService() {
+    // @InjectMocks does not set non-final fields with @Setter; wire it explicitly for the tests
+    // that exercise the requeue path. Tests that want to exercise the null-guard branch can
+    // override this via service.setInjectTraceQueueService(null).
+    service.setInjectTraceQueueService(injectTraceQueueService);
+  }
 
   private Inject createInjectWithPendingStatus(String injectId) {
     Inject inject = new Inject();
@@ -201,9 +220,7 @@ class BatchingInjectStatusServiceTest {
   class PendingStateGuardTests {
 
     @Test
-    @DisplayName(
-        "should not add callback to success list when complete action received for non-PENDING"
-            + " inject")
+    @DisplayName("should not process complete action for non-PENDING inject and queue it for retry")
     void shouldRejectCompleteActionForNonPendingInject() {
       // Inject is in EXECUTING state, not PENDING
       Inject inject = createInjectWithExecutingStatus(INJECT_ID);
@@ -218,10 +235,13 @@ class BatchingInjectStatusServiceTest {
       List<InjectExecutionCallback> result =
           service.handleInjectExecutionCallback(List.of(callback));
 
-      // DataIntegrityViolationException is a general Exception → NOT added to success
+      // The callback is queued for retry → NOT added to the successfully-processed list,
+      // and no execution processing happened.
       assertTrue(result.isEmpty());
       verify(injectExecutionService, never()).processInjectExecutionWithAgent(any(), any(), any());
       verify(injectExecutionService, never()).processInjectExecutionWithInjector(any(), any());
+      // retry counter is bumped on the callback instance
+      assertEquals(1, callback.getRetryCount());
     }
 
     @Test
@@ -323,7 +343,7 @@ class BatchingInjectStatusServiceTest {
           service.handleInjectExecutionCallback(List.of(callback));
 
       assertEquals(1, result.size());
-      assertSame(callback, result.get(0));
+      assertSame(callback, result.getFirst());
       verify(injectExecutionService)
           .processInjectExecutionWithAgent(
               eq(inject), eq(agent), eq(callback.getInjectExecutionInput()));
@@ -367,6 +387,160 @@ class BatchingInjectStatusServiceTest {
       assertTrue(result.isEmpty());
       verify(injectExecutionService, never()).processInjectExecutionWithAgent(any(), any(), any());
       verify(injectExecutionService, never()).processInjectExecutionWithInjector(any(), any());
+    }
+
+    // ------------------------------------------------------------------
+    // Retry / requeue behavior for complete-before-PENDING race condition
+    // ------------------------------------------------------------------
+
+    @Test
+    @DisplayName("should drain the requeue queue to the external queue service")
+    void shouldDrainRequeueQueueOnRequeueCallbacks() throws IOException {
+      // First call: inject is not PENDING → callback gets queued for retry
+      Inject inject = createInjectWithExecutingStatus(INJECT_ID);
+      Agent agent = createAgent(AGENT_ID);
+
+      when(injectRepository.findAllByIdWithExpectations(anyList())).thenReturn(List.of(inject));
+      when(agentRepository.findAllById(anyList())).thenReturn(List.of(agent));
+
+      long originalEmissionDate = 1000L;
+      InjectExecutionCallback callback =
+          createCallback(INJECT_ID, AGENT_ID, InjectExecutionAction.complete, originalEmissionDate);
+      long beforeHandle = Instant.now().toEpochMilli();
+      service.handleInjectExecutionCallback(List.of(callback));
+
+      // Drain
+      service.requeueCallbacks();
+
+      ArgumentCaptor<InjectExecutionCallback> captor =
+          ArgumentCaptor.forClass(InjectExecutionCallback.class);
+      verify(injectTraceQueueService).publish(captor.capture());
+      assertSame(callback, captor.getValue());
+      assertEquals(1, captor.getValue().getRetryCount());
+      // emissionDate must be bumped to "now" on retry so the re-queued callback does not
+      // compete for ordering against freshly emitted ones.
+      assertNotEquals(originalEmissionDate, captor.getValue().getEmissionDate());
+      assertTrue(
+          captor.getValue().getEmissionDate() >= beforeHandle,
+          "emissionDate should have been refreshed at retry time");
+    }
+
+    @Test
+    @DisplayName(
+        "should process a mixed batch: queue the non-PENDING complete for retry and process the "
+            + "other callback normally")
+    void shouldHandleMixedBatchOfRetryAndNormalCallbacks() {
+      // inject-1 is in EXECUTING → complete callback must be queued for retry
+      Inject executingInject = createInjectWithExecutingStatus("inject-1");
+      // inject-2 is in PENDING → complete callback must be processed normally
+      Inject pendingInject = createInjectWithPendingStatus("inject-2");
+      Agent agent1 = createAgent("agent-1");
+      Agent agent2 = createAgent("agent-2");
+
+      when(injectRepository.findAllByIdWithExpectations(anyList()))
+          .thenReturn(List.of(executingInject, pendingInject));
+      when(agentRepository.findAllById(anyList())).thenReturn(List.of(agent1, agent2));
+
+      InjectExecutionCallback retryCallback =
+          createCallback("inject-1", "agent-1", InjectExecutionAction.complete, 1000L);
+      InjectExecutionCallback normalCallback =
+          createCallback("inject-2", "agent-2", InjectExecutionAction.complete, 2000L);
+
+      List<InjectExecutionCallback> result =
+          service.handleInjectExecutionCallback(List.of(retryCallback, normalCallback));
+
+      // Only the normal callback is in the success list; the retry callback is queued instead.
+      assertEquals(1, result.size());
+      assertSame(normalCallback, result.getFirst());
+      assertEquals(1, retryCallback.getRetryCount());
+      assertEquals(0, normalCallback.getRetryCount());
+
+      // Only the pending inject was processed, not the executing one.
+      verify(injectExecutionService)
+          .processInjectExecutionWithAgent(
+              eq(pendingInject), eq(agent2), eq(normalCallback.getInjectExecutionInput()));
+      verify(injectExecutionService, never())
+          .processInjectExecutionWithAgent(
+              eq(executingInject), any(), eq(retryCallback.getInjectExecutionInput()));
+    }
+
+    @Test
+    @DisplayName(
+        "should stop retrying once MAX_RETRIES is reached and still persist the execution trace")
+    void shouldPersistExecutionTraceAfterMaxRetries() throws IOException {
+      Inject inject = createInjectWithExecutingStatus(INJECT_ID);
+      Agent agent = createAgent(AGENT_ID);
+
+      when(injectRepository.findAllByIdWithExpectations(anyList())).thenReturn(List.of(inject));
+      when(agentRepository.findAllById(anyList())).thenReturn(List.of(agent));
+
+      InjectExecutionCallback callback =
+          createCallback(INJECT_ID, AGENT_ID, InjectExecutionAction.complete, 1000L);
+      // Pretend this callback has already been retried MAX_RETRIES times
+      callback.setRetryCount(MAX_RETRIES);
+
+      List<InjectExecutionCallback> result =
+          service.handleInjectExecutionCallback(List.of(callback));
+
+      // Max retries reached → fall through to persist the trace as a last-ditch effort,
+      // not re-incremented, not re-queued.
+      assertEquals(1, result.size());
+      assertSame(callback, result.getFirst());
+      assertEquals(MAX_RETRIES, callback.getRetryCount());
+      verify(injectExecutionService)
+          .processInjectExecutionWithAgent(
+              eq(inject), eq(agent), eq(callback.getInjectExecutionInput()));
+      service.requeueCallbacks();
+      verify(injectTraceQueueService, never()).publish(any());
+    }
+
+    @Test
+    @DisplayName(
+        "should persist via injector path when MAX_RETRIES is reached and callback has no agent")
+    void shouldPersistViaInjectorPathAfterMaxRetriesWithNullAgent() throws IOException {
+      Inject inject = createInjectWithExecutingStatus(INJECT_ID);
+
+      when(injectRepository.findAllByIdWithExpectations(anyList())).thenReturn(List.of(inject));
+      when(agentRepository.findAllById(anyList())).thenReturn(List.of());
+
+      InjectExecutionCallback callback =
+          createCallback(INJECT_ID, null, InjectExecutionAction.complete, 1000L);
+      // Already exhausted retries
+      callback.setRetryCount(MAX_RETRIES);
+
+      List<InjectExecutionCallback> result =
+          service.handleInjectExecutionCallback(List.of(callback));
+
+      // Max retries reached with no agent → fall through to the injector branch of
+      // saveExecutionTrace and still persist the trace.
+      assertEquals(1, result.size());
+      assertSame(callback, result.getFirst());
+      assertEquals(MAX_RETRIES, callback.getRetryCount());
+      verify(injectExecutionService)
+          .processInjectExecutionWithInjector(eq(inject), eq(callback.getInjectExecutionInput()));
+      verify(injectExecutionService, never()).processInjectExecutionWithAgent(any(), any(), any());
+      service.requeueCallbacks();
+      verify(injectTraceQueueService, never()).publish(any());
+    }
+
+    @Test
+    @DisplayName("requeueCallbacks is a safe no-op when queue service is not configured")
+    void requeueCallbacksIsSafeWhenQueueServiceIsNull() {
+      // Simulate the legacy / unconfigured path: no queue service wired.
+      service.setInjectTraceQueueService(null);
+
+      Inject inject = createInjectWithExecutingStatus(INJECT_ID);
+      Agent agent = createAgent(AGENT_ID);
+      when(injectRepository.findAllByIdWithExpectations(anyList())).thenReturn(List.of(inject));
+      when(agentRepository.findAllById(anyList())).thenReturn(List.of(agent));
+
+      InjectExecutionCallback callback =
+          createCallback(INJECT_ID, AGENT_ID, InjectExecutionAction.complete, 1000L);
+      service.handleInjectExecutionCallback(List.of(callback));
+
+      // Must not NPE even though the in-memory requeue queue is non-empty.
+      assertDoesNotThrow(() -> service.requeueCallbacks());
+      verifyNoInteractions(injectTraceQueueService);
     }
 
     @Test

@@ -20,6 +20,7 @@ import CreateAttackPattern from './CreateAttackPattern';
 const useStyles = makeStyles()(() => ({
   itemHead: {
     paddingLeft: 10,
+    textTransform: 'uppercase',
     cursor: 'pointer',
   },
   item: {
@@ -202,7 +203,7 @@ const AttackPatterns = () => {
             </ListItem>
           ))}
         </List>
-        <Can I={ACTIONS.MANAGE} a={SUBJECTS.PLATFORM_SETTINGS}>
+        <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
           <CreateAttackPattern
             onCreate={result => setAttackPatterns([result, ...attackPatterns])}
           />

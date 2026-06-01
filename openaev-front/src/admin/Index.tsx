@@ -7,16 +7,17 @@ import { makeStyles } from 'tss-react/mui';
 import { useLocalStorage } from 'usehooks-ts';
 
 import { fetchAttackPatterns } from '../actions/AttackPattern';
-import fetchDomains from '../actions/domains/domain-actions';
+import { fetchDomains } from '../actions/domains/domain-actions';
 import { type LoggedHelper } from '../actions/helper';
 import { fetchKillChainPhases } from '../actions/KillChainPhase';
-import { fetchTags } from '../actions/Tag';
+import { fetchTags } from '../actions/tags/tag-action';
 import { errorWrapper } from '../components/Error';
 import Loader from '../components/Loader';
 import NotFound from '../components/NotFound';
 import { computeBannerSettings } from '../public/components/systembanners/utils';
 import { useHelper } from '../store';
 import { useAppDispatch } from '../utils/hooks';
+import useAuth from '../utils/hooks/useAuth';
 import useDataLoader from '../utils/hooks/useDataLoader';
 import ProtectedRoute from '../utils/permissions/ProtectedRoute';
 import { ACTIONS, SUBJECTS } from '../utils/permissions/types';
@@ -24,9 +25,9 @@ import ChatbotProvider from './components/ariane/ChatbotProvider';
 import { useChatbotContentMargin, useChatbotContentTransition } from './components/ariane/useChatbotHooks';
 import { GETTING_STARTED_LOCAL_STORAGE_KEY } from './components/getting_started/GettingStartedPage';
 import GettingStartedRoutes, { GETTING_STARTED_URI } from './components/getting_started/GettingStartedRoutes';
+import { SETTINGS_ACCESS_CHECKS } from './components/nav/config/settings.config';
 import LeftBar from './components/nav/LeftBar';
 import TopBar from './components/nav/TopBar';
-import PlatformRoutes from './components/platform/PlatformRoutes';
 import DeployScenario from './components/scenarios/DeployScenario';
 import InjectIndex from './components/simulations/simulation/injects/InjectIndex';
 
@@ -46,8 +47,8 @@ const IndexComponents = lazy(() => import('./components/components/Index'));
 const IndexIntegrations = lazy(() => import('./components/integrations/Index'));
 const IndexAgents = lazy(() => import('./components/agents/Agents'));
 const IndexCustomDashboard = lazy(() => import('./components/workspaces/custom_dashboards/Index'));
-const Payloads = lazy(() => import('./components/payloads/Payloads'));
 const IndexSettings = lazy(() => import('./components/settings/Index'));
+const ThreatArsenal = lazy(() => import('./components/threat_arsenal/ThreatArsenal'));
 
 const useStyles = makeStyles()(theme => ({ toolbar: theme.mixins.toolbar as CSSObject }));
 
@@ -73,6 +74,8 @@ const Index = () => {
   const chatbotMargin = useChatbotContentMargin();
   const chatbotTransition = useChatbotContentTransition(theme);
 
+  const { currentUserTenant } = useAuth();
+
   const boxSx = {
     flexGrow: 1,
     paddingTop: 2,
@@ -83,13 +86,13 @@ const Index = () => {
     overflowX: 'hidden',
     overflowY: 'hidden',
   };
-  // load taxonomies one time at login
+  // load taxonomies at login and reload tenant-scoped data on tenant switch
   useDataLoader(() => {
     dispatch(fetchAttackPatterns());
     dispatch(fetchKillChainPhases());
     dispatch(fetchTags());
     dispatch(fetchDomains());
-  });
+  }, [currentUserTenant?.tenant_id]);
   const { bannerHeight } = computeBannerSettings(settings);
   const [goToGettingStarted, setGoToGettingStarted] = useLocalStorage<boolean>(GETTING_STARTED_LOCAL_STORAGE_KEY, true);
   useEffect(() => {
@@ -212,14 +215,25 @@ const Index = () => {
                 />
               )}
             />
-            <Route path="payloads" element={errorWrapper(Payloads)()} />
+            <Route
+              path="threat-arsenal"
+              element={(
+                <ProtectedRoute
+                  checks={[{
+                    action: ACTIONS.ACCESS,
+                    subject: SUBJECTS.PAYLOADS,
+                  }]}
+                  Component={errorWrapper(ThreatArsenal)()}
+                />
+              )}
+            />
             <Route
               path="integrations/*"
               element={(
                 <ProtectedRoute
                   checks={[{
                     action: ACTIONS.ACCESS,
-                    subject: SUBJECTS.PLATFORM_SETTINGS,
+                    subject: SUBJECTS.TENANT_SETTINGS,
                   }]}
                   Component={errorWrapper(IndexIntegrations)()}
                 />
@@ -231,15 +245,11 @@ const Index = () => {
               path="settings/*"
               element={(
                 <ProtectedRoute
-                  checks={[{
-                    action: ACTIONS.ACCESS,
-                    subject: SUBJECTS.PLATFORM_SETTINGS,
-                  }]}
+                  checks={SETTINGS_ACCESS_CHECKS}
                   Component={errorWrapper(IndexSettings)()}
                 />
               )}
             />
-            {PlatformRoutes}
             {/* Not found */}
             <Route path="*" element={<NotFound />} />
           </Routes>

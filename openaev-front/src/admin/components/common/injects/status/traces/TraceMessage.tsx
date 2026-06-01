@@ -7,6 +7,7 @@ import type { LoggedHelper } from '../../../../../../actions/helper';
 import { useFormatter } from '../../../../../../components/i18n';
 import { useHelper } from '../../../../../../store';
 import { type ExecutionTraceOutput, type PlatformSettings } from '../../../../../../utils/api-types';
+import { getTraceStatusLabel } from '../../../../../../utils/statusLabels';
 import EEChip from '../../../entreprise_edition/EEChip';
 
 interface Props { traces: ExecutionTraceOutput[] }
@@ -54,7 +55,7 @@ const TraceMessage = ({ traces }: Props) => {
               }}
             >
               {!settings.platform_license?.license_is_validated && tr.execution_message.startsWith('LICENSE RESTRICTION') && <EEChip clickable featureDetectedInfo={tr.execution_message.replace('LICENSE RESTRICTION - ', '')} />}
-              <strong>{tr.execution_status}</strong>
+              <strong>{getTraceStatusLabel(tr.execution_status)}</strong>
               {' '}
               {displayMessage}
               {isTruncated && (

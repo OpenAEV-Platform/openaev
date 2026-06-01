@@ -3,7 +3,6 @@ package io.openaev.database.repository;
 import io.openaev.database.model.AssetType;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.raw.RawEndpoint;
-import io.openaev.utils.Constants;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -119,7 +118,7 @@ public interface EndpointRepository
           "WITH endpoint_data AS ("
               + "SELECT a.asset_id, a.asset_type, a.asset_name, a.asset_external_reference, "
               + "a.endpoint_ips, a.endpoint_hostname, a.endpoint_platform, a.endpoint_arch, "
-              + "a.endpoint_mac_addresses, a.endpoint_seen_ip, a.asset_created_at, a.endpoint_is_eol, a.asset_description, "
+              + "a.endpoint_mac_addresses, a.endpoint_seen_ip, a.asset_created_at, a.endpoint_is_eol, a.asset_description, a.tenant_id, "
               + "GREATEST(a.asset_updated_at, max(i.inject_updated_at), max(e.exercise_updated_at), max(s.scenario_updated_at), max(f.finding_updated_at)) as endpoint_updated_at, "
               + "array_agg(DISTINCT fa.finding_id) FILTER ( WHERE fa.finding_id IS NOT NULL ) as asset_findings, "
               + "array_agg(DISTINCT at.tag_id) FILTER ( WHERE at.tag_id IS NOT NULL ) as asset_tags, "
@@ -140,11 +139,9 @@ public interface EndpointRepository
               + ") "
               + "SELECT * FROM endpoint_data ed "
               + "WHERE ed.endpoint_updated_at > :from "
-              + "ORDER BY ed.endpoint_updated_at ASC LIMIT "
-              + Constants.INDEXING_RECORD_SET_SIZE
-              + ";",
+              + "ORDER BY ed.endpoint_updated_at ASC LIMIT :limit;",
       nativeQuery = true)
-  List<RawEndpoint> findForIndexing(@Param("from") Instant from);
+  List<RawEndpoint> findForIndexing(@Param("from") Instant from, @Param("limit") int limit);
 
   // For testing purposes only
 

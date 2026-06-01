@@ -10,7 +10,7 @@ public class StepFixture {
     Step step = new Step();
     step.setStepAction(StepActionClass.INJECT_EXECUTION);
     step.setOutput("{}");
-    step.setOutput_parser("{}");
+    step.setOutputParser("{}");
     step.setInput("{}");
     step.setData("{}");
     step.setLimitExecution(1);
@@ -23,7 +23,7 @@ public class StepFixture {
     Step step = new Step();
     step.setStepAction(StepActionClass.INJECT_EXECUTION);
     step.setOutput("{}");
-    step.setOutput_parser("{}");
+    step.setOutputParser("{}");
     step.setInput("{}");
     step.setData("{}");
     step.setLimitExecution(1);

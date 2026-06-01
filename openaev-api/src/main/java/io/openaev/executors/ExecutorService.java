@@ -164,17 +164,6 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
 
     Executor executor = executorRepository.findById(id).orElse(null);
     if (executor == null) {
-      Executor executorChecking =
-          executorRepository
-              .findByTypeAndTenantId(type, TenantContext.getCurrentTenant())
-              .orElse(null);
-      if (executorChecking != null) {
-        throw new Exception(
-            "The executor "
-                + type
-                + " already exists with a different ID, please delete it or contact your administrator.");
-      }
-
       executor = new Executor();
       executor.setId(id);
     }

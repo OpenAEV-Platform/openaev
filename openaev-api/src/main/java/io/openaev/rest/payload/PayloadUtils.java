@@ -16,10 +16,7 @@ import io.openaev.rest.payload.form.PayloadUpdateInput;
 import io.openaev.rest.payload.form.PayloadUpsertInput;
 import io.openaev.rest.payload.output_parser.OutputParserService;
 import jakarta.validation.constraints.NotNull;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -78,7 +75,10 @@ public class PayloadUtils {
     List<PayloadArgument> arguments = new ArrayList<>();
     for (JsonNode argumentNode : safeArray(payloadNode, "payload_arguments")) {
       PayloadArgument argument = new PayloadArgument();
-      argument.setType(argumentNode.get("type").textValue());
+      argument.setType(ArgumentType.fromLabel(argumentNode.get("type").textValue()));
+      if (argumentNode.hasNonNull("subtype")) {
+        argument.setSubtype(ArgumentSubType.fromLabel(argumentNode.get("subtype").textValue()));
+      }
       argument.setKey(argumentNode.get("key").textValue());
       argument.setDefaultValue(argumentNode.get("default_value").textValue());
       argument.setDescription(argumentNode.get("description").textValue());
@@ -105,8 +105,6 @@ public class PayloadUtils {
       payloadCreateInput.setCleanupCommand(payloadNode.get("payload_cleanup_command").textValue());
     }
 
-    // TODO: tag
-    payloadCreateInput.setTagIds(new ArrayList<>());
     return payloadCreateInput;
   }
 
@@ -134,7 +132,6 @@ public class PayloadUtils {
         "grants");
     duplicate.setId(null);
     duplicate.setName(duplicateString(origin.getName()));
-    duplicate.setAttackPatterns(new ArrayList<>(origin.getAttackPatterns()));
     duplicate.setExternalId(null);
     duplicate.setArguments(
         Optional.ofNullable(origin.getArguments()).map(ArrayList::new).orElseGet(ArrayList::new));
@@ -142,8 +139,6 @@ public class PayloadUtils {
         Optional.ofNullable(origin.getPrerequisites())
             .map(ArrayList::new)
             .orElseGet(ArrayList::new));
-    duplicate.setTags(new HashSet<>(origin.getTags()));
-    duplicate.setDomains(new HashSet<>(origin.getDomains()));
     duplicate.setCollectorType(null);
     duplicate.setSource(Payload.PAYLOAD_SOURCE.MANUAL);
     duplicate.setStatus(Payload.PAYLOAD_STATUS.UNVERIFIED);

@@ -38,6 +38,7 @@ public class DatabaseSnapshotManager {
       if (snapshotCreated) return;
 
       try {
+
         List<String> tables =
             jdbcTemplate.queryForList(
                 "SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename",

@@ -14,6 +14,7 @@ import useDataLoader from '../../utils/hooks/useDataLoader';
 import { AbilityContext } from '../../utils/permissions/permissionsContext';
 import RestrictionAccess from '../../utils/permissions/RestrictionAccess';
 import { ACTIONS, SUBJECTS } from '../../utils/permissions/types';
+import { buildTenantApiPath } from '../../utils/url-helper';
 import ButtonPopover, { type PopoverEntry } from '../common/ButtonPopover';
 import { useFormatter } from '../i18n';
 import ItemTags from '../ItemTags';
@@ -162,7 +163,7 @@ const FileLoader: FunctionComponent<Props> = ({
   const handleDownload = (documentId: string | undefined) => {
     setFirstInteraction(true);
     if (documentId) {
-      window.location.href = `/api/documents/${documentId}/file`;
+      window.location.href = buildTenantApiPath(`/api/documents/${documentId}/file`);
     }
   };
 

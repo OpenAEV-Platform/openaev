@@ -15,6 +15,7 @@ import co.elastic.clients.elasticsearch.core.search.Hit;
 import co.elastic.clients.json.JsonData;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.config.EngineConfig;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.CustomDashboardParameters;
 import io.openaev.database.model.Filters;
 import io.openaev.database.model.IndexingStatus;
@@ -273,6 +274,7 @@ public class ElasticService implements EngineService {
       shouldList.add(searchQuery);
     }
     if (groupFilter != null && groupFilter.getFilters() != null) {
+
       Query filterQuery = queryFromFilter(groupFilter, parameters, definitionParameters);
       shouldList.add(filterQuery);
     }
@@ -282,6 +284,21 @@ public class ElasticService implements EngineService {
     Query dataQuery =
         dataQueryBuilder.should(shouldList).minimumShouldMatch("1").build()._toQuery();
     mainMust.add(dataQuery);
+
+    // Filter by current tenant: match tenant-scoped documents belonging to this tenant,
+    // or platform-level documents that have no tenant field at all.
+    Query matchesTenant =
+        TermQuery.of(
+                t -> t.field("base_tenant_side.keyword").value(TenantContext.getCurrentTenant()))
+            ._toQuery();
+    Query noTenantField =
+        BoolQuery.of(
+                b -> b.mustNot(ExistsQuery.of(e -> e.field("base_tenant_side.keyword"))._toQuery()))
+            ._toQuery();
+    Query tenantFilter =
+        BoolQuery.of(b -> b.should(matchesTenant, noTenantField).minimumShouldMatch("1"))
+            ._toQuery();
+    mainQuery.filter(tenantFilter);
     return mainQuery.must(mainMust).build()._toQuery();
   }
 
@@ -291,6 +308,7 @@ public class ElasticService implements EngineService {
     filter.setKey("base_id");
     filter.setOperator(Filters.FilterOperator.eq);
     filter.setValues(ids);
+    filter.setMode(Filters.FilterMode.or);
     filterGroup.setFilters(List.of(filter));
     Query query = buildQuery(user, null, filterGroup, new HashMap<>(), new HashMap<>());
     try {
@@ -323,7 +341,8 @@ public class ElasticService implements EngineService {
                   String index = model.getIndex(engineConfig);
                   Instant fetchInstant =
                       indexingStatus.map(IndexingStatus::getLastIndexing).orElse(null);
-                  List<? extends EsBase> results = handler.fetch(fetchInstant);
+                  List<? extends EsBase> results =
+                      handler.fetch(fetchInstant, engineConfig.getIndexingBatchSize());
                   if (!results.isEmpty()) {
                     // Create bulk for the data
                     BulkRequest.Builder br = new BulkRequest.Builder();

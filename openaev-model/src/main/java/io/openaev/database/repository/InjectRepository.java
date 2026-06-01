@@ -6,7 +6,6 @@ import static io.openaev.database.model.FileDrop.FILE_DROP_TYPE;
 import io.openaev.database.model.Inject;
 import io.openaev.database.raw.RawInject;
 import io.openaev.database.raw.RawInjectIndexing;
-import io.openaev.utils.Constants;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -47,16 +46,30 @@ public interface InjectRepository
   @NotNull
   Optional<Inject> findById(@NotNull String id);
 
-  List<Inject> findByExerciseId(@NotNull String exerciseId);
-
-  Set<Inject> findByScenarioId(@NotNull String scenarioId);
-
   @NotNull
   Optional<Inject> findWithStatusById(@NotNull String id);
 
+  // -- SIMULATION --
+
+  List<Inject> findByExerciseId(@NotNull String exerciseId);
+
+  Optional<Inject> findByIdAndExerciseId(@NotNull String id, @NotNull String exerciseId);
+
+  boolean existsByIdAndExerciseId(@NotNull String id, @NotNull String exerciseId);
+
+  // -- SCENARIO --
+
+  Optional<Inject> findByIdAndScenarioId(@NotNull String id, @NotNull String scenarioId);
+
+  boolean existsByIdAndScenarioId(@NotNull String id, @NotNull String scenarioId);
+
+  Set<Inject> findByScenarioId(@NotNull String scenarioId);
+
+  // -- INDEXING --
+
   @Query(
       value =
-          "SELECT f.inject_id, f.inject_title, f.inject_scenario, f.inject_exercise, f.inject_created_at, f.inject_updated_at, f.inject_injector_contract, ic.injector_contract_updated_at, ins.tracking_sent_date, "
+          "SELECT f.inject_id, f.inject_title, f.inject_scenario, f.inject_exercise, f.inject_created_at, f.inject_updated_at,f.tenant_id, f.inject_injector_contract, ic.injector_contract_updated_at, ins.tracking_sent_date, "
               + "array_union_agg(ic.injector_contract_platforms) FILTER ( WHERE ic.injector_contract_platforms IS NOT NULL ) as inject_platforms, "
               + "array_agg(icap.attack_pattern_id) FILTER ( WHERE icap.attack_pattern_id IS NOT NULL ) as inject_attack_patterns, "
               + "array_agg(ap.phase_id) FILTER ( WHERE ap.phase_id IS NOT NULL ) as inject_kill_chain_phases, "
@@ -99,16 +112,15 @@ public interface InjectRepository
               + "    WHERE sub_ic.injector_contract_id = inject_children.inject_injector_contract "
               + "      AND sub_ic.injector_contract_updated_at > :from "
               + ")"
-              + "GROUP BY f.inject_id, f.inject_updated_at, ic.injector_contract_updated_at, ins.tracking_sent_date ORDER BY GREATEST(f.inject_updated_at, ic.injector_contract_updated_at) ASC LIMIT "
-              + Constants.INDEXING_RECORD_SET_SIZE
-              + ";",
+              + "GROUP BY f.inject_id, f.inject_updated_at, ic.injector_contract_updated_at, ins.tracking_sent_date ORDER BY GREATEST(f.inject_updated_at, ic.injector_contract_updated_at) ASC LIMIT :limit;",
       nativeQuery = true)
-  List<RawInjectIndexing> findForIndexing(@Param("from") Instant from);
+  List<RawInjectIndexing> findForIndexing(@Param("from") Instant from, @Param("limit") int limit);
 
   @Query(
       value =
-          "select i.* from injects i where i.inject_injector_contract = '49229430-b5b5-431f-ba5b-f36f599b0233'"
-              + " and i.inject_content like :challengeId",
+          "select i.*, i.tenant_id as tenantId from injects i where i.inject_injector_contract = '49229430-b5b5-431f-ba5b-f36f599b0233'"
+              + " and i.inject_content like :challengeId"
+              + " and i.tenant_id = :#{#tenantContext.currentTenant}",
       nativeQuery = true)
   List<Inject> findAllForChallengeId(@Param("challengeId") String challengeId);
 
@@ -457,4 +469,7 @@ public interface InjectRepository
   @Modifying
   @Query(value = "DELETE FROM injects WHERE inject_id IN :ids", nativeQuery = true)
   void deleteByAllIdsNative(@Param("ids") List<String> ids);
+
+  @Query("SELECT i FROM Inject i WHERE i.exercise.id = :simulationId")
+  List<Inject> findAllInjectBySimulationId(@Param("simulationId") String simulationId);
 }

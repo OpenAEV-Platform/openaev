@@ -3,6 +3,7 @@ package io.openaev.datapack.packs;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.rest.tag.TagService;
@@ -50,7 +51,7 @@ public class TagRulesPackTest extends IntegrationTest {
             dataPackService, tagService, tagRuleService, assetGroupService);
 
     // act
-    datapack.process();
+    datapack.process(new Tenant(TenantContext.getCurrentTenant()));
 
     // assert
 

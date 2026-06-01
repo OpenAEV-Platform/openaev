@@ -1,13 +1,15 @@
 import { Add, HelpOutlined, HighlightOffOutlined, KeyboardArrowRight } from '@mui/icons-material';
-import { Avatar, Checkbox, Chip, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Slide, Tooltip } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
-import { type AxiosResponse } from 'axios';
 import {
+  Avatar, Checkbox, Chip,
+  Grid, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Slide, Tooltip,
+} from '@mui/material';
+import { useTheme } from '@mui/material/styles';
+import {
+  type ComponentProps,
   type CSSProperties,
   type FunctionComponent,
   type SyntheticEvent,
   useContext,
-  useEffect,
   useMemo,
   useState,
 } from 'react';
@@ -15,11 +17,12 @@ import { makeStyles } from 'tss-react/mui';
 
 import { type AttackPatternHelper } from '../../../../actions/attack_patterns/attackpattern-helper';
 import { type DomainHelper } from '../../../../actions/domains/domain-helper';
-import { fetchDomainCounts, searchInjectorContracts } from '../../../../actions/InjectorContracts';
+import { searchInjectorContracts } from '../../../../actions/InjectorContracts';
 import { type InjectorHelper } from '../../../../actions/injectors/injector-helper';
 import { type InjectOutputType, type InjectStore } from '../../../../actions/injects/Inject';
 import { type KillChainPhaseHelper } from '../../../../actions/kill_chain_phases/killchainphase-helper';
 import Drawer from '../../../../components/common/Drawer';
+import { generateFilterId } from '../../../../components/common/queryable/filter/FilterUtils';
 import { initSorting } from '../../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import SortHeadersComponentV2 from '../../../../components/common/queryable/sort/SortHeadersComponentV2';
@@ -35,28 +38,28 @@ import {
   type AttackPattern, type Domain,
   type FilterGroup,
   type InjectInput,
-  type InjectorContract, type InjectorContractDomainCountOutput,
+  type InjectorContract,
   type InjectorContractFullOutput,
   type KillChainPhase,
   type Variable,
 } from '../../../../utils/api-types';
-import { type InjectorContractConverted } from '../../../../utils/api-types-custom';
-import { type Error as APIError, notifyErrorHandler } from '../../../../utils/error/errorHandlerUtil';
+import { type InjectorContractConverted, type ToolBarTask } from '../../../../utils/api-types-custom';
 import useEntityToggle from '../../../../utils/hooks/useEntityToggle';
 import computeAttackPatterns from '../../../../utils/injector_contract/InjectorContractUtils';
 import { isNotEmptyField } from '../../../../utils/utils';
-import { buildOrderedDomains } from '../../workspaces/custom_dashboards/widgets/viz/domains/SecurityDomainsWidgetUtils';
 import { InjectContext } from '../Context';
-import buildIconBarElements from '../domains/DomainsIcons';
 import IconBar from '../domains/IconBar';
-import BulkToolBar from '../toolBar/BulkToolBar';
-import { type ToolTasks } from '../toolBar/BulkToolBar-model';
+import useDomainIconFilter from '../domains/useDomainIconFilter';
+import ToolBar from '../ToolBar';
 import InjectForm from './form/InjectForm';
 import InjectCardComponent from './InjectCardComponent';
 import InjectIcon from './InjectIcon';
 
 const useStyles = makeStyles()(theme => ({
-  itemHead: {},
+  itemHead: {
+    textTransform: 'uppercase',
+    minHeight: 50,
+  },
   bodyItems: { display: 'flex' },
   bodyItem: {
     fontSize: theme.typography.body2.fontSize,
@@ -67,6 +70,7 @@ const useStyles = makeStyles()(theme => ({
   chipInList: {
     fontSize: theme.typography.caption.fontSize,
     height: 20,
+    textTransform: 'uppercase',
     borderRadius: 4,
     width: 80,
     marginRight: 5,
@@ -210,6 +214,7 @@ const CreateInject: FunctionComponent<Props> = ({
     }
 
     filterGroup.filters?.push({
+      id: generateFilterId(),
       key: 'injector_contract_atomic_testing',
       operator: 'eq',
       values: ['true'],
@@ -220,7 +225,7 @@ const CreateInject: FunctionComponent<Props> = ({
 
   const availableFilterNames = [
     'injector_contract_attack_patterns',
-    'injector_contract_injector',
+    'injector_contract_injectors',
     'injector_contract_kill_chain_phases',
     'injector_contract_labels',
     'injector_contract_platforms',
@@ -302,12 +307,16 @@ const CreateInject: FunctionComponent<Props> = ({
   };
 
   const [selectedContract, setSelectedContract] = useState<Omit<InjectorContractFullOutput, 'injector_contract_content'> & { injector_contract_content: InjectorContractConverted['convertedContent'] } | null>(null);
+  const [selectedInjectorName, setSelectedInjectorName] = useState<string>('');
   const selectContract = (contract: InjectorContractFullOutput) => {
     const parsedContract: Omit<InjectorContractFullOutput, 'injector_contract_content'> & { injector_contract_content: InjectorContractConverted['convertedContent'] } = {
       ...contract,
       injector_contract_content: JSON.parse(contract.injector_contract_content),
     };
     setSelectedContract(parsedContract);
+    // Initialize with the first injector name
+    const names = contract.injector_contract_injector_names;
+    setSelectedInjectorName(names ? Object.values(names)[0] ?? '' : '');
     handleSlide();
   };
 
@@ -351,13 +360,24 @@ const CreateInject: FunctionComponent<Props> = ({
     onCreateMultipleInjectsInject(quickInjects);
   };
 
-  const toolTasks: ToolTasks[] = [
+  const toolTasks: ToolBarTask[] = [
     {
       type: 'info',
       icon: () => (<Add />),
-      function: () => buildQuickInject(selectedElements),
+      onClick: () => buildQuickInject(selectedElements),
+      title: t('Add'),
     },
   ];
+  const createInjectToolBarProps: ComponentProps<typeof ToolBar> = {
+    info: t('Bulk select lets you add multiple injects. They\'ll show as "missing content" until configured'),
+    numberOfSelectedElements,
+    handleClearSelectedElements,
+    toolTasks,
+    showExport: false,
+    showUpdate: false,
+    showBulkTest: false,
+    showBulkDelete: false,
+  };
 
   let selectedContractKillChainPhase = null;
   if (selectedContract) {
@@ -370,91 +390,11 @@ const CreateInject: FunctionComponent<Props> = ({
       : null;
   }
   const domainOptions: Domain[] = useHelper((helper: DomainHelper) => helper.getDomains());
-
-  // Domains
-  const [selectedDomains, setSelectedDomains] = useState<string[]>([]);
-  const [domainCounts, setDomainCounts] = useState<Record<string, number>>({});
-  const DOMAIN_FILTER_KEY = 'injector_contract_domains';
-
-  const handleDomainClick = (domainId: string) => {
-    if (!queryableHelpers?.filterHelpers) return;
-
-    const isAlreadySelected = selectedDomains.includes(domainId);
-    const updated = isAlreadySelected
-      ? selectedDomains.filter(id => id !== domainId)
-      : [...selectedDomains, domainId];
-
-    if (updated.length === 0) {
-      queryableHelpers.filterHelpers.handleRemoveFilterByKey(DOMAIN_FILTER_KEY);
-    } else {
-      const domainFilterExists = searchPaginationInput?.filterGroup?.filters?.some(
-        f => f.key === DOMAIN_FILTER_KEY,
-      );
-
-      if (!domainFilterExists) {
-        queryableHelpers.filterHelpers.handleAddFilterWithEmptyValue({
-          key: DOMAIN_FILTER_KEY,
-          operator: 'contains',
-          values: updated,
-          mode: 'or',
-        });
-      } else {
-        queryableHelpers.filterHelpers.handleAddMultipleValueFilter(
-          DOMAIN_FILTER_KEY,
-          updated,
-        );
-      }
-    }
-  };
-
-  // Fetch and update domain counts whenever search filters change
-  useEffect(() => {
-    if (searchPaginationInput) {
-      fetchDomainCounts(searchPaginationInput)
-        .then((response: AxiosResponse<InjectorContractDomainCountOutput[]>) => {
-          const data = response?.data;
-
-          if (Array.isArray(data)) {
-            const countsMap = data.reduce((acc, curr) => {
-              if (curr.domain) {
-                acc[curr.domain] = curr.count ?? 0;
-              }
-              return acc;
-            }, {} as Record<string, number>);
-
-            setDomainCounts(countsMap);
-          } else {
-            notifyErrorHandler({
-              status: 400,
-              message: 'Invalid data format received',
-            });
-          }
-        })
-        .catch((error: unknown) => {
-          notifyErrorHandler(error as APIError);
-        });
-    }
-  }, [searchPaginationInput]);
-
-  // Sync icon bar selection with the global filter group
-  useEffect(() => {
-    const domainFilter = searchPaginationInput?.filterGroup?.filters?.find(
-      f => f.key === DOMAIN_FILTER_KEY,
-    );
-
-    if (domainFilter && Array.isArray(domainFilter.values)) {
-      setSelectedDomains(domainFilter.values as string[]);
-    } else {
-      setSelectedDomains([]);
-    }
-  }, [searchPaginationInput?.filterGroup]);
-
-  const iconBarElements = useMemo(
-    () => buildIconBarElements(domainOptions, handleDomainClick, selectedDomains, domainCounts),
-    [domainOptions, selectedDomains, domainCounts],
-  );
-
-  const iconBarOrderedDomains = useMemo(() => buildOrderedDomains(iconBarElements), [iconBarElements]);
+  const { iconBarOrderedDomains } = useDomainIconFilter({
+    domainOptions,
+    searchPaginationInput,
+    queryableHelpers,
+  });
 
   return (
     <Drawer
@@ -464,7 +404,7 @@ const CreateInject: FunctionComponent<Props> = ({
       variant="full"
       disableEnforceFocus
     >
-      <>
+      <Grid>
         <IconBar elements={iconBarOrderedDomains} />
         <div
           style={{
@@ -496,20 +436,36 @@ const CreateInject: FunctionComponent<Props> = ({
                 <ListItem
                   classes={{ root: classes.itemHead }}
                   divider={false}
-                  style={{ paddingTop: 0 }}
-                  secondaryAction={<>&nbsp;</>}
+                  style={{ ...(numberOfSelectedElements > 0 ? { backgroundColor: 'rgb(15, 30, 56)' } : {}) }}
+                  {...(numberOfSelectedElements === 0 ? { secondaryAction: <>&nbsp;</> } : {})}
                 >
-                  <ListItemIcon style={{ minWidth: 90 }} />
-                  <ListItemText
-                    primary={(
-                      <SortHeadersComponentV2
-                        headers={headers}
-                        inlineStylesHeaders={inlineStyles}
-                        sortHelpers={queryableHelpers.sortHelpers}
+                  {numberOfSelectedElements > 0 ? (
+                    <>
+                      <ListItemIcon style={{ minWidth: 40 }} />
+                      <ListItemText
+                        sx={{
+                          'margin': 0,
+                          'padding': 0,
+                          '& .MuiTypography-root': { margin: 0 },
+                        }}
+                        primary={<ToolBar {...createInjectToolBarProps} />}
                       />
-                    )}
-                  />
-                  <ListItemIcon />
+                    </>
+                  ) : (
+                    <>
+                      <ListItemIcon style={{ minWidth: 90 }} />
+                      <ListItemText
+                        primary={(
+                          <SortHeadersComponentV2
+                            headers={headers}
+                            inlineStylesHeaders={inlineStyles}
+                            sortHelpers={queryableHelpers.sortHelpers}
+                          />
+                        )}
+                      />
+                      <ListItemIcon />
+                    </>
+                  )}
                 </ListItem>
                 {contracts.map((contract: InjectorContractFullOutput, index) => {
                   const contractAttackPatterns = computeAttackPatterns(
@@ -623,7 +579,7 @@ const CreateInject: FunctionComponent<Props> = ({
                       <HelpOutlined />
                     </Avatar>
                   )}
-                  title={selectedContractKillChainPhase || selectedContract?.injector_contract_injector_name || ''}
+                  title={selectedContractKillChainPhase || selectedInjectorName || ''}
                   action={(
                     <IconButton
                       aria-label="delete"
@@ -649,6 +605,9 @@ const CreateInject: FunctionComponent<Props> = ({
                       injector_contract_id: selectedContract?.injector_contract_id ?? '',
                       injector_contract_arch: selectedContract?.injector_contract_arch,
                       injector_contract_platforms: selectedContract?.injector_contract_platforms,
+                      injector_contract_content: '',
+                      injector_contract_created_at: '',
+                      injector_contract_updated_at: '',
                     } as InjectorContract,
                     inject_type: selectedContract?.injector_contract_content?.config?.type,
                     inject_teams: [],
@@ -662,22 +621,14 @@ const CreateInject: FunctionComponent<Props> = ({
                   articlesFromExerciseOrScenario={articlesFromExerciseOrScenario}
                   uriVariable={uriVariable}
                   variablesFromExerciseOrScenario={variablesFromExerciseOrScenario}
+                  injectorNames={selectedContract?.injector_contract_injector_names}
+                  onInjectorChange={(_id, name) => setSelectedInjectorName(name)}
                 />
               </div>
             </Slide>
           )}
-          {
-            numberOfSelectedElements > 0 && (
-              <BulkToolBar
-                info={t('Bulk select lets you add multiple injects. They\'ll show as "missing content" until configured')}
-                numberOfSelectedElements={numberOfSelectedElements}
-                handleClearSelectedElements={handleClearSelectedElements}
-                toolTasks={toolTasks}
-              />
-            )
-          }
         </div>
-      </>
+      </Grid>
     </Drawer>
   );
 };

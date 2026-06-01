@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.UUID;
 
 public class MockMapperUtils {
+
   public static ImportMapper createImportMapper() {
     ImportMapper importMapper = new ImportMapper();
     importMapper.setId(UUID.randomUUID().toString());

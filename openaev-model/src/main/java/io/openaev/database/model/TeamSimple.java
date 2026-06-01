@@ -4,7 +4,7 @@ import static java.time.Instant.now;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.openaev.database.raw.RawTeam;
+import io.openaev.database.raw.RawTeamIndexing;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -166,7 +166,7 @@ public class TeamSimple {
   @Schema(description = "List of communications of this team")
   List<Communication> communications = new ArrayList<>();
 
-  public TeamSimple(RawTeam raw) {
+  public TeamSimple(RawTeamIndexing raw) {
     super();
     this.id = raw.getTeam_id();
     this.scenarios = Optional.ofNullable(raw.getTeam_scenarios()).orElse(new HashSet<>());

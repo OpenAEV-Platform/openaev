@@ -33,8 +33,8 @@ const useStyles = makeStyles()(theme => ({
   },
   firstLine: {
     display: 'flex',
-    overflow: 'hidden',
     gap: theme.spacing(2),
+    alignItems: 'center',
   },
   autoMarginLeft: { marginLeft: 'auto' },
   cardTitle: {
@@ -42,6 +42,7 @@ const useStyles = makeStyles()(theme => ({
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     maxHeight: '100%',
+    minWidth: 0,
   },
   pageTitle: {
     whiteSpace: 'normal',
@@ -55,6 +56,7 @@ const useStyles = makeStyles()(theme => ({
     height: 20,
     flexShrink: 0,
     justifySelf: 'start',
+    textTransform: 'uppercase',
     width: 'auto',
     borderRadius: 4,
   },
@@ -62,6 +64,7 @@ const useStyles = makeStyles()(theme => ({
     padding: theme.spacing(2),
     fontSize: 12,
     height: 20,
+    textTransform: 'uppercase',
     width: 'auto',
     borderRadius: 4,
   },

@@ -9,7 +9,7 @@ import io.openaev.database.model.ExerciseTeamUser;
 import io.openaev.database.model.KillChainPhase;
 import io.openaev.database.model.Objective;
 import io.openaev.database.model.Scenario.SEVERITY;
-import io.openaev.database.raw.RawSimulation;
+import io.openaev.database.raw.RawSimulationIndexing;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -68,6 +68,9 @@ public class SimulationDetails {
   @NotBlank
   private String from;
 
+  @JsonProperty("exercise_mail_from_name")
+  private String fromName;
+
   @JsonProperty("exercise_mails_reply_to")
   private List<String> replyTo;
 
@@ -122,6 +125,9 @@ public class SimulationDetails {
   @JsonProperty("exercise_custom_dashboard")
   private String customDashboard;
 
+  @JsonProperty("exercise_workflow_id")
+  private String workflowId;
+
   // -- PLATFORMS --
 
   @JsonProperty("exercise_platforms")
@@ -148,7 +154,7 @@ public class SimulationDetails {
    * @return an Exercise Simple object
    */
   public static SimulationDetails fromRawExercise(
-      RawSimulation exercise,
+      RawSimulationIndexing exercise,
       List<ExerciseTeamUser> exerciseTeamsUsers,
       List<Objective> objectives) {
     SimulationDetailsBuilder details =
@@ -170,7 +176,8 @@ public class SimulationDetails {
         .end(exercise.getExercise_end_date())
         .header(exercise.getExercise_message_header())
         .footer(exercise.getExercise_message_footer())
-        .from(exercise.getExercise_mail_from());
+        .from(exercise.getExercise_mail_from())
+        .fromName(exercise.getExercise_mail_from_name());
     if (exercise.getExercise_reply_to() != null) {
       details.replyTo(exercise.getExercise_reply_to().stream().toList());
     }
@@ -191,7 +198,8 @@ public class SimulationDetails {
         .objectives(objectives)
         .lessonsAnswersNumber(exercise.getLessons_answers().stream().distinct().toList().size())
         .allUsersNumber(exercise.getExercise_users().stream().distinct().toList().size())
-        .logsNumber(exercise.getLogs().stream().distinct().toList().size());
+        .logsNumber(exercise.getLogs().stream().distinct().toList().size())
+        .workflowId(exercise.getExercise_workflow_id());
 
     return details.build();
   }

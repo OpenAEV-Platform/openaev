@@ -86,9 +86,16 @@ public class Injector extends BaseConnectorEntity implements TenantBase {
   @JsonProperty("injector_dependencies")
   private ExternalServiceDependency[] dependencies;
 
-  @OneToMany(mappedBy = "injector", fetch = FetchType.LAZY)
+  @ManyToMany(fetch = FetchType.LAZY)
+  @JoinTable(
+      name = "injectors_injector_contracts",
+      joinColumns = @JoinColumn(name = "injector_id"),
+      inverseJoinColumns = {
+        @JoinColumn(name = "injector_contract_id", referencedColumnName = "injector_contract_id"),
+        @JoinColumn(name = "tenant_id", referencedColumnName = "tenant_id")
+      })
   @JsonIgnore
-  private List<InjectorContract> contracts = new ArrayList<>();
+  private Set<InjectorContract> contracts = new HashSet<>();
 
   @ManyToOne
   @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
@@ -116,6 +123,18 @@ public class Injector extends BaseConnectorEntity implements TenantBase {
     if (o == null || !Base.class.isAssignableFrom(o.getClass())) return false;
     Base base = (Base) o;
     return id.equals(base.getId());
+  }
+
+  public void linkContract(InjectorContract contract) {
+    this.contracts.add(contract);
+    if (!contract.getInjectors().contains(this)) {
+      contract.getInjectors().add(this);
+    }
+  }
+
+  public void unlinkContract(InjectorContract contract) {
+    this.contracts.remove(contract);
+    contract.getInjectors().remove(this);
   }
 
   @Override

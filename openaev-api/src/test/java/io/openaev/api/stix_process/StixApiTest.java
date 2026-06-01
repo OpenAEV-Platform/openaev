@@ -17,6 +17,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import static org.mockserver.model.HttpRequest.request;
 import static org.mockserver.model.HttpResponse.response;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -252,7 +253,8 @@ class StixApiTest extends IntegrationTest {
           mvc.perform(
                   post(STIX_URI + "/process-bundle")
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(mapper.writeValueAsString(stixSecurityCoverageNoPlatformAffinity)))
+                      .content(mapper.writeValueAsString(stixSecurityCoverageNoPlatformAffinity))
+                      .with(csrf()))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -296,10 +298,7 @@ class StixApiTest extends IntegrationTest {
               InjectorContractFixture.createInjectorContractWithPlatforms(
                   List.of(Endpoint.PLATFORM_TYPE.Windows).toArray(Endpoint.PLATFORM_TYPE[]::new)))
           .withAttackPattern(attackPatternWrapper)
-          .withPayload(
-              payloadComposer
-                  .forPayload(PayloadFixture.createDefaultCommand(domains))
-                  .withAttackPattern(attackPatternWrapper))
+          .withPayload(payloadComposer.forPayload(PayloadFixture.createDefaultCommand()))
           .persist();
 
       entityManager.flush();
@@ -313,7 +312,8 @@ class StixApiTest extends IntegrationTest {
           mvc.perform(
                   post(STIX_URI + "/process-bundle")
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(mapper.writeValueAsString(updated)))
+                      .content(mapper.writeValueAsString(updated))
+                      .with(csrf()))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -359,7 +359,8 @@ class StixApiTest extends IntegrationTest {
       mvc.perform(
               post(STIX_URI + "/process-bundle")
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(mapper.writeValueAsString(updated)))
+                  .content(mapper.writeValueAsString(updated))
+                  .with(csrf()))
           .andExpect(status().isOk());
     }
 
@@ -372,7 +373,8 @@ class StixApiTest extends IntegrationTest {
       mvc.perform(
               post(STIX_URI + "/process-bundle")
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(content))
+                  .content(content)
+                  .with(csrf()))
           .andExpect(status().isOk());
     }
 
@@ -381,15 +383,16 @@ class StixApiTest extends IntegrationTest {
     void shouldReturnBadRequestWhenStixJsonIsInvalid() throws Exception {
       String invalidJson =
           """
-          {
-            "not-a-valid-json":
-          }
+            {
+              "not-a-valid-json":
+            }
           """;
 
       mvc.perform(
               post(STIX_URI + "/process-bundle")
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(invalidJson))
+                  .content(invalidJson)
+                  .with(csrf()))
           .andExpect(status().isBadRequest());
     }
 
@@ -398,16 +401,17 @@ class StixApiTest extends IntegrationTest {
     void shouldReturnBadRequestWhenStixStructureInvalid() throws Exception {
       String structurallyInvalidStix =
           """
-                    {
-                      "type": "bundle",
-                      "id": "bundle--1234"
-                    }
-                    """;
+            {
+              "type": "bundle",
+              "id": "bundle--1234"
+            }
+          """;
 
       mvc.perform(
               post(STIX_URI + "/process-bundle")
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(structurallyInvalidStix))
+                  .content(structurallyInvalidStix)
+                  .with(csrf()))
           .andExpect(status().isBadRequest());
     }
 
@@ -419,7 +423,8 @@ class StixApiTest extends IntegrationTest {
           mvc.perform(
                   post(STIX_URI + "/process-bundle")
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(mapper.writeValueAsString(stixSecurityCoverageNoDuration)))
+                      .content(mapper.writeValueAsString(stixSecurityCoverageNoDuration))
+                      .with(csrf()))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -445,7 +450,8 @@ class StixApiTest extends IntegrationTest {
       mvc.perform(
               post(STIX_URI + "/process-bundle")
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(mapper.writeValueAsString(stixSecurityCoverage)))
+                  .content(mapper.writeValueAsString(stixSecurityCoverage))
+                  .with(csrf()))
           .andExpect(status().isOk());
 
       entityManager.flush();
@@ -454,7 +460,8 @@ class StixApiTest extends IntegrationTest {
       mvc.perform(
               post(STIX_URI + "/process-bundle")
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(mapper.writeValueAsString(stixSecurityCoverage)))
+                  .content(mapper.writeValueAsString(stixSecurityCoverage))
+                  .with(csrf()))
           .andExpect(status().isOk());
     }
 
@@ -473,7 +480,8 @@ class StixApiTest extends IntegrationTest {
       mvc.perform(
               post(STIX_URI + "/process-bundle")
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(mapper.writeValueAsString(referenceInput)))
+                  .content(mapper.writeValueAsString(referenceInput))
+                  .with(csrf()))
           .andExpect(status().isOk());
 
       entityManager.flush();
@@ -491,7 +499,8 @@ class StixApiTest extends IntegrationTest {
       mvc.perform(
               post(STIX_URI + "/process-bundle")
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(mapper.writeValueAsString(updated)))
+                  .content(mapper.writeValueAsString(updated))
+                  .with(csrf()))
           .andExpect(status().isOk());
     }
 
@@ -510,6 +519,7 @@ class StixApiTest extends IntegrationTest {
           .isEqualTo("security-coverage--4c3b91e2-3b47-4f84-b2e6-d27e3f0581c1");
       assertThat(createdScenario.getRecurrence()).asString().isEqualTo("P1D");
       // recurrence duration is set to P30D
+      assertThat(createdScenario.getRecurrenceStart().getNano()).isEqualTo(0);
       assertThat(createdScenario.getRecurrenceEnd())
           .isEqualTo(createdScenario.getRecurrenceStart().plus(30, ChronoUnit.DAYS));
       assertThat(createdScenario.getTags().stream().map(Tag::getName).toList())
@@ -986,7 +996,10 @@ class StixApiTest extends IntegrationTest {
     void shouldNotDuplicatedReferenceSecurityCoverage() throws Exception {
       String scenarioId = getScenarioIdResponse(mapper.writeValueAsString(stixSecurityCoverage));
       String duplicated =
-          mvc.perform(post(SCENARIO_URI + "/" + scenarioId).contentType(MediaType.APPLICATION_JSON))
+          mvc.perform(
+                  post(SCENARIO_URI + "/" + scenarioId)
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -1004,7 +1017,8 @@ class StixApiTest extends IntegrationTest {
           mvc.perform(
                   post(STIX_URI + "/process-bundle")
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(mapper.writeValueAsString(stixSecurityCoverageWithDomainName)))
+                      .content(mapper.writeValueAsString(stixSecurityCoverageWithDomainName))
+                      .with(csrf()))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -1043,6 +1057,7 @@ class StixApiTest extends IntegrationTest {
       String createdResponse =
           mvc.perform(
                   post(STIX_URI + "/process-bundle")
+                      .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(mapper.writeValueAsString(stixSecurityCoverageWithArtifact)))
               .andExpect(status().isOk())
@@ -1084,6 +1099,7 @@ class StixApiTest extends IntegrationTest {
       String createdResponse =
           mvc.perform(
                   post(STIX_URI + "/process-bundle")
+                      .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(mapper.writeValueAsString(stixSecurityCoverageWithFailingArtifact)))
               .andExpect(status().isOk())
@@ -1107,7 +1123,8 @@ class StixApiTest extends IntegrationTest {
         mvc.perform(
                 post(STIX_URI + "/process-bundle")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(content))
+                    .content(content)
+                    .with(csrf()))
             .andExpect(status().isOk())
             .andReturn()
             .getResponse()

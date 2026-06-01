@@ -1,5 +1,7 @@
 package io.openaev.rest.finding;
 
+import static io.openaev.rest.finding.FindingApi.FINDING_URI;
+import static io.openaev.rest.finding.FindingApi.TENANT_FINDING_URI;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import io.openaev.aop.AccessControl;
@@ -27,7 +29,6 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping(FindingApi.FINDING_URI)
 @RequiredArgsConstructor
 public class FindingSearchApi extends RestBehavior {
 
@@ -37,7 +38,7 @@ public class FindingSearchApi extends RestBehavior {
   private final FindingMapper findingMapper;
 
   @LogExecutionTime
-  @PostMapping("/search")
+  @PostMapping({FINDING_URI + "/search", TENANT_FINDING_URI + "/search"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.FINDING)
   @ApiResponse(
       responseCode = "200",
@@ -63,7 +64,10 @@ public class FindingSearchApi extends RestBehavior {
   }
 
   @LogExecutionTime
-  @PostMapping("/injects/{injectId}/search")
+  @PostMapping({
+    FINDING_URI + "/injects/{injectId}/search",
+    TENANT_FINDING_URI + "/injects/{injectId}/search"
+  })
   @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.READ,
@@ -95,7 +99,10 @@ public class FindingSearchApi extends RestBehavior {
   }
 
   @LogExecutionTime
-  @PostMapping("/exercises/{simulationId}/search")
+  @PostMapping({
+    FINDING_URI + "/exercises/{simulationId}/search",
+    TENANT_FINDING_URI + "/exercises/{simulationId}/search"
+  })
   @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.READ,
@@ -127,7 +134,10 @@ public class FindingSearchApi extends RestBehavior {
   }
 
   @LogExecutionTime
-  @PostMapping("/scenarios/{scenarioId}/search")
+  @PostMapping({
+    FINDING_URI + "/scenarios/{scenarioId}/search",
+    TENANT_FINDING_URI + "/scenarios/{scenarioId}/search"
+  })
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -161,7 +171,10 @@ public class FindingSearchApi extends RestBehavior {
   }
 
   @LogExecutionTime
-  @PostMapping("/endpoints/{endpointId}/search")
+  @PostMapping({
+    FINDING_URI + "/endpoints/{endpointId}/search",
+    TENANT_FINDING_URI + "/endpoints/{endpointId}/search"
+  })
   @AccessControl(
       resourceId = "#endpointId",
       actionPerformed = Action.READ,

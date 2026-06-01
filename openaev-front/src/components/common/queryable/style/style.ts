@@ -10,18 +10,17 @@ const useBodyItemsStyles: () => {
   return ({
     bodyItems: {
       display: 'flex',
+      alignItems: 'center',
       flexWrap: 'nowrap',
       maxWidth: '100%',
     },
     bodyItem: {
-      height: 24,
+      minHeight: 20,
       fontSize: theme.typography.body2.fontSize,
       whiteSpace: 'nowrap',
       overflow: 'hidden',
       textOverflow: 'ellipsis',
       paddingRight: theme.spacing(1),
-      display: 'flex',
-      alignItems: 'center',
     },
   });
 };

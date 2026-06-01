@@ -3,6 +3,7 @@ package io.openaev.database.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.audit.ModelBaseListener;
+import jakarta.annotation.Nullable;
 import jakarta.persistence.*;
 import java.util.Objects;
 import lombok.Data;
@@ -15,7 +16,7 @@ import org.hibernate.annotations.UuidGenerator;
 @Table(name = "parameters")
 @EntityListeners(ModelBaseListener.class)
 @NoArgsConstructor
-public class Setting implements Base {
+public class Setting implements DualScopeBase {
 
   @Id
   @Column(name = "parameter_id")
@@ -31,6 +32,12 @@ public class Setting implements Base {
   @Column(name = "parameter_value")
   @JsonProperty("setting_value")
   private String value;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "tenant_id")
+  @JsonIgnore
+  @Nullable
+  private Tenant tenant;
 
   @Getter(onMethod_ = @JsonIgnore)
   @Transient

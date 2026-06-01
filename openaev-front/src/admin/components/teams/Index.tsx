@@ -29,7 +29,7 @@ const Index = () => {
               <ProtectedRoute
                 checks={[{
                   action: ACTIONS.ACCESS,
-                  subject: SUBJECTS.PLATFORM_SETTINGS,
+                  subject: SUBJECTS.TENANT_SETTINGS,
                 }]}
                 Component={errorWrapper(Organizations)()}
               />

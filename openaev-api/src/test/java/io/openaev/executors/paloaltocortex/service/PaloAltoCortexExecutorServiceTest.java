@@ -68,11 +68,9 @@ public class PaloAltoCortexExecutorServiceTest {
     // Run method to test
     paloAltoCortexExecutorService.run();
     // Asserts
-    ArgumentCaptor<String> executorTypeCaptor = ArgumentCaptor.forClass(String.class);
-    ArgumentCaptor<String> tenantIdCaptor = ArgumentCaptor.forClass(String.class);
-    verify(agentService)
-        .getAgentsByExecutorType(executorTypeCaptor.capture(), tenantIdCaptor.capture());
-    assertEquals(paloAltoCortexExecutor.getType(), executorTypeCaptor.getValue());
+    ArgumentCaptor<String> executorIdCaptor = ArgumentCaptor.forClass(String.class);
+    verify(agentService).getAgentsByExecutorId(executorIdCaptor.capture());
+    assertEquals(paloAltoCortexExecutor.getId(), executorIdCaptor.getValue());
 
     ArgumentCaptor<List<AgentRegisterInput>> inputsCaptor = ArgumentCaptor.forClass(List.class);
     ArgumentCaptor<List<Agent>> agents = ArgumentCaptor.forClass(List.class);
@@ -103,7 +101,7 @@ public class PaloAltoCortexExecutorServiceTest {
   //            "whoami",
   //            List.of(),
   //            "whoami",
-  //            Set.of(new Domain(null, "To classify", "#000000", Instant.now(), null)));
+  //            Set.of(PresetDomain.getToClassify()));
   //    Injector injector = InjectorFixture.createDefaultPayloadInjector();
   //    Map<String, String> executorCommands = new HashMap<>();
   //    executorCommands.put(

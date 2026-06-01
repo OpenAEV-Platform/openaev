@@ -6,7 +6,6 @@ import static io.openaev.service.FileService.COLLECTORS_IMAGES_BASE_PATH;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.CollectorTypeRepository;
@@ -78,7 +77,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
 
   @Override
   protected Collector getConnectorById(String collectorId) {
-    return collector(collectorId);
+    return collectorRepository.findById(collectorId).orElse(null);
   }
 
   @Override
@@ -131,28 +130,6 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
    */
   public ConnectorIds getCollectorRelationsId(String collectorId) {
     return getConnectorRelationsId(collectorId);
-  }
-
-  /**
-   * Finds a collector by its type.
-   *
-   * @param type the collector type to search for
-   * @return the collector matching the given type
-   * @throws ElementNotFoundException if no collector is found with the given type
-   */
-  public Collector collectorByType(String type) throws ElementNotFoundException {
-    return findCollectorByType(type)
-        .orElseThrow(() -> new ElementNotFoundException("Collector not found with type: " + type));
-  }
-
-  /**
-   * Finds a collector by its type.
-   *
-   * @param type the collector type to search for
-   * @return an Optional containing the collector if found, empty otherwise
-   */
-  public Optional<Collector> findCollectorByType(String type) {
-    return collectorRepository.findByTypeAndTenantId(type, TenantContext.getCurrentTenant());
   }
 
   public List<Collector> securityPlatformCollectors() {
@@ -225,9 +202,12 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
             ? securityPlatformRepository.findById(securityPlatformId).orElseThrow()
             : null;
 
+    CollectorType collectorType = collectorTypeRepository.findByName(type).orElseThrow();
+
     if (collector != null) {
       collector.setName(name);
       collector.setType(type);
+      collector.setCollectorType(collectorType);
       collector.setExternal(external);
       if (external) {
         collector.setUpdatedAt(Instant.now());
@@ -242,6 +222,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
     newCollector.setId(id);
     newCollector.setName(name);
     newCollector.setType(type);
+    newCollector.setCollectorType(collectorType);
     newCollector.setExternal(external);
     newCollector.setPeriod(period);
     if (securityPlatform != null) {

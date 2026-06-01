@@ -2,8 +2,7 @@ package io.openaev.database.repository;
 
 import io.openaev.database.model.AssetType;
 import io.openaev.database.model.Endpoint;
-import io.openaev.database.raw.RawVulnerableEndpoint;
-import io.openaev.utils.Constants;
+import io.openaev.database.raw.RawVulnerableEndpointIndexing;
 import java.time.Instant;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -39,6 +38,7 @@ public interface VulnerableEndpointRepository extends JpaRepository<Endpoint, St
               + "a.endpoint_platform as vulnerable_endpoint_platform, "
               + "a.endpoint_is_eol as vulnerable_endpoint_eol, "
               + "a.endpoint_arch as vulnerable_endpoint_architecture, "
+              + "a.tenant_id, "
               + "e.exercise_created_at as vulnerable_endpoint_created_at, "
               + "CASE WHEN e.exercise_updated_at > a.asset_updated_at "
               + "  THEN e.exercise_updated_at ELSE a.asset_updated_at END as vulnerable_endpoint_updated_at, "
@@ -64,9 +64,8 @@ public interface VulnerableEndpointRepository extends JpaRepository<Endpoint, St
               + AssetType.Values.ENDPOINT_TYPE
               + "' "
               + "GROUP BY a.asset_id, i.inject_exercise, e.exercise_updated_at, e.exercise_created_at, ag.agent_ids, ag.agent_last_seen, ag.agent_privs "
-              + "ORDER BY e.exercise_updated_at LIMIT "
-              + Constants.INDEXING_RECORD_SET_SIZE
-              + ";",
+              + "ORDER BY e.exercise_updated_at LIMIT :limit;",
       nativeQuery = true)
-  List<RawVulnerableEndpoint> findForIndexing(@Param("from") Instant from);
+  List<RawVulnerableEndpointIndexing> findForIndexing(
+      @Param("from") Instant from, @Param("limit") int limit);
 }

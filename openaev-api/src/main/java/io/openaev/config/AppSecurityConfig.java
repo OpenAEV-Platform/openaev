@@ -21,6 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -42,13 +43,20 @@ import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.savedrequest.HttpSessionRequestCache;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
 @Slf4j
 public class AppSecurityConfig {
+
+  private static final String TENANT_AGENT_URI = "/api/tenants/*/agent/**";
+  private static final String TENANT_IMPLANT_URI = "/api/tenants/*/implant/**";
+  private static final String TENANT_PLAYER_URI = "/api/tenants/*/player/**";
 
   private final OpenAEVConfig openAEVConfig;
   private final OpenSamlConfig openSamlConfig;
@@ -63,7 +71,12 @@ public class AppSecurityConfig {
     http.addFilterBefore(tokenAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
         .requestCache(Customizer.withDefaults())
         .requestCache(cache -> cache.requestCache(new HttpSessionRequestCache()))
-        .csrf(AbstractHttpConfigurer::disable)
+        .csrf(
+            csrf ->
+                csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                    .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
+                    .ignoringRequestMatchers("/api/health", "/api/login", "/actuator/**")
+                    .ignoringRequestMatchers(bearerWithoutCookiesMatcher()))
         .formLogin(AbstractHttpConfigurer::disable)
         .securityContext(securityContext -> securityContext.requireExplicitSave(false))
         .authorizeHttpRequests(
@@ -72,17 +85,28 @@ public class AppSecurityConfig {
                     .permitAll()
                     .requestMatchers("/api/comcheck/**")
                     .permitAll()
+                    // TODO multi-tenancy to delete after the multi tenancy upgrade
                     .requestMatchers("/api/player/**")
                     .permitAll()
-                    .requestMatchers("/api/settings")
+                    .requestMatchers(TENANT_PLAYER_URI)
                     .permitAll()
+                    .requestMatchers("/api/settings/public")
+                    .permitAll()
+                    // TODO multi-tenancy to delete after the multi tenancy upgrade
                     .requestMatchers("/api/agent/**")
                     .permitAll()
+                    .requestMatchers(TENANT_AGENT_URI)
+                    .permitAll()
+                    // TODO multi-tenancy to delete after the multi tenancy upgrade
                     .requestMatchers("/api/implant/**")
+                    .permitAll()
+                    .requestMatchers(TENANT_IMPLANT_URI)
                     .permitAll()
                     .requestMatchers("/api/login")
                     .permitAll()
                     .requestMatchers("/api/reset/**")
+                    .permitAll()
+                    .requestMatchers("/xtm/auth/jwks")
                     .permitAll()
                     .requestMatchers("/api/**")
                     .authenticated()
@@ -225,6 +249,15 @@ public class AppSecurityConfig {
             .additionalParameters(params -> params.put("audience", audience))
             .build();
       }
+    };
+  }
+
+  private RequestMatcher bearerWithoutCookiesMatcher() {
+    return request -> {
+      String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
+      boolean hasBearer = authorization != null && authorization.startsWith("Bearer ");
+      boolean hasCookies = request.getCookies() != null && request.getCookies().length > 0;
+      return hasBearer && !hasCookies;
     };
   }
 }

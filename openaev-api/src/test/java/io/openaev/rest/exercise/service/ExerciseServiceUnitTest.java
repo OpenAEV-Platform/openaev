@@ -11,11 +11,11 @@ import io.openaev.database.repository.*;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.expectation.ExpectationType;
 import io.openaev.rest.document.DocumentService;
+import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.form.ExercisesGlobalScoresInput;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
-import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.*;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.period.CronService;
@@ -76,7 +76,6 @@ class ExerciseServiceUnitTest {
 
   @Mock private WorkflowService workflowService;
   @Mock private LessonsService lessonsService;
-  @Mock private PreviewFeatureService previewFeatureService;
 
   @Spy @InjectMocks private ExerciseService mockedExerciseService;
 
@@ -331,13 +330,17 @@ class ExerciseServiceUnitTest {
 
     @ParameterizedTest(name = "chaining={0}")
     @ValueSource(booleans = {true, false})
-    void shouldCreateSimulation_withOrWithoutChaining(boolean chaining) {
+    void shouldCreateSimulation_withOrWithoutChaining(boolean chaining) throws ChainingException {
 
       Exercise saved = mock(Exercise.class);
       doReturn(saved).when(mockedExerciseService).createExercise(exercise);
-      if (chaining)
-        doReturn(true).when(previewFeatureService).isFeatureEnabled(PreviewFeature.INJECT_CHAINING);
-      Exercise result = mockedExerciseService.createSimulation(exercise, chaining);
+      Exercise result;
+      if (chaining) {
+        doNothing().when(workflowService).isPreviewFeatureChainingEnable();
+        result = mockedExerciseService.createSimulationChaining(exercise);
+      } else {
+        result = mockedExerciseService.createExercise(exercise);
+      }
 
       assertEquals(saved, result);
       verify(mockedExerciseService).createExercise(exercise);
@@ -345,7 +348,7 @@ class ExerciseServiceUnitTest {
       if (chaining) {
         verify(workflowService).creationWorkflow(saved);
       } else {
-        verify(workflowService, never()).creationWorkflow(any());
+        verify(workflowService, never()).creationWorkflow(any(Exercise.class));
       }
     }
   }

@@ -18,6 +18,7 @@ const useStyles = makeStyles()(() => ({
   list: { marginTop: 10 },
   itemHead: {
     paddingLeft: 10,
+    textTransform: 'uppercase',
     cursor: 'pointer',
   },
   item: {
@@ -32,6 +33,7 @@ const useStyles = makeStyles()(() => ({
     fontSize: 12,
     height: 20,
     float: 'left',
+    textTransform: 'uppercase',
     borderRadius: 4,
     marginRight: 5,
   },
@@ -134,8 +136,8 @@ const InjectorContracts = () => {
       mode: 'and',
       filters: [
         {
-          key: 'injector_contract_injector',
-          operator: 'eq',
+          key: 'injector_contract_injectors',
+          operator: 'contains',
           values: [injectorId],
         }],
     },
@@ -283,10 +285,7 @@ const InjectorContracts = () => {
             <ListItemSecondaryAction>
               <InjectorContractPopover
                 injectorContract={injectorContract}
-                killChainPhasesMap={killChainPhasesMap}
-                attackPatternsMap={attackPatternsMap}
                 onUpdate={result => setInjectorContracts(injectorContracts.map(ic => (ic.injector_contract_id !== result.injector_contract_id ? ic : result)))}
-                isPayloadInjector={injector.injector_payloads}
               />
             </ListItemSecondaryAction>
           </ListItem>

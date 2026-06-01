@@ -1,5 +1,6 @@
 import { MoreVert } from '@mui/icons-material';
 import {
+  Button,
   Dialog,
   DialogActions,
   DialogContent,
@@ -14,7 +15,6 @@ import { useContext, useState } from 'react';
 import { useDispatch } from 'react-redux';
 
 import { deleteChallenge, updateChallenge } from '../../../../actions/challenge-action';
-import Button from '../../../../components/common/button/Button';
 import Drawer from '../../../../components/common/Drawer';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
@@ -129,8 +129,8 @@ const ChallengePopover = ({ challenge, onRemoveChallenge, inline, disabled = fal
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="secondary" onClick={handleCloseDelete}>{t('Cancel')}</Button>
-          <Button variant="primary" onClick={submitDelete}>
+          <Button onClick={handleCloseDelete}>{t('Cancel')}</Button>
+          <Button color="secondary" onClick={submitDelete}>
             {t('Delete')}
           </Button>
         </DialogActions>
@@ -186,8 +186,8 @@ const ChallengePopover = ({ challenge, onRemoveChallenge, inline, disabled = fal
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="secondary" onClick={handleCloseRemove}>{t('Cancel')}</Button>
-          <Button variant="primary" onClick={submitRemove}>
+          <Button onClick={handleCloseRemove}>{t('Cancel')}</Button>
+          <Button color="secondary" onClick={submitRemove}>
             {t('Remove')}
           </Button>
         </DialogActions>

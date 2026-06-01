@@ -1,7 +1,9 @@
 package io.openaev.rest.inject_test_status;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.database.specification.InjectSpecification.testable;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
+import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
@@ -38,7 +40,10 @@ public class SimulationInjectTestApi extends RestBehavior {
    * @deprecated since 1.16.0, forRemoval = true
    * @see #findExercisePageInjectTests
    */
-  @PostMapping("/api/exercise/{simulationId}/injects/test")
+  @PostMapping({
+    "/api/exercise/{simulationId}/injects/test",
+    TENANT_PREFIX + "/exercise/{simulationId}/injects/test"
+  })
   @AccessControl(
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION,
@@ -50,7 +55,10 @@ public class SimulationInjectTestApi extends RestBehavior {
         simulationId, searchPaginationInput);
   }
 
-  @PostMapping(EXERCISE_URI + "/{simulationId}/injects/test/search")
+  @PostMapping({
+    EXERCISE_URI + "/{simulationId}/injects/test/search",
+    TENANT_EXERCISE_URI + "/{simulationId}/injects/test/search"
+  })
   @AccessControl(
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION,
@@ -63,7 +71,10 @@ public class SimulationInjectTestApi extends RestBehavior {
   }
 
   @Transactional(rollbackFor = Exception.class)
-  @GetMapping(EXERCISE_URI + "/{simulationId}/injects/{injectId}/test")
+  @GetMapping({
+    EXERCISE_URI + "/{simulationId}/injects/{injectId}/test",
+    TENANT_EXERCISE_URI + "/{simulationId}/injects/{injectId}/test"
+  })
   @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.READ,
@@ -75,7 +86,10 @@ public class SimulationInjectTestApi extends RestBehavior {
   }
 
   @Transactional(rollbackFor = Exception.class)
-  @GetMapping(EXERCISE_URI + "/injects/test/{testId}")
+  @GetMapping({
+    EXERCISE_URI + "/injects/test/{testId}",
+    TENANT_EXERCISE_URI + "/injects/test/{testId}"
+  })
   @AccessControl(
       actionPerformed = Action.SEARCH,
       resourceType =
@@ -85,7 +99,10 @@ public class SimulationInjectTestApi extends RestBehavior {
   }
 
   @Transactional(rollbackFor = Exception.class)
-  @DeleteMapping(EXERCISE_URI + "/{simulationId}/injects/test/{testId}")
+  @DeleteMapping({
+    EXERCISE_URI + "/{simulationId}/injects/test/{testId}",
+    TENANT_EXERCISE_URI + "/{simulationId}/injects/test/{testId}"
+  })
   @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.WRITE,
@@ -99,7 +116,10 @@ public class SimulationInjectTestApi extends RestBehavior {
       description = "Bulk tests of injects",
       tags = {"Injects", "Tests"})
   @Transactional(rollbackFor = Exception.class)
-  @PostMapping(EXERCISE_URI + "/{simulationId}/injects/test")
+  @PostMapping({
+    EXERCISE_URI + "/{simulationId}/injects/test",
+    TENANT_EXERCISE_URI + "/{simulationId}/injects/test"
+  })
   @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.WRITE,

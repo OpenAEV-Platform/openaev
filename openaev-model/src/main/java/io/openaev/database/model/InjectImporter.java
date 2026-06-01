@@ -38,7 +38,12 @@ public class InjectImporter implements Base {
   private String importTypeValue;
 
   @OneToOne
-  @JoinColumn(name = "importer_injector_contract_id")
+  @JoinColumns({
+    @JoinColumn(
+        name = "importer_injector_contract_id",
+        referencedColumnName = "injector_contract_id"),
+    @JoinColumn(name = "importer_tenant_id", referencedColumnName = "tenant_id")
+  })
   @JsonProperty("inject_importer_injector_contract")
   @JsonSerialize(using = MonoIdSerializer.class)
   @NotNull

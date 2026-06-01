@@ -12,6 +12,7 @@ import jakarta.persistence.PersistenceContext;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,8 +40,8 @@ public class AssetService {
     return fromIterable(this.assetRepository.findAll());
   }
 
-  public List<SecurityPlatform> securityPlatforms() {
-    return fromIterable(securityPlatformRepository.findAll());
+  public List<SecurityPlatform> securityPlatformsByIds(@NotNull final Set<String> ids) {
+    return securityPlatformRepository.findAllByIds(ids);
   }
 
   public Iterable<Asset> assetFromIds(@NotNull final List<String> assetIds) {

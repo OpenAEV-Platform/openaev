@@ -6,6 +6,7 @@ import {
 } from '@mui/icons-material';
 import {
   Alert,
+  Button,
   Dialog,
   DialogContent,
   DialogTitle,
@@ -30,7 +31,6 @@ import { fetchSimulationPlayerDocuments } from '../../../actions/Document';
 import ChallengeCard from '../../../admin/components/common/challenges/ChallengeCard';
 import { FAILED } from '../../../admin/components/common/injects/expectations/ExpectationUtils';
 import DocumentType from '../../../admin/components/components/documents/DocumentType';
-import Button from '../../../components/common/button/Button';
 import Transition from '../../../components/common/Transition';
 import Empty from '../../../components/Empty';
 import ExpandableMarkdown from '../../../components/ExpandableMarkdown';
@@ -41,6 +41,7 @@ import Loader from '../../../components/Loader';
 import { useHelper } from '../../../store';
 import { useQueryParameter } from '../../../utils/Environment';
 import useSimulationPermissions from '../../../utils/permissions/useSimulationPermissions';
+import { buildTenantApiPath } from '../../../utils/url-helper';
 
 const useStyles = makeStyles()(() => ({
   root: {
@@ -58,6 +59,7 @@ const useStyles = makeStyles()(() => ({
   },
   itemHead: {
     paddingLeft: 10,
+    textTransform: 'uppercase',
     cursor: 'pointer',
   },
   item: {
@@ -232,7 +234,7 @@ const ChallengesPlayer = () => {
       <div className={classes.root}>
         {permissions.isLoggedIn && permissions.canAccess && (
           <Button
-            color="primary"
+            color="secondary"
             variant="outlined"
             component={Link}
             to={`/admin/simulations/${exerciseId}/challenges`}
@@ -385,7 +387,7 @@ const ChallengesPlayer = () => {
                           divider={true}
                           button={true}
                           component="a"
-                          href={`/api/documents/${document.document_id}/file`}
+                          href={buildTenantApiPath(`/api/documents/${document.document_id}/file`)}
                         >
                           <ListItemIcon>
                             <AttachmentOutlined />
@@ -492,7 +494,6 @@ const ChallengesPlayer = () => {
                     }}
                     >
                       <Button
-                        variant="secondary"
                         onClick={handleClose}
                         style={{ marginRight: 10 }}
                         disabled={submitting}
@@ -500,7 +501,7 @@ const ChallengesPlayer = () => {
                         {t('Cancel')}
                       </Button>
                       <Button
-                        variant="primary"
+                        color="secondary"
                         type="submit"
                         disabled={
                           submitting || Object.keys(errors).length > 0

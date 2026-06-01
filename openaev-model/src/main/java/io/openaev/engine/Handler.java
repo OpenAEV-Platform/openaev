@@ -17,7 +17,8 @@ public interface Handler<T extends EsBase> {
    * @param from date used to determine which data to take (updated_at attribute from table). For
    *     each attribute added, it is important to check that the updated at for the document is
    *     relevant when you delete/update/add this attribute in this document
+   * @param limit maximum number of records to fetch per batch
    * @return list data to index
    */
-  List<T> fetch(Instant from);
+  List<T> fetch(Instant from, int limit);
 }

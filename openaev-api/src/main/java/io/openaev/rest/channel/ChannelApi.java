@@ -1,8 +1,11 @@
 package io.openaev.rest.channel;
 
 import static io.openaev.config.OpenAEVAnonymous.ANONYMOUS;
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.rest.channel.ChannelHelper.enrichArticleWithVirtualPublication;
+import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
+import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.database.model.*;
@@ -32,6 +35,13 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class ChannelApi extends RestBehavior {
 
+  public static final String CHANNEL_URI = "/api/channels";
+  private static final String TENANT_CHANNEL_URI = TENANT_PREFIX + "/channels";
+  private static final String OBSERVER_CHANNEL_URI = "/api/observer/channels";
+  private static final String TENANT_OBSERVER_CHANNEL_URI = TENANT_PREFIX + "/observer/channels";
+  private static final String PLAYER_CHANNEL_URI = "/api/player/channels";
+  private static final String TENANT_PLAYER_CHANNEL_URI = TENANT_PREFIX + "/player/channels";
+
   private final ExerciseRepository exerciseRepository;
   private final ScenarioService scenarioService;
   private final ArticleRepository articleRepository;
@@ -43,13 +53,13 @@ public class ChannelApi extends RestBehavior {
 
   // -- CHANNELS --
 
-  @GetMapping("/api/channels")
+  @GetMapping({CHANNEL_URI, TENANT_CHANNEL_URI})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.CHANNEL)
   public Iterable<Channel> channels() {
     return channelRepository.findAll();
   }
 
-  @GetMapping("/api/channels/{channelId}")
+  @GetMapping({CHANNEL_URI + "/{channelId}", TENANT_CHANNEL_URI + "/{channelId}"})
   @AccessControl(
       resourceId = "#channelId",
       actionPerformed = Action.READ,
@@ -58,7 +68,7 @@ public class ChannelApi extends RestBehavior {
     return channelRepository.findById(channelId).orElseThrow(ElementNotFoundException::new);
   }
 
-  @PutMapping("/api/channels/{channelId}")
+  @PutMapping({CHANNEL_URI + "/{channelId}", TENANT_CHANNEL_URI + "/{channelId}"})
   @AccessControl(
       resourceId = "#channelId",
       actionPerformed = Action.WRITE,
@@ -72,7 +82,7 @@ public class ChannelApi extends RestBehavior {
     return channelRepository.save(channel);
   }
 
-  @PutMapping("/api/channels/{channelId}/logos")
+  @PutMapping({CHANNEL_URI + "/{channelId}/logos", TENANT_CHANNEL_URI + "/{channelId}/logos"})
   @AccessControl(
       resourceId = "#channelId",
       actionPerformed = Action.WRITE,
@@ -94,7 +104,7 @@ public class ChannelApi extends RestBehavior {
     return channelRepository.save(channel);
   }
 
-  @PostMapping("/api/channels")
+  @PostMapping({CHANNEL_URI, TENANT_CHANNEL_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.CHANNEL)
   @Transactional(rollbackOn = Exception.class)
   public Channel createChannel(@Valid @RequestBody ChannelCreateInput input) {
@@ -103,7 +113,7 @@ public class ChannelApi extends RestBehavior {
     return channelRepository.save(channel);
   }
 
-  @DeleteMapping("/api/channels/{channelId}")
+  @DeleteMapping({CHANNEL_URI + "/{channelId}", TENANT_CHANNEL_URI + "/{channelId}"})
   @AccessControl(
       resourceId = "#channelId",
       actionPerformed = Action.DELETE,
@@ -112,7 +122,10 @@ public class ChannelApi extends RestBehavior {
     channelRepository.deleteById(channelId);
   }
 
-  @GetMapping("/api/observer/channels/{exerciseId}/{channelId}")
+  @GetMapping({
+    OBSERVER_CHANNEL_URI + "/{exerciseId}/{channelId}",
+    TENANT_OBSERVER_CHANNEL_URI + "/{exerciseId}/{channelId}"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -144,7 +157,10 @@ public class ChannelApi extends RestBehavior {
     return channelReader;
   }
 
-  @GetMapping("/api/player/channels/{exerciseId}/{channelId}")
+  @GetMapping({
+    PLAYER_CHANNEL_URI + "/{exerciseId}/{channelId}",
+    TENANT_PLAYER_CHANNEL_URI + "/{exerciseId}/{channelId}"
+  })
   @AccessControl(skipRBAC = true)
   public ChannelReader playerArticles(
       @PathVariable String exerciseId,
@@ -159,7 +175,10 @@ public class ChannelApi extends RestBehavior {
 
   // -- EXERCISES --
 
-  @PostMapping("/api/exercises/{exerciseId}/articles")
+  @PostMapping({
+    "/api/exercises/{exerciseId}/articles",
+    TENANT_EXERCISE_URI + "/{exerciseId}/articles"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -197,7 +216,10 @@ public class ChannelApi extends RestBehavior {
     return enrichArticleWithVirtualPublication(exercise.getInjects(), savedArticle, this.mapper);
   }
 
-  @PutMapping("/api/exercises/{exerciseId}/articles/{articleId}")
+  @PutMapping({
+    "/api/exercises/{exerciseId}/articles/{articleId}",
+    TENANT_EXERCISE_URI + "/{exerciseId}/articles/{articleId}"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -245,7 +267,10 @@ public class ChannelApi extends RestBehavior {
     return enrichArticleWithVirtualPublication(exercise.getInjects(), savedArticle, this.mapper);
   }
 
-  @DeleteMapping("/api/exercises/{exerciseId}/articles/{articleId}")
+  @DeleteMapping({
+    "/api/exercises/{exerciseId}/articles/{articleId}",
+    TENANT_EXERCISE_URI + "/{exerciseId}/articles/{articleId}"
+  })
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -258,7 +283,10 @@ public class ChannelApi extends RestBehavior {
 
   // -- SCENARIOS --
 
-  @PostMapping(SCENARIO_URI + "/{scenarioId}/articles")
+  @PostMapping({
+    SCENARIO_URI + "/{scenarioId}/articles",
+    TENANT_SCENARIO_URI + "/{scenarioId}/articles"
+  })
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
@@ -295,7 +323,10 @@ public class ChannelApi extends RestBehavior {
     return enrichArticleWithVirtualPublication(scenario.getInjects(), savedArticle, this.mapper);
   }
 
-  @PutMapping(SCENARIO_URI + "/{scenarioId}/articles/{articleId}")
+  @PutMapping({
+    SCENARIO_URI + "/{scenarioId}/articles/{articleId}",
+    TENANT_SCENARIO_URI + "/{scenarioId}/articles/{articleId}"
+  })
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
@@ -343,7 +374,10 @@ public class ChannelApi extends RestBehavior {
     return enrichArticleWithVirtualPublication(scenario.getInjects(), savedArticle, this.mapper);
   }
 
-  @DeleteMapping(SCENARIO_URI + "/{scenarioId}/articles/{articleId}")
+  @DeleteMapping({
+    SCENARIO_URI + "/{scenarioId}/articles/{articleId}",
+    TENANT_SCENARIO_URI + "/{scenarioId}/articles/{articleId}"
+  })
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
@@ -355,7 +389,10 @@ public class ChannelApi extends RestBehavior {
     articleRepository.deleteById(articleId);
   }
 
-  @GetMapping("/api/channels/{channelId}/documents")
+  @GetMapping({
+    CHANNEL_URI + "/{channelId}/documents",
+    TENANT_CHANNEL_URI + "/{channelId}/documents"
+  })
   @AccessControl(
       resourceId = "#channelId",
       actionPerformed = Action.READ,

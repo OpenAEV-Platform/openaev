@@ -17,9 +17,10 @@ public class AssetGroupHandler implements Handler<EsAssetGroup> {
   private final AssetGroupRepository assetGroupRepository;
 
   @Override
-  public List<EsAssetGroup> fetch(Instant from) {
+  public List<EsAssetGroup> fetch(Instant from, int limit) {
     Instant queryFrom = from != null ? from : Instant.ofEpochMilli(0);
-    List<RawAssetGroupIndexing> forIndexing = assetGroupRepository.findForIndexing(queryFrom);
+    List<RawAssetGroupIndexing> forIndexing =
+        assetGroupRepository.findForIndexing(queryFrom, limit);
     return forIndexing.stream()
         .map(
             assetGroup -> {
@@ -30,6 +31,7 @@ public class AssetGroupHandler implements Handler<EsAssetGroup> {
               esAssetGroup.setBase_updated_at(assetGroup.getAsset_group_updated_at());
               esAssetGroup.setBase_representative(assetGroup.getAsset_group_name());
               esAssetGroup.setBase_restrictions(buildRestrictions(assetGroup.getAsset_group_id()));
+              esAssetGroup.setBase_tenant_side(assetGroup.getTenant_id());
               // Specific
               return esAssetGroup;
             })

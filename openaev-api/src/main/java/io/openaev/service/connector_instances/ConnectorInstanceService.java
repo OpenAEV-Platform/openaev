@@ -7,16 +7,14 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.*;
-import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
-import io.openaev.database.repository.ConnectorInstanceRepository;
-import io.openaev.database.repository.TokenRepository;
-import io.openaev.integration.ComponentRequest;
+import io.openaev.database.repository.*;
 import io.openaev.integration.Manager;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.connector_instance.dto.ConnectorInstanceHealthInput;
 import io.openaev.rest.connector_instance.dto.ConnectorInstanceOutput;
 import io.openaev.rest.connector_instance.dto.CreateConnectorInstanceInput;
 import io.openaev.service.connectors.ConnectorOrchestrationService;
+import io.openaev.service.exception.ConnectorStatusException;
 import io.openaev.utils.mapper.ConnectorInstanceMapper;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.*;
@@ -38,6 +36,10 @@ public class ConnectorInstanceService {
   private final ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository;
   private final TokenRepository tokenRepository;
 
+  private final CollectorRepository collectorRepository;
+  private final ExecutorRepository executorRepository;
+  private final InjectorRepository injectorRepository;
+
   private final EncryptionFactory encryptionFactory;
   private final ManagerFactory managerFactory;
 
@@ -48,6 +50,9 @@ public class ConnectorInstanceService {
       ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository,
       TokenRepository tokenRepository,
       EncryptionFactory encryptionFactory,
+      CollectorRepository collectorRepository,
+      ExecutorRepository executorRepository,
+      InjectorRepository injectorRepository,
       // Use lazy injection to break a circular dependency
       @Lazy ManagerFactory managerFactory) {
     this.objectMapper = objectMapper;
@@ -56,6 +61,9 @@ public class ConnectorInstanceService {
     this.connectorInstanceConfigurationRepository = connectorInstanceConfigurationRepository;
     this.tokenRepository = tokenRepository;
     this.encryptionFactory = encryptionFactory;
+    this.collectorRepository = collectorRepository;
+    this.executorRepository = executorRepository;
+    this.injectorRepository = injectorRepository;
     this.managerFactory = managerFactory;
   }
 
@@ -106,27 +114,62 @@ public class ConnectorInstanceService {
     return instancesInMemory;
   }
 
+  /**
+   * Checks whether a started connector instance exists for the given injector.
+   *
+   * <p>Only applies to connectors persisted in the database. If no record is found, meaning the
+   * injector was either deployed manually with no attached instance, or it is an injector that
+   * starts automatically and cannot be stopped. {@code true} is returned to avoid blocking
+   * executions. The same applies if any exception occurs.
+   *
+   * @param injectorId the injector ID to look up
+   * @return {@code false} only if a connector instance is explicitly found with a non-started
+   *     status; {@code true} otherwise
+   */
   @Transactional(readOnly = true)
   public boolean hasStartedConnectorInstanceForInjector(final String injectorId) {
-    ConnectorInstanceConfigurationRepository.ConnectorIdsFomDatabase persistedId =
-        this.connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValue(
-            ConnectorType.INJECTOR.getIdKeyName(), injectorId);
-    if (persistedId != null) {
-      ConnectorInstance ci =
-          this.connectorInstanceRepository
-              .findById(persistedId.getConnectorInstanceId())
-              .orElseThrow(); // clear error
-      return ci.getCurrentStatus().equals(ConnectorInstance.CURRENT_STATUS_TYPE.started);
-    } else {
-      try {
-        managerFactory
-            .getManager()
-            .request(new ComponentRequest(injectorId), io.openaev.executors.Injector.class);
-        return true;
-      } catch (Exception e) {
-        return true; // Fallback to catalog-unsupported handling
-      }
+    try {
+      return this.connectorInstanceConfigurationRepository
+          .findStatusByKeyValue(ConnectorType.INJECTOR.getIdKeyName(), injectorId)
+          // If we found a status, check if it's 'started'
+          // If no record exists, return true
+          .map(
+              status ->
+                  ConnectorInstance.CURRENT_STATUS_TYPE.started.name().equalsIgnoreCase(status))
+          .orElse(true);
+    } catch (Exception e) {
+      log.error(
+          "Failed to check started connector instance for injector with id {}", injectorId, e);
+      // In case of any exception, return true to avoid blocking executions
+      return true;
     }
+  }
+
+  /**
+   * Resolves the {@link ConnectorInstance} that owns the given executor entity.
+   *
+   * <p>Looks up the connector instance configuration where the key is {@code EXECUTOR_ID} and the
+   * value matches the provided executor ID.
+   *
+   * @param executorId the executor entity ID
+   * @return the owning connector instance
+   * @throws EntityNotFoundException if no connector instance is found for the executor ID
+   */
+  @Transactional(readOnly = true)
+  public ConnectorInstancePersisted findByExecutorId(String executorId) {
+    ConnectorInstanceConfigurationRepository.ConnectorIdsFromDatabase persistedId =
+        this.connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValue(
+            ConnectorType.EXECUTOR.getIdKeyName(), executorId);
+    if (persistedId == null) {
+      throw new EntityNotFoundException(
+          "No connector instance found for executor ID: " + executorId);
+    }
+    return this.connectorInstanceRepository
+        .findById(persistedId.getConnectorInstanceId())
+        .orElseThrow(
+            () ->
+                new EntityNotFoundException(
+                    "Connector instance not found: " + persistedId.getConnectorInstanceId()));
   }
 
   /**
@@ -246,7 +289,50 @@ public class ConnectorInstanceService {
    *
    * @param id the connector instance ID to delete
    */
-  public void deleteById(String id) {
+  @Transactional(rollbackFor = Exception.class)
+  public void deleteById(String id) throws ConnectorStatusException {
+    ConnectorInstancePersisted connectorInstance =
+        connectorInstanceRepository
+            .findById(id)
+            .orElseThrow(
+                () ->
+                    new EntityNotFoundException("ConnectorInstance with id " + id + " not found"));
+
+    if (managerFactory.getManager().getSpawnedIntegrations().get(connectorInstance) != null) {
+      // Setting the status to stopping and immediately calling initialize to effectively stop the
+      // integration
+      try {
+        connectorInstance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
+        this.save(connectorInstance);
+        managerFactory.getManager().getSpawnedIntegrations().get(connectorInstance).initialise();
+      } catch (Exception e) {
+        log.error("Could not stop the connector id {} before delete", id, e);
+        throw new ConnectorStatusException(
+            String.format("Could not stop the connector id %s before delete", id));
+      }
+    }
+
+    String connectorId =
+        connectorInstance.getConfigurations().stream()
+            .filter(
+                c ->
+                    connectorInstance
+                        .getCatalogConnector()
+                        .getContainerType()
+                        .getIdKeyName()
+                        .equals(c.getKey()))
+            .map(c -> c.getValue().asText())
+            .findFirst()
+            .orElse(null);
+
+    if (connectorId != null) {
+      switch (connectorInstance.getCatalogConnector().getContainerType()) {
+        case EXECUTOR -> executorRepository.deleteById(connectorId);
+        case INJECTOR -> injectorRepository.deleteById(connectorId);
+        case COLLECTOR -> collectorRepository.deleteById(connectorId);
+      }
+    }
+
     connectorInstanceRepository.deleteById(id);
   }
 
@@ -429,7 +515,7 @@ public class ConnectorInstanceService {
               newInstance, catalogConnectorWithConfigMap.catalogConnector().getContainerType()));
     }
 
-    newInstance.setConfigurations(Set.copyOf(configurations));
+    newInstance.setConfigurations(new HashSet<>(configurations));
     return (ConnectorInstancePersisted) this.save(newInstance);
   }
 

@@ -1,35 +1,78 @@
-import { useTheme } from '@mui/material';
+import { Chip } from '@mui/material';
 import { type FunctionComponent } from 'react';
+import { makeStyles } from 'tss-react/mui';
 
-import Tag from '../../../components/common/tag/Tag';
 import { useFormatter } from '../../../components/i18n';
 
+const useStyles = makeStyles()(() => ({
+  chip: {
+    fontSize: 20,
+    fontWeight: 800,
+    textTransform: 'uppercase',
+    borderRadius: 4,
+  },
+  chipInList: {
+    fontSize: 12,
+    lineHeight: '12px',
+    height: 20,
+    float: 'left',
+    textTransform: 'uppercase',
+    borderRadius: 4,
+    width: 120,
+  },
+}));
+
+const inlineStyles = {
+  green: {
+    backgroundColor: 'rgba(76, 175, 80, 0.08)',
+    color: '#4caf50',
+  },
+  red: {
+    backgroundColor: 'rgba(244, 67, 54, 0.08)',
+    color: '#f44336',
+  },
+  orange: {
+    backgroundColor: 'rgba(246,177,27,0.08)',
+    color: '#f19710',
+  },
+};
+
 interface Props {
-  variant?: string;
+  variant: string;
   status: 'Active' | 'Inactive' | 'Agentless';
 }
 
-const AssetStatus: FunctionComponent<Props> = ({ status = 'Active' }) => {
+const AssetStatus: FunctionComponent<Props> = ({ variant, status = 'Active' }) => {
   const { t } = useFormatter();
-  const theme = useTheme();
+  const { classes } = useStyles();
+  const style = variant === 'list' ? classes.chipInList : classes.chip;
 
-  const getColor = () => {
-    switch (status) {
-      case 'Inactive':
-        return theme.palette.error.main;
-      case 'Agentless':
-        return theme.palette.severity?.medium ?? '#E1B823';
-      default:
-        return theme.palette.success.main;
-    }
-  };
-
-  return (
-    <Tag
-      label={t(status)}
-      color={getColor()}
-    />
-  );
+  switch (status) {
+    case 'Inactive':
+      return (
+        <Chip
+          className={style}
+          style={inlineStyles.red}
+          label={t('Inactive')}
+        />
+      );
+    case 'Agentless':
+      return (
+        <Chip
+          className={style}
+          style={inlineStyles.orange}
+          label={t('Agentless')}
+        />
+      );
+    default:
+      return (
+        <Chip
+          className={style}
+          style={inlineStyles.green}
+          label={t('Active')}
+        />
+      );
+  }
 };
 
 export default AssetStatus;

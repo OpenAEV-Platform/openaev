@@ -7,13 +7,16 @@ import static io.openaev.database.model.Payload.PAYLOAD_EXECUTION_ARCH.*;
 import static io.openaev.database.specification.InjectSpecification.*;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
+import static io.openaev.service.InjectExpectationUtils.extractAssetIdsFromInjectExpectationsResults;
 import static io.openaev.utils.AgentUtils.isPrimaryAgent;
 import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
+import static io.openaev.utils.InjectUtils.extractInjectExpectationsFromInjects;
 import static io.openaev.utils.StringUtils.duplicateString;
 import static io.openaev.utils.mapper.InjectStatusMapper.toExecutionTracesOutput;
 import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 import static java.time.Instant.now;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -44,10 +47,14 @@ import io.openaev.rest.inject.form.*;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import io.openaev.rest.injector_contract.InjectorContractService;
+import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
+import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
+import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;
 import io.openaev.rest.security.SecurityExpression;
 import io.openaev.rest.security.SecurityExpressionHandler;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.*;
+import io.openaev.service.threat_arsenal.ThreatArsenalService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.JpaUtils;
@@ -74,6 +81,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Triple;
 import org.hibernate.Hibernate;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.AccessDeniedException;
@@ -96,7 +106,6 @@ public class InjectService {
   private final InjectRepository injectRepository;
   private final InjectDocumentRepository injectDocumentRepository;
   private final InjectorService injectorService;
-  private final InjectorRepository injectorRepository;
   private final InjectStatusRepository injectStatusRepository;
   private final InjectMapper injectMapper;
   private final MethodSecurityExpressionHandler methodSecurityExpressionHandler;
@@ -113,37 +122,23 @@ public class InjectService {
   private final ImapService imapService;
   private final HealthCheckUtils healthCheckUtils;
   private final InjectorContractContentUtils injectorContractContentUtils;
+  private final InjectUtils injectUtils;
+  private final ThreatArsenalService threatArsenalService;
+
+  private InjectStatusService injectStatusService;
+
+  @Autowired
+  public void setInjectStatusService(@Lazy InjectStatusService injectStatusService) {
+    this.injectStatusService = injectStatusService;
+  }
 
   private final LicenseCacheManager licenseCacheManager;
   @Resource protected ObjectMapper mapper;
 
+  private static final int INJECTOR_CONTRACT_PAGE_SIZE = 100;
+
   private SecurityExpression getAmbientSecurityExpression() {
     return ((SecurityExpressionHandler) methodSecurityExpressionHandler).getSecurityExpression();
-  }
-
-  /**
-   * Resolves the {@link Injector} for an inject being created or updated.
-   *
-   * <p>If {@code injectorId} is provided (non-blank), it is looked up by ID. Otherwise, the
-   * injector is auto-resolved from the contract's linked injector (current ManyToOne relationship).
-   *
-   * @param injectorId explicit injector ID from the input (may be null/blank)
-   * @param injectorContract the contract associated with the inject
-   * @return the resolved Injector, or {@code null} if no contract is provided
-   */
-  private Injector resolveInjector(
-      @Nullable String injectorId, @Nullable InjectorContract injectorContract) {
-    if (StringUtils.isNotBlank(injectorId)) {
-      return injectorRepository
-          .findById(injectorId)
-          .orElseThrow(
-              () -> new ElementNotFoundException("Injector not found with id: " + injectorId));
-    }
-    // Auto-resolve from the contract's linked injector (single-instance fallback)
-    if (injectorContract != null && injectorContract.getInjector() != null) {
-      return injectorContract.getInjector();
-    }
-    return null;
   }
 
   // -- CRUD --
@@ -175,9 +170,14 @@ public class InjectService {
 
     InjectorContract injectorContract =
         this.injectorContractService.injectorContract(input.getInjectorContract());
+
+    if (injectorContract.getConvertedContent() == null) {
+      injectorContract.setConvertedContent(convertContent(injectorContract.getContent()));
+    }
+
     // Get common attributes
-    Inject inject = input.toInject(injectorContract);
-    inject.setInjector(resolveInjector(input.getInjectorId(), injectorContract));
+    Injector injector = injectUtils.resolveInjector(input.getInjectorId(), injectorContract);
+    Inject inject = input.toInject(injectorContract, injector);
     inject.setUser(this.userService.currentUser());
     inject.setTeams(fromIterable(teamRepository.findAllById(input.getTeams())));
     inject.setAssets(fromIterable(assetService.assets(input.getAssets())));
@@ -285,7 +285,7 @@ public class InjectService {
     inject.setTitle(title);
     inject.setDescription(description);
     inject.setInjectorContract(injectorContract);
-    inject.setInjector(resolveInjector(null, injectorContract));
+    inject.setInjector(injectUtils.resolveInjector(null, injectorContract));
     inject.setDependsDuration(0L);
     inject.setEnabled(enabled);
     inject.setContent(
@@ -703,7 +703,7 @@ public class InjectService {
 
     // Resolve injector explicitly (BeanUtils cannot copy String → Injector)
     if (StringUtils.isNotBlank(input.getInjectorId())) {
-      inject.setInjector(resolveInjector(input.getInjectorId(), null));
+      inject.setInjector(injectUtils.resolveInjector(input.getInjectorId(), null));
     }
 
     // Set dependencies
@@ -878,6 +878,14 @@ public class InjectService {
             throw new BadRequestException("Invalid field to update: " + operation.getField());
       }
     }
+  }
+
+  public void resetInjectByExerciseId(String simulationId) {
+    List<Inject> injects = injectRepository.findAllInjectBySimulationId(simulationId);
+    if (injects.isEmpty()) return;
+    injects.forEach(Inject::clean);
+    injectStatusService.deleteAllInjectStatusByInjects(injects);
+    injectRepository.saveAll(injects);
   }
 
   /**
@@ -1366,6 +1374,20 @@ public class InjectService {
   }
 
   /**
+   * Extract all security platform from a list of injects
+   *
+   * @param injects to extract security platforms
+   * @return distinct security platforms
+   */
+  public List<SecurityPlatform> extractSecurityPlatforms(List<Inject> injects) {
+    Stream<InjectExpectation> allInjectExpectationsStream =
+        extractInjectExpectationsFromInjects(injects);
+    Set<String> assetIds =
+        extractAssetIdsFromInjectExpectationsResults(allInjectExpectationsStream);
+    return assetService.securityPlatformsByIds(assetIds);
+  }
+
+  /**
    * Create an inject
    *
    * @param inject the inject to save
@@ -1393,5 +1415,83 @@ public class InjectService {
    */
   public List<RawInject> findRawByIds(List<String> ids) {
     return injectRepository.findRawByIds(ids);
+  }
+
+  /**
+   * Create all injects from a contract research
+   *
+   * @param exercise to link injects on
+   * @param scenarios to link injects on
+   * @param input to retrieve all Injector Contracts
+   * @param locale to set default inject label
+   */
+  public void createInjectsFromInjectorContractInput(
+      Exercise exercise,
+      List<Scenario> scenarios,
+      InjectorContractSearchPaginationInput input,
+      String locale) {
+
+    if (scenarios.isEmpty()) {
+      return;
+    }
+
+    input.setSize(INJECTOR_CONTRACT_PAGE_SIZE);
+    int pageNumber = 0;
+    Page<? extends InjectorContractBaseOutput> page;
+
+    do {
+      page = fetchInjectorContractsPage(input, pageNumber);
+      List<InjectInput> injectInputs = toInjectInputs(page.getContent(), locale);
+      if (!injectInputs.isEmpty()) {
+        scenarios.forEach(scenario -> createAndSaveInjectList(exercise, scenario, injectInputs));
+      }
+      pageNumber++;
+    } while (page.hasNext());
+  }
+
+  private Page<? extends InjectorContractBaseOutput> fetchInjectorContractsPage(
+      InjectorContractSearchPaginationInput input, int pageNumber) {
+    input.setPage(pageNumber);
+    return threatArsenalService.searchInjectorContracts(
+        InjectorContractService.OutputMode.FULL, input);
+  }
+
+  private List<InjectInput> toInjectInputs(
+      List<? extends InjectorContractBaseOutput> contractOutputs, String locale) {
+
+    return contractOutputs.stream()
+        .map(this::asFullOutput)
+        .map(fullOutput -> createDefaultInjectInput(fullOutput, locale))
+        .toList();
+  }
+
+  private InjectorContractFullOutput asFullOutput(InjectorContractBaseOutput output) {
+    if (output instanceof InjectorContractFullOutput fullOutput) {
+      return fullOutput;
+    }
+    throw new IllegalStateException(
+        "Expected InjectorContractFullOutput but got " + output.getClass().getSimpleName());
+  }
+
+  private InjectInput createDefaultInjectInput(
+      InjectorContractFullOutput injectorContractFullOutput, String locale) {
+    InjectInput injectInput = new InjectInput();
+    injectInput.setTitle(
+        injectorContractFullOutput.getLabels().containsKey(locale)
+            ? injectorContractFullOutput.getLabels().get(locale)
+            : injectorContractFullOutput.getLabels().get("en"));
+    injectInput.setDependsDuration(0L);
+    injectInput.setInjectorContract(injectorContractFullOutput.getId());
+    injectInput.setContent(convertContent(injectorContractFullOutput.getContent()));
+    return injectInput;
+  }
+
+  private ObjectNode convertContent(String content) {
+    try {
+      return (ObjectNode) mapper.readTree(content);
+    } catch (JsonProcessingException e) {
+      log.warn("Invalid JSON in inject content", e);
+    }
+    return null;
   }
 }

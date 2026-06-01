@@ -8,9 +8,8 @@ import type {
 } from '../../../../utils/api-types';
 import {
   collectorConfig,
-  ConnectorContext, type ConnectorContextType,
-  executorConfig,
-  injectorConfig,
+  ConnectorContext,
+  type ConnectorContextType, executorConfig, injectorConfig,
 } from './ConnectorContext';
 
 interface Props {

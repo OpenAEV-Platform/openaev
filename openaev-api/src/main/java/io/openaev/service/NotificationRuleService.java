@@ -3,14 +3,17 @@ package io.openaev.service;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import io.openaev.database.model.*;
+import io.openaev.database.model.TenantSettingKeys;
 import io.openaev.database.repository.NotificationRuleRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.scenario.ScenarioService;
+import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.utils.ImageUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -29,6 +32,7 @@ public class NotificationRuleService {
   private final ScenarioService scenarioService;
   private final EmailNotificationService emailNotificationService;
   private final PlatformSettingsService platformSettingsService;
+  private final TenantSettingsService tenantSettingsService;
 
   public Optional<NotificationRule> findById(final String id) {
     return notificationRuleRepository.findById(id);
@@ -105,28 +109,42 @@ public class NotificationRuleService {
     List<NotificationRule> rules =
         notificationRuleRepository.findNotificationRuleByResourceAndTrigger(resourceId, trigger);
     // TODO extract this logic from this method
-    // TODO fix: custom logo only working with png because of the html template
-    // add data about custom logo and whitemarked platform
-    if (!rules.isEmpty()) {
-      // check if there is a custom logo
-      String theme =
-          platformSettingsService
-              .setting(SettingKeys.DEFAULT_THEME.name())
-              .map(Setting::getValue)
-              .orElseGet(SettingKeys.DEFAULT_THEME::defaultValue);
-      String b64CustomLogo =
-          platformSettingsService
-              .setting(theme + "." + Theme.THEME_KEYS.LOGO_URL.name().toLowerCase())
-              .map(setting -> ImageUtils.downloadImageAndEncodeBase64(setting.getValue()))
-              .orElse("");
-      data.put("custom_logo_b64", b64CustomLogo);
-      data.put(
-          "hide_filigran_logo", Boolean.toString(platformSettingsService.isPlatformWhiteMarked()));
+    if (rules.isEmpty()) {
+      return;
     }
 
-    for (NotificationRule rule : rules) {
-      if (NotificationRuleType.EMAIL.equals(rule.getType())) {
-        emailNotificationService.sendNotification(rule, data);
+    Map<String, List<NotificationRule>> rulesByTenant =
+        rules.stream().collect(Collectors.groupingBy(rule -> rule.getTenant().getId()));
+
+    Map<String, String> themeByTenant = new HashMap<>();
+    boolean hideFiligranLogo = platformSettingsService.isPlatformWhiteMarked();
+
+    for (Map.Entry<String, List<NotificationRule>> entry : rulesByTenant.entrySet()) {
+      String tenantId = entry.getKey();
+      List<NotificationRule> tenantRules = entry.getValue();
+
+      String theme =
+          themeByTenant.computeIfAbsent(
+              tenantId,
+              id -> tenantSettingsService.resolveSettingValue(id, TenantSettingKeys.DEFAULT_THEME));
+
+      // TODO fix: custom logo only working with png because of the html template
+      String logoKey = theme + "." + Theme.THEME_KEYS.LOGO_URL.name().toLowerCase();
+      String b64CustomLogo =
+          tenantSettingsService
+              .findSetting(tenantId, logoKey)
+              .or(() -> platformSettingsService.setting(logoKey))
+              .map(setting -> ImageUtils.downloadImageAndEncodeBase64(setting.getValue()))
+              .orElse("");
+
+      Map<String, String> tenantData = new HashMap<>(data);
+      tenantData.put("custom_logo_b64", b64CustomLogo);
+      tenantData.put("hide_filigran_logo", Boolean.toString(hideFiligranLogo));
+
+      for (NotificationRule rule : tenantRules) {
+        if (NotificationRuleType.EMAIL.equals(rule.getType())) {
+          emailNotificationService.sendNotification(rule, tenantData);
+        }
       }
     }
   }

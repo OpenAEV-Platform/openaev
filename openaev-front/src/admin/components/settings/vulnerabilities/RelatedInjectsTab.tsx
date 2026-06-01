@@ -16,10 +16,10 @@ import FindingIcon from '../../../../components/FindingIcon';
 import ItemTargets from '../../../../components/ItemTargets';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import type { AggregatedFindingOutput, FilterGroup, RelatedFindingOutput, SearchPaginationInput, TargetSimple } from '../../../../utils/api-types';
-import ContractOutputElementType from '../../findings/Finding';
+import ContractOutputElementType from '../../findings/ContractOutputElementType';
 
 const useStyles = makeStyles()(() => ({
-  itemHead: {},
+  itemHead: { textTransform: 'uppercase' },
   item: { height: 50 },
 }));
 

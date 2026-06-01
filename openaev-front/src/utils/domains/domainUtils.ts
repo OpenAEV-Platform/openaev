@@ -44,16 +44,3 @@ export const buildDomainAutocompleteState = (
     })),
   };
 };
-
-export const cleanSelectedDomains = (
-  domains: Domain[],
-  ids: string[],
-): Domain[] => {
-  const selected = domains.filter(d =>
-    ids.includes(d.domain_id),
-  );
-
-  return selected.length > 1
-    ? selected.filter(d => d.domain_name !== TO_CLASSIFY)
-    : selected;
-};

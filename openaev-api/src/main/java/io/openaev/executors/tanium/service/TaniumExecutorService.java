@@ -10,7 +10,6 @@ import io.openaev.executors.tanium.config.TaniumExecutorConfig;
 import io.openaev.executors.tanium.model.NodeEndpoint;
 import io.openaev.executors.tanium.model.TaniumComputerGroup;
 import io.openaev.executors.tanium.model.TaniumEndpoint;
-import io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
@@ -62,7 +61,6 @@ public class TaniumExecutorService implements Runnable {
     this.assetGroupService = assetGroupService;
   }
 
-  // TODO multi-tenancy: Multi executors dev
   @Override
   public void run() {
     log.info("Running Tanium executor endpoints gathering...");
@@ -93,8 +91,7 @@ public class TaniumExecutorService implements Runnable {
         List<Agent> agents =
             endpointService.syncAgentsEndpoints(
                 toAgentEndpoint(nodeEndpoints),
-                agentService.getAgentsByExecutorType(
-                    TaniumExecutorIntegration.TANIUM_EXECUTOR_TYPE, executor.getTenant().getId()));
+                agentService.getAgentsByExecutorId(executor.getId()));
         assetGroup.setAssets(agents.stream().map(Agent::getAsset).toList());
         assetGroupService.createOrUpdateAssetGroupWithoutDynamicAssets(assetGroup);
       }

@@ -41,6 +41,7 @@ class EmailServiceTest extends IntegrationTest {
         execution,
         List.of(userContext),
         "user@openaev.io",
+        null,
         List.of("user-reply-to@openaev.io"),
         null,
         false,

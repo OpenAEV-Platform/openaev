@@ -1,33 +1,30 @@
 package io.openaev.stix.types.enums;
 
+import java.util.Set;
+
 public enum HashingAlgorithms {
-  MD5("MD5"),
-  SHA1("SHA-1"),
-  SHA256("SHA-256"),
-  SHA512("SHA-512"),
-  SHA3256("SHA3-256"),
-  SHA3512("SHA3-512"),
-  SSDEEP("SSDEEP"),
-  TLSH("TLSH"),
+  MD5(Set.of("md5")),
+  SHA1(Set.of("sha-1", "sha1")),
+  SHA256(Set.of("sha-256", "sha256")),
+  SHA512(Set.of("sha-512", "sha512")),
+  SHA3256(Set.of("sha3-256", "sha3256")),
+  SHA3512(Set.of("sha3-512", "sha3512")),
+  SSDEEP(Set.of("ssdeep")),
+  TLSH(Set.of("tlsh")),
   ;
 
-  public final String value;
+  public final Set<String> values;
 
-  HashingAlgorithms(String value) {
-    this.value = value;
+  HashingAlgorithms(Set<String> values) {
+    this.values = values;
   }
 
   public static HashingAlgorithms fromValue(String value) {
-    return switch (value) {
-      case "MD5" -> MD5;
-      case "SHA-1" -> SHA1;
-      case "SHA-256" -> SHA256;
-      case "SHA-512" -> SHA512;
-      case "SHA3-256" -> SHA3256;
-      case "SHA3-512" -> SHA3512;
-      case "SSDEEP" -> SSDEEP;
-      case "TLSH" -> TLSH;
-      default -> throw new IllegalArgumentException("Unknown HashingAlgorithms value: " + value);
-    };
+    for (HashingAlgorithms algo : HashingAlgorithms.values()) {
+      if (algo.values.contains(value.toLowerCase())) {
+        return algo;
+      }
+    }
+    throw new IllegalArgumentException("Unknown HashingAlgorithms value: " + value);
   }
 }

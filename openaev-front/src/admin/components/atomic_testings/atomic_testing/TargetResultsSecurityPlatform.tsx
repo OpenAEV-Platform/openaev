@@ -53,7 +53,7 @@ const TargetResultsSecurityPlatform: FunctionComponent<Props> = ({
             size="small"
           >
             <TableHead>
-              <TableRow>
+              <TableRow sx={{ textTransform: 'uppercase' }}>
                 <TableCell>{t('Name')}</TableCell>
                 <TableCell>{`${injectExpectation.inject_expectation_type} ${t('Date')}`}</TableCell>
               </TableRow>

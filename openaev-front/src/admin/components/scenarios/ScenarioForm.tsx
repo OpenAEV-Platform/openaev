@@ -1,18 +1,19 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Autocomplete, Checkbox, Chip, FormControlLabel, MenuItem, TextField as MuiTextField } from '@mui/material';
+import { Autocomplete, Button, Checkbox, Chip, FormControlLabel, MenuItem, TextField as MuiTextField } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import Button from '../../../components/common/button/Button';
+import type { LoggedHelper } from '../../../actions/helper';
 import Tabs, { type TabsEntry } from '../../../components/common/tabs/Tabs';
 import useTabs from '../../../components/common/tabs/useTabs';
 import SelectField from '../../../components/fields/SelectField';
 import TagField from '../../../components/fields/TagField';
 import TextField from '../../../components/fields/TextField';
 import { useFormatter } from '../../../components/i18n';
-import { type ScenarioInput } from '../../../utils/api-types';
+import { useHelper } from '../../../store';
+import { type PlatformSettings, type ScenarioInput } from '../../../utils/api-types';
 import { zodImplement } from '../../../utils/Zod';
 import { scenarioCategories } from './constants';
 
@@ -38,6 +39,7 @@ const ScenarioForm: FunctionComponent<Props> = ({
   const { t } = useFormatter();
   const [inputValue, setInputValue] = useState('');
   const [isScenarioAssistantChecked, setIsScenarioAssistantChecked] = useState(false);
+  const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
 
   const {
     register,
@@ -58,11 +60,12 @@ const ScenarioForm: FunctionComponent<Props> = ({
         scenario_tags: z.string().array().optional(),
         scenario_external_reference: z.string().optional(),
         scenario_external_url: z.string().optional(),
-        scenario_mail_from: z.email(t('Should be a valid email address')).optional(),
-        scenario_mails_reply_to: z.array(z.email(t('Should be a valid email address'))).optional(),
+        scenario_mail_from_name: z.string().max(100, t('Should not exceed {max_length} characters', { max_length: '100' })).optional(),
+        scenario_mails_reply_to: z.array(z.string().email(t('Should be a valid email address'))).optional(),
         scenario_message_header: z.string().optional(),
         scenario_message_footer: z.string().optional(),
         scenario_custom_dashboard: z.string().optional(),
+        scenario_is_chaining: z.boolean().optional(),
       }),
     ),
     defaultValues: initialValues,
@@ -224,19 +227,16 @@ const ScenarioForm: FunctionComponent<Props> = ({
               variant="standard"
               fullWidth
               label={t('Sender email address')}
-              error={!!errors.scenario_mail_from}
-              helperText={
-                errors.scenario_mail_from
-                  ? errors.scenario_mail_from?.message
-                  : (
-                      <span
-                        style={{ color: theme.palette.warning.main }}
-                      >
-                        {t('If you remove the default email address, the email reception for this simulation / scenario will be disabled.')}
-                      </span>
-                    )
-              }
-              inputProps={register('scenario_mail_from')}
+              value={settings.default_mailer ?? ''}
+              disabled
+            />
+            <MuiTextField
+              variant="standard"
+              fullWidth
+              label={t('Sender email from')}
+              error={!!errors.scenario_mail_from_name}
+              helperText={errors.scenario_mail_from_name?.message}
+              inputProps={register('scenario_mail_from_name')}
               disabled={disabled}
             />
             <Controller
@@ -296,7 +296,7 @@ const ScenarioForm: FunctionComponent<Props> = ({
               fullWidth
               label={t('Messages header')}
               error={!!errors.scenario_message_header}
-              helperText={errors.scenario_message_header && errors.scenario_message_header?.message}
+              helperText={errors.scenario_message_header?.message}
               inputProps={register('scenario_message_header')}
               disabled={disabled}
             />
@@ -305,7 +305,7 @@ const ScenarioForm: FunctionComponent<Props> = ({
               fullWidth
               label={t('Messages footer')}
               error={!!errors.scenario_message_footer}
-              helperText={errors.scenario_message_footer && errors.scenario_message_footer?.message}
+              helperText={errors.scenario_message_footer?.message}
               inputProps={register('scenario_message_footer')}
               disabled={disabled}
             />
@@ -318,14 +318,15 @@ const ScenarioForm: FunctionComponent<Props> = ({
         }}
         >
           <Button
-            variant="secondary"
+            variant="contained"
             onClick={handleClose}
             disabled={isSubmitting}
           >
             {t('Cancel')}
           </Button>
           <Button
-            variant="primary"
+            variant="contained"
+            color="secondary"
             type="submit"
             disabled={!isDirty || isSubmitting}
           >
@@ -339,4 +340,3 @@ const ScenarioForm: FunctionComponent<Props> = ({
 ;
 
 export default ScenarioForm;
-;

@@ -11,6 +11,7 @@ import ExpandableMarkdown from '../../../components/ExpandableMarkdown';
 import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';
 import { useQueryParameter } from '../../../utils/Environment';
+import { buildTenantApiPath } from '../../../utils/url-helper';
 
 const useStyles = makeStyles()(() => ({
   container: {
@@ -44,7 +45,7 @@ const ChannelNewspaper = ({ channelReader }) => {
     channel_articles: articles,
     channel_information: channel,
   } = channelReader;
-  const baseUri = `/api/player/${exercise?.exercise_id ?? scenario?.scenario_id}`;
+  const baseUri = buildTenantApiPath(`/api/player/${exercise?.exercise_id ?? scenario?.scenario_id}`);
   const { documentsMap } = useHelper(helper => ({ documentsMap: helper.getDocumentsMap() }));
   const logo = isDark ? channel.channel_logo_dark : channel.channel_logo_light;
   const firstArticle = R.head(articles) || null;
@@ -166,7 +167,7 @@ const ChannelNewspaper = ({ channelReader }) => {
                 <div className={classes.footer}>
                   <div style={{ float: 'left' }}>
                     <Button
-                      color="primary"
+                      color="secondary"
                       size="small"
                       variant="outlined"
                       startIcon={<MoreHorizOutlined />}
@@ -257,7 +258,7 @@ const ChannelNewspaper = ({ channelReader }) => {
                     <div className={classes.footer}>
                       <div style={{ float: 'left' }}>
                         <Button
-                          color="primary"
+                          color="secondary"
                           size="small"
                           variant="outlined"
                           startIcon={<MoreHorizOutlined />}
@@ -355,7 +356,7 @@ const ChannelNewspaper = ({ channelReader }) => {
                   <div className={classes.footer}>
                     <div style={{ float: 'left' }}>
                       <Button
-                        color="primary"
+                        color="secondary"
                         size="small"
                         variant="outlined"
                         startIcon={<MoreHorizOutlined />}

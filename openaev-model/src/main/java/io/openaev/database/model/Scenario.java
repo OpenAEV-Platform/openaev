@@ -2,6 +2,7 @@ package io.openaev.database.model;
 
 import static io.openaev.database.model.Grant.GRANT_TYPE.OBSERVER;
 import static io.openaev.database.model.Grant.GRANT_TYPE.PLANNER;
+import static io.openaev.helper.MailHelper.*;
 import static io.openaev.helper.UserHelper.getUsersByType;
 import static java.time.Instant.now;
 import static lombok.AccessLevel.NONE;
@@ -26,6 +27,8 @@ import jakarta.persistence.Table;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import java.time.Instant;
 import java.util.*;
 import lombok.Data;
@@ -217,6 +220,17 @@ public class Scenario extends ModelBehaviour implements GrantableBase, TenantBas
   @NotBlank
   private String from;
 
+  @Getter(NONE)
+  @Pattern(regexp = FROM_NAME_PATTERN, message = FROM_NAME_PATTERN_MESSAGE)
+  @Size(max = FROM_NAME_MAX_LENGTH, message = FROM_NAME_SIZE_MESSAGE)
+  @Column(name = "scenario_mail_from_name")
+  @JsonProperty("scenario_mail_from_name")
+  private String fromName;
+
+  public String getFromName() {
+    return resolveFromName(fromName, from);
+  }
+
   @ElementCollection(fetch = FetchType.EAGER)
   @CollectionTable(
       name = "scenario_mails_reply_to",
@@ -377,6 +391,8 @@ public class Scenario extends ModelBehaviour implements GrantableBase, TenantBas
   @Column(name = "scenario_lessons_anonymized")
   @JsonProperty("scenario_lessons_anonymized")
   private boolean lessonsAnonymized = false;
+
+  // -- TENANT --
 
   @ManyToOne
   @JoinColumn(name = "tenant_id", updatable = false, nullable = false)

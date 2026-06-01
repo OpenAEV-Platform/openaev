@@ -38,7 +38,7 @@ const InjectExpectationAggregatedAgentsView = ({ inject, expectationType, target
   });
 
   const { injectExpectationsWithAgents } = useHelper((helper: InjectHelper) =>
-    ({ injectExpectationsWithAgents: helper.getInjectExpectationsByAsset(target.target_id, expectationType) }));
+    ({ injectExpectationsWithAgents: helper.getInjectExpectationsByAssetAndInject(target.target_id, inject.inject_id, expectationType) }));
 
   if (loading) {
     return <Loader />;

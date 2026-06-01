@@ -73,7 +73,7 @@ const LessonsPreview = (props) => {
       <div className={classes.root}>
         {permissions.isLoggedIn && permissions.canAccess && source.isPlayerViewAvailable && (
           <Button
-            color="primary"
+            color="secondary"
             variant="outlined"
             component={Link}
             to={`/lessons/${source.type}/${source.id}?user=${source.finalUserId}&preview=false`}
@@ -244,7 +244,7 @@ const LessonsPreview = (props) => {
                 textAlign: 'center',
               }}
               >
-                <Button color="primary" variant="contained" disabled>
+                <Button color="secondary" variant="contained" disabled>
                   {t('Submit')}
                 </Button>
               </div>

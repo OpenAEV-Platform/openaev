@@ -29,9 +29,13 @@ import EndpointElementStyles from './elements/EndpointElementStyles';
 import listConfigRenderer, { defaultRenderer } from './elements/ListColumnConfig';
 import navigationHandlers from './elements/ListNavigationHandler';
 
+// Shared row height: used both for the list-item CSS and the virtualizer size
+// estimate so the two stay aligned.
+const ROW_HEIGHT = 50;
+
 const useStyles = makeStyles()(() => ({
-  itemHead: {},
-  item: { height: 50 },
+  itemHead: { textTransform: 'uppercase' },
+  item: { height: ROW_HEIGHT },
 }));
 
 // Empty secondary action component to avoid recreation
@@ -78,6 +82,7 @@ const ListWidgetItem = memo<{
 
   return (
     <MuiListItem
+      component="div"
       divider
       disablePadding
       secondaryAction={hasHandler !== undefined ? <KeyboardArrowRight color="action" /> : <EmptySecondaryAction />}
@@ -167,7 +172,6 @@ const ListWidget = ({
     handler?.(element, navigate);
   }, [navigate]);
 
-  const ROW_HEIGHT = 50;
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const virtualizer = useVirtualizer({
@@ -200,6 +204,16 @@ const ListWidget = ({
             onRowsPerPageChange={handleChangeRowsPerPage}
           />
         )}
+
+      <MuiList disablePadding>
+        <MuiListItem
+          classes={{ root: classes.itemHead }}
+          style={{ paddingTop: 0 }}
+          secondaryAction={<EmptySecondaryAction />}
+        >
+          <ListItemIcon />
+        </MuiListItem>
+      </MuiList>
 
       {contentLoading && <Loader variant="inElement" />}
       {!contentLoading && elements.length === 0 && (

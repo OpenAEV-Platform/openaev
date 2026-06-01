@@ -21,12 +21,14 @@ import { useHelper } from '../../../../store';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { buildTenantApiPath } from '../../../../utils/url-helper';
 import DocumentPopover from '../documents/DocumentPopover';
 import DocumentType from '../documents/DocumentType';
 
 const useStyles = makeStyles()(() => ({
   itemHead: {
     paddingLeft: 10,
+    textTransform: 'uppercase',
     cursor: 'pointer',
   },
   item: {
@@ -282,7 +284,7 @@ const ChallengeForm = (props) => {
                     classes={{ root: classes.item }}
                     divider
                     component="a"
-                    href={`/api/documents/${document.document_id}/file`}
+                    href={buildTenantApiPath(`/api/documents/${document.document_id}/file`)}
                   >
                     <ListItemIcon>
                       <AttachmentOutlined />
@@ -412,7 +414,7 @@ const ChallengeForm = (props) => {
             </Button>
             <Button
               variant="contained"
-              color="primary"
+              color="secondary"
               type="submit"
               disabled={submitting || Object.keys(errors).length > 0}
             >

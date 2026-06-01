@@ -1,7 +1,5 @@
 import { type Page, test as testBase } from '@playwright/test';
-import MCR from 'monocart-coverage-reports';
-
-import coverageOptions from '../conf/mcr.config';
+import { addCoverageReport } from 'monocart-reporter';
 
 // fixtures
 const test = testBase.extend<{ autoTestFixture: string }>({
@@ -30,8 +28,7 @@ const test = testBase.extend<{ autoTestFixture: string }>({
         const cssCoverage = await page.coverage.stopCSSCoverage();
         return [...jsCoverage, ...cssCoverage];
       }));
-      const mcr = MCR(coverageOptions);
-      await mcr.add(coverageList.flat());
+      await addCoverageReport(coverageList.flat(), test.info());
     }
   }, {
     scope: 'test',

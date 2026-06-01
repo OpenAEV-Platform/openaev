@@ -2,8 +2,10 @@ package io.openaev.rest;
 
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -15,16 +17,20 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.DocumentRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectStatusRepository;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Nullable;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import java.util.List;
+import java.util.Set;
 import net.javacrumbs.jsonunit.core.Option;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -92,7 +98,8 @@ public class AtomicTestingApiTest extends IntegrationTest {
     String response =
         mvc.perform(
                 get(ATOMIC_TESTINGS_URI + "/" + INJECT_WITHOUT_STATUS.getId())
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -121,7 +128,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
         """;
 
     String response =
-        mvc.perform(get(url).accept(MediaType.APPLICATION_JSON))
+        mvc.perform(get(url).accept(MediaType.APPLICATION_JSON).with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -150,7 +157,8 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .contentType(MediaType.APPLICATION_JSON)
                     .accept(MediaType.APPLICATION_JSON)
                     .content(
-                        asJsonString(InjectFixture.createAtomicTesting("test", DOCUMENT.getId()))))
+                        asJsonString(InjectFixture.createAtomicTesting("test", DOCUMENT.getId())))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -158,7 +166,10 @@ public class AtomicTestingApiTest extends IntegrationTest {
     assertNotNull(response);
     String newInjectId = JsonPath.read(response, "$.inject_id");
     response =
-        mvc.perform(get(ATOMIC_TESTINGS_URI + "/" + newInjectId).accept(MediaType.APPLICATION_JSON))
+        mvc.perform(
+                get(ATOMIC_TESTINGS_URI + "/" + newInjectId)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -173,14 +184,18 @@ public class AtomicTestingApiTest extends IntegrationTest {
                 put(ATOMIC_TESTINGS_URI + "/" + newInjectId)
                     .contentType(MediaType.APPLICATION_JSON)
                     .accept(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(InjectFixture.createAtomicTesting("test2", null))))
+                    .content(asJsonString(InjectFixture.createAtomicTesting("test2", null)))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
             .getContentAsString();
     assertNotNull(response);
     response =
-        mvc.perform(get(ATOMIC_TESTINGS_URI + "/" + newInjectId).accept(MediaType.APPLICATION_JSON))
+        mvc.perform(
+                get(ATOMIC_TESTINGS_URI + "/" + newInjectId)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -200,7 +215,8 @@ public class AtomicTestingApiTest extends IntegrationTest {
         mvc.perform(
                 post(ATOMIC_TESTINGS_URI + "/" + INJECT_WITHOUT_STATUS.getId() + "/duplicate")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -209,17 +225,26 @@ public class AtomicTestingApiTest extends IntegrationTest {
     // Assert duplicate
     String newInjectId = JsonPath.read(response, "$.inject_id");
     response =
-        mvc.perform(get(ATOMIC_TESTINGS_URI + "/" + newInjectId).accept(MediaType.APPLICATION_JSON))
+        mvc.perform(
+                get(ATOMIC_TESTINGS_URI + "/" + newInjectId)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
             .getContentAsString();
     assertEquals(newInjectId, JsonPath.read(response, "$.inject_id"));
     // Delete
-    mvc.perform(delete(ATOMIC_TESTINGS_URI + "/" + newInjectId).accept(MediaType.APPLICATION_JSON))
+    mvc.perform(
+            delete(ATOMIC_TESTINGS_URI + "/" + newInjectId)
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
         .andExpect(status().is2xxSuccessful());
     // Assert delete
-    mvc.perform(get(ATOMIC_TESTINGS_URI + "/" + newInjectId).accept(MediaType.APPLICATION_JSON))
+    mvc.perform(
+            get(ATOMIC_TESTINGS_URI + "/" + newInjectId)
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
         .andExpect(status().is4xxClientError());
   }
 
@@ -232,7 +257,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
     entityManager.flush();
     entityManager.clear();
 
-    mvc.perform(post(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId() + "/launch"))
+    mvc.perform(post(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId() + "/launch").with(csrf()))
         .andExpect(status().is2xxSuccessful())
         .andExpect(jsonPath("$.inject_status.status_name").value("QUEUING"));
   }
@@ -247,7 +272,8 @@ public class AtomicTestingApiTest extends IntegrationTest {
             .get();
 
     String relaunchedInject =
-        mvc.perform(post(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId() + "/relaunch"))
+        mvc.perform(
+                post(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId() + "/relaunch").with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.inject_status.status_name").value("QUEUING"))
             .andReturn()
@@ -255,9 +281,9 @@ public class AtomicTestingApiTest extends IntegrationTest {
             .getContentAsString();
 
     String relaunchedInjectId = JsonPath.read(relaunchedInject, "$.inject_id");
-    mvc.perform(get(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId()))
+    mvc.perform(get(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId()).with(csrf()))
         .andExpect(status().is4xxClientError());
-    mvc.perform(get(ATOMIC_TESTINGS_URI + "/" + relaunchedInjectId))
+    mvc.perform(get(ATOMIC_TESTINGS_URI + "/" + relaunchedInjectId).with(csrf()))
         .andExpect(status().is2xxSuccessful());
   }
 
@@ -272,7 +298,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
       Inject atomicTesting =
           getAtomicTestingWrapper(null, executorFixture.getCrowdstrikeExecutor()).persist().get();
 
-      mvc.perform(post(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId() + "/launch"))
+      mvc.perform(post(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId() + "/launch").with(csrf()))
           .andExpect(status().isForbidden())
           .andExpect(jsonPath("$.message").value("LICENSE_RESTRICTION"));
     }
@@ -287,7 +313,8 @@ public class AtomicTestingApiTest extends IntegrationTest {
               .persist()
               .get();
 
-      mvc.perform(post(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId() + "/relaunch"))
+      mvc.perform(
+              post(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId() + "/relaunch").with(csrf()))
           .andExpect(status().isForbidden())
           .andExpect(jsonPath("$.message").value("LICENSE_RESTRICTION"));
     }
@@ -302,7 +329,8 @@ public class AtomicTestingApiTest extends IntegrationTest {
               .persist()
               .get();
 
-      mvc.perform(post(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId() + "/relaunch"))
+      mvc.perform(
+              post(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId() + "/relaunch").with(csrf()))
           .andExpect(status().isForbidden())
           .andExpect(jsonPath("$.message").value("LICENSE_RESTRICTION"));
     }
@@ -318,7 +346,8 @@ public class AtomicTestingApiTest extends IntegrationTest {
                         + "/"
                         + INJECT_WITH_STATUS_AND_COMMAND_LINES.getId()
                         + "/payload")
-                    .accept(MediaType.APPLICATION_JSON))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -347,6 +376,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .score(100.0)
                     .sourceName("test collector")
+                    .sourceAssetId("security platform asset id")
                     .result("Success")
                     .build(),
                 InjectExpectationResult.builder()
@@ -354,6 +384,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceType("security-platform")
                     .score(20.0)
                     .sourceName("test SIEM")
+                    .sourceAssetId("security platform asset id")
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
                     .result("Meh...")
                     .build());
@@ -366,6 +397,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .score(100.0)
                     .sourceName("test collector")
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
+                    .sourceAssetId("security platform asset id")
                     .result("Success")
                     .build(),
                 InjectExpectationResult.builder()
@@ -374,6 +406,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .score(40.0)
                     .sourceName("test SIEM")
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
+                    .sourceAssetId("security platform asset id")
                     .result("Meh better...")
                     .build());
 
@@ -415,7 +448,8 @@ public class AtomicTestingApiTest extends IntegrationTest {
                             + "/target_results/"
                             + endpointWrapper.get().getId()
                             + "/types/ASSETS/merged")
-                        .accept(MediaType.APPLICATION_JSON))
+                        .accept(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
                 .andExpect(status().is2xxSuccessful())
                 .andReturn()
                 .getResponse()
@@ -429,6 +463,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .score(100.0)
                     .sourceName("test collector")
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
+                    .sourceAssetId("security platform asset id")
                     .result("Success")
                     .build(),
                 InjectExpectationResult.builder()
@@ -437,6 +472,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .score(20.0)
                     .sourceName("test SIEM")
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
+                    .sourceAssetId("security platform asset id")
                     .result("Meh...")
                     .build(),
                 InjectExpectationResult.builder()
@@ -445,6 +481,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .score(40.0)
                     .sourceName("test SIEM")
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
+                    .sourceAssetId("security platform asset id")
                     .result("Meh better...")
                     .build());
 
@@ -468,6 +505,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .score(100.0)
                     .sourceName("test collector")
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
+                    .sourceAssetId("security platform asset id")
                     .result("Success")
                     .build(),
                 InjectExpectationResult.builder()
@@ -476,6 +514,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .score(20.0)
                     .sourceName("test SIEM")
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
+                    .sourceAssetId("security platform asset id")
                     .result("Meh...")
                     .build());
 
@@ -487,6 +526,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .score(100.0)
                     .sourceName("test collector")
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
+                    .sourceAssetId("security platform asset id")
                     .result("Success")
                     .build(),
                 InjectExpectationResult.builder()
@@ -495,6 +535,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .score(40.0)
                     .sourceName("test SIEM")
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
+                    .sourceAssetId("security platform asset id")
                     .result("Meh better...")
                     .build());
 
@@ -521,6 +562,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .score(0.0)
                     .sourceName("test collector")
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
+                    .sourceAssetId("security platform asset id")
                     .result("Success")
                     .build(),
                 InjectExpectationResult.builder()
@@ -529,6 +571,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .score(17.0)
                     .sourceName("test SIEM")
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
+                    .sourceAssetId("security platform asset id")
                     .result("Meh...")
                     .build());
 
@@ -540,6 +583,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .score(0.0)
                     .sourceName("test collector")
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
+                    .sourceAssetId("security platform asset id")
                     .result("Success")
                     .build(),
                 InjectExpectationResult.builder()
@@ -548,6 +592,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .score(32.0)
                     .sourceName("test SIEM")
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
+                    .sourceAssetId("security platform asset id")
                     .result("Meh better...")
                     .build());
 
@@ -600,7 +645,8 @@ public class AtomicTestingApiTest extends IntegrationTest {
                             + "/target_results/"
                             + endpointWrapper.get().getId()
                             + "/types/ASSETS/merged")
-                        .accept(MediaType.APPLICATION_JSON))
+                        .accept(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
                 .andExpect(status().is2xxSuccessful())
                 .andReturn()
                 .getResponse()
@@ -614,6 +660,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .score(100.0)
                     .sourceName("test collector")
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
+                    .sourceAssetId("security platform asset id")
                     .result("Success")
                     .build(),
                 InjectExpectationResult.builder()
@@ -622,6 +669,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .score(20.0)
                     .sourceName("test SIEM")
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
+                    .sourceAssetId("security platform asset id")
                     .result("Meh...")
                     .build(),
                 InjectExpectationResult.builder()
@@ -630,6 +678,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .score(40.0)
                     .sourceName("test SIEM")
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
+                    .sourceAssetId("security platform asset id")
                     .result("Meh better...")
                     .build());
 
@@ -641,6 +690,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .score(0.0)
                     .sourceName("test collector")
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
+                    .sourceAssetId("security platform asset id")
                     .result("Success")
                     .build(),
                 InjectExpectationResult.builder()
@@ -649,6 +699,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .score(17.0)
                     .sourceName("test SIEM")
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
+                    .sourceAssetId("security platform asset id")
                     .result("Meh...")
                     .build(),
                 InjectExpectationResult.builder()
@@ -657,6 +708,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .score(32.0)
                     .sourceName("test SIEM")
                     .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
+                    .sourceAssetId("security platform asset id")
                     .result("Meh better...")
                     .build());
 
@@ -684,6 +736,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceType("collector")
                     .score(100.0)
                     .sourceName("test collector")
+                    .sourceAssetId("security platform asset id")
                     .result("Success")
                     .build(),
                 InjectExpectationResult.builder()
@@ -691,6 +744,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceType("security-platform")
                     .score(20.0)
                     .sourceName("test SIEM")
+                    .sourceAssetId("security platform asset id")
                     .result("Meh...")
                     .build());
 
@@ -709,6 +763,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceType("collector")
                     .score(0.0)
                     .sourceName("test collector")
+                    .sourceAssetId("security platform asset id")
                     .result("Success")
                     .build(),
                 InjectExpectationResult.builder()
@@ -716,6 +771,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceType("security-platform")
                     .score(17.0)
                     .sourceName("test SIEM")
+                    .sourceAssetId("security platform asset id")
                     .result("Meh...")
                     .build());
 
@@ -762,7 +818,8 @@ public class AtomicTestingApiTest extends IntegrationTest {
                             + endpointWrapper.get().getId()
                             + "/asset_with_agents?expectationType="
                             + InjectExpectation.EXPECTATION_TYPE.DETECTION)
-                        .accept(MediaType.APPLICATION_JSON))
+                        .accept(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
                 .andExpect(status().is2xxSuccessful())
                 .andReturn()
                 .getResponse()
@@ -775,6 +832,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceType("collector")
                     .score(100.0)
                     .sourceName("test collector")
+                    .sourceAssetId("security platform asset id")
                     .result("Success")
                     .build(),
                 InjectExpectationResult.builder()
@@ -782,6 +840,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceType("security-platform")
                     .score(20.0)
                     .sourceName("test SIEM")
+                    .sourceAssetId("security platform asset id")
                     .result("Meh...")
                     .build());
 
@@ -803,7 +862,8 @@ public class AtomicTestingApiTest extends IntegrationTest {
                             + endpointWrapper.get().getId()
                             + "/asset_with_agents?expectationType="
                             + InjectExpectation.EXPECTATION_TYPE.PREVENTION)
-                        .accept(MediaType.APPLICATION_JSON))
+                        .accept(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
                 .andExpect(status().is2xxSuccessful())
                 .andReturn()
                 .getResponse()
@@ -816,6 +876,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceType("collector")
                     .score(0.0)
                     .sourceName("test collector")
+                    .sourceAssetId("security platform asset id")
                     .result("Success")
                     .build(),
                 InjectExpectationResult.builder()
@@ -823,6 +884,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .sourceType("security-platform")
                     .score(17.0)
                     .sourceName("test SIEM")
+                    .sourceAssetId("security platform asset id")
                     .result("Meh...")
                     .build());
 
@@ -835,6 +897,123 @@ public class AtomicTestingApiTest extends IntegrationTest {
             .isEqualTo(InjectExpectation.EXPECTATION_TYPE.PREVENTION.name());
         assertThatJson(responsePrevention).node("[0].inject_expectation_score").isEqualTo("100.0");
       }
+    }
+  }
+
+  @Nested
+  @DisplayName("Tenant Isolation")
+  @WithMockUser(
+      withCapabilities = {
+        Capability.MANAGE_ASSESSMENT,
+        Capability.ACCESS_ASSESSMENT,
+        Capability.DELETE_ASSESSMENT
+      })
+  class TenantIsolation {
+
+    @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
+
+    private Inject createInjectInTenant(Tenant tenant) {
+      tenantIsolationHelper.switchToTenant(tenant.getId(), entityManager);
+      Inject inject = injectComposer.forInject(InjectFixture.getDefaultInject()).persist().get();
+      entityManager.flush();
+      entityManager.clear();
+      return inject;
+    }
+
+    @Test
+    @DisplayName("AtomicTesting created in tenant X should NOT be readable from tenant Y")
+    void given_atomicTestingInTenantX_should_notBeReadableFromTenantY() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_ASSESSMENT));
+
+      Inject inject = createInjectInTenant(tenantX);
+
+      // -------- Act --------
+      int responseStatus =
+          mvc.perform(
+                  get("/api/tenants/" + tenantY.getId() + "/atomic-testings/" + inject.getId())
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // -------- Assert --------
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
+    }
+
+    @Test
+    @DisplayName("AtomicTesting created in tenant X should be readable from tenant X")
+    void given_atomicTestingInTenantX_should_beReadableFromTenantX() throws Exception {
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+
+      Inject inject = createInjectInTenant(tenantX);
+
+      mvc.perform(
+              get("/api/tenants/" + tenantX.getId() + "/atomic-testings/" + inject.getId())
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("AtomicTesting search in tenant Y should NOT return results from tenant X")
+    void given_atomicTestingInTenantX_should_notAppearInTenantYSearch() throws Exception {
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_ASSESSMENT));
+
+      Inject inject = createInjectInTenant(tenantX);
+
+      SearchPaginationInput searchInput = PaginationFixture.simpleTextSearch(inject.getTitle());
+
+      String searchResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantY.getId() + "/atomic-testings/search")
+                      .content(asJsonString(searchInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      assertEquals(Integer.valueOf(0), JsonPath.read(searchResponse, "$.totalElements"));
+    }
+
+    @Test
+    @Disabled
+    @DisplayName("AtomicTesting created in tenant X should NOT be deletable from tenant Y")
+    void given_atomicTestingInTenantX_should_notBeDeletableFromTenantY() throws Exception {
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.DELETE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+
+      Inject inject = createInjectInTenant(tenantX);
+
+      int responseStatus =
+          mvc.perform(
+                  delete("/api/tenants/" + tenantY.getId() + "/atomic-testings/" + inject.getId())
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
     }
   }
 }

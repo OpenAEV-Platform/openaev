@@ -1,6 +1,9 @@
 package io.openaev.rest.custom_dashboard;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.ResourceType;
@@ -22,11 +25,15 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping(CustomDashboardApi.CUSTOM_DASHBOARDS_URI)
+@RequestMapping({
+  CustomDashboardApi.CUSTOM_DASHBOARDS_URI,
+  CustomDashboardApi.TENANT_CUSTOM_DASHBOARDS_URI
+})
 @RequiredArgsConstructor
 public class CustomDashboardApi extends RestBehavior {
 
   public static final String CUSTOM_DASHBOARDS_URI = "/api/custom-dashboards";
+  public static final String TENANT_CUSTOM_DASHBOARDS_URI = TENANT_PREFIX + "/custom-dashboards";
   private final CustomDashboardService customDashboardService;
 
   // -- CRUD --
@@ -85,7 +92,8 @@ public class CustomDashboardApi extends RestBehavior {
       resourceType = ResourceType.DASHBOARD)
   public ResponseEntity<Void> deleteCustomDashboard(
       @PathVariable @NotBlank final String customDashboardId) {
-    this.customDashboardService.deleteCustomDashboard(customDashboardId);
+    String tenantId = TenantContext.getCurrentTenant();
+    this.customDashboardService.deleteCustomDashboard(tenantId, customDashboardId);
     return ResponseEntity.noContent().build();
   }
 

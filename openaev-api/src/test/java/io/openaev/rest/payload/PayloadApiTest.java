@@ -4,10 +4,12 @@ import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTEN
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_PROPERTY;
 import static io.openaev.database.specification.InjectorContractSpecification.byPayloadId;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -27,20 +29,21 @@ import io.openaev.integration.Manager;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
 import io.openaev.rest.collector.form.CollectorCreateInput;
 import io.openaev.rest.payload.form.*;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.CollectorFixture;
 import io.openaev.utils.fixtures.DomainFixture;
+import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.fixtures.PayloadFixture;
 import io.openaev.utils.fixtures.PayloadInputFixture;
 import io.openaev.utils.fixtures.composers.CollectorComposer;
 import io.openaev.utils.fixtures.composers.DomainComposer;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -61,10 +64,17 @@ class PayloadApiTest extends IntegrationTest {
 
   @Autowired private CollectorComposer collectorComposer;
   @Autowired private DomainComposer domainComposer;
+  @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
+  @Autowired private jakarta.persistence.EntityManager entityManager;
 
   @Resource private ObjectMapper objectMapper;
 
   @MockitoBean private EnterpriseEditionService enterpriseEditionService;
+
+  @BeforeEach
+  void beforeEach() throws Exception {
+    new Manager(List.of(openaevInjectorIntegrationFactory)).monitorIntegrations();
+  }
 
   @BeforeAll
   void beforeAll() {
@@ -101,7 +111,8 @@ class PayloadApiTest extends IntegrationTest {
       mvc.perform(
               post(PAYLOAD_URI)
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(input)))
+                  .content(asJsonString(input))
+                  .with(csrf()))
           .andExpect(status().is2xxSuccessful())
           .andExpect(jsonPath("$.payload_name").value("My Executable Payload"))
           .andExpect(jsonPath("$.payload_description").value("Executable description"))
@@ -125,7 +136,8 @@ class PayloadApiTest extends IntegrationTest {
       mvc.perform(
               post(PAYLOAD_URI)
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(input)))
+                  .content(asJsonString(input))
+                  .with(csrf()))
           .andExpect(status().isBadRequest());
     }
 
@@ -143,7 +155,8 @@ class PayloadApiTest extends IntegrationTest {
       mvc.perform(
               post(PAYLOAD_URI)
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(input)))
+                  .content(asJsonString(input))
+                  .with(csrf()))
           .andExpect(status().isBadRequest())
           .andExpect(
               result -> {
@@ -166,7 +179,8 @@ class PayloadApiTest extends IntegrationTest {
       mvc.perform(
               post(PAYLOAD_URI)
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(input)))
+                  .content(asJsonString(input))
+                  .with(csrf()))
           .andExpect(status().is2xxSuccessful())
           .andExpect(jsonPath("$.payload_name").value("Command line payload"))
           .andExpect(
@@ -200,7 +214,8 @@ class PayloadApiTest extends IntegrationTest {
       mvc.perform(
               post(PAYLOAD_URI)
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(input)))
+                  .content(asJsonString(input))
+                  .with(csrf()))
           .andExpect(status().is2xxSuccessful())
           .andExpect(jsonPath("$.payload_name").value("Command line payload"))
           .andExpect(jsonPath("$.payload_detection_remediations.length()").value(3));
@@ -222,7 +237,8 @@ class PayloadApiTest extends IntegrationTest {
           mvc.perform(
                   post(PAYLOAD_URI)
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(input)))
+                      .content(asJsonString(input))
+                      .with(csrf()))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()
@@ -241,7 +257,8 @@ class PayloadApiTest extends IntegrationTest {
       mvc.perform(
               put(PAYLOAD_URI + "/" + payloadId)
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(updateInput)))
+                  .content(asJsonString(updateInput))
+                  .with(csrf()))
           .andExpect(status().is2xxSuccessful())
           .andExpect(jsonPath("$.payload_detection_remediations.length()").value(3))
           .andExpect(
@@ -252,8 +269,6 @@ class PayloadApiTest extends IntegrationTest {
     @Test
     @DisplayName("Create Payload with targeted asset")
     void given_targetedAssetArgument_should_create_payload_with_targeted_asset() throws Exception {
-      new Manager(List.of(openaevInjectorIntegrationFactory)).monitorIntegrations();
-
       Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
       PayloadCreateInput input =
           PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(
@@ -261,7 +276,7 @@ class PayloadApiTest extends IntegrationTest {
 
       PayloadArgument targetedAssetArgument = new PayloadArgument();
       targetedAssetArgument.setKey("URL");
-      targetedAssetArgument.setType("targeted-asset");
+      targetedAssetArgument.setType(ArgumentType.TargetedAsset);
       targetedAssetArgument.setDefaultValue("hostname");
       targetedAssetArgument.setSeparator("-u");
       input.setArguments(List.of(targetedAssetArgument));
@@ -270,7 +285,8 @@ class PayloadApiTest extends IntegrationTest {
           mvc.perform(
                   post(PAYLOAD_URI)
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(input)))
+                      .content(asJsonString(input))
+                      .with(csrf()))
               .andExpect(status().is2xxSuccessful())
               .andExpect(jsonPath("$.payload_name").value("Command line payload"))
               //              .andExpect(jsonPath("$.payload_arguments]").value("targeted-asset"))
@@ -312,9 +328,216 @@ class PayloadApiTest extends IntegrationTest {
     }
   }
 
-  @Test
-  @DisplayName("Update Executable Payload")
+  // ---- Payload Arguments ----
+
+  @Nested
   @WithMockUser(isAdmin = true)
+  @DisplayName("Payload Arguments")
+  class PayloadArguments {
+
+    /**
+     * All non-targeted-asset argument types (text, number, port, portscan, ipv4, ipv6, credentials,
+     * cve) must generate a {@code text} contract field so they are visible and editable in the
+     * inject form.
+     */
+    @Test
+    @DisplayName(
+        "Given all string-type arguments, should produce a text field in the injector contract for each")
+    void given_allStringTypeArguments_should_each_produce_text_field_in_contract()
+        throws Exception {
+      // Arrange
+      new Manager(List.of(openaevInjectorIntegrationFactory)).monitorIntegrations();
+
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      PayloadCreateInput input =
+          PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(
+              List.of(domain.getId()));
+      input.setArguments(
+          List.of(
+              PayloadFixture.createPayloadArgument("arg_text", ArgumentType.Text, "hello", null),
+              PayloadFixture.createPayloadArgument("arg_number", ArgumentType.Number, "42", null),
+              PayloadFixture.createPayloadArgument("arg_port", ArgumentType.Port, "8080", null),
+              PayloadFixture.createPayloadArgument(
+                  "arg_portscan", ArgumentType.PortsScan, "192.168.1.0/24", null),
+              PayloadFixture.createPayloadArgument("arg_ipv4", ArgumentType.IPv4, "10.0.0.1", null),
+              PayloadFixture.createPayloadArgument("arg_ipv6", ArgumentType.IPv6, "::1", null),
+              PayloadFixture.createPayloadArgument(
+                  "arg_credentials", ArgumentType.Credentials, "admin:pass", null),
+              PayloadFixture.createPayloadArgument(
+                  "arg_cve", ArgumentType.CVE, "CVE-2024-1234", null)));
+
+      // Act
+      String response =
+          mvc.perform(
+                  post(PAYLOAD_URI)
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input)))
+              .andExpect(status().is2xxSuccessful())
+              .andExpect(jsonPath("$.payload_arguments.length()").value(8))
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert — every argument is round-tripped with the correct type label
+      assertEquals("text", JsonPath.read(response, "$.payload_arguments[0].type"));
+      assertEquals("number", JsonPath.read(response, "$.payload_arguments[1].type"));
+      assertEquals("port", JsonPath.read(response, "$.payload_arguments[2].type"));
+      assertEquals("portscan", JsonPath.read(response, "$.payload_arguments[3].type"));
+      assertEquals("ipv4", JsonPath.read(response, "$.payload_arguments[4].type"));
+      assertEquals("ipv6", JsonPath.read(response, "$.payload_arguments[5].type"));
+      assertEquals("credentials", JsonPath.read(response, "$.payload_arguments[6].type"));
+      assertEquals("cve", JsonPath.read(response, "$.payload_arguments[7].type"));
+
+      // Assert — every argument key produces a "text" field in the injector contract
+      InjectorContract injectorContract =
+          injectorContractRepository
+              .findOne(byPayloadId(JsonPath.read(response, "$.payload_id")))
+              .orElse(null);
+      assertNotNull(injectorContract);
+
+      Set<String> argumentKeys =
+          Set.of(
+              "arg_text",
+              "arg_number",
+              "arg_port",
+              "arg_portscan",
+              "arg_ipv4",
+              "arg_ipv6",
+              "arg_credentials",
+              "arg_cve");
+      Map<String, String> keyToContractType = new HashMap<>();
+      ArrayNode contractFields = (ArrayNode) injectorContract.getConvertedContent().get("fields");
+      contractFields.forEach(
+          f -> {
+            String key = f.get("key").asText();
+            if (argumentKeys.contains(key)) {
+              keyToContractType.put(key, f.get("type").asText());
+            }
+          });
+
+      assertEquals(
+          8, keyToContractType.size(), "All 8 argument keys must appear in the injector contract");
+      keyToContractType.forEach(
+          (key, type) ->
+              assertEquals(
+                  "text", type, "Argument '" + key + "' must produce a text contract field"));
+    }
+
+    /**
+     * Subtypes are persisted at the payload-argument level and returned verbatim in the response.
+     * Three structured types are covered: portscan/host, credentials/username, cve/severity.
+     */
+    @Test
+    @DisplayName(
+        "Given arguments with subtypes, should persist and return the correct subtype for each")
+    void given_argumentsWithSubtypes_should_persist_and_return_subtypes() throws Exception {
+      // Arrange
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      PayloadCreateInput input =
+          PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(
+              List.of(domain.getId()));
+      input.setArguments(
+          List.of(
+              PayloadFixture.createPayloadArgument(
+                  "scan_host",
+                  ArgumentType.PortsScan,
+                  "192.168.1.0/24",
+                  null,
+                  ArgumentSubType.Host),
+              PayloadFixture.createPayloadArgument(
+                  "cred_user", ArgumentType.Credentials, "admin", null, ArgumentSubType.Username),
+              PayloadFixture.createPayloadArgument(
+                  "cve_severity",
+                  ArgumentType.CVE,
+                  "CVE-2024-1234",
+                  null,
+                  ArgumentSubType.Severity)));
+
+      // Act
+      String response =
+          mvc.perform(
+                  post(PAYLOAD_URI)
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input)))
+              .andExpect(status().is2xxSuccessful())
+              .andExpect(jsonPath("$.payload_arguments.length()").value(3))
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert — type and subtype are round-tripped correctly for each argument
+      assertEquals("portscan", JsonPath.read(response, "$.payload_arguments[0].type"));
+      assertEquals("host", JsonPath.read(response, "$.payload_arguments[0].subtype"));
+      assertEquals("credentials", JsonPath.read(response, "$.payload_arguments[1].type"));
+      assertEquals("username", JsonPath.read(response, "$.payload_arguments[1].subtype"));
+      assertEquals("cve", JsonPath.read(response, "$.payload_arguments[2].type"));
+      assertEquals("severity", JsonPath.read(response, "$.payload_arguments[2].subtype"));
+    }
+
+    /**
+     * An argument with a subtype still produces a plain {@code text} contract field — the subtype
+     * is a payload-level annotation, not a different UI component type.
+     */
+    @Test
+    @DisplayName(
+        "Given an argument with a subtype, should still produce a text field in the injector contract")
+    void given_argumentWithSubtype_should_produce_text_field_in_contract() throws Exception {
+      // Arrange
+      new Manager(List.of(openaevInjectorIntegrationFactory)).monitorIntegrations();
+
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      PayloadCreateInput input =
+          PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(
+              List.of(domain.getId()));
+      input.setArguments(
+          List.of(
+              PayloadFixture.createPayloadArgument(
+                  "scan_result",
+                  ArgumentType.PortsScan,
+                  "10.0.0.0/24",
+                  null,
+                  ArgumentSubType.Host)));
+
+      // Act
+      String response =
+          mvc.perform(
+                  post(PAYLOAD_URI)
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input)))
+              .andExpect(status().is2xxSuccessful())
+              .andExpect(jsonPath("$.payload_arguments[0].type").value("portscan"))
+              .andExpect(jsonPath("$.payload_arguments[0].subtype").value("host"))
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert — contract field type is still "text"; default value is preserved
+      InjectorContract injectorContract =
+          injectorContractRepository
+              .findOne(byPayloadId(JsonPath.read(response, "$.payload_id")))
+              .orElse(null);
+      assertNotNull(injectorContract);
+
+      JsonNode scanField = null;
+      ArrayNode contractFields = (ArrayNode) injectorContract.getConvertedContent().get("fields");
+      for (JsonNode f : contractFields) {
+        if ("scan_result".equals(f.get("key").asText())) {
+          scanField = f;
+          break;
+        }
+      }
+      assertNotNull(scanField, "Contract must contain a field for 'scan_result'");
+      assertEquals("text", scanField.get("type").asText());
+      assertEquals("10.0.0.0/24", scanField.get("defaultValue").asText());
+    }
+  }
+
+  @Test
+  @WithMockUser(isAdmin = true)
+  @DisplayName("Update Executable Payload")
   void updateExecutablePayload() throws Exception {
 
     Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
@@ -326,7 +549,8 @@ class PayloadApiTest extends IntegrationTest {
         mvc.perform(
                 post(PAYLOAD_URI)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(createInput)))
+                    .content(asJsonString(createInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.payload_name").value("My Executable Payload"))
             .andExpect(jsonPath("$.payload_platforms.[0]").value("Linux"))
@@ -346,7 +570,8 @@ class PayloadApiTest extends IntegrationTest {
     mvc.perform(
             put(PAYLOAD_URI + "/" + payloadId)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(updateInput)))
+                .content(asJsonString(updateInput))
+                .with(csrf()))
         .andExpect(status().is2xxSuccessful())
         .andExpect(jsonPath("$.payload_name").value("My Updated Executable Payload"))
         .andExpect(jsonPath("$.payload_platforms.[0]").value("MacOS"))
@@ -368,7 +593,8 @@ class PayloadApiTest extends IntegrationTest {
         mvc.perform(
                 post(PAYLOAD_URI)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(createInput)))
+                    .content(asJsonString(createInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -384,7 +610,8 @@ class PayloadApiTest extends IntegrationTest {
     mvc.perform(
             put(PAYLOAD_URI + "/" + payloadId)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(updateInput)))
+                .content(asJsonString(updateInput))
+                .with(csrf()))
         .andExpect(status().isBadRequest())
         .andExpect(
             result -> {
@@ -406,7 +633,8 @@ class PayloadApiTest extends IntegrationTest {
         mvc.perform(
                 post(PAYLOAD_URI)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(createInput)))
+                    .content(asJsonString(createInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -421,7 +649,8 @@ class PayloadApiTest extends IntegrationTest {
     mvc.perform(
             put(PAYLOAD_URI + "/" + payloadId)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(updateInput)))
+                .content(asJsonString(updateInput))
+                .with(csrf()))
         .andExpect(status().is2xxSuccessful())
         .andExpect(jsonPath("$.payload_name").value("Updated Command line payload"))
         .andExpect(jsonPath("$.payload_platforms.[0]").value("MacOS"))
@@ -445,7 +674,8 @@ class PayloadApiTest extends IntegrationTest {
         mvc.perform(
                 post(PAYLOAD_URI)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(createInput)))
+                    .content(asJsonString(createInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -460,7 +690,8 @@ class PayloadApiTest extends IntegrationTest {
     mvc.perform(
             put(PAYLOAD_URI + "/" + payloadId)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(updateInput)))
+                .content(asJsonString(updateInput))
+                .with(csrf()))
         .andExpect(status().is2xxSuccessful())
         .andExpect(jsonPath("$.payload_name").value("Updated Command line payload"))
         .andExpect(
@@ -495,7 +726,8 @@ class PayloadApiTest extends IntegrationTest {
         mvc.perform(
                 post(PAYLOAD_URI)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(createInput)))
+                    .content(asJsonString(createInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.payload_detection_remediations.length()").value(0))
             .andReturn()
@@ -511,7 +743,8 @@ class PayloadApiTest extends IntegrationTest {
     mvc.perform(
             put(PAYLOAD_URI + "/" + payloadId)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(updateInput)))
+                .content(asJsonString(updateInput))
+                .with(csrf()))
         .andExpect(status().is2xxSuccessful())
         .andExpect(jsonPath("$.payload_detection_remediations.length()").value(3));
     ;
@@ -522,9 +755,7 @@ class PayloadApiTest extends IntegrationTest {
   @WithMockUser(withCapabilities = {Capability.MANAGE_PAYLOADS})
   void upsertCommandPayloadToValidateArchitecture() throws Exception {
     Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
-
-    Payload payload =
-        payloadRepository.save(PayloadFixture.createDefaultCommand(new HashSet<>(Set.of(domain))));
+    Payload payload = payloadRepository.save(PayloadFixture.createDefaultCommand());
     payload.setExternalId("external-id");
 
     // -- Without property architecture
@@ -534,7 +765,8 @@ class PayloadApiTest extends IntegrationTest {
     mvc.perform(
             post(PAYLOAD_URI + "/upsert")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(upsertInput)))
+                .content(asJsonString(upsertInput))
+                .with(csrf()))
         .andExpect(status().isOk())
         .andExpect(
             jsonPath("$.payload_execution_arch")
@@ -545,7 +777,8 @@ class PayloadApiTest extends IntegrationTest {
     mvc.perform(
             post(PAYLOAD_URI + "/upsert")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(upsertInput)))
+                .content(asJsonString(upsertInput))
+                .with(csrf()))
         .andExpect(status().isBadRequest())
         .andExpect(
             result -> {
@@ -567,7 +800,10 @@ class PayloadApiTest extends IntegrationTest {
             List.of(domain.getId()));
 
     mvc.perform(
-            post(PAYLOAD_URI).contentType(MediaType.APPLICATION_JSON).content(asJsonString(input)))
+            post(PAYLOAD_URI)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(input))
+                .with(csrf()))
         .andExpect(status().is2xxSuccessful());
 
     PayloadUpsertInput upsertInput =
@@ -577,7 +813,8 @@ class PayloadApiTest extends IntegrationTest {
     mvc.perform(
             post(PAYLOAD_URI + "/upsert")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(upsertInput)))
+                .content(asJsonString(upsertInput))
+                .with(csrf()))
         .andExpect(status().isOk())
         .andExpect(
             jsonPath("$.payload_output_parsers[0].output_parser_mode")
@@ -616,7 +853,10 @@ class PayloadApiTest extends IntegrationTest {
         PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(List.of(domain.getId()));
 
     mvc.perform(
-            post(PAYLOAD_URI).contentType(MediaType.APPLICATION_JSON).content(asJsonString(input)))
+            post(PAYLOAD_URI)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(input))
+                .with(csrf()))
         .andExpect(status().is2xxSuccessful())
         .andExpect(jsonPath("$.payload_detection_remediations.length()").value(0));
 
@@ -628,7 +868,8 @@ class PayloadApiTest extends IntegrationTest {
     mvc.perform(
             post(PAYLOAD_URI + "/upsert")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(upsertInput)))
+                .content(asJsonString(upsertInput))
+                .with(csrf()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.payload_detection_remediations.length()").value(3));
   }
@@ -650,7 +891,8 @@ class PayloadApiTest extends IntegrationTest {
     mvc.perform(
             post(PAYLOAD_URI)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(createInput)))
+                .content(asJsonString(createInput))
+                .with(csrf()))
         .andExpect(status().isOk());
   }
 
@@ -670,7 +912,8 @@ class PayloadApiTest extends IntegrationTest {
     mvc.perform(
             post(PAYLOAD_URI)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(createInput)))
+                .content(asJsonString(createInput))
+                .with(csrf()))
         .andExpect(status().isOk());
   }
 
@@ -690,7 +933,8 @@ class PayloadApiTest extends IntegrationTest {
     mvc.perform(
             post(PAYLOAD_URI)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(createInput)))
+                .content(asJsonString(createInput))
+                .with(csrf()))
         .andExpect(status().isOk());
   }
 
@@ -710,7 +954,8 @@ class PayloadApiTest extends IntegrationTest {
     mvc.perform(
             post(PAYLOAD_URI)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(createInput)))
+                .content(asJsonString(createInput))
+                .with(csrf()))
         .andExpect(status().isConflict());
   }
 
@@ -730,7 +975,8 @@ class PayloadApiTest extends IntegrationTest {
     mvc.perform(
             post(PAYLOAD_URI)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(createInput)))
+                .content(asJsonString(createInput))
+                .with(csrf()))
         .andExpect(status().isConflict());
   }
 
@@ -751,7 +997,8 @@ class PayloadApiTest extends IntegrationTest {
         mvc.perform(
                 post(PAYLOAD_URI)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(createInput)))
+                    .content(asJsonString(createInput))
+                    .with(csrf()))
             .andExpect(status().isOk())
             .andReturn()
             .getResponse()
@@ -771,7 +1018,8 @@ class PayloadApiTest extends IntegrationTest {
     mvc.perform(
             put(PAYLOAD_URI + "/" + payloadId)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(updateInput)))
+                .content(asJsonString(updateInput))
+                .with(csrf()))
         .andExpect(status().isConflict());
   }
 
@@ -792,7 +1040,8 @@ class PayloadApiTest extends IntegrationTest {
         mvc.perform(
                 post(PAYLOAD_URI)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(createInput)))
+                    .content(asJsonString(createInput))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.payload_name").value("My Executable Payload"))
             .andExpect(jsonPath("$.payload_platforms.[0]").value("Linux"))
@@ -807,7 +1056,7 @@ class PayloadApiTest extends IntegrationTest {
 
     var payloadId = JsonPath.read(createdPayload, "$.payload_id");
 
-    mvc.perform(post(PAYLOAD_URI + "/" + payloadId + "/duplicate"))
+    mvc.perform(post(PAYLOAD_URI + "/" + payloadId + "/duplicate").with(csrf()))
         .andExpect(status().is2xxSuccessful())
         .andExpect(jsonPath("$.payload_name").value("My Executable Payload (duplicate)"))
         .andExpect(jsonPath("$.payload_platforms.[0]").value("Linux"))
@@ -835,7 +1084,7 @@ class PayloadApiTest extends IntegrationTest {
             "application/json",
             objectMapper.writeValueAsString(collectorCreateInput).getBytes());
 
-    mvc.perform(multipart("/api/collectors").file(inputMultipart))
+    mvc.perform(multipart("/api/collectors").file(inputMultipart).with(csrf()))
         .andExpect(status().is2xxSuccessful());
 
     Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
@@ -855,7 +1104,8 @@ class PayloadApiTest extends IntegrationTest {
         mvc.perform(
                 post(PAYLOAD_URI + "/upsert")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(payloadUpsertInput1)))
+                    .content(asJsonString(payloadUpsertInput1))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -866,7 +1116,8 @@ class PayloadApiTest extends IntegrationTest {
         mvc.perform(
                 post(PAYLOAD_URI + "/upsert")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(payloadUpsertInput2)))
+                    .content(asJsonString(payloadUpsertInput2))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
@@ -879,19 +1130,146 @@ class PayloadApiTest extends IntegrationTest {
     mvc.perform(
             post(PAYLOAD_URI + "/deprecate")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(payloadsDeprecateInput)))
+                .content(asJsonString(payloadsDeprecateInput))
+                .with(csrf()))
         .andExpect(status().is2xxSuccessful());
 
-    mvc.perform(get(PAYLOAD_URI + "/" + payloadId1))
+    mvc.perform(get(PAYLOAD_URI + "/" + payloadId1).with(csrf()))
         .andExpect(status().is2xxSuccessful())
         .andExpect(jsonPath("$.payload_name").value("My Command Payload"))
         .andExpect(jsonPath("$.payload_collector_type").value(collectorCreateInput.getType()))
         .andExpect(jsonPath("$.payload_status").value("DEPRECATED"));
 
-    mvc.perform(get(PAYLOAD_URI + "/" + payloadId2))
+    mvc.perform(get(PAYLOAD_URI + "/" + payloadId2).with(csrf()))
         .andExpect(status().is2xxSuccessful())
         .andExpect(jsonPath("$.payload_name").value("Command Payload 2"))
         .andExpect(jsonPath("$.payload_collector_type").value(collectorCreateInput.getType()))
         .andExpect(jsonPath("$.payload_status").value("UNVERIFIED"));
+  }
+
+  @Nested
+  @DisplayName("Tenant Isolation")
+  @WithMockUser(
+      withCapabilities = {
+        Capability.MANAGE_PAYLOADS,
+        Capability.ACCESS_PAYLOADS,
+        Capability.DELETE_PAYLOADS
+      })
+  @org.springframework.transaction.annotation.Transactional
+  class TenantIsolation {
+
+    /**
+     * Creates a payload directly in the given tenant via native SQL, bypassing the creation service
+     * which requires injector integration to be registered for the tenant.
+     */
+    private String createPayloadInTenant(Tenant tenant, String name) {
+      String payloadId = UUID.randomUUID().toString();
+      entityManager
+          .createNativeQuery(
+              "INSERT INTO payloads (payload_id, payload_type, payload_name, payload_status, payload_source, tenant_id, payload_created_at, payload_updated_at) "
+                  + "VALUES (:id, 'Command', :name, 'VERIFIED', 'MANUAL', :tenantId, now(), now())")
+          .setParameter("id", payloadId)
+          .setParameter("name", name)
+          .setParameter("tenantId", tenant.getId())
+          .executeUpdate();
+      entityManager.flush();
+      entityManager.clear();
+      return payloadId;
+    }
+
+    @Test
+    @Disabled
+    @DisplayName("Payload created in tenant X should NOT be readable from tenant Y")
+    void given_payloadInTenantX_should_notBeReadableFromTenantY() throws Exception {
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_PAYLOADS, Capability.ACCESS_PAYLOADS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_PAYLOADS));
+
+      String payloadId = createPayloadInTenant(tenantX, "IsolationReadTest");
+
+      int responseStatus =
+          mvc.perform(
+                  get("/api/tenants/" + tenantY.getId() + "/payloads/" + payloadId)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
+    }
+
+    @Test
+    @Disabled
+    @DisplayName("Payload created in tenant X should be readable from tenant X")
+    void given_payloadInTenantX_should_beReadableFromTenantX() throws Exception {
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_PAYLOADS, Capability.ACCESS_PAYLOADS));
+
+      String payloadId = createPayloadInTenant(tenantX, "IsolationSameTenantTest");
+
+      mvc.perform(
+              get("/api/tenants/" + tenantX.getId() + "/payloads/" + payloadId)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("Payload search in tenant Y should NOT return payloads from tenant X")
+    void given_payloadInTenantX_should_notAppearInTenantYSearch() throws Exception {
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_PAYLOADS, Capability.ACCESS_PAYLOADS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_PAYLOADS));
+
+      createPayloadInTenant(tenantX, "CrossTenantPayloadSearch");
+
+      SearchPaginationInput searchInput =
+          PaginationFixture.simpleTextSearch("CrossTenantPayloadSearch");
+
+      String searchResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantY.getId() + "/payloads/search")
+                      .content(asJsonString(searchInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      assertEquals(Integer.valueOf(0), JsonPath.read(searchResponse, "$.totalElements"));
+    }
+
+    @Test
+    @Disabled
+    @DisplayName("Payload created in tenant X should NOT be deletable from tenant Y")
+    void given_payloadInTenantX_should_notBeDeletableFromTenantY() throws Exception {
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_PAYLOADS, Capability.ACCESS_PAYLOADS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.DELETE_PAYLOADS, Capability.ACCESS_PAYLOADS));
+
+      String payloadId = createPayloadInTenant(tenantX, "IsolationDeleteTest");
+
+      int responseStatus =
+          mvc.perform(
+                  delete("/api/tenants/" + tenantY.getId() + "/payloads/" + payloadId).with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
+    }
   }
 }

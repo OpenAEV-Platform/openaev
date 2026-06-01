@@ -2,6 +2,7 @@ package io.openaev.rest.inject;
 
 import static io.openaev.database.specification.InjectSpecification.fromScenario;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
+import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 
 import io.openaev.aop.AccessControl;
@@ -19,6 +20,7 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.ScenarioInjectService;
 import io.openaev.service.*;
 import io.openaev.service.scenario.ScenarioService;
+import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.persistence.criteria.Join;
@@ -43,8 +45,14 @@ public class ScenarioInjectApi extends RestBehavior {
   private final InjectService injectService;
   private final InjectDuplicateService injectDuplicateService;
   private final ScenarioInjectService scenarioInjectService;
+  private final InjectMapper injectMapper;
 
-  @GetMapping(SCENARIO_URI + "/{scenarioId}/injects/simple")
+  // -- READ --
+
+  @GetMapping({
+    SCENARIO_URI + "/{scenarioId}/injects/simple",
+    TENANT_SCENARIO_URI + "/{scenarioId}/injects/simple"
+  })
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -55,7 +63,10 @@ public class ScenarioInjectApi extends RestBehavior {
     return injectSearchService.injects(fromScenario(scenarioId));
   }
 
-  @PostMapping(SCENARIO_URI + "/{scenarioId}/injects/simple")
+  @PostMapping({
+    SCENARIO_URI + "/{scenarioId}/injects/simple",
+    TENANT_SCENARIO_URI + "/{scenarioId}/injects/simple"
+  })
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -79,19 +90,58 @@ public class ScenarioInjectApi extends RestBehavior {
         joinMap);
   }
 
-  @PostMapping(SCENARIO_URI + "/{scenarioId}/injects")
+  @GetMapping({
+    SCENARIO_URI + "/{scenarioId}/injects",
+    TENANT_SCENARIO_URI + "/{scenarioId}/injects"
+  })
+  @AccessControl(
+      resourceId = "#scenarioId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.SCENARIO)
+  public Iterable<Inject> scenarioInjects(@PathVariable @NotBlank final String scenarioId) {
+    return this.injectRepository.findByScenarioId(scenarioId).stream()
+        .sorted(Inject.executionComparator)
+        .toList();
+  }
+
+  @GetMapping({
+    SCENARIO_URI + "/{scenarioId}/injects/{injectId}",
+    TENANT_SCENARIO_URI + "/{scenarioId}/injects/{injectId}"
+  })
+  @AccessControl(
+      resourceId = "#scenarioId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.SCENARIO)
+  public Inject scenarioInject(
+      @PathVariable @NotBlank final String scenarioId,
+      @PathVariable @NotBlank final String injectId) {
+    Scenario scenario = this.scenarioService.scenario(scenarioId);
+    assert scenarioId.equals(scenario.getId());
+    return injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
+  }
+
+  // -- CREATE --
+
+  @PostMapping({
+    SCENARIO_URI + "/{scenarioId}/injects",
+    TENANT_SCENARIO_URI + "/{scenarioId}/injects"
+  })
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
   @Transactional(rollbackFor = Exception.class)
-  public Inject createInjectForScenario(
+  public InjectOutput createInjectForScenario(
       @PathVariable @NotBlank final String scenarioId, @Valid @RequestBody InjectInput input) {
     Scenario scenario = this.scenarioService.scenario(scenarioId);
-    return this.injectService.createAndSaveInject(null, scenario, input);
+    Inject persistedInject = this.injectService.createAndSaveInject(null, scenario, input);
+    return injectMapper.toInjectOutput(persistedInject, injectService.runChecks(persistedInject));
   }
 
-  @PostMapping(SCENARIO_URI + "/{scenarioId}/injects/bulk")
+  @PostMapping({
+    SCENARIO_URI + "/{scenarioId}/injects/bulk",
+    TENANT_SCENARIO_URI + "/{scenarioId}/injects/bulk"
+  })
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
@@ -104,7 +154,10 @@ public class ScenarioInjectApi extends RestBehavior {
     return this.injectService.createAndSaveInjectList(null, scenario, inputs);
   }
 
-  @PostMapping(SCENARIO_URI + "/{scenarioId}/injects/assistant")
+  @PostMapping({
+    SCENARIO_URI + "/{scenarioId}/injects/assistant",
+    TENANT_SCENARIO_URI + "/{scenarioId}/injects/assistant"
+  })
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
@@ -121,92 +174,67 @@ public class ScenarioInjectApi extends RestBehavior {
         this.injectAssistantService.generateInjectsForScenario(scenario, input));
   }
 
-  @PostMapping(SCENARIO_URI + "/{scenarioId}/injects/{injectId}")
+  @PostMapping({
+    SCENARIO_URI + "/{scenarioId}/injects/{injectId}",
+    TENANT_SCENARIO_URI + "/{scenarioId}/injects/{injectId}"
+  })
   @AccessControl(
-      resourceId = "#scenarioId",
+      resourceId = "#injectId",
       actionPerformed = Action.WRITE,
-      resourceType = ResourceType.SCENARIO)
-  public Inject duplicateInjectForScenario(
+      resourceType = ResourceType.INJECT)
+  public InjectOutput duplicateInjectForScenario(
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String injectId) {
-    return injectDuplicateService.duplicateInjectForScenarioWithDuplicateWordInTitle(
-        scenarioId, injectId);
+    Inject persistedInject =
+        injectDuplicateService.duplicateInjectForScenarioWithDuplicateWordInTitle(
+            scenarioId, injectId);
+    return injectMapper.toInjectOutput(persistedInject, injectService.runChecks(persistedInject));
   }
 
-  @GetMapping(SCENARIO_URI + "/{scenarioId}/injects")
-  @AccessControl(
-      resourceId = "#scenarioId",
-      actionPerformed = Action.READ,
-      resourceType = ResourceType.SCENARIO)
-  public Iterable<Inject> scenarioInjects(@PathVariable @NotBlank final String scenarioId) {
-    return this.injectRepository.findByScenarioId(scenarioId).stream()
-        .sorted(Inject.executionComparator)
-        .toList();
-  }
-
-  @GetMapping(SCENARIO_URI + "/{scenarioId}/injects/{injectId}")
-  @AccessControl(
-      resourceId = "#scenarioId",
-      actionPerformed = Action.READ,
-      resourceType = ResourceType.SCENARIO)
-  public Inject scenarioInject(
-      @PathVariable @NotBlank final String scenarioId,
-      @PathVariable @NotBlank final String injectId) {
-    Scenario scenario = this.scenarioService.scenario(scenarioId);
-    assert scenarioId.equals(scenario.getId());
-    return injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
-  }
+  // -- UPDATE --
 
   @Transactional(rollbackFor = Exception.class)
-  @PutMapping(SCENARIO_URI + "/{scenarioId}/injects/{injectId}")
+  @PutMapping({
+    SCENARIO_URI + "/{scenarioId}/injects/{injectId}",
+    TENANT_SCENARIO_URI + "/{scenarioId}/injects/{injectId}"
+  })
   @AccessControl(
-      resourceId = "#scenarioId",
+      resourceId = "#injectId",
       actionPerformed = Action.WRITE,
-      resourceType = ResourceType.SCENARIO)
-  public Inject updateInjectForScenario(
+      resourceType = ResourceType.INJECT)
+  public InjectOutput updateInjectForScenario(
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String injectId,
       @Valid @RequestBody @NotNull InjectInput input) {
-    Scenario scenario = this.scenarioService.scenario(scenarioId);
-    Inject inject = injectService.updateInject(injectId, input);
-
-    // It should not be possible to add EE executor on inject when the scenario is already
-    // scheduled.
-    if (scenario.getRecurrenceStart() != null) {
-      this.injectService.throwIfInjectNotLaunchable(inject);
-    }
-
-    // If Documents not yet linked directly to the exercise, attached it
-    inject
-        .getDocuments()
-        .forEach(
-            document -> {
-              if (!document.getDocument().getScenarios().contains(scenario)) {
-                scenario.getDocuments().add(document.getDocument());
-              }
-            });
-    this.scenarioService.updateScenario(scenario);
-    return injectRepository.save(inject);
+    return scenarioInjectService.updateInjectForScenario(scenarioId, injectId, input);
   }
 
-  @PutMapping(SCENARIO_URI + "/{scenarioId}/injects/{injectId}/activation")
+  @PutMapping({
+    SCENARIO_URI + "/{scenarioId}/injects/{injectId}/activation",
+    TENANT_SCENARIO_URI + "/{scenarioId}/injects/{injectId}/activation"
+  })
   @AccessControl(
-      resourceId = "#scenarioId",
+      resourceId = "#injectId",
       actionPerformed = Action.WRITE,
-      resourceType = ResourceType.SCENARIO)
+      resourceType = ResourceType.INJECT)
   public Inject updateInjectActivationForScenario(
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String injectId,
       @Valid @RequestBody InjectUpdateActivationInput input) {
-    return injectService.updateInjectActivation(injectId, input);
+    return scenarioInjectService.updateInjectActivationForScenario(scenarioId, injectId, input);
   }
 
+  // -- DELETE --
+
   @Transactional(rollbackFor = Exception.class)
-  @DeleteMapping(SCENARIO_URI + "/{scenarioId}/injects/{injectId}")
+  @DeleteMapping({
+    SCENARIO_URI + "/{scenarioId}/injects/{injectId}",
+    TENANT_SCENARIO_URI + "/{scenarioId}/injects/{injectId}"
+  })
   @AccessControl(
-      resourceId = "#scenarioId",
+      resourceId = "#injectId",
       actionPerformed = Action.WRITE,
-      resourceType = ResourceType.SCENARIO)
+      resourceType = ResourceType.INJECT)
   public void deleteInjectForScenario(
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String injectId) {

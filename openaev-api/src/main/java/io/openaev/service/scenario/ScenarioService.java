@@ -4,7 +4,9 @@ import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.database.criteria.GenericCriteria.countQuery;
 import static io.openaev.database.specification.ScenarioSpecification.findGrantedFor;
 import static io.openaev.database.specification.TeamSpecification.fromIds;
+import static io.openaev.helper.MailHelper.resolveFromName;
 import static io.openaev.helper.StreamHelper.fromIterable;
+import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.rest.scenario.utils.ScenarioUtils.handleCustomFilter;
 import static io.openaev.service.ImportService.EXPORT_ENTRY_ATTACHMENT;
 import static io.openaev.service.ImportService.EXPORT_ENTRY_SCENARIO;
@@ -24,7 +26,10 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
-import io.openaev.database.raw.*;
+import io.openaev.database.raw.RawExerciseSimple;
+import io.openaev.database.raw.RawPaginationScenario;
+import io.openaev.database.raw.RawScenario;
+import io.openaev.database.raw.RawScenarioSimpleIndexing;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.ScenarioSpecification;
 import io.openaev.ee.EnterpriseEditionService;
@@ -32,6 +37,8 @@ import io.openaev.export.Mixins;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.helper.ObjectMapperHelper;
+import io.openaev.rest.custom_dashboard.CustomDashboardService;
+import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.exports.ExerciseFileExport;
 import io.openaev.rest.exercise.exports.VariableMixin;
@@ -39,13 +46,18 @@ import io.openaev.rest.exercise.exports.VariableWithValueMixin;
 import io.openaev.rest.exercise.form.ExerciseSimple;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.injector_contract.InjectorContractService;
+import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
 import io.openaev.rest.kill_chain_phase.response.KillChainPhaseOutput;
 import io.openaev.rest.scenario.export.ScenarioFileExport;
+import io.openaev.rest.scenario.form.ScenarioInput;
 import io.openaev.rest.scenario.form.ScenarioSimple;
 import io.openaev.rest.scenario.response.ScenarioOutput;
 import io.openaev.rest.scenario.response.ScenarioTeamUserOutput;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
+import io.openaev.service.chaining.WorkflowService;
+import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.mapper.ExerciseMapper;
@@ -121,28 +133,70 @@ public class ScenarioService {
   private final TagRuleService tagRuleService;
   private final InjectService injectService;
   private final UserService userService;
+  private final TenantSettingsService tenantSettingsService;
+  private final CustomDashboardService customDashboardService;
+  private final InjectorContractService injectorContractService;
 
   private final InjectRepository injectRepository;
   private final LessonsCategoryRepository lessonsCategoryRepository;
+  private final TagRepository tagRepository;
 
   private final HealthCheckUtils healthCheckUtils;
 
   private final ScenarioMapper scenarioMapper;
+  private final WorkflowService workflowService;
 
   @Transactional
   public Scenario createScenario(@NotNull final Scenario scenario) {
+    return computeAndCreateScenario(scenario);
+  }
+
+  @Transactional
+  public Scenario createScenarioChaining(@NotNull final Scenario scenario)
+      throws ChainingException {
+    workflowService.isPreviewFeatureChainingEnable();
+
     computeEmails(scenario);
     this.actionMetricCollector.addScenarioCreatedCount();
-    return this.scenarioRepository.save(scenario);
+    Scenario savedScenario = this.scenarioRepository.save(scenario);
+    workflowService.creationWorkflow(savedScenario);
+
+    return savedScenario;
+  }
+
+  @Transactional
+  public Scenario createScenarioWithInjectorContracts(
+      @NotBlank final String tenantId,
+      @NotNull final ScenarioInput scenarioInput,
+      @NotNull final InjectorContractSearchPaginationInput injectorContractSearchPaginationInput,
+      @NotBlank final String locale) {
+    Scenario preparedScenario = prepareScenarioFromScenarioInput(tenantId, scenarioInput);
+    Scenario scenario = computeAndCreateScenario(preparedScenario);
+    this.injectService.createInjectsFromInjectorContractInput(
+        null, new ArrayList<>(List.of(scenario)), injectorContractSearchPaginationInput, locale);
+    return scenario;
+  }
+
+  @Transactional
+  public List<Scenario> updateScenariosWithInjectorContracts(
+      @NotNull final List<String> scenarioIds,
+      @NotNull final InjectorContractSearchPaginationInput injectorContractSearchPaginationInput,
+      @NotBlank final String locale) {
+    List<Scenario> scenarios = this.scenarioRepository.findAllById(scenarioIds);
+    this.injectService.createInjectsFromInjectorContractInput(
+        null, scenarios, injectorContractSearchPaginationInput, locale);
+    return scenarios;
   }
 
   public void computeEmails(@NotNull Scenario scenario) {
     if (!hasText(scenario.getFrom())) {
       if (this.imapEnabled) {
         scenario.setFrom(this.imapUsername);
+        scenario.setFromName(resolveFromName(null, this.imapUsername));
         scenario.setReplyTos(new ArrayList<>(Arrays.asList(this.imapUsername)));
       } else {
         scenario.setFrom(this.openAEVConfig.getDefaultMailer());
+        scenario.setFromName(this.openAEVConfig.getDefaultMailerName());
         scenario.setReplyTos(
             new ArrayList<>(Arrays.asList(this.openAEVConfig.getDefaultReplyTo())));
       }
@@ -150,7 +204,7 @@ public class ScenarioService {
   }
 
   public List<ScenarioSimple> scenarios() {
-    List<RawScenarioSimple> scenarios;
+    List<RawScenarioSimpleIndexing> scenarios;
     User currentUser = userService.currentUser();
     if (currentUser.isAdminOrBypass()
         || currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT)) {
@@ -162,7 +216,7 @@ public class ScenarioService {
   }
 
   public List<ScenarioSimple> scenarios(final List<String> scenarioIds) {
-    List<RawScenarioSimple> scenarios;
+    List<RawScenarioSimpleIndexing> scenarios;
     User currentUser = userService.currentUser();
     if (currentUser.isAdminOrBypass()
         || currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT)) {
@@ -244,6 +298,16 @@ public class ScenarioService {
     joinMap.put("injects.injectorContract", injectorsContractsJoin);
     Expression<String[]> platformExpression =
         cb.function("array_union_agg", String[].class, injectorsContractsJoin.get("platforms"));
+
+    // Subquery for workflow_id
+    Subquery<String> workflowSubquery = cq.subquery(String.class);
+    Root<Workflow> workflowRoot = workflowSubquery.from(Workflow.class);
+    workflowSubquery
+        .select(workflowRoot.get("id"))
+        .where(
+            cb.equal(workflowRoot.get("scenario").get("id"), scenarioRoot.get("id")),
+            cb.equal(workflowRoot.get("status"), WorkflowStatus.TEMPLATE));
+
     // SELECT
     cq.multiselect(
             scenarioRoot.get("id").alias("scenario_id"),
@@ -254,7 +318,8 @@ public class ScenarioService {
             scenarioRoot.get("recurrence").alias("scenario_recurrence"),
             scenarioRoot.get("updatedAt").alias("scenario_updated_at"),
             tagIdsExpression.alias("scenario_tags"),
-            platformExpression.alias("scenario_platforms"))
+            platformExpression.alias("scenario_platforms"),
+            workflowSubquery.alias("scenario_workflow_id"))
         .distinct(true);
     // Group By
     cq.groupBy(scenarioRoot.get("id"));
@@ -292,7 +357,8 @@ public class ScenarioService {
                         tuple.get("scenario_recurrence", String.class),
                         tuple.get("scenario_updated_at", Instant.class),
                         tuple.get("scenario_tags", String[].class),
-                        tuple.get("scenario_platforms", String[].class)))
+                        tuple.get("scenario_platforms", String[].class),
+                        tuple.get("scenario_workflow_id", String.class)))
             .toList();
 
     // -- Count Query --
@@ -536,7 +602,7 @@ public class ScenarioService {
                   .ifPresent(
                       injectorContract -> {
                         if (injectorContract.getPayload() != null) {
-                          scenarioTags.addAll(injectorContract.getPayload().getTags());
+                          scenarioTags.addAll(injectorContract.getTags());
                         }
                       });
             });
@@ -580,10 +646,10 @@ public class ScenarioService {
 
     // load the killchainphases
     scenario.getInjects().stream()
-        .map(Inject::getPayload)
+        .map(Inject::getInjectorContract)
         .filter(Optional::isPresent)
         .map(Optional::get)
-        .flatMap(payload -> payload.getAttackPatterns().stream())
+        .flatMap(i -> i.getAttackPatterns().stream())
         .distinct()
         .toList()
         .stream()
@@ -819,6 +885,7 @@ public class ScenarioService {
     scenarioDuplicate.setHeader(scenario.getHeader());
     scenarioDuplicate.setMainFocus(scenario.getMainFocus());
     scenarioDuplicate.setFrom(scenario.getFrom());
+    scenarioDuplicate.setFromName(scenario.getFromName());
     scenarioDuplicate.setExternalUrl(scenario.getExternalUrl());
     scenarioDuplicate.setTags(new HashSet<>(scenario.getTags()));
     scenarioDuplicate.setInjects(new HashSet<>(scenario.getInjects()));
@@ -1036,6 +1103,42 @@ public class ScenarioService {
     healthChecks.addAll(healthCheckUtils.runMissingContentChecks(scenario));
     healthChecks.addAll(healthCheckUtils.runTeamsChecks(scenario));
 
+    // Scope definition check
+    try {
+      workflowService
+          .findWorkflowTemplateByScenarioId(scenarioId)
+          .ifPresent(
+              workflow -> healthChecks.addAll(healthCheckUtils.runScopeDefinitionChecks(workflow)));
+    } catch (ChainingException e) {
+      log.debug("Skipping scope definition check: {}", e.getMessage());
+    }
+
     return healthChecks;
+  }
+
+  private Scenario computeAndCreateScenario(Scenario scenario) {
+    computeEmails(scenario);
+    this.actionMetricCollector.addScenarioCreatedCount();
+    return this.scenarioRepository.save(scenario);
+  }
+
+  private Scenario prepareScenarioFromScenarioInput(
+      @NotBlank final String tenantId, @NotNull final ScenarioInput input) {
+    Scenario scenario = new Scenario();
+    scenario.setUpdateAttributes(input);
+    scenario.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
+    if (hasText(input.getCustomDashboard())) {
+      scenario.setCustomDashboard(
+          this.customDashboardService.customDashboard(input.getCustomDashboard()));
+    } else {
+      scenario.setCustomDashboard(
+          this.tenantSettingsService
+              .findSetting(tenantId, TenantSettingKeys.TENANT_SCENARIO_DASHBOARD.key())
+              .map(Setting::getValue)
+              .filter(v -> !v.isEmpty())
+              .map(this.customDashboardService::customDashboard)
+              .orElse(null));
+    }
+    return scenario;
   }
 }

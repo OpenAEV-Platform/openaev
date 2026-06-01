@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 
-import { searchTenants } from '../../../../../actions/tenants/tenant-actions';
+import { searchTenants } from '../../../../../actions/platform/tenants/tenant-action';
 import { type SearchPaginationInput, type TenantOutput } from '../../../../../utils/api-types';
 
 const useTenants = () => {
@@ -35,8 +35,20 @@ const useTenants = () => {
     );
   }, []);
 
-  const removeTenant = useCallback((tenantId: string) => {
-    setTenants(prev => prev.filter(t => t.tenant_id !== tenantId));
+  const softDeleteTenant = useCallback((tenant: TenantOutput) => {
+    setTenants(prev =>
+      prev.map(t =>
+        t.tenant_id === tenant.tenant_id ? tenant : t,
+      ),
+    );
+  }, []);
+
+  const reactivateTenant = useCallback((tenant: TenantOutput) => {
+    setTenants(prev =>
+      prev.map(t =>
+        t.tenant_id === tenant.tenant_id ? tenant : t,
+      ),
+    );
   }, []);
 
   return {
@@ -46,7 +58,8 @@ const useTenants = () => {
     fetchTenants,
     addTenant,
     updateTenant,
-    removeTenant,
+    softDeleteTenant,
+    reactivateTenant,
   };
 };
 

@@ -1,19 +1,22 @@
 package io.openaev.rest.custom_dashboard;
 
-import static io.openaev.database.model.SettingKeys.*;
+import static io.openaev.database.model.TenantSettingKeys.*;
 import static io.openaev.rest.custom_dashboard.CustomDashboardApi.CUSTOM_DASHBOARDS_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.CustomDashboardFixture.NAME;
 import static io.openaev.utils.fixtures.CustomDashboardFixture.createDefaultCustomDashboard;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.Setting;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.CustomDashboardRepository;
 import io.openaev.database.repository.SettingRepository;
 import io.openaev.rest.custom_dashboard.form.CustomDashboardInput;
@@ -56,7 +59,8 @@ class CustomDashboardApiTest extends IntegrationTest {
         .perform(
             post(CUSTOM_DASHBOARDS_URI)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(input)))
+                .content(asJsonString(input))
+                .with(csrf()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.custom_dashboard_name").value(name));
 
@@ -71,7 +75,7 @@ class CustomDashboardApiTest extends IntegrationTest {
 
     // -- EXECUTE & ASSERT --
     mockMvc
-        .perform(get(CUSTOM_DASHBOARDS_URI))
+        .perform(get(CUSTOM_DASHBOARDS_URI).with(csrf()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.length()").value(1))
         .andExpect(jsonPath("$[0].custom_dashboard_name").value(NAME));
@@ -85,7 +89,7 @@ class CustomDashboardApiTest extends IntegrationTest {
 
     // -- EXECUTE & ASSERT --
     mockMvc
-        .perform(get(CUSTOM_DASHBOARDS_URI + "/" + wrapper.get().getId()))
+        .perform(get(CUSTOM_DASHBOARDS_URI + "/" + wrapper.get().getId()).with(csrf()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.custom_dashboard_name").value(NAME));
   }
@@ -105,7 +109,8 @@ class CustomDashboardApiTest extends IntegrationTest {
         .perform(
             put(CUSTOM_DASHBOARDS_URI + "/" + customDashboard.getId())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(customDashboard)))
+                .content(asJsonString(customDashboard))
+                .with(csrf()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.custom_dashboard_name").value(NAME))
         .andExpect(jsonPath("$.custom_dashboard_description").value(customDashboardDescription));
@@ -126,7 +131,7 @@ class CustomDashboardApiTest extends IntegrationTest {
 
       // -- EXECUTE & ASSERT --
       mockMvc
-          .perform(delete(CUSTOM_DASHBOARDS_URI + "/" + wrapper.get().getId()))
+          .perform(delete(CUSTOM_DASHBOARDS_URI + "/" + wrapper.get().getId()).with(csrf()))
           .andExpect(status().isNoContent());
 
       assertThat(repository.existsById(wrapper.get().getId())).isFalse();
@@ -136,20 +141,22 @@ class CustomDashboardApiTest extends IntegrationTest {
     void given_default_home_dashboard_id_when_deleting_should_throw_error() throws Exception {
       CustomDashboardComposer.Composer wrapper = createCustomDashboardComposer();
 
+      String tenantId = TenantContext.getCurrentTenant();
       Setting defaultDashboardSetting =
           settingRepository
-              .findByKey(DEFAULT_HOME_DASHBOARD.key())
+              .findByKeyAndTenantId(TENANT_HOME_DASHBOARD.key(), tenantId)
               .orElseGet(
                   () -> {
                     Setting setting = new Setting();
-                    setting.setKey(DEFAULT_HOME_DASHBOARD.key());
+                    setting.setKey(TENANT_HOME_DASHBOARD.key());
+                    setting.setTenant(new Tenant(tenantId));
                     return setting;
                   });
       defaultDashboardSetting.setValue(wrapper.get().getId());
       settingRepository.save(defaultDashboardSetting);
 
       mockMvc
-          .perform(delete(CUSTOM_DASHBOARDS_URI + "/" + wrapper.get().getId()))
+          .perform(delete(CUSTOM_DASHBOARDS_URI + "/" + wrapper.get().getId()).with(csrf()))
           .andExpect(status().isBadRequest())
           .andExpect(
               result -> {
@@ -164,23 +171,27 @@ class CustomDashboardApiTest extends IntegrationTest {
         throws Exception {
       CustomDashboardComposer.Composer wrapper = createCustomDashboardComposer();
 
+      String tenantId = TenantContext.getCurrentTenant();
       Setting defaultDashboardSetting =
           settingRepository
-              .findByKey(DEFAULT_SCENARIO_DASHBOARD.key())
+              .findByKeyAndTenantId(TENANT_SCENARIO_DASHBOARD.key(), tenantId)
               .orElseGet(
                   () -> {
                     Setting setting = new Setting();
-                    setting.setKey(DEFAULT_SCENARIO_DASHBOARD.key());
+                    setting.setKey(TENANT_SCENARIO_DASHBOARD.key());
+                    setting.setTenant(new Tenant(tenantId));
                     return setting;
                   });
 
       defaultDashboardSetting.setValue(wrapper.get().getId());
       settingRepository.save(defaultDashboardSetting);
-      mockMvc.perform(delete(CUSTOM_DASHBOARDS_URI + "/" + wrapper.get().getId()));
+      mockMvc.perform(delete(CUSTOM_DASHBOARDS_URI + "/" + wrapper.get().getId()).with(csrf()));
 
       assertThat(repository.existsById(wrapper.get().getId())).isFalse();
       Setting defaultScenarioDashboardSetting =
-          settingRepository.findByKey(DEFAULT_SCENARIO_DASHBOARD.key()).orElseThrow();
+          settingRepository
+              .findByKeyAndTenantId(TENANT_SCENARIO_DASHBOARD.key(), tenantId)
+              .orElseThrow();
       assertThat(defaultScenarioDashboardSetting.getValue()).isEmpty();
     }
 
@@ -189,24 +200,28 @@ class CustomDashboardApiTest extends IntegrationTest {
         throws Exception {
       CustomDashboardComposer.Composer wrapper = createCustomDashboardComposer();
 
+      String tenantId = TenantContext.getCurrentTenant();
       Setting defaultDashboardSetting =
           settingRepository
-              .findByKey(DEFAULT_SIMULATION_DASHBOARD.key())
+              .findByKeyAndTenantId(TENANT_SIMULATION_DASHBOARD.key(), tenantId)
               .orElseGet(
                   () -> {
                     Setting setting = new Setting();
-                    setting.setKey(DEFAULT_SIMULATION_DASHBOARD.key());
+                    setting.setKey(TENANT_SIMULATION_DASHBOARD.key());
+                    setting.setTenant(new Tenant(tenantId));
                     return setting;
                   });
 
       defaultDashboardSetting.setValue(wrapper.get().getId());
       settingRepository.save(defaultDashboardSetting);
-      mockMvc.perform(delete(CUSTOM_DASHBOARDS_URI + "/" + wrapper.get().getId()));
+      mockMvc.perform(delete(CUSTOM_DASHBOARDS_URI + "/" + wrapper.get().getId()).with(csrf()));
 
       assertThat(repository.existsById(wrapper.get().getId())).isFalse();
-      Setting defaultScenarioDashboardSetting =
-          settingRepository.findByKey(DEFAULT_SIMULATION_DASHBOARD.key()).orElseThrow();
-      assertThat(defaultScenarioDashboardSetting.getValue()).isEmpty();
+      Setting defaultSimulationDashboardSetting =
+          settingRepository
+              .findByKeyAndTenantId(TENANT_SIMULATION_DASHBOARD.key(), tenantId)
+              .orElseThrow();
+      assertThat(defaultSimulationDashboardSetting.getValue()).isEmpty();
     }
   }
 }

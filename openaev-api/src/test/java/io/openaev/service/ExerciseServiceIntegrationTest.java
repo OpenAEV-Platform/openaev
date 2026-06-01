@@ -15,8 +15,10 @@ import io.openaev.database.repository.*;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exercise.service.ExerciseService;
+import io.openaev.rest.exercise.service.PauseExerciseService;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
@@ -68,22 +70,30 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
   @Autowired private AssetGroupRepository assetGroupRepository;
   @Autowired private InjectExpectationRepository injectExpectationRepository;
   @Autowired private UserRepository userRepository;
+  @Autowired private PauseRepository pauseRepository;
   @Autowired private InjectRepository injectRepository;
   @Autowired private LessonsCategoryRepository lessonsCategoryRepository;
+  @Autowired private LessonsQuestionRepository lessonsQuestionRepository;
+  @Autowired private LessonsAnswerRepository lessonsAnswerRepository;
   @Autowired private ExerciseTeamUserRepository exerciseTeamUserRepository;
   @Autowired private LicenseCacheManager licenseCacheManager;
   @Autowired private InjectExpectationMapper injectExpectationMapper;
   @Autowired private ScenarioRecurrenceService scenarioRecurrenceService;
   @Autowired private InjectorContractFixture injectorContractFixture;
-
+  @Autowired private InjectStatusRepository injectStatusRepository;
   @Autowired private LessonsService lessonsService;
+  @Autowired private FileService fileService;
+  @Autowired private PauseExerciseService pauseExerciseService;
+
   @Autowired private WorkflowService workflowService;
+  @Autowired private io.openaev.healthcheck.utils.HealthCheckUtils healthCheckUtils;
 
   private static String USER_ID;
   private static String TEAM_ID;
   private static String INJECT_ID;
 
   @InjectMocks private ExerciseService exerciseService;
+  @Autowired private StepService stepService;
 
   @BeforeEach
   void setUp() {
@@ -109,16 +119,24 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
             injectExpectationRepository,
             articleRepository,
             exerciseRepository,
+            injectStatusRepository,
+            pauseRepository,
+            lessonsQuestionRepository,
             teamRepository,
             userRepository,
             exerciseTeamUserRepository,
             injectRepository,
+            lessonsAnswerRepository,
             lessonsCategoryRepository,
             lessonsService,
             injectExpectationMapper,
             scenarioRecurrenceService,
             workflowService,
-            previewFeatureService);
+            previewFeatureService,
+            pauseExerciseService,
+            fileService,
+            stepService,
+            healthCheckUtils);
   }
 
   @AfterAll

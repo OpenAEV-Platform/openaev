@@ -1,6 +1,7 @@
 HELP.md
 *.bat
 **/application-dev.properties
+**/application-test.properties
 target/
 !**/src/main/**/target/
 !**/src/test/**/target/
@@ -34,3 +35,6 @@ openaev-dev/.telemetry.json
 
 ### VS Code ###
 .vscode/
+
+### macOS ###
+.DS_Store

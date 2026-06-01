@@ -1,6 +1,22 @@
 import { ReportProblemOutlined } from '@mui/icons-material';
 import { Tooltip } from '@mui/material';
-import { CubeScan, FormatText, IpOutline, KeyOutline, MidiPort, Numeric, TagSearchOutline } from 'mdi-material-ui';
+import {
+  AccountAlertOutline,
+  AccountArrowRight,
+  AccountGroupOutline,
+  AccountOutline,
+  CubeScan,
+  DesktopClassic,
+  FolderNetworkOutline,
+  FormatText,
+  Identifier,
+  IpOutline,
+  KeyOutline,
+  MidiPort,
+  Numeric,
+  ShieldLockOutline,
+  TagSearchOutline,
+} from 'mdi-material-ui';
 import { type FunctionComponent } from 'react';
 
 interface FindingIconProps {
@@ -26,6 +42,25 @@ const renderIcon = (findingType: string) => {
       return <KeyOutline color="primary" />;
     case 'vulnerability':
       return <ReportProblemOutlined color="primary" />;
+    case 'username':
+    case 'admin_username':
+      return <AccountOutline color="primary" />;
+    case 'share':
+      return <FolderNetworkOutline color="primary" />;
+    case 'group':
+      return <AccountGroupOutline color="primary" />;
+    case 'computer':
+      return <DesktopClassic color="primary" />;
+    case 'password_policy':
+      return <ShieldLockOutline color="primary" />;
+    case 'delegation':
+      return <AccountArrowRight color="primary" />;
+    case 'sid':
+      return <Identifier color="primary" />;
+    case 'account_with_password_not_required':
+    case 'asreproastable_account':
+    case 'kerberoastable_account':
+      return <AccountAlertOutline color="primary" />;
     default:
       return <TagSearchOutline color="primary" />;
   }

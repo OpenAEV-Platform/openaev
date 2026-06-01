@@ -34,6 +34,7 @@ const useStyles = makeStyles()(() => ({
   itemHead: {
     paddingLeft: 10,
     marginBottom: 10,
+    textTransform: 'uppercase',
     cursor: 'pointer',
   },
   item: {
@@ -96,7 +97,7 @@ const InjectTestList: FunctionComponent<Props> = ({ statusId }) => {
       label: 'Test status',
       isSortable: true,
       value: (test: InjectTestStatusOutput) => {
-        return (<ItemStatus isInject={true} status={test.status_name} label={t(test.status_name || '-')} variant="inList" />);
+        return (<ItemStatus isInject status={test.status_name} label={t(test.status_name || '-')} variant="inList" />);
       },
     },
   ];

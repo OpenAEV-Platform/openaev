@@ -13,12 +13,16 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.InjectorRepository;
 import io.openaev.helper.ObjectMapperHelper;
+import io.openaev.rest.exception.ElementNotFoundException;
+import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -42,6 +46,60 @@ import org.springframework.stereotype.Component;
 @Component
 @Slf4j
 public class InjectUtils {
+
+  private final InjectorRepository injectorRepository;
+
+  /**
+   * Resolves the {@link Injector} for an inject being created or updated.
+   *
+   * <p>If {@code injectorId} is provided (non-blank), it is looked up by ID. Otherwise, the
+   * injector is auto-resolved from the contract's first linked injector (single-instance fallback).
+   *
+   * @param injectorId explicit injector ID from the input (may be null/blank)
+   * @param injectorContract the contract associated with the inject
+   * @return the resolved Injector, or {@code null} if no contract is provided
+   * @throws ElementNotFoundException if the explicit injector ID does not exist
+   */
+  @SuppressWarnings("deprecation")
+  public Injector resolveInjector(
+      @Nullable String injectorId, @Nullable InjectorContract injectorContract) {
+    if (StringUtils.isNotBlank(injectorId)) {
+      return injectorRepository
+          .findById(injectorId)
+          .orElseThrow(
+              () -> new ElementNotFoundException("Injector not found with id: " + injectorId));
+    }
+    // Auto-resolve from the contract's linked injector (single-instance fallback)
+    if (injectorContract != null && injectorContract.getFirstInjector() != null) {
+      return injectorContract.getFirstInjector();
+    }
+    return null;
+  }
+
+  /**
+   * Resolves the {@link Injector} as a lightweight proxy reference (no SELECT query).
+   *
+   * <p>Use this variant when the injector is only needed for FK assignment (e.g. serialization via
+   * {@link io.openaev.helper.MonoIdSerializer} which only calls {@code getId()}). Accessing any
+   * property other than the ID on the returned proxy will trigger a lazy load.
+   *
+   * <p>If {@code injectorId} is blank/null, falls back to the contract's first linked injector.
+   *
+   * @param injectorId explicit injector ID from the input (may be null/blank)
+   * @param injectorContract the contract associated with the inject
+   * @return the resolved Injector proxy, or {@code null} if no contract is provided
+   */
+  public Injector resolveInjectorReference(
+      @Nullable String injectorId, @Nullable InjectorContract injectorContract) {
+    if (StringUtils.isNotBlank(injectorId)) {
+      return injectorRepository.getReferenceById(injectorId);
+    }
+    // Auto-resolve from the contract's linked injector (single-instance fallback)
+    if (injectorContract != null && injectorContract.getFirstInjector() != null) {
+      return injectorContract.getFirstInjector();
+    }
+    return null;
+  }
 
   /**
    * Extracts the payload information from an inject.
@@ -310,5 +368,16 @@ public class InjectUtils {
     duplicatedInject.setExercise(injectOrigin.getExercise());
     duplicatedInject.setScenario(injectOrigin.getScenario());
     return duplicatedInject;
+  }
+
+  /**
+   * Retrieve all inject expectations from a list of injects
+   *
+   * @param injects to retrive all inject expectations
+   * @return a stream of all retrieve inject expectations
+   */
+  public static Stream<InjectExpectation> extractInjectExpectationsFromInjects(
+      List<Inject> injects) {
+    return injects.stream().flatMap(inject -> inject.getExpectations().stream());
   }
 }
