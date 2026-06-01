@@ -170,7 +170,8 @@ public class UrlAccessControlAspect {
           || opt.filter(String.class::isInstance)
               .map(String.class::cast)
               .map(String::trim)
-              .filter(value -> "null".equalsIgnoreCase(value) || "undefined".equalsIgnoreCase(value))
+              .filter(
+                  value -> "null".equalsIgnoreCase(value) || "undefined".equalsIgnoreCase(value))
               .isPresent();
     }
     return false;

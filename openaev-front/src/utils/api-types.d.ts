@@ -6400,6 +6400,8 @@ export interface PlatformSettings {
    * @format int64
    */
   expectation_vulnerability_expiration_time: number;
+  /** Chatbot AI CGU acceptance status: pending, enabled, or disabled */
+  filigran_chatbot_ai_cgu_status?: string;
   /** IMAP Service availability */
   imap_service_available?: string;
   /** Current version of Java */
@@ -6410,8 +6412,6 @@ export interface PlatformSettings {
   map_tile_server_light?: string;
   /** Agent URL of the platform */
   platform_agent_url?: string;
-  /** True if AI is enabled for the platform */
-  platform_ai_enabled?: boolean;
   /** True if we have an AI token */
   platform_ai_has_token?: boolean;
   /** Chosen model of AI */
@@ -6457,8 +6457,6 @@ export interface PlatformSettings {
   platform_xtm_one_configured?: boolean;
   /** XTM One platform URL */
   platform_xtm_one_url?: string;
-  /** XTM One public chat web token for the embedded agent */
-  platform_xtm_one_web_token?: string;
   /** Current version of the PostgreSQL */
   postgre_version?: string;
   /** Current version of RabbitMQ */
@@ -7460,6 +7458,15 @@ export interface SecurityPlatformUpsertInput {
 export interface Series {
   filter?: FilterGroup;
   name?: string;
+}
+
+export interface SettingsChatbotAiCguUpdateInput {
+  /**
+   * Chatbot AI CGU acceptance status: pending, enabled, or disabled
+   * @minLength 1
+   * @pattern pending|enabled|disabled
+   */
+  status: string;
 }
 
 export interface SettingsEnterpriseEditionUpdateInput {
@@ -8670,7 +8677,7 @@ export interface VulnerabilityCreateInput {
    * CVSS score
    * @min 0
    * @max 10
-   * @example 7.5
+   * @example "7.5"
    */
   vulnerability_cvss_v31: number;
   /**
@@ -8722,7 +8729,7 @@ export interface VulnerabilityCreateInput {
 export interface VulnerabilityOutput {
   /**
    * CVSS score
-   * @example 7.8
+   * @example "7.8"
    */
   vulnerability_cvss_v31: number;
   /**
@@ -8773,7 +8780,7 @@ export interface VulnerabilityOutput {
 export interface VulnerabilitySimple {
   /**
    * CVSS score
-   * @example 7.8
+   * @example "7.8"
    */
   vulnerability_cvss_v31: number;
   /**
@@ -8968,6 +8975,7 @@ export interface WorkflowConfigurationInput {
    * @format int64
    * @min 60
    * @max 86400
+   * @default 3600
    */
   workflow_configuration_timeout_seconds?: number;
   /** List scope rules. */
