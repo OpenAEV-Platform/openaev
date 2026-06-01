@@ -630,7 +630,12 @@ public class EndpointService {
     agent.setDeploymentMode(
         input.isService() ? Agent.DEPLOYMENT_MODE.service : Agent.DEPLOYMENT_MODE.session);
     agent.setExecutedByUser(input.getExecutedByUser());
-    agent.setExecutor(input.getExecutor());
+    executorRepository.findByIdAndTenantId(input.getExecutor().getId(),
+            input.getExecutor().getTenant().getId())
+        .ifPresentOrElse(
+            agent::setExecutor,
+            () -> log.warn("Executor {} not found, agent will be saved without executor",
+                  input.getExecutor().getId()));
     agent.setTenant(input.getExecutor().getTenant());
   }
 
