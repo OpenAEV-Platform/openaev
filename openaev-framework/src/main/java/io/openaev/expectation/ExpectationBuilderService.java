@@ -127,13 +127,17 @@ public class ExpectationBuilderService {
   }
 
   /**
-   * Builds a manual expectation with default configuration.
+   * Builds a manual expectation with default configuration MANUAL expectations are not limited (can
+   * be added multiple times).
    *
    * @return a configured manual expectation
    */
   public Expectation buildManualExpectation() {
-    return buildExpectation(
-        MANUAL, MANUAL_NAME, expectationPropertiesConfig.getManualExpirationTime());
+    Expectation expectation =
+        buildExpectation(
+            MANUAL, MANUAL_NAME, expectationPropertiesConfig.getManualExpirationTime());
+    expectation.setMultiSelectable(true);
+    return expectation;
   }
 
   /**

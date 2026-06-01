@@ -51,8 +51,8 @@ public class Expectation {
    *
    * <p>Only relevant for available expectations exposed in the injector contract. MANUAL
    * expectations are not limited (can be added multiple times); all other types are limited to a
-   * single selection. Null when this field is not used as an available-expectation option.
+   * single selection.
    */
-  @JsonProperty("expectation_is_limited")
-  private Boolean isLimited;
+  @JsonProperty("expectation_is_multi_selectable")
+  private boolean isMultiSelectable;
 }
