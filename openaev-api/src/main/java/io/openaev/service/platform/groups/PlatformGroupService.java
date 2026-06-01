@@ -109,6 +109,6 @@ public class PlatformGroupService {
 
   public void deletePlatformGroup(@NotBlank final String groupId) {
     Group group = findById(groupId);
-    groupRepository.deleteByIdNative(group.getId());
+    groupRepository.delete(group);
   }
 }

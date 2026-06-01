@@ -185,7 +185,7 @@ public class TenantGroupService {
             .orElseThrow(() -> new ElementNotFoundException("Group not found with id: " + groupId));
 
     ReservedKeyValidator.validateGroupId(group.getId());
-    groupRepository.deleteByIdNative(group.getId());
+    groupRepository.delete(group);
   }
 
   /** Remove a grant from a tenant group. */

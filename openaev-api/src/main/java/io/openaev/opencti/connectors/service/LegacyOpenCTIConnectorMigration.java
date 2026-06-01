@@ -59,7 +59,7 @@ public class LegacyOpenCTIConnectorMigration {
           legacyEmail,
           newEmail);
       userService.delete(legacyUser.get().getId());
-      groupRepository.deleteByIdNative(PROCESS_STIX_GROUP_ID);
+      groupRepository.deleteById(PROCESS_STIX_GROUP_ID);
       roleService.deleteRole(PROCESS_STIX_ROLE_ID);
     }
     migrationDone = true;
