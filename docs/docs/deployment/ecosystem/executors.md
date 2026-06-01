@@ -12,7 +12,7 @@ architectures. This table below summarizes the information about each agent.
 |:-----------------------------------|:--------------|:--------------------------------------------------|:------------------|:---------------------------------------|:-----------------------------------------------|:-------------------------------------------------|
 | **OpenAEV Agent (native/default)** | Open source   | As a user session, user service or system service | Script            | A standard or admin background process | As a user standard, user admin or system admin | Yes, depending on the user and installation mode |
 | **Tanium Agent**                   | Under license | As a system service                               | Executable        | An admin background process            | As a system admin                              | No, always the same agent                        |                              
-| **Crowdstrike Falcon Agent**       | Under license | As a system service                               | Executable        | An admin background process            | As a system admin                              | No, always the same agent                        |                              
+| **CrowdStrike Falcon Agent**       | Under license | As a system service                               | Executable        | An admin background process            | As a system admin                              | No, always the same agent                        |                              
 | **SentinelOne Agent**              | Under license | As a system service                               | Executable        | An admin background process            | As a system admin                              | No, always the same agent                        |
 | **Palo Alto Cortex Agent**         | Under license | As a system service                               | Executable        | An admin background process            | As a system admin                              | No, always the same agent                        |
 | **Caldera Agent**                  | Open source   | As a user session                                 | Script            | An admin background process            | As a user admin                                | Yes, depending on the user                       |                      
@@ -76,26 +76,17 @@ Once configured and imported, retrieve the package IDs from the URL:
 
 ### Configure the OpenAEV Platform
 
-To use the Tanium executor, fill the following configuration in the Integrations (Executors) tab from OpenAEV menu.
-
-| Parameter                                             | Environment variable                                  | Default value | Description                                                                                                                                                     |
-|:------------------------------------------------------|:------------------------------------------------------|:--------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| executor.tanium.enable                                | EXECUTOR_TANIUM_ENABLE                                | `false`       | Enable the Tanium executor                                                                                                                                      |
-| executor.tanium.url                                   | EXECUTOR_TANIUM_URL                                   |               | Tanium API URL                                                                                                                                                  |
-| executor.tanium.api-key                               | EXECUTOR_TANIUM_API-KEY                               |               | Tanium API key                                                                                                                                                  |
-| executor.tanium.api-register-interval                 | EXECUTOR_TANIUM_API_REGISTER_INTERVAL                 | 1200          | Tanium API interval to register/update the computer groups/endpoints in OpenAEV (in seconds)                                                                    | 
-| executor.tanium.api-batch-execution-action-pagination | EXECUTOR_TANIUM_API_BATCH_EXECUTION_ACTION_PAGINATION | 100           | Tanium API pagination per 5 seconds to set for endpoints batch executions (number of endpoints sent per 5 seconds to Tanium to execute a threat arsenal action) | 
-| executor.tanium.clean-implant-interval                | EXECUTOR_TANIUM_CLEAN_IMPLANT_INTERVAL                | 8             | Tanium clean old implant interval (in hours)                                                                                                                    | 
-| executor.tanium.computer-group-id                     | EXECUTOR_TANIUM_COMPUTER_GROUP_ID                     | `1`           | Tanium Computer Group or Computer Groups to be used in simulations separated with commas                                                                        |
-| executor.tanium.action-group-id                       | EXECUTOR_TANIUM_ACTION_GROUP_ID                       | `4`           | Tanium Action Group to apply actions to                                                                                                                         |
-| executor.tanium.windows-package-id                    | EXECUTOR_TANIUM_WINDOWS_PACKAGE_ID                    |               | ID of the OpenAEV Tanium Windows package                                                                                                                        |
-| executor.tanium.unix-package-id                       | EXECUTOR_TANIUM_UNIX_PACKAGE_ID                       |               | ID of the OpenAEV Tanium Unix package                                                                                                                           |
+To configure the Tanium executor, navigate to the **Integrations > Executors** section in the OpenAEV menu and fill in the Tanium integration settings directly from the UI.
 
 !!! note "Tanium API Key"
 
     The Tanium API key must have permissions to:  
     - Retrieve the endpoint list from the Tanium GraphQL API  
     - Launch packages on endpoints  
+
+!!! info "Migrating from environment variables"
+
+    If you previously configured this executor using environment variables or platform properties, these values have been **automatically migrated** to the database on first startup. After migration, changes to environment variables or properties are no longer taken into account — all configuration is now managed through the UI.
 
 ---
 
@@ -171,7 +162,7 @@ Put the following Input schema:
 }
 ```
 
-![Crowdstrike unix script](../assets/crowdstrike-unix-script.png)
+![CrowdStrike unix script](../assets/crowdstrike-unix-script.png)
 
 *Windows script*
 
@@ -249,32 +240,22 @@ applied.
 
     Please note that the CrowdStrike API key should have the following permissions: API integrations, Hosts, Host groups, Real time response.
 
-To use the CrowdStrike executor, just fill the following configuration in the Integrations (Executors) tab from OpenAEV
-menu.
+To configure the CrowdStrike executor, navigate to the **Integrations > Executors** section in the OpenAEV menu and fill in the CrowdStrike integration settings directly from the UI.
 
-| Parameter                                                  | Environment variable                                       | Default value                      | Description                                                                                                                                                       |
-|:-----------------------------------------------------------|:-----------------------------------------------------------|:-----------------------------------|:------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| executor.crowdstrike.enable                                | EXECUTOR_CROWDSTRIKE_ENABLE                                | `false`                            | Enable the Crowdstrike executor                                                                                                                                   |
-| executor.crowdstrike.api-url                               | EXECUTOR_CROWDSTRIKE_API_URL                               | `https://api.us-2.crowdstrike.com` | Crowdstrike API url                                                                                                                                               |
-| executor.crowdstrike.api-register-interval                 | EXECUTOR_CROWDSTRIKE_API_REGISTER_INTERVAL                 | 1200                               | Crowdstrike API interval to register/update the host groups/hosts/agents in OpenAEV (in seconds)                                                                  | 
-| executor.crowdstrike.api-batch-execution-action-pagination | EXECUTOR_CROWDSTRIKE_API_BATCH_EXECUTION_ACTION_PAGINATION | 2500                               | Crowdstrike API pagination per 5 seconds to set for hosts batch executions (number of hosts sent per 5 seconds to Crowdstrike to execute a threat arsenal action) | 
-| executor.crowdstrike.clean-implant-interval                | EXECUTOR_CROWDSTRIKE_CLEAN_IMPLANT_INTERVAL                | 8                                  | Crowdstrike clean old implant interval (in hours)                                                                                                                 | 
-| executor.crowdstrike.client-id                             | EXECUTOR_CROWDSTRIKE_CLIENT_ID                             |                                    | Crowdstrike client id                                                                                                                                             |
-| executor.crowdstrike.client-secret                         | EXECUTOR_CROWDSTRIKE_CLIENT_SECRET                         |                                    | Crowdstrike client secret                                                                                                                                         |
-| executor.crowdstrike.host-group                            | EXECUTOR_CROWDSTRIKE_HOST_GROUP                            |                                    | Crowdstrike host group id or hosts groups ids separated with commas                                                                                               |
-| executor.crowdstrike.windows-script-name                   | EXECUTOR_CROWDSTRIKE_WINDOWS_SCRIPT_NAME                   | `OpenAEV Subprocessor (Windows)`   | Name of the OpenAEV Crowdstrike windows script                                                                                                                    |
-| executor.crowdstrike.unix-script-name                      | EXECUTOR_CROWDSTRIKE_UNIX_SCRIPT_NAME                      | `OpenAEV Subprocessor (Unix)`      | Name of the OpenAEV Crowdstrike unix script                                                                                                                       |
+!!! info "Migrating from environment variables"
+
+    If you previously configured this executor using environment variables or platform properties, these values have been **automatically migrated** to the database on first startup. After migration, changes to environment variables or properties are no longer taken into account — all configuration is now managed through the UI.
 
 ### Checks
 
 Once enabled, you should see CrowdStrike available in your `Install agents` section
 
-![Crowdstrike available agent](../assets/agents.png)
+![CrowdStrike available agent](../assets/agents.png)
 
 Also, the assets and the asset groups in the selected computer groups should now be available in the endpoints and asset
 groups sections in OpenAEV:
 
-![Crowdstrike Endpoints](../assets/crowdstrike-endpoints.png)
+![CrowdStrike Endpoints](../assets/crowdstrike-endpoints.png)
 
 NB : An Asset can only have one CrowdStrike agent installed due to the uniqueness of the MAC address parameters. If you
 try to install again a CrowdStrike agent on a platform, it will overwrite the actual one and you will always see one
@@ -338,23 +319,9 @@ To create a group, go to `Inventory` > `Endpoints` > `Groups`.
 
 !!! warning "Palo Alto Cortex API Key"
 
-    Please note that the Palo Alto Cortex API key created in "Settings/Configurations/API Keys" should have the following minimum role: “Instance Administrator” and security level: "Standard".
+    Please note that the Palo Alto Cortex API key created in "Settings/Configurations/API Keys" should have the following minimum role: "Instance Administrator" and security level: "Standard".
 
-To use the Palo Alto Cortex executor, just fill the following configuration in the Integrations (Executors) tab from
-OpenAEV menu.
-
-| Parameter                                                     | Environment variable                                          | Default value | Description                                                                                                                                                                         |
-|:--------------------------------------------------------------|:--------------------------------------------------------------|:--------------|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| executor.paloaltocortex.enable                                | EXECUTOR_PALOALTOCORTEX_ENABLE                                | `false`       | Enable the Palo Alto Cortex executor                                                                                                                                                |
-| executor.paloaltocortex.url                                   | EXECUTOR_PALOALTOCORTEX_URL                                   |               | Palo Alto Cortex URL, the API version used is the v1                                                                                                                                |
-| executor.paloaltocortex.api-register-interval                 | EXECUTOR_PALOALTOCORTEX_API_REGISTER_INTERVAL                 | 1200          | Palo Alto Cortex API interval to register/update the accounts/sites/groups/agents in OpenAEV (in seconds)                                                                           | 
-| executor.paloaltocortex.api-batch-execution-action-pagination | EXECUTOR_PALOALTOCORTEX_API_BATCH_EXECUTION_ACTION_PAGINATION | 100           | Palo Alto Cortex API pagination per 5 seconds to set for endpoints batch executions (number of endpoints sent per 5 seconds to Palo Alto Cortex to execute a threat arsenal action) | 
-| executor.paloaltocortex.clean-implant-interval                | EXECUTOR_PALOALTOCORTEX_CLEAN_IMPLANT_INTERVAL                | 8             | Palo Alto Cortex clean old implant interval (in hours)                                                                                                                              | 
-| executor.paloaltocortex.api-key-id                            | EXECUTOR_PALOALTOCORTEX_API_KEY_ID                            |               | Palo Alto Cortex API key id                                                                                                                                                         |
-| executor.paloaltocortex.api-key                               | EXECUTOR_PALOALTOCORTEX_API_KEY                               |               | Palo Alto Cortex API key                                                                                                                                                            |
-| executor.paloaltocortex.group-name                            | EXECUTOR_PALOALTOCORTEX_GROUP_ID                              |               | Palo Alto Cortex group name or groups names separated with commas                                                                                                                   |
-| executor.paloaltocortex.windows-script-uid                    | EXECUTOR_PALOALTOCORTEX_WINDOWS_SCRIPT_UID                    |               | Uid of the OpenAEV Palo Alto Cortex Windows script                                                                                                                                  |
-| executor.paloaltocortex.unix-script-uid                       | EXECUTOR_PALOALTOCORTEX_UNIX_SCRIPT_UID                       |               | Uid of the OpenAEV Palo Alto Cortex Unix script                                                                                                                                     |
+To configure the Palo Alto Cortex executor, navigate to the **Integrations > Executors** section in the OpenAEV menu and fill in the Palo Alto Cortex integration settings directly from the UI.
 
 ### Checks
 
@@ -388,7 +355,7 @@ according to the [OpenAEV architecture](https://docs.openaev.io/latest/deploymen
 
 !!! warning "SentinelOne"
 
-    Please note that the SentinelOne license with add-on “remote script orchestration” is required to launch SentinelOne scripts with OpenAEV → see in SentinelOne/Settings/Configuration/Add-ons
+    Please note that the SentinelOne license with add-on "remote script orchestration" is required to launch SentinelOne scripts with OpenAEV → see in SentinelOne/Settings/Configuration/Add-ons
 
 ### Configure the SentinelOne Platform
 
@@ -409,7 +376,7 @@ Upload the following script (encoded for Unix):
 Put the following Input schema:
 
 ![SentinelOne unix script1](../assets/sentinelone-unix-script1.png)
-![SentinelOne unix script1](../assets/sentinelone-unix-script2.png)
+![SentinelOne unix script2](../assets/sentinelone-unix-script2.png)
 
 *Windows script*
 
@@ -419,8 +386,8 @@ Upload the following script (encoded for Windows):
 
 Put the following Input schema:
 
-![SentinelOne unix script1](../assets/sentinelone-windows-script1.png)
-![SentinelOne unix script1](../assets/sentinelone-windows-script2.png)
+![SentinelOne windows script1](../assets/sentinelone-windows-script1.png)
+![SentinelOne windows script2](../assets/sentinelone-windows-script2.png)
 
 Once created, your Remote Ops scripts should have something like this:
 
@@ -434,24 +401,13 @@ To create a wrapper (account/site/group), go to `Settings` > `Accounts/Sites`.
 
 !!! warning "SentinelOne API Key"
 
-    Please note that the SentinelOne API key created in "Settings/Users/Service Users" should have the following minimum role: “IR Team”. The API key and the scripts must be created for and with the same user and the required account/site.
+    Please note that the SentinelOne API key created in "Settings/Users/Service Users" should have the following minimum role: "IR Team". The API key and the scripts must be created for and with the same user and the required account/site.
 
-To use the SentinelOne executor, just fill the following configuration in the Integrations (Executors) tab from OpenAEV
-menu.
+To configure the SentinelOne executor, navigate to the **Integrations > Executors** section in the OpenAEV menu and fill in the SentinelOne integration settings directly from the UI.
 
-| Parameter                                                  | Environment variable                                       | Default value | Description                                                                                                                                                         |
-|:-----------------------------------------------------------|:-----------------------------------------------------------|:--------------|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| executor.sentinelone.enable                                | EXECUTOR_SENTINELONE_ENABLE                                | `false`       | Enable the SentinelOne executor                                                                                                                                     |
-| executor.sentinelone.url                                   | EXECUTOR_SENTINELONE_URL                                   |               | SentinelOne URL, the API version used is the 2.1                                                                                                                    |
-| executor.sentinelone.api-register-interval                 | EXECUTOR_SENTINELONE_API_REGISTER_INTERVAL                 | 1200          | SentinelOne API interval to register/update the accounts/sites/groups/agents in OpenAEV (in seconds)                                                                | 
-| executor.sentinelone.api-batch-execution-action-pagination | EXECUTOR_SENTINELONE_API_BATCH_EXECUTION_ACTION_PAGINATION | 2500          | SentinelOne API pagination per 5 seconds to set for agents batch executions (number of agents sent per 5 seconds to SentinelOne to execute a threat arsenal action) | 
-| executor.sentinelone.clean-implant-interval                | EXECUTOR_SENTINELONE_CLEAN_IMPLANT_INTERVAL                | 8             | SentinelOne clean old implant interval (in hours)                                                                                                                   | 
-| executor.sentinelone.api-key                               | EXECUTOR_SENTINELONE_API_KEY                               |               | SentinelOne API key                                                                                                                                                 |
-| executor.sentinelone.account-id                            | EXECUTOR_SENTINELONE_ACCOUNT_ID                            |               | SentinelOne account id or accounts ids separated with commas (optional if site or group is filled)                                                                  |
-| executor.sentinelone.site-id                               | EXECUTOR_SENTINELONE_SITE_ID                               |               | SentinelOne site id or sites ids separated with commas (optional if account or group is filled)                                                                     |
-| executor.sentinelone.group-id                              | EXECUTOR_SENTINELONE_GROUP_ID                              |               | SentinelOne group id or groups ids separated with commas (optional if site or account is filled)                                                                    |
-| executor.sentinelone.windows-script-id                     | EXECUTOR_SENTINELONE_WINDOWS_SCRIPT_ID                     |               | Id of the OpenAEV SentinelOne Windows script                                                                                                                        |
-| executor.sentinelone.unix-script-id                        | EXECUTOR_SENTINELONE_UNIX_SCRIPT_ID                        |               | Id of the OpenAEV SentinelOne Unix script                                                                                                                           |
+!!! info "Migrating from environment variables"
+
+    If you previously configured this executor using environment variables or platform properties, these values have been **automatically migrated** to the database on first startup. After migration, changes to environment variables or properties are no longer taken into account — all configuration is now managed through the UI.
 
 ### Checks
 
@@ -536,14 +492,11 @@ docker compose up -d
 
 ### OpenAEV configuration
 
-Then, just change the OpenAEV configuration as follow:
+To configure the Caldera executor, navigate to the **Integrations > Executors** section in the OpenAEV menu and fill in the Caldera integration settings directly from the UI.
 
-| Parameter                   | Environment variable        | Default value | Description                                                                                  |
-|:----------------------------|:----------------------------|:--------------|:---------------------------------------------------------------------------------------------|
-| executor.caldera.enable     | EXECUTOR_CALDERA_ENABLE     | `false`       | Enable the Caldera executor           						                                                 |
-| executor.caldera.url        | EXECUTOR_CALDERA_URL        |               | Caldera URL                           													                                          |
-| executor.caldera.public-url | EXECUTOR_CALDERA_PUBLIC-URL |               | Caldera URL accessible from endpoints (ex: http://caldera.myopenaev.myorganization.com:8888) |
-| executor.caldera.api-key    | EXECUTOR_CALDERA_API-KEY    |               | Caldera API key                                                                              |
+!!! info "Migrating from environment variables"
+
+    If you previously configured this executor using environment variables or platform properties, these values have been **automatically migrated** to the database on first startup. After migration, changes to environment variables or properties are no longer taken into account — all configuration is now managed through the UI.
 
 ### Agents
 
@@ -591,4 +544,3 @@ Old implant directories are periodically cleaned up by the platform. At the inte
 !!! note "OpenAEV Agent"
 
     The OpenAEV Agent has its own built-in garbage collector with different thresholds. See the [OpenAEV Agent documentation](../../usage/openaev-agent.md) for details.
-
