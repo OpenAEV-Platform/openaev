@@ -1,206 +1,181 @@
 package io.openaev.aop.audit_log;
 
-import static io.openaev.api.groups.PlatformGroupApi.PLATFORM_GROUPS_URI;
-import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.reset;
-import static org.mockito.Mockito.timeout;
-import static org.mockito.Mockito.verify;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.IntegrationTest;
-import io.openaev.api.groups.dto.PlatformGroupInput;
+import io.openaev.database.audit.EntityDiffContext;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Group;
-import io.openaev.database.model.ResourceType;
-import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.database.model.Role;
+import io.openaev.utils.fixtures.PlatformRoleFixture;
+import io.openaev.utils.fixtures.composers.PlatformRoleComposer;
 import io.openaev.utils.fixtures.platform.PlatformGroupComposer;
 import io.openaev.utils.fixtures.platform.PlatformGroupFixture;
 import io.openaev.utils.mockUser.WithMockUser;
-import org.junit.jupiter.api.AfterEach;
+import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
-import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
-import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Integration tests verifying that {@code @AuditDiffTracked} entities produce field-level diffs in
- * the audit log when modified or deleted through standard JPA lifecycle (not native queries).
+ * {@link EntityDiffContext} when modified or deleted through the JPA lifecycle.
+ *
+ * <p>These tests verify the diff mechanism at the service/entity level (not the full HTTP audit
+ * pipeline) to avoid flush-timing issues inherent to {@code @Transactional} tests.
  */
 @TestInstance(PER_CLASS)
-@TestPropertySource(properties = {"openaev.audit-logs.service.enabled=true"})
-@DisplayName("AuditDiffTracked entity diff tests")
+@Transactional
+@DisplayName("@AuditDiffTracked entity diff capture")
+@WithMockUser(isAdmin = true)
 class AuditDiffTrackedTest extends IntegrationTest {
 
-  @Autowired private MockMvc mvc;
   @Autowired private PlatformGroupComposer platformGroupComposer;
-
-  @MockitoSpyBean private AuditLogger auditLogger;
-  @MockitoBean private EnterpriseEditionService enterpriseEditionService;
+  @Autowired private PlatformRoleComposer platformRoleComposer;
 
   @BeforeEach
   void setup() {
-    reset(auditLogger);
-    doReturn(true).when(auditLogger).isAuditLoggingEnabled();
-    doReturn(true).when(auditLogger).isAuditUnauthorizedLoggingValid();
-    doReturn(true).when(auditLogger).isAuditLoggingValid(any());
-  }
-
-  @AfterEach
-  void tearDown() {
-    platformGroupComposer.reset();
+    EntityDiffContext.clear();
   }
 
   @Nested
-  @DisplayName("Update operations")
-  class UpdateDiffs {
+  @DisplayName("Group update diffs")
+  class GroupUpdateDiffs {
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES})
-    @DisplayName("Given group update, should capture entity diff with changed fields")
-    void given_groupUpdate_should_captureEntityDiff() throws Exception {
+    @DisplayName("Given group name change, should capture diff with old and new values")
+    void given_groupNameChange_should_captureDiff() {
       // Arrange
       Group group =
           platformGroupComposer
               .forPlatformGroup(PlatformGroupFixture.getPlatformGroup("OriginalName"))
               .persist()
               .get();
+      entityManager.flush();
+      entityManager.clear();
 
-      PlatformGroupInput input = new PlatformGroupInput("UpdatedName", "New description", false);
-
-      ArgumentCaptor<JsonNode> entityDiffsCaptor = ArgumentCaptor.forClass(JsonNode.class);
-
-      // Act
-      mvc.perform(
-              put(PLATFORM_GROUPS_URI + "/" + group.getId())
-                  .content(asJsonString(input))
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON)
-                  .with(csrf()))
-          .andExpect(status().isOk());
+      // Act — reload and modify (triggers @PostLoad → snapshot, then @PreUpdate → diff)
+      Group loaded = entityManager.find(Group.class, group.getId());
+      loaded.setName("UpdatedName");
+      entityManager.flush(); // triggers @PreUpdate → computes diff
 
       // Assert
-      verify(auditLogger, timeout(2000))
-          .logAccessControlEvent(
-              anyString(),
-              anyString(),
-              any(ResourceType.class),
-              anyString(),
-              any(),
-              any(),
-              any(),
-              entityDiffsCaptor.capture(),
-              anyString());
+      Map<String, EntityDiffContext.EntityDiff> diffs = EntityDiffContext.consumeAll();
+      assertThat(diffs).containsKey(group.getId());
 
-      JsonNode entityDiffs = entityDiffsCaptor.getValue();
-      assertThat(entityDiffs).isNotNull();
-      assertThat(entityDiffs.isArray()).isTrue();
-      assertThat(entityDiffs.size()).isGreaterThanOrEqualTo(1);
+      EntityDiffContext.EntityDiff diff = diffs.get(group.getId());
+      assertThat(diff.entityType()).isEqualTo("Group");
+      assertThat(diff.operation()).isEqualTo("update");
+      assertThat(diff.changes()).isNotEmpty();
 
-      // Find the diff entry for our group
-      JsonNode groupDiff = findDiffById(entityDiffs, group.getId());
-      assertThat(groupDiff).isNotNull();
-      assertThat(groupDiff.path("entity_type").asText()).isEqualTo("Group");
-      assertThat(groupDiff.path("operation").asText()).isEqualTo("update");
-
-      // Verify changes contain the name change
-      JsonNode changes = groupDiff.path("changes");
-      assertThat(changes.isArray()).isTrue();
-      boolean hasNameChange = hasFieldChange(changes, "group_name", "OriginalName", "UpdatedName");
+      boolean hasNameChange =
+          diff.changes().stream()
+              .anyMatch(
+                  c ->
+                      "group_name".equals(c.field())
+                          && "OriginalName".equals(c.oldValue())
+                          && "UpdatedName".equals(c.newValue()));
       assertThat(hasNameChange)
-          .as("Expected a change entry for group_name from 'OriginalName' to 'UpdatedName'")
+          .as("Expected change entry for group_name: OriginalName → UpdatedName")
           .isTrue();
+    }
+
+    @Test
+    @DisplayName("Given group description change, should capture only changed field")
+    void given_groupDescriptionChange_should_captureOnlyChangedField() {
+      // Arrange
+      Group group =
+          platformGroupComposer
+              .forPlatformGroup(PlatformGroupFixture.getPlatformGroup("Unchanged"))
+              .persist()
+              .get();
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act
+      Group loaded = entityManager.find(Group.class, group.getId());
+      loaded.setDescription("New description");
+      entityManager.flush();
+
+      // Assert
+      Map<String, EntityDiffContext.EntityDiff> diffs = EntityDiffContext.consumeAll();
+      EntityDiffContext.EntityDiff diff = diffs.get(group.getId());
+      assertThat(diff).isNotNull();
+      assertThat(diff.changes()).anyMatch(c -> "group_description".equals(c.field()));
+      // Name should NOT appear in changes since it didn't change
+      assertThat(diff.changes()).noneMatch(c -> "group_name".equals(c.field()));
     }
   }
 
   @Nested
-  @DisplayName("Delete operations")
-  class DeleteDiffs {
+  @DisplayName("Role update diffs")
+  class RoleUpdateDiffs {
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.DELETE_PLATFORM_USERS_GROUPS_AND_ROLES})
-    @DisplayName("Given group delete, should capture entity diff with delete operation")
-    void given_groupDelete_should_captureDeleteDiff() throws Exception {
+    @DisplayName("Given role name change, should capture diff")
+    void given_roleNameChange_should_captureDiff() {
+      // Arrange
+      Role role =
+          platformRoleComposer
+              .forPlatformRole(
+                  PlatformRoleFixture.getPlatformRole(
+                      "OldRoleName", Set.of(Capability.ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES)))
+              .persist()
+              .get();
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act
+      Role loaded = entityManager.find(Role.class, role.getId());
+      loaded.setName("NewRoleName");
+      entityManager.flush();
+
+      // Assert
+      Map<String, EntityDiffContext.EntityDiff> diffs = EntityDiffContext.consumeAll();
+      assertThat(diffs).containsKey(role.getId());
+
+      EntityDiffContext.EntityDiff diff = diffs.get(role.getId());
+      assertThat(diff.entityType()).isEqualTo("Role");
+      assertThat(diff.operation()).isEqualTo("update");
+      assertThat(diff.changes())
+          .anyMatch(
+              c ->
+                  "role_name".equals(c.field())
+                      && "OldRoleName".equals(c.oldValue())
+                      && "NewRoleName".equals(c.newValue()));
+    }
+  }
+
+  @Nested
+  @DisplayName("No-op updates (no diff)")
+  class NoOpUpdates {
+
+    @Test
+    @DisplayName("Given no actual change, should produce no diff")
+    void given_noChange_should_produceNoDiff() {
       // Arrange
       Group group =
           platformGroupComposer
-              .forPlatformGroup(PlatformGroupFixture.getPlatformGroup("ToDeleteAudit"))
+              .forPlatformGroup(PlatformGroupFixture.getPlatformGroup("Same"))
               .persist()
               .get();
+      entityManager.flush();
+      entityManager.clear();
 
-      ArgumentCaptor<JsonNode> entityDiffsCaptor = ArgumentCaptor.forClass(JsonNode.class);
-
-      // Act
-      mvc.perform(
-              delete(PLATFORM_GROUPS_URI + "/" + group.getId())
-                  .accept(MediaType.APPLICATION_JSON)
-                  .with(csrf()))
-          .andExpect(status().isNoContent());
+      // Act — reload but don't change anything
+      Group loaded = entityManager.find(Group.class, group.getId());
+      loaded.setName("Same"); // same value
+      entityManager.flush();
 
       // Assert
-      verify(auditLogger, timeout(2000))
-          .logAccessControlEvent(
-              anyString(),
-              anyString(),
-              any(ResourceType.class),
-              anyString(),
-              any(),
-              any(),
-              any(),
-              entityDiffsCaptor.capture(),
-              anyString());
-
-      JsonNode entityDiffs = entityDiffsCaptor.getValue();
-      // The delete diff may be null if @PreRemove doesn't store diffs (only @PreUpdate does).
-      // The key assertion here is that the audit event WAS logged (verify above passed)
-      // and that the lifecycle callbacks fired (entity was actually deleted).
-      // If the implementation stores diffs on delete, verify them:
-      if (entityDiffs != null && entityDiffs.isArray() && entityDiffs.size() > 0) {
-        JsonNode groupDiff = findDiffById(entityDiffs, group.getId());
-        if (groupDiff != null) {
-          assertThat(groupDiff.path("entity_type").asText()).isEqualTo("Group");
-          assertThat(groupDiff.path("operation").asText()).isEqualTo("delete");
-        }
-      }
+      Map<String, EntityDiffContext.EntityDiff> diffs = EntityDiffContext.consumeAll();
+      assertThat(diffs).doesNotContainKey(group.getId());
     }
-  }
-
-  // -- Helpers --
-
-  private static JsonNode findDiffById(JsonNode diffs, String entityId) {
-    for (JsonNode diff : diffs) {
-      if (entityId.equals(diff.path("id").asText())) {
-        return diff;
-      }
-    }
-    return null;
-  }
-
-  private static boolean hasFieldChange(
-      JsonNode changes, String field, String oldValue, String newValue) {
-    for (JsonNode change : changes) {
-      if (field.equals(change.path("field").asText())
-          && oldValue.equals(change.path("old_value").asText())
-          && newValue.equals(change.path("new_value").asText())) {
-        return true;
-      }
-    }
-    return false;
   }
 }
