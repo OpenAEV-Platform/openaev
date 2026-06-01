@@ -2,18 +2,17 @@ import {
   type Node,
   useNodesState,
 } from '@xyflow/react';
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
-import { fetchWorkflowConfiguration } from '../../../../actions/chaining/workflow-actions';
-import type { WorkflowConfigurationHelper } from '../../../../actions/chaining/workflow-helper';
-import { useHelper } from '../../../../store';
-import type { ThreatArsenalAction, WorkflowScopeRuleOutput } from '../../../../utils/api-types';
-import { useAppDispatch } from '../../../../utils/hooks';
-import useDataLoader from '../../../../utils/hooks/useDataLoader';
-import AddActionDetail, { type ActionDetailData } from './AddActionDetail';
+import { createStep } from '../../../../actions/chaining/chaining-actions';
+import { fetchValidAssets, type ScopeAssetOutput } from '../../../../actions/chaining/workflow-actions';
+import { useFormatter } from '../../../../components/i18n';
+import type { ThreatArsenalAction } from '../../../../utils/api-types';
+import { MESSAGING$ } from '../../../../utils/Environment';
 import AddActionList from './AddActionList';
 import AddComponentButton, { type LogicContext } from './AddComponentButton';
 import AddComponentDrawer from './AddComponentDrawer';
+import ConfigureActionDetail, { type ActionDetailData } from './ConfigureActionDetail';
 
 interface LogicProps {
   workflowId: string | undefined;
@@ -23,30 +22,23 @@ interface LogicProps {
 type DrawerView = 'closed' | 'choose' | 'action' | 'actionDetail';
 
 const Logic = ({ workflowId, context }: LogicProps) => {
-  const dispatch = useAppDispatch();
+  const { t } = useFormatter();
 
-  // Fetch workflow configuration to get allowlisted assets
-  useDataLoader(() => {
+  // Fetch computed valid assets from backend (allowlist minus denylist)
+  const [validAssets, setValidAssets] = useState<ScopeAssetOutput[]>([]);
+
+  const loadValidAssets = useCallback(() => {
     if (workflowId) {
-      dispatch(fetchWorkflowConfiguration(workflowId));
+      fetchValidAssets(workflowId).then((assets: ScopeAssetOutput[]) => {
+        setValidAssets(assets);
+      });
     }
-  });
+  }, [workflowId]);
 
-  const { workflowConfiguration } = useHelper(
-    (helper: WorkflowConfigurationHelper) => ({
-      workflowConfiguration: workflowId
-        ? helper.getWorkflowConfiguration(workflowId)
-        : undefined,
-    }),
-  );
+  useEffect(() => {
+    loadValidAssets();
+  }, [loadValidAssets]);
 
-  const allowListedAssetIds = useMemo(() => {
-    const rules: WorkflowScopeRuleOutput[] = workflowConfiguration?.workflow_scope_rules ?? [];
-    return rules
-      .filter((r: WorkflowScopeRuleOutput) => r.workflow_scope_rule_selected_mode === 'ALLOWLIST' && r.workflow_scope_rule_source === 'ASSET')
-      .map((r: WorkflowScopeRuleOutput) => r.workflow_scope_rule_value ?? '')
-      .filter(Boolean);
-  }, [workflowConfiguration]);
   const [nodes] = useNodesState<Node>([]);
   const [drawerView, setDrawerView] = useState<DrawerView>('closed');
   const [selectedAction, setSelectedAction] = useState<ThreatArsenalAction | null>(null);
@@ -83,10 +75,40 @@ const Logic = ({ workflowId, context }: LogicProps) => {
     setDrawerView('action');
   };
 
-  const handleSaveActionDetail = (_data: ActionDetailData) => {
-    // TODO: create step from action detail data
-    setDrawerView('closed');
-    setSelectedAction(null);
+  const handleSaveActionDetail = (data: ActionDetailData) => {
+    if (!workflowId) return;
+
+    // Build step_conditions from field links (type + local/global scope)
+    const stepConditions = Object.entries(data.inject_field_links).map(([fieldKey, link], i) => ({
+      condition_temporary_id: String(i),
+      condition_type: 'MAPPER' as const,
+      condition_key_type: link.outputType as 'text',
+      condition_key: fieldKey,
+      condition_mapping_type: (link.localScope ? 'LOCAL' : 'GLOBAL') as 'GLOBAL',
+    }));
+
+    createStep({
+      step_workflow_id: workflowId,
+      step_action: 'INJECT_EXECUTION',
+      step_conditions: stepConditions.length > 0 ? stepConditions : undefined,
+      step_data_step: {
+        inject_title: data.inject_title,
+        inject_injector_contract: data.inject_injector_contract,
+        inject_assets: data.inject_assets,
+        inject_content: data.inject_content,
+        inject_tags: [],
+        inject_all_teams: false,
+        inject_teams: [],
+        inject_asset_groups: [],
+        inject_documents: [],
+        inject_depends_duration: 0,
+        inject_depends_on: [],
+      },
+    }).then(() => {
+      MESSAGING$.notifySuccess(t('The step has been successfully created'));
+      setDrawerView('closed');
+      setSelectedAction(null);
+    });
   };
 
   return (
@@ -109,10 +131,10 @@ const Logic = ({ workflowId, context }: LogicProps) => {
         onAddActions={handleAddActions}
         onSelectAction={handleSelectAction}
       />
-      <AddActionDetail
+      <ConfigureActionDetail
         open={drawerView === 'actionDetail'}
         action={selectedAction}
-        allowListedAssetIds={allowListedAssetIds}
+        validAssets={validAssets}
         onClose={handleCloseAll}
         onBack={handleBackToActionList}
         onBackToRoot={handleBackToChoose}

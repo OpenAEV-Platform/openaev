@@ -7263,6 +7263,18 @@ export interface ScenarioUpdateTeamsInput {
   scenario_teams?: string[];
 }
 
+/** An asset that is in scope (allowlisted and not denylisted) for a workflow. */
+export interface ScopeAssetOutput {
+  /** External reference of the asset */
+  asset_external_reference?: string;
+  /** ID of the asset */
+  asset_id?: string;
+  /** Name of the asset */
+  asset_name?: string;
+  /** Type of the asset (Endpoint, SecurityPlatform, …) */
+  asset_type?: string;
+}
+
 /** Input for a scope variable attached to a workflow. */
 export interface ScopeVariableInput {
   /** Optional description of the variable's purpose. */

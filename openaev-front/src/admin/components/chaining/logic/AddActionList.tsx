@@ -113,12 +113,6 @@ const AddActionList = ({ open, onClose, onBack, onAddActions, onSelectAction }: 
 
   const headers: Header[] = useMemo(() => [
     {
-      field: 'action_kill_chain_phases',
-      label: 'Kill chain phase',
-      isSortable: false,
-      value: (_action: ThreatArsenalAction) => <>-</>,
-    },
-    {
       field: 'action_labels',
       label: 'Name',
       isSortable: true,
@@ -200,7 +194,7 @@ const AddActionList = ({ open, onClose, onBack, onAddActions, onSelectAction }: 
           queryableHelpers={queryableHelpers}
         />
 
-        <List sx={{ pb: '60px' }}>
+        <List sx={{ pb: 6 }}>
           <ListItem
             classes={{ root: classes.itemHead }}
             divider={false}
