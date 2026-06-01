@@ -56,7 +56,8 @@ public class WorkflowApi extends RestBehavior {
   public WorkflowConfigurationOutput getWorkflowConfiguration(
       @PathVariable @NotBlank final String workflowId) {
     checkWorkflowFeatureEnabled();
-    return WorkflowConfigurationMapper.toOutput(workflowService.getWorkflowConfiguration(workflowId));
+    return WorkflowConfigurationMapper.toOutput(
+        workflowService.getWorkflowConfiguration(workflowId));
   }
 
   @Operation(
@@ -94,7 +95,8 @@ public class WorkflowApi extends RestBehavior {
       @PathVariable @NotBlank final String workflowId,
       @Valid @RequestBody final WorkflowConfigurationInput input) {
     checkWorkflowFeatureEnabled();
-    return WorkflowConfigurationMapper.toOutput(workflowService.updateWorkflowConfiguration(workflowId, input));
+    return WorkflowConfigurationMapper.toOutput(
+        workflowService.updateWorkflowConfiguration(workflowId, input));
   }
 
   // -- Helpers --

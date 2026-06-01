@@ -13,4 +13,3 @@ public class ScopeAssetMapper {
         asset.getId(), asset.getName(), asset.getType(), asset.getExternalReference());
   }
 }
-

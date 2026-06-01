@@ -13,4 +13,3 @@ public record ScopeAssetOutput(
     @Schema(description = "External reference of the asset")
         @JsonProperty("asset_external_reference")
         String externalReference) {}
-
