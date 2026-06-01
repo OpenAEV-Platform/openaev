@@ -18,8 +18,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.collectors.expectations_expiration_manager.ExpectationsExpirationManagerCollector;
 import io.openaev.database.model.Action;
 import io.openaev.engine.model.log.LogEvent;
+import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
 import io.openaev.service.LogService;
 import io.openaev.utils.log.dispatcher.AuditLogTransportDispatcherUtils;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -36,6 +38,7 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -52,6 +55,9 @@ import org.springframework.transaction.annotation.Transactional;
 class ScenarioLifecycleAuditLogAspectTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
+  @Autowired private EmailInjectorIntegrationFactory emailInjectorIntegrationFactory;
+
+  @MockitoBean private ExpectationsExpirationManagerCollector expectationsExpirationManagerCollector;
 
   @MockitoSpyBean private AuditLogger auditLogger;
 
@@ -81,6 +87,9 @@ class ScenarioLifecycleAuditLogAspectTest extends IntegrationTest {
     void given_scenarioLifecycleActions_should_logChildCreateAndStatusChangeEvents()
         throws Exception {
       // Arrange
+      // Ensure the email injector contract exists in the current tenant for inject creation.
+      emailInjectorIntegrationFactory.registerConnectorForTenant();
+
       // Generate unique names to avoid collisions with existing test data.
       String scenarioName = "audit-scenario-" + System.currentTimeMillis();
       String teamName = "audit-team-" + System.currentTimeMillis();
