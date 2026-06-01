@@ -414,11 +414,7 @@ public class PermissionServiceTest extends IntegrationTest {
     // Then: allowed — READ on the parent scenario is sufficient to subscribe to notifications
     assertTrue(
         permissionService.hasPermission(
-            user,
-            Optional.empty(),
-            scenarioId,
-            ResourceType.NOTIFICATION_RULE,
-            Action.CREATE));
+            user, Optional.empty(), scenarioId, ResourceType.NOTIFICATION_RULE, Action.CREATE));
   }
 
   @Test
@@ -431,11 +427,7 @@ public class PermissionServiceTest extends IntegrationTest {
     // When/Then: denied — no access to the scenario
     assertFalse(
         permissionService.hasPermission(
-            user,
-            Optional.empty(),
-            scenarioId,
-            ResourceType.NOTIFICATION_RULE,
-            Action.CREATE));
+            user, Optional.empty(), scenarioId, ResourceType.NOTIFICATION_RULE, Action.CREATE));
   }
 
   @Test

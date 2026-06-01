@@ -140,7 +140,9 @@ public class ScenarioNotificationEventHandler implements NotificationEventHandle
     return data;
   }
 
-  /** Returns 0 if the expectation type has no results (null), avoiding NPE in getRoundedPercentage. */
+  /**
+   * Returns 0 if the expectation type has no results (null), avoiding NPE in getRoundedPercentage.
+   */
   private static float getRoundedPercentageSafe(
       final ExpectationResultsByType expectationResultsByType) {
     if (expectationResultsByType == null) {
