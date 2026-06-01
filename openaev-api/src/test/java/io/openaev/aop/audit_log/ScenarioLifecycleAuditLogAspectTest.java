@@ -43,6 +43,12 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(PER_CLASS)
 @Transactional
 @TestPropertySource(properties = {"openaev.audit-logs.transports=console"})
+/**
+ * Integration test that validates audit logging for a full scenario lifecycle.
+ *
+ * <p>The test intentionally captures emitted {@link LogEvent} objects and validates their shape
+ * against the current runtime payload contract.
+ */
 class ScenarioLifecycleAuditLogAspectTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
@@ -53,9 +59,14 @@ class ScenarioLifecycleAuditLogAspectTest extends IntegrationTest {
 
   @MockitoSpyBean private AuditLogTransportDispatcherUtils auditLogTransportDispatcherUtils;
 
+  /**
+   * Enables audit logging in test context and resets spy interactions before each test execution.
+   */
   @BeforeEach
   void setup() {
+    // Reset spy call history to keep assertions isolated per test.
     reset(auditLogger, logService, auditLogTransportDispatcherUtils);
+    // Force audit guards to pass so this test can focus on emitted event content.
     doReturn(true).when(auditLogger).isAuditLoggingEnabled();
     doReturn(true).when(auditLogger).isAuditLoggingValid(any(Action.class));
     doReturn(true).when(logService).isEnabled();
@@ -70,9 +81,11 @@ class ScenarioLifecycleAuditLogAspectTest extends IntegrationTest {
     void given_scenarioLifecycleActions_should_logChildCreateAndStatusChangeEvents()
         throws Exception {
       // Arrange
+      // Generate unique names to avoid collisions with existing test data.
       String scenarioName = "audit-scenario-" + System.currentTimeMillis();
       String teamName = "audit-team-" + System.currentTimeMillis();
 
+      // 1) Create scenario.
       String createScenarioResponse =
           mvc.perform(
                   post(SCENARIO_URI)
@@ -101,8 +114,10 @@ class ScenarioLifecycleAuditLogAspectTest extends IntegrationTest {
               .getResponse()
               .getContentAsString();
 
+      // Extract scenario id from API response for subsequent child operations.
       String scenarioId = JsonPath.read(createScenarioResponse, "$.scenario_id");
 
+      // 2) Create inject in that scenario.
       String createInjectResponse =
           mvc.perform(
                   post(SCENARIO_URI + "/{scenarioId}/injects", scenarioId)
@@ -123,8 +138,10 @@ class ScenarioLifecycleAuditLogAspectTest extends IntegrationTest {
               .getResponse()
               .getContentAsString();
 
+      // Capture inject id to correlate audit output.
       String injectId = JsonPath.read(createInjectResponse, "$.inject_id");
 
+      // 3) Create a standalone team.
       String createTeamResponse =
           mvc.perform(
                   post(TEAM_URI)
@@ -144,9 +161,11 @@ class ScenarioLifecycleAuditLogAspectTest extends IntegrationTest {
               .getResponse()
               .getContentAsString();
 
+      // Capture team id for scenario association.
       String teamId = JsonPath.read(createTeamResponse, "$.team_id");
 
       // Act
+      // 4) Associate team to scenario.
       mvc.perform(
               put(SCENARIO_URI + "/{scenarioId}/teams/replace", scenarioId)
                   .content(asJsonString(Map.of("scenario_teams", List.of(teamId))))
@@ -155,24 +174,29 @@ class ScenarioLifecycleAuditLogAspectTest extends IntegrationTest {
                   .with(csrf()))
           .andExpect(status().is2xxSuccessful());
 
+      // 5) Launch scenario (status transition to running exercise).
       mvc.perform(post(SCENARIO_URI + "/{scenarioId}/exercise/running", scenarioId).with(csrf()))
           .andExpect(status().is2xxSuccessful());
 
       // Assert
+      // Capture audit events emitted through dispatcher transport.
       ArgumentCaptor<LogEvent> eventCaptor = ArgumentCaptor.forClass(LogEvent.class);
       verify(auditLogTransportDispatcherUtils, timeout(3000).atLeast(4))
           .dispatch(eventCaptor.capture(), any());
 
+      // Keep only events that belong to this scenario lifecycle.
       List<LogEvent> lifecycleEvents =
           eventCaptor.getAllValues().stream()
               .filter(Objects::nonNull)
               .filter(event -> isScenarioLifecycleEvent(event, scenarioId))
               .toList();
 
+      // All collected lifecycle events must be mutation events.
       assertThat(lifecycleEvents).isNotEmpty();
       assertThat(lifecycleEvents)
           .allSatisfy(event -> assertThat(event.getEventType()).isEqualTo("mutation"));
 
+      // Detect inject lifecycle event by request URL + output payload correlation.
       LogEvent injectLifecycleEvent =
           lifecycleEvents.stream()
               .filter(event -> requestUrlContains(event, "/scenarios/" + scenarioId + "/injects"))
@@ -183,6 +207,7 @@ class ScenarioLifecycleAuditLogAspectTest extends IntegrationTest {
       assertThat(injectLifecycleEvent).isNotNull();
       assertThat(injectLifecycleEvent.getEventType()).isEqualTo("mutation");
 
+      // Detect team association event by request URL + team/scenario relation in output array.
       LogEvent teamAssociationLifecycleEvent =
           lifecycleEvents.stream()
               .filter(
@@ -194,6 +219,7 @@ class ScenarioLifecycleAuditLogAspectTest extends IntegrationTest {
       assertThat(teamAssociationLifecycleEvent).isNotNull();
       assertThat(teamAssociationLifecycleEvent.getEventType()).isEqualTo("mutation");
 
+      // Launch must emit status_change mutation event.
       LogEvent launchStatusChangeEvent =
           lifecycleEvents.stream()
               .filter(event -> "status_change".equals(event.getEventScope()))
@@ -205,18 +231,22 @@ class ScenarioLifecycleAuditLogAspectTest extends IntegrationTest {
     }
   }
 
+  /** True when a log event can be attributed to the current scenario lifecycle under test. */
   private static boolean isScenarioLifecycleEvent(LogEvent event, String scenarioId) {
+    // Prefer request URL matching when available.
     if (event.getRequestMetadata() != null
         && event.getRequestMetadata().getUrl() != null
         && event.getRequestMetadata().getUrl().contains("/scenarios/" + scenarioId)) {
       return true;
     }
 
+    // Fallback to context fields when URL is absent.
     return scenarioId.equals(contextValue(event, "resource_id"))
         || scenarioId.equals(contextValue(event, "parent_id"))
         || scenarioId.equals(contextValue(event, "scenario_id"));
   }
 
+  /** Returns a context_data value as String, or null when missing. */
   private static String contextValue(LogEvent event, String key) {
     if (event.getContextData() == null) {
       return null;
@@ -226,6 +256,7 @@ class ScenarioLifecycleAuditLogAspectTest extends IntegrationTest {
     return value == null ? null : String.valueOf(value);
   }
 
+  /** Utility to match a specific path fragment in request metadata URL. */
   private static boolean requestUrlContains(LogEvent event, String pathFragment) {
     return event.getRequestMetadata() != null
         && event.getRequestMetadata().getUrl() != null
@@ -233,11 +264,15 @@ class ScenarioLifecycleAuditLogAspectTest extends IntegrationTest {
   }
 
   @SuppressWarnings("unchecked")
+  /**
+   * Validates inject output correlation in audit context_data: inject id and owning scenario id.
+   */
   private static boolean hasInjectOutput(LogEvent event, String injectId, String scenarioId) {
     if (event.getContextData() == null) {
       return false;
     }
 
+    // Inject endpoint currently emits an object payload under context_data.output.
     Object output = event.getContextData().get("output");
     if (!(output instanceof Map<?, ?> outputMap)) {
       return false;
@@ -248,17 +283,20 @@ class ScenarioLifecycleAuditLogAspectTest extends IntegrationTest {
   }
 
   @SuppressWarnings("unchecked")
+  /** Validates team association output in audit context_data for /teams/replace events. */
   private static boolean hasTeamAssociationOutput(
       LogEvent event, String teamId, String scenarioId) {
     if (event.getContextData() == null) {
       return false;
     }
 
+    // Team replace endpoint currently emits a list payload under context_data.output.
     Object output = event.getContextData().get("output");
     if (!(output instanceof Collection<?> outputCollection)) {
       return false;
     }
 
+    // Match expected team id and ensure scenario id appears in team_scenarios.
     return outputCollection.stream()
         .filter(Map.class::isInstance)
         .map(Map.class::cast)
