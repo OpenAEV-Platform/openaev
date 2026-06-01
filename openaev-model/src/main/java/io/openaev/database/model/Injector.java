@@ -18,6 +18,7 @@ import java.util.*;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.Filter;
+import org.hibernate.annotations.FilterJoinTable;
 import org.hibernate.annotations.Type;
 
 @Getter
@@ -95,6 +96,7 @@ public class Injector extends BaseConnectorEntity implements TenantBase {
         @JoinColumn(name = "injector_contract_id", referencedColumnName = "injector_contract_id"),
         @JoinColumn(name = "tenant_id", referencedColumnName = "tenant_id")
       })
+  @FilterJoinTable(name = "tenantFilter", condition = "tenant_id = :tenantId")
   @JsonIgnore
   private Set<InjectorContract> contracts = new HashSet<>();
 

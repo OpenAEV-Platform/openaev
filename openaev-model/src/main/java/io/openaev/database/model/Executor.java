@@ -55,6 +55,11 @@ public class Executor extends BaseConnectorEntity implements TenantBase {
   @JsonProperty("executor_background_color")
   private String backgroundColor;
 
+  /** Not persisted — satisfies the {@link BaseConnectorEntity} contract for the service layer. */
+  @Transient
+  @JsonProperty("executor_external")
+  private boolean external = false;
+
   @Id
   @ManyToOne
   @JoinColumn(name = "tenant_id", updatable = false, nullable = false)

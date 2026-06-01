@@ -34,6 +34,10 @@ public abstract class BaseConnectorEntity implements Base, Persistable<String> {
 
   public abstract void setType(String type);
 
+  public abstract boolean isExternal();
+
+  public abstract void setExternal(boolean external);
+
   /**
    * Returns {@code true} if this entity has not yet been persisted. Spring Data uses this to decide
    * between {@code persist()} (INSERT) and {@code merge()} (SELECT + UPDATE).

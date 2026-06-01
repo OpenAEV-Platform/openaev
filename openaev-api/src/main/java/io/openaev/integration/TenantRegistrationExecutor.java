@@ -40,8 +40,8 @@ public class TenantRegistrationExecutor {
       switchTenantContext(tenant.getId());
       registerForTenant(tenant);
       entityManager.flush();
-      entityManager.clear();
     } finally {
+      entityManager.clear();
       switchTenantContext(previousTenant);
     }
   }

@@ -18,6 +18,8 @@ public interface InjectorRepository
 
   Optional<Injector> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
+  List<Injector> findAllByIdInAndTenantId(@NotNull List<String> ids, @NotNull String tenantId);
+
   @NotNull
   Optional<Injector> findByTypeAndTenantId(@NotNull String type, @NotNull String tenantId);
 

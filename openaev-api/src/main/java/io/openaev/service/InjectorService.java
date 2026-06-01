@@ -170,7 +170,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
   }
 
   public List<Injector> findAllByIds(List<String> ids) {
-    return injectorRepository.findAllById(ids);
+    return injectorRepository.findAllByIdInAndTenantId(ids, TenantContext.getCurrentTenant());
   }
 
   /**
