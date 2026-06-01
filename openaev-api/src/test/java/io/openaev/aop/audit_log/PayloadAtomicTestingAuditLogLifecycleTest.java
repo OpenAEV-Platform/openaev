@@ -17,6 +17,7 @@ import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.engine.model.log.LogEvent;
 import io.openaev.injectors.email.service.ImapService;
+import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
 import io.openaev.rest.atomic_testing.AtomicTestingApi;
 import io.openaev.rest.atomic_testing.form.AtomicTestingInput;
 import io.openaev.rest.payload.form.PayloadCreateInput;
@@ -59,6 +60,7 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private DomainComposer domainComposer;
   @Autowired private EndpointComposer endpointComposer;
+  @Autowired private OpenaevInjectorIntegrationFactory openaevInjectorIntegrationFactory;
 
   @MockitoBean private ImapService imapService;
 
@@ -70,7 +72,10 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
 
   // Ensure each test starts with clean spies and deterministic audit-enablement behavior.
   @BeforeEach
-  void beforeEach() {
+  void beforeEach() throws Exception {
+    // Register the built-in injector so payload -> injector contract synchronization never returns
+    // null.
+    openaevInjectorIntegrationFactory.registerConnectorForTenant();
     reset(auditLogger);
     reset(logService);
     reset(auditLogTransportDispatcherUtils);
