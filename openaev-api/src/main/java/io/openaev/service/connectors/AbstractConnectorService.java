@@ -1,5 +1,7 @@
 package io.openaev.service.connectors;
 
+import io.openaev.context.CallContext;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
@@ -121,13 +123,14 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
    * @param includeNext Include or not pending connector
    * @return list of connectors
    */
-  public Iterable<Output> getConnectorsOutput(boolean includeNext) {
+  public Iterable<Output> getConnectorsOutput(CallContext callContext, boolean includeNext) {
     List<T> connectors = getAllConnectors();
     List<ConnectorInstancePersisted> instancesPersisted =
         this.connectorInstanceService.getAllConnectorInstancesPersistedByConnectorType(
             connectorType);
     List<ConnectorInstanceInMemory> instancesInMemory =
-        this.connectorInstanceService.getConnectorInstancesInMemoryByConnectorType(connectorType);
+        this.connectorInstanceService.getConnectorInstancesInMemoryByConnectorType(
+            callContext, connectorType);
 
     Map<String, ConnectorInstance> instancesByConnectorIdMap =
         mapInstancesByConnectorId(
@@ -173,7 +176,7 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
   public ConnectorIds getConnectorRelationsId(String connectorId) {
     ConnectorInstanceConfigurationRepository.ConnectorIdsFromDatabase relatedIds =
         connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValue(
-            this.connectorType.getIdKeyName(), connectorId);
+            this.connectorType.getIdKeyName(), connectorId, TenantContext.getCurrentTenant());
     if (relatedIds != null) {
       boolean registered = getConnectorById(connectorId) != null;
       return catalogConnectorMapper.toConnectorIds(

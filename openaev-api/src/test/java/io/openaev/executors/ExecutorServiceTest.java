@@ -40,8 +40,7 @@ class ExecutorServiceTest {
         "Given new executor, register should set tenantId so @JoinColumnsOrFormulas resolves correctly")
     void given_newExecutor_should_setTenantIdForCompositeJoinResolution() throws Exception {
       // -------- Arrange --------
-      when(executorRepository.findByIdAndTenantId("exec-new", "tenant-001"))
-          .thenReturn(Optional.empty());
+      when(executorRepository.findById("exec-new", "tenant-001")).thenReturn(Optional.empty());
       when(executorRepository.save(any(Executor.class)))
           .thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -55,7 +54,8 @@ class ExecutorServiceTest {
               "#00CC66",
               null,
               null,
-              new String[] {"Linux", "Windows"});
+              new String[] {"Linux", "Windows"},
+              "tenant-001");
 
       // -------- Assert --------
       assertThat(result.getTenant()).as("Executor should have tenant set").isNotNull();
@@ -81,7 +81,7 @@ class ExecutorServiceTest {
       existing.setType("openaev_crowdstrike_executor");
       existing.setTenantId("tenant-001");
 
-      when(executorRepository.findByIdAndTenantId("exec-existing", "tenant-001"))
+      when(executorRepository.findById("exec-existing", "tenant-001"))
           .thenReturn(Optional.of(existing));
       when(executorRepository.save(any(Executor.class)))
           .thenAnswer(invocation -> invocation.getArgument(0));
@@ -96,7 +96,8 @@ class ExecutorServiceTest {
               "#E12E37",
               null,
               null,
-              new String[] {"Windows"});
+              new String[] {"Windows"},
+              "tenant-001");
 
       // -------- Assert --------
       assertThat(result.getName()).isEqualTo("NewName");
@@ -110,8 +111,7 @@ class ExecutorServiceTest {
     void given_newExecutor_savedEntity_should_haveTenantAndTenantIdConsistent() throws Exception {
       // -------- Arrange --------
       ArgumentCaptor<Executor> captor = ArgumentCaptor.forClass(Executor.class);
-      when(executorRepository.findByIdAndTenantId("exec-cap", "tenant-001"))
-          .thenReturn(Optional.empty());
+      when(executorRepository.findById("exec-cap", "tenant-001")).thenReturn(Optional.empty());
       when(executorRepository.save(captor.capture()))
           .thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -124,7 +124,8 @@ class ExecutorServiceTest {
           null,
           null,
           null,
-          new String[] {"Linux"});
+          new String[] {"Linux"},
+          "tenant-001");
 
       // -------- Assert --------
       Executor saved = captor.getValue();

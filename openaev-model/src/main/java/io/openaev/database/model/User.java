@@ -357,10 +357,10 @@ public class User implements Base {
    * access to tenant-scoped resources, not platform-only ones.
    */
   public boolean hasTenantBypass() {
-    String currentTenant = TenantContext.getCurrentTenant();
-    if (currentTenant == null) {
+    if (!TenantContext.hasCurrentTenant()) {
       return false;
     }
+    String currentTenant = TenantContext.getCurrentTenant();
     return getGroups().stream()
         .filter(
             group -> group.getTenant() != null && currentTenant.equals(group.getTenant().getId()))
@@ -376,15 +376,17 @@ public class User implements Base {
 
   /**
    * Returns only groups visible in the current tenant context: groups belonging to the current
-   * tenant plus platform-level groups (tenant IS NULL).
+   * tenant plus platform-level groups (tenant IS NULL). If no tenant context is set (e.g.
+   * background thread), returns all groups.
    */
   private List<Group> scopedGroups() {
+    if (!TenantContext.hasCurrentTenant()) {
+      return getGroups();
+    }
     String currentTenant = TenantContext.getCurrentTenant();
     return getGroups().stream()
         .filter(
-            group ->
-                group.getTenant() == null
-                    || (currentTenant != null && currentTenant.equals(group.getTenant().getId())))
+            group -> group.getTenant() == null || currentTenant.equals(group.getTenant().getId()))
         .toList();
   }
 

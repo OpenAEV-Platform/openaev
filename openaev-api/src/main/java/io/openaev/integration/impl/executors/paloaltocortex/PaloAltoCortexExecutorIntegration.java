@@ -35,8 +35,6 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 
 @Slf4j
 public class PaloAltoCortexExecutorIntegration extends Integration {
-  public static final String PALOALTOCORTEX_EXECUTOR_DEFAULT_ID =
-      "2177ceeb-a9e2-4a33-bf30-1bf7c47f150a";
   public static final String PALOALTOCORTEX_EXECUTOR_TYPE = "openaev_paloaltocortex_executor";
   public static final String PALOALTOCORTEX_EXECUTOR_NAME = "PaloAltoCortex";
   private static final String PALOALTOCORTEX_EXECUTOR_DOCUMENTATION_LINK =
@@ -127,7 +125,8 @@ public class PaloAltoCortexExecutorIntegration extends Integration {
               Endpoint.PLATFORM_TYPE.Windows.name(),
               Endpoint.PLATFORM_TYPE.Linux.name(),
               Endpoint.PLATFORM_TYPE.MacOS.name()
-            });
+            },
+            getTenantId());
 
     client = new PaloAltoCortexExecutorClient(config, httpClientFactory);
     paloAltoCortexExecutorContextService =
@@ -138,7 +137,11 @@ public class PaloAltoCortexExecutorIntegration extends Integration {
             executor, client, config, endpointService, agentService, assetGroupService);
     paloAltoCortexGarbageCollectorService =
         new PaloAltoCortexGarbageCollectorService(
-            config, paloAltoCortexExecutorContextService, agentService, executorId);
+            config,
+            paloAltoCortexExecutorContextService,
+            agentService,
+            executorId,
+            executor.getTenantId());
 
     timers.add(
         taskScheduler.scheduleAtFixedRate(

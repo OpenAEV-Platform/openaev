@@ -13,6 +13,7 @@ import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.config.SessionHelper;
 import io.openaev.config.SessionManager;
 import io.openaev.config.cache.TenantMembershipCacheManager;
+import io.openaev.context.CallContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.TagRepository;
@@ -283,7 +284,7 @@ public class UserService {
    * @param input input object for the specific user account to reset
    */
   @Async
-  public void requestPasswordReset(ResetUserInput input) {
+  public void requestPasswordReset(CallContext callContext, ResetUserInput input) {
     Optional<User> optionalUser = userRepository.findByEmailIgnoreCase(input.getLogin());
     // always compute a random value to reduce gap in time
     // spent between user found and user not found branches
@@ -302,7 +303,7 @@ public class UserService {
                 + "Nous avons reçu une demande de réinitialisation de votre mot de passe OpenAEV.</br>"
                 + "Entrez le code de réinitialisation du mot de passe suivant : "
                 + resetToken;
-        mailingService.sendEmail(subject, body, List.of(user));
+        mailingService.sendEmail(callContext, subject, body, List.of(user));
       } else {
         String subject = "OpenAEV account recovery code: " + resetToken;
         String body =
@@ -312,7 +313,7 @@ public class UserService {
                 + "A request has been made to reset your OpenAEV password.</br>"
                 + "Enter the following password recovery code: "
                 + resetToken;
-        mailingService.sendEmail(subject, body, List.of(user));
+        mailingService.sendEmail(callContext, subject, body, List.of(user));
       }
       // Store in memory reset token
       synchronized (resetTokenMap) {

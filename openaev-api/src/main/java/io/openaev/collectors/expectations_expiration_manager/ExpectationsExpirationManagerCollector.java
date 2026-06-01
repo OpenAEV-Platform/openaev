@@ -3,6 +3,7 @@ package io.openaev.collectors.expectations_expiration_manager;
 import io.openaev.collectors.expectations_expiration_manager.config.ExpectationsExpirationManagerConfig;
 import io.openaev.collectors.expectations_expiration_manager.service.ExpectationsExpirationManagerService;
 import io.openaev.rest.collector.service.CollectorService;
+import io.openaev.service.tenants.TenantService;
 import jakarta.annotation.PostConstruct;
 import java.time.Duration;
 import java.time.Instant;
@@ -19,13 +20,17 @@ public class ExpectationsExpirationManagerCollector {
   private final ThreadPoolTaskScheduler taskScheduler;
   private final ExpectationsExpirationManagerService expectationsExpirationManagerService;
   private final CollectorService collectorService;
+  private final TenantService tenantService;
 
   @PostConstruct
   public void init() {
     if (this.config.isEnable()) {
       ExpectationsExpirationManagerJob job =
           new ExpectationsExpirationManagerJob(
-              this.collectorService, this.config, this.expectationsExpirationManagerService);
+              this.collectorService,
+              this.config,
+              this.expectationsExpirationManagerService,
+              this.tenantService);
       this.taskScheduler.scheduleAtFixedRate(
           job,
           Instant.now().plus(1, ChronoUnit.MINUTES),

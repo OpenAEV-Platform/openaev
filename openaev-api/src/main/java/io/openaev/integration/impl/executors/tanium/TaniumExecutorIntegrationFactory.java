@@ -21,11 +21,13 @@ import io.openaev.service.EndpointService;
 import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import jakarta.persistence.EntityManagerFactory;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 @Profile("!test")
@@ -45,6 +47,8 @@ public class TaniumExecutorIntegrationFactory extends IntegrationFactory {
   private final ThreadPoolTaskScheduler taskScheduler;
   private final FileService fileService;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
+  private final TransactionTemplate transactionTemplate;
+  private final EntityManagerFactory entityManagerFactory;
 
   public TaniumExecutorIntegrationFactory(
       ConnectorInstanceService connectorInstanceService,
@@ -60,7 +64,9 @@ public class TaniumExecutorIntegrationFactory extends IntegrationFactory {
       ThreadPoolTaskScheduler taskScheduler,
       FileService fileService,
       BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder,
-      HttpClientFactory httpClientFactory) {
+      HttpClientFactory httpClientFactory,
+      TransactionTemplate transactionTemplate,
+      EntityManagerFactory entityManagerFactory) {
     super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.executorService = executorService;
     this.componentRequestEngine = componentRequestEngine;
@@ -75,6 +81,8 @@ public class TaniumExecutorIntegrationFactory extends IntegrationFactory {
     this.taskScheduler = taskScheduler;
     this.fileService = fileService;
     this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
+    this.transactionTemplate = transactionTemplate;
+    this.entityManagerFactory = entityManagerFactory;
   }
 
   @Override
@@ -90,10 +98,6 @@ public class TaniumExecutorIntegrationFactory extends IntegrationFactory {
   @Override
   protected void insertCatalogEntry() throws Exception {
     String logoFilename = "%s-logo.png".formatted(TANIUM_EXECUTOR_TYPE);
-    fileService.uploadStream(
-        FileService.CONNECTORS_LOGO_PATH,
-        logoFilename,
-        getClass().getResourceAsStream("/img/icon-tanium.png"));
     CatalogConnector connector = new CatalogConnector();
     connector.setTitle("Tanium Executor");
     connector.setSlug(TANIUM_EXECUTOR_TYPE);
@@ -113,6 +117,15 @@ public class TaniumExecutorIntegrationFactory extends IntegrationFactory {
   }
 
   @Override
+  protected void uploadAssets() throws Exception {
+    String logoFilename = "%s-logo.png".formatted(TANIUM_EXECUTOR_TYPE);
+    fileService.uploadStream(
+        FileService.CONNECTORS_LOGO_PATH,
+        logoFilename,
+        getClass().getResourceAsStream("/img/icon-tanium.png"));
+  }
+
+  @Override
   public Integration spawn(ConnectorInstance instance) {
     return new TaniumExecutorIntegration(
         instance,
@@ -126,6 +139,8 @@ public class TaniumExecutorIntegrationFactory extends IntegrationFactory {
         executorService,
         taskScheduler,
         baseIntegrationConfigurationBuilder,
-        httpClientFactory);
+        httpClientFactory,
+        transactionTemplate,
+        entityManagerFactory);
   }
 }

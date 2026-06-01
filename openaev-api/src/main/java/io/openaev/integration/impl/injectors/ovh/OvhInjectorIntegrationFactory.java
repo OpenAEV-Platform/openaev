@@ -15,7 +15,6 @@ import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
 import io.openaev.integration.migration.OvhInjectorConfigurationMigration;
 import io.openaev.service.FileService;
 import io.openaev.service.InjectExpectationService;
-import io.openaev.service.InjectorService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import java.lang.reflect.InvocationTargetException;
@@ -33,7 +32,6 @@ public class OvhInjectorIntegrationFactory extends IntegrationFactory {
 
   private final CatalogConnectorService catalogConnectorService;
   private final ConnectorInstanceService connectorInstanceService;
-  private final InjectorService injectorService;
   private final InjectExpectationService injectExpectationService;
   private final FileService fileService;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
@@ -47,7 +45,6 @@ public class OvhInjectorIntegrationFactory extends IntegrationFactory {
       OvhSmsContract ovhSmsContract,
       InjectorContext injectorContext,
       OvhInjectorConfigurationMigration ovhInjectorConfigurationMigration,
-      InjectorService injectorService,
       InjectExpectationService injectExpectationService,
       FileService fileService,
       BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder,
@@ -58,7 +55,6 @@ public class OvhInjectorIntegrationFactory extends IntegrationFactory {
     this.ovhSmsContract = ovhSmsContract;
     this.injectorContext = injectorContext;
     this.ovhInjectorConfigurationMigration = ovhInjectorConfigurationMigration;
-    this.injectorService = injectorService;
     this.injectExpectationService = injectExpectationService;
     this.catalogConnectorService = catalogConnectorService;
     this.fileService = fileService;
@@ -79,10 +75,6 @@ public class OvhInjectorIntegrationFactory extends IntegrationFactory {
   protected void insertCatalogEntry() throws Exception {
     CatalogConnector connector = new CatalogConnector();
     String logoFilename = "%s-logo.png".formatted(ovhSmsContract.getType());
-    fileService.uploadStream(
-        FileService.CONNECTORS_LOGO_PATH,
-        logoFilename,
-        getClass().getResourceAsStream("/img/icon-ovh-sms.png"));
     connector.setTitle("OVHCloud SMS Platform");
     connector.setSlug(ovhSmsContract.getType());
     connector.setLogoUrl(logoFilename);
@@ -101,6 +93,15 @@ public class OvhInjectorIntegrationFactory extends IntegrationFactory {
   }
 
   @Override
+  protected void uploadAssets() throws Exception {
+    String logoFilename = "%s-logo.png".formatted(ovhSmsContract.getType());
+    fileService.uploadStream(
+        FileService.CONNECTORS_LOGO_PATH,
+        logoFilename,
+        getClass().getResourceAsStream("/img/icon-ovh-sms.png"));
+  }
+
+  @Override
   public Integration spawn(ConnectorInstance instance)
       throws JsonProcessingException,
           InvocationTargetException,
@@ -111,9 +112,7 @@ public class OvhInjectorIntegrationFactory extends IntegrationFactory {
         componentRequestEngine,
         instance,
         connectorInstanceService,
-        ovhSmsContract,
         injectorContext,
-        injectorService,
         injectExpectationService,
         baseIntegrationConfigurationBuilder);
   }

@@ -127,6 +127,11 @@ public class TenantService {
     return tenantRepository.countByDeletedAtIsNull();
   }
 
+  @Transactional(readOnly = true)
+  public List<String> findActiveTenantIds() {
+    return tenantRepository.findAllIdsByDeletedAtIsNull();
+  }
+
   // -- UPDATE --
 
   /** Updates an existing tenant's attributes. */

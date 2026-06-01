@@ -10,6 +10,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
+import io.openaev.integration.Manager;
 import io.openaev.integration.impl.injectors.challenge.ChallengeInjectorIntegrationFactory;
 import io.openaev.integration.impl.injectors.channel.ChannelInjectorIntegrationFactory;
 import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
@@ -37,10 +39,14 @@ class InjectorContratApiTest extends IntegrationTest {
 
   @BeforeEach
   public void before() throws Exception {
-    emailInjectorIntegrationFactory.registerConnectorForTenant();
-    challengeInjectorIntegrationFactory.registerConnectorForTenant();
-    channelInjectorIntegrationFactory.registerConnectorForTenant();
-    manualInjectorIntegrationFactory.registerConnectorForTenant();
+    new Manager(
+            List.of(
+                emailInjectorIntegrationFactory,
+                challengeInjectorIntegrationFactory,
+                channelInjectorIntegrationFactory,
+                manualInjectorIntegrationFactory),
+            TenantContext.getCurrentTenant())
+        .monitorIntegrations();
   }
 
   @Nested

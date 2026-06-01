@@ -17,7 +17,10 @@ public interface InjectorRepository
 
   Optional<Injector> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
-  @NotNull
+  List<Injector> findAllByTenantId(@NotNull String tenantId);
+
+  List<Injector> findAllByIdInAndTenantId(@NotNull List<String> ids, @NotNull String tenantId);
+
   Optional<Injector> findByTypeAndTenantId(@NotNull String type, @NotNull String tenantId);
 
   List<Injector> findAllByPayloadsAndTenantId(@NotNull Boolean payloads, @NotNull String tenantId);

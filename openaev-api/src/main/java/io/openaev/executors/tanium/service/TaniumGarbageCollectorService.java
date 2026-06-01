@@ -21,22 +21,25 @@ public class TaniumGarbageCollectorService implements Runnable {
   private final TaniumExecutorContextService taniumExecutorContextService;
   private final AgentService agentService;
   private final String executorId;
+  private final String tenantId;
 
   public TaniumGarbageCollectorService(
       TaniumExecutorConfig config,
       TaniumExecutorContextService taniumExecutorContextService,
       AgentService agentService,
-      String executorId) {
+      String executorId,
+      String tenantId) {
     this.config = config;
     this.taniumExecutorContextService = taniumExecutorContextService;
     this.agentService = agentService;
     this.executorId = executorId;
+    this.tenantId = tenantId;
   }
 
   @Override
   public void run() {
     List<io.openaev.database.model.Agent> agents =
-        this.agentService.getAgentsByExecutorId(executorId);
+        this.agentService.getAgentsByExecutorId(executorId, tenantId);
     if (!agents.isEmpty()) {
       log.info("Running Tanium executor garbage collector on " + agents.size() + " agents");
       List<TaniumAction> actions = new ArrayList<>();

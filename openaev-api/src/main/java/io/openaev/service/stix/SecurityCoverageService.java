@@ -37,6 +37,7 @@ import io.openaev.stix.parsing.ParsingException;
 import io.openaev.stix.types.*;
 import io.openaev.stix.types.Boolean;
 import io.openaev.stix.types.Dictionary;
+import io.openaev.utils.DeterministicIdUtils;
 import io.openaev.utils.InjectExpectationResultUtils;
 import io.openaev.utils.ResultUtils;
 import io.openaev.utils.SecurityCoverageUtils;
@@ -45,7 +46,6 @@ import io.openaev.utils.time.TimeUtils;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
@@ -764,7 +764,6 @@ public class SecurityCoverageService {
 
   private Identifier generateRelationship(String sourceId, String targetId) {
     return new Identifier(
-        ObjectTypes.RELATIONSHIP.toString(),
-        UUID.nameUUIDFromBytes((sourceId + targetId).getBytes(StandardCharsets.UTF_8)).toString());
+        ObjectTypes.RELATIONSHIP.toString(), DeterministicIdUtils.derive(sourceId, targetId));
   }
 }

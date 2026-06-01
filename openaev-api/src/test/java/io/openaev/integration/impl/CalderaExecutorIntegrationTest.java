@@ -7,6 +7,7 @@ import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CatalogConnectorRepository;
 import io.openaev.ee.EnterpriseEditionService;
@@ -111,7 +112,8 @@ public class CalderaExecutorIntegrationTest {
     List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
     List<ConnectorInstancePersisted> instances =
         connectorInstanceService.findAllByCatalogConnector(connectors.getFirst());
-    List<Integration> syncedIntegrations = integrationFactory.sync(new ArrayList<>(instances));
+    List<Integration> syncedIntegrations =
+        integrationFactory.sync(new ArrayList<>(instances), TenantContext.getCurrentTenant());
 
     assertThat(syncedIntegrations).hasSize(1);
     assertThat(syncedIntegrations).first().isInstanceOf(CalderaExecutorIntegration.class);
@@ -134,7 +136,8 @@ public class CalderaExecutorIntegrationTest {
     List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
     List<ConnectorInstancePersisted> instances =
         connectorInstanceService.findAllByCatalogConnector(connectors.getFirst());
-    List<Integration> syncedIntegrations = integrationFactory.sync(new ArrayList<>(instances));
+    List<Integration> syncedIntegrations =
+        integrationFactory.sync(new ArrayList<>(instances), TenantContext.getCurrentTenant());
 
     assertThat(syncedIntegrations).hasSize(1);
     assertThat(syncedIntegrations).first().isInstanceOf(CalderaExecutorIntegration.class);
@@ -242,7 +245,8 @@ public class CalderaExecutorIntegrationTest {
         .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
 
     // Act & Assert — innerStart() fails because Caldera server is not available
-    assertThatThrownBy(integration::initialise).isInstanceOf(RuntimeException.class);
+    assertThatThrownBy(() -> integration.initialise(TenantContext.getCurrentTenant()))
+        .isInstanceOf(RuntimeException.class);
 
     // Status should remain stopped since start() did not complete
     assertThat(integration.getCurrentStatus())
@@ -267,7 +271,7 @@ public class CalderaExecutorIntegrationTest {
 
     Integration integration = integrationFactory.spawn(instance);
     try {
-      integration.initialise();
+      integration.initialise(TenantContext.getCurrentTenant());
     } catch (Exception ignored) {
       // Expected: innerStart fails because no Caldera server
     }
@@ -279,7 +283,7 @@ public class CalderaExecutorIntegrationTest {
     connectorInstanceService.save(instance);
 
     // Act — should not throw, the stop on already-stopped is a no-op
-    integration.initialise();
+    integration.initialise(TenantContext.getCurrentTenant());
 
     // Assert
     assertThat(integration.getCurrentStatus())

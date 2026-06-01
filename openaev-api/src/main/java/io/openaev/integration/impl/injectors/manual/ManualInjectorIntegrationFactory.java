@@ -1,15 +1,17 @@
 package io.openaev.integration.impl.injectors.manual;
 
+import static io.openaev.integration.impl.injectors.manual.ManualInjectorIntegration.MANUAL_INJECTOR_ID;
+import static io.openaev.utils.DeterministicIdUtils.resolveConnectorId;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.executors.InjectorContext;
 import io.openaev.injectors.manual.ManualContract;
-import io.openaev.integration.BuiltinIntegrationFactory;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
-import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.integration.IntegrationFactory;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
@@ -19,7 +21,7 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 
 @Service
-public class ManualInjectorIntegrationFactory extends BuiltinIntegrationFactory {
+public class ManualInjectorIntegrationFactory extends IntegrationFactory {
 
   private final ManualContract manualContract;
   private final InjectorContext injectorContext;
@@ -64,10 +66,10 @@ public class ManualInjectorIntegrationFactory extends BuiltinIntegrationFactory 
   }
 
   @Override
-  public List<ConnectorInstance> findRelatedInstances() {
+  public List<ConnectorInstance> findRelatedInstances(String tenantId) {
     return List.of(
         connectorInstanceService.createAutostartInstance(
-            ManualInjectorIntegration.MANUAL_INJECTOR_ID,
+            resolveConnectorId(MANUAL_INJECTOR_ID, tenantId),
             this.getClassName(),
             ConnectorType.INJECTOR));
   }
@@ -87,23 +89,5 @@ public class ManualInjectorIntegrationFactory extends BuiltinIntegrationFactory 
         injectorContext,
         injectorService,
         injectExpectationService);
-  }
-
-  @Override
-  public void registerConnectorForTenant() throws Exception {
-    try {
-      injectorService.injector(ManualInjectorIntegration.MANUAL_INJECTOR_ID);
-    } catch (ElementNotFoundException e) {
-      injectorService.registerBuiltinInjector(
-          ManualInjectorIntegration.MANUAL_INJECTOR_ID,
-          ManualInjectorIntegration.MANUAL_INJECTOR_NAME,
-          manualContract,
-          true,
-          "generic",
-          null,
-          null,
-          false,
-          List.of());
-    }
   }
 }

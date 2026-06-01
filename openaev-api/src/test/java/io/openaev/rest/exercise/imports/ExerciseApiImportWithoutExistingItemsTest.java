@@ -11,6 +11,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
+import io.openaev.integration.Manager;
 import io.openaev.integration.impl.injectors.challenge.ChallengeInjectorIntegrationFactory;
 import io.openaev.rest.exercise.exports.ExportOptions;
 import io.openaev.rest.exercise.service.ExportService;
@@ -87,7 +88,10 @@ public class ExerciseApiImportWithoutExistingItemsTest extends IntegrationTest {
     documentComposer.reset();
     tagComposer.reset();
     exerciseComposer.reset();
-    challengeInjectorIntegrationFactory.registerConnectorForTenant();
+    new Manager(
+            List.of(challengeInjectorIntegrationFactory),
+            io.openaev.context.TenantContext.getCurrentTenant())
+        .monitorIntegrations();
   }
 
   // this is part of the "Arrange" part of the AAA pattern for the following tests

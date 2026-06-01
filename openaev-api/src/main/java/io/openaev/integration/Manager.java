@@ -14,9 +14,11 @@ public class Manager {
   private final List<IntegrationFactory> factories;
 
   @Getter private final Map<ConnectorInstance, Integration> spawnedIntegrations = new HashMap<>();
+  private final String tenantId;
 
-  public Manager(List<IntegrationFactory> factories) throws Exception {
+  public Manager(List<IntegrationFactory> factories, String tenantId) throws Exception {
     this.factories = factories;
+    this.tenantId = tenantId;
 
     initialise();
   }
@@ -119,30 +121,32 @@ public class Manager {
   public void monitorIntegrations() {
     for (IntegrationFactory factory : factories) {
       List<ConnectorInstance> newInstances =
-          factory.findRelatedInstances().stream()
+          factory.findRelatedInstances(tenantId).stream()
               .filter(ci -> !spawnedIntegrations.containsKey(ci))
               .toList();
 
       if (!newInstances.isEmpty()) {
         log.info(
-            "monitorIntegrations: found {} new instance(s) for factory {}: {}",
+            "monitorIntegrations: found {} new instance(s) for factory {} and tenant {}: {}",
             newInstances.size(),
-            factory.getClassName(),
+            factory.getClass().getCanonicalName(),
+            tenantId,
             newInstances.stream().map(ConnectorInstance::getId).toList());
       }
 
-      List<Integration> newIntegrations = factory.sync(newInstances);
+      List<Integration> newIntegrations = factory.sync(newInstances, tenantId);
 
       for (Integration integration : newIntegrations) {
         spawnedIntegrations.put(integration.getConnectorInstance(), integration);
       }
     }
 
+    List<ConnectorInstance> toRemove = new ArrayList<>();
     for (Map.Entry<ConnectorInstance, Integration> entry : spawnedIntegrations.entrySet()) {
       try {
-        entry.getValue().initialise();
+        entry.getValue().initialise(tenantId);
         if (entry.getValue().getConnectorInstance() == null) {
-          spawnedIntegrations.remove(entry.getKey());
+          toRemove.add(entry.getKey());
         }
       } catch (Exception e) {
         log.error(
@@ -153,5 +157,6 @@ public class Manager {
         // do not rethrow; don't break the loop
       }
     }
+    toRemove.forEach(spawnedIntegrations::remove);
   }
 }

@@ -31,6 +31,7 @@ import io.openaev.rest.asset.endpoint.form.EndpointOutput;
 import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.account.ServiceAccountPrivilegeService;
+import io.openaev.utils.DeterministicIdUtils;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.mapper.EndpointMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -419,6 +420,7 @@ public class EndpointService {
         endpointToSave.setIps(inputToUpdate.getIps());
         endpointToSave.setSeenIp(inputToUpdate.getSeenIp());
         endpointToSave.setMacAddresses(inputToUpdate.getMacAddresses());
+        endpointToSave.setTenant(inputToUpdate.getExecutor().getTenant());
         // TODO: Making this function transactional is not helping to solve tags
         // addSourceTagToEndpoint(endpointToSave, inputToUpdate);
         endpointsToSave.add(endpointToSave);
@@ -655,7 +657,10 @@ public class EndpointService {
     AgentRegisterInput agentInput = new AgentRegisterInput();
     agentInput.setExecutor(
         executorRepository
-            .findByIdAndTenantId(OPENAEV_EXECUTOR_ID, TenantContext.getCurrentTenant())
+            .findById(
+                DeterministicIdUtils.resolveConnectorId(
+                    OPENAEV_EXECUTOR_ID, TenantContext.getCurrentTenant()),
+                TenantContext.getCurrentTenant())
             .orElse(null));
     agentInput.setLastSeen(Instant.now());
     agentInput.setExternalReference(input.getExternalReference());

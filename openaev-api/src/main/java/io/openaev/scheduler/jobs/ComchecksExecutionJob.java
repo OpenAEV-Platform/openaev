@@ -52,8 +52,11 @@ public class ComchecksExecutionJob implements Job {
 
   private Inject buildComcheckEmail(Comcheck comCheck) {
     Inject emailInject = new Inject();
+    String tenantId = comCheck.getExercise().getTenant().getId();
     InjectorContract contract =
-        injectorContractRepository.findById(EmailContract.EMAIL_DEFAULT).orElseThrow();
+        injectorContractRepository
+            .findByIdAndTenantId(EmailContract.EMAIL_DEFAULT, tenantId)
+            .orElseThrow();
     emailInject.setInjectorContract(contract);
     emailInject.setInjector(contract.getFirstInjector());
     emailInject.setExercise(comCheck.getExercise());
@@ -113,7 +116,9 @@ public class ComchecksExecutionJob implements Job {
                 ExecutableInject injection =
                     new ExecutableInject(false, true, emailInject, userInjectContexts);
                 io.openaev.executors.Injector emailExecutor =
-                    this.managerFactory.getManager().requestEmailInjector();
+                    this.managerFactory
+                        .getManager(comCheck.getExercise().getTenant().getId())
+                        .requestEmailInjector();
                 Execution execution = emailExecutor.executeInjection(injection);
                 // Save the status sent date
                 List<String> usersSuccessfullyNotified =

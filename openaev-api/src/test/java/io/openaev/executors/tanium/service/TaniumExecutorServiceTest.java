@@ -22,6 +22,8 @@ import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
 import io.openaev.utils.fixtures.*;
 import java.util.*;
+import java.util.function.Consumer;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -30,11 +32,13 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @ExtendWith(MockitoExtension.class)
 public class TaniumExecutorServiceTest {
 
   private static final String HOST_GROUP_TANIUM = "hostGroupTanium";
+  private static final String TENANT_ID = "test-tenant-id";
 
   @Mock private TaniumExecutorClient client;
   @Mock private TaniumExecutorConfig config;
@@ -44,6 +48,7 @@ public class TaniumExecutorServiceTest {
   @Mock private EndpointService endpointService;
   @Mock private AgentService agentService;
   @Mock private ExecutorService executorService;
+  @Mock private TransactionTemplate transactionTemplate;
 
   @InjectMocks private TaniumExecutorService taniumExecutorService;
 
@@ -54,11 +59,27 @@ public class TaniumExecutorServiceTest {
 
   @BeforeEach
   void setUp() {
+    TenantContext.setCurrentTenant(TENANT_ID);
+    // Make TransactionTemplate actually execute the callback
+    doAnswer(
+            invocation -> {
+              Consumer<?> action = invocation.getArgument(0);
+              ((Consumer) action).accept(null);
+              return null;
+            })
+        .when(transactionTemplate)
+        .executeWithoutResult(any());
+
     taniumEndpoint = TaniumDeviceFixture.createDefaultTaniumEndpoint();
     taniumExecutor = new Executor();
     taniumExecutor.setName(TaniumExecutorIntegration.TANIUM_EXECUTOR_NAME);
     taniumExecutor.setType(TaniumExecutorIntegration.TANIUM_EXECUTOR_TYPE);
-    taniumExecutor.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    taniumExecutor.setTenant(new Tenant(TENANT_ID));
+  }
+
+  @AfterEach
+  void tearDown() {
+    TenantContext.clearCurrentTenant();
   }
 
   @Test
@@ -77,8 +98,11 @@ public class TaniumExecutorServiceTest {
     taniumExecutorService.run();
     // Asserts
     ArgumentCaptor<String> executorIdCaptor = ArgumentCaptor.forClass(String.class);
-    verify(agentService).getAgentsByExecutorId(executorIdCaptor.capture());
+    ArgumentCaptor<String> tenantIdCaptor = ArgumentCaptor.forClass(String.class);
+    verify(agentService)
+        .getAgentsByExecutorId(executorIdCaptor.capture(), tenantIdCaptor.capture());
     assertEquals(taniumExecutor.getId(), executorIdCaptor.getValue());
+    assertEquals(TENANT_ID, tenantIdCaptor.getValue());
 
     ArgumentCaptor<List<AgentRegisterInput>> inputsCaptor = ArgumentCaptor.forClass(List.class);
     ArgumentCaptor<List<Agent>> agents = ArgumentCaptor.forClass(List.class);

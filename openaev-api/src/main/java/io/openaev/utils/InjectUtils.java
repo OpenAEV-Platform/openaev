@@ -94,7 +94,9 @@ public class InjectUtils {
   public Injector resolveInjectorReference(
       @Nullable String injectorId, @Nullable InjectorContract injectorContract) {
     if (StringUtils.isNotBlank(injectorId)) {
-      return injectorRepository.getReferenceById(injectorId);
+      return injectorRepository
+          .findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant())
+          .orElse(null);
     }
     // Auto-resolve from the contract's linked injector (single-instance fallback)
     if (injectorContract != null && injectorContract.getFirstInjector() != null) {

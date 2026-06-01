@@ -1,3 +1,4 @@
+import { Backdrop, CircularProgress, Typography } from '@mui/material';
 import { type FunctionComponent, useCallback, useState } from 'react';
 
 import { addTenant } from '../../../../../actions/platform/tenants/tenant-action';
@@ -5,7 +6,6 @@ import ButtonCreate from '../../../../../components/common/ButtonCreate';
 import useDialog from '../../../../../components/common/dialog/useDialog';
 import Drawer from '../../../../../components/common/Drawer';
 import { useFormatter } from '../../../../../components/i18n';
-import Loader from '../../../../../components/Loader';
 import { type TenantInput, type TenantOutput } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useAuth from '../../../../../utils/hooks/useAuth';
@@ -24,7 +24,6 @@ const TenantCreate: FunctionComponent<Props> = ({ onCreate }) => {
   const handleSubmit = useCallback(
     async (data: TenantInput) => {
       setLoading(true);
-      // Close the drawer immediately so the user isn't blocked
       handleClose();
 
       try {
@@ -54,15 +53,20 @@ const TenantCreate: FunctionComponent<Props> = ({ onCreate }) => {
         handleClose={handleClose}
         title={t('Create a new tenant')}
       >
-        {loading
-          ? <Loader variant="inElement" />
-          : (
-              <TenantForm
-                onSubmit={handleSubmit}
-                onCancel={handleClose}
-              />
-            )}
+        <TenantForm
+          onSubmit={handleSubmit}
+          onCancel={handleClose}
+        />
       </Drawer>
+      <Backdrop
+        open={loading}
+        sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, flexDirection: 'column', gap: 2 }}
+      >
+        <CircularProgress color="inherit" />
+        <Typography variant="h6" color="inherit">
+          {t('Creating tenant…')}
+        </Typography>
+      </Backdrop>
     </>
   );
 };

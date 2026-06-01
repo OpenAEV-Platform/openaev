@@ -11,6 +11,7 @@ import io.openaev.database.model.Group;
 import io.openaev.database.model.User;
 import io.openaev.opencti.connectors.Constants;
 import io.openaev.service.UserMappingService;
+import io.openaev.utils.DeterministicIdUtils;
 import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.fixtures.composers.TenantGroupComposer;
@@ -46,9 +47,7 @@ public class UserMappingServiceTest extends IntegrationTest {
   }
 
   private String tenantScopedId(String id) {
-    return UUID.nameUUIDFromBytes(
-            (UUID.fromString(id) + ":" + TenantContext.getCurrentTenant()).getBytes())
-        .toString();
+    return DeterministicIdUtils.derive(id, TenantContext.getCurrentTenant());
   }
 
   private String tenantScopedGroupId() {

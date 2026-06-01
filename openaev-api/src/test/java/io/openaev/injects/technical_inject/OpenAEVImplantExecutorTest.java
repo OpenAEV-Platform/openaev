@@ -9,14 +9,17 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.collectors.utils.CollectorsUtils;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.executors.InjectorContext;
 import io.openaev.injectors.openaev.OpenAEVImplantExecutor;
 import io.openaev.injectors.openaev.model.OpenAEVImplantInjectContent;
+import io.openaev.integration.Manager;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
 import io.openaev.model.inject.form.Expectation;
+import io.openaev.utils.DeterministicIdUtils;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utilstest.RabbitMQTestListener;
@@ -109,7 +112,8 @@ public class OpenAEVImplantExecutorTest extends IntegrationTest {
         Arguments.of(
             "vulnerability",
             InjectExpectation.EXPECTATION_TYPE.VULNERABILITY,
-            EXPECTATIONS_VULNERABILITY_COLLECTOR_ID));
+            DeterministicIdUtils.derive(
+                EXPECTATIONS_VULNERABILITY_COLLECTOR_ID, TenantContext.getCurrentTenant())));
   }
 
   @ParameterizedTest(
@@ -127,7 +131,10 @@ public class OpenAEVImplantExecutorTest extends IntegrationTest {
     expectation.setScore(100.0);
     expectation.setExpectationGroup(false);
 
-    openaevInjectorIntegrationFactory.registerConnectorForTenant();
+    new Manager(
+            List.of(openaevInjectorIntegrationFactory),
+            io.openaev.context.TenantContext.getCurrentTenant())
+        .monitorIntegrations();
     io.openaev.executors.Injector openAEVImplantExecutor =
         new OpenAEVImplantExecutor(
             injectorContext, assetGroupService, injectExpectationService, injectService);

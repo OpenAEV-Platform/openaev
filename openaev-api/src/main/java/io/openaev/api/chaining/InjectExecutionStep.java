@@ -590,7 +590,8 @@ public class InjectExecutionStep implements ActionStep {
 
       InjectorContract injectorContract =
           injectorContractRepository
-              .findById(inject.getInjectorContract().get().getId())
+              .findByIdAndTenantId(
+                  inject.getInjectorContract().get().getId(), inject.getTenant().getId())
               .orElseThrow(
                   () ->
                       new ChainingException(

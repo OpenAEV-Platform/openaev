@@ -22,6 +22,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 public class SentinelOneGarbageCollectorServiceTest {
 
   private static final String EXECUTOR_ID = "test-executor-id";
+  private static final String TENANT_ID = "test-tenant-id";
 
   @Mock private AgentService agentService;
   @Mock private SentinelOneExecutorContextService sentinelOneExecutorContextService;
@@ -33,7 +34,7 @@ public class SentinelOneGarbageCollectorServiceTest {
   void setUp() {
     sentinelOneGarbageCollectorService =
         new SentinelOneGarbageCollectorService(
-            config, sentinelOneExecutorContextService, agentService, EXECUTOR_ID);
+            config, sentinelOneExecutorContextService, agentService, EXECUTOR_ID, TENANT_ID);
   }
 
   @Test
@@ -41,7 +42,7 @@ public class SentinelOneGarbageCollectorServiceTest {
     // Init datas
     Agent agent = AgentFixture.createDefaultAgentService();
     agent.setAsset(EndpointFixture.createEndpoint());
-    when(agentService.getAgentsByExecutorId(EXECUTOR_ID)).thenReturn(List.of(agent));
+    when(agentService.getAgentsByExecutorId(EXECUTOR_ID, TENANT_ID)).thenReturn(List.of(agent));
     when(config.getWindowsScriptId()).thenReturn("test script");
     // Run method to test
     sentinelOneGarbageCollectorService.run();

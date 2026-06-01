@@ -169,7 +169,7 @@ public class InjectorContractComposer extends ComposerBase<InjectorContract> {
         // injectors_contracts forced implicit persistence; now it must be explicit.
         for (Injector injector : new ArrayList<>(injectorContract.getInjectors())) {
           if (!entityManager.contains(injector)) {
-            entityManager.persist(injector);
+            entityManager.merge(injector);
           }
         }
         entityManager.persist(injectorContract);

@@ -31,6 +31,7 @@ import io.openaev.database.repository.*;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.executors.Executor;
 import io.openaev.injector_contract.ContractTargetedProperty;
+import io.openaev.integration.Manager;
 import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
 import io.openaev.rest.atomic_testing.form.ExecutionTraceOutput;
@@ -137,8 +138,10 @@ class InjectApiTest extends IntegrationTest {
 
   @BeforeEach
   void beforeEach() throws Exception {
-    emailInjectorIntegrationFactory.registerConnectorForTenant();
-    openaevInjectorIntegrationFactory.registerConnectorForTenant();
+    new Manager(
+            List.of(emailInjectorIntegrationFactory, openaevInjectorIntegrationFactory),
+            io.openaev.context.TenantContext.getCurrentTenant())
+        .monitorIntegrations();
 
     Scenario scenario = new Scenario();
     scenario.setName("Scenario name");

@@ -66,7 +66,7 @@ public class InjectExpectationTraceApi extends RestBehavior {
 
     Collector collector =
         collectorRepository
-            .findByIdAndTenantId(input.getSourceId(), TenantContext.getCurrentTenant())
+            .findById(input.getSourceId(), TenantContext.getCurrentTenant())
             .orElseThrow(() -> new ElementNotFoundException("Collector not found"));
 
     return this.injectExpectationTraceRepository
@@ -109,7 +109,7 @@ public class InjectExpectationTraceApi extends RestBehavior {
     try {
       Collector collector =
           collectorRepository
-              .findByIdAndTenantId(sourceId, TenantContext.getCurrentTenant())
+              .findById(sourceId, TenantContext.getCurrentTenant())
               .orElseThrow(() -> new ElementNotFoundException("Collector not found"));
       return this.injectExpectationTraceService.getInjectExpectationTracesFromCollector(
           injectExpectationId, collector.getSecurityPlatform().getId());

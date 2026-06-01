@@ -880,11 +880,11 @@ public class InjectorContractService implements DependenciesManager {
 
     } catch (Exception e) {
       log.error(
-          "Failed to create default injector contracts for tenant {}: {}",
+          "Failed to delete default injector contracts for tenant {}: {}",
           tenantId,
           e.getMessage());
       throw new DependenciesManagerException(
-          "Failed to create default injector contracts for tenant " + tenantId, e);
+          "Failed to delete default injector contracts for tenant " + tenantId, e);
     }
   }
 }

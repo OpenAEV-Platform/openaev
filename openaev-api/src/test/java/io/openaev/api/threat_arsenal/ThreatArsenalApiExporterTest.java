@@ -19,6 +19,7 @@ import io.openaev.context.TenantContext;
 import io.openaev.database.model.Domain;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.User;
+import io.openaev.integration.Manager;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
 import io.openaev.utils.fixtures.DomainFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
@@ -62,7 +63,10 @@ class ThreatArsenalApiExporterTest extends IntegrationTest {
 
   @BeforeEach
   void beforeEach() throws Exception {
-    openaevInjectorIntegrationFactory.registerConnectorForTenant();
+    new Manager(
+            List.of(openaevInjectorIntegrationFactory),
+            io.openaev.context.TenantContext.getCurrentTenant())
+        .monitorIntegrations();
     injectorContractComposer.reset();
     domainComposer.reset();
   }

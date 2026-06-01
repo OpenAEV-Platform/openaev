@@ -32,6 +32,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 public class SentinelOneExecutorServiceTest {
 
+  private static final String TENANT_ID = "test-tenant-id";
+
   @Mock private SentinelOneExecutorClient client;
   @Mock private SentinelOneExecutorConfig config;
   @Mock private LicenseCacheManager licenseCacheManager;
@@ -50,11 +52,12 @@ public class SentinelOneExecutorServiceTest {
 
   @BeforeEach
   void setUp() {
+    TenantContext.setCurrentTenant(TENANT_ID);
     sentinelOneAgent = SentinelOneDeviceFixture.createDefaultSentinelOneAgent();
     sentinelOneExecutor = new Executor();
     sentinelOneExecutor.setName(SENTINELONE_EXECUTOR_NAME);
     sentinelOneExecutor.setType(SENTINELONE_EXECUTOR_TYPE);
-    sentinelOneExecutor.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    sentinelOneExecutor.setTenant(new Tenant(TENANT_ID));
   }
 
   @Test
@@ -66,8 +69,11 @@ public class SentinelOneExecutorServiceTest {
     sentinelOneExecutorService.run();
     // Asserts
     ArgumentCaptor<String> executorIdCaptor = ArgumentCaptor.forClass(String.class);
-    verify(agentService).getAgentsByExecutorId(executorIdCaptor.capture());
+    ArgumentCaptor<String> tenantIdCaptor = ArgumentCaptor.forClass(String.class);
+    verify(agentService)
+        .getAgentsByExecutorId(executorIdCaptor.capture(), tenantIdCaptor.capture());
     assertEquals(sentinelOneExecutor.getId(), executorIdCaptor.getValue());
+    assertEquals(TENANT_ID, tenantIdCaptor.getValue());
 
     ArgumentCaptor<List<AgentRegisterInput>> inputsCaptor = ArgumentCaptor.forClass(List.class);
     ArgumentCaptor<List<Agent>> agents = ArgumentCaptor.forClass(List.class);

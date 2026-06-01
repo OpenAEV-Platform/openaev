@@ -2,6 +2,7 @@ package io.openaev.service;
 
 import static io.openaev.helper.TemplateHelper.buildContextualContent;
 
+import io.openaev.context.CallContext;
 import io.openaev.database.model.NotificationRule;
 import io.openaev.execution.ExecutionContext;
 import jakarta.validation.constraints.NotNull;
@@ -21,7 +22,9 @@ public class EmailNotificationService {
   private final ResourceLoader resourceLoader;
 
   public void sendNotification(
-      @NotNull final NotificationRule rule, @NotNull final Map<String, String> data) {
+      CallContext callContext,
+      @NotNull final NotificationRule rule,
+      @NotNull final Map<String, String> data) {
 
     // get the template
     String template = getTemplate(rule);
@@ -35,7 +38,7 @@ public class EmailNotificationService {
       String body = buildContextualContent(template, executionContext);
 
       // send the email
-      mailingService.sendEmail(rule.getSubject(), body, List.of(rule.getOwner()));
+      mailingService.sendEmail(callContext, rule.getSubject(), body, List.of(rule.getOwner()));
 
     } catch (Exception e) {
       throw new RuntimeException(e);

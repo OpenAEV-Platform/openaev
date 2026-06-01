@@ -6,6 +6,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.CallContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.integration.Manager;
@@ -94,10 +95,10 @@ public class ConnectorInstanceService {
    * @return the list of connector instances in memory
    */
   public List<ConnectorInstanceInMemory> getConnectorInstancesInMemoryByConnectorType(
-      ConnectorType connectorType) {
+      CallContext callContext, ConnectorType connectorType) {
     List<ConnectorInstanceInMemory> instancesInMemory = new ArrayList<>();
     try {
-      Manager manager = this.managerFactory.getManager();
+      Manager manager = this.managerFactory.getManager(callContext.getTenantId());
       instancesInMemory =
           manager.getSpawnedIntegrations().keySet().stream()
               .filter(ConnectorInstanceInMemory.class::isInstance)
@@ -127,10 +128,11 @@ public class ConnectorInstanceService {
    *     status; {@code true} otherwise
    */
   @Transactional(readOnly = true)
-  public boolean hasStartedConnectorInstanceForInjector(final String injectorId) {
+  public boolean hasStartedConnectorInstanceForInjector(
+      final String injectorId, final String tenantId) {
     try {
       return this.connectorInstanceConfigurationRepository
-          .findStatusByKeyValue(ConnectorType.INJECTOR.getIdKeyName(), injectorId)
+          .findStatusByKeyValue(ConnectorType.INJECTOR.getIdKeyName(), injectorId, tenantId)
           // If we found a status, check if it's 'started'
           // If no record exists, return true
           .map(
@@ -156,10 +158,10 @@ public class ConnectorInstanceService {
    * @throws EntityNotFoundException if no connector instance is found for the executor ID
    */
   @Transactional(readOnly = true)
-  public ConnectorInstancePersisted findByExecutorId(String executorId) {
+  public ConnectorInstancePersisted findByExecutorId(String executorId, String tenantId) {
     ConnectorInstanceConfigurationRepository.ConnectorIdsFromDatabase persistedId =
         this.connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValue(
-            ConnectorType.EXECUTOR.getIdKeyName(), executorId);
+            ConnectorType.EXECUTOR.getIdKeyName(), executorId, tenantId);
     if (persistedId == null) {
       throw new EntityNotFoundException(
           "No connector instance found for executor ID: " + executorId);
@@ -290,7 +292,7 @@ public class ConnectorInstanceService {
    * @param id the connector instance ID to delete
    */
   @Transactional(rollbackFor = Exception.class)
-  public void deleteById(String id) throws ConnectorStatusException {
+  public void deleteById(CallContext callContext, String id) throws ConnectorStatusException {
     ConnectorInstancePersisted connectorInstance =
         connectorInstanceRepository
             .findById(id)
@@ -298,13 +300,21 @@ public class ConnectorInstanceService {
                 () ->
                     new EntityNotFoundException("ConnectorInstance with id " + id + " not found"));
 
-    if (managerFactory.getManager().getSpawnedIntegrations().get(connectorInstance) != null) {
+    if (managerFactory
+            .getManager(callContext.getTenantId())
+            .getSpawnedIntegrations()
+            .get(connectorInstance)
+        != null) {
       // Setting the status to stopping and immediately calling initialize to effectively stop the
       // integration
       try {
         connectorInstance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
         this.save(connectorInstance);
-        managerFactory.getManager().getSpawnedIntegrations().get(connectorInstance).initialise();
+        managerFactory
+            .getManager(callContext.getTenantId())
+            .getSpawnedIntegrations()
+            .get(connectorInstance)
+            .initialise(connectorInstance.getTenant().getId());
       } catch (Exception e) {
         log.error("Could not stop the connector id {} before delete", id, e);
         throw new ConnectorStatusException(
@@ -484,6 +494,12 @@ public class ConnectorInstanceService {
         instance);
   }
 
+  private ConnectorInstanceConfiguration createTenantIdConfiguration(
+      ConnectorInstancePersisted instance, String tenantId) {
+    return createConfiguration(
+        "OPENAEV_TENANT_ID", objectMapper.getNodeFactory().textNode(tenantId), false, instance);
+  }
+
   /**
    * Creates a connector instance from a catalog connector.
    *
@@ -493,7 +509,8 @@ public class ConnectorInstanceService {
    */
   public ConnectorInstancePersisted createConnectorInstance(
       ConnectorOrchestrationService.CatalogConnectorWithConfigMap catalogConnectorWithConfigMap,
-      CreateConnectorInstanceInput input) {
+      CreateConnectorInstanceInput input,
+      String tenantId) {
     ConnectorInstancePersisted newInstance =
         buildNewConnectorInstanceFromCatalog(catalogConnectorWithConfigMap.catalogConnector());
     List<ConnectorInstanceConfiguration> configurations =
@@ -502,6 +519,8 @@ public class ConnectorInstanceService {
 
     // Add OpenAEV token
     configurations.add(createTokenConfiguration(newInstance));
+    // Add tenant ID so XTM Composer knows which tenant context to use
+    configurations.add(createTenantIdConfiguration(newInstance, tenantId));
     // Add container ID if not already present (in case of a migration)
     if (input.getConfigurations().stream()
         .noneMatch(

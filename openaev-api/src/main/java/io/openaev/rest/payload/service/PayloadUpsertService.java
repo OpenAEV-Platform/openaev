@@ -126,7 +126,8 @@ public class PayloadUpsertService {
     }
 
     Optional<InjectorContract> existingInjectorContracts =
-        injectorContractRepository.findInjectorContractByPayload(payload);
+        injectorContractRepository.findInjectorContractByPayloadAndTenantId(
+            payload, TenantContext.getCurrentTenant());
     final Set<Domain> existingDomains =
         existingInjectorContracts.isPresent()
             ? this.domainService.upsertDomainEntities(

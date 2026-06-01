@@ -1,12 +1,12 @@
 package io.openaev.executors.caldera.config;
 
-import static io.openaev.integration.impl.executors.caldera.CalderaExecutorIntegration.CALDERA_EXECUTOR_DEFAULT_ID;
 import static io.openaev.integration.impl.executors.caldera.CalderaExecutorIntegration.CALDERA_EXECUTOR_NAME;
 
 import io.openaev.database.model.CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_FORMAT;
 import io.openaev.integration.configuration.BaseIntegrationConfiguration;
 import io.openaev.integration.configuration.IntegrationConfigKey;
 import jakarta.validation.constraints.NotBlank;
+import java.util.UUID;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -29,7 +29,7 @@ public class CalderaExecutorConfig extends BaseIntegrationConfiguration {
       isRequired = true)
   @Getter
   @NotBlank
-  private String id = CALDERA_EXECUTOR_DEFAULT_ID;
+  private String id = UUID.randomUUID().toString();
 
   @IntegrationConfigKey(
       key = "EXECUTOR_NAME",

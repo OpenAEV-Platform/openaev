@@ -13,7 +13,6 @@ import io.openaev.integration.Integration;
 import io.openaev.integration.QualifiedComponent;
 import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
 import io.openaev.service.InjectExpectationService;
-import io.openaev.service.InjectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import java.lang.reflect.InvocationTargetException;
 import lombok.extern.slf4j.Slf4j;
@@ -23,13 +22,8 @@ public class OvhInjectorIntegration extends Integration {
   public static final String OVH_SMS_INJECTOR_NAME = "OVHCloud SMS Platform";
   public static final String OVH_SMS_INJECTOR_ID = "e5aefbca-cf8f-4a57-9384-0503a8ffc22f";
 
-  private final OvhSmsContract ovhSmsContract;
   private OvhSmsInjectorConfig config;
   private final InjectorContext injectorContext;
-  private final ConnectorInstance connectorInstance;
-
-  private final ConnectorInstanceService connectorInstanceService;
-  private final InjectorService injectorService;
   private final InjectExpectationService injectExpectationService;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
 
@@ -40,18 +34,12 @@ public class OvhInjectorIntegration extends Integration {
       ComponentRequestEngine componentRequestEngine,
       ConnectorInstance connectorInstance,
       ConnectorInstanceService connectorInstanceService,
-      OvhSmsContract ovhSmsContract,
       InjectorContext injectorContext,
-      InjectorService injectorService,
       InjectExpectationService injectExpectationService,
       BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder) {
     super(componentRequestEngine, connectorInstance, connectorInstanceService);
-    this.ovhSmsContract = ovhSmsContract;
     this.injectorContext = injectorContext;
-    this.connectorInstanceService = connectorInstanceService;
-    this.injectorService = injectorService;
     this.injectExpectationService = injectExpectationService;
-    this.connectorInstance = connectorInstance;
     this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
 
     // Refresh the context to get the config

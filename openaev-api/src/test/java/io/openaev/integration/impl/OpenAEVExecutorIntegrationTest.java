@@ -1,11 +1,13 @@
 package io.openaev.integration.impl;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
+import static io.openaev.integration.impl.executors.openaev.OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_ID;
 import static io.openaev.integration.impl.executors.openaev.OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_NAME;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstanceConfiguration;
@@ -93,7 +95,8 @@ public class OpenAEVExecutorIntegrationTest {
 
     integrationFactory.initialise();
 
-    List<ConnectorInstance> instances = integrationFactory.findRelatedInstances();
+    List<ConnectorInstance> instances =
+        integrationFactory.findRelatedInstances(TenantContext.getCurrentTenant());
 
     assertThat(instances)
         .usingComparatorForType(
@@ -101,7 +104,7 @@ public class OpenAEVExecutorIntegrationTest {
         .hasSameElementsAs(
             List.of(
                 connectorInstanceService.createAutostartInstance(
-                    OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_ID,
+                    OPENAEV_EXECUTOR_ID,
                     integrationFactory.getClass().getCanonicalName(),
                     ConnectorType.EXECUTOR)));
   }
@@ -114,7 +117,9 @@ public class OpenAEVExecutorIntegrationTest {
     integrationFactory.initialise();
 
     List<Integration> syncedIntegrations =
-        integrationFactory.sync(integrationFactory.findRelatedInstances());
+        integrationFactory.sync(
+            integrationFactory.findRelatedInstances(TenantContext.getCurrentTenant()),
+            TenantContext.getCurrentTenant());
 
     assertThat(syncedIntegrations).first().isInstanceOf(OpenAEVExecutorIntegration.class);
     assertThat(syncedIntegrations)
@@ -134,7 +139,9 @@ public class OpenAEVExecutorIntegrationTest {
     integrationFactory.initialise();
 
     List<Integration> syncedIntegrations =
-        integrationFactory.sync(integrationFactory.findRelatedInstances());
+        integrationFactory.sync(
+            integrationFactory.findRelatedInstances(TenantContext.getCurrentTenant()),
+            TenantContext.getCurrentTenant());
 
     assertThat(syncedIntegrations).hasSize(1);
     assertThat(syncedIntegrations).first().isInstanceOf(OpenAEVExecutorIntegration.class);
@@ -158,7 +165,8 @@ public class OpenAEVExecutorIntegrationTest {
 
     integrationFactory.initialise();
 
-    List<ConnectorInstance> instances = integrationFactory.findRelatedInstances();
+    List<ConnectorInstance> instances =
+        integrationFactory.findRelatedInstances(TenantContext.getCurrentTenant());
 
     assertThat(instances)
         .first()

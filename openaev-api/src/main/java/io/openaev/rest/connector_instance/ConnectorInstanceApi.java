@@ -3,6 +3,8 @@ package io.openaev.rest.connector_instance;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.CallContext;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.rest.connector_instance.dto.*;
 import io.openaev.rest.helper.RestBehavior;
@@ -57,7 +59,8 @@ public class ConnectorInstanceApi extends RestBehavior {
     // --- /!\ --- SECURITY END
 
     // only instance managed by XTM Composer can be created through this API
-    return orchestrationService.createConnectorInstance(catalogConnectorWithConfigMap, safeInput);
+    return orchestrationService.createConnectorInstance(
+        catalogConnectorWithConfigMap, safeInput, TenantContext.getCurrentTenant());
   }
 
   @GetMapping(
@@ -180,6 +183,7 @@ public class ConnectorInstanceApi extends RestBehavior {
       })
   public void deleteConnectorInstance(@PathVariable @NotBlank final String connectorInstanceId)
       throws ConnectorStatusException {
-    connectorInstanceService.deleteById(connectorInstanceId);
+    connectorInstanceService.deleteById(
+        CallContext.of(TenantContext.getCurrentTenant()), connectorInstanceId);
   }
 }

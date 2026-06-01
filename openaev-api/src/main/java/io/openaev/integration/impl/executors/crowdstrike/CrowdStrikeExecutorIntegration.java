@@ -35,8 +35,6 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 
 @Slf4j
 public class CrowdStrikeExecutorIntegration extends Integration {
-  public static final String CROWDSTRIKE_EXECUTOR_DEFAULT_ID =
-      "b522d9bc-7ed6-44ac-9984-810dfb18f7be";
   public static final String CROWDSTRIKE_EXECUTOR_TYPE = "openaev_crowdstrike_executor";
   public static final String CROWDSTRIKE_EXECUTOR_NAME = "CrowdStrike";
   private static final String CROWDSTRIKE_EXECUTOR_DOCUMENTATION_LINK =
@@ -129,7 +127,8 @@ public class CrowdStrikeExecutorIntegration extends Integration {
               Endpoint.PLATFORM_TYPE.Windows.name(),
               Endpoint.PLATFORM_TYPE.Linux.name(),
               Endpoint.PLATFORM_TYPE.MacOS.name()
-            });
+            },
+            getTenantId());
 
     client = new CrowdStrikeExecutorClient(config, httpClientFactory);
     crowdStrikeExecutorContextService =
@@ -140,7 +139,7 @@ public class CrowdStrikeExecutorIntegration extends Integration {
             executor, client, config, endpointService, agentService, assetGroupService);
     crowdStrikeGarbageCollectorService =
         new CrowdStrikeGarbageCollectorService(
-            config, crowdStrikeExecutorContextService, agentService, executorId);
+            config, crowdStrikeExecutorContextService, agentService, executorId, getTenantId());
 
     timers.add(
         taskScheduler.scheduleAtFixedRate(

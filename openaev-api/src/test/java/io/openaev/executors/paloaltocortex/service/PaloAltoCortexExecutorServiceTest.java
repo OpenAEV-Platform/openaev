@@ -34,6 +34,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 public class PaloAltoCortexExecutorServiceTest {
 
+  private static final String TENANT_ID = "test-tenant-id";
+
   @Mock private PaloAltoCortexExecutorClient client;
   @Mock private PaloAltoCortexExecutorConfig config;
   @Mock private LicenseCacheManager licenseCacheManager;
@@ -52,11 +54,12 @@ public class PaloAltoCortexExecutorServiceTest {
 
   @BeforeEach
   void setUp() {
+    TenantContext.setCurrentTenant(TENANT_ID);
     paloAltoCortexEndpoint = PaloAltoCortexDeviceFixture.createDefaultPaloAltoCortexEndpoint();
     paloAltoCortexExecutor = new Executor();
     paloAltoCortexExecutor.setName(PALOALTOCORTEX_EXECUTOR_NAME);
     paloAltoCortexExecutor.setType(PALOALTOCORTEX_EXECUTOR_TYPE);
-    paloAltoCortexExecutor.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    paloAltoCortexExecutor.setTenant(new Tenant(TENANT_ID));
   }
 
   @Test
@@ -69,8 +72,11 @@ public class PaloAltoCortexExecutorServiceTest {
     paloAltoCortexExecutorService.run();
     // Asserts
     ArgumentCaptor<String> executorIdCaptor = ArgumentCaptor.forClass(String.class);
-    verify(agentService).getAgentsByExecutorId(executorIdCaptor.capture());
+    ArgumentCaptor<String> tenantIdCaptor = ArgumentCaptor.forClass(String.class);
+    verify(agentService)
+        .getAgentsByExecutorId(executorIdCaptor.capture(), tenantIdCaptor.capture());
     assertEquals(paloAltoCortexExecutor.getId(), executorIdCaptor.getValue());
+    assertEquals(TENANT_ID, tenantIdCaptor.getValue());
 
     ArgumentCaptor<List<AgentRegisterInput>> inputsCaptor = ArgumentCaptor.forClass(List.class);
     ArgumentCaptor<List<Agent>> agents = ArgumentCaptor.forClass(List.class);

@@ -366,7 +366,7 @@ public class DocumentApi extends RestBehavior {
       throws IOException {
     Collector collector =
         this.collectorRepository
-            .findByTypeAndTenantId(collectorType, TenantContext.getCurrentTenant())
+            .findByTypeAndCompositeIdTenantId(collectorType, TenantContext.getCurrentTenant())
             .orElseThrow(() -> new ElementNotFoundException("Collector not found"));
     Optional<InputStream> fileStream =
         fileService.getCollectorImage(collector.getType(), collector.isExternal());
@@ -386,7 +386,7 @@ public class DocumentApi extends RestBehavior {
     response.setStatus(HttpServletResponse.SC_OK);
     Collector collector =
         this.collectorRepository
-            .findByTypeAndTenantId(collectorType, TenantContext.getCurrentTenant())
+            .findByTypeAndCompositeIdTenantId(collectorType, TenantContext.getCurrentTenant())
             .orElseThrow(() -> new ElementNotFoundException("Collector not found"));
     try (InputStream fileStream =
         fileService

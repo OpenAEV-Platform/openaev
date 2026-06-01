@@ -5,6 +5,7 @@ import static io.openaev.rest.payload.service.PayloadService.DYNAMIC_DNS_RESOLUT
 import static io.openaev.rest.payload.service.PayloadService.DYNAMIC_DNS_RESOLUTION_HOSTNAME_VARIABLE;
 import static io.openaev.utils.AssetUtils.extractPlatformArchPairs;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
@@ -875,7 +876,8 @@ public class SecurityCoverageInjectService {
       Map<AssetGroup, List<Endpoint>> assetsFromGroupMap,
       Scenario scenario) {
     Optional<InjectorContract> injectorContract =
-        injectorContractRepository.findInjectorContractByPayload(payload);
+        injectorContractRepository.findInjectorContractByPayloadAndTenantId(
+            payload, TenantContext.getCurrentTenant());
 
     if (injectorContract.isEmpty()) {
       return;
@@ -930,7 +932,8 @@ public class SecurityCoverageInjectService {
   private void createInjectsByInjectorContracts(
       Payload payload, Map<AssetGroup, List<Endpoint>> assetsFromGroupMap, Scenario scenario) {
     Optional<InjectorContract> injectorContract =
-        injectorContractRepository.findInjectorContractByPayload(payload);
+        injectorContractRepository.findInjectorContractByPayloadAndTenantId(
+            payload, TenantContext.getCurrentTenant());
     if (injectorContract.isEmpty()) {
       return;
     }

@@ -35,6 +35,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 public class CrowdstrikeExecutorServiceTest {
 
   private static final String HOST_GROUP_CS = "hostGroupCs";
+  private static final String TENANT_ID = "test-tenant-id";
 
   @Mock private CrowdStrikeExecutorClient client;
   @Mock private CrowdStrikeExecutorConfig config;
@@ -54,11 +55,12 @@ public class CrowdstrikeExecutorServiceTest {
 
   @BeforeEach
   void setUp() {
+    TenantContext.setCurrentTenant(TENANT_ID);
     crowdstrikeAgent = CrowdstrikeDeviceFixture.createDefaultCrowdStrikeDevice();
     crowdstrikeExecutor = new Executor();
     crowdstrikeExecutor.setName(CROWDSTRIKE_EXECUTOR_NAME);
     crowdstrikeExecutor.setType(CROWDSTRIKE_EXECUTOR_TYPE);
-    crowdstrikeExecutor.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    crowdstrikeExecutor.setTenant(new Tenant(TENANT_ID));
   }
 
   @Test
@@ -77,8 +79,11 @@ public class CrowdstrikeExecutorServiceTest {
     crowdStrikeExecutorService.run();
     // Asserts
     ArgumentCaptor<String> executorIdCaptor = ArgumentCaptor.forClass(String.class);
-    verify(agentService).getAgentsByExecutorId(executorIdCaptor.capture());
+    ArgumentCaptor<String> tenantIdCaptor = ArgumentCaptor.forClass(String.class);
+    verify(agentService)
+        .getAgentsByExecutorId(executorIdCaptor.capture(), tenantIdCaptor.capture());
     assertEquals(crowdstrikeExecutor.getId(), executorIdCaptor.getValue());
+    assertEquals(TENANT_ID, tenantIdCaptor.getValue());
 
     ArgumentCaptor<List<AgentRegisterInput>> inputsCaptor = ArgumentCaptor.forClass(List.class);
     ArgumentCaptor<List<Agent>> agents = ArgumentCaptor.forClass(List.class);

@@ -280,7 +280,7 @@ public class CollectorApiTest extends IntegrationTest {
       assertThatJson(response).inPath("collector_period").isEqualTo(input.getPeriod());
 
       Optional<Collector> persisted =
-          collectorRepository.findByIdAndTenantId(input.getId(), TenantContext.getCurrentTenant());
+          collectorRepository.findById(input.getId(), TenantContext.getCurrentTenant());
       assertThat(persisted).isPresent();
       assertThat(persisted.get().isExternal()).isTrue();
       assertThat(persisted.get().getPeriod()).isEqualTo(input.getPeriod());
@@ -314,7 +314,7 @@ public class CollectorApiTest extends IntegrationTest {
       assertThatJson(response).inPath("collector_security_platform.asset_id").isEqualTo(sp.getId());
 
       Optional<Collector> persisted =
-          collectorRepository.findByIdAndTenantId(input.getId(), TenantContext.getCurrentTenant());
+          collectorRepository.findById(input.getId(), TenantContext.getCurrentTenant());
       assertThat(persisted).isPresent();
       assertThat(persisted.get().getSecurityPlatform()).isNotNull();
       assertThat(persisted.get().getSecurityPlatform().getId()).isEqualTo(sp.getId());
@@ -410,7 +410,7 @@ public class CollectorApiTest extends IntegrationTest {
       assertThatJson(response).inPath("collector_security_platform").isEqualTo(null);
 
       Optional<Collector> persisted =
-          collectorRepository.findByIdAndTenantId(input.getId(), TenantContext.getCurrentTenant());
+          collectorRepository.findById(input.getId(), TenantContext.getCurrentTenant());
       assertThat(persisted).isPresent();
       assertThat(persisted.get().getSecurityPlatform()).isNull();
     }

@@ -3,6 +3,7 @@ package io.openaev.executors.tanium.service;
 import static io.openaev.utils.time.TimeUtils.toInstant;
 
 import com.google.common.annotations.VisibleForTesting;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.executors.model.AgentRegisterInput;
 import io.openaev.executors.tanium.client.TaniumExecutorClient;
@@ -13,12 +14,17 @@ import io.openaev.executors.tanium.model.TaniumEndpoint;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Session;
+import org.springframework.orm.jpa.EntityManagerFactoryUtils;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Slf4j
 public class TaniumExecutorService implements Runnable {
@@ -27,6 +33,8 @@ public class TaniumExecutorService implements Runnable {
   private final EndpointService endpointService;
   private final AgentService agentService;
   private final AssetGroupService assetGroupService;
+  private final TransactionTemplate transactionTemplate;
+  private final EntityManagerFactory entityManagerFactory;
   private Executor executor;
 
   public static Endpoint.PLATFORM_TYPE toPlatform(@NotBlank final String platform) {
@@ -52,17 +60,42 @@ public class TaniumExecutorService implements Runnable {
       TaniumExecutorConfig config,
       EndpointService endpointService,
       AgentService agentService,
-      AssetGroupService assetGroupService) {
+      AssetGroupService assetGroupService,
+      TransactionTemplate transactionTemplate,
+      EntityManagerFactory entityManagerFactory) {
     this.executor = executor;
     this.client = client;
     this.config = config;
     this.endpointService = endpointService;
     this.agentService = agentService;
     this.assetGroupService = assetGroupService;
+    this.transactionTemplate = transactionTemplate;
+    this.entityManagerFactory = entityManagerFactory;
   }
 
   @Override
   public void run() {
+    String tenantId = executor.getTenantId();
+    TenantContext.setCurrentTenant(tenantId);
+    try {
+      transactionTemplate.executeWithoutResult(
+          status -> {
+            // Enable tenant filter on the Session created by TransactionTemplate
+            EntityManager em =
+                EntityManagerFactoryUtils.getTransactionalEntityManager(entityManagerFactory);
+            if (em != null) {
+              em.unwrap(Session.class)
+                  .enableFilter("tenantFilter")
+                  .setParameter("tenantId", tenantId);
+            }
+            doRun(tenantId);
+          });
+    } finally {
+      TenantContext.clearCurrentTenant();
+    }
+  }
+
+  private void doRun(String tenantId) {
     log.info("Running Tanium executor endpoints gathering...");
     List<String> computerGroupIds =
         Stream.of(this.config.getComputerGroupId().split(",")).distinct().toList();
@@ -72,8 +105,7 @@ public class TaniumExecutorService implements Runnable {
       List<NodeEndpoint> nodeEndpoints = this.client.endpoints(computerGroupId);
       if (!nodeEndpoints.isEmpty()) {
         Optional<AssetGroup> existingAssetGroup =
-            assetGroupService.findByExternalReference(
-                computerGroupId, executor.getTenant().getId());
+            assetGroupService.findByExternalReference(computerGroupId, tenantId);
         AssetGroup assetGroup;
         if (existingAssetGroup.isPresent()) {
           assetGroup = existingAssetGroup.get();
@@ -91,7 +123,7 @@ public class TaniumExecutorService implements Runnable {
         List<Agent> agents =
             endpointService.syncAgentsEndpoints(
                 toAgentEndpoint(nodeEndpoints),
-                agentService.getAgentsByExecutorId(executor.getId()));
+                agentService.getAgentsByExecutorId(executor.getId(), tenantId));
         assetGroup.setAssets(agents.stream().map(Agent::getAsset).toList());
         assetGroupService.createOrUpdateAssetGroupWithoutDynamicAssets(assetGroup);
       }

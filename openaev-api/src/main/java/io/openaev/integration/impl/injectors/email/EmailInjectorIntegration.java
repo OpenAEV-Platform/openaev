@@ -2,6 +2,7 @@ package io.openaev.integration.impl.injectors.email;
 
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.executors.InjectorContext;
+import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.injectors.email.EmailContract;
 import io.openaev.injectors.email.EmailExecutor;
 import io.openaev.injectors.email.service.EmailService;
@@ -11,6 +12,7 @@ import io.openaev.integration.QualifiedComponent;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import java.util.List;
 
 public class EmailInjectorIntegration extends IntegrationInMemory {
   static final String EMAIL_INJECTOR_NAME = "Email";
@@ -23,7 +25,7 @@ public class EmailInjectorIntegration extends IntegrationInMemory {
   private final EmailService emailService;
   private final InjectExpectationService injectExpectationService;
 
-  @QualifiedComponent(identifier = {EmailContract.TYPE, EMAIL_INJECTOR_ID})
+  @QualifiedComponent(identifier = {EmailContract.TYPE})
   private EmailExecutor emailExecutor;
 
   public EmailInjectorIntegration(
@@ -45,6 +47,17 @@ public class EmailInjectorIntegration extends IntegrationInMemory {
 
   @Override
   protected void innerStart() throws Exception {
+    injectorService.registerBuiltinInjector(
+        EMAIL_INJECTOR_ID,
+        EMAIL_INJECTOR_NAME,
+        emailContract,
+        false,
+        "communication",
+        null,
+        null,
+        false,
+        List.of(ExternalServiceDependency.SMTP, ExternalServiceDependency.IMAP),
+        getTenantId());
     this.emailExecutor = new EmailExecutor(injectorContext, emailService, injectExpectationService);
   }
 

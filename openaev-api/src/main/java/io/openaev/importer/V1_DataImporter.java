@@ -40,6 +40,7 @@ import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import jakarta.activation.MimetypesFileTypeMap;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
+import jakarta.persistence.EntityManager;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.*;
@@ -90,6 +91,8 @@ public class V1_DataImporter implements Importer {
 
   @Qualifier("coreInjectorService")
   private final InjectorService injectorService;
+
+  private final EntityManager entityManager;
 
   // endregion
 
@@ -1138,9 +1141,10 @@ public class V1_DataImporter implements Importer {
       List<JsonNode> injectsToAdd,
       List<JsonNode> allInjects) {
     List<String> originalIds = new ArrayList<>();
+    // Collect dependency info to process in a second pass (after all injects are persisted)
+    List<Map.Entry<String, JsonNode>> pendingDependencies = new ArrayList<>();
     injectsToAdd.forEach(
         injectNode -> {
-          String injectId = UUID.randomUUID().toString();
           String id = injectNode.get("inject_id").textValue();
           String title = injectNode.get("inject_title").textValue();
           String description = injectNode.get("inject_description").textValue();
@@ -1156,11 +1160,12 @@ public class V1_DataImporter implements Importer {
 
           // Check If inject contract exists
           if (injectorContractIdFromNode == null) {
-            log.warn("Import Inject Failed: Missing injector contract ID on inject: {}", injectId);
+            log.warn("Import Inject Failed: Missing injector contract ID : {}", id);
             return;
           }
           Optional<InjectorContract> injectorContract =
-              this.injectorContractRepository.findById(injectorContractIdFromNode);
+              this.injectorContractRepository.findByIdAndTenantId(
+                  injectorContractIdFromNode, TenantContext.getCurrentTenant());
 
           String injectorContractId = null;
 
@@ -1208,8 +1213,7 @@ public class V1_DataImporter implements Importer {
                   importInjectorContractFromStarterPack(injectContractNode, createdPayload, baseIds)
                       .getId();
             } else {
-              log.warn(
-                  "Import Inject Failed: Unresolved injector contract ID on inject: {}", injectId);
+              log.warn("Import Inject Failed: Unresolved injector contract ID : {}", id);
             }
           }
 
@@ -1217,73 +1221,43 @@ public class V1_DataImporter implements Importer {
           String content = handleInjectContent(baseIds, injectorContractId, injectNode);
           Long dependsDuration = injectNode.get("inject_depends_duration").asLong();
           boolean allTeams = injectNode.get("inject_all_teams").booleanValue();
-          if (exercise != null) {
-            injectRepository.importSaveForExercise(
-                injectId,
-                title,
-                description,
-                country,
-                city,
-                injectorContractId,
-                allTeams,
-                enabled,
-                exercise.getId(),
-                dependsDuration,
-                content);
-          } else if (scenario != null) {
-            injectRepository.importSaveForScenario(
-                injectId,
-                title,
-                description,
-                country,
-                city,
-                injectorContractId,
-                allTeams,
-                enabled,
-                scenario.getId(),
-                dependsDuration,
-                content);
-          } else {
-            injectRepository.importSaveStandAlone(
-                injectId,
-                title,
-                description,
-                country,
-                city,
-                injectorContractId,
-                allTeams,
-                enabled,
-                dependsDuration,
-                content);
+
+          Inject newInject = new Inject();
+          newInject.setTitle(title);
+          newInject.setDescription(description);
+          newInject.setCountry(country);
+          newInject.setCity(city);
+          newInject.setAllTeams(allTeams);
+          newInject.setEnabled(enabled);
+          newInject.setDependsDuration(dependsDuration);
+          if (content != null) {
+            try {
+              newInject.setContent(mapper.readTree(content) instanceof ObjectNode on ? on : null);
+            } catch (Exception e) {
+              log.warn("Failed to parse inject content for inject: {}", id, e);
+            }
           }
+          if (injectorContractId != null) {
+            InjectorContractId compositeId =
+                new InjectorContractId(injectorContractId, TenantContext.getCurrentTenant());
+            injectorContractRepository
+                .findById(compositeId)
+                .ifPresent(newInject::setInjectorContract);
+          }
+          if (exercise != null) {
+            newInject.setExercise(exercise);
+          } else if (scenario != null) {
+            newInject.setScenario(scenario);
+          }
+          Inject savedInject = injectRepository.save(newInject);
+          String injectId = savedInject.getId();
           baseIds.put(id, new BaseHolder(injectId));
           originalIds.add(id);
 
-          // Once the inject has been saved, we deal with the dependencies
+          // Store dependency info for second pass
           ArrayNode injectDependsOn = (ArrayNode) injectNode.get("inject_depends_on");
-          for (JsonNode dependsOnNode : injectDependsOn) {
-            // If there are dependencies where the added inject is the children, we add it to the
-            // database
-            if (id.equals(
-                dependsOnNode.get("dependency_relationship").get("inject_children_id").asText())) {
-              InjectDependencyInput dependency =
-                  mapper.convertValue(dependsOnNode, InjectDependencyInput.class);
-
-              Optional<Inject> injectParent =
-                  injectRepository.findById(
-                      baseIds.get(dependency.getRelationship().getInjectParentId()).getId());
-              Optional<Inject> injectChildren =
-                  injectRepository.findById(
-                      baseIds.get(dependency.getRelationship().getInjectChildrenId()).getId());
-
-              if (injectParent.isPresent() && injectChildren.isPresent()) {
-                InjectDependency injectDependency = new InjectDependency();
-                injectDependency.getCompositeId().setInjectParent(injectParent.get());
-                injectDependency.getCompositeId().setInjectChildren(injectChildren.get());
-                injectDependency.setInjectDependencyCondition(dependency.getConditions());
-                injectDependenciesRepository.save(injectDependency);
-              }
-            }
+          if (injectDependsOn != null && !injectDependsOn.isEmpty()) {
+            pendingDependencies.add(Map.entry(id, injectNode));
           }
           // Tags
           List<String> injectTagIds = resolveJsonIds(injectNode, "inject_tags");
@@ -1336,6 +1310,50 @@ public class V1_DataImporter implements Importer {
             injectRepository.save(inject);
           }
         });
+
+    // Flush all pending inject INSERTs to the database before creating dependencies.
+    // Without this, Hibernate's auto-flush (triggered by queries in the second pass or recursive
+    // calls) may attempt to INSERT InjectDependency rows before the referenced Inject rows,
+    // violating the FK constraint on injects_dependencies.inject_children_id.
+    entityManager.flush();
+
+    // Second pass: create inject dependencies now that all injects are persisted
+    for (Map.Entry<String, JsonNode> entry : pendingDependencies) {
+      String id = entry.getKey();
+      JsonNode injectNode = entry.getValue();
+      ArrayNode injectDependsOn = (ArrayNode) injectNode.get("inject_depends_on");
+      for (JsonNode dependsOnNode : injectDependsOn) {
+        if (id.equals(
+            dependsOnNode.get("dependency_relationship").get("inject_children_id").asText())) {
+          InjectDependencyInput dependency =
+              mapper.convertValue(dependsOnNode, InjectDependencyInput.class);
+
+          Base parentBase = baseIds.get(dependency.getRelationship().getInjectParentId());
+          Base childrenBase = baseIds.get(dependency.getRelationship().getInjectChildrenId());
+          if (parentBase == null || childrenBase == null) {
+            continue;
+          }
+
+          Optional<Inject> injectParent = injectRepository.findById(parentBase.getId());
+          Optional<Inject> injectChildren = injectRepository.findById(childrenBase.getId());
+
+          if (injectParent.isPresent() && injectChildren.isPresent()) {
+            InjectDependency injectDependency = new InjectDependency();
+            injectDependency.getCompositeId().setInjectParent(injectParent.get());
+            injectDependency.getCompositeId().setInjectChildren(injectChildren.get());
+            injectDependency.setInjectDependencyCondition(dependency.getConditions());
+            injectDependenciesRepository.save(injectDependency);
+          }
+        }
+      }
+    }
+
+    // Flush dependencies before the recursive call so that subsequent auto-flushes
+    // (triggered by queries inside the recursive processing) don't encounter ordering issues.
+    if (!pendingDependencies.isEmpty()) {
+      entityManager.flush();
+    }
+
     // Looking for children of created injects
     List<JsonNode> childInjects =
         allInjects.stream()

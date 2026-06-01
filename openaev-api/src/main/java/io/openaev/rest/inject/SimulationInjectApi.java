@@ -279,7 +279,7 @@ public class SimulationInjectApi extends RestBehavior {
       @RequestPart("file") Optional<MultipartFile> file) {
     InjectorContract injectorContract =
         this.injectorContractRepository
-            .findById(input.getInjectorContract())
+            .findByIdAndTenantId(input.getInjectorContract(), TenantContext.getCurrentTenant())
             .orElseThrow(() -> new ElementNotFoundException("Injector contract not found"));
     Injector injector = injectUtils.resolveInjector(input.getInjectorId(), injectorContract);
     Inject inject = input.toInject(injectorContract, injector);

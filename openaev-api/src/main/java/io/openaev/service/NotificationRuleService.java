@@ -2,6 +2,7 @@ package io.openaev.service;
 
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
+import io.openaev.context.CallContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.TenantSettingKeys;
 import io.openaev.database.repository.NotificationRuleRepository;
@@ -143,7 +144,7 @@ public class NotificationRuleService {
 
       for (NotificationRule rule : tenantRules) {
         if (NotificationRuleType.EMAIL.equals(rule.getType())) {
-          emailNotificationService.sendNotification(rule, tenantData);
+          emailNotificationService.sendNotification(CallContext.of(tenantId), rule, tenantData);
         }
       }
     }

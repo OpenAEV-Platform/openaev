@@ -24,6 +24,9 @@ public abstract class Integration {
 
   private String appliedHash;
 
+  /** Tenant ID — set on first {@link #initialise(String)} call, immutable thereafter. */
+  @Getter private String tenantId;
+
   protected Integration(
       ComponentRequestEngine componentRequestEngine,
       ConnectorInstance connectorInstance,
@@ -56,7 +59,8 @@ public abstract class Integration {
   }
 
   @Transactional
-  public void initialise() throws Exception {
+  public void initialise(String tenantId) throws Exception {
+    this.tenantId = tenantId;
     try {
       this.connectorInstance = connectorInstanceService.refresh(this.connectorInstance);
       if (connectorInstance == null) {

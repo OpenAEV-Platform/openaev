@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.context.CallContext;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
@@ -105,7 +106,8 @@ public class AtomicTestingService {
   }
 
   @Transactional
-  public InjectResultOverviewOutput createOrUpdate(AtomicTestingInput input, String injectId) {
+  public InjectResultOverviewOutput createOrUpdate(
+      CallContext callContext, AtomicTestingInput input, String injectId) {
     Inject injectToSave = new Inject();
     if (injectId != null) {
       injectToSave = findInject(injectId);
@@ -113,7 +115,7 @@ public class AtomicTestingService {
 
     InjectorContract injectorContract =
         injectorContractRepository
-            .findById(input.getInjectorContract())
+            .findByIdAndTenantId(input.getInjectorContract(), callContext.getTenantId())
             .orElseThrow(ElementNotFoundException::new);
     ObjectNode finalContent = input.getContent();
     // Set expectations

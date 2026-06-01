@@ -4,6 +4,8 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.CallContext;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.InjectExpectation;
@@ -80,7 +82,8 @@ public class AtomicTestingApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   public InjectResultOverviewOutput createAtomicTesting(
       @Valid @RequestBody AtomicTestingInput input) {
-    return this.atomicTestingService.createOrUpdate(input, null);
+    return this.atomicTestingService.createOrUpdate(
+        CallContext.of(TenantContext.getCurrentTenant()), input, null);
   }
 
   @PutMapping("/{injectId}")
@@ -92,7 +95,8 @@ public class AtomicTestingApi extends RestBehavior {
   public InjectResultOverviewOutput updateAtomicTesting(
       @PathVariable @NotBlank final String injectId,
       @Valid @RequestBody final AtomicTestingInput input) {
-    return atomicTestingService.createOrUpdate(input, injectId);
+    return atomicTestingService.createOrUpdate(
+        CallContext.of(TenantContext.getCurrentTenant()), input, injectId);
   }
 
   @DeleteMapping("/{injectId}")

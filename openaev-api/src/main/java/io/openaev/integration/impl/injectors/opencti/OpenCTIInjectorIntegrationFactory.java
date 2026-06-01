@@ -18,7 +18,6 @@ import io.openaev.integration.migration.OpenCTIInjectorConfigurationMigration;
 import io.openaev.opencti.service.OpenCTIService;
 import io.openaev.service.FileService;
 import io.openaev.service.InjectExpectationService;
-import io.openaev.service.InjectorService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import java.lang.reflect.InvocationTargetException;
@@ -32,7 +31,6 @@ public class OpenCTIInjectorIntegrationFactory extends IntegrationFactory {
 
   private final ComponentRequestEngine componentRequestEngine;
   private final ConnectorInstanceService connectorInstanceService;
-  private final InjectorService injectorService;
   private final OpenCTIContract openCTIContract;
   private final FileService fileService;
   private final CatalogConnectorService catalogConnectorService;
@@ -45,7 +43,6 @@ public class OpenCTIInjectorIntegrationFactory extends IntegrationFactory {
   public OpenCTIInjectorIntegrationFactory(
       ComponentRequestEngine componentRequestEngine,
       ConnectorInstanceService connectorInstanceService,
-      InjectorService injectorService,
       OpenCTIContract openCTIContract,
       CatalogConnectorService catalogConnectorService,
       FileService fileService,
@@ -58,7 +55,6 @@ public class OpenCTIInjectorIntegrationFactory extends IntegrationFactory {
     super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.componentRequestEngine = componentRequestEngine;
     this.connectorInstanceService = connectorInstanceService;
-    this.injectorService = injectorService;
     this.openCTIContract = openCTIContract;
     this.fileService = fileService;
     this.catalogConnectorService = catalogConnectorService;
@@ -82,10 +78,6 @@ public class OpenCTIInjectorIntegrationFactory extends IntegrationFactory {
   @Override
   protected void insertCatalogEntry() throws Exception {
     String logoFilename = "%s-logo.png".formatted(openCTIContract.TYPE);
-    fileService.uploadStream(
-        FileService.CONNECTORS_LOGO_PATH,
-        logoFilename,
-        getClass().getResourceAsStream("/img/icon-opencti.png"));
     CatalogConnector connector = new CatalogConnector();
     connector.setTitle(OPENCTI_INJECTOR_NAME);
     connector.setSlug(openCTIContract.TYPE);
@@ -104,6 +96,15 @@ public class OpenCTIInjectorIntegrationFactory extends IntegrationFactory {
   }
 
   @Override
+  protected void uploadAssets() throws Exception {
+    String logoFilename = "%s-logo.png".formatted(openCTIContract.TYPE);
+    fileService.uploadStream(
+        FileService.CONNECTORS_LOGO_PATH,
+        logoFilename,
+        getClass().getResourceAsStream("/img/icon-opencti.png"));
+  }
+
+  @Override
   public Integration spawn(ConnectorInstance instance)
       throws JsonProcessingException,
           InvocationTargetException,
@@ -114,8 +115,6 @@ public class OpenCTIInjectorIntegrationFactory extends IntegrationFactory {
         componentRequestEngine,
         instance,
         connectorInstanceService,
-        injectorService,
-        openCTIContract,
         injectorContext,
         openCTIService,
         injectExpectationService,

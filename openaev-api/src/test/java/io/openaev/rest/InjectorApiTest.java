@@ -43,6 +43,7 @@ import jakarta.transaction.Transactional;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -307,7 +308,7 @@ public class InjectorApiTest extends IntegrationTest {
       assertThatJson(response).inPath("listen").isString().contains("_injector_" + injectorId);
 
       Optional<Injector> persisted =
-          injectorRepository.findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant());
+          injectorRepository.findById(injectorId, TenantContext.getCurrentTenant());
       assertThat(persisted).isPresent();
       assertThat(persisted.get().isExternal()).isTrue();
       assertThat(persisted.get().getName()).isEqualTo("External Injector");
@@ -362,7 +363,7 @@ public class InjectorApiTest extends IntegrationTest {
 
       // -- ASSERT --
       Optional<Injector> persisted =
-          injectorRepository.findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant());
+          injectorRepository.findById(injectorId, TenantContext.getCurrentTenant());
       assertThat(persisted).isPresent();
       assertThat(persisted.get().getName()).isEqualTo("Updated Name");
       assertThat(persisted.get().getCategory()).isEqualTo("updated-category");
@@ -394,7 +395,7 @@ public class InjectorApiTest extends IntegrationTest {
 
       // -- ASSERT --
       Optional<Injector> persisted =
-          injectorRepository.findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant());
+          injectorRepository.findById(injectorId, TenantContext.getCurrentTenant());
       assertThat(persisted).isPresent();
       assertThat(persisted.get().isExternal()).isTrue();
       assertThat(persisted.get().getExecutorCommands()).isNullOrEmpty();
@@ -443,11 +444,10 @@ public class InjectorApiTest extends IntegrationTest {
           .andExpect(status().is2xxSuccessful());
 
       // -- ASSERT --
-      assertThat(injectorRepository.findByIdAndTenantId(dummyId, TenantContext.getCurrentTenant()))
-          .isEmpty();
+      assertThat(injectorRepository.findById(dummyId, TenantContext.getCurrentTenant())).isEmpty();
 
       Optional<Injector> realInjector =
-          injectorRepository.findByIdAndTenantId(realInjectorId, TenantContext.getCurrentTenant());
+          injectorRepository.findById(realInjectorId, TenantContext.getCurrentTenant());
       assertThat(realInjector).isPresent();
       assertThat(realInjector.get().isExternal()).isTrue();
 
@@ -602,6 +602,43 @@ public class InjectorApiTest extends IntegrationTest {
   @DisplayName("Tenant Isolation")
   @WithMockUser(isAdmin = true)
   class TenantIsolation {
+
+    @Test
+    @DisplayName("Given same injector ID in two tenants, updating one should NOT affect the other")
+    void givenSameInjectorInTwoTenants_updatingOneShouldNotAffectOther() throws Exception {
+      // -- Arrange --
+      String tenantA = TenantContext.getCurrentTenant();
+      String sharedId = UUID.randomUUID().toString();
+
+      // Create injector with a known ID in tenant A
+      Injector injectorA = createInjector(sharedId, "Injector-TenantA", "shared-type");
+      injectorRepository.save(injectorA);
+      em.flush();
+      em.clear();
+
+      // Create tenant B and same injector ID there
+      Tenant tenantB = tenantHelper.createTenantWithCurrentUser("TenantB-Update");
+      tenantHelper.switchToTenant(tenantB.getId(), em);
+
+      Injector injectorB = createInjector(sharedId, "Injector-TenantB", "shared-type");
+      injectorRepository.save(injectorB);
+      em.flush();
+      em.clear();
+
+      // -- Act: update injector in tenant B --
+      Injector loadedB = injectorRepository.findById(sharedId, tenantB.getId()).orElseThrow();
+      loadedB.setName("Updated-In-TenantB");
+      injectorRepository.save(loadedB);
+      em.flush();
+      em.clear();
+
+      // -- Assert: injector in tenant A is unchanged --
+      tenantHelper.switchToTenant(tenantA, em);
+      Injector reloadedA = injectorRepository.findById(sharedId, tenantA).orElseThrow();
+      assertThat(reloadedA.getName())
+          .as("Injector in tenant A should NOT have been modified by tenant B's update")
+          .isEqualTo("Injector-TenantA");
+    }
 
     @Test
     @DisplayName(

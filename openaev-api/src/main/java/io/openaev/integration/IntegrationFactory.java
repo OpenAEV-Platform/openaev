@@ -25,6 +25,15 @@ public abstract class IntegrationFactory {
 
   protected abstract String getClassName();
 
+  /**
+   * Uploads platform assets (e.g. connector logos) to the current tenant's storage. Called on every
+   * tenant initialization — not just the first one — to ensure each tenant has the necessary files.
+   * Default implementation does nothing; subclasses override to upload their specific assets.
+   */
+  protected void uploadAssets() throws Exception {
+    // Default: no-op. Subclasses override to upload logos/images for the current tenant.
+  }
+
   @Transactional(rollbackFor = Exception.class)
   public void initialise() throws Exception {
     String className = this.getClassName();
@@ -32,15 +41,16 @@ public abstract class IntegrationFactory {
       insertCatalogEntry();
     }
 
+    uploadAssets();
     runMigrations();
   }
 
-  public List<Integration> sync(List<ConnectorInstance> instances) {
+  public List<Integration> sync(List<ConnectorInstance> instances, String tenantId) {
     List<Integration> list = new ArrayList<>();
     for (ConnectorInstance connectorInstance : instances) {
       try {
         Integration integration = this.spawn(connectorInstance);
-        integration.initialise();
+        integration.initialise(tenantId);
 
         list.add(integration);
       } catch (Exception e) {
@@ -56,7 +66,7 @@ public abstract class IntegrationFactory {
   }
 
   @Transactional
-  public List<ConnectorInstance> findRelatedInstances() {
+  public List<ConnectorInstance> findRelatedInstances(String tenantId) {
     return connectorInstanceService.connectorInstances().stream()
         .filter(ci -> this.getClassName().equals(ci.getClassName()))
         .map(ci -> (ConnectorInstance) ci)

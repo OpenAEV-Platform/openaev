@@ -6,6 +6,7 @@ import static io.openaev.utils.SecurityUtils.validateJFrogUri;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.AccessControl;
+import io.openaev.context.CallContext;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ExecutorRepository;
@@ -92,7 +93,8 @@ public class ExecutorApi extends RestBehavior {
               required = false)
           @RequestParam(value = "include_next", required = false, defaultValue = "false")
           boolean includeNext) {
-    return executorService.executorsOutput(includeNext);
+    return executorService.executorsOutput(
+        CallContext.of(TenantContext.getCurrentTenant()), includeNext);
   }
 
   @GetMapping({EXECUTOR_URI + "/{executorId}", TENANT_EXECUTOR_URI + "/{executorId}"})
@@ -142,7 +144,7 @@ public class ExecutorApi extends RestBehavior {
       @PathVariable String executorId, @Valid @RequestBody ExecutorUpdateInput input) {
     Executor executor =
         executorRepository
-            .findByIdAndTenantId(executorId, TenantContext.getCurrentTenant())
+            .findByTypeAndCompositeIdTenantId(executorId, TenantContext.getCurrentTenant())
             .orElseThrow(ElementNotFoundException::new);
     return updateExecutor(
         executor, executor.getType(), executor.getName(), executor.getPlatforms());
@@ -172,13 +174,11 @@ public class ExecutorApi extends RestBehavior {
       }
       // We need to support upsert for registration
       Executor executor =
-          executorRepository
-              .findByIdAndTenantId(input.getId(), TenantContext.getCurrentTenant())
-              .orElse(null);
+          executorRepository.findById(input.getId(), TenantContext.getCurrentTenant()).orElse(null);
       if (executor == null) {
         Executor executorChecking =
             executorRepository
-                .findByTypeAndTenantId(input.getType(), TenantContext.getCurrentTenant())
+                .findByTypeAndCompositeIdTenantId(input.getType(), TenantContext.getCurrentTenant())
                 .orElse(null);
         if (executorChecking != null) {
           throw new Exception(
@@ -196,6 +196,7 @@ public class ExecutorApi extends RestBehavior {
         newExecutor.setName(input.getName());
         newExecutor.setType(input.getType());
         newExecutor.setPlatforms(input.getPlatforms());
+        newExecutor.setTenantId(TenantContext.getCurrentTenant());
         return executorRepository.save(newExecutor);
       }
     } catch (Exception e) {

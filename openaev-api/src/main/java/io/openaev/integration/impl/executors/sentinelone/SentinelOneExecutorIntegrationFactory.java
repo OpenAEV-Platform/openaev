@@ -87,10 +87,6 @@ public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
   @Override
   protected void insertCatalogEntry() throws Exception {
     String logoFilename = "%s-logo.png".formatted(SENTINELONE_EXECUTOR_TYPE);
-    fileService.uploadStream(
-        FileService.CONNECTORS_LOGO_PATH,
-        logoFilename,
-        getClass().getResourceAsStream("/img/icon-sentinelone.png"));
     CatalogConnector connector = new CatalogConnector();
     connector.setTitle("SentinelOne Executor");
     connector.setSlug(SENTINELONE_EXECUTOR_TYPE);
@@ -107,6 +103,15 @@ public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
     connector.setCatalogConnectorConfigurations(
         new SentinelOneExecutorConfig().toCatalogConfigurationSet(connector));
     catalogConnectorService.saveAll(List.of(connector));
+  }
+
+  @Override
+  protected void uploadAssets() throws Exception {
+    String logoFilename = "%s-logo.png".formatted(SENTINELONE_EXECUTOR_TYPE);
+    fileService.uploadStream(
+        FileService.CONNECTORS_LOGO_PATH,
+        logoFilename,
+        getClass().getResourceAsStream("/img/icon-sentinelone.png"));
   }
 
   @Override

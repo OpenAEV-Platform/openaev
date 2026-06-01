@@ -6,6 +6,7 @@ import static io.openaev.service.FileService.COLLECTORS_IMAGES_BASE_PATH;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.context.CallContext;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CollectorRepository;
@@ -78,9 +79,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
 
   @Override
   protected Collector getConnectorById(String collectorId) {
-    return collectorRepository
-        .findByIdAndTenantId(collectorId, TenantContext.getCurrentTenant())
-        .orElse(null);
+    return collectorRepository.findById(collectorId, TenantContext.getCurrentTenant()).orElse(null);
   }
 
   @Override
@@ -102,17 +101,23 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
 
   public Collector collector(String id) {
     return collectorRepository
-        .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
+        .findById(id, TenantContext.getCurrentTenant())
+        .orElseThrow(() -> new ElementNotFoundException("Collector not found with id: " + id));
+  }
+
+  public Collector collector(String id, String tenantId) {
+    return collectorRepository
+        .findById(id, tenantId)
         .orElseThrow(() -> new ElementNotFoundException("Collector not found with id: " + id));
   }
 
   /**
-   * Retrieve all collectors
+   * Retrieve all collectors for the current tenant
    *
    * @return List of collectors
    */
   public Iterable<Collector> collectors() {
-    return collectorRepository.findAll();
+    return collectorRepository.findAllByCompositeIdTenantId(TenantContext.getCurrentTenant());
   }
 
   /**
@@ -121,8 +126,9 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
    * @param isIncludeNext Include pending collectors.
    * @return List of collector output
    */
-  public Iterable<CollectorOutput> collectorsOutput(boolean isIncludeNext) {
-    return getConnectorsOutput(isIncludeNext);
+  public Iterable<CollectorOutput> collectorsOutput(
+      CallContext callContext, boolean isIncludeNext) {
+    return getConnectorsOutput(callContext, isIncludeNext);
   }
 
   /**
@@ -136,7 +142,14 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
   }
 
   public List<Collector> securityPlatformCollectors() {
-    return fromIterable(collectorRepository.findAll(hasSecurityPlatform()));
+    return fromIterable(
+        collectorRepository.findAll(
+            hasSecurityPlatform()
+                .and(
+                    (root, query, cb) ->
+                        cb.equal(
+                            root.get("compositeId").get("tenantId"),
+                            TenantContext.getCurrentTenant()))));
   }
 
   public Collector updateCollectorState(Collector collectorToUpdate, ObjectNode newState) {
@@ -190,7 +203,8 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
       boolean external,
       int period,
       String securityPlatformId,
-      InputStream iconStream)
+      InputStream iconStream,
+      String tenantId)
       throws Exception {
 
     if (iconStream != null) {
@@ -199,8 +213,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
 
     CollectorType collectorType = ensureCollectorTypeExists(type);
 
-    Collector collector =
-        collectorRepository.findByIdAndTenantId(id, TenantContext.getCurrentTenant()).orElse(null);
+    Collector collector = collectorRepository.findById(id, tenantId).orElse(null);
 
     SecurityPlatform securityPlatform =
         securityPlatformId != null
@@ -232,15 +245,23 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
       newCollector.setSecurityPlatform(securityPlatform);
     }
     // For new entities, isNew()=true triggers persist() via Spring Data save().
-    newCollector.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    newCollector.setTenant(new Tenant(tenantId));
     return collectorRepository.save(newCollector);
   }
 
   public List<Collector> collectorsForPayload(String payloadId) {
-    return collectorRepository.findByPayloadId(payloadId);
+    return collectorRepository.findByPayloadIdAndTenantId(
+        payloadId, TenantContext.getCurrentTenant());
   }
 
   public List<Collector> collectorsForAtomicTesting(String injectId) {
-    return collectorRepository.findByInjectId(injectId);
+    return collectorRepository.findByInjectIdAndTenantId(
+        injectId, TenantContext.getCurrentTenant());
+  }
+
+  /** Deletes a collector by ID and tenant. No-op if the collector does not exist. */
+  @Transactional
+  public void deleteCollector(@NotNull String collectorId, @NotNull String tenantId) {
+    collectorRepository.deleteByIdAndTenantId(collectorId, tenantId);
   }
 }

@@ -1,15 +1,20 @@
 package io.openaev.scheduler.jobs;
 
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.TenantContext;
 import io.openaev.integration.ManagerFactory;
+import io.openaev.service.tenants.TenantService;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Session;
 import org.quartz.DisallowConcurrentExecution;
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 @Component
 @RequiredArgsConstructor
@@ -17,13 +22,29 @@ import org.springframework.transaction.annotation.Transactional;
 @DisallowConcurrentExecution
 public class ManagerIntegrationsSyncJob implements Job {
   private final ManagerFactory managerFactory;
+  private final TenantService tenantService;
+  @PersistenceContext private EntityManager entityManager;
 
   @Override
-  @Transactional(rollbackFor = Exception.class)
   @LogExecutionTime
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
     try {
-      managerFactory.getManager().monitorIntegrations();
+      List<String> tenantIds = tenantService.findActiveTenantIds();
+      for (String tenantId : tenantIds) {
+        try {
+          TenantContext.setCurrentTenant(tenantId);
+          entityManager
+              .unwrap(Session.class)
+              .enableFilter("tenantFilter")
+              .setParameter("tenantId", tenantId);
+
+          managerFactory.getManager(tenantId).monitorIntegrations();
+        } catch (Exception e) {
+          log.error("Failed to sync integrations for tenant '{}': {}", tenantId, e.getMessage(), e);
+        } finally {
+          TenantContext.clearCurrentTenant();
+        }
+      }
     } catch (Exception e) {
       throw new JobExecutionException(e);
     }

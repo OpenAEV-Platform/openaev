@@ -618,7 +618,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       assertFalse(connectorInstanceRepository.findById(connectorInstance.getId()).isPresent());
       assertFalse(
           injectorRepository
-              .findByIdAndTenantId(injector.getId(), TenantContext.getCurrentTenant())
+              .findById(injector.getId(), TenantContext.getCurrentTenant())
               .isPresent());
     }
 
@@ -677,7 +677,9 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
 
       when(managerFactory.getManager()).thenReturn(manager);
       when(manager.getSpawnedIntegrations()).thenReturn(spawnedIntegrations);
-      doThrow(new RuntimeException("Integration failed to stop")).when(integration).initialise();
+      doThrow(new RuntimeException("Integration failed to stop"))
+          .when(integration)
+          .initialise(any());
 
       // Act & Assert
       mvc.perform(delete(CONNECTOR_INSTANCE_URI + "/" + connectorInstance.getId()).with(csrf()))

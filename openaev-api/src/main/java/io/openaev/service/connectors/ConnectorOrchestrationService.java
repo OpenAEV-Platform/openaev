@@ -143,9 +143,9 @@ public class ConnectorOrchestrationService {
   }
 
   private void cleanDummyInjectorsIfItExists(
-      String catalogConnectorSlug, ConnectorType catalogConnectorType) {
+      String catalogConnectorSlug, ConnectorType catalogConnectorType, String tenantId) {
     if (ConnectorType.INJECTOR.equals(catalogConnectorType)) {
-      injectorService.deleteDummyInjectorIfItExists(catalogConnectorSlug);
+      injectorService.deleteDummyInjectorIfItExists(catalogConnectorSlug, tenantId);
     }
   }
 
@@ -195,7 +195,8 @@ public class ConnectorOrchestrationService {
    */
   public ConnectorInstancePersisted createConnectorInstance(
       CatalogConnectorWithConfigMap catalogConnectorWithConfigMap,
-      CreateConnectorInstanceInput input) {
+      CreateConnectorInstanceInput input,
+      String tenantId) {
     throwIfEnterpriseLicenseNotActive();
 
     throwIfXtmComposerDownAndNeeded(catalogConnectorWithConfigMap.catalogConnector);
@@ -214,11 +215,13 @@ public class ConnectorOrchestrationService {
     }
 
     ConnectorInstancePersisted connectorInstance =
-        connectorInstanceService.createConnectorInstance(catalogConnectorWithConfigMap, input);
+        connectorInstanceService.createConnectorInstance(
+            catalogConnectorWithConfigMap, input, tenantId);
 
     cleanDummyInjectorsIfItExists(
         catalogConnectorWithConfigMap.catalogConnector.getSlug(),
-        catalogConnectorWithConfigMap.catalogConnector.getContainerType());
+        catalogConnectorWithConfigMap.catalogConnector.getContainerType(),
+        tenantId);
 
     return connectorInstance;
   }

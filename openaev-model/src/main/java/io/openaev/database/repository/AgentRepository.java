@@ -25,7 +25,7 @@ public interface AgentRepository
               AND a.privilege = :privilege
               AND a.parent IS NULL
               AND a.inject IS NULL
-              AND a.executor.id = :executorId
+              AND a.executor.compositeId.id = :executorId
           """)
   Optional<Agent> findByAssetExecutorIdUserDeploymentAndPrivilege(
       @Param("assetId") String assetId,
@@ -34,7 +34,11 @@ public interface AgentRepository
       @Param("privilege") Agent.PRIVILEGE privilege,
       @Param("executorId") String executorId);
 
-  List<Agent> findByExecutorId(String executorId);
+  @Query(
+      "SELECT a FROM Agent a WHERE a.executor.compositeId.id = :executorId"
+          + " AND a.executor.compositeId.tenantId = :tenantId")
+  List<Agent> findByExecutorIdAndTenantId(
+      @Param("executorId") String executorId, @Param("tenantId") String tenantId);
 
   List<Agent> findByExternalReferenceAndTenantId(String externalReference, String tenantId);
 

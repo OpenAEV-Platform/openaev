@@ -68,7 +68,9 @@ public class Executor {
   private InjectStatus executeInternal(ExecutableInject executableInject, Injector injector) {
     Inject inject = executableInject.getInjection().getInject();
     io.openaev.executors.Injector executor =
-        managerFactory.getManager().requestInjectorExecutorByType(injector.getType());
+        managerFactory
+            .getManager(inject.getTenant().getId())
+            .requestInjectorExecutorByType(injector.getType());
 
     Execution execution = executor.executeInjection(executableInject);
     // After execution, expectations are already created
@@ -107,7 +109,8 @@ public class Executor {
     actionMetricCollector.addInjectPlayedCount(injector.getType());
 
     boolean hasStartedConnectorInstanceForInjector =
-        this.connectorInstanceService.hasStartedConnectorInstanceForInjector(injector.getId());
+        this.connectorInstanceService.hasStartedConnectorInstanceForInjector(
+            injector.getId(), inject.getTenant().getId());
     if (!hasStartedConnectorInstanceForInjector) {
       throw new IllegalStateException(
           "No started connector instance found for injector type: " + injector.getType());

@@ -33,7 +33,7 @@ public class ConnectorInstancePersisted extends ConnectorInstance implements Ten
   @NotBlank
   private String id;
 
-  @ManyToOne(fetch = FetchType.LAZY)
+  @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "connector_instance_catalog_id", nullable = false)
   @JsonProperty("connector_instance_catalog")
   @NotNull
@@ -87,7 +87,7 @@ public class ConnectorInstancePersisted extends ConnectorInstance implements Ten
 
   @OneToMany(
       mappedBy = "connectorInstance",
-      fetch = FetchType.LAZY,
+      fetch = FetchType.EAGER,
       cascade = CascadeType.ALL,
       orphanRemoval = true)
   @JsonProperty("connector_instance_configurations")

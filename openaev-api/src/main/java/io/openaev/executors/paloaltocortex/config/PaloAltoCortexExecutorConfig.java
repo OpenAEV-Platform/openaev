@@ -1,6 +1,5 @@
 package io.openaev.executors.paloaltocortex.config;
 
-import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_DEFAULT_ID;
 import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_NAME;
 
 import io.openaev.database.model.CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_FORMAT;
@@ -8,6 +7,7 @@ import io.openaev.database.model.CatalogConnectorConfiguration.CONNECTOR_CONFIGU
 import io.openaev.integration.configuration.BaseIntegrationConfiguration;
 import io.openaev.integration.configuration.IntegrationConfigKey;
 import jakarta.validation.constraints.NotBlank;
+import java.util.UUID;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -28,7 +28,7 @@ public class PaloAltoCortexExecutorConfig extends BaseIntegrationConfiguration {
       isRequired = true)
   @Getter
   @NotBlank
-  private String id = PALOALTOCORTEX_EXECUTOR_DEFAULT_ID;
+  private String id = UUID.randomUUID().toString();
 
   @IntegrationConfigKey(
       key = "EXECUTOR_NAME",

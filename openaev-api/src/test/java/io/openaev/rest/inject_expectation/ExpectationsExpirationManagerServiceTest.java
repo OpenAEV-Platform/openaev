@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import io.openaev.IntegrationTest;
 import io.openaev.collectors.expectations_expiration_manager.ExpectationsExpirationManagerJob;
 import io.openaev.collectors.expectations_expiration_manager.service.ExpectationsExpirationManagerService;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.execution.ExecutableInject;
@@ -17,7 +18,10 @@ import io.openaev.utils.fixtures.*;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.List;
 import java.util.UUID;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -52,17 +56,18 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
   void beforeEach() throws Exception {
     // Register the builtin collector for the test tenant (builtins are only registered
     // for tenants that exist at startup, not for the test tenant created by @WithMockUser)
-    expectationsExpirationManagerJob.registerForTenant();
+    expectationsExpirationManagerJob.registerForTenant(TenantContext.getCurrentTenant());
 
     // Use the builtin injector if already registered, otherwise create it
+    String injectorId = OPENAEV_INJECTOR_ID;
     savedInjector =
         injectorRepository
-            .findById(OPENAEV_INJECTOR_ID)
+            .findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant())
             .orElseGet(
                 () ->
                     injectorRepository.save(
                         InjectorFixture.createInjector(
-                            OPENAEV_INJECTOR_ID, "OpenAEV Implant", "openaev_implant")));
+                            injectorId, "OpenAEV Implant", "openaev_implant")));
 
     InjectorContract injectorContract;
     try {
@@ -135,7 +140,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       assertEquals(null, injectExpectations.getFirst().getScore());
 
       // -- EXECUTE --
-      expectationsExpirationManagerService.computeExpectations();
+      expectationsExpirationManagerService.computeExpectations(TenantContext.getCurrentTenant());
 
       // -- ASSERT --
       // Agent Expectation
@@ -217,7 +222,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       assertEquals(null, injectExpectations.getFirst().getScore());
 
       // -- EXECUTE --
-      expectationsExpirationManagerService.computeExpectations();
+      expectationsExpirationManagerService.computeExpectations(TenantContext.getCurrentTenant());
 
       // -- ASSERT --
       // Agent Expectation
@@ -307,7 +312,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       assertEquals(null, injectExpectations.getFirst().getScore());
 
       // -- EXECUTE --
-      expectationsExpirationManagerService.computeExpectations();
+      expectationsExpirationManagerService.computeExpectations(TenantContext.getCurrentTenant());
 
       // -- ASSERT --
       // Agent Expectation
@@ -373,7 +378,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       assertEquals(null, injectExpectations.getFirst().getScore());
 
       // -- EXECUTE --
-      expectationsExpirationManagerService.computeExpectations();
+      expectationsExpirationManagerService.computeExpectations(TenantContext.getCurrentTenant());
 
       // -- ASSERT --
       // Asset
@@ -408,7 +413,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       assertEquals(null, injectExpectations.getFirst().getScore());
 
       // -- EXECUTE --
-      expectationsExpirationManagerService.computeExpectations();
+      expectationsExpirationManagerService.computeExpectations(TenantContext.getCurrentTenant());
 
       // -- ASSERT --
       injectExpectations =

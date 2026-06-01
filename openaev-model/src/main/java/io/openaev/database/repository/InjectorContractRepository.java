@@ -11,10 +11,10 @@ import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
@@ -25,7 +25,7 @@ import org.springframework.stereotype.Repository;
  * capabilities and parameters of attack simulation injectors. It supports:
  *
  * <ul>
- *   <li>CRUD operations via {@link CrudRepository}
+ *   <li>CRUD operations via {@link JpaRepository}
  *   <li>Dynamic filtering via {@link JpaSpecificationExecutor}
  *   <li>Custom queries for contract lookup by various criteria
  *   <li>Access-controlled queries respecting user grants
@@ -36,7 +36,7 @@ import org.springframework.stereotype.Repository;
  */
 @Repository
 public interface InjectorContractRepository
-    extends CrudRepository<InjectorContract, InjectorContractId>,
+    extends JpaRepository<InjectorContract, InjectorContractId>,
         JpaSpecificationExecutor<InjectorContract> {
 
   /**
@@ -94,9 +94,10 @@ public interface InjectorContractRepository
   List<RawInjectorsContracts> getAllRawInjectorsContractsGranted(
       @Param("userId") String userId, @Param("resourceType") String resourceType);
 
-  @NotNull
-  @Query("SELECT ic FROM InjectorContract ic WHERE ic.compositeId.id = :id")
-  Optional<InjectorContract> findById(@Param("id") @NotNull String id);
+  @Query(
+      "SELECT ic FROM InjectorContract ic WHERE ic.compositeId.id = :id AND ic.compositeId.tenantId = :tenantId")
+  Optional<InjectorContract> findByIdAndTenantId(
+      @NotNull @Param("id") String id, @NotNull @Param("tenantId") String tenantId);
 
   @Query("SELECT COUNT(ic) > 0 FROM InjectorContract ic WHERE ic.compositeId.id = :id")
   boolean existsByContractId(@Param("id") @NotNull String id);
@@ -112,6 +113,12 @@ public interface InjectorContractRepository
 
   @NotNull
   Optional<InjectorContract> findInjectorContractByPayload(@NotNull Payload payload);
+
+  @NotNull
+  @Query(
+      "SELECT ic FROM InjectorContract ic WHERE ic.payload = :payload AND ic.compositeId.tenantId = :tenantId")
+  Optional<InjectorContract> findInjectorContractByPayloadAndTenantId(
+      @NotNull @Param("payload") Payload payload, @Param("tenantId") @NotNull String tenantId);
 
   @Query(
       value =
@@ -146,9 +153,17 @@ public interface InjectorContractRepository
           + "FROM InjectorContract ic WHERE ic.compositeId.id = :id AND ic.payload IS NOT NULL")
   boolean existsByIdAndPayloadIsNotNull(@Param("id") String id);
 
+  @Query(
+      "SELECT CASE WHEN COUNT(ic) > 0 THEN true ELSE false END "
+          + "FROM InjectorContract ic WHERE ic.compositeId.id = :id AND ic.compositeId.tenantId = :tenantId")
+  boolean existsByContractIdAndTenantId(
+      @Param("id") @NotNull String id, @Param("tenantId") @NotNull String tenantId);
+
   @Modifying
-  @Query("DELETE FROM InjectorContract ic WHERE ic.compositeId.id IN :ids")
-  void deleteAllById(@Param("ids") @NotNull List<String> ids);
+  @Query(
+      "DELETE FROM InjectorContract ic WHERE ic.compositeId.id IN :ids AND ic.compositeId.tenantId = :tenantId")
+  void deleteAllByIdAndTenantId(
+      @Param("ids") @NotNull List<String> ids, @Param("tenantId") @NotNull String tenantId);
 
   @Query(
       value =
@@ -193,9 +208,8 @@ public interface InjectorContractRepository
       value =
           """
           INSERT INTO injectors_injector_contracts (injector_id, injector_contract_id, tenant_id)
-          SELECT i.injector_id, :contractId, ic_ref.tenant_id
+          SELECT i.injector_id, :contractId, i.tenant_id
           FROM injectors i
-          JOIN injectors_contracts ic_ref ON ic_ref.injector_contract_id = :contractId AND ic_ref.tenant_id = i.tenant_id
           WHERE i.injector_id IN (:injectorIds)
           AND NOT EXISTS (
             SELECT 1 FROM injectors_injector_contracts ic

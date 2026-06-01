@@ -6,21 +6,20 @@ import io.openaev.config.OpenAEVConfig;
 import io.openaev.opencti.config.OpenCTIConfig;
 import io.openaev.opencti.connectors.ConnectorBase;
 import io.openaev.opencti.connectors.ConnectorType;
+import io.openaev.utils.DeterministicIdUtils;
 import io.openaev.utils.StringUtils;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 import lombok.Getter;
 import lombok.Setter;
 
 @Getter
 public class SecurityCoverageConnector extends ConnectorBase {
   /**
-   * Namespace UUID used to derive deterministic connector IDs via UUID v5. DO NOT CHANGE — OpenCTI
-   * connector registrations depend on this value. Changing it would orphan all existing
-   * registrations.
+   * Namespace UUID used to derive deterministic connector IDs. DO NOT CHANGE — OpenCTI connector
+   * registrations depend on this value. Changing it would orphan all existing registrations.
    */
-  private static final UUID NAMESPACE = UUID.fromString("68949a7b-c1c2-4649-b3de-7db804ba02bb");
+  private static final String NAMESPACE = "68949a7b-c1c2-4649-b3de-7db804ba02bb";
 
   @Setter private OpenCTIConfig openCTIConfig;
   @Setter private OpenAEVConfig openAEVConfig;
@@ -41,7 +40,7 @@ public class SecurityCoverageConnector extends ConnectorBase {
 
   @Override
   public String getId() {
-    return UUID.nameUUIDFromBytes((NAMESPACE + ":" + this.getTenantId()).getBytes()).toString();
+    return DeterministicIdUtils.derive(NAMESPACE, this.getTenantId());
   }
 
   @Override

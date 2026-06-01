@@ -10,6 +10,13 @@ package io.openaev.integration;
  */
 public interface BuiltinTenantRegistrable {
 
-  /** Registers this built-in component in the <b>current</b> tenant context. */
-  void registerForTenant() throws Exception;
+  /** Registers this built-in component for the given tenant. */
+  void registerForTenant(String tenantId) throws Exception;
+
+  /**
+   * Cleans up any in-memory state for the given tenant (caches, schedulers, etc.). DB rows are
+   * typically deleted by CASCADE on tenant removal, so this method only needs to handle non-DB
+   * resources. Default implementation is a no-op.
+   */
+  default void unregisterForTenant(String tenantId) {}
 }

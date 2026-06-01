@@ -4,6 +4,7 @@ import static io.openaev.config.OpenAEVAnonymous.ANONYMOUS;
 import static io.openaev.config.SessionHelper.currentUser;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.CallContext;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectorContract;
@@ -35,7 +36,11 @@ public class MailingService {
   private final ManagerFactory managerFactory;
 
   public void sendEmail(
-      String subject, String body, List<User> users, Optional<Exercise> exercise) {
+      CallContext callContext,
+      String subject,
+      String body,
+      List<User> users,
+      Optional<Exercise> exercise) {
     EmailContent emailContent = new EmailContent();
     emailContent.setSubject(subject);
     emailContent.setBody(body);
@@ -43,7 +48,7 @@ public class MailingService {
     Inject inject = new Inject();
     InjectorContract emailContract =
         this.injectorContractRepository
-            .findById(EmailContract.EMAIL_DEFAULT)
+            .findByIdAndTenantId(EmailContract.EMAIL_DEFAULT, callContext.getTenantId())
             .orElseThrow(ElementNotFoundException::new);
     inject.setInjectorContract(emailContract);
     inject.setInjector(emailContract.getFirstInjector());
@@ -77,13 +82,13 @@ public class MailingService {
                   new ExecutableInject(false, true, inject, userInjectContexts);
               io.openaev.executors.Injector executor =
                   managerFactory
-                      .getManager()
+                      .getManager(callContext.getTenantId())
                       .requestInjectorExecutorByType(injectorContract.getFirstInjector().getType());
               executor.executeInjection(injection);
             });
   }
 
-  public void sendEmail(String subject, String body, List<User> users) {
-    sendEmail(subject, body, users, Optional.empty());
+  public void sendEmail(CallContext callContext, String subject, String body, List<User> users) {
+    sendEmail(callContext, subject, body, users, Optional.empty());
   }
 }

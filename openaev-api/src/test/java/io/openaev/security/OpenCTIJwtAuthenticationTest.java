@@ -11,6 +11,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
+import io.openaev.integration.Manager;
 import io.openaev.integration.impl.injectors.manual.ManualInjectorIntegrationFactory;
 import io.openaev.opencti.config.XtmConfig;
 import io.openaev.opencti.connectors.impl.SecurityCoverageConnector;
@@ -57,7 +58,10 @@ public class OpenCTIJwtAuthenticationTest extends IntegrationTest {
   void setUp() throws Exception {
     userComposer.reset();
     tokenComposer.reset();
-    manualInjectorIntegrationFactory.registerConnectorForTenant();
+    new Manager(
+            List.of(manualInjectorIntegrationFactory),
+            io.openaev.context.TenantContext.getCurrentTenant())
+        .monitorIntegrations();
   }
 
   private Stream<Arguments> authorizationOpenCTI() throws Exception {

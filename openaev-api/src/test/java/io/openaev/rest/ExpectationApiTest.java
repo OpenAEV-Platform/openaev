@@ -29,6 +29,7 @@ import io.openaev.helper.StreamHelper;
 import io.openaev.injectors.challenge.ChallengeContract;
 import io.openaev.injectors.email.EmailContract;
 import io.openaev.injectors.openaev.OpenAEVImplantContract;
+import io.openaev.integration.Manager;
 import io.openaev.integration.impl.injectors.challenge.ChallengeInjectorIntegrationFactory;
 import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
@@ -846,9 +847,13 @@ class ExpectationApiTest extends IntegrationTest {
     @Test
     @DisplayName("Get available InjectExpectations for injects")
     void getAvailableInjectExpectationsForInjects() throws Exception {
-      emailInjectorIntegrationFactory.registerConnectorForTenant();
-      challengeInjectorIntegrationFactory.registerConnectorForTenant();
-      openaevInjectorIntegrationFactory.registerConnectorForTenant();
+      new Manager(
+              List.of(
+                  emailInjectorIntegrationFactory,
+                  challengeInjectorIntegrationFactory,
+                  openaevInjectorIntegrationFactory),
+              io.openaev.context.TenantContext.getCurrentTenant())
+          .monitorIntegrations();
 
       // OpenAEVImplantContract.contracts() returns empty, so we manually create a contract
       // and link it to the implant injector (same pattern as the original @BeforeAll setup)

@@ -12,6 +12,7 @@ import io.openaev.expectation.ExpectationType;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
 import io.openaev.service.InjectExpectationService;
+import io.openaev.utils.DeterministicIdUtils;
 import io.openaev.utils.ExpectationUtils;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
@@ -34,8 +35,10 @@ public class ExpectationsExpirationManagerService {
   public static final String EXPIRED = "Expired";
 
   @Transactional(rollbackFor = Exception.class)
-  public void computeExpectations() {
-    Collector collector = this.collectorService.collector(config.getId());
+  public void computeExpectations(String tenantId) {
+    Collector collector =
+        this.collectorService.collector(
+            DeterministicIdUtils.resolveConnectorId(config.getId(), tenantId), tenantId);
     // Get all the expectations we will update (max of 10k)
     Page<InjectExpectation> expectations = this.injectExpectationService.expectationsNotFill();
     // We're making a loop on 10 calls max to avoid staying in an infinite loop

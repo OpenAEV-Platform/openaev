@@ -11,32 +11,30 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * Composite primary key for {@link InjectorContract}.
+ * Composite primary key for {@link Executor}.
  *
- * <p>Since built-in injector contracts have static IDs (e.g. EMAIL_DEFAULT, CHALLENGE_PUBLISH),
- * each tenant needs its own copy. The PK must therefore include both the contract ID and the tenant
- * ID.
+ * <p>Since built-in executors have static IDs shared across tenants, each tenant needs its own
+ * copy. The PK must therefore include both the executor ID and the tenant ID.
  *
  * <p>The tenant is stored as a plain {@code String} (not a {@code @ManyToOne}) to avoid a known
  * Hibernate 6.x {@code AssertionError} in {@code EmbeddableAssembler} when an {@code @EmbeddedId}
- * with {@code @ManyToOne} is combined with EAGER {@code @ManyToMany} collections using composite
- * join columns.
+ * with {@code @ManyToOne} is combined with EAGER collections using composite join columns.
  */
 @Embeddable
 @Getter
 @Setter
 @NoArgsConstructor
-public class InjectorContractId implements Serializable {
+public class ExecutorId implements Serializable {
 
   @Serial private static final long serialVersionUID = 1L;
 
-  @Column(name = "injector_contract_id")
+  @Column(name = "executor_id")
   private String id = UUID.randomUUID().toString();
 
   @Column(name = "tenant_id", updatable = false, nullable = false)
   private String tenantId;
 
-  public InjectorContractId(String id, String tenantId) {
+  public ExecutorId(String id, String tenantId) {
     this.id = id;
     this.tenantId = tenantId;
   }
@@ -45,7 +43,7 @@ public class InjectorContractId implements Serializable {
   public boolean equals(Object o) {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
-    InjectorContractId that = (InjectorContractId) o;
+    ExecutorId that = (ExecutorId) o;
     return Objects.equals(id, that.id) && Objects.equals(tenantId, that.tenantId);
   }
 

@@ -31,7 +31,13 @@ public class MvcConfig implements WebMvcConfigurer {
 
   @Override
   public void addInterceptors(InterceptorRegistry registry) {
-    registry.addInterceptor(tenantInterceptor).addPathPatterns("/api/tenants/**");
+    // Tenant interceptor applies only to tenant-scoped sub-resource endpoints:
+    //   /api/tenants/{tenantId}/{resource}/**
+    // Exclude all platform-admin TenantApi endpoints.
+    registry
+        .addInterceptor(tenantInterceptor)
+        .addPathPatterns("/api/tenants/*/*/**")
+        .excludePathPatterns("/api/tenants/*/reactivate", "/api/tenants/search");
   }
 
   @Bean

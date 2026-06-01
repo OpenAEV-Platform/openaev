@@ -22,21 +22,24 @@ public class SentinelOneGarbageCollectorService implements Runnable {
   private final SentinelOneExecutorContextService sentinelOneExecutorContextService;
   private final AgentService agentService;
   private final String executorId;
+  private final String tenantId;
 
   public SentinelOneGarbageCollectorService(
       SentinelOneExecutorConfig config,
       SentinelOneExecutorContextService sentinelOneExecutorContextService,
       AgentService agentService,
-      String executorId) {
+      String executorId,
+      String tenantId) {
     this.config = config;
     this.sentinelOneExecutorContextService = sentinelOneExecutorContextService;
     this.agentService = agentService;
     this.executorId = executorId;
+    this.tenantId = tenantId;
   }
 
   @Override
   public void run() {
-    List<Agent> agents = this.agentService.getAgentsByExecutorId(executorId);
+    List<Agent> agents = this.agentService.getAgentsByExecutorId(executorId, tenantId);
     if (!agents.isEmpty()) {
       List<SentinelOneAction> actions = new ArrayList<>();
       log.info("Running SentinelOne executor garbage collector on " + agents.size() + " agents");

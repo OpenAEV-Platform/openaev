@@ -7,6 +7,7 @@ import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CatalogConnectorRepository;
 import io.openaev.ee.EnterpriseEditionService;
@@ -42,6 +43,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @SpringBootTest
 @Transactional
@@ -69,6 +71,7 @@ public class TaniumExecutorIntegrationTest {
   @Autowired private TaniumExecutorConfigurationMigration taniumExecutorConfigurationMigration;
 
   @Autowired private FileService fileService;
+  @Autowired private TransactionTemplate transactionTemplate;
 
   private TaniumExecutorIntegrationFactory getFactory() {
     return new TaniumExecutorIntegrationFactory(
@@ -85,7 +88,8 @@ public class TaniumExecutorIntegrationTest {
         taskScheduler,
         fileService,
         baseIntegrationConfigurationBuilder,
-        httpClientFactory);
+        httpClientFactory,
+        transactionTemplate);
   }
 
   @Test
@@ -112,7 +116,8 @@ public class TaniumExecutorIntegrationTest {
     List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
     List<ConnectorInstancePersisted> instances =
         connectorInstanceService.findAllByCatalogConnector(connectors.getFirst());
-    List<Integration> syncedIntegrations = integrationFactory.sync(new ArrayList<>(instances));
+    List<Integration> syncedIntegrations =
+        integrationFactory.sync(new ArrayList<>(instances), TenantContext.getCurrentTenant());
 
     assertThat(syncedIntegrations).hasSize(1);
     assertThat(syncedIntegrations).first().isInstanceOf(TaniumExecutorIntegration.class);
@@ -135,7 +140,8 @@ public class TaniumExecutorIntegrationTest {
     List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
     List<ConnectorInstancePersisted> instances =
         connectorInstanceService.findAllByCatalogConnector(connectors.getFirst());
-    List<Integration> syncedIntegrations = integrationFactory.sync(new ArrayList<>(instances));
+    List<Integration> syncedIntegrations =
+        integrationFactory.sync(new ArrayList<>(instances), TenantContext.getCurrentTenant());
 
     assertThat(syncedIntegrations).hasSize(1);
     assertThat(syncedIntegrations).first().isInstanceOf(TaniumExecutorIntegration.class);
@@ -220,7 +226,8 @@ public class TaniumExecutorIntegrationTest {
                     executorService,
                     taskScheduler,
                     null,
-                    httpClientFactory))
+                    httpClientFactory,
+                    transactionTemplate))
         .isInstanceOf(ExecutorException.class)
         .hasMessageContaining("Error during initialization of the Executor");
   }
@@ -246,7 +253,7 @@ public class TaniumExecutorIntegrationTest {
         .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
 
     // Act
-    integration.initialise();
+    integration.initialise(TenantContext.getCurrentTenant());
 
     // Assert
     assertThat(integration.getCurrentStatus())
@@ -269,7 +276,7 @@ public class TaniumExecutorIntegrationTest {
     connectorInstanceService.save(instance);
 
     Integration integration = integrationFactory.spawn(instance);
-    integration.initialise();
+    integration.initialise(TenantContext.getCurrentTenant());
     assertThat(integration.getCurrentStatus())
         .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.started);
 
@@ -278,7 +285,7 @@ public class TaniumExecutorIntegrationTest {
     connectorInstanceService.save(instance);
 
     // Act
-    integration.initialise();
+    integration.initialise(TenantContext.getCurrentTenant());
 
     // Assert
     assertThat(integration.getCurrentStatus())

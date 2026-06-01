@@ -1,5 +1,8 @@
 package io.openaev.integration.impl.injectors.challenge;
 
+import static io.openaev.integration.impl.injectors.challenge.ChallengeInjectorIntegration.CHALLENGE_INJECTOR_ID;
+import static io.openaev.utils.DeterministicIdUtils.resolveConnectorId;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.api.url_access_token.UrlAccessTokenService;
 import io.openaev.authorisation.HttpClientFactory;
@@ -7,13 +10,11 @@ import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.database.repository.ChallengeRepository;
 import io.openaev.executors.InjectorContext;
-import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.injectors.challenge.ChallengeContract;
 import io.openaev.injectors.email.service.EmailService;
-import io.openaev.integration.BuiltinIntegrationFactory;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
-import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.integration.IntegrationFactory;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.PreviewFeatureService;
@@ -24,7 +25,7 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 
 @Service
-public class ChallengeInjectorIntegrationFactory extends BuiltinIntegrationFactory {
+public class ChallengeInjectorIntegrationFactory extends IntegrationFactory {
 
   private final ChallengeContract challengeContract;
   private final InjectorContext injectorContext;
@@ -81,10 +82,10 @@ public class ChallengeInjectorIntegrationFactory extends BuiltinIntegrationFacto
   }
 
   @Override
-  public List<ConnectorInstance> findRelatedInstances() {
+  public List<ConnectorInstance> findRelatedInstances(String tenantId) {
     return List.of(
         connectorInstanceService.createAutostartInstance(
-            ChallengeInjectorIntegration.CHALLENGE_INJECTOR_ID,
+            resolveConnectorId(CHALLENGE_INJECTOR_ID, tenantId),
             this.getClassName(),
             ConnectorType.INJECTOR));
   }
@@ -108,23 +109,5 @@ public class ChallengeInjectorIntegrationFactory extends BuiltinIntegrationFacto
         challengeRepository,
         urlAccessTokenService,
         previewFeatureService);
-  }
-
-  @Override
-  public void registerConnectorForTenant() throws Exception {
-    try {
-      injectorService.injector(ChallengeInjectorIntegration.CHALLENGE_INJECTOR_ID);
-    } catch (ElementNotFoundException e) {
-      injectorService.registerBuiltinInjector(
-          ChallengeInjectorIntegration.CHALLENGE_INJECTOR_ID,
-          ChallengeInjectorIntegration.CHALLENGE_INJECTOR_NAME,
-          challengeContract,
-          false,
-          "capture-the-flag",
-          null,
-          null,
-          false,
-          List.of(ExternalServiceDependency.SMTP, ExternalServiceDependency.IMAP));
-    }
   }
 }

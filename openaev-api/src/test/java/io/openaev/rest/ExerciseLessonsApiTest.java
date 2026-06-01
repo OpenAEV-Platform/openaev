@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.LessonsCategory;
 import io.openaev.database.model.Team;
@@ -20,6 +21,7 @@ import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.LessonsCategoryRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.integration.Manager;
 import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.lessons.form.LessonsSendInput;
@@ -60,7 +62,8 @@ public class ExerciseLessonsApiTest extends IntegrationTest {
 
   @BeforeAll
   void beforeAll() throws Exception {
-    emailInjectorIntegrationFactory.registerConnectorForTenant();
+    new Manager(List.of(emailInjectorIntegrationFactory), TenantContext.getCurrentTenant())
+        .monitorIntegrations();
     LESSONCATEGORY = getLessonCategory();
   }
 

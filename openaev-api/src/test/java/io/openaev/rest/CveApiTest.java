@@ -178,8 +178,7 @@ class CveApiTest extends IntegrationTest {
 
       // Verify that the collector state was updated with bulk insert metadata
       Optional<Collector> savedCollector =
-          collectorRepository.findByIdAndTenantId(
-              collector.getId(), TenantContext.getCurrentTenant());
+          collectorRepository.findById(collector.getId(), TenantContext.getCurrentTenant());
       if (savedCollector.isEmpty()) {
         fail("Collector not found after bulk insert");
       }

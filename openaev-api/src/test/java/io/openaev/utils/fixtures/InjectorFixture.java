@@ -5,10 +5,12 @@ import io.openaev.database.model.Injector;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.injectors.email.EmailContract;
 import io.openaev.injectors.openaev.OpenAEVImplantContract;
-import io.openaev.integration.BuiltinIntegrationFactory;
+import io.openaev.integration.IntegrationFactory;
+import io.openaev.integration.Manager;
 import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -45,10 +47,9 @@ public class InjectorFixture {
         UUID.randomUUID().toString(), injectorName, injectorName.toLowerCase().replace(" ", "-"));
   }
 
-  private Injector initializeBuiltInInjector(
-      BuiltinIntegrationFactory factory, String injectorType) {
+  private Injector initializeBuiltInInjector(IntegrationFactory factory, String injectorType) {
     try {
-      factory.registerConnectorForTenant();
+      new Manager(List.of(factory), TenantContext.getCurrentTenant()).monitorIntegrations();
     } catch (Exception e) {
       throw new RuntimeException("Failed to initialize injector: " + injectorType, e);
     }
@@ -62,7 +63,7 @@ public class InjectorFixture {
   }
 
   private Injector getWellKnownInjector(
-      String injectorType, BuiltinIntegrationFactory factory, boolean isPayload) {
+      String injectorType, IntegrationFactory factory, boolean isPayload) {
     Injector injector =
         injectorRepository
             .findByTypeAndTenantId(injectorType, TenantContext.getCurrentTenant())

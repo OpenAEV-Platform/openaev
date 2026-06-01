@@ -23,6 +23,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 public class PaloAltoCortexGarbageCollectorServiceTest {
 
   private static final String EXECUTOR_ID = "test-executor-id";
+  private static final String TENANT_ID = "test-tenant-id";
 
   @Mock private AgentService agentService;
   @Mock private PaloAltoCortexExecutorContextService paloAltoCortexExecutorContextService;
@@ -34,7 +35,7 @@ public class PaloAltoCortexGarbageCollectorServiceTest {
   void setUp() {
     paloAltoCortexGarbageCollectorService =
         new PaloAltoCortexGarbageCollectorService(
-            config, paloAltoCortexExecutorContextService, agentService, EXECUTOR_ID);
+            config, paloAltoCortexExecutorContextService, agentService, EXECUTOR_ID, TENANT_ID);
   }
 
   @Test
@@ -43,7 +44,7 @@ public class PaloAltoCortexGarbageCollectorServiceTest {
     Agent agent = AgentFixture.createDefaultAgentService();
     agent.setExternalReference("agent_external_reference");
     agent.setAsset(EndpointFixture.createEndpoint());
-    when(agentService.getAgentsByExecutorId(EXECUTOR_ID)).thenReturn(List.of(agent));
+    when(agentService.getAgentsByExecutorId(EXECUTOR_ID, TENANT_ID)).thenReturn(List.of(agent));
     when(config.getWindowsScriptUid()).thenReturn("test script");
     // Run method to test
     paloAltoCortexGarbageCollectorService.run();

@@ -8,6 +8,7 @@ import static io.openaev.utils.SecurityUtils.validateJFrogUri;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.aop.AccessControl;
+import io.openaev.context.CallContext;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Injector;
@@ -88,7 +89,8 @@ public class InjectorApi extends RestBehavior {
               required = false)
           @RequestParam(value = "include_next", required = false, defaultValue = "false")
           boolean includeNext) {
-    return injectorService.injectorsOutput(includeNext);
+    return injectorService.injectorsOutput(
+        CallContext.of(TenantContext.getCurrentTenant()), includeNext);
   }
 
   @GetMapping({
@@ -172,7 +174,7 @@ public class InjectorApi extends RestBehavior {
   public InjectorRegistration registerInjector(
       @Valid @RequestPart("input") InjectorCreateInput input,
       @RequestPart("icon") Optional<MultipartFile> file) {
-    return injectorService.registerExternalInjector(input, file);
+    return injectorService.registerExternalInjector(input, file, TenantContext.getCurrentTenant());
   }
 
   // Public API

@@ -18,6 +18,7 @@ import io.openaev.executors.InjectorContext;
 import io.openaev.injectors.email.EmailExecutor;
 import io.openaev.injectors.email.model.EmailContent;
 import io.openaev.injectors.email.service.EmailService;
+import io.openaev.integration.Manager;
 import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
 import io.openaev.model.inject.form.Expectation;
 import io.openaev.utils.fixtures.*;
@@ -109,7 +110,10 @@ public class EmailExecutorTest extends IntegrationTest {
     Execution execution = new Execution(executableInject.isRuntime());
 
     // -- EXECUTE --
-    emailInjectorIntegrationFactory.registerConnectorForTenant();
+    new Manager(
+            List.of(emailInjectorIntegrationFactory),
+            io.openaev.context.TenantContext.getCurrentTenant())
+        .monitorIntegrations();
     io.openaev.executors.Injector emailExecutor =
         new EmailExecutor(injectorContext, emailService, injectExpectationService);
     emailExecutor.process(execution, executableInject);
@@ -155,7 +159,10 @@ public class EmailExecutorTest extends IntegrationTest {
     Execution execution = new Execution(executableInject.isRuntime());
 
     // -- EXECUTE --
-    emailInjectorIntegrationFactory.registerConnectorForTenant();
+    new Manager(
+            List.of(emailInjectorIntegrationFactory),
+            io.openaev.context.TenantContext.getCurrentTenant())
+        .monitorIntegrations();
     io.openaev.executors.Injector emailExecutor =
         new EmailExecutor(injectorContext, emailService, injectExpectationService);
     emailExecutor.process(execution, executableInject);

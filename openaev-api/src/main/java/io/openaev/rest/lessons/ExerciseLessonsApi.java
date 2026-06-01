@@ -5,6 +5,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static java.time.Instant.now;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.CallContext;
 import io.openaev.aop.UrlAccessControl;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
@@ -355,7 +356,12 @@ public class ExerciseLessonsApi extends RestBehavior {
                     lessonsCategory.getTeams().stream().flatMap(team -> team.getUsers().stream()))
             .distinct()
             .toList();
-    mailingService.sendEmail(input.getSubject(), input.getBody(), users, Optional.of(exercise));
+    mailingService.sendEmail(
+        CallContext.of(TenantContext.getCurrentTenant()),
+        input.getSubject(),
+        input.getBody(),
+        users,
+        Optional.of(exercise));
   }
 
   @GetMapping({

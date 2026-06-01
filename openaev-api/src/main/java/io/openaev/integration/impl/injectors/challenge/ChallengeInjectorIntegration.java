@@ -4,6 +4,7 @@ import io.openaev.api.url_access_token.UrlAccessTokenService;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.repository.ChallengeRepository;
 import io.openaev.executors.InjectorContext;
+import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.injectors.challenge.ChallengeContract;
 import io.openaev.injectors.challenge.ChallengeExecutor;
 import io.openaev.injectors.email.service.EmailService;
@@ -14,6 +15,7 @@ import io.openaev.service.InjectExpectationService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import java.util.List;
 
 public class ChallengeInjectorIntegration extends IntegrationInMemory {
   static final String CHALLENGE_INJECTOR_NAME = "Challenges";
@@ -29,7 +31,7 @@ public class ChallengeInjectorIntegration extends IntegrationInMemory {
   private final UrlAccessTokenService urlAccessTokenService;
   private final PreviewFeatureService previewFeatureService;
 
-  @QualifiedComponent(identifier = {ChallengeContract.TYPE, CHALLENGE_INJECTOR_ID})
+  @QualifiedComponent(identifier = {ChallengeContract.TYPE})
   private ChallengeExecutor challengeExecutor;
 
   public ChallengeInjectorIntegration(
@@ -57,6 +59,17 @@ public class ChallengeInjectorIntegration extends IntegrationInMemory {
 
   @Override
   protected void innerStart() throws Exception {
+    injectorService.registerBuiltinInjector(
+        CHALLENGE_INJECTOR_ID,
+        CHALLENGE_INJECTOR_NAME,
+        challengeContract,
+        false,
+        "capture-the-flag",
+        null,
+        null,
+        false,
+        List.of(ExternalServiceDependency.SMTP, ExternalServiceDependency.IMAP),
+        getTenantId());
     this.challengeExecutor =
         new ChallengeExecutor(
             injectorContext,

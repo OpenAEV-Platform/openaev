@@ -4,6 +4,8 @@ import io.openaev.aop.AccessControl;
 import io.openaev.aop.UserRoleDescription;
 import io.openaev.aop.audit_log.AuditLogger;
 import io.openaev.config.SessionManager;
+import io.openaev.context.CallContext;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.EventStatus;
 import io.openaev.database.model.ResourceType;
@@ -117,7 +119,7 @@ public class UserApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   public ResponseEntity<?> passwordReset(@Valid @RequestBody ResetUserInput input) {
     // async execution; check method annotation
-    userService.requestPasswordReset(input);
+    userService.requestPasswordReset(CallContext.of(TenantContext.getCurrentTenant()), input);
     // force a 200 OK response even if no user was found
     // to avoid enumeration via status code
     return ResponseEntity.ok().build();

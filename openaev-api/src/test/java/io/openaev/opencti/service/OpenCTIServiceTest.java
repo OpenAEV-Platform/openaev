@@ -29,6 +29,7 @@ import io.openaev.service.TenantGroupService;
 import io.openaev.service.UserService;
 import io.openaev.stix.objects.Bundle;
 import io.openaev.stix.types.Identifier;
+import io.openaev.utils.DeterministicIdUtils;
 import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.TenantRoleFixture;
 import io.openaev.utils.fixtures.TokenFixture;
@@ -45,7 +46,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -78,9 +78,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
   }
 
   private String tenantScopedId(String id) {
-    return UUID.nameUUIDFromBytes(
-            (UUID.fromString(id) + ":" + TenantContext.getCurrentTenant()).getBytes())
-        .toString();
+    return DeterministicIdUtils.derive(id, TenantContext.getCurrentTenant());
   }
 
   private String tenantScopedRoleId() {

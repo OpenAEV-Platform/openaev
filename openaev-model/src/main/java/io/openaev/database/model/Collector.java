@@ -4,10 +4,13 @@ import static java.time.Instant.now;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
+import io.openaev.context.TenantContext;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.TenantBaseListener;
+import io.openaev.helper.CompositeIdResolvableI;
 import io.openaev.jsonapi.BusinessId;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -25,13 +28,38 @@ import org.hibernate.annotations.Type;
 @Table(name = "collectors")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
-public class Collector extends BaseConnectorEntity implements TenantBase {
+public class Collector extends BaseConnectorEntity implements TenantBase, CompositeIdResolvableI {
 
-  @Id
-  @Column(name = "collector_id")
+  @EmbeddedId @JsonIgnore private CollectorId compositeId = new CollectorId();
+
+  @Override
   @JsonProperty("collector_id")
   @NotBlank
-  private String id;
+  public String getId() {
+    return compositeId.getId();
+  }
+
+  @Override
+  public void setId(String id) {
+    compositeId.setId(id);
+  }
+
+  @Override
+  @JsonIgnore
+  public Tenant getTenant() {
+    String tenantId = compositeId.getTenantId();
+    return tenantId != null ? new Tenant(tenantId) : null;
+  }
+
+  @Override
+  public void setTenant(Tenant tenant) {
+    compositeId.setTenantId(tenant != null ? tenant.getId() : null);
+  }
+
+  @JsonIgnore
+  public String getTenantId() {
+    return compositeId.getTenantId();
+  }
 
   @Column(name = "collector_name")
   @JsonProperty("collector_name")
@@ -81,11 +109,6 @@ public class Collector extends BaseConnectorEntity implements TenantBase {
   @Type(JsonType.class)
   private ObjectNode state;
 
-  @ManyToOne
-  @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
-  @JsonIgnore
-  private Tenant tenant;
-
   @Getter(onMethod_ = @JsonIgnore)
   @Transient
   private final ResourceType resourceType = ResourceType.COLLECTOR;
@@ -110,11 +133,20 @@ public class Collector extends BaseConnectorEntity implements TenantBase {
       return false;
     }
     Base base = (Base) o;
-    return id.equals(base.getId());
+    return getId().equals(base.getId());
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(id);
+    return Objects.hash(compositeId);
+  }
+
+  @Override
+  public Object resolveCompositeId(String rawId, DeserializationContext ctxt) {
+    String tenantId = TenantContext.getCurrentTenant();
+    CollectorId id = new CollectorId();
+    id.setId(rawId);
+    id.setTenantId(tenantId);
+    return id;
   }
 }

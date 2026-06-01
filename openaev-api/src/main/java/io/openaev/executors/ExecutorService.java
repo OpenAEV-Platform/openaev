@@ -4,6 +4,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.service.FileService.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.CallContext;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Executor;
@@ -69,9 +70,7 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
 
   @Override
   protected Executor getConnectorById(String executorId) {
-    return executorRepository
-        .findByIdAndTenantId(executorId, TenantContext.getCurrentTenant())
-        .orElse(null);
+    return executorRepository.findById(executorId, TenantContext.getCurrentTenant()).orElse(null);
   }
 
   @Override
@@ -94,8 +93,8 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
    * @param isIncludeNext Include pending executors.
    * @return List of executor output
    */
-  public Iterable<ExecutorOutput> executorsOutput(boolean isIncludeNext) {
-    return getConnectorsOutput(isIncludeNext);
+  public Iterable<ExecutorOutput> executorsOutput(CallContext callContext, boolean isIncludeNext) {
+    return getConnectorsOutput(callContext, isIncludeNext);
   }
 
   /**
@@ -107,7 +106,7 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
    */
   public Executor executor(String id) throws ElementNotFoundException {
     return executorRepository
-        .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
+        .findById(id, TenantContext.getCurrentTenant())
         .orElseThrow(() -> new ElementNotFoundException("Executor not found with id: " + id));
   }
 
@@ -122,12 +121,12 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
   }
 
   /**
-   * Retrieve all executors
+   * Retrieve all executors for the current tenant
    *
    * @return List of executors
    */
   public Iterable<Executor> executors() {
-    return this.executorRepository.findAll();
+    return this.executorRepository.findAllByCompositeIdTenantId(TenantContext.getCurrentTenant());
   }
 
   /**
@@ -137,7 +136,8 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
    * @return an Optional containing the executor if found, empty otherwise
    */
   public Optional<Executor> executorByType(String type) {
-    return this.executorRepository.findByTypeAndTenantId(type, TenantContext.getCurrentTenant());
+    return this.executorRepository.findByTypeAndCompositeIdTenantId(
+        type, TenantContext.getCurrentTenant());
   }
 
   @Transactional
@@ -149,7 +149,8 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
       String backgroundColor,
       InputStream iconData,
       InputStream bannerData,
-      String[] platforms)
+      String[] platforms,
+      String tenantId)
       throws Exception {
     // Sanity checks
     if (id == null || id.isEmpty()) {
@@ -164,14 +165,11 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
       fileService.uploadStream(EXECUTORS_IMAGES_BANNERS_BASE_PATH, type + EXT_PNG, bannerData);
     }
 
-    Executor executor =
-        executorRepository.findByIdAndTenantId(id, TenantContext.getCurrentTenant()).orElse(null);
+    Executor executor = executorRepository.findById(id, tenantId).orElse(null);
     if (executor == null) {
-      Tenant tenant = new Tenant(TenantContext.getCurrentTenant());
       executor = new Executor();
       executor.setId(id);
-      executor.setTenant(tenant);
-      executor.setTenantId(tenant.getId());
+      executor.setTenantId(tenantId);
     }
 
     executor.setName(name);
@@ -181,13 +179,6 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
     executor.setPlatforms(platforms);
 
     return executorRepository.save(executor);
-  }
-
-  @Transactional
-  public void remove(String id) {
-    executorRepository
-        .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
-        .ifPresent(executor -> executorRepository.delete(executor));
   }
 
   /**

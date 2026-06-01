@@ -1,5 +1,7 @@
 package io.openaev.xtmhub;
 
+import io.openaev.context.CallContext;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.UserRepository;
@@ -38,7 +40,11 @@ public class XtmHubEmailService {
 
     try {
       String emailBody = buildEmailBody();
-      mailingService.sendEmail(EMAIL_SUBJECT, emailBody, administrators);
+      mailingService.sendEmail(
+          CallContext.of(TenantContext.getCurrentTenant()),
+          EMAIL_SUBJECT,
+          emailBody,
+          administrators);
       log.info(
           "XTM Hub lost connectivity email sent to {} platform administrators",
           administrators.size());
@@ -60,7 +66,7 @@ public class XtmHubEmailService {
 
     try {
       String emailBody = buildEmailBody(tenantUrl);
-      mailingService.sendEmail(EMAIL_SUBJECT, emailBody, administrators);
+      mailingService.sendEmail(CallContext.of(tenantId), EMAIL_SUBJECT, emailBody, administrators);
       log.info(
           "XTM Hub lost connectivity email sent to {} tenant administrators for tenant {}",
           administrators.size(),

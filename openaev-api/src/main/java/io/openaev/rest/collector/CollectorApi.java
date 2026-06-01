@@ -3,6 +3,8 @@ package io.openaev.rest.collector;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.CallContext;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.ResourceType;
@@ -60,7 +62,8 @@ public class CollectorApi extends RestBehavior {
               required = false)
           @RequestParam(value = "include_next", required = false, defaultValue = "false")
           boolean includeNext) {
-    return collectorService.collectorsOutput(includeNext);
+    return collectorService.collectorsOutput(
+        CallContext.of(TenantContext.getCurrentTenant()), includeNext);
   }
 
   private Collector updateCollector(
@@ -144,7 +147,8 @@ public class CollectorApi extends RestBehavior {
           true,
           input.getPeriod(),
           input.getSecurityPlatform(),
-          iconStream);
+          iconStream,
+          TenantContext.getCurrentTenant());
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

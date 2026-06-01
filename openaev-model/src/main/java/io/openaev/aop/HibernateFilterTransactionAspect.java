@@ -26,6 +26,10 @@ public class HibernateFilterTransactionAspect {
       "@annotation(org.springframework.transaction.annotation.Transactional) || "
           + "@annotation(jakarta.transaction.Transactional)")
   public void enableFilters() {
+    if (!TenantContext.hasCurrentTenant()) {
+      // No tenant set (e.g. platform-level Quartz job) — skip filter activation
+      return;
+    }
     String tenantId = TenantContext.getCurrentTenant();
     Session session = entityManager.unwrap(Session.class);
 

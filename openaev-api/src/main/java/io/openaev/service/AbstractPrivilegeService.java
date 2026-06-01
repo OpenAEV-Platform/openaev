@@ -6,6 +6,7 @@ import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
 import io.openaev.database.model.User;
 import io.openaev.service.tenants.TenantUserService;
+import io.openaev.utils.DeterministicIdUtils;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -61,7 +62,7 @@ public abstract class AbstractPrivilegeService {
   }
 
   public static String getUUIDFromName(String name, String tenantId) {
-    return UUID.nameUUIDFromBytes((UUID.fromString(name) + ":" + tenantId).getBytes()).toString();
+    return DeterministicIdUtils.derive(name, tenantId);
   }
 
   public static void applyUserServiceAttributes(

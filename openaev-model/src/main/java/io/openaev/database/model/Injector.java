@@ -32,7 +32,7 @@ public class Injector extends BaseConnectorEntity implements TenantBase {
   @Column(name = "injector_id")
   @JsonProperty("injector_id")
   @NotBlank
-  private String id;
+  private String id = UUID.randomUUID().toString();
 
   @Column(name = "injector_name")
   @JsonProperty("injector_name")

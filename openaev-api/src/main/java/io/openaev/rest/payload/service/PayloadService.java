@@ -94,7 +94,7 @@ public class PayloadService {
 
     InjectorContract injectorContractToUpdate =
         injectorContractRepository
-            .findInjectorContractByPayload(payload)
+            .findInjectorContractByPayloadAndTenantId(payload, TenantContext.getCurrentTenant())
             .orElseGet(
                 () -> {
                   String contractId = String.valueOf(UUID.randomUUID());
@@ -108,10 +108,12 @@ public class PayloadService {
     InjectorContract injectorContractSaved =
         injectorContractRepository.save(injectorContractToUpdate);
 
-    // Link contract to all payload-supporting injectors via the owning side
-    Set<String> injectorIds = injectors.stream().map(Injector::getId).collect(Collectors.toSet());
-    injectorContractRepository.addContractToPayloadsInjectors(
-        injectorIds, injectorContractSaved.getCompositeId().getId());
+    // Link contract to all payload-supporting injectors via the owning side (Injector.contracts).
+    // This lets Hibernate manage the join table inserts, avoiding FK timing issues with native SQL.
+    for (Injector inj : injectors) {
+      inj.getContracts().add(injectorContractSaved);
+    }
+    injectorRepository.saveAll(injectors);
 
     return injectorContractSaved;
   }
