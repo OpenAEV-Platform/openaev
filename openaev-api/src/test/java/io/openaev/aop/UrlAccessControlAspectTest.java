@@ -12,16 +12,12 @@ import io.openaev.database.model.UrlAccessToken;
 import io.openaev.database.model.User;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
-import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Optional;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.reflect.MethodSignature;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
@@ -81,8 +77,10 @@ class UrlAccessControlAspectTest {
       ProceedingJoinPoint joinPoint = mock(ProceedingJoinPoint.class);
       when(joinPoint.proceed()).thenReturn("result");
 
+      UrlAccessControl annotation = mock(UrlAccessControl.class);
+
       // -- Act --
-      Object result = aspect.validateUrlAccess(joinPoint);
+      Object result = aspect.validateUrlAccess(joinPoint, annotation);
 
       // -- Assert --
       assertThat(result).isEqualTo("result");
@@ -97,6 +95,12 @@ class UrlAccessControlAspectTest {
   @DisplayName("Authenticated users")
   class AuthenticatedUsers {
 
+    @BeforeEach
+    void setup() {
+      when(previewFeatureService.isFeatureEnabled(PreviewFeature.URL_ACCESS_TOKEN))
+          .thenReturn(true);
+    }
+
     @Test
     @DisplayName(
         "Classically authenticated user when UrlAccessControl is applied should bypass url token validation")
@@ -104,8 +108,6 @@ class UrlAccessControlAspectTest {
         given_classically_authenticated_user_when_url_access_control_is_applied_should_bypass_url_token_validation()
             throws Throwable {
       // -- Arrange --
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.URL_ACCESS_TOKEN))
-          .thenReturn(true);
       ProceedingJoinPoint joinPoint = mock(ProceedingJoinPoint.class);
       when(joinPoint.proceed()).thenReturn("ok");
 
@@ -117,8 +119,10 @@ class UrlAccessControlAspectTest {
       context.setAuthentication(authentication);
       SecurityContextHolder.setContext(context);
 
+      UrlAccessControl annotation = mock(UrlAccessControl.class);
+
       // -- Act --
-      Object result = aspect.validateUrlAccess(joinPoint);
+      Object result = aspect.validateUrlAccess(joinPoint, annotation);
 
       // -- Assert --
       assertThat(result).isEqualTo("ok");
@@ -133,18 +137,23 @@ class UrlAccessControlAspectTest {
   @DisplayName("Anonymous users")
   class AnonymousUsers {
 
+    @BeforeEach
+    void setup() {
+      when(previewFeatureService.isFeatureEnabled(PreviewFeature.URL_ACCESS_TOKEN))
+          .thenReturn(true);
+    }
+
     @Test
     @DisplayName(
         "Anonymous user without request context when UrlAccess control is applied should fail with illegal state")
     void
         given_anonymous_user_without_request_context_when_url_access_control_is_applied_should_fail_with_illegal_state() {
       // -- Arrange --
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.URL_ACCESS_TOKEN))
-          .thenReturn(true);
       ProceedingJoinPoint joinPoint = mock(ProceedingJoinPoint.class);
+      UrlAccessControl annotation = mock(UrlAccessControl.class);
 
       // -- Act & Assert --
-      assertThatThrownBy(() -> aspect.validateUrlAccess(joinPoint))
+      assertThatThrownBy(() -> aspect.validateUrlAccess(joinPoint, annotation))
           .isInstanceOf(IllegalStateException.class)
           .hasMessageContaining("no HTTP request");
     }
@@ -153,13 +162,12 @@ class UrlAccessControlAspectTest {
     @DisplayName("When no cookies in request when UrlAccessControl is applied should return 401")
     void given_no_cookies_in_request_when_url_access_control_is_applied_should_return_401() {
       // -- Arrange --
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.URL_ACCESS_TOKEN))
-          .thenReturn(true);
       setUpRequestContext(); // no cookies → getCookies() returns null
       ProceedingJoinPoint joinPoint = mock(ProceedingJoinPoint.class);
+      UrlAccessControl annotation = mock(UrlAccessControl.class);
 
       // -- Act & Assert --
-      assertThatThrownBy(() -> aspect.validateUrlAccess(joinPoint))
+      assertThatThrownBy(() -> aspect.validateUrlAccess(joinPoint, annotation))
           .isInstanceOf(ResponseStatusException.class)
           .satisfies(
               ex ->
@@ -168,22 +176,19 @@ class UrlAccessControlAspectTest {
     }
 
     @Test
-    @DisplayName(
-        "Given cookies without token when UrlAccessControl is applied should return 401")
+    @DisplayName("Given cookies without token when UrlAccessControl is applied should return 401")
     void
         given_cookies_without_url_access_token_when_url_access_control_is_applied_should_return_401() {
       // -- Arrange --
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.URL_ACCESS_TOKEN))
-          .thenReturn(true);
-
       HttpServletRequest request = mock(HttpServletRequest.class);
       when(request.getCookies()).thenReturn(new Cookie[] {new Cookie("other_cookie", "value")});
       RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
 
       ProceedingJoinPoint joinPoint = mock(ProceedingJoinPoint.class);
+      UrlAccessControl annotation = mock(UrlAccessControl.class);
 
       // -- Act & Assert --
-      assertThatThrownBy(() -> aspect.validateUrlAccess(joinPoint))
+      assertThatThrownBy(() -> aspect.validateUrlAccess(joinPoint, annotation))
           .isInstanceOf(ResponseStatusException.class)
           .satisfies(
               ex ->
@@ -192,12 +197,9 @@ class UrlAccessControlAspectTest {
     }
 
     @Test
-    @DisplayName(
-        "Invalid token in cookie when UrlAccessControl is applied should return 401")
+    @DisplayName("Invalid token in cookie when UrlAccessControl is applied should return 401")
     void given_invalid_token_in_cookie_when_url_access_control_is_applied_should_return_401() {
       // -- Arrange --
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.URL_ACCESS_TOKEN))
-          .thenReturn(true);
       setUpRequestContext(urlAccessCookie("bad-token"));
 
       ProceedingJoinPoint joinPoint = mock(ProceedingJoinPoint.class);
@@ -205,11 +207,15 @@ class UrlAccessControlAspectTest {
       when(joinPoint.getSignature()).thenReturn(signature);
       when(signature.getParameterNames()).thenReturn(new String[] {});
       when(joinPoint.getArgs()).thenReturn(new Object[] {});
+
+      UrlAccessControl annotation = mock(UrlAccessControl.class);
+      when(annotation.exerciseId()).thenReturn("");
+
       when(urlAccessTokenService.validateToken("bad-token", null))
           .thenThrow(new AccessDeniedException(INVALID_TOKEN_MESSAGE));
 
       // -- Act & Assert --
-      assertThatThrownBy(() -> aspect.validateUrlAccess(joinPoint))
+      assertThatThrownBy(() -> aspect.validateUrlAccess(joinPoint, annotation))
           .isInstanceOf(ResponseStatusException.class)
           .satisfies(
               ex -> {
@@ -227,8 +233,6 @@ class UrlAccessControlAspectTest {
         given_valid_token_without_userId_param_when_url_access_control_is_applied_should_proceed_with_original_args()
             throws Throwable {
       // -- Arrange --
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.URL_ACCESS_TOKEN))
-          .thenReturn(true);
       setUpRequestContext(urlAccessCookie("valid-token"));
 
       ProceedingJoinPoint joinPoint = mock(ProceedingJoinPoint.class);
@@ -239,11 +243,15 @@ class UrlAccessControlAspectTest {
       when(joinPoint.getArgs()).thenReturn(args);
       when(joinPoint.proceed(args)).thenReturn("response");
 
+      UrlAccessControl annotation = mock(UrlAccessControl.class);
+      when(annotation.exerciseId()).thenReturn("#exerciseId");
+      when(annotation.userId()).thenReturn("");
+
       UrlAccessToken token = mockToken("resolved-user-id");
       when(urlAccessTokenService.validateToken("valid-token", "exercise-42")).thenReturn(token);
 
       // -- Act --
-      Object result = aspect.validateUrlAccess(joinPoint);
+      Object result = aspect.validateUrlAccess(joinPoint, annotation);
 
       // -- Assert --
       assertThat(result).isEqualTo("response");
@@ -257,8 +265,6 @@ class UrlAccessControlAspectTest {
         given_valid_token_with_userId_param_when_url_access_control_is_applied_should_inject_userId_into_args()
             throws Throwable {
       // -- Arrange --
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.URL_ACCESS_TOKEN))
-          .thenReturn(true);
       setUpRequestContext(urlAccessCookie("valid-token"));
 
       ProceedingJoinPoint joinPoint = mock(ProceedingJoinPoint.class);
@@ -267,6 +273,10 @@ class UrlAccessControlAspectTest {
       when(signature.getParameterNames()).thenReturn(new String[] {"exerciseId", "userId"});
       when(joinPoint.getArgs()).thenReturn(new Object[] {"exercise-1", Optional.empty()});
 
+      UrlAccessControl annotation = mock(UrlAccessControl.class);
+      when(annotation.exerciseId()).thenReturn("#exerciseId");
+      when(annotation.userId()).thenReturn("#userId");
+
       UrlAccessToken token = mockToken("injected-user-id");
       when(urlAccessTokenService.validateToken("valid-token", "exercise-1")).thenReturn(token);
 
@@ -274,7 +284,7 @@ class UrlAccessControlAspectTest {
       when(joinPoint.proceed(argsCaptor.capture())).thenReturn("injected");
 
       // -- Act --
-      Object result = aspect.validateUrlAccess(joinPoint);
+      Object result = aspect.validateUrlAccess(joinPoint, annotation);
 
       // -- Assert --
       assertThat(result).isEqualTo("injected");
@@ -290,8 +300,6 @@ class UrlAccessControlAspectTest {
         given_valid_token_with_exercise_and_userId_params_when_url_access_control_is_applied_should_pass_exerciseId_to_validation()
             throws Throwable {
       // -- Arrange --
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.URL_ACCESS_TOKEN))
-          .thenReturn(true);
       setUpRequestContext(urlAccessCookie("my-token"));
 
       ProceedingJoinPoint joinPoint = mock(ProceedingJoinPoint.class);
@@ -300,12 +308,16 @@ class UrlAccessControlAspectTest {
       when(signature.getParameterNames()).thenReturn(new String[] {"userId", "exerciseId"});
       when(joinPoint.getArgs()).thenReturn(new Object[] {Optional.empty(), "exercise-99"});
 
+      UrlAccessControl annotation = mock(UrlAccessControl.class);
+      when(annotation.exerciseId()).thenReturn("#exerciseId");
+      when(annotation.userId()).thenReturn("#userId");
+
       UrlAccessToken token = mockToken("user-xyz");
       when(urlAccessTokenService.validateToken("my-token", "exercise-99")).thenReturn(token);
       when(joinPoint.proceed(any(Object[].class))).thenReturn("done");
 
       // -- Act --
-      aspect.validateUrlAccess(joinPoint);
+      aspect.validateUrlAccess(joinPoint, annotation);
 
       // -- Assert --
       verify(urlAccessTokenService).validateToken("my-token", "exercise-99");

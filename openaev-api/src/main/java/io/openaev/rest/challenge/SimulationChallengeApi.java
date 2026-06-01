@@ -73,6 +73,7 @@ public class SimulationChallengeApi extends RestBehavior {
     TENANT_PREFIX + "/player/challenges/{exerciseId}/{challengeId}/validate"
   })
   @AccessControl(skipRBAC = true)
+  @UrlAccessControl(exerciseId = "#exerciseId", userId = "#userId")
   @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   public SimulationChallengesReader validateChallenge(
       @PathVariable String exerciseId,
@@ -94,7 +95,7 @@ public class SimulationChallengeApi extends RestBehavior {
     "/api/player/simulations/{simulationId}/documents",
     TENANT_PREFIX + "/player/simulations/{simulationId}/documents"
   })
-  @UrlAccessControl
+  @UrlAccessControl(userId = "#userId")
   @AccessControl(skipRBAC = true)
   public List<Document> playerDocuments(
       @PathVariable String simulationId, @RequestParam Optional<String> userId) {
@@ -143,7 +144,7 @@ public class SimulationChallengeApi extends RestBehavior {
     TENANT_PREFIX + "/player/simulations/{simulationId}/challenges"
   })
   @AccessControl(skipRBAC = true)
-  @UrlAccessControl
+  @UrlAccessControl(userId = "#userId")
   public SimulationChallengesReader playerChallenges(
       @PathVariable String simulationId, @RequestParam Optional<String> userId) {
     final User user = impersonateUser(userRepository, userId);

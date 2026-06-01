@@ -165,7 +165,7 @@ public class ChannelApi extends RestBehavior {
     TENANT_PLAYER_CHANNEL_URI + "/{exerciseId}/{channelId}"
   })
   @AccessControl(skipRBAC = true)
-  @UrlAccessControl
+  @UrlAccessControl(exerciseId = "#exerciseId", userId = "#userId")
   public ChannelReader playerArticles(
       @PathVariable String exerciseId,
       @PathVariable String channelId,

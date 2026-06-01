@@ -41,7 +41,7 @@ public class ScenarioChallengesApi extends RestBehavior {
 
   @GetMapping("/api/player/scenarios/{scenarioId}/documents")
   @AccessControl(skipRBAC = true)
-  @UrlAccessControl
+  @UrlAccessControl(userId = "#userId")
   public List<Document> playerDocuments(
       @PathVariable String scenarioId, @RequestParam Optional<String> userId) {
     Optional<Scenario> scenarioOpt =

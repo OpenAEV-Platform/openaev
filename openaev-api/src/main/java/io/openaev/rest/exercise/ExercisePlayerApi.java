@@ -30,7 +30,7 @@ public class ExercisePlayerApi extends RestBehavior {
 
   @GetMapping({EXERCISE_URI + "/{exerciseId}", TENANT_EXERCISE_URI + "/{exerciseId}"})
   @AccessControl(skipRBAC = true)
-  @UrlAccessControl
+  @UrlAccessControl(exerciseId = "#exerciseId", userId = "#userId")
   public PublicExercise playerExercise(
       @PathVariable String exerciseId, @RequestParam Optional<String> userId) {
     impersonateUser(this.userRepository, userId);

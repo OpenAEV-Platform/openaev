@@ -545,7 +545,7 @@ public class DocumentApi extends RestBehavior {
   // -- EXERCISE & SENARIO--
   @GetMapping({PLAYER_DOCUMENTS_API, TENANT_PLAYER_DOCUMENTS_API})
   @AccessControl(skipRBAC = true)
-  @UrlAccessControl
+  @UrlAccessControl(userId = "#userId")
   public List<Document> playerDocuments(
       @PathVariable String exerciseOrScenarioId, @RequestParam Optional<String> userId) {
     Optional<Exercise> exerciseOpt =
@@ -582,7 +582,7 @@ public class DocumentApi extends RestBehavior {
     TENANT_PLAYER_DOCUMENTS_API + "/{documentId}/file"
   })
   @AccessControl(skipRBAC = true)
-  @UrlAccessControl
+  @UrlAccessControl(userId = "#userId")
   public void downloadPlayerDocument(
       @PathVariable String exerciseOrScenarioId,
       @PathVariable String documentId,

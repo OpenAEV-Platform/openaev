@@ -19,6 +19,10 @@ import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
+import org.springframework.expression.EvaluationContext;
+import org.springframework.expression.ExpressionParser;
+import org.springframework.expression.spel.standard.SpelExpressionParser;
+import org.springframework.expression.spel.support.SimpleEvaluationContext;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Component;
@@ -42,8 +46,11 @@ public class UrlAccessControlAspect {
   private final UrlAccessTokenService urlAccessTokenService;
   private final PreviewFeatureService previewFeatureService;
 
-  @Around("@annotation(io.openaev.aop.UrlAccessControl)")
-  public Object validateUrlAccess(ProceedingJoinPoint joinPoint) throws Throwable {
+  private final ExpressionParser parser = new SpelExpressionParser();
+
+  @Around("@annotation(urlAccessControl)")
+  public Object validateUrlAccess(ProceedingJoinPoint joinPoint, UrlAccessControl urlAccessControl)
+      throws Throwable {
 
     // Feature flag off, skip URL access control entirely and proceed with legacy flow
     if (!previewFeatureService.isFeatureEnabled(PreviewFeature.URL_ACCESS_TOKEN)) {
@@ -70,24 +77,20 @@ public class UrlAccessControlAspect {
       throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Missing URL access token cookie");
     }
 
-    // Resolve exerciseId and userId parameter indices from the method signature
+    // Build a SpEL evaluation context from all method parameters
     MethodSignature signature = (MethodSignature) joinPoint.getSignature();
     String[] parameterNames = signature.getParameterNames();
     Object[] args = joinPoint.getArgs();
 
-    String exerciseId = null;
-    int userIdParamIndex = -1;
-
+    EvaluationContext context = SimpleEvaluationContext.forReadOnlyDataBinding().build();
     for (int i = 0; i < parameterNames.length; i++) {
-      if ("exerciseId".equals(parameterNames[i]) && args[i] instanceof String s) {
-        exerciseId = s;
-      }
-      if ("userId".equals(parameterNames[i])) {
-        userIdParamIndex = i;
-      }
+      context.setVariable(parameterNames[i], args[i]);
     }
 
-    // Validate token : expiry, revocation, and optional exercise scope
+    // Resolve exerciseId via the SpEL expression declared on the annotation
+    String exerciseId = evaluateStringExpression(urlAccessControl.exerciseId(), context);
+
+    // Validate token: expiry, revocation, and optional exercise scope
     UrlAccessToken token;
     try {
       token = urlAccessTokenService.validateToken(rawToken, exerciseId);
@@ -96,11 +99,17 @@ public class UrlAccessControlAspect {
       throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, INVALID_TOKEN_MESSAGE);
     }
 
-    // Inject the resolved userId into the method's Optional<String> userId argument
-    if (userIdParamIndex >= 0) {
-      Object[] newArgs = Arrays.copyOf(args, args.length);
-      newArgs[userIdParamIndex] = Optional.of(token.getUser().getId());
-      return joinPoint.proceed(newArgs);
+    // Inject the resolved userId into the parameter referenced by the SpEL expression if none was
+    // provided
+    if (!urlAccessControl.userId().isEmpty()) {
+      String paramName = stripSpelPrefix(urlAccessControl.userId());
+      for (int i = 0; i < parameterNames.length; i++) {
+        if (paramName.equals(parameterNames[i]) && shouldExecuteInjection(args[i])) {
+          Object[] newArgs = Arrays.copyOf(args, args.length);
+          newArgs[i] = Optional.of(token.getUser().getId());
+          return joinPoint.proceed(newArgs);
+        }
+      }
     }
 
     return joinPoint.proceed(args);
@@ -124,5 +133,46 @@ public class UrlAccessControlAspect {
         .map(Cookie::getValue)
         .findFirst()
         .orElse(null);
+  }
+
+  /**
+   * Evaluates a SpEL expression against the given context and returns its String value, or {@code
+   * null} if the expression is empty or does not evaluate to a String.
+   */
+  private String evaluateStringExpression(String spelExpression, EvaluationContext context) {
+    if (spelExpression.isEmpty()) {
+      return null;
+    }
+    Object value = parser.parseExpression(spelExpression).getValue(context);
+    return value instanceof String s ? s : null;
+  }
+
+  /**
+   * Strips the leading {@code #} from a SpEL variable reference (e.g. {@code "#userId"} → {@code
+   * "userId"}).
+   */
+  private static String stripSpelPrefix(String spelExpression) {
+    return spelExpression.startsWith("#") ? spelExpression.substring(1) : spelExpression;
+  }
+
+  /**
+   * Check if the given object is null, or a string "null"
+   *
+   * @param arg object to check
+   * @return check value
+   */
+  private static boolean shouldExecuteInjection(Object arg) {
+    if (arg == null) {
+      return true;
+    }
+    if (arg instanceof Optional<?> opt) {
+      return opt.isEmpty()
+          || opt.filter(String.class::isInstance)
+              .map(String.class::cast)
+              .map(String::trim)
+              .filter("null"::equalsIgnoreCase)
+              .isPresent();
+    }
+    return false;
   }
 }

@@ -391,7 +391,7 @@ public class ExerciseLessonsApi extends RestBehavior {
     TENANT_PREFIX + "/player/lessons/exercise/{exerciseId}/lessons_categories"
   })
   @AccessControl(skipRBAC = true)
-  @UrlAccessControl
+  @UrlAccessControl(exerciseId = "#exerciseId", userId = "#userId")
   public List<LessonsCategory> playerLessonsCategories(
       @PathVariable String exerciseId, @RequestParam Optional<String> userId) {
     impersonateUser(userRepository, userId); // Protection for ?
@@ -414,7 +414,7 @@ public class ExerciseLessonsApi extends RestBehavior {
     TENANT_PREFIX + "/player/lessons/exercise/{exerciseId}/lessons_questions"
   })
   @AccessControl(skipRBAC = true)
-  @UrlAccessControl
+  @UrlAccessControl(exerciseId = "#exerciseId", userId = "#userId")
   public List<LessonsQuestion> playerLessonsQuestions(
       @PathVariable String exerciseId, @RequestParam Optional<String> userId) {
     impersonateUser(userRepository, userId); // Protection for ?
@@ -434,7 +434,7 @@ public class ExerciseLessonsApi extends RestBehavior {
     TENANT_PREFIX + "/player/lessons/exercise/{exerciseId}/lessons_answers"
   })
   @AccessControl(skipRBAC = true)
-  @UrlAccessControl
+  @UrlAccessControl(exerciseId = "#exerciseId", userId = "#userId")
   public List<LessonsAnswer> playerLessonsAnswers(
       @PathVariable String exerciseId, @RequestParam Optional<String> userId) {
     impersonateUser(userRepository, userId); // Protection for ?
@@ -465,7 +465,7 @@ public class ExerciseLessonsApi extends RestBehavior {
         + "/player/lessons/exercise/{exerciseId}/lessons_categories/{lessonsCategoryId}/lessons_questions/{lessonsQuestionId}/lessons_answers"
   })
   @AccessControl(skipRBAC = true)
-  @UrlAccessControl
+  @UrlAccessControl(exerciseId = "#exerciseId", userId = "#userId")
   public LessonsAnswer createExerciseLessonsQuestion(
       @PathVariable String exerciseId,
       @PathVariable String lessonsQuestionId,
