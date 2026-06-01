@@ -21,9 +21,11 @@ import io.openaev.api.groups.dto.PlatformGroupInput;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.ResourceType;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.utils.fixtures.platform.PlatformGroupComposer;
 import io.openaev.utils.fixtures.platform.PlatformGroupFixture;
 import io.openaev.utils.mockUser.WithMockUser;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -33,16 +35,15 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Integration tests verifying that {@code @AuditDiffTracked} entities produce field-level diffs in
  * the audit log when modified or deleted through standard JPA lifecycle (not native queries).
  */
 @TestInstance(PER_CLASS)
-@Transactional
 @TestPropertySource(properties = {"openaev.audit-logs.service.enabled=true"})
 @DisplayName("AuditDiffTracked entity diff tests")
 class AuditDiffTrackedTest extends IntegrationTest {
@@ -51,6 +52,7 @@ class AuditDiffTrackedTest extends IntegrationTest {
   @Autowired private PlatformGroupComposer platformGroupComposer;
 
   @MockitoSpyBean private AuditLogger auditLogger;
+  @MockitoBean private EnterpriseEditionService enterpriseEditionService;
 
   @BeforeEach
   void setup() {
@@ -58,6 +60,11 @@ class AuditDiffTrackedTest extends IntegrationTest {
     doReturn(true).when(auditLogger).isAuditLoggingEnabled();
     doReturn(true).when(auditLogger).isAuditUnauthorizedLoggingValid();
     doReturn(true).when(auditLogger).isAuditLoggingValid(any());
+  }
+
+  @AfterEach
+  void tearDown() {
+    platformGroupComposer.reset();
   }
 
   @Nested
@@ -74,8 +81,6 @@ class AuditDiffTrackedTest extends IntegrationTest {
               .forPlatformGroup(PlatformGroupFixture.getPlatformGroup("OriginalName"))
               .persist()
               .get();
-      entityManager.flush();
-      entityManager.clear();
 
       PlatformGroupInput input = new PlatformGroupInput("UpdatedName", "New description", false);
 
@@ -138,8 +143,6 @@ class AuditDiffTrackedTest extends IntegrationTest {
               .forPlatformGroup(PlatformGroupFixture.getPlatformGroup("ToDeleteAudit"))
               .persist()
               .get();
-      entityManager.flush();
-      entityManager.clear();
 
       ArgumentCaptor<JsonNode> entityDiffsCaptor = ArgumentCaptor.forClass(JsonNode.class);
 
