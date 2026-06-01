@@ -15,6 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.collectors.expectations_expiration_manager.ExpectationsExpirationManagerCollector;
 import io.openaev.engine.model.log.LogEvent;
 import io.openaev.injectors.email.service.ImapService;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
@@ -64,6 +65,9 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
 
   @MockitoBean private ImapService imapService;
 
+  @MockitoBean
+  private ExpectationsExpirationManagerCollector expectationsExpirationManagerCollector;
+
   @MockitoSpyBean private AuditLogger auditLogger;
 
   @MockitoSpyBean private LogService logService;
@@ -72,10 +76,7 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
 
   // Ensure each test starts with clean spies and deterministic audit-enablement behavior.
   @BeforeEach
-  void beforeEach() throws Exception {
-    // Register the built-in injector so payload -> injector contract synchronization never returns
-    // null.
-    openaevInjectorIntegrationFactory.registerConnectorForTenant();
+  void beforeEach() {
     reset(auditLogger);
     reset(logService);
     reset(auditLogTransportDispatcherUtils);
@@ -94,6 +95,10 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
     // Verifies end-to-end audit logging for payload + atomic testing lifecycle actions.
     void given_payloadAndAtomicTestingLifecycle_should_logExpectedAuditEvents() throws Exception {
       // Arrange
+      // Register built-in injector under the active mock user context for deterministic tenant
+      // scope.
+      openaevInjectorIntegrationFactory.registerConnectorForTenant();
+
       // Use unique labels to avoid collisions with existing data in integration environments.
       String uniqueSuffix = UUID.randomUUID().toString().substring(0, 8);
       String payloadName = "audit-payload-" + uniqueSuffix;
