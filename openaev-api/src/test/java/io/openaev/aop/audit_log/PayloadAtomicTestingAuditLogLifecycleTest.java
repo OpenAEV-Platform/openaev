@@ -18,6 +18,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.collectors.expectations_expiration_manager.ExpectationsExpirationManagerCollector;
 import io.openaev.engine.model.log.LogEvent;
 import io.openaev.injectors.email.service.ImapService;
+import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
 import io.openaev.rest.atomic_testing.AtomicTestingApi;
 import io.openaev.rest.atomic_testing.form.AtomicTestingInput;
@@ -61,6 +62,7 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private DomainComposer domainComposer;
   @Autowired private EndpointComposer endpointComposer;
+  @Autowired private EmailInjectorIntegrationFactory emailInjectorIntegrationFactory;
   @Autowired private OpenaevInjectorIntegrationFactory openaevInjectorIntegrationFactory;
 
   @MockitoBean private ImapService imapService;
@@ -97,6 +99,7 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
       // Arrange
       // Register built-in injector under the active mock user context for deterministic tenant
       // scope.
+      emailInjectorIntegrationFactory.registerConnectorForTenant();
       openaevInjectorIntegrationFactory.registerConnectorForTenant();
 
       // Use unique labels to avoid collisions with existing data in integration environments.
