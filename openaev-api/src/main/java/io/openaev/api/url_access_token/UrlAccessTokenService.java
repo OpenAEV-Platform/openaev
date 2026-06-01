@@ -1,6 +1,5 @@
 package io.openaev.api.url_access_token;
 
-import static io.openaev.api.url_access_token.UrlAccessTokenApi.URL_ACCESS_URI;
 import static io.openaev.api.users.dto.UserMapper.fromProtectUser;
 
 import io.openaev.config.OpenAEVConfig;
@@ -32,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class UrlAccessTokenService {
 
   public static final String INVALID_TOKEN_MESSAGE = "Invalid URL access token";
+  public static final String FRONT_URL_ACCESS_URI = "/url/access";
 
   private static final int TOKEN_SIZE = 32;
 
@@ -69,7 +69,7 @@ public class UrlAccessTokenService {
     token.setCreatorUser(resolveCreatorUser());
     urlAccessTokenRepository.save(token);
 
-    return this.openAEVConfig.getBaseUrl() + URL_ACCESS_URI + "?token=" + tokenSecret;
+    return this.openAEVConfig.getBaseUrl() + FRONT_URL_ACCESS_URI + "?token=" + tokenSecret;
   }
 
   /**
