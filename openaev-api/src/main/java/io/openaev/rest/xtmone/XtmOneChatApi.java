@@ -7,11 +7,15 @@ import io.openaev.xtmone.XtmOneConfig;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -27,6 +31,9 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 public class XtmOneChatApi extends RestBehavior {
 
   private static final String XTM_ONE_URI = "/api/xtmone";
+  private static final Pattern FILE_ID_PATTERN =
+      Pattern.compile(
+          "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$");
   private final XtmOneClient client;
   private final XtmOneConfig config;
 
@@ -62,6 +69,12 @@ public class XtmOneChatApi extends RestBehavior {
     String conversationId =
         body.get("conversation_id") != null ? body.get("conversation_id").toString() : null;
     String agentSlug = body.get("agent_slug") != null ? body.get("agent_slug").toString() : null;
+    // Arbitrary host page/application context (e.g. current URL) forwarded so
+    // the agent is aware of where the user is. Optional and flexible — only
+    // passed upstream when present.
+    @SuppressWarnings("unchecked")
+    Map<String, Object> context =
+        body.get("context") instanceof Map ? (Map<String, Object>) body.get("context") : null;
 
     StreamingResponseBody responseBody =
         outputStream -> {
@@ -70,6 +83,7 @@ public class XtmOneChatApi extends RestBehavior {
                 content,
                 conversationId,
                 agentSlug,
+                context,
                 sseStream -> {
                   byte[] buf = new byte[4096];
                   int n;
@@ -139,5 +153,43 @@ public class XtmOneChatApi extends RestBehavior {
       return ResponseEntity.internalServerError().build();
     }
     return ResponseEntity.ok(Map.of("file_ids", fileIds));
+  }
+
+  /**
+   * Downloads an agent-generated file from XTM One.
+   *
+   * <p>The OpenAEV user is authenticated here (platform session + CSRF); the XTM One JWT is minted
+   * server-side by {@link XtmOneClient#downloadChatFile}. The end user therefore never
+   * authenticates to XTM One directly — the embedded chatbot points its download URL at this proxy
+   * (relative to its {@code apiBaseUrl} of {@code /api/xtmone/chat}).
+   */
+  @GetMapping(XTM_ONE_URI + "/chat/files/{fileId}/download")
+  public ResponseEntity<byte[]> downloadFile(@PathVariable String fileId) {
+    if (!config.isConfigured()) {
+      return ResponseEntity.badRequest().build();
+    }
+    if (fileId == null || !FILE_ID_PATTERN.matcher(fileId).matches()) {
+      return ResponseEntity.badRequest().build();
+    }
+
+    XtmOneClient.DownloadedFile file = client.downloadChatFile(fileId);
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(parseContentType(file.contentType()));
+    if (file.contentDisposition() != null && !file.contentDisposition().isBlank()) {
+      headers.set(HttpHeaders.CONTENT_DISPOSITION, file.contentDisposition());
+    }
+    return new ResponseEntity<>(file.content(), headers, HttpStatus.OK);
+  }
+
+  private MediaType parseContentType(String contentType) {
+    if (contentType == null || contentType.isBlank()) {
+      return MediaType.APPLICATION_OCTET_STREAM;
+    }
+    try {
+      return MediaType.parseMediaType(contentType);
+    } catch (Exception ignored) {
+      return MediaType.APPLICATION_OCTET_STREAM;
+    }
   }
 }

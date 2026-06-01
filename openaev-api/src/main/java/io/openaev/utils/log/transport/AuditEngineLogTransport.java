@@ -1,14 +1,13 @@
 package io.openaev.utils.log.transport;
 
 import io.openaev.config.EngineConfig;
+import io.openaev.config.audit_log.AuditLogProperties;
+import io.openaev.database.model.LogTransport;
 import io.openaev.engine.EngineService;
 import io.openaev.engine.model.log.LogEvent;
 import java.util.UUID;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -16,18 +15,21 @@ import org.springframework.stereotype.Component;
  * Indexes audit log events into the search engine (OpenSearch / Elasticsearch) for subsequent
  * querying via the {@code /api/audit-logs/search} endpoint.
  *
- * <p>This transport is only active when {@code openaev.audit-logs.engine.enabled=true}.
+ * <p>This transport is active when {@code engine} is listed in {@code
+ * openaev.audit-logs.transports}.
  */
 @Component
-@ConditionalOnProperty(name = "openaev.audit-logs.engine.enabled", havingValue = "true")
 @Order(3) // Ensure this runs after console transport (priority 1) and file transport (priority 2)
 @RequiredArgsConstructor
 @Slf4j
 public class AuditEngineLogTransport implements AuditLogTransportUtils {
 
-  @Getter
-  @Value("${openaev.audit-logs.engine.enabled:false}")
-  private boolean enabled;
+  private final AuditLogProperties auditLogProperties;
+
+  @Override
+  public boolean isEnabled() {
+    return auditLogProperties.isTransportEnabled(LogTransport.ENGINE);
+  }
 
   private static final String AUDIT_LOG_INDEX = "audit-log";
 

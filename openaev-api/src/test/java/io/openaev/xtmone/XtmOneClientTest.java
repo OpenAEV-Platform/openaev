@@ -26,6 +26,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
@@ -212,6 +213,82 @@ class XtmOneClientTest {
                 when(httpResponse.getEntity()).thenReturn(entity);
                 return handler.handleResponse(httpResponse);
               });
+    }
+  }
+
+  @Nested
+  @DisplayName("streamChatMessage")
+  class StreamChatMessage {
+
+    @SuppressWarnings("unchecked")
+    private ArgumentCaptor<Map<String, Object>> stubRequestBodyCapture() throws Exception {
+      when(config.isConfigured()).thenReturn(true);
+      when(config.getUrl()).thenReturn("http://localhost:8080");
+      when(httpClientFactory.httpClientNoRetry()).thenReturn(httpClient);
+      doReturn("fake-jwt").when(xtmOneClient).issueJwtForCurrentUser();
+      ArgumentCaptor<Map<String, Object>> bodyCaptor = ArgumentCaptor.forClass(Map.class);
+      when(objectMapper.writeValueAsString(bodyCaptor.capture())).thenReturn("{}");
+      return bodyCaptor;
+    }
+
+    @Test
+    @DisplayName("Given a non-empty context should include it in the upstream request body")
+    void given_context_should_includeItInBody() throws Exception {
+      // -- ARRANGE --
+      ArgumentCaptor<Map<String, Object>> bodyCaptor = stubRequestBodyCapture();
+      Map<String, Object> context = Map.of("url", "/dashboard/reports/1");
+
+      // -- ACT --
+      xtmOneClient.streamChatMessage("hello", "conv-1", "agent-1", context, stream -> {});
+
+      // -- ASSERT --
+      Map<String, Object> body = bodyCaptor.getValue();
+      assertEquals("hello", body.get("content"));
+      assertEquals("conv-1", body.get("conversation_id"));
+      assertEquals("agent-1", body.get("agent_slug"));
+      assertEquals(context, body.get("context"));
+    }
+
+    @Test
+    @DisplayName("Given a null context should omit it from the upstream request body")
+    void given_nullContext_should_omitFromBody() throws Exception {
+      // -- ARRANGE --
+      ArgumentCaptor<Map<String, Object>> bodyCaptor = stubRequestBodyCapture();
+
+      // -- ACT --
+      xtmOneClient.streamChatMessage("hello", null, "agent-1", null, stream -> {});
+
+      // -- ASSERT --
+      Map<String, Object> body = bodyCaptor.getValue();
+      assertEquals("hello", body.get("content"));
+      assertFalse(body.containsKey("context"));
+      assertFalse(body.containsKey("conversation_id"));
+    }
+
+    @Test
+    @DisplayName("Given an empty context should omit it from the upstream request body")
+    void given_emptyContext_should_omitFromBody() throws Exception {
+      // -- ARRANGE --
+      ArgumentCaptor<Map<String, Object>> bodyCaptor = stubRequestBodyCapture();
+
+      // -- ACT --
+      xtmOneClient.streamChatMessage("hello", null, "agent-1", Map.of(), stream -> {});
+
+      // -- ASSERT --
+      assertFalse(bodyCaptor.getValue().containsKey("context"));
+    }
+
+    @Test
+    @DisplayName("Given a context via the 4-arg overload should default to null context (omitted)")
+    void given_legacyOverload_should_omitContext() throws Exception {
+      // -- ARRANGE --
+      ArgumentCaptor<Map<String, Object>> bodyCaptor = stubRequestBodyCapture();
+
+      // -- ACT --
+      xtmOneClient.streamChatMessage("hello", null, "agent-1", stream -> {});
+
+      // -- ASSERT --
+      assertFalse(bodyCaptor.getValue().containsKey("context"));
     }
   }
 }
