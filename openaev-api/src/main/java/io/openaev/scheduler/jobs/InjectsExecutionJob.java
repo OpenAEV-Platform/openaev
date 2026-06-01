@@ -47,6 +47,7 @@ import org.quartz.DisallowConcurrentExecution;
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
 import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.EvaluationException;
@@ -64,7 +65,9 @@ import org.springframework.stereotype.Component;
 public class InjectsExecutionJob implements Job {
 
   public static final String DEFAULT_EXECUTION_THRESHOLD_TIME_IN_MINUTES = "10";
-  private static final long delayForSimulationCompletedEvent = 3600L;
+
+  @Value("${openaev.notification.simulation-completed-delay-seconds:3600}")
+  private long delayForSimulationCompletedEvent;
 
   private final Environment env;
   private int injectExecutionThreshold;
@@ -126,6 +129,9 @@ public class InjectsExecutionJob implements Job {
   public void handleAutoClosingSimulations() {
     // Change status of finished simulations.
     List<Exercise> mustBeFinishedSimulations = exerciseRepository.thatMustBeFinished();
+    log.debug(
+        "handleAutoClosingSimulations: {} simulation(s) must be finished",
+        mustBeFinishedSimulations.size());
     if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)) {
       // Filter out the simulations using the new chaining engine
       mustBeFinishedSimulations =
@@ -149,21 +155,28 @@ public class InjectsExecutionJob implements Job {
         exercisesFinished);
 
     // send notification
-    exercisesFinished.stream()
-        .filter(
-            ex ->
-                ex.getScenario()
-                    != null) // only send notification for exercise associated to a scenario
-        .forEach(
-            ex ->
-                notificationEventService.sendNotificationEventWithDelay(
-                    NotificationEvent.builder()
-                        .eventType(NotificationEventType.SIMULATION_COMPLETED)
-                        .resourceType(NotificationRuleResourceType.SCENARIO)
-                        .resourceId(ex.getScenario().getId())
-                        .timestamp(Instant.now())
-                        .build(),
-                    delayForSimulationCompletedEvent));
+    exercisesFinished.forEach(
+        ex -> {
+          if (ex.getScenario() == null) {
+            log.debug(
+                "handleAutoClosingSimulations: simulation={} has no linked scenario — skipping notification",
+                ex.getId());
+          } else {
+            log.debug(
+                "handleAutoClosingSimulations: scheduling SIMULATION_COMPLETED notification for scenarioId={} simulationId={} with delay={}s",
+                ex.getScenario().getId(),
+                ex.getId(),
+                delayForSimulationCompletedEvent);
+            notificationEventService.sendNotificationEventWithDelay(
+                NotificationEvent.builder()
+                    .eventType(NotificationEventType.SIMULATION_COMPLETED)
+                    .resourceType(NotificationRuleResourceType.SCENARIO)
+                    .resourceId(ex.getScenario().getId())
+                    .timestamp(Instant.now())
+                    .build(),
+                delayForSimulationCompletedEvent);
+          }
+        });
   }
 
   public void handlePendingInject() {

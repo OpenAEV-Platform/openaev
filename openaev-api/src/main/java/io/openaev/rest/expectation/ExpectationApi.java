@@ -206,7 +206,10 @@ public class ExpectationApi extends RestBehavior {
     INJECTS_EXPECTATIONS_URI + "/available",
     TENANT_INJECTS_EXPECTATIONS_URI + "/available"
   })
-  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
+  @AccessControl(
+      resourceId = "#injectorContractId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.INJECTOR_CONTRACT)
   public List<Expectation> getAvailableExpectationsForInject(
       @RequestParam @NotBlank String injectorContractId) {
     return expectationService.getAvailableExpectationsForInject(injectorContractId);

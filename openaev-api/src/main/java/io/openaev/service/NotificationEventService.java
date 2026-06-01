@@ -10,6 +10,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
@@ -18,6 +19,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class NotificationEventService {
 
   private final ApplicationEventPublisher appPublisher;
@@ -38,6 +40,11 @@ public class NotificationEventService {
   }
 
   public void sendNotificationEvent(@NotNull final NotificationEvent notificationEvent) {
+    log.info(
+        "NotificationEventService: publishing event type={} resourceType={} resourceId={}",
+        notificationEvent.getEventType(),
+        notificationEvent.getResourceType(),
+        notificationEvent.getResourceId());
     appPublisher.publishEvent(notificationEvent);
   }
 
@@ -49,6 +56,11 @@ public class NotificationEventService {
    */
   public void sendNotificationEventWithDelay(
       @NotNull final NotificationEvent notificationEvent, long delay) {
+    log.info(
+        "NotificationEventService: scheduling event type={} resourceId={} with delay={}s",
+        notificationEvent.getEventType(),
+        notificationEvent.getResourceId(),
+        delay);
     taskScheduler.schedule(
         () -> sendNotificationEvent(notificationEvent),
         Instant.now().plus(delay, ChronoUnit.SECONDS));
@@ -56,6 +68,10 @@ public class NotificationEventService {
 
   @EventListener
   public void handleNotificationEvent(@NotNull final NotificationEvent event) {
+    log.info(
+        "NotificationEventService: dispatching event type={} resourceId={} to handler",
+        event.getEventType(),
+        event.getResourceId());
     NotificationEventHandler handler =
         Optional.ofNullable(handlers.get(event.getResourceType()))
             .orElseThrow(

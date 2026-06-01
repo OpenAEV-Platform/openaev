@@ -17,11 +17,14 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Session;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class ScenarioNotificationEventHandler implements NotificationEventHandler {
   private final EntityManager entityManager;
   private final OpenAEVConfig openAEVConfig;
@@ -29,20 +32,31 @@ public class ScenarioNotificationEventHandler implements NotificationEventHandle
   private final NotificationRuleService notificationRuleService;
 
   @Override
+  @Transactional(rollbackFor = Exception.class)
   public void handle(NotificationEvent event) {
     // Disable tenant filter — this handler runs cross-tenant
+    log.info("start handling ScenarioNotificationEvent");
     entityManager.unwrap(Session.class).disableFilter("tenantFilter");
     if (NotificationEventType.SIMULATION_COMPLETED.equals(event.getEventType())) {
+      log.debug(
+          "ScenarioNotificationEventHandler: SIMULATION_COMPLETED for scenarioId={}",
+          event.getResourceId());
       // get the last 2 simulations
       Exercise lastSimulation =
           exerciseService.previousFinishedSimulation(event.getResourceId(), event.getTimestamp());
       if (lastSimulation == null || lastSimulation.getEnd().isEmpty()) {
+        log.debug(
+            "ScenarioNotificationEventHandler: no last finished simulation found for scenarioId={} — skipping",
+            event.getResourceId());
         return;
       }
       Exercise secondLastSimulation =
           exerciseService.previousFinishedSimulation(
               event.getResourceId(), lastSimulation.getEnd().get());
       if (secondLastSimulation == null) {
+        log.debug(
+            "ScenarioNotificationEventHandler: no second-to-last simulation found for scenarioId={} — skipping (need at least 2 runs)",
+            event.getResourceId());
         return;
       }
 
@@ -55,9 +69,19 @@ public class ScenarioNotificationEventHandler implements NotificationEventHandle
           exerciseService.getGlobalResults(secondLastSimulation.getId()).stream()
               .collect(Collectors.toMap(ExpectationResultsByType::type, Function.identity()));
 
+      log.debug(
+          "ScenarioNotificationEventHandler: last simulation={} results={}, second-last simulation={} results={}",
+          lastSimulation.getId(),
+          lastSimulationResultsMap,
+          secondLastSimulation.getId(),
+          secondLastSimulationResultsMap);
+
       if (exerciseService.isThereAScoreDegradation(
           lastSimulationResultsMap, secondLastSimulationResultsMap)) {
 
+        log.debug(
+            "ScenarioNotificationEventHandler: score degradation detected for scenarioId={} — activating notification rules",
+            event.getResourceId());
         // notify
         notificationRuleService.activateNotificationRules(
             lastSimulation.getScenario().getId(),
@@ -68,6 +92,10 @@ public class ScenarioNotificationEventHandler implements NotificationEventHandle
                 secondLastSimulation,
                 lastSimulationResultsMap,
                 secondLastSimulationResultsMap));
+      } else {
+        log.debug(
+            "ScenarioNotificationEventHandler: no score degradation for scenarioId={} — no notification sent",
+            event.getResourceId());
       }
     }
   }
@@ -86,17 +114,13 @@ public class ScenarioNotificationEventHandler implements NotificationEventHandle
     String scenarioId = scenario.getId();
     String url = openAEVConfig.getBaseUrl();
     float lastSimulationPrevScore =
-        ScenarioStatisticService.getRoundedPercentage(
-            lastSimulationResultsMap.get(ExpectationType.PREVENTION));
+        getRoundedPercentageSafe(lastSimulationResultsMap.get(ExpectationType.PREVENTION));
     float lastSimulationDetectScore =
-        ScenarioStatisticService.getRoundedPercentage(
-            lastSimulationResultsMap.get(ExpectationType.DETECTION));
+        getRoundedPercentageSafe(lastSimulationResultsMap.get(ExpectationType.DETECTION));
     float secondLastSimulationPrevScore =
-        ScenarioStatisticService.getRoundedPercentage(
-            secondLastSimulationResultsMap.get(ExpectationType.PREVENTION));
+        getRoundedPercentageSafe(secondLastSimulationResultsMap.get(ExpectationType.PREVENTION));
     float secondLastSimulationDetectScore =
-        ScenarioStatisticService.getRoundedPercentage(
-            secondLastSimulationResultsMap.get(ExpectationType.DETECTION));
+        getRoundedPercentageSafe(secondLastSimulationResultsMap.get(ExpectationType.DETECTION));
     float decreasePrev = secondLastSimulationPrevScore - lastSimulationPrevScore;
     float decreaseDetect = secondLastSimulationDetectScore - lastSimulationDetectScore;
 
@@ -114,5 +138,14 @@ public class ScenarioNotificationEventHandler implements NotificationEventHandle
     data.put("instanceLink", url);
     data.put("scenario_name", scenario.getName());
     return data;
+  }
+
+  /** Returns 0 if the expectation type has no results (null), avoiding NPE in getRoundedPercentage. */
+  private static float getRoundedPercentageSafe(
+      final ExpectationResultsByType expectationResultsByType) {
+    if (expectationResultsByType == null) {
+      return 0f;
+    }
+    return ScenarioStatisticService.getRoundedPercentage(expectationResultsByType);
   }
 }
