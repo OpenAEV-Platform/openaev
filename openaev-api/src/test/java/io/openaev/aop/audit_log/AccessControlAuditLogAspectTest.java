@@ -64,6 +64,7 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
       ArgumentCaptor<JsonNode> inputCaptor = ArgumentCaptor.forClass(JsonNode.class);
       ArgumentCaptor<JsonNode> outputCaptor = ArgumentCaptor.forClass(JsonNode.class);
       ArgumentCaptor<JsonNode> signatureCaptor = ArgumentCaptor.forClass(JsonNode.class);
+      ArgumentCaptor<JsonNode> entityDiffsCaptor = ArgumentCaptor.forClass(JsonNode.class);
       ArgumentCaptor<String> logUuidCaptor = ArgumentCaptor.forClass(String.class);
 
       // Act
@@ -80,6 +81,7 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
               inputCaptor.capture(),
               outputCaptor.capture(),
               signatureCaptor.capture(),
+              entityDiffsCaptor.capture(),
               logUuidCaptor.capture());
 
       assertThat(eventScopeCaptor.getValue()).isEqualTo("unauthorized");
@@ -152,7 +154,15 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
       // Assert
       verify(auditLogger, after(1000).never())
           .logAccessControlEvent(
-              anyString(), anyString(), any(), anyString(), any(), any(), any(), anyString());
+              anyString(),
+              anyString(),
+              any(),
+              anyString(),
+              any(),
+              any(),
+              any(),
+              any(),
+              anyString());
     }
   }
 
@@ -169,7 +179,15 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
       // Assert
       verify(auditLogger, after(1000).never())
           .logAccessControlEvent(
-              anyString(), anyString(), any(), anyString(), any(), any(), any(), anyString());
+              anyString(),
+              anyString(),
+              any(),
+              anyString(),
+              any(),
+              any(),
+              any(),
+              any(),
+              anyString());
     }
   }
 }

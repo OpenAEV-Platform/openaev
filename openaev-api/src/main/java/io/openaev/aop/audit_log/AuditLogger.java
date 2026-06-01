@@ -134,6 +134,7 @@ public class AuditLogger {
       JsonNode input,
       JsonNode output,
       JsonNode signatureNode,
+      JsonNode entityDiffsNode,
       String logUUID) {
     if (!isAuditLoggingEnabled()) return CompletableFuture.completedFuture(true);
 
@@ -149,6 +150,7 @@ public class AuditLogger {
               input,
               output,
               signatureNode,
+              entityDiffsNode,
               Level.WARNING,
               logUUID);
 

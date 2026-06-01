@@ -137,6 +137,7 @@ public class LogService {
       JsonNode input,
       JsonNode output,
       JsonNode signatureNode,
+      JsonNode entityDiffsNode,
       Object logLevel,
       String logUUID) {
     try {
@@ -173,6 +174,11 @@ public class LogService {
         output = objectNormalizationUtils.normalize(output);
         output = ObjectRedactionUtils.redact(output, resourceType);
         ctx.put("output", toContextValue(output));
+      }
+
+      // Enrich with entity-level diffs captured by @AuditDiffTracked listeners.
+      if (entityDiffsNode != null && !entityDiffsNode.isEmpty()) {
+        ctx.put("entity_diffs", toContextValue(entityDiffsNode));
       }
 
       doc.getRequestMetadata().setSignature(signatureNode);
