@@ -30,7 +30,8 @@ public class V5_16__Add_unique_constraint_parameters_key_tenant extends BaseJava
           WHERE tenant_id IS NOT NULL;
           """);
 
-      // 3. Add unique constraint on (parameter_key) for platform-scoped settings (tenant_id IS NULL)
+      // 3. Add unique constraint on (parameter_key) for platform-scoped settings (tenant_id IS
+      // NULL)
       stmt.execute(
           """
           CREATE UNIQUE INDEX IF NOT EXISTS uk_parameters_key_platform
@@ -40,4 +41,3 @@ public class V5_16__Add_unique_constraint_parameters_key_tenant extends BaseJava
     }
   }
 }
-
