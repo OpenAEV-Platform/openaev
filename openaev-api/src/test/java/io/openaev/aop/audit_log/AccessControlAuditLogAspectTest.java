@@ -13,12 +13,17 @@ import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.ResourceType;
+import io.openaev.database.model.Team;
+import io.openaev.database.repository.TeamRepository;
+import io.openaev.utils.fixtures.TeamFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -27,6 +32,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -40,6 +46,8 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
   private static final String PROTECTED_TEAM_ID = "team-without-permission";
 
   @Autowired private MockMvc mvc;
+  @Autowired private ObjectMapper objectMapper;
+  @Autowired private TeamRepository teamRepository;
 
   @MockitoSpyBean private AuditLogger auditLogger;
 
@@ -175,6 +183,120 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
     void given_successfulRead_should_notLogEvent() throws Exception {
       // Arrange / Act
       mvc.perform(get(TEAM_URI)).andExpect(status().isOk());
+
+      // Assert
+      verify(auditLogger, after(1000).never())
+          .logAccessControlEvent(
+              anyString(),
+              anyString(),
+              any(),
+              anyString(),
+              any(),
+              any(),
+              any(),
+              any(),
+              anyString());
+    }
+  }
+
+  @Nested
+  @DisplayName("Create operations")
+  class CreateOperationAudit {
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TEAMS_AND_PLAYERS})
+    void given_successfulCreate_should_logCreateEvent() throws Exception {
+      // Arrange
+      ArgumentCaptor<String> eventScopeCaptor = ArgumentCaptor.forClass(String.class);
+      ArgumentCaptor<String> eventStatusCaptor = ArgumentCaptor.forClass(String.class);
+      ArgumentCaptor<ResourceType> resourceTypeCaptor = ArgumentCaptor.forClass(ResourceType.class);
+      ArgumentCaptor<JsonNode> inputCaptor = ArgumentCaptor.forClass(JsonNode.class);
+      ArgumentCaptor<JsonNode> outputCaptor = ArgumentCaptor.forClass(JsonNode.class);
+
+      String teamJson = objectMapper.writeValueAsString(TeamFixture.createTeam());
+
+      // Act
+      mvc.perform(
+              post(TEAM_URI).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(teamJson))
+          .andExpect(status().isOk());
+
+      // Assert
+      verify(auditLogger, timeout(1000))
+          .logAccessControlEvent(
+              eventScopeCaptor.capture(),
+              eventStatusCaptor.capture(),
+              resourceTypeCaptor.capture(),
+              anyString(),
+              inputCaptor.capture(),
+              outputCaptor.capture(),
+              any(),
+              any(),
+              anyString());
+
+      assertThat(eventScopeCaptor.getValue()).isEqualTo("create");
+      assertThat(eventStatusCaptor.getValue()).isEqualTo("success");
+      assertThat(resourceTypeCaptor.getValue()).isEqualTo(ResourceType.TEAM);
+      assertThat(inputCaptor.getValue()).isNotNull();
+      assertThat(outputCaptor.getValue()).isNotNull();
+    }
+  }
+
+  @Nested
+  @DisplayName("Delete operations")
+  class DeleteOperationAudit {
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.DELETE_TEAMS_AND_PLAYERS})
+    void given_successfulDelete_should_logDeleteEvent() throws Exception {
+      // Arrange
+      Team team = teamRepository.save(TeamFixture.getDefaultTeam());
+      entityManager.flush();
+
+      ArgumentCaptor<String> eventScopeCaptor = ArgumentCaptor.forClass(String.class);
+      ArgumentCaptor<String> eventStatusCaptor = ArgumentCaptor.forClass(String.class);
+      ArgumentCaptor<ResourceType> resourceTypeCaptor = ArgumentCaptor.forClass(ResourceType.class);
+      ArgumentCaptor<String> resourceIdCaptor = ArgumentCaptor.forClass(String.class);
+
+      // Act
+      mvc.perform(delete(TEAM_URI + "/{teamId}", team.getId()).with(csrf()))
+          .andExpect(status().isOk());
+
+      // Assert
+      verify(auditLogger, timeout(1000))
+          .logAccessControlEvent(
+              eventScopeCaptor.capture(),
+              eventStatusCaptor.capture(),
+              resourceTypeCaptor.capture(),
+              resourceIdCaptor.capture(),
+              any(),
+              any(),
+              any(),
+              any(),
+              anyString());
+
+      assertThat(eventScopeCaptor.getValue()).isEqualTo("delete");
+      assertThat(eventStatusCaptor.getValue()).isEqualTo("success");
+      assertThat(resourceTypeCaptor.getValue()).isEqualTo(ResourceType.TEAM);
+      assertThat(resourceIdCaptor.getValue()).isEqualTo(team.getId());
+    }
+  }
+
+  @Nested
+  @DisplayName("Audit logging disabled")
+  class AuditDisabled {
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TEAMS_AND_PLAYERS})
+    void given_auditDisabled_should_notLogEvent() throws Exception {
+      // Arrange
+      doReturn(false).when(auditLogger).isAuditLoggingEnabled();
+
+      String teamJson = objectMapper.writeValueAsString(TeamFixture.createTeam());
+
+      // Act
+      mvc.perform(
+              post(TEAM_URI).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(teamJson))
+          .andExpect(status().isOk());
 
       // Assert
       verify(auditLogger, after(1000).never())
