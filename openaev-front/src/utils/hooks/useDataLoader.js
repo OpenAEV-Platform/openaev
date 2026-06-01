@@ -163,7 +163,9 @@ const useDataLoader = (loader = () => {}, refetchArg = []) => {
           autoReConnectIntervalId = undefined;
         }
         cancelPendingBatches();
-        sseClient.close();
+        if (sseClient != null) {
+          sseClient.close();
+        }
         sseClient = undefined;
       }
     };
