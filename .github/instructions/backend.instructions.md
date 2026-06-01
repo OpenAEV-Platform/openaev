@@ -18,6 +18,7 @@ description: "Backend Java/Spring conventions: entities, services, controllers, 
 - **Controller (API)** → depends only on **Service** — never inject a Repository in a controller
 - Service → can call other Services and its own Repositories
 - Repository → data access only, never called from controllers or utils
+- **Repository methods used by other services must be exposed through the owning service.** A repository is a private implementation detail of its associated service. If another service needs data from that repository, the owning service must expose a pass-through method — the consuming service must never inject the repository directly. When adding a repository method intended for cross-service use, always add the corresponding service method in the same commit.
 - Utils → static methods only, no state
 
 ## New Controllers (package `io.openaev.api.*`)
@@ -100,4 +101,6 @@ public Page<{Entity}Output> search(...) { return service.search(input).map({Enti
 - DTOs: `@Builder` OK, prefer records for new code
 - Never `@Autowired` on fields in new code
 
+## Formatting (Spotless)
 
+- **After editing Java files**, run `.\scripts\hooks\format-java.ps1` (Windows) or `./scripts/hooks/format-java.sh` (Unix). Output: `OK` = success.

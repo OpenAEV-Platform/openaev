@@ -2,10 +2,12 @@ package io.openaev.executors.openaev.service;
 
 import static io.openaev.executors.ExecutorHelper.replaceArgs;
 import static io.openaev.integration.impl.executors.openaev.OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_NAME;
+import static java.time.Instant.now;
 
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.executors.ExecutorContextService;
+import io.openaev.service.account.ServiceAccountPrivilegeService;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.List;
@@ -20,6 +22,7 @@ import org.springframework.stereotype.Service;
 public class OpenAEVExecutorContextService extends ExecutorContextService {
 
   private final AssetAgentJobRepository assetAgentJobRepository;
+  private final ServiceAccountPrivilegeService serviceAccountPrivilegeService;
 
   private String computeCommand(
       @NotNull final Inject inject,
@@ -36,12 +39,16 @@ public class OpenAEVExecutorContextService extends ExecutorContextService {
               .orElseThrow(
                   () -> new UnsupportedOperationException("Inject does not have a contract"));
     }
+    String token =
+        serviceAccountPrivilegeService.getTokenUserServiceAccountByTenant(
+            inject.getTenant().getId());
 
     return switch (platform) {
       case Windows, Linux, MacOS -> {
         String executorCommandKey = platform.name() + "." + arch.name();
         String cmd = injector.getExecutorCommands().get(executorCommandKey);
-        yield replaceArgs(platform, cmd, inject.getId(), agentId, inject.getTenant().getId());
+        yield replaceArgs(
+            platform, cmd, inject.getId(), agentId, inject.getTenant().getId(), token);
       }
       default -> throw new RuntimeException("Unsupported platform: " + platform);
     };
@@ -61,6 +68,7 @@ public class OpenAEVExecutorContextService extends ExecutorContextService {
     assetAgentJob.setAgent(agent);
     assetAgentJob.setInject(inject);
     assetAgentJob.setTenant(inject.getTenant());
+    assetAgentJob.setCreatedAt(now());
     assetAgentJobRepository.save(assetAgentJob);
   }
 

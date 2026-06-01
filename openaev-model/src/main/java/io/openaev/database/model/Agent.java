@@ -20,6 +20,9 @@ import java.util.UUID;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.Filter;
+import org.hibernate.annotations.JoinColumnOrFormula;
+import org.hibernate.annotations.JoinColumnsOrFormulas;
+import org.hibernate.annotations.JoinFormula;
 
 @Getter
 @Setter
@@ -84,7 +87,12 @@ public class Agent implements TenantBase {
 
   @Queryable(sortable = true)
   @ManyToOne(fetch = FetchType.EAGER)
-  @JoinColumn(name = "agent_executor")
+  @JoinColumnsOrFormulas({
+    @JoinColumnOrFormula(
+        column = @JoinColumn(name = "agent_executor", referencedColumnName = "executor_id")),
+    @JoinColumnOrFormula(
+        formula = @JoinFormula(value = "tenant_id", referencedColumnName = "tenant_id"))
+  })
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("agent_executor")
   @Schema(implementation = String.class)

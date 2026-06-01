@@ -88,6 +88,9 @@ public class UserMappingService {
   }
 
   private static List<GroupMapping> safeParseMappings(String json) {
+    if (json == null || json.isBlank()) {
+      return List.of();
+    }
     ObjectMapper mapper = new ObjectMapper();
     try {
       return mapper.readValue(json, new TypeReference<>() {});

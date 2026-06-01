@@ -8,6 +8,7 @@ import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.database.repository.ConnectorInstanceRepository;
 import io.openaev.database.repository.ExecutionTraceRepository;
@@ -45,6 +46,7 @@ public class ExecutionExecutorServiceTest {
   @Mock private ManagerFactory managerFactory;
   @Mock private ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository;
   @Mock private ConnectorInstanceRepository connectorInstanceRepository;
+  @Mock private AssetAgentJobRepository assetAgentJobRepository;
 
   @InjectMocks private ExecutionExecutorService executorService;
 
@@ -64,7 +66,8 @@ public class ExecutionExecutorServiceTest {
             null);
     ReflectionTestUtils.setField(
         executorService, "connectorInstanceService", connectorInstanceService);
-    ReflectionTestUtils.setField(executorService, "executorUtils", new ExecutorUtils());
+    ReflectionTestUtils.setField(
+        executorService, "executorUtils", new ExecutorUtils(assetAgentJobRepository));
   }
 
   @Test

@@ -1,10 +1,6 @@
 package io.openaev.utils;
 
-import io.openaev.database.model.Agent;
-import io.openaev.database.model.ExecutionTrace;
-import io.openaev.database.model.ExecutionTraceAction;
-import io.openaev.database.model.ExecutionTraceStatus;
-import io.openaev.database.model.InjectStatus;
+import io.openaev.database.model.*;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 import java.util.List;
 import java.util.Set;
@@ -72,6 +68,14 @@ public class ExecutionTraceUtils {
         agent);
   }
 
+  public static void addSimulationTimeoutTrace(InjectStatus status) {
+    status.addTrace(
+        ExecutionTraceStatus.TIMEOUT,
+        "Inject stopped due to simulation timeout.",
+        ExecutionTraceAction.COMPLETE,
+        null);
+  }
+
   /**
    * Adds a START/INFO trace to the given inject status indicating that an implant was spawned by
    * the agent.
@@ -89,8 +93,8 @@ public class ExecutionTraceUtils {
    * <ul>
    *   <li>Non-cleanup errors take priority → return the granular error status
    *   <li>Prerequisite failed → PREREQUISITE_FAILED
-   *   <li>If execution succeeded but cleanup failed → SUCCESS_WITH_CLEANUP_FAIL
-   *   <li>If all succeeded → SUCCESS
+   *   <li>If execution succeeded but cleanup failed → EXECUTED_WITH_CLEANUP_FAILURE
+   *   <li>If all succeeded → EXECUTED
    * </ul>
    */
   public static ExecutionTraceStatus computeAgentTraceStatus(List<ExecutionTrace> agentTraces) {
@@ -123,10 +127,10 @@ public class ExecutionTraceUtils {
       return ExecutionTraceStatus.PREREQUISITE_FAILED;
     }
     if (hasSuccess && hasCleanupError) {
-      return ExecutionTraceStatus.SUCCESS_WITH_CLEANUP_FAIL;
+      return ExecutionTraceStatus.EXECUTED_WITH_CLEANUP_FAILURE;
     }
     if (hasSuccess) {
-      return ExecutionTraceStatus.SUCCESS;
+      return ExecutionTraceStatus.EXECUTED;
     }
     return null;
   }

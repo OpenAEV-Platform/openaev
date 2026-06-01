@@ -28,21 +28,21 @@ public class StixService {
    * @param stixJson string form of the provided stix bundle
    * @return Scenario
    */
-  public Scenario processBundle(String stixJson)
+  public Scenario processBundle(String stixJson, String tenantId)
       throws IOException, ParsingException, ConnectorError, BundleValidationError {
     Bundle bundle = stixParser.parseBundle(stixJson);
 
-    return processSecurityCoverage(bundle);
+    return processSecurityCoverage(bundle, tenantId);
   }
 
-  private Scenario processSecurityCoverage(Bundle bundle)
+  private Scenario processSecurityCoverage(Bundle bundle, String tenantId)
       throws BundleValidationError, ParsingException, ConnectorError, IOException {
     ObjectBase securityCoverageObj = securityCoverageUtils.extractAndValidateCoverage(bundle);
     String securityCoverageStixId =
         securityCoverageObj.getRequiredProperty(CommonProperties.ID.toString());
 
     return securityCoverageService.handleSecurityCoverageProcessing(
-        securityCoverageStixId, securityCoverageObj, bundle);
+        securityCoverageStixId, securityCoverageObj, bundle, tenantId);
   }
 
   /**

@@ -1,23 +1,28 @@
 package io.openaev.rest.xtmone;
 
-import static io.openaev.config.SessionHelper.currentUser;
-
-import io.openaev.database.model.User;
-import io.openaev.database.repository.UserRepository;
-import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.api.xtmone.dto.ChatbotAgentOutput;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.xtmone.XtmOneClient;
 import io.openaev.xtmone.XtmOneConfig;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.multipart.MultipartHttpServletRequest;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 @Slf4j
@@ -26,28 +31,18 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 public class XtmOneChatApi extends RestBehavior {
 
   private static final String XTM_ONE_URI = "/api/xtmone";
+  private static final Pattern FILE_ID_PATTERN =
+      Pattern.compile(
+          "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$");
   private final XtmOneClient client;
   private final XtmOneConfig config;
-  private final UserRepository userRepository;
-
-  private User resolveCurrentUser() {
-    return userRepository
-        .findById(currentUser().getId())
-        .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
-  }
-
-  private String issueJwt(User user) {
-    return client.issueAuthenticationJwt(
-        user.getId(), user.getName() != null ? user.getName() : user.getEmail(), user.getEmail());
-  }
 
   @GetMapping(XTM_ONE_URI + "/chat/agents")
-  public ResponseEntity<List<Map<String, Object>>> listAgents() {
+  public ResponseEntity<List<ChatbotAgentOutput>> listAgents() {
     if (!config.isConfigured()) {
       return ResponseEntity.ok(List.of());
     }
-    User user = resolveCurrentUser();
-    return ResponseEntity.ok(client.listChatAgents(issueJwt(user)));
+    return ResponseEntity.ok(client.listChatAgents("global.assistant"));
   }
 
   @PostMapping(XTM_ONE_URI + "/chat/sessions")
@@ -55,12 +50,10 @@ public class XtmOneChatApi extends RestBehavior {
     if (!config.isConfigured()) {
       return ResponseEntity.badRequest().build();
     }
-    User user = resolveCurrentUser();
-    String jwt = issueJwt(user);
     String agentSlug = body.get("agent_slug") != null ? body.get("agent_slug").toString() : null;
     String conversationId =
         body.get("conversation_id") != null ? body.get("conversation_id").toString() : null;
-    Map<String, Object> result = client.createChatSession(jwt, agentSlug, conversationId);
+    Map<String, Object> result = client.createChatSession(agentSlug, conversationId);
     if (result == null) {
       return ResponseEntity.internalServerError().build();
     }
@@ -72,21 +65,25 @@ public class XtmOneChatApi extends RestBehavior {
     if (!config.isConfigured()) {
       return ResponseEntity.badRequest().build();
     }
-    User user = resolveCurrentUser();
-    String jwt = issueJwt(user);
     String content = body.get("content") != null ? body.get("content").toString() : "";
     String conversationId =
         body.get("conversation_id") != null ? body.get("conversation_id").toString() : null;
     String agentSlug = body.get("agent_slug") != null ? body.get("agent_slug").toString() : null;
+    // Arbitrary host page/application context (e.g. current URL) forwarded so
+    // the agent is aware of where the user is. Optional and flexible — only
+    // passed upstream when present.
+    @SuppressWarnings("unchecked")
+    Map<String, Object> context =
+        body.get("context") instanceof Map ? (Map<String, Object>) body.get("context") : null;
 
     StreamingResponseBody responseBody =
         outputStream -> {
           try {
             client.streamChatMessage(
-                jwt,
                 content,
                 conversationId,
                 agentSlug,
+                context,
                 sseStream -> {
                   byte[] buf = new byte[4096];
                   int n;
@@ -95,6 +92,19 @@ public class XtmOneChatApi extends RestBehavior {
                     outputStream.flush();
                   }
                 });
+          } catch (ResponseStatusException e) {
+            String detail =
+                e.getReason() != null && !e.getReason().isBlank()
+                    ? e.getReason()
+                    : "Unable to connect to the AI assistant. Please try again.";
+            String errorContent =
+                e.getStatusCode().value() == 429
+                    ? "⚠️ **Quota exceeded** — " + detail
+                    : "⚠️ **Error** — " + detail;
+            outputStream.write(
+                ("data: {\"type\":\"error\",\"content\":\"" + errorContent + "\"}\n\n")
+                    .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            outputStream.flush();
           } catch (Exception e) {
             log.warn("[XTM One Chat] Stream error, agent={}.", agentSlug, e);
             outputStream.write(
@@ -111,5 +121,75 @@ public class XtmOneChatApi extends RestBehavior {
         .header("Cache-Control", "no-cache")
         .header("X-Accel-Buffering", "no")
         .body(responseBody);
+  }
+
+  @PostMapping(path = XTM_ONE_URI + "/chat/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+  public ResponseEntity<Map<String, Object>> uploadFiles(
+      @RequestParam("conversation_id") String conversationId, MultipartHttpServletRequest request) {
+    if (!config.isConfigured()) {
+      return ResponseEntity.badRequest().build();
+    }
+    if (conversationId.isBlank()) {
+      return ResponseEntity.badRequest().build();
+    }
+    List<MultipartFile> requestedFiles =
+        request.getMultiFileMap().values().stream()
+            .flatMap(List::stream)
+            .filter(file -> file != null && !file.isEmpty())
+            .toList();
+    if (requestedFiles.isEmpty()) {
+      return ResponseEntity.badRequest().build();
+    }
+
+    List<String> fileIds = new ArrayList<>();
+    for (MultipartFile file : requestedFiles) {
+      String fileId = client.uploadChatFile(conversationId, file);
+      if (fileId != null && !fileId.isBlank()) {
+        fileIds.add(fileId);
+      }
+    }
+
+    if (fileIds.isEmpty()) {
+      return ResponseEntity.internalServerError().build();
+    }
+    return ResponseEntity.ok(Map.of("file_ids", fileIds));
+  }
+
+  /**
+   * Downloads an agent-generated file from XTM One.
+   *
+   * <p>The OpenAEV user is authenticated here (platform session + CSRF); the XTM One JWT is minted
+   * server-side by {@link XtmOneClient#downloadChatFile}. The end user therefore never
+   * authenticates to XTM One directly — the embedded chatbot points its download URL at this proxy
+   * (relative to its {@code apiBaseUrl} of {@code /api/xtmone/chat}).
+   */
+  @GetMapping(XTM_ONE_URI + "/chat/files/{fileId}/download")
+  public ResponseEntity<byte[]> downloadFile(@PathVariable String fileId) {
+    if (!config.isConfigured()) {
+      return ResponseEntity.badRequest().build();
+    }
+    if (fileId == null || !FILE_ID_PATTERN.matcher(fileId).matches()) {
+      return ResponseEntity.badRequest().build();
+    }
+
+    XtmOneClient.DownloadedFile file = client.downloadChatFile(fileId);
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(parseContentType(file.contentType()));
+    if (file.contentDisposition() != null && !file.contentDisposition().isBlank()) {
+      headers.set(HttpHeaders.CONTENT_DISPOSITION, file.contentDisposition());
+    }
+    return new ResponseEntity<>(file.content(), headers, HttpStatus.OK);
+  }
+
+  private MediaType parseContentType(String contentType) {
+    if (contentType == null || contentType.isBlank()) {
+      return MediaType.APPLICATION_OCTET_STREAM;
+    }
+    try {
+      return MediaType.parseMediaType(contentType);
+    } catch (Exception ignored) {
+      return MediaType.APPLICATION_OCTET_STREAM;
+    }
   }
 }

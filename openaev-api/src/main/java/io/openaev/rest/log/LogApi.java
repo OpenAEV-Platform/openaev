@@ -1,18 +1,19 @@
 package io.openaev.rest.log;
 
-import static io.openaev.utils.LogUtils.*;
+import static io.openaev.utils.log.LogUtils.*;
 import static java.util.logging.Level.*;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.log.form.LogDetailsInput;
+import io.openaev.utils.log.LogUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.logging.Level;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -20,9 +21,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@Slf4j
 public class LogApi extends RestBehavior {
-
-  private static final Logger logger = LoggerFactory.getLogger(LogApi.class);
 
   @PostMapping("/api/logs")
   @Operation(
@@ -49,19 +49,16 @@ public class LogApi extends RestBehavior {
           @RequestBody
           LogDetailsInput logDetailsInput) {
     String level = logDetailsInput.getLevel();
+    String message = buildLogMessage(logDetailsInput, level);
+    Level resolvedLevel = LogUtils.getLogLevel(level);
 
-    if (WARNING.getName().equals(level)) {
-      logger.warn(buildLogMessage(logDetailsInput, level));
-    } else if (INFO.getName().equals(level)) {
-      logger.info(buildLogMessage(logDetailsInput, level));
-    } else if (SEVERE.getName().equals(level)) {
-      logger.error(buildLogMessage(logDetailsInput, level));
-    } else {
-      String invalidLevel = "Invalid level: " + level;
-      logger.error(invalidLevel);
-      return new ResponseEntity<>(invalidLevel, HttpStatus.BAD_REQUEST);
+    if (resolvedLevel == WARNING || resolvedLevel == INFO || resolvedLevel == SEVERE) {
+      LogUtils.log(log, message, resolvedLevel);
+      return new ResponseEntity<>("Log message processed successfully", HttpStatus.OK);
     }
 
-    return new ResponseEntity<>("Log message processed successfully", HttpStatus.OK);
+    message = "Invalid level: " + level;
+    LogUtils.log(log, message, SEVERE);
+    return new ResponseEntity<>(message, HttpStatus.BAD_REQUEST);
   }
 }

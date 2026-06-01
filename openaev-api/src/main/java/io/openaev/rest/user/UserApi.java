@@ -2,8 +2,10 @@ package io.openaev.rest.user;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.UserRoleDescription;
+import io.openaev.aop.audit_log.AuditLogger;
 import io.openaev.config.SessionManager;
 import io.openaev.database.model.Action;
+import io.openaev.database.model.EventStatus;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.UserRepository;
@@ -15,6 +17,7 @@ import io.openaev.rest.user.form.login.ResetUserInput;
 import io.openaev.rest.user.form.user.ChangePasswordInput;
 import io.openaev.service.UserService;
 import io.openaev.service.user_events.UserEventService;
+import io.openaev.utils.log.LogUtils;
 import io.swagger.v3.oas.annotations.ExternalDocumentation;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -51,6 +54,7 @@ public class UserApi extends RestBehavior {
   private final UserRepository userRepository;
   private final UserService userService;
   private final UserEventService userEventService;
+  private final Optional<AuditLogger> auditLogger;
 
   @Operation(description = "Endpoint to login", summary = "Endpoint to login")
   @ApiResponses(
@@ -70,11 +74,33 @@ public class UserApi extends RestBehavior {
       if (userService.isUserPasswordValid(user, input.getPassword())) {
         userService.createUserSession(user);
         userEventService.createLoginSuccessEvent(user);
+
+        auditLogger.ifPresent(
+            logger -> {
+              String eventScope = LogUtils.getEventScope(Action.LOGIN);
+              String eventStatus = LogUtils.getEventStatus(EventStatus.SUCCESS);
+              logger.logAuthEvent(
+                  eventScope, eventStatus, LogUtils.getAuthEventProviderLocal(), null, null);
+            });
+
         return user;
       }
     }
     userEventService.createLoginFailedEvent(
         "local login", BadCredentialsException.class.getSimpleName());
+
+    auditLogger.ifPresent(
+        logger -> {
+          String eventScope = LogUtils.getEventScope(Action.LOGIN);
+          String eventStatus = LogUtils.getEventStatus(EventStatus.ERROR);
+          logger.logAuthEvent(
+              eventScope,
+              eventStatus,
+              LogUtils.getAuthEventProviderLocal(),
+              BadCredentialsException.class.getSimpleName(),
+              null);
+        });
+
     throw new BadCredentialsException("Invalid credential.");
   }
 

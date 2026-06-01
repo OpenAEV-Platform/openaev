@@ -25,6 +25,12 @@ const EETooltip = ({
   const { isValidated: isEnterpriseEdition } = useEnterpriseEdition();
   const { enabled, configured, xtmOneConfigured } = useAI();
   const aiConfigured = configured || xtmOneConfigured;
+
+  // Hide entirely when AI is explicitly disabled and this is an AI feature
+  if (forAi && enabled === false) {
+    return null;
+  }
+
   if (isEnterpriseEdition && (!forAi || (forAi && enabled && aiConfigured))) {
     return <Tooltip title={title ? t(title) : undefined}>{children}</Tooltip>;
   }

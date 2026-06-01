@@ -9,6 +9,7 @@ import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ChallengeRepository;
 import io.openaev.database.repository.ExerciseRepository;
@@ -95,7 +96,8 @@ public class SimulationChallengeApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   public List<Document> playerDocuments(
       @PathVariable String simulationId, @RequestParam Optional<String> userId) {
-    Optional<Exercise> exerciseOpt = this.exerciseRepository.findById(simulationId);
+    Optional<Exercise> exerciseOpt =
+        this.exerciseRepository.findByIdAndTenantId(simulationId, TenantContext.getCurrentTenant());
     final User user = impersonateUser(userRepository, userId);
     if (user.getId().equals(ANONYMOUS)) {
       throw new UnsupportedOperationException("User must be logged or dynamic player is required");
@@ -121,7 +123,9 @@ public class SimulationChallengeApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   public SimulationChallengesReader observerChallenges(@PathVariable String simulationId) {
     Exercise exercise =
-        exerciseRepository.findById(simulationId).orElseThrow(ElementNotFoundException::new);
+        exerciseRepository
+            .findByIdAndTenantId(simulationId, TenantContext.getCurrentTenant())
+            .orElseThrow(ElementNotFoundException::new);
     SimulationChallengesReader simulationChallengesReader =
         new SimulationChallengesReader(exercise);
     Iterable<Challenge> challenges = challengeService.getExerciseChallenges(simulationId);

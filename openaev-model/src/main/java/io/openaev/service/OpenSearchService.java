@@ -866,7 +866,6 @@ public class OpenSearchService implements EngineService {
     Map<String, String> parameters = runtime.getParameters();
     Map<String, CustomDashboardParameters> definitionParameters = runtime.getDefinitionParameters();
     return runtime.getWidget().getSeries().stream()
-        .parallel()
         .map(c -> termHistogram(user, runtime.getWidget(), c, parameters, definitionParameters))
         .toList();
   }
@@ -939,7 +938,6 @@ public class OpenSearchService implements EngineService {
     Map<String, String> parameters = runtime.getParameters();
     Map<String, CustomDashboardParameters> definitionParameters = runtime.getDefinitionParameters();
     return runtime.getWidget().getSeries().stream()
-        .parallel()
         .map(c -> dateHistogram(user, runtime.getWidget(), c, parameters, definitionParameters))
         .toList();
   }
@@ -1121,6 +1119,11 @@ public class OpenSearchService implements EngineService {
   @Override
   public void cleanUpIndex(String model) throws IOException {
     driver.cleanUpIndex(model, openSearchClient);
+  }
+
+  @Override
+  public ObjectMapper getObjectMapper() {
+    return driver.getObjectMapper();
   }
 
   // endregion

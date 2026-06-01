@@ -6,6 +6,7 @@ import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -42,7 +43,9 @@ public class VariableApi extends RestBehavior {
     Variable variable = new Variable();
     variable.setUpdateAttributes(input);
     Exercise exercise =
-        this.exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
+        this.exerciseRepository
+            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
+            .orElseThrow(ElementNotFoundException::new);
     variable.setExercise(exercise);
     return this.variableService.createVariable(variable);
   }

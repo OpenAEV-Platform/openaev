@@ -80,7 +80,7 @@ const AttackPatternAIAssistantDialog = ({ open, onClose, onAttackPatternIdsFind 
     setLoadingAgents(true);
     setSelectedAgent(null);
     setAgentOptions([]);
-    fetchAgentsForIntent('ttp.extractor')
+    fetchAgentsForIntent('cti.ttp_harvester')
       .then((agents) => {
         setAgentOptions(agents);
         if (agents.length > 0) setSelectedAgent(agents[0]);

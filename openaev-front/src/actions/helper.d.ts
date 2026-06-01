@@ -8,7 +8,6 @@ import {
   type ScenarioChallengesReader,
   type SimulationChallengesReader, type TenantSettingsOutput,
   type TenantXtmHubRegistration,
-  type Token,
   type User,
 } from '../utils/api-types';
 
@@ -46,8 +45,6 @@ export interface DocumentHelper {
   getDocuments: () => Document[];
   getDocumentsMap: () => Record<string, Document>;
 }
-
-export interface MeTokensHelper { getMeTokens: () => Token[] }
 
 export interface SimulationChallengesReaderHelper { getSimulationChallengesReader: (exerciseId: SimulationChallengesReader['exercise_id']) => SimulationChallengesReader }
 

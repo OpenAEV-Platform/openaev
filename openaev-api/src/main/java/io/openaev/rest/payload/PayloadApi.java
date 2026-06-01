@@ -5,11 +5,8 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import io.openaev.aop.AccessControl;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
-import io.openaev.database.repository.InjectorContractRepository;
-import io.openaev.database.repository.PayloadRepository;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.document.DocumentService;
-import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.payload.form.*;
 import io.openaev.rest.payload.output.PayloadOutput;
@@ -29,13 +26,13 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
+@Deprecated(
+    since = "Remove after closing https://github.com/OpenAEV-Platform/client-python/issues/211")
 public class PayloadApi extends RestBehavior {
 
   public static final String PAYLOAD_URI = "/api/payloads";
   public static final String TENANT_PAYLOAD_URI = TENANT_PREFIX + "/payloads";
 
-  private final PayloadRepository payloadRepository;
-  private final InjectorContractRepository injectorContractRepository;
   private final PayloadService payloadService;
   private final PayloadCreationService payloadCreationService;
   private final PayloadUpdateService payloadUpdateService;
@@ -117,10 +114,7 @@ public class PayloadApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.PAYLOAD)
   public void deletePayload(@PathVariable String payloadId) {
-    payloadRepository
-        .findById(payloadId)
-        .orElseThrow(() -> new ElementNotFoundException("Payload not found: " + payloadId));
-    payloadRepository.deleteById(payloadId);
+    payloadService.delete(payloadId);
   }
 
   @PostMapping({PAYLOAD_URI + "/deprecate", TENANT_PAYLOAD_URI + "/deprecate"})

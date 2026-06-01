@@ -24,8 +24,6 @@ import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -60,7 +58,7 @@ public class InjectStatusService {
     // build status
     InjectStatus injectStatus = new InjectStatus();
     injectStatus.setInject(inject);
-    injectStatus.setName(ExecutionStatus.valueOf(input.getStatus()));
+    injectStatus.setName(ExecutionStatus.fromName(input.getStatus()));
     // Save status for inject
     inject.setStatus(injectStatus);
     return injectRepository.save(inject);
@@ -84,22 +82,17 @@ public class InjectStatusService {
     injectStatusRepository.save(injectStatus);
   }
 
-  public void addJobRetrievalTraces(List<AssetAgentJob> jobs) {
-    Map<String, List<AssetAgentJob>> jobsByInjectId =
-        jobs.stream()
-            .filter(j -> j.getInject() != null && j.getAgent() != null)
-            .collect(Collectors.groupingBy(j -> j.getInject().getId()));
-    if (jobsByInjectId.isEmpty()) {
-      return;
+  public void addJobRetrievalTraces(AssetAgentJob job) {
+    if (job.getInject() != null && job.getAgent() != null) {
+      String injectId = job.getInject().getId();
+      injectStatusRepository
+          .findByInjectId(injectId)
+          .ifPresent(
+              status -> {
+                ExecutionTraceUtils.addJobRetrievalTrace(status, job.getAgent());
+                injectStatusRepository.save(status);
+              });
     }
-    List<InjectStatus> statuses =
-        injectStatusRepository.findAllByInjectIdIn(jobsByInjectId.keySet());
-    for (InjectStatus status : statuses) {
-      for (AssetAgentJob job : jobsByInjectId.getOrDefault(status.getInject().getId(), List.of())) {
-        ExecutionTraceUtils.addJobRetrievalTrace(status, job.getAgent());
-      }
-    }
-    injectStatusRepository.saveAll(statuses);
   }
 
   private int getCompleteTrace(Inject inject) {
@@ -170,7 +163,7 @@ public class InjectStatusService {
     }
 
     ExecutionTraceAction executionAction = convertExecutionAction(input.getAction());
-    ExecutionTraceStatus traceStatus = ExecutionTraceStatus.valueOf(input.getStatus());
+    ExecutionTraceStatus traceStatus = ExecutionTraceStatus.fromName(input.getStatus());
 
     ExecutionTrace base =
         new ExecutionTrace(

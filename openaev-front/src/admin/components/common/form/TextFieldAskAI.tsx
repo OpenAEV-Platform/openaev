@@ -32,15 +32,15 @@ import EETooltip from '../entreprise_edition/EETooltip';
 export type AgentAction = 'spelling' | 'shorter' | 'longer' | 'tone' | 'summarize' | 'explain' | 'genMessage' | 'genSubject' | 'genMedia';
 
 const intentForAction: Record<AgentAction, string> = {
-  spelling: 'fix.spelling',
-  shorter: 'make.it.shorter',
-  longer: 'make.it.longer',
-  tone: 'change.tone',
-  summarize: 'summarize',
-  explain: 'explain',
-  genMessage: 'generate.message',
-  genSubject: 'generate.message',
-  genMedia: 'generate.media',
+  spelling: 'global.fix_spelling',
+  shorter: 'global.make_it_shorter',
+  longer: 'global.make_it_longer',
+  tone: 'global.change_tone',
+  summarize: 'global.summarize',
+  explain: 'global.explain',
+  genMessage: 'aev.message_generator',
+  genSubject: 'aev.message_generator',
+  genMedia: 'aev.media_article_generator',
 };
 
 // region types
@@ -71,6 +71,12 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
   const { t } = useFormatter();
   const { isValidated: isEnterpriseEdition } = useEnterpriseEdition();
   const { enabled, configured, xtmOneConfigured } = useAI();
+
+  // Hide entirely when AI is explicitly disabled
+  if (enabled === false) {
+    return null;
+  }
+
   const useXtmOne = xtmOneConfigured === true;
   const [content, setContent] = useState('');
   const [agentMode, setAgentMode] = useState<AgentMode | null>(null);

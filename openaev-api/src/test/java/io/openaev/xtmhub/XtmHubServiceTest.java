@@ -16,6 +16,7 @@ import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantXtmHubRegistration;
+import io.openaev.database.model.User;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.database.repository.TenantXtmHubRegistrationRepository;
 import io.openaev.ee.License;
@@ -1020,6 +1021,83 @@ class XtmHubServiceTest {
       assertTrue(exception.getReason().contains("Failed to register"));
 
       verify(tenantXtmHubRegistrationRepository, never()).save(any(TenantXtmHubRegistration.class));
+    }
+  }
+
+  @Nested
+  @DisplayName("register")
+  class Register {
+
+    @Test
+    @DisplayName(
+        "Should set registration user name from full name when first and last name are set")
+    void whenUserHasFirstAndLastName_ShouldUseFullNameAsRegistrationUserName() {
+      // Given
+      String token = "valid-token";
+      User user = new User();
+      user.setId("user-123");
+      user.setFirstname("John");
+      user.setLastname("Doe");
+      user.setEmail("john.doe@example.com");
+      when(userService.currentUser()).thenReturn(user);
+      when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+      // When
+      xtmHubService.register(token);
+
+      // Then
+      ArgumentCaptor<TenantXtmHubRegistration> captor =
+          ArgumentCaptor.forClass(TenantXtmHubRegistration.class);
+      verify(tenantXtmHubRegistrationRepository).save(captor.capture());
+      assertThat(captor.getValue().getRegistrationUserName()).isEqualTo("John Doe");
+    }
+
+    @Test
+    @DisplayName(
+        "Should fall back to email as registration user name when first or last name is null")
+    void whenUserHasNoFirstOrLastName_ShouldUseEmailAsRegistrationUserName() {
+      // Given
+      String token = "valid-token";
+      User user = new User();
+      user.setId("user-456");
+      user.setFirstname(null);
+      user.setLastname(null);
+      user.setEmail("noname@example.com");
+      when(userService.currentUser()).thenReturn(user);
+      when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+      // When
+      xtmHubService.register(token);
+
+      // Then
+      ArgumentCaptor<TenantXtmHubRegistration> captor =
+          ArgumentCaptor.forClass(TenantXtmHubRegistration.class);
+      verify(tenantXtmHubRegistrationRepository).save(captor.capture());
+      assertThat(captor.getValue().getRegistrationUserName()).isEqualTo("noname@example.com");
+    }
+
+    @Test
+    @DisplayName(
+        "Should fall back to email as registration user name when first or last name is blank")
+    void whenUserHasBlankFirstOrLastName_ShouldUseEmailAsRegistrationUserName() {
+      // Given
+      String token = "valid-token";
+      User user = new User();
+      user.setId("user-789");
+      user.setFirstname("  ");
+      user.setLastname("");
+      user.setEmail("blank@example.com");
+      when(userService.currentUser()).thenReturn(user);
+      when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+      // When
+      xtmHubService.register(token);
+
+      // Then
+      ArgumentCaptor<TenantXtmHubRegistration> captor =
+          ArgumentCaptor.forClass(TenantXtmHubRegistration.class);
+      verify(tenantXtmHubRegistrationRepository).save(captor.capture());
+      assertThat(captor.getValue().getRegistrationUserName()).isEqualTo("blank@example.com");
     }
   }
 

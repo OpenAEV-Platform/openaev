@@ -52,7 +52,7 @@ public class TenantGroupComposer extends ComposerBase<Group> {
     @Override
     public TenantGroupComposer.Composer delete() {
       grantComposers.forEach(GrantComposer.Composer::delete);
-      groupRepository.delete(group);
+      groupRepository.deleteByIdNative(group.getId());
       roleComposers.forEach(TenantRoleComposer.Composer::delete);
       return null;
     }

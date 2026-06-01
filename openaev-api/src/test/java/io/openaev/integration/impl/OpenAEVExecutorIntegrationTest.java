@@ -24,6 +24,7 @@ import io.openaev.integration.impl.executors.openaev.OpenAEVExecutorIntegration;
 import io.openaev.integration.impl.executors.openaev.OpenAEVExecutorIntegrationFactory;
 import io.openaev.service.*;
 import io.openaev.service.InjectorService;
+import io.openaev.service.account.ServiceAccountPrivilegeService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.utilstest.RabbitMQTestListener;
@@ -56,6 +57,7 @@ public class OpenAEVExecutorIntegrationTest {
   @Autowired private ConnectorInstanceService connectorInstanceService;
   @Autowired private AssetAgentJobRepository assetAgentJobRepository;
   @Autowired private HttpClientFactory httpClientFactory;
+  @Autowired private ServiceAccountPrivilegeService serviceAccountPrivilegeService;
 
   @Autowired private FileService fileService;
   @Autowired private InjectorService injectorService;
@@ -68,7 +70,8 @@ public class OpenAEVExecutorIntegrationTest {
         executorService,
         componentRequestEngine,
         assetAgentJobRepository,
-        httpClientFactory);
+        httpClientFactory,
+        serviceAccountPrivilegeService);
   }
 
   @Test

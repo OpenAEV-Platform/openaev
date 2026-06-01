@@ -22,20 +22,6 @@
   "commitMessagePrefix": "[tool] chore(deps):",
   "packageRules": [
     {
-      "description": "Disable updates of images intentionally pinned to older versions for compatibility testing",
-      "matchFileNames": [
-        "^\\.drone\\.yml$"
-      ],
-      "matchDatasources": [
-        "docker"
-      ],
-      "matchPackageNames": [
-        "python"
-      ],
-      "matchCurrentVersion": "^3\\.(9|10|11|12)$",
-      "enabled": false
-    },
-    {
       "description": "Disable updates of internal packages",
       "matchDatasources": [
         "maven"
@@ -71,6 +57,20 @@
         "maven"
       ],
       "commitMessagePrefix": "[backend] chore(deps):"
+    },
+    {
+      "description": "apexcharts >= 5 uses a commercial license (not MIT). Block major updates.",
+      "matchDatasources": ["npm"],
+      "matchPackageNames": ["apexcharts"],
+      "allowedVersions": "<5",
+      "enabled": true
+    },
+    {
+      "description": "react-apexcharts >= 1.8.0 depends on apexcharts >= 5 (commercial license). Block updates.",
+      "matchDatasources": ["npm"],
+      "matchPackageNames": ["react-apexcharts"],
+      "allowedVersions": "<1.8.0",
+      "enabled": true
     },
     {
       "matchPackageNames": [

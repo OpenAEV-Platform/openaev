@@ -6,6 +6,7 @@ import static io.openaev.helper.DatabaseHelper.resolveRelation;
 import static java.time.Instant.now;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.EvaluationRepository;
 import io.openaev.database.repository.ExerciseRepository;
@@ -59,7 +60,9 @@ public class ExerciseObjectiveApi extends RestBehavior {
   public Objective createObjective(
       @PathVariable String exerciseId, @Valid @RequestBody ObjectiveInput input) {
     Exercise exercise =
-        exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
+        exerciseRepository
+            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
+            .orElseThrow(ElementNotFoundException::new);
     Objective objective = new Objective();
     objective.setUpdateAttributes(input);
     objective.setExercise(exercise);
@@ -150,7 +153,9 @@ public class ExerciseObjectiveApi extends RestBehavior {
     objective.setUpdatedAt(now());
     objectiveRepository.save(objective);
     Exercise exercise =
-        exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
+        exerciseRepository
+            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
+            .orElseThrow(ElementNotFoundException::new);
     exercise.setUpdatedAt(now());
     exerciseRepository.save(exercise);
     return result;
@@ -178,7 +183,9 @@ public class ExerciseObjectiveApi extends RestBehavior {
     objective.setUpdatedAt(now());
     objectiveRepository.save(objective);
     Exercise exercise =
-        exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
+        exerciseRepository
+            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
+            .orElseThrow(ElementNotFoundException::new);
     exercise.setUpdatedAt(now());
     exerciseRepository.save(exercise);
     return result;

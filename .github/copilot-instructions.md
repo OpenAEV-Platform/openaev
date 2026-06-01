@@ -53,29 +53,29 @@ ignore unless your changes touch these.
 
 ## Continuous Integration
 
-### Drone CI Pipeline
-
-Primary CI runs on every push:
+CI runs on GitHub Actions (see `.github/workflows/`):
 
 1. **API Tests**: `mvn spotless:check`, `mvn clean install -DskipTests`, tests, `mvn jacoco:check`
 2. **Frontend Tests**: `yarn install/build/check-ts/lint/i18n-checker/test`
 3. **E2E Tests**: Full app test with Playwright
 4. **Type Check**: `yarn generate-types-from-api` verification
 
-**Services**: PostgreSQL, MinIO, Elasticsearch, RabbitMQ (see `.drone.yml` for exact versions)
+**Services**: PostgreSQL, MinIO, Elasticsearch, RabbitMQ (see workflow files for exact versions)
 
-### GitHub Actions
+### Key Workflows
 
+- **core-ci.yml**: Primary CI pipeline (backend + frontend + e2e)
+- **nightly-ci.yml**: Nightly extended test suite
 - **test-feature-branch.yml**: Docker image build (Alpine Linux)
-- **codeql.yml**: Security scanning (weekly + master push)
-- **pr-title-check-worker.yml**: Conventional Commits validation
+- **codeql.yml**: Security scanning (weekly + main push)
+- **openaev-validate-pr-title.yml**: Conventional Commits validation
 
 ## Project Structure
 
 ### Root Files
 
 - `pom.xml` - Parent Maven POM
-- `.drone.yml` - Primary CI/CD pipeline
+- `.github/workflows/` - CI/CD pipelines (GitHub Actions)
 - `docker-compose.yml` - Dev services (in `openaev-dev/`)
 - `Dockerfile` / `Dockerfile_ga` - Production / GitHub Actions images
 

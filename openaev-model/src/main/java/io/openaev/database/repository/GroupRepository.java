@@ -48,4 +48,24 @@ public interface GroupRepository
   @Modifying
   @Query(value = "DELETE FROM groups WHERE group_id = :id", nativeQuery = true)
   void deleteByIdNative(@Param("id") String id);
+
+  // -- Blocked JPA delete methods: use native query instead --
+
+  /**
+   * @deprecated Use {@link #deleteByIdNative(String)}.
+   */
+  @Override
+  @Deprecated
+  default void delete(@NotNull Group entity) {
+    throw new UnsupportedOperationException("Use deleteByIdNative(id) instead");
+  }
+
+  /**
+   * @deprecated Use {@link #deleteByIdNative(String)}.
+   */
+  @Override
+  @Deprecated
+  default void deleteById(@NotNull String id) {
+    throw new UnsupportedOperationException("Use deleteByIdNative(id) instead");
+  }
 }

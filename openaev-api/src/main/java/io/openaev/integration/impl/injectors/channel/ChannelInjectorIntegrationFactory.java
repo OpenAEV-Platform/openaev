@@ -6,11 +6,13 @@ import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.database.repository.ArticleRepository;
 import io.openaev.executors.InjectorContext;
+import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.injectors.channel.ChannelContract;
 import io.openaev.injectors.email.service.EmailService;
+import io.openaev.integration.BuiltinIntegrationFactory;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
-import io.openaev.integration.IntegrationFactory;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
@@ -20,7 +22,7 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 
 @Service
-public class ChannelInjectorIntegrationFactory extends IntegrationFactory {
+public class ChannelInjectorIntegrationFactory extends BuiltinIntegrationFactory {
   private final ChannelContract channelContract;
   private final InjectorContext injectorContext;
 
@@ -94,5 +96,23 @@ public class ChannelInjectorIntegrationFactory extends IntegrationFactory {
         injectorService,
         injectExpectationService,
         articleRepository);
+  }
+
+  @Override
+  public void registerConnectorForTenant() throws Exception {
+    try {
+      injectorService.injector(ChannelInjectorIntegration.CHANNEL_INJECTOR_ID);
+    } catch (ElementNotFoundException e) {
+      injectorService.registerBuiltinInjector(
+          ChannelInjectorIntegration.CHANNEL_INJECTOR_ID,
+          ChannelInjectorIntegration.CHANNEL_INJECTOR_NAME,
+          channelContract,
+          false,
+          "media-pressure",
+          null,
+          null,
+          false,
+          List.of(ExternalServiceDependency.SMTP, ExternalServiceDependency.IMAP));
+    }
   }
 }

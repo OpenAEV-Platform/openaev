@@ -5,14 +5,9 @@ import io.openaev.aop.LogExecutionTime;
 import io.openaev.api.xtmone.dto.AgentCallInput;
 import io.openaev.api.xtmone.dto.AgentCallOutput;
 import io.openaev.api.xtmone.dto.ChatbotAgentOutput;
-import io.openaev.api.xtmone.dto.DetectionRemediationCallInput;
-import io.openaev.database.model.User;
 import io.openaev.rest.helper.RestBehavior;
-import io.openaev.service.UserService;
 import io.openaev.xtmone.XtmOneClient;
 import io.openaev.xtmone.XtmOneConfig;
-import io.openaev.xtmone.XtmOneFormattingService;
-import io.openaev.xtmone.XtmOneService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -30,13 +25,14 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 /**
  * Proxy endpoints for programmatic XTM One agent calls from the OpenAEV frontend. These complement
  * the chatbot panel endpoints in {@link io.openaev.rest.xtmone.XtmOneChatApi} by providing
  * intent-based agent resolution, plus non-streaming and streaming agent calls (used by
- * TextFieldAskAI, TTP extraction, detection / remediation generation).
+ * TextFieldAskAI and generic chatbot interactions).
  */
 @Slf4j
 @RestController
@@ -49,15 +45,6 @@ public class XtmOneProxyApi extends RestBehavior {
 
   private final XtmOneConfig config;
   private final XtmOneClient client;
-  private final XtmOneService xtmOneService;
-  private final XtmOneFormattingService formattingService;
-  private final UserService userService;
-
-  private String issueJwtForCurrentUser() {
-    User user = userService.currentUser();
-    return client.issueAuthenticationJwt(
-        user.getId(), user.getName() != null ? user.getName() : user.getEmail(), user.getEmail());
-  }
 
   // -- READ --
 
@@ -73,7 +60,7 @@ public class XtmOneProxyApi extends RestBehavior {
     if (!config.isConfigured()) {
       return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(List.of());
     }
-    return ResponseEntity.ok(xtmOneService.listEnabledAgentsForIntent(intent));
+    return ResponseEntity.ok(client.listChatAgents(intent));
   }
 
   // -- AGENT CALLS --
@@ -92,50 +79,12 @@ public class XtmOneProxyApi extends RestBehavior {
       return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
           .body(AgentCallOutput.error("XTM One is not configured"));
     }
-
-    String validatedSlug = xtmOneService.requireEnabledAgentSlug(input.agentSlug());
-
-    String result =
-        client.callAgentSync(issueJwtForCurrentUser(), validatedSlug, input.content(), null);
+    String result = client.callAgentSync(input.agentSlug(), input.content(), null);
     if (result == null) {
       return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
           .body(AgentCallOutput.error("Agent call failed"));
     }
     return ResponseEntity.ok(AgentCallOutput.success(result));
-  }
-
-  @PostMapping("/agent/detection-remediation")
-  @LogExecutionTime
-  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
-  @Operation(
-      summary = "Detection / remediation agent call",
-      description =
-          "Invokes the XTM One detection.generate agent and applies the server-side formatter for"
-              + " the given collector type so the frontend receives editor-ready content. The slug"
-              + " supplied by the client is validated against the detection.generate intent"
-              + " catalog before forwarding.")
-  public ResponseEntity<AgentCallOutput> postDetectionRemediationCall(
-      @Valid @RequestBody DetectionRemediationCallInput input) {
-    if (!config.isConfigured()) {
-      return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-          .body(AgentCallOutput.error("XTM One is not configured"));
-    }
-
-    String resolvedSlug =
-        xtmOneService.resolveAgentSlugForIntent("detection.generate", input.agentSlug());
-    if (resolvedSlug == null) {
-      return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-          .body(AgentCallOutput.error("No detection.generate agent enabled"));
-    }
-
-    String raw =
-        client.callAgentSync(issueJwtForCurrentUser(), resolvedSlug, input.content(), null);
-    if (raw == null) {
-      return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-          .body(AgentCallOutput.error("Agent call failed"));
-    }
-    String formatted = formattingService.formatRemediationRules(raw, input.collectorType());
-    return ResponseEntity.ok(AgentCallOutput.success(formatted));
   }
 
   @PostMapping(value = "/agent/stream", produces = "text/event-stream")
@@ -160,18 +109,15 @@ public class XtmOneProxyApi extends RestBehavior {
           .body(errorBody);
     }
 
-    final String validatedSlug = xtmOneService.requireEnabledAgentSlug(input.agentSlug());
+    final String validatedSlug = input.agentSlug();
     final String content = input.content();
 
     // Resolve the user and mint the JWT inside the request thread (Spring Security context is not
     // propagated automatically into the streaming callback below).
-    final String jwt = issueJwtForCurrentUser();
-
     StreamingResponseBody responseBody =
         outputStream -> {
           try {
             client.streamChatMessage(
-                jwt,
                 content,
                 null,
                 validatedSlug,
@@ -183,6 +129,19 @@ public class XtmOneProxyApi extends RestBehavior {
                     outputStream.flush();
                   }
                 });
+          } catch (ResponseStatusException e) {
+            String detail =
+                e.getReason() != null && !e.getReason().isBlank()
+                    ? e.getReason()
+                    : "Unable to connect to the AI assistant.";
+            String errorContent =
+                e.getStatusCode().value() == HttpStatus.TOO_MANY_REQUESTS.value()
+                    ? "⚠️ **Quota exceeded** — " + detail
+                    : "⚠️ **Error** — " + detail;
+            outputStream.write(
+                ("data: {\"type\":\"error\",\"content\":\"" + errorContent + "\"}\n\n")
+                    .getBytes(StandardCharsets.UTF_8));
+            outputStream.flush();
           } catch (Exception e) {
             log.warn("[XTM One Proxy] Stream error, agent={}.", validatedSlug, e);
             outputStream.write(

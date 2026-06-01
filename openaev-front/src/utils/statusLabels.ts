@@ -9,8 +9,8 @@
 // -- STATUS DISPLAY LABELS --
 const statusLabelMap: Record<string, string> = {
   // -- ExecutionTraceStatus (Agent level) --
-  SUCCESS: 'Executed',
-  SUCCESS_WITH_CLEANUP_FAIL: 'Cleanup failed',
+  EXECUTED: 'Executed',
+  EXECUTED_WITH_CLEANUP_FAILURE: 'Cleanup failed',
   WARNING: 'Executed with warning',
   ACCESS_DENIED: 'Access denied',
   COMMAND_NOT_FOUND: 'Command not found',
@@ -23,9 +23,8 @@ const statusLabelMap: Record<string, string> = {
   ASSET_AGENTLESS: 'Asset agentless',
 };
 
-// -- REMOVE THIS PART IN #5643 --
 const injectStatusLabelMap: Record<string, string> = {
-  SUCCESS: 'EXECUTED',
+  EXECUTED: 'EXECUTED',
   EXECUTING: 'RUNNING',
 };
 
@@ -35,8 +34,8 @@ export const getInjectStatusLabel = (status: string | undefined | null): string 
 };
 
 const traceStatusLabelMap: Record<string, string> = {
-  SUCCESS: 'EXECUTED',
-  SUCCESS_WITH_CLEANUP_FAIL: 'EXECUTED_WITH_CLEANUP_FAILURE',
+  EXECUTED: 'EXECUTED',
+  EXECUTED_WITH_CLEANUP_FAILURE: 'EXECUTED_WITH_CLEANUP_FAILURE',
   WARNING: 'EXECUTED_WITH_WARNING',
   QUEUING: 'PENDING IN QUEUE',
 };
@@ -61,8 +60,8 @@ export const getStatusLabel = (status: string | undefined | null): string => {
 
 const agentStatusTooltipMap: Record<string, string> = {
   // -- ExecutionTraceStatus (Agent level) --
-  SUCCESS: 'The inject ran successfully.',
-  SUCCESS_WITH_CLEANUP_FAIL: 'The main command executed successfully, but the cleanup step failed. Check cleanup prerequisites and logs on the target.',
+  EXECUTED: 'The inject ran successfully.',
+  EXECUTED_WITH_CLEANUP_FAILURE: 'The main command executed successfully, but the cleanup step failed. Check cleanup prerequisites and logs on the target.',
   WARNING: 'The command completed but produced stderr output. Review stderr for potential issues.',
   ACCESS_DENIED: 'The command was denied due to insufficient privileges. This confirms the security control is working — the agent attempted execution but was blocked.',
   ERROR: 'The command failed with an unexpected error. Check the agent logs and stderr output for details',
@@ -85,7 +84,7 @@ export const getAgentStatusTooltip = (status: string | undefined | null): string
 };
 
 const injectStatusTooltipMap: Record<string, string> = {
-  SUCCESS: 'The inject completed successfully. All targets were processed and results have been recorded.',
+  EXECUTED: 'The inject completed successfully. All targets were processed and results have been recorded.',
   ERROR: 'The inject could not be completed. No result was recorded for any target. Review the inject configuration or check the execution details for more information.',
   PARTIAL: 'The inject completed on some targets but not all. Review the individual target results for more details.',
   DRAFT: 'This inject has not been executed yet. It is saved as a draft and can be edited before being queued for execution.',

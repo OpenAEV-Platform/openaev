@@ -30,7 +30,9 @@ public interface InjectExpectationRepository
 
   @Query(
       value =
-          "select i from InjectExpectation i where i.exercise.id = :exerciseId and i.inject.id = :injectId")
+          "SELECT i.* FROM injects_expectations i "
+              + "WHERE i.exercise_id = :exerciseId AND i.inject_id = :injectId",
+      nativeQuery = true)
   List<InjectExpectation> findAllForExerciseAndInject(
       @Param("exerciseId") @NotBlank final String exerciseId,
       @Param("injectId") @NotBlank final String injectId);
@@ -61,18 +63,6 @@ public interface InjectExpectationRepository
       @Param("articlesIds") List<String> articlesIds);
 
   // -- BY TARGET TYPE
-
-  @Query(
-      value =
-          "select i from InjectExpectation i "
-              + "where i.inject.id = :injectId "
-              + "and i.team.id = :teamId "
-              + "and i.user.id = :playerId "
-              + "ORDER BY i.type, i.createdAt")
-  List<InjectExpectation> findAllByInjectAndTeamAndPlayer(
-      @Param("injectId") @NotBlank final String injectId,
-      @Param("teamId") @NotBlank final String teamId,
-      @Param("playerId") @NotBlank final String playerId);
 
   @Query(
       value =

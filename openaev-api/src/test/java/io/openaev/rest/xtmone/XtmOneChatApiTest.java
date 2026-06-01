@@ -4,15 +4,17 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.api.xtmone.dto.ChatbotAgentOutput;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.xtmone.XtmOneClient;
 import io.openaev.xtmone.XtmOneConfig;
 import java.util.List;
-import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -60,10 +62,10 @@ class XtmOneChatApiTest extends IntegrationTest {
       when(xtmOneConfig.isConfigured()).thenReturn(true);
       when(xtmOneClient.issueAuthenticationJwt(anyString(), anyString(), anyString()))
           .thenReturn("fake-jwt");
-      List<Map<String, Object>> agents =
+      List<ChatbotAgentOutput> agents =
           List.of(
-              Map.of("id", "agent-1", "name", "Test Agent", "slug", "test-agent"),
-              Map.of("id", "agent-2", "name", "Another Agent", "slug", "another-agent"));
+              new ChatbotAgentOutput("agent-1", "Test Agent", "test-agent", "Test Agent"),
+              new ChatbotAgentOutput("agent-2", "Another Agent", "agent-2", "another-agent"));
       when(xtmOneClient.listChatAgents(anyString())).thenReturn(agents);
 
       // -- ACT & ASSERT --
@@ -109,6 +111,72 @@ class XtmOneChatApiTest extends IntegrationTest {
       // -- ACT & ASSERT --
       mvc.perform(get(CHAT_AGENTS_URL).accept(MediaType.APPLICATION_JSON))
           .andExpect(status().isUnauthorized());
+    }
+  }
+
+  @Nested
+  @DisplayName("GET /api/xtmone/chat/files/{fileId}/download")
+  class DownloadFile {
+
+    private static final String VALID_FILE_ID = "11111111-1111-1111-1111-111111111111";
+    private static final String DOWNLOAD_URL =
+        "/api/xtmone/chat/files/" + VALID_FILE_ID + "/download";
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given XTM One not configured should return 400")
+    void given_notConfigured_should_returnBadRequest() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(false);
+
+      // -- ACT & ASSERT --
+      mvc.perform(get(DOWNLOAD_URL)).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given a non-UUID file id should return 400 without calling XTM One")
+    void given_invalidFileId_should_returnBadRequest() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+
+      // -- ACT & ASSERT --
+      mvc.perform(get("/api/xtmone/chat/files/not-a-uuid/download"))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given XTM One returns a file should stream the bytes and headers")
+    void given_configured_should_streamFile() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+      byte[] data = "type,value\nip,1.2.3.4".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+      when(xtmOneClient.downloadChatFile(VALID_FILE_ID))
+          .thenReturn(
+              new XtmOneClient.DownloadedFile(
+                  data, "text/csv", "attachment; filename=\"iocs.csv\""));
+
+      // -- ACT & ASSERT --
+      mvc.perform(get(DOWNLOAD_URL))
+          .andExpect(status().isOk())
+          .andExpect(header().string("Content-Disposition", "attachment; filename=\"iocs.csv\""))
+          .andExpect(content().bytes(data));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given XTM One returns 503 should propagate 503 to client")
+    void given_xtmOneReturns503_should_return503() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+      when(xtmOneClient.downloadChatFile(VALID_FILE_ID))
+          .thenThrow(
+              new ResponseStatusException(
+                  HttpStatus.SERVICE_UNAVAILABLE, "[XTM One] File download failed"));
+
+      // -- ACT & ASSERT --
+      mvc.perform(get(DOWNLOAD_URL)).andExpect(status().isServiceUnavailable());
     }
   }
 }

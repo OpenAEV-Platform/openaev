@@ -4,8 +4,7 @@ import { useState } from 'react';
 
 import { fetchExecutors } from '../../../actions/executors/executor-action';
 import { type ExecutorHelper } from '../../../actions/executors/executor-helper';
-import { type LoggedHelper, type MeTokensHelper } from '../../../actions/helper';
-import { meTokens } from '../../../actions/users/User';
+import { type LoggedHelper } from '../../../actions/helper';
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import Transition from '../../../components/common/Transition';
 import { useFormatter } from '../../../components/i18n';
@@ -35,16 +34,13 @@ const Executors = () => {
   const dispatch = useAppDispatch();
 
   // Fetching data
-  const { settings, executors, tokens } = useHelper((helper: ExecutorHelper & MeTokensHelper & LoggedHelper) => ({
+  const { settings, executors } = useHelper((helper: ExecutorHelper & LoggedHelper) => ({
     settings: helper.getPlatformSettings(),
     executors: helper.getExistingExecutors(),
-    tokens: helper.getMeTokens(),
   }));
   useDataLoader(() => {
     dispatch(fetchExecutors());
-    dispatch(meTokens());
   });
-  const userToken = tokens.length > 0 ? tokens[0] : undefined;
 
   const order = {
     openaev_agent: 0,
@@ -136,7 +132,6 @@ const Executors = () => {
                 )}
                 {activeStep === 1 && platform && (
                   <InstructionSelector
-                    userToken={userToken}
                     platform={platform}
                     selectedExecutor={selectedExecutor}
                   />

@@ -1,6 +1,10 @@
 package io.openaev.api.chaining.dto;
 
+import static io.openaev.service.chaining.WorkflowService.DEFAULT_TIMEOUT_SECONDS;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonSetter;
+import com.fasterxml.jackson.annotation.Nulls;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -43,11 +47,15 @@ public class WorkflowConfigurationInput {
   @JsonProperty("workflow_configuration_timeout_enabled")
   private boolean timeoutEnabled;
 
-  @Schema(description = "Total timeout in seconds for the attack workflow scenario (60–86400).")
+  @Schema(
+      description = "Total timeout in seconds for the attack workflow scenario (60–86400).",
+      defaultValue = "" + DEFAULT_TIMEOUT_SECONDS)
   @JsonProperty("workflow_configuration_timeout_seconds")
+  @JsonSetter(nulls = Nulls.SKIP)
   @Min(value = 60, message = "Timeout seconds must be at least 60 (1 min)")
   @Max(value = 86400, message = "Timeout seconds must be at most 86400 (24 h)")
-  private Long timeoutSeconds;
+  @Builder.Default
+  private Long timeoutSeconds = DEFAULT_TIMEOUT_SECONDS;
 
   // -- Safe mode --
 

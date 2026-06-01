@@ -28,11 +28,11 @@ import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.rest.asset.endpoint.form.EndpointOutput;
 import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.service.account.ServiceAccountPrivilegeService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.mapper.EndpointMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
-import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.io.BufferedInputStream;
@@ -48,11 +48,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.*;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @RequiredArgsConstructor
 @Service
@@ -87,8 +87,7 @@ public class EndpointService {
 
   private final EndpointMapper endpointMapper;
 
-  @Value("${openbas.admin.token:${openaev.admin.token:#{null}}}")
-  private String adminToken;
+  private final ServiceAccountPrivilegeService privilegeService;
 
   @Value("${info.app.version:unknown}")
   String version;
@@ -99,6 +98,9 @@ public class EndpointService {
   @Value(
       "${executor.openaev-agent.binaries.version:${executor.openaev.binaries.version:${info.app.version:unknown}}}")
   private String agentBinaryVersion;
+
+  @Value("${executor.openaev.agent.max-simultaneous-jobs:5}")
+  private int maxSimultaneousJobs;
 
   private final EndpointRepository endpointRepository;
   private final ExecutorRepository executorRepository;
@@ -125,7 +127,7 @@ public class EndpointService {
 
   public Endpoint endpoint(@NotBlank final String endpointId) {
     return this.endpointRepository
-        .findById(endpointId)
+        .findByIdAndTenantId(endpointId, TenantContext.getCurrentTenant())
         .orElseThrow(() -> new ElementNotFoundException("Endpoint not found"));
   }
 
@@ -467,30 +469,46 @@ public class EndpointService {
     // for the agent
     Endpoint endpoint = (Endpoint) agent.getAsset();
     if (agent.getParent() == null && !agent.getVersion().equals(version)) {
-      AssetAgentJob assetAgentJob = new AssetAgentJob();
-      assetAgentJob.setCommand(
-          generateUpgradeCommand(
-              endpoint.getPlatform().name(),
-              input.getInstallationMode(),
-              input.getInstallationDirectory(),
-              input.getServiceName(),
-              agent.getTenant().getId()));
-      assetAgentJob.setAgent(agent);
-      assetAgentJob.setTenant(agent.getTenant());
-      assetAgentJobRepository.save(assetAgentJob);
+      if (assetAgentJobRepository
+          .findUpgradeJobByAgentIdAndInjectNull(agent.getId(), agent.getTenant().getId())
+          .isEmpty()) {
+        AssetAgentJob assetAgentJob = new AssetAgentJob();
+        assetAgentJob.setCommand(
+            generateUpgradeCommand(
+                endpoint.getPlatform().name(),
+                input.getInstallationMode(),
+                input.getInstallationDirectory(),
+                input.getServiceName(),
+                agent.getTenant().getId()));
+        assetAgentJob.setAgent(agent);
+        assetAgentJob.setTenant(agent.getTenant());
+        assetAgentJob.setCreatedAt(now());
+
+        try {
+          assetAgentJobRepository.save(assetAgentJob);
+        } catch (DataIntegrityViolationException e) {
+          // Concurrent registration already created the upgrade job — safe to ignore
+          log.warn("Upgrade job already exists for agent {} (concurrent insert)", agent.getId(), e);
+        }
+      } else {
+        log.warn("Upgrade job already exists");
+      }
     }
     return endpoint;
   }
 
   public List<AssetAgentJob> getEndpointJobs(final EndpointRegisterInput input) {
-    return this.assetAgentJobRepository.findAll(
-        AssetAgentJobSpecification.forEndpoint(
-            input.getExternalReference(),
-            input.isService()
-                ? Agent.DEPLOYMENT_MODE.service.name()
-                : Agent.DEPLOYMENT_MODE.session.name(),
-            input.isElevated() ? Agent.PRIVILEGE.admin.name() : Agent.PRIVILEGE.standard.name(),
-            input.getExecutedByUser()));
+    return this.assetAgentJobRepository
+        .findAll(
+            AssetAgentJobSpecification.forEndpoint(
+                input.getExternalReference(),
+                input.isService()
+                    ? Agent.DEPLOYMENT_MODE.service.name()
+                    : Agent.DEPLOYMENT_MODE.session.name(),
+                input.isElevated() ? Agent.PRIVILEGE.admin.name() : Agent.PRIVILEGE.standard.name(),
+                input.getExecutedByUser()),
+            PageRequest.of(0, maxSimultaneousJobs, Sort.by(Sort.Direction.ASC, "createdAt")))
+        .getContent();
   }
 
   private void addSourceTagToEndpoint(Endpoint endpoint, AgentRegisterInput input) {
@@ -618,7 +636,10 @@ public class EndpointService {
 
   private AgentRegisterInput toAgentEndpoint(EndpointRegisterInput input) {
     AgentRegisterInput agentInput = new AgentRegisterInput();
-    agentInput.setExecutor(executorRepository.findById(OPENAEV_EXECUTOR_ID).orElse(null));
+    agentInput.setExecutor(
+        executorRepository
+            .findByIdAndTenantId(OPENAEV_EXECUTOR_ID, TenantContext.getCurrentTenant())
+            .orElse(null));
     agentInput.setLastSeen(Instant.now());
     agentInput.setExternalReference(input.getExternalReference());
     agentInput.setIps(input.getIps());
@@ -774,6 +795,9 @@ public class EndpointService {
       String serviceNameOrPrefix,
       String tenantId)
       throws IOException {
+    // FIND TOKEN BY TENANT
+    String token =
+        privilegeService.getTokenUserServiceAccountByTenant(TenantContext.getCurrentTenant());
     String upgradeName = OPENAEV_AGENT_UPGRADE;
     if (installationMode != null && !installationMode.equals(SERVICE)) {
       upgradeName = upgradeName.concat("-").concat(installationMode);
@@ -782,7 +806,7 @@ public class EndpointService {
     serviceNameOrPrefix =
         generateServiceNameOrPrefix(platform, installationMode, serviceNameOrPrefix);
     return getFileOrDownloadFromJfrog(
-        platform, upgradeName, adminToken, installationDir, serviceNameOrPrefix, tenantId);
+        platform, upgradeName, token, installationDir, serviceNameOrPrefix, tenantId);
   }
 
   public List<Endpoint> endpointsForScenario(String scenarioId) {

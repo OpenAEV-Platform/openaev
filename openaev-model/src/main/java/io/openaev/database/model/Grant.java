@@ -25,6 +25,9 @@ public class Grant implements Base {
     SCENARIO,
     SIMULATION,
     ATOMIC_TESTING,
+    THREAT_ARSENAL,
+    @Deprecated(
+        since = "Remove after closing https://github.com/OpenAEV-Platform/client-python/issues/211")
     PAYLOAD,
     UNKNOWN;
 
@@ -34,6 +37,7 @@ public class Grant implements Base {
         case SIMULATION -> SIMULATION;
         case ATOMIC_TESTING -> ATOMIC_TESTING;
         case PAYLOAD -> PAYLOAD;
+        case THREAT_ARSENAL -> THREAT_ARSENAL;
         default -> UNKNOWN;
       };
     }
