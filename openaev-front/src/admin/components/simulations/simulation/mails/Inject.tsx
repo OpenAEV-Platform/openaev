@@ -91,25 +91,25 @@ const InjectComponent: FunctionComponent = () => {
 
     let body = data.communication_content;
     body += `<br />
-<hr style=3D"display:inline-block;width:98%" tabindex=3D"-1">
-<div id=3D"divRplyFwdMsg" dir=3D"ltr">
-<font face=3D"Calibri, sans-serif" style=3D"font-size:11pt">
-<b>From:</b> ${lastCommunication.communication_from
-  .replaceAll('<', '&lt;')
-  .replaceAll('>', '&gt;')}<br>
-<b>Sent:</b> ${fldt(lastCommunication.communication_sent_at)}<br>
-<b>Subject:</b> ${lastCommunication.communication_subject}
-</font>
-</div>
-<blockquote>
-<div dir=3D"ltr">
-<div class=3D"x_elementToProof" style=3D"font-family:Calibri,Arial,Helvetica,sans-serif; font-size:12pt;">
- ${lastCommunication.communication_content && lastCommunication.communication_content.length > 10
-    ? lastCommunication.communication_content.replaceAll('\n', '<br />')
-    : lastCommunication.communication_content_html}
-</div>
-</div>
-</blockquote>`;
+               <hr style=3D"display:inline-block;width:98%" tabindex=3D"-1">
+               <div id=3D"divRplyFwdMsg" dir=3D"ltr">
+               <font face=3D"Calibri, sans-serif" style=3D"font-size:11pt">
+                 <b>From:</b> ${lastCommunication.communication_from
+                    .replaceAll('<', '&lt;')
+                    .replaceAll('>', '&gt;')}
+                 <br><b>Sent:</b> ${fldt(lastCommunication.communication_sent_at)}
+                 <br><b>Subject:</b> ${lastCommunication.communication_subject}
+               </font>
+               </div>
+               <blockquote>
+                 <div dir=3D"ltr">
+                   <div class=3D"x_elementToProof" style=3D"font-family:Calibri,Arial,Helvetica,sans-serif; font-size:12pt;">
+                   ${lastCommunication.communication_content && lastCommunication.communication_content.length > 10
+                      ? lastCommunication.communication_content.replaceAll('\n', '<br />')
+                      : lastCommunication.communication_content_html}
+                   </div>
+                 </div>
+               </blockquote>`;
 
     const inputValues = {
       inject_title: 'Manual email',
