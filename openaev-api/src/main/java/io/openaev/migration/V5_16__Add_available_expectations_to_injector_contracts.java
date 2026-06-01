@@ -12,7 +12,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V5_10__Add_available_expectations_to_injector_contracts extends BaseJavaMigration {
+public class V5_16__Add_available_expectations_to_injector_contracts extends BaseJavaMigration {
 
   // Legacy table name kept intentionally for backward compatibility with previous runs
   private static final String BACKUP_TABLE = "migration_v4_93_injector_contracts_backup";
