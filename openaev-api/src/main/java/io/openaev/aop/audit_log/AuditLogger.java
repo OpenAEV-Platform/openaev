@@ -3,6 +3,7 @@ package io.openaev.aop.audit_log;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.AccessControlAspect;
+import io.openaev.config.ThreadPoolTaskLoggerConfig;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.service.LogService;
@@ -10,7 +11,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
@@ -24,10 +25,10 @@ import org.springframework.stereotype.Component;
  * <p>Phase 1: delegates to {@link LogService} for console-only output.
  */
 @Component
-@ConditionalOnProperty(name = "openaev.audit-logs.service.enabled", havingValue = "true")
+@ConditionalOnExpression("!'${openaev.audit-logs.transports:}'.isEmpty()")
 @RequiredArgsConstructor
 @Slf4j
-public class AccessControlAuditLogger {
+public class AuditLogger {
 
   private final AuditRequestValidator auditRequestValidator;
 
@@ -46,9 +47,28 @@ public class AccessControlAuditLogger {
   }
 
   /** Wraps the audit service call in try/catch — audit must never break the business flow. */
-  @Async("accessControlAuditLoggerExecutor")
+  @Async("taskLoggerExecutor")
+  public CompletableFuture<Boolean> logAuthEventWithRequestContext(
+      ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.RequestContextData rcd,
+      String eventScope,
+      String eventStatus,
+      String provider,
+      String reason,
+      String logUUID) {
+
+    if (rcd != null) {
+      ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.setRequestContextData(rcd);
+    }
+
+    return logAuthEvent(eventScope, eventStatus, provider, reason, logUUID);
+  }
+
+  /** Wraps the audit service call in try/catch — audit must never break the business flow. */
+  @Async("taskLoggerExecutor")
   public CompletableFuture<Boolean> logAuthEvent(
       String eventScope, String eventStatus, String provider, String reason, String logUUID) {
+    if (!isAuditLoggingEnabled()) return CompletableFuture.completedFuture(true);
+
     boolean status = false;
 
     try {
@@ -62,7 +82,7 @@ public class AccessControlAuditLogger {
     return CompletableFuture.completedFuture(status);
   }
 
-  @Async("accessControlAuditLoggerExecutor")
+  @Async("taskLoggerExecutor")
   public CompletableFuture<Boolean> logAccessControlEvent(
       String eventScope,
       String eventStatus,
@@ -72,6 +92,8 @@ public class AccessControlAuditLogger {
       JsonNode output,
       JsonNode signatureNode,
       String logUUID) {
+    if (!isAuditLoggingEnabled()) return CompletableFuture.completedFuture(true);
+
     boolean status = false;
 
     try {

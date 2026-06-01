@@ -4,12 +4,16 @@ import static io.openaev.helper.CryptoHelper.hashWithSHA256;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.config.OpenAEVAnonymous;
 import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.config.SessionHelper;
 import io.openaev.config.ThreadPoolTaskLoggerConfig;
+import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
+import io.openaev.database.model.EventType;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.User;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.engine.EngineService;
 import io.openaev.engine.model.log.LogEvent;
 import io.openaev.rest.settings.PreviewFeature;
@@ -24,9 +28,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
 /**
@@ -49,13 +55,33 @@ public class LogService {
 
   private final UserService userService;
 
+  private final EnterpriseEditionService enterpriseEditionService;
+  private final LicenseCacheManager licenseCacheManager;
+
+  /** Ensures the EE audit-disabled warning is logged only once. */
+  private final AtomicBoolean auditEeDisabledWarningLogged = new AtomicBoolean(false);
+
   // -- Public API --
 
-  /**
-   * Returns {@code true} if audit logging is globally enabled and the preview feature is active.
-   */
   public boolean isEnabled() {
-    return auditLogsEnabled && previewFeatureService.isFeatureEnabled(PreviewFeature.AUDIT_LOG);
+    boolean isAuditConfigured =
+        auditLogsEnabled && previewFeatureService.isFeatureEnabled(PreviewFeature.AUDIT_LOG);
+    if (!isAuditConfigured) {
+      return false;
+    }
+
+    try {
+      boolean isEeActive =
+          enterpriseEditionService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo());
+      if (!isEeActive && auditEeDisabledWarningLogged.compareAndSet(false, true)) {
+        log.error(
+            "[AUDIT] Audit logging is configured but inactive - an Enterprise Edition license is required.");
+      }
+      return isEeActive;
+    } catch (Exception e) {
+      log.error("[AUDIT] Failed to check enterprise edition license", e);
+    }
+    return false;
   }
 
   /**
@@ -80,9 +106,9 @@ public class LogService {
     try {
       // Build human-readable message
       String message = LogUtils.buildAuthLogMessage(eventScope, eventStatus, provider);
+      String eventType = LogUtils.getEventType(EventType.AUTHENTICATION);
       String eventAccess = LogUtils.getAuthEventAccess();
-      LogEvent doc =
-          buildBaseAuditLog("authentication", eventStatus, eventAccess, eventScope, logUUID);
+      LogEvent doc = buildBaseAuditLog(eventType, eventStatus, eventAccess, eventScope, logUUID);
 
       // -- context_data --
       Map<String, Object> ctx = new LinkedHashMap<>();
@@ -129,8 +155,9 @@ public class LogService {
         message = eventScope + "s " + entityTypeName + " `" + displayName + "`";
       }
 
+      String eventType = LogUtils.getEventType(EventType.MUTATION);
       String eventAccess = LogUtils.getEventAccess(resourceType);
-      LogEvent doc = buildBaseAuditLog("mutation", eventStatus, eventAccess, eventScope, logUUID);
+      LogEvent doc = buildBaseAuditLog(eventType, eventStatus, eventAccess, eventScope, logUUID);
       Map<String, Object> ctx = new LinkedHashMap<>();
 
       ctx.put("entity_type", entityTypeName);
@@ -206,15 +233,32 @@ public class LogService {
 
   /** Resolves the current user ID from the security context, or null if anonymous. */
   private String resolveUserId() {
+    String id = null;
+
     try {
       OpenAEVPrincipal principal = SessionHelper.currentUser();
-      if (principal == null || "anonymous".equals(principal.getId())) {
-        return null;
+
+      if (principal != null && !(principal instanceof OpenAEVAnonymous)) id = principal.getId();
+
+      if (id == null) {
+        ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.RequestContextData
+            requestContextData =
+                ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.getRequestContextData();
+        Authentication auth = requestContextData.authentication();
+
+        if (auth != null) {
+          Object princ = auth.getPrincipal();
+
+          if (princ instanceof OpenAEVPrincipal user) {
+            id = user.getId();
+          }
+        }
       }
-      return principal.getId();
     } catch (Exception e) {
-      return null;
+      log.warn("[LOG] Failed to resolve user ID: {}", e.getMessage(), e);
     }
+
+    return id;
   }
 
   /** Populates user metadata (email, IP, user agent) on the given audit log document. */

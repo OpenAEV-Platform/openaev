@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.AccessControlAspect;
 import io.openaev.database.model.Action;
+import io.openaev.database.model.EventStatus;
 import io.openaev.database.model.ResourceType;
 import io.openaev.service.LogService;
 import io.openaev.utils.log.LogUtils;
@@ -19,7 +20,7 @@ import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.expression.EvaluationContext;
@@ -42,13 +43,13 @@ import org.springframework.web.server.ResponseStatusException;
  */
 @Aspect
 @Component
-@ConditionalOnProperty(name = "openaev.audit-logs.service.enabled", havingValue = "true")
+@ConditionalOnExpression("!'${openaev.audit-logs.transports:}'.isEmpty()")
 @Order(Ordered.HIGHEST_PRECEDENCE)
 @RequiredArgsConstructor
 @Slf4j
 public class AccessControlAuditLogAspect {
 
-  private final AccessControlAuditLogger accessControlAuditLogger;
+  private final AuditLogger auditLogger;
 
   private final ObjectMapper objectMapper;
   private final ExpressionParser parser = new SpelExpressionParser();
@@ -59,6 +60,8 @@ public class AccessControlAuditLogAspect {
   public Object auditAround(ProceedingJoinPoint joinPoint) throws Throwable {
     AccessControl accessControl = resolveAccessControlAnnotation(joinPoint);
 
+    // TODO: Logs should be based in HTTP interceptor and not only in the access control annotation.
+
     if (accessControl == null) return joinPoint.proceed();
 
     Action action = null;
@@ -67,8 +70,8 @@ public class AccessControlAuditLogAspect {
 
     try {
       action = accessControl.actionPerformed();
-      isActive = accessControlAuditLogger.isAuditLoggingEnabled();
-      isActionActive = accessControlAuditLogger.isAuditLoggingValid(action);
+      isActive = auditLogger.isAuditLoggingEnabled();
+      isActionActive = auditLogger.isAuditLoggingValid(action);
     } catch (Exception e) {
       log.warn(LOG_ERROR_MSG, e);
     }
@@ -80,18 +83,20 @@ public class AccessControlAuditLogAspect {
     } catch (Throwable ex) {
       if (isActive) {
         try {
-          if (accessControlAuditLogger.isAuditUnauthorizedLoggingValid()
-              && isRbacDeniedException(ex)) {
+          if (auditLogger.isAuditUnauthorizedLoggingValid() && isRbacDeniedException(ex)) {
+            String eventScope = LogUtils.getEventScope(Action.UNAUTHORIZED);
+            String eventStatus = LogUtils.getEventStatus(EventStatus.ERROR);
             JsonNode errorNode = buildErrorNode(null, ex);
 
             // TODO AUDIT: Move this to enum just like in the issue/5483
-            logAccessControlEvent(joinPoint, accessControl, "unauthorized", "error", errorNode);
+            logAccessControlEvent(joinPoint, accessControl, eventScope, eventStatus, errorNode);
           } else if (isActionActive) {
             String eventScope = LogUtils.getEventScope(action);
+            String eventStatus = LogUtils.getEventStatus(EventStatus.ERROR);
             JsonNode resultNode = getOutputNode(result);
             JsonNode errorNode = buildErrorNode(resultNode, ex);
 
-            logAccessControlEvent(joinPoint, accessControl, eventScope, "error", errorNode);
+            logAccessControlEvent(joinPoint, accessControl, eventScope, eventStatus, errorNode);
           }
         } catch (Exception e) {
           log.warn(LOG_ERROR_MSG, e);
@@ -103,9 +108,10 @@ public class AccessControlAuditLogAspect {
     if (isActive && isActionActive) {
       try {
         String eventScope = LogUtils.getEventScope(action);
+        String eventStatus = LogUtils.getEventStatus(EventStatus.SUCCESS);
         JsonNode resultNode = getOutputNode(result);
 
-        logAccessControlEvent(joinPoint, accessControl, eventScope, "success", resultNode);
+        logAccessControlEvent(joinPoint, accessControl, eventScope, eventStatus, resultNode);
       } catch (Exception ex) {
         log.warn(LOG_ERROR_MSG, ex);
       }
@@ -138,7 +144,7 @@ public class AccessControlAuditLogAspect {
             }
           };
 
-      accessControlAuditLogger
+      auditLogger
           .logAccessControlEvent(
               eventScope,
               eventStatus,

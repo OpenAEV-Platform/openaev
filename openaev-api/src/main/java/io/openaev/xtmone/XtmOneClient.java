@@ -310,6 +310,55 @@ public class XtmOneClient {
   }
 
   /**
+   * An agent-generated file fetched from XTM One, buffered in memory together with the upstream
+   * content headers so the API layer can relay it to the browser.
+   */
+  public record DownloadedFile(byte[] content, String contentType, String contentDisposition) {}
+
+  /**
+   * Downloads an agent-generated file from XTM One on behalf of the current user.
+   *
+   * <p>The XTM One JWT is minted server-side from the current OpenAEV user, so the browser only
+   * ever authenticates against OpenAEV — it never logs in to XTM One. The file is buffered in
+   * memory (chat-generated files are small and capped upstream) and returned with the upstream
+   * {@code Content-Type} / {@code Content-Disposition} headers for the API layer to relay.
+   *
+   * @param fileId the XTM One file attachment id (validated as a UUID by the caller)
+   * @return the downloaded file bytes + content headers
+   */
+  public DownloadedFile downloadChatFile(String fileId) {
+    if (!config.isConfigured()) {
+      throw new ResponseStatusException(
+          HttpStatus.SERVICE_UNAVAILABLE, "[XTM One] Service is not configured");
+    }
+    try (CloseableHttpClient httpClient = httpClientFactory.httpClientNoRetry()) {
+      String jwt = issueJwtForCurrentUser();
+      HttpGet httpGet = chatGetBuilder("/api/v1/chat/files/" + fileId + "/download", jwt);
+      httpGet.setConfig(RequestConfig.custom().setResponseTimeout(Timeout.ofMinutes(2)).build());
+
+      return httpClient.execute(
+          httpGet,
+          response -> {
+            if (response.getCode() != 200) {
+              throw mapUpstreamError(response);
+            }
+            String contentType =
+                response.getEntity() != null ? response.getEntity().getContentType() : null;
+            var cdHeader = response.getFirstHeader("Content-Disposition");
+            String contentDisposition = cdHeader != null ? cdHeader.getValue() : null;
+            byte[] content = EntityUtils.toByteArray(response.getEntity());
+            return new DownloadedFile(content, contentType, contentDisposition);
+          });
+    } catch (ResponseStatusException e) {
+      throw e;
+    } catch (Exception e) {
+      log.warn("[XTM One] Download chat file error, fileId={}.", fileId, e);
+      throw new ResponseStatusException(
+          HttpStatus.SERVICE_UNAVAILABLE, "[XTM One] File download failed", e);
+    }
+  }
+
+  /**
    * Streams a chat message response from XTM One. The provided consumer receives the SSE input
    * stream and is responsible for reading it. The HTTP client and stream are automatically closed
    * when the consumer returns or throws.
@@ -321,6 +370,27 @@ public class XtmOneClient {
    */
   public void streamChatMessage(
       String content, String conversationId, String agentSlug, StreamConsumer streamConsumer) {
+    streamChatMessage(content, conversationId, agentSlug, null, streamConsumer);
+  }
+
+  /**
+   * Streams a chat message response from XTM One, forwarding an optional arbitrary page/application
+   * {@code context} object so the agent is aware of where the user is (e.g. the current URL). The
+   * context shape is decided by the caller (today the embedded chatbot sends {@code {"url": ...}});
+   * it is omitted from the upstream body when {@code null} or empty.
+   *
+   * @param content message content
+   * @param conversationId optional conversation ID
+   * @param agentSlug optional agent slug
+   * @param context optional host page/application context (forwarded verbatim)
+   * @param streamConsumer callback that receives the SSE {@link InputStream}
+   */
+  public void streamChatMessage(
+      String content,
+      String conversationId,
+      String agentSlug,
+      Map<String, Object> context,
+      StreamConsumer streamConsumer) {
     if (!config.isConfigured()) {
       log.warn("[XTM One] Chat message skipped: not configured");
       return;
@@ -331,6 +401,7 @@ public class XtmOneClient {
       body.put("content", content);
       if (conversationId != null) body.put("conversation_id", conversationId);
       if (agentSlug != null) body.put("agent_slug", agentSlug);
+      if (context != null && !context.isEmpty()) body.put("context", context);
       String json = objectMapper.writeValueAsString(body);
 
       HttpPost httpPost = chatPostBuilder("/api/v1/platform/chat/messages", jwt, json);
