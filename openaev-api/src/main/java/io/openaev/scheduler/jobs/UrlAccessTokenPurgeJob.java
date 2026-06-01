@@ -5,6 +5,7 @@ import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.quartz.DisallowConcurrentExecution;
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 @Slf4j
+@DisallowConcurrentExecution
 public class UrlAccessTokenPurgeJob implements Job {
 
   public static final String URL_ACCESS_TOKEN_PURGE_JOB = "urlAccessTokenPurgeJob";

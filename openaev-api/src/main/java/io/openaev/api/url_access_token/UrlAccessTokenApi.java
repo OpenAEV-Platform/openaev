@@ -3,6 +3,8 @@ package io.openaev.api.url_access_token;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.config.OpenAEVConfig;
+import io.openaev.database.model.Action;
+import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.UrlAccessToken;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
@@ -70,7 +72,7 @@ public class UrlAccessTokenApi {
 
   @DeleteMapping("/{tokenId}")
   @LogExecutionTime
-  @AccessControl(skipRBAC = true)
+  @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.PLATFORM_SETTING)
   @Operation(summary = "Revoke a URL access token by id (admin only)")
   public ResponseEntity<Void> revokeByTokenId(@PathVariable("tokenId") String tokenId) {
     ensureCurrentUserIsAdmin();
@@ -80,7 +82,7 @@ public class UrlAccessTokenApi {
 
   @DeleteMapping("/exercise/{exerciseId}")
   @LogExecutionTime
-  @AccessControl(skipRBAC = true)
+  @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.PLATFORM_SETTING)
   @Operation(summary = "Revoke all URL access tokens for an exercise (admin only)")
   public ResponseEntity<Void> revokeByExerciseId(@PathVariable("exerciseId") String exerciseId) {
     ensureCurrentUserIsAdmin();

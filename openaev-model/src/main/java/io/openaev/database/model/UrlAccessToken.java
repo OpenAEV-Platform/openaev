@@ -43,19 +43,19 @@ public class UrlAccessToken implements Base {
   @NotBlank
   private String url;
 
-  @ManyToOne(fetch = FetchType.EAGER)
+  @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "user_id", nullable = false)
   @NotNull
   @JsonIgnore
   private User user;
 
-  @ManyToOne(fetch = FetchType.EAGER)
+  @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "exercise_id", nullable = false)
   @NotNull
   @JsonIgnore
   private Exercise exercise;
 
-  @ManyToOne(fetch = FetchType.EAGER)
+  @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "creator_user_id")
   @JsonIgnore
   private User creatorUser;

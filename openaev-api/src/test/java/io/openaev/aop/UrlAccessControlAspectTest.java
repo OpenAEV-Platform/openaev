@@ -12,6 +12,7 @@ import io.openaev.database.model.UrlAccessToken;
 import io.openaev.database.model.User;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
+import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Optional;
@@ -70,7 +71,7 @@ class UrlAccessControlAspectTest {
 
     @Test
     @DisplayName(
-        "given_feature_flag_disabled_when_url_access_control_is_applied_should_proceed_without_validation")
+        "Feature flag disabled when UrlAccessControl is applied should proceed without validation")
     void
         given_feature_flag_disabled_when_url_access_control_is_applied_should_proceed_without_validation()
             throws Throwable {
@@ -98,7 +99,7 @@ class UrlAccessControlAspectTest {
 
     @Test
     @DisplayName(
-        "given_classically_authenticated_user_when_url_access_control_is_applied_should_bypass_url_token_validation")
+        "Classically authenticated user when UrlAccessControl is applied should bypass url token validation")
     void
         given_classically_authenticated_user_when_url_access_control_is_applied_should_bypass_url_token_validation()
             throws Throwable {
@@ -134,7 +135,7 @@ class UrlAccessControlAspectTest {
 
     @Test
     @DisplayName(
-        "given_anonymous_user_without_request_context_when_url_access_control_is_applied_should_fail_with_illegal_state")
+        "Anonymous user without request context when UrlAccess control is applied should fail with illegal state")
     void
         given_anonymous_user_without_request_context_when_url_access_control_is_applied_should_fail_with_illegal_state() {
       // -- Arrange --
@@ -149,7 +150,7 @@ class UrlAccessControlAspectTest {
     }
 
     @Test
-    @DisplayName("given_no_cookies_in_request_when_url_access_control_is_applied_should_return_401")
+    @DisplayName("When no cookies in request when UrlAccessControl is applied should return 401")
     void given_no_cookies_in_request_when_url_access_control_is_applied_should_return_401() {
       // -- Arrange --
       when(previewFeatureService.isFeatureEnabled(PreviewFeature.URL_ACCESS_TOKEN))
@@ -168,7 +169,7 @@ class UrlAccessControlAspectTest {
 
     @Test
     @DisplayName(
-        "given_cookies_without_url_access_token_when_url_access_control_is_applied_should_return_401")
+        "Given cookies without token when UrlAccessControl is applied should return 401")
     void
         given_cookies_without_url_access_token_when_url_access_control_is_applied_should_return_401() {
       // -- Arrange --
@@ -192,7 +193,7 @@ class UrlAccessControlAspectTest {
 
     @Test
     @DisplayName(
-        "given_invalid_token_in_cookie_when_url_access_control_is_applied_should_return_401")
+        "Invalid token in cookie when UrlAccessControl is applied should return 401")
     void given_invalid_token_in_cookie_when_url_access_control_is_applied_should_return_401() {
       // -- Arrange --
       when(previewFeatureService.isFeatureEnabled(PreviewFeature.URL_ACCESS_TOKEN))
@@ -221,7 +222,7 @@ class UrlAccessControlAspectTest {
 
     @Test
     @DisplayName(
-        "given_valid_token_without_userId_param_when_url_access_control_is_applied_should_proceed_with_original_args")
+        "Valid token without userId param when UrlAccessControl is applied should proceed with original args")
     void
         given_valid_token_without_userId_param_when_url_access_control_is_applied_should_proceed_with_original_args()
             throws Throwable {
@@ -251,7 +252,7 @@ class UrlAccessControlAspectTest {
 
     @Test
     @DisplayName(
-        "given_valid_token_with_userId_param_when_url_access_control_is_applied_should_inject_userId_into_args")
+        "Valid token with userId param when UrlAccessControl is applied should inject userId into args")
     void
         given_valid_token_with_userId_param_when_url_access_control_is_applied_should_inject_userId_into_args()
             throws Throwable {
@@ -284,7 +285,7 @@ class UrlAccessControlAspectTest {
 
     @Test
     @DisplayName(
-        "given_valid_token_with_exercise_and_userId_params_when_url_access_control_is_applied_should_pass_exerciseId_to_validation")
+        "Valid token with exercise and userId params when UrlAccessControl is applied should pass exerciseId to validation")
     void
         given_valid_token_with_exercise_and_userId_params_when_url_access_control_is_applied_should_pass_exerciseId_to_validation()
             throws Throwable {
