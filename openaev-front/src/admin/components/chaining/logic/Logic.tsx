@@ -12,7 +12,8 @@ import { MESSAGING$ } from '../../../../utils/Environment';
 import AddActionList from './AddActionList';
 import AddComponentButton, { type LogicContext } from './AddComponentButton';
 import AddComponentDrawer from './AddComponentDrawer';
-import ConfigureActionDetail, { type ActionDetailData } from './ConfigureActionDetail';
+import ConfigureActionDetail from './ConfigureActionDetail';
+import { type ActionDetailData } from './types';
 
 interface LogicProps {
   workflowId: string | undefined;
