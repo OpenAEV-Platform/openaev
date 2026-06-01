@@ -1,5 +1,6 @@
 package io.openaev.database.repository;
 
+import io.openaev.database.model.ConnectorEntityId;
 import io.openaev.database.model.Injector;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
@@ -13,7 +14,7 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface InjectorRepository
-    extends JpaRepository<Injector, String>, JpaSpecificationExecutor<Injector> {
+    extends JpaRepository<Injector, ConnectorEntityId>, JpaSpecificationExecutor<Injector> {
 
   Optional<Injector> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 

@@ -21,6 +21,7 @@ import org.hibernate.annotations.Type;
 @Setter
 @Entity
 @Table(name = "executors")
+@IdClass(ConnectorEntityId.class)
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 public class Executor extends BaseConnectorEntity implements TenantBase {
@@ -54,6 +55,7 @@ public class Executor extends BaseConnectorEntity implements TenantBase {
   @JsonProperty("executor_background_color")
   private String backgroundColor;
 
+  @Id
   @ManyToOne
   @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
   @JsonIgnore

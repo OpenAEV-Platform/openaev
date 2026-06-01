@@ -1,6 +1,7 @@
 package io.openaev.database.repository;
 
 import io.openaev.database.model.Collector;
+import io.openaev.database.model.ConnectorEntityId;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Optional;
@@ -13,7 +14,7 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface CollectorRepository
-    extends CrudRepository<Collector, String>, JpaSpecificationExecutor<Collector> {
+    extends CrudRepository<Collector, ConnectorEntityId>, JpaSpecificationExecutor<Collector> {
 
   Optional<Collector> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 

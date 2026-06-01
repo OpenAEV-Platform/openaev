@@ -23,6 +23,7 @@ import org.hibernate.annotations.Type;
 @Setter
 @Entity
 @Table(name = "collectors")
+@IdClass(ConnectorEntityId.class)
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 public class Collector extends BaseConnectorEntity implements TenantBase {
@@ -81,6 +82,7 @@ public class Collector extends BaseConnectorEntity implements TenantBase {
   @Type(JsonType.class)
   private ObjectNode state;
 
+  @Id
   @ManyToOne
   @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
   @JsonIgnore

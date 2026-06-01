@@ -24,6 +24,7 @@ import org.hibernate.annotations.Type;
 @Setter
 @Entity
 @Table(name = "injectors")
+@IdClass(ConnectorEntityId.class)
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 public class Injector extends BaseConnectorEntity implements TenantBase {
@@ -97,6 +98,7 @@ public class Injector extends BaseConnectorEntity implements TenantBase {
   @JsonIgnore
   private Set<InjectorContract> contracts = new HashSet<>();
 
+  @Id
   @ManyToOne
   @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
   @JsonIgnore
