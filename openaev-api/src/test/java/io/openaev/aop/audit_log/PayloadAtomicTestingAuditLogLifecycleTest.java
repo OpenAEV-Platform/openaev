@@ -33,6 +33,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -67,11 +68,13 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
 
   @MockitoSpyBean private AuditLogTransportDispatcherUtils auditLogTransportDispatcherUtils;
 
+  // Ensure each test starts with clean spies and deterministic audit-enablement behavior.
   @BeforeEach
   void beforeEach() {
     reset(auditLogger);
     reset(logService);
     reset(auditLogTransportDispatcherUtils);
+    // Force audit checks to pass so lifecycle actions are observable through dispatched events.
     doReturn(true).when(auditLogger).isAuditLoggingEnabled();
     doReturn(true).when(auditLogger).isAuditLoggingValid(any());
     doReturn(true).when(logService).isEnabled();
@@ -83,22 +86,27 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
 
     @Test
     @WithMockUser(isAdmin = true)
+    // Verifies end-to-end audit logging for payload + atomic testing lifecycle actions.
     void given_payloadAndAtomicTestingLifecycle_should_logExpectedAuditEvents() throws Exception {
       // Arrange
+      // Use unique labels to avoid collisions with existing data in integration environments.
       String uniqueSuffix = UUID.randomUUID().toString().substring(0, 8);
       String payloadName = "audit-payload-" + uniqueSuffix;
       String injectTitle = "audit-atomic-testing-" + uniqueSuffix;
 
+      // Create referenced entities required by payload/atomic-testing inputs.
       String domainId =
           domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get().getId();
       String assetId =
           endpointComposer.forEndpoint(EndpointFixture.createEndpoint()).persist().get().getId();
 
+      // Build a payload create request and inject a unique payload name for assertion.
       PayloadCreateInput payloadInput =
           PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(List.of(domainId));
       payloadInput.setName(payloadName);
 
       // Act
+      // 1) Create payload and keep the returned payload id to link the atomic testing input.
       String payloadResponse =
           mvc.perform(
                   post(PAYLOAD_URI)
@@ -112,6 +120,7 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
 
       String payloadId = JsonPath.read(payloadResponse, "$.payload_id");
 
+      // 2) Create atomic testing linked to the previously created payload.
       AtomicTestingInput atomicCreateInput = InjectFixture.createAtomicTesting(injectTitle, null);
       atomicCreateInput.getContent().put("payload_id", payloadId);
 
@@ -128,6 +137,7 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
 
       String atomicTestingId = JsonPath.read(atomicCreateResponse, "$.inject_id");
 
+      // 3) Update atomic testing to add one asset.
       AtomicTestingInput addAssetsInput = InjectFixture.createAtomicTesting(injectTitle, null);
       addAssetsInput.setAssets(List.of(assetId));
       addAssetsInput.getContent().put("payload_id", payloadId);
@@ -139,6 +149,7 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
                   .with(csrf()))
           .andExpect(status().is2xxSuccessful());
 
+      // 4) Update atomic testing again to remove all assets.
       AtomicTestingInput removeAssetsInput = InjectFixture.createAtomicTesting(injectTitle, null);
       removeAssetsInput.setAssets(List.of());
       removeAssetsInput.getContent().put("payload_id", payloadId);
@@ -150,12 +161,14 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
                   .with(csrf()))
           .andExpect(status().is2xxSuccessful());
 
+      // 5) Launch atomic testing to trigger a status change event.
       mvc.perform(
               post(AtomicTestingApi.ATOMIC_TESTING_URI + "/" + atomicTestingId + "/launch")
                   .with(csrf()))
           .andExpect(status().is2xxSuccessful());
 
       // Assert
+      // Capture all dispatched audit events and ensure we observed at least the expected 5 actions.
       ArgumentCaptor<LogEvent> eventCaptor = ArgumentCaptor.forClass(LogEvent.class);
       verify(auditLogTransportDispatcherUtils, timeout(5000).atLeast(5))
           .dispatch(eventCaptor.capture(), any());
@@ -163,6 +176,7 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
       List<LogEvent> events = eventCaptor.getAllValues();
       assertThat(events).hasSizeGreaterThanOrEqualTo(5);
 
+      // Validate payload creation event: mutation/create for payload with expected payload_name.
       LogEvent payloadCreateEvent =
           findRequiredEvent(
               events,
@@ -175,6 +189,7 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
                           .isPresent(),
               "payload create event");
 
+      // Validate atomic testing creation event: mutation/create with expected inject_title.
       LogEvent atomicCreateEvent =
           findRequiredEvent(
               events,
@@ -186,6 +201,7 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
                           .isPresent(),
               "atomic testing create event");
 
+      // Validate add-assets update event by checking inject_assets contains the created asset id.
       LogEvent addAssetEvent =
           findRequiredEvent(
               events,
@@ -195,6 +211,7 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
                       && contextInputList(event, "inject_assets").contains(assetId),
               "atomic testing add assets event");
 
+      // Validate remove-assets update event by checking inject_assets becomes empty.
       LogEvent removeAssetEvent =
           findRequiredEvent(
               events,
@@ -204,6 +221,7 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
                       && contextInputList(event, "inject_assets").isEmpty(),
               "atomic testing remove assets event");
 
+      // Validate launch event emits a mutation with status_change scope.
       LogEvent launchEvent =
           findRequiredEvent(
               events,
@@ -212,6 +230,7 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
                       && "status_change".equals(event.getEventScope()),
               "atomic testing launch event");
 
+      // Sort selected lifecycle events by timestamp to assert deterministic scope ordering.
       List<LogEvent> lifecycleEvents =
           List.of(
                   payloadCreateEvent,
@@ -225,6 +244,7 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
                       LogEvent::getTimestamp, Comparator.nullsLast(Comparator.naturalOrder())))
               .toList();
 
+      // Confirm all selected events are mutations and match the expected scope progression.
       assertThat(lifecycleEvents).extracting(LogEvent::getEventType).containsOnly("mutation");
       assertThat(lifecycleEvents)
           .extracting(LogEvent::getEventScope)
@@ -236,6 +256,7 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
     }
   }
 
+  // Returns the first event matching the predicate, or fails with a clear missing-event message.
   private LogEvent findRequiredEvent(
       List<LogEvent> events, java.util.function.Predicate<LogEvent> predicate, String description) {
     return events.stream()
@@ -245,11 +266,13 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
         .orElseThrow(() -> new AssertionError("Missing expected " + description));
   }
 
+  // Reads the logical entity type from event context_data (empty string when unavailable).
   private String contextEntityType(LogEvent event) {
     Object entityType = contextValue(event, "entity_type");
     return entityType != null ? entityType.toString() : "";
   }
 
+  // Generic accessor for context_data keys with null-safety.
   private Object contextValue(LogEvent event, String key) {
     Map<String, Object> context = event.getContextData();
     if (context == null) {
@@ -259,6 +282,8 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
   }
 
   @SuppressWarnings("unchecked")
+  // Resolves parent linkage for child-resource assertions.
+  // Prefer explicit parent_id; fallback to output.inject_id for backward-compatible payload shapes.
   private String resolveParentLink(LogEvent event) {
     Object parentId = contextValue(event, "parent_id");
     if (parentId != null) {
@@ -275,16 +300,18 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
   }
 
   @SuppressWarnings("unchecked")
-  private java.util.Optional<String> contextInputValue(LogEvent event, String key) {
+  // Reads a single key from context_data.input as Optional<String>.
+  private Optional<String> contextInputValue(LogEvent event, String key) {
     Object input = contextValue(event, "input");
     if (!(input instanceof Map<?, ?> inputMap)) {
-      return java.util.Optional.empty();
+      return Optional.empty();
     }
     Object value = ((Map<String, Object>) inputMap).get(key);
-    return value != null ? java.util.Optional.of(value.toString()) : java.util.Optional.empty();
+    return value != null ? Optional.of(value.toString()) : Optional.empty();
   }
 
   @SuppressWarnings("unchecked")
+  // Reads a list key from context_data.input and normalizes all entries to String.
   private List<String> contextInputList(LogEvent event, String key) {
     Object input = contextValue(event, "input");
     if (!(input instanceof Map<?, ?> inputMap)) {
