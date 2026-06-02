@@ -1,5 +1,7 @@
 package io.openaev.api.url_access_token;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.config.OpenAEVConfig;
@@ -22,8 +24,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
-
-import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 @RestController
 @RequiredArgsConstructor
@@ -81,7 +81,10 @@ public class UrlAccessTokenApi {
     return ResponseEntity.noContent().build();
   }
 
-  @DeleteMapping({URL_ACCESS_URI + "/exercise/{exerciseId}", TENANT_URL_ACCESS_URI + "/exercise/{exerciseId}"})
+  @DeleteMapping({
+    URL_ACCESS_URI + "/exercise/{exerciseId}",
+    TENANT_URL_ACCESS_URI + "/exercise/{exerciseId}"
+  })
   @LogExecutionTime
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.PLATFORM_SETTING)
   @Operation(summary = "Revoke all URL access tokens for an exercise (admin only)")
