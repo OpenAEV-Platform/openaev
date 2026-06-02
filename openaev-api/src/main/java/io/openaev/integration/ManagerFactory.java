@@ -4,7 +4,6 @@ import static io.openaev.aop.lock.LockResourceType.MANAGER_FACTORY;
 import static io.openaev.helper.StreamHelper.fromIterable;
 
 import io.openaev.aop.lock.Lock;
-import io.openaev.database.audit.TenantAssertionControl;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.datapack.DataPackProcessor;
@@ -49,23 +48,18 @@ public class ManagerFactory implements DependenciesManager {
    */
   private void registerBuiltinsForAllTenants() {
     List<Tenant> tenants = fromIterable(tenantRepository.findAll());
-    TenantAssertionControl.suppress();
-    try {
-      for (Tenant tenant : tenants) {
-        try {
-          // Use isolated transaction per tenant to avoid JPA L1 cache identity collisions
-          // (connector IDs are reused across tenants).
-          tenantRegistrationExecutor.registerForTenantIsolated(tenant);
-        } catch (DependenciesManagerException e) {
-          log.error(
-              "Failed to register built-in connectors for tenant '{}': {}",
-              tenant.getName(),
-              e.getMessage(),
-              e);
-        }
+    for (Tenant tenant : tenants) {
+      try {
+        // Use isolated transaction per tenant to avoid JPA L1 cache identity collisions
+        // (connector IDs are reused across tenants).
+        tenantRegistrationExecutor.registerForTenantIsolated(tenant);
+      } catch (DependenciesManagerException e) {
+        log.error(
+            "Failed to register built-in connectors for tenant '{}': {}",
+            tenant.getName(),
+            e.getMessage(),
+            e);
       }
-    } finally {
-      TenantAssertionControl.restore();
     }
   }
 
