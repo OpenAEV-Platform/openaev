@@ -87,11 +87,11 @@ public class AccessControlAuditLogAspect {
     try {
       result = joinPoint.proceed();
     } catch (Throwable ex) {
-      // Capture diffs on the servlet thread before any async handoff.
-      entityDiffsNode = captureEntityDiffs();
       if (isActive) {
         try {
           if (isRbacDeniedException(ex)) {
+            // Capture diffs on the servlet thread before any async handoff.
+            entityDiffsNode = captureEntityDiffs();
             String eventScope = LogUtils.getEventScope(Action.UNAUTHORIZED);
             String eventStatus = LogUtils.getEventStatus(EventStatus.ERROR);
             JsonNode errorNode = buildErrorNode(null, ex);
@@ -99,6 +99,8 @@ public class AccessControlAuditLogAspect {
             logAccessControlEvent(
                 joinPoint, accessControl, eventScope, eventStatus, errorNode, entityDiffsNode);
           } else if (isActionActive) {
+            // Capture diffs on the servlet thread before any async handoff.
+            entityDiffsNode = captureEntityDiffs();
             String eventScope = LogUtils.getEventScope(action);
             String eventStatus = LogUtils.getEventStatus(EventStatus.ERROR);
             JsonNode resultNode = getOutputNode(result);
@@ -114,11 +116,10 @@ public class AccessControlAuditLogAspect {
       throw ex;
     }
 
-    // Capture diffs on the servlet thread before any async handoff.
-    entityDiffsNode = captureEntityDiffs();
-
     if (isActive && isActionActive) {
       try {
+        // Capture diffs on the servlet thread before any async handoff.
+        entityDiffsNode = captureEntityDiffs();
         String eventScope = LogUtils.getEventScope(action);
         String eventStatus = LogUtils.getEventStatus(EventStatus.SUCCESS);
         JsonNode resultNode = getOutputNode(result);
