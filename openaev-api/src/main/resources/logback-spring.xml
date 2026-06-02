@@ -24,9 +24,8 @@
             </encoder>
         </appender>
 
-        <!-- Audit log: console + file, independent of root level -->
+        <!-- Audit log: file only in dev (console output handled by AuditConsoleLogTransportUtils) -->
         <logger name="AUDIT_LOG" level="INFO" additivity="false">
-            <appender-ref ref="STDOUT" />
             <appender-ref ref="AUDIT_FILE" />
         </logger>
 

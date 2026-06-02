@@ -26,6 +26,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -67,12 +68,14 @@ public class UserApi extends RestBehavior {
   @PostMapping("/api/login")
   @AccessControl(skipRBAC = true)
   @UserRoleDescription(needAuthenticated = false)
-  public User login(@Valid @RequestBody LoginUserInput input) {
+  public User login(@Valid @RequestBody LoginUserInput input, HttpServletRequest httpRequest) {
     Optional<User> optionalUser = userRepository.findByEmailIgnoreCase(input.getLogin());
     if (optionalUser.isPresent()) {
       User user = optionalUser.get();
       if (userService.isUserPasswordValid(user, input.getPassword())) {
         userService.createUserSession(user);
+        // Capture auth context in session for reliable expiry audit metadata.
+        SessionManager.markAuthenticatedSession(httpRequest);
         userEventService.createLoginSuccessEvent(user);
 
         auditLogger.ifPresent(
