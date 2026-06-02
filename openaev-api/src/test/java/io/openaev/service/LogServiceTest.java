@@ -20,7 +20,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("LogService - logSessionExpiredEvent")
@@ -46,7 +45,7 @@ class LogServiceTest {
             mock(UserService.class),
             enterpriseEditionService,
             licenseCacheManager);
-    ReflectionTestUtils.setField(logService, "auditLogsEnabled", true);
+    lenient().when(auditLogProperties.isEnabled()).thenReturn(true);
     lenient().when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
   }
 
@@ -144,7 +143,7 @@ class LogServiceTest {
     @DisplayName("given_auditDisabled_should_returnTrueWithoutDispatching")
     void given_auditDisabled_should_returnTrueWithoutDispatching() {
       // -- PREPARE --
-      ReflectionTestUtils.setField(logService, "auditLogsEnabled", false);
+      when(auditLogProperties.isEnabled()).thenReturn(false);
 
       // -- EXECUTE --
       boolean result =
