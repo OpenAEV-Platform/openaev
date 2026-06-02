@@ -82,14 +82,14 @@
             matchDepNames: [
                 'react-apexcharts'
             ],
-            commitMessagePrefix: '[DANGER] [deps]',
+            commitMessagePrefix: '[DANGER]',
             commitMessageSuffix: '(react-apexcharts has a yarn patch)',
         },
         {
             matchDepNames: [
                 'html-to-image'
             ],
-            commitMessagePrefix: '[DANGER] [deps]',
+            commitMessagePrefix: '[DANGER]',
             commitMessageSuffix: '(html-to-image has a yarn patch)',
         },
         // group non-major devDependencies once a week to avoid Renovate noise
