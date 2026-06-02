@@ -5,6 +5,7 @@ import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
+import io.openaev.config.audit_log.AuditLogProperties;
 import io.openaev.engine.model.log.LogEvent;
 import java.util.logging.Level;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,23 +15,23 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("AuditConsoleLogTransportUtils")
 class AuditConsoleLogTransportUtilsTest {
 
   @Mock private ObjectMapper objectMapper;
+  @Mock private AuditLogProperties auditLogProperties;
 
   private AuditConsoleLogTransportUtils transport;
 
   @BeforeEach
   void setUp() {
-    transport = new AuditConsoleLogTransportUtils(objectMapper);
+    transport = new AuditConsoleLogTransportUtils(auditLogProperties, objectMapper);
   }
 
   private void setEnabled(boolean enabled) {
-    ReflectionTestUtils.setField(transport, "enabled", enabled);
+    lenient().when(auditLogProperties.isTransportEnabled(any())).thenReturn(enabled);
   }
 
   @Nested
@@ -62,8 +63,7 @@ class AuditConsoleLogTransportUtilsTest {
     void given_validEvent_should_prefixAuditAndPropagateLevel() throws Exception {
       // -- PREPARE --
       AuditConsoleLogTransportUtils spyTransport =
-          spy(new AuditConsoleLogTransportUtils(objectMapper));
-      ReflectionTestUtils.setField(spyTransport, "enabled", true);
+          spy(new AuditConsoleLogTransportUtils(auditLogProperties, objectMapper));
 
       LogEvent event = new LogEvent();
       ObjectWriter writer = mock(ObjectWriter.class);
@@ -103,8 +103,7 @@ class AuditConsoleLogTransportUtilsTest {
     void given_messageSendThrows_should_returnFalse() throws Exception {
       // -- PREPARE --
       AuditConsoleLogTransportUtils spyTransport =
-          spy(new AuditConsoleLogTransportUtils(objectMapper));
-      ReflectionTestUtils.setField(spyTransport, "enabled", true);
+          spy(new AuditConsoleLogTransportUtils(auditLogProperties, objectMapper));
 
       LogEvent event = new LogEvent();
       ObjectWriter writer = mock(ObjectWriter.class);

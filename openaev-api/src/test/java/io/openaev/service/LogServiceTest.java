@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.engine.model.log.LogEvent;
 import io.openaev.utils.HttpReqRespUtils;
 import io.openaev.utils.log.dispatcher.AuditLogTransportDispatcherUtils;
@@ -25,6 +27,8 @@ class LogServiceTest {
 
   @Mock private AuditLogTransportDispatcherUtils auditLogTransportDispatcherUtils;
   @Mock private PreviewFeatureService previewFeatureService;
+  @Mock private EnterpriseEditionService enterpriseEditionService;
+  @Mock private LicenseCacheManager licenseCacheManager;
 
   private LogService logService;
 
@@ -36,8 +40,11 @@ class LogServiceTest {
             auditLogTransportDispatcherUtils,
             mock(io.openaev.utils.object.ObjectNormalizationUtils.class),
             mock(io.openaev.engine.EngineService.class),
-            mock(UserService.class));
+            mock(UserService.class),
+            enterpriseEditionService,
+            licenseCacheManager);
     ReflectionTestUtils.setField(logService, "auditLogsEnabled", true);
+    lenient().when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
   }
 
   @Nested
