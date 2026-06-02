@@ -3,6 +3,7 @@ package io.openaev.database.audit;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.annotation.AuditDiffTracked;
+import io.openaev.config.AuditLogProperties;
 import io.openaev.database.model.Base;
 import jakarta.annotation.Resource;
 import jakarta.persistence.*;
@@ -63,6 +64,8 @@ public class ModelBaseListener {
 
   @Resource protected ObjectMapper mapper;
 
+  @Autowired private AuditLogProperties auditLogProperties;
+
   private ApplicationEventPublisher appPublisher;
 
   /**
@@ -83,7 +86,7 @@ public class ModelBaseListener {
    */
   @PostLoad
   void postLoad(Object base) {
-    if (!isAuditDiffTracked(base)) return;
+    if (!shouldCaptureAuditDiff(base)) return;
     Base instance = (Base) base;
     if (instance.getId() == null) return;
     try {
@@ -111,7 +114,7 @@ public class ModelBaseListener {
     BaseEvent event = new BaseEvent(DATA_PERSIST, instance, mapper);
     appPublisher.publishEvent(event);
 
-    if (!isAuditDiffTracked(base)) return;
+    if (!shouldCaptureAuditDiff(base)) return;
     try {
       registerCleanupIfNeeded();
       Map<String, Object> snapshot = buildSnapshot(instance);
@@ -140,7 +143,7 @@ public class ModelBaseListener {
    */
   @PreUpdate
   void preUpdateForDiff(Object base) {
-    if (!isAuditDiffTracked(base)) return;
+    if (!shouldCaptureAuditDiff(base)) return;
     Base instance = (Base) base;
     try {
       Map<String, Object> before = EntityDiffContext.getBefore(instance.getId());
@@ -189,7 +192,7 @@ public class ModelBaseListener {
     Base instance = (Base) base;
     appPublisher.publishEvent(new BaseEvent(DATA_DELETE, instance, mapper));
 
-    if (!isAuditDiffTracked(base)) return;
+    if (!shouldCaptureAuditDiff(base)) return;
     try {
       registerCleanupIfNeeded();
       Map<String, Object> snapshot = buildSnapshot(instance);
@@ -292,7 +295,9 @@ public class ModelBaseListener {
     return val.toString();
   }
 
-  private static boolean isAuditDiffTracked(Object entity) {
-    return entity instanceof Base && entity.getClass().isAnnotationPresent(AuditDiffTracked.class);
+  private boolean shouldCaptureAuditDiff(Object entity) {
+    return auditLogProperties.isEnabled()
+        && entity instanceof Base
+        && entity.getClass().isAnnotationPresent(AuditDiffTracked.class);
   }
 }
