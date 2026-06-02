@@ -23,7 +23,6 @@ import io.openaev.utils.fixtures.AssetGroupFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utilstest.RabbitMQTestListener;
-import jakarta.persistence.EntityManager;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.*;
