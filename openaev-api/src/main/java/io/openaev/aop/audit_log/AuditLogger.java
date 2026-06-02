@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.AccessControlAspect;
 import io.openaev.config.ThreadPoolTaskLoggerConfig;
+import io.openaev.config.audit_log.AuditLogProperties;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.service.LogService;
@@ -11,7 +12,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.ApplicationContext;
@@ -33,11 +33,9 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class AuditLogger {
 
-  @Value("${openaev.audit-logs.stop-the-world:false}")
-  private boolean stw;
-
   private final ApplicationContext context;
   private final AuditRequestValidator auditRequestValidator;
+  private final AuditLogProperties auditLogProperties;
   private final LogService logService;
 
   public boolean isAuditLoggingEnabled() {
@@ -53,18 +51,18 @@ public class AuditLogger {
   }
 
   public void prepareLogFailure() {
-    // Halt the application when stop-the-world is enabled and a log failure occurs.
-    if (stw) {
-      log.error("[AUDIT] Stop-the-world triggered — shutting down application.");
+    // Halt the application when Halt-on-failure is enabled and a log failure occurs.
+    try {
+      if (auditLogProperties.isHaltOnFailure()) {
+        log.error("[AUDIT] Halt-on-failure triggered — shutting down application.");
 
-      try {
         int exitCode = SpringApplication.exit(context, () -> 1);
-        System.exit(exitCode);
-      } catch (Exception e) {
-        log.warn("[AUDIT] Failed to stop application after log failure: {}", e.getMessage(), e);
+        log.error("[AUDIT] Spring shutdown initiated with exit code {}.", exitCode);
+      } else {
+        log.warn("[AUDIT] Halt-on-failure disabled, application continue running...");
       }
-    } else {
-      log.warn("[AUDIT] Stop-the-world disabled, application continue running...");
+    } catch (Exception e) {
+      log.warn("[AUDIT] Failed to execute log failure action: {}", e.getMessage(), e);
     }
   }
 
@@ -108,6 +106,8 @@ public class AuditLogger {
     }
 
     if (!status) {
+      log.warn("[AUDIT] Failed to log auth event for {}.{}", provider, eventScope);
+
       prepareLogFailure();
     }
 
@@ -150,6 +150,8 @@ public class AuditLogger {
     }
 
     if (!status) {
+      log.warn("[AUDIT] Failed to log access control event for {}.{}", resourceType, eventScope);
+
       prepareLogFailure();
     }
 
