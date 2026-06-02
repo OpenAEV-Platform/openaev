@@ -100,7 +100,8 @@ public class ModelBaseListener {
   /**
    * Handles the post-persist lifecycle callback.
    *
-   * <p>Published after a new entity has been persisted to the database.
+   * <p>Published after a new entity has been persisted to the database. For {@link
+   * AuditDiffTracked} entities, stores a "create" diff with the full entity snapshot as context.
    *
    * @param base the persisted entity
    */
@@ -109,6 +110,24 @@ public class ModelBaseListener {
     Base instance = (Base) base;
     BaseEvent event = new BaseEvent(DATA_PERSIST, instance, mapper);
     appPublisher.publishEvent(event);
+
+    if (!isAuditDiffTracked(base)) return;
+    try {
+      registerCleanupIfNeeded();
+      Map<String, Object> snapshot = buildSnapshot(instance);
+      List<EntityDiffContext.Change> changes =
+          snapshot.entrySet().stream()
+              .map(e -> new EntityDiffContext.Change(e.getKey(), null, e.getValue()))
+              .toList();
+      EntityDiffContext.storeDiff(
+          instance.getId(),
+          new EntityDiffContext.EntityDiff(instance.getClass().getSimpleName(), "create", changes));
+    } catch (Exception e) {
+      log.debug(
+          "[AuditDiff] Failed to capture create-diff for {}: {}",
+          base.getClass().getSimpleName(),
+          e.getMessage());
+    }
   }
 
   /**
@@ -159,7 +178,9 @@ public class ModelBaseListener {
   /**
    * Handles the pre-remove lifecycle callback.
    *
-   * <p>Published before an entity is removed from the database.
+   * <p>Published before an entity is removed from the database. For {@link AuditDiffTracked}
+   * entities, stores a "delete" diff with the full entity snapshot as context (the state before
+   * deletion).
    *
    * @param base the entity being removed
    */
@@ -167,6 +188,24 @@ public class ModelBaseListener {
   void preRemove(Object base) {
     Base instance = (Base) base;
     appPublisher.publishEvent(new BaseEvent(DATA_DELETE, instance, mapper));
+
+    if (!isAuditDiffTracked(base)) return;
+    try {
+      registerCleanupIfNeeded();
+      Map<String, Object> snapshot = buildSnapshot(instance);
+      List<EntityDiffContext.Change> changes =
+          snapshot.entrySet().stream()
+              .map(e -> new EntityDiffContext.Change(e.getKey(), e.getValue(), null))
+              .toList();
+      EntityDiffContext.storeDiff(
+          instance.getId(),
+          new EntityDiffContext.EntityDiff(instance.getClass().getSimpleName(), "delete", changes));
+    } catch (Exception e) {
+      log.debug(
+          "[AuditDiff] Failed to capture delete-diff for {}: {}",
+          base.getClass().getSimpleName(),
+          e.getMessage());
+    }
   }
 
   /**
