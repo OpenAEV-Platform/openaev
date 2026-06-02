@@ -36,7 +36,7 @@ import org.springframework.test.context.TestExecutionListeners;
 @TestExecutionListeners(
     value = {RabbitMQTestListener.class},
     mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
-@DisplayName("EngineService integration tests — actual ES/OpenSearch deletion")
+@DisplayName("EngineService integration tests - actual ES/OpenSearch deletion")
 class EngineServiceIntegrationTest extends IntegrationTest {
 
   @Autowired private EngineService engineService;
@@ -101,7 +101,7 @@ class EngineServiceIntegrationTest extends IntegrationTest {
   class BulkDelete {
 
     @Test
-    @DisplayName("given_indexedEndpoint_should_removeDocumentFromEngineAfterBulkDelete")
+    @DisplayName("Indexed endpoint should remove document from engine after bulk delete")
     void given_indexedEndpoint_should_removeDocumentFromEngineAfterBulkDelete()
         throws InterruptedException {
       // Arrange: persist one endpoint and index it
@@ -129,7 +129,7 @@ class EngineServiceIntegrationTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "given_multipleIndexedEndpoints_should_removeAllDocumentsFromEngineAfterBulkDelete")
+        "Multiple indexed endpoints should remove all documents from engine after bulk delete")
     void given_multipleIndexedEndpoints_should_removeAllDocumentsFromEngineAfterBulkDelete()
         throws InterruptedException {
       // Arrange — persist two endpoints and index them
@@ -164,7 +164,7 @@ class EngineServiceIntegrationTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("given_bulkDeleteOnlyOneShouldLeaveOtherIntact")
+    @DisplayName("Bulk delete only one element should leave other intact")
     void given_bulkDeleteOnlyOneId_should_leaveOtherDocumentIntact() throws InterruptedException {
       // Arrange
       String endpointToDeleteId =

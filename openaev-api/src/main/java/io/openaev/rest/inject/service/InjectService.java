@@ -319,19 +319,6 @@ public class InjectService {
   }
 
   /**
-   * Deletes all inject dependencies (rows in injects_dependencies) for every inject belonging to
-   * the given scenario. Must be called before deleting the scenario to prevent Hibernate
-   * StaleStateException caused by CascadeType.ALL trying to delete the same dependency row twice
-   * when multiple injects in the scenario have cross-dependencies.
-   *
-   * @param scenarioId the scenario whose inject dependencies must be cleared
-   */
-  @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
-  public void clearInjectDependenciesByScenarioId(String scenarioId) {
-    injectDependenciesRepository.deleteAllByScenarioId(scenarioId);
-  }
-
-  /**
    * Delete all injects given as params
    *
    * @param injects the injects to delete

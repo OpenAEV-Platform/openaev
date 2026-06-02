@@ -29,27 +29,4 @@ public interface InjectDependenciesRepository
               + "WHERE inject_children_id IN :childrens",
       nativeQuery = true)
   List<InjectDependency> findParents(@NotNull List<String> childrens);
-
-  /**
-   * Deletes all inject dependency rows where either side of the dependency belongs to a given
-   * scenario. This must be called before deleting the scenario to avoid Hibernate
-   * StaleStateException caused by CascadeType.ALL trying to delete the same row twice when multiple
-   * injects in the scenario have cross-dependencies.
-   *
-   * @param scenarioId the scenario whose inject dependencies must be cleared
-   */
-  @Modifying
-  @Query(
-      value =
-          "DELETE FROM injects_dependencies d "
-              + "USING ("
-              + "  SELECT inject_id FROM injects i "
-              + "  JOIN scenarios s ON s.scenario_id = i.inject_scenario "
-              + "  WHERE i.inject_scenario = :scenarioId "
-              + "  AND s.tenant_id = :#{#tenantContext.currentTenant}"
-              + ") scenario_injects "
-              + "WHERE d.inject_children_id = scenario_injects.inject_id "
-              + "OR d.inject_parent_id = scenario_injects.inject_id",
-      nativeQuery = true)
-  void deleteAllByScenarioId(@Param("scenarioId") String scenarioId);
 }
