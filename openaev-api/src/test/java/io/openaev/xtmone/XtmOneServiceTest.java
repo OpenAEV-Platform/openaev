@@ -9,14 +9,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.service.PlatformSettingsService;
 import io.openaev.service.settings.TenantSettingsService;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -37,19 +34,12 @@ class XtmOneServiceTest {
 
   @InjectMocks private XtmOneService xtmOneService;
 
-  @BeforeEach
-  @AfterEach
-  void resetTenantContext() {
-    // The background tick runs without a request, so the default tenant must be resolved.
-    TenantContext.clearCurrentTenant();
-  }
-
   private PlatformSettings stubPlatformSettings() {
     PlatformSettings settings = new PlatformSettings();
     settings.setPlatformBaseUrl("https://openaev.example.com");
     settings.setPlatformId("platform-instance-id");
-    // Stale platform-level (tenant-null) name: this is what the bug used to send.
-    settings.setPlatformName("OpenAEV - Open Adversarial Exposure Validation Platform");
+    // Stale platform-level (tenant-null) name the bug used to send; it must never be used now.
+    settings.setPlatformName("Stale platform-level name (must be ignored)");
     return settings;
   }
 
@@ -111,7 +101,7 @@ class XtmOneServiceTest {
             any(),
             eq("aev"),
             any());
-    assertEquals("OpenAEV Platform", nameCaptor.getValue());
+    assertEquals(PLATFORM_NAME.defaultValue(), nameCaptor.getValue());
   }
 
   @Test

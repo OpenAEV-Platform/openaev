@@ -2,7 +2,7 @@ package io.openaev.xtmone;
 
 import static io.openaev.database.model.TenantSettingKeys.PLATFORM_NAME;
 
-import io.openaev.context.TenantContext;
+import io.openaev.database.model.Tenant;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.service.PlatformSettingsService;
@@ -90,13 +90,14 @@ public class XtmOneService {
           settings.getPlatformBaseUrl() != null ? settings.getPlatformBaseUrl() : "";
       // The platform name is stored per-tenant (Settings → Parameters), but
       // PlatformSettings#getPlatformName only reads the platform-level (tenant-null) value, so a
-      // rename would never reach XTM One. Resolve it the same way the UI does: tenant override →
-      // platform fallback → default.
+      // rename would never reach XTM One. Resolve it the same way the UI does (tenant override →
+      // platform fallback → default). This runs on a background scheduler thread with no request
+      // scope, so resolve against the default tenant explicitly rather than relying on the
+      // (possibly stale) TenantContext ThreadLocal.
       String platformName =
-          tenantSettingsService.resolveSettingValue(
-              TenantContext.getCurrentTenant(), PLATFORM_NAME);
+          tenantSettingsService.resolveSettingValue(Tenant.DEFAULT_TENANT_UUID, PLATFORM_NAME);
       if (platformName == null || platformName.isBlank()) {
-        platformName = "OpenAEV Platform";
+        platformName = PLATFORM_NAME.defaultValue();
       }
 
       config.setPlatformUrl(platformUrl);
