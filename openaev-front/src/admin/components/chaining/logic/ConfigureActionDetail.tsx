@@ -186,9 +186,9 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
           }}
         >
           <DrawerBreadcrumb
-            grandParentLabel={t('Add Component')}
+            grandParentLabel={t('Add component')}
             onBackToGrandParent={onBackToRoot}
-            parentLabel={t('Add Actions')}
+            parentLabel={t('Add actions')}
             currentLabel={actionLabel}
             onBack={onBack}
           />

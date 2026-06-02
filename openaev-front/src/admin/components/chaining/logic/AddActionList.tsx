@@ -176,12 +176,12 @@ const AddActionList = ({ open, onClose, onBack, onAddActions, onSelectAction }: 
     <Drawer
       open={open}
       handleClose={onClose}
-      title={t('Add Actions')}
+      title={t('Add actions')}
     >
       <Box>
         <DrawerBreadcrumb
-          parentLabel={t('Add Component')}
-          currentLabel={t('Add Actions')}
+          parentLabel={t('Add component')}
+          currentLabel={t('Add actions')}
           onBack={onBack}
         />
 
