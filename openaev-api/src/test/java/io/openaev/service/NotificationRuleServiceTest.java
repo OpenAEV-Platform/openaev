@@ -15,10 +15,12 @@ import io.openaev.database.model.TenantSettingKeys;
 import io.openaev.database.repository.NotificationRuleRepository;
 import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.utilstest.RabbitMQTestListener;
+import jakarta.persistence.EntityManager;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.hibernate.Session;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -31,6 +33,8 @@ import org.springframework.test.context.TestExecutionListeners;
     mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 public class NotificationRuleServiceTest extends IntegrationTest {
 
+  @Mock private EntityManager entityManager;
+  @Mock private Session session;
   @Mock private NotificationRuleRepository notificationRuleRepository;
 
   @Mock private EmailNotificationService emailNotificationService;
@@ -56,6 +60,7 @@ public class NotificationRuleServiceTest extends IntegrationTest {
     when(notificationRuleRepository.findNotificationRuleByResourceAndTrigger(
             rule.getResourceId(), rule.getTrigger()))
         .thenReturn(List.of(rule));
+    when(entityManager.unwrap(Session.class)).thenReturn(session);
     when(tenantSettingsService.resolveSettingValue(eq("tenant-id"), any(TenantSettingKeys.class)))
         .thenReturn("dark");
     when(tenantSettingsService.findSetting(eq("tenant-id"), any(String.class)))
