@@ -2,7 +2,6 @@ package io.openaev.service;
 
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.TenantSettingKeys;
 import io.openaev.database.repository.NotificationRuleRepository;
@@ -39,7 +38,7 @@ public class NotificationRuleService {
   private final TenantSettingsService tenantSettingsService;
 
   public Optional<NotificationRule> findById(final String id) {
-    return notificationRuleRepository.findByIdAndTenantId(id, TenantContext.getCurrentTenant());
+    return notificationRuleRepository.findById(id);
   }
 
   public List<NotificationRule> findAll() {
@@ -80,7 +79,7 @@ public class NotificationRuleService {
     // verify that the rule exists
     NotificationRule notificationRule =
         notificationRuleRepository
-            .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
+            .findById(id)
             .orElseThrow(
                 () -> new ElementNotFoundException("NotificationRule not found with id: " + id));
 
@@ -90,9 +89,12 @@ public class NotificationRuleService {
   }
 
   public void deleteNotificationRule(@NotBlank final String id) {
-    if (!notificationRuleRepository.existsByIdAndTenantId(id, TenantContext.getCurrentTenant())) {
-      throw new ElementNotFoundException("NotificationRule not found with id: " + id);
-    }
+    // verify that the rule exists
+    notificationRuleRepository
+        .findById(id)
+        .orElseThrow(
+            () -> new ElementNotFoundException("NotificationRule not found with id: " + id));
+
     notificationRuleRepository.deleteById(id);
   }
 
