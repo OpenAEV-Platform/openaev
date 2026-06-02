@@ -1,4 +1,4 @@
-import { fromJS, List, Map } from 'immutable';
+import { fromJS, List, Map, OrderedMap } from 'immutable';
 import * as R from 'ramda';
 
 import * as Constants from '../constants/ActionTypes';
@@ -65,28 +65,52 @@ export const entitiesInitializer = Map({
   }),
 });
 
-const ENTITY_SIZE_SOFT_CAP = 5000;
+export const ENTITY_SIZE_SOFT_CAP = 5000;
 const EVICTABLE_ENTITY_TYPES = new Set([
   'injects', 'injectexpectations', 'inject_statuses',
   'communications', 'logs', 'targetresults',
   'comcheckstatuses', 'channelreaders', 'simulationchallengesreaders',
 ]);
 
+// High-growth entity maps are kept bounded with an LRU window. Immutable's plain
+// `Map` iterates in hash order (not insertion order), so `takeLast` on a plain
+// `Map` would keep an arbitrary subset and could evict an entity that is still
+// on screen and actively receiving updates. Instead we keep these maps as an
+// `OrderedMap` and move every key touched by the current action to the
+// most-recently-used end; once a map exceeds the soft cap we drop the
+// least-recently-used entries from the front. This guarantees the entries being
+// read/updated right now (e.g. an inject receiving a burst of SSE events) are
+// never the ones evicted.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const evictOversizedEntities = (state: any, action: any): any => {
-  const changedTypes = action.payload?.entities ? Object.keys(action.payload.entities) : [];
-  const typesToCheck = changedTypes.filter((t: string) => EVICTABLE_ENTITY_TYPES.has(t));
-  if (typesToCheck.length === 0) return state;
+export const applyLruEviction = (state: any, action: any): any => {
+  const payloadEntities = action.payload?.entities;
+  if (!payloadEntities) return state;
 
   const entities = state.get('entities');
   if (!entities || !Map.isMap(entities)) return state;
+
   let result = state;
-  typesToCheck.forEach((entityType: string) => {
-    const entityMap = entities.get(entityType);
-    if (entityMap && Map.isMap(entityMap) && entityMap.size > ENTITY_SIZE_SOFT_CAP) {
-      const keysToKeep = entityMap.keySeq().takeLast(ENTITY_SIZE_SOFT_CAP).toSet();
-      const trimmed = entityMap.filter((_: unknown, key: unknown) => keysToKeep.has(key));
-      result = result.setIn(['entities', entityType], trimmed);
+  Object.keys(payloadEntities).forEach((entityType: string) => {
+    if (!EVICTABLE_ENTITY_TYPES.has(entityType)) return;
+    const currentMap = entities.get(entityType);
+    if (!currentMap || !Map.isMap(currentMap)) return;
+
+    // Encode recency in iteration order so eviction is deterministic and safe.
+    let lruMap = OrderedMap.isOrderedMap(currentMap) ? currentMap : OrderedMap(currentMap);
+    Object.keys(payloadEntities[entityType] ?? {}).forEach((key: string) => {
+      if (lruMap.has(key)) {
+        // delete + re-set moves the key to the MRU end of the OrderedMap.
+        const value = lruMap.get(key);
+        lruMap = lruMap.delete(key).set(key, value);
+      }
+    });
+
+    if (lruMap.size > ENTITY_SIZE_SOFT_CAP) {
+      lruMap = lruMap.takeLast(ENTITY_SIZE_SOFT_CAP);
+    }
+
+    if (lruMap !== currentMap) {
+      result = result.setIn(['entities', entityType], lruMap);
     }
   });
   return result;
@@ -139,7 +163,7 @@ const referential = (state: any = Map({}), action: any = {}) => {
         );
       } else {
         const merged = mergeDeepOverwriteLists(state, fromJS(R.dissoc('result', action.payload)));
-        return evictOversizedEntities(merged, action);
+        return applyLruEviction(merged, action);
       }
     }
     case Constants.DATA_DELETE_SUCCESS: {
