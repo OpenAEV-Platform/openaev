@@ -2,6 +2,7 @@ package io.openaev.utils.fixtures;
 
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Injector;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.injectors.email.EmailContract;
 import io.openaev.injectors.openaev.OpenAEVImplantContract;
@@ -37,6 +38,7 @@ public class InjectorFixture {
     injector.setExternal(false);
     injector.setCreatedAt(Instant.now());
     injector.setUpdatedAt(Instant.now());
+    injector.setTenant(new Tenant(TenantContext.getCurrentTenant()));
     return injector;
   }
 
