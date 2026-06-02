@@ -155,7 +155,6 @@ public class AccessControlAuditLogAspect {
               signatureNode,
               logUUID)
           .whenComplete(logCompletion);
-      ;
     } catch (Exception ex) {
       log.warn(LOG_ERROR_MSG, ex);
     }
