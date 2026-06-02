@@ -38,7 +38,7 @@
         <appender name="jsonEncoder" class="ch.qos.logback.core.ConsoleAppender">
             <encoder class="io.openaev.logging.StackDepthLimitingJsonEncoder">
                 <withThrowable>true</withThrowable>
-                <maxStackDepth>1</maxStackDepth>
+                <maxStackDepth>80</maxStackDepth>
             </encoder>
         </appender>
 
@@ -52,7 +52,7 @@
             </rollingPolicy>
             <encoder class="io.openaev.logging.StackDepthLimitingJsonEncoder">
                 <withThrowable>true</withThrowable>
-                <maxStackDepth>1</maxStackDepth>
+                <maxStackDepth>80</maxStackDepth>
             </encoder>
         </appender>
 

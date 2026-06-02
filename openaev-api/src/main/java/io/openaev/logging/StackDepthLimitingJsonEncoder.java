@@ -165,8 +165,16 @@ public class StackDepthLimitingJsonEncoder extends JsonEncoder {
     TruncationMarkerProxy(int truncatedCount) {
       super(
           new StackTraceElement(
-              "... " + truncatedCount + " frames truncated (framework internals)", "", "", 0));
-      this.marker = "... " + truncatedCount + " frames truncated (framework internals)";
+              "... "
+                  + truncatedCount
+                  + " non-application frames truncated (io.openaev frames preserved)",
+              "",
+              "",
+              0));
+      this.marker =
+          "... "
+              + truncatedCount
+              + " non-application frames truncated (io.openaev frames preserved)";
     }
 
     @Override
