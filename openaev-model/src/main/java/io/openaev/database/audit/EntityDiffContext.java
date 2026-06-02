@@ -1,5 +1,6 @@
 package io.openaev.database.audit;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.web.context.request.RequestAttributes;
@@ -155,7 +156,7 @@ public final class EntityDiffContext {
   /** Per-entity diff entry, keyed by entity id in the context map. */
   public record EntityDiff(String entityType, String operation, java.util.List<Change> changes) {
 
-    @com.fasterxml.jackson.annotation.JsonProperty("entity_type")
+    @JsonProperty("entity_type")
     public String entityType() {
       return entityType;
     }
@@ -164,12 +165,12 @@ public final class EntityDiffContext {
   /** Single changed field entry in audit-friendly format. */
   public record Change(String field, Object oldValue, Object newValue) {
 
-    @com.fasterxml.jackson.annotation.JsonProperty("old_value")
+    @JsonProperty("old_value")
     public Object oldValue() {
       return oldValue;
     }
 
-    @com.fasterxml.jackson.annotation.JsonProperty("new_value")
+    @JsonProperty("new_value")
     public Object newValue() {
       return newValue;
     }
