@@ -21,7 +21,7 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
-const Error = () => {
+const ErrorHandler = () => {
   const theme = useTheme();
   const { t } = useFormatter();
   const { classes } = useStyles();
@@ -44,4 +44,4 @@ const Error = () => {
     </div>
   );
 };
-export default Error;
+export default ErrorHandler;

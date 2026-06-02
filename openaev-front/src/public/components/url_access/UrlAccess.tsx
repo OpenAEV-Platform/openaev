@@ -1,7 +1,7 @@
 import validateUrlAccessAction from '../../../actions/url-access/url-access-action';
 import Loader from '../../../components/Loader';
 
-const ERROR_URL = '/error';
+const ERROR_URL = '/handle-error';
 const CODE_QUERY_PARAM = '?code=';
 
 const UrlAccess = () => {
@@ -15,8 +15,8 @@ const UrlAccess = () => {
   validateUrlAccessAction(encodeURIComponent(token!))
     .then((response) => {
       const redirectedUrl = response?.request?.responseURL;
-      if (redirectedUrl && redirectedUrl !== window.location.href) {
-        window.location.assign(redirectedUrl);
+      if (redirectedUrl && redirectedUrl !== globalThis.window.location.href) {
+        globalThis.window.location.assign(redirectedUrl);
       }
     })
     .catch((error) => {
