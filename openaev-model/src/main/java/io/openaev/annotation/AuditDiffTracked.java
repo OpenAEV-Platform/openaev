@@ -17,7 +17,8 @@ import java.lang.annotation.*;
  * <em>before</em> the async logging boundary, so the data is always serialized on the servlet
  * thread and never crosses thread-local boundaries.
  *
- * <p>Collections are compared as sorted lists of IDs to avoid order-dependent false positives.
+ * <p>Collections are compared as sorted string representations to avoid order-dependent false
+ * positives. Not inherited — subclasses must re-annotate explicitly.
  *
  * <p>Example:
  *

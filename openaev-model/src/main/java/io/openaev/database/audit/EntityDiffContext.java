@@ -2,6 +2,7 @@ package io.openaev.database.audit;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -84,11 +85,11 @@ public final class EntityDiffContext {
       attrs.removeAttribute(REQUEST_ATTR_BEFORE_SNAPSHOTS, RequestAttributes.SCOPE_REQUEST);
       attrs.removeAttribute(REQUEST_ATTR_ENTITY_DIFFS, RequestAttributes.SCOPE_REQUEST);
       attrs.removeAttribute(REQUEST_ATTR_CLEANUP_REGISTERED, RequestAttributes.SCOPE_REQUEST);
+    } else {
+      BEFORE_SNAPSHOTS_TL.get().clear();
+      DIFFS_TL.get().clear();
+      CLEANUP_REGISTERED_TL.set(false);
     }
-
-    BEFORE_SNAPSHOTS_TL.get().clear();
-    DIFFS_TL.get().clear();
-    CLEANUP_REGISTERED_TL.set(false);
   }
 
   /**
@@ -154,25 +155,12 @@ public final class EntityDiffContext {
   // -- Value types --
 
   /** Per-entity diff entry, keyed by entity id in the context map. */
-  public record EntityDiff(String entityType, String operation, java.util.List<Change> changes) {
-
-    @JsonProperty("entity_type")
-    public String entityType() {
-      return entityType;
-    }
-  }
+  public record EntityDiff(
+      @JsonProperty("entity_type") String entityType, String operation, List<Change> changes) {}
 
   /** Single changed field entry in audit-friendly format. */
-  public record Change(String field, Object oldValue, Object newValue) {
-
-    @JsonProperty("old_value")
-    public Object oldValue() {
-      return oldValue;
-    }
-
-    @JsonProperty("new_value")
-    public Object newValue() {
-      return newValue;
-    }
-  }
+  public record Change(
+      String field,
+      @JsonProperty("old_value") Object oldValue,
+      @JsonProperty("new_value") Object newValue) {}
 }

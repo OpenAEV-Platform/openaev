@@ -1,5 +1,6 @@
 package io.openaev.aop.audit_log;
 
+import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -12,8 +13,6 @@ import io.openaev.database.model.ResourceType;
 import io.openaev.service.LogService;
 import io.openaev.utils.log.LogUtils;
 import java.lang.annotation.Annotation;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -194,15 +193,10 @@ public class AccessControlAuditLogAspect {
       Map<String, EntityDiffContext.EntityDiff> diffs = EntityDiffContext.consumeAll();
       if (diffs.isEmpty()) return null;
 
-      List<Map<String, Object>> payload = new ArrayList<>();
-      for (Map.Entry<String, EntityDiffContext.EntityDiff> entry : diffs.entrySet()) {
-        Map<String, Object> item = new LinkedHashMap<>();
-        item.put("id", entry.getKey());
-        item.put("entity_type", entry.getValue().entityType());
-        item.put("operation", entry.getValue().operation());
-        item.put("changes", entry.getValue().changes());
-        payload.add(item);
-      }
+      List<EntityDiffEntry> payload =
+          diffs.entrySet().stream()
+              .map(e -> new EntityDiffEntry(e.getKey(), e.getValue()))
+              .toList();
       return objectMapper.valueToTree(payload);
     } catch (Exception e) {
       log.debug("[AUDIT] Failed to capture entity diffs: {}", e.getMessage());
@@ -364,4 +358,7 @@ public class AccessControlAuditLogAspect {
 
     return false;
   }
+
+  /** Lightweight wrapper that adds an explicit {@code id} field when serialized by Jackson. */
+  private record EntityDiffEntry(String id, @JsonUnwrapped EntityDiffContext.EntityDiff diff) {}
 }

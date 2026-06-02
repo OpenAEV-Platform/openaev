@@ -64,9 +64,18 @@ public class ModelBaseListener {
 
   @Resource protected ObjectMapper mapper;
 
-  @Autowired private AuditLogProperties auditLogProperties;
-
+  private AuditLogProperties auditLogProperties;
   private ApplicationEventPublisher appPublisher;
+
+  /**
+   * Sets the audit log properties for determining whether diff tracking is enabled.
+   *
+   * @param auditLogProperties the audit log configuration properties
+   */
+  @Autowired
+  public void setAuditLogProperties(AuditLogProperties auditLogProperties) {
+    this.auditLogProperties = auditLogProperties;
+  }
 
   /**
    * Sets the application event publisher for broadcasting entity lifecycle events.
@@ -288,7 +297,7 @@ public class ModelBaseListener {
     }
     if (val instanceof Map<?, ?> map) {
       return map.entrySet().stream()
-          .sorted(Map.Entry.comparingByKey((a, b) -> a.toString().compareTo(b.toString())))
+          .sorted(Map.Entry.comparingByKey(Comparator.comparing(Object::toString)))
           .map(entry -> entry.getKey() + "=" + normalizeForComparison(entry.getValue()))
           .collect(Collectors.joining("|"));
     }
