@@ -3,10 +3,10 @@ package io.openaev.security;
 import static org.springframework.http.HttpHeaders.REFERER;
 
 import io.openaev.aop.audit_log.AuditLogger;
+import io.openaev.config.SessionManager;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.EventStatus;
 import io.openaev.utils.log.LogUtils;
-import io.openaev.config.SessionManager;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
