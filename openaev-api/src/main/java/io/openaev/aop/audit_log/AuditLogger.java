@@ -66,7 +66,12 @@ public class AuditLogger {
       }
 
       log.error("[AUDIT] Halt-on-failure triggered - shutting down application.");
-      int exitCode = SpringApplication.exit(context, () -> 1);
+      int exitCode = SpringApplication.exit(context);
+      if (exitCode == 0) {
+        exitCode = 1; // optional fallback policy
+      }
+
+      System.exit(exitCode);
       log.error("[AUDIT] Spring shutdown initiated with exit code {}.", exitCode);
     } catch (Exception e) {
       log.warn("[AUDIT] Failed to execute log failure action: {}", e.getMessage(), e);
