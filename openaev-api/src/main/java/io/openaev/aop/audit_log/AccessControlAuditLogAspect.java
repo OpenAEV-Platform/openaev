@@ -12,6 +12,7 @@ import io.openaev.service.LogService;
 import io.openaev.utils.log.LogUtils;
 import java.lang.annotation.Annotation;
 import java.util.UUID;
+import java.util.function.BiConsumer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.JoinPoint;
@@ -132,15 +133,29 @@ public class AccessControlAuditLogAspect {
       JsonNode inputNode = getInputNode(joinPoint, eventScope);
       JsonNode signatureNode = getMethodSignature(joinPoint, inputNode);
 
-      auditLogger.logAccessControlEvent(
-          eventScope,
-          eventStatus,
-          resourceType,
-          resourceId,
-          inputNode,
-          outputNode,
-          signatureNode,
-          logUUID);
+      BiConsumer<Boolean, Throwable> logCompletion =
+          (success, throwable) -> {
+            if (throwable != null || (success != null && !success)) {
+              log.warn(
+                  "[AUDIT] Failed to log access control event for {}.{}", resourceType, eventScope);
+              if (throwable != null) {
+                log.warn(LOG_ERROR_MSG, throwable);
+              }
+            }
+          };
+
+      auditLogger
+          .logAccessControlEvent(
+              eventScope,
+              eventStatus,
+              resourceType,
+              resourceId,
+              inputNode,
+              outputNode,
+              signatureNode,
+              logUUID)
+          .whenComplete(logCompletion);
+      ;
     } catch (Exception ex) {
       log.warn(LOG_ERROR_MSG, ex);
     }
