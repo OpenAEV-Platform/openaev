@@ -167,6 +167,7 @@ class AuditDiffTrackedTest extends IntegrationTest {
               .get();
       entityManager.flush();
       entityManager.clear();
+      EntityDiffContext.clear(); // discard the "create" diff from persist
 
       // Act — reload but don't change anything
       Group loaded = entityManager.find(Group.class, group.getId());
