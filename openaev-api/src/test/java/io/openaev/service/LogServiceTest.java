@@ -43,13 +43,16 @@ class LogServiceTest {
 
   @BeforeEach
   void setUp() {
+    io.openaev.engine.EngineService engineService = mock(io.openaev.engine.EngineService.class);
+    lenient().when(engineService.getObjectMapper()).thenReturn(objectMapper);
+
     logService =
         new LogService(
             auditLogProperties,
             previewFeatureService,
             auditLogTransportDispatcherUtils,
             mock(io.openaev.utils.object.ObjectNormalizationUtils.class),
-            mock(io.openaev.engine.EngineService.class),
+            engineService,
             mock(UserService.class),
             enterpriseEditionService,
             licenseCacheManager);

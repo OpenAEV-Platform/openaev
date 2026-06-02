@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -32,6 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @TestInstance(PER_CLASS)
 @Transactional
+@TestPropertySource(properties = {"openaev.audit-logs.transports=console"})
 @DisplayName("@AuditDiffTracked entity diff capture")
 @WithMockUser(isAdmin = true)
 class AuditDiffTrackedTest extends IntegrationTest {
