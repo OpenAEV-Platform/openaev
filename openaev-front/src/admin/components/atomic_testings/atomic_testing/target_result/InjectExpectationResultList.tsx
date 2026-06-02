@@ -14,7 +14,7 @@ import { useFormatter } from '../../../../../components/i18n';
 import ItemStatus from '../../../../../components/ItemStatus';
 import {
   type Inject,
-  type InjectExpectation,
+  type InjectExpectationOutput,
   type InjectExpectationResult,
   type PayloadSimple,
 } from '../../../../../utils/api-types';
@@ -29,7 +29,7 @@ import TargetResultAlertNumber from './TargetResultAlertNumber';
 interface Props {
   injectExpectation: InjectExpectationsStore;
   injectExpectationResults: InjectExpectationResult[];
-  injectExpectationAgent: InjectExpectation['inject_expectation_agent'];
+  injectExpectationAgent: InjectExpectationOutput['inject_expectation_agent'];
   injectorContractPayload?: PayloadSimple;
   injectType: Inject['inject_type'];
 }

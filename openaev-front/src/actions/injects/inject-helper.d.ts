@@ -1,8 +1,8 @@
 import {
   type Exercise,
   type Inject,
-  type InjectExpectation, type InjectExpectationAgentOutput,
-  type InjectTarget,
+  type InjectExpectationAgentOutput,
+  type InjectExpectationOutput, type InjectTarget,
   type Scenario,
   type Team,
 } from '../../utils/api-types';
@@ -12,7 +12,7 @@ export interface InjectHelper {
   getInjectsMap: () => Record<string, Inject>;
 
   getExerciseInjects: (exerciseId: Exercise['exercise_id']) => Inject[];
-  getExerciseInjectExpectations: (scenarioId: Scenario['scenario_id']) => InjectExpectation[];
+  getExerciseInjectExpectations: (scenarioId: Scenario['scenario_id']) => InjectExpectationOutput[];
   getTeamExerciseInjects: (teamId: Team['team_id']) => Inject[];
 
   getScenarioInjects: (scenarioId: Scenario['scenario_id']) => Inject[];

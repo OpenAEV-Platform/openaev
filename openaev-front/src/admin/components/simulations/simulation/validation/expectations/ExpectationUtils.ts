@@ -1,4 +1,4 @@
-import { type InjectExpectation, type InjectExpectationResult } from '../../../../../../utils/api-types';
+import { type InjectExpectationOutput, type InjectExpectationResult } from '../../../../../../utils/api-types';
 import { type InjectExpectationsStore } from '../../../../common/injects/expectations/Expectation';
 import { isManualExpectation } from '../../../../common/injects/expectations/ExpectationUtils';
 
@@ -14,34 +14,36 @@ export const groupedByAsset = (es: InjectExpectationsStore[]) => {
   }, new Map());
 };
 
-export const isAssetGroupExpectation = (injectExpectation: InjectExpectation) => {
+export const isAssetGroupExpectation = (injectExpectation: InjectExpectationOutput) => {
   return injectExpectation.inject_expectation_asset_group != null
     && injectExpectation.inject_expectation_asset == null
     && injectExpectation.inject_expectation_agent == null;
 };
 
-export const isAssetExpectation = (injectExpectation: InjectExpectation) => {
+export const isAssetExpectation = (injectExpectation: InjectExpectationOutput) => {
   return injectExpectation.inject_expectation_asset != null
     && injectExpectation.inject_expectation_agent == null;
 };
 
-export const isAgentExpectation = (injectExpectation: InjectExpectation) => {
+export const isAgentExpectation = (injectExpectation: InjectExpectationOutput) => {
   return injectExpectation.inject_expectation_agent != null;
 };
 
-export const isPlayerExpectation = (injectExpectation: InjectExpectation) => {
+export const isPlayerExpectation = (injectExpectation: InjectExpectationOutput) => {
   return injectExpectation.inject_expectation_user != null;
 };
 
-export const useIsManuallyUpdatable = (injectExpectation: InjectExpectation) => {
+export const useIsManuallyUpdatable = (injectExpectation: InjectExpectationOutput) => {
+  const expectationType = injectExpectation.inject_expectation_type;
+
   // Technical
-  if (['DETECTION', 'PREVENTION'].includes(injectExpectation.inject_expectation_type)) {
+  if (expectationType && ['DETECTION', 'PREVENTION'].includes(expectationType)) {
     if (isAssetGroupExpectation(injectExpectation) || isAgentExpectation(injectExpectation)) return false;
 
     return true;
   }
   // Human
-  if (isManualExpectation(injectExpectation.inject_expectation_type)) {
+  if (expectationType && isManualExpectation(expectationType)) {
     if ((injectExpectation.inject_expectation_results?.length ?? 0) > 0) return false;
 
     return true;

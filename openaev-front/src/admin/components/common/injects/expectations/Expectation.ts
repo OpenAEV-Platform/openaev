@@ -1,6 +1,10 @@
-import { type InjectExpectation } from '../../../../../utils/api-types';
+import { type InjectExpectationOutput } from '../../../../../utils/api-types';
 
-export interface InjectExpectationsStore extends Omit<InjectExpectation, 'inject_expectation_team' | 'inject_expectation_user' | 'inject_expectation_article' | 'inject_expectation_challenge' | 'inject_expectation_asset'> {
+export interface InjectExpectationsStore extends Omit<InjectExpectationOutput, 'inject_expectation_team' | 'inject_expectation_user' | 'inject_expectation_article' | 'inject_expectation_challenge' | 'inject_expectation_asset'> {
+  inject_expectation_id: string;
+  inject_expectation_type: NonNullable<InjectExpectationOutput['inject_expectation_type']>;
+  inject_expectation_expected_score: number;
+  inject_expiration_time: number;
   inject_expectation_team: string | undefined;
   inject_expectation_user: string | undefined;
   inject_expectation_article: string | undefined;
