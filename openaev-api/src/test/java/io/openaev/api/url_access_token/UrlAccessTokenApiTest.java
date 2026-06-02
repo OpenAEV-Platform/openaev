@@ -129,8 +129,8 @@ public class UrlAccessTokenApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("Expired or revoked token should return 302 Found")
-    void given_expiredOrRevokedToken_should_return_302() throws Exception {
+    @DisplayName("Expired or revoked token should return 401 Unauthorized")
+    void given_expiredOrRevokedToken_should_return_401() throws Exception {
       // -- ARRANGE --
       doThrow(new AccessDeniedException("Invalid URL access token"))
           .when(urlAccessTokenService)
@@ -138,12 +138,12 @@ public class UrlAccessTokenApiTest extends IntegrationTest {
 
       // -- ACT & ASSERT --
       mvc.perform(get(URL_ACCESS_URI).param("token", INVALID_RAW_TOKEN))
-          .andExpect(status().is3xxRedirection());
+          .andExpect(status().isUnauthorized());
     }
 
     @Test
-    @DisplayName("Unknown token should return 302 Found")
-    void given_unknownToken_should_return_302() throws Exception {
+    @DisplayName("Unknown token should return 401 Unauthorized")
+    void given_unknownToken_should_return_401() throws Exception {
       // -- ARRANGE --
       doThrow(new AccessDeniedException("Invalid URL access token"))
           .when(urlAccessTokenService)
@@ -151,7 +151,7 @@ public class UrlAccessTokenApiTest extends IntegrationTest {
 
       // -- ACT & ASSERT --
       mvc.perform(get(URL_ACCESS_URI).param("token", "unknown-token"))
-          .andExpect(status().is3xxRedirection());
+          .andExpect(status().isUnauthorized());
     }
 
     @Test
