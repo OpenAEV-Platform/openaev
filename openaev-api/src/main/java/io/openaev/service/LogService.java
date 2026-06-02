@@ -8,6 +8,7 @@ import io.openaev.config.OpenAEVAnonymous;
 import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.config.SessionHelper;
 import io.openaev.config.ThreadPoolTaskLoggerConfig;
+import io.openaev.config.audit_log.AuditLogProperties;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.EventType;
@@ -31,7 +32,6 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
@@ -43,18 +43,12 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class LogService {
 
-  @Value("${openaev.audit-logs.service.enabled:false}")
-  private boolean auditLogsEnabled;
-
+  private final AuditLogProperties auditLogProperties;
   private final PreviewFeatureService previewFeatureService;
-
   private final AuditLogTransportDispatcherUtils auditLogTransportDispatcherUtils;
-
   private final ObjectNormalizationUtils objectNormalizationUtils;
   private final EngineService engineService;
-
   private final UserService userService;
-
   private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
 
@@ -65,7 +59,9 @@ public class LogService {
 
   public boolean isEnabled() {
     boolean isAuditConfigured =
-        auditLogsEnabled && previewFeatureService.isFeatureEnabled(PreviewFeature.AUDIT_LOG);
+        auditLogProperties.isEnabled()
+            && previewFeatureService.isFeatureEnabled(PreviewFeature.AUDIT_LOG);
+
     if (!isAuditConfigured) {
       return false;
     }

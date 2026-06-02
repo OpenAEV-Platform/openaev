@@ -13,7 +13,8 @@ import org.springframework.stereotype.Component;
 
 /** Audit log transport that writes events to the application console (stdout via SLF4J). */
 @Component
-@Order(1) // Ensure this runs first before file transport (priority 2) and engine transport (priority
+@Order(
+    1) // Ensure this runs first before file transport (priority 2) and engine transport (priority
 // 3)
 @RequiredArgsConstructor
 @Slf4j
