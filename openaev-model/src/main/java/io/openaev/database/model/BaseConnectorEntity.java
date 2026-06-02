@@ -15,14 +15,16 @@ import org.springframework.data.domain.Persistable;
  * <p>The DB primary key is composite {@code (id, tenant_id)} for multi-tenant isolation. JPA maps
  * both columns as {@code @Id} via {@code @IdClass(ConnectorEntityId.class)}.
  *
- * <p>Implements {@link Persistable} with a transient {@code newEntity} flag so that Spring Data JPA
- * correctly uses {@code persist()} for new entities and {@code merge()} for existing ones.
+ * <p>Implements {@link Persistable} with a transient {@code newEntity} flag defaulting to {@code
+ * false} so that Spring Data JPA uses {@code merge()} by default. Since connector entities have
+ * preset IDs, {@code merge()} correctly handles both INSERT (new) and UPDATE (existing) scenarios
+ * without requiring explicit {@code setNewEntity()} calls.
  */
 @Getter
 @Setter
 public abstract class BaseConnectorEntity implements Base, Persistable<String> {
 
-  @Transient @JsonIgnore private boolean newEntity = true;
+  @Transient @JsonIgnore private boolean newEntity = false;
 
   // -- Contract: subclasses must provide these fields --
 
@@ -39,8 +41,8 @@ public abstract class BaseConnectorEntity implements Base, Persistable<String> {
   public abstract void setExternal(boolean external);
 
   /**
-   * Returns {@code true} if this entity has not yet been persisted. Spring Data uses this to decide
-   * between {@code persist()} (INSERT) and {@code merge()} (SELECT + UPDATE).
+   * Returns {@code false} by default — Spring Data uses {@code merge()} which handles both INSERT
+   * and UPDATE. Set to {@code true} only if you need to force {@code persist()}.
    */
   @Override
   @Transient

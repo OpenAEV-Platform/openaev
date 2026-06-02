@@ -10,7 +10,6 @@ import static io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegra
 
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Executor;
-import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.ExecutorRepository;
 import java.util.Optional;
 import java.util.UUID;
@@ -27,7 +26,6 @@ public class ExecutorFixture {
     executor.setId(OPENAEV_EXECUTOR_ID);
     executor.setName(OPENAEV_EXECUTOR_NAME);
     executor.setBackgroundColor(OPENAEV_EXECUTOR_BACKGROUND_COLOR);
-    executor.setTenant(new Tenant(TenantContext.getCurrentTenant()));
     return executor;
   }
 
@@ -36,7 +34,6 @@ public class ExecutorFixture {
     executor.setType(executorName.toLowerCase().replace(" ", "-"));
     executor.setName(executorName);
     executor.setId(UUID.randomUUID().toString());
-    executor.setTenant(new Tenant(TenantContext.getCurrentTenant()));
     return executor;
   }
 
@@ -52,7 +49,6 @@ public class ExecutorFixture {
     executor.setType(CROWDSTRIKE_EXECUTOR_TYPE);
     executor.setName(CROWDSTRIKE_EXECUTOR_NAME);
     executor.setId(UUID.randomUUID().toString());
-    executor.setTenant(new Tenant(TenantContext.getCurrentTenant()));
     return executor;
   }
 
@@ -61,7 +57,6 @@ public class ExecutorFixture {
     executor.setType(TANIUM_EXECUTOR_TYPE);
     executor.setName(TANIUM_EXECUTOR_NAME);
     executor.setId(UUID.randomUUID().toString());
-    executor.setTenant(new Tenant(TenantContext.getCurrentTenant()));
     return executor;
   }
 
@@ -70,7 +65,6 @@ public class ExecutorFixture {
     executor.setType(SENTINELONE_EXECUTOR_TYPE);
     executor.setName(SENTINELONE_EXECUTOR_NAME);
     executor.setId(UUID.randomUUID().toString());
-    executor.setTenant(new Tenant(TenantContext.getCurrentTenant()));
     return executor;
   }
 

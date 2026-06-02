@@ -1,6 +1,5 @@
 package io.openaev.utils.fixtures.composers;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.CollectorType;
 import io.openaev.database.repository.CollectorRepository;
@@ -40,10 +39,6 @@ public class CollectorComposer extends ComposerBase<Collector> {
               .persist()
               .get();
       collector.setCollectorType(collectorType);
-      // If a collector with this ID already exists, mark as not new to trigger merge (UPDATE)
-      collectorRepository
-          .findByIdAndTenantId(collector.getId(), TenantContext.getCurrentTenant())
-          .ifPresent(existing -> collector.setNewEntity(false));
       collectorRepository.save(this.collector);
       return this;
     }
