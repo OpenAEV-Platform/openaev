@@ -1,16 +1,22 @@
 package io.openaev.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-import io.openaev.config.audit_log.AuditLogProperties;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.config.AuditLogProperties;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.database.model.ResourceType;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.engine.model.log.LogEvent;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.utils.HttpReqRespUtils;
 import io.openaev.utils.log.dispatcher.AuditLogTransportDispatcherUtils;
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.logging.Level;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -30,6 +36,8 @@ class LogServiceTest {
   @Mock private PreviewFeatureService previewFeatureService;
   @Mock private EnterpriseEditionService enterpriseEditionService;
   @Mock private LicenseCacheManager licenseCacheManager;
+
+  private final ObjectMapper objectMapper = new ObjectMapper();
 
   private LogService logService;
 
@@ -190,5 +198,36 @@ class LogServiceTest {
       assertFalse(result);
       verify(auditLogTransportDispatcherUtils).dispatch(any(LogEvent.class), any());
     }
+  }
+
+  @Test
+  @DisplayName("Given event with entity diffs, should include diffs in context")
+  void given_eventWithEntityDiffs_should_includeDiffs() {
+    // Arrange
+    when(previewFeatureService.isFeatureEnabled(PreviewFeature.AUDIT_LOG)).thenReturn(true);
+    when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
+    when(auditLogTransportDispatcherUtils.dispatch(any(LogEvent.class), any())).thenReturn(true);
+
+    ObjectNode entityDiffs = objectMapper.createObjectNode();
+    entityDiffs.put("entity_type", "Group");
+    entityDiffs.put("operation", "update");
+
+    // Act
+    boolean result =
+        logService.logRequestEvent(
+            "update",
+            "success",
+            ResourceType.USER_GROUP,
+            "group-id",
+            null,
+            null,
+            null,
+            entityDiffs,
+            Level.WARNING,
+            "uuid-8");
+
+    // Assert
+    assertThat(result).isTrue();
+    verify(auditLogTransportDispatcherUtils).dispatch(any(LogEvent.class), any());
   }
 }
