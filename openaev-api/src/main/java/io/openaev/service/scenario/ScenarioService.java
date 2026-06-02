@@ -486,9 +486,16 @@ public class ScenarioService {
     this.scenarioRepository.saveAll(scenarios);
   }
 
+  /** Validates that the scenario exists for the current tenant. Throws if not found. */
+  public void existsByIdAndTenantId(@NotBlank final String scenarioId) {
+    if (!this.scenarioRepository.existsByIdAndTenantId(
+        scenarioId, TenantContext.getCurrentTenant())) {
+      throw new ElementNotFoundException("Scenario not found");
+    }
+  }
+
   public void deleteScenario(@NotBlank final String scenarioId) {
-    // Verify scenario belongs to current tenant before deleting
-    scenario(scenarioId);
+    existsByIdAndTenantId(scenarioId);
     this.scenarioRepository.deleteById(scenarioId);
   }
 
