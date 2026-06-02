@@ -1,11 +1,11 @@
 package io.openaev.rest.exercise;
 
-import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 import static io.openaev.api.expectations.mapper.InjectExpectationMapper.toOutputs;
+import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 
-import io.openaev.api.expectations.dto.InjectExpectationOutput;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.api.expectations.dto.InjectExpectationOutput;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.helper.RestBehavior;
