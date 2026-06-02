@@ -934,4 +934,11 @@ public class EndpointService {
     }
     return Optional.empty();
   }
+
+  public Executor reFetchExecutor(Executor executor) {
+    return executorRepository
+        .findByIdAndTenantId(executor.getId(), executor.getTenant().getId())
+        .orElseThrow(
+            () -> new ElementNotFoundException("Executor not found with id: " + executor.getId()));
+  }
 }

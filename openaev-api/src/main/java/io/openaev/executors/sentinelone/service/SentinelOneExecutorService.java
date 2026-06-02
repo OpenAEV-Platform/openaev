@@ -55,6 +55,7 @@ public class SentinelOneExecutorService implements Runnable {
 
   @Override
   public void run() {
+    this.executor = this.endpointService.reFetchExecutor(this.executor);
     log.info("Running SentinelOne executor endpoints gathering...");
     Set<SentinelOneAgent> sentinelOneAgents = this.client.agents();
     if (!sentinelOneAgents.isEmpty()) {

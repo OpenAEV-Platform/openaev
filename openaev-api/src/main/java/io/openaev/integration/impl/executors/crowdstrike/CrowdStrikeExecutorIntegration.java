@@ -32,6 +32,8 @@ import java.util.List;
 import java.util.concurrent.ScheduledFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Slf4j
 public class CrowdStrikeExecutorIntegration extends Integration {
@@ -142,13 +144,20 @@ public class CrowdStrikeExecutorIntegration extends Integration {
         new CrowdStrikeGarbageCollectorService(
             config, crowdStrikeExecutorContextService, agentService, executorId);
 
-    timers.add(
-        taskScheduler.scheduleAtFixedRate(
-            crowdStrikeExecutorService, Duration.ofSeconds(this.config.getApiRegisterInterval())));
-    timers.add(
-        taskScheduler.scheduleAtFixedRate(
-            crowdStrikeGarbageCollectorService,
-            Duration.ofHours(this.config.getCleanImplantInterval())));
+    TransactionSynchronizationManager.registerSynchronization(
+        new TransactionSynchronization() {
+          @Override
+          public void afterCommit() {
+            timers.add(
+                taskScheduler.scheduleAtFixedRate(
+                    crowdStrikeExecutorService,
+                    Duration.ofSeconds(config.getApiRegisterInterval())));
+            timers.add(
+                taskScheduler.scheduleAtFixedRate(
+                    crowdStrikeGarbageCollectorService,
+                    Duration.ofHours(config.getCleanImplantInterval())));
+          }
+        });
   }
 
   @Override

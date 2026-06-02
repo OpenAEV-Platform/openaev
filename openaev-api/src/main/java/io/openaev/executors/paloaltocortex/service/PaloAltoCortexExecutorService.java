@@ -53,6 +53,7 @@ public class PaloAltoCortexExecutorService implements Runnable {
 
   @Override
   public void run() {
+    this.executor = this.endpointService.reFetchExecutor(this.executor);
     log.info("Running Palo Alto Cortex executor endpoints gathering...");
     List<String> groupNames = Stream.of(this.config.getGroupName().split(",")).distinct().toList();
     for (String groupName : groupNames) {

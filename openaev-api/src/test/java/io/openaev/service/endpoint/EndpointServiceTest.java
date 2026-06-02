@@ -7,10 +7,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.openaev.context.TenantContext;
-import io.openaev.database.model.Agent;
-import io.openaev.database.model.AssetAgentJob;
-import io.openaev.database.model.Endpoint;
-import io.openaev.database.model.Tag;
+import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.rest.asset.endpoint.form.EndpointOutput;
@@ -574,6 +571,65 @@ class EndpointServiceTest {
       // -------- Assert --------
       assertEquals(1, result.size());
       assertEquals("ep-2", result.getFirst().getId());
+    }
+  }
+
+  @Nested
+  @DisplayName("reFetchExecutor - Detached executor re-attachment")
+  class ReFetchExecutor {
+
+    @Test
+    @DisplayName(
+        "Given a detached executor, reFetchExecutor should return a different (managed) instance from the repository")
+    void given_detachedExecutor_should_returnManagedInstanceFromRepository() {
+      // -------- Arrange --------
+      // Simulate a detached executor (object stored in memory after transaction closed)
+      Executor detachedExecutor = new Executor();
+      detachedExecutor.setId("exec-001");
+      detachedExecutor.setType("openaev_paloaltocortex_executor");
+      detachedExecutor.setName("PaloAltoCortex");
+      Tenant tenant = new Tenant("tenant-1");
+      detachedExecutor.setTenant(tenant);
+
+      // The managed executor returned by the repository (different object reference)
+      Executor managedExecutor = new Executor();
+      managedExecutor.setId("exec-001");
+      managedExecutor.setType("openaev_paloaltocortex_executor");
+      managedExecutor.setName("PaloAltoCortex");
+      managedExecutor.setTenant(tenant);
+
+      when(executorRepository.findByIdAndTenantId("exec-001", "tenant-1"))
+          .thenReturn(Optional.of(managedExecutor));
+
+      // -------- Act --------
+      Executor result = endpointService.reFetchExecutor(detachedExecutor);
+
+      // -------- Assert --------
+      assertThat(result)
+          .as("reFetchExecutor should return the managed instance from the repository")
+          .isNotNull()
+          .isSameAs(managedExecutor)
+          .isNotSameAs(detachedExecutor);
+      verify(executorRepository).findByIdAndTenantId("exec-001", "tenant-1");
+    }
+
+    @Test
+    @DisplayName(
+        "Given executor not found in DB, reFetchExecutor should throw ElementNotFoundException")
+    void given_executorNotInDb_should_throwElementNotFoundException() {
+      // -------- Arrange --------
+      Executor detachedExecutor = new Executor();
+      detachedExecutor.setId("exec-missing");
+      detachedExecutor.setType("openaev_paloaltocortex_executor");
+      detachedExecutor.setName("PaloAltoCortex");
+      detachedExecutor.setTenant(new Tenant("tenant-1"));
+
+      when(executorRepository.findByIdAndTenantId("exec-missing", "tenant-1"))
+          .thenReturn(Optional.empty());
+
+      // -------- Act / Assert --------
+      assertThrows(
+          ElementNotFoundException.class, () -> endpointService.reFetchExecutor(detachedExecutor));
     }
   }
 }

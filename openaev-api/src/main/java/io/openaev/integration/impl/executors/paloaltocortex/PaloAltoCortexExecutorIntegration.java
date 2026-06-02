@@ -32,6 +32,8 @@ import java.util.List;
 import java.util.concurrent.ScheduledFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Slf4j
 public class PaloAltoCortexExecutorIntegration extends Integration {
@@ -140,14 +142,20 @@ public class PaloAltoCortexExecutorIntegration extends Integration {
         new PaloAltoCortexGarbageCollectorService(
             config, paloAltoCortexExecutorContextService, agentService, executorId);
 
-    timers.add(
-        taskScheduler.scheduleAtFixedRate(
-            paloAltoCortexExecutorService,
-            Duration.ofSeconds(this.config.getApiRegisterInterval())));
-    timers.add(
-        taskScheduler.scheduleAtFixedRate(
-            paloAltoCortexGarbageCollectorService,
-            Duration.ofHours(this.config.getCleanImplantInterval())));
+    TransactionSynchronizationManager.registerSynchronization(
+        new TransactionSynchronization() {
+          @Override
+          public void afterCommit() {
+            timers.add(
+                taskScheduler.scheduleAtFixedRate(
+                    paloAltoCortexExecutorService,
+                    Duration.ofSeconds(config.getApiRegisterInterval())));
+            timers.add(
+                taskScheduler.scheduleAtFixedRate(
+                    paloAltoCortexGarbageCollectorService,
+                    Duration.ofHours(config.getCleanImplantInterval())));
+          }
+        });
   }
 
   @Override

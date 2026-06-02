@@ -64,6 +64,7 @@ public class CrowdStrikeExecutorService implements Runnable {
 
   @Override
   public void run() {
+    this.executor = this.endpointService.reFetchExecutor(this.executor);
     try {
       log.info(
           "Running CrowdStrike executor endpoints gathering... executorId={}, hostGroup={}",

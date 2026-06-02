@@ -63,6 +63,7 @@ public class TaniumExecutorService implements Runnable {
 
   @Override
   public void run() {
+    this.executor = this.endpointService.reFetchExecutor(this.executor);
     log.info("Running Tanium executor endpoints gathering...");
     List<String> computerGroupIds =
         Stream.of(this.config.getComputerGroupId().split(",")).distinct().toList();

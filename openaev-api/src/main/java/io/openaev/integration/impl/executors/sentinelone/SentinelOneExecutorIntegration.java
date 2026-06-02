@@ -21,6 +21,7 @@ import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.QualifiedComponent;
 import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
@@ -32,6 +33,8 @@ import java.util.List;
 import java.util.concurrent.ScheduledFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Slf4j
 public class SentinelOneExecutorIntegration extends Integration {
@@ -140,13 +143,26 @@ public class SentinelOneExecutorIntegration extends Integration {
         new SentinelOneGarbageCollectorService(
             config, sentinelOneExecutorContextService, agentService, executorId);
 
-    timers.add(
-        taskScheduler.scheduleAtFixedRate(
-            sentinelOneExecutorService, Duration.ofSeconds(this.config.getApiRegisterInterval())));
-    timers.add(
-        taskScheduler.scheduleAtFixedRate(
-            sentinelOneGarbageCollectorService,
-            Duration.ofHours(this.config.getCleanImplantInterval())));
+    TransactionSynchronizationManager.registerSynchronization(
+        new TransactionSynchronization() {
+          @Override
+          public void afterCommit() {
+            try {
+              executorService.executor(executor.getId());
+              System.out.println("Executor found after commit, scheduling will be launched");
+            } catch (ElementNotFoundException e) {
+              System.out.println("Executor not found after commit, scheduling will be skipped");
+            }
+            timers.add(
+                taskScheduler.scheduleAtFixedRate(
+                    sentinelOneExecutorService,
+                    Duration.ofSeconds(config.getApiRegisterInterval())));
+            timers.add(
+                taskScheduler.scheduleAtFixedRate(
+                    sentinelOneGarbageCollectorService,
+                    Duration.ofHours(config.getCleanImplantInterval())));
+          }
+        });
   }
 
   @Override
