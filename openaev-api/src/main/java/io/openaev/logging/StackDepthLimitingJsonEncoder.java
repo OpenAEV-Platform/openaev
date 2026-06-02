@@ -31,7 +31,7 @@ import org.slf4j.event.KeyValuePair;
  * <pre>{@code
  * <encoder class="io.openaev.logging.StackDepthLimitingJsonEncoder">
  *     <withThrowable>true</withThrowable>
- *     <maxStackDepth>30</maxStackDepth>
+ *     <maxStackDepth>80</maxStackDepth>
  * </encoder>
  * }</pre>
  */
