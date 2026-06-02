@@ -65,8 +65,7 @@ public class UrlAccessTokenApi {
           .header(HttpHeaders.LOCATION, token.getUrl())
           .build();
     } catch (AccessDeniedException exception) {
-      return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-          .build();
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
   }
 
